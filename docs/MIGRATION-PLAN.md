@@ -26,7 +26,7 @@
 - **Monorepo folder:** `D:/AI-Projects/myk9-platform`
 - **CSS approach:** Tailwind + Base UI via shadcn/ui (preserving myK9Q design tokens)
 - **myK9Q CSS:** Keeps existing semantic CSS (no changes)
-- **Database:** Eventually consolidated to single Supabase project
+- **Database:** NEW Supabase project for monorepo (original projects remain untouched until cutover)
 - **Timeline:** Quality over speed
 
 ---
@@ -276,34 +276,56 @@
 
 ## Phase 5: Database Consolidation (3-4 weeks)
 
-### 5.1 Schema Analysis
+> **CRITICAL:** Create a NEW Supabase project for the monorepo. Do NOT modify the production myK9Q database until fully validated.
+
+### 5.1 Create New Supabase Project
+- [ ] Create new Supabase project: `myk9-platform` (or similar)
+- [ ] This becomes the unified database for both monorepo apps
+- [ ] Original myK9Q Supabase project remains UNTOUCHED (production fallback)
+- [ ] Original myK9Show Supabase project remains available during transition
+
+### 5.2 Schema Analysis & Design
 - [ ] Document myK9Q schema (86 migrations)
 - [ ] Document myK9Show schema
 - [ ] Identify overlapping tables
 - [ ] Identify unique tables per app
-- [ ] Design unified schema
+- [ ] Design unified schema for new project
 
-### 5.2 Shared Tables Migration
+### 5.3 Build Unified Schema (in NEW project)
 - [ ] Create `dogs` table (shared)
 - [ ] Create `people` table (shared, for handlers/owners)
 - [ ] Create `clubs` table (shared)
-- [ ] Add foreign keys to existing tables:
-  - [ ] `entries.dog_id` → `dogs.id`
-  - [ ] `entries.handler_id` → `people.id`
+- [ ] Create all myK9Q-specific tables
+- [ ] Create all myK9Show-specific tables
+- [ ] Add foreign keys and relationships
 - [ ] Keep denormalized fields for backward compatibility
 
-### 5.3 RLS Policies
-- [ ] Update RLS for multi-app access
+### 5.4 RLS Policies (in NEW project)
+- [ ] Configure RLS for multi-app access
 - [ ] Shared tables readable by both apps
 - [ ] App-specific write permissions
-- [ ] Test access patterns
+- [ ] Test access patterns thoroughly
 
-### 5.4 Data Migration
-- [ ] Migrate myK9Show to use myK9Q's Supabase project
-- [ ] Update environment variables
-- [ ] Run data migration scripts
+### 5.5 Connect Monorepo Apps to New Project
+- [ ] Update `@myk9/show` environment variables to use new project
+- [ ] Update `@myk9/q` environment variables to use new project
+- [ ] Test both apps work correctly with new database
+- [ ] Run all E2E tests against new project
+
+### 5.6 Data Migration (only after full validation)
+- [ ] Export data from original myK9Q Supabase project
+- [ ] Export data from original myK9Show Supabase project
+- [ ] Import/merge data into new unified project
 - [ ] Verify data integrity
-- [ ] Decommission old myK9Show Supabase project
+- [ ] Run comparison tests (old vs new)
+
+### 5.7 Production Cutover (separate from code migration)
+- [ ] Schedule maintenance window
+- [ ] Final data sync from production
+- [ ] Update production DNS/config to point to new project
+- [ ] Verify production works
+- [ ] Keep old projects as backup for 30+ days
+- [ ] Only decommission old projects after extended validation period
 
 ---
 
@@ -415,6 +437,7 @@
 - **Package Manager:** pnpm for workspace support and speed
 - **Build Tool:** Turborepo for caching and parallel builds
 - **myK9Q stays untouched** until Phase 4 (after myK9Show is stable in monorepo)
+- **Database strategy:** Create NEW Supabase project for monorepo - never modify production myK9Q database during development. Original projects stay as fallback until full validation complete.
 
 ### Base UI Migration Patterns (Phase 2.3)
 

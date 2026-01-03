@@ -1,41 +1,60 @@
 import React from 'react'
-import * as CollapsiblePrimitive from '@radix-ui/react-collapsible'
+import { Collapsible as CollapsiblePrimitive } from '@base-ui/react/collapsible'
 import { cn } from '@/lib/utils'
 
 const Collapsible = CollapsiblePrimitive.Root
 
+interface CollapsibleTriggerProps extends React.ComponentPropsWithoutRef<typeof CollapsiblePrimitive.Trigger> {
+  asChild?: boolean
+}
+
 const CollapsibleTrigger = React.forwardRef<
   React.ElementRef<typeof CollapsiblePrimitive.Trigger>,
-  React.ComponentPropsWithoutRef<typeof CollapsiblePrimitive.Trigger>
->(({ className, children, ...props }, ref) => (
-  <CollapsiblePrimitive.Trigger
-    ref={ref}
-    className={cn(
-      "flex w-full items-center justify-between py-4 font-medium transition-all hover:underline [&[data-state=open]>svg]:rotate-180",
-      className
-    )}
-    {...props}
-  >
-    {children}
-  </CollapsiblePrimitive.Trigger>
-))
-CollapsibleTrigger.displayName = CollapsiblePrimitive.Trigger.displayName
+  CollapsibleTriggerProps
+>(({ className, children, asChild, ...props }, ref) => {
+  if (asChild && React.isValidElement(children)) {
+    return (
+      <CollapsiblePrimitive.Trigger
+        ref={ref}
+        render={children}
+        className={cn(
+          "flex w-full items-center justify-between py-4 font-medium transition-all hover:underline [&[data-open]>svg]:rotate-180",
+          className
+        )}
+        {...props}
+      />
+    )
+  }
+  return (
+    <CollapsiblePrimitive.Trigger
+      ref={ref}
+      className={cn(
+        "flex w-full items-center justify-between py-4 font-medium transition-all hover:underline [&[data-open]>svg]:rotate-180",
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </CollapsiblePrimitive.Trigger>
+  )
+})
+CollapsibleTrigger.displayName = "CollapsibleTrigger"
 
 const CollapsibleContent = React.forwardRef<
-  React.ElementRef<typeof CollapsiblePrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof CollapsiblePrimitive.Content>
+  React.ElementRef<typeof CollapsiblePrimitive.Panel>,
+  React.ComponentPropsWithoutRef<typeof CollapsiblePrimitive.Panel>
 >(({ className, children, ...props }, ref) => (
-  <CollapsiblePrimitive.Content
+  <CollapsiblePrimitive.Panel
     ref={ref}
     className={cn(
-      "overflow-hidden text-sm transition-all data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down",
+      "overflow-hidden text-sm transition-all data-[closed]:animate-collapsible-up data-[open]:animate-collapsible-down",
       className
     )}
     {...props}
   >
     <div className="pb-4 pt-0">{children}</div>
-  </CollapsiblePrimitive.Content>
+  </CollapsiblePrimitive.Panel>
 ))
-CollapsibleContent.displayName = CollapsiblePrimitive.Content.displayName
+CollapsibleContent.displayName = "CollapsibleContent"
 
 export { Collapsible, CollapsibleTrigger, CollapsibleContent }

@@ -1,5 +1,5 @@
 import * as React from "react"
-import { Slot } from "@radix-ui/react-slot"
+import { useRender } from "@base-ui/react/use-render"
 import { type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
@@ -8,19 +8,32 @@ import { buttonVariants } from "./buttonVariants"
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
+  /**
+   * Override the rendered element with a custom one.
+   * @example <Button render={<a href="/contact" />}>Contact</Button>
+   */
+  render?: React.ReactElement | ((props: React.ComponentProps<'button'>) => React.ReactElement)
+  /**
+   * Radix compatibility: render as child element
+   */
   asChild?: boolean
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
-    const Comp = asChild ? Slot : "button"
-    return (
-      <Comp
-        className={cn(buttonVariants({ variant, size, className }))}
-        ref={ref}
-        {...props}
-      />
-    )
+  ({ className, variant, size, render, asChild, children, ...props }, ref) => {
+    // Support asChild by converting to render prop
+    const actualRender = asChild && React.isValidElement(children) ? children : render
+
+    return useRender({
+      render: actualRender,
+      defaultTagName: 'button',
+      props: {
+        ...props,
+        children: asChild ? undefined : children,
+        className: cn(buttonVariants({ variant, size, className })),
+      },
+      ref,
+    })
   }
 )
 Button.displayName = "Button"

@@ -207,6 +207,14 @@
 
 ## Phase 3: Shared UI Components (2 weeks)
 
+### 3.0 Technical Debt (from Phase 2)
+- [ ] Resolve templateStore circular dependency
+  - Likely stores importing each other
+  - Fix: Extract shared types to separate module, or use lazy imports
+- [ ] Re-enable TypeScript strict mode incrementally
+  - Fix `never[]` array type annotations
+  - Remove files from tsconfig.app.json exclude list
+
 ### 3.1 @myk9/ui Package Setup
 - [ ] Create `packages/ui/package.json`
 - [ ] Install Tailwind CSS and Base UI (via shadcn/ui)

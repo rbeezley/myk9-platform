@@ -1,0 +1,83 @@
+/**
+ * @myk9/replication
+ *
+ * Offline-first replication system for the myK9 Platform.
+ *
+ * This package provides:
+ * - Core types for replication (ReplicatedRow, SyncMetadata, PendingMutation, etc.)
+ * - Constants for timing and configuration
+ * - Base classes for implementing replicated tables (coming in Phase 1.3)
+ *
+ * Note: The full ReplicatedTable implementation will be migrated from myK9Q
+ * in Phase 1.3 of the monorepo migration.
+ */
+
+// Types
+export type {
+  ReplicatedRow,
+  SyncStatus,
+  SyncMetadata,
+  PendingMutation,
+  MutationOperation,
+  MutationStatus,
+  SyncResult,
+  SyncOperation,
+  SyncOptions,
+  PerformanceReport,
+  SyncProgress,
+  SyncFailure,
+  ConflictStrategy,
+  TableFilter,
+  QueryOptions,
+  CacheStats,
+} from './types';
+
+// Constants
+export {
+  // Database
+  DB_NAME,
+  DB_VERSION,
+  TOTAL_REPLICATED_TABLES,
+  // TTL
+  DEFAULT_TTL_MS,
+  SHOW_TTL_MS,
+  TRIAL_TTL_MS,
+  ENTRY_TTL_MS,
+  RESULT_TTL_MS,
+  // Query Performance
+  QUERY_TIMEOUT_MS,
+  SLOW_QUERY_THRESHOLD_MS,
+  // Batch Operations
+  DEFAULT_CHUNK_SIZE,
+  MAX_CHUNK_SIZE,
+  // Sync Engine
+  SYNC_INTERVAL_MS,
+  SYNC_BACKOFF_MULTIPLIER,
+  MAX_SYNC_BACKOFF_MS,
+  INITIAL_SYNC_BACKOFF_MS,
+  MAX_SYNC_RETRIES,
+  // Conflict Resolution
+  TIMESTAMP_PRECISION_TOLERANCE_MS,
+  MAX_CONFLICT_AGE_MS,
+  // Prefetch
+  PREFETCH_FRESH_WINDOW_MS,
+  PREFETCH_START_DELAY_MS,
+  PREFETCH_BATCH_INTERVAL_MS,
+  // Debouncing
+  NOTIFY_DEBOUNCE_MS,
+  DIRTY_ROW_DEBOUNCE_MS,
+  // Initialization
+  TABLE_INIT_QUEUE_DELAY_MS,
+  DB_INIT_TIMEOUT_MS,
+  INIT_RETRY_DELAY_MS,
+  // Replication Manager
+  SUBSCRIPTION_HEALTH_CHECK_INTERVAL_MS,
+  SUBSCRIPTION_INIT_TIMEOUT_MS,
+  MAX_CONCURRENT_SUBSCRIPTIONS,
+  // Optimistic Updates
+  MAX_OPTIMISTIC_UPDATE_RETRIES,
+  OPTIMISTIC_UPDATE_BACKOFF_BASE_MS,
+  // Transaction
+  MAX_TRANSACTION_DURATION_MS,
+  TRANSACTION_ABORT_DELAY_MS,
+} from './constants';

@@ -74,7 +74,7 @@ await replicatedClassesTable.updateClassStatus(classId, status);
 
 ## Migration Status
 
-See `C:\Users\Richard\.claude\plans\abundant-stargazing-rose.md` for detailed implementation plan.
+See [docs/MIGRATION-PLAN.md](docs/MIGRATION-PLAN.md) for detailed implementation plan.
 
 - [x] Phase 0: Foundation & Tooling
 - [ ] Phase 1: Shared Packages Foundation (@myk9/core, @myk9/supabase, @myk9/replication)

@@ -1,0 +1,41 @@
+{
+  "name": "@myk9/replication",
+  "version": "0.0.1",
+  "description": "Offline-first replication system for myK9 Platform",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts",
+    "dev": "tsup src/index.ts --format esm --dts --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "idb": "^8.0.0"
+  },
+  "devDependencies": {
+    "@myk9/core": "workspace:*",
+    "@myk9/supabase": "workspace:*",
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.0",
+    "rimraf": "^5.0.0"
+  },
+  "peerDependencies": {
+    "@supabase/supabase-js": ">=2.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

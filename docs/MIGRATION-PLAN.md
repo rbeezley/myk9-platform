@@ -247,12 +247,12 @@
 - [x] Input component (Apple-inspired styling)
 - [ ] Form components - deferred (can add Label, Checkbox, Select as needed)
 
-### 3.3 Extract Domain Components
-- [ ] StatusBadge (class status display)
-- [ ] EntryCard (entry display)
-- [ ] ClassCard (class display)
-- [ ] TimerDisplay (timer UI)
-- [ ] PageLayout (standard page wrapper)
+### 3.3 Extract Domain Components ✅ COMPLETE
+- [x] StatusBadge (generic variant-based status badge with CVA)
+- [ ] EntryCard - NOT EXTRACTED (different implementations per app: myK9Q uses entry-list focus, myK9Show uses profile focus)
+- [ ] ClassCard - NOT EXTRACTED (too app-specific, 445 lines of myK9Q logic)
+- [x] TimerDisplay (scoresheet timer with progress ring, warnings, controls)
+- [x] PageLayout (entity page wrapper with title, subtitle, actions)
 
 ### 3.4 Update Apps to Use @myk9/ui ✅ COMPLETE
 - [x] Add @myk9/ui as workspace dependency to myK9Show

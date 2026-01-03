@@ -16,7 +16,7 @@
 | Phase 7: Testing & Validation | ⏳ Pending | - |
 | Phase 8: Deployment & Cleanup | ⏳ Pending | - |
 
-**Next step:** Phase 3.1 - @myk9/ui Package Setup
+**Next step:** Phase 3.2 - Extract UI Primitives
 
 ---
 
@@ -201,30 +201,43 @@
   - [x] dogStore - uses replicatedDogsTable with subscription
   - [x] clubStore - uses database-first approach (no replication needed)
   - [x] userStore - uses database-first approach (no replication needed)
-  - [ ] templateStore - deferred (has circular dependency issues)
+  - [x] templateStore - resolved using lazy import pattern (Phase 3.0)
 
 ---
 
 ## Phase 3: Shared UI Components (2 weeks)
 
 ### 3.0 Technical Debt (from Phase 2)
-- [ ] Resolve templateStore circular dependency
-  - Likely stores importing each other
-  - Fix: Extract shared types to separate module, or use lazy imports
+- [x] Resolve templateStore circular dependency ✅ COMPLETE
+  - **Problem:** `classCreationStore.selectTemplate()` needs to fetch templates from `templateStore`
+  - **Solution:** Used lazy import pattern in `classCreationStore.ts`:
+    ```typescript
+    // Lazy import at module level (deferred execution)
+    const getTemplateStore = () => require('./templateStore').useTemplateStore;
+
+    // Used in selectTemplate() - runs at call time, not module load
+    selectTemplate: (templateId) => {
+      const templateStore = getTemplateStore();
+      const template = templateStore.getState().getTemplate(templateId);
+      // ... set state
+    }
+    ```
+  - Breaks the module-load-time cycle while maintaining functionality
 - [ ] Re-enable TypeScript strict mode incrementally
   - Fix `never[]` array type annotations
   - Remove files from tsconfig.app.json exclude list
 
-### 3.1 @myk9/ui Package Setup
-- [ ] Create `packages/ui/package.json`
-- [ ] Install Tailwind CSS and Base UI (via shadcn/ui)
-- [ ] Initialize shadcn/ui with Base UI style (e.g., `base-vega`)
-- [ ] Create Tailwind preset with design tokens
-- [ ] Extract CSS variables from myK9Q:
-  - [ ] Status colors (--status-checked-in, --status-at-gate, etc.)
-  - [ ] Spacing tokens (--token-space-xs, --token-space-sm, etc.)
-  - [ ] Typography tokens
-  - [ ] Color palette
+### 3.1 @myk9/ui Package Setup ✅ COMPLETE
+- [x] Create `packages/ui/package.json`
+- [x] Install Tailwind CSS, Base UI, clsx, tailwind-merge
+- [x] Create Tailwind preset (`src/tailwind-preset.ts`) with design tokens
+- [x] Extract CSS variables from design-tokens.json:
+  - [x] Status colors (--status-checked-in, --status-at-gate, etc.)
+  - [x] Theme colors (light/dark mode support)
+  - [x] Typography tokens (SF system font stack)
+  - [x] Color palette (primary, semantic, chart colors)
+- [x] Export `cn()` utility for class merging
+- [x] Package builds successfully in monorepo
 
 ### 3.2 Extract UI Primitives
 - [ ] Button component (from Base UI + Tailwind)

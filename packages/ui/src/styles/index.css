@@ -1,0 +1,155 @@
+/**
+ * myK9 Platform Design Tokens
+ *
+ * CSS Variables for consistent theming across all myK9 apps.
+ * These values come from the design-tokens.json specification.
+ */
+
+:root {
+  /* Base radius */
+  --radius: 0.75rem;
+
+  /* Light theme (default) */
+  --background: hsl(210 40% 98%);
+  --background-alt: hsl(210 40% 96%);
+  --foreground: hsl(222.2 47.4% 11.2%);
+
+  --card: #ffffff;
+  --card-secondary: hsl(210 40% 96.1%);
+  --card-foreground: hsl(222.2 47.4% 11.2%);
+
+  --popover: #ffffff;
+  --popover-foreground: hsl(222.2 47.4% 11.2%);
+
+  --primary: #2563eb;
+  --primary-foreground: hsl(210 40% 98%);
+
+  --secondary: hsl(220 14.3% 95.9%);
+  --secondary-foreground: hsl(220.9 39.3% 11%);
+
+  --muted: hsl(210 40% 96.1%);
+  --muted-foreground: hsl(215.4 16.3% 46.9%);
+
+  --accent: hsl(210 40% 96.1%);
+  --accent-foreground: hsl(222.2 47.4% 11.2%);
+
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+
+  --border: #e5e7eb;
+  --input: hsl(214.3 31.8% 91.4%);
+  --ring: #2563eb;
+
+  /* Chart colors */
+  --chart-1: #2563eb;
+  --chart-2: #7c3aed;
+  --chart-3: #059669;
+  --chart-4: #d97706;
+  --chart-5: #dc2626;
+
+  /* Status colors */
+  --status-pending-bg: rgba(255, 149, 0, 0.1);
+  --status-pending-color: #FF9500;
+  --status-pending-border: rgba(255, 149, 0, 0.2);
+
+  --status-approved-bg: rgba(52, 199, 89, 0.1);
+  --status-approved-color: #34C759;
+  --status-approved-border: rgba(52, 199, 89, 0.2);
+
+  --status-rejected-bg: rgba(255, 59, 48, 0.1);
+  --status-rejected-color: #FF3B30;
+  --status-rejected-border: rgba(255, 59, 48, 0.2);
+
+  --status-draft-bg: rgba(142, 142, 147, 0.1);
+  --status-draft-color: #8E8E93;
+  --status-draft-border: rgba(142, 142, 147, 0.2);
+
+  /* myK9Q specific status colors */
+  --status-checked-in: #34C759;
+  --status-at-gate: #FF9500;
+  --status-in-ring: #007AFF;
+  --status-scored: #5856D6;
+}
+
+/* Dark theme */
+.dark {
+  --background: #1a1d23;
+  --background-alt: #22262e;
+  --foreground: #f8fafc;
+
+  --card: #1f2229;
+  --card-secondary: #2a2d35;
+  --card-foreground: #f8fafc;
+
+  --popover: #1f2229;
+  --popover-foreground: #f8fafc;
+
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+
+  --secondary: #2a2d35;
+  --secondary-foreground: #f8fafc;
+
+  --muted: #2a2d35;
+  --muted-foreground: #9ca3af;
+
+  --accent: #2a2d35;
+  --accent-foreground: #f8fafc;
+
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+
+  --border: #374151;
+  --input: #2a2d35;
+  --ring: #3b82f6;
+}
+
+/* Base styles */
+* {
+  border-color: var(--border);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+}
+
+/* Focus ring utility */
+.focus-ring {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Skeleton loader animation */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--muted) 25%,
+    var(--muted-foreground) 50%,
+    var(--muted) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

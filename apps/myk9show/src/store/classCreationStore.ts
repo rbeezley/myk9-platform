@@ -6,8 +6,9 @@ import {
   ClassSelectionItem, 
   CreatedClass
 } from '@/types/template.types';
-// Remove direct import to avoid circular dependency
-// import { useTemplateStore } from './templateStore';
+// Lazy import to avoid circular dependency - imported at runtime, not module load time
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const getTemplateStore = () => require('./templateStore').useTemplateStore;
 
 interface ClassCreationStore {
   // Selection state
@@ -78,17 +79,31 @@ export const useClassCreationStore = create<ClassCreationStore>()(
 
   // Select template and initialize class list
   selectTemplate: (templateId) => {
-    // Get template from templateStore without direct import
-    // This will be handled by the component that uses this store
-    set(state => ({
-      ...state,
-      selectedTemplateId: templateId,
-      // Template will be set by the calling component
-      selectedTemplate: null,
-      selectedClasses: [],
+    // Use lazy import to avoid circular dependency at module load time
+    const templateStore = getTemplateStore();
+    const template = templateStore.getState().getTemplate(templateId);
+
+    if (!template) {
+      set({ selectedTemplateId: templateId, selectedTemplate: null });
+      return;
+    }
+
+    // Initialize selection items for all classes
+    const selectionItems: ClassSelectionItem[] = template.classDefinitions.map(classDef => ({
+      classDefinition: classDef,
+      selected: false,
       fieldOverrides: {},
-      validationErrors: {}
+      validationErrors: []
     }));
+
+    set({
+      selectedTemplateId: templateId,
+      selectedTemplate: template,
+      selectedClasses: selectionItems,
+      fieldOverrides: {},
+      validationErrors: {},
+      currentStep: 1
+    });
   },
 
   // New method to set template data (called by components)

@@ -317,26 +317,30 @@
 - [x] Document myK9Show schema (56 migrations) - see [SCHEMA-ANALYSIS.md](SCHEMA-ANALYSIS.md)
 - [x] Identify overlapping tables (dogs, shows, trials, classes, entries, user_preferences)
 - [x] Identify unique tables per app
-- [ ] Design unified schema for new project
+- [x] Design unified schema for new project - see `supabase/migrations/`
 
-### 5.3 Build Unified Schema (in NEW project)
-- [ ] Create `dogs` table (shared)
-- [ ] Create `people` table (shared, for handlers/owners)
-- [ ] Create `clubs` table (shared)
-- [ ] Create all myK9Q-specific tables
-- [ ] Create all myK9Show-specific tables
-- [ ] Add foreign keys and relationships
-- [ ] Keep denormalized fields for backward compatibility
+### 5.3 Build Unified Schema (in NEW project) - Migrations Ready
+- [x] Create `dogs` table (shared) - 001_core_entities.sql
+- [x] Create `people` table (shared) - 001_core_entities.sql
+- [x] Create `clubs` table (shared) - 001_core_entities.sql
+- [x] Create `shows`, `trials`, `classes` - 002_shows_and_events.sql
+- [x] Create `entries` with merged scoring - 003_entries_and_scoring.sql
+- [x] Create all myK9Q-specific tables - 004_myk9q_specific.sql
+- [x] Create all myK9Show-specific tables - 005_myk9show_specific.sql
+- [x] Add foreign keys and relationships
+- [x] Keep denormalized fields for backward compatibility
+- [ ] **Apply migrations to new Supabase project**
 
-### 5.4 RLS Policies (in NEW project)
-- [ ] Configure RLS for multi-app access
-- [ ] Shared tables readable by both apps
-- [ ] App-specific write permissions
+### 5.4 RLS Policies (in NEW project) - Migrations Ready
+- [x] Configure RLS for multi-app access - 006_rls_policies.sql
+- [x] Shared tables readable by both apps
+- [x] Authenticated write access
+- [ ] **Apply RLS policies to new project**
 - [ ] Test access patterns thoroughly
 
-### 5.5 Connect Monorepo Apps to New Project
-- [ ] Update `@myk9/show` environment variables to use new project
-- [ ] Update `@myk9/q` environment variables to use new project
+### 5.5 Connect Monorepo Apps to New Project ✅ COMPLETE
+- [x] Update `@myk9/show` environment variables to use new project
+- [x] Update `@myk9/q` environment variables to use new project
 - [ ] Test both apps work correctly with new database
 - [ ] Run all E2E tests against new project
 

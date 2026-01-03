@@ -88,6 +88,7 @@
     "@base-ui/react": "^1.0.0",
     "@myk9/core": "workspace:*",
     "@myk9/replication": "workspace:*",
+    "@myk9/scoring": "workspace:*",
     "@myk9/supabase": "workspace:*",
     "@myk9/ui": "workspace:*",
     "@playwright/mcp": "^0.0.30",

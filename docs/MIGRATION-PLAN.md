@@ -262,6 +262,7 @@
 - [x] Update local Card component to re-export from @myk9/ui
 - [ ] Dialog - kept local (has enhanced components with custom light/dark mode)
 - [x] Build verified - all 5 packages build successfully
+- [x] Integrate ClassCard into myK9Show trial classes (table/cards view toggle)
 
 ---
 

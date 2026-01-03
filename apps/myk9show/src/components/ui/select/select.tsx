@@ -13,7 +13,6 @@ interface SelectProps<T extends string = string> extends Omit<React.ComponentPro
   defaultValue?: T
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function Select<T extends string = string>({ onValueChange, ...props }: SelectProps<T>) {
   return (
     <SelectPrimitive.Root

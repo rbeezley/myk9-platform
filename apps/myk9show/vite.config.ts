@@ -137,9 +137,7 @@ export default defineConfig({
       '@tanstack/react-query',
       'sonner',
       'framer-motion',
-      '@radix-ui/react-accordion',
-      '@radix-ui/react-progress',
-      '@radix-ui/react-checkbox',
+      '@base-ui/react',
       'react-day-picker'
     ],
     // Force dependency optimization to prevent chunk errors
@@ -180,8 +178,8 @@ export default defineConfig({
             }
             
             // UI libraries - split further to avoid large chunks
-            if (id.includes('@radix-ui')) {
-              return 'radix-vendor';
+            if (id.includes('@base-ui')) {
+              return 'base-ui-vendor';
             }
             if (id.includes('@headlessui') || id.includes('framer-motion')) {
               return 'ui-vendor';

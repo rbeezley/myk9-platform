@@ -5,7 +5,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { TrialClass } from '../types/trial.types';
-import { FileText, ArrowUpDown, ArrowUp, ArrowDown, Search } from 'lucide-react';
+import { FileText, ArrowUpDown, ArrowUp, ArrowDown, Search, LayoutGrid, List } from 'lucide-react';
+import { TrialClassesCards } from './TrialClassesCards';
+
+type ViewMode = 'table' | 'cards';
 
 interface TrialClassesTableProps {
   classes: TrialClass[];
@@ -31,6 +34,7 @@ export const TrialClassesTable = ({
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('table');
 
 
   // Handle column sorting
@@ -130,7 +134,7 @@ export const TrialClassesTable = ({
 
   return (
     <div className="space-y-4">
-      {/* Header with Add Buttons */}
+      {/* Header with Add Buttons and View Toggle */}
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold">
@@ -142,6 +146,33 @@ export const TrialClassesTable = ({
           <p className="text-sm text-muted-foreground">Manage the classes for this trial</p>
         </div>
         <div className="flex items-center gap-2">
+          {/* View Toggle */}
+          <div className="flex items-center border rounded-lg overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setViewMode('table')}
+              className={`p-2 transition-colors ${
+                viewMode === 'table'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+              }`}
+              title="Table view"
+            >
+              <List className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('cards')}
+              className={`p-2 transition-colors ${
+                viewMode === 'cards'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+              }`}
+              title="Card view"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+          </div>
           {onAddClassesFromTemplate && (
             <Button onClick={onAddClassesFromTemplate} className="apple-action-button apple-action-button-primary">
               <FileText className="h-4 w-4" />
@@ -163,7 +194,17 @@ export const TrialClassesTable = ({
         />
       </div>
 
-      {/* Classes Table */}
+      {/* Cards View */}
+      {viewMode === 'cards' && (
+        <TrialClassesCards
+          classes={filteredAndSortedClasses}
+          onEditClass={onEditClass}
+          onDeleteClass={onDeleteClass}
+        />
+      )}
+
+      {/* Table View */}
+      {viewMode === 'table' && (
       <div className="overflow-x-auto">
         <Table className="bg-card text-foreground">
         <TableHeader>
@@ -279,6 +320,7 @@ export const TrialClassesTable = ({
         </TableBody>
         </Table>
       </div>
+      )}
     </div>
   );
 };

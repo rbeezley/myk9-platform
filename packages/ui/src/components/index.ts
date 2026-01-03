@@ -9,3 +9,4 @@ export * from './Input';
 export * from './StatusBadge';
 export * from './TimerDisplay';
 export * from './PageLayout';
+export * from './ClassCard';

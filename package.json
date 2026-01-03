@@ -1,0 +1,24 @@
+{
+  "name": "myk9-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Monorepo for myK9Q and myK9Show applications",
+  "scripts": {
+    "dev:show": "turbo dev --filter=@myk9/show",
+    "dev:q": "turbo dev --filter=@myk9/q",
+    "build": "turbo build",
+    "build:show": "turbo build --filter=@myk9/show",
+    "build:q": "turbo build --filter=@myk9/q",
+    "typecheck": "turbo typecheck",
+    "lint": "turbo lint",
+    "test": "turbo test",
+    "clean": "turbo clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.0"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

@@ -305,17 +305,18 @@
 
 > **CRITICAL:** Create a NEW Supabase project for the monorepo. Do NOT modify the production myK9Q database until fully validated.
 
-### 5.1 Create New Supabase Project
-- [ ] Create new Supabase project: `myk9-platform` (or similar)
-- [ ] This becomes the unified database for both monorepo apps
-- [ ] Original myK9Q Supabase project remains UNTOUCHED (production fallback)
-- [ ] Original myK9Show Supabase project remains available during transition
+### 5.1 Create New Supabase Project ✅ COMPLETE
+- [x] Create new Supabase project: `myk9-platform`
+  - Project URL: https://sojmvhhwsjxmfistvzbe.supabase.co
+- [x] This becomes the unified database for both monorepo apps
+- [x] Original myK9Q Supabase project remains UNTOUCHED (production fallback)
+- [x] Original myK9Show Supabase project remains available during transition
 
-### 5.2 Schema Analysis & Design
-- [ ] Document myK9Q schema (86 migrations)
-- [ ] Document myK9Show schema
-- [ ] Identify overlapping tables
-- [ ] Identify unique tables per app
+### 5.2 Schema Analysis & Design (In Progress)
+- [x] Document myK9Q schema (86 migrations) - see [SCHEMA-ANALYSIS.md](SCHEMA-ANALYSIS.md)
+- [x] Document myK9Show schema (56 migrations) - see [SCHEMA-ANALYSIS.md](SCHEMA-ANALYSIS.md)
+- [x] Identify overlapping tables (dogs, shows, trials, classes, entries, user_preferences)
+- [x] Identify unique tables per app
 - [ ] Design unified schema for new project
 
 ### 5.3 Build Unified Schema (in NEW project)

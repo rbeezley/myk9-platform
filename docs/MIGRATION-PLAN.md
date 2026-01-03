@@ -16,7 +16,7 @@
 | Phase 7: Testing & Validation | ⏳ Pending | - |
 | Phase 8: Deployment & Cleanup | ⏳ Pending | - |
 
-**Next step:** Phase 3.2 - Extract UI Primitives
+**Next step:** Phase 3.3 - Extract Domain Components
 
 ---
 
@@ -239,13 +239,13 @@
 - [x] Export `cn()` utility for class merging
 - [x] Package builds successfully in monorepo
 
-### 3.2 Extract UI Primitives
-- [ ] Button component (from Base UI + Tailwind)
-- [ ] Badge component
-- [ ] Card component
-- [ ] Dialog component (from Base UI)
-- [ ] Input components (text, select, checkbox)
-- [ ] Form components
+### 3.2 Extract UI Primitives ✅ COMPLETE
+- [x] Button component (with variants: default, destructive, outline, secondary, ghost, link, premium)
+- [x] Badge component (with variants: default, secondary, destructive, outline, success, warning, status variants)
+- [x] Card component (Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter)
+- [x] Dialog component (using Base UI Dialog primitives)
+- [x] Input component (Apple-inspired styling)
+- [ ] Form components - deferred (can add Label, Checkbox, Select as needed)
 
 ### 3.3 Extract Domain Components
 - [ ] StatusBadge (class status display)

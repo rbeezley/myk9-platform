@@ -14,8 +14,5 @@ export { cn } from './utils/cn';
 // Tailwind preset (for apps to import in their tailwind.config)
 export { myk9Preset } from './tailwind-preset';
 
-// Components will be added here as they're extracted from apps
-// export { Button } from './components/Button';
-// export { Badge } from './components/Badge';
-// export { Card } from './components/Card';
-// etc.
+// Components - UI Primitives
+export * from './components';

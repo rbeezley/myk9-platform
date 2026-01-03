@@ -250,7 +250,8 @@
 ### 3.3 Extract Domain Components ✅ COMPLETE
 - [x] StatusBadge (generic variant-based status badge with CVA)
 - [ ] EntryCard - NOT EXTRACTED (different implementations per app: myK9Q uses entry-list focus, myK9Show uses profile focus)
-- [ ] ClassCard - NOT EXTRACTED (too app-specific, 445 lines of myK9Q logic)
+- [x] ClassCard (visual display with status border, progress bar, entry preview, configurable actions)
+- [x] WarningBanner (companion component for offline/stale data warnings)
 - [x] TimerDisplay (scoresheet timer with progress ring, warnings, controls)
 - [x] PageLayout (entity page wrapper with title, subtitle, actions)
 

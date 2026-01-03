@@ -6,10 +6,8 @@
  * This package provides:
  * - Core types for replication (ReplicatedRow, SyncMetadata, PendingMutation, etc.)
  * - Constants for timing and configuration
- * - Base classes for implementing replicated tables (coming in Phase 1.3)
- *
- * Note: The full ReplicatedTable implementation will be migrated from myK9Q
- * in Phase 1.3 of the monorepo migration.
+ * - Base classes for implementing replicated tables
+ * - Database and cache management
  */
 
 // Types
@@ -31,6 +29,24 @@ export type {
   QueryOptions,
   CacheStats,
 } from './types';
+
+// Dependency injection interfaces
+export type {
+  Logger,
+  DiagnosticReport,
+  GetTableTTL,
+  LogDiagnostics,
+  HandleDatabaseCorruption,
+  ReplicatedTableDependencies,
+  DatabaseManagerDependencies,
+} from './dependencies';
+
+export {
+  noopLogger,
+  defaultGetTableTTL,
+  noopDiagnostics,
+  noopCorruptionHandler,
+} from './dependencies';
 
 // Constants
 export {
@@ -81,3 +97,17 @@ export {
   MAX_TRANSACTION_DURATION_MS,
   TRANSACTION_ABORT_DELAY_MS,
 } from './constants';
+
+// Core classes
+export {
+  DatabaseManager,
+  databaseManager,
+  REPLICATION_STORES,
+  trackTransaction,
+  getActiveTransactionCount,
+  waitForActiveTransactions,
+} from './core/DatabaseManager';
+
+export { ReplicatedTableCacheManager } from './core/ReplicatedTableCache';
+export { ReplicatedTableBatchManager } from './core/ReplicatedTableBatch';
+export { ReplicatedTable } from './core/ReplicatedTable';

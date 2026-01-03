@@ -77,7 +77,7 @@ await replicatedClassesTable.updateClassStatus(classId, status);
 See [docs/MIGRATION-PLAN.md](docs/MIGRATION-PLAN.md) for detailed implementation plan.
 
 - [x] Phase 0: Foundation & Tooling
-- [ ] Phase 1: Shared Packages Foundation (@myk9/core, @myk9/supabase, @myk9/replication)
+- [x] Phase 1: Shared Packages Foundation (@myk9/core, @myk9/supabase, @myk9/replication)
 - [ ] Phase 2: Migrate myK9Show to Monorepo
 - [ ] Phase 3: Shared UI Components
 - [ ] Phase 4: Migrate myK9Q to Monorepo

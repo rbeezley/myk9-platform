@@ -1,16 +1,73 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
 import type { Show } from '@/types/show-types';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import { mockShows } from '@/mockData/mockShows';
 import { shouldUseMockData } from '@/config/dataSource';
 import { performCascadingDelete, previewCascadingDelete, type CascadingDeletePreview } from '@/utils/cascadingDelete';
-import { getOptimalStorage } from '@/services/database/storage-adapter';
-// import { syncService } from '@/services/sync/syncService';
-import { generateId } from '@/utils/idUtils';
+import { replicatedShowsTable, type ReplicatedShow } from '@/services/replication';
 import { getLastModifiedBy } from '@/utils/authHelpers';
 import { reportStoreError, reportWarning, reportInfo, reportDebug } from '@/utils/standardizedErrorHandler';
 import { useClubStore } from './clubStore';
+
+/**
+ * Convert ReplicatedShow (database schema) to Show (app schema)
+ * Local-only fields are initialized to defaults
+ */
+function replicatedToShow(replicated: ReplicatedShow): Show {
+  return {
+    id: replicated.id,
+    name: replicated.name,
+    type: replicated.type,
+    startDate: replicated.startDate,
+    endDate: replicated.endDate,
+    location: replicated.location || '',
+    status: replicated.status || 'draft',
+    events: [], // Local-only: events managed separately
+    source: 'external', // From sync = external
+    entryOpenDate: replicated.entryOpenDate || '',
+    entryCloseDate: replicated.entryCloseDate || '',
+    preEntryFee: replicated.preEntryFee?.toString() || '',
+    dayOfShowFee: replicated.dayOfShowFee?.toString() || '',
+    clubId: replicated.clubId || '',
+    clubName: '', // Derived from club store
+    clubAddress: '', // Derived from club store
+    clubEmail: '', // Derived from club store
+    chairman: replicated.chairman || '',
+    secretary: replicated.secretary || '',
+    chiefSteward: replicated.chiefSteward || '',
+    assignedJudges: [], // Local-only: managed separately
+    trials: [], // Local-only: managed by trialStore
+    stats: [], // Local-only: calculated
+    // Sync metadata
+    _version: replicated._version || 1,
+    _lastModified: replicated._lastModified || new Date(),
+    _lastModifiedBy: replicated._lastModifiedBy || '',
+    _syncStatus: replicated._syncStatus || 'synced',
+    _localOnly: replicated._localOnly || false,
+  };
+}
+
+/**
+ * Merge replicated show data with existing local show data
+ * Preserves local-only fields (trials, judges, stats)
+ */
+function mergeShowData(replicated: ReplicatedShow, existing: Show | undefined): Show {
+  const base = replicatedToShow(replicated);
+  if (!existing) return base;
+
+  return {
+    ...base,
+    // Preserve local-only fields from existing
+    events: existing.events || [],
+    source: existing.source || 'external',
+    clubName: existing.clubName || '',
+    clubAddress: existing.clubAddress || '',
+    clubEmail: existing.clubEmail || '',
+    assignedJudges: existing.assignedJudges || [],
+    trials: existing.trials || [],
+    stats: existing.stats || [],
+  };
+}
 
 // Input types for creating/updating shows
 export interface ShowInput {
@@ -73,38 +130,58 @@ interface ShowStore {
   
   // Selection
   selectShow: (id: string) => void;
+
+  // Subscription Management (for replicated table sync)
+  _unsubscribe: (() => void) | null;
+  initializeSubscription: () => void;
+  cleanup: () => void;
 }
 
 export const useShowStore = create<ShowStore>()(
-  persist(
-    (set, get) => ({
-      shows: shouldUseMockData('USE_MOCK_SHOWS') ? mockShows : [],
-      selectedShowId: shouldUseMockData('USE_MOCK_SHOWS') ? mockShows[0]?.id || '' : '',
-      isLoading: false,
-      error: null,
+  (set, get) => ({
+    shows: shouldUseMockData('USE_MOCK_SHOWS') ? mockShows : [],
+    selectedShowId: shouldUseMockData('USE_MOCK_SHOWS') ? mockShows[0]?.id || '' : '',
+    isLoading: false,
+    error: null,
+    _unsubscribe: null,
       
       // Local-First Implementation
       addShow: async (showData: ShowInput): Promise<Show> => {
         try {
           set({ isLoading: true, error: null });
-          
-          // Generate optimistic ID and create show with sync metadata
-          const optimisticId = generateId();
+
+          // Create show in replicated table (handles ID generation and sync metadata)
+          const replicatedShow = await replicatedShowsTable.createShow({
+            name: showData.name,
+            type: showData.type,
+            startDate: showData.startDate,
+            endDate: showData.endDate,
+            location: showData.location || undefined,
+            status: showData.status || undefined,
+            entryOpenDate: showData.entryOpenDate || undefined,
+            entryCloseDate: showData.entryCloseDate || undefined,
+            preEntryFee: showData.preEntryFee ? parseFloat(showData.preEntryFee) : undefined,
+            dayOfShowFee: showData.dayOfShowFee ? parseFloat(showData.dayOfShowFee) : undefined,
+            clubId: showData.clubId || undefined,
+            chairman: showData.chairman || undefined,
+            secretary: showData.secretary || undefined,
+            chiefSteward: showData.chiefSteward || undefined,
+          });
+
+          // Create full Show with local-only fields
           const newShow: Show = {
-            id: optimisticId,
-            ...showData,
-            stats: [], // Initialize empty stats
-            trials: showData.trials || [],
+            ...replicatedToShow(replicatedShow),
+            // Add local-only fields from input
+            events: showData.events || [],
+            source: showData.source || 'myK9Show',
+            clubName: showData.clubName || '',
+            clubAddress: showData.clubAddress || '',
+            clubEmail: showData.clubEmail || '',
             assignedJudges: showData.assignedJudges || [],
-            
-            // Sync metadata for Local-First architecture
-            _version: 1,
-            _lastModified: new Date(),
-            _lastModifiedBy: getLastModifiedBy(),
-            _syncStatus: 'pending',
-            _localOnly: false
+            trials: showData.trials || [],
+            stats: [],
           };
-          
+
           // Optimistic update - add to store immediately
           set((state) => ({
             shows: [...state.shows, newShow],
@@ -147,7 +224,7 @@ export const useShowStore = create<ShowStore>()(
                   arrayLengthAfter: updatedClub.upcomingShows.length
                 });
                 clubStore.updateClub(updatedClub);
-                
+
                 // Verify the update worked
                 setTimeout(() => {
                   const verifyClub = useClubStore.getState().clubs.find(c => c.id === newShow.clubId);
@@ -164,23 +241,7 @@ export const useShowStore = create<ShowStore>()(
               reportWarning('store', 'Failed to update club with new show', { error: clubError, clubId: newShow.clubId });
             }
           }
-          
-          // Queue for background sync
-          // TODO: Uncomment for Phase 2 cloud sync
-          /*
-          try {
-            await syncService.addToQueue({
-              entityType: 'shows',
-              entityId: optimisticId,
-              operation: 'create',
-              data: showData as unknown as Record<string, unknown>,
-              priority: "medium"
-            });
-          } catch (syncError) {
-            reportSyncError('queue', 'shows', optimisticId, syncError);
-          }
-          */
-          
+
           return newShow;
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to add show';
@@ -193,48 +254,58 @@ export const useShowStore = create<ShowStore>()(
       updateShow: async (id: string, updates: Partial<ShowInput>): Promise<Show | null> => {
         try {
           set({ isLoading: true, error: null });
-          
+
           const currentShow = get().shows.find(s => s.id === id);
           if (!currentShow) {
             const error = `Show with id ${id} not found`;
             set({ error, isLoading: false });
             return null;
           }
-          
-          // Create updated show with incremented version
+
+          // Update in replicated table (handles version increment and sync metadata)
+          const replicatedUpdates: Partial<ReplicatedShow> = {
+            name: updates.name,
+            type: updates.type,
+            startDate: updates.startDate,
+            endDate: updates.endDate,
+            location: updates.location || undefined,
+            status: updates.status || undefined,
+            entryOpenDate: updates.entryOpenDate || undefined,
+            entryCloseDate: updates.entryCloseDate || undefined,
+            preEntryFee: updates.preEntryFee ? parseFloat(updates.preEntryFee) : undefined,
+            dayOfShowFee: updates.dayOfShowFee ? parseFloat(updates.dayOfShowFee) : undefined,
+            clubId: updates.clubId || undefined,
+            chairman: updates.chairman || undefined,
+            secretary: updates.secretary || undefined,
+            chiefSteward: updates.chiefSteward || undefined,
+          };
+
+          // Remove undefined values
+          Object.keys(replicatedUpdates).forEach(key => {
+            if (replicatedUpdates[key as keyof typeof replicatedUpdates] === undefined) {
+              delete replicatedUpdates[key as keyof typeof replicatedUpdates];
+            }
+          });
+
+          await replicatedShowsTable.updateShow(id, replicatedUpdates);
+
+          // Create updated show with local-only fields preserved
           const updatedShow: Show = {
             ...currentShow,
             ...updates,
-            
             // Update sync metadata
             _version: currentShow._version ? currentShow._version + 1 : 1,
             _lastModified: new Date(),
             _lastModifiedBy: getLastModifiedBy(),
             _syncStatus: 'pending'
           };
-          
+
           // Optimistic update
           set((state) => ({
             shows: state.shows.map(s => s.id === id ? updatedShow : s),
             isLoading: false
           }));
-          
-          // Queue for background sync
-          // TODO: Uncomment for Phase 2 cloud sync
-          /*
-          try {
-            await syncService.addToQueue({
-              entityType: 'shows',
-              entityId: id,
-              operation: 'update',
-              data: updates as Record<string, unknown>,
-              priority: "medium"
-            });
-          } catch (syncError) {
-            reportSyncError('queue', 'shows', id, syncError);
-          }
-          */
-          
+
           return updatedShow;
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to update show';
@@ -247,14 +318,17 @@ export const useShowStore = create<ShowStore>()(
       deleteShow: async (id: string): Promise<void> => {
         try {
           set({ isLoading: true, error: null });
-          
+
           const showExists = get().shows.some(s => s.id === id);
           if (!showExists) {
             const error = `Show with id ${id} not found`;
             set({ error, isLoading: false });
             return;
           }
-          
+
+          // Delete from replicated table (marks for sync deletion)
+          await replicatedShowsTable.delete(id);
+
           // Optimistic delete - remove immediately
           set((state) => ({
             shows: state.shows.filter(s => s.id !== id),
@@ -262,22 +336,6 @@ export const useShowStore = create<ShowStore>()(
             // Clear selection if deleted show was selected
             selectedShowId: state.selectedShowId === id ? '' : state.selectedShowId
           }));
-          
-          // Queue for background sync
-          // TODO: Uncomment for Phase 2 cloud sync
-          /*
-          try {
-            await syncService.addToQueue({
-              entityType: 'shows',
-              entityId: id,
-              operation: 'delete',
-              data: {},
-              priority: "medium"
-            });
-          } catch (syncError) {
-            reportSyncError('queue', 'shows', id, syncError);
-          }
-          */
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to delete show';
           reportStoreError('deleteShow', 'showStore', error, { showId: id });
@@ -320,14 +378,23 @@ export const useShowStore = create<ShowStore>()(
       loadShows: async (): Promise<void> => {
         try {
           set({ isLoading: true, error: null });
-          
+
           if (shouldUseMockData('USE_MOCK_SHOWS')) {
             // Load mock data if configured
             set({ shows: mockShows, isLoading: false });
           } else {
-            // TODO: Implement actual data loading from IndexedDB/Supabase
-            // For now, keep existing shows and just clear loading state
-            set({ isLoading: false });
+            // Load from replicated table (IndexedDB)
+            const replicatedShows = await replicatedShowsTable.getAllShows();
+            const currentShows = get().shows;
+
+            // Merge replicated data with existing local-only fields
+            const mergedShows = replicatedShows.map(replicated => {
+              const existing = currentShows.find(s => s.id === replicated.id);
+              return mergeShowData(replicated, existing);
+            });
+
+            set({ shows: mergedShows, isLoading: false });
+            reportDebug('store', 'Loaded shows from replicated table', { count: mergedShows.length });
           }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to load shows';
@@ -386,60 +453,43 @@ export const useShowStore = create<ShowStore>()(
       
       // Selection
       selectShow: (id: string) => set({ selectedShowId: id }),
-    }),
-    {
-      name: 'myk9show-shows-storage',
-      storage: createJSONStorage(() => getOptimalStorage('shows')),
-      partialize: (state) => ({
-        shows: state.shows,
-        selectedShowId: state.selectedShowId,
-      }),
-      onRehydrateStorage: () => (state) => {
-        // Check for duplicate IDs and force reset if found
-        if (state && state.shows.length > 0) {
-          const ids = state.shows.map((show: Show) => show.id);
-          const uniqueIds = new Set(ids);
-          
-          if (ids.length !== uniqueIds.size) {
-            reportWarning('store', 'Duplicate show IDs detected! Forcing localStorage reset', { duplicateCount: ids.length - uniqueIds.size });
-            // Clear duplicate shows instead of restoring mock data
-            state.shows = [];
-            state.selectedShowId = '';
-            
-            // Also clear the wizard storage to prevent conflicts
-            try {
-              localStorage.removeItem('show-wizard-storage');
-            } catch (e) {
-              reportWarning('store', 'Could not clear wizard storage', { error: e });
-            }
-            
-            return;
-          }
+
+      // Subscription Management
+      initializeSubscription: () => {
+        // Skip if already subscribed or using mock data
+        if (get()._unsubscribe || shouldUseMockData('USE_MOCK_SHOWS')) {
+          return;
         }
-        
-        // No automatic mock data restoration - starting with clean data
+
+        reportDebug('store', 'Initializing replicated table subscription for shows');
+
+        // Subscribe to replicated table changes
+        const unsubscribe = replicatedShowsTable.subscribe((shows) => {
+          const currentShows = get().shows;
+
+          // Merge replicated data with existing local-only fields
+          const mergedShows = shows.map(replicated => {
+            const existing = currentShows.find(s => s.id === replicated.id);
+            return mergeShowData(replicated, existing);
+          });
+
+          set({ shows: mergedShows });
+          reportDebug('store', 'Shows updated from replicated table', { count: mergedShows.length });
+        });
+
+        set({ _unsubscribe: unsubscribe });
+
+        // Load initial data
+        get().loadShows();
       },
-      version: 3,
-      migrate: (persistedState: unknown, version: number) => {
-        // Handle version migrations for shows
-        if (version === 0) {
-          // Convert from old format if necessary
-          if (persistedState && typeof persistedState === 'object') {
-            const state = persistedState as Record<string, unknown>;
-            if (state.shows && Array.isArray(state.shows)) {
-              // Ensure all shows have proper club relationships
-              state.shows = state.shows.map((show: unknown) => {
-                const s = show as Record<string, unknown>;
-                return {
-                  ...s,
-                  // Add any data transformations needed for relationships
-                };
-              });
-            }
-          }
+
+      cleanup: () => {
+        const unsubscribe = get()._unsubscribe;
+        if (unsubscribe) {
+          unsubscribe();
+          set({ _unsubscribe: null });
+          reportDebug('store', 'Cleaned up replicated table subscription for shows');
         }
-        return persistedState;
       },
-    }
-  )
+    })
 );

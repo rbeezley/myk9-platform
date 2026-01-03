@@ -3,10 +3,10 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import type { User } from '@/types/user-types';
 // import type { Dog } from '@/types/dog-types'; // Unused import
 import { getOptimalStorage } from '@/services/database/storage-adapter';
-import { syncService } from '@/services/sync/syncService';
+// syncService removed - using database-first approach
 // import { generateId } from '@/utils/idUtils';
 // import { getLastModifiedBy, getCurrentUserUUID } from '@/utils/authHelpers';
-import { reportSyncError, reportStoreError } from '@/utils/standardizedErrorHandler';
+import { reportStoreError } from '@/utils/standardizedErrorHandler';
 
 // Input types for creating/updating users
 export interface UserInput {
@@ -226,24 +226,13 @@ export const useUserStore = create<UserStore>()(
             return;
           }
           
-          // Optimistic delete - remove immediately
+          // TODO: Implement database delete like add/update when deleteUser query is available
+          // For now, just remove from local state
           set((state) => ({
             users: state.users.filter(u => u.id !== id),
+            people: state.people.filter(u => u.id !== id),
             isLoading: false
           }));
-          
-          // Queue for background sync
-          try {
-            await syncService.addToQueue({
-              entityType: 'people',
-              entityId: id,
-              operation: 'delete',
-              data: {},
-              priority: "medium"
-            });
-          } catch (syncError) {
-            reportSyncError('queue', 'people', id, syncError);
-          }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to delete user';
           reportStoreError('deleteUser', 'userStore', error, { userId: id });

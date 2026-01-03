@@ -1,5 +1,15 @@
-// Mock sync service for stores to use until Supabase integration
-// This provides a compatible interface without the complex sync logic
+/**
+ * @deprecated DEPRECATED - Phase 2.2 complete
+ *
+ * This mock sync service was used before stores migrated to @myk9/replication.
+ * Stores now use replicated tables directly (see showStore, trialStore, etc.)
+ *
+ * This stub remains only for Phase 6 features (OfflineEntryCreator,
+ * OfflineScoringService, OfflineCheckInService) which will be updated
+ * to use @myk9/replication in Phase 6.
+ *
+ * DO NOT USE IN NEW CODE - use @myk9/replication instead.
+ */
 
 export interface MockSyncQueueItem {
   entityType: string;
@@ -9,10 +19,13 @@ export interface MockSyncQueueItem {
   priority: 'low' | 'medium' | 'high' | 'critical';
 }
 
+/**
+ * @deprecated Use @myk9/replication ReplicatedTable instead
+ */
 export class MockSyncService {
   async addToQueue(item: MockSyncQueueItem): Promise<string> {
-    // Mock implementation - just log for now
-    console.log('Mock sync service: queuing operation', item);
+    // No-op stub - stores now use replicated tables directly
+    console.debug('[DEPRECATED] Mock sync service addToQueue - use @myk9/replication', item.entityType);
     return `mock-queue-${Date.now()}`;
   }
 
@@ -26,13 +39,13 @@ export class MockSyncService {
   }
 
   async processQueue(): Promise<void> {
-    // Mock implementation
-    console.log('Mock sync service: processing queue');
+    // No-op stub
+    console.debug('[DEPRECATED] Mock sync service processQueue - use @myk9/replication');
   }
 
   async clearQueue(): Promise<void> {
-    // Mock implementation
-    console.log('Mock sync service: clearing queue');
+    // No-op stub
+    console.debug('[DEPRECATED] Mock sync service clearQueue - use @myk9/replication');
   }
 }
 

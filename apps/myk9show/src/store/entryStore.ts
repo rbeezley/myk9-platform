@@ -1,8 +1,5 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import { getOptimalStorage } from '@/services/database/storage-adapter';
-import { syncService } from '@/services/sync/syncService';
-import { generateId } from '@/utils/idUtils';
+import { replicatedEntriesTable, type ReplicatedEntry } from '@/services/replication';
 
 // Entry lifecycle states
 export type EntryStatus = 
@@ -99,6 +96,11 @@ export interface EntryStoreState {
   entries: SyncableShowEntry[];
   isLoading: boolean;
   error: string | null;
+
+  // Subscription management
+  _unsubscribe: (() => void) | null;
+  initializeSubscription: () => void;
+  cleanup: () => void;
   
   // Local-First Entry Actions
   createEntry: (entryData: ShowEntryInput) => Promise<SyncableShowEntry>;
@@ -154,62 +156,155 @@ export interface EntryStoreState {
 
 const generateEntryId = () => `entry-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
+/**
+ * Convert ReplicatedEntry from replicated table to SyncableShowEntry for store
+ */
+function replicatedToEntry(replicated: ReplicatedEntry): SyncableShowEntry {
+  return {
+    id: replicated.id,
+    showId: replicated.showId || '',
+    classId: replicated.classId || '',
+    dogId: replicated.dogId || '',
+    status: (replicated.entryStatus as EntryStatus) || 'draft',
+    registrationData: {
+      submittedAt: replicated.submittedAt || new Date().toISOString(),
+      handler: replicated.handler || '',
+      handlerId: replicated.handlerId,
+      entryFee: replicated.entryFee || 0,
+      paymentStatus: (replicated.paymentStatus as 'pending' | 'paid' | 'refunded') || 'pending',
+      specialRequests: replicated.specialRequests,
+      armband: replicated.armband,
+      runOrder: replicated.runOrder,
+      jumpHeight: replicated.jumpHeight,
+      preferredJudge: replicated.preferredJudge,
+      moveUpRequested: replicated.moveUpRequested,
+    },
+    statusHistory: [],
+    createdAt: replicated.submittedAt || new Date().toISOString(),
+    updatedAt: replicated._lastModified?.toISOString() || new Date().toISOString(),
+    _version: replicated._version || 1,
+    _lastModified: replicated._lastModified || new Date(),
+    _lastModifiedBy: replicated._lastModifiedBy || 'system',
+    _syncStatus: replicated._syncStatus || 'synced',
+    _localOnly: replicated._localOnly,
+  };
+}
+
+/**
+ * Merge ReplicatedEntry with existing SyncableShowEntry, preserving local-only fields
+ */
+function mergeEntryData(replicated: ReplicatedEntry, existing: SyncableShowEntry | undefined): SyncableShowEntry {
+  const base = replicatedToEntry(replicated);
+  if (!existing) return base;
+
+  // Preserve local-only fields that aren't in the replicated table
+  return {
+    ...base,
+    statusHistory: existing.statusHistory || base.statusHistory,
+    competitionData: existing.competitionData,
+  };
+}
+
+/**
+ * Convert SyncableShowEntry to ReplicatedEntry for storage
+ */
+function entryToReplicated(entry: SyncableShowEntry): ReplicatedEntry {
+  return {
+    id: entry.id,
+    showId: entry.showId,
+    classId: entry.classId,
+    dogId: entry.dogId,
+    handlerId: entry.registrationData.handlerId,
+    armband: entry.registrationData.armband,
+    handler: entry.registrationData.handler,
+    status: entry.status,
+    entryStatus: entry.status,
+    jumpHeight: entry.registrationData.jumpHeight,
+    entryFee: entry.registrationData.entryFee,
+    paymentStatus: entry.registrationData.paymentStatus,
+    runOrder: entry.registrationData.runOrder,
+    moveUpRequested: entry.registrationData.moveUpRequested,
+    preferredJudge: entry.registrationData.preferredJudge,
+    specialRequests: entry.registrationData.specialRequests,
+    submittedAt: entry.registrationData.submittedAt,
+    _version: entry._version,
+    _lastModified: entry._lastModified,
+    _lastModifiedBy: entry._lastModifiedBy,
+    _syncStatus: entry._syncStatus,
+    _localOnly: entry._localOnly,
+  };
+}
+
 export const useEntryStore = create<EntryStoreState>()(
-  persist(
     (set, get): EntryStoreState => ({
+      // Subscription management
+      _unsubscribe: null as (() => void) | null,
       entries: [],
       isLoading: false,
       error: null,
       
+      // Subscription management methods
+      initializeSubscription: () => {
+        const unsubscribe = replicatedEntriesTable.subscribe((entries) => {
+          const currentEntries = get().entries;
+          const entriesMap = new Map(currentEntries.map(e => [e.id, e]));
+
+          const mergedEntries = entries.map(replicated =>
+            mergeEntryData(replicated, entriesMap.get(replicated.id))
+          );
+
+          set({ entries: mergedEntries });
+        });
+
+        set({ _unsubscribe: unsubscribe });
+        get().loadEntries();
+      },
+
+      cleanup: () => {
+        const unsubscribe = get()._unsubscribe;
+        if (unsubscribe) {
+          unsubscribe();
+          set({ _unsubscribe: null });
+        }
+      },
+
       // Local-First Entry Implementation
       createEntry: async (entryData: ShowEntryInput): Promise<SyncableShowEntry> => {
         try {
           set({ isLoading: true, error: null });
-          
-          // Generate optimistic ID and create entry with sync metadata
-          const optimisticId = generateId();
+
+          const id = crypto.randomUUID();
           const now = new Date().toISOString();
-          
+
           const newEntry: SyncableShowEntry = {
             ...entryData,
-            id: optimisticId,
+            id,
             status: 'draft',
             statusHistory: [{
               status: 'draft',
               timestamp: now,
-              userId: 'current-user', // TODO: Get from auth context
+              userId: 'current-user',
               reason: 'Entry created'
             }],
             createdAt: now,
             updatedAt: now,
-            
-            // Sync metadata for Local-First architecture
             _version: 1,
             _lastModified: new Date(),
-            _lastModifiedBy: 'current-user', // TODO: Get from auth context
+            _lastModifiedBy: 'current-user',
             _syncStatus: 'pending',
-            _localOnly: false
+            _localOnly: true
           };
-          
-          // Optimistic update - add to store immediately
+
+          // Save to replicated table
+          const replicatedEntry = entryToReplicated(newEntry);
+          await replicatedEntriesTable.set(id, replicatedEntry, true);
+
+          // Update local state
           set((state) => ({
             entries: [...state.entries, newEntry],
             isLoading: false
           }));
-          
-          // Queue for background sync
-          try {
-            await syncService.addToQueue({
-              entityType: 'entries',
-              entityId: optimisticId,
-              operation: 'create',
-              data: entryData as unknown as Record<string, unknown>,
-              priority: "medium"
-            });
-          } catch (syncError) {
-            console.warn('Failed to queue entry creation for sync:', syncError);
-          }
-          
+
           return newEntry;
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to create entry';
@@ -221,46 +316,34 @@ export const useEntryStore = create<EntryStoreState>()(
       updateEntry: async (entryId: string, updates: Partial<ShowEntryInput>): Promise<SyncableShowEntry | null> => {
         try {
           set({ isLoading: true, error: null });
-          
+
           const currentEntry = get().entries.find(e => e.id === entryId);
           if (!currentEntry) {
             const error = `Entry with id ${entryId} not found`;
             set({ error, isLoading: false });
             return null;
           }
-          
-          // Create updated entry with incremented version
+
           const updatedEntry: SyncableShowEntry = {
             ...currentEntry,
             ...updates,
             updatedAt: new Date().toISOString(),
-            
-            // Update sync metadata
-            _version: currentEntry._version ? currentEntry._version + 1 : 1,
+            _version: (currentEntry._version || 0) + 1,
             _lastModified: new Date(),
-            _lastModifiedBy: 'current-user', // TODO: Get from auth context
+            _lastModifiedBy: 'current-user',
             _syncStatus: 'pending'
           };
-          
-          // Optimistic update
+
+          // Save to replicated table
+          const replicatedEntry = entryToReplicated(updatedEntry);
+          await replicatedEntriesTable.set(entryId, replicatedEntry, true);
+
+          // Update local state
           set((state) => ({
             entries: state.entries.map(e => e.id === entryId ? updatedEntry : e),
             isLoading: false
           }));
-          
-          // Queue for background sync
-          try {
-            await syncService.addToQueue({
-              entityType: 'entries',
-              entityId: entryId,
-              operation: 'update',
-              data: updates as Record<string, unknown>,
-              priority: "medium"
-            });
-          } catch (syncError) {
-            console.warn('Failed to queue entry update for sync:', syncError);
-          }
-          
+
           return updatedEntry;
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to update entry';
@@ -268,43 +351,33 @@ export const useEntryStore = create<EntryStoreState>()(
           throw error;
         }
       },
-      
+
       deleteEntry: async (entryId: string): Promise<void> => {
         try {
           set({ isLoading: true, error: null });
-          
+
           const entryExists = get().entries.some(e => e.id === entryId);
           if (!entryExists) {
             const error = `Entry with id ${entryId} not found`;
             set({ error, isLoading: false });
             return;
           }
-          
-          // Optimistic delete - remove immediately
+
+          // Delete from replicated table
+          await replicatedEntriesTable.delete(entryId);
+
+          // Update local state
           set((state) => ({
             entries: state.entries.filter(e => e.id !== entryId),
             isLoading: false
           }));
-          
-          // Queue for background sync
-          try {
-            await syncService.addToQueue({
-              entityType: 'entries',
-              entityId: entryId,
-              operation: 'delete',
-              data: {},
-              priority: "medium"
-            });
-          } catch (syncError) {
-            console.warn('Failed to queue entry deletion for sync:', syncError);
-          }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to delete entry';
           set({ error: errorMessage, isLoading: false });
           throw error;
         }
       },
-      
+
       updateRegistration: async (entryId: string, updates: Partial<RegistrationData>): Promise<SyncableShowEntry | null> => {
         try {
           const currentEntry = get().entries.find(e => e.id === entryId);
@@ -312,35 +385,27 @@ export const useEntryStore = create<EntryStoreState>()(
             set({ error: `Entry with id ${entryId} not found` });
             return null;
           }
-          
+
           const now = new Date().toISOString();
           const updatedEntry: SyncableShowEntry = {
             ...currentEntry,
             registrationData: { ...currentEntry.registrationData, ...updates },
             updatedAt: now,
-            _version: currentEntry._version ? currentEntry._version + 1 : 1,
+            _version: (currentEntry._version || 0) + 1,
             _lastModified: new Date(),
             _lastModifiedBy: 'current-user',
             _syncStatus: 'pending'
           };
-          
+
+          // Save to replicated table
+          const replicatedEntry = entryToReplicated(updatedEntry);
+          await replicatedEntriesTable.set(entryId, replicatedEntry, true);
+
+          // Update local state
           set((state) => ({
             entries: state.entries.map(e => e.id === entryId ? updatedEntry : e)
           }));
-          
-          // Queue for background sync
-          try {
-            await syncService.addToQueue({
-              entityType: 'entries',
-              entityId: entryId,
-              operation: 'update',
-              data: { registrationData: updates } as Record<string, unknown>,
-              priority: "medium"
-            });
-          } catch (syncError) {
-            console.warn('Failed to queue registration update for sync:', syncError);
-          }
-          
+
           return updatedEntry;
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to update registration';
@@ -356,44 +421,31 @@ export const useEntryStore = create<EntryStoreState>()(
             set({ error: `Entry with id ${entryId} not found` });
             return null;
           }
-          
+
           const now = new Date().toISOString();
           const updatedEntry: SyncableShowEntry = {
             ...currentEntry,
             status,
             statusHistory: [
               ...currentEntry.statusHistory,
-              {
-                status,
-                timestamp: now,
-                userId,
-                reason
-              }
+              { status, timestamp: now, userId, reason }
             ],
             updatedAt: now,
-            _version: currentEntry._version ? currentEntry._version + 1 : 1,
+            _version: (currentEntry._version || 0) + 1,
             _lastModified: new Date(),
             _lastModifiedBy: userId,
             _syncStatus: 'pending'
           };
-          
+
+          // Save to replicated table
+          const replicatedEntry = entryToReplicated(updatedEntry);
+          await replicatedEntriesTable.set(entryId, replicatedEntry, true);
+
+          // Update local state
           set((state) => ({
             entries: state.entries.map(e => e.id === entryId ? updatedEntry : e)
           }));
-          
-          // Queue for background sync
-          try {
-            await syncService.addToQueue({
-              entityType: 'entries',
-              entityId: entryId,
-              operation: 'update',
-              data: { status, statusHistory: updatedEntry.statusHistory } as Record<string, unknown>,
-              priority: "medium" // Higher priority for status changes
-            });
-          } catch (syncError) {
-            console.warn('Failed to queue status update for sync:', syncError);
-          }
-          
+
           return updatedEntry;
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to update status';
@@ -401,7 +453,7 @@ export const useEntryStore = create<EntryStoreState>()(
           throw error;
         }
       },
-      
+
       // Competition phase methods
       recordResult: async (entryId: string, result: CompetitionData): Promise<SyncableShowEntry | null> => {
         try {
@@ -410,48 +462,32 @@ export const useEntryStore = create<EntryStoreState>()(
             set({ error: `Entry with id ${entryId} not found` });
             return null;
           }
-          
+
           const now = new Date().toISOString();
           const updatedEntry: SyncableShowEntry = {
             ...currentEntry,
             status: 'completed',
-            competitionData: {
-              ...result,
-              recordedAt: now
-            },
+            competitionData: { ...result, recordedAt: now },
             statusHistory: [
               ...currentEntry.statusHistory,
-              {
-                status: 'completed',
-                timestamp: now,
-                userId: result.recordedBy,
-                reason: 'Results recorded'
-              }
+              { status: 'completed', timestamp: now, userId: result.recordedBy, reason: 'Results recorded' }
             ],
             updatedAt: now,
-            _version: currentEntry._version ? currentEntry._version + 1 : 1,
+            _version: (currentEntry._version || 0) + 1,
             _lastModified: new Date(),
             _lastModifiedBy: result.recordedBy,
             _syncStatus: 'pending'
           };
-          
+
+          // Save to replicated table
+          const replicatedEntry = entryToReplicated(updatedEntry);
+          await replicatedEntriesTable.set(entryId, replicatedEntry, true);
+
+          // Update local state
           set((state) => ({
             entries: state.entries.map(e => e.id === entryId ? updatedEntry : e)
           }));
-          
-          // Queue for background sync
-          try {
-            await syncService.addToQueue({
-              entityType: 'entries',
-              entityId: entryId,
-              operation: 'update',
-              data: { competitionData: result, status: 'completed' } as Record<string, unknown>,
-              priority: "medium" // High priority for competition results
-            });
-          } catch (syncError) {
-            console.warn('Failed to queue result recording for sync:', syncError);
-          }
-          
+
           return updatedEntry;
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to record result';
@@ -459,7 +495,7 @@ export const useEntryStore = create<EntryStoreState>()(
           throw error;
         }
       },
-      
+
       updateResult: async (entryId: string, updates: Partial<CompetitionData>): Promise<SyncableShowEntry | null> => {
         try {
           const currentEntry = get().entries.find(e => e.id === entryId);
@@ -467,37 +503,29 @@ export const useEntryStore = create<EntryStoreState>()(
             set({ error: `Entry with id ${entryId} not found` });
             return null;
           }
-          
+
           const now = new Date().toISOString();
           const updatedEntry: SyncableShowEntry = {
             ...currentEntry,
-            competitionData: currentEntry.competitionData 
+            competitionData: currentEntry.competitionData
               ? { ...currentEntry.competitionData, ...updates }
               : { ...updates, recordedAt: now, recordedBy: updates.recordedBy || 'Secretary' },
             updatedAt: now,
-            _version: currentEntry._version ? currentEntry._version + 1 : 1,
+            _version: (currentEntry._version || 0) + 1,
             _lastModified: new Date(),
             _lastModifiedBy: updates.recordedBy || 'current-user',
             _syncStatus: 'pending'
           };
-          
+
+          // Save to replicated table
+          const replicatedEntry = entryToReplicated(updatedEntry);
+          await replicatedEntriesTable.set(entryId, replicatedEntry, true);
+
+          // Update local state
           set((state) => ({
             entries: state.entries.map(e => e.id === entryId ? updatedEntry : e)
           }));
-          
-          // Queue for background sync
-          try {
-            await syncService.addToQueue({
-              entityType: 'entries',
-              entityId: entryId,
-              operation: 'update',
-              data: { competitionData: updates } as Record<string, unknown>,
-              priority: "medium" // High priority for competition results
-            });
-          } catch (syncError) {
-            console.warn('Failed to queue result update for sync:', syncError);
-          }
-          
+
           return updatedEntry;
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to update result';
@@ -510,52 +538,43 @@ export const useEntryStore = create<EntryStoreState>()(
       createMultipleEntries: async (entriesData: ShowEntryInput[]): Promise<SyncableShowEntry[]> => {
         try {
           set({ isLoading: true, error: null });
-          
+
           const now = new Date().toISOString();
           const newEntries: SyncableShowEntry[] = entriesData.map((data) => {
-            const id = generateId();
-            
+            const id = crypto.randomUUID();
+
             return {
               ...data,
               id,
-              status: 'draft',
+              status: 'draft' as EntryStatus,
               statusHistory: [{
-                status: 'draft',
+                status: 'draft' as EntryStatus,
                 timestamp: now,
                 userId: 'current-user',
                 reason: 'Entry created in batch'
               }],
               createdAt: now,
               updatedAt: now,
-              // Sync metadata
               _version: 1,
               _lastModified: new Date(),
               _lastModifiedBy: 'current-user',
-              _syncStatus: 'pending',
-              _localOnly: false
+              _syncStatus: 'pending' as const,
+              _localOnly: true
             };
           });
-          
+
+          // Save all to replicated table
+          for (const entry of newEntries) {
+            const replicatedEntry = entryToReplicated(entry);
+            await replicatedEntriesTable.set(entry.id, replicatedEntry, true);
+          }
+
+          // Update local state
           set((state) => ({
             entries: [...state.entries, ...newEntries],
             isLoading: false
           }));
-          
-          // Queue all entries for sync
-          for (const entry of newEntries) {
-            try {
-              await syncService.addToQueue({
-                entityType: 'entries',
-                entityId: entry.id,
-                operation: 'create',
-                data: entry as unknown as Record<string, unknown>,
-                priority: "medium"
-              });
-            } catch (syncError) {
-              console.warn(`Failed to queue batch entry ${entry.id} for sync:`, syncError);
-            }
-          }
-          
+
           return newEntries;
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to create multiple entries';
@@ -567,51 +586,38 @@ export const useEntryStore = create<EntryStoreState>()(
       updateEntriesStatus: async (entryIds: string[], status: EntryStatus, userId: string, reason?: string): Promise<void> => {
         try {
           set({ isLoading: true, error: null });
-          
+
           const now = new Date().toISOString();
-          const statusUpdate = {
-            status,
-            timestamp: now,
-            userId,
-            reason
-          };
-          
-          set((state) => ({
-            entries: state.entries.map((entry) => {
-              if (entryIds.includes(entry.id)) {
-                return {
-                  ...entry,
-                  status,
-                  statusHistory: [
-                    ...entry.statusHistory,
-                    statusUpdate
-                  ],
-                  updatedAt: now,
-                  _version: (entry._version || 1) + 1,
-                  _lastModified: new Date(),
-                  _lastModifiedBy: userId,
-                  _syncStatus: 'pending' as const
-                };
-              }
-              return entry;
-            }),
-            isLoading: false
-          }));
-          
-          // Queue all status updates for sync
-          for (const entryId of entryIds) {
-            try {
-              await syncService.addToQueue({
-                entityType: 'entries',
-                entityId: entryId,
-                operation: 'update',
-                data: { status, statusHistory: statusUpdate } as Record<string, unknown>,
-                priority: "medium"
-              });
-            } catch (syncError) {
-              console.warn(`Failed to queue status update for entry ${entryId}:`, syncError);
+          const statusUpdate = { status, timestamp: now, userId, reason };
+          const currentEntries = get().entries;
+
+          // Build updated entries
+          const updatedEntries = currentEntries.map((entry) => {
+            if (entryIds.includes(entry.id)) {
+              return {
+                ...entry,
+                status,
+                statusHistory: [...entry.statusHistory, statusUpdate],
+                updatedAt: now,
+                _version: (entry._version || 0) + 1,
+                _lastModified: new Date(),
+                _lastModifiedBy: userId,
+                _syncStatus: 'pending' as const
+              };
+            }
+            return entry;
+          });
+
+          // Save to replicated table
+          for (const entry of updatedEntries) {
+            if (entryIds.includes(entry.id)) {
+              const replicatedEntry = entryToReplicated(entry);
+              await replicatedEntriesTable.set(entry.id, replicatedEntry, true);
             }
           }
+
+          // Update local state
+          set({ entries: updatedEntries, isLoading: false });
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to update entries status';
           set({ error: errorMessage, isLoading: false });
@@ -658,15 +664,18 @@ export const useEntryStore = create<EntryStoreState>()(
       loadEntries: async (): Promise<void> => {
         try {
           set({ isLoading: true, error: null });
-          
-          // For now, just load existing persisted entries
-          // TODO: Implement actual data loading from IndexedDB/Supabase
-          // const currentEntries = get().entries;
-          
-          // If no entries exist, we could load mock data or initialize empty
-          // For this implementation, we'll keep the existing entries
-          set({ isLoading: false });
-          
+
+          // Load from replicated table
+          const replicatedEntries = await replicatedEntriesTable.getAll();
+          const currentEntries = get().entries;
+          const entriesMap = new Map(currentEntries.map(e => [e.id, e]));
+
+          // Merge replicated data with existing local-only fields
+          const mergedEntries = replicatedEntries.map(replicated =>
+            mergeEntryData(replicated, entriesMap.get(replicated.id))
+          );
+
+          set({ entries: mergedEntries, isLoading: false });
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to load entries';
           set({ error: errorMessage, isLoading: false });
@@ -858,36 +867,7 @@ export const useEntryStore = create<EntryStoreState>()(
       importEntries: (entries) => {
         set({ entries });
       }
-    }),
-    {
-      name: 'entry-store',
-      storage: createJSONStorage(() => getOptimalStorage('entries')),
-      partialize: (state) => ({
-        entries: state.entries,
-      }),
-      version: 2,
-      migrate: (persistedState: unknown, version: number) => {
-        // Handle version migrations for entries
-        if (version === 0) {
-          // Convert from old format if necessary
-          if (persistedState && typeof persistedState === 'object') {
-            const state = persistedState as Record<string, unknown>;
-            if (state.entries && Array.isArray(state.entries)) {
-              // Ensure all entries have proper relationships
-              state.entries = state.entries.map((entry: unknown) => {
-                const e = entry as Record<string, unknown>;
-                return {
-                  ...e,
-                  // Add any data transformations needed for relationships
-                };
-              });
-            }
-          }
-        }
-        return persistedState;
-      },
-    }
-  )
+    })
 );
 
 // NOTE: Convenience selector hooks have been removed due to infinite re-render issues

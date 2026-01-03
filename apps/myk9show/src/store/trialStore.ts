@@ -1,12 +1,10 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
 import type { Trial, TrialClass } from '@/components/trials/types/trial.types';
 
 // Re-export types for external usage
 export type { Trial, TrialClass };
-import { getOptimalStorage } from '@/services/database/storage-adapter';
-import { syncService } from '@/services/sync/syncService';
-import { generateId } from '@/utils/idUtils';
+import { replicatedTrialsTable, type ReplicatedTrial } from '@/services/replication';
+import { reportDebug } from '@/utils/standardizedErrorHandler';
 
 // Extend Trial interface with sync metadata
 export interface SyncableTrial extends Trial {
@@ -193,6 +191,11 @@ interface TrialStore {
   addTrialClassLegacy: (trialId: string, trialClass: Omit<TrialClass, 'id'>) => void;
   updateTrialClassLegacy: (trialId: string, trialClass: TrialClass) => void;
   removeTrialClass: (trialId: string, classId: string) => void;
+
+  // Subscription Management (for replicated table sync)
+  _unsubscribe: (() => void) | null;
+  initializeSubscription: () => void;
+  cleanup: () => void;
 }
 
 // Import global mock data configuration
@@ -202,55 +205,104 @@ const shouldUseMockTrials = () => {
   return shouldUseMockData('USE_MOCK_SHOWS'); // Trials are part of shows
 };
 
+/**
+ * Convert ReplicatedTrial (database schema) to SyncableTrial (app schema)
+ * Local-only fields are initialized to defaults
+ */
+function replicatedToTrial(replicated: ReplicatedTrial): SyncableTrial {
+  return {
+    id: replicated.id,
+    showId: replicated.showId || '',
+    showName: '', // Local-only: derived from show
+    name: replicated.name,
+    trialDate: replicated.date,
+    trialNumber: replicated.trialNumber || '',
+    status: (replicated.status as SyncableTrial['status']) || 'Upcoming',
+    eventNumber: '', // Local-only
+    type: '', // Local-only
+    trialType: '', // Local-only
+    plannedStartTime: '', // Local-only
+    order: '', // Local-only
+    // Sync metadata
+    _version: replicated._version || 1,
+    _lastModified: replicated._lastModified || new Date(),
+    _lastModifiedBy: replicated._lastModifiedBy || '',
+    _syncStatus: replicated._syncStatus || 'synced',
+    _localOnly: replicated._localOnly || false,
+  };
+}
+
+/**
+ * Merge replicated trial data with existing local trial data
+ * Preserves local-only fields
+ */
+function mergeTrialData(replicated: ReplicatedTrial, existing: SyncableTrial | undefined): SyncableTrial {
+  const base = replicatedToTrial(replicated);
+  if (!existing) return base;
+
+  return {
+    ...base,
+    // Preserve local-only fields from existing
+    showName: existing.showName || '',
+    eventNumber: existing.eventNumber || '',
+    type: existing.type || '',
+    trialType: existing.trialType || '',
+    plannedStartTime: existing.plannedStartTime || '',
+    order: existing.order || '',
+  };
+}
+
 export const useTrialStore = create<TrialStore>()(
-  persist(
-    (set, get) => ({
-      // Initial state
-      trials: shouldUseMockTrials() ? mockTrials : [],
-      selectedTrialId: shouldUseMockTrials() ? mockTrials[0]?.id || null : null,
-      trialClasses: {},
-      isLoading: false,
-      error: null,
+  (set, get) => ({
+    // Initial state
+    trials: shouldUseMockTrials() ? mockTrials : [],
+    selectedTrialId: shouldUseMockTrials() ? mockTrials[0]?.id || null : null,
+    trialClasses: {},
+    isLoading: false,
+    error: null,
+    _unsubscribe: null,
 
       // Local-First Implementation
       addTrial: async (trialData: TrialInput): Promise<SyncableTrial> => {
         try {
           set({ isLoading: true, error: null });
-          
-          // Generate optimistic ID and create trial with sync metadata
-          const optimisticId = generateId();
-          const newTrial: SyncableTrial = {
-            id: optimisticId,
-            ...trialData,
-            
-            // Sync metadata for Local-First architecture
+
+          // Create in replicated table (handles ID generation and sync)
+          const id = crypto.randomUUID();
+          const replicatedTrial: ReplicatedTrial = {
+            id,
+            showId: trialData.showId,
+            name: trialData.name,
+            date: trialData.trialDate,
+            trialNumber: trialData.trialNumber,
+            status: trialData.status,
             _version: 1,
             _lastModified: new Date(),
-            _lastModifiedBy: 'current-user', // TODO: Get from auth context
+            _lastModifiedBy: 'current-user',
             _syncStatus: 'pending',
-            _localOnly: false
+            _localOnly: true,
           };
-          
+
+          await replicatedTrialsTable.set(id, replicatedTrial, true);
+
+          // Create full SyncableTrial with local-only fields
+          const newTrial: SyncableTrial = {
+            ...replicatedToTrial(replicatedTrial),
+            showName: trialData.showName || '',
+            eventNumber: trialData.eventNumber || '',
+            type: trialData.type || '',
+            trialType: trialData.trialType || '',
+            plannedStartTime: trialData.plannedStartTime || '',
+            order: trialData.order || '',
+          };
+
           // Optimistic update - add to store immediately
           set((state) => ({
             trials: [...state.trials, newTrial],
-            selectedTrialId: optimisticId,
+            selectedTrialId: id,
             isLoading: false
           }));
-          
-          // Queue for background sync
-          try {
-            await syncService.addToQueue({
-              entityType: 'trials',
-              entityId: optimisticId,
-              operation: 'create',
-              data: trialData as unknown as Record<string, unknown>,
-              priority: "medium"
-            });
-          } catch (syncError) {
-            console.warn('Failed to queue trial creation for sync:', syncError);
-          }
-          
+
           return newTrial;
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to add trial';
@@ -262,45 +314,58 @@ export const useTrialStore = create<TrialStore>()(
       updateTrial: async (id: string, updates: Partial<TrialInput>): Promise<SyncableTrial | null> => {
         try {
           set({ isLoading: true, error: null });
-          
+
           const currentTrial = get().trials.find(t => t.id === id);
           if (!currentTrial) {
             const error = `Trial with id ${id} not found`;
             set({ error, isLoading: false });
             return null;
           }
-          
+
+          // Get current replicated data and update
+          const currentReplicated = await replicatedTrialsTable.get(id);
+          const replicatedUpdates: Partial<ReplicatedTrial> = {
+            showId: updates.showId,
+            name: updates.name,
+            date: updates.trialDate,
+            trialNumber: updates.trialNumber,
+            status: updates.status,
+            _lastModified: new Date(),
+            _syncStatus: 'pending',
+          };
+
+          // Remove undefined values
+          Object.keys(replicatedUpdates).forEach(key => {
+            if (replicatedUpdates[key as keyof typeof replicatedUpdates] === undefined) {
+              delete replicatedUpdates[key as keyof typeof replicatedUpdates];
+            }
+          });
+
+          if (currentReplicated) {
+            const updatedReplicated = {
+              ...currentReplicated,
+              ...replicatedUpdates,
+              _version: (currentReplicated._version || 0) + 1,
+            };
+            await replicatedTrialsTable.set(id, updatedReplicated, true);
+          }
+
           // Create updated trial with incremented version
           const updatedTrial: SyncableTrial = {
             ...currentTrial,
             ...updates,
-            
-            // Update sync metadata
             _version: currentTrial._version ? currentTrial._version + 1 : 1,
             _lastModified: new Date(),
-            _lastModifiedBy: 'current-user', // TODO: Get from auth context
+            _lastModifiedBy: 'current-user',
             _syncStatus: 'pending'
           };
-          
+
           // Optimistic update
           set((state) => ({
             trials: state.trials.map(t => t.id === id ? updatedTrial : t),
             isLoading: false
           }));
-          
-          // Queue for background sync
-          try {
-            await syncService.addToQueue({
-              entityType: 'trials',
-              entityId: id,
-              operation: 'update',
-              data: updates as Record<string, unknown>,
-              priority: "medium"
-            });
-          } catch (syncError) {
-            console.warn('Failed to queue trial update for sync:', syncError);
-          }
-          
+
           return updatedTrial;
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to update trial';
@@ -312,14 +377,17 @@ export const useTrialStore = create<TrialStore>()(
       deleteTrial: async (id: string): Promise<void> => {
         try {
           set({ isLoading: true, error: null });
-          
+
           const trialExists = get().trials.some(t => t.id === id);
           if (!trialExists) {
             const error = `Trial with id ${id} not found`;
             set({ error, isLoading: false });
             return;
           }
-          
+
+          // Delete from replicated table
+          await replicatedTrialsTable.delete(id);
+
           // Optimistic delete - remove immediately (including trial classes)
           set((state) => {
             const { [id]: _removed, ...remainingClasses } = state.trialClasses;
@@ -332,19 +400,6 @@ export const useTrialStore = create<TrialStore>()(
               selectedTrialId: state.selectedTrialId === id ? null : state.selectedTrialId
             };
           });
-          
-          // Queue for background sync
-          try {
-            await syncService.addToQueue({
-              entityType: 'trials',
-              entityId: id,
-              operation: 'delete',
-              data: {},
-              priority: "medium"
-            });
-          } catch (syncError) {
-            console.warn('Failed to queue trial deletion for sync:', syncError);
-          }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to delete trial';
           set({ error: errorMessage, isLoading: false });
@@ -366,8 +421,23 @@ export const useTrialStore = create<TrialStore>()(
       loadTrials: async (): Promise<void> => {
         try {
           set({ isLoading: true, error: null });
-          // TODO: Implement actual data loading from IndexedDB/API
-          set({ isLoading: false });
+
+          if (shouldUseMockTrials()) {
+            set({ trials: mockTrials, isLoading: false });
+          } else {
+            // Load from replicated table (IndexedDB)
+            const replicatedTrials = await replicatedTrialsTable.getAll();
+            const currentTrials = get().trials;
+
+            // Merge replicated data with existing local-only fields
+            const mergedTrials = replicatedTrials.map(replicated => {
+              const existing = currentTrials.find(t => t.id === replicated.id);
+              return mergeTrialData(replicated, existing);
+            });
+
+            set({ trials: mergedTrials, isLoading: false });
+            reportDebug('store', 'Loaded trials from replicated table', { count: mergedTrials.length });
+          }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to load trials';
           set({ error: errorMessage, isLoading: false });
@@ -436,21 +506,20 @@ export const useTrialStore = create<TrialStore>()(
           if (!trial) {
             throw new Error(`Trial with id ${trialId} not found`);
           }
-          
-          // Generate optimistic ID and create trial class with sync metadata
-          const optimisticId = generateId();
+
+          // Generate ID and create trial class with sync metadata
+          const id = crypto.randomUUID();
           const newTrialClass: SyncableTrialClass = {
-            id: optimisticId,
+            id,
             ...trialClassData,
-            
             // Sync metadata for Local-First architecture
             _version: 1,
             _lastModified: new Date(),
-            _lastModifiedBy: 'current-user', // TODO: Get from auth context
+            _lastModifiedBy: 'current-user',
             _syncStatus: 'pending',
-            _localOnly: false
+            _localOnly: true
           };
-          
+
           // Optimistic update - add to store immediately
           set((state) => {
             const classes = state.trialClasses[trialId] || [];
@@ -461,20 +530,9 @@ export const useTrialStore = create<TrialStore>()(
               }
             };
           });
-          
-          // Queue for background sync
-          try {
-            await syncService.addToQueue({
-              entityType: 'trial_classes',
-              entityId: optimisticId,
-              operation: 'create',
-              data: { ...trialClassData, trialId } as unknown as Record<string, unknown>,
-              priority: "medium"
-            });
-          } catch (syncError) {
-            console.warn('Failed to queue trial class creation for sync:', syncError);
-          }
-          
+
+          // TODO: Integrate with ReplicatedClassesTable in future migration
+
           return newTrialClass;
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to add trial class';
@@ -487,48 +545,35 @@ export const useTrialStore = create<TrialStore>()(
         try {
           const classes = get().trialClasses[trialId] || [];
           const currentClass = classes.find(c => c.id === classId);
-          
+
           if (!currentClass) {
             const error = `Trial class with id ${classId} not found in trial ${trialId}`;
             set({ error });
             return null;
           }
-          
+
           // Create updated trial class with incremented version
           const updatedClass: SyncableTrialClass = {
             ...currentClass,
             ...updates,
-            
-            // Update sync metadata
             _version: currentClass._version ? currentClass._version + 1 : 1,
             _lastModified: new Date(),
-            _lastModifiedBy: 'current-user', // TODO: Get from auth context
+            _lastModifiedBy: 'current-user',
             _syncStatus: 'pending'
           };
-          
+
           // Optimistic update
           set((state) => ({
             trialClasses: {
               ...state.trialClasses,
-              [trialId]: (state.trialClasses[trialId] || []).map(c => 
+              [trialId]: (state.trialClasses[trialId] || []).map(c =>
                 c.id === classId ? updatedClass : c
               )
             }
           }));
-          
-          // Queue for background sync
-          try {
-            await syncService.addToQueue({
-              entityType: 'trial_classes',
-              entityId: classId,
-              operation: 'update',
-              data: { ...updates, trialId } as Record<string, unknown>,
-              priority: "medium"
-            });
-          } catch (syncError) {
-            console.warn('Failed to queue trial class update for sync:', syncError);
-          }
-          
+
+          // TODO: Integrate with ReplicatedClassesTable in future migration
+
           return updatedClass;
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to update trial class';
@@ -541,13 +586,13 @@ export const useTrialStore = create<TrialStore>()(
         try {
           const classes = get().trialClasses[trialId] || [];
           const classExists = classes.some(c => c.id === classId);
-          
+
           if (!classExists) {
             const error = `Trial class with id ${classId} not found in trial ${trialId}`;
             set({ error });
             return;
           }
-          
+
           // Optimistic delete - remove immediately
           set((state) => ({
             trialClasses: {
@@ -555,19 +600,8 @@ export const useTrialStore = create<TrialStore>()(
               [trialId]: (state.trialClasses[trialId] || []).filter(c => c.id !== classId)
             }
           }));
-          
-          // Queue for background sync
-          try {
-            await syncService.addToQueue({
-              entityType: 'trial_classes',
-              entityId: classId,
-              operation: 'delete',
-              data: { trialId },
-              priority: "medium"
-            });
-          } catch (syncError) {
-            console.warn('Failed to queue trial class deletion for sync:', syncError);
-          }
+
+          // TODO: Integrate with ReplicatedClassesTable in future migration
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to delete trial class';
           set({ error: errorMessage });
@@ -635,37 +669,44 @@ export const useTrialStore = create<TrialStore>()(
             [trialId]: classes.filter((c) => c.id !== classId)
           }
         };
-      })
-    }),
-    {
-      name: 'myk9show-trials-storage',
-      storage: createJSONStorage(() => getOptimalStorage('trials')),
-      partialize: (state) => ({
-        trials: state.trials,
-        selectedTrialId: state.selectedTrialId,
-        trialClasses: state.trialClasses
       }),
-      version: 2,
-      migrate: (persistedState: unknown, version: number) => {
-        // Handle version migrations for trials
-        if (version === 0) {
-          // Convert from old format if necessary
-          if (persistedState && typeof persistedState === 'object') {
-            const state = persistedState as Record<string, unknown>;
-            if (state.trials && Array.isArray(state.trials)) {
-              // Ensure all trials have proper show relationships
-              state.trials = state.trials.map((trial: unknown) => {
-                const t = trial as Record<string, unknown>;
-                return {
-                  ...t,
-                  // Add any data transformations needed for relationships
-                };
-              });
-            }
-          }
+
+      // Subscription Management
+      initializeSubscription: () => {
+        // Skip if already subscribed or using mock data
+        if (get()._unsubscribe || shouldUseMockTrials()) {
+          return;
         }
-        return persistedState;
+
+        reportDebug('store', 'Initializing replicated table subscription for trials');
+
+        // Subscribe to replicated table changes
+        const unsubscribe = replicatedTrialsTable.subscribe((trials) => {
+          const currentTrials = get().trials;
+
+          // Merge replicated data with existing local-only fields
+          const mergedTrials = trials.map(replicated => {
+            const existing = currentTrials.find(t => t.id === replicated.id);
+            return mergeTrialData(replicated, existing);
+          });
+
+          set({ trials: mergedTrials });
+          reportDebug('store', 'Trials updated from replicated table', { count: mergedTrials.length });
+        });
+
+        set({ _unsubscribe: unsubscribe });
+
+        // Load initial data
+        get().loadTrials();
       },
-    }
-  )
+
+      cleanup: () => {
+        const unsubscribe = get()._unsubscribe;
+        if (unsubscribe) {
+          unsubscribe();
+          set({ _unsubscribe: null });
+          reportDebug('store', 'Cleaned up replicated table subscription for trials');
+        }
+      },
+    })
 );

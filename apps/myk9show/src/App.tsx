@@ -31,6 +31,7 @@ import { EnhancedAuthProvider } from './context/EnhancedAuthProvider';
 import { AudioSettingsProvider } from './contexts/AudioSettingsContext';
 import { FormErrorProvider } from './providers/FormErrorProvider';
 import { StoreProvider } from './providers/StoreProvider';
+import { ReplicationSyncProvider } from './providers/ReplicationSyncProvider';
 
 // Panel System
 import { PanelProvider } from './components/panels/PanelContext';
@@ -166,8 +167,9 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <NetworkStatusProvider>
-        <StoreProvider>
-          <AuthProvider>
+        <ReplicationSyncProvider autoSync={true} syncOnReconnect={true}>
+          <StoreProvider>
+            <AuthProvider>
             <EnhancedAuthProvider>
               <AudioSettingsProvider>
                 <FormErrorProvider>
@@ -236,8 +238,9 @@ function App() {
               </FormErrorProvider>
               </AudioSettingsProvider>
             </EnhancedAuthProvider>
-          </AuthProvider>
-        </StoreProvider>
+            </AuthProvider>
+          </StoreProvider>
+        </ReplicationSyncProvider>
       </NetworkStatusProvider>
     </QueryClientProvider>
   );

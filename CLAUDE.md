@@ -78,7 +78,7 @@ See [docs/MIGRATION-PLAN.md](docs/MIGRATION-PLAN.md) for detailed implementation
 
 - [x] Phase 0: Foundation & Tooling
 - [x] Phase 1: Shared Packages Foundation (@myk9/core, @myk9/supabase, @myk9/replication)
-- [ ] Phase 2: Migrate myK9Show to Monorepo
+- [~] Phase 2: Migrate myK9Show to Monorepo (2.1 complete: app moved and building)
 - [ ] Phase 3: Shared UI Components
 - [ ] Phase 4: Migrate myK9Q to Monorepo
 - [ ] Phase 5: Database Consolidation

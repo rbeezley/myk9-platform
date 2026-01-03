@@ -358,21 +358,18 @@
 
 ## Phase 6: Scoring Package (2 weeks)
 
-### 6.1 @myk9/scoring Package
-- [ ] Create `packages/scoring/package.json`
-- [ ] Extract from myK9Q:
-  - [ ] Scoresheet components
-  - [ ] Score input components
-  - [ ] Timer components
-  - [ ] Result display components
-- [ ] Extract scoring hooks:
-  - [ ] `useOptimisticScoring`
-  - [ ] `useScoreEntry`
-  - [ ] `useTimer`
-- [ ] Extract scoring rules:
-  - [ ] AKC rules
-  - [ ] UKC rules
-  - [ ] ASCA rules
+### 6.1 @myk9/scoring Package ✅ COMPLETE
+- [x] Create `packages/scoring/package.json`
+- [x] Extract scoring stores from myK9Q:
+  - [x] `scoringStore` - session management, score tracking, sync status
+  - [x] `timerStore` - multi-area timer management for scent work
+- [x] Extract scoring utilities:
+  - [x] `calculationUtils` - area time totals, Fast CAT mph, time formatting
+  - [x] `nationalsUtils` - element mapping, max times, day helpers
+- [x] Export types: QualifyingResult, CompetitionType, Score, ScoringSession, TimerArea
+- [x] Package builds successfully (16.13 KB JS, 17.89 KB .d.ts)
+- [ ] Scoresheet components - deferred (tightly coupled to pages)
+- [ ] Scoring hooks (useOptimisticScoring) - deferred (needs database abstraction)
 
 ### 6.2 Integrate Scoring in Both Apps
 - [ ] Update myK9Q to import from `@myk9/scoring`

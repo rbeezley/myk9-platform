@@ -1,0 +1,32 @@
+{
+  "name": "@myk9/scoring",
+  "version": "0.0.1",
+  "description": "Scoring logic, stores, hooks, and utilities for dog show scoring",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zustand": "^5.0.5"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.4",
+    "react": "^19.1.0",
+    "tsup": "^8.5.1",
+    "typescript": "~5.8.3"
+  }
+}

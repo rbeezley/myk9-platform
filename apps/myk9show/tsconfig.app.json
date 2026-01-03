@@ -35,9 +35,8 @@
     "noPropertyAccessFromIndexSignature": false,
     "noUncheckedIndexedAccess": false,
 
-    /* Temporarily disabled for Base UI migration - callback type inference issues */
-    /* TODO: Re-enable and add explicit types to callbacks after migration stabilizes */
-    "noImplicitAny": false
+    /* Re-enabled after Base UI migration stabilized */
+    "noImplicitAny": true
   },
   "include": ["src"],
   "exclude": [
@@ -110,21 +109,6 @@
     "src/utils/storage-benchmarking.ts",
     "src/services/compression/CompressionService.ts",
     "src/utils/encryption.ts",
-    "src/utils/designTokens.ts",
-
-    /* Files with pre-existing array type inference issues (unrelated to Base UI migration) */
-    /* TODO: Fix these type errors and remove from exclude list */
-    "src/components/admin/LoadTestDashboard.tsx",
-    "src/components/optimistic/RollbackNotification.tsx",
-    "src/components/panels/edit/AddDogPanel.tsx",
-    "src/components/scoring/JudgeClassInterface.tsx",
-    "src/services/compression/CompressionIntegration.ts",
-    "src/services/database/batchOperations.ts",
-    "src/services/database/queries/judgeAssignmentQueries.ts",
-    "src/services/optimistic/OptimisticUIService.ts",
-    "src/services/performance/PerformanceIntegrator.ts",
-    "src/services/testing/LoadTestService.ts",
-    "src/store/showRegistrationStore.ts",
-    "src/pages/ResultEntryDashboard.tsx"
+    "src/utils/designTokens.ts"
   ]
 }

@@ -1,0 +1,680 @@
+/* Apple-Inspired People Details Styles */
+
+/* Typography - San Francisco inspired */
+.apple-people-page {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+  letter-spacing: -0.01em;
+  background: var(--background);
+  min-height: 100vh;
+}
+
+/* Page Layout with Apple's 8px grid system */
+.apple-people-container {
+  @apply px-6;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding-top: 80px; /* Account for fixed header */
+  padding-bottom: 80px;
+}
+
+/* Enhanced Header with photo and person info */
+.apple-people-header {
+  background: var(--card);
+  border: 0.5px solid var(--border);
+  border-radius: 20px;
+  padding: 32px;
+  margin-bottom: 32px;
+  backdrop-filter: blur(20px);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  gap: 32px;
+  align-items: flex-start;
+}
+
+.apple-people-header::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  padding: 0.5px;
+  background: linear-gradient(135deg, transparent, rgba(0, 122, 255, 0.1), transparent);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  opacity: 0.3;
+}
+
+.apple-people-photo-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+.apple-people-info-section {
+  flex: 1;
+  position: relative;
+  z-index: 10;
+}
+
+.apple-people-actions {
+  position: relative;
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+/* Profile Photo Container */
+.apple-people-photo-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Title and Info Section */
+.apple-people-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.apple-people-title {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--foreground);
+  margin: 0;
+}
+
+.apple-people-role-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 50px;
+  font-size: 12px;
+  font-weight: 590;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  background: rgba(0, 122, 255, 0.1);
+  color: #007AFF;
+  border: 1px solid rgba(0, 122, 255, 0.2);
+}
+
+
+.apple-people-contact-link {
+  color: var(--foreground);
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.apple-people-contact-link:hover {
+  color: #007AFF;
+}
+
+.apple-people-contact-text {
+  color: var(--foreground);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.apple-people-photo {
+  width: 120px;
+  height: 120px;
+  border-radius: 28px;
+  object-fit: cover;
+  border: 3px solid var(--border);
+  transition: all 0.3s ease;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+}
+
+.apple-people-photo:hover {
+  transform: scale(1.02);
+  border-color: rgba(0, 122, 255, 0.4);
+  box-shadow: 0 12px 40px rgba(0, 122, 255, 0.15);
+}
+
+.apple-people-photo-placeholder {
+  width: 120px;
+  height: 120px;
+  border-radius: 28px;
+  background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 48px;
+  font-weight: 600;
+  border: 3px solid var(--border);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.apple-people-photo-placeholder:hover {
+  transform: scale(1.02);
+  border-color: rgba(0, 122, 255, 0.4);
+  box-shadow: 0 12px 40px rgba(0, 122, 255, 0.15);
+}
+
+.apple-people-photo-edit-btn {
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 590;
+  transition: all 0.2s ease;
+}
+
+.apple-people-photo-edit-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Dropdown Menu Styling */
+.apple-people-dropdown-trigger {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted-foreground);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.apple-people-dropdown-trigger:hover {
+  background: var(--muted);
+  color: var(--foreground);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.dark .apple-people-dropdown-trigger {
+  background: rgba(30, 30, 30, 0.9);
+}
+
+.dark .apple-people-dropdown-trigger:hover {
+  background: rgba(60, 60, 60, 1);
+}
+
+.apple-people-name {
+  font-size: 24px;
+  font-weight: 650;
+  color: var(--foreground);
+  margin-bottom: 4px;
+  text-align: center;
+}
+
+.apple-people-role {
+  font-size: 14px;
+  color: var(--muted-foreground);
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+/* Contact Information Grid */
+.apple-people-contact-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 32px;
+  align-items: start;
+}
+
+.apple-people-contact-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 24px;
+}
+
+.apple-people-contact-label {
+  font-size: 13px;
+  font-weight: 590;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--muted-foreground);
+  opacity: 0.8;
+}
+
+.apple-people-contact-value {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--foreground);
+  word-break: break-word;
+}
+
+/* Dark mode support for field values */
+.dark .apple-people-contact-value {
+  color: white;
+}
+
+.apple-people-contact-value.email {
+  color: #007AFF;
+  text-decoration: none;
+}
+
+.dark .apple-people-contact-value.email {
+  color: white;
+}
+
+.apple-people-contact-value.email:hover {
+  text-decoration: underline;
+}
+
+.apple-people-contact-value.phone {
+  color: #34C759;
+  text-decoration: none;
+}
+
+.dark .apple-people-contact-value.phone {
+  color: white;
+}
+
+.apple-people-contact-value.phone:hover {
+  text-decoration: underline;
+}
+
+.apple-people-contact-link {
+  font-size: 15px;
+  font-weight: 500;
+  color: #007AFF;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.apple-people-contact-link:hover {
+  text-decoration: underline;
+  color: #0056CC;
+}
+
+.apple-people-contact-text {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--foreground);
+  line-height: 1.3;
+}
+
+/* Address Section */
+.apple-people-address {
+  grid-column: 1 / -1;
+  margin-top: 8px;
+}
+
+.apple-people-address-text {
+  line-height: 1.5;
+}
+
+/* Tabs Card */
+.apple-people-tabs {
+  flex: 1;
+}
+
+.apple-people-tabs .apple-people-card-content {
+  padding: 0;
+}
+
+/* Status Indicators */
+.apple-people-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 50px;
+  font-size: 13px;
+  font-weight: 590;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin-bottom: 12px;
+}
+
+.apple-people-status-active {
+  background: rgba(52, 199, 89, 0.1);
+  color: #34C759;
+  border: 1px solid rgba(52, 199, 89, 0.2);
+}
+
+.apple-people-status-inactive {
+  background: rgba(142, 142, 147, 0.1);
+  color: #8E8E93;
+  border: 1px solid rgba(142, 142, 147, 0.2);
+}
+
+/* Action Buttons */
+.apple-people-action-button {
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 590;
+  color: var(--foreground);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.apple-people-action-button:hover {
+  background: var(--muted);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+}
+
+.apple-people-action-button-primary {
+  background: #007AFF;
+  color: white;
+  border-color: #007AFF;
+}
+
+.apple-people-action-button-primary:hover {
+  background: #0056CC;
+  border-color: #0056CC;
+  box-shadow: 0 6px 20px rgba(0, 122, 255, 0.3);
+}
+
+/* Dogs Section in Tabs */
+.apple-people-dogs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  padding: 24px;
+}
+
+/* Dog Cards - Keep animations for these */
+.apple-people-dog-card {
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  cursor: pointer;
+}
+
+.apple-people-dog-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+  border-color: rgba(0, 122, 255, 0.4);
+}
+
+.apple-people-dog-photo {
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
+  object-fit: cover;
+  margin-bottom: 12px;
+  border: 2px solid var(--border);
+}
+
+.apple-people-dog-name {
+  font-size: 16px;
+  font-weight: 590;
+  color: var(--foreground);
+  margin-bottom: 4px;
+}
+
+.apple-people-dog-breed {
+  font-size: 13px;
+  color: var(--muted-foreground);
+  margin-bottom: 8px;
+}
+
+.apple-people-dog-stats {
+  display: flex;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+
+/* Sidebar Styles */
+.apple-people-sidebar-container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border-right: 0.5px solid var(--border);
+  backdrop-filter: blur(40px);
+}
+
+.apple-people-sidebar-item {
+  padding: 12px 16px;
+  margin: 2px 8px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.apple-people-sidebar-item:hover {
+  background: var(--muted);
+  transform: translateX(2px);
+}
+
+.apple-people-sidebar-item.selected {
+  background: rgba(0, 122, 255, 0.1);
+  border-color: rgba(0, 122, 255, 0.3);
+  color: #007AFF;
+}
+
+.apple-people-sidebar-name {
+  font-size: 14px;
+  font-weight: 590;
+  margin-bottom: 2px;
+  line-height: 1.2;
+}
+
+.apple-people-sidebar-email {
+  font-size: 11px;
+  color: var(--muted-foreground);
+  margin-bottom: 1px;
+  line-height: 1.2;
+  opacity: 0.8;
+}
+
+.apple-people-sidebar-role {
+  font-size: 10px;
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  opacity: 0.6;
+}
+
+/* Empty State */
+.apple-people-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  text-align: center;
+  padding: 48px 32px;
+}
+
+.apple-people-empty-icon {
+  width: 80px;
+  height: 80px;
+  margin-bottom: 24px;
+  color: var(--muted-foreground);
+  opacity: 0.4;
+}
+
+.apple-people-empty-title {
+  font-size: 24px;
+  font-weight: 650;
+  margin-bottom: 12px;
+  color: var(--foreground);
+}
+
+.apple-people-empty-description {
+  font-size: 16px;
+  color: var(--muted-foreground);
+  line-height: 1.5;
+  max-width: 400px;
+  margin-bottom: 32px;
+}
+
+/* Dark mode adjustments */
+.dark .apple-people-card {
+  backdrop-filter: blur(40px);
+}
+
+.dark .apple-people-dog-card {
+  background: rgba(30, 30, 30, 0.6);
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .apple-people-container {
+    padding: 24px;
+  }
+  
+  .apple-people-header {
+    flex-direction: column;
+    gap: 24px;
+    text-align: center;
+  }
+  
+  .apple-people-photo-section {
+    align-items: center;
+  }
+  
+  .apple-people-info-section {
+    text-align: center;
+  }
+  
+  .apple-people-actions {
+    align-self: center;
+  }
+  
+  .apple-people-dogs-grid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px;
+  }
+}
+
+@media (max-width: 768px) {
+  .apple-people-container {
+    padding: 20px;
+    padding-top: 60px;
+  }
+  
+  .apple-people-header {
+    padding: 24px;
+    gap: 20px;
+  }
+  
+  .apple-people-title {
+    font-size: 24px;
+  }
+  
+  .apple-people-photo {
+    width: 100px;
+    height: 100px;
+  }
+  
+  .apple-people-photo-placeholder {
+    width: 100px;
+    height: 100px;
+    font-size: 40px;
+  }
+  
+  .apple-people-contact-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .apple-people-contact-item {
+    justify-content: flex-start;
+  }
+  
+  .apple-people-dogs-grid {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+}
+
+/* Focus styles for accessibility */
+.apple-people-action-button:focus {
+  outline: 2px solid #007AFF;
+  outline-offset: 2px;
+}
+
+/* Smooth animations */
+.apple-people-page {
+  scroll-behavior: smooth;
+}
+
+/* Loading States */
+.apple-people-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+}
+
+.apple-people-loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--muted);
+  border-top: 3px solid #007AFF;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Apple-style subtle borders for user details */
+.apple-subtle-card-border {
+  border: 0.5px solid var(--border) !important;
+}
+
+.apple-subtle-field-separator {
+  border-bottom: 0.5px solid var(--border) !important;
+  opacity: 0.3;
+}
+
+/* Dark mode text color fixes - ONLY for field values, NOT labels */
+
+/* Target field values with text-foreground class specifically in detail pages */
+.dark .max-w-7xl span.text-foreground.text-sm.font-medium {
+  color: white !important;
+}
+
+.dark .max-w-7xl span.text-foreground.text-lg.font-semibold {
+  color: white !important;
+}
+
+/* Target field values by excluding label characteristics (tracking-wide + uppercase) */
+.dark span.text-sm.font-medium:not([class*="muted-foreground"]):not([class*="tracking-wide"]):not([class*="uppercase"]) {
+  color: white !important;
+}
+
+.dark span.text-lg.font-semibold:not([class*="muted-foreground"]):not([class*="tracking-wide"]):not([class*="uppercase"]) {
+  color: white !important;
+}
+
+/* Override any other rules that might affect our labels */
+.dark .max-w-7xl .apple-subtle-field-separator span.text-xs[class*="muted-foreground"] {
+  color: rgb(156 163 175 / 0.8) !important;
+}
+
+/* Ensure titles and main text use proper foreground colors */
+.dark h1.text-foreground,
+.dark p.text-foreground {
+  color: white !important;
+}
+
+/* Keep labels properly muted - highest specificity */
+.dark .apple-subtle-field-separator span[class*="text-muted-foreground"].tracking-wide.uppercase,
+.dark span[class*="text-muted-foreground"].tracking-wide.uppercase,
+.dark span.text-muted-foreground.tracking-wide.uppercase {
+  color: rgb(156 163 175 / 0.8) !important;
+}

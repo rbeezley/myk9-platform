@@ -1,0 +1,13 @@
+{
+  "name": "myk9show-scripts",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Utility scripts for myK9Show",
+  "scripts": {
+    "create-profiles": "node create-test-profiles.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.8",
+    "dotenv": "^16.4.5"
+  }
+}

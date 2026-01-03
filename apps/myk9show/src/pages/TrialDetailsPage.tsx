@@ -1,0 +1,500 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useTrialStore } from '@/store/trialStore';
+import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
+import { useTemplateStore } from '@/store/templateStore';
+import { useShowStore } from '@/store/showStore';
+import TrialDetailsMain from '@/components/trials/TrialDetailsMain';
+import { TrialSidebar } from '@/components/trials/TrialSidebar';
+import AddClassesToTrialDialog from '@/components/trials/AddClassesToTrialDialog';
+import { TrialEditPanel } from '@/components/panels/edit/TrialEditPanel';
+import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
+import StandardDialog from '@/components/common/StandardDialog';
+import { AppleDialog } from '@/components/ui/AppleDialog';
+import { Trial, TrialClass } from '@/components/trials/types/trial.types';
+import { ClassTemplate, ClassDefinition } from '@/types/template.types';
+import { TrialStatisticsData } from '@/components/trials/TrialDetail/TrialStatistics';
+
+const TrialDetailsPage: React.FC = () => {
+  const { trialId, showId } = useParams<{ trialId: string; showId?: string }>();
+  const navigate = useNavigate();
+  const { trials, selectedTrialId, selectTrial, updateTrial, removeTrial } = useTrialStore();
+  const { templates } = useTemplateStore();
+  const { shows } = useShowStore();
+
+  // Templates will be automatically initialized by the store on app start
+  // No need to initialize here to avoid duplicates
+  
+  // Panel state
+  const [editTrialPanelOpen, setEditTrialPanelOpen] = useState(false);
+  const [deleteTrialDialogOpen, setDeleteTrialDialogOpen] = useState(false);
+  const [addClassesFromTemplateDialogOpen, setAddClassesFromTemplateDialogOpen] = useState(false);
+  const [editClassPanelOpen, setEditClassPanelOpen] = useState(false);
+  const [selectedClassForEdit, setSelectedClassForEdit] = useState<TrialClass | null>(null);
+  const [deleteClassDialogOpen, setDeleteClassDialogOpen] = useState(false);
+  const [selectedClassForDelete, setSelectedClassForDelete] = useState<TrialClass | null>(null);
+  
+  // State for sidebar and selection
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // Get classes store
+  const { addClass, classes, updateClass, deleteClass } = useClassStoreCompat();
+
+  // Set selected trial based on URL parameter
+  useEffect(() => {
+    console.log('TrialDetailsPage useEffect - trialId from URL:', trialId);
+    if (trialId) {
+      console.log('TrialDetailsPage - Selecting trial:', trialId);
+      // Always select the trial from URL, regardless of current state
+      selectTrial(trialId);
+    }
+  }, [trialId, selectTrial]);
+  
+  // Separate effect for initial data loading - only when no trialId in URL
+  useEffect(() => {
+    if (!trialId && trials.length > 0 && !selectedTrialId) {
+      const firstTrial = trials[0];
+      // Use the appropriate URL pattern based on whether we have a showId
+      const url = showId ? `/shows/${showId}/trials/${firstTrial.id}` : `/trials/${firstTrial.id}`;
+      navigate(url, { replace: true });
+    }
+  }, [trials, navigate, selectedTrialId, trialId, showId]);
+
+  // Get current trial with proper type
+  const currentTrial = trials.find(trial => trial.id === selectedTrialId) as (Trial & { classes?: TrialClass[] }) | undefined;
+  
+  // Debug logging
+  useEffect(() => {
+    console.log('TrialDetailsPage - trialId from URL:', trialId);
+    console.log('TrialDetailsPage - selectedTrialId:', selectedTrialId);
+    console.log('TrialDetailsPage - currentTrial:', currentTrial);
+    console.log('TrialDetailsPage - available trials:', trials.map(t => ({ id: t.id, type: t.type })));
+  }, [trialId, selectedTrialId, currentTrial, trials]);
+  
+  // Get the parent show's type
+  const parentShow = currentTrial ? shows.find(show => show.id === currentTrial.showId) : undefined;
+  const showType = parentShow?.type;
+  
+  // Filter trials to only show trials from the same show
+  const showTrials = currentTrial ? trials.filter(trial => trial.showId === currentTrial.showId) : [];
+  
+  // Debug logging for show type inheritance
+  if (currentTrial) {
+    console.log('TrialDetailsPage - Current trial:', currentTrial);
+    console.log('TrialDetailsPage - Parent show:', parentShow);
+    console.log('TrialDetailsPage - Show type:', showType);
+  }
+
+  // Handle case where trial doesn't exist
+  // Add empty classes array if not present
+  if (currentTrial && !currentTrial.classes) {
+    currentTrial.classes = [];
+  }
+
+  // Sync classes from classStore to trial - populate trial.classes from store
+  useEffect(() => {
+    if (currentTrial) {
+      const trialClasses = classes.filter(c => c.trialId === currentTrial.id);
+      
+      // Convert ClassData to TrialClass format
+      const convertedClasses = trialClasses.map(classData => ({
+        id: classData.id,
+        element: classData.element || 'Unknown',
+        level: classData.level || 'Unknown', 
+        section: classData.section || 'A',
+        status: classData.status === 'Scheduled' ? 'Upcoming' : classData.status as 'Upcoming' | 'In Progress' | 'Completed' | 'Cancelled',
+        judgeId: classData.judge || 'TBD', // Using judge field as judgeId for now
+        judgeName: classData.judge || 'TBD',
+        startTime: new Date().toISOString(), // Default start time - TODO: Get from class data
+        entries: 0 // TODO: Get from entries store
+      }));
+      
+      // Update the trial's classes array
+      currentTrial.classes = convertedClasses;
+    }
+  }, [currentTrial, classes]);
+
+
+  // Generate statistics for the trial
+  const trialStatistics: TrialStatisticsData = useMemo(() => {
+    if (!currentTrial || !currentTrial.classes) {
+      return {
+        judges: { total: 0, active: 0, onBreak: 0, percentChange: 0 },
+        classes: { total: 0, upcoming: 0, completed: 0, percentChange: 0 },
+        entries: { total: 0, upcoming: 0, completed: 0, percentChange: 0 },
+        qualifiedRate: { percent: 0, qualified: 0, total: 0, percentChange: 0 }
+      };
+    }
+
+    const totalClasses = currentTrial.classes.length;
+    const completedClasses = currentTrial.classes.filter((c: TrialClass) => c.status === 'Completed').length;
+    const upcomingClasses = totalClasses - completedClasses;
+    
+    // Mock some entries data
+    const totalEntries = totalClasses * 8; // Assume ~8 entries per class
+    const completedEntries = completedClasses * 8;
+    const upcomingEntries = totalEntries - completedEntries;
+    
+    // Mock qualification rate
+    const qualifiedEntries = Math.floor(completedEntries * 0.75); // 75% qualification rate
+    
+    return {
+      judges: { 
+        total: 2, 
+        active: currentTrial.status === 'In Progress' ? 2 : 0, 
+        onBreak: 0, 
+        percentChange: Math.round(((currentTrial.status === 'In Progress' ? 2 : 0) / 2) * 100) 
+      },
+      classes: { 
+        total: totalClasses, 
+        upcoming: upcomingClasses, 
+        completed: completedClasses, 
+        percentChange: totalClasses > 0 ? Math.round((completedClasses / totalClasses) * 100) : 0 
+      },
+      entries: { 
+        total: totalEntries, 
+        upcoming: upcomingEntries, 
+        completed: completedEntries, 
+        percentChange: totalEntries > 0 ? Math.round((completedEntries / totalEntries) * 100) : 0 
+      },
+      qualifiedRate: { 
+        percent: completedEntries > 0 ? Math.round((qualifiedEntries / completedEntries) * 100) : 0, 
+        qualified: qualifiedEntries, 
+        total: completedEntries, 
+        percentChange: completedEntries > 0 ? Math.round((qualifiedEntries / completedEntries) * 100) : 0 
+      }
+    };
+  }, [currentTrial]);
+
+  // Handle case where trial doesn't exist - moved after hooks
+  if (trialId && !currentTrial && trials.length > 0) {
+    return (
+      <div className="apple-show-page flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-foreground mb-4">Trial Not Found</h1>
+          <p className="text-muted-foreground mb-4">The trial you're looking for doesn't exist.</p>
+          <button 
+            onClick={() => {
+              const url = showId ? `/shows/${showId}` : '/trials';
+              navigate(url);
+            }}
+            className="apple-action-button apple-action-button-primary"
+          >
+            {showId ? 'Back to Show' : 'Back to Trials'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Handler for editing a trial
+  const handleEditTrial = () => {
+    setEditTrialPanelOpen(true);
+  };
+
+
+  // Handler for deleting a trial
+  const handleDeleteTrial = () => {
+    setDeleteTrialDialogOpen(true);
+  };
+
+  const handleConfirmDeleteTrial = () => {
+    if (currentTrial) {
+      removeTrial(currentTrial.id);
+      
+      // Navigate based on context and remaining trials
+      if (showId && currentTrial.showId) {
+        // We came from a show context, go back to the show
+        navigate(`/shows/${currentTrial.showId}`);
+      } else {
+        // Standalone trial route - navigate to remaining trials or shows list
+        const remainingTrials = trials.filter(t => t.id !== currentTrial.id);
+        if (remainingTrials.length > 0) {
+          // Navigate to first remaining trial
+          navigate(`/trials/${remainingTrials[0].id}`, { replace: true });
+        } else {
+          // No trials left, navigate to shows list
+          navigate('/shows', { replace: true });
+        }
+      }
+    }
+    setDeleteTrialDialogOpen(false);
+  };
+
+
+  const handleAddClassesFromTemplate = () => {
+    setAddClassesFromTemplateDialogOpen(true);
+  };
+
+  const handleSaveClassesFromTemplate = (selectedClasses: ClassDefinition[], template: ClassTemplate, judgeAssignments: Array<{classId: string; judgeId: string; judgeName: string}> = []) => {
+    if (!currentTrial) return;
+
+    const existingClasses = currentTrial.classes || [];
+    
+    // Check for duplicates and filter out classes that already exist
+    const isClassDuplicate = (classDef: ClassDefinition) => {
+      return existingClasses.some(existingClass => 
+        existingClass.element === classDef.element &&
+        existingClass.level === (classDef.level || '') &&
+        existingClass.section === (classDef.section || '')
+      );
+    };
+
+    // Separate new classes from duplicates
+    const newClasses = selectedClasses.filter(classDef => !isClassDuplicate(classDef));
+    const duplicateClasses = selectedClasses.filter(classDef => isClassDuplicate(classDef));
+
+    // Create class IDs that will be shared between TrialClass and ClassData
+    const classIds = newClasses.map((_, index) => `class-${Date.now()}-${index}`);
+
+    // Convert new ClassDefinitions to TrialClasses
+    const newTrialClasses: TrialClass[] = newClasses.map((classDef, index) => {
+      // Calculate start time for each class (assuming 15-minute intervals starting at 9:00 AM)
+      const baseTime = new Date(`${currentTrial.trialDate}T09:00:00`);
+      const classStartTime = new Date(baseTime.getTime() + (existingClasses.length + index) * 15 * 60 * 1000);
+      
+      // Find judge assignment for this class
+      const judgeAssignment = judgeAssignments.find(ja => ja.classId === classDef.className);
+      const judgeId = judgeAssignment?.judgeId || 'TBD';
+      const judgeName = judgeAssignment?.judgeName || 'TBD';
+      
+      return {
+        id: classIds[index],
+        element: classDef.element,
+        level: classDef.level || '',
+        section: classDef.section || '',
+        judgeId: judgeId,
+        judgeName: judgeName,
+        startTime: classStartTime.toISOString(),
+        status: 'Upcoming' as const,
+        entries: 0
+      };
+    });
+
+    // Also add classes to the classStore so they can be viewed in ClassDetailsPage
+    const newClassDataItems = newClasses.map((classDef, index) => {
+      // Find judge assignment for this class
+      const judgeAssignment = judgeAssignments.find(ja => ja.classId === classDef.className);
+      const judgeName = judgeAssignment?.judgeName || 'TBD';
+      
+      return {
+        id: classIds[index],
+        trialId: currentTrial.id,
+        trial: currentTrial.name || currentTrial.type || 'Trial',
+        trialDate: currentTrial.trialDate,
+        trialNumber: currentTrial.trialNumber || '',
+        classOrder: (existingClasses.length + index + 1).toString(),
+        status: 'Scheduled' as const,
+        judge: judgeName,
+        className: classDef.className,
+        classNumber: classDef.classNumber || '',
+        element: classDef.element,
+        level: classDef.level || '',
+        section: classDef.section || '',
+        hidesUsed: '',
+        distractionsUsed: '',
+        itemsUsed: '',
+        timeLimit1: '3:00',
+        timeLimit2: '',
+        timeLimit3: '',
+        photoUrl: '',
+        entryFee: 30,
+        maxEntries: 40,
+        requiresJumpHeight: false
+      };
+    });
+
+    // Add classes to classStore
+    newClassDataItems.forEach(classData => {
+      addClass(classData);
+    });
+
+    // Add only new classes to current trial
+    const updatedTrial = {
+      ...currentTrial,
+      classes: [...existingClasses, ...newTrialClasses]
+    };
+
+    updateTrial(updatedTrial.id, updatedTrial);
+    
+    // Provide feedback about duplicates
+    if (duplicateClasses.length > 0) {
+      console.log(`Skipped ${duplicateClasses.length} duplicate classes:`);
+      duplicateClasses.forEach(cls => 
+        console.log(`- ${cls.element} ${cls.level} ${cls.section}`)
+      );
+    }
+    
+    if (newClasses.length > 0) {
+      console.log(`Added ${newClasses.length} new classes from template: ${template.templateName}`);
+    } else {
+      console.log('No new classes were added - all selected classes already exist in this trial');
+    }
+  };
+
+  const handleEditClass = (classItem: TrialClass) => {
+    console.log('Edit class:', classItem);
+    setSelectedClassForEdit(classItem);
+    setEditClassPanelOpen(true);
+  };
+
+
+  const handleDeleteClass = (classItem: TrialClass) => {
+    setSelectedClassForDelete(classItem);
+    setDeleteClassDialogOpen(true);
+  };
+
+  const handleConfirmDeleteClass = () => {
+    if (selectedClassForDelete && currentTrial) {
+      console.log('Delete class:', selectedClassForDelete);
+      
+      // Remove the class from the trial's classes array
+      const updatedClasses = currentTrial.classes?.filter(cls => 
+        cls.id !== selectedClassForDelete.id
+      ) || [];
+
+      const updatedTrial = {
+        ...currentTrial,
+        classes: updatedClasses
+      };
+
+      updateTrial(updatedTrial.id, updatedTrial);
+
+      // Also remove the class from the classStore
+      deleteClass(selectedClassForDelete.id);
+    }
+    setDeleteClassDialogOpen(false);
+    setSelectedClassForDelete(null);
+  };
+
+
+  // Layout assembly only
+  return (
+    <div className="flex min-h-screen bg-background">
+      <TrialSidebar
+        trials={showTrials}
+        selectedId={selectedTrialId}
+        onSelect={(id) => {
+          const url = showId ? `/shows/${showId}/trials/${id}` : `/trials/${id}`;
+          navigate(url);
+        }}
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+      />
+      
+      <main className="flex-1 overflow-auto">
+        {currentTrial ? (
+          <TrialDetailsMain
+            trial={currentTrial}
+            statistics={trialStatistics}
+            parentShow={parentShow ? { id: parentShow.id, name: parentShow.name, type: parentShow.type } : undefined}
+            onEdit={handleEditTrial}
+            onDelete={handleDeleteTrial}
+            onAddClassesFromTemplate={handleAddClassesFromTemplate}
+            onEditClass={handleEditClass}
+            onDeleteClass={handleDeleteClass}
+          />
+        ) : (
+          <div className="apple-show-container flex items-center justify-center min-h-[60vh]">
+            <div className="text-center">
+              <p className="text-muted-foreground text-lg mb-2">No trial selected</p>
+              <p className="text-muted-foreground text-sm">
+                Select a trial from the sidebar to view details
+              </p>
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* Dialogs */}
+
+      <AddClassesToTrialDialog
+        open={addClassesFromTemplateDialogOpen}
+        onOpenChange={setAddClassesFromTemplateDialogOpen}
+        onSave={handleSaveClassesFromTemplate}
+        availableTemplates={templates}
+        trialName={currentTrial?.type || currentTrial?.trialNumber || 'Trial'}
+        trialShowType={showType}
+        existingClasses={currentTrial?.classes || []}
+        showId={currentTrial?.showId}
+      />
+      
+      <TrialEditPanel
+        open={editTrialPanelOpen}
+        onClose={() => setEditTrialPanelOpen(false)}
+        trialId={currentTrial?.id || ''}
+        trialName={currentTrial?.type || currentTrial?.trialNumber || ''}
+        initialTrialData={currentTrial || {}}
+        onSave={async (trialData) => {
+          if (currentTrial?.id && trialData.id) {
+            const updatedTrial = { ...currentTrial, ...trialData };
+            updateTrial(currentTrial.id, updatedTrial);
+            setEditTrialPanelOpen(false);
+          }
+        }}
+      />
+      
+      <StandardDialog
+        open={deleteTrialDialogOpen}
+        onClose={() => setDeleteTrialDialogOpen(false)}
+        onSave={handleConfirmDeleteTrial}
+        title="Delete Trial"
+        description={null}
+        saveLabel="Delete"
+        cancelLabel="Cancel"
+        saveButtonProps={{
+          variant: 'destructive',
+          className: 'apple-action-button apple-action-button-danger'
+        }}
+        hideSave={false}
+      >
+        <div className="py-2 text-foreground">
+          <p>Are you sure you want to delete <b>{currentTrial?.type || currentTrial?.trialNumber}</b>?</p>
+          <p className="mt-2 text-destructive">This action cannot be undone.</p>
+        </div>
+      </StandardDialog>
+
+      <ClassEditPanel
+        open={editClassPanelOpen}
+        onClose={() => setEditClassPanelOpen(false)}
+        classId={selectedClassForEdit?.id || ''}
+        className={selectedClassForEdit?.element || ''}
+        initialClassData={selectedClassForEdit || {}}
+        mode="simple"
+        onSave={async (classData) => {
+          if (selectedClassForEdit?.id && classData.id) {
+            const updatedClass = { ...selectedClassForEdit, ...classData };
+            updateClass(selectedClassForEdit.id, updatedClass);
+            setEditClassPanelOpen(false);
+            setSelectedClassForEdit(null);
+          }
+        }}
+      />
+
+      <AppleDialog
+        open={deleteClassDialogOpen}
+        onOpenChange={setDeleteClassDialogOpen}
+        title="Delete Class"
+        onSave={handleConfirmDeleteClass}
+        saveLabel="Delete"
+        maxWidth="md"
+      >
+        <div className="text-center py-6">
+          <div className="text-lg font-medium text-foreground mb-4">
+            Are you sure you want to delete this class?
+          </div>
+          {selectedClassForDelete && (
+            <div className="text-base text-muted-foreground mb-6">
+              <strong>{selectedClassForDelete.element} {selectedClassForDelete.level} {selectedClassForDelete.section}</strong>
+            </div>
+          )}
+          <div className="text-sm text-red-600 dark:text-red-400">
+            This action cannot be undone.
+          </div>
+        </div>
+      </AppleDialog>
+    </div>
+  );
+};
+
+export default TrialDetailsPage;

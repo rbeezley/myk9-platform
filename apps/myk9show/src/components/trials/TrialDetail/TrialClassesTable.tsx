@@ -1,0 +1,284 @@
+import { useState, useMemo, startTransition } from 'react';
+import ClassRowActionsMenu from '@/components/classes/ClassRowActionsMenu';
+import { useNavigate } from 'react-router-dom';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { TrialClass } from '../types/trial.types';
+import { FileText, ArrowUpDown, ArrowUp, ArrowDown, Search } from 'lucide-react';
+
+interface TrialClassesTableProps {
+  classes: TrialClass[];
+  onAddClassesFromTemplate?: () => void;
+  onEditClass: (classItem: TrialClass) => void;
+  onDeleteClass: (classItem: TrialClass) => void;
+}
+
+type SortField = 'element' | 'level' | 'section' | 'judgeName' | 'startTime' | 'entries' | 'status';
+type SortDirection = 'asc' | 'desc';
+
+interface SortConfig {
+  field: SortField;
+  direction: SortDirection;
+}
+
+export const TrialClassesTable = ({
+  classes,
+  onAddClassesFromTemplate,
+  onEditClass,
+  onDeleteClass,
+}: TrialClassesTableProps) => {
+  const navigate = useNavigate();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
+
+
+  // Handle column sorting
+  const handleSort = (field: SortField) => {
+    let direction: SortDirection = 'asc';
+    if (sortConfig && sortConfig.field === field && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ field, direction });
+  };
+
+  // Filter and sort classes
+  const filteredAndSortedClasses = useMemo(() => {
+    let filtered = classes;
+
+    // Apply search filter
+    if (searchTerm) {
+      filtered = classes.filter((classItem) => {
+        const searchLower = searchTerm.toLowerCase();
+        return (
+          classItem.element.toLowerCase().includes(searchLower) ||
+          classItem.level.toLowerCase().includes(searchLower) ||
+          classItem.section.toLowerCase().includes(searchLower) ||
+          (classItem.judgeName || 'TBD').toLowerCase().includes(searchLower) ||
+          classItem.status.toLowerCase().includes(searchLower)
+        );
+      });
+    }
+
+    // Apply sorting
+    if (sortConfig) {
+      filtered = [...filtered].sort((a, b) => {
+        const { field, direction } = sortConfig;
+        let aValue: string | number | Date = a[field] ?? '';
+        let bValue: string | number | Date = b[field] ?? '';
+
+        // Handle special cases
+        if (field === 'judgeName') {
+          aValue = aValue || 'TBD';
+          bValue = bValue || 'TBD';
+        }
+        if (field === 'startTime') {
+          aValue = aValue ? new Date(String(aValue)).getTime() : 0;
+          bValue = bValue ? new Date(String(bValue)).getTime() : 0;
+        }
+
+        if (aValue < bValue) {
+          return direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+
+    return filtered;
+  }, [classes, searchTerm, sortConfig]);
+
+  // Get sort icon for column header
+  const getSortIcon = (field: SortField) => {
+    if (!sortConfig || sortConfig.field !== field) {
+      return <ArrowUpDown className="ml-2 h-4 w-4 text-muted-foreground" />;
+    }
+    return sortConfig.direction === 'asc' 
+      ? <ArrowUp className="ml-2 h-4 w-4" />
+      : <ArrowDown className="ml-2 h-4 w-4" />;
+  };
+
+  const getStatusBadge = (status: string) => {
+    const statusMap: Record<string, string> = {
+      'Upcoming': 'bg-blue-100 text-blue-800',
+      'In Progress': 'bg-yellow-100 text-yellow-800',
+      'Completed': 'bg-green-100 text-green-800',
+    };
+    return statusMap[status] || 'bg-gray-500 text-gray-900';
+  };
+
+  if (classes.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-muted-foreground mb-6">
+          <div className="mb-2 text-lg font-medium">No classes yet</div>
+          <div className="text-sm">Add classes to this trial to get started</div>
+        </div>
+        <div className="flex items-center justify-center gap-3">
+          {onAddClassesFromTemplate && (
+            <Button onClick={onAddClassesFromTemplate} className="apple-action-button apple-action-button-primary">
+              <FileText className="h-4 w-4" />
+              Add Classes
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header with Add Buttons */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold">
+            Classes ({filteredAndSortedClasses.length}
+            {searchTerm && filteredAndSortedClasses.length !== classes.length && (
+              <span className="text-muted-foreground"> of {classes.length}</span>
+            )})
+          </h3>
+          <p className="text-sm text-muted-foreground">Manage the classes for this trial</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {onAddClassesFromTemplate && (
+            <Button onClick={onAddClassesFromTemplate} className="apple-action-button apple-action-button-primary">
+              <FileText className="h-4 w-4" />
+              Add Classes
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Search Box */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          type="text"
+          placeholder="Search classes by element, level, section, judge, or status..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="pl-10 bg-card"
+        />
+      </div>
+
+      {/* Classes Table */}
+      <div className="overflow-x-auto">
+        <Table className="bg-card text-foreground">
+        <TableHeader>
+          <TableRow className="bg-card hover:bg-card">
+            <TableHead 
+              className="font-semibold text-xs uppercase tracking-wider cursor-pointer hover:text-primary"
+              onClick={() => handleSort('element')}
+            >
+              <div className="flex items-center">
+                Element
+                {getSortIcon('element')}
+              </div>
+            </TableHead>
+            <TableHead 
+              className="font-semibold text-xs uppercase tracking-wider cursor-pointer hover:text-primary"
+              onClick={() => handleSort('level')}
+            >
+              <div className="flex items-center">
+                Level
+                {getSortIcon('level')}
+              </div>
+            </TableHead>
+            <TableHead 
+              className="font-semibold text-xs uppercase tracking-wider cursor-pointer hover:text-primary"
+              onClick={() => handleSort('section')}
+            >
+              <div className="flex items-center">
+                Section
+                {getSortIcon('section')}
+              </div>
+            </TableHead>
+            <TableHead 
+              className="font-semibold text-xs uppercase tracking-wider cursor-pointer hover:text-primary"
+              onClick={() => handleSort('judgeName')}
+            >
+              <div className="flex items-center">
+                Judge
+                {getSortIcon('judgeName')}
+              </div>
+            </TableHead>
+            <TableHead 
+              className="font-semibold text-xs uppercase tracking-wider cursor-pointer hover:text-primary"
+              onClick={() => handleSort('startTime')}
+            >
+              <div className="flex items-center">
+                Start Time
+                {getSortIcon('startTime')}
+              </div>
+            </TableHead>
+            <TableHead 
+              className="font-semibold text-xs uppercase tracking-wider cursor-pointer hover:text-primary"
+              onClick={() => handleSort('entries')}
+            >
+              <div className="flex items-center">
+                Entries
+                {getSortIcon('entries')}
+              </div>
+            </TableHead>
+            <TableHead 
+              className="font-semibold text-xs uppercase tracking-wider cursor-pointer hover:text-primary"
+              onClick={() => handleSort('status')}
+            >
+              <div className="flex items-center">
+                Status
+                {getSortIcon('status')}
+              </div>
+            </TableHead>
+            <TableHead className="text-right font-semibold text-xs uppercase tracking-wider">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {filteredAndSortedClasses.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={8} className="text-center py-8">
+                <div className="text-muted-foreground">
+                  {searchTerm ? `No classes found matching "${searchTerm}"` : 'No classes to display'}
+                </div>
+              </TableCell>
+            </TableRow>
+          ) : (
+            filteredAndSortedClasses.map((classItem) => (
+              <TableRow key={classItem.id} className="bg-card hover:bg-muted/50 transition-colors">
+                <TableCell>{classItem.element}</TableCell>
+                <TableCell>{classItem.level}</TableCell>
+                <TableCell>{classItem.section}</TableCell>
+                <TableCell>{classItem.judgeName || 'TBD'}</TableCell>
+                <TableCell>
+                  {classItem.startTime 
+                    ? new Date(String(classItem.startTime)).toLocaleTimeString('en-US', {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true
+                      })
+                    : 'TBD'
+                  }
+                </TableCell>
+                <TableCell>{classItem.entries}</TableCell>
+                <TableCell>
+                  <span className={`inline-block px-3 py-1 text-xs font-semibold rounded-full
+    ${getStatusBadge(classItem.status)}
+  `}>{classItem.status}</span>
+                </TableCell>
+                <TableCell className="text-right">
+                  <ClassRowActionsMenu
+                    onView={() => startTransition(() => navigate(`/classes/${classItem.id}`))}
+                    onEdit={() => onEditClass(classItem)}
+                    onDelete={() => onDeleteClass(classItem)}
+                  />
+                </TableCell>
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
+};

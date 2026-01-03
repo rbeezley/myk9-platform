@@ -1,0 +1,9 @@
+:root {
+  --dialog-input-bg: #f2f2f2;
+}
+.dark {
+  --dialog-input-bg: #1a1d23;
+}
+.dialog-input-bg {
+  background-color: var(--dialog-input-bg) !important;
+}

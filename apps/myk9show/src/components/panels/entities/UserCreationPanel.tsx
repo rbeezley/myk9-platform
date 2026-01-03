@@ -1,0 +1,561 @@
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Loader2, User, AlertTriangle } from 'lucide-react';
+import { useUserStore, PersonInput } from '@/store/userStore';
+import { BasePanelProps } from '../types';
+import type { UserRole } from '@/types/user-types';
+
+interface PersonFormData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  role?: UserRole;
+}
+
+const PERSON_ROLES: { value: UserRole; label: string }[] = [
+  { value: 'exhibitor', label: 'Exhibitor' },
+  { value: 'handler', label: 'Handler' },
+  { value: 'judge', label: 'Judge' },
+  { value: 'secretary', label: 'Secretary' },
+  { value: 'steward', label: 'Steward' },
+  { value: 'admin', label: 'Administrator' },
+];
+
+const US_STATES = [
+  'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+  'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+  'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+  'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+  'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'
+];
+
+interface PersonCreationPanelProps extends BasePanelProps {
+  role?: 'chairman' | 'secretary' | 'judge' | 'exhibitor';
+  onStateChange?: (state: { isLoading: boolean; error: string | null; isDirty: boolean; isValid: boolean }) => void;
+  showActions?: boolean; // Controls whether to show action buttons
+}
+
+export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({ 
+  context, 
+  onResult,
+  onStateChange,
+  showActions = true // Default to showing actions for standalone use
+}) => {
+  const { addUser, people } = useUserStore();
+  
+  const [formData, setFormData] = useState<PersonFormData>({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    address: '',
+    city: '',
+    state: '',
+    zipCode: '',
+    role: context.preFilledData?.role as UserRole || 'exhibitor',
+  });
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
+  
+  // Track previous state to prevent unnecessary updates
+  const previousStateRef = useRef<{
+    isLoading: boolean;
+    error: string | null;
+    isDirty: boolean;
+    isValid: boolean;
+  }>({
+    isLoading: false,
+    error: null,
+    isDirty: false,
+    isValid: false,
+  });
+
+  // Extract complex expression to a variable
+  const errorCount = Object.keys(errors).length;
+  
+  // Memoize state calculation using individual primitive values instead of formData object
+  const currentState = useMemo(() => {
+    const isDirty = Boolean(
+      formData.firstName || 
+      formData.lastName || 
+      formData.email || 
+      formData.phone || 
+      formData.address || 
+      formData.city || 
+      formData.state || 
+      formData.zipCode
+    );
+    const isValid = Boolean(
+      errorCount === 0 && 
+      formData.firstName.trim() && 
+      formData.lastName.trim() && 
+      formData.email.trim()
+    );
+    
+    return {
+      isLoading: isSubmitting,
+      error: errors.submit || null,
+      isDirty,
+      isValid
+    };
+  }, [
+    isSubmitting,
+    errors.submit,
+    // Individual primitive values instead of formData object
+    formData.firstName,
+    formData.lastName,
+    formData.email,
+    formData.phone,
+    formData.address,
+    formData.city,
+    formData.state,
+    formData.zipCode,
+    errorCount
+  ]);
+
+  // Stable callback to report state changes
+  const reportStateChange = useCallback(() => {
+    if (!onStateChange) return;
+    
+    const prev = previousStateRef.current;
+    const current = currentState;
+    
+    // Only call onStateChange if state actually changed
+    if (
+      prev.isLoading !== current.isLoading ||
+      prev.error !== current.error ||
+      prev.isDirty !== current.isDirty ||
+      prev.isValid !== current.isValid
+    ) {
+      previousStateRef.current = current;
+      onStateChange(current);
+    }
+  }, [onStateChange, currentState]);
+
+  // Report state changes when currentState changes
+  useEffect(() => {
+    reportStateChange();
+  }, [reportStateChange]);
+
+  // Validation
+  const validateForm = useCallback(() => {
+    const newErrors: Record<string, string> = {};
+
+    if (!formData.firstName.trim()) {
+      newErrors.firstName = 'First name is required';
+    }
+
+    if (!formData.lastName.trim()) {
+      newErrors.lastName = 'Last name is required';
+    }
+
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+
+    if (!formData.phone.trim()) {
+      newErrors.phone = 'Phone number is required';
+    }
+
+    if (!formData.address.trim()) {
+      newErrors.address = 'Address is required';
+    }
+
+    if (!formData.city.trim()) {
+      newErrors.city = 'City is required';
+    }
+
+    if (!formData.state.trim()) {
+      newErrors.state = 'State is required';
+    }
+
+    if (!formData.zipCode.trim()) {
+      newErrors.zipCode = 'ZIP code is required';
+    } else if (!/^\d{5}(-\d{4})?$/.test(formData.zipCode)) {
+      newErrors.zipCode = 'Please enter a valid ZIP code (12345 or 12345-6789)';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }, [formData]);
+
+  // Check for duplicate people
+  const checkForDuplicates = useCallback(() => {
+    const fullName = `${formData.firstName.trim()} ${formData.lastName.trim()}`.toLowerCase();
+    const emailLower = formData.email.trim().toLowerCase();
+    
+    const existingPerson = people.find(person => {
+      const existingName = `${person.firstName} ${person.lastName}`.toLowerCase();
+      const existingEmail = person.email?.toLowerCase();
+      
+      return existingName === fullName || existingEmail === emailLower;
+    });
+
+    if (existingPerson) {
+      const matchType = `${existingPerson.firstName} ${existingPerson.lastName}`.toLowerCase() === fullName 
+        ? 'name' : 'email';
+      setDuplicateWarning(
+        `A person with this ${matchType} already exists: ${existingPerson.firstName} ${existingPerson.lastName}`
+      );
+      return true;
+    }
+
+    setDuplicateWarning(null);
+    return false;
+  }, [formData.firstName, formData.lastName, formData.email, people]);
+
+  // Form handlers
+  const handleInputChange = (field: keyof PersonFormData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    
+    // Clear error for this field
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+    
+    // Clear duplicate warning when name or email changes
+    if ((field === 'firstName' || field === 'lastName' || field === 'email') && duplicateWarning) {
+      setDuplicateWarning(null);
+    }
+  };
+
+  const handleSubmit = async (action: 'save_close' | 'save_continue') => {
+    if (!validateForm()) return;
+
+    // Check for duplicates (but allow user to proceed)
+    checkForDuplicates();
+
+    setIsSubmitting(true);
+
+    try {
+      const personData: PersonInput & { roles?: string[] } = {
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        email: formData.email.trim(),
+        phone: formData.phone.trim(),
+        address: {
+          street: formData.address.trim(),
+          city: formData.city.trim(),
+          state: formData.state.trim(),
+          zipCode: formData.zipCode.trim(),
+          country: 'United States',
+        },
+        roles: formData.role ? [formData.role] : ['exhibitor'],
+      };
+
+      const newPerson = await addUser(personData);
+
+      console.log('✅ User created successfully:', newPerson);
+
+      // Call the selection callback if provided
+      if (context.selectionCallback) {
+        context.selectionCallback((newPerson as unknown) as Record<string, unknown>);
+      }
+
+      // Return result based on action
+      onResult({
+        success: true,
+        action: action === 'save_close' ? 'save_and_close' : 'save_and_continue',
+        entity: (newPerson as unknown) as Record<string, unknown>,
+      });
+
+    } catch (error) {
+      console.error('❌ Failed to create person:', error);
+      setErrors({ submit: 'Failed to create person. Please try again.' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCancel = () => {
+    onResult({
+      success: false,
+      action: 'cancel',
+    });
+  };
+
+  const isFormValid = React.useMemo(() => {
+    const newErrors: Record<string, string> = {};
+
+    if (!formData.firstName.trim()) newErrors.firstName = 'First name is required';
+    if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required';
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+    if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
+    if (!formData.address.trim()) newErrors.address = 'Address is required';
+    if (!formData.city.trim()) newErrors.city = 'City is required';
+    if (!formData.state.trim()) newErrors.state = 'State is required';
+    if (!formData.zipCode.trim()) {
+      newErrors.zipCode = 'ZIP code is required';
+    } else if (!/^\d{5}(-\d{4})?$/.test(formData.zipCode)) {
+      newErrors.zipCode = 'Please enter a valid ZIP code (12345 or 12345-6789)';
+    }
+
+    return Object.keys(newErrors).length === 0 && !isSubmitting;
+  }, [formData, isSubmitting]);
+  const roleLabel = (context.preFilledData?.roleLabel as string) || 'User';
+
+  return (
+    <div className="p-6 space-y-6 max-w-4xl mx-auto">
+      {/* Header */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <User className="h-5 w-5 text-primary" />
+          <h3 className="text-lg font-semibold">Create New {roleLabel}</h3>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Add a new {roleLabel.toLowerCase()} to the system
+        </p>
+      </div>
+
+      {/* Basic Information Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Basic Information</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Role Selection (if not pre-filled) */}
+          {!context.preFilledData?.role && (
+            <div className="space-y-2">
+              <Label htmlFor="role">Role *</Label>
+              <Select 
+                value={formData.role || ''} 
+                onValueChange={(value) => handleInputChange('role', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PERSON_ROLES.map((role) => (
+                    <SelectItem key={role.value} value={role.value}>
+                      {role.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Name Fields */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="firstName">First Name *</Label>
+              <Input
+                id="firstName"
+                value={formData.firstName}
+                onChange={(e) => handleInputChange('firstName', e.target.value)}
+                placeholder="Enter first name"
+                className={errors.firstName ? 'border-destructive' : ''}
+              />
+              {errors.firstName && (
+                <p className="text-sm text-destructive">{errors.firstName}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="lastName">Last Name *</Label>
+              <Input
+                id="lastName"
+                value={formData.lastName}
+                onChange={(e) => handleInputChange('lastName', e.target.value)}
+                placeholder="Enter last name"
+                className={errors.lastName ? 'border-destructive' : ''}
+              />
+              {errors.lastName && (
+                <p className="text-sm text-destructive">{errors.lastName}</p>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Contact Information Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Contact Information</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email *</Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => handleInputChange('email', e.target.value)}
+                placeholder="Enter email address"
+                className={errors.email ? 'border-destructive' : ''}
+              />
+              {errors.email && (
+                <p className="text-sm text-destructive">{errors.email}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone *</Label>
+              <Input
+                id="phone"
+                type="tel"
+                value={formData.phone}
+                onChange={(e) => handleInputChange('phone', e.target.value)}
+                placeholder="Enter phone number"
+                className={errors.phone ? 'border-destructive' : ''}
+              />
+              {errors.phone && (
+                <p className="text-sm text-destructive">{errors.phone}</p>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Address Information Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Address Information</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="address">Address *</Label>
+            <Input
+              id="address"
+              value={formData.address}
+              onChange={(e) => handleInputChange('address', e.target.value)}
+              placeholder="Enter street address"
+              className={errors.address ? 'border-destructive' : ''}
+            />
+            {errors.address && (
+              <p className="text-sm text-destructive">{errors.address}</p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="city">City *</Label>
+              <Input
+                id="city"
+                value={formData.city}
+                onChange={(e) => handleInputChange('city', e.target.value)}
+                placeholder="Enter city"
+                className={errors.city ? 'border-destructive' : ''}
+              />
+              {errors.city && (
+                <p className="text-sm text-destructive">{errors.city}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="state">State *</Label>
+              <Select 
+                value={formData.state} 
+                onValueChange={(value) => handleInputChange('state', value)}
+              >
+                <SelectTrigger className={errors.state ? 'border-destructive' : ''}>
+                  <SelectValue placeholder="Select state" />
+                </SelectTrigger>
+                <SelectContent>
+                  {US_STATES.map((state) => (
+                    <SelectItem key={state} value={state}>
+                      {state}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.state && (
+                <p className="text-sm text-destructive">{errors.state}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="zipCode">ZIP Code *</Label>
+              <Input
+                id="zipCode"
+                value={formData.zipCode}
+                onChange={(e) => handleInputChange('zipCode', e.target.value)}
+                placeholder="12345"
+                className={errors.zipCode ? 'border-destructive' : ''}
+              />
+              {errors.zipCode && (
+                <p className="text-sm text-destructive">{errors.zipCode}</p>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Duplicate Warning */}
+      {duplicateWarning && (
+        <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+            <div>
+              <h4 className="font-medium text-amber-800 dark:text-amber-200 text-sm">
+                Possible Duplicate
+              </h4>
+              <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                {duplicateWarning}
+              </p>
+              <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                You can still proceed if this is a different person.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Submit Error */}
+      {errors.submit && (
+        <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-destructive">{errors.submit}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Action Buttons - Only show when used standalone */}
+      {showActions && (
+        <div className="flex gap-3 pt-4">
+          <Button
+            variant="outline"
+            onClick={handleCancel}
+            disabled={isSubmitting}
+            className="flex-1"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={() => handleSubmit('save_close')}
+            disabled={!isFormValid}
+            className="flex-1"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Creating...
+              </>
+            ) : (
+              'Create User'
+            )}
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+};

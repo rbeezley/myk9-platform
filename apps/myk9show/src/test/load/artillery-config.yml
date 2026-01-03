@@ -1,0 +1,461 @@
+# Artillery.js Load Testing Configuration for myK9Show
+# Comprehensive load testing with realistic traffic patterns
+
+config:
+  target: 'http://localhost:5173'
+  phases:
+    # Normal load simulation
+    - duration: 120  # 2 minutes ramp-up
+      arrivalRate: 5
+      rampTo: 50
+      name: "Ramp up to normal load"
+    
+    - duration: 600  # 10 minutes sustained load
+      arrivalRate: 50
+      name: "Sustained normal load (50 RPS)"
+    
+    # Peak entry period simulation (show entry opening)
+    - duration: 60   # 1 minute spike
+      arrivalRate: 50
+      rampTo: 200
+      name: "Entry opening spike"
+    
+    - duration: 300  # 5 minutes peak
+      arrivalRate: 200
+      name: "Peak entry load (200 RPS)"
+    
+    - duration: 120  # 2 minutes return to normal
+      arrivalRate: 200
+      rampTo: 50
+      name: "Return to normal"
+    
+    # Stress testing
+    - duration: 180  # 3 minutes stress ramp
+      arrivalRate: 50
+      rampTo: 300
+      name: "Stress test ramp"
+    
+    - duration: 300  # 5 minutes stress
+      arrivalRate: 300
+      name: "Stress load (300 RPS)"
+    
+    - duration: 60   # 1 minute cool down
+      arrivalRate: 300
+      rampTo: 0
+      name: "Cool down"
+
+  # Performance targets and SLA requirements
+  ensure:
+    - p95: 200  # 95th percentile response time under 200ms
+    - p99: 500  # 99th percentile response time under 500ms
+    - maxErrorRate: 5  # Maximum 5% error rate
+    - minThroughput: 100  # Minimum 100 requests per second
+
+  # Load testing configuration
+  processor: "./load-test-processor.js"
+  
+  # HTTP configuration
+  http:
+    timeout: 10
+    pool: 50  # Connection pool size
+    
+  # TLS configuration for HTTPS testing
+  tls:
+    rejectUnauthorized: false
+    
+  # Custom metrics
+  metrics:
+    - name: "database_query_time"
+      unit: "milliseconds"
+    - name: "search_response_time" 
+      unit: "milliseconds"
+    - name: "auth_response_time"
+      unit: "milliseconds"
+    - name: "entry_creation_time"
+      unit: "milliseconds"
+    - name: "websocket_connection_time"
+      unit: "milliseconds"
+
+  # Environment variables
+  variables:
+    api_base: "http://localhost:54321"
+    ws_base: "ws://localhost:54321"
+    
+  # Payload data for realistic testing
+  payload:
+    path: "./test-data.csv"
+    fields:
+      - "user_email"
+      - "user_password" 
+      - "dog_name"
+      - "show_id"
+      - "entry_class"
+
+scenarios:
+  # Main user workflow scenarios
+  - name: "Exhibitor Browse and Entry Flow"
+    weight: 60
+    flow:
+      - post:
+          url: "/auth/v1/token"
+          beforeRequest: "setAuthHeaders"
+          json:
+            email: "{{ user_email }}"
+            password: "{{ user_password }}"
+            grant_type: "password"
+          capture:
+            - header: "authorization"
+              as: "authToken"
+          expect:
+            - statusCode: 200
+          
+      - get:
+          url: "/api/shows"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode: 200
+            - hasProperty: "data"
+          think: 2
+          
+      - get:
+          url: "/api/shows/search?q=agility"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          beforeRequest: "measureSearchTime"
+          afterResponse: "recordSearchTime"
+          expect:
+            - statusCode: 200
+          think: 1
+          
+      - get:
+          url: "/api/dogs"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode: 200
+          think: 3
+          
+      - post:
+          url: "/api/entries"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          beforeRequest: "measureEntryCreation"
+          afterResponse: "recordEntryCreation"
+          json:
+            showId: "{{ show_id }}"
+            dogId: "{{ $randomUUID }}"
+            classes: ["{{ entry_class }}"]
+            paymentMethod: "credit_card"
+          expect:
+            - statusCode: 201
+          think: 5
+
+  - name: "Secretary Show Management"
+    weight: 20
+    flow:
+      - post:
+          url: "/auth/v1/token"
+          json:
+            email: "secretary@test.com"
+            password: "test123"
+            grant_type: "password"
+          capture:
+            - header: "authorization"
+              as: "authToken"
+          expect:
+            - statusCode: 200
+            
+      - get:
+          url: "/api/shows?role=secretary"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode: 200
+          think: 2
+          
+      - get:
+          url: "/api/entries?status=pending"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          beforeRequest: "measureDatabaseQuery"
+          afterResponse: "recordDatabaseQuery"
+          expect:
+            - statusCode: 200
+          think: 3
+          
+      - patch:
+          url: "/api/entries/{{ $randomUUID }}"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          json:
+            status: "confirmed"
+            confirmationNumber: "CONF{{ $randomInt(1000, 9999) }}"
+          expect:
+            - statusCode: 200
+          think: 2
+          
+      - post:
+          url: "/api/shows"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          json:
+            name: "Test Show {{ $randomInt(1, 1000) }}"
+            type: "Agility"
+            startDate: "{{ $isoTimestamp('+30d') }}"
+            endDate: "{{ $isoTimestamp('+31d') }}"
+            location: "Test Venue"
+            status: "Draft"
+          expect:
+            - statusCode: 201
+          think: 4
+
+  - name: "Judge Dashboard and Scoring"
+    weight: 15
+    flow:
+      - post:
+          url: "/auth/v1/token"
+          json:
+            email: "judge@test.com"
+            password: "test123"
+            grant_type: "password"
+          capture:
+            - header: "authorization"
+              as: "authToken"
+          expect:
+            - statusCode: 200
+            
+      - get:
+          url: "/api/assignments?judge_id={{ $randomUUID }}"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode: 200
+          think: 3
+          
+      - get:
+          url: "/api/classes/{{ $randomUUID }}/entries"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          beforeRequest: "measureDatabaseQuery"
+          afterResponse: "recordDatabaseQuery"
+          expect:
+            - statusCode: 200
+          think: 5
+          
+      - post:
+          url: "/api/scores"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          json:
+            entryId: "{{ $randomUUID }}"
+            score: "{{ $randomInt(150, 200) }}"
+            time: "{{ $randomInt(30, 120) }}"
+            faults: "{{ $randomInt(0, 5) }}"
+            placement: "{{ $randomInt(1, 10) }}"
+          expect:
+            - statusCode: 201
+          think: 2
+
+  - name: "Real-time Updates and Notifications"
+    weight: 5
+    flow:
+      - post:
+          url: "/auth/v1/token"
+          json:
+            email: "{{ user_email }}"
+            password: "{{ user_password }}"
+            grant_type: "password"
+          capture:
+            - header: "authorization"
+              as: "authToken"
+          expect:
+            - statusCode: 200
+            
+      - ws:
+          url: "{{ ws_base }}/realtime/v1/websocket"
+          beforeConnect: "measureWebSocketConnection"
+          afterConnect: "recordWebSocketConnection"
+          subprotocols: ["echo-protocol"]
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          
+          # WebSocket message flow
+          send:
+            - match:
+                json: "$.event"
+                value: "phx_join"
+              message:
+                event: "phx_join"
+                topic: "realtime:public:show"
+                payload: {}
+                ref: "1"
+                
+          expect:
+            - match:
+                json: "$.event" 
+                value: "phx_reply"
+                
+          # Keep connection alive and listen for updates
+          loop:
+            count: 10
+            over:
+              - think: 3
+              - send:
+                  message:
+                    event: "heartbeat"
+                    topic: "phoenix"
+                    payload: {}
+                    ref: "{{ $randomInt(1, 1000) }}"
+
+# Database-specific load testing
+databases:
+  - name: "Show Database Load"
+    target: "{{ api_base }}/rest/v1"
+    scenarios:
+      - name: "Complex Show Queries"
+        weight: 40
+        flow:
+          - get:
+              url: "/show?select=*,club(*),entries(count)"
+              headers:
+                apikey: "{{ $env.SUPABASE_ANON_KEY }}"
+                Authorization: "Bearer {{ authToken }}"
+              beforeRequest: "measureDatabaseQuery"
+              afterResponse: "recordDatabaseQuery"
+              expect:
+                - statusCode: 200
+              think: 1
+              
+          - get:
+              url: "/show?start_date=gte.{{ $isoTimestamp() }}&start_date=lte.{{ $isoTimestamp('+30d') }}&order=start_date"
+              headers:
+                apikey: "{{ $env.SUPABASE_ANON_KEY }}"
+                Authorization: "Bearer {{ authToken }}"
+              expect:
+                - statusCode: 200
+              think: 2
+              
+      - name: "Entry Management Queries"
+        weight: 30
+        flow:
+          - get:
+              url: "/entry?select=*,show(*),dog(*),user(*)"
+              headers:
+                apikey: "{{ $env.SUPABASE_ANON_KEY }}"
+                Authorization: "Bearer {{ authToken }}"
+              beforeRequest: "measureDatabaseQuery"
+              afterResponse: "recordDatabaseQuery"
+              expect:
+                - statusCode: 200
+              think: 1
+              
+          - post:
+              url: "/entry"
+              headers:
+                apikey: "{{ $env.SUPABASE_ANON_KEY }}"
+                Authorization: "Bearer {{ authToken }}"
+                Content-Type: "application/json"
+              json:
+                show_id: "{{ show_id }}"
+                dog_id: "{{ $randomUUID }}"
+                user_id: "{{ $randomUUID }}"
+                classes: ["Open A", "Open B"]
+                status: "pending"
+                payment_status: "pending"
+                total_amount: 45.00
+              expect:
+                - statusCode: 201
+              think: 3
+              
+      - name: "Search and Filter Operations"
+        weight: 30
+        flow:
+          - get:
+              url: "/show?or=(name.ilike.*agility*,type.ilike.*agility*,location.ilike.*agility*)"
+              headers:
+                apikey: "{{ $env.SUPABASE_ANON_KEY }}"
+                Authorization: "Bearer {{ authToken }}"
+              beforeRequest: "measureSearchTime"
+              afterResponse: "recordSearchTime"
+              expect:
+                - statusCode: 200
+              think: 1
+              
+          - get:
+              url: "/dog?breed=eq.Border Collie&order=name"
+              headers:
+                apikey: "{{ $env.SUPABASE_ANON_KEY }}"
+                Authorization: "Bearer {{ authToken }}"
+              expect:
+                - statusCode: 200
+              think: 2
+
+# Performance monitoring and reporting
+reporting:
+  - type: "console"
+    interval: 10
+    
+  - type: "json"
+    output: "./load-test-results.json"
+    
+  - type: "html"
+    output: "./load-test-report.html"
+
+# Stress test specific configuration  
+stress_test:
+  target: 'http://localhost:5173'
+  phases:
+    - duration: 300  # 5 minutes ramp to breaking point
+      arrivalRate: 100
+      rampTo: 1000
+      name: "Stress ramp to 1000 RPS"
+      
+    - duration: 180  # 3 minutes at breaking point
+      arrivalRate: 1000
+      name: "Maximum stress load"
+      
+  ensure:
+    - maxErrorRate: 25  # Allow higher error rate in stress test
+    - p95: 2000  # Relaxed response time requirements
+    
+# Cache invalidation testing
+cache_test:
+  target: 'http://localhost:5173'
+  phases:
+    - duration: 60
+      arrivalRate: 100
+      name: "Cache warming"
+    - duration: 300
+      arrivalRate: 200  
+      name: "Cache invalidation stress"
+      
+  scenarios:
+    - name: "Cache Invalidation Pattern"
+      weight: 100
+      flow:
+        # Read from cache
+        - get:
+            url: "/api/shows"
+            expect:
+              - statusCode: 200
+            think: 1
+            
+        # Trigger cache invalidation with write
+        - post:
+            url: "/api/shows"
+            json:
+              name: "Cache Test Show {{ $randomInt(1, 10000) }}"
+              type: "Agility"
+              startDate: "{{ $isoTimestamp('+30d') }}"
+              status: "Draft"
+            expect:
+              - statusCode: 201
+            think: 1
+            
+        # Read again (should be cache miss)
+        - get:
+            url: "/api/shows"
+            expect:
+              - statusCode: 200
+            think: 2

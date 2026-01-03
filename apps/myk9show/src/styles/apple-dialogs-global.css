@@ -1,0 +1,1573 @@
+/* Apple-Inspired Global Dialog Styles */
+/* This file applies Apple design to ALL dialog components across the app */
+
+/* Override ShadCN Dialog defaults with Apple styling */
+[data-radix-popper-content-wrapper] {
+  z-index: 50 !important;
+}
+
+/* Global Dialog Content Styling */
+.dialog-content,
+[data-dialog-content],
+[data-radix-dialog-content] {
+  background: var(--card) !important;
+  border: 0.5px solid var(--border) !important;
+  border-radius: 20px !important;
+  padding: 0 !important;
+  backdrop-filter: blur(40px) !important;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.15) !important;
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  z-index: 50 !important;
+  max-width: 500px !important;
+  width: 90vw !important;
+  max-height: 90vh !important;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif !important;
+  letter-spacing: -0.01em !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  
+  /* Apple-style entrance animation */
+  animation: appleDialogEnter 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards !important;
+}
+
+/* Override for wider dialogs */
+.dialog-content.max-w-lg {
+  max-width: 550px !important;
+  width: 85vw !important;
+}
+
+.dialog-content.max-w-xl {
+  max-width: 650px !important;
+  width: 85vw !important;
+}
+
+.dialog-content.max-w-2xl {
+  max-width: 750px !important;
+  width: 85vw !important;
+}
+
+.dialog-content.max-w-4xl {
+  max-width: 900px !important;
+  width: 85vw !important;
+}
+
+.dialog-content.max-w-5xl {
+  max-width: 1050px !important;
+  width: 88vw !important;
+}
+
+.dialog-content.max-w-6xl {
+  max-width: 1200px !important;
+  width: 90vw !important;
+}
+
+/* Registration Dialog Specific Styling */
+.registration-dialog {
+  padding: 20px !important;
+  max-height: 85vh !important;
+  overflow-y: auto !important;
+}
+
+.registration-dialog .dialog-body {
+  padding: 0 !important;
+  margin: 0 !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+/* Ensure the registration workflow content fills the dialog */
+.registration-dialog .max-w-4xl,
+.registration-dialog .w-full {
+  max-width: 100% !important;
+  padding: 0 !important;
+}
+
+/* Better spacing for registration steps */
+.registration-dialog .space-y-6 {
+  gap: 1.5rem !important;
+}
+
+/* Improve card appearance in registration dialog */
+.registration-dialog .border-0 {
+  border: 1px solid var(--border) !important;
+  background: var(--background) !important;
+}
+
+/* Better step navigation in dialog */
+.registration-dialog .flex.items-center.justify-between {
+  flex-wrap: wrap !important;
+  gap: 1rem !important;
+}
+
+.registration-dialog .w-12.h-12 {
+  min-width: 3rem !important;
+  min-height: 3rem !important;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 768px) {
+  .registration-dialog {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    padding: 16px !important;
+  }
+  
+  .registration-dialog .flex.items-center.justify-between {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  
+  .registration-dialog .flex.items-center:not(.justify-between) {
+    justify-content: center !important;
+    margin-bottom: 1rem !important;
+  }
+}
+
+/* Hide any close buttons added by Radix UI or components */
+[data-radix-dialog-content] button[data-radix-dialog-close],
+[data-radix-dialog-content] > button:first-child,
+[data-radix-dialog-content] button[aria-label*="close" i],
+[data-radix-dialog-content] button[aria-label*="Close" i],
+[data-radix-dialog-content] .absolute.top-4.right-4,
+[data-radix-dialog-content] .absolute,
+.dialog-content button[data-radix-dialog-close],
+.dialog-content button[aria-label*="close" i],
+.dialog-content button[aria-label*="Close" i],
+.dialog-content .absolute.top-4.right-4,
+button[data-radix-dialog-close] {
+  display: none !important;
+}
+
+/* Ensure wizard buttons are never hidden */
+.wizard-form-field button,
+[class*="wizard"] button {
+  display: block !important;
+}
+
+/* Global Dialog Overlay/Backdrop Styling */
+.dialog-overlay,
+[data-dialog-overlay],
+[data-radix-dialog-overlay] {
+  background: rgba(0, 0, 0, 0.4) !important;
+  backdrop-filter: blur(8px) !important;
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 40 !important;
+  animation: appleBackdropEnter 0.3s ease-out forwards !important;
+}
+
+/* Apple Dialog Animations */
+@keyframes appleDialogEnter {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+  80% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes appleDialogExit {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+}
+
+@keyframes appleBackdropEnter {
+  0% {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+  100% {
+    opacity: 1;
+    backdrop-filter: blur(8px);
+  }
+}
+
+@keyframes appleBackdropExit {
+  0% {
+    opacity: 1;
+    backdrop-filter: blur(8px);
+  }
+  100% {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+}
+
+/* Dialog closing animations */
+.dialog-content[data-state="closed"],
+[data-dialog-content][data-state="closed"],
+[data-radix-dialog-content][data-state="closed"] {
+  animation: appleDialogExit 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards !important;
+}
+
+.dialog-overlay[data-state="closed"],
+[data-dialog-overlay][data-state="closed"],
+[data-radix-dialog-overlay][data-state="closed"] {
+  animation: appleBackdropExit 0.2s ease-out forwards !important;
+}
+
+/* Global Dialog Header Styling */
+.dialog-header,
+[data-dialog-header] {
+  margin-bottom: 24px !important;
+  text-align: center !important;
+}
+
+.dialog-title,
+[data-dialog-title] {
+  font-size: 22px !important;
+  font-weight: 650 !important;
+  color: var(--foreground) !important;
+  margin-bottom: 6px !important;
+  line-height: 1.2 !important;
+}
+
+.dialog-description,
+[data-dialog-description] {
+  font-size: 15px !important;
+  color: var(--muted-foreground) !important;
+  line-height: 1.4 !important;
+  margin: 0 !important;
+}
+
+/* Global Form Styling in Dialogs */
+.dialog-content form,
+.dialog-content .space-y-4 {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 20px !important;
+}
+
+/* Form spacing - exclude wizard to avoid conflicts */
+.dialog-content form .space-y-2:not(.wizard-form-field),
+.dialog-content .form-section .space-y-2:not(.wizard-form-field) {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+/* Ensure wizard form fields use normal Tailwind spacing */
+.wizard-form-field.space-y-2 {
+  /* Force proper display for wizard form fields */
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0.5rem !important; /* space-y-2 equivalent */
+}
+
+/* Form section styling */
+.form-section {
+  margin-bottom: 24px !important;
+}
+
+.form-section-title {
+  font-size: 16px !important;
+  font-weight: 650 !important;
+  color: var(--foreground) !important;
+  margin-bottom: 16px !important;
+  padding-bottom: 8px !important;
+  border-bottom: 1px solid var(--border) !important;
+  letter-spacing: -0.01em !important;
+}
+
+.form-field {
+  margin-bottom: 0 !important;
+}
+
+.form-row {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 16px !important;
+  margin-bottom: 16px !important;
+}
+
+/* Scrollable Dialog Layout System */
+.dialog-body-scrollable {
+  flex: 1 !important;
+  overflow-y: auto !important;
+  padding: 24px 40px !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(0, 0, 0, 0.3) transparent !important;
+}
+
+.dialog-body-scrollable::-webkit-scrollbar {
+  width: 4px !important;
+}
+
+.dialog-body-scrollable::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+.dialog-body-scrollable::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.3) !important;
+  border-radius: 2px !important;
+  opacity: 0.6 !important;
+}
+
+.dialog-body-scrollable::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.5) !important;
+  opacity: 1 !important;
+}
+
+.dialog-footer-sticky {
+  flex-shrink: 0 !important;
+  padding: 24px 40px 32px 40px !important;
+  border-top: 1px solid var(--border) !important;
+  background: var(--card) !important;
+  display: flex !important;
+  justify-content: flex-end !important;
+  gap: 12px !important;
+}
+
+/* Compact form styling for scrollable dialogs */
+.form-input.h-9 {
+  height: 36px !important;
+  padding: 8px 12px !important;
+  font-size: 14px !important;
+}
+
+.form-select.h-9 {
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 8px 12px !important;
+  font-size: 14px !important;
+}
+
+/* Judge Qualifications Specific Styling */
+.judge-qualifications-container {
+  max-height: 384px !important; /* max-h-96 */
+  overflow-y: auto !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent !important;
+}
+
+.judge-qualifications-container::-webkit-scrollbar {
+  width: 4px !important;
+}
+
+.judge-qualifications-container::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+.judge-qualifications-container::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2) !important;
+  border-radius: 2px !important;
+}
+
+.judge-qualifications-container::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.4) !important;
+}
+
+.show-types-container {
+  max-height: 128px !important; /* max-h-32 */
+  overflow-y: auto !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent !important;
+}
+
+.show-types-container::-webkit-scrollbar {
+  width: 3px !important;
+}
+
+.show-types-container::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+.show-types-container::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.15) !important;
+  border-radius: 1.5px !important;
+}
+
+.show-types-container::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Native checkbox styling for show types */
+input[type="checkbox"] {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  background-color: var(--background) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 3px !important;
+  cursor: pointer !important;
+  position: relative !important;
+  transition: all 0.15s ease-in-out !important;
+}
+
+input[type="checkbox"]:checked {
+  background-color: hsl(var(--primary)) !important;
+  border-color: hsl(var(--primary)) !important;
+}
+
+input[type="checkbox"]:checked::before {
+  content: "✓" !important;
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  color: white !important;
+  font-size: 8px !important;
+  font-weight: bold !important;
+  line-height: 1 !important;
+}
+
+input[type="checkbox"]:hover {
+  border-color: hsl(var(--primary) / 0.7) !important;
+  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.1) !important;
+}
+
+input[type="checkbox"]:focus {
+  outline: none !important;
+  border-color: hsl(var(--primary)) !important;
+  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.2) !important;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 1200px) {
+  .dialog-body-scrollable {
+    padding: 20px 32px !important;
+  }
+  
+  .dialog-footer-sticky {
+    padding: 20px 32px 24px 32px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .dialog-body-scrollable {
+    padding: 16px 24px !important;
+  }
+  
+  .dialog-footer-sticky {
+    padding: 16px 24px 20px 24px !important;
+    flex-direction: column-reverse !important;
+    gap: 8px !important;
+  }
+  
+  .dialog-footer-sticky .dialog-button-save,
+  .dialog-footer-sticky .dialog-button-cancel {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}
+
+/* Dialog Header Styling */
+.dialog-content > div:first-child {
+  padding: 32px 40px 0 40px !important;
+  flex-shrink: 0 !important;
+}
+
+/* Dialog Body - Scrollable Content Area */
+.dialog-body-scrollable {
+  flex: 1 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding: 24px 40px !important;
+  margin: 0 !important;
+  max-height: none !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: var(--muted-foreground) transparent !important;
+}
+
+/* WebKit Scrollbar Styling for Dialog Body */
+.dialog-body-scrollable::-webkit-scrollbar {
+  width: 6px !important;
+}
+
+.dialog-body-scrollable::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+.dialog-body-scrollable::-webkit-scrollbar-thumb {
+  background: var(--muted-foreground) !important;
+  border-radius: 3px !important;
+  opacity: 0.3 !important;
+}
+
+.dialog-body-scrollable::-webkit-scrollbar-thumb:hover {
+  opacity: 0.6 !important;
+}
+
+/* Dialog Footer - Sticky at Bottom */
+.dialog-footer-sticky {
+  flex-shrink: 0 !important;
+  padding: 24px 40px 32px 40px !important;
+  border-top: 1px solid var(--border) !important;
+  background: var(--card) !important;
+  backdrop-filter: blur(40px) !important;
+  display: flex !important;
+  gap: 12px !important;
+  justify-content: flex-end !important;
+  margin: 0 !important;
+}
+
+/* Enhanced spacing for form layouts */
+.dialog-content .space-y-4 > * + * {
+  margin-top: 16px !important;
+}
+
+.dialog-content .space-y-6 > * + * {
+  margin-top: 24px !important;
+}
+
+.dialog-content .grid.gap-4 {
+  gap: 16px !important;
+}
+
+.dialog-content .grid.gap-8 {
+  gap: 32px !important;
+}
+
+.form-label {
+  font-size: 13px !important;
+  font-weight: 590 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.02em !important;
+  color: var(--foreground) !important;
+  margin-bottom: 8px !important;
+  display: block !important;
+}
+
+.form-label.required::after {
+  content: ' *' !important;
+  color: #FF3B30 !important;
+  margin-left: 2px !important;
+}
+
+.form-input {
+  background: var(--background) !important;
+  border: 1.5px solid var(--border) !important;
+  border-radius: 12px !important;
+  padding: 14px 16px !important;
+  font-size: 16px !important;
+  font-weight: 400 !important;
+  color: var(--foreground) !important;
+  transition: all 0.2s ease !important;
+  outline: none !important;
+  width: 100% !important;
+}
+
+.form-input:focus {
+  border-color: #007AFF !important;
+  box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.1) !important;
+  background: var(--card) !important;
+}
+
+.form-input::placeholder {
+  color: var(--muted-foreground) !important;
+  opacity: 0.6 !important;
+  font-weight: 400 !important;
+}
+
+.form-select {
+  background: var(--background) !important;
+  border: 1.5px solid var(--border) !important;
+  border-radius: 12px !important;
+  padding: 14px 16px !important;
+  font-size: 16px !important;
+  font-weight: 400 !important;
+  color: var(--foreground) !important;
+  transition: all 0.2s ease !important;
+  outline: none !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+}
+
+.form-select.h-12 {
+  height: 48px !important;
+  min-height: 48px !important;
+}
+
+.form-select:hover {
+  border-color: rgba(0, 122, 255, 0.3) !important;
+}
+
+.form-select:focus {
+  border-color: #007AFF !important;
+  box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.1) !important;
+  background: var(--card) !important;
+}
+
+.form-input-group {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.form-input-icon {
+  position: absolute !important;
+  right: 12px !important;
+  color: var(--muted-foreground) !important;
+  pointer-events: none !important;
+}
+
+/* Global Label Styling */
+.dialog-content label,
+.dialog-content .dialog-label {
+  font-size: 13px !important;
+  font-weight: 590 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.02em !important;
+  color: var(--foreground) !important;
+}
+
+/* Required field asterisk */
+.dialog-content .text-red-500,
+.dialog-content .text-destructive {
+  color: #FF3B30 !important;
+  margin-left: 4px !important;
+}
+
+/* Global Input Styling */
+.dialog-content input:not([type="submit"]):not([type="button"]),
+.dialog-content textarea {
+  background: var(--background) !important;
+  border: 1.5px solid var(--border) !important;
+  border-radius: 12px !important;
+  padding: 14px 16px !important;
+  font-size: 16px !important;
+  font-weight: 400 !important;
+  color: var(--foreground) !important;
+  transition: all 0.2s ease !important;
+  outline: none !important;
+  width: 100% !important;
+}
+
+.dialog-content input:focus,
+.dialog-content textarea:focus {
+  border-color: #007AFF !important;
+  box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.1) !important;
+  background: var(--card) !important;
+}
+
+.dialog-content input::placeholder,
+.dialog-content textarea::placeholder {
+  color: var(--muted-foreground) !important;
+  opacity: 0.6 !important;
+  font-weight: 400 !important;
+}
+
+/* Global Select Styling */
+.dialog-content [data-radix-select-trigger],
+.dialog-content .select-trigger {
+  background: var(--background) !important;
+  border: 1.5px solid var(--border) !important;
+  border-radius: 12px !important;
+  padding: 14px 16px !important;
+  font-size: 16px !important;
+  font-weight: 400 !important;
+  color: var(--foreground) !important;
+  transition: all 0.2s ease !important;
+  outline: none !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  min-height: 50px !important;
+  width: 100% !important;
+}
+
+.dialog-content [data-radix-select-trigger]:hover,
+.dialog-content .select-trigger:hover {
+  border-color: rgba(0, 122, 255, 0.3) !important;
+}
+
+.dialog-content [data-radix-select-trigger]:focus,
+.dialog-content .select-trigger:focus {
+  border-color: #007AFF !important;
+  box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.1) !important;
+  background: var(--card) !important;
+}
+
+.dialog-content [data-radix-select-trigger][data-placeholder],
+.dialog-content .select-trigger[data-placeholder] {
+  color: var(--muted-foreground) !important;
+}
+
+/* Select Content Styling */
+[data-radix-select-content] {
+  background: var(--card) !important;
+  border: 1.5px solid var(--border) !important;
+  border-radius: 16px !important;
+  padding: 8px !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12) !important;
+  backdrop-filter: blur(40px) !important;
+  z-index: 60 !important;
+}
+
+[data-radix-select-item] {
+  padding: 12px 16px !important;
+  border-radius: 10px !important;
+  font-size: 15px !important;
+  color: var(--foreground) !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  outline: none !important;
+}
+
+[data-radix-select-item]:hover {
+  background: var(--muted) !important;
+}
+
+[data-radix-select-item][data-state="checked"] {
+  background: rgba(0, 122, 255, 0.1) !important;
+  color: #007AFF !important;
+  font-weight: 590 !important;
+}
+
+/* Global Button Styling in Dialogs */
+.dialog-footer,
+.dialog-content .dialog-footer,
+.dialog-content .flex.justify-end,
+.dialog-content .flex.space-x-2,
+.dialog-content .flex.gap-2 {
+  display: flex !important;
+  gap: 12px !important;
+  margin-top: 24px !important;
+  justify-content: flex-end !important;
+  padding-top: 16px !important;
+  border-top: none !important;
+}
+
+.dialog-button-cancel,
+.dialog-button-save {
+  padding: 12px 24px !important;
+  border-radius: 12px !important;
+  font-size: 15px !important;
+  font-weight: 590 !important;
+  transition: all 0.2s ease !important;
+  border: none !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  min-width: 120px !important;
+  justify-content: center !important;
+}
+
+.dialog-button-cancel {
+  background: rgba(120, 119, 198, 0.1) !important;
+  color: #7877C6 !important;
+  border: 1.5px solid rgba(120, 119, 198, 0.2) !important;
+}
+
+.dialog-button-cancel:hover {
+  background: rgba(120, 119, 198, 0.15) !important;
+  border-color: rgba(120, 119, 198, 0.3) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(120, 119, 198, 0.2) !important;
+}
+
+.dialog-button-save {
+  background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%) !important;
+  color: white !important;
+}
+
+.dialog-button-save:hover:not(:disabled) {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 8px 20px rgba(0, 122, 255, 0.3) !important;
+}
+
+.dialog-button-save:disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.dialog-content button {
+  padding: 12px 24px !important;
+  border-radius: 12px !important;
+  font-size: 15px !important;
+  font-weight: 590 !important;
+  transition: all 0.2s ease !important;
+  border: none !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  min-width: 100px !important;
+  justify-content: center !important;
+}
+
+/* Primary/Save Button Styling */
+.dialog-content button[type="submit"],
+.dialog-content .button-primary,
+.dialog-content .btn-primary {
+  background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%) !important;
+  color: white !important;
+}
+
+.dialog-content button[type="submit"]:hover:not(:disabled),
+.dialog-content .button-primary:hover:not(:disabled),
+.dialog-content .btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 8px 20px rgba(0, 122, 255, 0.3) !important;
+}
+
+.dialog-content button[type="submit"]:disabled,
+.dialog-content .button-primary:disabled,
+.dialog-content .btn-primary:disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Secondary/Cancel Button Styling */
+.dialog-content button[type="button"]:not([type="submit"]),
+.dialog-content .button-secondary,
+.dialog-content .btn-secondary {
+  background: rgba(120, 119, 198, 0.1) !important;
+  color: #7877C6 !important;
+  border: 1.5px solid rgba(120, 119, 198, 0.2) !important;
+}
+
+.dialog-content button[type="button"]:hover,
+.dialog-content .button-secondary:hover,
+.dialog-content .btn-secondary:hover {
+  background: rgba(120, 119, 198, 0.15) !important;
+  border-color: rgba(120, 119, 198, 0.3) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(120, 119, 198, 0.2) !important;
+}
+
+/* Destructive/Delete Button Styling - Apple Red */
+.dialog-content button[data-variant="destructive"],
+.dialog-content button.bg-destructive,
+.dialog-content .button-destructive,
+.dialog-content .btn-destructive,
+.dialog-content button:has([class*="destructive"]),
+.dialog-content button[class*="destructive"],
+.dialog-content button[class*="bg-destructive"],
+.dialog-content .flex.justify-end button:nth-last-child(1):not([variant="outline"]),
+.dialog-content .flex.gap-3 button:nth-last-child(1):not([variant="outline"]),
+[data-radix-dialog-content] button[data-variant="destructive"],
+[data-radix-dialog-content] button.bg-destructive,
+[data-radix-dialog-content] button[class*="destructive"],
+[data-radix-dialog-content] button[class*="bg-destructive"] {
+  background: #FF3B30 !important;
+  color: white !important;
+  border: none !important;
+  font-weight: 590 !important;
+}
+
+.dialog-content button[data-variant="destructive"]:hover,
+.dialog-content button.bg-destructive:hover,
+.dialog-content .button-destructive:hover,
+.dialog-content .btn-destructive:hover,
+.dialog-content button:has([class*="destructive"]):hover,
+.dialog-content button[class*="destructive"]:hover,
+.dialog-content button[class*="bg-destructive"]:hover,
+.dialog-content .flex.justify-end button:nth-last-child(1):not([variant="outline"]):hover,
+.dialog-content .flex.gap-3 button:nth-last-child(1):not([variant="outline"]):hover,
+[data-radix-dialog-content] button[data-variant="destructive"]:hover,
+[data-radix-dialog-content] button.bg-destructive:hover,
+[data-radix-dialog-content] button[class*="destructive"]:hover,
+[data-radix-dialog-content] button[class*="bg-destructive"]:hover {
+  background: #D70015 !important;
+  color: white !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(255, 59, 48, 0.3) !important;
+}
+
+/* Force ShadCN Destructive Button to be Apple Red in ALL dialogs */
+button.bg-destructive,
+.bg-destructive {
+  background: #FF3B30 !important;
+  color: white !important;
+  border-color: #FF3B30 !important;
+}
+
+button.bg-destructive:hover,
+.bg-destructive:hover {
+  background: #D70015 !important;
+  color: white !important;
+  border-color: #D70015 !important;
+}
+
+/* Error States */
+.dialog-content .error-message,
+.dialog-content .text-red-500:not(span) {
+  color: #FF3B30 !important;
+  font-size: 13px !important;
+  margin-top: 4px !important;
+  font-weight: 500 !important;
+}
+
+.dialog-content input.error,
+.dialog-content [data-radix-select-trigger].error {
+  border-color: #FF3B30 !important;
+  box-shadow: 0 0 0 4px rgba(255, 59, 48, 0.1) !important;
+}
+
+/* Dark mode adjustments */
+.dark .dialog-content,
+.dark [data-radix-dialog-content] {
+  backdrop-filter: blur(60px) !important;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.3) !important;
+}
+
+.dark [data-radix-select-content] {
+  backdrop-filter: blur(60px) !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Tab styling in dialogs - Apple style like Dog Details */
+.dialog-content [role="tablist"],
+.dialog-content [data-radix-tabs-list],
+.dialog-content .tabs-list,
+.dialog-content .dialog-tabs-list,
+.dialog-content .grid.grid-cols-4.mb-8.h-12.dialog-tabs-list,
+.dialog-content .w-full.grid.grid-cols-4.mb-8.h-12.dialog-tabs-list {
+  display: flex !important;
+  grid-template-columns: none !important;
+  gap: 0 !important;
+  border-bottom: 0.5px solid var(--border) !important;
+  margin-bottom: 24px !important;
+  background: transparent !important;
+  height: auto !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  border-top: none !important;
+  border-left: none !important;
+  border-right: none !important;
+  z-index: 10 !important;
+  position: relative !important;
+}
+
+.dialog-content [data-radix-tabs-trigger],
+.dialog-content [data-radix-tabs-trigger][data-state="inactive"] {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 12px 20px !important;
+  margin-bottom: -1px !important;
+  border: none !important;
+  border-bottom: 2px solid transparent !important;
+  font-size: 15px !important;
+  font-weight: 590 !important;
+  color: var(--muted-foreground) !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  transition: all 0.2s ease !important;
+  cursor: pointer !important;
+  box-shadow: none !important;
+  height: auto !important;
+  justify-content: flex-start !important;
+  flex: 1 !important;
+  text-align: center !important;
+  justify-content: center !important;
+}
+
+.dialog-content [data-radix-tabs-trigger]:hover:not([data-state="active"]) {
+  color: var(--foreground) !important;
+  background: transparent !important;
+  border-bottom: 2px solid transparent !important;
+}
+
+.dialog-content [data-radix-tabs-trigger][data-state="active"] {
+  color: #007AFF !important;
+  border: none !important;
+  border-bottom: 2px solid #007AFF !important;
+  background: transparent !important;
+  font-weight: 590 !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Remove any pseudo-elements that might create overlays */
+.dialog-content [data-radix-tabs-trigger]:before,
+.dialog-content [data-radix-tabs-trigger]:after,
+.dialog-content [data-radix-tabs-list]:before,
+.dialog-content [data-radix-tabs-list]:after {
+  display: none !important;
+  content: none !important;
+}
+
+/* Tab styling in dialogs - Light mode follows same pattern */
+.light .dialog-content [data-radix-tabs-list],
+.light .dialog-content .tabs-list,
+.light .dialog-content .dialog-tabs-list {
+  background: transparent !important;
+  border-bottom: 0.5px solid var(--border) !important;
+}
+
+.light .dialog-content [data-radix-tabs-trigger] {
+  color: var(--muted-foreground) !important;
+  background: transparent !important;
+  border-bottom: 2px solid transparent !important;
+}
+
+.light .dialog-content [data-radix-tabs-trigger]:hover:not([data-state="active"]) {
+  color: var(--foreground) !important;
+  background: transparent !important;
+  border-bottom: 2px solid transparent !important;
+}
+
+.light .dialog-content [data-radix-tabs-trigger][data-state="active"] {
+  color: #007AFF !important;
+  background: transparent !important;
+  border-bottom: 2px solid #007AFF !important;
+  box-shadow: none !important;
+}
+
+.dialog-content [data-radix-tabs-content],
+.dialog-content .tabs-content {
+  z-index: 5 !important;
+  position: relative !important;
+  margin-top: 24px !important;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .dialog-content.max-w-4xl {
+    max-width: 90vw !important;
+  }
+  
+  .dialog-content.max-w-6xl {
+    max-width: 95vw !important;
+  }
+  
+  .dialog-content.max-w-4xl > div:first-child,
+  .dialog-content.max-w-6xl > div:first-child {
+    padding: 24px 32px 0 32px !important;
+  }
+  
+  .dialog-content.max-w-4xl .dialog-body-scrollable,
+  .dialog-content.max-w-6xl .dialog-body-scrollable {
+    padding: 16px 32px !important;
+  }
+  
+  .dialog-content.max-w-4xl .dialog-footer-sticky,
+  .dialog-content.max-w-6xl .dialog-footer-sticky {
+    padding: 20px 32px 24px 32px !important;
+  }
+  
+  .dialog-content .grid.grid-cols-2 {
+    gap: 24px !important;
+  }
+  
+  .dialog-content .grid.grid-cols-4 {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 16px !important;
+  }
+}
+
+@media (max-width: 1000px) {
+  .dialog-content .grid.grid-cols-4 {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 12px !important;
+  }
+}
+
+@media (max-width: 900px) {
+  /* Switch to single column on smaller screens */
+  .dialog-content .grid.grid-cols-2 {
+    grid-template-columns: 1fr !important;
+    gap: 24px !important;
+  }
+  
+  .dialog-content .grid.grid-cols-4 {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+  
+  .dialog-content.max-w-4xl {
+    max-width: 95vw !important;
+  }
+  
+  .dialog-content.max-w-6xl {
+    max-width: 95vw !important;
+  }
+  
+  .dialog-content.max-w-4xl > div:first-child,
+  .dialog-content.max-w-6xl > div:first-child {
+    padding: 20px 24px 0 24px !important;
+  }
+  
+  .dialog-content.max-w-4xl .dialog-body-scrollable,
+  .dialog-content.max-w-6xl .dialog-body-scrollable {
+    padding: 12px 24px !important;
+  }
+  
+  .dialog-content.max-w-4xl .dialog-footer-sticky,
+  .dialog-content.max-w-6xl .dialog-footer-sticky {
+    padding: 16px 24px 20px 24px !important;
+  }
+}
+
+@media (max-width: 900px) {
+  /* Make tabs stack on smaller screens */
+  .dialog-content [data-radix-tabs-list].grid-cols-4 {
+    grid-template-columns: 1fr 1fr !important;
+    height: auto !important;
+    gap: 4px !important;
+  }
+  
+  .dialog-content [data-radix-tabs-trigger] {
+    font-size: 12px !important;
+    padding: 6px 8px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .dialog-content,
+  [data-radix-dialog-content] {
+    border-radius: 16px !important;
+    width: 95vw !important;
+    max-height: 95vh !important;
+    max-width: none !important;
+  }
+  
+  .dialog-content > div:first-child {
+    padding: 24px 24px 0 24px !important;
+  }
+  
+  .dialog-body-scrollable {
+    padding: 16px 24px !important;
+  }
+  
+  .dialog-footer-sticky {
+    padding: 16px 24px 20px 24px !important;
+  }
+  
+  .dialog-content.max-w-4xl {
+    max-width: 95vw !important;
+  }
+  
+  .dialog-content.max-w-6xl {
+    max-width: 95vw !important;
+  }
+  
+  .dialog-content.max-w-4xl > div:first-child,
+  .dialog-content.max-w-6xl > div:first-child {
+    padding: 16px 20px 0 20px !important;
+  }
+  
+  .dialog-content.max-w-4xl .dialog-body-scrollable,
+  .dialog-content.max-w-6xl .dialog-body-scrollable {
+    padding: 12px 20px !important;
+  }
+  
+  .dialog-content.max-w-4xl .dialog-footer-sticky,
+  .dialog-content.max-w-6xl .dialog-footer-sticky {
+    padding: 16px 20px !important;
+  }
+  
+  /* Force single column layout on mobile */
+  .dialog-content .grid.grid-cols-2 {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+  
+  .dialog-footer-sticky,
+  .dialog-content .dialog-footer,
+  .dialog-content .flex.justify-end {
+    flex-direction: column-reverse !important;
+    gap: 8px !important;
+  }
+  
+  .dialog-button-cancel,
+  .dialog-button-save,
+  .dialog-content button {
+    width: 100% !important;
+    min-width: auto !important;
+  }
+  
+  .form-section-title {
+    font-size: 15px !important;
+    margin-bottom: 12px !important;
+  }
+  
+  .dialog-content .space-y-6 > * + * {
+    margin-top: 16px !important;
+  }
+  
+  .dialog-content .space-y-4 > * + * {
+    margin-top: 12px !important;
+  }
+}
+
+/* Focus styles for accessibility */
+.dialog-content button:focus,
+.dialog-content input:focus,
+.dialog-content [data-radix-select-trigger]:focus {
+  outline: 2px solid #007AFF !important;
+  outline-offset: 2px !important;
+}
+
+/* Apple-style Dropdown Menu Styling */
+[data-radix-dropdown-menu-content] {
+  background: var(--card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 12px !important;
+  padding: 4px !important;
+  box-shadow: 0 10px 38px -10px rgba(0, 0, 0, 0.35), 0 10px 20px -15px rgba(0, 0, 0, 0.2) !important;
+  backdrop-filter: blur(40px) !important;
+  z-index: 50 !important;
+  min-width: 200px !important;
+  animation: dropdownEnter 0.2s ease-out !important;
+}
+
+@keyframes dropdownEnter {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+[data-radix-dropdown-menu-item] {
+  padding: 8px 12px !important;
+  border-radius: 8px !important;
+  font-size: 14px !important;
+  color: var(--foreground) !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  outline: none !important;
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+[data-radix-dropdown-menu-item]:hover {
+  background: var(--muted) !important;
+}
+
+[data-radix-dropdown-menu-item]:focus {
+  background: var(--muted) !important;
+}
+
+[data-radix-dropdown-menu-item][data-disabled] {
+  color: var(--muted-foreground) !important;
+  pointer-events: none !important;
+  opacity: 0.5 !important;
+}
+
+/* Dropdown menu separator */
+[data-radix-dropdown-menu-separator] {
+  height: 1px !important;
+  background: var(--border) !important;
+  margin: 4px 0 !important;
+}
+
+/* Delete/Destructive menu items */
+[data-radix-dropdown-menu-item].text-red-600,
+[data-radix-dropdown-menu-item].text-destructive {
+  color: #FF3B30 !important;
+}
+
+[data-radix-dropdown-menu-item].text-red-600:hover,
+[data-radix-dropdown-menu-item].text-destructive:hover {
+  background: rgba(255, 59, 48, 0.1) !important;
+}
+
+/* Dark mode adjustments for dropdown menus */
+.dark [data-radix-dropdown-menu-content] {
+  backdrop-filter: blur(60px) !important;
+  box-shadow: 0 10px 38px -10px rgba(0, 0, 0, 0.5), 0 10px 20px -15px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Nuclear option: Force Apple-style tabs in dialogs - override ALL ShadCN defaults */
+.dialog-content .w-full.grid.grid-cols-4.mb-8.h-12 {
+  display: flex !important;
+  grid-template-columns: none !important;
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 0.5px solid var(--border) !important;
+  border-radius: 0 !important;
+  height: auto !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+.dialog-content .w-full.grid.grid-cols-4.mb-8.h-12 [data-radix-tabs-trigger] {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 2px solid transparent !important;
+  border-radius: 0 !important;
+  height: auto !important;
+  box-shadow: none !important;
+  flex: 1 !important;
+  justify-content: center !important;
+  padding: 12px 20px !important;
+  color: var(--muted-foreground) !important;
+  font-size: 15px !important;
+  font-weight: 590 !important;
+  transition: all 0.2s ease !important;
+  margin-bottom: -1px !important;
+}
+
+.dialog-content .w-full.grid.grid-cols-4.mb-8.h-12 [data-radix-tabs-trigger]:hover:not([data-state="active"]) {
+  background: transparent !important;
+  color: var(--foreground) !important;
+  border-bottom: 2px solid transparent !important;
+}
+
+.dialog-content .w-full.grid.grid-cols-4.mb-8.h-12 [data-radix-tabs-trigger][data-state="active"] {
+  background: transparent !important;
+  color: #007AFF !important;
+  border: none !important;
+  border-bottom: 2px solid #007AFF !important;
+  font-weight: 590 !important;
+  box-shadow: none !important;
+}
+
+/* Nuclear option - Force all destructive buttons to Apple Red everywhere */
+button[class*="bg-destructive"] {
+  background-color: #FF3B30 !important;
+  color: white !important;
+  border-color: #FF3B30 !important;
+}
+
+button[class*="bg-destructive"]:hover {
+  background-color: #D70015 !important;
+  color: white !important;
+  border-color: #D70015 !important;
+}
+
+/* COMPREHENSIVE PLACEHOLDER STYLING - NUCLEAR OPTION */
+/* This ensures all placeholder text is muted across all dialog components */
+
+/* Standard input and textarea placeholders */
+input::placeholder,
+textarea::placeholder,
+select::placeholder {
+  color: var(--muted-foreground) !important;
+  opacity: 0.6 !important;
+  font-weight: 400 !important;
+}
+
+/* Dialog-specific placeholders */
+.dialog-content input::placeholder,
+.dialog-content textarea::placeholder,
+.dialog-content select::placeholder,
+[data-radix-dialog-content] input::placeholder,
+[data-radix-dialog-content] textarea::placeholder,
+[data-radix-dialog-content] select::placeholder,
+[data-dialog-content] input::placeholder,
+[data-dialog-content] textarea::placeholder,
+[data-dialog-content] select::placeholder {
+  color: var(--muted-foreground) !important;
+  opacity: 0.6 !important;
+  font-weight: 400 !important;
+}
+
+/* Form input placeholders */
+.form-input::placeholder,
+.form-textarea::placeholder,
+.form-select::placeholder {
+  color: var(--muted-foreground) !important;
+  opacity: 0.6 !important;
+  font-weight: 400 !important;
+}
+
+/* ShadCN UI input placeholders */
+input[class*="input"]::placeholder,
+textarea[class*="textarea"]::placeholder,
+input.h-10::placeholder,
+input.h-12::placeholder,
+textarea[class*="min-h"]::placeholder {
+  color: var(--muted-foreground) !important;
+  opacity: 0.6 !important;
+  font-weight: 400 !important;
+}
+
+/* Apple Dialog specific placeholders */
+.apple-dialog input::placeholder,
+.apple-dialog textarea::placeholder,
+.apple-form-field input::placeholder,
+.apple-form-field textarea::placeholder {
+  color: var(--muted-foreground) !important;
+  opacity: 0.6 !important;
+  font-weight: 400 !important;
+}
+
+/* Mozilla Firefox placeholder styling */
+input::-moz-placeholder,
+textarea::-moz-placeholder {
+  color: var(--muted-foreground) !important;
+  opacity: 0.6 !important;
+  font-weight: 400 !important;
+}
+
+/* WebKit browsers placeholder styling */
+input::-webkit-input-placeholder,
+textarea::-webkit-input-placeholder {
+  color: var(--muted-foreground) !important;
+  opacity: 0.6 !important;
+  font-weight: 400 !important;
+}
+
+/* Edge placeholder styling */
+input::-ms-input-placeholder,
+textarea::-ms-input-placeholder {
+  color: var(--muted-foreground) !important;
+  opacity: 0.6 !important;
+  font-weight: 400 !important;
+}
+
+/* Dark mode adjustments for placeholders */
+.dark input::placeholder,
+.dark textarea::placeholder,
+.dark select::placeholder {
+  color: var(--muted-foreground) !important;
+  opacity: 0.5 !important;
+  font-weight: 400 !important;
+}
+
+.dark input::-moz-placeholder,
+.dark textarea::-moz-placeholder {
+  color: var(--muted-foreground) !important;
+  opacity: 0.5 !important;
+  font-weight: 400 !important;
+}
+
+.dark input::-webkit-input-placeholder,
+.dark textarea::-webkit-input-placeholder {
+  color: var(--muted-foreground) !important;
+  opacity: 0.5 !important;
+  font-weight: 400 !important;
+}
+
+/* Light mode adjustments for placeholders - increased opacity for better contrast */
+.light input::placeholder,
+.light textarea::placeholder,
+.light select::placeholder,
+:root input::placeholder,
+:root textarea::placeholder,
+:root select::placeholder {
+  color: var(--muted-foreground) !important;
+  opacity: 0.7 !important;
+  font-weight: 400 !important;
+}
+
+.light input::-moz-placeholder,
+.light textarea::-moz-placeholder,
+:root input::-moz-placeholder,
+:root textarea::-moz-placeholder {
+  color: var(--muted-foreground) !important;
+  opacity: 0.7 !important;
+  font-weight: 400 !important;
+}
+
+.light input::-webkit-input-placeholder,
+.light textarea::-webkit-input-placeholder,
+:root input::-webkit-input-placeholder,
+:root textarea::-webkit-input-placeholder {
+  color: var(--muted-foreground) !important;
+  opacity: 0.7 !important;
+  font-weight: 400 !important;
+}
+
+
+/* ===== COMPACT DIALOG ENHANCEMENTS ===== */
+
+/* Compact qualification sections in dialogs */
+.dialog-body-scrollable .max-h-96 {
+  scrollbar-width: thin !important;
+  scrollbar-color: var(--muted-foreground) transparent !important;
+}
+
+.dialog-body-scrollable .max-h-96::-webkit-scrollbar {
+  width: 4px !important;
+}
+
+.dialog-body-scrollable .max-h-96::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+.dialog-body-scrollable .max-h-96::-webkit-scrollbar-thumb {
+  background: var(--muted-foreground) !important;
+  border-radius: 2px !important;
+  opacity: 0.3 !important;
+}
+
+.dialog-body-scrollable .max-h-96::-webkit-scrollbar-thumb:hover {
+  opacity: 0.5 !important;
+}
+
+/* Compact form inputs */
+.dialog-content .form-input.h-9 {
+  min-height: 36px !important;
+  height: 36px !important;
+  padding: 8px 12px !important;
+  font-size: 14px !important;
+}
+
+.dialog-content .form-select.h-9 {
+  min-height: 36px !important;
+  height: 36px !important;
+  padding: 8px 12px !important;
+  font-size: 14px !important;
+}
+
+/* Compact checkbox styling in dialogs */
+.dialog-content .h-3.w-3 {
+  height: 12px !important;
+  width: 12px !important;
+}
+
+/* Compact grid spacing for qualifications */
+.dialog-content .max-h-32 {
+  scrollbar-width: thin !important;
+  scrollbar-color: var(--muted-foreground) transparent !important;
+}
+
+.dialog-content .max-h-32::-webkit-scrollbar {
+  width: 3px !important;
+  height: 3px !important;
+}
+
+.dialog-content .max-h-32::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+.dialog-content .max-h-32::-webkit-scrollbar-thumb {
+  background: var(--muted-foreground) !important;
+  border-radius: 2px !important;
+  opacity: 0.2 !important;
+}
+
+.dialog-content .max-h-32::-webkit-scrollbar-thumb:hover {
+  opacity: 0.4 !important;
+}
+
+/* Enhanced qualification card styling */
+.dialog-content .bg-gradient-to-br {
+  background: linear-gradient(135deg, var(--muted) 0%, var(--muted)/60 100%) !important;
+  border: 1px solid var(--border) !important;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+}
+
+.dialog-content .bg-gradient-to-br:hover {
+  background: linear-gradient(135deg, var(--muted) 0%, var(--muted)/80 100%) !important;
+  border-color: var(--primary)/20 !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+}

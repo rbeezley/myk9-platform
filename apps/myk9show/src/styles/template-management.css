@@ -1,0 +1,207 @@
+/* Template Management Page Styles */
+
+/* Stat cards with subtle gradient backgrounds */
+.template-stat-card {
+  @apply relative overflow-hidden;
+  background: linear-gradient(135deg, var(--card) 0%, var(--card-secondary) 100%);
+}
+
+.template-stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary) 0%, var(--accent-foreground) 100%);
+  opacity: 0.7;
+}
+
+/* Template cards with better visual separation */
+.template-card {
+  @apply relative transition-all duration-200;
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+
+.template-card:hover {
+  @apply shadow-lg;
+  transform: translateY(-2px);
+  border-color: var(--primary);
+}
+
+/* Official template cards with special styling */
+.template-card-official {
+  background: linear-gradient(135deg, var(--card) 0%, var(--accent) 100%);
+  border: 1px solid var(--accent-foreground);
+}
+
+.template-card-official:hover {
+  border-color: var(--primary);
+  box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.15);
+}
+
+/* Dark mode adjustments */
+.dark .template-card {
+  background: linear-gradient(135deg, var(--card) 0%, #262a33 100%);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark .template-card:hover {
+  border-color: var(--primary);
+  background: linear-gradient(135deg, #262a33 0%, #2a2f3a 100%);
+}
+
+.dark .template-card-official {
+  background: linear-gradient(135deg, #262a33 0%, #2563eb20 100%);
+  border-color: rgba(37, 99, 235, 0.3);
+}
+
+/* Filter section styling */
+.filter-section {
+  @apply relative;
+  background: linear-gradient(135deg, var(--card-secondary) 0%, var(--card) 100%);
+  border: 1px solid var(--border);
+}
+
+.dark .filter-section {
+  background: linear-gradient(135deg, #1a1d23 0%, var(--card) 100%);
+}
+
+/* Badge enhancements */
+.template-badge-official {
+  @apply bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0;
+}
+
+.template-badge-custom {
+  @apply bg-gradient-to-r from-gray-500 to-gray-600 text-white border-0;
+}
+
+/* Action buttons with better contrast */
+.template-action-primary {
+  @apply bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium;
+}
+
+.template-action-secondary {
+  @apply bg-white dark:bg-gray-800 border-2 hover:bg-gray-50 dark:hover:bg-gray-700;
+}
+
+/* Improved empty state */
+.template-empty-state {
+  @apply rounded-lg;
+  background: linear-gradient(135deg, var(--card-secondary) 0%, var(--card) 100%);
+  border: 2px dashed var(--border);
+}
+
+.dark .template-empty-state {
+  background: linear-gradient(135deg, #1a1d23 0%, var(--card) 100%);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Grid container with better spacing */
+.template-grid {
+  @apply grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6;
+}
+
+/* Page background pattern */
+.template-page-bg {
+  position: relative;
+  background-image: 
+    radial-gradient(at 40% 20%, var(--accent) 0px, transparent 50%),
+    radial-gradient(at 80% 80%, var(--accent) 0px, transparent 50%),
+    radial-gradient(at 20% 80%, var(--accent) 0px, transparent 50%);
+  background-size: 100% 100%;
+  opacity: 0.03;
+}
+
+/* Card content spacing improvements */
+.template-card .card-content {
+  @apply space-y-3;
+}
+
+/* Template description styling */
+.template-description {
+  @apply text-sm leading-relaxed;
+  color: var(--muted-foreground);
+  opacity: 0.8;
+}
+
+/* Template metadata grid */
+.template-metadata {
+  @apply grid grid-cols-2 gap-3 text-sm;
+}
+
+.template-metadata-item {
+  @apply flex items-center gap-2;
+  color: var(--muted-foreground);
+  transition: color 0.2s ease;
+}
+
+.template-card:hover .template-metadata-item {
+  color: var(--foreground);
+}
+
+/* Enhanced rules reference */
+.template-rules-ref {
+  @apply text-xs px-2 py-1 rounded-md;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  border: 1px solid var(--border);
+}
+
+/* Updated timestamp styling */
+.template-timestamp {
+  @apply flex items-center gap-2 text-xs;
+  color: var(--muted-foreground);
+  opacity: 0.7;
+}
+
+.template-card:hover .template-timestamp {
+  opacity: 1;
+}
+
+/* Content dividers */
+.template-divider {
+  @apply border-t;
+  border-color: var(--border);
+  opacity: 0.5;
+}
+
+/* Improved badge spacing and alignment */
+.template-badges {
+  @apply flex flex-wrap gap-2;
+}
+
+/* Three dot menu positioning */
+.template-card .dropdown-trigger {
+  @apply opacity-0 transition-opacity duration-200;
+}
+
+.template-card:hover .dropdown-trigger {
+  @apply opacity-100;
+}
+
+/* Enhanced card transitions */
+.template-card {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.template-card:hover {
+  transform: translateY(-4px);
+}
+
+/* Stats cards enhancements */
+.template-stat-card .stat-number {
+  @apply text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent;
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+  .template-grid {
+    @apply grid-cols-1 gap-4;
+  }
+  
+  .template-card:hover {
+    transform: none;
+  }
+}

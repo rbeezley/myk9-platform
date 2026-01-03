@@ -1,0 +1,110 @@
+/* Calendar Performance Optimizations */
+
+/* Enable GPU acceleration for calendar animations */
+.rbc-calendar {
+  will-change: transform;
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Optimize calendar events for GPU rendering */
+.rbc-event {
+  will-change: transform, opacity;
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+}
+
+/* Reduce reflow on hover effects */
+.rbc-event:hover {
+  transform: translate3d(0, -1px, 0);
+  transition: transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Optimize calendar header rendering */
+.rbc-toolbar {
+  contain: layout style paint;
+}
+
+/* Enable containment for calendar cells */
+.rbc-month-view,
+.rbc-time-view {
+  contain: layout style paint;
+}
+
+/* Optimize day cells */
+.rbc-date-cell {
+  contain: layout style;
+}
+
+/* Performance hint for calendar container */
+.rbc-calendar * {
+  box-sizing: border-box;
+}
+
+/* Reduce paint operations for calendar grid */
+.rbc-month-row {
+  contain: layout style paint;
+}
+
+/* Smooth transitions for view changes */
+.rbc-calendar-transition {
+  transition: opacity 0.3s ease-in-out;
+}
+
+/* Optimize event text rendering */
+.rbc-event-content {
+  contain: layout style;
+  text-rendering: optimizeSpeed;
+}
+
+/* Reduce layout thrashing on calendar navigation */
+.rbc-btn-group {
+  contain: layout;
+}
+
+/* Performance optimization for large event lists */
+.rbc-event-label {
+  contain: layout style;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Optimize calendar background rendering */
+.rbc-month-view,
+.rbc-time-view {
+  background-attachment: local;
+}
+
+/* Enable hardware acceleration for motion elements */
+.calendar-motion-container {
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  will-change: opacity, transform;
+}
+
+/* Optimize skeleton animation performance */
+.calendar-skeleton .animate-pulse {
+  animation: pulse-optimized 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse-optimized {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Critical rendering path optimization */
+.calendar-critical {
+  content-visibility: auto;
+  contain-intrinsic-size: 600px;
+}
+
+/* Virtualization hint for large calendars */
+.rbc-calendar-large {
+  content-visibility: auto;
+  contain-intrinsic-size: 800px 600px;
+}

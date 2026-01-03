@@ -1,0 +1,455 @@
+import React, { useCallback, useEffect, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { 
+  Calendar,
+  Trophy,
+  CheckCircle,
+  Edit,
+  Building2,
+  Timer,
+  Save,
+  FileText,
+  Eye,
+  AlertTriangle,
+  ArrowLeft,
+  Users
+} from 'lucide-react';
+import { useWizardStore } from '@/store/wizardStore';
+import { useClubStore } from '@/store/clubStore';
+import { format } from 'date-fns';
+
+interface ReviewStepProps {
+  className?: string;
+  onSaveDraft?: () => void;
+  onCreateShow?: () => void;
+  onCreateAndPublish?: () => void;
+  onBack?: () => void;
+}
+
+export const ReviewStep: React.FC<ReviewStepProps> = ({ 
+  className,
+  onSaveDraft,
+  onCreateShow,
+  onCreateAndPublish,
+  onBack
+}) => {
+  const { 
+    show, 
+    trials, 
+    judgeDetails,
+    markStepCompleted,
+    setCurrentStep
+  } = useWizardStore();
+  const { clubs } = useClubStore();
+  
+  const [errors, setErrors] = useState<string[]>([]);
+
+  // Validation
+  const validateReview = useCallback(() => {
+    const newErrors: string[] = [];
+    
+    if (!show.name.trim()) {
+      newErrors.push('Show name is required');
+    }
+    
+    if (!show.startDate || !show.endDate) {
+      newErrors.push('Show dates are required');
+    }
+    
+    if (trials.length === 0) {
+      newErrors.push('At least one trial is required');
+    }
+    
+    const totalClasses = trials.reduce((sum, trial) => sum + trial.classes.length, 0);
+    if (totalClasses === 0) {
+      newErrors.push('At least one class must be configured');
+    }
+    
+    setErrors(newErrors);
+    return newErrors.length === 0;
+  }, [show.name, show.startDate, show.endDate, trials]);
+
+  // Auto-validate and mark step complete
+  useEffect(() => {
+    if (validateReview()) {
+      markStepCompleted(3);
+    }
+  }, [show, trials, markStepCompleted, validateReview]);
+
+  // Calculate summary stats
+  const totalClasses = trials.reduce((sum, trial) => sum + trial.classes.length, 0);
+  const totalJudgingTime = totalClasses * 15; // 15 min per class estimate
+  const totalJudges = show.judgeIds.length;
+
+  // Calculate assigned judges across all trials
+  const getAssignedJudgesCount = () => {
+    let assignedCount = 0;
+    trials.forEach(trial => {
+      trial.classes.forEach(cls => {
+        if (cls.judgeId && judgeDetails[cls.judgeId]) {
+          assignedCount++;
+        }
+      });
+    });
+    return assignedCount;
+  };
+  
+  const actualAssignedJudges = getAssignedJudgesCount();
+
+  return (
+    <div className={className}>
+      <div className="space-y-6">
+        <div className="max-w-6xl mx-auto space-y-6">
+          {/* Validation Errors */}
+          {errors.length > 0 && (
+            <Card className="border-red-200 bg-red-50">
+              <CardContent className="pt-4">
+                <div className="flex gap-3">
+                  <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-medium text-red-900 mb-2">Please address the following issues:</h4>
+                    <ul className="space-y-1">
+                      {errors.map((error, index) => (
+                        <li key={index} className="text-sm text-red-700">• {error}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Overview Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Trials</p>
+                    <p className="text-3xl font-bold text-blue-600">{trials.length}</p>
+                  </div>
+                  <Calendar className="h-8 w-8 text-blue-600" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Classes</p>
+                    <p className="text-3xl font-bold text-green-600">{totalClasses}</p>
+                  </div>
+                  <Trophy className="h-8 w-8 text-green-600" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Est. Duration</p>
+                    <p className="text-3xl font-bold text-purple-600">{totalJudgingTime}</p>
+                    <p className="text-xs text-muted-foreground">minutes</p>
+                  </div>
+                  <Timer className="h-8 w-8 text-purple-600" />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Judges Assigned</p>
+                    <p className="text-3xl font-bold text-orange-600">{actualAssignedJudges}/{totalClasses}</p>
+                  </div>
+                  <Users className="h-8 w-8 text-orange-600" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Show Details */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5" />
+                  Show Details
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => setCurrentStep(0)}>
+                  <Edit className="h-4 w-4 mr-1" />
+                  Show Details
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div>
+                  <div className="text-sm text-muted-foreground">Show Name</div>
+                  <div className="text-foreground font-medium">{show.name}</div>
+                </div>
+                
+                <div>
+                  <div className="text-sm text-muted-foreground">Show Type</div>
+                  <div className="text-foreground font-medium">{show.type}</div>
+                </div>
+
+                <div>
+                  <div className="text-sm text-muted-foreground">Start Date</div>
+                  <div className="text-foreground font-medium">
+                    {show.startDate && format(new Date(show.startDate), 'MMM d, yyyy \'at\' h:mm a')}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-sm text-muted-foreground">End Date</div>
+                  <div className="text-foreground font-medium">
+                    {show.endDate && format(new Date(show.endDate), 'MMM d, yyyy \'at\' h:mm a')}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-sm text-muted-foreground">Location</div>
+                  <div className="text-foreground font-medium">{show.location || 'Not specified'}</div>
+                </div>
+
+                <div>
+                  <div className="text-sm text-muted-foreground">Chairman</div>
+                  <div className="text-foreground font-medium">{show.chairman || 'Not assigned'}</div>
+                </div>
+
+                <div>
+                  <div className="text-sm text-muted-foreground">Secretary</div>
+                  <div className="text-foreground font-medium">{show.secretary || 'Not assigned'}</div>
+                </div>
+
+                <div>
+                  <div className="text-sm text-muted-foreground">Host Club</div>
+                  <div className="text-foreground font-medium">{clubs.find(c => c.id === show.clubId)?.name || 'Not specified'}</div>
+                </div>
+
+                <div>
+                  <div className="text-sm text-muted-foreground">Entry Open</div>
+                  <div className="text-foreground font-medium">
+                    {show.entryOpenDate && format(new Date(show.entryOpenDate), 'MMM d, yyyy \'at\' h:mm a')}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-sm text-muted-foreground">Entry Close</div>
+                  <div className="text-foreground font-medium">
+                    {show.entryCloseDate && format(new Date(show.entryCloseDate), 'MMM d, yyyy \'at\' h:mm a')}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-sm text-muted-foreground">Pre-Entry Fee</div>
+                  <div className="text-foreground font-medium">${show.preEntryFee || 0}</div>
+                </div>
+
+                <div>
+                  <div className="text-sm text-muted-foreground">Day of Show Fee</div>
+                  <div className="text-foreground font-medium">${show.dayOfShowFee || 0}</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Consolidated Trials & Classes Review */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Trophy className="h-5 w-5" />
+                  Trials & Classes Review
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => setCurrentStep(1)}>
+                    <Edit className="h-4 w-4 mr-1" />
+                    Trials
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setCurrentStep(2)}>
+                    <Edit className="h-4 w-4 mr-1" />
+                    Classes
+                  </Button>
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                {trials.map((trial, trialIndex) => (
+                  <div key={trial.id} className="border rounded-lg p-5 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 dark:border-blue-800">
+                    {/* Trial Header */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <Badge variant="outline" className="bg-background">
+                          Trial {trialIndex + 1}
+                        </Badge>
+                        <h4 className="font-semibold text-lg">{trial.name}</h4>
+                      </div>
+                    </div>
+                    
+                    {/* Trial Details */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
+                      <div>
+                        <div className="text-sm text-muted-foreground">Date & Time</div>
+                        <div className="text-foreground font-medium">{format(new Date(trial.dateTime), 'MMM d, yyyy \'at\' h:mm a')}</div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-muted-foreground">Event Number</div>
+                        <div className="text-foreground font-medium">#{trial.eventNumber}</div>
+                      </div>
+                      <div>
+                        <div className="text-sm text-muted-foreground">Classes</div>
+                        <div className="text-foreground font-medium">{trial.classes.length}</div>
+                      </div>
+                    </div>
+                    
+                    {/* Classes Grid */}
+                    {trial.classes.length > 0 ? (
+                      <div className="space-y-3">
+                        <h5 className="font-medium text-sm text-gray-700">Classes & Judge Assignments</h5>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {trial.classes.map((cls, index) => {
+                            const judgeId = cls.judgeId;
+                            const judge = judgeId && judgeDetails[judgeId] ? judgeDetails[judgeId] : null;
+                            const isUnassigned = !judge;
+                            
+                            return (
+                              <div key={index} className="bg-card border p-3 rounded-lg shadow-sm">
+                                <div className="space-y-2">
+                                  <div className="font-medium text-sm">
+                                    {(cls.customizations?.className as string) || 'Class Name'}
+                                  </div>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs text-muted-foreground">Judge:</span>
+                                    <Badge 
+                                      variant={isUnassigned ? 'destructive' : 'default'}
+                                      className="text-xs"
+                                    >
+                                      {judge ? judge.name : 'Unassigned'}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-6 bg-card rounded-lg border">
+                        <Trophy className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                        <p className="text-sm text-muted-foreground">No classes configured for this trial</p>
+                      </div>
+                    )}
+                    
+                    {/* Trial Summary */}
+                    <div className="mt-4 pt-3 border-t border-border">
+                      <div className="grid grid-cols-3 gap-4 text-center">
+                        <div>
+                          <div className="text-lg font-semibold text-blue-600">{trial.classes.length}</div>
+                          <div className="text-xs text-muted-foreground">Classes</div>
+                        </div>
+                        <div>
+                          <div className="text-lg font-semibold text-green-600">
+                            {trial.classes.filter(cls => cls.judgeId && judgeDetails[cls.judgeId]).length}
+                          </div>
+                          <div className="text-xs text-muted-foreground">Assigned</div>
+                        </div>
+                        <div>
+                          <div className="text-lg font-semibold text-purple-600">{trial.classes.length * 15}</div>
+                          <div className="text-xs text-muted-foreground">Minutes</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Final Actions */}
+          <div className="space-y-4">
+            {/* Consolidated Status Messages */}
+            <div className="space-y-2">
+              {/* Success Status */}
+              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/50 rounded-lg p-3">
+                    <div className="flex items-start gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <div className="font-medium text-green-800 dark:text-green-200 text-sm">
+                          Show Configuration Complete
+                        </div>
+                        <p className="text-xs text-green-700 dark:text-green-300 mt-0.5">
+                          "{show.name}" ready with {trials.length} trials and {totalClasses} classes
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Warning if judges not fully assigned */}
+                  {totalJudges > 0 && actualAssignedJudges < totalClasses && (
+                    <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800/50 rounded-lg p-3">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1">
+                          <div className="font-medium text-yellow-800 dark:text-yellow-200 text-sm">
+                            Incomplete Judge Assignments
+                          </div>
+                          <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-0.5">
+                            {totalClasses - actualAssignedJudges} of {totalClasses} classes need judges
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Navigation and Actions */}
+                <div className="space-y-4">
+                  {/* Back Button */}
+                  <div className="flex justify-start">
+                    <Button variant="outline" onClick={onBack}>
+                      <ArrowLeft className="h-4 w-4 mr-2" />
+                      Back to Classes
+                    </Button>
+                  </div>
+                  
+                  {/* Main Actions */}
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Button variant="outline" onClick={onSaveDraft} className="flex-1">
+                      <Save className="h-4 w-4 mr-2" />
+                      Save as Draft
+                    </Button>
+                    
+                    <Button variant="secondary" onClick={onCreateShow} className="flex-1">
+                      <FileText className="h-4 w-4 mr-2" />
+                      Create Show (Unpublished)
+                    </Button>
+                    
+                    <Button onClick={onCreateAndPublish} className="flex-1">
+                      <Eye className="h-4 w-4 mr-2" />
+                      Create & Publish Show
+                    </Button>
+                  </div>
+                </div>
+
+            <div className="text-xs text-muted-foreground text-center">
+              <p>Draft: Save progress and continue later</p>
+              <p>Create: Create show but keep private until you're ready</p>
+              <p>Create & Publish: Make show immediately visible for entries</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ReviewStep;

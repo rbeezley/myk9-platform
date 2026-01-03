@@ -1,0 +1,229 @@
+import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { AppleTabs } from '@/components/ui/apple-tabs';
+import { Button } from '@/components/ui/button';
+import { Plus } from 'lucide-react';
+import AssociatedDogsSection from '../AssociatedDogsSection';
+import { DogProfileEditDialog } from '@/components/dogs/common/DogProfileEditDialog';
+import type { User, Dog, DogInput } from '@/types/dog-types';
+import { useDogStore } from '@/store/dogStore';
+import { useUserStore } from '@/store/userStore';
+
+interface PeopleDetailsTabsProps {
+  selectedUser: User;
+}
+
+const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) => {
+  const navigate = useNavigate();
+  const { dogs, updateDog, removeDog } = useDogStore();
+  const { updateUser } = useUserStore();
+  
+  // Get actual Dog objects from the dog store using the IDs
+  const userDogs = useMemo(() => {
+    if (!selectedUser.dogs) return [];
+    return selectedUser.dogs
+      .map(dogId => dogs.find(dog => dog.id === dogId))
+      .filter((dog): dog is Dog => dog !== undefined);
+  }, [selectedUser.dogs, dogs]);
+
+  // Helper function to convert Dog to DogInput
+  const dogToDogInput = (dog: Dog): DogInput => ({
+    name: dog.name,
+    breed: dog.breed,
+    sex: dog.sex,
+    birthDate: dog.birthDate || dog.dateOfBirth,
+    color: dog.color,
+    weight: typeof dog.weight === 'string' ? undefined : dog.weight,
+    height: typeof dog.height === 'string' ? undefined : dog.height,
+    ownerId: dog.ownerId,
+    ownerName: dog.ownerName,
+    microchipNumber: dog.microchipNumber || dog.microchip,
+    imageUrl: dog.imageUrl,
+    registrations: dog.registrations?.map(reg => ({
+      organization: reg.organization,
+      number: reg.registrationNumber,
+      type: reg.status,
+      status: reg.status
+    }))
+  });
+
+  // Edit dialog state
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [dogToEdit, setDogToEdit] = useState<Dog | null>(null);
+
+  // --- Removed obsolete editDogForm state/handlers ---
+
+  // Convert selectedUser (User) to Owner type for dialog
+  const owner = {
+    id: selectedUser.id,
+    name: selectedUser.firstName + (selectedUser.lastName ? ' ' + selectedUser.lastName : ''),
+    email: selectedUser.email || '',
+    phone: selectedUser.phone || '',
+    profileImage: selectedUser.profileImage || undefined,
+  };
+
+  // Handler for saving dog edits
+  const handleSaveDogEdit = (updatedDog: Dog) => {
+    const isNewDog = !updatedDog.id;
+    
+    if (isNewDog) {
+      // Generate a temporary ID for the new dog
+      const tempId = `temp-${Date.now()}`;
+      const newDog = { 
+        ...updatedDog, 
+        id: tempId,
+        // Ensure the ownerId is set to the current person
+        ownerId: selectedUser.id
+      };
+      
+      // Add the new dog to the store
+      const { addDog } = useDogStore.getState();
+      addDog(dogToDogInput(newDog));
+      
+      // Add the new dog to the person's dogs array
+      const currentDogs = selectedUser.dogs || [];
+      updateUser(selectedUser.id, { 
+        dogs: [...currentDogs, tempId] 
+      });
+    } else {
+      // Update existing dog
+      const { updateDog } = useDogStore.getState();
+      updateDog(updatedDog.id, dogToDogInput(updatedDog));
+      
+      // Dogs array is string IDs, no need to update individual dog data here
+      // The dog is already updated in the dog store
+    }
+    
+    setIsEditDialogOpen(false);
+    setDogToEdit(null);
+  };
+
+  // Handler for updating dog photo
+  const handleUpdateDogPhoto = (dogId: string, newPhotoUrl: string) => {
+    // Update in global dog store
+    updateDog(dogId, { imageUrl: newPhotoUrl });
+    // Dogs array contains only IDs, photo data is in dog store
+  };
+
+  // Handler for deleting a dog
+  const handleDeleteDog = (dogId: string) => {
+    removeDog(dogId); // Call removeDog from the store
+
+    // Remove the dog from the selected person's dogs array for local consistency
+    if (selectedUser.dogs) {
+      const updatedDogsForPerson = selectedUser.dogs.filter(dogId2 => dogId2 !== dogId);
+      updateUser(selectedUser.id, { dogs: updatedDogsForPerson });
+    }
+    // Optionally, close any dialogs or navigate if needed, e.g., if on that dog's page
+  };
+
+  // Handler for adding a new dog
+  const handleAddNewDog = () => {
+    const newDog: Dog = {
+      id: '', // Will be set when creating
+      name: '', // Added: Default to empty, can be set in dialog
+      breed: '', // Required field
+      sex: 'male', // Required field
+      callName: '',
+      gender: 'Male',
+      ownerId: selectedUser.id, // Keep this as per Dog type
+      owner: {
+        id: selectedUser.id,
+        name: `${selectedUser.firstName} ${selectedUser.lastName}`,
+        email: selectedUser.email,
+        phone: selectedUser.phone,
+        profileImage: selectedUser.profileImage
+      }, // Convert User to Owner format
+      registrations: [],
+      spayedNeutered: false,
+      description: '', // Added: Default to empty
+      // Optional fields with default values
+      height: '',
+      weight: '',
+      dateOfBirth: '', // Age can be derived from this if needed, or set in dialog
+      age: 0, // Corrected: Default to 0
+      imageUrl: '',
+      color: '',
+      microchip: '',
+    };
+    
+    setDogToEdit(newDog);
+    setIsEditDialogOpen(true);
+  };
+
+  const tabsConfig = [
+    {
+      id: 'dogs',
+      label: 'Dogs',
+      content: (
+        <div className="mt-4 space-y-4">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-foreground">Associated Dogs</h2>
+            <Button
+              onClick={handleAddNewDog}
+              className="ml-auto"
+              variant="default"
+              aria-label="Add New Dog"
+            >
+              <Plus size={16} className="inline-block align-middle" />
+              Add New Dog
+            </Button>
+          </div>
+          <AssociatedDogsSection 
+            dogs={userDogs}
+            onViewDogDetails={(dogId) => {
+              // Navigate with person context for breadcrumbs: Users > John Smith > Max
+              navigate(`/dogs/${dogId}?fromPerson=${selectedUser.id}`);
+            }}
+            onEditDog={(dogId) => {
+              const dog = userDogs.find(d => d.id === dogId);
+              if (dog) {
+                setDogToEdit(dog);
+                setIsEditDialogOpen(true);
+              }
+            }}
+            onUpdateDogPhoto={handleUpdateDogPhoto} 
+            onDeleteDog={handleDeleteDog}
+            onAddRegistration={(dogId) => {
+              // Navigate to the dog's details page with a query parameter to open the add registration dialog
+              navigate(`/dogs/${dogId}?addRegistration=true&fromPerson=${selectedUser.id}`);
+            }}
+          />
+        </div>
+      )
+    },
+    {
+      id: 'settings',
+      label: 'Settings',
+      content: (
+        <div className="mt-4 space-y-4">
+          <h2 className="text-xl font-bold mb-4 text-foreground">Settings</h2>
+          <p>Settings for this person will go here.</p>
+        </div>
+      )
+    }
+  ];
+
+  return (
+    <div className="w-full">
+      <AppleTabs
+        tabs={tabsConfig}
+        value="dogs"
+        className="w-full"
+      />
+      {/* The DogProfileEditDialog is self-contained and includes its own StandardDialog */}
+      <DogProfileEditDialog
+        open={isEditDialogOpen}
+        dog={dogToEdit}
+        owners={[owner]} // Ensure 'owner' is correctly defined and passed
+        onClose={() => {
+          setIsEditDialogOpen(false);
+          setDogToEdit(null);
+        }}
+        onSave={handleSaveDogEdit}
+      />
+    </div>
+  );
+};
+
+export default PeopleDetailsTabs;

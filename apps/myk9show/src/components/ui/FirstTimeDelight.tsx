@@ -1,0 +1,176 @@
+import React, { useEffect, useState } from 'react';
+import { Sparkles, Heart, Star } from 'lucide-react';
+
+interface FirstTimeDelightProps {
+  trigger: 'signup' | 'first-show' | 'first-entry' | 'profile-complete';
+  userName?: string;
+  onComplete?: () => void;
+}
+
+const FirstTimeDelight: React.FC<FirstTimeDelightProps> = ({
+  trigger,
+  userName,
+  onComplete
+}) => {
+  const [isVisible, setIsVisible] = useState(true);
+  const [animationPhase, setAnimationPhase] = useState(0);
+
+  useEffect(() => {
+    // Animation sequence
+    const timers = [
+      setTimeout(() => setAnimationPhase(1), 500),   // Show main content
+      setTimeout(() => setAnimationPhase(2), 2000),  // Show celebration
+      setTimeout(() => setAnimationPhase(3), 4000),  // Start fade out
+      setTimeout(() => {
+        setIsVisible(false);
+        onComplete?.();
+      }, 5000) // Complete
+    ];
+
+    return () => timers.forEach(clearTimeout);
+  }, [onComplete]);
+
+  const getDelightConfig = () => {
+    switch (trigger) {
+      case 'signup':
+        return {
+          title: `Welcome to the pack, ${userName || 'new friend'}!`,
+          message: "You've just joined a community of amazing dog lovers. Let's get started on your show journey!",
+          emoji: '🎉',
+          bgGradient: 'from-blue-400 to-purple-500',
+          confetti: ['🐕', '🏆', '🎀', '⭐', '💙']
+        };
+      case 'first-show':
+        return {
+          title: 'Your first show is created!',
+          message: "Woof woof! You're officially a show organizer. Time to make some tails wag with excitement!",
+          emoji: '🏆',
+          bgGradient: 'from-yellow-400 to-orange-500',
+          confetti: ['🏆', '🥇', '🎖️', '🏅', '⭐']
+        };
+      case 'first-entry':
+        return {
+          title: 'First entry submitted!',
+          message: "Your pup is registered and ready to show off! Good luck in the ring!",
+          emoji: '🐕',
+          bgGradient: 'from-green-400 to-emerald-500',
+          confetti: ['🐕', '🐾', '❤️', '🎀', '✨']
+        };
+      case 'profile-complete':
+        return {
+          title: 'Profile looking pawsome!',
+          message: "Your profile is complete and looking great. You're ready to explore everything myK9Show has to offer!",
+          emoji: '⭐',
+          bgGradient: 'from-pink-400 to-purple-500',
+          confetti: ['⭐', '✨', '💫', '🌟', '💎']
+        };
+      default:
+        return {
+          title: 'Pawsome achievement!',
+          message: "You're doing great! Keep up the amazing work with your furry friends.",
+          emoji: '🎉',
+          bgGradient: 'from-blue-400 to-purple-500',
+          confetti: ['🎉', '🎊', '✨', '🌟', '💫']
+        };
+    }
+  };
+
+  const config = getDelightConfig();
+
+  if (!isVisible) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="relative max-w-md mx-4">
+        {/* Confetti explosion */}
+        {animationPhase >= 2 && (
+          <div className="absolute inset-0 pointer-events-none">
+            {config.confetti.map((emoji, index) => (
+              <div
+                key={index}
+                className="absolute text-3xl animate-bounce"
+                style={{
+                  top: `${Math.random() * 100}%`,
+                  left: `${Math.random() * 100}%`,
+                  animationDelay: `${index * 0.2}s`,
+                  animationDuration: '2s'
+                }}
+              >
+                {emoji}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Main card */}
+        <div className={`
+          bg-gradient-to-br ${config.bgGradient} p-8 rounded-2xl shadow-2xl
+          transform transition-all duration-1000 ease-out
+          ${animationPhase >= 1 ? 'scale-100 opacity-100' : 'scale-75 opacity-0'}
+          ${animationPhase >= 3 ? 'scale-110 opacity-0' : ''}
+        `}>
+          {/* Sparkles decoration */}
+          <div className="absolute -top-4 -right-4">
+            <Sparkles className="w-8 h-8 text-white/60 animate-spin" style={{ animationDuration: '3s' }} />
+          </div>
+          <div className="absolute -bottom-4 -left-4">
+            <Star className="w-6 h-6 text-white/40 animate-pulse" />
+          </div>
+
+          <div className="text-center text-white">
+            {/* Big celebratory emoji */}
+            <div className="text-6xl mb-4 animate-bounce" style={{ animationDuration: '1.5s' }}>
+              {config.emoji}
+            </div>
+
+            {/* Title */}
+            <h2 className="text-2xl font-bold mb-4 drop-shadow-lg">
+              {config.title}
+            </h2>
+
+            {/* Message */}
+            <p className="text-white/90 text-lg leading-relaxed mb-6 drop-shadow">
+              {config.message}
+            </p>
+
+            {/* Paw prints decoration */}
+            <div className="flex justify-center space-x-4 text-white/60">
+              <span className="animate-pulse">🐾</span>
+              <Heart className="w-5 h-5 animate-pulse" style={{ animationDelay: '0.5s' }} />
+              <span className="animate-pulse" style={{ animationDelay: '1s' }}>🐾</span>
+            </div>
+          </div>
+
+          {/* Floating hearts */}
+          {animationPhase >= 2 && (
+            <>
+              <div className="absolute top-4 left-4 text-pink-300 animate-float">
+                <Heart className="w-4 h-4" />
+              </div>
+              <div className="absolute top-8 right-8 text-pink-200 animate-float" style={{ animationDelay: '1s' }}>
+                <Heart className="w-3 h-3" />
+              </div>
+              <div className="absolute bottom-8 left-8 text-pink-300 animate-float" style={{ animationDelay: '2s' }}>
+                <Heart className="w-5 h-5" />
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Progress indicator */}
+        <div className="mt-4 flex justify-center space-x-2">
+          {[0, 1, 2, 3].map((phase) => (
+            <div
+              key={phase}
+              className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                animationPhase >= phase ? 'bg-white' : 'bg-white/30'
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default FirstTimeDelight;

@@ -1,0 +1,1 @@
+export { RegistrationWorkflow } from './RegistrationWorkflow';

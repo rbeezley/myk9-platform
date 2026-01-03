@@ -1,0 +1,492 @@
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { 
+  AlertTriangle,
+  FileText
+} from 'lucide-react';
+import { SimpleClassSelector } from '@/components/templates/secretary/SimpleClassSelector';
+import { useWizardStore } from '@/store/wizardStore';
+import { useTemplateStore } from '@/store/templateStore';
+import { ClassTemplate, ClassDefinition } from '@/types/template.types';
+
+interface ClassSelectionStepProps {
+  className?: string;
+}
+
+interface TrialClassState {
+  selectedTemplate: ClassTemplate | null;
+  selectedClasses: ClassDefinition[];
+}
+
+export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ className }) => {
+  const { 
+    trials, 
+    updateTrial, 
+    markStepCompleted,
+    show,
+    judgeDetails,
+    judgeAssignments,
+    assignJudgeToClass
+  } = useWizardStore();
+  
+  const { templates } = useTemplateStore();
+  
+  const [currentTrialId, setCurrentTrialId] = useState<string>('');
+  const [trialStates, setTrialStates] = useState<Record<string, TrialClassState>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Filter templates to active ones and matching show type
+  const activeTemplates = useMemo(() => {
+    console.log('ClassSelectionStep - Filtering templates:');
+    console.log('- show.type:', show?.type);
+    console.log('- templates count:', templates.length);
+    console.log('- templates:', templates.map(t => ({ 
+      id: t.id, 
+      name: t.templateName, 
+      organization: t.organization,
+      showType: t.showType, 
+      isActive: t.isActive 
+    })));
+    
+    if (!show?.type) {
+      const filtered = templates.filter(t => t.isActive);
+      console.log('- No show type, returning active templates:', filtered.length);
+      return filtered;
+    }
+    
+    const filtered = templates.filter(template => {
+      if (!template.isActive) {
+        console.log(`- Template ${template.templateName} skipped (not active)`);
+        return false;
+      }
+      
+      // The wizard stores organization (AKC, UKC, etc.) as show.type
+      // We need to check if the template's organization matches
+      const templateOrganization = typeof template.organization === 'object' 
+        ? String(Object.values(template.organization)[0] || '') 
+        : String(template.organization || '');
+      
+      const templateShowType = typeof template.showType === 'object' 
+        ? String(Object.values(template.showType)[0] || '') 
+        : String(template.showType || '');
+      
+      // Normalize comparison (case-insensitive, handle variations)
+      const normalizedShowType = (show.type || '').toLowerCase().trim();
+      const normalizedTemplateOrg = templateOrganization.toLowerCase().trim();
+      const normalizedTemplateShowType = templateShowType.toLowerCase().trim();
+      
+      // Check if the show type matches either organization or show type
+      const matches = normalizedShowType === normalizedTemplateOrg || 
+             normalizedShowType === normalizedTemplateShowType ||
+             normalizedShowType.includes(normalizedTemplateOrg) ||
+             normalizedShowType.includes(normalizedTemplateShowType) ||
+             normalizedTemplateOrg.includes(normalizedShowType) ||
+             normalizedTemplateShowType.includes(normalizedShowType);
+      
+      console.log(`- Template ${template.templateName}: org="${templateOrganization}" showType="${templateShowType}" matches=${matches}`);
+      
+      return matches;
+    });
+    
+    console.log('- Final filtered templates before deduplication:', filtered.length);
+    
+    // Deduplicate templates by name to prevent showing multiple with same display name
+    const deduplicatedTemplates = filtered.filter((template, index, array) => {
+      const templateDisplayName = template.templateName?.toLowerCase();
+      return array.findIndex(t => t.templateName?.toLowerCase() === templateDisplayName) === index;
+    });
+    
+    console.log('- Final filtered templates after deduplication:', deduplicatedTemplates.length);
+    return deduplicatedTemplates;
+  }, [templates, show?.type]);
+
+  // Initialize trial states from existing data
+  useEffect(() => {
+    const initialStates: Record<string, TrialClassState> = {};
+    
+    trials.forEach(trial => {
+      if (!trialStates[trial.id]) {
+        // Check if trial already has classes configured
+        let selectedTemplate: ClassTemplate | null = null;
+        let selectedClasses: ClassDefinition[] = [];
+        
+        if (trial.classes.length > 0) {
+          // Find the template used for this trial
+          const templateId = trial.classes[0]?.templateId;
+          if (templateId) {
+            selectedTemplate = templates.find(t => t.id === templateId) || null;
+            
+            // Reconstruct selected classes from trial classes
+            if (selectedTemplate) {
+              selectedClasses = trial.classes.map(cls => {
+                // Find the matching class definition from the template
+                const templateClass = selectedTemplate!.classDefinitions?.find(def => 
+                  def.className === (cls.customizations?.className as string)
+                );
+                return templateClass || {
+                  className: (cls.customizations?.className as string) || 'Unknown Class',
+                  element: (cls.customizations?.element as string) || 'Unknown Element',
+                  displayOrder: 0
+                };
+              });
+            }
+          }
+        }
+        
+        initialStates[trial.id] = {
+          selectedTemplate,
+          selectedClasses
+        };
+      }
+    });
+    
+    if (Object.keys(initialStates).length > 0) {
+      setTrialStates(prev => ({ ...prev, ...initialStates }));
+    }
+  }, [trials, templates, trialStates]);
+
+  // Set initial trial ID when trials are available
+  useEffect(() => {
+    if (trials.length > 0 && !currentTrialId) {
+      setCurrentTrialId(trials[0].id);
+    }
+  }, [trials, currentTrialId]);
+
+  // Auto-select single template when available (only for trials with no existing template)
+  useEffect(() => {
+    if (activeTemplates.length === 1 && trials.length > 0) {
+      const template = activeTemplates[0];
+      const newStates: Record<string, TrialClassState> = {};
+      
+      trials.forEach(trial => {
+        const currentState = trialStates[trial.id];
+        // Only auto-select if no template is currently selected AND no classes configured
+        if (!currentState?.selectedTemplate && trial.classes.length === 0) {
+          newStates[trial.id] = {
+            selectedTemplate: template,
+            selectedClasses: currentState?.selectedClasses || []
+          };
+        }
+      });
+      
+      if (Object.keys(newStates).length > 0) {
+        setTrialStates(prev => ({ ...prev, ...newStates }));
+      }
+    }
+  }, [activeTemplates, trials, trialStates]);
+
+  // Get current trial and its state
+  const currentTrial = trials.find(t => t.id === currentTrialId);
+  const currentTrialState = trialStates[currentTrialId] || {
+    selectedTemplate: null,
+    selectedClasses: []
+  };
+  
+  // Get total classes across all trials
+  const totalClasses = trials.reduce((sum, trial) => sum + trial.classes.length, 0);
+
+  // Prepare available judges from show's assigned judges
+  const availableJudges = show.judgeIds.map(judgeId => ({
+    judgeId,
+    judgeName: judgeDetails[judgeId]?.name || 'Unknown Judge',
+    assignedDate: new Date().toISOString().split('T')[0], // Default to today's date
+    email: judgeDetails[judgeId]?.email || '',
+    phone: judgeDetails[judgeId]?.phone || ''
+  }));
+
+  // Validate class selection for all trials
+  const validateClassSelection = useCallback(() => {
+    const newErrors: Record<string, string> = {};
+    
+    if (totalClasses === 0) {
+      newErrors.classes = 'At least one class must be selected across all trials';
+    }
+    
+    // Check that each trial has completed the class creation process
+    trials.forEach((trial, index) => {
+      if (trial.classes.length === 0) {
+        newErrors[`trial-${index}`] = `${trial.name} must have at least one class`;
+      }
+    });
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }, [totalClasses, trials]);
+
+  // Auto-validate and mark step complete when classes are selected
+  useEffect(() => {
+    if (validateClassSelection()) {
+      markStepCompleted(2);
+    }
+  }, [trials, markStepCompleted, validateClassSelection]);
+
+  // Update trial state
+  const updateTrialState = (trialId: string, updates: Partial<TrialClassState>) => {
+    setTrialStates(prev => ({
+      ...prev,
+      [trialId]: { ...prev[trialId], ...updates }
+    }));
+  };
+
+  // Handle template selection
+  const handleTemplateSelected = (templateId: string) => {
+    const template = activeTemplates.find(t => t.id === templateId);
+    if (template) {
+      updateTrialState(currentTrialId, { 
+        selectedTemplate: template,
+        selectedClasses: [] // Reset classes when template changes
+      });
+    }
+  };
+
+  // Handle class selection
+  const handleClassSelectionChange = (selectedClasses: ClassDefinition[]) => {
+    updateTrialState(currentTrialId, { selectedClasses });
+    
+    // Update the trial with the selected classes
+    if (currentTrial) {
+      const classItems = selectedClasses.map((cls) => ({
+        templateId: currentTrialState.selectedTemplate?.id || '',
+        customizations: {
+          ...cls,
+          fieldOverrides: {}
+        },
+        judgeId: judgeAssignments[cls.className] // Include judge assignment
+      }));
+      
+      updateTrial(currentTrial.id, { classes: classItems });
+    }
+  };
+
+  // Handle judge assignment changes
+  const handleJudgeAssignmentChange = (assignments: Record<string, string>) => {
+    // Update global judge assignments
+    Object.entries(assignments).forEach(([classId, judgeId]) => {
+      assignJudgeToClass(classId, judgeId);
+    });
+    
+    // Also update the trial classes with judge assignments
+    if (currentTrial && currentTrialState.selectedClasses.length > 0) {
+      const classItems = currentTrialState.selectedClasses.map((cls) => ({
+        templateId: currentTrialState.selectedTemplate?.id || '',
+        customizations: {
+          ...cls,
+          fieldOverrides: {}
+        },
+        judgeId: assignments[cls.className] || judgeAssignments[cls.className]
+      }));
+      
+      updateTrial(currentTrial.id, { classes: classItems });
+    }
+  };
+
+  return (
+    <div className={className}>
+      <div className="space-y-6">
+        <div className="max-w-5xl mx-auto space-y-6 px-4">
+          {/* Classes Header */}
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-medium">Classes ({totalClasses})</h3>
+          </div>
+
+          {/* Template Selection Alert for No Templates */}
+          {activeTemplates.length === 0 && (
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                {show?.type 
+                  ? `No active templates found for "${show.type}" organization. Please create a template for this organization or ensure your templates are activated.`
+                  : 'No active templates are available. Please create a template first or ensure your templates are activated.'
+                }
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {trials.length === 0 ? (
+            <Card>
+              <CardContent className="pt-8 text-center">
+                <h3 className="text-lg font-medium text-muted-foreground mb-2">
+                  No Trials Configured
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Please go back to the Trial Configuration step to add trials before configuring classes.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Tabs value={currentTrialId} onValueChange={setCurrentTrialId}>
+              {/* Trial Tabs */}
+              <div className="w-full overflow-x-auto">
+                <TabsList className="grid w-full min-w-max" style={{ gridTemplateColumns: `repeat(${trials.length}, minmax(180px, 1fr))` }}>
+                  {trials.map((trial) => {
+                    const isCompleted = trial.classes.length > 0;
+                    return (
+                      <TabsTrigger 
+                        key={trial.id} 
+                        value={trial.id}
+                        className="flex items-center gap-2 text-sm px-3 py-2"
+                      >
+                        <span className="truncate">{trial.name}</span>
+                        <Badge variant={isCompleted ? "default" : "outline"} className="text-xs">
+                          {isCompleted ? trial.classes.length : '0'}
+                        </Badge>
+                      </TabsTrigger>
+                    );
+                  })}
+                </TabsList>
+              </div>
+
+              {/* Trial Content */}
+              {trials.map((trial) => (
+                <TabsContent key={trial.id} value={trial.id} className="space-y-6">
+                  {/* Template Selection */}
+                  {activeTemplates.length > 1 && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <FileText className="h-5 w-5" />
+                          Select Template for {trial.name}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          <div>
+                            <label className="block text-sm font-medium mb-2">Available Templates</label>
+                            <Select 
+                              value={currentTrialState.selectedTemplate?.id || ''} 
+                              onValueChange={handleTemplateSelected}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a template" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {activeTemplates.map((template) => {
+                                  const orgValue = typeof template.organization === 'object' 
+                                    ? String(Object.values(template.organization)[0] || 'Unknown')
+                                    : String(template.organization || 'Unknown');
+                                  const showTypeValue = typeof template.showType === 'object'
+                                    ? String(Object.values(template.showType)[0] || 'Unknown') 
+                                    : String(template.showType || 'Unknown');
+                                  const templateName = template.templateName || 'Unnamed Template';
+                                  
+                                  return (
+                                    <SelectItem key={template.id} value={template.id}>
+                                      {templateName} ({orgValue} - {showTypeValue})
+                                    </SelectItem>
+                                  );
+                                })}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {currentTrialState.selectedTemplate && (
+                            <div className="apple-template-card">
+                              <div className="apple-template-header">
+                                <div className="apple-template-title-section">
+                                  <FileText className="apple-template-icon" />
+                                  <h3 className="apple-template-title">
+                                    {currentTrialState.selectedTemplate.templateName || 'Unnamed Template'}
+                                  </h3>
+                                </div>
+                              </div>
+                              
+                              <div className="apple-template-content">
+                                <div className="apple-template-details">
+                                  <div className="apple-template-detail-item">
+                                    <span className="apple-template-label">Classes Available:</span>
+                                    <span className="apple-template-value">
+                                      {currentTrialState.selectedTemplate.classDefinitions?.length || 0} classes
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Class Selection */}
+                  {currentTrialState.selectedTemplate ? (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Select Classes for {trial.name}</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <SimpleClassSelector
+                          template={currentTrialState.selectedTemplate}
+                          selectedClasses={currentTrialState.selectedClasses}
+                          onSelectionChange={handleClassSelectionChange}
+                          existingClasses={[]} // No existing classes in wizard
+                          availableJudges={availableJudges}
+                          judgeAssignments={judgeAssignments}
+                          onJudgeAssignmentChange={handleJudgeAssignmentChange}
+                        />
+                      </CardContent>
+                    </Card>
+                  ) : activeTemplates.length > 0 ? (
+                    <Card>
+                      <CardContent className="pt-8 text-center">
+                        <h3 className="text-lg font-medium text-muted-foreground mb-2">
+                          Select a Template
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                          Choose a template above to begin selecting classes for {trial.name}.
+                        </p>
+                      </CardContent>
+                    </Card>
+                  ) : null}
+                </TabsContent>
+              ))}
+            </Tabs>
+          )}
+
+          {/* Validation Summary */}
+          {Object.keys(errors).length > 0 && (
+            <Card>
+              <CardContent className="pt-4">
+                <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-4">
+                  <p className="text-sm font-medium text-destructive mb-2">
+                    Please fix the following errors to continue:
+                  </p>
+                  <ul className="text-sm text-destructive space-y-1">
+                    {Object.values(errors).map((error, index) => (
+                      <li key={index}>• {error}</li>
+                    ))}
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Summary Card */}
+          {totalClasses > 0 && (
+            <Card>
+              <CardContent className="pt-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <h4 className="font-medium">Configuration Summary</h4>
+                    <p className="text-sm text-muted-foreground">
+                      {totalClasses} total classes configured across {trials.filter(t => t.classes.length > 0).length} trials
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-lg font-semibold">{totalClasses * 15} min</div>
+                    <div className="text-xs text-muted-foreground">Est. judging time</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ClassSelectionStep;

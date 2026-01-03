@@ -1,0 +1,159 @@
+import { Search, Heart } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useState, useRef } from 'react';
+
+// Using optimized logo from public folder
+const dogShowImageWebP = '/logo.webp';
+const dogShowImagePNG = '/logo.png'; // Fallback for older browsers
+
+export default function Hero() {
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [showEasterEgg, setShowEasterEgg] = useState(false);
+  const logoClicksRef = useRef(0);
+
+  // Easter egg: Triple click the logo for a surprise
+  const handleLogoClick = () => {
+    logoClicksRef.current += 1;
+    if (logoClicksRef.current === 3) {
+      setShowEasterEgg(true);
+      setTimeout(() => setShowEasterEgg(false), 3000);
+      logoClicksRef.current = 0;
+    }
+    // Reset click counter after 2 seconds
+    setTimeout(() => { logoClicksRef.current = 0; }, 2000);
+  };
+
+
+  return (
+    <section className="pt-24 pb-20 md:pt-32 md:pb-28 bg-background text-foreground">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col lg:flex-row items-center gap-8">
+          {/* Logo - left side */}
+          <div className="lg:w-1/2 flex justify-center items-center relative">
+            {/* Easter egg confetti */}
+            {showEasterEgg && (
+              <div className="absolute inset-0 pointer-events-none overflow-hidden z-10">
+                <div className="animate-pulse absolute top-8 left-8 text-yellow-400 text-3xl" style={{ animationDuration: '0.5s' }}>⭐</div>
+                <div className="animate-pulse absolute top-16 right-12 text-pink-400 text-2xl" style={{ animationDelay: '0.2s', animationDuration: '0.5s' }}>💖</div>
+                <div className="animate-pulse absolute bottom-16 left-16 text-purple-400 text-2xl" style={{ animationDelay: '0.4s', animationDuration: '0.5s' }}>🎉</div>
+                <div className="animate-pulse absolute bottom-8 right-20 text-green-400 text-3xl" style={{ animationDelay: '0.6s', animationDuration: '0.5s' }}>🌟</div>
+                <div className="animate-pulse absolute top-24 left-32 text-blue-400 text-xl" style={{ animationDelay: '0.3s', animationDuration: '0.5s' }}>✨</div>
+                <div className="animate-pulse absolute bottom-24 right-32 text-red-400 text-2xl" style={{ animationDelay: '0.7s', animationDuration: '0.5s' }}>🎊</div>
+              </div>
+            )}
+            
+            <div className="h-[350px] flex items-center justify-center relative group">
+              <div 
+                className="transform transition-all duration-500 hover:scale-105 hover:rotate-1 cursor-pointer"
+                onClick={handleLogoClick}
+                title="Triple-click me for a surprise! 🎉"
+              >
+                <picture>
+                  <source srcSet={dogShowImageWebP} type="image/webp" />
+                  <img
+                    src={dogShowImagePNG}
+                    alt="Robot dog with blue glowing eyes"
+                    className={`w-auto h-auto max-h-full max-w-[300px] object-contain transition-all duration-300 ${
+                      showEasterEgg ? 'animate-pulse' : ''
+                    }`}
+                    loading="eager"
+                    fetchPriority="high"
+                    decoding="async"
+                    width="300"
+                    height="300"
+                  />
+                </picture>
+                
+                {/* Glowing effect on hover */}
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-400/10 to-purple-400/10 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              </div>
+            </div>
+          </div>
+          
+          {/* Hero content - right side */}
+          <div className="lg:w-1/2 text-center lg:text-left">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-foreground leading-tight">
+              Welcome to
+              <span className="block bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent leading-normal pb-1">
+                myK9Show
+              </span>
+            </h1>
+            <p className="mt-6 text-xl text-muted-foreground max-w-2xl mx-auto lg:mx-0">
+              A comprehensive solution for managing dog shows, events, registrations, scoring, reporting and more—all in one place.
+            </p>
+            
+            {/* Search box with delightful interactions */}
+            <div className="mt-8 max-w-md mx-auto lg:mx-0">
+              <div className="relative group">
+                <input
+                  type="text"
+                  placeholder={searchFocused ? "Woof! What show are you looking for?" : "Search for upcoming shows..."}
+                  className="w-full h-11 px-4 py-3 pl-12 rounded-lg border border-border/50 bg-input text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-300 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] hover:border-primary/40 hover:shadow-md"
+                  onFocus={() => setSearchFocused(true)}
+                  onBlur={() => setSearchFocused(false)}
+                />
+                <div className={`absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-all duration-300 ${
+                  searchFocused ? 'text-primary scale-110' : 'group-hover:text-primary/70'
+                }`}>
+                  <Search size={20} />
+                </div>
+                
+                {/* Animated search suggestions on focus */}
+                {searchFocused && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-lg shadow-lg z-10 animate-in slide-in-from-top-1 duration-200">
+                    <div className="p-3 space-y-2">
+                      <div className="flex items-center space-x-2 text-sm text-muted-foreground hover:text-foreground cursor-pointer hover:bg-muted/50 p-2 rounded transition-colors">
+                        <span>🐕</span>
+                        <span>Dog shows near me</span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-sm text-muted-foreground hover:text-foreground cursor-pointer hover:bg-muted/50 p-2 rounded transition-colors">
+                        <span>🏆</span>
+                        <span>Championship events</span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-sm text-muted-foreground hover:text-foreground cursor-pointer hover:bg-muted/50 p-2 rounded transition-colors">
+                        <span>📅</span>
+                        <span>This weekend's shows</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* CTA Buttons with enhanced delights */}
+            <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+              <Button 
+                asChild
+                className="bg-gradient-to-r from-primary to-secondary text-primary-foreground 
+                         hover:shadow-xl hover:-translate-y-1 hover:scale-[1.02] 
+                         transition-all duration-300 shadow-sm relative overflow-hidden group"
+              >
+                <a href="/signup" className="relative z-10">
+                  <span className="flex items-center gap-2">
+                    Get Started
+                    <span className="group-hover:animate-bounce">🚀</span>
+                  </span>
+                  {/* Subtle shimmer effect */}
+                  <div className="absolute inset-0 -skew-x-12 bg-gradient-to-r from-transparent via-white/20 to-transparent transform translate-x-full group-hover:translate-x-[-200%] transition-transform duration-1000" />
+                </a>
+              </Button>
+              <Button 
+                variant="outline" 
+                asChild
+                className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 
+                         hover:-translate-y-0.5 transition-all duration-300 shadow-sm rounded-full group relative overflow-hidden"
+              >
+                <a href="/pricing-page" className="relative z-10">
+                  <span className="flex items-center gap-2">
+                    View Premium Pricing Plans
+                    <Heart className="w-4 h-4 group-hover:text-red-500 group-hover:animate-pulse transition-colors duration-300" />
+                  </span>
+                </a>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}

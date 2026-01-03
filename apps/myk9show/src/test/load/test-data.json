@@ -1,0 +1,106 @@
+{
+  "users": [
+    {
+      "email": "exhibitor1@test.com",
+      "password": "test123",
+      "role": "exhibitor",
+      "firstName": "Sarah",
+      "lastName": "Johnson"
+    },
+    {
+      "email": "exhibitor2@test.com", 
+      "password": "test123",
+      "role": "exhibitor",
+      "firstName": "Mike",
+      "lastName": "Davis"
+    },
+    {
+      "email": "secretary1@test.com",
+      "password": "test123", 
+      "role": "secretary",
+      "firstName": "Lisa",
+      "lastName": "Anderson"
+    },
+    {
+      "email": "judge1@test.com",
+      "password": "test123",
+      "role": "judge", 
+      "firstName": "Robert",
+      "lastName": "Wilson"
+    },
+    {
+      "email": "admin1@test.com",
+      "password": "test123",
+      "role": "admin",
+      "firstName": "Jennifer",
+      "lastName": "Brown"
+    }
+  ],
+  "shows": [
+    {
+      "id": "show-1",
+      "name": "Spring Agility Championship",
+      "type": "Agility",
+      "location": "Portland, OR",
+      "status": "Upcoming"
+    },
+    {
+      "id": "show-2", 
+      "name": "Northwest Obedience Trial",
+      "type": "Obedience",
+      "location": "Seattle, WA",
+      "status": "Active"
+    },
+    {
+      "id": "show-3",
+      "name": "Rally Masters Event", 
+      "type": "Rally",
+      "location": "Eugene, OR",
+      "status": "Upcoming"
+    }
+  ],
+  "dogs": [
+    {
+      "id": "dog-1",
+      "name": "Max",
+      "breed": "Border Collie", 
+      "ownerId": "user-1"
+    },
+    {
+      "id": "dog-2",
+      "name": "Luna",
+      "breed": "Australian Shepherd",
+      "ownerId": "user-2"
+    },
+    {
+      "id": "dog-3", 
+      "name": "Charlie",
+      "breed": "Golden Retriever",
+      "ownerId": "user-1"
+    }
+  ],
+  "searchTerms": [
+    "agility",
+    "obedience", 
+    "rally",
+    "championship",
+    "trial",
+    "novice",
+    "open",
+    "excellent",
+    "master",
+    "portland",
+    "seattle",
+    "oregon",
+    "washington"
+  ],
+  "entryClasses": [
+    "Novice A",
+    "Novice B", 
+    "Open A",
+    "Open B",
+    "Excellent A",
+    "Excellent B",
+    "Master"
+  ]
+}

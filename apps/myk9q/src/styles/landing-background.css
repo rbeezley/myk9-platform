@@ -1,0 +1,81 @@
+/* Shared Landing/Login Background Styles */
+/* Extracted from Landing.css for reuse across onboarding pages */
+
+/* Background Color Variables */
+:root {
+  /* Base colors from Landing page */
+  --bg-void: #09090b;
+  --bg-slate: #18181b;
+  --bg-steel: #27272a;
+
+  /* Energy accent - Electric Teal */
+  --bg-energy: #14b8a6;
+  --bg-energy-bright: #2dd4bf;
+  --bg-energy-glow: rgba(20, 184, 166, 0.15);
+}
+
+/* Grid Pattern Overlay */
+.background-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--bg-steel) 1px, transparent 1px),
+    linear-gradient(90deg, var(--bg-steel) 1px, transparent 1px);
+  background-size: 60px 60px;
+  opacity: 0.15;
+  mask-image: radial-gradient(ellipse at center, black 20%, transparent 80%);
+  pointer-events: none;
+}
+
+/* Animated Diagonal Energy Line */
+.background-diagonal {
+  position: absolute;
+  top: -20%;
+  right: -10%;
+  width: 150%;
+  height: 120%;
+  background: linear-gradient(
+    135deg,
+    transparent 0%,
+    var(--bg-energy-glow) 45%,
+    var(--bg-energy-glow) 55%,
+    transparent 100%
+  );
+  transform: rotate(-15deg);
+  opacity: 0.6;
+  animation: diagonalPulse 8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes diagonalPulse {
+  0%, 100% {
+    opacity: 0.4;
+    transform: rotate(-15deg) translateY(0);
+  }
+  50% {
+    opacity: 0.7;
+    transform: rotate(-15deg) translateY(-20px);
+  }
+}
+
+/* Background Container Base */
+.background-container {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: 0;
+  background: var(--bg-void);
+}
+
+/* Variant: Darker for Login page */
+.background-container.darker {
+  background: #0a0a0a;
+}
+
+.background-container.darker .background-grid {
+  opacity: 0.1; /* More subtle on login */
+}
+
+.background-container.darker .background-diagonal {
+  opacity: 0.4; /* More subdued on login */
+}

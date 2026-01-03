@@ -1,0 +1,147 @@
+/**
+ * PWA Update Toast Styles
+ *
+ * Bottom-positioned toast for app update notifications.
+ * Uses teal accent to distinguish from content notifications.
+ */
+
+.update-toast-overlay {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: var(--token-space-md);
+  padding-bottom: calc(var(--token-space-md) + env(safe-area-inset-bottom, 0px));
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.update-toast {
+  display: flex;
+  align-items: center;
+  gap: var(--token-space-md);
+  max-width: 500px;
+  margin: 0 auto;
+  padding: var(--token-space-md) var(--token-space-lg);
+  background: var(--card);
+  border-radius: var(--token-radius-lg);
+  border-left: 4px solid var(--primary);
+  box-shadow: var(--shadow-lg);
+  pointer-events: auto;
+  animation: update-toast-slide-up 0.3s ease-out;
+}
+
+@keyframes update-toast-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .update-toast {
+    animation: none;
+  }
+}
+
+.update-toast-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: color-mix(in srgb, var(--primary) 15%, transparent);
+  border-radius: var(--token-radius-md);
+  color: var(--primary);
+}
+
+.update-toast-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.update-toast-message {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--foreground);
+  line-height: 1.4;
+}
+
+.update-toast-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--token-space-xs);
+  flex-shrink: 0;
+}
+
+.update-toast-btn {
+  padding: var(--token-space-sm) var(--token-space-md);
+  border-radius: var(--token-radius-md);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
+  white-space: nowrap;
+}
+
+.update-toast-btn-primary {
+  background: var(--primary);
+  color: white;
+  border: none;
+}
+
+.update-toast-btn-primary:hover {
+  opacity: 0.9;
+}
+
+.update-toast-btn-primary:active {
+  opacity: 0.8;
+}
+
+.update-toast-btn-secondary {
+  background: transparent;
+  color: var(--muted-foreground);
+  border: 1px solid var(--border);
+}
+
+.update-toast-btn-secondary:hover {
+  background: var(--muted);
+}
+
+.update-toast-btn-secondary:active {
+  background: var(--border);
+}
+
+/* Focus styles for accessibility */
+.update-toast-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Mobile: stack buttons horizontally */
+@media (min-width: 400px) {
+  .update-toast-actions {
+    flex-direction: row;
+  }
+}
+
+/* Dark mode adjustments */
+.theme-dark .update-toast {
+  background: var(--card);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.theme-dark .update-toast-btn-secondary {
+  border-color: var(--border);
+}
+
+.theme-dark .update-toast-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+}

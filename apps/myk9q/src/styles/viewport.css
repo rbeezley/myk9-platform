@@ -1,0 +1,419 @@
+/**
+ * Viewport & Scrolling CSS
+ *
+ * Styles for smooth scrolling, rubber-band prevention, and viewport optimizations.
+ */
+
+/* ==========================================================================
+   Smooth Scrolling
+   ========================================================================== */
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Disable for users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* ==========================================================================
+   Overscroll Behavior (Rubber-Band Prevention)
+   ========================================================================== */
+
+/* Prevent pull-to-refresh and rubber-band on body */
+body {
+  overscroll-behavior-y: none; /* Prevent vertical overscroll */
+  overscroll-behavior-x: auto; /* Allow horizontal overscroll */
+}
+
+/* Container-level overscroll control */
+.scroll-container {
+  overscroll-behavior: contain; /* Contain scrolling within element */
+}
+
+.scroll-container-x {
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
+}
+
+.scroll-container-y {
+  overscroll-behavior-y: contain;
+  overscroll-behavior-x: auto;
+}
+
+.no-overscroll {
+  overscroll-behavior: none; /* Disable all overscroll */
+}
+
+/* ==========================================================================
+   Scroll Snap
+   ========================================================================== */
+
+.scroll-snap-container {
+  scroll-snap-type: y mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+.scroll-snap-item {
+  scroll-snap-align: start;
+  scroll-snap-stop: normal;
+}
+
+.scroll-snap-item-center {
+  scroll-snap-align: center;
+}
+
+.scroll-snap-item-end {
+  scroll-snap-align: end;
+}
+
+/* Horizontal scroll snap */
+.scroll-snap-container-x {
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ==========================================================================
+   iOS Safe Area
+   ========================================================================== */
+
+/* Respect iOS safe area (notch, home indicator) */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-area-left {
+  padding-left: env(safe-area-inset-left);
+}
+
+.safe-area-right {
+  padding-right: env(safe-area-inset-right);
+}
+
+.safe-area-all {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* ==========================================================================
+   Viewport Units
+   ========================================================================== */
+
+/* Mobile viewport height (excludes browser chrome) */
+.h-screen-mobile {
+  height: 100vh;
+  height: 100dvh; /* Dynamic viewport height (new) */
+}
+
+.min-h-screen-mobile {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.max-h-screen-mobile {
+  max-height: 100vh;
+  max-height: 100dvh;
+}
+
+/* Small viewport height (includes browser chrome) */
+.h-screen-small {
+  height: 100svh;
+}
+
+/* Large viewport height (excludes browser chrome) */
+.h-screen-large {
+  height: 100lvh;
+}
+
+/* ==========================================================================
+   Scrollbar Styling
+   ========================================================================== */
+
+/* Custom scrollbar (webkit) */
+.custom-scrollbar::-webkit-scrollbar {
+  width: var(--token-space-md);
+  height: var(--token-space-md);
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--shadow-moderate);
+  border-radius: var(--token-space-sm);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--shadow-medium);
+}
+
+/* Thin scrollbar */
+.thin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--shadow-moderate) transparent;
+}
+
+/* Hide scrollbar */
+.hide-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* ==========================================================================
+   Scroll Position Indicators
+   ========================================================================== */
+
+/* Shadow when scrolled */
+.scroll-shadow-top {
+  box-shadow: inset 0 10px 10px -10px var(--token-shadow-sm);
+}
+
+.scroll-shadow-bottom {
+  box-shadow: inset 0 -10px 10px -10px var(--token-shadow-sm);
+}
+
+.scroll-shadow-both {
+  box-shadow:
+    inset 0 10px 10px -10px var(--token-shadow-sm),
+    inset 0 -10px 10px -10px var(--token-shadow-sm);
+}
+
+/* ==========================================================================
+   Momentum Scrolling
+   ========================================================================== */
+
+.momentum-scroll {
+  -webkit-overflow-scrolling: touch;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+
+.momentum-scroll-x {
+  -webkit-overflow-scrolling: touch;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+/* ==========================================================================
+   Scroll Padding (for sticky headers)
+   ========================================================================== */
+
+/* Note: Mobile values defined below at line 390-400 */
+/* Desktop overrides defined at line 403-415 */
+
+/* ==========================================================================
+   Pull-to-Refresh Prevention
+   ========================================================================== */
+
+.no-pull-to-refresh {
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
+}
+
+/* Allow only horizontal panning */
+.pan-x-only {
+  touch-action: pan-x;
+}
+
+/* Allow only vertical panning */
+.pan-y-only {
+  touch-action: pan-y;
+}
+
+/* Prevent all touch actions */
+.no-touch-action {
+  touch-action: none;
+}
+
+/* ==========================================================================
+   Sticky Positioning
+   ========================================================================== */
+
+.sticky {
+  position: sticky;
+}
+
+.sticky-top {
+  position: sticky;
+  top: 0;
+  z-index: var(--token-z-raised);
+}
+
+.sticky-top-header {
+  position: sticky;
+  top: 0;
+  z-index: var(--token-z-overlay);
+}
+
+.sticky-bottom {
+  position: sticky;
+  bottom: 0;
+  z-index: var(--token-z-raised);
+}
+
+/* ==========================================================================
+   Scroll Anchoring
+   ========================================================================== */
+
+/* Prevent scroll anchoring (jumping when content loads) */
+.no-scroll-anchoring {
+  overflow-anchor: none;
+}
+
+/* Enable scroll anchoring */
+.scroll-anchoring {
+  overflow-anchor: auto;
+}
+
+/* ==========================================================================
+   Full-Height Layouts
+   ========================================================================== */
+
+.full-height-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+}
+
+.full-height-layout > .scrollable {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+/* ==========================================================================
+   iOS Specific Fixes
+   ========================================================================== */
+
+/* Fix iOS input zoom */
+@supports (-webkit-touch-callout: none) {
+  input,
+  textarea,
+  select {
+    font-size: var(--token-space-xl); /* Prevent zoom on focus */
+  }
+}
+
+/* Prevent iOS highlight on tap */
+.no-tap-highlight {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ==========================================================================
+   Performance Optimizations
+   ========================================================================== */
+
+/* GPU acceleration for scrollable containers */
+.scroll-optimized {
+  transform: translateZ(0);
+  -webkit-overflow-scrolling: touch;
+  will-change: scroll-position;
+}
+
+/* Contain layout for scroll containers */
+.scroll-contained {
+  contain: layout style paint;
+}
+
+/* ==========================================================================
+   Dark Mode
+   ========================================================================== */
+
+@media (prefers-color-scheme: dark) {
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--glass-border);
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: var(--overlay-white-moderate);
+  }
+
+  .thin-scrollbar {
+    scrollbar-color: var(--glass-border) transparent;
+  }
+
+  .scroll-shadow-top {
+    box-shadow: inset 0 10px 10px -10px var(--shadow-medium);
+  }
+
+  .scroll-shadow-bottom {
+    box-shadow: inset 0 -10px 10px -10px var(--shadow-medium);
+  }
+
+  .scroll-shadow-both {
+    box-shadow:
+      inset 0 10px 10px -10px var(--shadow-medium),
+      inset 0 -10px 10px -10px var(--shadow-medium);
+  }
+}
+
+/* ==========================================================================
+   Mobile Specific
+   ========================================================================== */
+
+/* Mobile-first: Hidden scrollbars and reduced scroll padding */
+.mobile-hide-scrollbar {
+  scrollbar-width: none;  /* Mobile: Hide scrollbar for cleaner look */
+  -ms-overflow-style: none;
+}
+
+.mobile-hide-scrollbar::-webkit-scrollbar {
+  display: none;  /* Mobile: Hide webkit scrollbar */
+}
+
+/* Mobile: Reduced scroll padding */
+.scroll-padding-top-sm {
+  scroll-padding-top: 50px;  /* Mobile: Compact padding for sticky headers */
+}
+
+.scroll-padding-top-md {
+  scroll-padding-top: 60px;  /* Mobile: Medium padding */
+}
+
+.scroll-padding-top-lg {
+  scroll-padding-top: 70px;  /* Mobile: Large padding */
+}
+
+/* Desktop: Increased scroll padding for larger headers */
+@media (min-width: 640px) {
+  .scroll-padding-top-sm {
+    scroll-padding-top: 60px;  /* Desktop: Expanded padding for sticky headers */
+  }
+
+  .scroll-padding-top-md {
+    scroll-padding-top: 80px;  /* Desktop: Medium padding */
+  }
+
+  .scroll-padding-top-lg {
+    scroll-padding-top: 100px;  /* Desktop: Large padding */
+  }
+}
+
+/* ==========================================================================
+   Low-End Device Optimizations
+   ========================================================================== */
+
+.device-tier-low .scroll-optimized {
+  will-change: auto; /* Reduce memory usage */
+}
+
+.device-tier-low .momentum-scroll,
+.device-tier-low .momentum-scroll-x {
+  -webkit-overflow-scrolling: auto; /* Simpler scrolling */
+}

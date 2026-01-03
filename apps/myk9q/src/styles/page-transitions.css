@@ -1,0 +1,52 @@
+/* Page Transition Animations */
+/* Premium scale + blur transition for onboarding flow */
+
+/* Base transition - Scale + Blur for cinematic feel */
+.page-transition {
+  animation: pageZoomBlurIn 600ms cubic-bezier(0.16, 1, 0.3, 1);
+  /* Force all children to stay invisible until animation starts */
+  animation-fill-mode: both;
+}
+
+/* Premium zoom in with blur for depth - More dramatic scale */
+@keyframes pageZoomBlurIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+    filter: blur(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+
+/* Ensure smooth rendering with GPU acceleration */
+.page-transition {
+  will-change: opacity, transform, filter;
+  /* Create stacking context to keep everything together */
+  isolation: isolate;
+}
+
+/* Disable child animations during page transition */
+.page-transition * {
+  animation-delay: 0ms !important;
+  animation-duration: 0ms !important;
+}
+
+/* Reduce motion for accessibility - fallback to simple fade */
+@media (prefers-reduced-motion: reduce) {
+  .page-transition {
+    animation: pageEnterSimple 450ms ease-out !important;
+  }
+
+  @keyframes pageEnterSimple {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}

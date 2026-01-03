@@ -1,0 +1,483 @@
+/**
+ * Reduce Motion Mode
+ *
+ * Comprehensive implementation of reduced motion preferences
+ * for accessibility and user comfort. Applied when:
+ * - User enables reduce motion in settings
+ * - System prefers-reduced-motion: reduce is set
+ */
+
+/* ==========================================================================
+   Global Reduce Motion Rules
+   ========================================================================== */
+
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Remove all keyframe animations */
+.reduce-motion * {
+  animation-name: none !important;
+}
+
+/* Disable decorative animations */
+.reduce-motion .decorative-animation,
+.reduce-motion .loading-spinner,
+.reduce-motion .pulse,
+.reduce-motion .shimmer {
+  animation: none !important;
+}
+
+/* ==========================================================================
+   Transform Removal
+   ========================================================================== */
+
+/* Remove transform-based animations but keep layout */
+.reduce-motion .slide-in,
+.reduce-motion .slide-out,
+.reduce-motion .fade-in,
+.reduce-motion .fade-out,
+.reduce-motion .scale-in,
+.reduce-motion .scale-out {
+  transform: none !important;
+  opacity: 1 !important;
+}
+
+/* Remove parallax effects */
+.reduce-motion [class*="parallax"] {
+  transform: none !important;
+}
+
+/* Remove hover transforms */
+.reduce-motion *:hover {
+  transform: none !important;
+}
+
+/* ==========================================================================
+   Scroll Behavior
+   ========================================================================== */
+
+.reduce-motion {
+  scroll-behavior: auto !important;
+}
+
+.reduce-motion * {
+  scroll-behavior: auto !important;
+}
+
+.reduce-motion .smooth-scroll {
+  scroll-behavior: auto !important;
+  -webkit-overflow-scrolling: auto;
+}
+
+/* ==========================================================================
+   Loading States
+   ========================================================================== */
+
+/* Static skeletons instead of animated */
+.reduce-motion .skeleton,
+.reduce-motion .loading-skeleton {
+  background: var(--skeleton-base, var(--surface-subtle)) !important;
+  animation: none !important;
+}
+
+/* Static spinners */
+.reduce-motion .spinner,
+.reduce-motion .loading-spinner {
+  animation: none !important;
+}
+
+/* Progress bars - instant fill instead of animated */
+.reduce-motion .progress-bar {
+  transition: none !important;
+}
+
+/* ==========================================================================
+   Modal and Dialog Animations
+   ========================================================================== */
+
+.reduce-motion .modal-enter,
+.reduce-motion .modal-exit,
+.reduce-motion .dialog-enter,
+.reduce-motion .dialog-exit {
+  animation: none !important;
+  transition: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+.reduce-motion .modal-overlay {
+  transition: none !important;
+  animation: none !important;
+}
+
+/* ==========================================================================
+   Dropdown and Menu Animations
+   ========================================================================== */
+
+.reduce-motion .dropdown-menu,
+.reduce-motion .context-menu,
+.reduce-motion .tooltip {
+  animation: none !important;
+  transition: none !important;
+}
+
+.reduce-motion .menu-item {
+  transition: background-color 0.01ms !important;
+}
+
+/* ==========================================================================
+   Toast and Notification Animations
+   ========================================================================== */
+
+.reduce-motion .toast,
+.reduce-motion .notification,
+.reduce-motion .alert {
+  animation: none !important;
+  transition: none !important;
+}
+
+.reduce-motion .toast-enter,
+.reduce-motion .toast-exit {
+  transform: none !important;
+  opacity: 1 !important;
+}
+
+/* ==========================================================================
+   Accordion and Collapse Animations
+   ========================================================================== */
+
+.reduce-motion .accordion-panel,
+.reduce-motion .collapse,
+.reduce-motion .expandable {
+  transition: none !important;
+  animation: none !important;
+}
+
+.reduce-motion [aria-expanded] {
+  transition: none !important;
+}
+
+/* ==========================================================================
+   Tab and Navigation Animations
+   ========================================================================== */
+
+.reduce-motion .tab-panel,
+.reduce-motion .nav-content {
+  animation: none !important;
+  transition: none !important;
+}
+
+.reduce-motion .tab-indicator,
+.reduce-motion .active-indicator {
+  transition: none !important;
+}
+
+/* ==========================================================================
+   Card and List Item Animations
+   ========================================================================== */
+
+.reduce-motion .card,
+.reduce-motion .list-item {
+  transition: none !important;
+}
+
+.reduce-motion .card:hover,
+.reduce-motion .list-item:hover {
+  transform: none !important;
+}
+
+/* ==========================================================================
+   Button and Interactive Element Animations
+   ========================================================================== */
+
+.reduce-motion button,
+.reduce-motion .button,
+.reduce-motion input,
+.reduce-motion select,
+.reduce-motion textarea {
+  transition: background-color 0.01ms, border-color 0.01ms, color 0.01ms !important;
+}
+
+.reduce-motion button:active,
+.reduce-motion .button:active {
+  transform: none !important;
+}
+
+/* Ripple effects */
+.reduce-motion .ripple,
+.reduce-motion .wave-effect {
+  display: none !important;
+}
+
+/* ==========================================================================
+   Focus Indicators
+   ========================================================================== */
+
+/* Keep focus indicators but make them instant */
+.reduce-motion *:focus {
+  transition: outline 0.01ms !important;
+}
+
+.reduce-motion *:focus-visible {
+  transition: none !important;
+}
+
+/* ==========================================================================
+   Page Transitions
+   ========================================================================== */
+
+.reduce-motion .page-enter,
+.reduce-motion .page-exit,
+.reduce-motion .route-transition {
+  animation: none !important;
+  transition: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* ==========================================================================
+   Image and Media Animations
+   ========================================================================== */
+
+.reduce-motion img {
+  transition: none !important;
+  animation: none !important;
+}
+
+.reduce-motion video {
+  transition: none !important;
+}
+
+/* Remove image zoom effects */
+.reduce-motion img:hover {
+  transform: none !important;
+}
+
+/* ==========================================================================
+   SVG Animations
+   ========================================================================== */
+
+.reduce-motion svg {
+  animation: none !important;
+}
+
+.reduce-motion svg * {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* ==========================================================================
+   Drag and Drop Animations
+   ========================================================================== */
+
+.reduce-motion .draggable,
+.reduce-motion .droppable {
+  transition: none !important;
+}
+
+.reduce-motion .drag-preview {
+  animation: none !important;
+}
+
+/* ==========================================================================
+   Carousel and Slider Animations
+   ========================================================================== */
+
+.reduce-motion .carousel,
+.reduce-motion .slider {
+  transition: none !important;
+  animation: none !important;
+  scroll-behavior: auto !important;
+}
+
+.reduce-motion .carousel-item {
+  transition: none !important;
+}
+
+/* ==========================================================================
+   Chart and Graph Animations
+   ========================================================================== */
+
+.reduce-motion .chart,
+.reduce-motion .graph {
+  animation: none !important;
+}
+
+.reduce-motion .chart-bar,
+.reduce-motion .chart-line {
+  transition: none !important;
+  animation: none !important;
+}
+
+/* ==========================================================================
+   Badge and Indicator Animations
+   ========================================================================== */
+
+.reduce-motion .badge,
+.reduce-motion .indicator,
+.reduce-motion .pulse-indicator {
+  animation: none !important;
+}
+
+.reduce-motion .notification-badge {
+  animation: none !important;
+}
+
+/* ==========================================================================
+   Grid and Masonry Layout Animations
+   ========================================================================== */
+
+.reduce-motion .grid-item,
+.reduce-motion .masonry-item {
+  transition: none !important;
+  animation: none !important;
+}
+
+/* ==========================================================================
+   Form Validation Animations
+   ========================================================================== */
+
+.reduce-motion .error-shake,
+.reduce-motion .success-bounce {
+  animation: none !important;
+}
+
+.reduce-motion .validation-message {
+  transition: none !important;
+}
+
+/* ==========================================================================
+   Loader and Progress Animations
+   ========================================================================== */
+
+.reduce-motion .loader,
+.reduce-motion .progress-indicator {
+  animation: none !important;
+}
+
+.reduce-motion .indeterminate-progress {
+  animation: none !important;
+  background: var(--progress-color, #6366f1);
+}
+
+/* ==========================================================================
+   Tooltip and Popover Animations
+   ========================================================================== */
+
+.reduce-motion [role="tooltip"],
+.reduce-motion .popover {
+  transition: none !important;
+  animation: none !important;
+}
+
+/* ==========================================================================
+   Background Animations
+   ========================================================================== */
+
+.reduce-motion .animated-background,
+.reduce-motion .gradient-animation {
+  animation: none !important;
+  background-size: 100% 100% !important;
+}
+
+/* ==========================================================================
+   Text Animations
+   ========================================================================== */
+
+.reduce-motion .typing-effect,
+.reduce-motion .text-slide,
+.reduce-motion .text-fade {
+  animation: none !important;
+}
+
+.reduce-motion .counter {
+  transition: none !important;
+}
+
+/* ==========================================================================
+   Icon Animations
+   ========================================================================== */
+
+.reduce-motion .icon-spin,
+.reduce-motion .icon-pulse,
+.reduce-motion .icon-bounce {
+  animation: none !important;
+}
+
+.reduce-motion .animated-icon {
+  animation: none !important;
+}
+
+/* ==========================================================================
+   Media Query Support
+   ========================================================================== */
+
+/* Respect system preference even without .reduce-motion class */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Essential animations only (like progress bars) can have minimal duration */
+  .essential-animation {
+    animation-duration: 0.1s !important;
+    transition-duration: 0.1s !important;
+  }
+}
+
+/* ==========================================================================
+   Exceptions (Essential Animations)
+   ========================================================================== */
+
+/* Some animations are essential for functionality, keep them very short */
+.reduce-motion .essential-animation,
+.reduce-motion [data-essential-animation="true"] {
+  animation-duration: 0.1s !important;
+  transition-duration: 0.1s !important;
+}
+
+/* Loading indicators that provide essential feedback */
+.reduce-motion .loading[aria-live="polite"],
+.reduce-motion .loading[aria-live="assertive"] {
+  animation-duration: 0.5s !important;
+}
+
+/* ==========================================================================
+   Utility Classes
+   ========================================================================== */
+
+.no-motion {
+  animation: none !important;
+  transition: none !important;
+}
+
+.instant-transition {
+  transition-duration: 0.01ms !important;
+}
+
+.skip-animation {
+  animation-duration: 0.01ms !important;
+}
+
+/* ==========================================================================
+   Print Support
+   ========================================================================== */
+
+@media print {
+  * {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}

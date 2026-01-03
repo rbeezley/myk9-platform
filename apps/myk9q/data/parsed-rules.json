@@ -1,0 +1,3953 @@
+[
+  {
+    "section": "Chapter 1, Section 1",
+    "title": "Eligibility for AKC Scent Work",
+    "content": "AKC Scent Work classes are open to all dogs that are at least six months of age that are individually registered with the AKC, recorded in the FSS program, dogs with PAL numbers, or dogs enrolled in the AKC Canine Partners program   A dog that is individually registered with an acceptable foreign registry who is not yet registered with the AKC may compete for 30 days under the foreign registration number   After the 30 days, if no AKC number has been obtained and no extension has been granted, any qualifying legs earned subsequently under the foreign number will be cancelled",
+    "level": null,
+    "element": null,
+    "category": "General",
+    "keywords": [
+      "dog",
+      "qualifying"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 1, Section 2",
+    "title": "Class Eligibility",
+    "content": "•   Novice A Classes are open to dogs who have not completed any title for that particular element, who have not completed a comparable title with another organization, and whose handlers are neither Scent Work judges, nor have ever worked as professional detection dog handlers  •   Novice B Classes are open to all dogs  •   Advanced Classes are open to dogs who have achieved the Novice title for that particular element  •   Excellent Classes are open to dogs who have achieved the Advanced title for that particular element  •   Master Classes are open to dogs who have achieved the Excellent title for that particular element  •   The Detective Class is open to dogs who have achieved any Master title within the Odor Search Division  Dogs that have previously earned the same or higher level AKC Scent Work titles may enter lower level classes  Dogs are able to enter up to two (2) difficulty levels in each element, in each trial   If a dog is entered in more than two difficulty levels for a single element in a single trial, the score for the lowest level entered will be disallowed, regardless of whether the dog ran or qualified in all levels   Dogs may only enter classes for which they are eligible, according to the above guidelines   Dogs may only enter a class once in each event   A class is defined as a particular difficulty level within a particular element   For example, a dog may run in both Novice and Advanced Interior in the same trial, but may not run in Novice Interior twice in the same trial",
+    "level": "Novice",
+    "element": "Interior",
+    "category": "Handler Requirements",
+    "keywords": [
+      "novice",
+      "interior",
+      "search",
+      "handler",
+      "dog",
+      "judge",
+      "score"
+    ],
+    "measurements": {
+      "min_hides": 1,
+      "max_hides": 1,
+      "hides_known": true,
+      "min_area_sq_ft": 120,
+      "max_area_sq_ft": 200,
+      "time_limit_minutes": 2,
+      "max_height_inches": 24,
+      "target_odors": [
+        "Birch"
+      ],
+      "num_distractions": 0,
+      "distraction_types": []
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 2, Section 3",
+    "title": "Condition of the Dog",
+    "content": "Dogs with physical challenges (including amputees) are eligible to participate provided that, in the opinion of the judge, they display no signs of physical discomfort and can safely complete the search   Dogs with bandages, sutures, or visible wounds are not eligible   Deaf dogs and blind dogs are allowed to enter  Dogs that are both deaf and blind are able to participate so long as the handler is in control of the dog at all times, the dog can complete the requirements of the class, and the dog does not appear to be under undue stress in the opinion of the judge",
+    "level": null,
+    "element": null,
+    "category": "Time Limit",
+    "keywords": [
+      "time",
+      "search",
+      "handler",
+      "dog",
+      "judge",
+      "requirement"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 2, Section 4",
+    "title": "Bitches in Season",
+    "content": "Females in season may not participate  Please see Chapter 3,",
+    "level": null,
+    "element": null,
+    "category": "General",
+    "keywords": [],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 2, Section 15",
+    "title": "for refund requirements for bitches who come into season",
+    "content": "Section 15 for refund requirements for bitches who come into season",
+    "level": null,
+    "element": null,
+    "category": "General",
+    "keywords": [
+      "requirement"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 2, Section 5",
+    "title": "Physically Challenged Handlers",
+    "content": "Judges may modify specific requirements of these Regulations so that physically challenged handlers may compete   Such handlers must be able to move around the search area without physical assistance or guidance   Modifications may be allowed as long as they do not aid the team’s performance",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "search",
+      "handler",
+      "judge",
+      "requirement"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 2, Section 6",
+    "title": "Collars, Leashes, and Harnesses",
+    "content": "Please see Chapter 5,",
+    "level": null,
+    "element": null,
+    "category": "General",
+    "keywords": [],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 2, Section 13",
+    "title": "for requirements and prohibitions regarding collars, leashes, and harnesses",
+    "content": "Section 13 for requirements and prohibitions regarding collars, leashes, and harnesses",
+    "level": null,
+    "element": null,
+    "category": "Equipment",
+    "keywords": [
+      "leash",
+      "requirement"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 2, Section 7",
+    "title": "Rewards and Reinforcers",
+    "content": "Please see Chapter 5,",
+    "level": null,
+    "element": null,
+    "category": "General",
+    "keywords": [],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 2, Section 20",
+    "title": "for requirements and prohibitions regarding rewards and reinforcers",
+    "content": "Section 20 for requirements and prohibitions regarding rewards and reinforcers",
+    "level": null,
+    "element": null,
+    "category": "General",
+    "keywords": [
+      "requirement"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 2, Section 8",
+    "title": "Scented Article",
+    "content": "The scented article(s) for the Handler Discrimination division will be provided by the handler and will consist of the number and type of articles required by the class level (see Chapter 8,",
+    "level": null,
+    "element": null,
+    "category": "Handler Requirements",
+    "keywords": [
+      "handler"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 2, Section 2",
+    "title": "for the specific class requirements)",
+    "content": "Section 2 for the specific class requirements)   If the steward has questions about the article, the judge shall review and either approve or reject the article",
+    "level": null,
+    "element": null,
+    "category": "Judging",
+    "keywords": [
+      "judge",
+      "requirement"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 2, Section 9",
+    "title": "Alerts",
+    "content": "Handlers must confirm the dog’s alert verbally with the word “Alert” when the dog indicates a find   If a verbal confirmation is not possible due to environmental factors or a handler’s disability, the handler may inform the judge of an alternate confirmation, such as an obvious hand signal",
+    "level": null,
+    "element": null,
+    "category": "Handler Requirements",
+    "keywords": [
+      "handler",
+      "dog",
+      "judge"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 2, Section 10",
+    "title": "Handling More Than One Dog",
+    "content": "Handlers may not handle more than one dog in each class (with the exception of Handler Discrimination classes)   Multiple dogs from the same owner may be entered in the same class, provided they are run by different handlers",
+    "level": null,
+    "element": null,
+    "category": "Handler Requirements",
+    "keywords": [
+      "handler",
+      "dog"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 2, Section 11",
+    "title": "Sections A and B of Novice Classes",
+    "content": "Novice A and Novice B are different sections of the same class   The hide location",
+    "level": "Novice",
+    "element": null,
+    "category": "Hides",
+    "keywords": [
+      "novice",
+      "hide"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 2, Section 12",
+    "title": "Maintaining the Integrity of the Search",
+    "content": "Handlers may not divulge any information about the search, the location of the hide, or their performance (aside from a thumbs up or thumbs down) until all teams have run for the particular class   Even innocent discussion can inadvertently cue handlers as to the circumstances of the search in a way that may bias their performance   If anyone is found to be discussing a search before the class has ended, both parties in the discussion (speaker and listener) will be penalized with a “Not Qualified” score (NQ) for the class   Additionally, at the discretion of the Event Committee, persons discussing a search may be excused from the trial and asked to leave the trial grounds  Handlers are responsible for ensuring that any person at the trial with them is aware of the prohibition against discussing searches   If a person not entered in the trial is found to be discussing a search before the class has ended, the handler who brought the person to the trial may be held responsible in accordance with this section, at the judge’s discretion",
+    "level": null,
+    "element": null,
+    "category": "Hides",
+    "keywords": [
+      "hide",
+      "search",
+      "handler",
+      "judge",
+      "score"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 2, Section 13",
+    "title": "Entering Under a Judge",
+    "content": "No dog owned or co-owned by the judge or his/her immediate household may be entered in the class where the individual is acting in their official capacity  Stewards and timers may compete in the trial if it does not conflict with the completion of their assignments   A person may not be the timer for a class in which they are directly competing",
+    "level": null,
+    "element": null,
+    "category": "Time Limit",
+    "keywords": [
+      "time",
+      "dog",
+      "judge"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 2, Section 14",
+    "title": "Exhibitor Clothing",
+    "content": "An exhibitor’s clothing must not be in poor taste or contain profanity   If there is a question, this determination is made by the judge   Club clothing or AKC event clothing may be worn by an exhibitor   Clothing may display a person’s name, the dog’s call name and/or the dog’s picture",
+    "level": null,
+    "element": null,
+    "category": "Judging",
+    "keywords": [
+      "dog",
+      "judge"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 2, Section 15",
+    "title": "Surfaces",
+    "content": "Search areas should provide a firm and safe footing for dogs and handlers, however, searches are frequently done across natural, uneven surfaces and handlers should be aware of and prepared for this possibility",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "search",
+      "handler",
+      "dog"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 2, Section 16",
+    "title": "Weather",
+    "content": "Many searches are conducted outdoors, therefore handlers should be prepared for all potential weather conditions   Handlers should understand that searches will be conducted rain or shine, unless dangerous conditions are present (such as lightning or flooding)   Comfortable footwear and water-resistant clothing are recommended",
+    "level": null,
+    "element": null,
+    "category": "Handler Requirements",
+    "keywords": [
+      "search",
+      "handler"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 2, Section 17",
+    "title": "Risk",
+    "content": "Owners or handlers entering dogs in a trial do so at their own risk and agree to assume responsibility for damage caused by them, or by their dogs   They also agree to abide by the Rules of the American Kennel Club and these Regulations",
+    "level": null,
+    "element": null,
+    "category": "Handler Requirements",
+    "keywords": [
+      "handler",
+      "dog"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 2, Section 18",
+    "title": "Liability",
+    "content": "Owners are responsible for any damage that their dog may inflict to objects or premises during the search",
+    "level": null,
+    "element": null,
+    "category": "General",
+    "keywords": [
+      "search",
+      "dog"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 2, Section 1",
+    "title": "Clubs Eligible to Hold AKC Scent Work Trials",
+    "content": "Any club or association that meets the requirements of the American Kennel Club may be licensed to hold AKC Scent Work trials   Scent Work trials must be open to all breeds and to mixed breeds registered with Canine Partners, except that Specialty clubs and Group clubs may choose to limit entries to the breed or group applicable to their club, and clubs may exclude up to five (5) specific breeds to alleviate conflicts  Specialty clubs holding a limited Scent Work trial for all AKC recognized breeds may accept entries of dogs of their own breed first, then accept entries from all breeds and dogs listed with AKC Canine Partners until the entry limit specified in the premium list is reached",
+    "level": null,
+    "element": null,
+    "category": "Time Limit",
+    "keywords": [
+      "limit",
+      "dog",
+      "requirement"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 2, Section 2",
+    "title": "Event Applications",
+    "content": "Clubs wishing to hold an AKC Scent Work trial or match must make application to the American Kennel Club on the official application form for permission to hold the trial  An application fee must accompany each application; applications will not be processed or marked as received until the fee is paid   Clubs must apply for trials a minimum of eighteen (18) weeks prior to the event closing date; clubs must apply for matches a minimum of four (4) weeks prior to the date of the event   AKC Scent Work may be offered as stand-alone events or in conjunction with another event  In all cases, the official AKC Scent Work application with a separate application fee is required   Late applications may be subject to a fine",
+    "level": null,
+    "element": null,
+    "category": "General",
+    "keywords": [
+      "minimum"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 2, Section 3",
+    "title": "Scent Work Matches",
+    "content": "Section 3. Scent Work Matches   A Scent Work match is a sanctioned event in which scores do not count toward titles   A match is less formal than a trial, but still follows the same structure   All trial regulations apply to matches unless otherwise stated   Any club that is licensed to host Scent Work trials are eligible to host sanctioned Scent Work matches   No results or recording fees are due for sanctioned matches  Anyone in good standing with the American Kennel Club—with the exception of the match secretary—may be approved to judge at a sanctioned match",
+    "level": null,
+    "element": null,
+    "category": "Judging",
+    "keywords": [
+      "judge",
+      "score"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 2, Section 4",
+    "title": "Distance Conflicts",
+    "content": "Scent Work trials hosted by two different clubs may not be held closer than 100 miles in distance on the same day except that a club or association may be approved to hold a Scent Work trial within 100 miles of another club or association which has established its licensed trial on the same date only if, in each instance, it obtains the written permission of the club or association with the established date and submits the written permission along with its application",
+    "level": null,
+    "element": null,
+    "category": "General",
+    "keywords": [],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 2, Section 5",
+    "title": "Junior Showcase",
+    "content": "A Junior Showcase is a special event in which the host club limits participation to junior handlers only   The",
+    "level": null,
+    "element": null,
+    "category": "Time Limit",
+    "keywords": [
+      "limit",
+      "handler"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 6",
+    "title": "Classes to Hold",
+    "content": "A club may choose which classes to offer at their trials, taking into account demand, resources, site availability, and any other considerations",
+    "level": null,
+    "element": null,
+    "category": "General",
+    "keywords": [],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 7",
+    "title": "Non-Regular Classes",
+    "content": "A club has the option to offer non- regular classes at AKC Scent Work events   This allows the club to create their own fun Scent Work games to enrich their events and draw additional participants   A full description of each desired non-regular class must be submitted with the event application   The description must specify the eligibility requirements, performance, and scoring  The AKC will then approve or deny the non-regular class request  AKC will not record results, and no recording fees are due for non- regular classes",
+    "level": null,
+    "element": null,
+    "category": "General",
+    "keywords": [
+      "requirement"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 8",
+    "title": "Order of Classes",
+    "content": "The order in which classes will be run at trial is at the club’s discretion   Once an order of classes is published though, the classes may not be rearranged, unless all exhibitors are present and consent to the change  It is suggested that if Handler Discrimination and Odor Search Division classes are offered on the same day in the same area, the Handler Discrimination classes should be run first so that dogs searching for handler scent do not need to work through lingering odor",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "search",
+      "handler",
+      "dog"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 9",
+    "title": "Number of AKC Scent Work",
+    "content": "A club is limited to a maximum of 12 Scent Work trials per calendar year   A club may hold no more than two Scent Work trials per day   If a club holds two Scent Work trials in one day they have the option to run the trials consecutively or concurrently   In either case, one of the trials will be",
+    "level": null,
+    "element": null,
+    "category": "Time Limit",
+    "keywords": [
+      "limit",
+      "maximum"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 21",
+    "title": "for information regarding move-up transfers for these types of trials",
+    "content": "Section 21 for information regarding move-up transfers for these types of trials",
+    "level": null,
+    "element": null,
+    "category": "General",
+    "keywords": [],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 10",
+    "title": "Entry Fees",
+    "content": "A club holding an AKC Scent Work event shall not accept an entry fee other than that published in the premium list or in any way discriminate between entrants, except that a club, at its discretion, may allow for a reduced entry fee for dogs handled by juniors   A junior handler is someone less than 18 years of age on the day of the event",
+    "level": null,
+    "element": null,
+    "category": "Handler Requirements",
+    "keywords": [
+      "handler",
+      "dog"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 11",
+    "title": "Opening and Closing Dates",
+    "content": "For all trials, clubs shall set a date and time that entries will be first accepted   Entries received prior to the opening date shall be considered invalid and shall be promptly returned   Clubs shall set a date and time that entries will close   The opening and closing date shall be clearly stated in the event premium  Entries must be received by the Trial Secretary prior to the closing date to be valid   If the closing date falls on a postal holiday, entries received in the first mail only on the following day may be accepted  The club may, at its discretion, accept day-of-trial entries   If the club chooses to accept day-of-trial entries, the published closing date and time shall be the date of the event, no sooner than one hour prior to the trial start time, and this must be specified in the premium list   A club that chooses to offer day-of-trial entries may offer a discounted entry fee for early entries, and must specify the date that the early-entry discount will end",
+    "level": null,
+    "element": null,
+    "category": "Time Limit",
+    "keywords": [
+      "time"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 12",
+    "title": "Trial Secretary and Trial Chairperson",
+    "content": "A club holding a trial must name a Trial Secretary and a Trial Chairperson, which cannot be the same person   The Chairperson must be a member of the club   The premium list for all trials shall designate the Trial Secretary as receiving entries   Trial Secretaries and Chairpersons shall be ineligible to judge at the event in which they are acting in these official capacities   Trial Secretaries and Chairpersons may participate in Scent Work trials where they perform these duties, though this participation should not interfere with their official duties",
+    "level": null,
+    "element": null,
+    "category": "Judging",
+    "keywords": [
+      "judge"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 13",
+    "title": "Event Committee",
+    "content": "A club that has been granted AKC permission to hold a trial or match must appoint an Event Committee, which will have complete responsibility for planning and conducting the event   The Committee shall be composed of at least five (5) club members (including the Chairperson), and shall ensure the safe, efficient, and orderly conduct of the event   Individuals who are judging at the event may not serve on the Event Committee   The Committee must have",
+    "level": null,
+    "element": null,
+    "category": "Handler Requirements",
+    "keywords": [],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 14",
+    "title": "Equipment/Event Officials Supplied by Club",
+    "content": "a)   Recording supplies   Pens, pencils, clipboards needed by the judge and stewards  b)   Containers   Clubs must provide one container per target odor for the Odor Search Division and one container per handler for the Handler Discrimination Division   Additional containers to hold distractors and to act as empty containers are required   Containers with glass may not be used  c)   Warm-Up Scent Containers   Clubs must provide one container per odor used in the trial to be placed in the warm-up area  d)   Boundary markers and check in table   Traditional conformation ring gating is not required   Clubs may use any boundary markers or gating material they desire provided it is safe for participants and spectators  e)   Distraction items   Clubs must provide the distraction items for classes in which they are required  f)   Timing   Clubs must provide an official timer and a timing device for each class, which must be capable of measuring time to the hundredth of a second   A backup timing device is recommended  g)   Extra scenting articles for Handler Discrimination classes  h)   Stewards and Hide Steward   The club shall arrange for one or more stewards to organize and call in the exhibitors and assist the judge, and for a hide steward to hide the handler-scented item for the handler discrimination classes  i)   Photographer/Videographer   While not required, it is recommended that the club have a photographer/videographer to chronicle the searches  j)   Scent Aids and Scent Vessels   Clubs must ensure that the scented cotton balls or cotton swabs (scent aids) and the scent vessels that",
+    "level": null,
+    "element": "Container",
+    "category": "Search Area",
+    "keywords": [
+      "container",
+      "area",
+      "time",
+      "hide",
+      "search",
+      "handler",
+      "judge",
+      "distraction"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 15",
+    "title": "Premium List",
+    "content": "A premium list must be published for all approved trials, and must include the following information:  •   Name of club holding the event  •   The exact location (name of facility—if any, address, city, state, and zip code)  •   Date of the event  •   Name, address, email, and telephone number of the Trial Chair  •   Names of the Event Committee members (minimum of five including Trial Chair)  •   Event number  •   Trial hours  •   Entry fees  •   AKC recording fee shall be stated  •   Classes offered  •   Names and cities of residence of judges including their assignments  •   Name, address, email, and telephone number of the Trial Secretary  •   Date and time for opening and closing of entries  •   Entry limits or a statement that entry is unlimited  •   A list of the officers of the event-giving club with the address of the Secretary  •   An official AKC entry form  It is recommended that any known breed specific regulation(s) for the city/county/state in which the trial is being held are listed  The premium list must also include the statement: “It is not appropriate to scout the trial location prior to the trial date   Many search locations are real-life environments and such visits may risk the host losing the opportunity to use the location in the future   ” Clubs must specify in their premium list an exact amount and description of the procedure for refunds   Withdrawals after the event’s closing date due to females in season must be fully refunded if withdrawn no later than one half hour prior to the start of the first class of the day of the trial, though the club may retain a processing fee (no fee is paid to the American Kennel Club for females in season who are withdrawn)   Clubs may determine the documentation, if any, that is required to confirm the female is in season, and must publish this policy in their premium list",
+    "level": null,
+    "element": null,
+    "category": "Time Limit",
+    "keywords": [
+      "time",
+      "limit",
+      "search",
+      "judge",
+      "minimum"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 16",
+    "title": "Entries",
+    "content": "To be acceptable an entry must: (a)   Be submitted with the required entry fee (b)   Be on an official AKC entry form (c)   Be signed by the owner or their duly authorized agent Include all of the following information: (a)   Name of trial-giving club (b)   Date of trial (c)   Breed of dog (d)   Variety, if any (e)   Sex (f)   Name of class(es) entered (g)   Full registered name of dog (h)   Name of owner/co-owner(s) (i)   Address of owner Include one of the following: (a)   AKC number (b)   PAL number (c)   AKC Canine Partners listing number (d)   Foreign registration number and country of registration for an unregistered imported dog (e)   Identification number issued by AKC The following should also be included, if known: (a)   Date of dog’s birth (b)   Name of breeder(s) (c)   Name of sire (d)   Name of dam Note: A dog listed with AKC Canine Partners should mark their breed as “All American Dog   ”",
+    "level": null,
+    "element": null,
+    "category": "General",
+    "keywords": [
+      "dog"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 17",
+    "title": "Event Entry Limits",
+    "content": "Clubs have three options for event entry limits: a)   Unlimited trial – With an unlimited trial all entries received during the open period must be accepted   At close of entries if the total number of entries exceeds the daily limit for the advertised judges, the club must hire additional judges",
+    "level": null,
+    "element": null,
+    "category": "Time Limit",
+    "keywords": [
+      "limit",
+      "judge"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 18",
+    "title": "Additional Entry Limits",
+    "content": "If a club elects, it may place additional limits on a single class or set of classes in the premium list  If a limit is placed on a single class or set of classes, no entries may be accepted beyond this established limit   No class limits may be imposed if the event is unlimited entry",
+    "level": null,
+    "element": null,
+    "category": "Time Limit",
+    "keywords": [
+      "limit"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 19",
+    "title": "Declining Entries",
+    "content": "The Event Committee may decline any entries or may remove any dog from its event for cause, but in each such instance shall file in a timely manner, good and sufficient reason for doing so with the AKC Scent Work Department",
+    "level": null,
+    "element": null,
+    "category": "Time Limit",
+    "keywords": [
+      "time",
+      "dog"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 20",
+    "title": "Waiting List",
+    "content": "Clubs that limit the number of entries may, at their option, establish a waiting list in order that entries that scratch prior to the event can be replaced   The waiting list shall utilize a “first in – first out” approach  The club must establish a maximum number of entries that may be placed on the wait list   Whether a club is offering a wait list, how many entries are being accepted on the wait list, and the closing date/ time of the wait list must be published in the premium list   On the day of the trial, the club may assign entries for absent individuals to those on the wait list who are present at the trial site   If multiple waitlisted individuals are present at the event site, the runs must be assigned in wait-list order   A full refund is to be reimbursed to any entrant whose entry is replaced by a wait-listed entry",
+    "level": null,
+    "element": null,
+    "category": "Time Limit",
+    "keywords": [
+      "time",
+      "limit",
+      "maximum"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 21",
+    "title": "Class Transfers",
+    "content": "A move-up transfer may be requested if, according to the owner’s records, the handler and dog are eligible and the dog has completed the requirements for the title after the closing date of the trial in which the advanced entry is to be made   A move-down transfer may be requested if the owner mistakenly entered",
+    "level": "Advanced",
+    "element": null,
+    "category": "Handler Requirements",
+    "keywords": [
+      "advanced",
+      "handler",
+      "dog",
+      "requirement"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 22",
+    "title": "Judging Limits Guidelines",
+    "content": "AKC Scent Work judges are limited to 125 entries per judge per day   The allotted times listed can be utilized as a guideline   Judging time per class is determined utilizing the AKC Scent Work Judging Time Calculator, which is based on the following allotted times: Administration/Setup   120 mins per day Novice entries   2   5 mins per entry Advanced entries   3 mins per entry Excellent entries (except Interior)   4 mins per entry Excellent Interior entries   6   5 mins per entry Master entries (except Interior)   5 mins per entry Master Interior entries   8 mins per entry Detective Class entries   10 mins per entry After the entries have closed, if any judge exceeds the limit established in these regulations, the club will immediately secure the approval of the AKC for an additional judge, or for reassignment of its advertised judges, so that no judge will be required to exceed the limit",
+    "level": "Novice",
+    "element": "Interior",
+    "category": "Time Limit",
+    "keywords": [
+      "novice",
+      "interior",
+      "time",
+      "limit",
+      "judge"
+    ],
+    "measurements": {
+      "min_hides": 1,
+      "max_hides": 1,
+      "hides_known": true,
+      "min_area_sq_ft": 120,
+      "max_area_sq_ft": 200,
+      "time_limit_minutes": 2,
+      "max_height_inches": 24,
+      "target_odors": [
+        "Birch"
+      ],
+      "num_distractions": 0,
+      "distraction_types": []
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 3, Section 23",
+    "title": "One Judge Per Class",
+    "content": "Each class has only one assigned judge; classes cannot be split between judges, with the exception of the Novice class   Clubs are able to assign one judge to the Novice A section and a different judge to the Novice B section if that is required for balancing of judging limits",
+    "level": "Novice",
+    "element": null,
+    "category": "Time Limit",
+    "keywords": [
+      "novice",
+      "limit",
+      "judge"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 24",
+    "title": "Judge Assignment Changes",
+    "content": "After distribution of the premium list, if a judge assignment changes, exhibitors have the right to request a full refund of their entry fee for any classes affected  Exhibitors must submit requests in writing to the Trial Secretary a minimum of 30 minutes preceding the start of the event on the first day in which the exhibitor is entered  After entries close, when the judging schedule is being prepared, clubs may elect to change the class assignments of the individual judges in order to facilitate the smooth running of the event   Such adjustments can be done for any reason including overloads, low entries, equipment problems, etc   When such judging changes are proposed the club must first receive approval in writing from each judge affected and the club must receive final approval from the American Kennel Club prior to the distribution of the judging schedule  The judging schedule must clearly state which classes have been changed and must also state that exhibitors are entitled to a full refund for entries affected by the change",
+    "level": null,
+    "element": null,
+    "category": "Equipment",
+    "keywords": [
+      "judge",
+      "minimum"
+    ],
+    "measurements": {
+      "time_limit_minutes": 30
+    }
+  },
+  {
+    "section": "Chapter 3, Section 25",
+    "title": "Emergency Judge Assignment Changes",
+    "content": "If the club is notified by a scheduled judge within seven (7) days of the trial that he or she is unable to judge, clubs must take the following steps: 1) Secure an AKC approved Scent Work judge for the classes vacated by the original judge   2) Notify AKC of the proposed judging change   Once approved by the AKC, the club must 3) Send out a mass communication to trial entrants notifying them of the judge change   This communication must include the refund policy for entries affected by the change  If the club is notified by a scheduled judge within forty-eight (48) hours of the trial that he or she is unable to judge, clubs must: 1) Secure an AKC-approved Scent Work judge for the classes vacated by the original judge   If the club is unable to find an AKC Scent Work judge who does not have an event conflict, the club may assign an AKC Scent Work judge who does have a conflict   2) The club shall obtain approval of the change from the American Kennel Club if time allows   3) Send out a mass communication to trial entrants notifying them of the judge change, if feasible   This communication must include the refund policy for entries affected by the change  If on the day of the trial a judge becomes unable to complete his or her judging duties, any person in good standing with the AKC may be allowed to judge the trial",
+    "level": null,
+    "element": null,
+    "category": "Time Limit",
+    "keywords": [
+      "time",
+      "judge"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 26",
+    "title": "Entry Acceptance Methods",
+    "content": "A club may choose either of the following methods for accepting entries to a limited entry trial  If trials are likely to exceed the entry limit within the first 24 hours after the opening date and time, the AKC strongly recommends using the Random Draw method  First Received Entries   – Entries accepted in order of receipt   Trial Secretaries shall use all information to fairly and equitably determine which entries are received first  Accepting Entries:  •   The club must select only one (1) USPS (United States Postal Service) or PMB (Postal Mail Box) address for receipt of paper entries  •   The mailing address must be stated in the premium list   Entries delivered to any other address are invalid and must be returned to the sender  •   If stated in the premium list, a club may further restrict the delivery options (i   e   No “hand-deliveries” at any time)   USPS delivery must be allowed  Guaranteed Entries for Show Workers:  •   The First-Received method does not allow clubs to guarantee entry spaces for show workers   The AKC recommends using the Random Draw method if there is a possibility of not securing enough workers from the First-Received entries  Random Draw   – Entries treated equally without regard to date/time received  Draw Period:   The time during which entries are accepted for the Random Draw   The start time and date of the Draw Period shall be the same as the Opening Date   The Draw Period must be at least seven (7) days in length and must have a defined finish date and time  Guaranteed Entries for Show Workers:   The club may choose to guarantee entry spots for show workers who have agreed to work at the trial   The club may choose the number of entries to set aside",
+    "level": null,
+    "element": null,
+    "category": "Time Limit",
+    "keywords": [
+      "time",
+      "limit"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 27",
+    "title": "Online Entries",
+    "content": "Clubs may choose to utilize a service for accepting entries over the internet   Such service must collect all data that is included on the AKC entry form, as well as requiring the owner/ agent to acknowledge the AKC agreement   To be valid, entries must be accompanied by a valid payment method",
+    "level": null,
+    "element": null,
+    "category": "General",
+    "keywords": [],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 28",
+    "title": "Judging Programs and Catalogs",
+    "content": "Clubs are not required to have a catalog available at the event, however for the exhibitors to",
+    "level": null,
+    "element": null,
+    "category": "General",
+    "keywords": [],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 29",
+    "title": "Armband Numbers",
+    "content": "An armband number shall be assigned to each dog in a trial and is used to determine the running order of dogs as well as to help judges and trial officials identify dogs in their records   The running order may be modified for the smooth running of the trial   For example, clubs can choose to run volunteers first, regardless of their armband number   The armband number need not be physically displayed on the dog or handler",
+    "level": null,
+    "element": null,
+    "category": "Handler Requirements",
+    "keywords": [
+      "handler",
+      "dog",
+      "judge"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 30",
+    "title": "Special Accommodations for Certain Dogs",
+    "content": "Clubs are not to make special accommodations for certain dogs (such as dogs determined by their owners to be “reactive”)   Clubs may not advertise a “red bandana” policy in Premium lists or printed materials or impose such a policy in the briefing   Clubs may dictate how competitors are to be staged while in line for searches, as well as ingress to and egress from the search areas, but these must be consistent for all dogs   Clubs cannot make blanket rules that dogs are not allowed to socialize or come in contact with each other, except regarding the staging areas or warm-up areas",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "search",
+      "dog"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 31",
+    "title": "Staging Area",
+    "content": "The club shall establish a “staging area” out of view of the search area(s)   The staging area will include all parking, crating, warm-up, and waiting areas, as well as the secretary’s table for check-ins, and posting of running order and results   All trial operations aside from the actual search and judging activities will take place in the staging area   The staging area and search area(s) shall be separated by geographical features, walls, and/or artificial barriers  Clubs must post signs so that no person inadvertently wanders in view of the search area   Clubs should take care that exhibitors will not be in view of the search area when arriving or leaving the site, or when visiting the toilet facilities",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "search"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 32",
+    "title": "Spectator Area",
+    "content": "Spectators are encouraged   The club should establish a dedicated spectator area for each class, where people can convene to watch the search, whenever feasible   The club is encouraged to use tape or flags to delineate the boundaries of the spectator area so that no spectators inadvertently enter the search area  No dogs are permitted in the spectator area(s)",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "search",
+      "dog"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 33",
+    "title": "Demo Dog",
+    "content": "After the hide(s) have been set, an accomplished search dog that is not entered in the class will run the course   This is to evaluate the real-world difficulty of the search, as designed   If the demo dog encounters unexpected difficulty, the judge should consider adjusting the hide location(s)   An accomplished dog is defined as one who has earned the AKC Scent Work title (or a comparable title with another organization) for that element and difficulty level   The club is responsible for making an appropriate demo dog available to the judge, but it is ultimately the judge’s decision on what dog is used as the demo dog   The club has no authority to require the judge to use the demo dog that they have provided   Judges can and may use their own dog as demo dog if the dog meets the above requirements  If there is an emergency which renders the demo dog unavailable, the first dog in the running order will complete the search, after which the judge will determine whether the search, as designed, is acceptable  If the first dog to run encounters unforeseen difficulties such that the judge decides to adjust the hide location(s), that dog will be re-run at the end of the class, with no penalty   In situations where the first entered dog must be used to evaluate the search, the run must occur after the briefing and immediately prior to the other dogs in the class  In no case may an entered dog be run during trial setup as the demo dog and receive credit toward titles",
+    "level": null,
+    "element": null,
+    "category": "Hides",
+    "keywords": [
+      "hide",
+      "search",
+      "dog",
+      "judge",
+      "requirement"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 34",
+    "title": "Handler’s Briefing",
+    "content": "Judges shall conduct a short handler’s briefing prior to the start of each class   The handler’s briefing shall take place in view of the search area   In the handler’s briefing the judge shall explain if there is an off-leash option, how many hides there are (if the number of hides is known), the maximum height of the hides, and communicate the maximum time for the course   Judges may also remind exhibitors of the basic rules, if desired   Exhibitors will be able to ask any questions about the search area at this time   No dogs may be present during the handler’s briefing  Judges may state the number and type of distractions, but shall not point out the specific distractions",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "time",
+      "hide",
+      "hides",
+      "search",
+      "handler",
+      "dog",
+      "leash",
+      "judge",
+      "maximum",
+      "distraction"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 35",
+    "title": "Posting of Preliminary Results",
+    "content": "The results from each class shall be posted at the trial location, as soon as is feasible after the conclusion of the class   The information required to be posted for each dog is: 1) Armband number, 2) Dog number, 3) Name of dog (Registered name or call name is permissible), 4) Name of handler, 5) Official time, 6) Number of faults, 7) Result (Qualifying, Not Qualifying, Excused, Absent, Disqualified)   Placements 1-4 must also be designated for each class  These are preliminary results only, and may change upon review by",
+    "level": null,
+    "element": null,
+    "category": "Time Limit",
+    "keywords": [
+      "time",
+      "handler",
+      "dog",
+      "fault",
+      "qualifying"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 36",
+    "title": "Recording of Results",
+    "content": "The following information shall be recorded in the official catalog submitted to the AKC   In the header for each class, the following information must appear:  •   Number of entries (number of entries at closing less the number of entries withdrawn)  •   Number competing in the class  •   Number of qualifying scores  •   Number of withdrawals  •   Name of the person who judged the class  •   Maximum time for the class, as set by the judge or Regulations For each dog entered in the class, the marked catalog must display the 1) Armband number, 2) Dog’s AKC number, 3) Dog’s date of birth, 4) Registered name of the dog, 5) Call name of the dog, 6) Breed of the dog, 7) Name of the owner, 8) Address of the owner, 9) Name of the handler (if different from the owner), 10) Official time, 11) Number of faults, 12) Result   At the club’s discretion, the address of the owner may be omitted from the class pages, if presented in an index at the back of the catalog   Recorded adjacent to each entry of each dog must be one of the following: Qualified (Q), Did not qualify (NQ), Absent (ABS), Excused (EXC), Disqualified for attack (DQ), Withdrawn- in season (AIS), or Withdrawn due to Judge Change (AJC)   If marked “EXC” or “DQ,” a brief description must also appear in the catalog   If a dog earned a placement (1 through 4) for the class, that must also be denoted adjacent to the dog’s entry",
+    "level": null,
+    "element": null,
+    "category": "Time Limit",
+    "keywords": [
+      "time",
+      "handler",
+      "dog",
+      "judge",
+      "fault",
+      "maximum",
+      "qualifying",
+      "score"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 37",
+    "title": "Submittal of Results",
+    "content": "An official marked catalog bearing the above required information, and with each page initialed by the individual who judged each class, must be sent to the American Kennel Club so as to reach its office within seven (7) days after the event   Included in this packet must be the judge’s certification pages and Trial Secretary certification, the Trial Secretary’s report, and payment of recording fees   Clubs may incur fines for catalogs received after this deadline  The catalog must be prepared in the following class order regardless of the order in which the classes were run at the event: all Container classes (Novice A, Novice B, Advanced, Excellent, then Master, in that order), all Interior classes (same order as above), all Exterior classes (same order as above), all Buried classes (same order as above), all Handler Discrimination classes (same order as above), followed by the Detective Class   Clubs may be subject to a fine if results catalogs are received in disarray or without the required information",
+    "level": "Novice",
+    "element": "Interior",
+    "category": "Handler Requirements",
+    "keywords": [
+      "novice",
+      "interior",
+      "handler",
+      "judge",
+      "container",
+      "exterior",
+      "buried"
+    ],
+    "measurements": {
+      "min_hides": 1,
+      "max_hides": 1,
+      "hides_known": true,
+      "min_area_sq_ft": 120,
+      "max_area_sq_ft": 200,
+      "time_limit_minutes": 2,
+      "max_height_inches": 24,
+      "target_odors": [
+        "Birch"
+      ],
+      "num_distractions": 0,
+      "distraction_types": []
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 3, Section 38",
+    "title": "Violation of Regulations",
+    "content": "The club is responsible for abiding by all of these Regulations when hosting AKC Scent Work trials   Violation of any of these Regulations, with the exception of those matters coming under the sole jurisdiction of the judges, may subject the club to a fine or other consequence   Other consequence may include a stay on the club’s Scent Work event-hosting privileges until the club can be re-educated and certified by a field representative as fit to hold Scent Work trials",
+    "level": null,
+    "element": null,
+    "category": "Judging",
+    "keywords": [
+      "judge"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 39",
+    "title": "Certification Page",
+    "content": "The Judge’s Certification and Trial Secretary’s Certification must be included with the official marked catalog and must appear as follows:  Judge’s Certification  I certify that: ___ dogs received qualifying scores in the Container element ___ dogs received qualifying scores in the Interior element ___ dogs received qualifying scores in the Exterior element ___ dogs received qualifying scores in the Buried element ___ dogs received qualifying scores in Handler Discrimination ___ dogs received qualifying scores in the Detective Class Total number of dogs qualifying in the trial: _____ ___________________________________________________ Judge’s Signature  Scent Work Trial Secretary’s Certification  I certify that the Judge(s) has verified the above information and signed this page   Total number of entries in the trial ____, total number of runs (starters/participants) in the trial ____, total number of entries withdrawn from the trial ____, total number of qualifying scores ____  ___________________________________________________ Trial Secretary’s Signature",
+    "level": null,
+    "element": "Interior",
+    "category": "Handler Requirements",
+    "keywords": [
+      "interior",
+      "handler",
+      "dog",
+      "judge",
+      "container",
+      "exterior",
+      "buried",
+      "qualifying",
+      "score"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 40",
+    "title": "Recording Fees",
+    "content": "At every trial a recording fee of $3   50 shall be required for each entry   When fees are calculated, withdrawn entries are not included",
+    "level": null,
+    "element": null,
+    "category": "General",
+    "keywords": [],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 1",
+    "title": "Judge Eligibility",
+    "content": "Any licensed AKC Scent Work judge without an event conflict may be approved to judge Scent Work   To become licensed, a person must satisfy the requirements laid down by the AKC",
+    "level": null,
+    "element": null,
+    "category": "Judging",
+    "keywords": [
+      "judge",
+      "requirement"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 2",
+    "title": "Geographical Limits",
+    "content": "A judge will not be approved to judge the same Scent Work class at all-breed events within 30 days and 100 straight-line miles of each other, with the following exceptions:  •   A judge may accept assignments to judge the same classes for two Scent Work trials that fall on the same day at the same site  •   A judge may accept assignments to judge the same classes at four (4) Scent Work trials over the course of a cluster of no more than five (5) consecutive days at the same site or within a local geographical area as determined by the AKC  •   A judge may accept an assignment within 30 days and 100 straight-line miles of another assignment only on an emergency basis   See Chapter 3,",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "judge"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 25",
+    "title": "for details regarding emergency judge changes",
+    "content": "Section 25 for details regarding emergency judge changes  There are no such restrictions on non-regular classes   Assignments to judge the same class or classes at two different breed specialty or group Scent Work trials are not considered to be in conflict unless the two specialties or group trials are for the same breed or group   Breed specialty Scent Work assignments or group shows are not in conflict with an assignment to judge the same class(es) at an all-breed Scent Work trial",
+    "level": null,
+    "element": null,
+    "category": "Judging",
+    "keywords": [
+      "judge"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 3",
+    "title": "Judging Limits",
+    "content": "AKC Scent Work judges are limited to 8 hours per day, including judging, setup, and breakdown   See Chapter 3,",
+    "level": null,
+    "element": null,
+    "category": "Time Limit",
+    "keywords": [
+      "limit",
+      "judge"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 22",
+    "title": "for additional information",
+    "content": "Section 22 for additional information",
+    "level": null,
+    "element": null,
+    "category": "General",
+    "keywords": [],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 3, Section 4",
+    "title": "Designing the Searches",
+    "content": "Judges are responsible for designing each of the searches at an AKC Scent Work trial   The clubs must submit specific dimensions and layouts of the search areas to the judge no later than sixty (60) days prior to the event date to aid in search design   Additionally, information on furniture and structural obstacles must be communicated to the judge   Ideally, photographs will be submitted with the layouts so that the judge has a clear understanding of the search area prior to designing the course   It is understood that course layouts may change when the judge reaches the site and experiences the conditions firsthand   If the club is offering Container classes at the level of Advanced or above, the club must also submit pictures of the containers that they will be providing for those classes",
+    "level": "Advanced",
+    "element": "Container",
+    "category": "Search Area",
+    "keywords": [
+      "advanced",
+      "container",
+      "area",
+      "search",
+      "judge"
+    ],
+    "measurements": {
+      "min_hides": 2,
+      "max_hides": 2,
+      "hides_known": true,
+      "num_containers": 15,
+      "container_type": "Various (bags, backpacks, purses, suitcases, etc.)",
+      "min_area_sq_ft": 300,
+      "max_area_sq_ft": 600,
+      "time_limit_minutes": 2,
+      "target_odors": [
+        "Birch",
+        "Anise"
+      ],
+      "container_spacing_inches": 12,
+      "row_spacing_inches": 36,
+      "num_distractions": 1,
+      "distraction_types": [
+        "non-food"
+      ]
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 4, Section 5",
+    "title": "Nesting of Searches",
+    "content": "“Nesting” of searches is prohibited  Nesting searches refers to the practice of utilizing the lower level class setup (including hide placement), and simply increasing the area and adding hides and distractions for higher level classes   Because handlers may handle dogs in multiple different classes, and dogs are able to run in multiple difficulty levels, the hides must be relocated between levels   This does not prohibit clubs from reusing a search area for additional classes, but the hide locations must always change from class to class",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "hide",
+      "hides",
+      "search",
+      "handler",
+      "dog",
+      "distraction"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 4, Section 6",
+    "title": "Selecting the Hide Locations",
+    "content": "Judges are responsible for selecting the hide locations, taking care to create a challenging course for each level, but one that is not unreasonably difficult   See Chapter 5,",
+    "level": null,
+    "element": null,
+    "category": "Hides",
+    "keywords": [
+      "hide",
+      "judge"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 4, Section 30",
+    "title": "for more information on the setting of hides",
+    "content": "Section 30 for more information on the setting of hides",
+    "level": null,
+    "element": null,
+    "category": "Hides",
+    "keywords": [
+      "hide",
+      "hides"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 4, Section 7",
+    "title": "Accessible and Inaccessible Hides",
+    "content": "A hide is considered accessible if it is in a location where the dog can reach it with his nose  If no dog (of any size, shape, or agility) would be able to place its nose on the hide, it is considered inaccessible",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "size",
+      "hide",
+      "dog",
+      "inaccessible",
+      "accessible"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 4, Section 8",
+    "title": "Setting the Course Time Limits",
+    "content": "For many classes, judges are responsible for setting the actual course time limits within the pre-set minimum and maximum allowable times   Because each search area may vary so much in size and layout, the judge is in the best position to determine the reasonable time limit, using either their own judgment or a preliminary search with a demo dog",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "size",
+      "time",
+      "limit",
+      "search",
+      "dog",
+      "judge",
+      "minimum",
+      "maximum"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 4, Section 9",
+    "title": "Confirmation of the Alert",
+    "content": "When the handler calls Alert the judge is responsible for confirming whether the alert is correct or incorrect   If the dog is clearly indicating the source of the scent, the judge should respond in the affirmative when the handler calls Alert   If the source is unclear, please follow the procedures outlined in Chapter 4,",
+    "level": null,
+    "element": null,
+    "category": "Handler Requirements",
+    "keywords": [
+      "handler",
+      "dog",
+      "judge"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 4, Section 10",
+    "title": "for accessible hides and Chapter 4, Section 11 for inaccessible hides",
+    "content": "Section 10 for accessible hides and Chapter 4, Section 11 for inaccessible hides",
+    "level": null,
+    "element": null,
+    "category": "Hides",
+    "keywords": [
+      "hide",
+      "hides",
+      "inaccessible",
+      "accessible"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 4, Section 10",
+    "title": "Alert Confirmation for Accessible Hides",
+    "content": "If the dog is near the source of the scent, but it is not clear to the judge that the dog has communicated the exact location to the handler, the judge should ask “where?” The handler must then indicate the source of the scent by pointing or gesturing   If the area that the handler indicates includes the hide location or the strongest concentration of odor in the judge’s expert opinion, the alert should be considered correct and the judge should respond in the affirmative",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "hide",
+      "handler",
+      "dog",
+      "judge"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 4, Section 11",
+    "title": "Alert Confirmation for Inaccessible Hides",
+    "content": "For inaccessible hides, the dog will not be able to pinpoint the exact location of the hide, so the judge will be looking for the dog to get as",
+    "level": null,
+    "element": null,
+    "category": "Hides",
+    "keywords": [
+      "hide",
+      "hides",
+      "dog",
+      "judge",
+      "inaccessible",
+      "accessible"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 4, Section 12",
+    "title": "Judge’s Decision is Final",
+    "content": "The judge’s decision regarding whether the alert is correct is always final   Argument from a competitor as to whether the location indicated is sufficient will not be allowed",
+    "level": null,
+    "element": null,
+    "category": "Judging",
+    "keywords": [
+      "judge"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 4, Section 13",
+    "title": "Assessing Faults",
+    "content": "It is the judge’s responsibility to assess faults for handling errors and mild rule infractions during the search  Faults are to be assessed as specified in Chapter 6,",
+    "level": null,
+    "element": null,
+    "category": "Judging",
+    "keywords": [
+      "search",
+      "judge",
+      "fault"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 4, Section 3",
+    "title": "Section 14",
+    "content": "Control of the Search Area.   The judge shall have complete control and final say over matters in the search area",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "search",
+      "judge"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 4, Section 15",
+    "title": "Repeating a Search",
+    "content": "The judge may allow a dog- handler team to repeat a search if, in the opinion of the judge, the team encountered extraordinary circumstances that were out of the control of the handler   The circumstances must have been caused by the judge, steward, or a spectator in order to warrant a re-run",
+    "level": null,
+    "element": null,
+    "category": "Handler Requirements",
+    "keywords": [
+      "search",
+      "handler",
+      "dog",
+      "judge"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 4, Section 16",
+    "title": "Judges Exhibiting",
+    "content": "At the discretion of the club, judges may choose to exhibit their dogs in a scent work trial in which they are judging, but only for classes for which they are not the judge of record  This must be agreed upon between the club and judge ahead of time and should be included in the judging contract   The judge exhibiting should not interfere with their judging duties   Under no circumstances may a dog owned or co-owned by a judge be exhibited under them, regardless of who is handling the dog (see Chapter 2, Section 13)",
+    "level": null,
+    "element": null,
+    "category": "Time Limit",
+    "keywords": [
+      "time",
+      "dog",
+      "judge"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 4, Section 17",
+    "title": "Approval of Results",
+    "content": "Upon conclusion of the trial the judge must examine and initial each page of the catalog to certify that the information matches their records   Additionally, the judge is required to sign a certification page that states the number of qualifying dogs in each element, and total for the trial   Details on the judge’s certification can be found in Chapter 3,",
+    "level": null,
+    "element": null,
+    "category": "Judging",
+    "keywords": [
+      "dog",
+      "judge",
+      "qualifying"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 4, Section 39",
+    "title": "Section 18",
+    "content": "Retention of Results.   Judges are required to retain score sheets and a copy of the marked catalog in their records for a period of one (1) year after the conclusion of the trial   These documents can be retained in hard-copy or electronic format",
+    "level": null,
+    "element": null,
+    "category": "Judging",
+    "keywords": [
+      "judge",
+      "score"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 4, Section 19",
+    "title": "Violation of Regulations",
+    "content": "Judges are responsible for following all of these Regulations when judging AKC Scent Work trials   Violation of any Regulations that are under the sole jurisdiction of the judge may subject the judge to a fine or other consequence  Other consequence may include requirements for additional training, removal of eligibility to judge one or more classes, or a return to “provisional” status",
+    "level": null,
+    "element": null,
+    "category": "Judging",
+    "keywords": [
+      "judge",
+      "requirement"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 4, Section 1",
+    "title": "Search Area Size",
+    "content": "Search areas may be any shape  The size of the search area is determined by the element and class level   Search areas do not need to be gated   The search area should be marked with flags, cones, colored adhesive tape, caution tape, plastic fencing, gating, or any other material that clearly delineates the boundaries   Dogs and handlers may cross search boundaries without penalty during the search, as long as they remain working  It is understood that many search areas, being of unconventional shapes, may not be amenable to an easy calculation of area size   The required search area sizes specified in the class descriptions should be approximated to the best of the course designer’s ability, but is not expected to be exact in all situations",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "size",
+      "search",
+      "handler",
+      "dog"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 4, Section 2",
+    "title": "Proximity of Search Areas",
+    "content": "“Active” search areas (areas for which the odor has been set) must be separated so as not to confuse a dog who is working—odor from a nearby area should never be accessible to a searching dog   Separation should consist of minimum distance, physical barriers, or visual barriers  The following definitions will be used for the purposes of separating active search areas: A   physical barrier   is either an object that is solid and flush with the ground, or two rows of hanging tarps/curtains that reach the ground with at least one foot of space between them   Physical barriers must be at least five (5) feet in height  A   visual barrier   is a separator that provides a psychological boundary to the dog   It need not be flush with the ground or completely opaque  For example, conformation ring gating is an acceptable visual barrier  Visual barriers must be at least two (2) feet in height  See Chapter 7,",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "search",
+      "dog",
+      "minimum",
+      "accessible"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 4, Section 3",
+    "title": "for specific requirements for separation of active search areas by element",
+    "content": "Section 3 for specific requirements for separation of active search areas by element",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "search",
+      "requirement"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 4, Section 3",
+    "title": "Separation of Crating Area and Searching Areas",
+    "content": "The crating area should not be so nearby any search area such that dogs will encounter odor while crated   Dividing a single room between searches and crating is not preferable   If done, the crating area must be separated from the search area(s) by a physical barrier (see Chapter 5,",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "search",
+      "dog"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 4, Section 2",
+    "title": "for the definition of a “physical barrier”)",
+    "content": "Section 2 for the definition of a “physical barrier”)   Crating can never be set up in the same room as a Master search, regardless of the barriers between them   Master searches have an unknown number of hides, and there is the risk that handlers in the crating area will overhear how many hides are found before the “finish” call",
+    "level": "Master",
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "master",
+      "area",
+      "hide",
+      "hides",
+      "search",
+      "handler"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 4",
+    "title": "Preparation and Storage of Odors",
+    "content": "The “scent aid” must be cotton balls or cotton swabs   If swabs are used, only those with paper stems (not plastic) may be used   The swabs should be cut in half, and the stems may be trimmed shorter, if preferred   To prepare the odor for trial, two (2) drops of the oil should be applied directly to the cotton ball or cotton swab (both drops must be from the same odor)  Glass must always be used for scent preparation and storage because the essential oils are corrosive and will break down plastic containers, changing the chemical composition and affecting the scent   Plastic may be used for scent vessels, but the scent aid must be removed from the plastic container for storage",
+    "level": null,
+    "element": "Container",
+    "category": "General",
+    "keywords": [
+      "container"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 5",
+    "title": "Placement of Odors",
+    "content": "The scent aid must always be placed inside a scent vessel, which is then hidden in the search area   Only one (1) scent aid may be used per scent vessel, and only one (1) scent vessel may be used per hide   The scent vessel may be any small object that prevents the scent aid from coming into direct contact with any object or surface in the search area, and that allows scent to escape  Some examples of a scent vessel include a plastic straw, empty lip balm tube, or a metal tin   Due to safety concerns, scent vessels may never contain glass   The scent vessel may be affixed to an object or surface with tape, adhesive putty (such as QuakeHold) or by any other method, so long as it does not harm the object or surface",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "hide",
+      "search"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 6",
+    "title": "Reuse of Search Areas",
+    "content": "Search areas may be reused for multiple classes within a trial or trial weekend, but the same search area cannot be used for more than 7 interior, exterior, or detective hides during an entire set of trials   A set of trials is defined as scent work trials hosted at the same site within a period of 7 days",
+    "level": null,
+    "element": "Interior",
+    "category": "Search Area",
+    "keywords": [
+      "interior",
+      "area",
+      "hide",
+      "hides",
+      "search",
+      "exterior"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 7",
+    "title": "Hides on Boundary Markers",
+    "content": "The hide may never be placed on or inside an object that is put in the search area to denote the boundary (such as a cone or flag)   However, the hide may be placed on a wall or structure that is natural to the search area and is used as the outer limit of the search area   For example, the side of a building may be used as the edge of a search area, and the side of the building may be in play",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "limit",
+      "hide",
+      "search"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 8",
+    "title": "Consistent Location of the Scent",
+    "content": "For classes in the Odor Search Division the scent must remain in the same location for each team in the class, unless the hide location is contaminated or circumstances otherwise require relocating the hide   Scent must be relocated between classes, but must be left to stand for 10 minutes before the first dog in the new class begins   These requirements do not apply to the Handler Discrimination Division—the scented article may be placed in a different location for each team, even within the same class, and there is no minimum time required for the handler scent to be left to stand before the team searches",
+    "level": null,
+    "element": null,
+    "category": "Time Limit",
+    "keywords": [
+      "time",
+      "hide",
+      "search",
+      "handler",
+      "dog",
+      "requirement",
+      "minimum"
+    ],
+    "measurements": {
+      "time_limit_minutes": 10
+    }
+  },
+  {
+    "section": "Chapter 5, Section 9",
+    "title": "Relocating a Hide",
+    "content": "If a hide must be relocated in the middle of a class, it should be moved to a location that presents the same challenges as at the original location   The location of the original hide should be wiped with white vinegar diluted with water (1 part vinegar to 3 parts water) and the scent must be left to stand in the new hide location for 10 minutes before the next dog is run",
+    "level": null,
+    "element": null,
+    "category": "Hides",
+    "keywords": [
+      "hide",
+      "dog"
+    ],
+    "measurements": {
+      "time_limit_minutes": 10
+    }
+  },
+  {
+    "section": "Chapter 5, Section 10",
+    "title": "Judging Schedule",
+    "content": "Dogs within a class shall be run in the judging program order except that the steward has the discretion to allow a dog to be judged out of sequence at the request of the handler if, in the opinion of the steward, a valid conflict exists",
+    "level": null,
+    "element": null,
+    "category": "Handler Requirements",
+    "keywords": [
+      "handler",
+      "dog",
+      "judge"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 11",
+    "title": "Containers",
+    "content": "Containers are used to conceal the scent vessel for container searches in the Odor Search division or the handler-scented item in the Novice class of the Handler Discrimination division   To be suitable, a container must: 1) be able to completely enclose an object (it must have material on all sides that interferes with the object’s ability to exit), 2) be used primarily for storage or transport of objects, 3) be durable enough that it cannot be readily torn or destroyed (nothing less fragile than a cardboard box)   Some examples of appropriate containers are cardboard boxes, briefcases, luggage, backpacks, paint cans, tool boxes, storage bins, musical instrument cases, purses, duffel bags, or other similar odor-permeable container, as specified by difficulty level   Containers utilizing glass may never be used   Containers in Novice searches must be cardboard boxes and must all be identical  Novice cardboard boxes must be of uniform size and shall be at least 10-inches long by 8-inches wide; they must be no less than 3-inches and no more than 8-inches tall   Box construction need not conform to the diagram in this section   Four-fold boxes, literature mailers, or other designs are acceptable as long as they meet the size requirements and have a seam on the top of the box for odor to escape   If there is a seam on the bottom of the box, that seam must be taped shut  Surplus containers for replacement must be available should any of the containers become damaged or contaminated",
+    "level": "Novice",
+    "element": "Container",
+    "category": "Search Area",
+    "keywords": [
+      "novice",
+      "container",
+      "size",
+      "search",
+      "handler",
+      "requirement"
+    ],
+    "measurements": {
+      "container_type": "Identical cardboard boxes",
+      "min_hides": 1,
+      "max_hides": 1,
+      "hides_known": true,
+      "num_containers": 10,
+      "min_area_sq_ft": 250,
+      "max_area_sq_ft": 400,
+      "time_limit_minutes": 2,
+      "target_odors": [
+        "Birch"
+      ],
+      "container_spacing_inches": 12,
+      "row_spacing_inches": 36,
+      "num_distractions": 0,
+      "distraction_types": []
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 5, Section 12",
+    "title": "Arrangement of Rows",
+    "content": "Whenever the word “rows” is used in these Regulations, it refers to parallel straight-line rows   Boxes arranged in rows cannot be angled or offset from each other   The start line must be positioned on the short end of the setup   See diagram  W 8\"+   L 10\"+ H 3\"- 8\"",
+    "level": null,
+    "element": null,
+    "category": "General",
+    "keywords": [],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 13",
+    "title": "Collars, Leashes, and Harnesses",
+    "content": "Dogs must wear a properly fitted collar or harness approved by the judge   The harness will be constructed of plain, pliable material and will be designed so that there is minimal restriction of the dog’s movement   No special training tools, such as electronic collars, prong collars, head halters, choke chains, or no-pull harnesses may be used during the search  Martingale collars are permitted   No odor-emitting collars (such as no-bark collars that spray citronella, or DAP calming collars) may be worn or present in the search area   A wearable camera such as a Go Pro may be mounted to the dog’s harness, if desired  Dogs must enter and exit the search area with the leash attached to the collar or harness, including when waiting in the search area before and after their search   The leash should be made of plain, pliable material  Any length of leash and/or retractable leashes are permitted for use during the search   The leash can be used to gently guide the dog away from the boundaries of the search area, but cannot be used as a correction device  Most searches will be conducted entirely on leash, but an off-leash option may be offered at the discretion of the judge, only if the area is completely enclosed",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "search",
+      "dog",
+      "leash",
+      "judge"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 14",
+    "title": "Accessories",
+    "content": "Dogs may be outfitted with accessories such as paw covers or booties, jackets, sweaters, and hair ties or bows as the handler deems necessary for the dog to safely navigate the search area   Handlers are permitted to wear treat pouches or fanny packs to carry food rewards   The final word on whether or not an accessory is allowed shall rest with the judge  ✔",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "search",
+      "handler",
+      "dog",
+      "judge"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 15",
+    "title": "Start Line",
+    "content": "For each search area there shall be a start line that the dog and handler must cross   The start line may be a maximum of five (5) feet long   If the dog or handler fail to cross the start line, the judge will record a fault for handler error",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "search",
+      "handler",
+      "dog",
+      "judge",
+      "fault",
+      "maximum"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 16",
+    "title": "“Alert” Calls",
+    "content": "Handlers must confirm the dog’s indication with the word “Alert” when the dog indicates a find   If a verbal confirmation is not possible due to environmental factors or a handler’s disability, the handler may inform the judge of an alternate confirmation, such as an obvious hand signal   If it is not immediately obvious where the dog is indicating when alert is called, the judge may ask the handler to point to the source location   Please see Chapter 4, Sections 10 and 11 for criteria to determine whether the area indicated by the handler is acceptable   The handler is not allowed to re-cue the dog to search or indicate after the alert is called, and doing so will result in an NQ",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "search",
+      "handler",
+      "dog",
+      "judge"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 17",
+    "title": "“Finish” Calls",
+    "content": "The “Finish” call is used in classes that contain multiple hides (all Advanced, Excellent, and Master searches in the Odor Search Division, and the Handler Discrimination Master class)  The handler is required to call “Finish” when all hides have been located and called for the search area (or, for classes with an unknown number of hides, when the handler believes that all hides have been located and called)   The “Finish” call is required to stop the time for the search   If the handler fails to call “Finish” after correctly calling all hides in the area for classes where the total number of hides in the area is known to the handler, the team will be assessed a fault and the maximum search time will be recorded for the team   If the handler fails to call “Finish” for a class in which the number of hides in the area is unknown (Excellent Interior, all Master classes, and the Detective class), leaving the search area without calling finish will result in an NQ",
+    "level": "Advanced",
+    "element": "Interior",
+    "category": "Search Area",
+    "keywords": [
+      "advanced",
+      "interior",
+      "area",
+      "time",
+      "hide",
+      "hides",
+      "search",
+      "handler",
+      "fault",
+      "maximum"
+    ],
+    "measurements": {
+      "min_hides": 2,
+      "max_hides": 2,
+      "hides_known": true,
+      "min_area_sq_ft": 200,
+      "max_area_sq_ft": 400,
+      "time_limit_minutes": 3,
+      "max_height_inches": 36,
+      "target_odors": [
+        "Birch",
+        "Anise"
+      ],
+      "num_distractions": 1,
+      "distraction_types": [
+        "non-food"
+      ]
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 5, Section 18",
+    "title": "Incorrect Calls",
+    "content": "If the handler makes an incorrect “alert” or “finish” call, the search is over   Teams do not proceed to the remaining search areas after an incorrect call",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "search",
+      "handler"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 19",
+    "title": "Informing Handler of Hide Location After Incorrect Alert",
+    "content": "In all classes, if the handler calls Alert on an incorrect location, the handler shall be informed of the correct location of one hide   In the Novice classes only, handlers are also allowed to reward the dog briefly at source if they choose to do so",
+    "level": "Novice",
+    "element": null,
+    "category": "Hides",
+    "keywords": [
+      "novice",
+      "hide",
+      "handler",
+      "dog"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 20",
+    "title": "Rewards and Reinforcers",
+    "content": "Food or toy rewards may be used by the handler at any time during the search (for example, to calm and focus a nervous dog)   However, these items may not be used to bait the dog toward a specific location to search   When a dog correctly finds the scent, the handler may reward the dog with a food or toy reinforcer, which may be delivered at or away from source   The handler must take",
+    "level": null,
+    "element": null,
+    "category": "Time Limit",
+    "keywords": [
+      "time",
+      "search",
+      "handler",
+      "dog"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 21",
+    "title": "Contamination of the Search Area",
+    "content": "Dropping food while rewarding a dog is considered a contamination of the search area, regardless of whether the food is dropped on, near, or away from the hide   If contamination is found in the search area, a judge can fault or NQ a dog depending on the severity",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "hide",
+      "search",
+      "dog",
+      "judge",
+      "fault"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 22",
+    "title": "Cleaning Contamination in the Search Area",
+    "content": "If a search area is contaminated, every effort must be made to return the area to pristine condition before the running of the next dog   If a dog eliminates in an indoor search area, all surfaces or objects in the affected area must be thoroughly cleaned with an enzymatic cleaner  If a dog eliminates in an outdoor search area, any small affected objects such as rocks or sticks should be removed, and the ground should be sprayed with an enzymatic cleaner   If an area or object is contaminated by food residue or saliva, the food residue should be removed and the area or object should be wiped down with water  Any container that is contaminated by significant food residue or significant saliva should be replaced",
+    "level": null,
+    "element": "Container",
+    "category": "Search Area",
+    "keywords": [
+      "container",
+      "area",
+      "search",
+      "dog"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 23",
+    "title": "Residual and Lingering Odor",
+    "content": "If search areas are reused during the course of the day, the judge must inform teams during the handler’s briefing (and may remind them on the start line) of the prior hide locations, to warn of possible residual or lingering odor   These areas must also be marked with stickers or tape",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "hide",
+      "search",
+      "handler",
+      "judge"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 24",
+    "title": "Distraction Items",
+    "content": "Certain searches, as determined by element and difficulty level, will include distraction items   Distraction items cannot be placed on top of the hide, or on top of the location of a previous hide   Distraction items may be of the following type:  •   Non-Food Distraction : Non-food distraction may be one of the following items: tennis ball, dog toy, (empty) dog dish, dog brush, leash, or harness   No other items are permitted to be used as the non-food distraction  •   Food Distraction : A food distraction may be any kind of human or dog food   The following items are prohibited for use as a food distraction because they are known to be harmful to dogs: chocolate, grapes, avocados, onions, cherries, and any food with xylitol  Whenever a food distraction is used it must be enclosed within a container such that a searching dog would be unable to consume the food, and such containers should be large enough that they cannot be swallowed whole",
+    "level": null,
+    "element": "Container",
+    "category": "Hides",
+    "keywords": [
+      "container",
+      "hide",
+      "search",
+      "dog",
+      "leash",
+      "distraction"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 25",
+    "title": "Handler Looking for the Odor Source",
+    "content": "The handler should not be actively looking for the scent vessel while the dog searches   It is the job of the dog to find the source of the scent   It is the handler’s job only to read their dog and communicate to the judge when the dog has found the source   Any handler who is actively looking for the odor source may be faulted or excused by the judge",
+    "level": null,
+    "element": null,
+    "category": "Handler Requirements",
+    "keywords": [
+      "search",
+      "handler",
+      "dog",
+      "judge",
+      "fault"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 26",
+    "title": "Barking/Vocalization",
+    "content": "Within reason as determined by the judge, a dog may bark or vocalize while participating in Scent Work classes   However, if the judge determines that the dog is barking out of frustration or is becoming overly disruptive in a way that threatens future use of the venue, the judge shall give the handler a warning   If the handler is unable to get the dog to stop the disruptive behavior within 10 seconds after the warning, the dog shall be excused from the search   The dog may still be permitted to participate in other classes in which the dog is entered that day, at the discretion of the judge",
+    "level": null,
+    "element": null,
+    "category": "Handler Requirements",
+    "keywords": [
+      "search",
+      "handler",
+      "dog",
+      "judge",
+      "warning"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 27",
+    "title": "Touching the Dog",
+    "content": "Handlers are allowed to touch the dog at any time during the search for direction or praise",
+    "level": null,
+    "element": null,
+    "category": "Time Limit",
+    "keywords": [
+      "time",
+      "search",
+      "handler",
+      "dog"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 28",
+    "title": "Disruption of the Search Area",
+    "content": "Handlers are not allowed to touch objects in the search area without express permission from the judge",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "search",
+      "handler",
+      "judge"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 29",
+    "title": "The Stewards",
+    "content": "The stewards are in charge of bringing each team to the start line, carrying out orders from the judge (such as repositioning items in the search area), and any other duties as required by the club or the judge   The club may appoint as many stewards as they need to complete the required tasks",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "search",
+      "judge"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 30",
+    "title": "Setting of Hides",
+    "content": "For each class in the Odor Search division, the judge is responsible for ensuring that the scent is placed in the appropriate hide location(s) that they have chosen   The judge may set the hides themselves or may direct a qualified individual (as determined by the judge) to do so with their supervision   The individual setting hides should wear latex, nitrile, or vinyl gloves when doing so, and must not touch any other items until the gloves are removed  For classes in the Handler Discrimination division, the judge must designate another individual to set the hides for them (the Hide Steward)   Please see Chapter 8,",
+    "level": null,
+    "element": null,
+    "category": "Hides",
+    "keywords": [
+      "hide",
+      "hides",
+      "search",
+      "handler",
+      "judge"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 7",
+    "title": "for details on the Hide Steward for the Handler Discrimination division",
+    "content": "Section 7 for details on the Hide Steward for the Handler Discrimination division",
+    "level": null,
+    "element": null,
+    "category": "Hides",
+    "keywords": [
+      "hide",
+      "handler"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 31",
+    "title": "Official Timer",
+    "content": "Each class must have an official timer who will monitor the official time for the class and communicate to the judge the final run time to the hundredth of a second   The official",
+    "level": null,
+    "element": null,
+    "category": "Time Limit",
+    "keywords": [
+      "time",
+      "judge"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 5",
+    "title": "for additional details on the search time in the Detective Class",
+    "content": "Section 5 for additional details on the search time in the Detective Class",
+    "level": null,
+    "element": null,
+    "category": "Time Limit",
+    "keywords": [
+      "time",
+      "search"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 32",
+    "title": "Self-Timing",
+    "content": "Handlers are permitted to wear watches or other timing devices in the search area in order to be aware of the time remaining in their search   However, in no case may a handler use their own timing device to dispute the conclusion of the official timer   The official time will be determined solely by the official timer’s device",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "time",
+      "search",
+      "handler"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 33",
+    "title": "Timer Malfunction",
+    "content": "In the case of a timer malfunction on a qualifying search, the team will have two options: 1) the maximum search time may be recorded as their official time for that class, or 2) the team may re-run the search at the end of the class   If the team chooses to re-run the search, the hide location(s) must be relocated and left to stand for 10 minutes prior to their search   If the handler chooses to re-run the search for time and fails to complete a qualifying performance on the re-run, the team will NQ",
+    "level": null,
+    "element": null,
+    "category": "Time Limit",
+    "keywords": [
+      "time",
+      "hide",
+      "search",
+      "handler",
+      "maximum",
+      "qualifying"
+    ],
+    "measurements": {
+      "time_limit_minutes": 10
+    }
+  },
+  {
+    "section": "Chapter 5, Section 34",
+    "title": "Warm-Up Area",
+    "content": "The club shall designate a warm-up area   One labelled container per target odor being used in the trial on that day will be placed in the warm-up area   This will allow handler- dog teams to prepare themselves for the search prior to their run   Each team should limit their warm-up to two minutes or less so that others may be able to use the warm-up area as well   Clubs may also place blank containers in the warm up area if they choose",
+    "level": null,
+    "element": "Container",
+    "category": "Search Area",
+    "keywords": [
+      "container",
+      "area",
+      "limit",
+      "search",
+      "handler",
+      "dog"
+    ],
+    "measurements": {
+      "time_limit_minutes": 2
+    }
+  },
+  {
+    "section": "Chapter 5, Section 35",
+    "title": "Possession of Odors and Training",
+    "content": "No person other than those engaged in the administration of the trial shall be in possession of any of the target odors when on the trial grounds   There shall be no training on the grounds of the AKC Scent Work trial, other than in the designated warm-up area",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 36",
+    "title": "Spectators and Double Handling",
+    "content": "Spectators are encouraged, however, no one outside the search area may assist the handler or disclose the location of the hide   Spectators should take care to remain neutral in order to not provide clues to the handler   Judges may excuse or re-run exhibitors whose dogs they reasonably believe have benefited from double handling   Spectators who intentionally or unintentionally give aid to a team may be asked to leave the spectator area by the judge   Handlers may not watch other exhibitors from their class prior to their turn, except in the case of Handler Discrimination classes",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "hide",
+      "search",
+      "handler",
+      "dog",
+      "judge"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 37",
+    "title": "Spectator Area",
+    "content": "See Chapter 3,",
+    "level": null,
+    "element": null,
+    "category": "General",
+    "keywords": [],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 32",
+    "title": "for details on the spectator area",
+    "content": "If you would not know the information but for being in the spectator area, you cannot discuss the information.",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 38",
+    "title": "Photography and Recording Devices",
+    "content": "With the permission of the dog’s owner and handler, spectators are encouraged to photo and video dogs and handlers while they search, however under no circumstances may they share this with any handler competing in the same class who has not yet run   Handlers are not allowed to take video while handling a dog, except that wearable cameras such as the “Go Pro” are permitted to be worn by dogs or handlers   These videos are for the enjoyment of those who cannot be present to watch the team search, and for the handler to have a keepsake of their experience",
+    "level": null,
+    "element": null,
+    "category": "Handler Requirements",
+    "keywords": [
+      "search",
+      "handler",
+      "dog"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 1",
+    "title": "A Qualifying Performance",
+    "content": "The dog’s performance is judged on a qualify/non-qualify basis   A qualifying performance is achieved when the handler successfully locates and calls all hides in a search area within the time allowed for the class without committing any non-qualifying faults",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "time",
+      "hide",
+      "hides",
+      "search",
+      "handler",
+      "dog",
+      "judge",
+      "fault",
+      "qualifying"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 2",
+    "title": "Alerts",
+    "content": "No specific or formal alert behavior is required from the dog, but there must be a change in behavior from the dog such that the judge can tell that the dog has found the scent   The change in behavior may be extremely subtle, for example, a turn of the head or twitch of the ears",
+    "level": null,
+    "element": null,
+    "category": "Judging",
+    "keywords": [
+      "dog",
+      "judge"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 3",
+    "title": "Faults",
+    "content": "Teams that commit errors during the search will be assessed faults   The faults are: 1) handler error (pulling the dog off scent, excessive interference with a dog that is working, handler actively looking for the scent vessel), 2) safety concern (taking the dog off-leash in an on-leash only search area, allowing the dog to be put in an unsafe situation), 3) mildly compromising the search area (handler moving an object in the search area without the judge’s permission, messy reward delivery)   Each fault can be given multiple times in the same search, if warranted   Faults affect placements only; there is no maximum number of faults per run   Any team who finds and calls all of the hides within the search time with no NQ faults will qualify  Faults will not be called out by the judge during the search   The judge should briefly explain any faults assessed to the handler at the completion of the search, if time allows",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "time",
+      "hide",
+      "hides",
+      "search",
+      "handler",
+      "dog",
+      "leash",
+      "judge",
+      "fault",
+      "maximum"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 5, Section 4",
+    "title": "Non-Qualifying Faults",
+    "content": "The following behaviors will result in a non-qualifying performance  (a)   The handler calls “Alert” on the incorrect location  (b)   The handler calls “Finish” before all hides in the area have been located  (c)   The maximum time for the class or search area is exceeded  (d)   The handler is not able to point to the location of the hide when asked by the judge (see Chapter 4, Sections 10 and 11 for requirements on pointing to the hide location)  (e)   Any harsh handling or harsh corrections by the handler  (f)   The handler allows the dog to disrupt the search area unduly  This includes excessive food residue, or intentional biting, hard scratching, pouncing or other by the dog that causes damage to the container/object/area   Cases in which a dog’s nose or feet get caught on containers or other objects shall not be considered a disruption of the area",
+    "level": null,
+    "element": "Container",
+    "category": "Search Area",
+    "keywords": [
+      "container",
+      "area",
+      "time",
+      "hide",
+      "hides",
+      "search",
+      "handler",
+      "dog",
+      "judge",
+      "requirement",
+      "maximum",
+      "qualifying"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 6, Section 5",
+    "title": "Excusals",
+    "content": "Dogs should be excused from the search if, in the opinion of the judge, any of the criteria below are met   Dogs excused from a search may still be allowed to compete in other classes in which they are entered, at the discretion of the judge   A dog who is excused from a search must vacate the search area immediately  (a)   The dog is not under the handler’s control  (b)   The dog or handler stops working or performs disruptive behavior for 10 or more seconds after warning from the judge  (c)   The dog eliminates (urinates, defecates, or vomits) in the search area  (d)   The dog shows signs of extreme stress or fear  (e)   The handler receives assistance from a spectator or another handler  (f)   The handler requests to be excused, for any reason  (g)   Other reasons, at the judge’s discretion",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "search",
+      "handler",
+      "dog",
+      "judge",
+      "warning"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 6, Section 6",
+    "title": "Placements",
+    "content": "The top four (4) performing qualifying teams shall be awarded placements 1-4   Placements are based on fewest number of faults, and then on time (a team with no faults will place higher than a faster-finishing team with faults)   If teams are tied on both number of faults and time, then a coin-flip will determine the placements",
+    "level": null,
+    "element": null,
+    "category": "Time Limit",
+    "keywords": [
+      "time",
+      "fault",
+      "qualifying"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 6, Section 7",
+    "title": "Ribbons, Rosettes, and Awards",
+    "content": "A club holding an AKC Scent Work event shall offer a qualifying ribbon or rosette to each team with a qualifying performance   Each ribbon or rosette shall be at least two inches wide and approximately eight inches long and shall bear on its face a facsimile of the seal of the AKC and the words “Scent Work,” the word “Qualifying,” and the name of the trial-giving club   Ribbons or rosettes must also contain the name of the class and the event date, which may appear on the face or the back tab or label   The Qualifying ribbon or rosette shall be dark green in color, and rosettes may have a white center streamer and white button  Qualifying ribbons may be handed out immediately upon the completion of the dog’s qualifying performance   In addition, a club may, at its discretion, hand out prizes (small toys, etc   ) to all dogs that qualify  Placement ribbons or rosettes shall conform to the foregoing requirements except that they shall state First, Second, Third, or Fourth Place in place of “Qualifying Score,” and shall be the following colors: First Place………………   Blue Second Place……………   Red Third Place……………… Yellow Fourth Place……………   White",
+    "level": null,
+    "element": null,
+    "category": "Judging",
+    "keywords": [
+      "dog",
+      "requirement",
+      "qualifying",
+      "score"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 6, Section 8",
+    "title": "High in Trial (HIT)",
+    "content": "If a club offers more than one element (Container, Interior, Exterior, Buried) of a particular difficulty level, they are eligible to confer High in Trial (HIT) awards   Only teams who participate in the same difficulty level in all elements offered, and qualify in each, are eligible to win High in Trial   The High in Trial award does not take into account Handler Discrimination classes, even if offered at the trial   The High in Trial is determined by adding a team’s faults across the elements   The team with the fewest faults will be declared High in Trial   If there is a tie based on faults, then the teams’ times across the elements will be summed, and the faster-finishing team will win   If there is a tie after considering both faults and time, a coin-flip will determine the High in Trial   There shall be one High in Trial winner for each difficulty level offered  Example: If a club offers all elements of the Novice classes at a single trial, any dog who participates and qualifies in every element offered is eligible for high in trial   If a club offers two elements of Novice and two elements of Advanced, there shall be a Novice High in Trial and an Advanced High in Trial  The High in Trial award is not recorded by the AKC",
+    "level": "Novice",
+    "element": "Interior",
+    "category": "Time Limit",
+    "keywords": [
+      "novice",
+      "interior",
+      "time",
+      "handler",
+      "dog",
+      "container",
+      "exterior",
+      "buried",
+      "fault"
+    ],
+    "measurements": {
+      "min_hides": 1,
+      "max_hides": 1,
+      "hides_known": true,
+      "min_area_sq_ft": 120,
+      "max_area_sq_ft": 200,
+      "time_limit_minutes": 2,
+      "max_height_inches": 24,
+      "target_odors": [
+        "Birch"
+      ],
+      "num_distractions": 0,
+      "distraction_types": []
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 6, Section 9",
+    "title": "High Combined Division (HCD)",
+    "content": "If a club chooses to offer the High in Trial (HIT) award and is also offering Handler Discrimination classes, they must also confer the High Combined Division (HCD) awards   Only teams who participate in the same difficulty level in all elements plus Handler Discrimination, and",
+    "level": null,
+    "element": null,
+    "category": "Handler Requirements",
+    "keywords": [
+      "handler"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 6, Section 10",
+    "title": "High In Trial and High Combined Division With Limited Class Offerings",
+    "content": "If certain elements are offered for some difficulty levels but not others, the High in Trial or High Combined Division award is given based on participation and qualifying performances in all available classes for that difficulty level   For example, a club may choose to offer Container Novice and Advanced, Interior Novice and Advanced, and Exterior Novice only for a trial  If they choose to award High in Trial then the Novice High in Trial award will be based on the best performance across the Container, Interior, and Exterior classes, whereas the Advanced High in Trial will be based on the best performance across the Container and Interior classes only",
+    "level": "Novice",
+    "element": "Interior",
+    "category": "General",
+    "keywords": [
+      "novice",
+      "interior",
+      "container",
+      "exterior",
+      "qualifying"
+    ],
+    "measurements": {
+      "min_hides": 1,
+      "max_hides": 1,
+      "hides_known": true,
+      "min_area_sq_ft": 120,
+      "max_area_sq_ft": 200,
+      "time_limit_minutes": 2,
+      "max_height_inches": 24,
+      "target_odors": [
+        "Birch"
+      ],
+      "num_distractions": 0,
+      "distraction_types": []
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 6, Section 1",
+    "title": "The Odor Search Division",
+    "content": "Classes in which the target scent is one or more essential oils are deemed to be part of the Odor Search Division   The classes within the Odor Search Division include four difficulty levels and four different elements (search environments)  Difficulty Levels.   Classes within the Odor Search Division are offered in one of four difficulty levels, each with its own specific set of requirements: Novice, Advanced, Excellent, and Master  Elements.   Classes within the Odor Search Division are conducted in one of four Elements (search environments)   These are Container, Interior, Exterior, and Buried",
+    "level": "Novice",
+    "element": "Interior",
+    "category": "Handler Requirements",
+    "keywords": [
+      "novice",
+      "interior",
+      "search",
+      "container",
+      "exterior",
+      "buried",
+      "requirement"
+    ],
+    "measurements": {
+      "min_hides": 1,
+      "max_hides": 1,
+      "hides_known": true,
+      "min_area_sq_ft": 120,
+      "max_area_sq_ft": 200,
+      "time_limit_minutes": 2,
+      "max_height_inches": 24,
+      "target_odors": [
+        "Birch"
+      ],
+      "num_distractions": 0,
+      "distraction_types": []
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 6, Section 2",
+    "title": "Odors",
+    "content": "The target odors shall be Birch ( Betula lenta ), Anise ( Pimpinella anisum ), Clove ( Eugenia caryophyllata ), and Cypress ( Cupressus sempevirens )   Novice classes shall utilize Birch only   Advanced classes may utilize Birch and/or Anise   Excellent classes may utilize Birch and/or Anise and/or Clove   Master Classes may utilize Birch and/or Anise and/or Clove and/or Cypress",
+    "level": "Novice",
+    "element": null,
+    "category": "General",
+    "keywords": [
+      "novice"
+    ],
+    "measurements": {
+      "target_odors": [
+        "Birch",
+        "Anise",
+        "Clove",
+        "Cypress"
+      ]
+    }
+  },
+  {
+    "section": "Chapter 6, Section 3",
+    "title": "Proximity of Search Areas by Element",
+    "content": "Container – Container search areas, whether or not odor is present, may be no nearer than 20 feet from an active search area without a physical barrier   There must always be a visual barrier between containers and other search areas so that dogs are not cued to search the other area by the sight of the containers   The ideal distance between a container search area and another active search area is greater than 30 feet  Interior – “Active” interior search areas may be no nearer than 30 feet from another active search area without a physical barrier  Exterior – “Active” exterior search areas may be no nearer than 30 feet from another active search area without a physical barrier  Buried – Buried search areas, whether or not odor is present, may be no nearer than 20 feet from another active search area without a physical barrier   The ideal distance is greater than 30 feet   There must always be a visual barrier between buried boxes and other search areas so that dogs are not cued to search the other area by the sight of the boxes",
+    "level": null,
+    "element": "Interior",
+    "category": "Search Area",
+    "keywords": [
+      "interior",
+      "area",
+      "search",
+      "dog",
+      "container",
+      "exterior",
+      "buried"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 6, Section 4",
+    "title": "Container Searches",
+    "content": "The Container search element is based on the work of detection dogs to search packages for contraband  In the Container classes the dog must locate the target odor(s), which is/are hidden in one or more containers within a search area, and communicate the find to their handler   A container can be a cardboard box, a back pack, a briefcase, a storage bin, a piece of luggage, etc   , as required by difficulty level   Container searches may be conducted either inside or outside   Classes that specify a “variety” of containers shall utilize no more than 5 of any identical container type  44",
+    "level": null,
+    "element": "Container",
+    "category": "Search Area",
+    "keywords": [
+      "container",
+      "area",
+      "search",
+      "handler",
+      "dog"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 7, Section 11",
+    "title": "above for size requirements) are laid out on the floor of the search area",
+    "content": "Fifteen containers of various size and type are laid out on the floor of the search area   The containers may be arranged in three rows of five containers, in a circle, or in a “U” formation   Each container must be at least 12\" apart, and if rows are used, each row must be at least 36\" apart   The search area must be at least 400 and no more than 600 square feet   Two of the containers hold the target odor, which may be Birch or Anise (each scent vessel may contain the same odor, or one may contain Birch and the other may contain Anise)   One non-food distraction will be placed in the search area   The distraction may be in a container or loose in the search area  If in a container, it may NOT be in the same container as the odor   The dog has two minutes to locate the containers with the target scents and communicate the finds to its handler   The handler must call “Alert” when the dog indicates each find   After the second “Alert” call, the handler must call “Finish” to indicate that all hides have been found and to stop the time   The Container Advanced Class is open to dogs who have acquired the Container Novice (SCN) title  Container Excellent Class : Twenty containers of various size and type are laid out on the floor of the search area   The containers may be arranged in four rows of five containers, in a circle, or in a “U” formation   Each container must be at least 12\" apart, and if rows are used, each row must be at least 36\" apart   The search area must be at least 600 and no more than 800 square feet   The target odors will be hidden in three of the containers   There will be two distractions at this level, and may be non-food, food, auditory, or visual   The target odors at this level will be Birch and/or Anise and/or Clove   The dog has three minutes to locate the containers with the target scent and communicate the finds to its handler   The handler must call “Alert” when the dog indicates each find   After the third “Alert” call, the handler must call “Finish” to indicate that all hides have been found and to stop the time   The Container Excellent Class is open to dogs who have acquired the Container Advanced (SCA) title  Container Master Class : Twenty containers of various size and type are laid out on the floor of the search area   The containers may be arranged in four rows of five containers, in a circle, or in a “U” formation   Each container must be at least 12\" apart, and if rows are used, each row must be at least 36\" apart   The search area must be at least 600 and no more than 800 square feet   The target odor(s) will",
+    "level": "Novice",
+    "element": "Container",
+    "category": "Search Area",
+    "keywords": [
+      "novice",
+      "container",
+      "area",
+      "size",
+      "time",
+      "hide",
+      "hides",
+      "search",
+      "handler",
+      "dog",
+      "distraction"
+    ],
+    "measurements": {
+      "min_area_sq_ft": 250,
+      "max_area_sq_ft": 400,
+      "time_limit_minutes": 2,
+      "container_spacing_inches": 12,
+      "target_odors": [
+        "Birch"
+      ],
+      "container_arrangement": "circle or U-formation",
+      "min_spacing_inches": 12,
+      "container_type": "Identical cardboard boxes",
+      "min_hides": 1,
+      "max_hides": 1,
+      "hides_known": true,
+      "num_containers": 10,
+      "row_spacing_inches": 36,
+      "num_distractions": 0,
+      "distraction_types": []
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 7, Section 4",
+    "title": "Container Novice Requirements",
+    "content": "Ten identical cardboard box containers (see Chapter 5, Section 11 above for size requirements) are laid out on the floor of the search area   The boxes are arranged in two rows of five containers   Each box must be at least 12\" apart, and each row must be at least 36\" apart   The search area must be at least 250 and no more than 400 square feet   One of the containers holds the target odor of Birch   The dog has two minutes to locate the container with the target scent and communicate the find to its handler   The handler must call “Alert” when the dog indicates the find   The Container Novice Class is open to all dogs",
+    "level": "Novice",
+    "element": "Container",
+    "category": "Search Area",
+    "keywords": [
+      "novice",
+      "container",
+      "area",
+      "size",
+      "search",
+      "handler",
+      "dog",
+      "requirement"
+    ],
+    "measurements": {
+      "min_area_sq_ft": 250,
+      "max_area_sq_ft": 400,
+      "time_limit_minutes": 2,
+      "container_spacing_inches": 12,
+      "target_odors": [
+        "Birch"
+      ],
+      "min_spacing_inches": 12,
+      "container_type": "Identical cardboard boxes",
+      "min_hides": 1,
+      "max_hides": 1,
+      "hides_known": true,
+      "num_containers": 10,
+      "row_spacing_inches": 36,
+      "num_distractions": 0,
+      "distraction_types": []
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 7, Section 4",
+    "title": "Container Advanced Requirements",
+    "content": "Fifteen containers of various size and type are laid out on the floor of the search area   The containers may be arranged in three rows of five containers, in a circle, or in a “U” formation   Each container must be at least 12\" apart, and if rows are used, each row must be at least 36\" apart   The search area must be at least 400 and no more than 600 square feet   Two of the containers hold the target odor, which may be Birch or Anise (each scent vessel may contain the same odor, or one may contain Birch and the other may contain Anise)   One non-food distraction will be placed in the search area   The distraction may be in a container or loose in the search area  If in a container, it may NOT be in the same container as the odor   The dog has two minutes to locate the containers with the target scents and communicate the finds to its handler   The handler must call “Alert” when the dog indicates each find   After the second “Alert” call, the handler must call “Finish” to indicate that all hides have been found and to stop the time   The Container Advanced Class is open to dogs who have acquired the Container Novice (SCN) title",
+    "level": "Advanced",
+    "element": "Container",
+    "category": "Search Area",
+    "keywords": [
+      "advanced",
+      "container",
+      "area",
+      "size",
+      "time",
+      "hide",
+      "hides",
+      "search",
+      "handler",
+      "dog",
+      "distraction"
+    ],
+    "measurements": {
+      "min_area_sq_ft": 300,
+      "max_area_sq_ft": 600,
+      "time_limit_minutes": 2,
+      "container_spacing_inches": 12,
+      "target_odors": [
+        "Birch",
+        "Anise"
+      ],
+      "container_arrangement": "circle or U-formation",
+      "min_spacing_inches": 12,
+      "container_type": "Various (bags, backpacks, purses, suitcases, etc.)",
+      "min_hides": 2,
+      "max_hides": 2,
+      "hides_known": true,
+      "num_containers": 15,
+      "row_spacing_inches": 36,
+      "num_distractions": 1,
+      "distraction_types": [
+        "non-food"
+      ]
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 7, Section 4",
+    "title": "Container Excellent Requirements",
+    "content": "Twenty containers of various size and type are laid out on the floor of the search area   The containers may be arranged in four rows of five containers, in a circle, or in a “U” formation   Each container must be at least 12\" apart, and if rows are used, each row must be at least 36\" apart   The search area must be at least 600 and no more than 800 square feet   The target odors will be hidden in three of the containers   There will be two distractions at this level, and may be non-food, food, auditory, or visual   The target odors at this level will be Birch and/or Anise and/or Clove   The dog has three minutes to locate the containers with the target scent and communicate the finds to its handler   The handler must call “Alert” when the dog indicates each find   After the third “Alert” call, the handler must call “Finish” to indicate that all hides have been found and to stop the time   The Container Excellent Class is open to dogs who have acquired the Container Advanced (SCA) title",
+    "level": "Excellent",
+    "element": "Container",
+    "category": "Search Area",
+    "keywords": [
+      "excellent",
+      "container",
+      "area",
+      "size",
+      "time",
+      "hide",
+      "hides",
+      "search",
+      "handler",
+      "dog",
+      "distraction"
+    ],
+    "measurements": {
+      "min_area_sq_ft": 600,
+      "max_area_sq_ft": 800,
+      "time_limit_minutes": 4,
+      "container_spacing_inches": 12,
+      "target_odors": [
+        "Birch",
+        "Anise",
+        "Clove"
+      ],
+      "container_arrangement": "circle or U-formation",
+      "min_spacing_inches": 12,
+      "container_type": "Various (bags, backpacks, purses, suitcases, etc.)",
+      "min_hides": 3,
+      "max_hides": 3,
+      "hides_known": true,
+      "num_containers": 20,
+      "row_spacing_inches": 36,
+      "num_distractions": 2,
+      "distraction_types": [
+        "non-food",
+        "food",
+        "auditory",
+        "visual"
+      ]
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 7, Section 4",
+    "title": "Container Master Requirements",
+    "content": "Twenty containers of various size and type are laid out on the floor of the search area   The containers may be arranged in four rows of five containers, in a circle, or in a “U” formation   Each container must be at least 12\" apart, and if rows are used, each row must be at least 36\" apart   The search area must be at least 600 and no more than 800 square feet   The target odor(s) will",
+    "level": "Master",
+    "element": "Container",
+    "category": "Search Area",
+    "keywords": [
+      "master",
+      "container",
+      "area",
+      "size",
+      "search"
+    ],
+    "measurements": {
+      "min_area_sq_ft": 600,
+      "max_area_sq_ft": 800,
+      "container_spacing_inches": 12,
+      "container_arrangement": "circle or U-formation",
+      "min_spacing_inches": 12,
+      "container_type": "Various (bags, backpacks, purses, suitcases, etc.)",
+      "min_hides": 1,
+      "max_hides": 4,
+      "hides_known": false,
+      "num_containers": 20,
+      "time_limit_minutes": 4,
+      "target_odors": [
+        "Birch",
+        "Anise",
+        "Clove",
+        "Cypress"
+      ],
+      "row_spacing_inches": 36,
+      "num_distractions": 3,
+      "distraction_types": [
+        "non-food",
+        "food",
+        "auditory",
+        "visual",
+        "human",
+        "mimic"
+      ]
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 7, Section 5",
+    "title": "Interior Searches",
+    "content": "The interior search element tests the dog’s ability to locate the target odor in an indoor search environment  An interior area is defined as one that protects airflow from intruding from the outside (it must have four solid walls that reach all the way to the ground, and a roof)   Doors and windows are permissible as long as they are able to be closed (though whether they need to be closed for the search is at the discretion of the judge)   Improper areas for an interior search include screened in porches, tents, or sheds where the siding does not reach the ground   The search will take place inside a room or rooms in a building or permanent structure (such as an office, classroom, kitchen, bathroom, warehouse, shed, recreational vehicle, etc   )   The entire room need not be utilized for the search area, but if part of the room is excluded from the search area then the boundaries should be clearly delineated with colored adhesive tape, caution tape, plastic fencing, or by some other method   The minimum and maximum times are specified, but the actual time limit in each of these classes will be determined by the judge  Interior Novice Class : The target odor is hidden in a room or part of a room with an area of not less than 100 and not more than 200 square feet   The target odor of Birch is hidden on, under, or in an object within the room   There is one hide at this level, which must be accessible and may not be located higher than 24 inches (2 feet) off the floor   There will be no intentional distractions   The dog must find the target scent and communicate the find to its handler   The handler must call “Alert” when the dog indicates the find   The time limit is set by the judge and must be between 1 and 3 minutes   The Interior Novice Class is open to all dogs  Interior Advanced Class : The target odors are hidden in a room or part of a room with an area of not less than 200 and not more than 400 square feet   The target odors of Birch and/or Anise are hidden within the search area   There are two hides at this level, which must be accessible and may not be located higher than 36 inches (3 feet) off the floor   There will be one non-food distraction   The dog must find the target scents and communicate the finds to its handler   The handler must call “Alert” when the dog indicates each find   After the second “Alert” call, the handler must call “Finish” to indicate that all hides have been found and to stop the time   The time limit is set by the judge and must be between 1 and 3 minutes   The Interior Advanced Class is open to dogs who have acquired the Interior Novice (SIN) title  Interior Excellent Class : The target odors of Birch and/or Clove and/ or Anise are hidden in two distinct search areas in one or more rooms, or part of a room   The separation of these two distinct search areas must conform to the “proximity of search areas” requirements laid out in Chapter 7,",
+    "level": "Novice",
+    "element": "Interior",
+    "category": "Search Area",
+    "keywords": [
+      "novice",
+      "interior",
+      "area",
+      "time",
+      "limit",
+      "hide",
+      "hides",
+      "search",
+      "handler",
+      "dog",
+      "judge",
+      "requirement",
+      "minimum",
+      "maximum",
+      "distraction",
+      "accessible"
+    ],
+    "measurements": {
+      "min_area_sq_ft": 120,
+      "time_limit_minutes": 2,
+      "min_height_inches": 24,
+      "target_odors": [
+        "Birch"
+      ],
+      "min_hides": 1,
+      "max_hides": 1,
+      "hides_known": true,
+      "max_area_sq_ft": 200,
+      "max_height_inches": 24,
+      "num_distractions": 0,
+      "distraction_types": []
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 7, Section 3",
+    "title": "(the dog should not encounter odor from",
+    "content": "Section 3 (the dog should not encounter odor from",
+    "level": null,
+    "element": null,
+    "category": "General",
+    "keywords": [
+      "dog"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 7, Section 5",
+    "title": "Interior Novice Requirements",
+    "content": "The target odor is hidden in a room or part of a room with an area of not less than 100 and not more than 200 square feet   The target odor of Birch is hidden on, under, or in an object within the room   There is one hide at this level, which must be accessible and may not be located higher than 24 inches (2 feet) off the floor   There will be no intentional distractions   The dog must find the target scent and communicate the find to its handler   The handler must call “Alert” when the dog indicates the find   The time limit is set by the judge and must be between 1 and 3 minutes   The Interior Novice Class is open to all dogs",
+    "level": "Novice",
+    "element": "Interior",
+    "category": "Search Area",
+    "keywords": [
+      "novice",
+      "interior",
+      "area",
+      "time",
+      "limit",
+      "hide",
+      "handler",
+      "dog",
+      "judge",
+      "distraction",
+      "accessible"
+    ],
+    "measurements": {
+      "min_area_sq_ft": 120,
+      "time_limit_minutes": 2,
+      "min_height_inches": 24,
+      "target_odors": [
+        "Birch"
+      ],
+      "min_hides": 1,
+      "max_hides": 1,
+      "hides_known": true,
+      "max_area_sq_ft": 200,
+      "max_height_inches": 24,
+      "num_distractions": 0,
+      "distraction_types": []
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 7, Section 5",
+    "title": "Interior Advanced Requirements",
+    "content": "The target odors are hidden in a room or part of a room with an area of not less than 200 and not more than 400 square feet   The target odors of Birch and/or Anise are hidden within the search area   There are two hides at this level, which must be accessible and may not be located higher than 36 inches (3 feet) off the floor   There will be one non-food distraction   The dog must find the target scents and communicate the finds to its handler   The handler must call “Alert” when the dog indicates each find   After the second “Alert” call, the handler must call “Finish” to indicate that all hides have been found and to stop the time   The time limit is set by the judge and must be between 1 and 3 minutes   The Interior Advanced Class is open to dogs who have acquired the Interior Novice (SIN) title",
+    "level": "Advanced",
+    "element": "Interior",
+    "category": "Search Area",
+    "keywords": [
+      "advanced",
+      "interior",
+      "area",
+      "time",
+      "limit",
+      "hide",
+      "hides",
+      "search",
+      "handler",
+      "dog",
+      "judge",
+      "distraction",
+      "accessible"
+    ],
+    "measurements": {
+      "min_area_sq_ft": 200,
+      "time_limit_minutes": 3,
+      "min_height_inches": 36,
+      "target_odors": [
+        "Birch",
+        "Anise"
+      ],
+      "min_hides": 2,
+      "max_hides": 2,
+      "hides_known": true,
+      "max_area_sq_ft": 400,
+      "max_height_inches": 36,
+      "num_distractions": 1,
+      "distraction_types": [
+        "non-food"
+      ]
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 7, Section 5",
+    "title": "Interior Excellent Requirements",
+    "content": "The target odors of Birch and/or Clove and/ or Anise are hidden in two distinct search areas in one or more rooms, or part of a room   The separation of these two distinct search areas must conform to the “proximity of search areas” requirements laid out in Chapter 7, Section 3 (the dog should not encounter odor from",
+    "level": "Excellent",
+    "element": "Interior",
+    "category": "Search Area",
+    "keywords": [
+      "excellent",
+      "interior",
+      "area",
+      "search",
+      "dog",
+      "requirement"
+    ],
+    "measurements": {
+      "target_odors": [
+        "Birch",
+        "Anise",
+        "Clove"
+      ],
+      "min_hides": 3,
+      "max_hides": 3,
+      "hides_known": true,
+      "min_area_sq_ft": 300,
+      "max_area_sq_ft": 500,
+      "time_limit_minutes": 3,
+      "max_height_inches": 48,
+      "num_distractions": 2,
+      "distraction_types": [
+        "non-food",
+        "food",
+        "auditory",
+        "visual"
+      ]
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 7, Section 3",
+    "title": "(the dog should not encounter odor from Search Area 2 while searching Area 1)",
+    "content": "either zero, one, two, or three (with a maximum of six hides for the entire class)   Any or all hides may be inaccessible, but none may be located higher than 60 inches (5 feet) off the floor   One of the search areas may be “blank” (with no hide) if the judge chooses   An area cannot be used as a blank area if it was used for a hide at any time during that trial weekend or set of trials  There are three distractions, which may be non-food, food, auditory, visual, human, or mimic   The dog must find the target scent(s) and communicate the find(s) to its handler   The handler must call “Alert” when the dog indicates each find   When the handler believes that all hides have been found in the search area, then he/she must call “Finish” to stop the time   The time limit is set by the judge and must be between 1 and 3 minutes per search area   The timer will not give a 30-second warning at this level (but handlers can self-time, if they wish)   The Interior Master Class is open to dogs who have acquired the Interior Excellent (SIE) title",
+    "level": "Excellent",
+    "element": "Interior",
+    "category": "Search Area",
+    "keywords": [
+      "excellent",
+      "interior",
+      "area",
+      "time",
+      "limit",
+      "hide",
+      "hides",
+      "search",
+      "handler",
+      "dog",
+      "judge",
+      "warning",
+      "maximum",
+      "distraction",
+      "inaccessible",
+      "accessible"
+    ],
+    "measurements": {
+      "time_limit_minutes": 3,
+      "min_height_inches": 60,
+      "min_hides": 3,
+      "max_hides": 3,
+      "hides_known": true,
+      "min_area_sq_ft": 300,
+      "max_area_sq_ft": 500,
+      "max_height_inches": 48,
+      "target_odors": [
+        "Birch",
+        "Anise",
+        "Clove"
+      ],
+      "num_distractions": 2,
+      "distraction_types": [
+        "non-food",
+        "food",
+        "auditory",
+        "visual"
+      ]
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 7, Section 5",
+    "title": "Interior Master Requirements",
+    "content": "The target odor(s) of Birch and/or Clove and/or Anise and/or Cypress are hidden in three distinct search areas in one or more rooms, or part of a room   The separation of these distinct search areas must conform to the “proximity of search areas” requirements laid out in Chapter 7, Section 3 (the dog should not encounter odor from Search Area 2 while searching Area 1)   It is not sufficient to simply divide a single room in half to create two search areas   The total space of all search areas must be not less than 600 and not more than 1000 square feet   Each search area will be worked independently, with a separate time limit   There are an unknown number of hides per area: either zero, one, two, or three (with a maximum of six hides for the entire class)   Any or all hides may be inaccessible, but none may be located higher than 60 inches (5 feet) off the floor   One of the search areas may be “blank” (with no hide) if the judge chooses   An area cannot be used as a blank area if it was used for a hide at any time during that trial weekend or set of trials  There are three distractions, which may be non-food, food, auditory, visual, human, or mimic   The dog must find the target scent(s) and communicate the find(s) to its handler   The handler must call “Alert” when the dog indicates each find   When the handler believes that all hides have been found in the search area, then he/she must call “Finish” to stop the time   The time limit is set by the judge and must be between 1 and 3 minutes per search area   The timer will not give a 30-second warning at this level (but handlers can self-time, if they wish)   The Interior Master Class is open to dogs who have acquired the Interior Excellent (SIE) title",
+    "level": "Master",
+    "element": "Interior",
+    "category": "Search Area",
+    "keywords": [
+      "master",
+      "interior",
+      "area",
+      "time",
+      "limit",
+      "hide",
+      "hides",
+      "search",
+      "handler",
+      "dog",
+      "judge",
+      "warning",
+      "requirement",
+      "maximum",
+      "distraction",
+      "inaccessible",
+      "accessible"
+    ],
+    "measurements": {
+      "min_area_sq_ft": 400,
+      "time_limit_minutes": 3,
+      "min_height_inches": 60,
+      "target_odors": [
+        "Birch",
+        "Anise",
+        "Clove",
+        "Cypress"
+      ],
+      "min_hides": 2,
+      "max_hides": 6,
+      "hides_known": false,
+      "max_area_sq_ft": 600,
+      "max_height_inches": 60,
+      "hides_per_area": "0-3",
+      "notes": "0-3 hides per area, only one area can have 0, 2-6 hides per class",
+      "num_distractions": 3,
+      "distraction_types": [
+        "non-food",
+        "food",
+        "auditory",
+        "visual",
+        "human",
+        "mimic"
+      ]
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 7, Section 6",
+    "title": "Exterior Searches",
+    "content": "The target odor of Birch is hidden in an outdoor area at least 200 but not more than 400 square feet   There is one hide at this level, which must be accessible and may not be located higher than 24 inches (2 feet) above the ground   There will be no intentional distractions   The dog must find the target scent and communicate the find to its handler   The handler must call “Alert” when the dog indicates the find   The time limit is set by the judge and must be between 2 and 4 minutes   The Exterior Novice Class is open to all dogs  The Interior Element  Novice   Advanced   Excellent   Master Scents   Birch   Birch and/or Anise Birch, Anise, and/ or Clove Birch and/or Anise and/or Clove and/or Cypress  # of Hides   1 (Known)   2 (Known)   3 (Known) 0-3 per area 2-6 per class (Unknown)  Blank area   None   None   None   Maximum 1  Time Limit   Set by judge; 1-3 minutes Set by judge; 1-3 minutes Set by judge; 1-3 minutes per search area Set by judge; 1-3 minutes per search area  Distractions   None   1 non-food   2- non-food, food, auditory, or visual 3- non-food, food, auditory, visual, human, or mimic  Required Calls   Alert only   2 Alert calls and Finish 3 Alert calls, and Finish call Alert call(s), and Finish call  Max. Height of Hides   24\" (2 feet)   36\" (3 feet)   48\" (4 feet)   60\" (5 feet)  Accessibility   Accessible only Accessible only 1 hide may be inaccessible All hides may be inaccessible  Size of Search area(s)   100-200 sq ft   200-400 sq ft   2 areas; 400-800 sq ft total 3 areas; 600-1000 sq ft total",
+    "level": "Novice",
+    "element": "Interior",
+    "category": "Search Area",
+    "keywords": [
+      "novice",
+      "interior",
+      "area",
+      "size",
+      "time",
+      "limit",
+      "hide",
+      "hides",
+      "search",
+      "handler",
+      "dog",
+      "judge",
+      "exterior",
+      "maximum",
+      "distraction",
+      "inaccessible",
+      "accessible"
+    ],
+    "measurements": {
+      "min_area_sq_ft": 120,
+      "time_limit_minutes": 2,
+      "min_hides": 1,
+      "max_hides": 1,
+      "hides_known": true,
+      "min_height_inches": 24,
+      "target_odors": [
+        "Birch"
+      ],
+      "max_area_sq_ft": 200,
+      "max_height_inches": 24,
+      "num_distractions": 0,
+      "distraction_types": []
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 7, Section 6",
+    "title": "Exterior Novice Requirements",
+    "content": "The target odor of Birch is hidden in an outdoor area at least 200 but not more than 400 square feet   There is one hide at this level, which must be accessible and may not be located higher than 24 inches (2 feet) above the ground   There will be no intentional distractions   The dog must find the target scent and communicate the find to its handler   The handler must call “Alert” when the dog indicates the find   The time limit is set by the judge and must be between 2 and 4 minutes   The Exterior Novice Class is open to all dogs  The Interior Element  Novice   Advanced   Excellent   Master Scents   Birch   Birch and/or Anise Birch, Anise, and/ or Clove Birch and/or Anise and/or Clove and/or Cypress  # of Hides   1 (Known)   2 (Known)   3 (Known) 0-3 per area 2-6 per class (Unknown)  Blank area   None   None   None   Maximum 1  Time Limit   Set by judge; 1-3 minutes Set by judge; 1-3 minutes Set by judge; 1-3 minutes per search area Set by judge; 1-3 minutes per search area  Distractions   None   1 non-food   2- non-food, food, auditory, or visual 3- non-food, food, auditory, visual, human, or mimic  Required Calls   Alert only   2 Alert calls and Finish 3 Alert calls, and Finish call Alert call(s), and Finish call  Max. Height of Hides   24\" (2 feet)   36\" (3 feet)   48\" (4 feet)   60\" (5 feet)  Accessibility   Accessible only Accessible only 1 hide may be inaccessible All hides may be inaccessible  Size of Search area(s)   100-200 sq ft   200-400 sq ft   2 areas; 400-800 sq ft total 3 areas; 600-1000 sq ft total",
+    "level": "Novice",
+    "element": "Exterior",
+    "category": "Search Area",
+    "keywords": [
+      "novice",
+      "exterior",
+      "area",
+      "size",
+      "time",
+      "limit",
+      "hide",
+      "hides",
+      "search",
+      "handler",
+      "dog",
+      "judge",
+      "interior",
+      "maximum",
+      "distraction",
+      "inaccessible",
+      "accessible"
+    ],
+    "measurements": {
+      "min_area_sq_ft": 200,
+      "time_limit_minutes": 3,
+      "min_hides": 1,
+      "max_hides": 1,
+      "hides_known": true,
+      "min_height_inches": 24,
+      "target_odors": [
+        "Birch"
+      ],
+      "max_area_sq_ft": 400,
+      "max_height_inches": 24,
+      "num_distractions": 0,
+      "distraction_types": []
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 7, Section 6",
+    "title": "Exterior Advanced Requirements",
+    "content": "The target odors of Birch and/or Anise are hidden in an outdoor area at least 400 but not more than 800 square feet   There are two hides at this level, which must be accessible and may not be located higher than 36 inches (3 feet) above the ground  There will be one non-food distraction   The dog must find the target scents and communicate the finds to its handler   The handler must call “Alert” when the dog indicates the finds   After the second “Alert” call, the handler must call “Finish” to indicate that all hides have been found and to stop the time   The time limit is set by the judge and must be between 2 and 4 minutes   The Exterior Advanced Class is open to dogs who have acquired the Exterior Novice (SEN) title",
+    "level": "Advanced",
+    "element": "Exterior",
+    "category": "Search Area",
+    "keywords": [
+      "advanced",
+      "exterior",
+      "area",
+      "time",
+      "limit",
+      "hide",
+      "hides",
+      "handler",
+      "dog",
+      "judge",
+      "distraction",
+      "accessible"
+    ],
+    "measurements": {
+      "min_area_sq_ft": 400,
+      "time_limit_minutes": 3,
+      "min_height_inches": 36,
+      "target_odors": [
+        "Birch",
+        "Anise"
+      ],
+      "min_hides": 2,
+      "max_hides": 2,
+      "hides_known": true,
+      "max_area_sq_ft": 800,
+      "max_height_inches": 36,
+      "num_distractions": 1,
+      "distraction_types": [
+        "non-food"
+      ]
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 7, Section 6",
+    "title": "Exterior Excellent Requirements",
+    "content": "The target odors of Birch and/or Anise and/or Clove are hidden in an outdoor area not less than 800 but not more than 1500 square feet   There are three hides at this level, one of which may be inaccessible, and none of which may be located higher than 48 inches (4 feet) above the ground   There are two distractions, which may be non-food, food, auditory, or visual   The dog must find the target scents and communicate the finds to its handler   The handler must call “Alert” when the dog indicates the finds   After the third “Alert” call, the handler must call “Finish” to indicate that all hides have been found and to stop the time   The time limit is set by the judge and must be between 3 and 5 minutes   The Exterior Excellent Class is open to dogs who have acquired the Exterior Advanced (SEA) title",
+    "level": "Excellent",
+    "element": "Exterior",
+    "category": "Search Area",
+    "keywords": [
+      "excellent",
+      "exterior",
+      "area",
+      "time",
+      "limit",
+      "hide",
+      "hides",
+      "handler",
+      "dog",
+      "judge",
+      "distraction",
+      "inaccessible",
+      "accessible"
+    ],
+    "measurements": {
+      "min_area_sq_ft": 600,
+      "time_limit_minutes": 4,
+      "min_height_inches": 48,
+      "target_odors": [
+        "Birch",
+        "Anise",
+        "Clove"
+      ],
+      "min_hides": 3,
+      "max_hides": 3,
+      "hides_known": true,
+      "max_area_sq_ft": 1200,
+      "max_height_inches": 48,
+      "num_distractions": 2,
+      "distraction_types": [
+        "non-food",
+        "food",
+        "auditory",
+        "visual"
+      ]
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 7, Section 6",
+    "title": "Exterior Master Requirements",
+    "content": "The target odor(s) of Birch and/or Anise and/ or Clove and/or Cypress are hidden in an outdoor area not less than 1500 but not more than 2000 square feet   There are one, two, three, or four hides at this level, all of which may be inaccessible, none of which may be located higher than 60 inches (5 feet) above the ground  The exact number of hides is not known to the handler   There are three distractions, which may be non-food, food, auditory, visual, human, or mimic   The handler must call “Alert” when the dog indicates the finds  When the handler believes that all hides have been located he/she must call “Finish” to stop the time   The time limit is set by the judge and must be between 3 and 5 minutes   The timer will not give a 30-second warning at this level (but handlers can self-time, if they wish)   The Exterior Master Class is open to dogs who have acquired the Exterior Excellent (SEE) title",
+    "level": "Master",
+    "element": "Exterior",
+    "category": "Search Area",
+    "keywords": [
+      "master",
+      "exterior",
+      "area",
+      "time",
+      "limit",
+      "hide",
+      "hides",
+      "handler",
+      "dog",
+      "judge",
+      "warning",
+      "distraction",
+      "inaccessible",
+      "accessible"
+    ],
+    "measurements": {
+      "min_area_sq_ft": 800,
+      "time_limit_minutes": 5,
+      "min_height_inches": 60,
+      "target_odors": [
+        "Birch",
+        "Anise",
+        "Clove",
+        "Cypress"
+      ],
+      "min_hides": 1,
+      "max_hides": 4,
+      "hides_known": false,
+      "max_area_sq_ft": 1600,
+      "max_height_inches": 60,
+      "num_distractions": 3,
+      "distraction_types": [
+        "non-food",
+        "food",
+        "auditory",
+        "visual",
+        "human",
+        "mimic"
+      ]
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 7, Section 7",
+    "title": "Buried Searches",
+    "content": "The Buried search element simulates the task of Human Remains Dogs to search for scents that have been buried under the ground or submerged under water   The Buried classes use tote boxes filled with substrate, with the odor at the bottom   The dog must determine which tote box(es) conceal the target odor(s)  The boxes will be covered with a metal grid to prevent the dogs from being able to dig   Buried classes may be conducted either indoors or outdoors  The tote boxes utilized for the Buried classes must be approximately 16 inches wide by 11 inches deep by 7 inches high (up to 2 inches smaller or larger is permissible), and must have latching handles  The metal grid must be approximately 16 inches wide by 10 inches deep, sized to be able to be latched into the storage tote (these can be purchased as “cooling grids” or “baking grids”)  Classes that utilize sand must only use “play sand   ” Classes that utilize water must use potable (drinking-quality) water   The scent vessel for the sand boxes must be a round, mesh, tea ball/tea infuser approximately two inches in diameter, made of stainless steel   The scent vessel for the water boxes must be a segment of opaque tubing, secured to the bottom of the box with suction cup clips",
+    "level": null,
+    "element": "Buried",
+    "category": "Search Area",
+    "keywords": [
+      "buried",
+      "size",
+      "search",
+      "dog"
+    ],
+    "measurements": {
+      "min_height_inches": 2
+    }
+  },
+  {
+    "section": "Chapter 7, Section 7",
+    "title": "Buried Novice Requirements",
+    "content": "Six tote boxes will be placed in the search area, in two rows of three, at least 36 inches apart   The search area must be at least 150 but not more than 200 square feet   Each box will be filled equally, with enough sand that the buried scent vessel will be covered with four inches of sand   One of the boxes will conceal a scent vessel containing Birch   There are no intentional distractions at this level  The dog has two minutes to locate the target scent and communicate the find to its handler   The handler must call “Alert” when the dog indicates the find   The Buried Novice Class is open to all dogs",
+    "level": "Novice",
+    "element": "Buried",
+    "category": "Search Area",
+    "keywords": [
+      "novice",
+      "buried",
+      "area",
+      "search",
+      "handler",
+      "dog",
+      "distraction"
+    ],
+    "measurements": {
+      "min_area_sq_ft": 200,
+      "time_limit_minutes": 2,
+      "target_odors": [
+        "Birch"
+      ],
+      "min_hides": 1,
+      "max_hides": 1,
+      "hides_known": true,
+      "num_containers": 6,
+      "container_type": "Tote boxes",
+      "max_area_sq_ft": 300,
+      "num_distractions": 0,
+      "distraction_types": []
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 7, Section 7",
+    "title": "Buried Advanced Requirements",
+    "content": "Eight tote boxes will be placed in the search area, in any arrangement, at least 36 inches apart   The search area must be at least 200 but not more than 400 square feet   Each box will be filled equally, with enough water that the submerged scent vessel will be covered with four inches of water   Each of the boxes will have a scent vessel affixed to the bottom   Two of the scent vessels will contain a scent aid scented with either Birch or Anise   There is one non-food distraction at this level   The dog has three minutes to locate the target scents and communicate the finds to its handler   The handler must call “Alert” when the dog indicates each find   After the second “Alert” call, the handler must call “Finish” to indicate that all hides have been found and to stop the time   The Buried Advanced Class is open to dogs who have acquired the Buried Novice (SBN) title",
+    "level": "Advanced",
+    "element": "Buried",
+    "category": "Search Area",
+    "keywords": [
+      "advanced",
+      "buried",
+      "area",
+      "time",
+      "hide",
+      "hides",
+      "search",
+      "handler",
+      "dog",
+      "distraction"
+    ],
+    "measurements": {
+      "min_area_sq_ft": 250,
+      "time_limit_minutes": 3,
+      "target_odors": [
+        "Birch",
+        "Anise"
+      ],
+      "min_hides": 2,
+      "max_hides": 2,
+      "hides_known": true,
+      "num_containers": 8,
+      "container_type": "Tote boxes",
+      "max_area_sq_ft": 350,
+      "num_distractions": 1,
+      "distraction_types": [
+        "non-food"
+      ]
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 7, Section 7",
+    "title": "Buried Excellent Requirements",
+    "content": "Twelve tote boxes will be placed in the search area, in any arrangement, at least 36 inches apart   The search area must be at least 300 but not more than 400 square feet   Six of the boxes must contain sand, and six must contain water, filled equally with enough material that the scent vessel is covered with four inches of material   The boxes containing water will each have a scent vessel affixed to the bottom, which may or may not conceal one of the target odors   Three of the boxes will contain a scent aid scented with either Birch, Anise, or Clove   There are two distractions, which may be non-food, food, auditory, or visual   Distractions are not buried or submerged   The dog has four minutes to locate the target scents and communicate the finds to its handler   The handler must call “Alert” when the dog indicates each find   After the third “Alert” call, the handler must call “Finish” to indicate that all hides have been found and to stop the time   The Buried Excellent Class is open to dogs who have acquired the Buried Advanced (SBA) title",
+    "level": "Excellent",
+    "element": "Buried",
+    "category": "Search Area",
+    "keywords": [
+      "excellent",
+      "buried",
+      "area",
+      "time",
+      "hide",
+      "hides",
+      "search",
+      "handler",
+      "dog",
+      "distraction"
+    ],
+    "measurements": {
+      "min_area_sq_ft": 300,
+      "time_limit_minutes": 3,
+      "target_odors": [
+        "Birch",
+        "Anise",
+        "Clove"
+      ],
+      "min_hides": 3,
+      "max_hides": 3,
+      "hides_known": true,
+      "num_containers": 12,
+      "container_type": "Tote boxes",
+      "max_area_sq_ft": 400,
+      "num_distractions": 2,
+      "distraction_types": [
+        "non-food",
+        "food",
+        "auditory",
+        "visual"
+      ]
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 7, Section 7",
+    "title": "Buried Master Requirements",
+    "content": "Sixteen tote boxes will be placed in the search area, in any arrangement, at least 36 inches apart   The search area must be at least 400 but not more than 500 square feet   Eight of these boxes must contain sand, and eight must contain water, filled equally with enough material that the scent vessel is covered with four inches",
+    "level": "Master",
+    "element": "Buried",
+    "category": "Search Area",
+    "keywords": [
+      "master",
+      "buried",
+      "area",
+      "search"
+    ],
+    "measurements": {
+      "min_area_sq_ft": 400,
+      "min_hides": 1,
+      "max_hides": 4,
+      "hides_known": false,
+      "num_containers": 16,
+      "container_type": "Tote boxes",
+      "max_area_sq_ft": 500,
+      "time_limit_minutes": 3,
+      "target_odors": [
+        "Birch",
+        "Anise",
+        "Clove",
+        "Cypress"
+      ],
+      "num_distractions": 3,
+      "distraction_types": [
+        "non-food",
+        "food",
+        "auditory",
+        "visual",
+        "human",
+        "mimic"
+      ]
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 7, Section 1",
+    "title": "The Handler Discrimination Division",
+    "content": "Classes in which the target scent is the handler’s scent, rather than the odor of an essential oil, are deemed to be part of the Handler Discrimination Division",
+    "level": null,
+    "element": null,
+    "category": "Handler Requirements",
+    "keywords": [
+      "handler"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 7, Section 2",
+    "title": "Scented Article",
+    "content": "Section 2. Scented Article   The handler is required to provide the scented article for Handler Discrimination Classes   For the Novice class, the required scented article is a cotton glove or cotton sock   For the Advanced, Excellent, and Master classes, the required scented articles may be cotton balls or cotton swabs   The article(s) should be thoroughly scented by the handler and sealed in a plastic bag to be hidden on the course",
+    "level": "Novice",
+    "element": null,
+    "category": "Handler Requirements",
+    "keywords": [
+      "novice",
+      "handler"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 7, Section 3",
+    "title": "Scenting the Article",
+    "content": "Handlers may utilize any method that they wish to scent the article   Suggestions include rubbing the article on the handler’s body or storing the article in dirty laundry",
+    "level": null,
+    "element": null,
+    "category": "Handler Requirements",
+    "keywords": [
+      "handler"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 7, Section 4",
+    "title": "Handlers as Spectators",
+    "content": "Handlers may watch other search teams, even for the classes in which they are competing and have not yet run",
+    "level": null,
+    "element": null,
+    "category": "Handler Requirements",
+    "keywords": [
+      "search",
+      "handler"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 7, Section 5",
+    "title": "Search Area",
+    "content": "Section 5. Search Area   The boundaries of the search area will be clearly delineated by colored adhesive tape, caution tape, flags, plastic fencing, ring gates, or by some other method   The search area for the Novice (container) search may be either indoors or outdoors   Dogs and handlers may cross search boundaries without penalty during the search, as long as they remain working",
+    "level": "Novice",
+    "element": "Container",
+    "category": "Search Area",
+    "keywords": [
+      "novice",
+      "container",
+      "area",
+      "search",
+      "handler",
+      "dog"
+    ],
+    "measurements": {
+      "min_hides": 1,
+      "max_hides": 1,
+      "hides_known": true,
+      "num_containers": 10,
+      "container_type": "Identical cardboard boxes",
+      "min_area_sq_ft": 250,
+      "max_area_sq_ft": 400,
+      "time_limit_minutes": 2,
+      "target_odors": [
+        "Birch"
+      ],
+      "container_spacing_inches": 12,
+      "row_spacing_inches": 36,
+      "num_distractions": 0,
+      "distraction_types": []
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 7, Section 6",
+    "title": "Difficulty Levels",
+    "content": "Classes within the Handler Discrimination Division are offered in four difficulty levels, each with its own specific set of requirements: Novice, Advanced, Excellent, and Master",
+    "level": "Novice",
+    "element": null,
+    "category": "Handler Requirements",
+    "keywords": [
+      "novice",
+      "handler",
+      "requirement"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 7, Section 7",
+    "title": "Hiding the Scented Article",
+    "content": "The hide steward will be responsible for hiding the handler-scented article and will wear latex, nitrile, or vinyl gloves while doing so   Although it is permitted for the odor division classes, judges are not permitted to set their own hides for the Handler Discrimination classes   This is because the judge’s scent is used for discrimination, so extra care must be taken not to expose the handler-scented article to the judge’s scent   The hide steward will collect the plastic bag containing the scented article(s) from the handler when he or she is called to the search area for their run   The handler will then retreat to a location blocked by a wall or partition while the scented article is placed on the course   The hide steward will proceed to the location determined by the judge for the hide, remove the handler-",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "hide",
+      "hides",
+      "search",
+      "handler",
+      "judge"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 8, Section 8",
+    "title": "Cuing the Dog with an Article",
+    "content": "Handlers may use an additional scented article to cue the dog to search for their scent   This can be done on the start line and can also be done at any time during the class, if the handler wishes",
+    "level": null,
+    "element": null,
+    "category": "Time Limit",
+    "keywords": [
+      "time",
+      "search",
+      "handler",
+      "dog"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 8, Section 9",
+    "title": "Returning the Scented Article to the Handler",
+    "content": "At the conclusion of the search the hide steward will remove the article from the hide location and return it to the plastic bag   The sealed plastic bag will then be returned to the handler before he or she leaves the search area",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "hide",
+      "search",
+      "handler"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 8, Section 10",
+    "title": "Re-Use of Containers for the Novice Search",
+    "content": "The hide location may be different for each dog in a class   The club shall provide one container per handler, and no container used for a handler’s scent can be subsequently re-used   When setting the course, the container with the handler’s scent will replace an empty container  When returning the scented article to the handler, the empty container will be returned to the space so that there are always 10 containers in the search area",
+    "level": "Novice",
+    "element": "Container",
+    "category": "Search Area",
+    "keywords": [
+      "novice",
+      "container",
+      "area",
+      "hide",
+      "search",
+      "handler",
+      "dog"
+    ],
+    "measurements": {
+      "num_containers": 10,
+      "min_hides": 1,
+      "max_hides": 1,
+      "hides_known": true,
+      "container_type": "Identical cardboard boxes",
+      "min_area_sq_ft": 250,
+      "max_area_sq_ft": 400,
+      "time_limit_minutes": 2,
+      "target_odors": [
+        "Birch"
+      ],
+      "container_spacing_inches": 12,
+      "row_spacing_inches": 36,
+      "num_distractions": 0,
+      "distraction_types": []
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 8, Section 11",
+    "title": "Handler Discrimination Novice",
+    "content": "Container Search   Ten identical cardboard box containers (see Chapter 5,",
+    "level": "Novice",
+    "element": "Container",
+    "category": "General",
+    "keywords": [
+      "novice",
+      "container",
+      "search"
+    ],
+    "measurements": {
+      "container_type": "Identical cardboard boxes",
+      "min_hides": 1,
+      "max_hides": 1,
+      "hides_known": true,
+      "num_containers": 10,
+      "min_area_sq_ft": 250,
+      "max_area_sq_ft": 400,
+      "time_limit_minutes": 2,
+      "target_odors": [
+        "Birch"
+      ],
+      "container_spacing_inches": 12,
+      "row_spacing_inches": 36,
+      "num_distractions": 0,
+      "distraction_types": []
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 8, Section 11",
+    "title": "for size requirements) are laid out on the floor of the search area in two rows of five",
+    "content": "Section 11 for size requirements) are laid out on the floor of the search area in two rows of five   Each box must be at least 12\" apart, and each row must be at least 36\" apart   The search area must be at least 250 and no more than 400 square feet, and no items other than the containers may be present in the search area   One of the containers holds the article scented by the handler, one holds an article scented by the judge, and eight of the containers are empty   The scented article must be a cotton glove or cotton sock   There are no intentional distractions   The dog has two minutes to locate the container with the handler-scented article and communicate the find to its handler   The handler must call “Alert” when the dog indicates the find   The Handler Discrimination Novice Class is open to all dogs",
+    "level": "Novice",
+    "element": "Container",
+    "category": "Search Area",
+    "keywords": [
+      "novice",
+      "container",
+      "area",
+      "size",
+      "search",
+      "handler",
+      "dog",
+      "judge",
+      "requirement",
+      "distraction"
+    ],
+    "measurements": {
+      "min_area_sq_ft": 250,
+      "max_area_sq_ft": 400,
+      "time_limit_minutes": 2,
+      "container_spacing_inches": 12,
+      "min_spacing_inches": 12,
+      "min_hides": 1,
+      "max_hides": 1,
+      "hides_known": true,
+      "num_containers": 10,
+      "container_type": "Identical cardboard boxes",
+      "target_odors": [
+        "Birch"
+      ],
+      "row_spacing_inches": 36,
+      "num_distractions": 0,
+      "distraction_types": []
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 8, Section 12",
+    "title": "Handler Discrimination Advanced",
+    "content": "Interior Search  The handler-scented article—which must be a cotton ball or cotton swab—is hidden in a room or part of a room with an area of not less than 150 and not more than 400 square feet   There is one hide at this  55",
+    "level": "Advanced",
+    "element": "Interior",
+    "category": "Search Area",
+    "keywords": [
+      "advanced",
+      "interior",
+      "area",
+      "hide",
+      "search",
+      "handler"
+    ],
+    "measurements": {
+      "min_area_sq_ft": 200,
+      "min_hides": 2,
+      "max_hides": 2,
+      "hides_known": true,
+      "max_area_sq_ft": 400,
+      "time_limit_minutes": 3,
+      "max_height_inches": 36,
+      "target_odors": [
+        "Birch",
+        "Anise"
+      ],
+      "num_distractions": 1,
+      "distraction_types": [
+        "non-food"
+      ]
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 8, Section 13",
+    "title": "Handler Discrimination Excellent",
+    "content": "Outdoor search   The handler-scented article—which must be a cotton ball or cotton swab— is hidden in an outdoor area at least 400 but not more than 600 square feet   There is one hide at this level, which must be accessible and may not be located higher than 24 inches above the ground   Also hidden on the course is one scent aid scented by the judge   There is one non-food distraction   The dog must locate the handler scent and communicate the find to its handler   The handler must call “Alert” when the dog indicates the find   The time limit is set by the judge and must be between 3 and 6 minutes   The Handler Discrimination Excellent Class is open to dogs who have earned the Handler Discrimination Advanced (SHDA) title",
+    "level": "Advanced",
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "advanced",
+      "area",
+      "time",
+      "limit",
+      "hide",
+      "search",
+      "handler",
+      "dog",
+      "judge",
+      "distraction",
+      "accessible"
+    ],
+    "measurements": {
+      "min_area_sq_ft": 600,
+      "time_limit_minutes": 6,
+      "min_height_inches": 24
+    }
+  },
+  {
+    "section": "Chapter 8, Section 14",
+    "title": "Handler Discrimination Master",
+    "content": "Combined search   At this level the search area presents the team with two or more elements (container, interior, or exterior) within one search   For example, the search area may span indoors and outdoors, may be an indoor search that includes containers, or any other combination   The handler scent may not be buried   Three handler-scented articles are hidden in two distinct search areas   The total space of all search areas must be not less than 300 and not more than 800 square feet   Each search area will be worked independently, with a separate time limit   None of the search areas may be blank   None of the hides may be inaccessible, and none may be located higher than 24 inches above the ground   Also hidden on the course are two additional scent aids, one scented by the judge, and one scented by a steward   There are one or two distractions at this level, which may be non-food, food, visual, auditory, human, or mimic  The dog must find the handler scents and communicate the finds to its handler   The handler must call “Alert” when the dog indicates each find   In each search area, the handler must call “Finish” to indicate that all hides have been found and to stop the time   The time limit is set by the judge and must be between 2 and 3 minutes for each search area  The timer will not give a 30-second warning at this level (but handlers can self-time, if they wish)   The Handler Discrimination Master Class is open to dogs who have earned the Handler Discrimination Excellent (SHDE) title",
+    "level": "Excellent",
+    "element": "Interior",
+    "category": "Search Area",
+    "keywords": [
+      "excellent",
+      "interior",
+      "area",
+      "time",
+      "limit",
+      "hide",
+      "hides",
+      "search",
+      "handler",
+      "dog",
+      "judge",
+      "warning",
+      "container",
+      "exterior",
+      "buried",
+      "distraction",
+      "inaccessible",
+      "accessible"
+    ],
+    "measurements": {
+      "min_area_sq_ft": 300,
+      "time_limit_minutes": 3,
+      "min_height_inches": 24,
+      "min_hides": 3,
+      "max_hides": 3,
+      "hides_known": true,
+      "max_area_sq_ft": 500,
+      "max_height_inches": 48,
+      "target_odors": [
+        "Birch",
+        "Anise",
+        "Clove"
+      ],
+      "num_distractions": 2,
+      "distraction_types": [
+        "non-food",
+        "food",
+        "auditory",
+        "visual"
+      ]
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 8, Section 1",
+    "title": "The Detective Class",
+    "content": "The Detective Class offers an integrated search environment with an unknown number of hides in a variety of elements   The intent of the Detective Class is to emulate as closely as possible the work of a true detection dog",
+    "level": null,
+    "element": null,
+    "category": "Hides",
+    "keywords": [
+      "hide",
+      "hides",
+      "search",
+      "dog"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 8, Section 2",
+    "title": "Eligibility",
+    "content": "The Detective Class is open to dogs who have acquired at least one Master title within the Odor Search Division (SCM, SIM, SEM, or SBM)",
+    "level": "Master",
+    "element": null,
+    "category": "General",
+    "keywords": [
+      "master",
+      "search",
+      "dog"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 8, Section 3",
+    "title": "Search Area",
+    "content": "The course must span both the interior and exterior of a building or structure   The total search area must be at least 2000 but not more than 5000 square feet   Any excluded areas will be clearly defined, but there will be no separate and distinct search areas   Teams may wander in and out of included rooms, and go back and forth between interior and exterior areas when seeking hides",
+    "level": null,
+    "element": "Interior",
+    "category": "Search Area",
+    "keywords": [
+      "interior",
+      "area",
+      "hide",
+      "hides",
+      "search",
+      "exterior"
+    ],
+    "measurements": {
+      "min_area_sq_ft": 5000
+    }
+  },
+  {
+    "section": "Chapter 8, Section 4",
+    "title": "Number and Placement of Hides",
+    "content": "There should be a total of five to ten hides per course   Hides can be on, under, or in any object or container, at any height   Hides can also be buried in house plants or in the exterior grounds as long as the soil is determined by the judge to be sufficiently odor-permeable   Anywhere in the search area is fair game, except that hides cannot be in the search boundary markers or on the persons of judges, stewards, or human distractions",
+    "level": null,
+    "element": "Exterior",
+    "category": "Search Area",
+    "keywords": [
+      "exterior",
+      "area",
+      "hide",
+      "hides",
+      "search",
+      "judge",
+      "container",
+      "buried",
+      "distraction"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 8, Section 5",
+    "title": "Search Time",
+    "content": "The total search time will be determined by the judge and must be between 7 and 15 minutes   There will be no 30-second warning in the Detective class, but handlers can self-time if they wish",
+    "level": null,
+    "element": null,
+    "category": "Time Limit",
+    "keywords": [
+      "time",
+      "search",
+      "handler",
+      "judge",
+      "warning"
+    ],
+    "measurements": {
+      "time_limit_minutes": 15
+    }
+  },
+  {
+    "section": "Chapter 8, Section 6",
+    "title": "Target Scent",
+    "content": "The target scent may be Birch and/or Anise and/or Clove and/or Cypress   All odors need not be present, and each odor can be used multiple times",
+    "level": null,
+    "element": null,
+    "category": "Time Limit",
+    "keywords": [
+      "time"
+    ],
+    "measurements": {
+      "target_odors": [
+        "Birch",
+        "Anise",
+        "Clove",
+        "Cypress"
+      ]
+    }
+  },
+  {
+    "section": "Chapter 8, Section 7",
+    "title": "Running Off-Leash",
+    "content": "Handlers always have the option to run The Detective Class off-leash, regardless of whether the area is completely enclosed or not",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "handler",
+      "leash"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 8, Section 8",
+    "title": "Distractions",
+    "content": "Four to six intentional distractions (of any type discussed in these rules) will be used on the course",
+    "level": null,
+    "element": null,
+    "category": "General",
+    "keywords": [
+      "distraction"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 8, Section 9",
+    "title": "“Alert” Call",
+    "content": "The dog must find the target scents and communicate the finds to its handler   The handler must call “Alert” when the dog indicates each find",
+    "level": null,
+    "element": null,
+    "category": "Handler Requirements",
+    "keywords": [
+      "handler",
+      "dog"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 8, Section 10",
+    "title": "“Finish” Call",
+    "content": "The handler should call “Finish” when he or she believes all hides have been located for the entire course",
+    "level": null,
+    "element": null,
+    "category": "Hides",
+    "keywords": [
+      "hide",
+      "hides",
+      "handler"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 9, Section 11",
+    "title": "Course Map",
+    "content": "After the “Finish” call or at the expiration of the allotted time the handler will be told whether they qualified and be given a course map showing the location of each hide on the course   Handlers are forbidden from displaying, discussing, or sharing the course map until the class is complete",
+    "level": null,
+    "element": null,
+    "category": "Time Limit",
+    "keywords": [
+      "time",
+      "hide",
+      "handler"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 9, Section 12",
+    "title": "Spectators",
+    "content": "The trial-giving Club should make every effort to allow spectators to observe at least part of the course  Whenever possible, spectator area(s) should be created to allow guests and other handlers to observe these elite and accomplished search teams   Handlers participating in the Detective Class may not observe others until after the completion of their run  The Detective Class  Scents   Birch and/or Anise and/or Clove and/or Cypress  # of Hides   5-10 per course  Search Area Size   2000-5000 square feet total  Known or Unknown Hides   Unknown number of hides  Distractions   4-6; any type  Max Height of Hides   No maximum  Time Limit   Set by judge; 7-15 minutes  Required Calls   Alerts and finish  Accessibility   All hides may be inaccessible",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "size",
+      "time",
+      "limit",
+      "hide",
+      "hides",
+      "search",
+      "handler",
+      "judge",
+      "maximum",
+      "distraction",
+      "inaccessible",
+      "accessible"
+    ],
+    "measurements": {
+      "min_area_sq_ft": 5000,
+      "time_limit_minutes": 15,
+      "target_odors": [
+        "Birch",
+        "Anise",
+        "Clove",
+        "Cypress"
+      ]
+    }
+  },
+  {
+    "section": "Chapter 9, Section 1",
+    "title": "AKC Scent Work Titles, In General",
+    "content": "AKC Scent Work titles may be added after the name of each dog that has been certified to have received the necessary number of qualifying performances at each class and level   Higher-level titles will supersede all lower-level titles, but Elite titles may only be superseded by higher-level Elite titles",
+    "level": null,
+    "element": null,
+    "category": "General",
+    "keywords": [
+      "dog",
+      "qualifying"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 9, Section 2",
+    "title": "Number of Judges",
+    "content": "AKC Scent Work titles are earned by acquiring the required number of legs, under any number of judges   It is permissible for all legs to be earned under the same judge",
+    "level": null,
+    "element": null,
+    "category": "Judging",
+    "keywords": [
+      "judge"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 9, Section 3",
+    "title": "Odor Search Division Basic Element Titles",
+    "content": "The titles below will be granted when   three   qualifying scores are earned during Odor Search Division classes  Scent Work Container Novice (SCN) Scent Work Container Advanced (SCA) Scent Work Container Excellent (SCE) Scent Work Container Master (SCM) Scent Work Interior Novice (SIN) Scent Work Interior Advanced (SIA) Scent Work Interior Excellent (SIE) Scent Work Interior Master (SIM) Scent Work Exterior Novice (SEN) Scent Work Exterior Advanced (SEA) Scent Work Exterior Excellent (SEE) Scent Work Exterior Master (SEM) Scent Work Buried Novice (SBN) Scent Work Buried Advanced (SBA) Scent Work Buried Excellent (SBE) Scent Work Buried Master (SBM)",
+    "level": "Novice",
+    "element": "Interior",
+    "category": "Judging",
+    "keywords": [
+      "novice",
+      "interior",
+      "search",
+      "container",
+      "exterior",
+      "buried",
+      "qualifying",
+      "score"
+    ],
+    "measurements": {
+      "min_hides": 1,
+      "max_hides": 1,
+      "hides_known": true,
+      "min_area_sq_ft": 120,
+      "max_area_sq_ft": 200,
+      "time_limit_minutes": 2,
+      "max_height_inches": 24,
+      "target_odors": [
+        "Birch"
+      ],
+      "num_distractions": 0,
+      "distraction_types": []
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 9, Section 4",
+    "title": "Odor Search Division Basic Level Titles",
+    "content": "When a dog earns every element basic title in the same difficulty level, they will be granted the Level title   A level title supersedes all basic element titles of that level  Container Novice Interior Novice   Scent Work Novice (SWN) Exterior Novice Buried Novice Container Advanced Interior Advanced   Scent Work Advanced (SWA) Exterior Advanced Buried Advanced",
+    "level": "Novice",
+    "element": "Interior",
+    "category": "General",
+    "keywords": [
+      "novice",
+      "interior",
+      "dog",
+      "container",
+      "exterior",
+      "buried"
+    ],
+    "measurements": {
+      "min_hides": 1,
+      "max_hides": 1,
+      "hides_known": true,
+      "min_area_sq_ft": 120,
+      "max_area_sq_ft": 200,
+      "time_limit_minutes": 2,
+      "max_height_inches": 24,
+      "target_odors": [
+        "Birch"
+      ],
+      "num_distractions": 0,
+      "distraction_types": []
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 10, Section 5",
+    "title": "Odor Search Division Elite Element Titles",
+    "content": "The titles below will be granted when   ten   qualifying scores are earned during Odor Search Division classes  Scent Work Container Novice Elite (SCNE) Scent Work Container Advanced Elite (SCAE) Scent Work Container Excellent Elite (SCEE) Scent Work Container Master Elite (SCME) Scent Work Interior Novice Elite (SINE) Scent Work Interior Advanced Elite (SIAE) Scent Work Interior Excellent Elite (SIEE) Scent Work Interior Master Elite (SIME) Scent Work Exterior Novice Elite (SENE) Scent Work Exterior Advanced Elite (SEAE) Scent Work Exterior Excellent Elite (SEEE) Scent Work Exterior Master Elite (SEME) Scent Work Buried Novice Elite (SBNE) Scent Work Buried Advanced Elite (SBAE) Scent Work Buried Excellent Elite (SBEE) Scent Work Buried Master Elite (SBME)",
+    "level": "Novice",
+    "element": "Interior",
+    "category": "Judging",
+    "keywords": [
+      "novice",
+      "interior",
+      "search",
+      "container",
+      "exterior",
+      "buried",
+      "qualifying",
+      "score"
+    ],
+    "measurements": {
+      "min_hides": 1,
+      "max_hides": 1,
+      "hides_known": true,
+      "min_area_sq_ft": 120,
+      "max_area_sq_ft": 200,
+      "time_limit_minutes": 2,
+      "max_height_inches": 24,
+      "target_odors": [
+        "Birch"
+      ],
+      "num_distractions": 0,
+      "distraction_types": []
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 10, Section 6",
+    "title": "Odor Search Division Elite",
+    "content": "When a dog earns every element Elite title in the same difficulty level, they will be granted the Elite level title   An Elite level title supersedes all Elite element titles of that level  Container Novice Elite Interior Novice Elite   Scent Work Novice Elite Exterior Novice Elite   (SWNE) Buried Novice Elite Container Advanced Elite Interior Advanced Elite   Scent Work Advanced Elite Exterior Advanced Elite   (SWAE) Buried Advanced Elite",
+    "level": "Novice",
+    "element": "Interior",
+    "category": "General",
+    "keywords": [
+      "novice",
+      "interior",
+      "dog",
+      "container",
+      "exterior",
+      "buried"
+    ],
+    "measurements": {
+      "min_hides": 1,
+      "max_hides": 1,
+      "hides_known": true,
+      "min_area_sq_ft": 120,
+      "max_area_sq_ft": 200,
+      "time_limit_minutes": 2,
+      "max_height_inches": 24,
+      "target_odors": [
+        "Birch"
+      ],
+      "num_distractions": 0,
+      "distraction_types": []
+    },
+    "measurementsSource": "authoritative"
+  },
+  {
+    "section": "Chapter 10, Section 7",
+    "title": "Handler Discrimination Division Basic Titles",
+    "content": "The titles below will be granted when   three   qualifying scores are earned during Handler Discrimination Division classes  Scent Work Handler Discrimination Novice (SHDN) Scent Work Handler Discrimination Advanced (SHDA) Scent Work Handler Discrimination Excellent (SHDE) Scent Work Handler Discrimination Master (SHDM)",
+    "level": "Novice",
+    "element": null,
+    "category": "Handler Requirements",
+    "keywords": [
+      "novice",
+      "handler",
+      "qualifying",
+      "score"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 10, Section 8",
+    "title": "Handler Discrimination Division Elite Titles",
+    "content": "The titles below will be granted when   ten   qualifying scores are earned during Handler Discrimination Division classes  Scent Work Handler Discrimination Novice Elite (SHDNE) Scent Work Handler Discrimination Advanced Elite (SHDAE) Scent Work Handler Discrimination Excellent Elite (SHDEE) Scent Work Handler Discrimination Master Elite (SHDME)",
+    "level": "Novice",
+    "element": null,
+    "category": "Handler Requirements",
+    "keywords": [
+      "novice",
+      "handler",
+      "qualifying",
+      "score"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 10, Section 9",
+    "title": "The Scent Work Detective Title",
+    "content": "The Scent Work Detective (SWD) title will be granted when   ten   qualifying scores are earned in the Scent Work Detective class",
+    "level": null,
+    "element": null,
+    "category": "Judging",
+    "keywords": [
+      "qualifying",
+      "score"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 10, Section 10",
+    "title": "Regional Championship Events",
+    "content": "Scent Work Regional Championships will take place across different regions of the country as determined by the AKC Scent Work Department, hosted by local clubs as selected by the Department  Dogs may be entered in any standard Scent Work class for which they are eligible   Dogs may not enter a class lower than the highest level for which they have earned a title within a particular element   Dogs that previously have won a Regional Championship may not enter another Regional Championship at the same difficulty level during same calendar year  The format for Regionals will differ from typical Scent Work trials  One dog per level (Novice, Advanced, Excellent, Master) will be awarded first place based on its performance in a multi-element search  Details of the championship search will be determined on a yearly basis by the AKC Scent Work Department",
+    "level": "Novice",
+    "element": null,
+    "category": "General",
+    "keywords": [
+      "novice",
+      "search",
+      "dog"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 10, Section 11",
+    "title": "National Championship",
+    "content": "A Scent Work National Championship shall be held annually at a time and location to be determined by the AKC Scent Work Department   The Scent Work National Championship shall consist of a championship class comprised of a varied combination of element challenges, all of which may be modified as determined by the AKC  The overall winner of the Scent Work National Championship shall be entitled to be designated “Scent Work National Champion of 20__” (SWNC)   This title is a prefix title  To be eligible to compete, dogs must meet the minimum qualifications as determined by the AKC during a qualifying period set each year  Dogs placing at a preceding year’s Master Regional Championship Round will automatically be qualified to enter  Details regarding the Scent Work National Championship will be published online at: www   akc   org/scentwork",
+    "level": "Master",
+    "element": null,
+    "category": "Time Limit",
+    "keywords": [
+      "master",
+      "time",
+      "dog",
+      "minimum",
+      "qualification",
+      "qualifying"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 10, Section 1",
+    "title": "Event Committee Responsibility",
+    "content": "Any dog, that in the opinion of the Event Committee, attacks a person or a dog at an AKC event, resulting in an injury, and is believed by that Event Committee to present a hazard to persons or other dogs, shall be disqualified   When the dog is disqualified by the Event Committee pursuant to this section, a report shall be filed with the Executive Secretary of the American Kennel Club   The disqualified dog may not again compete at any AKC event nor be on the grounds of an AKC event unless and until, following application for reinstatement by the owner to the American Kennel Club, the owner receives official notification in writing from the AKC that the dog’s eligibility has been reinstated   If the Event Committee becomes aware of any act of dog aggression that takes place in association with their event, the Committee must look into the incident and complete the form (AEDSQ4)   No exhibitor complaint is required",
+    "level": null,
+    "element": null,
+    "category": "General",
+    "keywords": [
+      "dog"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 10, Section 2",
+    "title": "Judge’s Responsibility",
+    "content": "•   The judge must EXCUSE the dog from the search and mark “EXCUSED” in the catalog, stating the reason   This information is to be included in the Judge’s Report to the AKC Scent Work Department  2   If a dog leaves the search area and ATTACKS another dog, or runs into the search area and ATTACKS another dog (and is witnessed by the judge): •   The judge must EXCUSE the dog and seriously consider doing so for the remainder of the day or series of trials, and must mark “EXCUSED” in the catalog, stating the reason  •   The judge must fill out a current DOG ON DOG ATTACK form (AEDSQ3) and have the Event Committee/Secretary FAX it to the AKC Companion Operations within 72 hours of the incident  3   If a dog ATTACKS any person in the search area: •   The judge must DISQUALIFY the dog, and mark “DISQUALIFIED” in the catalog, stating the reason  •   The judge must fill out a current DISQUALIFICATION FOR ATTACKING form (AEDSQ1) and have the Event Committee/Secretary FAX it to the AKC Companion Operations within 72 hours of the incident",
+    "level": null,
+    "element": null,
+    "category": "Search Area",
+    "keywords": [
+      "area",
+      "search",
+      "dog",
+      "judge",
+      "qualification"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 11, Section 3",
+    "title": "Submission of Reports to the AKC",
+    "content": "In all instances of aggression associated with an event: •   The judge must submit to the Scent Work Department a written report of the incident along with the judge’s trial report  •   The Trial Chairperson must submit to the AKC a written report of the incident along with the Trial Chair Report  •   The Trial Secretary must submit to the AKC a written report of the incident along with the trial catalog",
+    "level": null,
+    "element": null,
+    "category": "Judging",
+    "keywords": [
+      "judge"
+    ],
+    "measurements": {}
+  },
+  {
+    "section": "Chapter 11, Section 4",
+    "title": "Cancellation of Awards",
+    "content": "If a dog is disqualified for aggression, all awards made to the dog at the trial will be cancelled by the AKC",
+    "level": null,
+    "element": null,
+    "category": "General",
+    "keywords": [
+      "dog"
+    ],
+    "measurements": {}
+  }
+]

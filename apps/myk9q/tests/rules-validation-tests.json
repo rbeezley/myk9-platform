@@ -1,0 +1,345 @@
+[
+  {
+    "id": "test-001",
+    "category": "hide-count",
+    "query": "how many hides in master buried?",
+    "expectedAnswer": {
+      "min_hides": 1,
+      "max_hides": 4,
+      "hides_known": false,
+      "keywords": ["1-4", "unknown", "handler"]
+    },
+    "notes": "Critical test - previously had bug returning '8 hides'"
+  },
+  {
+    "id": "test-002",
+    "category": "hide-count",
+    "query": "how many hides in container novice?",
+    "expectedAnswer": {
+      "min_hides": 1,
+      "max_hides": 1,
+      "hides_known": true,
+      "keywords": ["1"]
+    }
+  },
+  {
+    "id": "test-003",
+    "category": "hide-count",
+    "query": "how many hides in container advanced?",
+    "expectedAnswer": {
+      "min_hides": 2,
+      "max_hides": 2,
+      "hides_known": true,
+      "keywords": ["2", "known", "knows"]
+    }
+  },
+  {
+    "id": "test-004",
+    "category": "hide-count",
+    "query": "how many hides in container excellent?",
+    "expectedAnswer": {
+      "min_hides": 3,
+      "max_hides": 3,
+      "hides_known": true,
+      "keywords": ["3", "known"]
+    }
+  },
+  {
+    "id": "test-005",
+    "category": "hide-count",
+    "query": "how many hides in container master?",
+    "expectedAnswer": {
+      "min_hides": 1,
+      "max_hides": 4,
+      "hides_known": false,
+      "keywords": ["1-4", "unknown"]
+    }
+  },
+  {
+    "id": "test-006",
+    "category": "area-size",
+    "query": "what is the area size for exterior advanced?",
+    "expectedAnswer": {
+      "min_area_sq_ft": 400,
+      "max_area_sq_ft": 800,
+      "keywords": ["400", "800", "square feet"]
+    }
+  },
+  {
+    "id": "test-007",
+    "category": "area-size",
+    "query": "what is the area size for interior novice?",
+    "expectedAnswer": {
+      "min_area_sq_ft": 120,
+      "max_area_sq_ft": 200,
+      "keywords": ["120", "200", "square feet"]
+    }
+  },
+  {
+    "id": "test-008",
+    "category": "area-size",
+    "query": "what is the area size for buried excellent?",
+    "expectedAnswer": {
+      "min_area_sq_ft": 300,
+      "max_area_sq_ft": 400,
+      "keywords": ["300", "400", "square feet"]
+    }
+  },
+  {
+    "id": "test-009",
+    "category": "time-limit",
+    "query": "what is the time limit for container novice?",
+    "expectedAnswer": {
+      "time_limit_minutes": 2,
+      "keywords": ["2", "minutes"]
+    }
+  },
+  {
+    "id": "test-010",
+    "category": "time-limit",
+    "query": "what is the time limit for exterior master?",
+    "expectedAnswer": {
+      "time_limit_minutes": 5,
+      "keywords": ["5", "minutes"]
+    }
+  },
+  {
+    "id": "test-011",
+    "category": "time-limit",
+    "query": "what is the time limit for buried advanced?",
+    "expectedAnswer": {
+      "time_limit_minutes": 3,
+      "keywords": ["3", "minutes"]
+    }
+  },
+  {
+    "id": "test-012",
+    "category": "containers",
+    "query": "how many containers in container novice?",
+    "expectedAnswer": {
+      "num_containers": 10,
+      "keywords": ["10", "containers", "cardboard boxes"]
+    }
+  },
+  {
+    "id": "test-013",
+    "category": "containers",
+    "query": "how many containers in container master?",
+    "expectedAnswer": {
+      "num_containers": 20,
+      "keywords": ["20", "containers"]
+    },
+    "notes": "Should NOT confuse with hide count (1-4 hides)"
+  },
+  {
+    "id": "test-014",
+    "category": "hide-count",
+    "query": "how many hides in interior excellent?",
+    "expectedAnswer": {
+      "min_hides": 3,
+      "max_hides": 3,
+      "hides_known": true,
+      "keywords": ["3"]
+    }
+  },
+  {
+    "id": "test-015",
+    "category": "hide-count",
+    "query": "how many hides in exterior novice?",
+    "expectedAnswer": {
+      "min_hides": 1,
+      "max_hides": 1,
+      "hides_known": true,
+      "keywords": ["1"]
+    }
+  },
+  {
+    "id": "test-016",
+    "category": "area-size",
+    "query": "what is the search area for container advanced?",
+    "expectedAnswer": {
+      "min_area_sq_ft": 300,
+      "max_area_sq_ft": 600,
+      "keywords": ["300", "600", "square feet"]
+    }
+  },
+  {
+    "id": "test-017",
+    "category": "time-limit",
+    "query": "time limit for interior advanced",
+    "expectedAnswer": {
+      "time_limit_minutes": 3,
+      "keywords": ["3", "minutes"]
+    }
+  },
+  {
+    "id": "test-018",
+    "category": "hide-count",
+    "query": "how many hides are in buried novice?",
+    "expectedAnswer": {
+      "min_hides": 1,
+      "max_hides": 1,
+      "hides_known": true,
+      "keywords": ["1"]
+    }
+  },
+  {
+    "id": "test-019",
+    "category": "area-size",
+    "query": "what is the minimum area for exterior excellent?",
+    "expectedAnswer": {
+      "min_area_sq_ft": 600,
+      "max_area_sq_ft": 1200,
+      "keywords": ["600", "1200", "square feet"]
+    }
+  },
+  {
+    "id": "test-020",
+    "category": "containers",
+    "query": "how many containers are used in container excellent?",
+    "expectedAnswer": {
+      "num_containers": 20,
+      "keywords": ["20", "containers"]
+    }
+  },
+  {
+    "id": "test-021",
+    "category": "hide-count",
+    "query": "are the number of hides known to the handler in master buried?",
+    "expectedAnswer": {
+      "hides_known": false,
+      "keywords": ["unknown", "not known", "no"]
+    }
+  },
+  {
+    "id": "test-022",
+    "category": "hide-count",
+    "query": "does the handler know how many hides in novice container?",
+    "expectedAnswer": {
+      "hides_known": true,
+      "keywords": ["known", "yes"]
+    }
+  },
+  {
+    "id": "test-023",
+    "category": "area-size",
+    "query": "minimum search area for buried master",
+    "expectedAnswer": {
+      "min_area_sq_ft": 400,
+      "max_area_sq_ft": 500,
+      "keywords": ["400", "500", "square feet"]
+    }
+  },
+  {
+    "id": "test-024",
+    "category": "time-limit",
+    "query": "how long does the handler have for container excellent?",
+    "expectedAnswer": {
+      "time_limit_minutes": 4,
+      "keywords": ["4", "minutes"]
+    }
+  },
+  {
+    "id": "test-025",
+    "category": "hide-count",
+    "query": "what is the hide count for interior master?",
+    "expectedAnswer": {
+      "min_hides": 2,
+      "max_hides": 6,
+      "hides_known": false,
+      "keywords": ["2-6", "unknown"]
+    },
+    "notes": "0-3 per area, 2-6 per class"
+  },
+  {
+    "id": "test-026",
+    "category": "height-limit",
+    "query": "what is the maximum height for hides in interior novice?",
+    "expectedAnswer": {
+      "max_height_inches": 24,
+      "keywords": ["24", "inches", "2 feet"]
+    },
+    "notes": "AI search sometimes returns wrong rule - data is correct"
+  },
+  {
+    "id": "test-027",
+    "category": "height-limit",
+    "query": "what is the height limit for exterior advanced?",
+    "expectedAnswer": {
+      "max_height_inches": 36,
+      "keywords": ["36", "inches"]
+    }
+  },
+  {
+    "id": "test-028",
+    "category": "height-limit",
+    "query": "how high can hides be placed in interior excellent?",
+    "expectedAnswer": {
+      "max_height_inches": 48,
+      "keywords": ["48", "inches"]
+    }
+  },
+  {
+    "id": "test-029",
+    "category": "height-limit",
+    "query": "maximum hide height for exterior master?",
+    "expectedAnswer": {
+      "max_height_inches": 60,
+      "keywords": ["60", "inches"]
+    }
+  },
+  {
+    "id": "test-030",
+    "category": "height-limit",
+    "query": "what is the max height for interior master hides?",
+    "expectedAnswer": {
+      "max_height_inches": 60,
+      "keywords": ["60", "inches"]
+    }
+  },
+  {
+    "id": "test-031",
+    "category": "distractions",
+    "query": "how many distractions in container novice?",
+    "expectedAnswer": {
+      "num_distractions": 0,
+      "keywords": ["0", "no", "none"]
+    }
+  },
+  {
+    "id": "test-032",
+    "category": "distractions",
+    "query": "how many distractions in interior advanced?",
+    "expectedAnswer": {
+      "num_distractions": 1,
+      "keywords": ["1", "one", "non-food"]
+    }
+  },
+  {
+    "id": "test-033",
+    "category": "distractions",
+    "query": "how many distractions in exterior excellent?",
+    "expectedAnswer": {
+      "num_distractions": 2,
+      "keywords": ["2"]
+    }
+  },
+  {
+    "id": "test-034",
+    "category": "distractions",
+    "query": "how many distractions in buried master?",
+    "expectedAnswer": {
+      "num_distractions": 3,
+      "keywords": ["3"]
+    }
+  },
+  {
+    "id": "test-035",
+    "category": "distractions",
+    "query": "what types of distractions are allowed in master level?",
+    "expectedAnswer": {
+      "distraction_types": ["non-food", "food", "auditory", "visual", "human", "mimic"],
+      "keywords": ["non-food", "food", "auditory", "visual", "human", "mimic"]
+    }
+  }
+]

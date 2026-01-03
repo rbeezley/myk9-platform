@@ -1,0 +1,111 @@
+/* Skeleton loader for ClassCard - matches exact dimensions */
+
+.class-card.skeleton {
+  cursor: default;
+  pointer-events: none;
+  min-height: 200px; /* Approximate ClassCard height */
+}
+
+.class-card.skeleton .class-content {
+  gap: var(--token-space-xl);
+}
+
+/* Icon skeletons (heart and menu) */
+.skeleton-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: var(--skeleton-gradient);
+  background-size: 200% 100%;
+}
+
+/* Class name skeleton */
+.skeleton-class-name {
+  height: 1.5rem;
+  width: 70%;
+  border-radius: 0.25rem;
+  background: var(--skeleton-gradient);
+  background-size: 200% 100%;
+  margin-bottom: var(--token-space-md);
+}
+
+/* Judge name skeleton */
+.skeleton-judge-name {
+  height: 1rem;
+  width: 50%;
+  border-radius: 0.25rem;
+  background: var(--skeleton-gradient);
+  background-size: 200% 100%;
+}
+
+/* Info items skeleton (time, entries, progress) */
+.class-info-row {
+  display: flex;
+  gap: var(--token-space-xl);
+  margin-top: var(--token-space-xl);
+}
+
+.skeleton-info-item {
+  height: 1.25rem;
+  width: 5rem;
+  border-radius: 0.25rem;
+  background: var(--skeleton-gradient);
+  background-size: 200% 100%;
+}
+
+/* Status badge skeleton */
+.skeleton-status-badge {
+  height: 2rem;
+  width: 8rem;
+  border-radius: 1rem;
+  background: var(--skeleton-gradient);
+  background-size: 200% 100%;
+  margin-top: var(--token-space-xl);
+}
+
+/* Preview text skeleton */
+.skeleton-preview {
+  height: 1rem;
+  width: 100%;
+  border-radius: 0.25rem;
+  background: var(--skeleton-gradient);
+  background-size: 200% 100%;
+  margin-top: var(--token-space-md);
+}
+
+/* Shimmer animation */
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.shimmer {
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* Dark mode support */
+.theme-dark .skeleton-icon,
+.theme-dark .skeleton-class-name,
+.theme-dark .skeleton-judge-name,
+.theme-dark .skeleton-info-item,
+.theme-dark .skeleton-status-badge,
+.theme-dark .skeleton-preview {
+  background: linear-gradient(90deg, var(--surface) 25%, var(--border-light) 50%, var(--surface) 75%);
+  background-size: 200% 100%;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .shimmer {
+    animation: none;
+    background: var(--surface-muted);
+  }
+
+  .theme-dark .shimmer {
+    background: var(--muted);
+  }
+}

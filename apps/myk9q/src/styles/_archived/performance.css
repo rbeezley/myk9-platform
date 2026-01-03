@@ -1,0 +1,532 @@
+/**
+ * Performance CSS
+ *
+ * Device-tier specific optimizations applied via CSS classes.
+ * Classes are added by deviceDetection.ts based on detected capabilities.
+ */
+
+/* ==========================================================================
+   Base Performance Optimizations (All Devices)
+   ========================================================================== */
+
+* {
+  /* GPU acceleration for transforms */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Contain layout shifts */
+.perf-contain {
+  contain: layout style paint;
+}
+
+.perf-contain-strict {
+  contain: strict;
+}
+
+/* GPU acceleration */
+.perf-gpu {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* Optimize repaints */
+.perf-no-repaint {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* ==========================================================================
+   Low-End Device Optimizations
+   ========================================================================== */
+
+.device-tier-low {
+  /* Disable expensive effects */
+}
+
+.device-tier-low .blur,
+.device-tier-low [class*='blur'] {
+  backdrop-filter: none;
+  filter: none;
+}
+
+.device-tier-low .shadow,
+.device-tier-low [class*='shadow'] {
+  box-shadow: none;
+  text-shadow: none;
+}
+
+.device-tier-low .gradient {
+  background: var(--fallback-color, var(--surface-subtle));
+}
+
+/* Simplify animations */
+.device-tier-low * {
+  animation-duration: 0.15s;
+  transition-duration: 0.15s;
+}
+
+/* Reduce complexity */
+.device-tier-low .complex-border {
+  border: 1px solid var(--border-color);
+  border-radius: var(--token-space-sm);
+}
+
+/* ==========================================================================
+   Medium-Tier Device Optimizations
+   ========================================================================== */
+
+.device-tier-medium .blur {
+  backdrop-filter: none;
+}
+
+.device-tier-medium * {
+  animation-duration: 0.2s;
+  transition-duration: 0.2s;
+}
+
+/* ==========================================================================
+   High-End Device Optimizations
+   ========================================================================== */
+
+.device-tier-high {
+  /* Enable premium effects */
+}
+
+.device-tier-high .enhanced-blur {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.device-tier-high .enhanced-shadow {
+  box-shadow:
+    0 10px 15px -3px var(--shadow-subtle),
+    0 var(--token-space-sm) 6px -2px var(--shadow-barely);
+}
+
+/* Smooth 120fps animations */
+.device-tier-high * {
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ==========================================================================
+   GPU Tier Optimizations
+   ========================================================================== */
+
+.device-gpu-low {
+  /* Reduce GPU load */
+}
+
+.device-gpu-low * {
+  transform: none;
+  will-change: auto;
+}
+
+.device-gpu-low [class*='parallax'] {
+  transform: none;
+}
+
+.device-gpu-medium {
+  /* Moderate GPU usage */
+}
+
+.device-gpu-high {
+  /* Full GPU features */
+}
+
+.device-gpu-high .gpu-intensive {
+  transform: translateZ(0);
+  will-change: transform, opacity;
+}
+
+/* ==========================================================================
+   Animation Disabling
+   ========================================================================== */
+
+.no-animations * {
+  animation: none;
+  transition: none;
+}
+
+.no-animations .fade-in,
+.no-animations .slide-in,
+.no-animations .scale-in {
+  opacity: 1;
+  transform: none;
+}
+
+/* ==========================================================================
+   Blur Effect Disabling
+   ========================================================================== */
+
+.no-blur * {
+  backdrop-filter: none;
+  filter: none;
+}
+
+.no-blur .glass-effect {
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.no-blur .frosted {
+  background: white;
+}
+
+/* ==========================================================================
+   Shadow Disabling
+   ========================================================================== */
+
+.no-shadows * {
+  box-shadow: none;
+  text-shadow: none;
+}
+
+.no-shadows .card {
+  border: 1px solid var(--border-color);
+}
+
+/* ==========================================================================
+   Touch Device Optimizations
+   ========================================================================== */
+
+.touch-device {
+  /* Larger hit areas */
+}
+
+.touch-device button,
+.touch-device a,
+.touch-device .interactive {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.touch-device ::-webkit-scrollbar {
+  width: 0;
+  background: transparent;
+}
+
+/* ==========================================================================
+   Performance Utilities
+   ========================================================================== */
+
+/* Prevent layout shifts */
+.perf-fixed-height {
+  height: var(--item-height);
+  min-height: var(--item-height);
+  max-height: var(--item-height);
+}
+
+.perf-fixed-width {
+  width: var(--item-width);
+  min-width: var(--item-width);
+  max-width: var(--item-width);
+}
+
+/* Optimize images */
+.perf-img {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+/* Lazy loading */
+.perf-lazy {
+  content-visibility: auto;
+  contain-intrinsic-size: 300px;
+}
+
+/* Reduce complexity on scroll */
+.perf-scroll-simple {
+  pointer-events: none;
+}
+
+.perf-scroll-simple.scrolling * {
+  animation-play-state: paused;
+  transition: none;
+}
+
+/* ==========================================================================
+   Virtual List Optimizations
+   ========================================================================== */
+
+.virtual-item {
+  contain: layout style paint;
+  content-visibility: auto;
+}
+
+.virtual-item-wrapper {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* ==========================================================================
+   Battery Saving Mode
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+    transition-duration: 0.01ms;
+  }
+}
+
+/* ==========================================================================
+   Print Optimizations
+   ========================================================================== */
+
+@media print {
+  * {
+    animation: none;
+    transition: none;
+    transform: none;
+    box-shadow: none;
+    text-shadow: none;
+  }
+}
+
+/* ==========================================================================
+   Dark Mode Performance
+   ========================================================================== */
+
+@media (prefers-color-scheme: dark) {
+  .device-tier-low {
+    /* Simpler gradients in dark mode */
+  }
+
+  .device-tier-low .gradient-dark {
+    background: var(--bg-dark, var(--background-subtle));
+  }
+}
+
+/* ==========================================================================
+   Responsive Performance
+   ========================================================================== */
+
+/* Mobile-first: Simplified effects for mobile */
+.mobile-simple {
+  backdrop-filter: none;  /* Mobile: Disable backdrop filters for performance */
+  box-shadow: none;  /* Mobile: Disable shadows for performance */
+}
+
+.mobile-simple * {
+  animation-duration: 0.15s;  /* Mobile: Faster animations */
+}
+
+/* Desktop: Enhanced effects for larger screens */
+@media (min-width: 640px) {
+  /* Mobile-simple enhancements */
+  .mobile-simple {
+    backdrop-filter: blur(10px);  /* Desktop: Enable backdrop blur */
+    box-shadow: 0 var(--token-space-sm) var(--token-space-lg) var(--shadow-subtle);  /* Desktop: Add shadows */
+  }
+
+  .mobile-simple * {
+    animation-duration: 0.3s;  /* Desktop: Standard animation duration */
+  }
+}
+
+/* Large screens (desktop) - additional enhancements */
+@media (min-width: 1024px) {
+  /* Tablet optimization adjustments */
+  .tablet-optimized {
+    /* Remove tablet-specific optimizations on desktop */
+  }
+
+  /* Desktop enhancements */
+  .desktop-enhanced {
+    /* Full effects on desktop */
+  }
+}
+
+/* ==========================================================================
+   Content Visibility (Modern Browsers)
+   ========================================================================== */
+
+@supports (content-visibility: auto) {
+  .off-screen {
+    content-visibility: auto;
+    contain-intrinsic-size: 500px;
+  }
+
+  .lazy-content {
+    content-visibility: auto;
+  }
+}
+
+/* ==========================================================================
+   Scroll Performance
+   ========================================================================== */
+
+.smooth-scroll {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  will-change: scroll-position;
+}
+
+.no-smooth-scroll,
+.device-tier-low .smooth-scroll {
+  scroll-behavior: auto;
+}
+
+/* ==========================================================================
+   Loading States (Performance-aware)
+   ========================================================================== */
+
+.perf-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-base, var(--surface-subtle)) 0%,
+    var(--skeleton-shimmer, var(--border-subtle)) 50%,
+    var(--skeleton-base, var(--surface-subtle)) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+.device-tier-low .perf-skeleton {
+  background: var(--skeleton-base, var(--surface-subtle));
+  animation: none;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* ==========================================================================
+   Interaction Performance
+   ========================================================================== */
+
+/* Optimize hover states */
+.perf-hover {
+  transition: transform 0.15s, opacity 0.15s;
+}
+
+.perf-hover:hover {
+  transform: translateY(-2px);
+}
+
+.device-tier-low .perf-hover:hover {
+  transform: none;
+  opacity: 0.8;
+}
+
+/* Optimize active states */
+.perf-active:active {
+  transform: scale(0.98);
+}
+
+.device-tier-low .perf-active:active {
+  transform: none;
+  opacity: 0.7;
+}
+
+/* ==========================================================================
+   Reduce Animations Mode (for accessibility)
+   ========================================================================== */
+
+.reduce-animations * {
+  animation-duration: calc(var(--animation-duration, 300ms) * 0.3);
+  transition-duration: calc(var(--transition-duration, 150ms) * 0.3);
+  animation-timing-function: linear;
+  transition-timing-function: linear;
+}
+
+.reduce-animations .decorative-animation {
+  animation: none;
+}
+
+/* ==========================================================================
+   GPU Acceleration Classes
+   ========================================================================== */
+
+.gpu-accelerated {
+  transform: translateZ(0);
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+.gpu-accelerated button,
+.gpu-accelerated a,
+.gpu-accelerated .card {
+  transform: translateZ(0);
+}
+
+/* ==========================================================================
+   Lazy Loading Image States
+   ========================================================================== */
+
+img[data-src] {
+  background-color: var(--surface-subtle);
+  min-height: 100px;
+}
+
+img[data-placeholder] {
+  filter: blur(10px);
+  transition: filter 0.3s ease-in-out;
+}
+
+img.loaded {
+  filter: blur(0);
+}
+
+/* ==========================================================================
+   Will-Change Management (remove after animation)
+   ========================================================================== */
+
+.will-change-transform {
+  will-change: transform;
+}
+
+.will-change-opacity {
+  will-change: opacity;
+}
+
+*:not(:hover):not(:active):not(:focus) {
+  will-change: auto;
+}
+
+/* ==========================================================================
+   Contain Classes for Better Performance
+   ========================================================================== */
+
+.contain-layout {
+  contain: layout;
+}
+
+.contain-paint {
+  contain: paint;
+}
+
+.contain-strict-perf {
+  contain: strict;
+}
+
+/* ==========================================================================
+   High Contrast Mode Support
+   ========================================================================== */
+
+@media (prefers-contrast: high) {
+  * {
+    backdrop-filter: none;
+    opacity: 1;
+  }
+}
+
+/* ==========================================================================
+   Reduced Data Mode (for slow connections)
+   ========================================================================== */
+
+.reduced-data img {
+  image-rendering: -webkit-optimize-contrast;
+}
+
+.reduced-data video {
+  preload: none;
+}

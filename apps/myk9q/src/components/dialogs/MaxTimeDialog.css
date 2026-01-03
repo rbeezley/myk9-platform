@@ -1,0 +1,888 @@
+/* Max Time Dialog Styles */
+.max-time-dialog {
+  max-width: 100%;  /* Mobile: full width */
+  margin: var(--token-space-md);  /* Mobile: margin */
+}
+
+/* Override dialog-footer to right-align buttons */
+.max-time-dialog .dialog-footer {
+  flex-direction: column;  /* Mobile: column layout */
+  gap: var(--token-space-lg);  /* Mobile: gap */
+  justify-content: flex-end;
+}
+
+.time-range-info {
+  display: flex;
+  flex-direction: column;  /* Mobile: column layout */
+  align-items: flex-start;  /* Mobile: left align */
+  gap: var(--token-space-md);  /* Mobile: smaller gap */
+  margin-top: var(--token-space-md);
+}
+
+.range-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--token-space-sm) var(--token-space-lg);
+  background: var(--status-qualified);
+  color: white;
+  border-radius: var(--token-space-lg);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.areas-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--token-space-sm) var(--token-space-lg);
+  background: var(--status-setup);
+  color: white;
+  border-radius: var(--token-space-lg);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dictated-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--token-space-sm) var(--token-space-lg);
+  background: var(--muted-foreground);
+  color: white;
+  border-radius: var(--token-space-lg);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.time-inputs-grid {
+  display: grid;
+  gap: var(--token-space-lg);  /* Compact: reduced gap between areas */
+  margin: var(--token-space-xl) 0;
+}
+
+.time-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--token-space-md);  /* Compact: tighter spacing */
+}
+
+/* Inline row: label + input on same line */
+.time-input-row {
+  display: flex;
+  flex-direction: row;  /* Force horizontal */
+  flex-wrap: nowrap;  /* Prevent wrapping */
+  align-items: center;
+  gap: var(--token-space-lg);
+}
+
+.time-input-label {
+  font-size: 0.875rem;  /* Compact: smaller label */
+  font-weight: 600;
+  color: var(--token-text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: 7rem;  /* Wide enough for "Area 1 Max Time" */
+}
+
+.time-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 110px;  /* Fixed narrow width */
+  flex-shrink: 0;
+}
+
+.input-icon {
+  position: absolute;
+  left: var(--token-space-md);
+  width: 1rem;  /* Compact: smaller icon */
+  height: 1rem;
+  color: var(--token-text-tertiary);
+  z-index: var(--token-z-raised);
+}
+
+.clear-time-btn {
+  position: absolute;
+  right: var(--token-space-xs);  /* Tight fit for narrow input */
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--token-space-xs);  /* Compact: minimal padding */
+  border-radius: 4px;
+  color: var(--token-text-tertiary);
+  transition: all 0.2s;
+  z-index: var(--token-z-raised);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.clear-time-btn:hover {
+  background: var(--input);
+  color: var(--token-text-secondary);
+}
+
+.clear-time-btn:active {
+  background: var(--border);
+  transform: scale(0.95);
+}
+
+.time-input {
+  width: 100%;
+  padding: var(--token-space-md) var(--token-space-lg);  /* Compact: simple symmetric padding */
+  border: 1px solid var(--border);
+  border-radius: var(--token-space-md);
+  font-size: 0.9375rem;  /* Compact: smaller font */
+  font-weight: 600;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  letter-spacing: 0.05em;
+  transition: all 0.2s;
+  background: var(--input-bg, white);
+  color: var(--input-text, var(--foreground));
+  text-align: center;
+  min-height: 2.25rem;  /* Compact: smaller height */
+  /* Prevent zoom on iOS */
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.time-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.time-input.error {
+  border-color: var(--token-error);
+  background: var(--status-not-qualified-bg);
+}
+
+.time-input.error:focus {
+  border-color: var(--token-error);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.input-error {
+  display: flex;
+  align-items: center;
+  gap: var(--token-space-md);
+  color: var(--token-error);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.error-icon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.help-text {
+  padding: var(--token-space-lg);  /* Compact: smaller padding */
+  background: var(--input);
+  border-radius: var(--token-space-md);
+  border-left: var(--token-space-sm) solid #6366f1;
+  margin-top: var(--token-space-md);  /* Add small margin */
+}
+
+.help-text p {
+  margin: 0;
+  font-size: 0.8125rem;  /* Compact: smaller font */
+  color: var(--muted-foreground);
+  line-height: 1.4;  /* Compact: tighter line height */
+}
+
+.help-text p + p {
+  margin-top: var(--token-space-sm);  /* Compact: tighter spacing */
+}
+
+/* Dictated Time Display */
+.dictated-time-display {
+  display: flex;
+  flex-direction: column;
+  gap: var(--token-space-3xl);
+  margin: var(--token-space-3xl) 0;
+}
+
+.dictated-time-item {
+  display: flex;
+  flex-direction: column;  /* Mobile: column layout */
+  text-align: center;  /* Mobile: centered text */
+  align-items: center;  /* Mobile: center items */
+  gap: var(--token-space-xl);  /* Mobile: gap */
+  padding: var(--token-space-xl);  /* Mobile: smaller padding */
+  background: #f0f9ff;
+  border: var(--token-space-xs) solid #0ea5e9;
+  border-radius: var(--token-space-lg);
+}
+
+.dictated-time-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;  /* Mobile: smaller icon */
+  height: 2.5rem;
+  background: #0ea5e9;
+  border-radius: var(--token-space-lg);
+  color: white;
+  flex-shrink: 0;
+}
+
+.dictated-time-content {
+  flex: 1;
+}
+
+.dictated-time-content label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #0369a1;
+  margin-bottom: var(--token-space-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dictated-time-value {
+  font-size: 1.25rem;  /* Mobile: smaller font */
+  font-weight: 700;
+  color: var(--primary);
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.dictated-notice {
+  display: flex;
+  flex-direction: column;  /* Mobile: column layout */
+  text-align: center;  /* Mobile: centered text */
+  align-items: center;  /* Mobile: center items */
+  gap: var(--token-space-md);  /* Mobile: gap */
+  padding: var(--token-space-lg);  /* Mobile: smaller padding */
+  background: #fef3c7;  /* Light amber - works in both themes */
+  border: 1px solid #f59e0b;
+  border-radius: var(--token-space-md);
+  border-left: var(--token-space-sm) solid #f59e0b;
+}
+
+.notice-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: #92400e;  /* Dark amber - always visible */
+  flex-shrink: 0;
+}
+
+.dictated-notice p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #78350f;  /* Dark brown - high contrast on light amber */
+  line-height: 1.5;
+}
+
+/* Mobile-friendly time controls */
+.time-input-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--token-space-xl);  /* Mobile: larger spacing */
+}
+
+.time-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--token-space-sm);  /* Compact: tighter spacing */
+  justify-content: flex-start;  /* Align with input */
+  margin-top: 0;  /* No top margin - row handles spacing */
+  padding-left: 0;  /* Will be aligned with labels via row */
+}
+
+.time-preset-btn {
+  padding: var(--token-space-md) var(--token-space-lg);  /* Compact: smaller padding */
+  background: var(--input);
+  border: 1px solid var(--border);
+  border-radius: var(--token-space-md);  /* Compact: smaller radius */
+  font-size: 0.875rem;  /* Compact: smaller font */
+  font-weight: 600;
+  color: var(--token-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+  min-height: 2.25rem;  /* Compact: smaller touch target */
+  min-width: 3.25rem;  /* Compact: smaller button */
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  letter-spacing: 0.05em;
+}
+
+.time-preset-btn:hover {
+  background: var(--border);
+  border-color: var(--token-text-muted);
+  transform: translateY(-1px);
+  box-shadow: 0 var(--token-space-xs) var(--token-space-sm) rgba(0, 0, 0, 0.1);
+}
+
+.time-preset-btn:active {
+  background: var(--border);
+  transform: translateY(0);
+  box-shadow: 0 1px var(--token-space-xs) rgba(0, 0, 0, 0.1);
+}
+
+.time-preset-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+  box-shadow: 0 var(--token-space-xs) var(--token-space-sm) rgba(99, 102, 241, 0.3);
+}
+
+.time-preset-btn.active:hover {
+  background: #5855eb;
+  border-color: #5855eb;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(99, 102, 241, 0.4);
+}
+
+.time-preset-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.time-preset-btn:disabled:hover {
+  background: var(--input);
+  border-color: var(--border);
+  transform: none;
+  box-shadow: none;
+}
+
+
+.cancel-button {
+  background: var(--muted);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  padding: var(--token-space-lg) var(--token-space-3xl);
+  border-radius: var(--token-space-md);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%;  /* Mobile: full width */
+  justify-content: center;  /* Mobile: center text */
+}
+
+.cancel-button:hover {
+  background: var(--muted-foreground);
+  color: white;
+}
+
+.save-button {
+  display: flex;
+  align-items: center;
+  gap: var(--token-space-md);
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: var(--token-space-lg) var(--token-space-3xl);
+  border-radius: var(--token-space-md);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%;  /* Mobile: full width */
+  justify-content: center;  /* Mobile: center content */
+}
+
+.save-button:hover:not(:disabled) {
+  background: var(--primary);
+}
+
+.save-button:disabled {
+  background: #e5e7eb;  /* Gray-200 - clearly different from primary blue */
+  color: #9ca3af;       /* Gray-400 - muted text */
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.button-spinner {
+  width: 1rem;
+  height: 1rem;
+  border: var(--token-space-xs) solid transparent;
+  border-top: var(--token-space-xs) solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Desktop enhancements - Consolidated 640px block */
+@media (min-width: 640px) {
+  /* Dialog layout */
+  .max-time-dialog {
+    max-width: 600px;  /* Desktop: constrained width */
+    margin: 0;  /* Desktop: no margin */
+  }
+
+  .max-time-dialog .dialog-footer {
+    flex-direction: row;  /* Desktop: row layout */
+    gap: var(--token-space-lg);  /* Desktop: spacing between buttons */
+  }
+
+  .time-range-info {
+    flex-direction: row;  /* Desktop: row layout */
+    align-items: center;  /* Desktop: center align */
+    gap: var(--token-space-lg);  /* Desktop: larger gap */
+  }
+
+  .time-inputs-grid {
+    gap: var(--token-space-xl);  /* Desktop: moderate gap between areas */
+  }
+
+  /* Time input controls - desktop matches compact mobile */
+  .time-input {
+    padding: var(--token-space-md) var(--token-space-lg);
+    border-radius: var(--token-space-md);
+    font-size: 1rem;
+    min-height: 2.25rem;
+  }
+
+  .time-input-wrapper {
+    width: 120px;  /* Slightly wider on desktop */
+  }
+
+  .clear-time-btn {
+    right: var(--token-space-sm);
+    padding: var(--token-space-xs);
+  }
+
+  .time-input-group {
+    gap: var(--token-space-sm);  /* Desktop: tighter spacing */
+  }
+
+  .time-input-label {
+    font-size: 0.875rem;
+    min-width: 7.5rem;  /* Ensure labels align for multi-area */
+  }
+
+  .time-input-container {
+    gap: var(--token-space-md);  /* Desktop: compact spacing */
+  }
+
+  .time-presets {
+    gap: var(--token-space-sm);  /* Desktop: same as mobile compact */
+  }
+
+  .time-preset-btn {
+    /* Desktop: same as mobile compact - already small */
+    padding: var(--token-space-md) var(--token-space-lg);
+    font-size: 0.875rem;
+    min-height: 2.25rem;
+    min-width: 3.25rem;
+    border-radius: var(--token-space-md);
+  }
+
+  /* Dictated time display */
+  .dictated-time-item {
+    flex-direction: row;  /* Desktop: row layout */
+    text-align: left;  /* Desktop: left align */
+    align-items: center;  /* Desktop: center items */
+    padding: var(--token-space-3xl);  /* Desktop: larger padding */
+  }
+
+  .dictated-time-icon {
+    width: 3rem;  /* Desktop: larger icon */
+    height: 3rem;
+  }
+
+  .dictated-time-value {
+    font-size: 1.5rem;  /* Desktop: larger font */
+  }
+
+  .dictated-notice {
+    flex-direction: row;  /* Desktop: row layout */
+    text-align: left;  /* Desktop: left align */
+    align-items: center;  /* Desktop: center items */
+    gap: var(--token-space-lg);  /* Desktop: larger gap */
+    padding: var(--token-space-xl);  /* Desktop: larger padding */
+  }
+
+  /* Buttons */
+  .cancel-button,
+  .save-button {
+    width: auto;  /* Desktop: auto width */
+    justify-content: flex-start;  /* Desktop: left align content */
+  }
+}
+
+/* Dark mode support */
+.theme-dark .range-badge {
+  background: var(--status-qualified);
+  color: white;
+}
+
+.theme-dark .areas-badge {
+  background: var(--status-conflict);
+  color: white;
+}
+
+.theme-dark .dictated-badge {
+  background: var(--text-gray);
+  color: white;
+}
+
+.theme-dark .time-input-label {
+  color: #e5e7eb;  /* Light gray - high contrast in dark mode */
+}
+
+.theme-dark .time-input {
+  background: var(--card);
+  border-color: var(--token-text-secondary);
+  color: #ffffff;
+}
+
+.theme-dark .time-input:focus {
+  border-color: var(--primary);
+  background: var(--card);
+}
+
+.theme-dark .time-input.error {
+  background: #451a1a;
+  border-color: var(--token-error);
+}
+
+.theme-dark .clear-time-btn {
+  color: var(--token-text-muted);
+}
+
+.theme-dark .clear-time-btn:hover {
+  background: var(--card);
+  color: var(--surface-subtle);
+}
+
+.theme-dark .clear-time-btn:active {
+  background: var(--muted-foreground);
+}
+
+.theme-dark .help-text {
+  background: var(--card, #1e293b);
+  border-left-color: var(--primary);
+}
+
+.theme-dark .help-text p {
+  color: var(--muted-foreground, #94a3b8);
+}
+
+.theme-dark .dictated-time-item {
+  background: #1e3a8a;
+  border-color: var(--primary);
+}
+
+.theme-dark .dictated-time-icon {
+  background: var(--status-briefing);
+}
+
+.theme-dark .dictated-time-content label {
+  color: #93c5fd;
+}
+
+.theme-dark .dictated-time-value {
+  color: #dbeafe;
+}
+
+/* Note: .theme-dark overrides removed - dialog renders via portal outside theme wrapper
+   Using explicit colors in base styles that work in both light and dark themes */
+
+.theme-dark .time-preset-btn {
+  background: var(--background-subtle);
+  border-color: #4b5563;
+  color: var(--border-subtle);
+}
+
+.theme-dark .time-preset-btn:hover {
+  background: var(--muted-foreground);
+  border-color: var(--token-text-tertiary);
+}
+
+.theme-dark .time-preset-btn:active {
+  background: var(--muted-foreground);
+}
+
+.theme-dark .time-preset-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+}
+
+.theme-dark .time-preset-btn.active:hover {
+  background: #5855eb;
+  border-color: #5855eb;
+}
+
+.theme-dark .cancel-button {
+  background: var(--background-subtle);
+  color: var(--border-subtle);
+  border-color: #4b5563;
+}
+
+.theme-dark .cancel-button:hover {
+  background: var(--foreground-muted);
+  color: var(--surface-subtle);
+  border-color: var(--text-gray);
+}
+
+.theme-dark .save-button:disabled {
+  background: #374151;  /* Gray-700 - clearly different from primary */
+  color: #6b7280;       /* Gray-500 - muted text */
+  opacity: 0.6;
+}
+
+
+/* Warning Banner Styles */
+.warning-banner {
+  margin: var(--token-space-xl) 0;
+  border-radius: var(--token-space-lg);
+  background: var(--status-setup);
+  border: var(--token-space-xs) solid #fef3c7;
+  overflow: hidden;
+}
+
+/* Message Banner Styles */
+.message-banner {
+  margin: var(--token-space-xl) 0;
+  border-radius: var(--token-space-lg);
+  border: var(--token-space-xs) solid;
+  overflow: hidden;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.validation-message {
+  background: var(--status-setup);
+  border-color: var(--status-setup);
+}
+
+.error-message {
+  background: var(--status-not-qualified-bg);
+  border-color: var(--token-error);
+}
+
+.success-message {
+  background: #f0f9ff;
+  border-color: var(--token-success);
+}
+
+.message-content {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--token-space-xl);
+  padding: var(--token-space-xl);
+}
+
+.message-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+  margin-top: var(--token-space-xs);
+}
+
+.validation-message .message-icon {
+  color: var(--token-warning-contrast);
+}
+
+.error-message .message-icon {
+  color: var(--token-error);
+}
+
+.success-message .message-icon {
+  color: var(--token-success);
+}
+
+.message-content p {
+  margin: 0;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+.validation-message .message-content p {
+  color: var(--token-warning-contrast);
+}
+
+.error-message .message-content p {
+  color: #b91c1c;
+}
+
+.success-message .message-content p {
+  color: var(--token-success);
+}
+
+.warning-banner-content {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--token-space-xl);
+  padding: var(--token-space-xl);
+}
+
+.warning-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--token-warning-contrast);
+  flex-shrink: 0;
+  margin-top: var(--token-space-xs);
+}
+
+.warning-text {
+  flex: 1;
+}
+
+.warning-text p {
+  margin: 0;
+  color: var(--token-warning-contrast);
+  line-height: 1.5;
+}
+
+.warning-text p:first-child {
+  margin-bottom: var(--token-space-md);
+}
+
+.warning-text strong {
+  font-weight: 600;
+}
+
+/* Dark mode support for warning banner */
+.theme-dark .warning-banner {
+  background: var(--token-warning-contrast);
+  border-color: var(--status-setup);
+}
+
+.theme-dark .warning-icon {
+  color: var(--primary);
+}
+
+.theme-dark .warning-text p {
+  color: var(--primary);
+}
+
+/* Message Banners Dark Mode */
+.theme-dark .validation-message {
+  background: var(--token-warning-contrast);
+  border-color: var(--status-setup);
+}
+
+.theme-dark .validation-message .message-icon {
+  color: var(--primary);
+}
+
+.theme-dark .validation-message .message-content p {
+  color: var(--primary);
+}
+
+.theme-dark .error-message {
+  background: #450a0a;
+  border-color: var(--token-error);
+}
+
+.theme-dark .error-message .message-icon {
+  color: #fca5a5;
+}
+
+.theme-dark .error-message .message-content p {
+  color: #fca5a5;
+}
+
+.theme-dark .success-message {
+  background: #022c22;
+  border-color: var(--token-success);
+}
+
+.theme-dark .success-message .message-icon {
+  color: #34d399;
+}
+
+.theme-dark .success-message .message-content p {
+  color: #34d399;
+}
+
+/* No Data State - Empty State Display */
+.no-data-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--token-space-xl);
+  padding: 3rem var(--token-space-xl);
+  text-align: center;
+}
+
+.no-data-icon {
+  width: 3rem;
+  height: 3rem;
+  color: var(--muted-foreground);
+  opacity: 0.6;
+}
+
+.no-data-state h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0;
+}
+
+.no-data-state p {
+  color: var(--muted-foreground);
+  margin: 0;
+  max-width: 300px;
+  line-height: 1.5;
+}
+
+/* Dark mode - ensure readable text */
+.theme-dark .no-data-icon {
+  color: #9ca3af;  /* Gray-400 - visible against dark background */
+  opacity: 0.8;
+}
+
+.theme-dark .no-data-state h3 {
+  color: #e5e7eb;  /* Gray-200 - high contrast heading */
+}
+
+.theme-dark .no-data-state p {
+  color: #9ca3af;  /* Gray-400 - readable secondary text */
+}
+
+/* Loading State */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--token-space-xl);
+  padding: 3rem var(--token-space-xl);
+  text-align: center;
+}
+
+.loading-state p {
+  color: var(--muted-foreground);
+  margin: 0;
+}
+
+.loading-spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.theme-dark .loading-state p {
+  color: #9ca3af;
+}
+
+.theme-dark .loading-spinner {
+  border-color: #4b5563;
+  border-top-color: var(--primary);
+}

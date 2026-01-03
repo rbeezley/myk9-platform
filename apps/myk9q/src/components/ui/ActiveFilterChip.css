@@ -1,0 +1,83 @@
+/**
+ * Active Filter Chip
+ *
+ * A compact banner showing the active search term with one-tap clear.
+ * Follows the app's design token system.
+ */
+
+.active-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--token-space-sm);
+  padding: var(--token-space-sm) var(--token-space-md);
+  background: var(--color-primary-50);
+  border: 1px solid var(--color-primary-200);
+  border-radius: var(--token-radius-md);
+  font-size: var(--token-font-sm);
+  color: var(--color-primary-700);
+  max-width: 100%;
+}
+
+.active-filter-chip-icon {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.active-filter-chip-term {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.active-filter-chip-count {
+  color: var(--color-primary-500);
+  font-size: var(--token-font-xs);
+}
+
+.active-filter-chip-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: var(--color-primary-100);
+  border: none;
+  border-radius: 50%;
+  color: var(--color-primary-600);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.active-filter-chip-clear:hover {
+  background: var(--color-primary-200);
+  color: var(--color-primary-800);
+}
+
+.active-filter-chip-clear:active {
+  background: var(--color-primary-300);
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .active-filter-chip {
+    background: var(--color-primary-900);
+    border-color: var(--color-primary-700);
+    color: var(--color-primary-200);
+  }
+
+  .active-filter-chip-count {
+    color: var(--color-primary-400);
+  }
+
+  .active-filter-chip-clear {
+    background: var(--color-primary-800);
+    color: var(--color-primary-300);
+  }
+
+  .active-filter-chip-clear:hover {
+    background: var(--color-primary-700);
+    color: var(--color-primary-100);
+  }
+}

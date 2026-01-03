@@ -1,0 +1,705 @@
+/* Shared Component Styles - Extracted from duplicated CSS */
+
+/* ========================
+   Search & Filter Controls
+   ======================== */
+.search-controls-header {
+  display: flex;
+  align-items: center;
+  gap: var(--token-space-md);
+  padding: 0.75rem var(--token-space-lg);
+  margin: var(--token-space-lg);
+  margin-bottom: 0;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--token-radius-lg);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  position: relative;
+}
+
+/* When search is collapsed, header should have rounded bottom corners */
+.search-controls-header.collapsed {
+  border-bottom-left-radius: var(--token-radius-lg);
+  border-bottom-right-radius: var(--token-radius-lg);
+  margin-bottom: var(--token-space-lg);
+}
+
+.search-toggle-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--token-space-3xl);
+  height: var(--token-space-3xl);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--muted-foreground);
+  transition: transform 0.2s ease;
+}
+
+.search-toggle-icon.active {
+  transform: rotate(180deg);
+  color: var(--primary);
+}
+
+.search-controls-label {
+  flex: 1;
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+  font-weight: 500;
+}
+
+.search-sort-container {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: var(--token-radius-lg);
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  margin: 0 var(--token-space-lg) var(--token-space-lg) var(--token-space-lg);
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.2s ease;
+}
+
+.search-sort-container.collapsed {
+  max-height: 0;
+  opacity: 0;
+  margin: 0 var(--token-space-lg);
+  border: none;
+}
+
+.search-sort-container.expanded {
+  max-height: 200px;
+  opacity: 1;
+  padding: var(--token-space-lg) var(--token-space-xl);
+}
+
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--token-space-lg);
+}
+
+.search-icon {
+  position: absolute;
+  left: var(--token-space-3xl);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted-foreground);
+  pointer-events: none;
+}
+
+.search-input-full {
+  width: 100%;
+  padding: var(--token-space-md) 2.5rem;
+  background: var(--input);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--foreground);
+  transition: all 0.2s ease;
+}
+
+.search-input-full:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
+}
+
+.clear-search {
+  position: absolute;
+  right: var(--token-space-lg);
+  background: transparent;
+  border: none;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  padding: var(--token-space-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.clear-search:hover {
+  color: var(--foreground);
+}
+
+/* ========================
+   Sort Controls
+   ======================== */
+
+/* Higher specificity selectors to ensure proper cascade without !important */
+.search-sort-container .sort-controls,
+.sort-controls {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--token-space-md);
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.sort-controls::-webkit-scrollbar {
+  display: none;
+}
+
+/* Use button element selector for higher specificity */
+.sort-controls button.sort-btn,
+.sort-controls .sort-btn {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--token-space-sm);
+  padding: 0.375rem var(--token-space-lg);
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  color: var(--foreground);
+  white-space: nowrap;
+  width: auto;
+  min-width: fit-content;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sort-controls button.sort-btn:hover,
+.sort-btn:hover {
+  background: var(--muted-hover);
+  transform: translateY(-1px);
+}
+
+.sort-controls button.sort-btn.active,
+.sort-btn.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+/* Desktop adjustments for search/sort */
+@media (min-width: 1024px) {
+  .search-controls-header {
+    padding: 0.75rem var(--token-space-3xl);
+    margin: var(--token-space-xl);
+    margin-bottom: 0;
+  }
+
+  .search-controls-header.collapsed {
+    margin-bottom: var(--token-space-xl);
+  }
+
+  .search-sort-container {
+    margin: 0 var(--token-space-xl) var(--token-space-xl) var(--token-space-xl);
+  }
+
+  .search-sort-container.collapsed {
+    margin: 0 var(--token-space-xl);
+  }
+
+  .search-sort-container.expanded {
+    max-height: 300px;
+    padding: var(--token-space-xl) var(--token-space-3xl);
+  }
+}
+
+/* ========================
+   Status Tabs
+   ======================== */
+.status-tabs {
+  display: flex;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: var(--token-z-raised);
+}
+
+.status-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  padding: 0.875rem;
+  background: transparent;
+  border: none;
+  border-bottom: var(--token-space-xs) solid transparent;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.status-tab:hover {
+  background: var(--muted);
+}
+
+.status-tab.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  background: var(--background);
+}
+
+.status-tab .status-icon {
+  width: var(--token-space-xl);
+  height: var(--token-space-xl);
+  flex-shrink: 0;
+}
+
+/* ========================
+   Status Badges
+   ======================== */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--token-space-sm);
+  padding: var(--token-space-lg) var(--token-space-xl);
+  border-radius: var(--token-space-md);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: none;
+  flex-wrap: wrap;
+  max-width: 100%;
+  min-height: var(--comfortable-touch-target); /* 36px - comfortable tap target */
+}
+
+.status-badge.disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.status-badge .status-icon {
+  width: var(--token-space-lg);
+  height: var(--token-space-lg);
+  flex-shrink: 0;
+  margin-right: var(--token-space-sm);
+  display: inline-block;
+  vertical-align: middle;
+}
+
+/* Status badge colors */
+.status-badge.no-status {
+  background: var(--status-none);
+  color: var(--status-none-text);
+}
+
+.status-badge.checked-in {
+  background: rgba(34, 197, 94, 0.1);
+  color: rgb(34, 197, 94);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.status-badge.conflict {
+  background: rgba(245, 158, 11, 0.1);
+  color: rgb(245, 158, 11);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.status-badge.pulled {
+  background: var(--overlay-error);
+  color: rgb(239, 68, 68);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.status-badge.at-gate {
+  background: rgba(168, 85, 247, 0.1);
+  color: rgb(168, 85, 247);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+.status-badge.in-ring {
+  background: rgba(59, 130, 246, 0.1);
+  color: rgb(59, 130, 246);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+/* ========================
+   Common Layout
+   ======================== */
+.entries-grid,
+.classes-grid {
+  display: grid;
+  grid-template-columns: 1fr;  /* Mobile: Single column layout */
+  gap: var(--token-space-xl);
+  padding: var(--token-space-lg);  /* Mobile: Compact padding */
+}
+
+/* Desktop: Multi-column layout with expanded padding */
+@media (min-width: 640px) {
+  .entries-grid,
+  .classes-grid {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));  /* Desktop: Responsive multi-column */
+    padding: var(--token-space-xl);  /* Desktop: Expanded padding */
+  }
+}
+
+.no-entries,
+.no-classes {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 40vh;
+  text-align: center;
+  padding: var(--token-space-4xl);
+}
+
+.no-entries h2,
+.no-classes h2 {
+  color: var(--foreground);
+  font-size: 1.25rem;
+  margin-bottom: var(--token-space-md);
+}
+
+.no-entries p,
+.no-classes p {
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+
+/* ========================
+   Section Filter Tabs
+   ======================== */
+.section-filter-tabs {
+  display: flex;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  padding: 0 var(--token-space-xl);
+}
+
+.section-tab {
+  flex: 1;
+  padding: var(--token-space-lg);
+  background: transparent;
+  border: none;
+  border-bottom: var(--token-space-xs) solid transparent;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.section-tab:hover {
+  background: var(--muted);
+}
+
+.section-tab.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+/* ========================
+   Loading States
+   ======================== */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  padding: var(--token-space-4xl);
+}
+
+.loading-spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.loading-text {
+  margin-top: var(--token-space-xl);
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+
+/* ========================
+   Action Buttons
+   ======================== */
+.icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: var(--token-space-lg);
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  color: var(--secondary-foreground);
+  flex-shrink: 0;
+}
+
+.icon-button:hover {
+  background: var(--muted);
+  transform: translateY(-1px);
+  box-shadow: 0 var(--token-space-sm) var(--token-space-lg) rgba(0, 0, 0, 0.08);
+}
+
+.icon-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.icon-button.rotating {
+  animation: spin 1s linear infinite;
+}
+
+/* Dark mode icon button visibility */
+.theme-dark .icon-button {
+  background: var(--muted);
+  border: 1px solid var(--border);
+  color: var(--foreground);
+}
+
+.theme-dark .icon-button:hover {
+  background: var(--secondary);
+  box-shadow: 0 var(--token-space-sm) var(--token-space-lg) var(--shadow-medium);
+}
+
+/* ========================
+   Reset Menu
+   ======================== */
+.reset-button {
+  padding: var(--token-space-md) var(--token-space-xl);
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  color: var(--foreground);
+  font-size: 1.125rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.reset-button:hover {
+  background: var(--muted-hover);
+}
+
+.reset-menu-overlay {
+  position: fixed;
+  inset: 0;
+  background: transparent;
+  z-index: var(--token-z-overlay);
+}
+
+.reset-menu {
+  position: fixed;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 25px var(--shadow-subtle);
+  z-index: var(--token-z-toast); /* Above all page elements including announcement banner */
+  min-width: 150px;
+}
+
+.reset-option {
+  width: 100%;
+  padding: var(--token-space-lg) var(--token-space-xl);
+  background: none;
+  border: none;
+  text-align: left;
+  color: var(--foreground);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: var(--token-space-md);
+}
+
+.reset-option:hover {
+  background: var(--muted);
+}
+
+/* Dark mode reset menu */
+.theme-dark .reset-menu {
+  background: var(--card);
+  border-color: var(--border);
+  box-shadow: 0 10px 25px var(--shadow-modal);
+}
+
+.theme-dark .reset-option {
+  color: var(--foreground);
+}
+
+.theme-dark .reset-option:hover {
+  background: var(--muted);
+}
+
+/* ========================
+   Dialog Overlays
+   ======================== */
+/* Reset Dialog - Full implementation */
+.reset-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--shadow-modal);
+  z-index: var(--token-z-toast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--token-space-xl);
+  animation: fadeIn 0.2s ease;
+}
+
+.reset-dialog {
+  background: var(--card);
+  border-radius: 0.75rem;
+  padding: var(--token-space-3xl);
+  max-width: 450px;
+  width: 100%;
+  box-shadow: 0 10px 40px var(--shadow-moderate);
+  animation: slideUp 0.2s ease;
+}
+
+.reset-dialog h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: var(--token-space-xl);
+  color: var(--foreground);
+}
+
+.reset-dialog p {
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--foreground-secondary);
+  margin-bottom: var(--token-space-lg);
+}
+
+.reset-dialog-warning {
+  color: var(--destructive);
+  font-size: 0.8125rem;
+  margin-top: var(--token-space-lg);
+  margin-bottom: var(--token-space-xl);
+}
+
+.reset-dialog-buttons {
+  display: flex;
+  gap: var(--token-space-lg);
+  justify-content: flex-end;
+  margin-top: var(--token-space-3xl);
+}
+
+.reset-dialog-cancel,
+.reset-dialog-confirm {
+  padding: 0.625rem var(--token-space-2xl);
+  border-radius: 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.reset-dialog-cancel {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.reset-dialog-cancel:hover {
+  background: var(--muted-hover);
+}
+
+.reset-dialog-confirm {
+  background: var(--destructive);
+  color: white;
+}
+
+.reset-dialog-confirm:hover {
+  opacity: 0.9;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ========================
+   Dropdown Menus
+   ======================== */
+.dropdown-container {
+  position: relative;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + var(--token-space-md));
+  right: 0;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  box-shadow: 0 var(--token-space-md) var(--token-space-3xl) var(--shadow-light);
+  z-index: var(--token-z-toast);  /* Very high z-index to appear above all content including tabs */
+  min-width: 220px;  /* Increased width to prevent text wrapping */
+  max-width: calc(100vw - 2rem);  /* Prevent going off screen */
+  overflow: hidden;
+  margin-right: var(--token-space-md);  /* Small margin from edge */
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: var(--token-space-lg);
+  padding: var(--token-space-lg) var(--token-space-xl);
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: var(--foreground);
+  transition: background 0.2s ease;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+}
+
+.dropdown-item:hover {
+  background: var(--muted);
+}
+
+.dropdown-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dropdown-icon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.dropdown-icon.rotating {
+  animation: rotate 1s linear infinite;
+}
+
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

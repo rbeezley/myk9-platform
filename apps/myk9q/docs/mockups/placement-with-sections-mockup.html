@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Placement Badges with A/B Sections</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+      background: #f6f6f6;
+      padding: 2rem;
+      color: #0a0a0a;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 0.5rem;
+      color: #0a0a0a;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #6b7280;
+      margin-bottom: 2rem;
+      font-size: 1rem;
+    }
+
+    .scenario-card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      margin-bottom: 2rem;
+    }
+
+    .scenario-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      color: #0a0a0a;
+    }
+
+    .mock-entry-card {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-left: 3px solid #10b981;
+      border-radius: 12px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .mock-entry-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .mock-armband-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .mock-armband {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      border-radius: 50%;
+      color: white;
+      font-weight: 700;
+      font-size: 1.125rem;
+    }
+
+    .section-badge {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: white;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .section-badge.section-a {
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    }
+
+    .section-badge.section-b {
+      background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    }
+
+    .mock-dog-info {
+      flex: 1;
+    }
+
+    .mock-dog-name {
+      font-weight: 600;
+      font-size: 1rem;
+      color: #0a0a0a;
+      margin-bottom: 0.125rem;
+    }
+
+    .mock-breed {
+      font-size: 0.875rem;
+      color: #6b7280;
+      margin-bottom: 0.125rem;
+    }
+
+    .mock-handler {
+      font-size: 0.875rem;
+      color: #6b7280;
+    }
+
+    .mock-results {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .ribbon-emoji {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.25rem 0.625rem;
+      font-size: 0.875rem;
+      font-weight: 700;
+      border-radius: 0.75rem;
+      background: rgba(0, 0, 0, 0.05);
+    }
+
+    .ribbon-emoji-icon {
+      font-size: 1.125rem;
+      line-height: 1;
+    }
+
+    .ribbon-emoji.place-1 {
+      color: #3b82f6;
+    }
+
+    .ribbon-emoji.place-2 {
+      color: #dc2626;
+    }
+
+    .ribbon-emoji.place-3 {
+      color: #f59e0b;
+    }
+
+    .ribbon-emoji.place-4 {
+      color: #6b7280;
+    }
+
+    .result-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.625rem;
+      background: #10b981;
+      color: white;
+      border-radius: 0.75rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .time-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.625rem;
+      background: #f6f6f6;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.75rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #0a0a0a;
+    }
+
+    .faults-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.625rem;
+      background: #f6f6f6;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.75rem;
+      font-size: 0.6875rem;
+      font-weight: 500;
+      color: #374151;
+    }
+
+    .explanation {
+      background: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      padding: 1rem;
+      margin-top: 1rem;
+      border-radius: 0.5rem;
+    }
+
+    .explanation-title {
+      font-weight: 700;
+      color: #92400e;
+      margin-bottom: 0.5rem;
+    }
+
+    .explanation-text {
+      color: #92400e;
+      font-size: 0.875rem;
+      line-height: 1.5;
+    }
+
+    .note {
+      background: #dbeafe;
+      border-left: 4px solid #3b82f6;
+      padding: 1rem;
+      margin-top: 1rem;
+      border-radius: 0.5rem;
+    }
+
+    .note-title {
+      font-weight: 700;
+      color: #1e40af;
+      margin-bottom: 0.5rem;
+    }
+
+    .note-text {
+      color: #1e40af;
+      font-size: 0.875rem;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Placement Badges with A/B Sections</h1>
+    <p class="subtitle">Showing how emoji placement badges work with Novice A & B section badges</p>
+
+    <!-- SCENARIO 1: Combined View (Both A & B shown together) -->
+    <div class="scenario-card">
+      <div class="scenario-title">Scenario 1: Combined Novice A & B View</div>
+      <p style="color: #6b7280; margin-bottom: 1rem; font-size: 0.875rem;">
+        When viewing combined classes, placements are calculated per section. Section A and B dogs compete separately for placements.
+      </p>
+
+      <div style="font-weight: 600; color: #6b7280; font-size: 0.875rem; margin-bottom: 0.5rem; margin-top: 1rem;">Section A Dogs:</div>
+
+      <div class="mock-entry-card">
+        <div class="mock-entry-header">
+          <div class="mock-armband-section">
+            <span class="mock-armband">101</span>
+            <span class="section-badge section-a">A</span>
+          </div>
+          <div class="mock-dog-info">
+            <div class="mock-dog-name">Kula</div>
+            <div class="mock-breed">Pembroke Welsh Corgi</div>
+            <div class="mock-handler">Lynda Portiss</div>
+          </div>
+        </div>
+        <div class="mock-results">
+          <span class="ribbon-emoji place-1">
+            <span class="ribbon-emoji-icon">🥇</span>
+            <span>1st</span>
+          </span>
+          <span class="result-badge">Q</span>
+          <span class="time-badge">00:01.76</span>
+          <span class="faults-badge">0 Faults</span>
+        </div>
+      </div>
+
+      <div class="mock-entry-card">
+        <div class="mock-entry-header">
+          <div class="mock-armband-section">
+            <span class="mock-armband">104</span>
+            <span class="section-badge section-a">A</span>
+          </div>
+          <div class="mock-dog-info">
+            <div class="mock-dog-name">Persei</div>
+            <div class="mock-breed">Miniature American Shepherd</div>
+            <div class="mock-handler">Jo Ann Peterson</div>
+          </div>
+        </div>
+        <div class="mock-results">
+          <span class="ribbon-emoji place-2">
+            <span class="ribbon-emoji-icon">🥈</span>
+            <span>2nd</span>
+          </span>
+          <span class="result-badge">Q</span>
+          <span class="time-badge">00:02.45</span>
+          <span class="faults-badge">0 Faults</span>
+        </div>
+      </div>
+
+      <div style="font-weight: 600; color: #6b7280; font-size: 0.875rem; margin-bottom: 0.5rem; margin-top: 1.5rem;">Section B Dogs:</div>
+
+      <div class="mock-entry-card">
+        <div class="mock-entry-header">
+          <div class="mock-armband-section">
+            <span class="mock-armband">113</span>
+            <span class="section-badge section-b">B</span>
+          </div>
+          <div class="mock-dog-info">
+            <div class="mock-dog-name">Rowdy</div>
+            <div class="mock-breed">Pembroke Welsh Corgi</div>
+            <div class="mock-handler">Lee Blankenship</div>
+          </div>
+        </div>
+        <div class="mock-results">
+          <span class="ribbon-emoji place-1">
+            <span class="ribbon-emoji-icon">🥇</span>
+            <span>1st</span>
+          </span>
+          <span class="result-badge">Q</span>
+          <span class="time-badge">00:02.23</span>
+          <span class="faults-badge">1 Fault</span>
+        </div>
+      </div>
+
+      <div class="mock-entry-card">
+        <div class="mock-entry-header">
+          <div class="mock-armband-section">
+            <span class="mock-armband">163</span>
+            <span class="section-badge section-b">B</span>
+          </div>
+          <div class="mock-dog-info">
+            <div class="mock-dog-name">Yeti</div>
+            <div class="mock-breed">Lagotto Romagnolo</div>
+            <div class="mock-handler">Ellen Heavner</div>
+          </div>
+        </div>
+        <div class="mock-results">
+          <span class="ribbon-emoji place-2">
+            <span class="ribbon-emoji-icon">🥈</span>
+            <span>2nd</span>
+          </span>
+          <span class="result-badge">Q</span>
+          <span class="time-badge">00:03.12</span>
+          <span class="faults-badge">2 Faults</span>
+        </div>
+      </div>
+
+      <div class="explanation">
+        <div class="explanation-title">How it works:</div>
+        <div class="explanation-text">
+          • Section A dogs get 1st, 2nd, 3rd within Section A<br>
+          • Section B dogs get 1st, 2nd, 3rd within Section B<br>
+          • Both Kula (A) and Rowdy (B) can be "1st Place" because they're in different sections<br>
+          • The section badge (A or B) clearly shows which section they belong to
+        </div>
+      </div>
+    </div>
+
+    <!-- SCENARIO 2: Single Section View -->
+    <div class="scenario-card">
+      <div class="scenario-title">Scenario 2: Single Section View (Novice A Only)</div>
+      <p style="color: #6b7280; margin-bottom: 1rem; font-size: 0.875rem;">
+        When viewing a single section class, the A/B badge is still shown for clarity.
+      </p>
+
+      <div class="mock-entry-card">
+        <div class="mock-entry-header">
+          <div class="mock-armband-section">
+            <span class="mock-armband">101</span>
+            <span class="section-badge section-a">A</span>
+          </div>
+          <div class="mock-dog-info">
+            <div class="mock-dog-name">Kula</div>
+            <div class="mock-breed">Pembroke Welsh Corgi</div>
+            <div class="mock-handler">Lynda Portiss</div>
+          </div>
+        </div>
+        <div class="mock-results">
+          <span class="ribbon-emoji place-1">
+            <span class="ribbon-emoji-icon">🥇</span>
+            <span>1st</span>
+          </span>
+          <span class="result-badge">Q</span>
+          <span class="time-badge">00:01.76</span>
+          <span class="faults-badge">0 Faults</span>
+        </div>
+      </div>
+
+      <div class="mock-entry-card">
+        <div class="mock-entry-header">
+          <div class="mock-armband-section">
+            <span class="mock-armband">104</span>
+            <span class="section-badge section-a">A</span>
+          </div>
+          <div class="mock-dog-info">
+            <div class="mock-dog-name">Persei</div>
+            <div class="mock-breed">Miniature American Shepherd</div>
+            <div class="mock-handler">Jo Ann Peterson</div>
+          </div>
+        </div>
+        <div class="mock-results">
+          <span class="ribbon-emoji place-2">
+            <span class="ribbon-emoji-icon">🥈</span>
+            <span>2nd</span>
+          </span>
+          <span class="result-badge">Q</span>
+          <span class="time-badge">00:02.45</span>
+          <span class="faults-badge">0 Faults</span>
+        </div>
+      </div>
+
+      <div class="note">
+        <div class="note-title">✓ Perfect Layout</div>
+        <div class="note-text">
+          The A/B section badge sits directly under the armband number and doesn't interfere with the horizontal row of placement, result, time, and faults badges. This keeps the layout clean and easy to scan.
+        </div>
+      </div>
+    </div>
+
+    <!-- VISUAL BREAKDOWN -->
+    <div class="scenario-card">
+      <div class="scenario-title">Visual Layout Breakdown</div>
+
+      <div style="background: #f9fafb; padding: 1rem; border-radius: 0.5rem; border: 2px dashed #d1d5db;">
+        <div style="display: flex; gap: 1rem; align-items: flex-start; margin-bottom: 0.75rem;">
+          <div style="text-align: center;">
+            <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; margin-bottom: 0.25rem;">101</div>
+            <div style="width: 24px; height: 24px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; margin: 0 auto;">A</div>
+            <div style="font-size: 0.625rem; color: #6b7280; margin-top: 0.25rem;">Armband<br>+ Section</div>
+          </div>
+          <div style="flex: 1;">
+            <div style="font-weight: 600;">Kula</div>
+            <div style="font-size: 0.875rem; color: #6b7280;">Pembroke Welsh Corgi</div>
+            <div style="font-size: 0.625rem; color: #6b7280; margin-top: 0.25rem;">Dog Info (vertical)</div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; padding-top: 0.75rem; border-top: 2px dashed #d1d5db;">
+          <div style="display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.625rem; font-size: 0.875rem; font-weight: 700; border-radius: 0.75rem; background: rgba(0, 0, 0, 0.05); color: #3b82f6;">
+            <span style="font-size: 1.125rem;">🥇</span>
+            <span>1st</span>
+          </div>
+          <div style="padding: 0.25rem 0.625rem; background: #10b981; color: white; border-radius: 0.75rem; font-size: 0.75rem; font-weight: 600;">Q</div>
+          <div style="padding: 0.25rem 0.625rem; background: #f6f6f6; border: 1px solid #e5e7eb; border-radius: 0.75rem; font-size: 0.75rem; font-weight: 600;">00:01.76</div>
+          <div style="padding: 0.25rem 0.625rem; background: #f6f6f6; border: 1px solid #e5e7eb; border-radius: 0.75rem; font-size: 0.6875rem; font-weight: 500; color: #374151;">0 Faults</div>
+        </div>
+        <div style="font-size: 0.625rem; color: #6b7280; margin-top: 0.5rem; text-align: center;">
+          Results row (horizontal: placement → result → time → faults)
+        </div>
+      </div>
+
+      <div class="note" style="margin-top: 1rem;">
+        <div class="note-title">Key Design Points:</div>
+        <div class="note-text">
+          • <strong>Armband + Section</strong>: Stacked vertically in a single column<br>
+          • <strong>Dog Info</strong>: Name, breed, handler stacked vertically next to armband<br>
+          • <strong>Results Row</strong>: All badges flow horizontally with consistent spacing<br>
+          • <strong>No Conflicts</strong>: Section badge doesn't interfere with placement badge
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

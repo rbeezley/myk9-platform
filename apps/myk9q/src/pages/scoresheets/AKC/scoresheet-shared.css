@@ -1,0 +1,1208 @@
+/* Mobile-Optimized Scoresheet - React Implementation */
+
+/* CSS Variables for theming - explicit values for light mode */
+:root {
+  /* Dark mode defaults (will be overridden by .theme-light) */
+  --scoresheet-bg: #0f172a;
+  --scoresheet-text: #ffffff;
+  --scoresheet-text-secondary: rgba(255, 255, 255, 0.7);
+  --scoresheet-text-tertiary: rgba(255, 255, 255, 0.5);
+  --scoresheet-text-placeholder: rgba(255, 255, 255, 0.3);
+  --scoresheet-card-bg: #1a1d23;
+  --scoresheet-card-border: rgba(255, 255, 255, 0.1);
+  --scoresheet-header-bg: #1a1d23;
+  --scoresheet-input-bg: #2a2a2a;
+  --scoresheet-input-border: rgba(255, 255, 255, 0.2);
+  --scoresheet-badge-text: #ffffff;
+  --scoresheet-hover-overlay: rgba(255, 255, 255, 0.05);
+}
+
+.theme-light {
+  /* Light mode: gray background (#f1f5f9) + white cards (#ffffff) */
+  --scoresheet-bg: #f1f5f9; /* Light gray background */
+  --scoresheet-text: #0a0a0a;
+  --scoresheet-text-secondary: #6b7280;
+  --scoresheet-text-tertiary: #9ca3af;
+  --scoresheet-text-placeholder: #d1d5db;
+  --scoresheet-card-bg: #ffffff; /* White cards */
+  --scoresheet-card-border: #e5e7eb;
+  --scoresheet-header-bg: #ffffff; /* White header */
+  --scoresheet-input-bg: #ffffff;
+  --scoresheet-input-border: #d1d5db;
+  --scoresheet-badge-text: #ffffff;
+  --scoresheet-hover-overlay: rgba(0, 0, 0, 0.05);
+}
+
+.scoresheet-container {
+  height: 100vh;
+  background: var(--background); /* Uses global background token */
+  color: var(--scoresheet-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  overflow: hidden;
+  width: 100%;
+}
+
+/* Light mode override - gray background */
+.theme-light .scoresheet-container {
+  background: var(--secondary); /* Light gray background */
+}
+
+.scoresheet {
+  width: 100%;
+  padding: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: transparent; /* Let container background show through */
+}
+
+/* Scoresheet content wrapper - constrain width on desktop for better readability */
+.scoresheet-content-wrapper {
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 0 var(--token-space-md); /* Mobile: horizontal padding to prevent edge overflow */
+  box-sizing: border-box;
+}
+
+/* Desktop: larger padding for scoresheet wrapper */
+@media (min-width: 640px) {
+  .scoresheet-content-wrapper {
+    padding: 0 var(--token-space-xl);
+  }
+}
+
+/* Header - Matching Flutter - Full width, not constrained */
+.mobile-header {
+  background: var(--scoresheet-header-bg);
+  /* Padding inherited from .page-header (12px mobile, 24px desktop) for consistency */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--scoresheet-card-border);
+  border-radius: var(--token-space-lg);
+  position: relative;
+  z-index: var(--token-z-raised);
+  width: 100%; /* Keep header full width */
+}
+
+.header-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--token-space-xs);
+  flex: 1;
+}
+
+.mobile-header h1 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--scoresheet-text);
+}
+
+.header-trial-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--token-space-lg);
+  color: var(--scoresheet-text-secondary);
+  font-weight: 500;
+}
+
+.header-trial-info .trial-separator {
+  color: var(--scoresheet-text-tertiary);
+  font-size: var(--token-space-lg);
+}
+
+.back-btn, .theme-btn {
+  background: none;
+  border: none;
+  color: var(--scoresheet-text);
+  font-size: var(--token-space-2xl);
+  padding: var(--token-space-md);
+  cursor: pointer;
+  border-radius: var(--token-space-md);
+  transition: background 0.2s;
+}
+
+.back-btn:hover, .theme-btn:hover {
+  background: var(--scoresheet-hover-overlay);
+}
+
+/* Trial Header - Matching other containers */
+.scoresheet-trial-header {
+  text-align: center;
+  padding: var(--token-space-xl);
+  background: var(--scoresheet-card-bg);
+  margin: 0 var(--token-space-xl) var(--token-space-xl) var(--token-space-xl);
+  border-radius: var(--token-space-lg);
+  border: 1px solid var(--scoresheet-card-border);
+}
+
+.theme-dark .scoresheet-trial-header {
+  background: var(--card); /* Uses global card token */
+}
+
+/* Compact Trial Header - One Line */
+.scoresheet-trial-header-compact {
+  text-align: center;
+  padding: var(--token-space-lg) var(--token-space-xl);
+  background: var(--scoresheet-card-bg);
+  margin: 0 var(--token-space-xl) var(--token-space-lg) var(--token-space-xl);
+  border-radius: var(--token-space-lg);
+  border: 1px solid var(--scoresheet-card-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--token-space-md);
+  flex-wrap: wrap;
+}
+
+.theme-dark .scoresheet-trial-header-compact {
+  background: var(--card); /* Uses global card token */
+}
+
+.trial-info-item {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--scoresheet-text);
+}
+
+.trial-separator {
+  font-size: 14px;
+  color: var(--scoresheet-text-tertiary);
+  margin: 0 var(--token-space-sm);
+}
+
+.trial-date {
+  font-size: 14px;
+  color: var(--scoresheet-text-secondary);
+  margin-bottom: var(--token-space-sm);
+}
+
+.trial-class {
+  font-size: var(--token-space-xl);
+  font-weight: 600;
+  color: var(--scoresheet-text);
+}
+
+/* Dog Info Card - Full width like other pages */
+.scoresheet-dog-card {
+  background: var(--scoresheet-card-bg);
+  margin: 0 var(--token-space-xl) var(--token-space-xl) var(--token-space-xl);
+  padding: var(--token-space-xl);
+  border-radius: var(--token-space-lg);
+  border: 1px solid var(--scoresheet-card-border);
+  display: flex;
+  align-items: center;
+  gap: var(--token-space-xl);
+}
+
+.theme-dark .scoresheet-dog-card {
+  background: var(--card); /* Uses global card token */
+}
+
+/* Compact Dog Info Card */
+.scoresheet-dog-card-compact {
+  background: transparent;
+  margin: var(--token-space-xl) var(--token-space-xl) var(--token-space-lg) var(--token-space-xl);
+  padding: var(--token-space-lg) var(--token-space-xl);
+  border-radius: var(--token-space-lg);
+  border: none;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--token-space-lg);
+  color: var(--scoresheet-text);
+}
+
+/* Clean Dog Info - No Background */
+.scoresheet-dog-info-clean {
+  margin: var(--token-space-xl) var(--token-space-xl) var(--token-space-lg) var(--token-space-xl);
+  padding: var(--token-space-lg) 0;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--token-space-lg);
+  background: transparent;
+  border: none;
+  color: var(--scoresheet-text);
+}
+
+.scoresheet-dog-info-card {
+  margin: var(--token-space-lg) 0;  /* Mobile: vertical margin only, wrapper handles horizontal */
+  padding: var(--token-space-lg);  /* Mobile: compact padding */
+  display: flex;
+  align-items: flex-start;
+  gap: var(--token-space-lg);  /* Mobile: tighter gap */
+  background: var(--scoresheet-card-bg);
+  border: 1px solid var(--scoresheet-card-border);
+  border-radius: var(--token-space-lg);
+  box-shadow: 0 var(--token-space-xs) var(--token-space-md) rgba(0, 0, 0, 0.2);
+}
+
+/* Tablet+: restore card spacing */
+@media (min-width: 640px) {
+  .scoresheet-dog-info-card {
+    margin: var(--token-space-xl) 0;  /* Tablet: larger vertical margin */
+    padding: var(--token-space-xl);  /* Tablet: more padding */
+    gap: var(--token-space-xl);  /* Tablet: larger gap */
+  }
+}
+
+.theme-dark .scoresheet-dog-info-card {
+  background: var(--card); /* Uses global card token */
+}
+
+.scoresheet-armband {
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, var(--checkin-in-ring) 0%, #1d4ed8 100%);
+  color: var(--scoresheet-badge-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--token-space-3xl);
+  font-weight: bold;
+  border-radius: var(--token-space-lg);
+  flex-shrink: 0;
+  box-shadow: 0 var(--token-space-xs) var(--token-space-md) rgba(59, 130, 246, 0.3);
+}
+
+.scoresheet-dog-details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--token-space-xs);
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.scoresheet-dog-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--scoresheet-text);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.scoresheet-dog-breed {
+  font-size: 14px;
+  color: var(--scoresheet-text-secondary);
+  margin: 0;
+}
+
+.scoresheet-dog-handler {
+  font-size: 13px;
+  color: var(--scoresheet-text-tertiary);
+  margin: 0;
+}
+
+.dog-armband {
+  font-size: var(--token-space-4xl);
+  font-weight: bold;
+  color: var(--scoresheet-text);
+  min-width: 80px;
+  text-align: center;
+  align-self: flex-start;
+  line-height: 1.2;
+}
+
+.dog-info {
+  flex: 1;
+}
+
+.dog-info-compact {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--token-space-xs);
+  align-items: flex-start;
+  text-align: left;
+  justify-content: flex-start;
+}
+
+.dog-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--scoresheet-text);
+  margin: 0;
+  line-height: 1.2;
+  align-self: flex-start;
+}
+
+.dog-details {
+  font-size: 14px;
+  color: var(--scoresheet-text-secondary);
+  margin-bottom: var(--token-space-xs);
+}
+
+.dog-handler {
+  font-size: 13px;
+  color: var(--scoresheet-text-tertiary);
+  margin: 0;
+}
+
+.person-number {
+  font-size: var(--token-space-lg);
+  color: var(--scoresheet-text-tertiary);
+}
+
+/* Timer Card - Compact version */
+.scoresheet-timer-card {
+  background: var(--scoresheet-card-bg);
+  margin: 0 0 var(--token-space-md) 0;  /* Mobile: vertical margin only */
+  padding: var(--token-space-lg) var(--token-space-md);  /* Mobile: compact padding */
+  border-radius: var(--token-space-lg);
+  border: 1px solid var(--scoresheet-card-border);
+  text-align: center;
+  position: relative; /* For absolute positioning of reset button */
+}
+
+/* Tablet+: restore timer card spacing */
+@media (min-width: 640px) {
+  .scoresheet-timer-card {
+    margin: 0 0 var(--token-space-lg) 0;  /* Tablet: larger bottom margin */
+    padding: var(--token-space-xl) var(--token-space-lg);  /* Tablet: more padding */
+  }
+}
+
+.theme-dark .scoresheet-timer-card {
+  background: var(--card); /* Uses global card token */
+}
+
+.timer-display-large {
+  font-size: var(--token-space-4xl);
+  font-weight: bold;
+  color: var(--scoresheet-text);
+  margin-bottom: var(--token-space-md);
+  font-variant-numeric: tabular-nums;
+  transition: color 0.3s ease;
+}
+
+.timer-display-large.warning {
+  color: var(--token-error);
+  animation: pulse 1s infinite;
+}
+
+.timer-display-large.expired {
+  color: var(--token-error-contrast);
+  animation: flash 0.5s infinite;
+}
+
+/* Countdown ring - positioned in top-left corner */
+.timer-countdown-ring-corner {
+  position: absolute;
+  top: var(--token-space-lg);
+  left: var(--token-space-lg);
+  display: block;
+}
+
+.timer-countdown-display {
+  font-size: var(--token-space-xl);
+  font-weight: 500;
+  color: var(--scoresheet-text-secondary);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  margin-bottom: var(--token-space-lg);
+}
+
+.timer-controls-flutter {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: var(--token-space-md);
+}
+
+/* Reset button - positioned in top-right corner */
+.timer-btn-reset {
+  position: absolute;
+  top: var(--token-space-lg);
+  right: var(--token-space-lg);
+  width: 44px;
+  height: 44px;
+  border-radius: 22px;
+  border: 2px solid rgba(148, 163, 184, 0.3);
+  background: rgba(148, 163, 184, 0.15);
+  backdrop-filter: blur(10px);
+  color: var(--scoresheet-text);
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: var(--token-z-raised);
+  font-weight: 600;
+}
+
+.timer-btn-pause {
+  width: 56px;
+  height: 56px;
+  border-radius: 28px;
+  border: none;
+  background: var(--text-gray);
+  color: white;
+  font-size: var(--token-space-2xl);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 var(--token-space-xs) var(--token-space-md) rgba(0, 0, 0, 0.2);
+}
+
+.timer-btn-start {
+  /* Fixed dimensions for consistent sizing across Start/Stop/Resume states */
+  width: 200px;
+  min-width: 200px;
+  max-width: 200px;
+  height: 72px;
+  border-radius: 36px;
+  border: none;
+  background: var(--primary); /* Theme-aware: blue/green/orange */
+  color: white;
+  font-size: 1.375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--token-space-md);
+  flex-shrink: 0;
+  flex-grow: 0;
+  box-shadow: 0 var(--token-space-sm) var(--token-space-lg) rgba(0, 0, 0, 0.25);
+}
+
+.timer-btn-start.stop {
+  background: var(--token-error); /* Keep red for stop */
+  box-shadow: 0 var(--token-space-sm) var(--token-space-lg) rgba(239, 68, 68, 0.3);
+}
+
+.timer-btn-pause:hover:not(:disabled) {
+  background: var(--text-gray);
+  filter: brightness(1.15);
+  transform: scale(1.05);
+  box-shadow: 0 var(--token-space-sm) var(--token-space-lg) rgba(0, 0, 0, 0.3);
+}
+
+.timer-btn-reset:hover:not(:disabled) {
+  background: rgba(148, 163, 184, 0.25);
+  border-color: rgba(148, 163, 184, 0.5);
+  transform: scale(1.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.timer-btn-pause:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.timer-btn-reset:active:not(:disabled) {
+  transform: scale(0.92);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+.timer-btn-pause:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.timer-btn-reset:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  border-color: rgba(148, 163, 184, 0.15);
+  background: rgba(148, 163, 184, 0.05);
+}
+
+.timer-btn-start:hover:not(.stop) {
+  background: var(--primary);
+  filter: brightness(1.1);
+  transform: scale(1.05);
+  box-shadow: 0 6px var(--token-space-xl) rgba(0, 0, 0, 0.3);
+}
+
+.timer-btn-start:active {
+  transform: scale(0.95);
+}
+
+.timer-btn-start.stop:hover {
+  filter: brightness(1.1);
+  transform: scale(1.05);
+  box-shadow: 0 6px var(--token-space-xl) rgba(239, 68, 68, 0.4);
+}
+
+.timer-btn-start.reset {
+  background: rgba(148, 163, 184, 0.3);
+  color: var(--scoresheet-text);
+  box-shadow: 0 var(--token-space-sm) var(--token-space-lg) rgba(148, 163, 184, 0.3);
+}
+
+.timer-btn-start.reset:hover {
+  background: rgba(148, 163, 184, 0.45);
+  filter: brightness(1.1);
+  transform: scale(1.05);
+  box-shadow: 0 6px var(--token-space-xl) rgba(148, 163, 184, 0.4);
+}
+
+.timer-secondary {
+  position: absolute;
+  top: var(--token-space-2xl);
+  right: var(--token-space-2xl);
+  background: rgba(16, 185, 129, 0.2);
+  border: var(--token-space-xs) solid var(--status-checked-in);
+  border-radius: var(--token-space-2xl);
+  padding: var(--token-space-md) var(--token-space-lg);
+  font-size: 14px;
+  color: var(--token-success);
+}
+
+.scoresheet-timer-card {
+  position: relative;
+  z-index: var(--token-z-raised);
+}
+
+/* Timer Warning Styles */
+.timer-warning {
+  margin: 0 0 var(--token-space-md) 0;  /* Mobile: vertical margin only */
+  padding: var(--token-space-md) var(--token-space-lg);  /* Mobile: compact padding */
+  border-radius: var(--token-space-md);
+  text-align: center;
+  font-weight: 600;
+  font-size: var(--token-space-lg);  /* Mobile: slightly smaller */
+  animation: pulse 1s infinite;
+}
+
+/* Tablet+: restore timer warning spacing */
+@media (min-width: 640px) {
+  .timer-warning {
+    margin: 0 0 var(--token-space-xl) 0;
+    padding: var(--token-space-lg) var(--token-space-xl);
+    font-size: var(--token-space-xl);
+  }
+}
+
+.timer-warning.warning {
+  background: rgba(239, 68, 68, 0.1);
+  border: var(--token-space-xs) solid var(--status-pulled);
+  color: var(--token-error);
+}
+
+.timer-warning.expired {
+  background: rgba(220, 38, 38, 0.2);
+  border: var(--token-space-xs) solid #DC2626;
+  color: var(--token-error-contrast);
+  animation: flash 0.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes flash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Time Input - Compact version */
+.scoresheet-time-card {
+  background: var(--scoresheet-card-bg);
+  margin: 0 0 var(--token-space-md) 0;  /* Mobile: vertical margin only */
+  padding: var(--token-space-md);  /* Mobile: compact padding */
+  border-radius: var(--token-space-lg);
+  border: 1px solid var(--scoresheet-card-border);
+  text-align: center;
+}
+
+/* Tablet+: restore time card spacing */
+@media (min-width: 640px) {
+  .scoresheet-time-card {
+    margin: 0 0 var(--token-space-lg) 0;  /* Tablet: larger bottom margin */
+    padding: var(--token-space-lg);  /* Tablet: more padding */
+  }
+}
+
+.theme-dark .scoresheet-time-card {
+  background: var(--card); /* Uses global card token */
+}
+
+.time-input-flutter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--token-space-md);
+  flex-wrap: wrap; /* Mobile: allow wrapping on narrow screens */
+}
+
+.scoresheet-time-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.scoresheet-time-input {
+  background: var(--scoresheet-input-bg);
+  border: 2px solid var(--scoresheet-input-border);
+  border-radius: var(--token-space-lg);
+  padding: var(--token-space-xl) 40px var(--token-space-xl) var(--token-space-xl); /* Increased padding for better touch target */
+  color: var(--scoresheet-text);
+  font-size: 16px;
+  font-weight: 500;
+  outline: none;
+  transition: all 0.2s;
+  min-width: 0;
+  width: 180px;
+  min-height: 48px; /* Better touch target height */
+  text-align: center;
+}
+
+/* Empty state - more subtle appearance */
+.scoresheet-time-input:placeholder-shown {
+  background: var(--muted);
+  border-color: var(--border);
+  font-weight: 400;
+}
+
+/* Filled state - more prominent */
+.scoresheet-time-input:not(:placeholder-shown) {
+  background: var(--scoresheet-input-bg);
+  border-color: var(--primary);
+  font-weight: 600;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.scoresheet-time-clear-button {
+  position: absolute;
+  right: var(--token-space-md);
+  background: none;
+  border: none;
+  color: var(--scoresheet-text-secondary);
+  cursor: pointer;
+  padding: var(--token-space-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--token-space-sm);
+  transition: all 0.2s;
+}
+
+.scoresheet-time-clear-button:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--token-error);
+}
+
+.scoresheet-time-input.single-area {
+  flex: 1;
+  width: auto;
+}
+
+.scoresheet-time-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+  background: var(--scoresheet-input-bg);
+}
+
+.scoresheet-time-input::placeholder {
+  color: var(--scoresheet-text-secondary);
+  font-weight: 400;
+  font-size: 15px;
+}
+
+.max-time {
+  font-size: 14px;
+  color: var(--scoresheet-text-secondary);
+  white-space: nowrap;
+}
+
+/* Area Badge Styles - Compact */
+.area-badge {
+  background: rgba(16, 185, 129, 0.8);
+  color: var(--scoresheet-badge-text);
+  padding: 6px 10px;
+  border-radius: var(--token-space-xl);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: all 0.3s ease;
+  min-width: 55px;
+  max-width: 70px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.area-badge.completed {
+  background: rgba(107, 114, 128, 0.8);
+  color: var(--scoresheet-badge-text);
+}
+
+.area-badge.pending {
+  background: rgba(16, 185, 129, 0.8);
+  color: var(--scoresheet-badge-text);
+}
+
+/* Area recorded badge - green success state */
+.area-badge.recorded {
+  background: var(--status-checked-in);
+  color: white;
+  padding: var(--token-space-md) var(--token-space-md);  /* Mobile: match button padding */
+  border-radius: var(--token-space-md);
+  font-size: 12px;  /* Mobile: match button font size */
+  font-weight: 600;
+  min-width: 100px;  /* Mobile: match button min-width */
+  max-width: 140px;  /* Mobile: match button max-width */
+  width: 100px;  /* Mobile: fixed width to prevent layout shift */
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+/* Area Record Button - Replaces badge when no time recorded */
+.area-record-btn {
+  background: var(--primary);
+  color: white;
+  padding: var(--token-space-md) var(--token-space-xl);
+  border: none;
+  border-radius: var(--token-space-md);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 140px;
+  text-align: center;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Next in sequence - pulse indicator */
+.area-record-btn.next-in-sequence {
+  animation: pulse-glow 2s ease-in-out infinite;
+  box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(59, 130, 246, 0);
+  }
+}
+
+/* Hover state */
+.area-record-btn:hover {
+  background: var(--primary);
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.area-record-btn:active {
+  transform: translateY(0);
+}
+
+/* Max Time Badge Styles */
+.max-time-badge {
+  background: rgba(124, 58, 237, 0.2);
+  border: 1px solid rgba(124, 58, 237, 0.4);
+  color: rgba(124, 58, 237, 1);
+  padding: 6px var(--token-space-lg);
+  border-radius: var(--token-space-xl);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  min-width: 50px;
+  text-align: center;
+}
+
+.max-time-display {
+  color: var(--scoresheet-text-tertiary);
+  font-size: var(--token-space-lg);
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Result Choice Chips positioned properly - Compact */
+.results-section {
+  margin: 0 0 var(--token-space-md) 0;  /* Mobile: vertical margin only */
+}
+
+/* Tablet+: restore results section spacing */
+@media (min-width: 640px) {
+  .results-section {
+    margin: 0 0 var(--token-space-lg) 0;
+  }
+}
+
+/* Nationals Counter positioned properly - Compact */
+.nationals-counter-simple {
+  margin: 0 var(--token-space-xl) var(--token-space-lg) var(--token-space-xl);
+}
+
+/* Action Buttons - Matching Flutter */
+.scoresheet-actions {
+  margin: var(--token-space-md) 0 0 0;  /* Mobile: top margin only, wrapper handles horizontal */
+  display: flex;
+  gap: var(--token-space-md);  /* Mobile: tighter gap */
+  padding-bottom: calc(env(safe-area-inset-bottom) + var(--token-space-2xl));
+  padding-top: var(--token-space-md);
+  width: 100%;  /* Mobile: full width within wrapper */
+}
+
+/* Tablet+: restore action button spacing */
+@media (min-width: 640px) {
+  .scoresheet-actions {
+    margin: var(--token-space-xl) 0 0 0;
+    gap: var(--token-space-lg);
+    padding-bottom: calc(env(safe-area-inset-bottom) + var(--token-space-3xl));
+    padding-top: var(--token-space-xl);
+  }
+}
+
+.scoresheet-btn-cancel, .scoresheet-btn-save {
+  flex: 1;
+  height: 56px;
+  border-radius: var(--token-space-lg); /* Rounded rectangle to match dialog buttons */
+  border: none;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.scoresheet-btn-cancel {
+  background: rgba(107, 114, 128, 0.8);
+  color: var(--scoresheet-badge-text);
+}
+
+.scoresheet-btn-save {
+  background: var(--primary); /* Theme-aware color (blue/green/orange) */
+  color: white;
+}
+
+.scoresheet-btn-cancel:hover {
+  background: rgba(107, 114, 128, 1);
+  transform: scale(1.02);
+}
+
+.scoresheet-btn-save:hover {
+  background: var(--primary);
+  filter: brightness(1.1);
+  transform: scale(1.02);
+}
+
+.scoresheet-btn-save:disabled {
+  background: var(--primary);
+  cursor: not-allowed;
+  transform: none;
+  opacity: 0.4;
+  color: white;
+}
+
+.theme-light .scoresheet-btn-save:disabled {
+  background: var(--primary);
+  color: white;
+  opacity: 0.4;
+}
+
+.theme-light .scoresheet-btn-cancel {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.theme-light .scoresheet-btn-cancel:hover {
+  background: #d1d5db;
+  color: #1f2937;
+}
+
+/* Mobile: responsive adjustments - base styles */
+.scoresheet-trial-header-compact {
+  padding: var(--token-space-md) var(--token-space-lg);  /* Mobile: padding */
+  margin: 0 var(--token-space-lg) var(--token-space-md) var(--token-space-lg);  /* Mobile: margin */
+  font-size: var(--token-space-lg);  /* Mobile: font size */
+}
+
+.trial-info-item {
+  font-size: var(--token-space-lg);  /* Mobile: font size */
+}
+
+.trial-separator {
+  font-size: var(--token-space-lg);  /* Mobile: font size */
+}
+
+.scoresheet-dog-card-compact,
+.scoresheet-dog-info-clean {
+  margin: var(--token-space-lg) var(--token-space-lg) var(--token-space-md) var(--token-space-lg);  /* Mobile: margin */
+  padding: var(--token-space-lg) 0;  /* Mobile: padding */
+  gap: var(--token-space-lg);  /* Mobile: gap */
+}
+
+.time-input-flutter {
+  gap: var(--token-space-md);  /* Mobile: gap */
+}
+
+.area-badge {
+  padding: 6px var(--token-space-md);  /* Mobile: padding */
+  font-size: 11px;  /* Mobile: font size */
+  min-width: 50px;  /* Mobile: min width */
+  max-width: 60px;  /* Mobile: max width */
+}
+
+.area-record-btn {
+  min-width: 100px;  /* Mobile: reduced for narrow screens */
+  max-width: 140px;  /* Mobile: constrain button width */
+  width: 100px;  /* Mobile: fixed width to prevent layout shift */
+  font-size: 12px;  /* Mobile: slightly smaller font */
+  padding: var(--token-space-md) var(--token-space-md);  /* Mobile: compact padding */
+  flex-shrink: 0;  /* Don't shrink button */
+  box-sizing: border-box;
+}
+
+.scoresheet-time-input {
+  width: auto;  /* Mobile: flexible width */
+  min-width: 140px;  /* Mobile: minimum readable width */
+  max-width: 180px;  /* Mobile: constrain to prevent overflow */
+  flex: 1 1 140px;  /* Mobile: flexible with minimum basis */
+  padding: var(--token-space-lg) 36px var(--token-space-lg) var(--token-space-lg);  /* Mobile: touch target */
+  font-size: 15px;  /* Mobile: font size */
+  min-height: 44px;  /* Mobile: touch target standard */
+}
+
+.scoresheet-time-input.single-area {
+  width: auto;  /* Mobile: flexible width */
+  flex: 1;
+}
+
+.max-time-display {
+  font-size: 11px;  /* Mobile: font size */
+}
+
+.dog-name {
+  font-size: var(--token-space-xl);  /* Mobile: font size */
+}
+
+.dog-details {
+  font-size: 13px;  /* Mobile: font size */
+}
+
+.dog-handler {
+  font-size: var(--token-space-lg);  /* Mobile: font size */
+}
+
+.header-trial-info {
+  flex-wrap: wrap;  /* Mobile: wrap */
+  justify-content: center;  /* Mobile: center */
+  font-size: 10px;  /* Mobile: font size */
+}
+
+/* Desktop enhancements */
+@media (min-width: 640px) {
+  .scoresheet-trial-header-compact {
+    padding: var(--token-space-lg) var(--token-space-xl);  /* Desktop: larger padding */
+    margin: 0 var(--token-space-xl) var(--token-space-lg) var(--token-space-xl);  /* Desktop: larger margin */
+    font-size: 14px;  /* Desktop: larger font */
+  }
+
+  .trial-info-item {
+    font-size: 14px;  /* Desktop: larger font */
+  }
+
+  .trial-separator {
+    font-size: 14px;  /* Desktop: larger font */
+  }
+
+  .scoresheet-dog-card-compact,
+  .scoresheet-dog-info-clean {
+    margin: var(--token-space-xl) var(--token-space-xl) var(--token-space-lg) var(--token-space-xl);  /* Desktop: larger margin */
+    padding: var(--token-space-lg) 0;  /* Desktop: larger padding */
+    gap: var(--token-space-lg);  /* Desktop: larger gap */
+  }
+
+  .time-input-flutter {
+    gap: var(--token-space-lg);  /* Desktop: larger gap */
+  }
+
+  .area-badge {
+    padding: 6px var(--token-space-lg);  /* Desktop: larger padding */
+    font-size: 12px;  /* Desktop: larger font */
+    min-width: 55px;  /* Desktop: larger min width */
+    max-width: 70px;  /* Desktop: larger max width */
+  }
+
+  .area-record-btn {
+    min-width: 140px;  /* Tablet: larger width */
+    max-width: none;  /* Tablet: remove max constraint */
+    width: 140px;  /* Tablet: fixed width to prevent layout shift */
+    font-size: 14px;  /* Tablet: larger font */
+    padding: var(--token-space-md) var(--token-space-xl);  /* Tablet: restore padding */
+  }
+
+  .area-badge.recorded {
+    min-width: 140px;  /* Tablet: match button width */
+    max-width: none;  /* Tablet: remove max constraint */
+    width: 140px;  /* Tablet: fixed width to prevent layout shift */
+    font-size: 14px;  /* Tablet: larger font */
+    padding: var(--token-space-md) var(--token-space-xl);  /* Tablet: match button padding */
+  }
+
+  .scoresheet-time-input {
+    width: 200px;  /* Tablet: fixed width for consistency */
+    min-width: 200px;  /* Tablet: set fixed minimum */
+    max-width: none;  /* Tablet: remove max constraint */
+    flex: 0 0 200px;  /* Tablet: don't flex, fixed width */
+    padding: var(--token-space-xl) 40px var(--token-space-xl) var(--token-space-xl);  /* Tablet: larger touch target */
+    font-size: 16px;  /* Tablet: larger font */
+    min-height: 48px;  /* Tablet: touch target */
+  }
+
+  .time-input-flutter {
+    flex-wrap: nowrap;  /* Tablet+: prevent wrapping */
+  }
+
+  .scoresheet-time-input.single-area {
+    width: auto;  /* Desktop: flexible */
+    flex: 1;
+  }
+
+  .max-time-display {
+    font-size: 14px;  /* Desktop: larger font */
+  }
+
+  .dog-name {
+    font-size: 18px;  /* Desktop: larger font */
+  }
+
+  .dog-details {
+    font-size: 14px;  /* Desktop: larger font */
+  }
+
+  .dog-handler {
+    font-size: 13px;  /* Desktop: font size */
+  }
+
+  .header-trial-info {
+    flex-wrap: nowrap;  /* Desktop: no wrap */
+    justify-content: flex-start;  /* Desktop: default align */
+    font-size: 12px;  /* Desktop: larger font */
+  }
+}
+
+/* Desktop: 1024px+ */
+@media (min-width: 1024px) {
+  .area-record-btn {
+    min-width: 180px;  /* Desktop: larger width */
+    padding: var(--token-space-lg) var(--token-space-2xl);  /* Desktop: more padding */
+  }
+
+  .area-record-btn {
+    width: 160px;  /* Desktop: larger fixed width */
+  }
+
+  .area-badge.recorded {
+    width: 160px;  /* Desktop: match button width */
+  }
+}
+
+/* Responsive breakpoints - full-width pattern for consistency */
+
+/* Large Desktop: 1400px+ - full width, no max-width constraint */
+/* Removed max-width constraint to match layout standards (24px hamburger position) */
+
+/* Light theme support */
+/* NOTE: .scoresheet-container background is defined at line 46-47 above */
+/* This avoids duplicate definitions and CSS cascade conflicts */
+
+.theme-light .scoresheet {
+  background: transparent; /* Let container background show through */
+}
+
+/* Light mode - all text colors now handled by CSS variables above */
+
+/* Light mode button styles - colors inherited from base via variables */
+
+/* Light mode reset button - lighter, more subtle appearance */
+.theme-light .timer-btn-reset {
+  background: rgba(71, 85, 105, 0.08);
+  border-color: rgba(71, 85, 105, 0.2);
+  color: #475569;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.theme-light .timer-btn-reset:hover:not(:disabled) {
+  background: rgba(71, 85, 105, 0.15);
+  border-color: rgba(71, 85, 105, 0.35);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.theme-light .timer-btn-reset:disabled {
+  background: rgba(71, 85, 105, 0.03);
+  border-color: rgba(71, 85, 105, 0.1);
+  color: #cbd5e1;
+}
+
+/* Light theme badge styles - colors inherited from base via variables */
+
+.theme-light .max-time-badge {
+  background: rgba(124, 58, 237, 0.1);
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  color: rgba(124, 58, 237, 0.9);
+}
+
+/* Light theme timer warning styles */
+.theme-light .timer-warning.warning {
+  background: rgba(239, 68, 68, 0.05);
+  border: var(--token-space-xs) solid var(--status-pulled);
+  color: var(--token-error-contrast);
+}
+
+.theme-light .timer-warning.expired {
+  background: rgba(220, 38, 38, 0.1);
+  border: var(--token-space-xs) solid #DC2626;
+  color: #B91C1C;
+}
+
+/* Timer Expired Indicator */
+.timer-expired-indicator {
+  padding: var(--token-space-md) var(--token-space-xl);
+  border-radius: var(--token-space-lg);
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  color: var(--token-error);
+  font-size: var(--token-space-xl);
+  font-weight: 600;
+  text-align: center;
+  margin: 0 var(--token-space-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  animation: pulse-expired 2s ease-in-out infinite;
+}
+
+.theme-light .timer-expired-indicator {
+  background: rgba(220, 38, 38, 0.15);
+  border: 1px solid rgba(220, 38, 38, 0.4);
+  color: var(--token-error-contrast);
+}
+
+@keyframes pulse-expired {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.02);
+  }
+}
+
+/* Light theme responsive backgrounds */
+/* NOTE: Background color is consistent across all breakpoints - defined at line 46-47 */
+/* No need for responsive background overrides */

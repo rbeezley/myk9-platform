@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Placement Badge Ribbon Mockups</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+      background: #f6f6f6;
+      padding: 2rem;
+      color: #0a0a0a;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 2rem;
+      color: #0a0a0a;
+    }
+
+    .options-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+      margin-bottom: 3rem;
+    }
+
+    .option-card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .option-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      color: #0a0a0a;
+    }
+
+    .mock-entry-card {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-left: 3px solid #10b981;
+      border-radius: 12px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .mock-armband {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      border-radius: 50%;
+      color: white;
+      font-weight: 700;
+      font-size: 1.125rem;
+      margin-right: 0.75rem;
+      vertical-align: middle;
+    }
+
+    .mock-dog-info {
+      display: inline-block;
+      vertical-align: middle;
+    }
+
+    .mock-dog-name {
+      font-weight: 600;
+      font-size: 1rem;
+      color: #0a0a0a;
+    }
+
+    .mock-breed {
+      font-size: 0.875rem;
+      color: #6b7280;
+    }
+
+    .mock-results {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .result-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.625rem;
+      background: #10b981;
+      color: white;
+      border-radius: 0.75rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .time-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.625rem;
+      background: #f6f6f6;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.75rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #0a0a0a;
+    }
+
+    .faults-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.625rem;
+      background: #f6f6f6;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.75rem;
+      font-size: 0.6875rem;
+      font-weight: 500;
+      color: #374151;
+    }
+
+    /* ========== OPTION 1: CLASSIC AWARD RIBBON ========== */
+    .ribbon-classic {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.375rem 0.75rem 0.5rem 0.75rem;
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: white;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+      border-radius: 0.25rem 0.25rem 0 0;
+      min-width: 48px;
+    }
+
+    .ribbon-classic::after {
+      content: '';
+      position: absolute;
+      bottom: -8px;
+      left: 0;
+      right: 0;
+      height: 8px;
+      background: inherit;
+      clip-path: polygon(0 0, 100% 0, 50% 100%);
+      filter: brightness(0.85);
+    }
+
+    .ribbon-classic.place-1 {
+      background: #3b82f6;
+    }
+
+    .ribbon-classic.place-2 {
+      background: #dc2626;
+    }
+
+    .ribbon-classic.place-3 {
+      background: #f59e0b;
+    }
+
+    .ribbon-classic.place-4 {
+      background: white;
+      color: #374151;
+      border: 2px solid #d1d5db;
+      text-shadow: none;
+    }
+
+    .ribbon-classic.place-5 {
+      background: #047857;
+    }
+
+    /* ========== OPTION 2: ROSETTE/MEDAL STYLE ========== */
+    .ribbon-rosette {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 48px;
+      height: 48px;
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: white;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+      border-radius: 50%;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .ribbon-rosette::before,
+    .ribbon-rosette::after {
+      content: '';
+      position: absolute;
+      width: 12px;
+      height: 20px;
+      bottom: -16px;
+      background: inherit;
+      filter: brightness(0.85);
+    }
+
+    .ribbon-rosette::before {
+      left: 8px;
+      clip-path: polygon(0 0, 100% 0, 50% 100%);
+      transform: rotate(-10deg);
+    }
+
+    .ribbon-rosette::after {
+      right: 8px;
+      clip-path: polygon(0 0, 100% 0, 50% 100%);
+      transform: rotate(10deg);
+    }
+
+    .ribbon-rosette.place-1 {
+      background: #3b82f6;
+    }
+
+    .ribbon-rosette.place-2 {
+      background: #dc2626;
+    }
+
+    .ribbon-rosette.place-3 {
+      background: #f59e0b;
+    }
+
+    .ribbon-rosette.place-4 {
+      background: white;
+      color: #374151;
+      border: 3px solid #d1d5db;
+      text-shadow: none;
+    }
+
+    .ribbon-rosette.place-5 {
+      background: #047857;
+    }
+
+    /* ========== OPTION 3: CORNER RIBBON FLAG ========== */
+    .ribbon-corner-wrapper {
+      position: relative;
+      display: inline-block;
+    }
+
+    .ribbon-corner {
+      position: absolute;
+      top: -8px;
+      left: -8px;
+      padding: 0.25rem 0.75rem;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: white;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+      transform: rotate(-45deg);
+      transform-origin: center;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      z-index: 10;
+      min-width: 60px;
+      text-align: center;
+    }
+
+    .ribbon-corner.place-1 {
+      background: #3b82f6;
+    }
+
+    .ribbon-corner.place-2 {
+      background: #dc2626;
+    }
+
+    .ribbon-corner.place-3 {
+      background: #f59e0b;
+    }
+
+    .ribbon-corner.place-4 {
+      background: white;
+      color: #374151;
+      border: 2px solid #d1d5db;
+      text-shadow: none;
+    }
+
+    .ribbon-corner.place-5 {
+      background: #047857;
+    }
+
+    /* ========== OPTION 4: SIMPLE VERTICAL RIBBON ========== */
+    .ribbon-vertical {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      padding: 0.375rem 0.75rem 0.375rem 0.5rem;
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: white;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+      border-radius: 0.375rem;
+      padding-left: 0.75rem;
+    }
+
+    .ribbon-vertical::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      background: inherit;
+      filter: brightness(1.2);
+      border-radius: 0.375rem 0 0 0.375rem;
+    }
+
+    .ribbon-vertical.place-1 {
+      background: #3b82f6;
+    }
+
+    .ribbon-vertical.place-2 {
+      background: #dc2626;
+    }
+
+    .ribbon-vertical.place-3 {
+      background: #f59e0b;
+    }
+
+    .ribbon-vertical.place-4 {
+      background: white;
+      color: #374151;
+      border: 2px solid #d1d5db;
+      text-shadow: none;
+    }
+
+    .ribbon-vertical.place-5 {
+      background: #047857;
+    }
+
+    .description {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #e5e7eb;
+      font-size: 0.875rem;
+      color: #6b7280;
+      line-height: 1.5;
+    }
+
+    .pros-cons {
+      margin-top: 0.5rem;
+    }
+
+    .pros-cons strong {
+      color: #0a0a0a;
+    }
+
+    .comparison-section {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      margin-top: 2rem;
+    }
+
+    .comparison-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      color: #0a0a0a;
+    }
+
+    .placements-row {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+    }
+
+    .placement-label {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #6b7280;
+      margin-bottom: 0.5rem;
+    }
+
+    /* Add extra spacing for rosette badges */
+    .mock-results .ribbon-rosette {
+      margin-bottom: 18px;
+    }
+
+    /* ========== OPTION 5: EMOJI RIBBON ========== */
+    .ribbon-emoji {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.25rem 0.625rem;
+      font-size: 0.875rem;
+      font-weight: 700;
+      border-radius: 0.75rem;
+      background: rgba(0, 0, 0, 0.05);
+    }
+
+    .ribbon-emoji-icon {
+      font-size: 1.125rem;
+      line-height: 1;
+    }
+
+    .ribbon-emoji.place-1 {
+      color: #3b82f6;
+    }
+
+    .ribbon-emoji.place-2 {
+      color: #dc2626;
+    }
+
+    .ribbon-emoji.place-3 {
+      color: #f59e0b;
+    }
+
+    .ribbon-emoji.place-4 {
+      color: #6b7280;
+    }
+
+    .ribbon-emoji.place-5 {
+      color: #047857;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Placement Badge Ribbon Design Options</h1>
+
+    <div class="options-grid">
+      <!-- OPTION 1: CLASSIC RIBBON -->
+      <div class="option-card">
+        <div class="option-title">Option 1: Classic Award Ribbon</div>
+        <div class="mock-entry-card">
+          <div>
+            <span class="mock-armband">101</span>
+            <div class="mock-dog-info">
+              <div class="mock-dog-name">Kula</div>
+              <div class="mock-breed">Pembroke Welsh Corgi</div>
+            </div>
+          </div>
+          <div class="mock-results">
+            <span class="ribbon-classic place-1">1st</span>
+            <span class="result-badge">Q</span>
+            <span class="time-badge">00:01.76</span>
+            <span class="faults-badge">0 Faults</span>
+          </div>
+        </div>
+
+        <div class="mock-entry-card">
+          <div>
+            <span class="mock-armband">113</span>
+            <div class="mock-dog-info">
+              <div class="mock-dog-name">Rowdy</div>
+              <div class="mock-breed">Pembroke Welsh Corgi</div>
+            </div>
+          </div>
+          <div class="mock-results">
+            <span class="ribbon-classic place-2">2nd</span>
+            <span class="result-badge">Q</span>
+            <span class="time-badge">00:02.23</span>
+            <span class="faults-badge">1 Fault</span>
+          </div>
+        </div>
+
+        <div class="description">
+          <strong>Style:</strong> Traditional ribbon with pointed tail at bottom
+          <div class="pros-cons">
+            <div><strong>✓ Pros:</strong> Most recognizable, classic competition look, clear visual hierarchy</div>
+            <div><strong>✗ Cons:</strong> Takes slightly more vertical space due to tail</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- OPTION 2: ROSETTE/MEDAL -->
+      <div class="option-card">
+        <div class="option-title">Option 2: Rosette/Medal Style</div>
+        <div class="mock-entry-card">
+          <div>
+            <span class="mock-armband">101</span>
+            <div class="mock-dog-info">
+              <div class="mock-dog-name">Kula</div>
+              <div class="mock-breed">Pembroke Welsh Corgi</div>
+            </div>
+          </div>
+          <div class="mock-results">
+            <span class="ribbon-rosette place-1">1st</span>
+            <span class="result-badge">Q</span>
+            <span class="time-badge">00:01.76</span>
+            <span class="faults-badge">0 Faults</span>
+          </div>
+        </div>
+
+        <div class="mock-entry-card">
+          <div>
+            <span class="mock-armband">113</span>
+            <div class="mock-dog-info">
+              <div class="mock-dog-name">Rowdy</div>
+              <div class="mock-breed">Pembroke Welsh Corgi</div>
+            </div>
+          </div>
+          <div class="mock-results">
+            <span class="ribbon-rosette place-2">2nd</span>
+            <span class="result-badge">Q</span>
+            <span class="time-badge">00:02.23</span>
+            <span class="faults-badge">1 Fault</span>
+          </div>
+        </div>
+
+        <div class="description">
+          <strong>Style:</strong> Circular medal/rosette with ribbon tails
+          <div class="pros-cons">
+            <div><strong>✓ Pros:</strong> Very elegant, resembles real competition rosettes, distinctive</div>
+            <div><strong>✗ Cons:</strong> Takes more space, circular shape may not align as well with pill badges</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- OPTION 3: CORNER RIBBON -->
+      <div class="option-card">
+        <div class="option-title">Option 3: Corner Ribbon Flag</div>
+        <div class="mock-entry-card ribbon-corner-wrapper">
+          <span class="ribbon-corner place-1">1st</span>
+          <div>
+            <span class="mock-armband">101</span>
+            <div class="mock-dog-info">
+              <div class="mock-dog-name">Kula</div>
+              <div class="mock-breed">Pembroke Welsh Corgi</div>
+            </div>
+          </div>
+          <div class="mock-results">
+            <span class="result-badge">Q</span>
+            <span class="time-badge">00:01.76</span>
+            <span class="faults-badge">0 Faults</span>
+          </div>
+        </div>
+
+        <div class="mock-entry-card ribbon-corner-wrapper">
+          <span class="ribbon-corner place-2">2nd</span>
+          <div>
+            <span class="mock-armband">113</span>
+            <div class="mock-dog-info">
+              <div class="mock-dog-name">Rowdy</div>
+              <div class="mock-breed">Pembroke Welsh Corgi</div>
+            </div>
+          </div>
+          <div class="mock-results">
+            <span class="result-badge">Q</span>
+            <span class="time-badge">00:02.23</span>
+            <span class="faults-badge">1 Fault</span>
+          </div>
+        </div>
+
+        <div class="description">
+          <strong>Style:</strong> Diagonal ribbon banner in top-left corner of card
+          <div class="pros-cons">
+            <div><strong>✓ Pros:</strong> Very prominent, doesn't interfere with badge row, eye-catching</div>
+            <div><strong>✗ Cons:</strong> May overlap armband or dog name, harder to scan placement in list</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- OPTION 4: VERTICAL RIBBON -->
+      <div class="option-card">
+        <div class="option-title">Option 4: Simple Vertical Ribbon</div>
+        <div class="mock-entry-card">
+          <div>
+            <span class="mock-armband">101</span>
+            <div class="mock-dog-info">
+              <div class="mock-dog-name">Kula</div>
+              <div class="mock-breed">Pembroke Welsh Corgi</div>
+            </div>
+          </div>
+          <div class="mock-results">
+            <span class="ribbon-vertical place-1">1st</span>
+            <span class="result-badge">Q</span>
+            <span class="time-badge">00:01.76</span>
+            <span class="faults-badge">0 Faults</span>
+          </div>
+        </div>
+
+        <div class="mock-entry-card">
+          <div>
+            <span class="mock-armband">113</span>
+            <div class="mock-dog-info">
+              <div class="mock-dog-name">Rowdy</div>
+              <div class="mock-breed">Pembroke Welsh Corgi</div>
+            </div>
+          </div>
+          <div class="mock-results">
+            <span class="ribbon-vertical place-2">2nd</span>
+            <span class="result-badge">Q</span>
+            <span class="time-badge">00:02.23</span>
+            <span class="faults-badge">1 Fault</span>
+          </div>
+        </div>
+
+        <div class="description">
+          <strong>Style:</strong> Pill badge with vertical accent stripe on left edge
+          <div class="pros-cons">
+            <div><strong>✓ Pros:</strong> Simple, clean, same height as other badges, modern look</div>
+            <div><strong>✗ Cons:</strong> Less distinctive, may not read as "award ribbon" as clearly</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- OPTION 5: EMOJI RIBBON -->
+      <div class="option-card">
+        <div class="option-title">Option 5: Emoji Ribbons/Medals 🏆</div>
+        <div class="mock-entry-card">
+          <div>
+            <span class="mock-armband">101</span>
+            <div class="mock-dog-info">
+              <div class="mock-dog-name">Kula</div>
+              <div class="mock-breed">Pembroke Welsh Corgi</div>
+            </div>
+          </div>
+          <div class="mock-results">
+            <span class="ribbon-emoji place-1">
+              <span class="ribbon-emoji-icon">🥇</span>
+              <span>1st</span>
+            </span>
+            <span class="result-badge">Q</span>
+            <span class="time-badge">00:01.76</span>
+            <span class="faults-badge">0 Faults</span>
+          </div>
+        </div>
+
+        <div class="mock-entry-card">
+          <div>
+            <span class="mock-armband">113</span>
+            <div class="mock-dog-info">
+              <div class="mock-dog-name">Rowdy</div>
+              <div class="mock-breed">Pembroke Welsh Corgi</div>
+            </div>
+          </div>
+          <div class="mock-results">
+            <span class="ribbon-emoji place-2">
+              <span class="ribbon-emoji-icon">🥈</span>
+              <span>2nd</span>
+            </span>
+            <span class="result-badge">Q</span>
+            <span class="time-badge">00:02.23</span>
+            <span class="faults-badge">1 Fault</span>
+          </div>
+        </div>
+
+        <div class="description">
+          <strong>Style:</strong> Medal emoji for top 4 placements only (🥇🥈🥉🎖️)
+          <div class="pros-cons">
+            <div><strong>✓ Pros:</strong> Fun, universally recognized, no CSS complexity, works perfectly in dark mode</div>
+            <div><strong>✗ Cons:</strong> 5th place and beyond won't have placement badge (more realistic for dog shows)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ALL PLACEMENTS COMPARISON -->
+    <div class="comparison-section">
+      <div class="comparison-title">All Placement Colors (1st through 5th+)</div>
+
+      <div class="placement-label">Option 1: Classic Ribbon</div>
+      <div class="placements-row">
+        <span class="ribbon-classic place-1">1st</span>
+        <span class="ribbon-classic place-2">2nd</span>
+        <span class="ribbon-classic place-3">3rd</span>
+        <span class="ribbon-classic place-4">4th</span>
+        <span class="ribbon-classic place-5">5th</span>
+      </div>
+
+      <div class="placement-label">Option 2: Rosette/Medal</div>
+      <div class="placements-row" style="margin-bottom: 2rem;">
+        <span class="ribbon-rosette place-1">1st</span>
+        <span class="ribbon-rosette place-2">2nd</span>
+        <span class="ribbon-rosette place-3">3rd</span>
+        <span class="ribbon-rosette place-4">4th</span>
+        <span class="ribbon-rosette place-5">5th</span>
+      </div>
+
+      <div class="placement-label">Option 3: Corner Flag (shown inline for comparison)</div>
+      <div class="placements-row">
+        <span class="ribbon-vertical place-1" style="transform: rotate(-45deg); padding: 0.25rem 0.75rem;">1st</span>
+        <span class="ribbon-vertical place-2" style="transform: rotate(-45deg); padding: 0.25rem 0.75rem;">2nd</span>
+        <span class="ribbon-vertical place-3" style="transform: rotate(-45deg); padding: 0.25rem 0.75rem;">3rd</span>
+        <span class="ribbon-vertical place-4" style="transform: rotate(-45deg); padding: 0.25rem 0.75rem;">4th</span>
+        <span class="ribbon-vertical place-5" style="transform: rotate(-45deg); padding: 0.25rem 0.75rem;">5th</span>
+      </div>
+
+      <div class="placement-label">Option 4: Vertical Ribbon</div>
+      <div class="placements-row">
+        <span class="ribbon-vertical place-1">1st</span>
+        <span class="ribbon-vertical place-2">2nd</span>
+        <span class="ribbon-vertical place-3">3rd</span>
+        <span class="ribbon-vertical place-4">4th</span>
+        <span class="ribbon-vertical place-5">5th</span>
+      </div>
+
+      <div class="placement-label">Option 5: Emoji Ribbons (1st-4th only)</div>
+      <div class="placements-row">
+        <span class="ribbon-emoji place-1">
+          <span class="ribbon-emoji-icon">🥇</span>
+          <span>1st</span>
+        </span>
+        <span class="ribbon-emoji place-2">
+          <span class="ribbon-emoji-icon">🥈</span>
+          <span>2nd</span>
+        </span>
+        <span class="ribbon-emoji place-3">
+          <span class="ribbon-emoji-icon">🥉</span>
+          <span>3rd</span>
+        </span>
+        <span class="ribbon-emoji place-4">
+          <span class="ribbon-emoji-icon">🎖️</span>
+          <span>4th</span>
+        </span>
+        <span style="padding: 0.25rem 0.625rem; color: #6b7280; font-size: 0.875rem; font-style: italic;">
+          5th+ (no badge)
+        </span>
+      </div>
+
+      <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #e5e7eb;">
+        <strong>Color Key (matching your Flutter app):</strong>
+        <ul style="margin-top: 0.5rem; margin-left: 1.5rem; line-height: 1.8;">
+          <li>1st Place: Blue (#3b82f6)</li>
+          <li>2nd Place: Red (#dc2626)</li>
+          <li>3rd Place: Yellow/Gold (#f59e0b)</li>
+          <li>4th Place: White with gray border</li>
+          <li>5th+ Place: Dark green (#047857)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

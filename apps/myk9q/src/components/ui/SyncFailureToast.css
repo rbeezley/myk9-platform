@@ -1,0 +1,181 @@
+/**
+ * SyncFailureToast Styles
+ *
+ * Toast notification for sync failures.
+ * Positioned at bottom of viewport, similar to UpdateToast.
+ */
+
+/* Container - positioned at bottom */
+.sync-failure-toast-container {
+  position: fixed;
+  bottom: var(--token-space-xl);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  max-width: 90%;
+  width: 400px;
+  pointer-events: none;
+}
+
+/* Toast card */
+.sync-failure-toast {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--token-space-lg);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  padding: var(--token-space-lg);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--token-space-md);
+  pointer-events: auto;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Error state styling */
+.sync-failure-toast--sync-failed {
+  border-left: 4px solid var(--token-warning);
+}
+
+.sync-failure-toast--queue-overflow {
+  border-left: 4px solid var(--token-error);
+}
+
+/* Icon */
+.sync-failure-toast__icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--token-space-md);
+  background: var(--token-warning-light, rgba(234, 179, 8, 0.1));
+  color: var(--token-warning);
+}
+
+.sync-failure-toast--queue-overflow .sync-failure-toast__icon {
+  background: var(--token-error-light, rgba(239, 68, 68, 0.1));
+  color: var(--token-error);
+}
+
+/* Content */
+.sync-failure-toast__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.sync-failure-toast__message {
+  margin: 0;
+  font-size: var(--token-font-sm);
+  color: var(--foreground);
+  line-height: 1.4;
+}
+
+.sync-failure-toast__count {
+  margin: var(--token-space-xs) 0 0;
+  font-size: var(--token-font-xs);
+  color: var(--token-text-tertiary);
+}
+
+/* Actions */
+.sync-failure-toast__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--token-space-sm);
+  flex-shrink: 0;
+}
+
+.sync-failure-toast__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--token-space-xs);
+  padding: var(--token-space-sm) var(--token-space-md);
+  border-radius: var(--token-space-md);
+  font-size: var(--token-font-sm);
+  font-weight: var(--token-font-weight-medium);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: none;
+}
+
+.sync-failure-toast__btn--primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.sync-failure-toast__btn--primary:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.sync-failure-toast__btn--primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.sync-failure-toast__btn--dismiss {
+  background: transparent;
+  color: var(--token-text-secondary);
+  padding: var(--token-space-sm);
+}
+
+.sync-failure-toast__btn--dismiss:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+/* Spinning animation for refresh icon */
+.sync-failure-toast__btn .spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Dark mode adjustments */
+.theme-dark .sync-failure-toast {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* Mobile adjustments */
+@media (max-width: 480px) {
+  .sync-failure-toast-container {
+    bottom: calc(var(--token-space-xl) + env(safe-area-inset-bottom, 0px));
+    left: var(--token-space-md);
+    right: var(--token-space-md);
+    transform: none;
+    width: auto;
+    max-width: none;
+  }
+
+  .sync-failure-toast {
+    padding: var(--token-space-md);
+  }
+
+  .sync-failure-toast__icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .sync-failure-toast__icon svg {
+    width: 18px;
+    height: 18px;
+  }
+}

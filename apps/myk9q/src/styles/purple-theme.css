@@ -1,0 +1,162 @@
+/* ===================================================================
+   PURPLE THEME - Perfect for the majority older female user base
+
+   This overrides the blue primary colors with a rich purple palette
+   that's sophisticated, feminine, and calming.
+   =================================================================== */
+
+:root {
+  /* ===== PRIMARY COLOR OVERRIDE (Blue → Purple) ===== */
+
+  /* Primary UI - Rich Purple */
+  --primary: var(--status-at-gate) !important;               /* Rich violet */
+  --primary-hover: #7c3aed !important;         /* Deeper violet on hover */
+  --primary-foreground: #ffffff !important;    /* White text on purple */
+
+  /* Brand Colors - Update to Purple */
+  --brand-blue: var(--status-at-gate) !important;            /* Now "brand purple" */
+  --brand-gradient: linear-gradient(135deg, var(--status-at-gate) 0%, #a78bfa 100%) !important; /* Purple → Light purple */
+
+  /* ===== DIFFERENTIATED PURPLE TONES ===== */
+  /* These prevent "everything is the same purple" problem */
+
+  /* At Gate Status - Use distinct purple */
+  --status-at-gate: #a78bfa !important;        /* Lighter purple for at gate */
+  --status-at-gate-bg: #a78bfa !important;
+
+  /* Start Time Status - Keep violet purple */
+  --status-start-time: #7c3aed !important;     /* Deeper purple */
+  --status-start-time-bg: #7c3aed !important;
+
+  /* In Progress - Use rich purple (same as primary is OK for this one) */
+  --status-in-progress: var(--status-at-gate) !important;
+  --status-in-progress-bg: var(--status-at-gate) !important;
+
+  /* ===== OPTIONAL: ADJUST COMPLEMENTARY COLORS ===== */
+
+  /* Secondary - Soften to complement purple better */
+  --secondary: #faf5ff !important;             /* Very light purple tint */
+  --secondary-foreground: #581c87 !important;   /* Dark purple text */
+
+  /* Muted - Slight purple tint for cohesion */
+  --muted: #fdf9ff !important;                 /* Barely-there purple */
+
+  /* ===== LINKS & INTERACTIVE ELEMENTS ===== */
+
+  /* Links that use primary color */
+  --link-color: var(--status-at-gate) !important;
+  --link-hover: #7c3aed !important;
+
+  /* Focus rings */
+  --focus-ring: var(--status-at-gate) !important;
+
+  /* ===== GRADIENTS ===== */
+
+  /* Hero gradients (for headers, etc) */
+  --gradient-primary: linear-gradient(135deg, var(--status-at-gate) 0%, #7c3aed 100%) !important;
+  --gradient-hero: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, transparent 100%) !important;
+
+  /* ===== BUTTON VARIANTS ===== */
+
+  /* Primary buttons already use --primary, so they're automatic */
+
+  /* ===== THEME COLOR (PWA/Mobile) ===== */
+
+  /* This affects mobile browser chrome color */
+  --theme-color: var(--status-at-gate) !important;
+}
+
+/* ===== DARK MODE OVERRIDES ===== */
+
+.theme-dark {
+  /* Primary colors stay the same in dark mode */
+  --primary: var(--status-at-gate) !important;
+  --primary-hover: #7c3aed !important;
+
+  /* Adjust background tints for dark mode */
+  --secondary: #1a0f2e !important;             /* Very dark purple tint */
+  --secondary-foreground: #e9d5ff !important;  /* Light purple text */
+
+  --muted: #1e1430 !important;                 /* Dark with purple tint */
+
+  /* Status colors remain distinct in dark mode */
+  --status-at-gate: #a78bfa !important;        /* Light purple */
+  --status-start-time: #7c3aed !important;     /* Deep purple */
+  --status-in-progress: var(--status-at-gate) !important;    /* Rich purple */
+}
+
+/* ===== COMPONENT-SPECIFIC OVERRIDES ===== */
+
+/* Navigation - Purple active states */
+.nav-link.active {
+  color: var(--primary) !important;
+  border-bottom-color: var(--primary) !important;
+}
+
+/* Buttons - Ensure primary button uses new purple */
+.button-primary,
+.btn-primary {
+  background: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+}
+
+.button-primary:hover,
+.btn-primary:hover {
+  background: var(--primary-hover) !important;
+}
+
+/* Tabs - Purple underline for active tab */
+.tab.active {
+  border-bottom-color: var(--primary) !important;
+  color: var(--primary) !important;
+}
+
+/* Progress bars */
+.progress-bar-fill {
+  background: var(--primary) !important;
+}
+
+/* Checkboxes/Radio buttons when checked */
+input[type="checkbox"]:checked,
+input[type="radio"]:checked {
+  background-color: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+
+/* Focus rings for accessibility */
+*:focus-visible {
+  outline-color: var(--primary) !important;
+  box-shadow: 0 0 0 2px var(--primary) !important;
+}
+
+/* ===== COLOR COMPARISON GUIDE ===== */
+
+/*
+ORIGINAL BLUE:
+  Primary: #007AFF (Apple blue)
+  Hover:   #0051D5
+
+NEW PURPLE:
+  Primary: var(--status-at-gate) (Rich violet)
+  Hover:   #7c3aed (Deep violet)
+
+STATUS PURPLES (Differentiated):
+  At Gate:     #a78bfa (Light purple)
+  Start Time:  #7c3aed (Deep purple)
+  In Progress: var(--status-at-gate) (Rich violet - same as primary)
+
+RATIONALE:
+  - Sophisticated and calming color
+  - Popular with older female demographic
+  - Represents achievement and prestige (perfect for dog show winners)
+  - Maintains WCAG contrast ratios
+  - Distinct from green (qualified) and red (errors)
+
+TO TEST:
+  1. Use ThemeToggle component in Settings
+  2. Navigate through the app
+  3. Check buttons, links, badges
+  4. Test light + dark mode
+  5. Verify status badges are distinguishable
+  6. Check mobile devices
+*/

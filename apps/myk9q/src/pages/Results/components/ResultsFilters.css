@@ -1,0 +1,198 @@
+/* src/pages/Results/components/ResultsFilters.css */
+/* Championship Gala Filter Bar - Elegant & Functional */
+
+.results-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: center;
+  gap: var(--token-space-xl);
+  padding: var(--token-space-lg) var(--token-space-xl);
+  background: linear-gradient(
+    180deg,
+    rgba(30, 30, 35, 0.95) 0%,
+    rgba(20, 20, 25, 0.98) 100%
+  );
+  border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(12px);
+}
+
+.results-filters__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--token-space-xs);
+}
+
+.results-filters__group label {
+  font-family: 'Montserrat', 'Segoe UI', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(212, 175, 55, 0.8);
+}
+
+.results-filters__group select {
+  appearance: none;
+  padding: 10px 40px 10px 16px;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: 8px;
+  background-color: rgba(30, 30, 35, 0.9);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23d4af37' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  font-family: 'Montserrat', 'Segoe UI', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: #ffffff;
+  min-width: 180px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.results-filters__group select:hover {
+  border-color: rgba(212, 175, 55, 0.6);
+  background-color: rgba(40, 40, 45, 0.95);
+}
+
+.results-filters__group select:focus {
+  outline: none;
+  border-color: #d4af37;
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.15);
+}
+
+.results-filters__group select option {
+  background-color: #1e1e23;
+  color: #ffffff;
+  padding: 12px;
+}
+
+.results-filters__count {
+  display: flex;
+  align-items: center;
+  gap: var(--token-space-sm);
+  font-family: 'Montserrat', 'Segoe UI', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  padding: 10px 16px;
+  background: rgba(212, 175, 55, 0.1);
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  border-radius: 8px;
+}
+
+.results-filters__count::before {
+  content: '🏆';
+  font-size: 14px;
+}
+
+@media (max-width: 639px) {
+  .results-filters {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--token-space-lg);
+    padding: var(--token-space-lg);
+  }
+
+  .results-filters__group select {
+    width: 100%;
+  }
+
+  .results-filters__count {
+    margin-left: 0;
+    justify-content: center;
+  }
+}
+
+/* ===== LIGHT MODE ===== */
+
+/* System preference: light */
+@media (prefers-color-scheme: light) {
+  :root.theme-auto .results-filters {
+    background: linear-gradient(
+      180deg,
+      rgba(245, 240, 232, 0.95) 0%,
+      rgba(250, 248, 245, 0.98) 100%
+    );
+    border-bottom-color: rgba(153, 101, 21, 0.2);
+  }
+
+  :root.theme-auto .results-filters__group label {
+    color: #996515;
+  }
+
+  :root.theme-auto .results-filters__group select {
+    background-color: #ffffff;
+    border-color: rgba(153, 101, 21, 0.3);
+    color: #2D2A26;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23996515' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+    box-shadow: 0 2px 8px rgba(153, 101, 21, 0.08);
+  }
+
+  :root.theme-auto .results-filters__group select:hover {
+    border-color: rgba(153, 101, 21, 0.5);
+    background-color: #FDFCFA;
+  }
+
+  :root.theme-auto .results-filters__group select:focus {
+    border-color: #B8860B;
+    box-shadow: 0 0 0 3px rgba(184, 134, 11, 0.15);
+  }
+
+  :root.theme-auto .results-filters__group select option {
+    background-color: #ffffff;
+    color: #2D2A26;
+  }
+
+  :root.theme-auto .results-filters__count {
+    color: #5C574F;
+    background: rgba(184, 134, 11, 0.1);
+    border-color: rgba(153, 101, 21, 0.2);
+  }
+}
+
+/* Forced light mode */
+:root.theme-light .results-filters {
+  background: linear-gradient(
+    180deg,
+    rgba(245, 240, 232, 0.95) 0%,
+    rgba(250, 248, 245, 0.98) 100%
+  );
+  border-bottom-color: rgba(153, 101, 21, 0.2);
+}
+
+:root.theme-light .results-filters__group label {
+  color: #996515;
+}
+
+:root.theme-light .results-filters__group select {
+  background-color: #ffffff;
+  border-color: rgba(153, 101, 21, 0.3);
+  color: #2D2A26;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23996515' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+  box-shadow: 0 2px 8px rgba(153, 101, 21, 0.08);
+}
+
+:root.theme-light .results-filters__group select:hover {
+  border-color: rgba(153, 101, 21, 0.5);
+  background-color: #FDFCFA;
+}
+
+:root.theme-light .results-filters__group select:focus {
+  border-color: #B8860B;
+  box-shadow: 0 0 0 3px rgba(184, 134, 11, 0.15);
+}
+
+:root.theme-light .results-filters__group select option {
+  background-color: #ffffff;
+  color: #2D2A26;
+}
+
+:root.theme-light .results-filters__count {
+  color: #5C574F;
+  background: rgba(184, 134, 11, 0.1);
+  border-color: rgba(153, 101, 21, 0.2);
+}

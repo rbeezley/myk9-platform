@@ -1,0 +1,520 @@
+/* Nationals Scoresheet Wireframe Styles */
+
+.wireframe-container {
+  max-width: 400px;
+  margin: var(--token-space-2xl) auto;
+  padding: var(--token-space-2xl);
+  background: var(--background);
+  color: white;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  border-radius: var(--token-space-lg);
+  border: var(--token-space-xs) solid #333;
+}
+
+.wireframe-header {
+  text-align: center;
+  margin-bottom: 30px;
+  padding-bottom: var(--token-space-2xl);
+  border-bottom: var(--token-space-xs) solid #333;
+}
+
+.wireframe-header h2 {
+  margin: 0 0 var(--token-space-md) 0;
+  color: #60a5fa;
+}
+
+.wireframe-header p {
+  margin: 0;
+  color: var(--token-text-muted);
+  font-size: 14px;
+}
+
+.wireframe-section {
+  margin-bottom: var(--token-space-3xl);
+  padding: var(--token-space-xl);
+  border: 1px dashed #555;
+  border-radius: var(--token-space-md);
+  background: rgba(255, 255, 255, 0.02);
+  box-sizing: border-box;
+  width: 100%;
+  overflow: hidden;
+}
+
+.wireframe-label {
+  font-size: var(--token-space-lg);
+  font-weight: 600;
+  color: var(--primary);
+  margin-bottom: var(--token-space-lg);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Trial Info Wireframe */
+.wireframe-trial-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--token-space-md);
+  padding: var(--token-space-lg);
+  background: rgba(40, 40, 40, 0.8);
+  border-radius: var(--token-space-md);
+  font-size: 14px;
+}
+
+.separator {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Dog Info Wireframe - NO BACKGROUND */
+.wireframe-dog-info {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--token-space-lg);
+  padding: var(--token-space-lg) 0;
+  /* NO background - this is the key! */
+  background: transparent;
+  border: var(--token-space-xs) dashed var(--status-pulled);
+  border-radius: var(--token-space-md);
+  padding: var(--token-space-lg);
+}
+
+.wireframe-armband {
+  width: 60px;
+  height: 60px;
+  background: var(--primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--token-space-3xl);
+  font-weight: bold;
+  border-radius: var(--token-space-lg);
+  flex-shrink: 0;
+}
+
+.wireframe-dog-details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--token-space-xs);
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.wireframe-dog-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: white;
+  margin: 0;
+  line-height: 1.2;
+  /* This should align with TOP of armband */
+}
+
+.wireframe-dog-breed {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0;
+}
+
+.wireframe-dog-handler {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0;
+}
+
+/* Timer Section */
+.wireframe-timer {
+  text-align: center;
+  padding: var(--token-space-2xl);
+  background: rgba(40, 40, 40, 0.8);
+  border-radius: var(--token-space-lg);
+}
+
+.wireframe-time {
+  font-size: 48px;
+  font-weight: bold;
+  margin-bottom: var(--token-space-xl);
+  font-variant-numeric: tabular-nums;
+}
+
+.wireframe-timer-controls {
+  display: flex;
+  justify-content: center;
+  gap: var(--token-space-lg);
+}
+
+.wireframe-btn-reset, .wireframe-btn-start {
+  padding: var(--token-space-lg) var(--token-space-3xl);
+  border: none;
+  border-radius: var(--token-space-3xl);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.wireframe-btn-reset {
+  background: var(--muted-foreground);
+  color: white;
+}
+
+.wireframe-btn-start {
+  background: var(--token-success);
+  color: white;
+}
+
+/* Time Input */
+.wireframe-time-input {
+  display: flex;
+  align-items: center;
+  gap: var(--token-space-lg);
+  padding: var(--token-space-lg);
+  background: rgba(40, 40, 40, 0.8);
+  border-radius: var(--token-space-md);
+}
+
+.wireframe-element-btn {
+  background: var(--token-success);
+  color: white;
+  border: none;
+  padding: var(--token-space-md) var(--token-space-lg);
+  border-radius: 6px;
+  font-size: var(--token-space-lg);
+  font-weight: 600;
+  flex-shrink: 0;
+  min-width: 60px;
+  max-width: 80px;
+}
+
+.wireframe-time-field {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: var(--token-space-md) var(--token-space-lg);
+  border-radius: 6px;
+  font-size: var(--token-space-xl);
+  text-align: center;
+  min-width: 0;
+  width: 120px; /* Fixed width for multi-area */
+}
+
+.wireframe-time-field.single-area {
+  flex: 1;
+  width: auto;
+  margin-left: 0;
+}
+
+.wireframe-max-time {
+  font-size: var(--token-space-lg);
+  color: rgba(255, 255, 255, 0.6);
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+/* Result Buttons */
+.wireframe-result-buttons {
+  display: flex;
+  gap: var(--token-space-md);
+  flex-wrap: wrap;
+}
+
+.wireframe-result-btn {
+  flex: 1;
+  padding: var(--token-space-lg) var(--token-space-xl);
+  background: rgba(107, 114, 128, 0.8);
+  color: white;
+  border: none;
+  border-radius: var(--token-space-md);
+  font-weight: 600;
+  cursor: pointer;
+  min-width: 80px;
+}
+
+/* Nationals Counters - Show DARK backgrounds */
+.wireframe-counters {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--token-space-md);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.wireframe-counter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--token-space-lg);
+  border-radius: var(--token-space-lg);
+  border: var(--token-space-xs) dashed;
+  /* ALL should have DARK backgrounds */
+  background: rgba(20, 20, 25, 0.95);
+  box-sizing: border-box;
+  min-width: 0; /* Allow shrinking */
+}
+
+.wireframe-counter.positive {
+  border-color: var(--token-success);
+}
+
+.wireframe-counter.negative {
+  border-color: var(--token-error);
+}
+
+.wireframe-counter-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--token-space-md);
+  margin-bottom: var(--token-space-md);
+  justify-content: center;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.wireframe-counter-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 18px;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  color: white;
+  flex-shrink: 0;
+}
+
+.wireframe-counter-btn.decrement {
+  background: var(--muted-foreground);
+}
+
+.wireframe-counter-btn.increment.positive {
+  background: var(--token-success);
+}
+
+.wireframe-counter-btn.increment.negative {
+  background: var(--status-pulled);
+}
+
+.wireframe-counter-value {
+  font-size: var(--token-space-2xl);
+  font-weight: bold;
+  color: white;
+  min-width: var(--token-space-4xl);
+  text-align: center;
+  background: rgba(0, 0, 0, 0.8);
+  padding: var(--token-space-sm) var(--token-space-md);
+  border-radius: 6px;
+  border: var(--token-space-xs) solid rgba(255, 255, 255, 0.2);
+  box-sizing: border-box;
+}
+
+.wireframe-counter-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: white;
+  text-align: center;
+  word-break: break-word;
+  line-height: 1.2;
+  margin-top: var(--token-space-sm);
+}
+
+/* Action Buttons */
+.wireframe-action-buttons {
+  display: flex;
+  gap: var(--token-space-lg);
+  justify-content: center;
+  align-items: center;
+}
+
+.wireframe-cancel-btn {
+  background: var(--muted-foreground);
+  color: white;
+  border: none;
+  padding: var(--token-space-xl) var(--token-space-3xl);
+  border-radius: var(--token-space-lg);
+  font-size: var(--token-space-xl);
+  font-weight: 600;
+  cursor: pointer;
+  min-width: 100px;
+}
+
+.wireframe-save-btn {
+  background: var(--status-at-gate);
+  color: white;
+  border: none;
+  padding: var(--token-space-xl) var(--token-space-4xl);
+  border-radius: var(--token-space-lg);
+  font-size: var(--token-space-xl);
+  font-weight: 600;
+  cursor: pointer;
+  min-width: 120px;
+}
+
+/* Notes */
+.wireframe-note {
+  margin-top: var(--token-space-lg);
+  font-size: 11px;
+  color: #f87171;
+  font-style: italic;
+  line-height: 1.4;
+}
+
+.wireframe-footer {
+  margin-top: 30px;
+  padding-top: var(--token-space-2xl);
+  border-top: var(--token-space-xs) solid #333;
+}
+
+.wireframe-footer p {
+  margin: 0 0 var(--token-space-lg) 0;
+  color: #60a5fa;
+  font-weight: 600;
+}
+
+.wireframe-footer ul {
+  margin: 0;
+  padding-left: var(--token-space-2xl);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.wireframe-footer li {
+  margin-bottom: var(--token-space-sm);
+}
+
+/* Responsive - Mobile First */
+/* Mobile base styles (applied to elements above) */
+.wireframe-container {
+  margin: var(--token-space-lg);
+  padding: var(--token-space-xl);
+}
+
+.wireframe-section {
+  padding: var(--token-space-lg);
+}
+
+.wireframe-counters {
+  grid-template-columns: 1fr;
+}
+
+.wireframe-counter {
+  padding: var(--token-space-lg);
+}
+
+.wireframe-action-buttons {
+  flex-direction: column;
+  gap: var(--token-space-md);
+}
+
+.wireframe-cancel-btn,
+.wireframe-save-btn {
+  width: 100%;
+  padding: 14px var(--token-space-3xl);
+}
+
+.wireframe-time-input {
+  gap: 6px;
+}
+
+.wireframe-element-btn {
+  padding: var(--token-space-sm) 6px;
+  font-size: 10px;
+  min-width: 40px;
+  max-width: 50px;
+}
+
+.wireframe-time-field {
+  width: 80px;
+  padding: var(--token-space-sm) 6px;
+  font-size: 13px;
+}
+
+.wireframe-time-field.single-area {
+  width: auto;
+  flex: 1;
+}
+
+.wireframe-max-time {
+  font-size: 10px;
+}
+
+.wireframe-counter-btn {
+  width: var(--token-space-4xl);
+  height: var(--token-space-4xl);
+  font-size: var(--token-space-xl);
+}
+
+.wireframe-counter-value {
+  font-size: 18px;
+  min-width: 28px;
+  padding: var(--token-space-sm) 6px;
+}
+
+/* Desktop enhancements */
+@media (min-width: 640px) {
+  .wireframe-container {
+    margin: var(--token-space-2xl) auto;
+    padding: var(--token-space-2xl);
+  }
+
+  .wireframe-section {
+    padding: var(--token-space-xl);
+  }
+
+  .wireframe-counters {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .wireframe-counter {
+    padding: var(--token-space-lg);
+  }
+
+  .wireframe-action-buttons {
+    flex-direction: row;
+    justify-content: center;
+  }
+
+  .wireframe-cancel-btn,
+  .wireframe-save-btn {
+    width: auto;
+    padding: var(--token-space-xl) var(--token-space-3xl);
+  }
+
+  .wireframe-cancel-btn {
+    min-width: 100px;
+  }
+
+  .wireframe-save-btn {
+    padding: var(--token-space-xl) var(--token-space-4xl);
+    min-width: 120px;
+  }
+
+  .wireframe-time-input {
+    gap: var(--token-space-lg);
+  }
+
+  .wireframe-element-btn {
+    padding: var(--token-space-md) var(--token-space-lg);
+    font-size: var(--token-space-lg);
+    min-width: 60px;
+    max-width: 80px;
+  }
+
+  .wireframe-time-field {
+    width: 120px;
+    padding: var(--token-space-md) var(--token-space-lg);
+    font-size: var(--token-space-xl);
+  }
+
+  .wireframe-max-time {
+    font-size: var(--token-space-lg);
+  }
+
+  .wireframe-counter-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+  }
+
+  .wireframe-counter-value {
+    font-size: var(--token-space-2xl);
+    min-width: var(--token-space-4xl);
+    padding: var(--token-space-sm) var(--token-space-md);
+  }
+}

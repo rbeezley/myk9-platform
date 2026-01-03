@@ -1,0 +1,159 @@
+/* ClassRunOrder Component - Individual class grid cell */
+
+.class-runorder {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 var(--token-space-xs) var(--token-space-md) rgba(0, 0, 0, 0.1);
+}
+
+.theme-dark .class-runorder {
+  box-shadow: 0 var(--token-space-xs) var(--token-space-md) rgba(0, 0, 0, 0.3);
+}
+
+/* Class header */
+.class-runorder-header {
+  padding: var(--token-space-xl);
+  background: var(--muted);
+  border-bottom: var(--token-space-xs) solid var(--border);
+}
+
+.class-runorder-title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--token-space-lg);
+  margin-bottom: var(--token-space-md);
+  flex-wrap: wrap;
+}
+
+.class-runorder-title {
+  font-size: 1.25rem;  /* Mobile: smaller title */
+  font-weight: 600;
+  margin: 0;
+  color: var(--foreground);
+  line-height: 1.2;
+}
+
+/* Status badges */
+.class-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--token-space-sm) var(--token-space-lg);
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.status-in-progress {
+  background: var(--status-in-progress);
+  color: var(--status-in-progress-text);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+.status-briefing {
+  background: var(--status-briefing);
+  color: var(--status-briefing-text);
+}
+
+.status-starts {
+  background: var(--status-start-time);
+  color: var(--status-start-time-text);
+}
+
+.status-upcoming {
+  background: var(--status-setup);
+  color: var(--status-setup-text);
+}
+
+.class-runorder-meta {
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+  font-weight: 500;
+  display: flex;
+  align-items: flex-start;  /* Mobile: flex-start alignment */
+  gap: var(--token-space-lg);
+  flex-direction: column;  /* Mobile: column layout */
+  flex-wrap: wrap;
+}
+
+.class-runorder-meta .meta-item {
+  display: flex;
+  align-items: center;
+  gap: var(--token-space-sm);
+}
+
+.class-runorder-meta svg {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+/* Entry list container */
+.class-runorder-entries {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--token-space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--token-space-md);
+}
+
+/* Smooth scrollbar */
+.class-runorder-entries::-webkit-scrollbar {
+  width: 6px;
+}
+
+.class-runorder-entries::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.class-runorder-entries::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.class-runorder-entries::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+
+/* Separator between pending and completed sections */
+.entries-separator {
+  margin: var(--token-space-md) 0;
+  border: 0;
+  border-top: var(--token-space-xs) dashed var(--border);
+  opacity: 0.5;
+}
+
+/* Empty state */
+.class-runorder-empty {
+  padding: var(--token-space-4xl) var(--token-space-xl);
+  text-align: center;
+  color: var(--muted-foreground);
+}
+
+.class-runorder-empty p {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+/* Desktop enhancements */
+@media (min-width: 1024px) {
+  .class-runorder-title {
+    font-size: 1.5rem;  /* Desktop: larger title */
+  }
+
+  .class-runorder-meta {
+    flex-direction: row;  /* Desktop: row layout */
+    align-items: center;  /* Desktop: center alignment */
+  }
+}

@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Push Subscription Test - myK9Q</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    h1 {
+      color: #333;
+    }
+    .card {
+      background: white;
+      padding: 24px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+    button:hover {
+      background: #2563eb;
+    }
+    button:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+    button.success {
+      background: #10b981;
+    }
+    button.danger {
+      background: #ef4444;
+    }
+    pre {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 16px;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .status {
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+    }
+    .status.info {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+    .status.success {
+      background: #d1fae5;
+      color: #065f46;
+    }
+    .status.error {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+    .step {
+      margin: 20px 0;
+      padding-left: 30px;
+      position: relative;
+    }
+    .step::before {
+      content: attr(data-step);
+      position: absolute;
+      left: 0;
+      width: 24px;
+      height: 24px;
+      background: #3b82f6;
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: bold;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+    input {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔔 Push Notification Subscription Test</h1>
+
+  <div class="card">
+    <div class="status info" id="status">
+      Ready to test push notifications. Follow the steps below.
+    </div>
+
+    <div class="step" data-step="1">
+      <h3>Enter License Key</h3>
+      <label for="licenseKey">License Key (multi-tenant isolation):</label>
+      <input
+        type="text"
+        id="licenseKey"
+        value="myK9Q1-a260f472-e0d76a33-4b6c264c"
+        placeholder="e.g., myK9Q1-a260f472-e0d76a33-4b6c264c"
+      />
+    </div>
+
+    <div class="step" data-step="2">
+      <h3>Request Notification Permission</h3>
+      <p>Current permission: <strong id="permissionStatus">checking...</strong></p>
+      <button id="requestPermission">Request Permission</button>
+    </div>
+
+    <div class="step" data-step="3">
+      <h3>Register Service Worker</h3>
+      <p>Service worker status: <strong id="swStatus">not registered</strong></p>
+      <button id="registerSW">Register Service Worker</button>
+    </div>
+
+    <div class="step" data-step="4">
+      <h3>Subscribe to Push Notifications</h3>
+      <p>Subscription status: <strong id="subStatus">not subscribed</strong></p>
+      <button id="subscribe" disabled>Subscribe to Push</button>
+      <button id="unsubscribe" class="danger" disabled>Unsubscribe</button>
+    </div>
+
+    <div class="step" data-step="5">
+      <h3>Test Notification</h3>
+      <button id="testNotification" disabled>Send Test Notification</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>📋 Subscription Data for Supabase</h3>
+    <p>Copy this JSON and insert it into the <code>push_subscriptions</code> table:</p>
+    <pre id="output">Subscription data will appear here after subscribing...</pre>
+  </div>
+
+  <div class="card">
+    <h3>📊 Debugging Information</h3>
+    <pre id="debug">Debug logs will appear here...</pre>
+  </div>
+
+  <script>
+    const VAPID_PUBLIC_KEY = 'BFK-H_c7RjtdIwWN3ALmU8SFkwOxdlkIPtWN7Tj8ogj_cTgwTnC5A-HvJZe7Ot-9C_kgZu2gsNN8rj6pDO2ZMOg';
+
+    let swRegistration = null;
+    let pushSubscription = null;
+
+    const $ = (id) => document.getElementById(id);
+    const log = (msg, type = 'info') => {
+      console.log(msg);
+      const debugEl = $('debug');
+      const timestamp = new Date().toLocaleTimeString();
+      debugEl.textContent = `[${timestamp}] ${msg}\n${debugEl.textContent}`;
+
+      $('status').textContent = msg;
+      $('status').className = `status ${type}`;
+    };
+
+    function urlBase64ToUint8Array(base64String) {
+      const padding = '='.repeat((4 - base64String.length % 4) % 4);
+      const base64 = (base64String + padding)
+        .replace(/\-/g, '+')
+        .replace(/_/g, '/');
+      const rawData = window.atob(base64);
+      const outputArray = new Uint8Array(rawData.length);
+      for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+      }
+      return outputArray;
+    }
+
+    function arrayBufferToBase64(buffer) {
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return btoa(binary);
+    }
+
+    async function checkPermission() {
+      const permission = Notification.permission;
+      $('permissionStatus').textContent = permission;
+      log(`Notification permission: ${permission}`);
+
+      if (permission === 'granted') {
+        $('requestPermission').disabled = true;
+        $('requestPermission').className = 'success';
+        $('requestPermission').textContent = '✓ Permission Granted';
+        return true;
+      }
+      return false;
+    }
+
+    async function checkServiceWorker() {
+      if (!('serviceWorker' in navigator)) {
+        log('Service workers not supported', 'error');
+        return false;
+      }
+
+      const registration = await navigator.serviceWorker.getRegistration();
+      if (registration) {
+        swRegistration = registration;
+        $('swStatus').textContent = 'registered ✓';
+        $('registerSW').disabled = true;
+        $('registerSW').className = 'success';
+        $('registerSW').textContent = '✓ Service Worker Active';
+        $('subscribe').disabled = false;
+        log('Service worker already registered');
+        return true;
+      }
+      return false;
+    }
+
+    async function checkSubscription() {
+      if (!swRegistration) return false;
+
+      const subscription = await swRegistration.pushManager.getSubscription();
+      if (subscription) {
+        pushSubscription = subscription;
+        $('subStatus').textContent = 'subscribed ✓';
+        $('subscribe').disabled = true;
+        $('unsubscribe').disabled = false;
+        $('testNotification').disabled = false;
+        displaySubscriptionData(subscription);
+        log('Push subscription already exists', 'success');
+        return true;
+      }
+      return false;
+    }
+
+    function displaySubscriptionData(subscription) {
+      const licenseKey = $('licenseKey').value;
+      const subscriptionData = {
+        endpoint: subscription.endpoint,
+        p256dh: arrayBufferToBase64(subscription.getKey('p256dh')),
+        auth: arrayBufferToBase64(subscription.getKey('auth')),
+        license_key: licenseKey,
+        user_id: 'test-user-' + Date.now(),
+        is_active: true,
+        notification_preferences: {
+          announcements: true,
+          up_soon: true,
+          results: true,
+          favorite_armbands: []
+        }
+      };
+
+      $('output').textContent = JSON.stringify(subscriptionData, null, 2);
+      log('Subscription data ready for Supabase', 'success');
+    }
+
+    // Event Handlers
+    $('requestPermission').addEventListener('click', async () => {
+      try {
+        const permission = await Notification.requestPermission();
+        await checkPermission();
+        if (permission === 'granted') {
+          log('✓ Permission granted', 'success');
+        } else {
+          log('Permission denied', 'error');
+        }
+      } catch (error) {
+        log('Error requesting permission: ' + error.message, 'error');
+      }
+    });
+
+    $('registerSW').addEventListener('click', async () => {
+      try {
+        log('Registering service worker...');
+        swRegistration = await navigator.serviceWorker.register('/sw.js');
+        await navigator.serviceWorker.ready;
+
+        $('swStatus').textContent = 'registered ✓';
+        $('registerSW').disabled = true;
+        $('registerSW').className = 'success';
+        $('registerSW').textContent = '✓ Service Worker Active';
+        $('subscribe').disabled = false;
+
+        log('✓ Service worker registered', 'success');
+        await checkSubscription();
+      } catch (error) {
+        log('Error registering service worker: ' + error.message, 'error');
+      }
+    });
+
+    $('subscribe').addEventListener('click', async () => {
+      try {
+        if (!swRegistration) {
+          log('Service worker not registered', 'error');
+          return;
+        }
+
+        log('Subscribing to push notifications...');
+
+        pushSubscription = await swRegistration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+        });
+
+        $('subStatus').textContent = 'subscribed ✓';
+        $('subscribe').disabled = true;
+        $('unsubscribe').disabled = false;
+        $('testNotification').disabled = false;
+
+        displaySubscriptionData(pushSubscription);
+        log('✓ Push subscription created', 'success');
+      } catch (error) {
+        log('Error subscribing: ' + error.message, 'error');
+      }
+    });
+
+    $('unsubscribe').addEventListener('click', async () => {
+      try {
+        if (!pushSubscription) {
+          log('No subscription to unsubscribe', 'error');
+          return;
+        }
+
+        await pushSubscription.unsubscribe();
+        pushSubscription = null;
+
+        $('subStatus').textContent = 'not subscribed';
+        $('subscribe').disabled = false;
+        $('unsubscribe').disabled = true;
+        $('testNotification').disabled = true;
+        $('output').textContent = 'Subscription data will appear here after subscribing...';
+
+        log('✓ Unsubscribed from push notifications', 'success');
+      } catch (error) {
+        log('Error unsubscribing: ' + error.message, 'error');
+      }
+    });
+
+    $('testNotification').addEventListener('click', async () => {
+      try {
+        const licenseKey = $('licenseKey').value;
+
+        if (!swRegistration || !swRegistration.active) {
+          log('Service worker not active', 'error');
+          return;
+        }
+
+        log('Sending test notification via service worker...');
+
+        // Send simulated push notification to service worker
+        swRegistration.active.postMessage({
+          type: 'SIMULATE_PUSH',
+          data: {
+            id: Date.now(),
+            licenseKey: licenseKey,
+            title: 'Test Push Notification',
+            content: 'This is a test push notification from the subscription test page',
+            priority: 'urgent',
+            showName: 'Test Show',
+            timestamp: new Date().toISOString()
+          }
+        });
+
+        log('✓ Test notification sent to service worker', 'success');
+      } catch (error) {
+        log('Error sending test notification: ' + error.message, 'error');
+      }
+    });
+
+    // Initialize
+    (async () => {
+      log('Initializing push notification test page...');
+      await checkPermission();
+      await checkServiceWorker();
+      await checkSubscription();
+    })();
+  </script>
+</body>
+</html>

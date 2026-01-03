@@ -1,0 +1,173 @@
+/* ===================================================================
+   GREEN THEME EXPERIMENT - Toggle to preview green primary color
+
+   TO ENABLE: Import this file in main.tsx AFTER design-tokens.css
+   TO DISABLE: Comment out the import
+
+   This overrides the blue primary colors with emerald green to match
+   the landing page aesthetic.
+   =================================================================== */
+
+:root {
+  /* ===== PRIMARY COLOR OVERRIDE (Blue → Green) ===== */
+
+  /* Primary UI - Emerald Green (matches landing page) */
+  --primary: var(--status-checked-in) !important;               /* Emerald green */
+  --primary-hover: #059669 !important;         /* Darker emerald on hover */
+  --primary-foreground: #ffffff !important;    /* White text on green */
+
+  /* Brand Colors - Update to Green */
+  --brand-blue: var(--status-checked-in) !important;            /* Now "brand green" */
+  --brand-gradient: linear-gradient(135deg, var(--status-checked-in) 0%, #14b8a6 100%) !important; /* Green → Teal */
+
+  /* ===== DIFFERENTIATED STATUS GREENS ===== */
+  /* These prevent "everything is the same green" problem */
+
+  /* Check-in Status - Use BRIGHTER lime green to stand out */
+  --status-checked-in: #22c55e !important;     /* Lime green (brighter than primary) */
+  --status-checked-in-bg: #22c55e !important;
+
+  /* Qualified Results - Use DARKER forest green for distinction */
+  --status-qualified: #16a34a !important;      /* Forest green (darker than primary) */
+  --status-qualified-bg: #16a34a !important;
+
+  /* Completed - Keep emerald (same as primary is OK for this one) */
+  --status-completed: var(--status-checked-in) !important;
+  --status-completed-bg: var(--status-checked-in) !important;
+
+  /* ===== OPTIONAL: ADJUST COMPLEMENTARY COLORS ===== */
+
+  /* Secondary - Soften to complement green better */
+  --secondary: #f0fdf4 !important;             /* Very light green tint */
+  --secondary-foreground: #064e3b !important;   /* Dark green text */
+
+  /* Muted - Slight green tint for cohesion */
+  --muted: #f7fef9 !important;                 /* Barely-there green */
+
+  /* ===== LINKS & INTERACTIVE ELEMENTS ===== */
+
+  /* Links that use primary color */
+  --link-color: var(--status-checked-in) !important;
+  --link-hover: #059669 !important;
+
+  /* Focus rings */
+  --focus-ring: var(--status-checked-in) !important;
+
+  /* ===== GRADIENTS ===== */
+
+  /* Hero gradients (for headers, etc) */
+  --gradient-primary: linear-gradient(135deg, var(--status-checked-in) 0%, #059669 100%) !important;
+  --gradient-hero: linear-gradient(135deg, var(--overlay-success) 0%, transparent 100%) !important;
+
+  /* ===== BUTTON VARIANTS ===== */
+
+  /* Primary buttons already use --primary, so they're automatic */
+
+  /* Success buttons (might want to differentiate from primary) */
+  --success: #16a34a !important;               /* Darker green for success (vs primary emerald) */
+  --success-hover: #15803d !important;
+  --success-foreground: #ffffff !important;
+
+  /* ===== THEME COLOR (PWA/Mobile) ===== */
+
+  /* This affects mobile browser chrome color */
+  --theme-color: var(--status-checked-in) !important;
+}
+
+/* ===== DARK MODE OVERRIDES ===== */
+
+.theme-dark {
+  /* Primary colors stay the same in dark mode */
+  --primary: var(--status-checked-in) !important;
+  --primary-hover: #059669 !important;
+
+  /* Adjust background tints for dark mode */
+  --secondary: #0a1f14 !important;             /* Very dark green tint */
+  --secondary-foreground: #d1fae5 !important;  /* Light green text */
+
+  --muted: #0f1f17 !important;                 /* Dark with green tint */
+
+  /* Status colors remain distinct in dark mode */
+  --status-checked-in: #22c55e !important;     /* Bright lime */
+  --status-qualified: #16a34a !important;      /* Forest green */
+  --status-completed: var(--status-checked-in) !important;      /* Emerald */
+}
+
+/* ===== COMPONENT-SPECIFIC OVERRIDES ===== */
+
+/* Navigation - Green active states */
+.nav-link.active {
+  color: var(--primary) !important;
+  border-bottom-color: var(--primary) !important;
+}
+
+/* Buttons - Ensure primary button uses new green */
+.button-primary,
+.btn-primary {
+  background: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+}
+
+.button-primary:hover,
+.btn-primary:hover {
+  background: var(--primary-hover) !important;
+}
+
+/* Tabs - Green underline for active tab */
+.tab.active {
+  border-bottom-color: var(--primary) !important;
+  color: var(--primary) !important;
+}
+
+/* Progress bars */
+.progress-bar-fill {
+  background: var(--primary) !important;
+}
+
+/* Checkboxes/Radio buttons when checked */
+input[type="checkbox"]:checked,
+input[type="radio"]:checked {
+  background-color: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+
+/* Focus rings for accessibility */
+*:focus-visible {
+  outline-color: var(--primary) !important;
+  box-shadow: 0 0 0 2px var(--primary) !important;
+}
+
+/* ===== TESTING UTILITIES ===== */
+
+/* Debug badge removed - use Settings page to verify theme selection */
+
+/* ===== COLOR COMPARISON GUIDE ===== */
+
+/*
+ORIGINAL BLUE:
+  Primary: #007AFF (Apple blue)
+  Hover:   #0051D5
+
+NEW GREEN:
+  Primary: var(--status-checked-in) (Emerald)
+  Hover:   #059669 (Dark emerald)
+
+STATUS GREENS (Differentiated):
+  Checked-in: #22c55e (Lime - brighter)
+  Qualified:  #16a34a (Forest - darker)
+  Completed:  var(--status-checked-in) (Emerald - same as primary)
+
+RATIONALE:
+  - Matches landing page branding
+  - Green = success/achievement (perfect for dog sports)
+  - Differentiated greens prevent "sea of green"
+  - Maintains WCAG contrast ratios
+
+TO TEST:
+  1. Import this file in main.tsx
+  2. Navigate through the app
+  3. Check buttons, links, badges
+  4. Test light + dark mode
+  5. Verify status badges are distinguishable
+  6. Check mobile devices
+*/

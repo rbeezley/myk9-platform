@@ -1,0 +1,696 @@
+/* src/components/podium/podium.css */
+/* Championship Gala Podium - Luxurious Awards Ceremony Aesthetic */
+
+/* Playfair Display: Reserved for celebration moments (The Podium) */
+/* Montserrat is loaded globally in index.html */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&display=swap');
+
+/* ===== COLOR TOKENS ===== */
+:root {
+  /* Gold (1st Place) - Rich, prestigious */
+  --podium-first-bg: linear-gradient(145deg, #d4af37 0%, #f4d675 50%, #d4af37 100%);
+  --podium-first-text: #1a1206;
+  --podium-first-glow: 0 4px 20px rgba(212, 175, 55, 0.5), 0 0 40px rgba(212, 175, 55, 0.2);
+  --podium-first-border: 2px solid rgba(255, 223, 120, 0.6);
+
+  /* Silver (2nd Place) - Refined, elegant */
+  --podium-second-bg: linear-gradient(145deg, #a8a8a8 0%, #d4d4d4 50%, #a8a8a8 100%);
+  --podium-second-text: #1a1a1a;
+  --podium-second-glow: 0 4px 16px rgba(168, 168, 168, 0.4);
+  --podium-second-border: 2px solid rgba(220, 220, 220, 0.6);
+
+  /* Bronze (3rd Place) - Warm, distinguished */
+  --podium-third-bg: linear-gradient(145deg, #cd7f32 0%, #e8a855 50%, #cd7f32 100%);
+  --podium-third-text: #1a1206;
+  --podium-third-glow: 0 4px 16px rgba(205, 127, 50, 0.4);
+  --podium-third-border: 2px solid rgba(232, 168, 85, 0.6);
+
+  /* 4th Place - Honorable mention */
+  --podium-fourth-bg: linear-gradient(145deg, #4a5568 0%, #5a6578 50%, #4a5568 100%);
+  --podium-fourth-text: #ffffff;
+  --podium-fourth-glow: 0 4px 12px rgba(74, 85, 104, 0.3);
+  --podium-fourth-border: 1px solid rgba(100, 116, 139, 0.4);
+}
+
+/* ===== PODIUM CARD ===== */
+.podium-card {
+  background: linear-gradient(
+    165deg,
+    rgba(30, 30, 38, 0.95) 0%,
+    rgba(22, 22, 28, 0.98) 100%
+  );
+  border-radius: 20px;
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(212, 175, 55, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.podium-card:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(212, 175, 55, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Card Header */
+.podium-card__header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+  background: linear-gradient(
+    135deg,
+    rgba(212, 175, 55, 0.08) 0%,
+    rgba(212, 175, 55, 0.02) 100%
+  );
+  border-bottom: 1px solid rgba(212, 175, 55, 0.15);
+  position: relative;
+}
+
+.podium-card__header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 24px;
+  right: 24px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.3), transparent);
+}
+
+.podium-card__icon {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: #d4af37;
+  background: linear-gradient(145deg, rgba(212, 175, 55, 0.15) 0%, rgba(212, 175, 55, 0.05) 100%);
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  border-radius: 10px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.podium-card__title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.01em;
+}
+
+/* Podium Container */
+.podium-card__podium {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px 20px 24px;
+  background:
+    radial-gradient(ellipse at center bottom, rgba(212, 175, 55, 0.05) 0%, transparent 70%);
+  /* Consistent height regardless of placement count */
+  min-height: 340px;
+}
+
+/* Podium order: 2nd, 1st, 3rd, 4th */
+.podium-card__podium .podium-position:nth-child(1) { order: 2; } /* 1st in center */
+.podium-card__podium .podium-position:nth-child(2) { order: 1; } /* 2nd on left */
+.podium-card__podium .podium-position:nth-child(3) { order: 3; } /* 3rd on right */
+.podium-card__podium .podium-position:nth-child(4) { order: 4; } /* 4th far right */
+
+/* ===== PODIUM POSITION ===== */
+.podium-position {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  flex: 1;
+  max-width: 140px;
+}
+
+/* Winner Card */
+.podium-position__card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 24px 12px 16px;
+  position: relative;
+  width: 100%;
+  backdrop-filter: blur(8px);
+  transition: all 0.3s ease;
+}
+
+.podium-position:hover .podium-position__card {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(212, 175, 55, 0.2);
+}
+
+/* Placement Badge - Elegant medal shapes with text */
+.podium-position__badge {
+  position: absolute;
+  top: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: -0.02em;
+  text-transform: lowercase;
+  z-index: 2; /* Text above shine effects */
+}
+
+/* Inner shine effect for medals */
+.podium-position__badge::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  right: 3px;
+  bottom: 3px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 30% 20%, rgba(255, 255, 255, 0.35) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Outer ring highlight */
+.podium-position__badge::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* 1st Place Badge - Gold medal */
+.podium-position--first .podium-position__badge {
+  background: var(--podium-first-bg);
+  color: var(--podium-first-text);
+  box-shadow: var(--podium-first-glow);
+  border: var(--podium-first-border);
+  width: 48px;
+  height: 48px;
+  top: -20px;
+  font-size: 13px;
+}
+
+/* 2nd Place Badge - Silver medal */
+.podium-position--second .podium-position__badge {
+  background: var(--podium-second-bg);
+  color: var(--podium-second-text);
+  box-shadow: var(--podium-second-glow);
+  border: var(--podium-second-border);
+}
+
+/* 3rd Place Badge - Bronze medal */
+.podium-position--third .podium-position__badge {
+  background: var(--podium-third-bg);
+  color: var(--podium-third-text);
+  box-shadow: var(--podium-third-glow);
+  border: var(--podium-third-border);
+}
+
+/* 4th Place Badge - Pewter/slate medal */
+.podium-position--fourth .podium-position__badge {
+  background: var(--podium-fourth-bg);
+  color: var(--podium-fourth-text);
+  box-shadow: var(--podium-fourth-glow);
+  border: var(--podium-fourth-border);
+  width: 36px;
+  height: 36px;
+  top: -14px;
+  font-size: 10px;
+}
+
+/* Handler Name */
+.podium-position__handler {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 16px;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* Dog Name - The Star */
+.podium-position__dog {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 6px;
+  line-height: 1.2;
+}
+
+.podium-position--first .podium-position__dog {
+  color: #d4af37;
+  font-size: 18px;
+}
+
+/* Breed */
+.podium-position__breed {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.4);
+  font-style: italic;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* Armband Number */
+.podium-position__armband {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(212, 175, 55, 0.6);
+  margin-top: 8px;
+  padding: 2px 8px;
+  background: rgba(212, 175, 55, 0.1);
+  border-radius: 4px;
+  display: inline-block;
+}
+
+/* ===== PODIUM PLATFORMS ===== */
+/* Clean metallic risers - height and color convey rank */
+.podium-position__platform {
+  width: 100%;
+  border-radius: 8px 8px 0 0;
+  margin-top: 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Platform shine effect */
+.podium-position__platform::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+}
+
+/* 1st Place Platform - Tallest, most prestigious */
+.podium-position--first .podium-position__platform {
+  background: var(--podium-first-bg);
+  height: 100px;
+  box-shadow: var(--podium-first-glow);
+}
+
+/* 2nd Place Platform */
+.podium-position--second .podium-position__platform {
+  background: var(--podium-second-bg);
+  height: 75px;
+  box-shadow: var(--podium-second-glow);
+}
+
+/* 3rd Place Platform */
+.podium-position--third .podium-position__platform {
+  background: var(--podium-third-bg);
+  height: 55px;
+  box-shadow: var(--podium-third-glow);
+}
+
+/* 4th Place Platform */
+.podium-position--fourth .podium-position__platform {
+  background: var(--podium-fourth-bg);
+  height: 40px;
+  box-shadow: var(--podium-fourth-glow);
+}
+
+/* ===== ANIMATIONS ===== */
+
+/* Slide-up animation */
+@keyframes podium-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(40px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Badge pop animation */
+@keyframes podium-badge-pop {
+  0% {
+    transform: translateX(-50%) scale(0) rotate(-180deg);
+  }
+  70% {
+    transform: translateX(-50%) scale(1.2) rotate(10deg);
+  }
+  85% {
+    transform: translateX(-50%) scale(0.95) rotate(-5deg);
+  }
+  100% {
+    transform: translateX(-50%) scale(1) rotate(0deg);
+  }
+}
+
+/* Gold shimmer effect */
+@keyframes podium-gold-shimmer {
+  0%, 100% {
+    box-shadow: var(--podium-first-glow);
+  }
+  50% {
+    box-shadow: 0 4px 30px rgba(212, 175, 55, 0.7), 0 0 60px rgba(212, 175, 55, 0.3);
+  }
+}
+
+/* Platform grow */
+@keyframes platform-grow {
+  from {
+    height: 0;
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Apply animations */
+.podium-position--animate {
+  animation: podium-slide-up 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  opacity: 0;
+}
+
+/* Staggered delays */
+.podium-position--animate.podium-position--first { animation-delay: 0.2s; }
+.podium-position--animate.podium-position--second { animation-delay: 0.35s; }
+.podium-position--animate.podium-position--third { animation-delay: 0.5s; }
+.podium-position--animate.podium-position--fourth { animation-delay: 0.65s; }
+
+/* Badge pop animation */
+.podium-position--animate .podium-position__badge {
+  animation: podium-badge-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation-delay: inherit;
+  transform: translateX(-50%) scale(0);
+}
+
+/* 1st place continuous shimmer */
+.podium-position--animate.podium-position--first .podium-position__badge {
+  animation:
+    podium-badge-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
+    podium-gold-shimmer 3s ease-in-out 0.8s infinite;
+}
+
+/* Platform grow animation */
+.podium-position--animate .podium-position__platform {
+  animation: platform-grow 0.4s ease-out forwards;
+  animation-delay: inherit;
+}
+
+/* Card animation */
+.podium-card--animate {
+  animation: podium-slide-up 0.5s ease-out forwards;
+  opacity: 0;
+}
+
+/* ===== MOBILE LAYOUT ===== */
+@media (max-width: 639px) {
+  .podium-card__podium {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    padding: 24px 16px;
+  }
+
+  .podium-card__podium .podium-position {
+    order: unset !important;
+    max-width: none;
+    flex-direction: row;
+    gap: 16px;
+    text-align: left;
+  }
+
+  .podium-position__card {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+  }
+
+  .podium-position__badge {
+    position: static;
+    transform: none;
+    flex-shrink: 0;
+  }
+
+  .podium-position--animate .podium-position__badge {
+    animation: podium-badge-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    transform: scale(0);
+  }
+
+  .podium-position__info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .podium-position__handler {
+    margin-top: 0;
+  }
+
+  .podium-position__platform {
+    display: none;
+  }
+
+  .podium-card__header {
+    padding: 16px;
+  }
+
+  .podium-card__icon {
+    width: 40px;
+    height: 40px;
+    font-size: 24px;
+  }
+
+  .podium-card__title {
+    font-size: 18px;
+  }
+}
+
+/* ===== REDUCED MOTION ===== */
+@media (prefers-reduced-motion: reduce) {
+  .podium-position--animate,
+  .podium-card--animate,
+  .podium-position--animate .podium-position__badge,
+  .podium-position--animate .podium-position__platform {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .podium-position--animate .podium-position__badge {
+    transform: translateX(-50%);
+  }
+
+  .podium-position--first .podium-position__badge {
+    animation: none;
+  }
+
+  .podium-card:hover {
+    transform: none;
+  }
+}
+
+/* ===== LIGHT MODE ===== */
+/* Elegant cream cards with refined metallic accents */
+
+/* System preference: light */
+@media (prefers-color-scheme: light) {
+  :root.theme-auto .podium-card {
+    background: linear-gradient(
+      165deg,
+      rgba(255, 255, 255, 0.95) 0%,
+      rgba(250, 248, 245, 0.98) 100%
+    );
+    box-shadow:
+      0 4px 24px rgba(153, 101, 21, 0.12),
+      0 0 0 1px rgba(153, 101, 21, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  }
+
+  :root.theme-auto .podium-card:hover {
+    box-shadow:
+      0 12px 40px rgba(153, 101, 21, 0.18),
+      0 0 0 1px rgba(153, 101, 21, 0.15),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  }
+
+  :root.theme-auto .podium-card__header {
+    background: linear-gradient(
+      135deg,
+      rgba(184, 134, 11, 0.08) 0%,
+      rgba(184, 134, 11, 0.02) 100%
+    );
+    border-bottom-color: rgba(153, 101, 21, 0.15);
+  }
+
+  :root.theme-auto .podium-card__header::before {
+    background: linear-gradient(90deg, transparent, rgba(184, 134, 11, 0.3), transparent);
+  }
+
+  :root.theme-auto .podium-card__icon {
+    color: #996515;
+    background: linear-gradient(145deg, rgba(184, 134, 11, 0.12) 0%, rgba(184, 134, 11, 0.04) 100%);
+    border-color: rgba(153, 101, 21, 0.2);
+    text-shadow: 0 1px 2px rgba(153, 101, 21, 0.2);
+  }
+
+  :root.theme-auto .podium-card__title {
+    color: #2D2A26;
+  }
+
+  :root.theme-auto .podium-card__podium {
+    background: radial-gradient(ellipse at center bottom, rgba(184, 134, 11, 0.05) 0%, transparent 70%);
+  }
+
+  :root.theme-auto .podium-position__card {
+    background: rgba(250, 248, 245, 0.6);
+    border-color: rgba(153, 101, 21, 0.1);
+  }
+
+  :root.theme-auto .podium-position:hover .podium-position__card {
+    background: rgba(255, 255, 255, 0.8);
+    border-color: rgba(153, 101, 21, 0.2);
+  }
+
+  :root.theme-auto .podium-position__handler {
+    color: #5C574F;
+  }
+
+  :root.theme-auto .podium-position__dog {
+    color: #2D2A26;
+  }
+
+  :root.theme-auto .podium-position--first .podium-position__dog {
+    color: #996515;
+  }
+
+  :root.theme-auto .podium-position__breed {
+    color: rgba(45, 42, 38, 0.5);
+  }
+
+  :root.theme-auto .podium-position__armband {
+    color: #996515;
+    background: rgba(184, 134, 11, 0.1);
+  }
+
+  /* Light mode platform shine */
+  :root.theme-auto .podium-position__platform::before {
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+  }
+}
+
+/* Forced light mode */
+:root.theme-light .podium-card {
+  background: linear-gradient(
+    165deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(250, 248, 245, 0.98) 100%
+  );
+  box-shadow:
+    0 4px 24px rgba(153, 101, 21, 0.12),
+    0 0 0 1px rgba(153, 101, 21, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+:root.theme-light .podium-card:hover {
+  box-shadow:
+    0 12px 40px rgba(153, 101, 21, 0.18),
+    0 0 0 1px rgba(153, 101, 21, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+:root.theme-light .podium-card__header {
+  background: linear-gradient(
+    135deg,
+    rgba(184, 134, 11, 0.08) 0%,
+    rgba(184, 134, 11, 0.02) 100%
+  );
+  border-bottom-color: rgba(153, 101, 21, 0.15);
+}
+
+:root.theme-light .podium-card__header::before {
+  background: linear-gradient(90deg, transparent, rgba(184, 134, 11, 0.3), transparent);
+}
+
+:root.theme-light .podium-card__icon {
+  color: #996515;
+  background: linear-gradient(145deg, rgba(184, 134, 11, 0.12) 0%, rgba(184, 134, 11, 0.04) 100%);
+  border-color: rgba(153, 101, 21, 0.2);
+  text-shadow: 0 1px 2px rgba(153, 101, 21, 0.2);
+}
+
+:root.theme-light .podium-card__title {
+  color: #2D2A26;
+}
+
+:root.theme-light .podium-card__podium {
+  background: radial-gradient(ellipse at center bottom, rgba(184, 134, 11, 0.05) 0%, transparent 70%);
+}
+
+:root.theme-light .podium-position__card {
+  background: rgba(250, 248, 245, 0.6);
+  border-color: rgba(153, 101, 21, 0.1);
+}
+
+:root.theme-light .podium-position:hover .podium-position__card {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: rgba(153, 101, 21, 0.2);
+}
+
+:root.theme-light .podium-position__handler {
+  color: #5C574F;
+}
+
+:root.theme-light .podium-position__dog {
+  color: #2D2A26;
+}
+
+:root.theme-light .podium-position--first .podium-position__dog {
+  color: #996515;
+}
+
+:root.theme-light .podium-position__breed {
+  color: rgba(45, 42, 38, 0.5);
+}
+
+:root.theme-light .podium-position__armband {
+  color: #996515;
+  background: rgba(184, 134, 11, 0.1);
+}
+
+:root.theme-light .podium-position__platform::before {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+}

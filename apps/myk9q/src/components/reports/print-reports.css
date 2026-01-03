@@ -1,0 +1,306 @@
+/* Print Report Styles - Based on example check-in and results sheets */
+
+/* Page Setup */
+@page {
+  size: letter;
+  margin: 0.5in;
+}
+
+/* Base Report Container */
+.print-report {
+  font-family: Arial, sans-serif;
+  color: #000;
+  background: #fff;
+  max-width: 8.5in;
+  margin: 0 auto;
+  padding: 0.5in;
+  box-sizing: border-box;
+}
+
+/* Header Section */
+.print-header {
+  position: relative;
+  text-align: center;
+  margin-bottom: var(--token-space-3xl);
+  padding-top: var(--token-space-md);
+}
+
+.print-logo {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.print-title {
+  font-size: var(--token-space-3xl);
+  font-weight: bold;
+  margin: 0;
+  padding: 0;
+  line-height: 1.2;
+}
+
+.show-id {
+  position: absolute;
+  right: 0;
+  top: 0;
+  font-size: 14px;
+  font-weight: normal;
+}
+
+.show-name {
+  text-align: left;
+  font-size: var(--token-space-xl);
+  font-weight: 600;
+  margin: var(--token-space-md) 0;
+}
+
+/* Trial Info Box */
+.trial-info-box {
+  border: 1px solid #000;
+  padding: var(--token-space-lg);
+  margin: var(--token-space-xl) 0 var(--token-space-3xl) 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--token-space-md) var(--token-space-xl);
+}
+
+.info-row {
+  display: flex;
+  gap: var(--token-space-md);
+}
+
+.info-label {
+  font-weight: 600;
+}
+
+.info-value {
+  font-weight: normal;
+}
+
+/* Table Styles */
+.print-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--token-space-xl) 0;
+  font-size: 11px;
+}
+
+.print-table th {
+  background-color: var(--surface-muted);
+  border: 1px solid #000;
+  padding: 6px var(--token-space-md);
+  text-align: left;
+  font-weight: bold;
+  font-size: 10px;
+  color: var(--token-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.print-table td {
+  border: 1px solid #000;
+  padding: 6px var(--token-space-md);
+  vertical-align: middle;
+}
+
+/* Alternating row colors for readability */
+.print-table tbody tr:nth-child(even) {
+  background-color: #fafafa;
+}
+
+/* Column Widths - Check-in Sheet */
+.checkbox-col {
+  width: 30px;
+}
+
+.armband-col {
+  width: 70px;
+}
+
+.callname-col {
+  width: 100px;
+}
+
+.runorder-col {
+  width: 80px;
+}
+
+.breed-col {
+  width: 150px;
+}
+
+.akc-col {
+  width: 100px;
+}
+
+.handler-col {
+  width: auto;
+}
+
+/* Column Widths - Results Sheet */
+.place-col {
+  width: 50px;
+  text-align: center;
+}
+
+.qualified-col {
+  width: 80px;
+}
+
+.faults-col {
+  width: 60px;
+  text-align: center;
+}
+
+.time-col {
+  width: 80px;
+  text-align: right;
+}
+
+/* Checkbox Cell */
+.checkbox-cell {
+  text-align: center;
+  padding: var(--token-space-sm);
+}
+
+.checkbox-square {
+  display: inline-block;
+  width: var(--token-space-xl);
+  height: var(--token-space-xl);
+  border: var(--token-space-xs) solid #000;
+  vertical-align: middle;
+  position: relative;
+  text-align: center;
+}
+
+.checkbox-square .checkmark {
+  font-size: 1rem;
+  font-weight: bold;
+  line-height: var(--token-space-xl);
+  color: #000;
+}
+
+/* Results Sheet Specific */
+.qualified-row {
+  background-color: #fff;
+}
+
+.nq-row {
+  background-color: #fff;
+}
+
+.qualified-text {
+  color: var(--token-success);
+  font-weight: bold;
+}
+
+.nq-text {
+  color: var(--token-error);
+  font-weight: bold;
+}
+
+.place-cell {
+  font-weight: bold;
+  text-align: center;
+}
+
+.time-cell {
+  font-family: 'Courier New', monospace;
+}
+
+/* Footer */
+.print-footer {
+  margin-top: var(--token-space-4xl);
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: normal;
+  padding-top: var(--token-space-xl);
+  border-top: 1px solid var(--border);
+}
+
+.footer-left {
+  text-align: left;
+}
+
+.footer-right {
+  text-align: right;
+}
+
+.qualified-count {
+  margin-left: var(--token-space-3xl);
+}
+
+/* Print Media Query */
+@media print {
+  body {
+    margin: 0;
+    padding: 0;
+  }
+
+  .print-report {
+    padding: 0;
+    max-width: none;
+  }
+
+  /* Ensure colors print */
+  .qualified-text {
+    color: var(--token-success);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .nq-text {
+    color: var(--token-error);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-table th {
+    background-color: var(--surface-muted);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-table tbody tr:nth-child(even) {
+    background-color: #fafafa;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Page break control */
+  .print-table {
+    page-break-inside: auto;
+  }
+
+  .print-table tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  .print-table thead {
+    display: table-header-group;
+  }
+
+  .print-table tfoot {
+    display: table-footer-group;
+  }
+
+  /* Avoid page breaks after headers */
+  .print-header,
+  .trial-info-box {
+    page-break-after: avoid;
+  }
+}
+
+/* Screen Display - Hide print content by default */
+@media screen {
+  .print-report {
+    display: none;
+  }
+}
+
+/* When printing from preview window */
+.print-preview .print-report {
+  display: block;
+}

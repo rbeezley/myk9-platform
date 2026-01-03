@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PWA Icon Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        .canvas-container {
+            display: flex;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        canvas {
+            border: 1px solid #ccc;
+            background: white;
+        }
+        button {
+            padding: 10px 20px;
+            background: #1e40af;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #1e3a8a;
+        }
+    </style>
+</head>
+<body>
+    <h1>myK9Q PWA Icon Generator</h1>
+    <div class="canvas-container">
+        <div>
+            <h3>192x192</h3>
+            <canvas id="canvas192" width="192" height="192"></canvas>
+        </div>
+        <div>
+            <h3>512x512</h3>
+            <canvas id="canvas512" width="512" height="512"></canvas>
+        </div>
+    </div>
+    <button onclick="downloadIcons()">Download Icons</button>
+
+    <script>
+        function drawIcon(canvas, size) {
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = '#1e40af';
+            ctx.fillRect(0, 0, size, size);
+            
+            ctx.fillStyle = '#ffffff';
+            ctx.font = `bold ${size * 0.25}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('K9Q', size / 2, size / 2 - size * 0.1);
+            
+            ctx.font = `${size * 0.08}px Arial`;
+            ctx.fillText('RING SCORING', size / 2, size / 2 + size * 0.15);
+            
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = size * 0.015;
+            ctx.beginPath();
+            ctx.arc(size / 2, size / 2, size * 0.45, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        function downloadIcons() {
+            const link192 = document.createElement('a');
+            link192.download = 'icon-192x192.png';
+            link192.href = document.getElementById('canvas192').toDataURL();
+            link192.click();
+
+            const link512 = document.createElement('a');
+            link512.download = 'icon-512x512.png';
+            link512.href = document.getElementById('canvas512').toDataURL();
+            link512.click();
+        }
+
+        drawIcon(document.getElementById('canvas192'), 192);
+        drawIcon(document.getElementById('canvas512'), 512);
+    </script>
+</body>
+</html>

@@ -1,0 +1,227 @@
+/**
+ * PendingScoresWarningDialog Styles
+ */
+
+.pending-scores-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1rem;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.pending-scores-dialog {
+  background: var(--token-bg-primary, #1a1d23);
+  border-radius: 16px;
+  max-width: 420px;
+  width: 100%;
+  padding: 1.5rem;
+  animation: slideUp 0.3s ease-out;
+  border: 1px solid var(--token-border, #3a3f47);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.pending-scores-dialog-icon {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+  color: #f59e0b;
+}
+
+.pending-scores-dialog-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  text-align: center;
+  margin: 0 0 0.75rem 0;
+  color: var(--token-text-primary, #f1f5f9);
+}
+
+.pending-scores-dialog-message {
+  text-align: center;
+  color: var(--token-text-secondary, #94a3b8);
+  margin: 0 0 0.5rem 0;
+  line-height: 1.5;
+}
+
+.pending-scores-dialog-message strong {
+  color: #f59e0b;
+}
+
+.pending-scores-dialog-warning {
+  text-align: center;
+  color: #ef4444;
+  font-size: 0.875rem;
+  margin: 0 0 1rem 0;
+}
+
+.pending-scores-dialog-warning strong {
+  color: #ef4444;
+}
+
+.pending-scores-dialog-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--token-bg-secondary, #2a2f38);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
+.pending-scores-dialog-status .status-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.pending-scores-dialog-status .status-icon.online {
+  color: #22c55e;
+}
+
+.pending-scores-dialog-status .status-icon.syncing {
+  color: #3b82f6;
+  animation: pulse 1.5s infinite;
+}
+
+.pending-scores-dialog-status .status-icon.offline {
+  color: #ef4444;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.pending-scores-dialog-instructions {
+  background: var(--token-bg-secondary, #2a2f38);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.pending-scores-dialog-instructions h3 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+  color: var(--token-text-primary, #f1f5f9);
+}
+
+.pending-scores-dialog-instructions ol {
+  margin: 0 0 1rem 0;
+  padding-left: 1.25rem;
+  color: var(--token-text-secondary, #94a3b8);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.pending-scores-dialog-instructions li {
+  margin-bottom: 0.25rem;
+}
+
+.pending-scores-dialog-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: rgba(59, 130, 246, 0.1);
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  color: #94a3b8;
+  margin: 0;
+}
+
+.pending-scores-dialog-tip svg {
+  color: #3b82f6;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.pending-scores-dialog-tip strong {
+  color: #3b82f6;
+}
+
+.pending-scores-dialog-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.pending-scores-dialog-actions .btn {
+  min-width: 140px;
+}
+
+/* Offline warning variant */
+.pending-scores-dialog-icon.offline-warning {
+  color: #64748b;
+}
+
+.pending-scores-dialog-instructions p {
+  margin: 0;
+  color: var(--token-text-secondary, #94a3b8);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+/* Two-button layout for offline warning */
+.pending-scores-dialog-actions.offline-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.pending-scores-dialog-actions.offline-actions .btn {
+  flex: 1;
+  max-width: 160px;
+}
+
+/* Danger button style */
+.btn-danger {
+  background-color: #dc2626;
+  color: white;
+  border: none;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.btn-danger:hover {
+  background-color: #b91c1c;
+}
+
+/* Secondary button style */
+.btn-secondary {
+  background-color: var(--token-bg-secondary, #2a2f38);
+  color: var(--token-text-primary, #f1f5f9);
+  border: 1px solid var(--token-border, #3a3f47);
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.btn-secondary:hover {
+  background-color: var(--token-bg-tertiary, #3a3f47);
+}

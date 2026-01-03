@@ -1,0 +1,338 @@
+/* Import design tokens first - available everywhere */
+@import './styles/design-tokens.css';
+@import './styles/apple-design-system.css';
+@import './styles/shared-components.css';
+@import './components/dialogs/shared-dialog.css';
+@import './styles/message-banner.css';
+@import './styles/page-container.css';
+@import './styles/utilities.css';
+@import './styles/touch-feedback.css';
+@import './styles/micro-animations.css';
+@import './styles/touch-targets.css';
+@import './styles/one-handed-mode.css';
+/* performance.css removed - device-tier classes not used */
+@import './styles/viewport.css';
+@import './styles/high-contrast.css';
+@import './styles/reduce-motion.css';
+
+/* Import shared UI component CSS upfront to prevent FOUC */
+/* These styles are used across multiple pages and must load before React renders */
+@import './components/ui/shared-ui.css';
+@import './components/DogCard.css';
+
+/* Import ALL page CSS upfront to prevent FOUC (Flash of Unstyled Content) */
+/* This ensures CSS is loaded synchronously before React renders, eliminating race conditions */
+@import './pages/Home/Home.css';
+@import './pages/ClassList/ClassList.css';
+@import './pages/EntryList/EntryList.css';
+@import './pages/Stats/Stats.css';
+@import './pages/Settings/Settings.css';
+@import './pages/DogDetails/DogDetails.css';
+@import './pages/Announcements/Announcements.css';
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* Root CSS Variables for Settings */
+:root {
+  /* App Background - defaults to warm off-white, overridden by theme classes */
+  --bg-app: #F8F7F4;
+
+  /* Font Size Variables (Phase 1B) */
+  --font-size-base: var(--token-space-xl);
+  --font-size-small: 0.875rem;
+  /* 14px */
+  --font-size-medium: 1rem;
+  /* var(--token-space-xl) */
+  --font-size-large: 1.125rem;
+  /* 18px */
+
+  /* Scale multipliers for headings based on font size setting */
+  --heading-scale: 1;
+}
+
+/* Font Size Classes */
+html.font-small {
+  --font-size-base: 14px;
+  --heading-scale: 0.875;
+}
+
+html.font-medium {
+  --font-size-base: var(--token-space-xl);
+  --heading-scale: 1;
+}
+
+html.font-large {
+  --font-size-base: 18px;
+  --heading-scale: 1.125;
+}
+
+html.font-large {
+  --color-text-light: #ffffff;
+  --color-text-dark: #333333;
+  --color-background: #242424;
+
+  /* Settings Redesign Tokens (Glassmorphism & Themes) */
+  /* Base Backgrounds */
+  --bg-app: #0f172a;
+  /* Deep Slate for Dark Mode */
+  --bg-card: rgba(30, 41, 59, 0.7);
+  /* Glass Dark */
+  --bg-card-hover: rgba(51, 65, 85, 0.8);
+
+  /* Borders & Glass */
+  --border-glass: rgba(255, 255, 255, 0.1);
+  --glass-blur: 12px;
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+
+  /* Text Colors */
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-tertiary: #64748b;
+
+  /* Accent Colors (Default Green) */
+  --accent-primary: #10b981;
+  --accent-glow: rgba(16, 185, 129, 0.3);
+
+  /* Form Inputs (Global) */
+  --input-bg: #1f2937;
+  /* Dark gray for dark mode */
+  --input-border: #4b5563;
+  --input-text: #f9fafb;
+  --input-placeholder: #9ca3af;
+  --input-bg-hover: #374151;
+
+  font-family: var(--font-family);
+  line-height: 1.5;
+  font-weight: 400;
+
+  color: rgba(255, 255, 255, 0.87);
+  background-color: var(--bg-app);
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Light Mode Overrides */
+@media (prefers-color-scheme: light) {
+  :root.theme-auto {
+    --bg-app: #F8F7F4;
+    /* Warm premium off-white */
+    --bg-card: rgba(255, 255, 255, 0.7);
+    /* Glass Light */
+    --bg-card-hover: rgba(255, 255, 255, 0.9);
+    --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
+
+    --text-primary: #0f172a;
+    --text-secondary: #64748b;
+    --text-tertiary: #94a3b8;
+
+    /* Form Inputs (Light Mode Auto) */
+    --input-bg: #ffffff;
+    --input-border: #e2e8f0;
+    --input-text: #0f172a;
+    --input-placeholder: #94a3b8;
+    --input-bg-hover: #f8fafc;
+  }
+}
+
+/* Force native controls (scrollbars, selects) to match the theme */
+:root.theme-dark {
+  color-scheme: dark;
+  --bg-app: #1a1a1e;  /* Warmer charcoal */
+}
+
+:root.theme-light {
+  color-scheme: light;
+  --bg-app: #F8F7F4;  /* Warm premium off-white */
+  --bg-card: rgba(255, 255, 255, 0.7);
+  --bg-card-hover: rgba(255, 255, 255, 0.9);
+  --border-glass: rgba(0, 0, 0, 0.05);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
+
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --text-tertiary: #94a3b8;
+
+  /* Form Inputs (Light Mode) */
+  --input-bg: #ffffff;
+  --input-border: #e2e8f0;
+  --input-text: #0f172a;
+  --input-placeholder: #94a3b8;
+  --input-bg-hover: #f8fafc;
+
+  color: #213547;
+  background-color: var(--bg-app);
+}
+
+/* Accent Color Themes */
+:root.accent-green {
+  --accent-primary: #14b8a6;
+  --primary: #14b8a6;  /* Map --primary to accent color */
+  --primary-hover: #0d9488;
+  --accent-glow: rgba(20, 184, 166, 0.3);
+  --brand-gradient: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
+  --brand-gradient-dark: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+}
+
+:root.accent-blue {
+  --accent-primary: #3b82f6;
+  --primary: #3b82f6;  /* Map --primary to accent color */
+  --primary-hover: #2563eb;
+  --accent-glow: rgba(59, 130, 246, 0.3);
+  --brand-gradient: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  --brand-gradient-dark: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+}
+
+:root.accent-orange {
+  --accent-primary: #f97316;
+  --primary: #f97316;  /* Map --primary to accent color */
+  --primary-hover: #ea580c;
+  --accent-glow: rgba(249, 115, 22, 0.3);
+  --brand-gradient: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  --brand-gradient-dark: linear-gradient(135deg, #ea580c 0%, #c2410c 100%);
+}
+
+:root.accent-purple {
+  --accent-primary: #8b5cf6;
+  --primary: #8b5cf6;  /* Map --primary to accent color */
+  --primary-hover: #7c3aed;
+  --accent-glow: rgba(139, 92, 246, 0.3);
+  --brand-gradient: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  --brand-gradient-dark: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+}
+
+body {
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-size: var(--font-size-base);
+  overflow-x: hidden;
+  /* Prevent horizontal scrolling */
+}
+
+/* Apply font sizes to text elements */
+p,
+span,
+div,
+li,
+td,
+th {
+  font-size: var(--font-size-base);
+}
+
+h1 {
+  font-size: calc(2rem * var(--heading-scale));
+}
+
+h2 {
+  font-size: calc(1.5rem * var(--heading-scale));
+}
+
+h3 {
+  font-size: calc(1.25rem * var(--heading-scale));
+}
+
+h4 {
+  font-size: calc(1.125rem * var(--heading-scale));
+}
+
+h5,
+h6 {
+  font-size: calc(1rem * var(--heading-scale));
+}
+
+button,
+input,
+select,
+textarea {
+  font-size: var(--font-size-base);
+}
+
+/* Custom Scrollbar Styling - Global */
+::-webkit-scrollbar {
+  width: 8px;
+  /* Reduced from 12px to minimize layout impact */
+  height: 8px;
+  /* Reduced from 12px to minimize layout impact */
+}
+
+/* Light mode (default) - transparent track to avoid gray line */
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Dark mode - visible gray track */
+.theme-dark ::-webkit-scrollbar-track {
+  background: rgba(31, 41, 55, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: transparent;
+  /* Hide scrollbar in light mode */
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.5);
+  /* Show on hover */
+  background-clip: padding-box;
+}
+
+/* Firefox scrollbar - hide in light mode */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  /* Hide scrollbar in light mode */
+}
+
+/* Firefox dark mode */
+.theme-dark * {
+  scrollbar-color: rgba(99, 102, 241, 0.4) rgba(31, 41, 55, 0.1);
+}
+
+/* Global CSS Rehydration Prevention */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  text-transform: none;
+  text-align: left;
+}
+
+/* Prevent flash of incorrectly styled content during hydration */
+.entry-list-container[data-loaded="false"] *,
+.class-list-container[data-loaded="false"] *,
+.page-container[data-loaded="false"] *,
+.app-container[data-loaded="false"] * {
+  transition: none;
+  animation: none;
+}
+
+/* Enable transitions after hydration is complete */
+/* Note: We only reset transition, NOT animation.
+   Setting animation: inherit would override explicit animations like stagger-children.
+   The cascade naturally applies correct animations once data-loaded="false" rule is inactive. */
+.entry-list-container[data-loaded="true"] *,
+.class-list-container[data-loaded="true"] *,
+.page-container[data-loaded="true"] *,
+.app-container[data-loaded="true"] * {
+  transition: revert;
+}

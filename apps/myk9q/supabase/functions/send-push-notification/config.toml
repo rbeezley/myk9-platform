@@ -1,0 +1,3 @@
+[function]
+# Disable JWT verification to allow custom authentication (shared secret)
+verify_jwt = false

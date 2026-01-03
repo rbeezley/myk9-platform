@@ -1,0 +1,203 @@
+/* ===================================================================
+   ORANGE THEME - Energetic & Sporty Orange Accent Color
+
+   TO ENABLE: Import this file in main.tsx AFTER design-tokens.css
+   TO DISABLE: Comment out the import
+
+   This overrides the blue primary colors with vibrant orange for an
+   energetic, sporty aesthetic perfect for dog sports.
+   =================================================================== */
+
+:root {
+  /* ===== PRIMARY COLOR OVERRIDE (Blue → Orange) ===== */
+
+  /* Primary UI - Vibrant Orange (energetic & sporty) */
+  --primary: #f97316 !important;               /* Vibrant orange */
+  --primary-hover: #ea580c !important;         /* Darker orange on hover */
+  --primary-foreground: #ffffff !important;    /* White text on orange */
+
+  /* Brand Colors - Update to Orange */
+  --brand-blue: #f97316 !important;            /* Now "brand orange" */
+  --brand-gradient: linear-gradient(135deg, #f97316 0%, #fb923c 100%) !important; /* Orange → Light Orange */
+
+  /* ===== DIFFERENTIATED STATUS COLORS ===== */
+  /* These prevent "everything is the same orange" problem */
+
+  /* Check-in Status - Use AMBER for check-in (warmer tone) */
+  --status-checked-in: var(--status-checked-in) !important;     /* Keep green for check-in (good contrast) */
+  --status-checked-in-bg: var(--status-checked-in) !important;
+
+  /* Qualified Results - Use SUCCESS GREEN (don't make everything orange) */
+  --status-qualified: #16a34a !important;      /* Forest green for qualified */
+  --status-qualified-bg: #16a34a !important;
+
+  /* Completed - Lighter orange for completed */
+  --status-completed: #fb923c !important;      /* Light orange */
+  --status-completed-bg: #fb923c !important;
+
+  /* ===== OPTIONAL: ADJUST COMPLEMENTARY COLORS ===== */
+
+  /* Secondary - Soften to complement orange better */
+  --secondary: #fff7ed !important;             /* Very light orange tint */
+  --secondary-foreground: #7c2d12 !important;  /* Dark orange text */
+
+  /* Muted - Slight orange tint for cohesion */
+  --muted: #fffbf5 !important;                 /* Barely-there orange */
+
+  /* ===== LINKS & INTERACTIVE ELEMENTS ===== */
+
+  /* Links that use primary color */
+  --link-color: #f97316 !important;
+  --link-hover: #ea580c !important;
+
+  /* Focus rings */
+  --focus-ring: #f97316 !important;
+
+  /* ===== GRADIENTS ===== */
+
+  /* Hero gradients (for headers, etc) */
+  --gradient-primary: linear-gradient(135deg, #f97316 0%, #ea580c 100%) !important;
+  --gradient-hero: linear-gradient(135deg, rgba(249, 115, 22, 0.1) 0%, transparent 100%) !important;
+
+  /* ===== BUTTON VARIANTS ===== */
+
+  /* Primary buttons already use --primary, so they're automatic */
+
+  /* Success buttons (keep green for success - don't make orange) */
+  --success: #16a34a !important;               /* Green for success */
+  --success-hover: #15803d !important;
+  --success-foreground: #ffffff !important;
+
+  /* ===== THEME COLOR (PWA/Mobile) ===== */
+
+  /* This affects mobile browser chrome color */
+  --theme-color: #f97316 !important;
+}
+
+/* ===== DARK MODE OVERRIDES ===== */
+
+.theme-dark {
+  /* Primary colors stay the same in dark mode */
+  --primary: #f97316 !important;
+  --primary-hover: #ea580c !important;
+
+  /* Adjust background tints for dark mode */
+  --secondary: #1f0f0a !important;             /* Very dark orange tint */
+  --secondary-foreground: #fed7aa !important;  /* Light orange text */
+
+  --muted: #1a0e08 !important;                 /* Dark with orange tint */
+
+  /* Status colors remain distinct in dark mode */
+  --status-checked-in: var(--status-checked-in) !important;     /* Green for check-in */
+  --status-qualified: #16a34a !important;      /* Green for qualified */
+  --status-completed: #fb923c !important;      /* Light orange for completed */
+}
+
+/* ===== COMPONENT-SPECIFIC OVERRIDES ===== */
+
+/* Navigation - Orange active states */
+.nav-link.active {
+  color: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+
+/* Badges - Orange primary badges */
+.badge-primary {
+  background: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+}
+
+/* Progress bars - Orange progress */
+.progress-bar {
+  background: var(--primary) !important;
+}
+
+/* Active states - Orange highlights */
+.active,
+.selected {
+  color: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+
+/* Toggle switches - Orange when active */
+.toggle-switch input:checked + .toggle-slider {
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+
+/* Checkboxes - Orange when checked */
+input[type="checkbox"]:checked {
+  background-color: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+
+/* Radio buttons - Orange when selected */
+input[type="radio"]:checked {
+  border-color: var(--primary) !important;
+}
+
+input[type="radio"]:checked::before {
+  background-color: var(--primary) !important;
+}
+
+/* Focus states - Orange focus rings */
+*:focus-visible {
+  outline-color: var(--primary) !important;
+}
+
+/* Sliders - Orange slider track */
+input[type="range"]::-webkit-slider-thumb {
+  background: var(--primary) !important;
+}
+
+input[type="range"]::-moz-range-thumb {
+  background: var(--primary) !important;
+}
+
+/* ===== SCORESHEET SPECIFIC ===== */
+
+/* Timer displays - Orange accents */
+.timer-active {
+  color: var(--primary) !important;
+  border-color: var(--primary) !important;
+}
+
+/* Placement badges - Keep trophy gold, don't make orange */
+.placement-badge {
+  /* Keep original gold/silver/bronze colors */
+}
+
+/* ===== STATUS INDICATORS ===== */
+
+/* Status colors should NOT be overridden by theme colors */
+/* Keep original purple for "At Gate", green for "Checked-in", etc. */
+/* These are semantic status indicators, not theme elements */
+
+/* ===== BUTTONS ===== */
+
+/* Primary buttons inherit orange automatically */
+.btn-primary,
+.primary-button {
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+}
+
+.btn-primary:hover,
+.primary-button:hover {
+  background: var(--primary-hover) !important;
+  border-color: var(--primary-hover) !important;
+}
+
+/* ===== ACCESSIBILITY ===== */
+
+/* Ensure sufficient contrast ratios */
+@media (prefers-contrast: high) {
+  :root {
+    --primary: #ea580c !important;  /* Darker orange for better contrast */
+  }
+}
+
+/* ===== DEBUGGING ===== */
+
+/* Debug badge removed - use Settings page to verify theme selection */

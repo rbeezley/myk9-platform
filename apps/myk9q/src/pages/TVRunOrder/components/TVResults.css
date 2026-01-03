@@ -1,0 +1,266 @@
+/* src/pages/TVRunOrder/components/TVResults.css */
+.tv-results {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Header - matches Results page "The Podium" header */
+.tv-results__header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--token-space-md) var(--token-space-xl);
+  background: linear-gradient(
+    180deg,
+    rgba(20, 20, 25, 0.98) 0%,
+    rgba(15, 15, 18, 0.95) 100%
+  );
+  border-bottom: 1px solid rgba(212, 175, 55, 0.15);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+/* Decorative header accent line */
+.tv-results__header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #d4af37, transparent);
+}
+
+/* Subtle star background */
+.tv-results__header::after {
+  content: '✦';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 180px;
+  color: rgba(212, 175, 55, 0.03);
+  pointer-events: none;
+}
+
+/* Title */
+.tv-results__title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: clamp(28px, 4vw, 36px);
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+  letter-spacing: 0.03em;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+  text-shadow: 0 2px 20px rgba(212, 175, 55, 0.2);
+}
+
+.tv-results__title::before,
+.tv-results__title::after {
+  content: '★';
+  font-size: 0.5em;
+  color: #d4af37;
+  vertical-align: middle;
+  margin: 0 12px;
+  opacity: 0.8;
+}
+
+/* Grid: 3 columns like Results page */
+.tv-results__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: auto auto;
+  gap: var(--token-space-md);
+  flex: 1;
+  align-content: start;
+  overflow: hidden;
+  padding: var(--token-space-md);
+}
+
+/* Card wrapper */
+.tv-results__card-wrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+/* TV compact mode: slightly reduced sizing but not squished */
+.tv-results__grid[data-variant="compact"] .podium-card__header {
+  padding: 14px 20px;
+  gap: 12px;
+}
+
+.tv-results__grid[data-variant="compact"] .podium-card__icon {
+  width: 38px;
+  height: 38px;
+  font-size: 18px;
+}
+
+.tv-results__grid[data-variant="compact"] .podium-card__title {
+  font-size: 18px;
+}
+
+/* Reduced podium area - less padding, smaller min-height */
+.tv-results__grid[data-variant="compact"] .podium-card__podium {
+  min-height: 280px;
+  padding: 24px 16px 20px;
+}
+
+/* Slightly smaller positions */
+.tv-results__grid[data-variant="compact"] .podium-position {
+  max-width: 130px;
+}
+
+.tv-results__grid[data-variant="compact"] .podium-position__card {
+  padding: 20px 10px 14px;
+}
+
+.tv-results__grid[data-variant="compact"] .podium-position__handler {
+  font-size: 10px;
+  margin-top: 14px;
+}
+
+.tv-results__grid[data-variant="compact"] .podium-position__dog {
+  font-size: 15px;
+}
+
+.tv-results__grid[data-variant="compact"] .podium-position--first .podium-position__dog {
+  font-size: 16px;
+}
+
+.tv-results__grid[data-variant="compact"] .podium-position__breed {
+  font-size: 9px;
+}
+
+.tv-results__grid[data-variant="compact"] .podium-position__armband {
+  font-size: 9px;
+  margin-top: 6px;
+}
+
+/* Reduced platform heights */
+.tv-results__grid[data-variant="compact"] .podium-position--first .podium-position__platform {
+  height: 80px;
+}
+
+.tv-results__grid[data-variant="compact"] .podium-position--second .podium-position__platform {
+  height: 60px;
+}
+
+.tv-results__grid[data-variant="compact"] .podium-position--third .podium-position__platform {
+  height: 44px;
+}
+
+.tv-results__grid[data-variant="compact"] .podium-position--fourth .podium-position__platform {
+  height: 32px;
+}
+
+/* Animations */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tv-results__card-wrapper {
+  animation: slideIn 0.5s ease-out;
+}
+
+.tv-results__card-wrapper:nth-child(1) { animation-delay: 0s; }
+.tv-results__card-wrapper:nth-child(2) { animation-delay: 0.1s; }
+.tv-results__card-wrapper:nth-child(3) { animation-delay: 0.2s; }
+.tv-results__card-wrapper:nth-child(4) { animation-delay: 0.3s; }
+.tv-results__card-wrapper:nth-child(5) { animation-delay: 0.4s; }
+.tv-results__card-wrapper:nth-child(6) { animation-delay: 0.5s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tv-results__card-wrapper {
+    animation: none;
+  }
+}
+
+/* Mobile: single column, scrollable */
+@media (max-width: 767px) {
+  .tv-results__grid {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+
+  .tv-results__title::before,
+  .tv-results__title::after {
+    display: none;
+  }
+}
+
+/* Desktop: larger padding */
+@media (min-width: 1024px) {
+  .tv-results__grid {
+    padding: var(--token-space-lg);
+  }
+}
+
+/* ===== LIGHT MODE ===== */
+@media (prefers-color-scheme: light) {
+  :root.theme-auto .tv-results__header {
+    background: linear-gradient(
+      180deg,
+      rgba(250, 248, 245, 0.98) 0%,
+      rgba(245, 243, 240, 0.95) 100%
+    );
+    border-bottom-color: rgba(153, 101, 21, 0.15);
+  }
+
+  :root.theme-auto .tv-results__header::before {
+    background: linear-gradient(90deg, transparent, #B8860B, transparent);
+  }
+
+  :root.theme-auto .tv-results__header::after {
+    color: rgba(184, 134, 11, 0.04);
+  }
+
+  :root.theme-auto .tv-results__title {
+    color: #2D2A26;
+    text-shadow: 0 2px 20px rgba(184, 134, 11, 0.15);
+  }
+
+  :root.theme-auto .tv-results__title::before,
+  :root.theme-auto .tv-results__title::after {
+    color: #B8860B;
+  }
+}
+
+:root.theme-light .tv-results__header {
+  background: linear-gradient(
+    180deg,
+    rgba(250, 248, 245, 0.98) 0%,
+    rgba(245, 243, 240, 0.95) 100%
+  );
+  border-bottom-color: rgba(153, 101, 21, 0.15);
+}
+
+:root.theme-light .tv-results__header::before {
+  background: linear-gradient(90deg, transparent, #B8860B, transparent);
+}
+
+:root.theme-light .tv-results__header::after {
+  color: rgba(184, 134, 11, 0.04);
+}
+
+:root.theme-light .tv-results__title {
+  color: #2D2A26;
+  text-shadow: 0 2px 20px rgba(184, 134, 11, 0.15);
+}
+
+:root.theme-light .tv-results__title::before,
+:root.theme-light .tv-results__title::after {
+  color: #B8860B;
+}

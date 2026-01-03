@@ -1,0 +1,194 @@
+/* ===== TAB BAR - Standardized Component ===== */
+/* Underline-style tabs with theme-aware colors */
+
+/* Wrapper for tab bar with optional right element */
+.tab-bar-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--token-space-md);
+  margin: var(--token-space-md) auto var(--token-space-lg);
+  max-width: 700px;
+  padding: 0 var(--token-space-md);
+}
+
+.tab-bar-wrapper.has-right-element {
+  justify-content: space-between;
+}
+
+.tab-bar-wrapper .tab-bar {
+  margin: 0;
+  flex: 1;
+  max-width: 600px;
+}
+
+.tab-bar-right {
+  flex-shrink: 0;
+}
+
+/* Main tab bar container - underline style */
+.tab-bar {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-subtle);
+  border-radius: 12px 12px 0 0;
+  overflow: hidden;
+  max-width: 600px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* Individual tab button - underline style */
+.tab-bar-button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  min-height: 44px; /* iOS minimum touch target */
+  position: relative;
+}
+
+.tab-bar-button:hover {
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+.tab-bar-button.active {
+  color: var(--primary); /* Theme-aware: teal/blue/green/orange */
+  border-bottom-color: var(--primary);
+  background: var(--card);
+}
+
+.tab-bar-button:active {
+  transform: scale(0.98);
+  transition-duration: 0.1s;
+}
+
+/* Tab icon */
+.tab-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+.tab-bar-button svg {
+  flex-shrink: 0;
+}
+
+/* Tab text */
+.tab-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Tab count badge */
+.tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--token-space-xs) 0.375rem;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 0.75rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  min-width: 1.25rem;
+  height: 1.125rem;
+  line-height: 1;
+}
+
+.tab-bar-button.active .tab-count {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.theme-dark .tab-count {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.theme-dark .tab-bar-button.active .tab-count {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+/* Mobile - compact tabs to fit narrow screens */
+@media (max-width: 480px) {
+  .tab-bar .tab-icon {
+    display: none;
+  }
+
+  /* Compact padding and font for all tab bars */
+  .tab-bar-button {
+    padding: 10px 10px;
+    font-size: 0.8125rem;
+    gap: 4px;
+  }
+
+  .tab-count {
+    font-size: 0.625rem;
+    min-width: 1rem;
+    height: 1rem;
+    padding: 0 0.25rem;
+  }
+
+  /* Extra compacting when filter button present */
+  .tab-bar-wrapper.has-right-element {
+    gap: var(--token-space-sm);
+  }
+
+  .tab-bar-wrapper.has-right-element .tab-bar {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .tab-bar-wrapper.has-right-element .tab-bar-button {
+    padding: 10px 8px;
+  }
+}
+
+/* Desktop - wider spacing */
+@media (min-width: 640px) {
+  .tab-bar-button {
+    padding: 14px 20px;
+  }
+}
+
+/* Accessibility - reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .tab-bar-button {
+    transition: none;
+  }
+}
+
+/* ===== VARIANT: Full Width (no max-width, stretch to container) ===== */
+.tab-bar.full-width {
+  max-width: none;
+  margin-left: var(--token-space-lg);
+  margin-right: var(--token-space-lg);
+}
+
+/* ===== VARIANT: Compact (smaller padding, better for mobile) ===== */
+.tab-bar.compact {
+  padding: 0;
+}
+
+.tab-bar.compact .tab-bar-button {
+  padding: 10px 14px;
+  font-size: 0.8125rem;
+  min-height: 40px;
+}

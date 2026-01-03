@@ -1,0 +1,53 @@
+# Build outputs
+dist/
+dev-dist/
+build/
+coverage/
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Generated files
+*.log
+*.map
+.env.local
+.env.*.local
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Screenshots and images
+screenshots/
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+
+# Test artifacts
+test-results/
+playwright-report/
+.nyc_output/
+
+# Documentation (keep essential only)
+docs/database-relationships-diagram.md
+docs/database-normalization-plan.md
+
+# Cache directories
+.cache/
+.parcel-cache/
+.next/
+.turbo/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/

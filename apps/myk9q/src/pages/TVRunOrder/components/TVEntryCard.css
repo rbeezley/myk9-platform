@@ -1,0 +1,256 @@
+/* TVEntryCard Component - Compact entry card for TV display */
+
+.tv-entry-card {
+  --status-done: var(--status-checked-in); /* Green for light mode */
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: var(--token-space-lg);  /* Mobile: larger padding */
+  display: flex;
+  align-items: center;
+  gap: var(--token-space-lg);
+  min-height: 60px;
+  transition: all 0.2s ease;
+}
+
+.theme-dark .tv-entry-card {
+  --status-done: #34d399; /* Brighter green for dark mode */
+  background: var(--card); /* Uses global card token */
+}
+
+/* Status border - matching DogCard.css */
+.tv-entry-card.scored {
+  border-left: 3px solid var(--status-done); /* Green */
+  opacity: 0.7; /* Slightly faded since completed */
+}
+
+.tv-entry-card.in-ring {
+  background: var(--primary-subtle);
+  border-left: 3px solid var(--primary);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.theme-dark .tv-entry-card.in-ring {
+  background: var(--primary-subtle);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
+}
+
+/* Armband badge - square design matching home page ArmbandBadge */
+.tv-entry-armband {
+  flex-shrink: 0;
+  width: 44px;  /* Mobile: smaller badge */
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  background: var(--primary);
+  border-radius: 0.75rem;  /* Rounded square like home page */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.125rem;  /* Mobile: smaller font */
+  font-weight: 700;
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 var(--token-space-xs) var(--token-space-sm) rgba(0, 0, 0, 0.15);
+}
+
+/* Section badge (for Novice A & B) - matching DogCard */
+.tv-entry-section-badge {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: white;
+  box-shadow: 0 var(--token-space-xs) var(--token-space-sm) rgba(0, 0, 0, 0.1);
+}
+
+.tv-entry-section-badge.section-a {
+  background: var(--primary);
+}
+
+.tv-entry-section-badge.section-b {
+  background: var(--token-accent);
+}
+
+/* Entry info */
+.tv-entry-info {
+  flex: 1;
+  min-width: 0; /* Allow text truncation */
+}
+
+.tv-entry-dog {
+  font-size: 1rem;  /* Mobile: smaller font */
+  font-weight: 600;
+  margin: 0 0 var(--token-space-sm) 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--foreground);
+}
+
+.tv-entry-handler {
+  font-size: 0.875rem;  /* Mobile: smaller font */
+  color: var(--muted-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Status badges (right side) */
+.tv-entry-status {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--token-space-md);
+  font-size: 1rem;
+}
+
+/* In-ring badge */
+.status-badge.in-ring-badge {
+  background: var(--primary);
+  color: white;
+  padding: var(--token-space-sm) var(--token-space-lg);
+  border-radius: 0.375rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+/* Result badge (Q/NQ) */
+.result-badge {
+  padding: var(--token-space-sm) var(--token-space-md);
+  border-radius: 0.375rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.result-badge.result-q,
+.result-badge.result-qualified {
+  background: var(--status-done);
+  color: white;
+}
+
+.result-badge.result-nq,
+.result-badge.result-non-qualifying {
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+
+.result-badge.result-absent,
+.result-badge.result-excused,
+.result-badge.result-withdrawn {
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+
+/* Check-in status badge */
+.checkin-badge {
+  padding: var(--token-space-sm) var(--token-space-md);
+  border-radius: 0.375rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.checkin-badge.checkin-0 {
+  background: var(--checkin-none);
+  color: var(--checkin-none-text);
+}
+
+.checkin-badge.checkin-1 {
+  background: var(--checkin-checked-in);
+  color: var(--checkin-checked-in-text);
+}
+
+.checkin-badge.checkin-2 {
+  background: var(--checkin-conflict);
+  color: var(--checkin-conflict-text);
+}
+
+.checkin-badge.checkin-3 {
+  background: var(--checkin-pulled);
+  color: var(--checkin-pulled-text);
+}
+
+.checkin-badge.checkin-4 {
+  background: var(--checkin-at-gate);
+  color: var(--checkin-at-gate-text);
+}
+
+/* Placement badge */
+.placement-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--token-space-sm);
+  padding: var(--token-space-sm) 0.625rem;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.placement-badge-icon {
+  font-size: 1.125rem;
+  line-height: 1;
+}
+
+.placement-badge.place-1 {
+  color: var(--token-placement-1);
+}
+
+.placement-badge.place-2 {
+  color: var(--token-placement-2);
+}
+
+.placement-badge.place-3 {
+  color: var(--token-placement-3);
+}
+
+.placement-badge.place-4 {
+  color: var(--token-placement-4);
+}
+
+.placement-badge.place-5 {
+  color: var(--token-placement-4);
+}
+
+/* Checkmark icon */
+.status-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+/* Desktop enhancements */
+@media (min-width: 1024px) {
+  .tv-entry-card {
+    padding: var(--token-space-md);  /* Desktop: smaller padding */
+  }
+
+  .tv-entry-armband {
+    width: 48px;  /* Desktop: larger badge */
+    height: 48px;
+    min-width: 48px;
+    min-height: 48px;
+    font-size: 1.25rem;  /* Desktop: larger font */
+  }
+
+  .tv-entry-dog {
+    font-size: 1.125rem;  /* Desktop: larger font */
+  }
+
+  .tv-entry-handler {
+    font-size: 1rem;  /* Desktop: larger font */
+  }
+}

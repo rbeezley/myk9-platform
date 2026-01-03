@@ -1,0 +1,426 @@
+/**
+ * CRITICAL CSS - Loaded synchronously before first paint
+ *
+ * This file contains:
+ * 1. CSS variables (colors, spacing, etc.)
+ * 2. Accent color themes (applied by theme-init.js)
+ * 3. Basic html/body/root styles
+ * 4. Loading indicator
+ * 5. Minimal fallback styles for components affected by CSS loading race conditions
+ *
+ * Note: Component fallbacks (status badges, armband numbers) prevent visual glitches
+ * during the brief window when React renders before component CSS loads.
+ */
+
+/* ============================================
+   ESSENTIAL CSS VARIABLES
+   ============================================ */
+:root {
+  /* Base Theme Colors (Light) - Warm premium backgrounds */
+  --background: #F8F7F4;  /* Warm off-white */
+  --foreground: #0a0a0a;
+  --card: #FEFDFB;        /* Subtle cream tint */
+  --border: #e5e7eb;
+  --muted: #f6f6f6;
+  --input: #f3f4f6;
+
+  /* Primary Color - Default to teal (overridden by accent classes) */
+  --primary: #14b8a6;
+  --primary-hover: #0d9488;
+  --primary-foreground: #ffffff;
+  
+  /* Accent Color - Defaults to primary, overridden by accent classes */
+  --accent-color: var(--primary);
+
+  /* Overlay/Shadow Colors */
+  --overlay-white-heavy: rgba(255, 255, 255, 0.8);
+  --shadow-medium: rgba(0, 0, 0, 0.3);
+  --shadow-subtle: rgba(0, 0, 0, 0.1);
+
+  /* Spacing Tokens */
+  --token-space-xs: 0.125rem;
+  --token-space-sm: 0.25rem;
+  --token-space-md: 0.5rem;
+  --token-space-lg: 0.75rem;
+  --token-space-xl: 1rem;
+  --token-space-2xl: 1.25rem;
+  --token-space-3xl: 1.5rem;
+  --token-space-4xl: 2rem;
+
+  /* Border Radius */
+  --token-radius-sm: 0.375rem;
+  --token-radius-md: 0.5rem;
+  --token-radius-lg: 0.75rem;
+  --token-radius-xl: 1rem;
+
+  /* Font Sizes */
+  --font-size-base: 1rem;
+  --token-font-sm: 0.75rem;
+  --token-font-md: 0.875rem;
+  --token-font-lg: 1rem;
+  --token-font-xl: 1.25rem;
+
+  /* Text Colors */
+  --muted-foreground: #6b7280;
+
+  /* ===== STATUS BADGE COLORS (Critical - must load before React) ===== */
+  /* Class status badges */
+  --status-no-status-bg: #9ca3af;
+  --status-no-status-text: #ffffff;
+  --status-setup-bg: #b45309;
+  --status-briefing-bg: #ff6b00;
+  --status-in-progress-bg: #0066ff;
+  --status-offline-scoring-bg: #f59e0b;
+  --status-completed-bg: #00cc66;
+  --status-break-bg: #c000ff;
+
+  /* Check-in status colors */
+  --checkin-none: #6b7280;
+  --checkin-none-text: #ffffff;
+  --checkin-checked-in: #22c55e;
+  --checkin-checked-in-text: #ffffff;
+  --checkin-conflict: #f97316;
+  --checkin-conflict-text: #ffffff;
+  --checkin-pulled: #dc3545;
+  --checkin-pulled-text: #ffffff;
+  --checkin-at-gate: #6f42c1;
+  --checkin-at-gate-text: #ffffff;
+  --checkin-in-ring: #f59e0b;
+  --checkin-in-ring-text: #1a1a1a;
+  --token-text-secondary: #6b7280;
+
+  /* Secondary/Surface Colors - Warm premium backgrounds */
+  --secondary: #F8F7F4;  /* Warm off-white - page container backgrounds */
+  --secondary-foreground: #0f172a;
+
+  /* Shadows */
+  --token-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --token-shadow-md: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+  /* Z-Index */
+  --token-z-modal: 1000;
+
+  /* Dark Overlay */
+  --overlay-dark-heavy: rgba(26, 29, 35, 0.8);
+}
+
+/* ============================================
+   DARK THEME
+   ============================================ */
+.theme-dark {
+  --background: #1a1a1e;  /* Warmer charcoal */
+  --foreground: #ffffff;
+  --card: rgba(30, 41, 59, 0.7);
+  --border: #4a5568;
+  --muted: #2d3748;
+  --input: #2d3748;
+  --overlay-white-heavy: rgba(30, 41, 59, 0.9);
+  --muted-foreground: #94a3b8;
+  --token-text-secondary: #94a3b8;
+  --secondary: #1e293b;
+  --secondary-foreground: #f8fafc;
+}
+
+/* ============================================
+   ACCENT COLOR THEMES
+   (Applied by theme-init.js synchronously)
+   ============================================ */
+:root.accent-green,
+html.accent-green {
+  --primary: #14b8a6;
+  --primary-hover: #0d9488;
+  --accent-primary: #14b8a6;
+  --accent-color: #14b8a6;
+  --accent-glow: rgba(20, 184, 166, 0.3);
+}
+
+:root.accent-blue,
+html.accent-blue {
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --accent-primary: #3b82f6;
+  --accent-color: #3b82f6;
+  --accent-glow: rgba(59, 130, 246, 0.3);
+}
+
+:root.accent-orange,
+html.accent-orange {
+  --primary: #f97316;
+  --primary-hover: #ea580c;
+  --accent-primary: #f97316;
+  --accent-color: #f97316;
+  --accent-glow: rgba(249, 115, 22, 0.3);
+}
+
+:root.accent-purple,
+html.accent-purple {
+  --primary: #8b5cf6;
+  --primary-hover: #7c3aed;
+  --accent-primary: #8b5cf6;
+  --accent-color: #8b5cf6;
+  --accent-glow: rgba(139, 92, 246, 0.3);
+}
+
+/* ============================================
+   BASE LAYOUT (minimal - prevents white flash)
+   ============================================ */
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background-color: var(--background);
+  color: var(--foreground);
+  /* Montserrat is primary, system fonts as fallback */
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+}
+
+#root {
+  min-height: 100vh;
+  background-color: var(--background);
+}
+
+/* Main page containers - prevent white flash */
+.home-container,
+.page-container,
+.entry-list-container,
+.class-list-container,
+.app-container {
+  background-color: var(--background);
+  min-height: 100vh;
+}
+
+/* Landing & Login page overrides - use their own dark themes */
+/* These pages have isolated dark themes and must NOT inherit app design tokens */
+body:has(.landing-page),
+body:has(.login-container) {
+  /* Override ALL design token variables that could leak light colors */
+  --background: #09090b !important;
+  --foreground: #fafafa !important;
+  --card: #18181b !important;
+  --card-foreground: #fafafa !important;
+  --surface: #18181b !important;
+  --muted: #27272a !important;
+  --muted-foreground: #a1a1aa !important;
+  --secondary: #18181b !important;
+  --secondary-foreground: #fafafa !important;
+}
+
+body:has(.landing-page),
+body:has(.landing-page) #root,
+body:has(.login-container),
+body:has(.login-container) #root {
+  background-color: #09090b !important;
+  color: #fafafa !important;
+}
+
+.landing-page,
+.landing-page *,
+.login-container,
+.login-container *,
+.login-background {
+  /* Force dark backgrounds on all elements */
+  --background: #09090b;
+  --card: #18181b;
+  --surface: #18181b;
+}
+
+/* Ensure login logo elements don't inherit app backgrounds */
+.login-container .logo-container,
+.login-container .logo-image,
+.login-container .logo-img {
+  background-color: transparent !important;
+}
+
+/* Page loader - matches theme background */
+.page-loader-container {
+  background-color: var(--background);
+  min-height: 100vh;
+}
+
+.page-loader-container .loader-text {
+  color: var(--muted-foreground);
+}
+
+.page-loader-container .loader-spinner {
+  color: var(--primary);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* ============================================
+   CRITICAL COMPONENT FALLBACKS
+   Ensures elements look correct before component CSS loads
+   Prevents visual glitches during CSS loading race condition
+   ============================================ */
+
+/* Status Badge Fallbacks - White text is the default (always, light or dark mode) */
+.status-badge,
+.class-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: #9ca3af; /* Gray default */
+  color: #ffffff; /* Always white text on status badges */
+  border: none;
+}
+
+/* Status-specific background colors (text color inherited from base) */
+.status-badge.no-status,
+.class-status-badge.no-status { background: #9ca3af; }
+.status-badge.setup,
+.class-status-badge.setup { background: #b45309; }
+.status-badge.briefing,
+.class-status-badge.briefing { background: #ff6b00; }
+.status-badge.break,
+.class-status-badge.break { background: #c000ff; }
+.status-badge.start-time,
+.class-status-badge.start-time { background: #14b8a6; }
+.status-badge.in-progress,
+.class-status-badge.in-progress { background: #0066ff; }
+.status-badge.completed,
+.class-status-badge.completed { background: #00cc66; }
+.status-badge.pending,
+.class-status-badge.pending { background: #9ca3af; }
+
+/* Status text inherits white from parent badge */
+.status-badge .status-text,
+.class-status-badge .status-text {
+  color: inherit;
+}
+
+/* Armband Badge Fallback - Teal circular badge (Home page dog cards) */
+.apple-armband-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  border-radius: 50%;
+  background: var(--primary, #14b8a6); /* Teal default */
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.9375rem;
+}
+
+/* Dog Card Fallbacks - Prevent overlap during CSS loading */
+.dog-card,
+.entry-card {
+  min-height: 70px;
+  max-height: none;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* ============================================
+   ABOVE-THE-FOLD COMPONENT FALLBACKS
+   Prevents layout shift on initial render
+   ============================================ */
+
+/* Search Input - Home page header */
+.search-input-container,
+.search-controls-header {
+  display: flex;
+  align-items: center;
+  gap: var(--token-space-md);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--token-radius-lg);
+}
+
+.search-input-full {
+  width: 100%;
+  padding: var(--token-space-md) var(--token-space-xl);
+  background: var(--input);
+  border: 1px solid var(--border);
+  border-radius: var(--token-radius-md);
+  font-size: var(--token-font-md);
+  color: var(--foreground);
+}
+
+/* Tab Bar - Filter controls */
+.apple-tabs-container {
+  display: grid;
+  width: 100%;
+  border-radius: var(--token-radius-lg);
+  background: var(--muted);
+  padding: var(--token-space-sm);
+}
+
+.apple-tab-trigger {
+  border-radius: var(--token-radius-md);
+  padding: var(--token-space-lg) var(--token-space-xl);
+  background: transparent;
+  border: none;
+  color: var(--muted-foreground);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.apple-tab-trigger[data-state="active"],
+.apple-tab-trigger.active {
+  background: var(--card);
+  color: var(--foreground);
+}
+
+/* Class Card Structure - Prevents layout shift */
+.class-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--token-radius-lg);
+  padding: var(--token-space-lg);
+  min-height: 80px;
+}
+
+/* Floating Action Button - Position immediately */
+.floating-action-button {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 5rem);
+  right: var(--token-space-xl);
+  z-index: 100;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+/* ============================================
+   LOADING INDICATOR
+   (Shows while React is loading)
+   ============================================ */
+#root:empty::before {
+  content: "";
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}

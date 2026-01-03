@@ -1,0 +1,225 @@
+/* Transition Message Component Styles */
+
+.transition-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--token-z-toast);
+  animation: fadeIn 0.3s ease-out;
+}
+
+.transition-modal {
+  background: white;
+  border-radius: 1.5rem;
+  padding: var(--token-space-4xl) var(--token-space-3xl); /* Mobile: smaller padding */
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 var(--token-space-2xl) 60px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.4s ease-out;
+}
+
+.transition-icon {
+  width: 60px;  /* Mobile: smaller icon */
+  height: 60px;
+  margin: 0 auto var(--token-space-3xl);
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.icon-arrow {
+  width: 30px;  /* Mobile: smaller arrow */
+  height: 30px;
+  color: white;
+  animation: slideArrow 1.5s ease-in-out infinite;
+}
+
+.transition-title {
+  font-size: 1.5rem;  /* Mobile: smaller title */
+  font-weight: 700;
+  color: var(--foreground);
+  text-align: center;
+  margin-bottom: var(--token-space-3xl);
+}
+
+.transition-message {
+  margin-bottom: var(--token-space-4xl);
+}
+
+.message-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--token-space-lg);
+  margin-bottom: var(--token-space-xl);
+  padding: var(--token-space-lg);  /* Mobile: smaller padding */
+  background: var(--muted);
+  border-radius: 0.75rem;
+  border-left: var(--token-space-sm) solid #6366f1;
+}
+
+.message-item.info-highlight {
+  background: #eff6ff;
+  border-left-color: var(--primary);
+}
+
+.message-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--primary);
+  flex-shrink: 0;
+  margin-top: var(--token-space-xs);
+}
+
+.message-item p {
+  margin: 0;
+  color: var(--muted-foreground);
+  line-height: 1.5;
+  font-size: 0.9375rem;
+}
+
+.message-item strong {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.transition-actions {
+  text-align: center;
+  margin-bottom: var(--token-space-3xl);
+}
+
+.redirect-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--token-space-md);
+  padding: 0.875rem 1.75rem;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  border-radius: 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 var(--token-space-sm) var(--token-space-lg) rgba(102, 126, 234, 0.4);
+  margin-bottom: var(--token-space-xl);
+  width: 100%;  /* Mobile: full width button */
+  justify-content: center;
+}
+
+.redirect-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px var(--token-space-xl) rgba(102, 126, 234, 0.5);
+}
+
+.redirect-button:active {
+  transform: translateY(0);
+}
+
+.button-icon {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.auto-redirect-text {
+  font-size: 0.875rem;
+  color: var(--token-text-tertiary);
+  margin: 0;
+}
+
+.countdown {
+  font-weight: 700;
+  color: var(--primary);
+  font-size: 1rem;
+}
+
+.transition-footer {
+  padding-top: var(--token-space-3xl);
+  border-top: 1px solid var(--border);
+}
+
+.footer-text {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--token-text-muted);
+  text-align: center;
+  font-style: italic;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+@keyframes slideArrow {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(5px);
+  }
+}
+
+/* Responsive Design - Mobile First */
+@media (min-width: 640px) {
+  .transition-modal {
+    padding: 2.5rem;  /* Desktop: larger padding */
+  }
+
+  .transition-title {
+    font-size: 1.75rem;  /* Desktop: larger title */
+  }
+
+  .transition-icon {
+    width: 80px;  /* Desktop: larger icon */
+    height: 80px;
+  }
+
+  .icon-arrow {
+    width: 40px;  /* Desktop: larger arrow */
+    height: 40px;
+  }
+
+  .message-item {
+    padding: var(--token-space-xl);  /* Desktop: larger padding */
+  }
+
+  .redirect-button {
+    width: auto;  /* Desktop: auto width */
+    justify-content: flex-start;
+  }
+}

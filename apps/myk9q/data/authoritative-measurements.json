@@ -1,0 +1,232 @@
+{
+  "$schema": "./authoritative-measurements.schema.json",
+  "version": "1.0.0",
+  "lastUpdated": "2025-11-25",
+  "source": "AKC Scent Work Regulations - Effective January 1, 2024",
+  "sports": {
+    "akc-scent-work": {
+      "name": "AKC Scent Work",
+      "organization": "AKC",
+      "elements": {
+        "Container": {
+          "Novice": {
+            "min_hides": 1,
+            "max_hides": 1,
+            "hides_known": true,
+            "num_containers": 10,
+            "container_type": "Identical cardboard boxes",
+            "min_area_sq_ft": 250,
+            "max_area_sq_ft": 400,
+            "time_limit_minutes": 2,
+            "target_odors": ["Birch"],
+            "container_spacing_inches": 12,
+            "row_spacing_inches": 36,
+            "num_distractions": 0,
+            "distraction_types": []
+          },
+          "Advanced": {
+            "min_hides": 2,
+            "max_hides": 2,
+            "hides_known": true,
+            "num_containers": 15,
+            "container_type": "Various (bags, backpacks, purses, suitcases, etc.)",
+            "min_area_sq_ft": 300,
+            "max_area_sq_ft": 600,
+            "time_limit_minutes": 2,
+            "target_odors": ["Birch", "Anise"],
+            "container_spacing_inches": 12,
+            "row_spacing_inches": 36,
+            "num_distractions": 1,
+            "distraction_types": ["non-food"]
+          },
+          "Excellent": {
+            "min_hides": 3,
+            "max_hides": 3,
+            "hides_known": true,
+            "num_containers": 20,
+            "container_type": "Various (bags, backpacks, purses, suitcases, etc.)",
+            "min_area_sq_ft": 600,
+            "max_area_sq_ft": 800,
+            "time_limit_minutes": 4,
+            "target_odors": ["Birch", "Anise", "Clove"],
+            "container_spacing_inches": 12,
+            "row_spacing_inches": 36,
+            "num_distractions": 2,
+            "distraction_types": ["non-food", "food", "auditory", "visual"]
+          },
+          "Master": {
+            "min_hides": 1,
+            "max_hides": 4,
+            "hides_known": false,
+            "num_containers": 20,
+            "container_type": "Various (bags, backpacks, purses, suitcases, etc.)",
+            "min_area_sq_ft": 600,
+            "max_area_sq_ft": 800,
+            "time_limit_minutes": 4,
+            "target_odors": ["Birch", "Anise", "Clove", "Cypress"],
+            "container_spacing_inches": 12,
+            "row_spacing_inches": 36,
+            "num_distractions": 3,
+            "distraction_types": ["non-food", "food", "auditory", "visual", "human", "mimic"]
+          }
+        },
+        "Interior": {
+          "Novice": {
+            "min_hides": 1,
+            "max_hides": 1,
+            "hides_known": true,
+            "min_area_sq_ft": 120,
+            "max_area_sq_ft": 200,
+            "time_limit_minutes": 2,
+            "max_height_inches": 24,
+            "target_odors": ["Birch"],
+            "num_distractions": 0,
+            "distraction_types": []
+          },
+          "Advanced": {
+            "min_hides": 2,
+            "max_hides": 2,
+            "hides_known": true,
+            "min_area_sq_ft": 200,
+            "max_area_sq_ft": 400,
+            "time_limit_minutes": 3,
+            "max_height_inches": 36,
+            "target_odors": ["Birch", "Anise"],
+            "num_distractions": 1,
+            "distraction_types": ["non-food"]
+          },
+          "Excellent": {
+            "min_hides": 3,
+            "max_hides": 3,
+            "hides_known": true,
+            "min_area_sq_ft": 300,
+            "max_area_sq_ft": 500,
+            "time_limit_minutes": 3,
+            "max_height_inches": 48,
+            "target_odors": ["Birch", "Anise", "Clove"],
+            "num_distractions": 2,
+            "distraction_types": ["non-food", "food", "auditory", "visual"]
+          },
+          "Master": {
+            "min_hides": 2,
+            "max_hides": 6,
+            "hides_known": false,
+            "min_area_sq_ft": 400,
+            "max_area_sq_ft": 600,
+            "time_limit_minutes": 3,
+            "max_height_inches": 60,
+            "target_odors": ["Birch", "Anise", "Clove", "Cypress"],
+            "hides_per_area": "0-3",
+            "notes": "0-3 hides per area, only one area can have 0, 2-6 hides per class",
+            "num_distractions": 3,
+            "distraction_types": ["non-food", "food", "auditory", "visual", "human", "mimic"]
+          }
+        },
+        "Exterior": {
+          "Novice": {
+            "min_hides": 1,
+            "max_hides": 1,
+            "hides_known": true,
+            "min_area_sq_ft": 200,
+            "max_area_sq_ft": 400,
+            "time_limit_minutes": 3,
+            "max_height_inches": 24,
+            "target_odors": ["Birch"],
+            "num_distractions": 0,
+            "distraction_types": []
+          },
+          "Advanced": {
+            "min_hides": 2,
+            "max_hides": 2,
+            "hides_known": true,
+            "min_area_sq_ft": 400,
+            "max_area_sq_ft": 800,
+            "time_limit_minutes": 3,
+            "max_height_inches": 36,
+            "target_odors": ["Birch", "Anise"],
+            "num_distractions": 1,
+            "distraction_types": ["non-food"]
+          },
+          "Excellent": {
+            "min_hides": 3,
+            "max_hides": 3,
+            "hides_known": true,
+            "min_area_sq_ft": 600,
+            "max_area_sq_ft": 1200,
+            "time_limit_minutes": 4,
+            "max_height_inches": 48,
+            "target_odors": ["Birch", "Anise", "Clove"],
+            "num_distractions": 2,
+            "distraction_types": ["non-food", "food", "auditory", "visual"]
+          },
+          "Master": {
+            "min_hides": 1,
+            "max_hides": 4,
+            "hides_known": false,
+            "min_area_sq_ft": 800,
+            "max_area_sq_ft": 1600,
+            "time_limit_minutes": 5,
+            "max_height_inches": 60,
+            "target_odors": ["Birch", "Anise", "Clove", "Cypress"],
+            "num_distractions": 3,
+            "distraction_types": ["non-food", "food", "auditory", "visual", "human", "mimic"]
+          }
+        },
+        "Buried": {
+          "Novice": {
+            "min_hides": 1,
+            "max_hides": 1,
+            "hides_known": true,
+            "num_containers": 6,
+            "container_type": "Tote boxes",
+            "min_area_sq_ft": 200,
+            "max_area_sq_ft": 300,
+            "time_limit_minutes": 2,
+            "target_odors": ["Birch"],
+            "num_distractions": 0,
+            "distraction_types": []
+          },
+          "Advanced": {
+            "min_hides": 2,
+            "max_hides": 2,
+            "hides_known": true,
+            "num_containers": 8,
+            "container_type": "Tote boxes",
+            "min_area_sq_ft": 250,
+            "max_area_sq_ft": 350,
+            "time_limit_minutes": 3,
+            "target_odors": ["Birch", "Anise"],
+            "num_distractions": 1,
+            "distraction_types": ["non-food"]
+          },
+          "Excellent": {
+            "min_hides": 3,
+            "max_hides": 3,
+            "hides_known": true,
+            "num_containers": 12,
+            "container_type": "Tote boxes",
+            "min_area_sq_ft": 300,
+            "max_area_sq_ft": 400,
+            "time_limit_minutes": 3,
+            "target_odors": ["Birch", "Anise", "Clove"],
+            "num_distractions": 2,
+            "distraction_types": ["non-food", "food", "auditory", "visual"]
+          },
+          "Master": {
+            "min_hides": 1,
+            "max_hides": 4,
+            "hides_known": false,
+            "num_containers": 16,
+            "container_type": "Tote boxes",
+            "min_area_sq_ft": 400,
+            "max_area_sq_ft": 500,
+            "time_limit_minutes": 3,
+            "target_odors": ["Birch", "Anise", "Clove", "Cypress"],
+            "num_distractions": 3,
+            "distraction_types": ["non-food", "food", "auditory", "visual", "human", "mimic"]
+          }
+        }
+      }
+    }
+  }
+}

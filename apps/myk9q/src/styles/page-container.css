@@ -1,0 +1,118 @@
+/**
+ * Page Container System for myK9Q
+ *
+ * Mobile-first responsive container pattern optimized for:
+ * - Mobile: Full width with padding
+ * - Tablet: Full width with padding (PRIMARY USER - judges/stewards with tablets)
+ * - Desktop: Full width with padding
+ *
+ * Design Philosophy:
+ * - FULL WIDTH EVERYWHERE for maximum consistency
+ * - Maximize screen space at all viewport sizes
+ * - Individual components (grids, cards) handle wide screens with responsive layouts
+ * - Simple, maintainable, consistent pattern across all pages
+ */
+
+/* Base container - full width at all screen sizes for consistency */
+/* Mobile-first: Base styles are for mobile (no media query) */
+.page-container {
+  width: 100%;
+  min-height: 100vh;
+  background: var(--background);
+  color: var(--foreground);
+  padding: var(--token-space-lg) var(--token-space-lg);  /* 12px horizontal on mobile */
+  padding-bottom: 4rem;
+}
+
+/**
+ * Global Page Header - Sticky header pattern for all pages
+ * Ensures consistent header styling across Home, ClassList, EntryList, etc.
+ * Compact design with reduced vertical spacing for better screen utilization
+ */
+.page-header {
+  position: sticky;
+  top: 0;
+  z-index: var(--token-z-modal);  /* High z-index to ensure header and its dropdowns appear above announcement banner (z-index: 50) */
+  backdrop-filter: blur(20px);
+  background: var(--overlay-white-heavy);
+  border-bottom: 1px solid var(--border);
+  border-radius: 0 0 var(--token-radius-lg) var(--token-radius-lg);  /* Rounded bottom corners - iOS style */
+  padding: var(--token-space-lg) var(--token-space-lg);  /* 12px vertical and horizontal on mobile */
+  display: flex;
+  align-items: center;
+  gap: var(--token-space-xl);
+  min-height: 60px;  /* Increased from 44px for more breathing room */
+}
+
+.theme-dark .page-header {
+  background: var(--overlay-dark-heavy);
+}
+
+/* Title Icon - Standard styling for page header icons */
+.title-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+/* Page Header H1 - Standard styling with icon gap */
+.page-header h1 {
+  display: flex;
+  align-items: center;
+  gap: var(--token-space-md); /* 8px gap between icon and text */
+  margin: 0;
+}
+
+/**
+ * Variant: Scrollable container (for pages with sticky headers)
+ * Used by Settings, potentially other config pages
+ */
+.page-container-scroll {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.page-container-scroll .page-content {
+  flex: 1;
+  overflow-y: scroll;
+  overflow-x: hidden;
+  padding: var(--token-space-lg) var(--token-space-lg);  /* 12px horizontal on mobile */
+  padding-bottom: 4rem;
+}
+
+/* Desktop (1024px+) - Consolidated block */
+@media (min-width: 1024px) {
+  /* Page Container */
+  .page-container {
+    padding: var(--token-space-lg) var(--token-space-3xl);  /* 24px horizontal on desktop */
+  }
+
+  /* Page Header */
+  .page-header {
+    padding: var(--token-space-lg) var(--token-space-3xl);  /* 12px vertical, 24px horizontal on desktop */
+  }
+
+  /* Scrollable Container Content */
+  .page-container-scroll .page-content {
+    padding: var(--token-space-lg) var(--token-space-3xl);  /* 24px horizontal on desktop */
+  }
+}
+
+/**
+ * Responsive Breakpoint Summary (Mobile-First):
+ *
+ * Mobile (< 1024px):
+ *   - Full width, var(--token-space-lg) horizontal padding (12px)
+ *   - Maximize space on small screens and tablets
+ *   - Tablets (PRIMARY USER GROUP - judges/stewards) get same 12px padding
+ *
+ * Desktop (1024px+):
+ *   - Full width, var(--token-space-3xl) horizontal padding (24px)
+ *   - NO max-width constraint for consistency across all screen sizes
+ *   - Individual components use responsive grids to handle wide screens
+ */

@@ -1,0 +1,297 @@
+/* ===================================================================
+   MICRO-ANIMATIONS - Professional UI polish without being cheesy
+   Tier 1: High-impact, low-risk animations
+   =================================================================== */
+
+/* ===== ANIMATION KEYFRAMES ===== */
+
+/* 1. Staggered List Reveals - Items fade in with subtle upward slide */
+@keyframes stagger-in {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 2. Status Badge Pulse - Single pulse on status change */
+@keyframes status-pulse {
+  0% {
+    box-shadow: 0 0 0 0 currentColor;
+  }
+  50% {
+    box-shadow: 0 0 0 4px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+/* Alternative pulse with scale for more emphasis */
+@keyframes status-pulse-scale {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 currentColor;
+  }
+  50% {
+    transform: scale(1.02);
+    box-shadow: 0 0 0 4px transparent;
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+/* 3. Number Input Tick - Subtle vertical slide on value change */
+@keyframes tick-up {
+  from {
+    transform: translateY(4px);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes tick-down {
+  from {
+    transform: translateY(-4px);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* 4. Heart/Favorite Burst - Satisfying feedback on favorite action */
+@keyframes heart-burst {
+  0% {
+    transform: scale(1);
+  }
+  25% {
+    transform: scale(1.25);
+  }
+  50% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* ===== STAGGERED LIST ANIMATION CLASSES ===== */
+
+/* Apply to list items - use CSS custom property for stagger delay */
+.stagger-item {
+  animation: stagger-in 0.35s var(--apple-ease) both;
+  animation-delay: calc(var(--stagger-index, 0) * 40ms);
+}
+
+/* Faster stagger for longer lists */
+.stagger-item-fast {
+  animation: stagger-in 0.25s var(--apple-ease) both;
+  animation-delay: calc(var(--stagger-index, 0) * 25ms);
+}
+
+/* Container class to enable stagger on children */
+.stagger-children > * {
+  animation: stagger-in 0.5s var(--apple-ease) both;
+}
+
+/* Auto-assign stagger delays to first 20 children */
+/* DEBUG: 100ms delays to make stagger very obvious */
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 100ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 200ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 300ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 400ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 500ms; }
+.stagger-children > *:nth-child(7) { animation-delay: 600ms; }
+.stagger-children > *:nth-child(8) { animation-delay: 700ms; }
+.stagger-children > *:nth-child(9) { animation-delay: 800ms; }
+.stagger-children > *:nth-child(10) { animation-delay: 900ms; }
+.stagger-children > *:nth-child(11) { animation-delay: 1000ms; }
+.stagger-children > *:nth-child(12) { animation-delay: 1100ms; }
+.stagger-children > *:nth-child(13) { animation-delay: 1200ms; }
+.stagger-children > *:nth-child(14) { animation-delay: 1300ms; }
+.stagger-children > *:nth-child(15) { animation-delay: 1400ms; }
+.stagger-children > *:nth-child(16) { animation-delay: 1500ms; }
+.stagger-children > *:nth-child(17) { animation-delay: 1600ms; }
+.stagger-children > *:nth-child(18) { animation-delay: 1700ms; }
+.stagger-children > *:nth-child(19) { animation-delay: 1800ms; }
+.stagger-children > *:nth-child(20) { animation-delay: 1900ms; }
+
+/* Cap delay for items beyond 20 to avoid excessive wait */
+.stagger-children > *:nth-child(n+21) {
+  animation-delay: 2000ms;
+}
+
+/* ===== STATUS BADGE PULSE CLASSES ===== */
+
+/* Apply when status changes - JS should add/remove this class */
+.status-just-changed {
+  animation: status-pulse 0.5s ease-out;
+}
+
+/* More prominent pulse for important status changes (e.g., In Ring) */
+.status-just-changed-emphasis {
+  animation: status-pulse-scale 0.5s var(--apple-spring);
+}
+
+/* ===== NUMBER INPUT TICK CLASSES ===== */
+
+/* Apply based on increment/decrement direction */
+.value-incrementing {
+  animation: tick-up 0.15s ease-out;
+}
+
+.value-decrementing {
+  animation: tick-down 0.15s ease-out;
+}
+
+/* ===== FAVORITE BUTTON ANIMATION ===== */
+
+.favorite-just-toggled svg,
+.favorite-just-toggled .favorite-icon {
+  animation: heart-burst 0.4s var(--apple-spring);
+}
+
+/* ===== MAGNETIC BUTTON HOVER (Desktop Only) ===== */
+
+@media (hover: hover) {
+  /* Subtle lift on hover for primary buttons */
+  .btn-magnetic,
+  .btn-primary,
+  .btn-gradient {
+    transition:
+      transform 0.2s var(--apple-ease),
+      box-shadow 0.2s var(--apple-ease),
+      filter 0.2s var(--apple-ease);
+  }
+
+  .btn-magnetic:hover:not(:disabled),
+  .btn-primary:hover:not(:disabled),
+  .btn-gradient:hover:not(:disabled) {
+    transform: translateY(-1px) scale(1.01);
+    box-shadow:
+      0 4px 12px rgba(0, 0, 0, 0.1),
+      0 2px 4px rgba(0, 0, 0, 0.06);
+  }
+
+  .btn-magnetic:active:not(:disabled),
+  .btn-primary:active:not(:disabled),
+  .btn-gradient:active:not(:disabled) {
+    transform: translateY(0) scale(0.98);
+    transition-duration: 0.05s;
+  }
+
+  /* Secondary/outline buttons - lighter effect */
+  .btn-secondary:hover:not(:disabled),
+  .btn-outline:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+
+  .btn-secondary:active:not(:disabled),
+  .btn-outline:active:not(:disabled) {
+    transform: translateY(0) scale(0.98);
+    transition-duration: 0.05s;
+  }
+}
+
+/* ===== CARD DEPTH ON FOCUS/ACTIVE ===== */
+
+/* Enhanced card interaction - lifts on focus for keyboard navigation */
+.dog-card:focus-within,
+.class-card:focus-within,
+.entry-card:focus-within {
+  transform: translateY(-2px);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.08),
+    0 2px 4px rgba(0, 0, 0, 0.04);
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.theme-dark .dog-card:focus-within,
+.theme-dark .class-card:focus-within,
+.theme-dark .entry-card:focus-within {
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* ===== REDUCED MOTION SUPPORT ===== */
+
+@media (prefers-reduced-motion: reduce) {
+  .stagger-item,
+  .stagger-item-fast,
+  .stagger-children > * {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .status-just-changed,
+  .status-just-changed-emphasis {
+    animation: none;
+  }
+
+  .value-incrementing,
+  .value-decrementing {
+    animation: none;
+  }
+
+  .favorite-just-toggled svg,
+  .favorite-just-toggled .favorite-icon {
+    animation: none;
+  }
+
+  .btn-magnetic:hover,
+  .btn-primary:hover,
+  .btn-gradient:hover,
+  .btn-secondary:hover,
+  .btn-outline:hover {
+    transform: none;
+  }
+
+  .dog-card:focus-within,
+  .class-card:focus-within,
+  .entry-card:focus-within {
+    transform: none;
+  }
+}
+
+/* ===== STAGGER PENDING STATE ===== */
+/* Keep children hidden until animation is ready to play */
+/* Use !important to override any inherited styles during initial render */
+.stagger-pending > * {
+  opacity: 0 !important;
+  transform: translateY(30px) !important;
+  animation: none !important;
+}
+
+/* ===== HYDRATION PREVENTION ===== */
+/* Disable animations during initial page load to prevent FOUC */
+
+[data-loaded="false"] .stagger-item,
+[data-loaded="false"] .stagger-children > * {
+  animation: none;
+  opacity: 1;
+  transform: none;
+}
+
+/* ===== DRAG MODE OVERRIDE ===== */
+/* Disable stagger animation in drag mode so dnd-kit can control transforms */
+/* animation-fill-mode: both keeps final transform applied, which overrides inline styles */
+.drag-mode.stagger-children > *,
+.stagger-children.drag-mode > * {
+  animation: none;
+  opacity: 1;
+  transform: none;
+}

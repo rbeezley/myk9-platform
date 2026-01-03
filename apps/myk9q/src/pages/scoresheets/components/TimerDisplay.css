@@ -1,0 +1,143 @@
+/**
+ * Timer Display Styles
+ *
+ * Flutter-style modern timer card for scoresheets
+ */
+
+.scoresheet-timer-card {
+  position: relative;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.timer-btn-reset {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-size: 20px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.timer-btn-reset:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.3);
+  transform: rotate(180deg);
+}
+
+.timer-btn-reset:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.timer-display-large {
+  font-size: 48px;
+  font-weight: 700;
+  color: white;
+  text-align: center;
+  margin-bottom: 8px;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.3s;
+}
+
+.timer-display-large.warning {
+  color: #fbbf24;
+}
+
+.timer-display-large.expired {
+  color: #ef4444;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Countdown ring - positioned in top-left corner */
+.timer-countdown-ring-corner {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: block;
+}
+
+.timer-countdown-display {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.9);
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.timer-controls-flutter {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.timer-btn-start {
+  background: white;
+  color: #667eea;
+  border: none;
+  border-radius: 12px;
+  /* Fixed dimensions for consistent sizing across Start/Stop/Resume states */
+  width: 140px;
+  min-width: 140px;
+  max-width: 140px;
+  height: 48px;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  flex-grow: 0;
+}
+
+.timer-btn-start:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.timer-btn-start.stop {
+  background: #ef4444;
+  color: white;
+}
+
+.timer-btn-start.resume {
+  background: #14b8a6;
+  color: white;
+}
+
+.timer-warning {
+  text-align: center;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.timer-warning.warning {
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid #fbbf24;
+  color: #f59e0b;
+}
+
+.timer-warning.expired {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid #ef4444;
+  color: #dc2626;
+}

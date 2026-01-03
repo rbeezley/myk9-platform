@@ -1,0 +1,372 @@
+/* ===== ONBOARDING.CSS ===== */
+
+/* Full-screen overlay */
+.onboarding-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--background);
+  z-index: var(--token-z-toast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Main container */
+.onboarding-container {
+  width: 100%;
+  height: 100%;
+  max-width: 500px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Skip button */
+.onboarding-skip {
+  position: absolute;
+  top: var(--token-space-3xl);
+  right: var(--token-space-3xl);
+  background: transparent;
+  border: none;
+  color: var(--muted-foreground);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: var(--token-space-md) var(--token-space-lg);
+  border-radius: var(--token-space-md);
+  transition: all 0.2s ease;
+  z-index: var(--token-z-raised);
+}
+
+.onboarding-skip:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.onboarding-skip:active {
+  transform: scale(0.95);
+}
+
+/* Content area */
+.onboarding-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--token-space-4xl) var(--token-space-3xl);
+  text-align: center;
+  touch-action: pan-y;
+  user-select: none;
+}
+
+/* Logo container - Matches Login Page */
+.onboarding-logo-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--token-space-4xl);
+}
+
+.onboarding-logo {
+  width: 130px;
+  height: 130px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 2rem;
+  padding: 0;
+  box-shadow: 0 0 30px rgba(62, 161, 115, 0.3), 0 0 60px rgba(62, 161, 115, 0.15);
+  filter: drop-shadow(0 4px 12px rgba(62, 161, 115, 0.4));
+}
+
+.onboarding-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Feature icon */
+.onboarding-icon {
+  width: 5rem; /* 80px */
+  height: 5rem; /* 80px */
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto var(--token-space-4xl);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: transform 0.3s ease;
+}
+
+/* Onboarding icon color classes */
+.onboarding-icon-welcome {
+  background: var(--primary);
+}
+
+.onboarding-icon-favorites {
+  background: var(--onboarding-color-favorites);
+}
+
+.onboarding-icon-checkin {
+  background: var(--onboarding-color-checkin);
+}
+
+.onboarding-icon-updates {
+  background: var(--onboarding-color-updates);
+}
+
+.onboarding-icon-status {
+  background: var(--onboarding-color-status);
+}
+
+.onboarding-icon-svg {
+  width: 2.5rem; /* 40px */
+  height: 2.5rem; /* 40px */
+  color: white;
+}
+
+/* Title */
+.onboarding-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--foreground);
+  margin-bottom: var(--token-space-xl);
+  line-height: 1.3;
+}
+
+/* Description */
+.onboarding-description {
+  font-size: 1rem;
+  color: var(--muted-foreground);
+  line-height: 1.6;
+  margin-bottom: var(--token-space-4xl);
+  max-width: 400px;
+}
+
+/* Progress dots */
+.onboarding-dots {
+  display: flex;
+  gap: var(--token-space-lg);
+  justify-content: center;
+  margin-bottom: var(--token-space-4xl);
+}
+
+.onboarding-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.onboarding-dot:hover {
+  background: var(--muted-foreground);
+  transform: scale(1.2);
+}
+
+.onboarding-dot.active {
+  background: var(--primary);
+  width: var(--token-space-3xl);
+  border-radius: var(--token-space-sm);
+}
+
+/* Next/Get Started button */
+.onboarding-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--token-space-md);
+  width: 100%;
+  max-width: 280px;
+  padding: var(--token-space-xl) var(--token-space-4xl);
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: var(--token-space-lg);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(62, 161, 115, 0.3);
+  min-height: var(--min-touch-target);
+}
+
+.onboarding-button:hover {
+  background: var(--primary-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(62, 161, 115, 0.4);
+}
+
+.onboarding-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(62, 161, 115, 0.3);
+}
+
+.onboarding-button-icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* Tablet adjustments */
+@media (min-width: 640px) {
+  .onboarding-content {
+    padding: var(--token-space-4xl);
+  }
+
+  .onboarding-title {
+    font-size: 2rem;
+  }
+
+  .onboarding-description {
+    font-size: 1.0625rem;
+  }
+
+  .onboarding-icon {
+    width: 6rem; /* 96px */
+    height: 6rem; /* 96px */
+  }
+
+  .onboarding-icon-svg {
+    width: 3rem; /* 48px */
+    height: 3rem; /* 48px */
+  }
+}
+
+/* Desktop adjustments */
+@media (min-width: 1024px) {
+  .onboarding-container {
+    max-width: 600px;
+  }
+
+  .onboarding-title {
+    font-size: 2.25rem;
+  }
+
+  .onboarding-description {
+    font-size: 1.125rem;
+    max-width: 640px;
+  }
+
+  .onboarding-logo {
+    width: 150px; /* Slightly larger on desktop */
+    height: 150px;
+  }
+
+  .onboarding-icon {
+    width: 7rem; /* 112px */
+    height: 7rem; /* 112px */
+  }
+
+  .onboarding-icon-svg {
+    width: 3.5rem; /* 56px */
+    height: 3.5rem; /* 56px */
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-icon,
+  .onboarding-button,
+  .onboarding-skip,
+  .onboarding-dot {
+    transition: none;
+  }
+
+  .onboarding-button:hover {
+    transform: none;
+  }
+}
+
+/* Notification button */
+.onboarding-notification-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--token-space-md);
+  width: 100%;
+  max-width: 280px;
+  padding: var(--token-space-lg) var(--token-space-3xl);
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: var(--token-space-lg);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin: var(--token-space-3xl) auto;
+  min-height: var(--min-touch-target);
+}
+
+.onboarding-notification-button:hover:not(:disabled) {
+  background: var(--primary-hover);
+  transform: translateY(-2px);
+}
+
+.onboarding-notification-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.onboarding-notification-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Notification success message */
+.onboarding-notification-success {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--token-space-md);
+  padding: var(--token-space-xl);
+  background: var(--status-checked-in)14;
+  border: 2px solid var(--status-checked-in);
+  border-radius: var(--token-space-lg);
+  color: var(--status-checked-in);
+  font-weight: 600;
+  margin: var(--token-space-3xl) auto;
+  max-width: 280px;
+}
+
+/* Notification denied warning */
+.onboarding-notification-denied {
+  padding: var(--token-space-xl);
+  background: var(--status-conflict)14;
+  border: 2px solid var(--status-conflict);
+  border-radius: var(--token-space-lg);
+  margin: var(--token-space-3xl) auto;
+  max-width: 280px;
+  text-align: center;
+}
+
+.onboarding-notification-denied-text {
+  font-size: 0.875rem;
+  margin-bottom: var(--token-space-md);
+  color: var(--status-conflict);
+}
+
+/* Dark theme adjustments */
+.theme-dark .onboarding-overlay {
+  background: var(--background);
+}
+
+.theme-dark .onboarding-icon {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.theme-dark .onboarding-button {
+  box-shadow: 0 4px 12px rgba(62, 161, 115, 0.2);
+}
+
+.theme-dark .onboarding-button:hover {
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.3);
+}

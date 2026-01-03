@@ -1,0 +1,499 @@
+/* DogCard Component - Consistent layout for Home and EntryList pages */
+/* NOTE: Check-in status colors are now defined in design-tokens.css */
+
+.dog-card {
+  background: var(--overlay-white-heavy);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: var(--token-space-lg);  /* Mobile: smaller padding */
+  cursor: pointer;
+  transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  box-shadow: 0 var(--token-space-xs) var(--token-space-md) rgba(0, 0, 0, 0.06);
+  position: relative;
+  overflow: hidden;
+  min-height: 70px;  /* Mobile: smaller min-height - explicit to prevent height issues during hydration */
+  max-height: none; /* Ensure no max-height constraint causes overlap */
+  display: flex;
+  flex-direction: column;
+}
+
+.theme-dark .dog-card {
+  background: var(--card); /* Uses global card token */
+  box-shadow: 0 var(--token-space-xs) var(--token-space-md) var(--shadow-medium);
+}
+
+.dog-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(0, 122, 255, 0.03) 0%, transparent 100%);
+  opacity: 0;
+  transition: opacity 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.dog-card:hover::before {
+  opacity: 1;
+}
+
+.dog-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 var(--token-space-md) var(--token-space-3xl) rgba(0, 0, 0, 0.12);
+  border-color: rgba(0, 122, 255, 0.3);
+}
+
+.theme-dark .dog-card:hover {
+  box-shadow: 0 var(--token-space-md) var(--token-space-3xl) var(--shadow-strong);
+}
+
+.dog-card:active {
+  transform: scale(0.98);
+}
+
+/* Status border indicators */
+.dog-card.checked-in {
+  border-left: 3px solid var(--checkin-checked-in);
+}
+
+.dog-card.conflict {
+  border-left: 3px solid var(--checkin-conflict);
+}
+
+.dog-card.pulled {
+  border-left: 3px solid var(--checkin-pulled);
+}
+
+.dog-card.at-gate {
+  border-left: 3px solid var(--checkin-at-gate);
+}
+
+.dog-card.come-to-gate {
+  border-left: 3px solid var(--checkin-at-gate);
+}
+
+.dog-card.in-ring {
+  border-left: 5px solid var(--checkin-in-ring);
+  border-color: var(--checkin-in-ring);
+  box-shadow:
+    0 0 0 1px var(--checkin-in-ring),
+    0 4px 12px rgba(37, 99, 235, 0.15),
+    inset -2px 0 8px rgba(37, 99, 235, 0.08);
+  background: linear-gradient(
+    to right,
+    rgba(37, 99, 235, 0.04) 0%,
+    transparent 40%
+  );
+  position: relative;
+}
+
+.theme-dark .dog-card.in-ring {
+  box-shadow:
+    0 0 0 1px var(--checkin-in-ring),
+    0 4px 12px rgba(59, 130, 246, 0.25),
+    inset -2px 0 8px rgba(59, 130, 246, 0.12);
+  background: linear-gradient(
+    to right,
+    rgba(59, 130, 246, 0.08) 0%,
+    transparent 40%
+  );
+}
+
+.dog-card.scored {
+  border-left: 3px solid var(--status-completed);
+}
+
+.dog-card.placement-1 {
+  border-left: 3px solid #ffd700; /* Gold */
+}
+
+.dog-card.placement-2 {
+  border-left: 3px solid #c0c0c0; /* Silver */
+}
+
+.dog-card.placement-3 {
+  border-left: 3px solid #cd7f32; /* Bronze */
+}
+
+/* Result status borders - based on result type */
+.dog-card.result-qualified {
+  border-left: 3px solid var(--success-contrast, var(--status-checked-in)); /* Green for qualified */
+}
+
+.dog-card.result-nq,
+.dog-card.result-ex {
+  border-left: 3px solid var(--error-contrast, #dc2626); /* Red for NQ/Excused */
+}
+
+.dog-card.result-abs,
+.dog-card.result-wd {
+  border-left: 3px solid #7c3aed; /* Purple for Absent/Withdrawn */
+}
+
+/* Content layout - flexbox */
+.dog-card-content {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--token-space-lg);  /* Mobile: smaller gap */
+  position: relative;
+}
+
+/* Drag handle inside card */
+.dog-card-drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+  cursor: grab;
+  padding: var(--token-space-xs);
+  margin-left: calc(-1 * var(--token-space-sm));
+  border-radius: var(--token-space-sm);
+  transition: color 0.2s, background 0.2s;
+  touch-action: none;
+  align-self: center;
+}
+
+.dog-card-drag-handle:hover {
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+.dog-card-drag-handle:active {
+  cursor: grabbing;
+  color: var(--primary);
+}
+
+.dog-card-drag-handle .drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--token-space-xs);
+}
+
+/* Adjust card when it has a drag handle */
+.dog-card.has-drag-handle {
+  padding-left: var(--token-space-md);
+}
+
+/* Armband badge - flex item on left */
+.dog-card-armband {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Section Badge - Bottom-left corner of card (near armband) */
+.section-badge {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--token-space-sm) var(--token-space-lg);
+  border-radius: 0 var(--token-space-lg) 0 0; /* Round top-right corner */
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: white;
+  z-index: var(--token-z-raised);
+}
+
+.section-badge.section-a {
+  background: var(--text-gray); /* Medium gray - slightly lighter */
+}
+
+.section-badge.section-b {
+  background: #4b5563; /* Darker gray */
+}
+
+/* Dog details - center column */
+.dog-card-details {
+  flex: 1;
+  min-width: 0;
+  padding-right: 4var(--token-space-md); /* Space for action button */
+}
+
+.dog-card-name {
+  margin: 0 0 var(--token-space-sm) 0;
+  font-size: 1rem;
+  font-weight: 590;
+  color: var(--foreground);
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+  transition: color 0.3s;
+}
+
+.dog-card:hover .dog-card-name {
+  color: var(--primary);
+}
+
+.dog-card-breed {
+  margin: 0 0 var(--token-space-xs) 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--token-text-secondary);
+  line-height: 1.4;
+}
+
+.dog-card-handler {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  line-height: 1.4;
+}
+
+/* Result badges for scored entries */
+.dog-card-results {
+  display: flex;
+  gap: var(--token-space-md);
+  align-items: center;
+  margin-top: var(--token-space-md);
+  flex-wrap: wrap;
+}
+
+.dog-card-results .result-badge {
+  padding: var(--token-space-xs) var(--token-space-md);
+  border-radius: 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+/* Action button - absolute positioned in top right corner */
+.dog-card-action {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: var(--token-z-raised);
+}
+
+/* Reset button (three-dot menu) - add margin for spacing from edge */
+.dog-card-action .reset-button {
+  margin: var(--token-space-md) var(--token-space-md) 0 0;
+}
+
+/* Favorite button for Home page */
+.dog-card-action .favorite-button {
+  background: var(--secondary);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 0.625rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  color: var(--text-tertiary);
+  min-width: 36px;
+  min-height: 36px;
+}
+
+.dog-card-action .favorite-button:hover {
+  background: var(--muted);
+  color: var(--foreground);
+  transform: scale(1.05);
+}
+
+.dog-card-action .favorite-button:active {
+  transform: scale(0.95);
+}
+
+.dog-card-action .favorite-button.favorited {
+  color: var(--status-pulled);
+  background: var(--overlay-error);
+  border-color: var(--status-pulled);
+}
+
+.theme-dark .dog-card-action .favorite-button.favorited {
+  color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.15);
+  border-color: #ff6b6b;
+}
+
+.dog-card-action .favorite-button.favorited:hover {
+  background: var(--status-pulled);
+  color: white;
+  border-color: var(--status-pulled);
+}
+
+.theme-dark .dog-card-action .favorite-button.favorited:hover {
+  background: #ff6b6b;
+  color: white;
+  border-color: #ff6b6b;
+}
+
+.dog-card-action .favorite-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  transition: all 0.3s;
+}
+
+.dog-card-action .favorite-button.favorited .favorite-icon {
+  fill: currentColor;
+}
+
+/* Status badge for EntryList page - Corner badge design matching class cards */
+.dog-card-action .status-badge {
+  padding: var(--token-space-sm) var(--token-space-lg); /* Match class badge padding */
+  border-radius: 0 0 0 var(--token-space-lg); /* Round bottom-left corner (top-left, top-right, bottom-right, bottom-left) */
+  font-size: 0.75rem; /* Match class badge size */
+  font-weight: 600;
+  white-space: nowrap; /* Prevent wrapping */
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--token-space-xs); /* Match PERFECT badge gap */
+  line-height: 1.1;
+  text-transform: uppercase;
+  letter-spacing: 0.05em; /* Match PERFECT badge */
+  position: relative;
+  text-align: center;
+  max-width: 140px; /* Increased to fit "Come to Gate" */
+  min-height: var(--comfortable-touch-target); /* 36px - comfortable tap target */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-sizing: border-box;
+}
+
+/* Invisible touch area for better mobile tapping */
+.dog-card-action .status-badge::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  z-index: var(--token-z-base);
+}
+
+/* Status badge colors - matching original EntryList styles */
+.dog-card-action .status-badge.no-status {
+  background: var(--status-no-status-bg);
+  color: var(--status-no-status-text);
+}
+
+.theme-dark .dog-card-action .status-badge.no-status {
+  background: var(--status-no-status-bg);
+  color: var(--status-no-status-text);
+}
+
+.dog-card-action .status-badge.checked-in {
+  background: var(--checkin-checked-in);
+  color: var(--checkin-checked-in-text);
+}
+
+.dog-card-action .status-badge.at-gate {
+  background: var(--checkin-at-gate);
+  color: var(--checkin-at-gate-text);
+}
+
+.dog-card-action .status-badge.come-to-gate {
+  background: var(--checkin-at-gate);
+  color: var(--checkin-at-gate-text);
+}
+
+.dog-card-action .status-badge.in-ring {
+  background: var(--checkin-in-ring);
+  color: var(--checkin-in-ring-text);
+}
+
+.dog-card-action .status-badge.conflict {
+  background: var(--checkin-conflict);
+  color: var(--checkin-conflict-text);
+}
+
+.dog-card-action .status-badge.pulled {
+  background: var(--checkin-pulled);
+  color: var(--checkin-pulled-text);
+}
+
+.dog-card-action .status-badge.disabled {
+  background: var(--muted);
+  color: var(--muted-foreground);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.dog-card-action .status-badge:hover:not(.disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 var(--token-space-xs) var(--token-space-sm) var(--shadow-subtle);
+}
+
+.dog-card-action .status-badge:active:not(.disabled) {
+  transform: translateY(0);
+}
+
+/* Status icons - 18px standard size */
+.dog-card-action .status-badge .status-icon {
+  font-size: 1.125rem; /* 18px */
+  width: 1.125rem;
+  height: 1.125rem;
+  line-height: 1;
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dog-card-action .status-badge .status-text {
+  font-size: 0.6875rem;
+  line-height: 1.1;
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: none; /* Override badge's uppercase */
+  color: inherit; /* Inherit white color from parent status badge */
+}
+
+/* Ensure SVG icons are properly sized - 18px standard */
+.dog-card-action .status-badge svg {
+  width: 1.125rem; /* 18px */
+  height: 1.125rem;
+  flex-shrink: 0;
+}
+
+/* Responsive Design - Mobile First */
+@media (min-width: 640px) {
+  /* Card layout */
+  .dog-card {
+    padding: 0.875rem;
+    min-height: 80px;
+  }
+
+  .dog-card-content {
+    gap: var(--token-space-xl);  /* Tablet+: larger gap */
+  }
+
+  .dog-card-details {
+    padding-right: 60px; /* More space for status badges */
+  }
+
+  /* Typography */
+  .dog-card-name {
+    font-size: 0.9375rem;
+  }
+
+  .dog-card-breed {
+    font-size: 0.8125rem;
+  }
+
+  .dog-card-handler {
+    font-size: 0.6875rem;
+  }
+}
+
+/* Desktop */
+@media (min-width: 1024px) {
+  .dog-card {
+    padding: var(--token-space-xl);
+    min-height: 90px;
+  }
+
+  .dog-card-name {
+    font-size: 1.0625rem;
+  }
+}

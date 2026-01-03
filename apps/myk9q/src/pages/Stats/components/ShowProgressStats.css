@@ -1,0 +1,53 @@
+/**
+ * ShowProgressStats Component Styles
+ *
+ * Uses the same card styles as Stats.css, just adds:
+ * - Grid container matching .stats-cards
+ * - New icon colors for progress-specific cards
+ * - Clickable card modifier
+ */
+
+/* Grid container - matches .stats-cards layout */
+.show-progress-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--token-space-lg);
+  padding: var(--token-space-xl) var(--token-space-lg) 0;
+}
+
+/* Clickable card modifier */
+.stats-card--clickable {
+  cursor: pointer;
+}
+
+/* Icon colors for progress stats */
+.card-icon.announcements {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+.card-icon.favorites {
+  background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+}
+
+.card-icon.in-progress {
+  background: linear-gradient(135deg, var(--status-at-gate) 0%, #7c3aed 100%);
+}
+
+.card-icon.completion {
+  background: linear-gradient(135deg, var(--status-checked-in) 0%, #059669 100%);
+}
+
+/* Tablet and larger - 4 columns */
+@media (min-width: 640px) {
+  .show-progress-stats {
+    grid-template-columns: repeat(4, 1fr);
+    padding: var(--token-space-2xl) var(--token-space-xl) 0;
+  }
+}
+
+/* Desktop - maintain max-width constraint */
+@media (min-width: 1024px) {
+  .show-progress-stats {
+    padding: var(--token-space-3xl) var(--token-space-3xl) 0;
+  }
+}

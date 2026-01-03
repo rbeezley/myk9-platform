@@ -1,0 +1,333 @@
+/* ===== PWAInstallBanner.css ===== */
+
+/* CSS variable for banner height - set dynamically by component */
+:root {
+  --pwa-banner-height: 0px;
+}
+
+/* Push page content down when banner is visible */
+/* Apply to common page containers */
+.home-container,
+.class-list-container,
+.entry-list-container,
+.dog-details-container,
+.settings-container,
+.show-details-container,
+.stats-container,
+.announcements-container,
+.results-container,
+.trial-secretary-container {
+  padding-top: var(--pwa-banner-height);
+}
+
+/* Smart banner for PWA installation */
+.pwa-install-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--token-z-toast);
+  background: linear-gradient(135deg, #6366f1 0%, var(--status-at-gate) 100%);
+  color: white;
+  box-shadow: 0 2px 8px var(--shadow-light);
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.pwa-banner-content {
+  display: flex;
+  align-items: center;
+  gap: var(--token-space-lg);
+  padding: var(--token-space-lg);
+  max-width: 1024px;
+  margin: 0 auto;
+}
+
+.pwa-banner-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+
+.pwa-banner-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--token-space-xs);
+  min-width: 0;
+}
+
+.pwa-banner-text strong {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pwa-banner-text span {
+  font-size: 0.8125rem;
+  opacity: 0.9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pwa-banner-install-btn {
+  padding: var(--token-space-md) var(--token-space-xl);
+  background: white;
+  color: #6366f1;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.pwa-banner-install-btn:hover {
+  background: #f9fafb;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px var(--shadow-subtle);
+}
+
+.pwa-banner-install-btn:active {
+  transform: translateY(0);
+}
+
+.pwa-banner-close-btn {
+  padding: var(--token-space-sm);
+  background: transparent;
+  border: none;
+  color: white;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.8;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.pwa-banner-close-btn:hover {
+  opacity: 1;
+  background: var(--overlay-white-subtle);
+}
+
+/* Tablet */
+@media (min-width: 640px) {
+  .pwa-banner-content {
+    padding: var(--token-space-xl) var(--token-space-3xl);
+  }
+
+  .pwa-banner-text strong {
+    font-size: 1rem;
+  }
+
+  .pwa-banner-text span {
+    font-size: 0.875rem;
+  }
+}
+
+/* Desktop */
+@media (min-width: 1024px) {
+  .pwa-banner-content {
+    gap: var(--token-space-xl);
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .pwa-install-banner {
+    animation: none;
+  }
+
+  .pwa-banner-install-btn {
+    transition: none;
+  }
+}
+
+/* ===== iOS Instructions Modal ===== */
+
+.ios-instructions-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay-black-heavy, rgba(0, 0, 0, 0.7));
+  z-index: calc(var(--token-z-toast) + 10);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--token-space-lg);
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.ios-instructions-modal {
+  background: var(--surface-primary, white);
+  border-radius: 16px;
+  max-width: 340px;
+  width: 100%;
+  padding: var(--token-space-2xl);
+  position: relative;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.ios-instructions-close {
+  position: absolute;
+  top: var(--token-space-md);
+  right: var(--token-space-md);
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: var(--token-space-sm);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ios-instructions-close:hover {
+  background: var(--surface-hover);
+}
+
+.ios-instructions-header {
+  text-align: center;
+  margin-bottom: var(--token-space-lg);
+}
+
+.ios-instructions-header svg {
+  color: #6366f1;
+  margin-bottom: var(--token-space-md);
+}
+
+.ios-instructions-header h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.ios-instructions-subtitle {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.9375rem;
+  margin: 0 0 var(--token-space-xl);
+  line-height: 1.5;
+}
+
+.ios-instructions-steps {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--token-space-xl);
+}
+
+.ios-instructions-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--token-space-md);
+  padding: var(--token-space-md) 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.ios-instructions-steps li:last-child {
+  border-bottom: none;
+}
+
+.step-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  border-radius: 50%;
+  font-weight: 600;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+}
+
+.step-text {
+  flex: 1;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+  padding-top: 2px;
+}
+
+.step-text strong {
+  color: #6366f1;
+}
+
+.ios-instructions-hint {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  margin: 0 0 var(--token-space-xl);
+  line-height: 1.5;
+  font-style: italic;
+}
+
+.ios-instructions-done-btn {
+  width: 100%;
+  padding: var(--token-space-lg);
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ios-instructions-done-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+.ios-instructions-done-btn:active {
+  transform: translateY(0);
+}
+
+/* Accessibility for iOS modal */
+@media (prefers-reduced-motion: reduce) {
+  .ios-instructions-overlay,
+  .ios-instructions-modal {
+    animation: none;
+  }
+
+  .ios-instructions-done-btn {
+    transition: none;
+  }
+}

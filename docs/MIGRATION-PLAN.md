@@ -16,7 +16,7 @@
 | Phase 7: Testing & Validation | ⏳ Pending | - |
 | Phase 8: Deployment & Cleanup | ⏳ Pending | - |
 
-**Next step:** Phase 3.3 - Extract Domain Components
+**Next step:** Phase 4 - Migrate myK9Q to Monorepo (or Phase 3.3 domain components)
 
 ---
 
@@ -254,10 +254,13 @@
 - [ ] TimerDisplay (timer UI)
 - [ ] PageLayout (standard page wrapper)
 
-### 3.4 Update Apps to Use @myk9/ui
-- [ ] Update myK9Show imports to use @myk9/ui
-- [ ] Verify consistent styling
-- [ ] Test responsive behavior
+### 3.4 Update Apps to Use @myk9/ui ✅ COMPLETE
+- [x] Add @myk9/ui as workspace dependency to myK9Show
+- [x] Update local Button component to re-export from @myk9/ui (320+ files)
+- [x] Update local Badge component to re-export from @myk9/ui (213 files)
+- [x] Update local Card component to re-export from @myk9/ui
+- [ ] Dialog - kept local (has enhanced components with custom light/dark mode)
+- [x] Build verified - all 5 packages build successfully
 
 ---
 

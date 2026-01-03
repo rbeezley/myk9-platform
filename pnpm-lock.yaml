@@ -26,6 +26,9 @@ importers:
       '@myk9/supabase':
         specifier: workspace:*
         version: link:../../packages/supabase
+      '@myk9/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@playwright/mcp':
         specifier: ^0.0.30
         version: 0.0.30(hono@4.11.3)(zod@3.25.76)

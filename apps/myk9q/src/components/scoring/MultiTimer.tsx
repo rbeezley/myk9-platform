@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Timer } from './Timer';
-import { useTimerStore } from '../../stores/timerStore';
+import { useTimerStore } from '@myk9/scoring';
 import './shared-scoring.css';
 
 interface TimerAreaConfig {

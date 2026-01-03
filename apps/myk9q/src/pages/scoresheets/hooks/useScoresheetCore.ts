@@ -21,7 +21,7 @@ import { useOptimisticScoring } from '../../../hooks/useOptimisticScoring';
 import { useClassCompletion } from '../../../hooks/useClassCompletion';
 import { markInRing } from '../../../services/entryService';
 import type { AreaScore } from '../../../services/scoresheets/areaInitialization';
-import type { QualifyingResult } from '../../../stores/scoringStore';
+import type { QualifyingResult } from '@myk9/scoring';
 import type { Entry } from '../../../stores/entryStore';
 import { logger } from '@/utils/logger';
 

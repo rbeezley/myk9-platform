@@ -372,7 +372,12 @@
 - [ ] Scoring hooks (useOptimisticScoring) - deferred (needs database abstraction)
 
 ### 6.2 Integrate Scoring in Both Apps
-- [ ] Update myK9Q to import from `@myk9/scoring`
+- [x] Update myK9Q to import from `@myk9/scoring`:
+  - [x] useScoringStore, QualifyingResult → hooks/useOptimisticScoring.ts
+  - [x] QualifyingResult type → pages/scoresheets/hooks/useScoresheetCore.ts
+  - [x] useTimerStore → components/scoring/Timer.tsx, MultiTimer.tsx
+  - [x] calculateTotalAreaTime → services/entry/scoreSubmission.ts
+  - [x] Build verified: 3219 modules in 12.31s
 - [ ] Add scoring views to myK9Show (read-only or simplified)
 - [ ] Verify identical scoring behavior
 

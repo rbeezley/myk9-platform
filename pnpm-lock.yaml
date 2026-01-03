@@ -32,6 +32,9 @@ importers:
       '@myk9/replication':
         specifier: workspace:*
         version: link:../../packages/replication
+      '@myk9/scoring':
+        specifier: workspace:*
+        version: link:../../packages/scoring
       '@myk9/supabase':
         specifier: workspace:*
         version: link:../../packages/supabase

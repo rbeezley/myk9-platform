@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { useTimerStore } from '../../stores/timerStore';
+import { useTimerStore } from '@myk9/scoring';
 import './shared-scoring.css';
 
 interface TimerProps {

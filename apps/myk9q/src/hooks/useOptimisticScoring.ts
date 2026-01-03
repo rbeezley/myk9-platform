@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { useOptimisticUpdate } from './useOptimisticUpdate';
 import { submitScore } from '../services/entryService';
 import { useEntryStore } from '../stores/entryStore';
-import { useScoringStore, type QualifyingResult } from '../stores/scoringStore';
+import { useScoringStore, type QualifyingResult } from '@myk9/scoring';
 import { useOfflineQueueStore } from '../stores/offlineQueueStore';
 import { getSupabaseLicenseKey } from '../lib/supabase';
 import { replicatedEntriesTable } from '@/services/replication';

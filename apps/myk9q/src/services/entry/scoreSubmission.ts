@@ -6,7 +6,7 @@ import { triggerImmediateEntrySync } from '../entryReplication';
 import { checkAndUpdateClassCompletion } from './classCompletionService';
 import { convertResultTextToStatus } from '@/utils/transformationUtils';
 import { determineAreasForClass } from '@/utils/classUtils';
-import { calculateTotalAreaTime } from '@/utils/calculationUtils';
+import { calculateTotalAreaTime } from '@myk9/scoring';
 import { logger } from '@/utils/logger';
 
 /**

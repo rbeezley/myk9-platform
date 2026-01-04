@@ -11,6 +11,12 @@
 -- =============================================================================
 
 -- =============================================================================
+-- ENABLE REQUIRED EXTENSIONS
+-- =============================================================================
+-- pgvector for semantic search embeddings in rules table
+CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA extensions;
+
+-- =============================================================================
 -- NATIONALS SCORING TABLES
 -- =============================================================================
 
@@ -278,7 +284,7 @@ CREATE TABLE IF NOT EXISTS rules (
   title TEXT,
   content TEXT NOT NULL,
   keywords TEXT[],
-  embedding VECTOR(1536),  -- For semantic search
+  embedding extensions.vector(1536),  -- For semantic search
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

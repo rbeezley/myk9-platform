@@ -11,12 +11,12 @@
 | Phase 2: Migrate myK9Show | ✅ Complete | Jan 2026 |
 | Phase 3: Shared UI Components | ✅ Complete | Jan 2026 |
 | Phase 4: Migrate myK9Q | ✅ Complete | Jan 2026 |
-| Phase 5: Database Consolidation | ⏳ Pending | - |
+| Phase 5: Database Consolidation | 🔄 In Progress | Jan 2026 |
 | Phase 6: Scoring Package | ✅ Complete | Jan 2026 |
 | Phase 7: Testing & Validation | ⏳ Pending | - |
 | Phase 8: Deployment & Cleanup | ⏳ Pending | - |
 
-**Next step:** Phase 5 - Database Consolidation (create new Supabase project)
+**Next step:** Phase 5.5 - Test both apps against new database, then Phase 5.6 Data Migration
 
 ---
 
@@ -319,7 +319,7 @@
 - [x] Identify unique tables per app
 - [x] Design unified schema for new project - see `supabase/migrations/`
 
-### 5.3 Build Unified Schema (in NEW project) - Migrations Ready
+### 5.3 Build Unified Schema (in NEW project) ✅ COMPLETE
 - [x] Create `dogs` table (shared) - 001_core_entities.sql
 - [x] Create `people` table (shared) - 001_core_entities.sql
 - [x] Create `clubs` table (shared) - 001_core_entities.sql
@@ -329,20 +329,20 @@
 - [x] Create all myK9Show-specific tables - 005_myk9show_specific.sql
 - [x] Add foreign keys and relationships
 - [x] Keep denormalized fields for backward compatibility
-- [ ] **Apply migrations to new Supabase project**
+- [x] **Applied all 6 migrations to myk9-platform Supabase project**
 
-### 5.4 RLS Policies (in NEW project) - Migrations Ready
+### 5.4 RLS Policies (in NEW project) ✅ COMPLETE
 - [x] Configure RLS for multi-app access - 006_rls_policies.sql
 - [x] Shared tables readable by both apps
 - [x] Authenticated write access
-- [ ] **Apply RLS policies to new project**
+- [x] **Applied RLS policies to new project**
 - [ ] Test access patterns thoroughly
 
 ### 5.5 Connect Monorepo Apps to New Project ✅ COMPLETE
 - [x] Update `@myk9/show` environment variables to use new project
 - [x] Update `@myk9/q` environment variables to use new project
-- [ ] Test both apps work correctly with new database
-- [ ] Run all E2E tests against new project
+- [x] Test myK9Show works with new database (sign up/sign in verified)
+- [ ] Run E2E tests against new project (deferred to Phase 7)
 
 ### 5.6 Data Migration (only after full validation)
 - [ ] Export data from original myK9Q Supabase project

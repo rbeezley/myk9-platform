@@ -42,3 +42,4 @@ pnpm-debug.log*
 
 # Claude Code
 .claude/
+supabase/.temp/

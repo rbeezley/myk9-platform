@@ -73,7 +73,8 @@ myk9-platform/
 │   ├── replication/     # @myk9/replication - Offline-first sync
 │   ├── supabase/        # @myk9/supabase - Client and types
 │   ├── ui/              # @myk9/ui - Shared UI components
-│   └── scoring/         # @myk9/scoring - Scoring logic and stores
+│   ├── scoring/         # @myk9/scoring - Scoring logic and stores
+│   └── scoring-ui/      # @myk9/scoring-ui - Shared scoring UI hooks
 ├── supabase/
 │   ├── config.toml      # Supabase CLI config
 │   └── migrations/      # Database migrations (001-006)
@@ -86,7 +87,7 @@ myk9-platform/
 
 - Namespace: `@myk9/*`
 - Apps: `@myk9/show`, `@myk9/q`
-- Packages: `@myk9/core`, `@myk9/replication`, `@myk9/supabase`, `@myk9/ui`, `@myk9/scoring`
+- Packages: `@myk9/core`, `@myk9/replication`, `@myk9/supabase`, `@myk9/ui`, `@myk9/scoring`, `@myk9/scoring-ui`
 
 ## Key Patterns
 
@@ -114,6 +115,32 @@ const { startSession, submitScore, syncStatus } = useScoringStore();
 
 // Multi-area timer for scent work
 const { startTimer, stopTimer, getAreaTime } = useTimerStore();
+```
+
+### Scoring UI hooks (from @myk9/scoring-ui)
+```typescript
+import { useStopwatch, useEntryListFilters, useDragAndDropEntries } from '@myk9/scoring-ui';
+
+// Timer with auto-stop and warnings
+const stopwatch = useStopwatch({
+  maxTime: "3:00",
+  level: "Novice",
+  onTimeExpired: (time) => saveTime(time),
+});
+
+// Entry list filtering and sorting
+const { filteredEntries, sortBy, setSortBy } = useEntryListFilters({
+  entries,
+  prioritizeInRing: true,
+});
+
+// Drag-and-drop reordering
+const { sensors, handleDragStart, handleDragEnd } = useDragAndDropEntries({
+  localEntries,
+  setLocalEntries,
+  currentEntries,
+  onUpdateOrder: async (entries) => await saveOrder(entries),
+});
 ```
 
 ## Migration Status

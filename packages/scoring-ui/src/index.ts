@@ -1,0 +1,58 @@
+/**
+ * @myk9/scoring-ui
+ *
+ * Shared UI hooks and utilities for dog show scoring.
+ * Used by both myK9Q and myK9Show for consistent scoring experience.
+ *
+ * @example
+ * ```typescript
+ * import { useStopwatch, useEntryListFilters } from '@myk9/scoring-ui';
+ *
+ * // Timer with auto-stop and warnings
+ * const stopwatch = useStopwatch({
+ *   maxTime: "3:00",
+ *   level: "Novice",
+ *   onTimeExpired: (time) => console.log('Time up:', time),
+ * });
+ *
+ * // Entry list filtering and sorting
+ * const { filteredEntries, sortBy, setSortBy } = useEntryListFilters({
+ *   entries,
+ *   prioritizeInRing: true,
+ * });
+ * ```
+ */
+
+// Hooks
+export { useStopwatch } from './hooks/useStopwatch';
+export { useElementTimer } from './hooks/useElementTimer';
+export { useEntryListFilters } from './hooks/useEntryListFilters';
+export { useDragAndDropEntries } from './hooks/useDragAndDropEntries';
+
+// Utils
+export {
+  formatMilliseconds,
+  formatSecondsToMMSS,
+  formatSecondsToTime,
+  convertTimeToSeconds,
+  formatTimeForDisplay,
+  formatTimeLimitSeconds,
+  parseTimeToMs,
+  formatTimeInputToMMSS,
+} from './utils/timeUtils';
+
+// Types
+export type {
+  BaseEntry,
+  TimerFormatOptions,
+  StopwatchOptions,
+  StopwatchReturn,
+  ElementTimerReturn,
+  TabType,
+  SortType,
+  SectionFilter,
+  EntryListFiltersOptions,
+  EntryListFiltersReturn,
+  DragAndDropOptions,
+  DragAndDropReturn,
+} from './types';

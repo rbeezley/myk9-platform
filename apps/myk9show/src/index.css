@@ -1,3 +1,11 @@
+/* Import myK9Q design system (shared with myK9Q for consistency) */
+@import './pages/scoring/styles/design-tokens.css';
+@import './pages/scoring/styles/containers.css';
+
+/* Import scoring-specific styles */
+@import './pages/scoring/scoresheets/BaseScoresheet.css';
+@import './pages/scoring/scoresheets/shared-scoresheet.css';
+
 /* Import custom styles */
 @import './styles/calendar.css';
 @import './styles/apple-template-management.css';

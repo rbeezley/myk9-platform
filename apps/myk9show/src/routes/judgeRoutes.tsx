@@ -19,6 +19,10 @@ const JudgeScoringPage = lazy(() => import('@/pages/JudgeScoringPage'));
 // Judge components
 const JudgeClassInterface = lazy(() => import('@/components/scoring/JudgeClassInterface').then(m => ({ default: m.JudgeClassInterface })));
 
+// Scoring pages (new - using shared hooks from @myk9/scoring-ui)
+const ScoringEntryListPage = lazy(() => import('@/pages/scoring/ScoringEntryListPage'));
+const ScoresheetPage = lazy(() => import('@/pages/scoring/ScoresheetPage'));
+
 // Results and analytics for judges
 const ResultEntryDashboard = lazy(() => import('@/pages/ResultEntryDashboard'));
 
@@ -71,6 +75,23 @@ export const JudgeRoutes = () => (
       <ProtectedRoute requiredRole={[UserRole.JUDGE, UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
         <SuspenseWrapper>
           <PageTransition><ResultEntryDashboard /></PageTransition>
+        </SuspenseWrapper>
+      </ProtectedRoute>
+    } />
+
+    {/* New Scoring Routes (using shared @myk9/scoring-ui hooks) */}
+    <Route path="/scoring/classes/:classId/entries" element={
+      <ProtectedRoute requiredRole={[UserRole.JUDGE, UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+        <SuspenseWrapper>
+          <PageTransition><ScoringEntryListPage /></PageTransition>
+        </SuspenseWrapper>
+      </ProtectedRoute>
+    } />
+
+    <Route path="/scoring/classes/:classId/entries/:entryId" element={
+      <ProtectedRoute requiredRole={[UserRole.JUDGE, UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+        <SuspenseWrapper>
+          <PageTransition><ScoresheetPage /></PageTransition>
         </SuspenseWrapper>
       </ProtectedRoute>
     } />

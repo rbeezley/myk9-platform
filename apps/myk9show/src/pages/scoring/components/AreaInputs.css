@@ -1,0 +1,23 @@
+/**
+ * AreaInputs Component Styles
+ *
+ * Styles for multi-area time input cards with record buttons,
+ * smart input fields, and max time display.
+ */
+
+/* This component uses shared scoresheet styles */
+/* See index.css for:
+   - .scoresheet-time-card
+   - .time-input-flutter
+   - .scoresheet-time-input-wrapper
+   - .scoresheet-time-input
+   - .scoresheet-time-clear-button
+   - .max-time-display
+   - .area-record-btn
+   - .area-badge
+*/
+
+/**
+ * Component-specific styling would go here if needed.
+ * Currently uses global scoresheet styles for consistency.
+ */

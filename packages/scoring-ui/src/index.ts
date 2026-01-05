@@ -56,3 +56,16 @@ export type {
   DragAndDropOptions,
   DragAndDropReturn,
 } from './types';
+
+// Scoresheets - AKC
+export { AKCScentWorkScoresheet } from './components/scoresheets/AKC/AKCScentWorkScoresheet';
+export { AKCNationalsScoresheet } from './components/scoresheets/AKC/AKCNationalsScoresheet';
+export { AKCFastCatScoresheet } from './components/scoresheets/AKC/AKCFastCatScoresheet';
+
+// Scoresheets - UKC
+export { UKCNoseworkScoresheet } from './components/scoresheets/UKC/UKCNoseworkScoresheet';
+export { UKCRallyScoresheet } from './components/scoresheets/UKC/UKCRallyScoresheet';
+export { UKCObedienceScoresheet } from './components/scoresheets/UKC/UKCObedienceScoresheet';
+
+// Scoresheets - ASCA
+export { ASCAScentDetectionScoresheet } from './components/scoresheets/ASCA/ASCAScentDetectionScoresheet';

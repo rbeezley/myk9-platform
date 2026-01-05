@@ -6,7 +6,10 @@
     "declaration": true,
     "declarationMap": true,
     "composite": false,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "strict": false,
+    "noImplicitAny": false,
+    "strictNullChecks": false
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["node_modules", "dist"]

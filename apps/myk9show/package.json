@@ -86,9 +86,13 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.0.0",
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^9.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@myk9/core": "workspace:*",
     "@myk9/replication": "workspace:*",
     "@myk9/scoring": "workspace:*",
+    "@myk9/scoring-ui": "workspace:*",
     "@myk9/supabase": "workspace:*",
     "@myk9/ui": "workspace:*",
     "@playwright/mcp": "^0.0.30",

@@ -1,0 +1,260 @@
+/**
+ * Shared Scoresheet Styles
+ * Common styles used across all scoresheet variants (AKC, UKC, ASCA)
+ * Import this file first in scoresheet-specific CSS files
+ */
+
+/* Common Container Styles */
+.scoresheet-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: var(--token-space-xl);
+}
+
+.scoresheet-card {
+  background: white;
+  border-radius: var(--token-space-lg);
+  box-shadow: 0 var(--token-space-sm) 6px rgba(0, 0, 0, 0.1);
+  padding: var(--token-space-3xl);
+  margin-bottom: var(--token-space-xl);
+}
+
+/* Common Header Styles */
+.scoresheet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--token-space-3xl);
+  padding-bottom: var(--token-space-xl);
+  border-bottom: var(--token-space-xs) solid var(--border-subtle);
+}
+
+.scoresheet-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.scoresheet-subtitle {
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+  margin-top: var(--token-space-sm);
+}
+
+/* Common Button Styles */
+.scoresheet-btn {
+  padding: var(--token-space-lg) var(--token-space-3xl);
+  border-radius: var(--token-space-md);
+  font-weight: 600;
+  transition: all 0.2s;
+  cursor: pointer;
+  border: none;
+  outline: none;
+}
+
+.scoresheet-btn-primary {
+  background: var(--status-briefing);
+  color: white;
+}
+
+.scoresheet-btn-primary:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+}
+
+.scoresheet-btn-success {
+  background: var(--status-qualified);
+  color: white;
+}
+
+.scoresheet-btn-success:hover {
+  background: var(--token-success-contrast);
+}
+
+.scoresheet-btn-danger {
+  background: var(--status-not-qualified);
+  color: white;
+}
+
+.scoresheet-btn-danger:hover {
+  background: #dc2626;
+}
+
+.scoresheet-btn-secondary {
+  background: var(--text-gray);
+  color: white;
+}
+
+.scoresheet-btn-secondary:hover {
+  background: var(--muted-foreground);
+}
+
+/* Common Form Input Styles */
+.scoresheet-input {
+  width: 100%;
+  padding: var(--token-space-lg);
+  border: var(--token-space-xs) solid var(--border);
+  border-radius: var(--token-space-md);
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+
+.scoresheet-input:focus {
+  border-color: var(--primary);
+  outline: none;
+}
+
+.scoresheet-label {
+  display: block;
+  font-weight: 600;
+  color: var(--token-text-secondary);
+  margin-bottom: var(--token-space-md);
+}
+
+/* Common Timer Styles */
+.scoresheet-timer {
+  font-size: 2rem;
+  font-weight: 700;
+  font-family: 'Courier New', monospace;
+  text-align: center;
+  padding: var(--token-space-xl);
+  background: var(--input);
+  border-radius: var(--token-space-md);
+}
+
+.scoresheet-timer.running {
+  background: #dbeafe;
+  color: var(--primary);
+}
+
+.scoresheet-timer.stopped {
+  background: var(--status-not-qualified-bg);
+  color: var(--token-error-contrast);
+}
+
+/* Common Result Badge Styles */
+.scoresheet-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--token-space-md) var(--token-space-xl);
+  border-radius: 9999px;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.scoresheet-badge-q {
+  background: #d1fae5;
+  color: var(--token-success);
+}
+
+.scoresheet-badge-nq {
+  background: var(--status-not-qualified-bg);
+  color: var(--token-error-contrast);
+}
+
+.scoresheet-badge-abs {
+  background: var(--border);
+  color: var(--token-text-secondary);
+}
+
+/* Common Grid Layouts */
+/* Mobile: Single column */
+.scoresheet-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--token-space-xl);
+}
+
+.scoresheet-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--token-space-xl);
+}
+
+/* Desktop: Two and three columns */
+@media (min-width: 640px) {
+  .scoresheet-grid-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .scoresheet-grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Common Animation */
+.scoresheet-fade-in {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Common Section Styles */
+.scoresheet-section {
+  margin-bottom: var(--token-space-3xl);
+}
+
+.scoresheet-section-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--foreground);
+  margin-bottom: var(--token-space-lg);
+}
+
+/* Common Alert Styles */
+.scoresheet-alert {
+  padding: var(--token-space-xl);
+  border-radius: var(--token-space-md);
+  margin-bottom: var(--token-space-xl);
+}
+
+.scoresheet-alert-info {
+  background: #dbeafe;
+  color: var(--primary);
+  border-left: var(--token-space-sm) solid var(--checkin-in-ring);
+}
+
+.scoresheet-alert-warning {
+  background: var(--status-setup);
+  color: var(--token-warning-contrast);
+  border-left: var(--token-space-sm) solid #fef3c7;
+}
+
+.scoresheet-alert-error {
+  background: var(--status-not-qualified-bg);
+  color: var(--token-error-contrast);
+  border-left: var(--token-space-sm) solid var(--status-pulled);
+}
+
+/* Common Loading State */
+.scoresheet-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  color: var(--muted-foreground);
+}
+
+.scoresheet-spinner {
+  width: 40px;
+  height: 40px;
+  border: var(--token-space-sm) solid var(--border-subtle);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

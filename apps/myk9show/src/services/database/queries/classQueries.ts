@@ -37,8 +37,7 @@ export const getAllClasses = async () => {
           status
         ),
         entries (
-          id,
-          status
+          id
         )
       `)
       .is('deleted_at', null)
@@ -124,8 +123,7 @@ export const getClassesByTrialId = async (trialId: string) => {
       .select(`
         *,
         entries (
-          id,
-          status
+          id
         )
       `)
       .eq('trial_id', trialId)

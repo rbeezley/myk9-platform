@@ -12,7 +12,7 @@ export const getAllUsers = async () => {
   try {
     // Simplified query without dog relationship to fix the ambiguous relationship issue
     const { data, error } = await supabase
-      .from('user')
+      .from('people' as 'user')
       .select('*')
       .is('deleted_at', null)
       .order('last_name', { ascending: true })
@@ -49,31 +49,19 @@ export const getAllUsers = async () => {
 // Get user by ID with full details (excluding soft-deleted)
 export const getUserById = async (id: string) => {
   const startTime = Date.now();
-  
+
   try {
     const { data, error } = await supabase
-      .from('user')
+      .from('people' as 'user')
       .select(`
         *,
-        dog(
+        dogs!dogs_owner_id_fkey(
           id,
           name,
           breed,
           call_name,
           date_of_birth,
           active
-        ),
-        show_registrations(
-          id,
-          registration_type,
-          registration_date,
-          payment_status,
-          show:show(
-            id,
-            name,
-            start_date,
-            end_date
-          )
         )
       `)
       .eq('id', id)
@@ -102,7 +90,7 @@ export const createUser = async (userData: DbUserInsert) => {
   
   try {
     const { data, error } = await supabase
-      .from('user')
+      .from('people' as 'user')
       .insert([userData])
       .select()
       .single();
@@ -129,7 +117,7 @@ export const updateUser = async (id: string, updates: DbUserUpdate) => {
   
   try {
     const { data, error } = await supabase
-      .from('user')
+      .from('people' as 'user')
       .update({
         ...updates,
         updated_at: new Date().toISOString(),
@@ -170,7 +158,7 @@ export const deleteUser = async (id: string, deletedBy?: string) => {
     }
     
     const { data, error } = await supabase
-      .from('user')
+      .from('people' as 'user')
       .update(updateData)
       .eq('id', id)
       .is('deleted_at', null) // Only soft delete if not already deleted
@@ -199,7 +187,7 @@ export const hardDeleteUser = async (id: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('user')
+      .from('people' as 'user')
       .delete()
       .eq('id', id)
       .select('id, first_name, last_name');
@@ -237,7 +225,7 @@ export const restoreUser = async (id: string, restoredBy?: string) => {
     }
     
     const { data, error } = await supabase
-      .from('user')
+      .from('people' as 'user')
       .update(updateData)
       .eq('id', id)
       .not('deleted_at', 'is', null) // Only restore if currently deleted
@@ -263,13 +251,13 @@ export const restoreUser = async (id: string, restoredBy?: string) => {
 // Get soft-deleted users
 export const getDeletedUsers = async () => {
   const startTime = Date.now();
-  
+
   try {
     const { data, error } = await supabase
-      .from('user')
+      .from('people' as 'user')
       .select(`
         *,
-        deleted_by_user:user!deleted_by(
+        deleted_by_user:people!people_deleted_by_fkey(
           id,
           first_name,
           last_name,
@@ -356,7 +344,7 @@ export const legacyDeleteUser = async (id: string, cascadeDelete: boolean = fals
     
     // If no blocking relationships, proceed with deletion
     const { data, error } = await supabase
-      .from('user')
+      .from('people' as 'user')
       .delete()
       .eq('id', id)
       .select('id, first_name, last_name');
@@ -382,18 +370,11 @@ export const legacyDeleteUser = async (id: string, cascadeDelete: boolean = fals
 // Search users by name or email (excluding soft-deleted)
 export const searchUsers = async (searchTerm: string) => {
   const startTime = Date.now();
-  
+
   try {
     const { data, error } = await supabase
-      .from('user')
-      .select(`
-        *,
-        dog(
-          id,
-          name,
-          breed
-        )
-      `)
+      .from('people' as 'user')
+      .select('*')
       .is('deleted_at', null)
       .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
       .order('last_name', { ascending: true })
@@ -421,7 +402,7 @@ export const getUsersByRole = async (role: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('user')
+      .from('people' as 'user')
       .select('*')
       .is('deleted_at', null)
       .contains('roles', [role])
@@ -451,28 +432,28 @@ export const getUsersWithDogCounts = async () => {
 // Fallback method for getting users with dog counts (excluding soft-deleted)
 const getPeopleWithDogCountsFallback = async () => {
   const startTime = Date.now();
-  
+
   try {
     const { data, error } = await supabase
-      .from('user')
+      .from('people' as 'user')
       .select(`
         *,
-        dog(id)
+        dogs!dogs_owner_id_fkey(id)
       `)
       .is('deleted_at', null)
       .order('last_name', { ascending: true });
-    
+
     const duration = Date.now() - startTime;
     logQuery('user', 'select_with_dog_counts_fallback', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'user', 'select_with_dog_counts_fallback');
     }
-    
+
     // Transform data to include dog count
     const dataWithCounts = data?.map(person => ({
       ...person,
-      dog_count: person.dog?.length || 0,
+      dog_count: person.dogs?.length || 0,
     })) || [];
     
     return { data: dataWithCounts, error: null };
@@ -490,7 +471,7 @@ export const getUsersStatistics = async () => {
   
   try {
     const { error, count } = await supabase
-      .from('user')
+      .from('people' as 'user')
       .select('id', { count: 'exact', head: true })
       .is('deleted_at', null);
     
@@ -520,7 +501,7 @@ export const checkEmailExists = async (email: string, excludeId?: string) => {
   
   try {
     let query = supabase
-      .from('user')
+      .from('people' as 'user')
       .select('id, email')
       .is('deleted_at', null)
       .eq('email', email);

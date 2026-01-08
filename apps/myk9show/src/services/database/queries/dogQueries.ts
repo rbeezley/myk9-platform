@@ -11,10 +11,10 @@ export const getAllDogs = async () => {
   
   try {
     const { data, error } = await supabase
-      .from('dog')
+      .from('dogs' as 'dog')
       .select(`
         *,
-        owner:user!dog_owner_id_fkey(
+        owner:people!dogs_owner_id_fkey(
           id,
           first_name,
           last_name,
@@ -47,10 +47,10 @@ export const getDogById = async (id: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('dog')
+      .from('dogs' as 'dog')
       .select(`
         *,
-        owner:user!dog_owner_id_fkey(
+        owner:people!dogs_owner_id_fkey(
           id,
           first_name,
           last_name,
@@ -104,7 +104,7 @@ export const getDogsByOwner = async (ownerId: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('dog')
+      .from('dogs' as 'dog')
       .select('*')
       .eq('owner_id', ownerId)
       .is('deleted_at', null)
@@ -140,11 +140,11 @@ export const createDog = async (dogData: DbDogInsert) => {
     }
     
     const { data, error } = await supabase
-      .from('dog')
+      .from('dogs' as 'dog')
       .insert([cleanDogData])
       .select(`
         *,
-        owner:user!dog_owner_id_fkey(
+        owner:people!dogs_owner_id_fkey(
           id,
           first_name,
           last_name,
@@ -175,7 +175,7 @@ export const updateDog = async (id: string, updates: DbDogUpdate) => {
   
   try {
     const { data, error } = await supabase
-      .from('dog')
+      .from('dogs' as 'dog')
       .update({
         ...updates,
         updated_at: new Date().toISOString(),
@@ -183,7 +183,7 @@ export const updateDog = async (id: string, updates: DbDogUpdate) => {
       .eq('id', id)
       .select(`
         *,
-        owner:user!dog_owner_id_fkey(
+        owner:people!dogs_owner_id_fkey(
           id,
           first_name,
           last_name,
@@ -228,7 +228,7 @@ export const deleteDog = async (id: string, deletedBy?: string) => {
     console.log('📝 Update data being sent:', updateData);
     
     const { data, error } = await supabase
-      .from('dog')
+      .from('dogs' as 'dog')
       .update(updateData)
       .eq('id', id)
       .select('id, name, deleted_at, deleted_by')
@@ -269,7 +269,7 @@ export const searchDogs = async (searchTerm: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('dog')
+      .from('dogs' as 'dog')
       .select('*')
       .or(`name.ilike.%${searchTerm}%,breed.ilike.%${searchTerm}%,call_name.ilike.%${searchTerm}%`)
       .is('deleted_at', null)
@@ -297,10 +297,10 @@ export const getDogsWithUpcomingShows = async () => {
   
   try {
     const { data, error } = await supabase
-      .from('dog')
+      .from('dogs' as 'dog')
       .select(`
         *,
-        owner:user!dog_owner_id_fkey(first_name, last_name)
+        owner:people!dogs_owner_id_fkey(first_name, last_name)
       `)
       .is('deleted_at', null)
       .order('name', { ascending: true });
@@ -327,7 +327,7 @@ export const getDogStatistics = async () => {
   
   try {
     const { error, count } = await supabase
-      .from('dog')
+      .from('dogs' as 'dog')
       .select('id', { count: 'exact', head: true })
       .is('deleted_at', null);
     
@@ -357,7 +357,7 @@ export const hardDeleteDog = async (id: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('dog')
+      .from('dogs' as 'dog')
       .delete()
       .eq('id', id)
       .select('id, name')
@@ -395,7 +395,7 @@ export const restoreDog = async (id: string, restoredBy?: string) => {
     }
     
     const { data, error } = await supabase
-      .from('dog')
+      .from('dogs' as 'dog')
       .update(updateData)
       .eq('id', id)
       .select('id, name')
@@ -423,11 +423,11 @@ export const getDeletedDogs = async () => {
   
   try {
     const { data, error } = await supabase
-      .from('dog')
+      .from('dogs' as 'dog')
       .select(`
         *,
-        owner:user!dog_owner_id_fkey(id, first_name, last_name, email),
-        deleted_by_user:deleted_by(id, email, first_name, last_name)
+        owner:people!dogs_owner_id_fkey(id, first_name, last_name, email),
+        deleted_by_user:people!dogs_deleted_by_fkey(id, email, first_name, last_name)
       `)
       .not('deleted_at', 'is', null)
       .order('deleted_at', { ascending: false });

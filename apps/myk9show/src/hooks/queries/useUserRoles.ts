@@ -30,12 +30,25 @@ export function useUserRoles(userId?: string) {
         throw new Error('User ID is required');
       }
 
-      // First get user roles, then get role details separately to avoid PostgREST array issues
+      // First look up the people.id from auth_user_id
+      const { data: personData, error: personError } = await supabase
+        .from('people')
+        .select('id')
+        .eq('auth_user_id', userId)
+        .single();
+
+      if (personError || !personData) {
+        console.log('No people record found for auth user:', userId);
+        return [];
+      }
+
+      const peopleId = personData.id;
+
+      // Now get user roles using people.id
       const { data: userRoleData, error: userRoleError } = await supabase
-        .from('user_role')
-        .select('id, user_id, role_id, is_active, assigned_at')
-        .eq('user_id', userId)
-        .eq('is_active', true);
+        .from('user_roles')
+        .select('id, user_id, role_id, granted_at')
+        .eq('user_id', peopleId);
 
       if (userRoleError) {
         console.error('useUserRoles user_role query error:', userRoleError);
@@ -50,10 +63,9 @@ export function useUserRoles(userId?: string) {
       // Get role details for each role_id
       const roleIds = userRoleData.map(ur => ur.role_id).filter((id): id is string => id !== null);
       const { data: roleData, error: roleError } = await supabase
-        .from('role')
-        .select('id, name, display_name, description, is_active')
-        .in('id', roleIds)
-        .eq('is_active', true);
+        .from('roles')
+        .select('id, name, description')
+        .in('id', roleIds);
 
       if (roleError) {
         console.error('useUserRoles role query error:', roleError);
@@ -65,8 +77,7 @@ export function useUserRoles(userId?: string) {
         return {
           ...userRole,
           user_id: userRole.user_id || '', // Transform null to empty string
-          is_active: userRole.is_active ?? false, // Transform null to false
-          assigned_at: userRole.assigned_at || '', // Transform null to empty string
+          granted_at: userRole.granted_at || '', // Transform null to empty string
           role
         };
       }).filter(item => item.role); // Only include items where we found the role
@@ -78,14 +89,13 @@ export function useUserRoles(userId?: string) {
         console.warn('No user roles data returned');
         return [];
       }
-      
+
       return data
-        .filter(item => item.role && item.is_active && item.role.is_active)
+        .filter(item => item.role)
         .map(item => ({
           id: item.id,
           user_id: item.user_id,
-          is_active: item.is_active,
-          assigned_at: item.assigned_at,
+          granted_at: item.granted_at,
           role: item.role
         }));
     },
@@ -107,8 +117,8 @@ export function useUserRoleNames(userId?: string): UserRole[] {
     return [];
   }
 
-  const roleNames = (userRoles as Array<{role: {name: string, is_active: boolean}}>)
-    .filter((ur) => ur.role && ur.role.is_active)
+  const roleNames = (userRoles as Array<{role: {name: string}}>)
+    .filter((ur) => ur.role)
     .map((ur) => ur.role.name as UserRole);
   
   console.log('🔍 Extracted role names:', roleNames);

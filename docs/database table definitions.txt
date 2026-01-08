@@ -1,0 +1,440 @@
+create table public.clubs (
+  id uuid not null default extensions.uuid_generate_v4 (),
+  name text not null,
+  address text null,
+  city text null,
+  state text null,
+  zip_code text null,
+  email text null,
+  phone text null,
+  website text null,
+  logo_url text null,
+  description text null,
+  license_key text null,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  constraint clubs_pkey primary key (id)
+) TABLESPACE pg_default;
+
+create index IF not exists clubs_license_key_idx on public.clubs using btree (license_key) TABLESPACE pg_default;
+
+create index IF not exists clubs_name_idx on public.clubs using btree (name) TABLESPACE pg_default;
+
+create trigger update_clubs_updated_at BEFORE
+update on clubs for EACH row
+execute FUNCTION update_updated_at_column ();
+
+
+create table public.shows (
+  id uuid not null default extensions.uuid_generate_v4 (),
+  name text not null,
+  type text not null,
+  description text null,
+  start_date date not null,
+  end_date date not null,
+  entry_open_date date null,
+  entry_close_date date null,
+  location text null,
+  venue_name text null,
+  address text null,
+  city text null,
+  state text null,
+  zip_code text null,
+  status text null default 'draft'::text,
+  club_id uuid null,
+  chairman text null,
+  secretary text null,
+  chief_steward text null,
+  pre_entry_fee numeric(10, 2) null,
+  day_of_show_fee numeric(10, 2) null,
+  max_entries_per_dog integer null,
+  max_total_entries integer null,
+  allow_non_owner_handlers boolean null default true,
+  results_visible_to_all boolean null default true,
+  results_released_at timestamp with time zone null,
+  license_key text null,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  constraint shows_pkey primary key (id),
+  constraint shows_club_id_fkey foreign KEY (club_id) references clubs (id) on delete set null,
+  constraint shows_status_check check (
+    (
+      status = any (
+        array[
+          'draft'::text,
+          'published'::text,
+          'accepting_entries'::text,
+          'closed'::text,
+          'in_progress'::text,
+          'completed'::text,
+          'cancelled'::text
+        ]
+      )
+    )
+  )
+) TABLESPACE pg_default;
+
+create index IF not exists shows_start_date_idx on public.shows using btree (start_date) TABLESPACE pg_default;
+
+create index IF not exists shows_status_idx on public.shows using btree (status) TABLESPACE pg_default;
+
+create index IF not exists shows_club_id_idx on public.shows using btree (club_id) TABLESPACE pg_default;
+
+create index IF not exists shows_license_key_idx on public.shows using btree (license_key) TABLESPACE pg_default;
+
+create trigger update_shows_updated_at BEFORE
+update on shows for EACH row
+execute FUNCTION update_updated_at_column ();
+
+
+create table public.trials (
+  id uuid not null default extensions.uuid_generate_v4 (),
+  show_id uuid not null,
+  name text not null,
+  date date not null,
+  trial_number text null,
+  status text null default 'planned'::text,
+  max_entries_per_dog integer null,
+  max_total_entries integer null,
+  max_entries_per_handler integer null,
+  actual_start_time timestamp with time zone null,
+  actual_end_time timestamp with time zone null,
+  planned_start_time timestamp with time zone null,
+  allow_self_checkin boolean null default false,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  constraint trials_pkey primary key (id),
+  constraint trials_show_id_fkey foreign KEY (show_id) references shows (id) on delete CASCADE,
+  constraint trials_status_check check (
+    (
+      status = any (
+        array[
+          'planned'::text,
+          'published'::text,
+          'check_in'::text,
+          'in_progress'::text,
+          'scoring'::text,
+          'completed'::text,
+          'cancelled'::text
+        ]
+      )
+    )
+  )
+) TABLESPACE pg_default;
+
+create index IF not exists trials_show_id_idx on public.trials using btree (show_id) TABLESPACE pg_default;
+
+create index IF not exists trials_date_idx on public.trials using btree (date) TABLESPACE pg_default;
+
+create index IF not exists trials_status_idx on public.trials using btree (status) TABLESPACE pg_default;
+
+create trigger update_trials_updated_at BEFORE
+update on trials for EACH row
+execute FUNCTION update_updated_at_column ();
+
+
+create table public.classes (
+  id uuid not null default extensions.uuid_generate_v4 (),
+  trial_id uuid not null,
+  name text not null,
+  description text null,
+  level text null,
+  element text null,
+  division text null,
+  competition_type text null,
+  entry_fee numeric(10, 2) null,
+  max_entries integer null,
+  allow_waitlist boolean null default false,
+  max_dogs_per_handler integer null,
+  breed_restrictions text[] null,
+  jump_heights text[] null,
+  age_min integer null,
+  age_max integer null,
+  height_min numeric(5, 2) null,
+  height_max numeric(5, 2) null,
+  handler_age_min integer null,
+  handler_age_max integer null,
+  start_time time without time zone null,
+  estimated_duration integer null,
+  actual_start_time timestamp with time zone null,
+  actual_end_time timestamp with time zone null,
+  status text null default 'no-status'::text,
+  time_limit_seconds integer null,
+  num_hides integer null default 1,
+  num_areas integer null default 1,
+  has_blank boolean null default false,
+  max_faults integer null,
+  qualifying_threshold numeric(5, 2) null,
+  is_scoring_finalized boolean null default false,
+  results_released_at timestamp with time zone null,
+  dogs_ahead_notification_count integer null default 5,
+  total_entries_count integer null default 0,
+  checked_in_count integer null default 0,
+  scored_count integer null default 0,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  constraint classes_pkey primary key (id),
+  constraint classes_trial_id_fkey foreign KEY (trial_id) references trials (id) on delete CASCADE,
+  constraint classes_status_check check (
+    (
+      status = any (
+        array[
+          'no-status'::text,
+          'check-in'::text,
+          'in-progress'::text,
+          'completed'::text,
+          'cancelled'::text
+        ]
+      )
+    )
+  )
+) TABLESPACE pg_default;
+
+create index IF not exists classes_trial_id_idx on public.classes using btree (trial_id) TABLESPACE pg_default;
+
+create index IF not exists classes_level_idx on public.classes using btree (level) TABLESPACE pg_default;
+
+create index IF not exists classes_element_idx on public.classes using btree (element) TABLESPACE pg_default;
+
+create index IF not exists classes_status_idx on public.classes using btree (status) TABLESPACE pg_default;
+
+create index IF not exists classes_competition_type_idx on public.classes using btree (competition_type) TABLESPACE pg_default;
+
+create trigger update_classes_updated_at BEFORE
+update on classes for EACH row
+execute FUNCTION update_updated_at_column ();
+
+
+create table public.entries (
+  id uuid not null default extensions.uuid_generate_v4 (),
+  dog_id uuid null,
+  class_id uuid null,
+  show_id uuid null,
+  trial_id uuid null,
+  handler_id uuid null,
+  entry_status text null default 'no-status'::text,
+  payment_status text null default 'pending'::text,
+  handler text null,
+  entry_fee numeric(10, 2) null,
+  submitted_at timestamp with time zone null,
+  special_requests text null,
+  armband text null,
+  run_order integer null,
+  jump_height text null,
+  preferred_judge text null,
+  move_up_requested boolean null default false,
+  is_scored boolean null default false,
+  is_in_ring boolean null default false,
+  result_status text null default 'pending'::text,
+  ring_entry_time timestamp with time zone null,
+  ring_exit_time timestamp with time zone null,
+  scoring_started_at timestamp with time zone null,
+  scoring_completed_at timestamp with time zone null,
+  search_time_seconds numeric null default 0,
+  area1_time_seconds numeric null default 0,
+  area2_time_seconds numeric null default 0,
+  area3_time_seconds numeric null default 0,
+  area4_time_seconds numeric null default 0,
+  total_correct_finds integer null default 0,
+  total_incorrect_finds integer null default 0,
+  total_faults integer null default 0,
+  no_finish_count integer null default 0,
+  area1_correct integer null default 0,
+  area1_incorrect integer null default 0,
+  area1_faults integer null default 0,
+  area2_correct integer null default 0,
+  area2_incorrect integer null default 0,
+  area2_faults integer null default 0,
+  area3_correct integer null default 0,
+  area3_incorrect integer null default 0,
+  area3_faults integer null default 0,
+  total_score numeric null default 0,
+  points_earned integer null default 0,
+  points_possible integer null default 0,
+  bonus_points integer null default 0,
+  penalty_points integer null default 0,
+  time_over_limit boolean null default false,
+  time_limit_exceeded_seconds numeric null default 0,
+  final_placement integer null default 0,
+  judge_notes text null,
+  judge_signature text null,
+  judge_signature_timestamp timestamp with time zone null,
+  disqualification_reason text null,
+  has_video_review boolean null default false,
+  video_review_notes text null,
+  license_key text null,
+  local_id text null,
+  sync_version integer null default 0,
+  last_synced_at timestamp with time zone null,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  constraint entries_pkey primary key (id),
+  constraint entries_dog_id_fkey foreign KEY (dog_id) references dogs (id) on delete CASCADE,
+  constraint entries_class_id_fkey foreign KEY (class_id) references classes (id) on delete CASCADE,
+  constraint entries_handler_id_fkey foreign KEY (handler_id) references people (id) on delete set null,
+  constraint entries_show_id_fkey foreign KEY (show_id) references shows (id) on delete CASCADE,
+  constraint entries_trial_id_fkey foreign KEY (trial_id) references trials (id) on delete CASCADE,
+  constraint entries_entry_status_check check (
+    (
+      entry_status = any (
+        array[
+          'no-status'::text,
+          'draft'::text,
+          'submitted'::text,
+          'paid'::text,
+          'confirmed'::text,
+          'checked-in'::text,
+          'competing'::text,
+          'completed'::text,
+          'withdrawn'::text,
+          'scratched'::text,
+          'absent'::text
+        ]
+      )
+    )
+  ),
+  constraint entries_final_placement_check check ((final_placement >= 0)),
+  constraint entries_result_status_check check (
+    (
+      result_status = any (
+        array[
+          'pending'::text,
+          'qualified'::text,
+          'nq'::text,
+          'absent'::text,
+          'excused'::text,
+          'withdrawn'::text
+        ]
+      )
+    )
+  ),
+  constraint entries_payment_status_check check (
+    (
+      payment_status = any (
+        array[
+          'pending'::text,
+          'paid'::text,
+          'refunded'::text,
+          'waived'::text
+        ]
+      )
+    )
+  )
+) TABLESPACE pg_default;
+
+create index IF not exists entries_dog_id_idx on public.entries using btree (dog_id) TABLESPACE pg_default;
+
+create index IF not exists entries_class_id_idx on public.entries using btree (class_id) TABLESPACE pg_default;
+
+create index IF not exists entries_show_id_idx on public.entries using btree (show_id) TABLESPACE pg_default;
+
+create index IF not exists entries_trial_id_idx on public.entries using btree (trial_id) TABLESPACE pg_default;
+
+create index IF not exists entries_handler_id_idx on public.entries using btree (handler_id) TABLESPACE pg_default;
+
+create index IF not exists entries_entry_status_idx on public.entries using btree (entry_status) TABLESPACE pg_default;
+
+create index IF not exists entries_payment_status_idx on public.entries using btree (payment_status) TABLESPACE pg_default;
+
+create index IF not exists entries_result_status_idx on public.entries using btree (result_status) TABLESPACE pg_default;
+
+create index IF not exists entries_is_scored_idx on public.entries using btree (is_scored) TABLESPACE pg_default;
+
+create index IF not exists entries_final_placement_idx on public.entries using btree (final_placement) TABLESPACE pg_default;
+
+create index IF not exists entries_class_scored_idx on public.entries using btree (class_id, is_scored) TABLESPACE pg_default;
+
+create index IF not exists entries_license_key_idx on public.entries using btree (license_key) TABLESPACE pg_default;
+
+create index IF not exists entries_class_run_order_idx on public.entries using btree (class_id, run_order) TABLESPACE pg_default;
+
+create unique INDEX IF not exists entries_dog_class_unique_idx on public.entries using btree (dog_id, class_id) TABLESPACE pg_default
+where
+  (
+    entry_status <> all (array['withdrawn'::text, 'scratched'::text])
+  );
+
+create trigger update_entries_updated_at BEFORE
+update on entries for EACH row
+execute FUNCTION update_updated_at_column ();
+
+
+create table public.dogs (
+  id uuid not null default extensions.uuid_generate_v4 (),
+  name text not null,
+  call_name text null,
+  breed text not null,
+  sex text null,
+  date_of_birth date null,
+  color text null,
+  height text null,
+  weight text null,
+  akc_number text null,
+  ukc_number text null,
+  other_registry text null,
+  other_registry_number text null,
+  microchip_number text null,
+  image_url text null,
+  spayed_neutered boolean null default false,
+  deceased boolean null default false,
+  deceased_date date null,
+  owner_id uuid null,
+  co_owner_id uuid null,
+  breeder_id uuid null,
+  license_key text null,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  constraint dogs_pkey primary key (id),
+  constraint dogs_breeder_id_fkey foreign KEY (breeder_id) references people (id) on delete set null,
+  constraint dogs_co_owner_id_fkey foreign KEY (co_owner_id) references people (id) on delete set null,
+  constraint dogs_owner_id_fkey foreign KEY (owner_id) references people (id) on delete set null,
+  constraint dogs_sex_check check ((sex = any (array['male'::text, 'female'::text])))
+) TABLESPACE pg_default;
+
+create index IF not exists dogs_owner_id_idx on public.dogs using btree (owner_id) TABLESPACE pg_default;
+
+create index IF not exists dogs_license_key_idx on public.dogs using btree (license_key) TABLESPACE pg_default;
+
+create index IF not exists dogs_breed_idx on public.dogs using btree (breed) TABLESPACE pg_default;
+
+create index IF not exists dogs_call_name_idx on public.dogs using btree (call_name) TABLESPACE pg_default;
+
+create index IF not exists dogs_akc_number_idx on public.dogs using btree (akc_number) TABLESPACE pg_default;
+
+create trigger update_dogs_updated_at BEFORE
+update on dogs for EACH row
+execute FUNCTION update_updated_at_column ();
+
+
+create table public.people (
+  id uuid not null default extensions.uuid_generate_v4 (),
+  first_name text not null,
+  last_name text not null,
+  email text null,
+  phone text null,
+  street_address text null,
+  city text null,
+  state text null,
+  zip_code text null,
+  country text null default 'USA'::text,
+  profile_image text null,
+  bio text null,
+  roles text[] null default '{}'::text[],
+  auth_user_id uuid null,
+  license_key text null,
+  created_at timestamp with time zone null default now(),
+  updated_at timestamp with time zone null default now(),
+  constraint people_pkey primary key (id)
+) TABLESPACE pg_default;
+
+create index IF not exists people_auth_user_id_idx on public.people using btree (auth_user_id) TABLESPACE pg_default;
+
+create index IF not exists people_license_key_idx on public.people using btree (license_key) TABLESPACE pg_default;
+
+create index IF not exists people_email_idx on public.people using btree (email) TABLESPACE pg_default;
+
+create index IF not exists people_name_idx on public.people using btree (last_name, first_name) TABLESPACE pg_default;
+
+create trigger update_people_updated_at BEFORE
+update on people for EACH row
+execute FUNCTION update_updated_at_column ();

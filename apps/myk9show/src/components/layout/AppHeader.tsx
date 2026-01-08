@@ -3,27 +3,25 @@ import { Link } from 'react-router-dom';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
-import { LogOut, User as UserIcon, ChevronDown, Search, Settings, CreditCard, Heart } from 'lucide-react';
+import { LogOut, User as UserIcon, ChevronDown, Search, Settings, CreditCard, Heart, Wifi, WifiOff, RefreshCw, Menu, X } from 'lucide-react';
 import { ExhibitorNavigation, SecretaryNavigation, JudgeNavigation, AdminNavigation } from './navigation';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { CommandPalette } from '@/components/common/CommandPalette';
-import { NetworkStatusIcon } from '@/components/common/NetworkStatusProvider';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { ResetDataButton } from '@/components/common/ResetDataButton';
 import { ClearCacheButton } from '@/components/common/ClearCacheButton';
 import { NotificationCenter } from '@/components/common/NotificationCenter';
-import { AlertNotificationCenter } from '@/components/alerts';
-import { SyncStatusIndicator } from '@/components/sync/SyncStatusIndicator';
 import { useGlobalSyncStatus } from '@/hooks/useGlobalSyncStatus';
 import { buildClasses } from '@/utils/designTokens';
-import { PresenceIndicator } from '@/components/collaboration';
 
 const AppHeader: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
   const { user, signOut, userWithRoles, getUserRoles, hasRole } = useAuthContext();
   const globalSync = useGlobalSyncStatus();
+  const networkStatus = useNetworkStatus();
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
-  
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Handler for opening command palette
   const openCommandPalette = () => {
@@ -104,56 +102,33 @@ const AppHeader: React.FC = () => {
             </div>
           )}
 
-          {/* Right: User Controls */}
-          <div className="flex items-center gap-4">
+          {/* Right: User Controls - Simplified for 15" laptops */}
+          <div className="flex items-center gap-2">
             {user ? (
               <>
+                {/* Mobile Menu Toggle */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  className="md:hidden p-2"
+                >
+                  {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+                </Button>
+
                 {/* Mobile Search */}
                 <Button
                   variant="ghost"
                   size="sm"
-                  // onClick={() => setCommandPaletteOpen(true)}
+                  onClick={() => setCommandPaletteOpen(true)}
                   className="lg:hidden p-2"
                 >
                   <Search className="h-4 w-4" />
                 </Button>
-                
-                {/* Network Status */}
-                <div className="hidden sm:block">
-                  <NetworkStatusIcon />
-                </div>
-                
-                {/* Alert Notification Center */}
-                {user && (
-                  <AlertNotificationCenter />
-                )}
-                
+
                 {/* Notification Center */}
-                {user && (
-                  <NotificationCenter />
-                )}
+                <NotificationCenter />
 
-                {/* Global Sync Status */}
-                {user && (
-                  <SyncStatusIndicator
-                    status={globalSync.status}
-                    entityType="global"
-                    compact
-                    showLabel={false}
-                    lastSyncAt={globalSync.lastSyncAt}
-                    className="mr-2"
-                  />
-                )}
-
-                {/* Collaboration Presence */}
-                {user && (
-                  <PresenceIndicator 
-                    showActiveCount={true}
-                    showRoleBreakdown={true}
-                    className="mr-2"
-                  />
-                )}
-                
                 {/* Theme Toggle */}
                 <Button
                   variant="ghost"
@@ -181,41 +156,51 @@ const AppHeader: React.FC = () => {
                     </svg>
                   )}
                 </Button>
-                
-                {/* Role Context Indicator */}
-                {user && (
-                  <div className="hidden sm:flex items-center">
-                    <span className="text-xs text-muted-foreground px-2 py-1 rounded-md bg-muted/50">
-                      {getPrimaryRole()}
-                    </span>
-                  </div>
-                )}
-                
+
                 {/* Profile Dropdown */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className={`${buildClasses.button.ghost} flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-muted/50`}>
+                    <Button variant="ghost" className={`${buildClasses.button.ghost} flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-muted/50`}>
                       <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">
                         {user.email?.charAt(0).toUpperCase() || 'U'}
                       </div>
-                      <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                      <ChevronDown className="h-3 w-3 text-muted-foreground hidden sm:block" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-64">
+                    {/* User Info */}
                     <div className="px-3 py-2 border-b">
                       <p className="text-sm font-medium">{user.email}</p>
                       {userWithRoles && (
                         <div className="flex items-center gap-2 mt-1">
                           <UserIcon className="h-3 w-3 text-muted-foreground" />
                           <span className="text-xs text-muted-foreground">
-                            {getUserRoles().map(role => 
+                            {getUserRoles().map(role =>
                               role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
                             ).join(', ')}
                           </span>
                         </div>
                       )}
-                      <p className="text-xs text-muted-foreground mt-1">Account Settings</p>
                     </div>
+
+                    {/* Status Section */}
+                    <div className="px-3 py-2 border-b">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground flex items-center gap-1.5">
+                          {networkStatus.isOnline ? (
+                            <Wifi className="h-3 w-3 text-green-500" />
+                          ) : (
+                            <WifiOff className="h-3 w-3 text-red-500" />
+                          )}
+                          {networkStatus.isOnline ? 'Online' : 'Offline'}
+                        </span>
+                        <span className="text-muted-foreground flex items-center gap-1.5">
+                          <RefreshCw className={`h-3 w-3 ${globalSync.status === 'syncing' ? 'animate-spin text-blue-500' : 'text-green-500'}`} />
+                          {globalSync.status === 'syncing' ? 'Syncing...' : 'Synced'}
+                        </span>
+                      </div>
+                    </div>
+
                     {/* Common menu items for all users */}
                     <DropdownMenuItem asChild>
                       <Link to="/subscription" className="w-full flex items-center gap-2">
@@ -229,7 +214,7 @@ const AppHeader: React.FC = () => {
                         Pricing
                       </Link>
                     </DropdownMenuItem>
-                    
+
                     {/* Role-specific menu items */}
                     {(hasRole(UserRole.SECRETARY) || hasRole(UserRole.CLUB_ADMIN) || hasRole(UserRole.SITE_ADMIN)) && (
                       <>
@@ -242,7 +227,7 @@ const AppHeader: React.FC = () => {
                         </DropdownMenuItem>
                       </>
                     )}
-                    
+
                     {hasRole(UserRole.SITE_ADMIN) && (
                       <>
                         <DropdownMenuItem asChild>
@@ -302,11 +287,20 @@ const AppHeader: React.FC = () => {
           </div>
         </div>
       </div>
-      
+
+      {/* Mobile Menu Dropdown */}
+      {mobileMenuOpen && user && (
+        <div className="md:hidden border-t bg-background/95 backdrop-blur-lg">
+          <div className="px-4 py-3 space-y-2">
+            {renderRoleBasedNavigation()}
+          </div>
+        </div>
+      )}
+
       {/* Command Palette */}
-      <CommandPalette 
-        open={commandPaletteOpen} 
-        onOpenChange={setCommandPaletteOpen} 
+      <CommandPalette
+        open={commandPaletteOpen}
+        onOpenChange={setCommandPaletteOpen}
       />
     </nav>
   );

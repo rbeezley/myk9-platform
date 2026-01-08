@@ -17,10 +17,10 @@ export class TestSetup {
     
     // Use actual test credentials from testUsers.ts
     const credentials = {
-      admin: { email: 'testadmin@example.com', password: 'TestAdmin123!' },
-      secretary: { email: 'testsecretary@example.com', password: 'TestSecretary123!' },
-      user: { email: 'testexhibitor@example.com', password: 'TestExhibitor123!' },
-      judge: { email: 'testjudge@example.com', password: 'TestJudge123!' }
+      admin: { email: 'testadmin@example.com', password: 'Test123!' },
+      secretary: { email: 'testsecretary@example.com', password: 'Test123!' },
+      user: { email: 'testexhibitor@example.com', password: 'Test123!' },
+      judge: { email: 'testjudge@example.com', password: 'Test123!' }
     };
 
     const creds = credentials[role];

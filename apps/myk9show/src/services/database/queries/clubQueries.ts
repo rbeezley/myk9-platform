@@ -8,20 +8,11 @@ import type {
 // Get all clubs
 export const getAllClubs = async () => {
   const startTime = Date.now();
-  
+
   try {
     const { data, error } = await supabase
-      .from('club')
-      .select(`
-        *,
-        show(
-          id,
-          name,
-          start_date,
-          end_date,
-          status
-        )
-      `)
+      .from('clubs' as 'club')
+      .select('*')
       .is('deleted_at', null)
       .order('name', { ascending: true });
     
@@ -44,32 +35,11 @@ export const getAllClubs = async () => {
 // Get club by ID with complete details
 export const getClubById = async (id: string) => {
   const startTime = Date.now();
-  
+
   try {
     const { data, error } = await supabase
-      .from('club')
-      .select(`
-        *,
-        show(
-          id,
-          name,
-          start_date,
-          end_date,
-          status,
-          location,
-          show_trials(
-            id,
-            trial_name,
-            trial_type,
-            trial_date,
-            class(
-              id,
-              name,
-              entry(id)
-            )
-          )
-        )
-      `)
+      .from('clubs' as 'club')
+      .select('*')
       .eq('id', id)
       .is('deleted_at', null)
       .single();
@@ -93,13 +63,13 @@ export const getClubById = async (id: string) => {
 // Get clubs by search term (since clubs table doesn't have state column)
 export const searchClubsByLocation = async (searchTerm: string) => {
   const startTime = Date.now();
-  
+
   try {
     const { data, error } = await supabase
-      .from('club')
+      .from('clubs' as 'club')
       .select('*')
-      .or(`address.ilike.%${searchTerm}%,name.ilike.%${searchTerm}%`)
       .is('deleted_at', null)
+      .or(`address.ilike.%${searchTerm}%,name.ilike.%${searchTerm}%`)
       .order('name', { ascending: true });
     
     const duration = Date.now() - startTime;
@@ -121,14 +91,14 @@ export const searchClubsByLocation = async (searchTerm: string) => {
 // Get clubs with basic info (organization field doesn't exist in schema)
 export const getActiveClubs = async () => {
   const startTime = Date.now();
-  
+
   try {
     const { data, error } = await supabase
-      .from('club')
+      .from('clubs' as 'club')
       .select('*')
       .is('deleted_at', null)
       .order('name', { ascending: true });
-    
+
     const duration = Date.now() - startTime;
     logQuery('club', 'select_active', duration, error?.message);
     
@@ -151,7 +121,7 @@ export const createClub = async (clubData: DbClubInsert) => {
   
   try {
     const { data, error } = await supabase
-      .from('club')
+      .from('clubs' as 'club')
       .insert([clubData])
       .select()
       .single();
@@ -178,7 +148,7 @@ export const updateClub = async (id: string, updates: DbClubUpdate) => {
   
   try {
     const { data, error } = await supabase
-      .from('club')
+      .from('clubs' as 'club')
       .update({
         ...updates,
         updated_at: new Date().toISOString(),
@@ -203,52 +173,35 @@ export const updateClub = async (id: string, updates: DbClubUpdate) => {
   }
 };
 
-// Soft delete club (sets deleted_at timestamp and tracks who deleted it)
+// Soft delete club
 export const deleteClub = async (id: string, deletedBy?: string) => {
   const startTime = Date.now();
-  
-  console.log('🗑️ Database deleteClub called:', { id, deletedBy });
-  
+
   try {
     const updateData: Record<string, unknown> = {
       deleted_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     };
-    
+
     if (deletedBy) {
       updateData.deleted_by = deletedBy;
-      updateData.updated_by = deletedBy;
     }
-    
-    console.log('📝 Update data being sent:', updateData);
-    
+
     const { data, error } = await supabase
-      .from('club')
+      .from('clubs' as 'club')
       .update(updateData)
       .eq('id', id)
-      .select('id, name, deleted_at, deleted_by')
+      .is('deleted_at', null)
+      .select('id, name')
       .single();
-    
-    console.log('📊 Database response:', { data, error });
-    
+
     const duration = Date.now() - startTime;
     logQuery('club', 'soft_delete', duration, error?.message);
-    
+
     if (error) {
-      console.error('❌ Supabase error details:', {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint
-      });
       throw createDatabaseError(error, 'club', 'soft_delete');
     }
 
-    if (!data) {
-      console.error('❌ No data returned from delete operation');
-      throw new Error('Delete operation returned no data');
-    }
-    
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -264,7 +217,7 @@ export const hardDeleteClub = async (id: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('club')
+      .from('clubs' as 'club')
       .delete()
       .eq('id', id)
       .select('id, name')
@@ -289,32 +242,32 @@ export const hardDeleteClub = async (id: string) => {
 // Restore soft-deleted club (admin only)
 export const restoreClub = async (id: string, restoredBy?: string) => {
   const startTime = Date.now();
-  
+
   try {
     const updateData: Record<string, unknown> = {
       deleted_at: null,
       deleted_by: null,
       updated_at: new Date().toISOString()
     };
-    
+
     if (restoredBy) {
       updateData.updated_by = restoredBy;
     }
-    
+
     const { data, error } = await supabase
-      .from('club')
+      .from('clubs' as 'club')
       .update(updateData)
       .eq('id', id)
       .select('id, name')
       .single();
-    
+
     const duration = Date.now() - startTime;
     logQuery('club', 'restore', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'club', 'restore');
     }
-    
+
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -327,24 +280,21 @@ export const restoreClub = async (id: string, restoredBy?: string) => {
 // Get soft-deleted clubs (admin only)
 export const getDeletedClubs = async () => {
   const startTime = Date.now();
-  
+
   try {
     const { data, error } = await supabase
-      .from('club')
-      .select(`
-        *,
-        deleted_by_user:deleted_by(id, email, first_name, last_name)
-      `)
+      .from('clubs' as 'club')
+      .select('*')
       .not('deleted_at', 'is', null)
       .order('deleted_at', { ascending: false });
-    
+
     const duration = Date.now() - startTime;
     logQuery('club', 'select_deleted', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'club', 'select_deleted');
     }
-    
+
     return { data: data || [], error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -357,13 +307,13 @@ export const getDeletedClubs = async () => {
 // Search clubs by name or address
 export const searchClubs = async (searchTerm: string) => {
   const startTime = Date.now();
-  
+
   try {
     const { data, error } = await supabase
-      .from('club')
+      .from('clubs' as 'club')
       .select('*')
-      .or(`name.ilike.%${searchTerm}%,address.ilike.%${searchTerm}%`)
       .is('deleted_at', null)
+      .or(`name.ilike.%${searchTerm}%,address.ilike.%${searchTerm}%`)
       .order('name', { ascending: true });
     
     const duration = Date.now() - startTime;
@@ -382,33 +332,30 @@ export const searchClubs = async (searchTerm: string) => {
   }
 };
 
-// Get clubs with show counts
+// Get clubs with show counts (TODO: Add show relationship when schema supports it)
 export const getClubsWithShowCounts = async () => {
   const startTime = Date.now();
-  
+
   try {
     const { data, error } = await supabase
-      .from('club')
-      .select(`
-        *,
-        show(id)
-      `)
+      .from('clubs' as 'club')
+      .select('*')
       .is('deleted_at', null)
       .order('name', { ascending: true });
-    
+
     const duration = Date.now() - startTime;
     logQuery('club', 'select_with_show_counts', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'club', 'select_with_show_counts');
     }
-    
-    // Transform data to include show count
+
+    // Transform data to include show count (placeholder until schema supports relationship)
     const dataWithCounts = data?.map(club => ({
       ...club,
-      show_count: club.show?.length || 0,
+      show_count: 0, // TODO: Add actual count when shows table has club_id foreign key
     })) || [];
-    
+
     return { data: dataWithCounts, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -421,10 +368,10 @@ export const getClubsWithShowCounts = async () => {
 // Get club statistics
 export const getClubStatistics = async () => {
   const startTime = Date.now();
-  
+
   try {
     const { error, count } = await supabase
-      .from('club')
+      .from('clubs' as 'club')
       .select('id', { count: 'exact', head: true })
       .is('deleted_at', null);
     
@@ -451,18 +398,18 @@ export const getClubStatistics = async () => {
 // Check if club name exists
 export const checkClubNameExists = async (name: string, excludeId?: string) => {
   const startTime = Date.now();
-  
+
   try {
     let query = supabase
-      .from('club')
+      .from('clubs' as 'club')
       .select('id, name')
       .eq('name', name)
       .is('deleted_at', null);
-    
+
     if (excludeId) {
       query = query.neq('id', excludeId);
     }
-    
+
     const { data, error } = await query;
     
     const duration = Date.now() - startTime;

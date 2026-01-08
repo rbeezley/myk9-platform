@@ -26,17 +26,17 @@ export const getAllClasses = async () => {
     log('class', 'select_all_with_relations');
     
     const { data, error } = await supabase
-      .from('class')
+      .from('classes' as 'class')
       .select(`
         *,
-        trial:trial_id (
+        trial:trials (
           id,
           name,
           date,
           trial_number,
           status
         ),
-        entry (
+        entries (
           id,
           status
         )
@@ -65,10 +65,10 @@ export const getClassById = async (id: string) => {
     log('getClassById', 'Fetching class by ID', { id });
     
     const { data, error } = await supabase
-      .from('class')
+      .from('classes' as 'class')
       .select(`
         *,
-        trial:trial_id (
+        trial:trials (
           id,
           name,
           date,
@@ -77,17 +77,17 @@ export const getClassById = async (id: string) => {
           max_entries_per_dog,
           max_entries_per_handler
         ),
-        entry (
+        entries (
           id,
           status,
           score,
           time,
           placement,
-          dog:dog_id (
+          dog:dogs (
             id,
             name,
             breed,
-            owner:owner_id (
+            owner:people (
               id,
               first_name,
               last_name
@@ -120,10 +120,10 @@ export const getClassesByTrialId = async (trialId: string) => {
     log('getClassesByTrialId', 'Fetching classes by trial ID', { trialId });
     
     const { data, error } = await supabase
-      .from('class')
+      .from('classes' as 'class')
       .select(`
         *,
-        entry (
+        entries (
           id,
           status
         )
@@ -156,14 +156,14 @@ export const createClass = async (classData: DbClassInsert) => {
     log('createClass', 'Creating new class', { name: classData.name });
     
     const { data, error } = await supabase
-      .from('class')
+      .from('classes' as 'class')
       .insert([{
         ...classData,
         created_at: new Date().toISOString(),
       }])
       .select(`
         *,
-        trial:trial_id (
+        trial:trials (
           id,
           name,
           date,
@@ -193,16 +193,15 @@ export const updateClass = async (id: string, updates: DbClassUpdate) => {
     log('updateClass', 'Updating class', { id });
     
     const { data, error } = await supabase
-      .from('class')
+      .from('classes' as 'class')
       .update({
         ...updates,
         updated_at: new Date().toISOString(),
       })
       .eq('id', id)
-      .is('deleted_at', null)
-      .select(`
+            .select(`
         *,
-        trial:trial_id (
+        trial:trials (
           id,
           name,
           date,
@@ -230,16 +229,23 @@ export const updateClass = async (id: string, updates: DbClassUpdate) => {
 export const deleteClass = async (id: string, deletedBy?: string) => {
   try {
     log('deleteClass', 'Soft deleting class', { id });
-    
+
+    const updateData: Record<string, unknown> = {
+      deleted_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    if (deletedBy) {
+      updateData.deleted_by = deletedBy;
+    }
+
     const { data, error } = await supabase
-      .from('class')
-      .update({
-        deleted_at: new Date().toISOString(),
-        deleted_by: deletedBy || null,
-        updated_at: new Date().toISOString(),
-      })
+      .from('classes' as 'class')
+      .update(updateData)
       .eq('id', id)
-      .is('deleted_at', null);
+      .is('deleted_at', null)
+      .select('id, name')
+      .single();
 
     if (error) {
       log('deleteClass', 'Error soft deleting class', { id, error });
@@ -262,10 +268,10 @@ export const searchClasses = async (searchTerm: string, limit = 50) => {
     log('searchClasses', 'Searching classes', { searchTerm, limit });
     
     const { data, error } = await supabase
-      .from('class')
+      .from('classes' as 'class')
       .select(`
         *,
-        trial:trial_id (
+        trial:trials (
           id,
           name,
           date
@@ -304,7 +310,7 @@ export const getClassStatistics = async () => {
     log('getClassStatistics', 'Fetching class statistics');
     
     const { error, count } = await supabase
-      .from('class')
+      .from('classes' as 'class')
       .select('id', { count: 'exact', head: true })
       .is('deleted_at', null);
 
@@ -332,7 +338,7 @@ export const hardDeleteClass = async (id: string) => {
     log('hardDeleteClass', 'Permanently deleting class', { id });
     
     const { data, error } = await supabase
-      .from('class')
+      .from('classes' as 'class')
       .delete()
       .eq('id', id);
 
@@ -357,7 +363,7 @@ export const restoreClass = async (id: string, restoredBy?: string) => {
     log('restoreClass', 'Restoring class', { id });
     
     const { data, error } = await supabase
-      .from('class')
+      .from('classes' as 'class')
       .update({
         deleted_at: null,
         deleted_by: null,
@@ -368,7 +374,7 @@ export const restoreClass = async (id: string, restoredBy?: string) => {
       .not('deleted_at', 'is', null)
       .select(`
         *,
-        trial:trial_id (
+        trial:trials (
           id,
           name,
           date,
@@ -398,10 +404,10 @@ export const getDeletedClasses = async () => {
     log('getDeletedClasses', 'Fetching deleted classes');
     
     const { data, error } = await supabase
-      .from('class')
+      .from('classes' as 'class')
       .select(`
         *,
-        trial:trial_id (
+        trial:trials (
           id,
           name,
           date,
@@ -440,14 +446,14 @@ export const getAllEntries = async () => {
     log('getAllEntries', 'Fetching all entries');
     
     const { data, error } = await supabase
-      .from('entry')
+      .from('entries' as 'entry')
       .select(`
         *,
-        dog:dog_id (
+        dog:dogs (
           id,
           name,
           breed,
-          owner:owner_id (
+          owner:people (
             id,
             first_name,
             last_name
@@ -457,7 +463,7 @@ export const getAllEntries = async () => {
           id,
           name,
           level,
-          trial:trial_id (
+          trial:trials (
             id,
             name,
             date
@@ -488,14 +494,14 @@ export const getEntriesByClassId = async (classId: string) => {
     log('getEntriesByClassId', 'Fetching entries by class ID', { classId });
     
     const { data, error } = await supabase
-      .from('entry')
+      .from('entries' as 'entry')
       .select(`
         *,
-        dog:dog_id (
+        dog:dogs (
           id,
           name,
           breed,
-          owner:owner_id (
+          owner:people (
             id,
             first_name,
             last_name
@@ -530,14 +536,14 @@ export const createEntry = async (entryData: DbEntryInsert) => {
     log('createEntry', 'Creating new entry', { classId: entryData.class_id });
     
     const { data, error } = await supabase
-      .from('entry')
+      .from('entries' as 'entry')
       .insert([{
         ...entryData,
         created_at: new Date().toISOString(),
       }])
       .select(`
         *,
-        dog:dog_id (
+        dog:dogs (
           id,
           name,
           breed
@@ -571,16 +577,15 @@ export const updateEntry = async (id: string, updates: DbEntryUpdate) => {
     log('updateEntry', 'Updating entry', { id });
     
     const { data, error } = await supabase
-      .from('entry')
+      .from('entries' as 'entry')
       .update({
         ...updates,
         updated_at: new Date().toISOString(),
       })
       .eq('id', id)
-      .is('deleted_at', null)
-      .select(`
+            .select(`
         *,
-        dog:dog_id (
+        dog:dogs (
           id,
           name,
           breed
@@ -614,7 +619,7 @@ export const deleteEntry = async (id: string, deletedBy?: string) => {
     log('deleteEntry', 'Soft deleting entry', { id });
     
     const { data, error } = await supabase
-      .from('entry')
+      .from('entries' as 'entry')
       .update({
         deleted_at: new Date().toISOString(),
         deleted_by: deletedBy || null,
@@ -644,7 +649,7 @@ export const hardDeleteEntry = async (id: string) => {
     log('hardDeleteEntry', 'Permanently deleting entry', { id });
     
     const { data, error } = await supabase
-      .from('entry')
+      .from('entries' as 'entry')
       .delete()
       .eq('id', id);
 
@@ -669,7 +674,7 @@ export const restoreEntry = async (id: string, restoredBy?: string) => {
     log('restoreEntry', 'Restoring entry', { id });
     
     const { data, error } = await supabase
-      .from('entry')
+      .from('entries' as 'entry')
       .update({
         deleted_at: null,
         deleted_by: null,
@@ -680,7 +685,7 @@ export const restoreEntry = async (id: string, restoredBy?: string) => {
       .not('deleted_at', 'is', null)
       .select(`
         *,
-        dog:dog_id (
+        dog:dogs (
           id,
           name,
           breed
@@ -714,14 +719,14 @@ export const getDeletedEntries = async () => {
     log('getDeletedEntries', 'Fetching deleted entries');
     
     const { data, error } = await supabase
-      .from('entry')
+      .from('entries' as 'entry')
       .select(`
         *,
-        dog:dog_id (
+        dog:dogs (
           id,
           name,
           breed,
-          owner:owner_id (
+          owner:people (
             id,
             first_name,
             last_name
@@ -731,7 +736,7 @@ export const getDeletedEntries = async () => {
           id,
           name,
           level,
-          trial:trial_id (
+          trial:trials (
             id,
             name,
             date

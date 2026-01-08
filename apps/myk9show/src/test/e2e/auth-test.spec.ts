@@ -18,8 +18,8 @@ test.describe('Authentication Flow Test', () => {
     await page.waitForSelector('[data-testid="sign-in-button"]', { state: 'visible' });
     
     // Fill in test credentials (these should exist in your test database)
-    await page.fill('[data-testid="email-input"]', 'working-admin@example.com');
-    await page.fill('[data-testid="password-input"]', 'testpass123');
+    await page.fill('[data-testid="email-input"]', 'testadmin@example.com');
+    await page.fill('[data-testid="password-input"]', 'Test123!');
     
     // Click sign in button
     await page.click('[data-testid="sign-in-button"]');

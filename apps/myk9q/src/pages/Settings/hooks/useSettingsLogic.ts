@@ -5,6 +5,8 @@ import { getStorageUsage } from '@/services/dataExportService';
 import PushNotificationService from '@/services/pushNotificationService';
 import voiceAnnouncementService from '@/services/voiceAnnouncementService';
 import { logger } from '@/utils/logger';
+import { mutationQueue } from '@/services/replication/MutationQueueManager';
+import { ensureReplicationManager } from '@/utils/replicationHelper';
 import {
     exportPersonalDataHelper,
     clearAllDataHelper,
@@ -23,6 +25,7 @@ export function useSettingsLogic() {
     const [showResetConfirm, setShowResetConfirm] = useState(false);
     const [showClearDataConfirm, setShowClearDataConfirm] = useState(false);
     const [isClearing, setIsClearing] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [storageUsage, setStorageUsage] = useState<{ estimated: number; quota: number; percentUsed: number; localStorageSize: number } | null>(null);
 
@@ -167,6 +170,86 @@ export function useSettingsLogic() {
         await importSettingsFromFile(file, importSettings, showToastMessage, fileInputRef);
     };
 
+    /**
+     * Refresh all data - syncs pending changes, clears cache, and reloads
+     * Safe for offline scoring: syncs pending mutations before clearing
+     */
+    const handleRefreshAllData = useCallback(async () => {
+        setIsRefreshing(true);
+        try {
+            // Check for pending mutations
+            const pendingMutations = await mutationQueue.getPending();
+            const hasPending = pendingMutations.length > 0;
+            const isOnline = navigator.onLine;
+
+            if (hasPending) {
+                if (!isOnline) {
+                    showToastMessage(
+                        `Cannot refresh: ${pendingMutations.length} unsynced score(s). Connect to internet first.`,
+                        'error'
+                    );
+                    setIsRefreshing(false);
+                    return;
+                }
+
+                // Try to sync pending mutations first
+                showToastMessage('Syncing pending changes...', 'info');
+                try {
+                    const manager = await ensureReplicationManager();
+                    await manager.syncAll({ forceFullSync: false });
+
+                    // Check again after sync
+                    const stillPending = await mutationQueue.getPending();
+                    if (stillPending.length > 0) {
+                        showToastMessage(
+                            `Warning: ${stillPending.length} change(s) could not be synced. They will be preserved.`,
+                            'error'
+                        );
+                        setIsRefreshing(false);
+                        return;
+                    }
+                } catch (syncError) {
+                    logger.error('Error syncing before refresh:', syncError);
+                    showToastMessage('Sync failed. Please try again when online.', 'error');
+                    setIsRefreshing(false);
+                    return;
+                }
+            }
+
+            // All clear - delete the IndexedDB database and reload
+            showToastMessage('Clearing cache and reloading...', 'info');
+
+            // Clear IndexedDB databases
+            const dbNames = ['myK9Q_Replication', 'myK9Q-replication'];
+            for (const dbName of dbNames) {
+                try {
+                    const deleteRequest = indexedDB.deleteDatabase(dbName);
+                    await new Promise<void>((resolve, reject) => {
+                        deleteRequest.onsuccess = () => resolve();
+                        deleteRequest.onerror = () => reject(deleteRequest.error);
+                        deleteRequest.onblocked = () => {
+                            logger.warn(`[RefreshAllData] Database ${dbName} delete blocked`);
+                            resolve(); // Continue anyway
+                        };
+                    });
+                    logger.log(`[RefreshAllData] Deleted IndexedDB: ${dbName}`);
+                } catch (err) {
+                    logger.warn(`[RefreshAllData] Could not delete ${dbName}:`, err);
+                }
+            }
+
+            // Short delay to ensure DB is cleared, then reload
+            setTimeout(() => {
+                window.location.reload();
+            }, 500);
+
+        } catch (err) {
+            logger.error('Error refreshing data:', err);
+            showToastMessage('Failed to refresh data', 'error');
+            setIsRefreshing(false);
+        }
+    }, [showToastMessage]);
+
     return {
         // State
         settings,
@@ -174,6 +257,7 @@ export function useSettingsLogic() {
         showResetConfirm,
         showClearDataConfirm,
         isClearing,
+        isRefreshing,
         searchQuery,
         storageUsage,
         isPushSubscribed,
@@ -195,6 +279,7 @@ export function useSettingsLogic() {
         handleDevModeTap,
         handlePushToggle,
         handleClearData,
+        handleRefreshAllData,
         handleExportData: () => exportPersonalDataHelper(showToastMessage),
         handleExportSettings: () => exportSettingsToFile(exportSettings, showToastMessage),
         handleImportClick: () => fileInputRef.current?.click(),

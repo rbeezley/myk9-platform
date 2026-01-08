@@ -1,19 +1,18 @@
-import React, { Suspense, lazy, useMemo, useState, useEffect, useCallback } from 'react';
+import React, { Suspense, lazy, useMemo, useState, useCallback } from 'react';
 import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
-import { BarChart3, TrendingUp, Award, Clock, RefreshCw } from 'lucide-react';
+import { BarChart3, RefreshCw, Info } from 'lucide-react';
 import { PageLoader } from '../../components/LoadingSpinner';
 import { HamburgerMenu } from '../../components/ui/HamburgerMenu';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePermission } from '../../hooks/usePermission';
 import { useStatsData } from './hooks/useStatsData';
+import { useStatsFilterOptions } from './hooks/useStatsFilterOptions';
 import { useLongPress } from '@/hooks/useLongPress';
-import { supabase } from '../../lib/supabase';
-import { getLevelSortOrder } from '../../lib/utils';
-import { ensureReplicationManager } from '@/utils/replicationHelper';
-import type { Trial, Class } from '@/services/replication';
 import { logger } from '@/utils/logger';
 import type { StatsLevel, StatsFilters } from './types/stats.types';
 import { OfflineFallback } from '@/components/ui';
 import { ShowProgressStats } from './components/ShowProgressStats';
+import { StatsSummaryCards } from './components/StatsSummaryCards';
 import './Stats.css';
 
 // Lazy load heavy chart components
@@ -29,20 +28,16 @@ export const Stats: React.FC = () => {
   const navigate = useNavigate();
   const { showContext } = useAuth();
   const { trialId } = useParams<{ trialId?: string }>();
+  const { hasRole } = usePermission();
 
-  // State for filter options
-  const [filterOptions, setFilterOptions] = useState<{
-    trialDates: string[];
-    trialNumbers: number[];
-    elements: string[];
-    levels: string[];
-    classes: Array<{ id: number; name: string; trialDate?: string; trialNumber?: number }>;
-  }>({
-    trialDates: [],
-    trialNumbers: [],
-    elements: [],
-    levels: [],
-    classes: []
+  // Check if user can see unrestricted stats (admin/judge see all, others see filtered)
+  const canSeeAllStats = hasRole(['admin', 'judge']);
+
+  // Get filter options (uses cache-first strategy)
+  const filterOptions = useStatsFilterOptions({
+    licenseKey: showContext?.licenseKey,
+    showId: showContext?.showId,
+    trialId
   });
 
   // Stats is now filter-based only (no route-based drill-down)
@@ -60,10 +55,12 @@ export const Stats: React.FC = () => {
   }), [searchParams]);
 
   // Fetch stats data
+  // Non-admin/judge users only see times from completed classes (fair competition)
   const { data, isLoading, error, isOffline, refetch } = useStatsData({
     level,
     showId: showContext?.showId,
-    filters
+    filters,
+    restrictTimesToCompletedClasses: !canSeeAllStats
   });
 
   // Manual refresh state for visible feedback
@@ -92,231 +89,28 @@ export const Stats: React.FC = () => {
     enabled: !isLoading && !isRefreshing,
   });
 
-  // Fetch filter options - try cache first (offline-first)
-  useEffect(() => {
-    const fetchFilterOptions = async () => {
-      if (!showContext?.licenseKey || !showContext?.showId) return;
-
-      // Try to build filter options from replicated cache first
-      try {
-        const manager = await ensureReplicationManager();
-        const trialsTable = manager.getTable('trials');
-        const classesTable = manager.getTable('classes');
-
-        if (trialsTable && classesTable) {
-          const allTrials = await trialsTable.getAll() as Trial[];
-          const allClasses = await classesTable.getAll() as Class[];
-
-          // Filter to current show
-          const showTrials = allTrials.filter(t => String(t.show_id) === String(showContext.showId));
-          const trialIds = new Set(showTrials.map(t => String(t.id)));
-          const showClasses = allClasses.filter(c => trialIds.has(String(c.trial_id)));
-
-          if (showTrials.length > 0 && showClasses.length > 0) {
-            logger.log('📊 Building Stats filter options from cache');
-
-            // Build trial number map
-            const trialNumberMap = new Map<string, number>();
-            const trialDateMap = new Map<string, string>();
-            showTrials.forEach(t => {
-              trialNumberMap.set(String(t.id), t.trial_number || 1);
-              trialDateMap.set(String(t.id), t.trial_date);
-            });
-
-            // Extract unique values from classes
-            const uniqueDates = [...new Set(showClasses.map(c => trialDateMap.get(String(c.trial_id))).filter(Boolean) as string[])].sort();
-            const uniqueElements = [...new Set(showClasses.map(c => c.element).filter(Boolean))].sort();
-            const uniqueLevels = [...new Set(showClasses.map(c => c.level).filter(Boolean))]
-              .sort((a, b) => getLevelSortOrder(a) - getLevelSortOrder(b));
-            const uniqueTrialNumbers = [...new Set(showTrials.map(t => t.trial_number).filter(Boolean) as number[])].sort((a, b) => a - b);
-
-            // Build classes list (filtered by trialId if specified)
-            let relevantClasses = showClasses;
-            if (trialId) {
-              relevantClasses = showClasses.filter(c => String(c.trial_id) === trialId);
-            }
-
-            const uniqueClasses = relevantClasses.map(c => ({
-              id: parseInt(String(c.id), 10),
-              name: `${c.element} - ${c.level}`,
-              trialDate: trialDateMap.get(String(c.trial_id)) || '',
-              trialNumber: trialNumberMap.get(String(c.trial_id))
-            })).sort((a, b) => a.name.localeCompare(b.name));
-
-            setFilterOptions({
-              trialDates: uniqueDates,
-              trialNumbers: uniqueTrialNumbers,
-              elements: uniqueElements,
-              levels: uniqueLevels,
-              classes: uniqueClasses
-            });
-
-            logger.log('✅ Stats filter options loaded from cache');
-            return; // Success - don't fall back to Supabase
-          }
-        }
-      } catch (error) {
-        logger.error('❌ Error loading Stats filter options from cache:', error);
-      }
-
-      // Fall back to Supabase queries
-      try {
-        logger.log('🔄 Fetching Stats filter options from Supabase...');
-
-        const { data: statsData } = await supabase
-          .from('view_stats_summary')
-          .select('trial_date, trial_id, element, level, class_id')
-          .eq('license_key', showContext.licenseKey)
-          .eq('show_id', showContext.showId);
-
-        // Also fetch trials to get trial numbers
-        const { data: trialsForNumber } = await supabase
-          .from('trials')
-          .select('id, trial_number')
-          .eq('show_id', showContext.showId);
-
-        if (statsData) {
-          // Extract unique trial dates
-          const uniqueDates = [...new Set(statsData.map(d => d.trial_date).filter(Boolean))].sort();
-
-          // Extract unique elements
-          const uniqueElements = [...new Set(statsData.map(d => d.element).filter(Boolean))].sort();
-
-          // Extract unique levels and sort by competition order (Novice, Advanced, Excellent, Master)
-          const uniqueLevels = [...new Set(statsData.map(d => d.level).filter(Boolean))]
-            .sort((a, b) => getLevelSortOrder(a) - getLevelSortOrder(b));
-
-          setFilterOptions({
-            trialDates: uniqueDates,
-            trialNumbers: [], // Will fetch from trials table separately
-            elements: uniqueElements,
-            levels: uniqueLevels,
-            classes: []  // Will populate after extracting classes
-          });
-        }
-
-        // Fetch trial numbers from trials table
-        const { data: trialsData } = await supabase
-          .from('trials')
-          .select('trial_number')
-          .eq('show_id', showContext.showId)
-          .order('trial_number');
-
-        if (trialsData) {
-          const uniqueTrialNumbers = [...new Set(trialsData.map(t => t.trial_number).filter(Boolean))].sort((a, b) => a - b);
-          setFilterOptions(prev => ({
-            ...prev,
-            trialNumbers: uniqueTrialNumbers
-          }));
-        }
-
-        // Fetch classes from view_stats_summary
-        // If viewing trial-specific stats, filter to only classes from that trial
-        if (statsData) {
-          let classesData = statsData;
-          if (trialId) {
-            // Filter to only classes from the current trial (convert trialId to number for comparison)
-            const trialIdNum = parseInt(trialId);
-            classesData = statsData.filter(d => d.trial_id === trialIdNum);
-          }
-
-          // Create a map of trial IDs to trial numbers for easy lookup
-          // CRITICAL: Use string keys for consistency (prevents number/string type mismatch bugs)
-          const trialNumberMap = new Map<string, number>();
-          if (trialsForNumber) {
-            trialsForNumber.forEach(t => {
-              trialNumberMap.set(String(t.id), t.trial_number);
-            });
-          }
-
-          const uniqueClasses = [...new Set(classesData.map(d => JSON.stringify({
-            id: d.class_id,
-            name: `${d.element} - ${d.level}`,
-            trialDate: d.trial_date,
-            trialNumber: d.trial_id ? trialNumberMap.get(String(d.trial_id)) : undefined
-          })).filter(Boolean))]
-            .map(c => JSON.parse(c) as { id: number; name: string; trialDate: string; trialNumber?: number })
-            .sort((a, b) => a.name.localeCompare(b.name));
-
-          setFilterOptions(prev => ({
-            ...prev,
-            classes: uniqueClasses
-          }));
-        }
-      } catch (err) {
-        logger.error('Error fetching filter options from Supabase:', err);
-      }
-    };
-
-    fetchFilterOptions();
-  }, [showContext?.licenseKey, showContext?.showId, trialId]);
-
   // Handle filter changes - persist to URL
   const handleFilterChange = (newFilters: Partial<StatsFilters>) => {
     const params = new URLSearchParams(searchParams);
 
-    // Update breed filter
-    if (newFilters.breed !== undefined) {
-      if (newFilters.breed) {
-        params.set('breed', newFilters.breed);
-      } else {
-        params.delete('breed');
+    // Helper to set or delete a param
+    const updateParam = (key: string, value: string | number | null | undefined) => {
+      if (value !== undefined) {
+        if (value) {
+          params.set(key, String(value));
+        } else {
+          params.delete(key);
+        }
       }
-    }
+    };
 
-    // Update judge filter
-    if (newFilters.judge !== undefined) {
-      if (newFilters.judge) {
-        params.set('judge', newFilters.judge);
-      } else {
-        params.delete('judge');
-      }
-    }
-
-    // Update trial date filter
-    if (newFilters.trialDate !== undefined) {
-      if (newFilters.trialDate) {
-        params.set('trialDate', newFilters.trialDate);
-      } else {
-        params.delete('trialDate');
-      }
-    }
-
-    // Update trial number filter
-    if (newFilters.trialNumber !== undefined) {
-      if (newFilters.trialNumber) {
-        params.set('trialNumber', newFilters.trialNumber.toString());
-      } else {
-        params.delete('trialNumber');
-      }
-    }
-
-    // Update element filter
-    if (newFilters.element !== undefined) {
-      if (newFilters.element) {
-        params.set('element', newFilters.element);
-      } else {
-        params.delete('element');
-      }
-    }
-
-    // Update level filter (using 'filterLevel' to avoid confusion with page level)
-    if (newFilters.level !== undefined) {
-      if (newFilters.level) {
-        params.set('level', newFilters.level);
-      } else {
-        params.delete('level');
-      }
-    }
-
-    // Update class ID filter
-    if (newFilters.classId !== undefined) {
-      if (newFilters.classId) {
-        params.set('classId', newFilters.classId.toString());
-      } else {
-        params.delete('classId');
-      }
-    }
+    updateParam('breed', newFilters.breed);
+    updateParam('judge', newFilters.judge);
+    updateParam('trialDate', newFilters.trialDate);
+    updateParam('trialNumber', newFilters.trialNumber);
+    updateParam('element', newFilters.element);
+    updateParam('level', newFilters.level);
+    updateParam('classId', newFilters.classId);
 
     setSearchParams(params);
   };
@@ -366,6 +160,9 @@ export const Stats: React.FC = () => {
       </div>
     );
   }
+
+  // Time-based stats are now filtered at the data fetch level (see restrictTimesToCompletedClasses)
+  // Non-admin/judge users only see times from completed classes to ensure fair competition
 
   // Get current class information for display
   const currentClass = filters.classId
@@ -437,73 +234,23 @@ export const Stats: React.FC = () => {
         </Suspense>
       </div>
 
+      {/* Info banner for non-admin/judge users */}
+      {!canSeeAllStats && (
+        <div className="stats-visibility-info">
+          <Info size={16} />
+          <span>Time statistics only include completed classes to ensure fair competition.</span>
+        </div>
+      )}
+
       {/* Show Progress Stats */}
       <ShowProgressStats trialId={trialId} />
 
       {/* Summary Cards */}
-      <div className="stats-cards">
-        <div className="stats-card">
-          <div className="card-icon total">
-            <BarChart3 />
-          </div>
-          <div className="card-content">
-            <h3>Entries</h3>
-            <p className="card-value">
-              {data.totalAllEntries > 0
-                ? `${Math.round((data.scoredEntries / data.totalAllEntries) * 100)}%`
-                : '0%'}
-            </p>
-            <p className="card-subtitle">
-              {filters.breed
-                ? `${data.uniqueDogs} ${data.uniqueDogs === 1 ? 'dog' : 'dogs'} • ${data.scoredEntries} of ${data.totalAllEntries} scored`
-                : `${data.scoredEntries} of ${data.totalAllEntries} scored`}
-            </p>
-          </div>
-        </div>
-
-        <div className="stats-card">
-          <div className="card-icon qualified">
-            <Award />
-          </div>
-          <div className="card-content">
-            <h3>Qualification Rate</h3>
-            <p className="card-value">{data.qualificationRate.toFixed(1)}%</p>
-            <p className="card-subtitle">{data.qualifiedCount} qualified</p>
-          </div>
-        </div>
-
-        <div className="stats-card">
-          <div className="card-icon fastest">
-            <Clock />
-          </div>
-          <div className="card-content">
-            <h3>Fastest Time</h3>
-            {data.fastestTime ? (
-              <>
-                <p className="card-value">{data.fastestTime.searchTimeSeconds.toFixed(2)}s</p>
-                <p className="card-subtitle">{data.fastestTime.dogCallName}</p>
-              </>
-            ) : (
-              <p className="card-value">N/A</p>
-            )}
-          </div>
-        </div>
-
-        <div className="stats-card">
-          <div className="card-icon average">
-            <TrendingUp />
-          </div>
-          <div className="card-content">
-            <h3>Average Time</h3>
-            <p className="card-value">
-              {data.averageTime ? `${data.averageTime.toFixed(2)}s` : 'N/A'}
-            </p>
-            <p className="card-subtitle">
-              {data.medianTime ? `Median: ${data.medianTime.toFixed(2)}s` : ''}
-            </p>
-          </div>
-        </div>
-      </div>
+      <StatsSummaryCards
+        data={data}
+        filters={filters}
+        filteredFastestTime={data.fastestTime}
+      />
 
       {/* Charts Section */}
       <div className="stats-charts">

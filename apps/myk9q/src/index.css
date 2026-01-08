@@ -19,6 +19,7 @@
 /* These styles are used across multiple pages and must load before React renders */
 @import './components/ui/shared-ui.css';
 @import './components/DogCard.css';
+@import './styles/empty-state.css';
 
 /* Import ALL page CSS upfront to prevent FOUC (Flash of Unstyled Content) */
 /* This ensures CSS is loaded synchronously before React renders, eliminating race conditions */

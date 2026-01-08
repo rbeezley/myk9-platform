@@ -1492,30 +1492,7 @@
   to { transform: rotate(360deg); }
 }
 
-.empty-state {
-  text-align: center;
-  padding: var(--token-space-4xl);
-  color: var(--token-text-secondary);
-}
-
-.empty-state-icon {
-  width: 64px;
-  height: 64px;
-  margin: 0 auto var(--token-space-xl);
-  opacity: 0.5;
-}
-
-.empty-state-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--foreground);
-  margin-bottom: var(--token-space-md);
-}
-
-.empty-state-message {
-  font-size: 0.875rem;
-  color: var(--token-text-secondary);
-}
+/* Empty state styles moved to shared /styles/empty-state.css */
 
 /* ========== COMPACT NO-ENTRIES STATE (inside class card) ========== */
 /* Override the full-page .no-entries styles when inside a class card */

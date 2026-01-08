@@ -571,3 +571,27 @@
 .theme-dark .stats-page-header .header-menu-button:hover {
   background: var(--accent);
 }
+
+/* ========== STATS VISIBILITY INFO BANNER ========== */
+/* Shown to non-admin/judge users explaining time filtering */
+
+.stats-visibility-info {
+  display: flex;
+  align-items: center;
+  gap: var(--token-space-md);
+  padding: var(--token-space-md) var(--token-space-lg);
+  margin: var(--token-space-sm) var(--token-space-lg);
+  background: var(--info-bg, rgba(59, 130, 246, 0.1));
+  border-radius: var(--token-radius-md);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.stats-visibility-info svg {
+  color: var(--info-text, #3b82f6);
+  flex-shrink: 0;
+}
+
+.theme-dark .stats-visibility-info {
+  background: rgba(59, 130, 246, 0.15);
+}

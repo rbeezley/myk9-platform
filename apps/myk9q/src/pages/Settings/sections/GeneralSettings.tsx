@@ -3,7 +3,7 @@ import { SettingsSection } from '../components/SettingsSection';
 import { SettingsRow } from '../components/SettingsRow';
 import { SettingsToggle } from '../components/SettingsToggle';
 import { useSettingsStore } from '@/stores/settingsStore';
-import { Smartphone, RotateCcw } from 'lucide-react';
+import { Smartphone, RotateCcw, RefreshCw } from 'lucide-react';
 
 /**
  * Test vibration when haptic feedback is enabled
@@ -21,9 +21,11 @@ function testVibration(): void {
 
 interface GeneralSettingsProps {
     onShowOnboarding: () => void;
+    onRefreshAllData: () => void;
+    isRefreshing: boolean;
 }
 
-export const GeneralSettings: React.FC<GeneralSettingsProps> = ({ onShowOnboarding }) => {
+export const GeneralSettings: React.FC<GeneralSettingsProps> = ({ onShowOnboarding, onRefreshAllData, isRefreshing }) => {
     const { settings, updateSettings } = useSettingsStore();
 
     return (
@@ -51,6 +53,13 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({ onShowOnboardi
                 label="Replay Onboarding"
                 description="View the welcome tour again"
                 onClick={onShowOnboarding}
+            />
+
+            <SettingsRow
+                icon={<RefreshCw size={20} />}
+                label={isRefreshing ? "Refreshing..." : "Refresh All Data"}
+                description="Clear cache and reload fresh data from server"
+                onClick={onRefreshAllData}
             />
         </SettingsSection>
     );

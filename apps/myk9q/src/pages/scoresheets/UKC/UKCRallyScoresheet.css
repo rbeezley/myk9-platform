@@ -132,17 +132,16 @@
 
 /* Qualifying Section - Enhanced */
 .qualifying-section {
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(20px);
+  background: var(--card, #FEFDFB);  /* Opaque with fallback */
   border-radius: 1rem;
   padding: var(--token-space-3xl);
   box-shadow: 0 var(--token-space-sm) var(--token-space-lg) rgba(0, 0, 0, 0.08);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border, #e5e7eb);
   margin: var(--token-space-3xl) 0;
 }
 
 .theme-dark .qualifying-section {
-  background: var(--card); /* Uses global card token */
+  background: var(--card, #26292e);
   box-shadow: 0 var(--token-space-sm) var(--token-space-lg) rgba(0, 0, 0, 0.3);
 }
 
@@ -201,18 +200,17 @@
 
 /* Reason Section - Enhanced */
 .reason-section {
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(20px);
+  background: var(--card, #FEFDFB);  /* Opaque with fallback */
   border-radius: 1rem;
   padding: var(--token-space-3xl);
   box-shadow: 0 var(--token-space-sm) var(--token-space-lg) rgba(0, 0, 0, 0.08);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border, #e5e7eb);
   margin: var(--token-space-3xl) 0;
   animation: slideIn 0.3s ease;
 }
 
 .theme-dark .reason-section {
-  background: var(--card); /* Uses global card token */
+  background: var(--card, #26292e);
   box-shadow: 0 var(--token-space-sm) var(--token-space-lg) rgba(0, 0, 0, 0.3);
 }
 
@@ -260,12 +258,11 @@
 
 /* Action Buttons - Enhanced */
 .action-buttons {
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(20px);
+  background: var(--card, #FEFDFB);  /* Opaque with fallback */
   border-radius: 1rem;
   padding: var(--token-space-3xl);
   box-shadow: 0 var(--token-space-sm) var(--token-space-lg) rgba(0, 0, 0, 0.08);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border, #e5e7eb);
   display: grid;
   grid-template-columns: 1fr 2fr 1fr;
   gap: var(--token-space-xl);
@@ -274,7 +271,7 @@
 }
 
 .theme-dark .action-buttons {
-  background: var(--card); /* Uses global card token */
+  background: var(--card, #26292e);
   box-shadow: 0 var(--token-space-sm) var(--token-space-lg) rgba(0, 0, 0, 0.3);
 }
 
@@ -355,8 +352,7 @@
 }
 
 .confirmation-dialog {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
+  background: var(--card, #FEFDFB);  /* Opaque with fallback */
   border-radius: 1.25rem;
   padding: var(--token-space-4xl);
   max-width: 500px;
@@ -365,11 +361,11 @@
   overflow-y: auto;
   box-shadow: 0 var(--token-space-2xl) 60px rgba(0, 0, 0, 0.3);
   animation: slideUp 0.3s ease;
-  border: 1px solid rgba(255, 255, 255, 0.8);
+  border: 1px solid var(--border, #e5e7eb);
 }
 
 .theme-dark .confirmation-dialog {
-  background: var(--card); /* Uses global card token */
+  background: var(--card, #26292e);
 }
 
 @keyframes slideUp {

@@ -21,17 +21,17 @@ import {
   EMPTY_STATS,
   calculateBasicCounts,
   calculateRates,
-  calculateTimeStats,
+  calculateTimeStatsFiltered,
   applyLevelFilters,
   applyCommonFilters,
   aggregateBreedStatsFromData,
   fetchBreedStatsFromView,
   aggregateJudgeStatsFromData,
-  fetchJudgeStatsFromView,
   fetchJudgeSummaryData,
   fetchFastestTimes,
   fetchCleanSweepDogs,
   fetchTotalEntriesCount,
+  fetchCompletedClassIds,
   hasBreedRelatedFilters,
   hasAdditionalFilters
 } from './statsDataHelpers';
@@ -93,36 +93,71 @@ async function fetchMainStatsData(
 
 /**
  * Fetch breed stats (chooses strategy based on active filters)
+ *
+ * @param context - Stats context
+ * @param licenseKey - Show license key
+ * @param statsData - Main stats data
+ * @param completedClassIds - Set of completed class IDs for time filtering (null = no restriction)
  */
 async function fetchBreedStats(
   context: StatsContext,
   licenseKey: string,
-  statsData: StatsQueryResult[]
+  statsData: StatsQueryResult[],
+  completedClassIds: Set<number> | null
 ): Promise<BreedStat[]> {
   if (hasBreedRelatedFilters(context.filters)) {
     // Aggregate from already-filtered data
-    return aggregateBreedStatsFromData(statsData);
+    return aggregateBreedStatsFromData(statsData, completedClassIds);
   }
 
   // Use pre-aggregated view for performance
-  return fetchBreedStatsFromView(context, licenseKey);
+  return fetchBreedStatsFromView(context, licenseKey, completedClassIds);
 }
 
 /**
  * Fetch judge stats (chooses strategy based on active filters)
+ *
+ * When completedClassIds is provided, we must use the summary-based approach
+ * because the view aggregates by trial and doesn't have class-level granularity.
+ *
+ * @param context - Stats context
+ * @param licenseKey - Show license key
+ * @param completedClassIds - Set of completed class IDs for time filtering (null = no restriction)
  */
 async function fetchJudgeStats(
   context: StatsContext,
-  licenseKey: string
+  licenseKey: string,
+  completedClassIds: Set<number> | null
 ): Promise<JudgeStat[]> {
-  if (hasAdditionalFilters(context.filters)) {
+  // When filtering times by completed classes, we must use summary-based approach
+  // because the view doesn't have class-level granularity
+  if (hasAdditionalFilters(context.filters) || completedClassIds) {
     // Fetch filtered summary data and aggregate
     const summaryData = await fetchJudgeSummaryData(context, licenseKey);
-    return aggregateJudgeStatsFromData(summaryData);
+    return aggregateJudgeStatsFromData(summaryData, completedClassIds);
   }
 
-  // Use pre-aggregated view for performance
-  return fetchJudgeStatsFromView(context, licenseKey);
+  // Use pre-aggregated view for performance (no time restrictions needed)
+  const query = supabase
+    .from('view_judge_stats')
+    .select('*')
+    .eq('license_key', licenseKey);
+
+  const result = await applyLevelFilters(query, context)
+    .order('total_entries', { ascending: false })
+    .limit(10);
+
+  if (result.error) throw result.error;
+
+  // Map view results to JudgeStat format
+  return (result.data || []).map(judge => ({
+    judgeName: judge.judge_name,
+    classesJudged: judge.classes_judged,
+    totalEntries: judge.total_entries,
+    qualifiedCount: judge.qualified_count,
+    qualificationRate: judge.total_entries > 0 ? (judge.qualified_count / judge.total_entries) * 100 : 0,
+    averageQualifiedTime: judge.avg_qualified_time
+  }));
 }
 
 // ========================================
@@ -183,6 +218,13 @@ export function useStatsData(context: StatsContext): UseStatsDataReturn {
       setError(null);
 
       const licenseKey = getLicenseKey();
+      const shouldRestrictTimes = context.restrictTimesToCompletedClasses ?? false;
+
+      // Fetch completed class IDs if we need to filter times
+      // This is used to show times only from completed classes for non-admin/judge users
+      const completedClassIds = shouldRestrictTimes
+        ? await fetchCompletedClassIds(context, licenseKey)
+        : null;
 
       // Fetch main stats data
       const statsData = await fetchMainStatsData(context, licenseKey);
@@ -192,25 +234,30 @@ export function useStatsData(context: StatsContext): UseStatsDataReturn {
         return;
       }
 
-      // Calculate basic stats
+      // Calculate basic stats (counts don't need time filtering)
       const counts = calculateBasicCounts(statsData);
       const rates = calculateRates(counts);
-      const timeStats = calculateTimeStats(statsData);
+
+      // Calculate time stats, filtering to completed classes if restriction is in place
+      const timeStats = calculateTimeStatsFiltered(statsData, completedClassIds);
 
       // Fetch additional stats in parallel
+      // Pass completedClassIds to functions that return time data
       const [breedStats, judgeStats, fastestTimesResult, cleanSweepDogs, totalAllEntries] = await Promise.all([
-        fetchBreedStats(context, licenseKey, statsData),
-        fetchJudgeStats(context, licenseKey),
-        fetchFastestTimes(context, licenseKey),
+        fetchBreedStats(context, licenseKey, statsData, completedClassIds),
+        fetchJudgeStats(context, licenseKey, completedClassIds),
+        fetchFastestTimes(context, licenseKey, shouldRestrictTimes),
         fetchCleanSweepDogs(context, licenseKey),
         fetchTotalEntriesCount(context, licenseKey)
       ]);
 
       // Assemble final stats data
+      // Times are already filtered to completed classes by the helper functions
       setData({
         ...counts,
         ...rates,
-        ...timeStats,
+        averageTime: timeStats.averageTime,
+        medianTime: timeStats.medianTime,
         totalAllEntries,
         fastestTime: fastestTimesResult.fastestTime,
         breedStats,

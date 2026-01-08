@@ -1,0 +1,264 @@
+/* ===================================================================
+   EMPTY STATE - Unified design for "No Data" states
+   Used by: ClassList, EntryList, Home (Favorites)
+
+   Design direction: "Refined Utility"
+   - Professional warmth without being cold or playful
+   - Subtle animation to feel alive, not static
+   - Icon treatment that feels intentional, not placeholder
+   =================================================================== */
+
+/* ===== ENTRANCE ANIMATION ===== */
+@keyframes empty-state-enter {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes empty-icon-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+/* ===== BASE EMPTY STATE ===== */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--token-space-4xl) var(--token-space-xl);
+  text-align: center;
+  min-height: 50vh;
+  margin: 0 auto;
+  max-width: 320px;
+
+  /* Entrance animation */
+  animation: empty-state-enter 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .empty-state {
+    animation: none;
+  }
+  .empty-state-icon {
+    animation: none !important;
+  }
+}
+
+/* ===== ICON TREATMENT ===== */
+.empty-state-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  margin-bottom: var(--token-space-xl);
+
+  /* Subtle circular background */
+  background: linear-gradient(
+    135deg,
+    var(--muted) 0%,
+    transparent 100%
+  );
+  border-radius: 50%;
+
+  /* Gentle floating animation - starts after entrance */
+  animation: empty-icon-float 4s ease-in-out 0.5s infinite;
+}
+
+.empty-state-icon svg {
+  width: 40px;
+  height: 40px;
+  color: var(--muted-foreground);
+  opacity: 0.7;
+
+  /* Subtle stroke refinement */
+  stroke-width: 1.5;
+}
+
+/* ===== TYPOGRAPHY ===== */
+.empty-state-title {
+  font-size: 1.375rem;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0 0 var(--token-space-xs) 0;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+/* Context name (trial name, class name) */
+.empty-state-context {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--primary);
+  margin: 0 0 var(--token-space-lg) 0;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.4;
+  max-width: 280px;
+}
+
+.empty-state-message {
+  font-size: 0.9375rem;
+  color: var(--muted-foreground);
+  margin: 0 0 var(--token-space-2xl) 0;
+  line-height: 1.6;
+  max-width: 260px;
+}
+
+/* ===== ACTION BUTTON ===== */
+.empty-state-action {
+  margin-top: var(--token-space-sm);
+}
+
+.empty-state-action .btn,
+.empty-state-action button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--token-space-sm);
+  padding: var(--token-space-md) var(--token-space-xl);
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 10px;
+  background: var(--muted);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.empty-state-action .btn:hover,
+.empty-state-action button:hover {
+  background: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.empty-state-action .btn:active,
+.empty-state-action button:active {
+  transform: translateY(0);
+}
+
+.empty-state-action svg {
+  width: 16px;
+  height: 16px;
+  opacity: 0.7;
+}
+
+/* ===== NO FAVORITES VARIANT ===== */
+/* Home page uses .no-favorites class - alias to empty-state pattern */
+.no-favorites {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--token-space-4xl) var(--token-space-xl);
+  text-align: center;
+  min-height: 40vh;
+  margin: 0 auto;
+  max-width: 320px;
+
+  animation: empty-state-enter 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.no-favorites-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  margin: 0 auto var(--token-space-xl);
+
+  background: linear-gradient(
+    135deg,
+    var(--muted) 0%,
+    transparent 100%
+  );
+  border-radius: 50%;
+
+  animation: empty-icon-float 4s ease-in-out 0.5s infinite;
+}
+
+.no-favorites-icon svg,
+.no-favorites-icon {
+  width: 40px;
+  height: 40px;
+  color: var(--muted-foreground);
+  opacity: 0.7;
+}
+
+/* Fix: when icon class is directly on SVG (Home page pattern) */
+svg.no-favorites-icon {
+  width: 40px;
+  height: 40px;
+  margin: 0 auto var(--token-space-xl);
+  padding: 20px;
+  box-sizing: content-box;
+  background: linear-gradient(
+    135deg,
+    var(--muted) 0%,
+    transparent 100%
+  );
+  border-radius: 50%;
+  animation: empty-icon-float 4s ease-in-out 0.5s infinite;
+}
+
+.no-favorites h3 {
+  font-size: 1.375rem;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0 0 var(--token-space-xs) 0;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.no-favorites p {
+  font-size: 0.9375rem;
+  color: var(--muted-foreground);
+  margin: 0;
+  line-height: 1.6;
+  max-width: 260px;
+}
+
+/* ===== DARK MODE REFINEMENTS ===== */
+.theme-dark .empty-state-icon,
+.theme-dark .no-favorites-icon,
+.theme-dark svg.no-favorites-icon {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.06) 0%,
+    transparent 100%
+  );
+}
+
+.theme-dark .empty-state-icon svg,
+.theme-dark .no-favorites-icon svg,
+.theme-dark svg.no-favorites-icon {
+  opacity: 0.5;
+}
+
+/* ===== REDUCED MOTION ===== */
+@media (prefers-reduced-motion: reduce) {
+  .empty-state,
+  .no-favorites {
+    animation: none;
+  }
+
+  .empty-state-icon,
+  .no-favorites-icon,
+  svg.no-favorites-icon {
+    animation: none;
+  }
+}

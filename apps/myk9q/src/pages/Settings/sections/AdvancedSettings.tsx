@@ -3,7 +3,7 @@ import { SettingsSection } from '../components/SettingsSection';
 import { SettingsRow } from '../components/SettingsRow';
 import { SettingsToggle } from '../components/SettingsToggle';
 import { useSettingsStore } from '@/stores/settingsStore';
-import { Database, Download, Trash2, Terminal } from 'lucide-react';
+import { Database, Download, Trash2, Terminal, RefreshCw } from 'lucide-react';
 import { formatBytes } from '@/services/dataExportService';
 
 interface AdvancedSettingsProps {
@@ -12,7 +12,9 @@ interface AdvancedSettingsProps {
     onClearData: () => void;
     onExportSettings: () => void;
     onImportSettings: () => void;
+    onRefreshAllData: () => void;
     isClearing: boolean;
+    isRefreshing: boolean;
 }
 
 export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
@@ -21,7 +23,9 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
     onClearData,
     onExportSettings,
     onImportSettings,
-    isClearing
+    onRefreshAllData,
+    isClearing,
+    isRefreshing
 }) => {
     const { settings, updateSettings } = useSettingsStore();
 
@@ -32,6 +36,13 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
                 icon={<Database size={20} />}
                 label="Storage Usage"
                 description={storageUsage ? `${formatBytes(storageUsage.estimated)} used (${storageUsage.percentUsed.toFixed(1)}%)` : 'Calculating...'}
+            />
+
+            <SettingsRow
+                icon={<RefreshCw size={20} />}
+                label={isRefreshing ? "Refreshing..." : "Refresh All Data"}
+                description="Sync changes, clear cache, reload fresh data"
+                onClick={onRefreshAllData}
             />
 
             <SettingsRow

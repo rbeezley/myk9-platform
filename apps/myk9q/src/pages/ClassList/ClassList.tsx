@@ -630,7 +630,13 @@ export const ClassList: React.FC = () => {
   }
 
   // Show error state with retry button if fetch failed
-  if (fetchError) {
+  // BUT: "Could not find" errors typically mean empty data (no classes), not a real error
+  // So we let those fall through to the empty state handling below
+  const isEmptyDataError = fetchError?.message?.toLowerCase().includes('could not find') ||
+    fetchError?.message?.toLowerCase().includes('no rows') ||
+    fetchError?.message?.toLowerCase().includes('not found');
+
+  if (fetchError && !isEmptyDataError) {
     return (
       <div className="class-list-container">
         <ErrorState
@@ -653,6 +659,33 @@ export const ClassList: React.FC = () => {
               className="icon-button"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
+              Go Back
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show friendly empty state when trial exists but has no classes
+  if (classes.length === 0 && !isLoading) {
+    return (
+      <div className="class-list-container">
+        <div className="empty-state">
+          <div className="empty-state-icon">
+            <List size={40} strokeWidth={1.5} />
+          </div>
+          <h2 className="empty-state-title">No Classes Yet</h2>
+          {trialInfo?.trial_name && (
+            <p className="empty-state-context">{trialInfo.trial_name}</p>
+          )}
+          <p className="empty-state-message">
+            This trial doesn't have any classes set up yet.
+            Classes will appear here once they're added.
+          </p>
+          <div className="empty-state-action">
+            <button onClick={() => navigate(-1)}>
+              <ArrowLeft size={16} />
               Go Back
             </button>
           </div>

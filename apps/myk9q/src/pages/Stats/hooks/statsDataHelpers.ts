@@ -133,9 +133,10 @@ export function calculateRates(counts: BasicCounts): Rates {
  * Calculate time statistics (fastest, average, median) from qualified entries
  */
 export function calculateTimeStats(statsData: StatsQueryResult[]): TimeStats {
+  // Use search_time_seconds consistently across all time calculations
   const validTimes = statsData
-    .filter(e => e.result_status === 'qualified' && e.valid_time && e.valid_time > 0)
-    .map(e => e.valid_time as number)
+    .filter(e => e.result_status === 'qualified' && e.search_time_seconds && e.search_time_seconds > 0)
+    .map(e => e.search_time_seconds as number)
     .sort((a, b) => a - b);
 
   if (validTimes.length === 0) {
@@ -300,8 +301,15 @@ export async function fetchTotalEntriesCount(
 
 /**
  * Aggregate breed stats from raw stats data (when filters require in-app aggregation)
+ *
+ * @param statsData - Raw stats query results
+ * @param completedClassIds - Optional set of completed class IDs. If provided, times will only be
+ *                            counted from entries in completed classes (for visibility filtering).
  */
-export function aggregateBreedStatsFromData(statsData: StatsQueryResult[]): BreedStat[] {
+export function aggregateBreedStatsFromData(
+  statsData: StatsQueryResult[],
+  completedClassIds?: Set<number> | null
+): BreedStat[] {
   const breedMap = new Map<string, {
     totalEntries: number;
     qualifiedCount: number;
@@ -324,8 +332,11 @@ export function aggregateBreedStatsFromData(statsData: StatsQueryResult[]): Bree
 
     if (entry.result_status === 'qualified') {
       existing.qualifiedCount++;
-      if (entry.valid_time && entry.valid_time > 0) {
-        existing.qualifiedTimes.push(entry.valid_time);
+      // Only include times if no restriction, or if this entry is from a completed class
+      const isFromCompletedClass = !completedClassIds || (entry.class_id && completedClassIds.has(Number(entry.class_id)));
+      // Use search_time_seconds consistently (same field used by fetchFastestTimes and judge stats)
+      if (entry.search_time_seconds && entry.search_time_seconds > 0 && isFromCompletedClass) {
+        existing.qualifiedTimes.push(entry.search_time_seconds);
       }
     }
 
@@ -355,10 +366,16 @@ export function aggregateBreedStatsFromData(statsData: StatsQueryResult[]): Bree
 /**
  * Fetch breed stats from pre-aggregated view
  * Note: The view groups by class_id, so we need to aggregate results by breed
+ *
+ * @param context - Stats context with level and filters
+ * @param licenseKey - Show license key
+ * @param completedClassIds - Optional set of completed class IDs. If provided, times will only be
+ *                            counted from completed classes (for visibility filtering).
  */
 export async function fetchBreedStatsFromView(
   context: StatsContext,
-  licenseKey: string
+  licenseKey: string,
+  completedClassIds?: Set<number> | null
 ): Promise<BreedStat[]> {
   let query = supabase
     .from('view_breed_stats')
@@ -400,15 +417,18 @@ export async function fetchBreedStatsFromView(
     existing.qualifiedCount += row.qualified_count || 0;
     existing.nqCount += row.nq_count || 0;
 
-    // Track fastest time across all classes
-    if (row.fastest_time && row.fastest_time > 0) {
+    // Check if this row is from a completed class (for time filtering)
+    const isFromCompletedClass = !completedClassIds || (row.class_id && completedClassIds.has(Number(row.class_id)));
+
+    // Track fastest time across completed classes only
+    if (row.fastest_time && row.fastest_time > 0 && isFromCompletedClass) {
       if (existing.fastestTime === null || row.fastest_time < existing.fastestTime) {
         existing.fastestTime = row.fastest_time;
       }
     }
 
-    // Collect times for average calculation
-    if (row.avg_time && row.avg_time > 0 && row.qualified_count > 0) {
+    // Collect times for average calculation (only from completed classes)
+    if (row.avg_time && row.avg_time > 0 && row.qualified_count > 0 && isFromCompletedClass) {
       // Weight by qualified count for proper averaging
       for (let i = 0; i < row.qualified_count; i++) {
         existing.qualifiedTimes.push(row.avg_time);
@@ -441,8 +461,15 @@ export async function fetchBreedStatsFromView(
 
 /**
  * Aggregate judge stats from raw summary data
+ *
+ * @param summaryData - Raw stats query results
+ * @param completedClassIds - Optional set of completed class IDs. If provided, times will only be
+ *                            counted from entries in completed classes (for visibility filtering).
  */
-export function aggregateJudgeStatsFromData(summaryData: StatsQueryResult[]): JudgeStat[] {
+export function aggregateJudgeStatsFromData(
+  summaryData: StatsQueryResult[],
+  completedClassIds?: Set<number> | null
+): JudgeStat[] {
   const judgeMap = new Map<string, {
     classesJudged: Set<string>;
     totalEntries: number;
@@ -466,7 +493,9 @@ export function aggregateJudgeStatsFromData(summaryData: StatsQueryResult[]): Ju
 
     if (entry.result_status === 'qualified') {
       existing.qualifiedCount++;
-      if (entry.search_time_seconds && entry.search_time_seconds > 0) {
+      // Only include times if no restriction, or if this entry is from a completed class
+      const isFromCompletedClass = !completedClassIds || completedClassIds.has(Number(entry.class_id));
+      if (entry.search_time_seconds && entry.search_time_seconds > 0 && isFromCompletedClass) {
         existing.qualifiedTimes.push(entry.search_time_seconds);
       }
     }
@@ -595,10 +624,16 @@ export async function fetchJudgeSummaryData(
 
 /**
  * Fetch and process fastest times
+ *
+ * @param context - Stats context with level and filters
+ * @param licenseKey - Show license key
+ * @param restrictToCompletedClasses - When true, only include times from completed classes
+ *                                     (for non-admin/judge users to respect visibility settings)
  */
 export async function fetchFastestTimes(
   context: StatsContext,
-  licenseKey: string
+  licenseKey: string,
+  restrictToCompletedClasses: boolean = false
 ): Promise<{ fastestTimes: FastestTimeEntry[]; fastestTime: FastestTimeEntry | null }> {
   let query = supabase
     .from('view_fastest_times')
@@ -616,9 +651,39 @@ export async function fetchFastestTimes(
   const { data, error } = await query;
   if (error) throw error;
 
+  // If restricting to completed classes, fetch class statuses and filter
+  let filteredData = data || [];
+  if (restrictToCompletedClasses && filteredData.length > 0) {
+    // Get unique class IDs from the results
+    const classIds = [...new Set(filteredData.map(d => d.class_id).filter(Boolean))];
+
+    if (classIds.length > 0) {
+      // Fetch class statuses
+      const { data: classData, error: classError } = await supabase
+        .from('classes')
+        .select('id, class_status, is_scoring_finalized')
+        .in('id', classIds);
+
+      if (classError) {
+        logger.error('Error fetching class statuses for visibility filter:', classError);
+      } else if (classData) {
+        // Build set of completed class IDs
+        const completedClassIds = new Set(
+          classData
+            .filter(c => c.class_status === 'completed' || c.is_scoring_finalized === true)
+            .map(c => c.id)
+        );
+
+        // Filter to only times from completed classes
+        filteredData = filteredData.filter(d => d.class_id && completedClassIds.has(d.class_id));
+        logger.log(`📊 Stats: Filtered fastest times to ${filteredData.length} entries from ${completedClassIds.size} completed classes`);
+      }
+    }
+  }
+
   // Filter to unique dogs (keep only fastest time per dog)
   const dogMap = new Map<string, FastestTimesQueryResult>();
-  for (const time of data || []) {
+  for (const time of filteredData) {
     const existing = dogMap.get(time.armband_number);
     if (!existing || time.search_time_seconds < existing.search_time_seconds) {
       dogMap.set(time.armband_number, time);
@@ -646,7 +711,8 @@ export async function fetchFastestTimes(
       searchTimeSeconds: time.search_time_seconds,
       timeRank: currentRank,
       element: time.element,
-      level: time.level
+      level: time.level,
+      classId: time.class_id ? Number(time.class_id) : undefined
     };
   });
 
@@ -703,6 +769,112 @@ export async function fetchCleanSweepDogs(
     elementsQualified: dog.elements_qualified,
     elementsList: dog.elements_list
   }));
+}
+
+// ========================================
+// COMPLETED CLASS IDS HELPER
+// ========================================
+
+/**
+ * Fetch IDs of completed classes within the current context.
+ * A class is considered completed when class_status === 'completed' OR is_scoring_finalized === true.
+ * Used to filter time-based statistics for non-admin/judge users.
+ *
+ * @param context - Stats context with level and filters
+ * @param licenseKey - Show license key
+ * @returns Set of completed class IDs, or null if all classes should be included
+ */
+export async function fetchCompletedClassIds(
+  context: StatsContext,
+  _licenseKey: string
+): Promise<Set<number> | null> {
+  // Start by getting all class IDs in the current context
+  let classIds: number[] = [];
+
+  if (context.level === 'class' && context.classId) {
+    classIds = [Number(context.classId)];
+  } else if (context.level === 'trial' && context.trialId) {
+    const { data } = await supabase
+      .from('classes')
+      .select('id')
+      .eq('trial_id', context.trialId);
+    classIds = data?.map(c => Number(c.id)) || [];
+  } else if (context.level === 'show' && context.showId) {
+    // Get trials for this show first
+    const { data: trialIds } = await supabase
+      .from('trials')
+      .select('id')
+      .eq('show_id', context.showId);
+
+    if (trialIds && trialIds.length > 0) {
+      const { data } = await supabase
+        .from('classes')
+        .select('id')
+        .in('trial_id', trialIds.map(t => t.id));
+      classIds = data?.map(c => Number(c.id)) || [];
+    }
+  }
+
+  if (classIds.length === 0) {
+    return new Set();
+  }
+
+  // Fetch class statuses
+  const { data: classData, error } = await supabase
+    .from('classes')
+    .select('id, class_status, is_scoring_finalized')
+    .in('id', classIds);
+
+  if (error) {
+    logger.error('Error fetching class statuses:', error);
+    return new Set();
+  }
+
+  // Build set of completed class IDs
+  const completedIds = new Set(
+    (classData || [])
+      .filter(c => c.class_status === 'completed' || c.is_scoring_finalized === true)
+      .map(c => Number(c.id))
+  );
+
+  logger.log(`📊 Stats: Found ${completedIds.size} completed classes out of ${classIds.length} total`);
+
+  return completedIds;
+}
+
+/**
+ * Calculate time statistics from stats data, optionally filtering to completed classes only.
+ *
+ * @param statsData - Raw stats query results
+ * @param completedClassIds - Set of completed class IDs (null = include all)
+ */
+export function calculateTimeStatsFiltered(
+  statsData: StatsQueryResult[],
+  completedClassIds: Set<number> | null
+): TimeStats {
+  // Filter to completed classes if restriction is in place
+  const filteredData = completedClassIds
+    ? statsData.filter(e => e.class_id && completedClassIds.has(Number(e.class_id)))
+    : statsData;
+
+  // Use search_time_seconds consistently (same field used by fetchFastestTimes and judge stats)
+  const validTimes = filteredData
+    .filter(e => e.result_status === 'qualified' && e.search_time_seconds && e.search_time_seconds > 0)
+    .map(e => e.search_time_seconds as number)
+    .sort((a, b) => a - b);
+
+  if (validTimes.length === 0) {
+    return { fastestTime: null, averageTime: null, medianTime: null };
+  }
+
+  const fastestTime = validTimes[0];
+  const averageTime = validTimes.reduce((sum, time) => sum + time, 0) / validTimes.length;
+
+  const medianTime = validTimes.length % 2 === 0
+    ? (validTimes[Math.floor(validTimes.length / 2) - 1] + validTimes[Math.floor(validTimes.length / 2)]) / 2
+    : validTimes[Math.floor(validTimes.length / 2)];
+
+  return { fastestTime, averageTime, medianTime };
 }
 
 // ========================================

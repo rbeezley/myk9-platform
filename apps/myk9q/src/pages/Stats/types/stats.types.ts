@@ -83,6 +83,7 @@ export interface FastestTimeEntry {
   timeRank: number;  // Same rank for ties
   element?: string;
   level?: string;
+  classId?: number;  // For visibility filtering
 }
 
 // Filter state
@@ -106,6 +107,8 @@ export interface StatsContext {
   trialId?: string;
   classId?: string;
   filters: StatsFilters;
+  /** When true, time-based stats only include completed classes (for non-admin/judge users) */
+  restrictTimesToCompletedClasses?: boolean;
 }
 
 // Chart data formats for Recharts

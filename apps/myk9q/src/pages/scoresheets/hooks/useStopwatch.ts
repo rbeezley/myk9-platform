@@ -158,9 +158,9 @@ export function useStopwatch(options: UseStopwatchOptions = {}): UseStopwatchRet
     const [minutes, seconds] = maxTime.split(':').map(parseFloat);
     const maxTimeMs = (minutes * 60 + seconds) * 1000;
 
-    // Show warning if less than 30 seconds remaining
+    // Show warning at 32 seconds to account for display latency (truly ~30 seconds when shown)
     const remainingMs = maxTimeMs - time;
-    return remainingMs > 0 && remainingMs <= 30000; // 30 seconds
+    return remainingMs > 0 && remainingMs <= 32000; // 32 seconds trigger
   };
 
   /**
@@ -271,21 +271,21 @@ export function useStopwatch(options: UseStopwatchOptions = {}): UseStopwatchRet
     const remainingMs = maxTimeMs - time;
     const remainingSeconds = Math.floor(remainingMs / 1000);
 
-    // Announce/chime when crossing the 30-second threshold (prevents race condition)
-    // Trigger when: 29 < remaining <= 30 seconds
-    if (remainingSeconds <= 30 && remainingSeconds > 29 && !has30SecondAnnouncedRef.current) {
+    // Announce/chime when crossing the 32-second threshold (gives 2s buffer for display latency)
+    // Trigger when: 31 < remaining <= 32 seconds (announces "30 seconds")
+    if (remainingSeconds <= 32 && remainingSeconds > 31 && !has30SecondAnnouncedRef.current) {
       // Always play chime (respects notification sound setting)
       notificationSoundService.playTimerWarningChime();
 
-      // Also announce voice if voice announcements enabled
+      // Also announce voice if voice announcements enabled (still says "30 seconds")
       if (enableVoiceAnnouncements) {
         voiceAnnouncementService.announceTimeRemaining(30);
       }
       has30SecondAnnouncedRef.current = true;
     }
 
-    // Reset flag if we're above 30 seconds (in case timer is reset/restarted)
-    if (remainingSeconds > 30 && has30SecondAnnouncedRef.current) {
+    // Reset flag if we're above 32 seconds (in case timer is reset/restarted)
+    if (remainingSeconds > 32 && has30SecondAnnouncedRef.current) {
       has30SecondAnnouncedRef.current = false;
     }
   }, [time, isRunning, enableVoiceAnnouncements, level, maxTime]);

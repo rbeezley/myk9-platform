@@ -427,7 +427,8 @@ function UnifiedSidebar<T extends { id: string }>({
     >
       {/* Header - matches AdminSidebar exactly */}
       <div className={cn(
-        'flex h-16 items-center justify-between px-6',
+        'flex h-16 items-center',
+        isCollapsed ? 'justify-center px-2' : 'justify-between px-6',
         SIDEBAR_TOKENS.colors.header
       )}>
         <div className="flex items-center gap-3">
@@ -436,16 +437,18 @@ function UnifiedSidebar<T extends { id: string }>({
               <HeaderIcon className="h-4 w-4 text-foreground" />
             </div>
           )}
-          <div>
-            <h2 className="text-base font-semibold" style={{ fontWeight: 590 }}>
-              {title}
-            </h2>
-            {subtitle && (
-              <p className="text-xs text-muted-foreground">
-                {subtitle}
-              </p>
-            )}
-          </div>
+          {!isCollapsed && (
+            <div>
+              <h2 className="text-base font-semibold" style={{ fontWeight: 590 }}>
+                {title}
+              </h2>
+              {subtitle && (
+                <p className="text-xs text-muted-foreground">
+                  {subtitle}
+                </p>
+              )}
+            </div>
+          )}
         </div>
         
         {/* Mobile close button and actions */}
@@ -545,8 +548,8 @@ function UnifiedSidebar<T extends { id: string }>({
       <div className="flex-1 overflow-y-auto px-4 py-6">
         {processedData ? renderGroupedContent() : renderFlatContent()}
         
-        {/* Empty state */}
-        {(processedData ? processedData.every(group => group.items.length === 0) : filteredItems.length === 0) && (
+        {/* Empty state - hidden when collapsed */}
+        {!isCollapsed && (processedData ? processedData.every(group => group.items.length === 0) : filteredItems.length === 0) && (
           <div className="flex flex-col items-center justify-center h-full p-4 text-center">
             <div className="text-sm text-muted-foreground">
               {searchTerm ? `No ${title.toLowerCase()} match your search` : `No ${title.toLowerCase()} found`}

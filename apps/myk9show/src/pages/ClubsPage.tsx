@@ -20,12 +20,30 @@ import { Menu } from 'lucide-react';
 const ClubsPage: React.FC = () => {
   const { id: clubIdFromUrl } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  
+
   const clubs = useClubStore(state => state.clubs);
   const selectedClubId = useClubStore(state => state.selectedClubId);
   const selectClub = useClubStore(state => state.selectClub);
   const addClub = useClubStore(state => state.addClub);
-  
+  const loadClubs = useClubStore(state => state.loadClubs);
+  const syncClubs = useClubStore(state => state.syncClubs);
+  const isLoading = useClubStore(state => state.isLoading);
+  const isSyncing = useClubStore(state => state.isSyncing);
+  const subscribeToChanges = useClubStore(state => state.subscribeToChanges);
+
+  // Load clubs from local cache on mount, then sync with server
+  useEffect(() => {
+    // Load from local cache first (instant, works offline)
+    loadClubs();
+
+    // Then sync with server in background (when online)
+    syncClubs();
+
+    // Subscribe to real-time changes
+    const unsubscribe = subscribeToChanges();
+    return unsubscribe;
+  }, [loadClubs, syncClubs, subscribeToChanges]);
+
   // Ensure selected club has safe arrays
   const rawSelectedClub = clubs.find(club => club.id === selectedClubId) || clubs[0] || null;
   const selectedClub = rawSelectedClub ? {
@@ -33,7 +51,7 @@ const ClubsPage: React.FC = () => {
     upcomingShows: Array.isArray(rawSelectedClub.upcomingShows) ? rawSelectedClub.upcomingShows : [],
     pastShows: Array.isArray(rawSelectedClub.pastShows) ? rawSelectedClub.pastShows : []
   } : null;
-  
+
   // Removed auto-initialization - stores should remain empty until user adds data
 
   // Handle URL parameter changes and sync with store
@@ -61,9 +79,10 @@ const ClubsPage: React.FC = () => {
     selectClub(clubId);
     navigate(`/clubs/${clubId}`);
   };
-  
+
   const [showCreateClubPanel, setShowCreateClubPanel] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Get current user for RBAC role assignment
   const { userWithRoles } = useAuthContext();
@@ -88,6 +107,11 @@ const ClubsPage: React.FC = () => {
     setShowCreateClubPanel(true);
   };
 
+  // Sidebar width constants matching UnifiedSidebar tokens
+  const SIDEBAR_WIDTH_EXPANDED = 320; // 20rem
+  const SIDEBAR_WIDTH_COLLAPSED = 80; // 5rem
+  const sidebarWidth = sidebarCollapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH_EXPANDED;
+
   return (
     <div className="flex min-h-screen bg-background">
       {/* Mobile sidebar overlay */}
@@ -98,12 +122,15 @@ const ClubsPage: React.FC = () => {
         />
       )}
 
-      {/* Fixed sidebar with responsive transform */}
-      <div className={cn(
-        "fixed inset-y-0 left-0 z-[60] w-72 bg-card border-r border-border",
-        "transform transition-transform duration-300 ease-in-out md:translate-x-0",
-        sidebarOpen ? "translate-x-0" : "-translate-x-full"
-      )}>
+      {/* Fixed sidebar with responsive transform and dynamic width */}
+      <div
+        className={cn(
+          "fixed inset-y-0 left-0 z-[60] bg-card border-r border-border",
+          "transform transition-all duration-300 ease-in-out md:translate-x-0",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+        style={{ width: sidebarWidth }}
+      >
         <ClubSidebar
           clubs={clubs}
           selectedClubId={selectedClubId}
@@ -113,11 +140,19 @@ const ClubsPage: React.FC = () => {
           }}
           onAddClub={handleOpenCreatePanel}
           onCloseMobile={() => setSidebarOpen(false)}
+          isCollapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
         />
       </div>
 
-      {/* Main content area with responsive left margin */}
-      <main className="flex-1 overflow-auto md:ml-72 pt-16">
+      {/* Main content area with responsive left margin - only on md+ */}
+      <main
+        className={cn(
+          "flex-1 overflow-auto pt-16 transition-all duration-300 ease-in-out",
+          "md:ml-[var(--sidebar-width)]"
+        )}
+        style={{ '--sidebar-width': `${sidebarWidth}px` } as React.CSSProperties}
+      >
         {/* Mobile menu button */}
         <div className="md:hidden p-4 border-b border-border bg-background/95 backdrop-blur-sm sticky top-16 z-30">
           <Button
@@ -129,7 +164,21 @@ const ClubsPage: React.FC = () => {
             Clubs Menu
           </Button>
         </div>
-        {clubs.length === 0 ? (
+        {isLoading ? (
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Loading clubs...</p>
+            </div>
+          </div>
+        ) : clubs.length === 0 && isSyncing ? (
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Syncing clubs from server...</p>
+            </div>
+          </div>
+        ) : clubs.length === 0 ? (
           <div className="flex items-center justify-center min-h-screen">
             <div className="text-center">
               <h1 className="text-2xl font-bold text-foreground mb-4">No Clubs Available</h1>
@@ -137,7 +186,7 @@ const ClubsPage: React.FC = () => {
                 Get started by creating your first club to manage organizations and events.
               </p>
               <div className="flex gap-3 justify-center">
-                <button 
+                <button
                   onClick={handleOpenCreatePanel}
                   className={`${buildClasses.button.primary} px-4 py-2 rounded-lg transition-colors`}
                 >

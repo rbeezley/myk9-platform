@@ -1,381 +1,216 @@
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import { getOptimalStorage } from '@/services/database/storage-adapter';
-import { Club } from '@/types/club-types';
+/**
+ * Club Store - Offline-First State Management
+ *
+ * Uses @myk9/replication for offline-first data access with IndexedDB.
+ * Syncs with Supabase when online.
+ */
 
-export interface ClubInput {
-  name: string;
-  clubNumber: string;
-  email: string;
-  phone: string;
-  website?: string;
-  description: string;
-  logo: string;
-  address: {
-    street: string;
-    city: string;
-    state: string;
-    zipCode: string;
-    country: string;
+import { create } from 'zustand';
+import { replicatedClubsTable, type ReplicatedClub } from '@/services/replication';
+import type { Club } from '@/types/club-types';
+
+/**
+ * Convert ReplicatedClub to app Club type
+ */
+function replicatedToClub(rc: ReplicatedClub): Club {
+  // Parse address if it's a combined string
+  const addressParts = rc.address?.split(', ') || [];
+
+  return {
+    id: rc.id,
+    name: rc.name,
+    clubNumber: '',
+    email: rc.email || '',
+    phone: rc.phone || '',
+    website: rc.website,
+    description: rc.description || '',
+    logo: rc.logoUrl || '',
+    address: {
+      street: addressParts[0] || '',
+      city: rc.city || addressParts[1] || '',
+      state: rc.state || addressParts[2]?.split(' ')[0] || '',
+      zipCode: rc.zipCode || addressParts[2]?.split(' ')[1] || '',
+      country: addressParts[3] || 'US',
+    },
+    upcomingShows: [],
+    pastShows: [],
+    _syncStatus: rc._syncStatus,
+    _version: rc._version,
+    _lastModified: rc._lastModified,
+    _lastModifiedBy: rc._lastModifiedBy,
+    _localOnly: rc._localOnly,
   };
-  founded?: Date;
-  clubType?: 'specialty' | 'all-breed' | 'local' | 'regional' | 'national';
-  memberIds?: string[];
+}
+
+/**
+ * Convert app Club type to ReplicatedClub
+ */
+function clubToReplicated(club: Club): ReplicatedClub {
+  const fullAddress = `${club.address.street}, ${club.address.city}, ${club.address.state} ${club.address.zipCode}, ${club.address.country}`;
+
+  return {
+    id: club.id,
+    name: club.name,
+    email: club.email,
+    phone: club.phone,
+    website: club.website,
+    description: club.description,
+    logoUrl: club.logo,
+    address: fullAddress,
+    city: club.address.city,
+    state: club.address.state,
+    zipCode: club.address.zipCode,
+    _syncStatus: club._syncStatus,
+    _version: club._version,
+    _lastModified: club._lastModified,
+    _lastModifiedBy: club._lastModifiedBy,
+    _localOnly: club._localOnly,
+  };
 }
 
 export interface ClubStoreState {
   clubs: Club[];
   selectedClubId: string;
   isLoading: boolean;
+  isSyncing: boolean;
   error: string | null;
-  setClubs: (clubs: Club[]) => void;
+
+  // Actions
   loadClubs: () => Promise<void>;
+  syncClubs: () => Promise<void>;
   selectClub: (id: string) => void;
-  updateClub: (updatedClub: Club) => Promise<void>;
-  addClub: (newClub: Club) => void;
-  addClubOptimistic: (clubInput: ClubInput) => Promise<string>;
-  updateClubOptimistic: (clubId: string, updates: Partial<Club>) => Promise<void>;
-  removeClub: (clubId: string) => void;
-  removeClubOptimistic: (clubId: string, deletedBy?: string) => Promise<void>;
-  getSyncStatus: (clubId: string) => 'synced' | 'pending' | 'error' | 'conflict';
-  hasPendingChanges: () => boolean;
+  addClub: (club: Club) => Promise<void>;
+  updateClub: (club: Club) => Promise<void>;
+  removeClub: (clubId: string) => Promise<void>;
+
+  // Subscription management
+  subscribeToChanges: () => () => void;
 }
 
-// Helper function to ensure club has valid arrays
-const ensureClubArrays = (club: Club): Club => ({
-  ...club,
-  upcomingShows: Array.isArray(club.upcomingShows) ? club.upcomingShows : [],
-  pastShows: Array.isArray(club.pastShows) ? club.pastShows : []
-});
+export const useClubStore = create<ClubStoreState>()((set, get) => ({
+  clubs: [],
+  selectedClubId: '',
+  isLoading: false,
+  isSyncing: false,
+  error: null,
 
-export const useClubStore = create<ClubStoreState>()(
-  persist(
-    (set, get) => ({
-      clubs: [],
-      selectedClubId: '',
-      isLoading: false,
-      error: null,
-      setClubs: (clubs: Club[]) => set({ clubs: clubs.map(ensureClubArrays) }),
-      
-      loadClubs: async (): Promise<void> => {
-        try {
-          set({ isLoading: true, error: null });
-          
-          // Import here to avoid circular dependencies
-          const { getAllClubs } = await import('@/services/database/queries/clubQueries');
-          const { mapDatabaseToClub } = await import('@/services/mappers/clubMappers');
-          
-          const { data, error } = await getAllClubs();
-          
-          if (error) {
-            throw error;
-          }
-          
-          // Map database results to Club objects
-          const clubs = data.map(mapDatabaseToClub);
-          
-          console.log(`🏛️ Loaded ${clubs.length} clubs from database:`, 
-            clubs.map(c => ({ 
-              id: c.id, 
-              name: c.name,
-              idType: typeof c.id,
-              isUUID: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(c.id)
-            }))
-          );
-          
-          set({ 
-            clubs: clubs.map(ensureClubArrays),
-            isLoading: false,
-            error: null 
-          });
-          
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Failed to load clubs';
-          console.error('💥 Failed to load clubs:', error);
-          set({ error: errorMessage, isLoading: false });
-        }
-      },
-      selectClub: (id: string) => set({ selectedClubId: id }),
-      updateClub: async (updatedClub: Club) => {
-        // Ensure arrays exist on the updated club
-        const safeUpdatedClub: Club = {
-          ...updatedClub,
-          upcomingShows: updatedClub.upcomingShows || [],
-          pastShows: updatedClub.pastShows || []
-        };
-        
-        console.log('🏛️ ClubStore.updateClub called:', {
-          clubId: safeUpdatedClub.id,
-          clubName: safeUpdatedClub.name,
-          phone: safeUpdatedClub.phone
-        });
-        
-        // Update local state immediately (optimistic update)
-        set((state) => {
-          const updatedClubs = state.clubs.map((club) => club.id === safeUpdatedClub.id ? safeUpdatedClub : club);
-          console.log('🏛️ ClubStore state after local update:', {
-            totalClubs: updatedClubs.length,
-            updatedClub: updatedClubs.find(c => c.id === safeUpdatedClub.id)?.name,
-            updatedClubPhone: updatedClubs.find(c => c.id === safeUpdatedClub.id)?.phone
-          });
-          return { clubs: updatedClubs };
-        });
+  /**
+   * Load clubs from local IndexedDB cache
+   * This is instant and works offline
+   */
+  loadClubs: async () => {
+    set({ isLoading: true, error: null });
 
-        // Persist to database
-        try {
-          const { updateClub: updateClubInDB } = await import('@/services/database/queries/clubQueries');
-          const { mapClubToUpdate } = await import('@/services/mappers/clubMappers');
-          
-          const dbUpdateData = mapClubToUpdate(safeUpdatedClub);
-          console.log('🏛️ Saving club to database:', { 
-            clubId: safeUpdatedClub.id, 
-            clubIdType: typeof safeUpdatedClub.id,
-            clubIdLength: safeUpdatedClub.id.length,
-            isUUID: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(safeUpdatedClub.id),
-            updateData: dbUpdateData 
-          });
-          
-          const { data, error } = await updateClubInDB(safeUpdatedClub.id, dbUpdateData);
-          
-          if (error) {
-            console.error('💥 Failed to save club to database:', {
-              error,
-              errorMessage: error.message,
-              errorCode: error.code,
-              errorDetails: error.details,
-              clubId: safeUpdatedClub.id
-            });
-            // TODO: Show error toast to user
-            // For now, the optimistic update stays in place
-            // In a real app, you might want to revert the local change or show a retry option
-            set({ error: error.message });
-          } else {
-            console.log('✅ Club saved to database successfully:', data);
-            set({ error: null });
-          }
-          
-        } catch (error) {
-          console.error('💥 Exception while saving club:', error);
-          const errorMessage = error instanceof Error ? error.message : 'Failed to save club';
-          set({ error: errorMessage });
-        }
-      },
-      addClub: (newClub: Club) => set((state) => ({
-        clubs: [...state.clubs, ensureClubArrays(newClub)]
-      })),
-      
-      // Local-First optimistic operations
-      addClubOptimistic: async (clubInput: ClubInput): Promise<string> => {
-        // 1. Generate optimistic ID
-        const optimisticId = `club-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-        
-        // 2. Create club with sync metadata
-        const newClub: Club = {
-          ...clubInput,
-          id: optimisticId,
-          upcomingShows: [],
-          pastShows: [],
-          // Sync metadata
-          _version: 1,
-          _lastModified: new Date(),
-          _lastModifiedBy: 'current-user', // TODO: Get from auth context
-          _syncStatus: 'pending',
-          _localOnly: false
-        };
-        
-        // 3. Add to local store immediately
-        set((state) => ({
-          clubs: [...state.clubs, newClub]
-        }));
-        
-        // 4. Queue sync action
-        // TODO: Uncomment for Phase 2 cloud sync
-        /*
-        try {
-          const { syncService } = await import('@/services/sync/syncService');
-          await syncService.addToQueue({
-            entityType: 'clubs',
-            entityId: optimisticId,
-            operation: 'create',
-            data: newClub as unknown as Record<string, unknown>,
-            priority: "medium"
-          });
-        } catch (error) {
-          console.error('Failed to queue club creation:', error);
-          // Mark as error but keep in local store
-          set((state) => ({
-            clubs: state.clubs.map(club => 
-              club.id === optimisticId 
-                ? { ...club, _syncStatus: 'error' as const }
-                : club
-            )
-          }));
-        }
-        */
-        
-        // 5. Return optimistic ID
-        return optimisticId;
-      },
+    try {
+      const replicatedClubs = await replicatedClubsTable.getAllClubs();
+      const clubs = replicatedClubs.map(replicatedToClub);
 
-      updateClubOptimistic: async (clubId: string, updates: Partial<Club>): Promise<void> => {
-        const state = get();
-        const existingClub = state.clubs.find(club => club.id === clubId);
-        
-        if (!existingClub) {
-          throw new Error(`Club with id ${clubId} not found`);
-        }
+      console.log(`[ClubStore] Loaded ${clubs.length} clubs from local cache`);
 
-        // Create updated club with new sync metadata
-        const updatedClub: Club = {
-          ...existingClub,
-          ...updates,
-          _version: (existingClub._version || 1) + 1,
-          _lastModified: new Date(),
-          _lastModifiedBy: 'current-user', // TODO: Get from auth context
-          _syncStatus: 'pending'
-        };
-
-        // Update local store immediately
-        set((state) => ({
-          clubs: state.clubs.map(club => club.id === clubId ? updatedClub : club)
-        }));
-
-        // Queue sync action
-        // TODO: Uncomment for Phase 2 cloud sync
-        /*
-        try {
-          const { syncService } = await import('@/services/sync/syncService');
-          await syncService.addToQueue({
-            entityType: 'clubs',
-            entityId: clubId,
-            operation: 'update',
-            data: updatedClub as unknown as Record<string, unknown>,
-            priority: "medium"
-          });
-        } catch (error) {
-          console.error('Failed to queue club update:', error);
-          // Mark as error
-          set((state) => ({
-            clubs: state.clubs.map(club => 
-              club.id === clubId 
-                ? { ...club, _syncStatus: 'error' as const }
-                : club
-            )
-          }));
-        }
-        */
-      },
-
-      removeClub: (clubId: string) => set((state) => ({
-        clubs: state.clubs.filter((club) => club.id !== clubId),
-        selectedClubId: state.selectedClubId === clubId ? (state.clubs[0]?.id || '') : state.selectedClubId
-      })),
-
-      removeClubOptimistic: async (clubId: string, deletedBy?: string): Promise<void> => {
-        const state = get();
-        const clubToDelete = state.clubs.find(club => club.id === clubId);
-        
-        if (!clubToDelete) {
-          throw new Error(`Club with id ${clubId} not found`);
-        }
-
-        console.log('🗑️ ClubStore.removeClubOptimistic called:', {
-          clubId,
-          clubName: clubToDelete.name,
-          deletedBy
-        });
-
-        try {
-          // Delete from database first
-          const { deleteClub } = await import('@/services/database/queries/clubQueries');
-          const { data, error } = await deleteClub(clubId, deletedBy);
-          
-          if (error) {
-            console.error('💥 Failed to delete club from database:', error);
-            throw error;
-          }
-
-          console.log('✅ Club deleted from database successfully:', data);
-          
-          // Remove from local store after successful database deletion
-          set((state) => ({
-            clubs: state.clubs.filter(club => club.id !== clubId),
-            selectedClubId: state.selectedClubId === clubId ? (state.clubs[0]?.id || '') : state.selectedClubId
-          }));
-
-        } catch (error) {
-          console.error('💥 Exception while deleting club:', error);
-          const errorMessage = error instanceof Error ? error.message : 'Failed to delete club';
-          set({ error: errorMessage });
-          throw error; // Re-throw to let the UI handle the error
-        }
-      },
-
-      getSyncStatus: (clubId: string): 'synced' | 'pending' | 'error' | 'conflict' => {
-        const club = get().clubs.find(c => c.id === clubId);
-        return club?._syncStatus || 'synced';
-      },
-
-      hasPendingChanges: (): boolean => {
-        const clubs = get().clubs;
-        return clubs.some(club => 
-          club._syncStatus === 'pending' || 
-          club._syncStatus === 'error' || 
-          club._syncStatus === 'conflict'
-        );
-      },
-    }),
-    {
-      name: 'club-store-v4', // CRITICAL FIX: Force complete reset to fix undefined arrays
-      storage: createJSONStorage(() => getOptimalStorage('clubs')),
-      partialize: (state: ClubStoreState) => ({ 
-        clubs: state.clubs,
-        selectedClubId: state.selectedClubId 
-      }),
-      onRehydrateStorage: () => (state) => {
-        // Store should remain empty unless user explicitly adds data
-        // No automatic mock data restoration
-        if (state) {
-          // FORCE fix for undefined arrays - this is critical for functionality
-          state.clubs = state.clubs.map(club => {
-            const fixedClub = {
-              ...club,
-              founded: club.founded ? new Date(club.founded) : undefined,
-              upcomingShows: Array.isArray(club.upcomingShows) ? club.upcomingShows : [],
-              pastShows: Array.isArray(club.pastShows) ? club.pastShows : []
-            };
-            if (!Array.isArray(club.upcomingShows) || !Array.isArray(club.pastShows)) {
-              console.log('🔧 FIXED missing arrays for club:', club.name, {
-                upcomingShows: club.upcomingShows,
-                pastShows: club.pastShows,
-                fixedUpcoming: fixedClub.upcomingShows,
-                fixedPast: fixedClub.pastShows
-              });
-            }
-            return fixedClub;
-          });
-          console.log('🔧 ClubStore rehydrated - processed', state.clubs.length, 'clubs');
-        }
-      },
-      version: 3,
-      migrate: (persistedState: unknown, version: number) => {
-        if (version === 0 || version === 1 || version === 2) {
-          // Fix missing show arrays in existing clubs
-          if (persistedState && typeof persistedState === 'object') {
-            const state = persistedState as { clubs?: Record<string, unknown>[] };
-            if (state.clubs && Array.isArray(state.clubs)) {
-              state.clubs = state.clubs.map(club => ({
-                ...club,
-                upcomingShows: club.upcomingShows || [],
-                pastShows: club.pastShows || []
-              }));
-              console.log('🔧 Migration v' + version + '->v3: Fixed missing show arrays for', state.clubs.length, 'clubs');
-            }
-          }
-          return persistedState;
-        }
-        return persistedState;
-      },
+      set({
+        clubs,
+        isLoading: false,
+        error: null,
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load clubs';
+      console.error('[ClubStore] Failed to load clubs:', error);
+      set({ error: errorMessage, isLoading: false });
     }
-  )
-);
+  },
+
+  /**
+   * Sync clubs with Supabase server
+   * Call this when online to fetch latest data
+   */
+  syncClubs: async () => {
+    set({ isSyncing: true });
+
+    try {
+      // Sync with server (no license key needed for clubs)
+      const result = await replicatedClubsTable.sync();
+
+      if (result.success) {
+        console.log(`[ClubStore] Synced ${result.rowsAffected} clubs from server`);
+
+        // Reload from local cache after sync
+        await get().loadClubs();
+      } else {
+        console.error('[ClubStore] Sync failed:', result.error);
+        set({ error: result.error || 'Sync failed' });
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Sync failed';
+      console.error('[ClubStore] Sync error:', error);
+      set({ error: errorMessage });
+    } finally {
+      set({ isSyncing: false });
+    }
+  },
+
+  selectClub: (id: string) => set({ selectedClubId: id }),
+
+  /**
+   * Add a new club (saves to local cache, queued for sync)
+   */
+  addClub: async (club: Club) => {
+    try {
+      const replicated = clubToReplicated(club);
+      await replicatedClubsTable.createClub(replicated);
+
+      // Reload from cache
+      await get().loadClubs();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to add club';
+      console.error('[ClubStore] Failed to add club:', error);
+      set({ error: errorMessage });
+    }
+  },
+
+  /**
+   * Update an existing club (saves to local cache, queued for sync)
+   */
+  updateClub: async (club: Club) => {
+    try {
+      const replicated = clubToReplicated(club);
+      await replicatedClubsTable.updateClub(club.id, replicated);
+
+      // Reload from cache
+      await get().loadClubs();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update club';
+      console.error('[ClubStore] Failed to update club:', error);
+      set({ error: errorMessage });
+    }
+  },
+
+  /**
+   * Remove a club (from local cache)
+   */
+  removeClub: async (clubId: string) => {
+    try {
+      await replicatedClubsTable.deleteClubLocal(clubId);
+
+      // Update local state
+      set(state => ({
+        clubs: state.clubs.filter(c => c.id !== clubId),
+        selectedClubId: state.selectedClubId === clubId ? '' : state.selectedClubId,
+      }));
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to remove club';
+      console.error('[ClubStore] Failed to remove club:', error);
+      set({ error: errorMessage });
+    }
+  },
+
+  /**
+   * Subscribe to real-time changes from the replicated table
+   * Returns unsubscribe function
+   */
+  subscribeToChanges: () => {
+    return replicatedClubsTable.subscribe((replicatedClubs) => {
+      const clubs = replicatedClubs.map(replicatedToClub);
+      set({ clubs });
+    });
+  },
+}));

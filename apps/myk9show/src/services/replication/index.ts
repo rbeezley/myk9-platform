@@ -5,6 +5,13 @@
  * All tables use IndexedDB for local storage with automatic sync to Supabase.
  */
 
+// Clubs
+export {
+  ReplicatedClubsTable,
+  replicatedClubsTable,
+  type ReplicatedClub,
+} from './ReplicatedClubsTable';
+
 // Shows
 export {
   ReplicatedShowsTable,

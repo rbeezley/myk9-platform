@@ -17,6 +17,8 @@ interface ClubSidebarProps {
   onSelectClub: (id: string) => void;
   onAddClub?: () => void;
   onCloseMobile?: () => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 // Utility function for club initials
@@ -29,7 +31,7 @@ const getClubInitials = (name: string) => {
     .slice(0, 3);
 };
 
-const ClubSidebar: React.FC<ClubSidebarProps> = ({ clubs, selectedClubId, onSelectClub, onAddClub, onCloseMobile }) => {
+const ClubSidebar: React.FC<ClubSidebarProps> = ({ clubs, selectedClubId, onSelectClub, onAddClub, onCloseMobile, isCollapsed, onToggleCollapse }) => {
   const { hasPermission, isLoading } = useRBAC();
 
   // Check if user can create clubs (admin only) - only check if RBAC is loaded
@@ -106,6 +108,8 @@ const ClubSidebar: React.FC<ClubSidebarProps> = ({ clubs, selectedClubId, onSele
       headerIcon={Building2}
       addButtonText={canCreateClubs ? "Add Club" : undefined}
       enableCollapse={true}
+      isCollapsed={isCollapsed}
+      onToggleCollapse={onToggleCollapse}
       enableResize={true}
     />
   );

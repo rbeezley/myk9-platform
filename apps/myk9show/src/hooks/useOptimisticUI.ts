@@ -243,13 +243,11 @@ export const useOptimisticForm = <T>(
 
   const { optimisticUpdate, hasPendingOperations, undo } = useOptimisticUI({
     entityType,
-    onSuccess: (operationId, result) => {
-      console.log('Form save success:', operationId, result);
+    onSuccess: () => {
       setOriginalData(formData);
       setIsDirty(false);
     },
-    onRollback: (operationId) => {
-      console.log('Form rollback:', operationId);
+    onRollback: () => {
       setFormData(originalData);
       setIsDirty(false);
     }

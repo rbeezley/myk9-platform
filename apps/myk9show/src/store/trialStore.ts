@@ -483,7 +483,6 @@ export const useTrialStore = create<TrialStore>()(
             }
             return trial;
           });
-          console.log('trialStore: Trials after update:', JSON.stringify(newTrials, null, 2));
           return { trials: newTrials };
         }),
       

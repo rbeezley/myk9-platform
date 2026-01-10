@@ -748,8 +748,8 @@ export const useClassStore = create<ClassStoreState>()(
               _syncStatus: 'pending',
               _localOnly: true,
             }, true);
-          } catch (error) {
-            console.warn(`Failed to save template class ${cls.id}:`, error);
+          } catch {
+            // Failed to save template class
           }
         });
 

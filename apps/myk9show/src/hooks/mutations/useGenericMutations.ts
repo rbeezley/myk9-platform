@@ -59,8 +59,7 @@ export function useCreateEntity<T extends { id: string }>(options: MutationOptio
       // Show success message
       toast.success(onSuccessMessage?.create || `${entityName} created successfully`);
     },
-    onError: (error) => {
-      console.error(`Error creating ${entityName}:`, error);
+    onError: () => {
       toast.error(onErrorMessage?.create || `Failed to create ${entityName}`);
     },
   });
@@ -93,8 +92,7 @@ export function useUpdateEntity<T extends { id: string }>(options: MutationOptio
       // Show success message
       toast.success(onSuccessMessage?.update || `${entityName} updated successfully`);
     },
-    onError: (error) => {
-      console.error(`Error updating ${entityName}:`, error);
+    onError: () => {
       toast.error(onErrorMessage?.update || `Failed to update ${entityName}`);
     },
   });
@@ -126,8 +124,7 @@ export function useDeleteEntity<T extends { id: string }>(options: MutationOptio
       // Show success message
       toast.success(onSuccessMessage?.delete || `${entityName} deleted successfully`);
     },
-    onError: (error) => {
-      console.error(`Error deleting ${entityName}:`, error);
+    onError: () => {
       toast.error(onErrorMessage?.delete || `Failed to delete ${entityName}`);
     },
   });
@@ -169,8 +166,7 @@ export function useBulkUpdateEntities<T extends { id: string }>(options: Mutatio
       // Show success message
       toast.success(onSuccessMessage?.bulkUpdate || `${updatedEntities.length} ${entityName}s updated successfully`);
     },
-    onError: (error) => {
-      console.error(`Error bulk updating ${entityName}s:`, error);
+    onError: () => {
       toast.error(onErrorMessage?.bulkUpdate || `Failed to update ${entityName}s`);
     },
   });
@@ -211,8 +207,7 @@ export function useBulkDeleteEntities<T extends { id: string }>(options: Mutatio
       // Show success message
       toast.success(onSuccessMessage?.bulkDelete || `${deletedIds.length} ${entityName}s deleted successfully`);
     },
-    onError: (error) => {
-      console.error(`Error bulk deleting ${entityName}s:`, error);
+    onError: () => {
       toast.error(onErrorMessage?.bulkDelete || `Failed to delete ${entityName}s`);
     },
   });
@@ -256,8 +251,8 @@ export function useOptimisticUpdateEntity<T extends { id: string }>(options: Mut
       if (context?.previousEntities) {
         queryClient.setQueryData(queryKeys.all, context.previousEntities);
       }
-      
-      console.error(`Error optimistically updating ${entityName}:`, err);
+
+      void err; // Error available for future logging
       toast.error(onErrorMessage?.update || `Failed to update ${entityName}`);
     },
     onSuccess: () => {

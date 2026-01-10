@@ -84,18 +84,10 @@ export function useEmailNotifications() {
     try {
       const success = await emailService.sendEntryConfirmation(email, data);
       setStatus({ loading: false, error: null, success });
-      
-      if (success) {
-        console.log(`✅ Entry confirmation sent to ${email}`);
-      } else {
-        console.error(`❌ Failed to send entry confirmation to ${email}`);
-      }
-      
       return success;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to send email';
       setStatus({ loading: false, error: errorMessage, success: false });
-      console.error('Entry confirmation email error:', error);
       return false;
     }
   }, []);
@@ -112,18 +104,10 @@ export function useEmailNotifications() {
     try {
       const success = await emailService.sendShowReminder(email, data);
       setStatus({ loading: false, error: null, success });
-      
-      if (success) {
-        console.log(`✅ Show reminder sent to ${email}`);
-      } else {
-        console.error(`❌ Failed to send show reminder to ${email}`);
-      }
-      
       return success;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to send email';
       setStatus({ loading: false, error: errorMessage, success: false });
-      console.error('Show reminder email error:', error);
       return false;
     }
   }, []);
@@ -140,18 +124,10 @@ export function useEmailNotifications() {
     try {
       const success = await emailService.sendResultsNotification(email, data);
       setStatus({ loading: false, error: null, success });
-      
-      if (success) {
-        console.log(`✅ Results notification sent to ${email}`);
-      } else {
-        console.error(`❌ Failed to send results notification to ${email}`);
-      }
-      
       return success;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to send email';
       setStatus({ loading: false, error: errorMessage, success: false });
-      console.error('Results notification email error:', error);
       return false;
     }
   }, []);
@@ -170,18 +146,10 @@ export function useEmailNotifications() {
     try {
       const success = await emailService.sendCustomNotification(to, subject, htmlContent, textContent);
       setStatus({ loading: false, error: null, success });
-      
-      if (success) {
-        console.log(`✅ Custom email sent to ${to}`);
-      } else {
-        console.error(`❌ Failed to send custom email to ${to}`);
-      }
-      
       return success;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to send email';
       setStatus({ loading: false, error: errorMessage, success: false });
-      console.error('Custom email error:', error);
       return false;
     }
   }, []);
@@ -227,14 +195,10 @@ export function useEmailNotifications() {
       
       const allSuccessful = failed === 0;
       setStatus({ loading: false, error: null, success: allSuccessful });
-      
-      console.log(`📧 Bulk email results: ${successful} sent, ${failed} failed`);
       return { successful, failed };
-      
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to send bulk emails';
       setStatus({ loading: false, error: errorMessage, success: false });
-      console.error('Bulk email error:', error);
       return { successful, failed: emails.length };
     }
   }, []);
@@ -246,11 +210,10 @@ export function useEmailNotifications() {
     try {
       const notifications = await emailService.getNotificationHistory(limit);
       setHistory(notifications);
-    } catch (error) {
-      console.error('Failed to load email history:', error);
-      setStatus(prev => ({ 
-        ...prev, 
-        error: 'Failed to load email history' 
+    } catch {
+      setStatus(prev => ({
+        ...prev,
+        error: 'Failed to load email history'
       }));
     }
   }, []);
@@ -264,18 +227,10 @@ export function useEmailNotifications() {
     try {
       const success = await emailService.testEmailService();
       setStatus({ loading: false, error: null, success });
-      
-      if (success) {
-        console.log('✅ Email service test successful');
-      } else {
-        console.error('❌ Email service test failed');
-      }
-      
       return success;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Email service test failed';
       setStatus({ loading: false, error: errorMessage, success: false });
-      console.error('Email service test error:', error);
       return false;
     }
   }, []);

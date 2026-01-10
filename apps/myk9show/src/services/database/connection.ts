@@ -65,13 +65,13 @@ export class DatabaseService extends Dexie implements DatabaseAPI {
     
     // Version 3: Enhanced indexes and compression
     this.version(3).stores(generateDexieSchema()).upgrade(async () => {
-      console.log('Upgrading to version 3 with enhanced indexes');
+      // console.log('Upgrading to version 3 with enhanced indexes');
       // Migration handled by MigrationManager
     });
     
     // Version 4: Optimized _zustand_state indexes
     this.version(4).stores(generateDexieSchema()).upgrade(async () => {
-      console.log('Upgrading to version 4 with optimized _zustand_state indexes');
+      // console.log('Upgrading to version 4 with optimized _zustand_state indexes');
       // Indexes will be automatically created by Dexie
     });
   }
@@ -117,7 +117,7 @@ export class DatabaseService extends Dexie implements DatabaseAPI {
         await table.count(); // Simple check to ensure table is accessible
       }
       
-      console.log('Database integrity check passed');
+      // console.log('Database integrity check passed');
       return true;
     } catch (error) {
       console.error('Database integrity check failed:', error);
@@ -489,7 +489,7 @@ function shouldRunMigrations(): boolean {
       const timeSinceCheck = Date.now() - parseInt(lastCheck);
       // Only check migrations once per day or if version changed
       if (timeSinceCheck < 24 * 60 * 60 * 1000 && lastVersion === DATABASE_VERSION.toString()) {
-        console.log('Skipping migration check - already verified today');
+        // console.log('Skipping migration check - already verified today');
         return false;
       }
     }
@@ -517,22 +517,22 @@ export const db = {
       
       // Smart migration system: Skip in development for speed, cache in production
       if (process.env.NODE_ENV === 'development') {
-        console.log('🚀 Development mode: Skipping all migrations for performance');
+        // console.log('🚀 Development mode: Skipping all migrations for performance');
       } else {
         // Production: Use intelligent migration caching
         if (shouldRunMigrations() && !_migrationPromise) {
-          console.log('🔄 Running database migrations (first time or version change)');
+          // console.log('🔄 Running database migrations (first time or version change)');
           _migrationPromise = _defaultDb.runMigrations()
             .then(() => {
               markMigrationsComplete();
-              console.log('✅ Database migrations completed and cached');
+              // console.log('✅ Database migrations completed and cached');
             })
             .catch(error => {
               console.error('❌ Migration failed:', error);
               _migrationPromise = null; // Allow retry on error
             });
         } else if (!shouldRunMigrations()) {
-          console.log('⚡ Database migrations skipped - already verified (cached)');
+          // console.log('⚡ Database migrations skipped - already verified (cached)');
         }
       }
     }

@@ -143,7 +143,6 @@ export class SecureStorage {
     try {
       if (!isSecureContext()) {
         // Fallback to regular storage in non-secure contexts
-        console.warn(`SecureStorage: Using fallback storage for ${key} (non-secure context)`);
         const storage = options.useSessionStorage ? sessionStorage : localStorage;
         storage.setItem(key, value);
         return;
@@ -199,7 +198,6 @@ export class SecureStorage {
       }
 
       if (!isSecureContext()) {
-        console.warn(`SecureStorage: Cannot decrypt ${key} in non-secure context`);
         return null;
       }
 
@@ -247,12 +245,11 @@ export const secureStorage = SecureStorage.getInstance();
  */
 export async function migrateToSecureStorage(keys: string[]): Promise<void> {
   if (!isSecureContext()) {
-    console.warn('Cannot migrate to secure storage in non-secure context');
     return;
   }
 
   const storage = secureStorage;
-  
+
   for (const key of keys) {
     const value = localStorage.getItem(key);
     if (value) {
@@ -265,9 +262,8 @@ export async function migrateToSecureStorage(keys: string[]): Promise<void> {
       } catch {
         // Not JSON, proceed with migration
       }
-      
+
       await storage.setItem(key, value);
-      console.log(`Migrated ${key} to secure storage`);
     }
   }
 }

@@ -1,21 +1,15 @@
 // Utility to format ISO date strings (YYYY-MM-DD) to mm/dd/yyyy
 export function formatDateMMDDYYYY(dateStr: string): string {
   if (!dateStr) return '';
-  
-  // Debug logging to see what values are being processed
-  console.log('formatDateMMDDYYYY input:', dateStr);
-  
+
   // Parse as local date, not UTC
   const [year, month, day] = dateStr.split('-');
   if (!year || !month || !day) {
-    console.log('Invalid date parts:', { year, month, day });
     return dateStr;
   }
-  
+
   // Direct string manipulation to avoid any timezone issues
-  const result = `${parseInt(month, 10)}/${parseInt(day, 10)}/${year}`;
-  console.log('formatDateMMDDYYYY output:', result);
-  return result;
+  return `${parseInt(month, 10)}/${parseInt(day, 10)}/${year}`;
 }
 
 // Utility to format time from Date object or time string

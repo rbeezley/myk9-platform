@@ -26,17 +26,10 @@ export function useFilteredEntries<T>(
       return `${entry.id || 'unknown'}-${entry.updatedAt || 'no-timestamp'}-${JSON.stringify(entry.competitionData || {})}`;
     });
     
-    console.log('🔍 useFilteredEntries check:');
-    console.log('  New fingerprints:', newFingerprints);
-    console.log('  Current fingerprints:', currentFingerprints);
-    
     // Update if the data has actually changed (length, order, or content)
-    if (newFingerprints.length !== currentFingerprints.length || 
+    if (newFingerprints.length !== currentFingerprints.length ||
         newFingerprints.some((fingerprint, index) => fingerprint !== currentFingerprints[index])) {
-      console.log('✅ Fingerprints changed, updating filtered data');
       setFilteredData(newFilteredData);
-    } else {
-      console.log('❌ Fingerprints unchanged, keeping current data');
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entryStore.entries, filterFn, ...dependencies]);

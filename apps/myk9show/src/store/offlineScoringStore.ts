@@ -171,9 +171,8 @@ export const useOfflineScoringStore = create<OfflineScoringStore>()(
         }));
       },
       
-      advanceWorkflowStep: (sessionId) => {
+      advanceWorkflowStep: (_sessionId) => {
         // Placeholder implementation
-        console.log('Advancing workflow for session:', sessionId);
       },
       
       setCurrentEntry: (sessionId, entryId) => {
@@ -203,14 +202,12 @@ export const useOfflineScoringStore = create<OfflineScoringStore>()(
         }));
       },
       
-      setError: (error) => {
+      setError: (_error) => {
         // Would need to add error state to the store
-        console.error('Scoring error:', error);
       },
-      
-      addWarning: (warning) => {
+
+      addWarning: (_warning) => {
         // Would need to add warnings state to the store
-        console.warn('Scoring warning:', warning);
       }
     }),
     {

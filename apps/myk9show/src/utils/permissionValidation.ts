@@ -197,29 +197,13 @@ export function canAccessTab(user: UserWithRoles | null, tabId: string): boolean
  * Security audit: Log permission-related actions
  */
 export function auditPermissionAction(
-  action: string,
-  user: UserWithRoles | null,
-  resource: string,
-  resourceId: string,
-  granted: boolean
-) {
-  const auditData = {
-    timestamp: new Date().toISOString(),
-    action,
-    userId: user?.id || 'anonymous',
-    userRoles: user?.roles || [],
-    resource,
-    resourceId,
-    granted,
-    ip: 'unknown', // Would be populated from request in real implementation
-    userAgent: navigator.userAgent
-  };
-  
-  // In production, this would send to audit service
-  console.log('🔒 Permission Audit:', auditData);
-  
-  // Could integrate with audit service here
-  // auditService.logPermissionCheck(auditData);
+  _action: string,
+  _user: UserWithRoles | null,
+  _resource: string,
+  _resourceId: string,
+  _granted: boolean
+): void {
+  // Audit logging disabled - integrate with audit service in production
 }
 
 /**

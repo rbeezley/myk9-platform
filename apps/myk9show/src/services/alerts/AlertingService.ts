@@ -72,7 +72,7 @@ class AlertingService extends EventEmitter {
       this.isInitialized = true;
       this.emit('initialized', undefined);
       
-      console.log('[AlertingService] Initialized successfully');
+      // [AlertingService] Initialized successfully');
     } catch (error) {
       console.error('[AlertingService] Initialization failed:', error);
       throw error;
@@ -851,7 +851,7 @@ class AlertingService extends EventEmitter {
     this.removeAllListeners();
     this.listeners.clear();
 
-    console.log('[AlertingService] Destroyed');
+    // [AlertingService] Destroyed');
   }
 }
 

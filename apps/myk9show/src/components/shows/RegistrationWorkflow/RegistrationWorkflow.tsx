@@ -21,7 +21,6 @@ import { DraftManager } from './DraftManager';
 import { useDraftPersistence } from '@/hooks/useDraftPersistence';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useOptimisticRegistration } from '@/hooks/useOptimisticRegistration';
-import { useOptimisticFeedback } from '@/hooks/useOptimisticFeedback';
 import { useRegistrationConflicts } from '@/hooks/useRegistrationConflicts';
 import { ConflictResolutionDialog } from '@/components/sync/ConflictResolutionDialog';
 import { toast } from 'sonner';
@@ -271,9 +270,6 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
     stepCompletionState
   });
 
-  // Optimistic feedback
-  const { showError } = useOptimisticFeedback();
-
   // Conflict resolution
   const {
     selectedConflict,
@@ -442,7 +438,7 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
       await updateDogSelection(dogs);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to update dog selection';
-      showError(errorMessage);
+      toast.error(errorMessage);
     }
   };
 
@@ -462,7 +458,7 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
       // });
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to update class selections';
-      showError(errorMessage);
+      toast.error(errorMessage);
     }
   };
 
@@ -482,7 +478,7 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
       // });
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to update handler assignments';
-      showError(errorMessage);
+      toast.error(errorMessage);
     }
   };
 
@@ -676,7 +672,7 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
                             await updatePaymentStatusOptimistic(registrationId, status);
                           } catch (error: unknown) {
                             const errorMessage = error instanceof Error ? error.message : 'Failed to update payment status';
-                            showError(errorMessage);
+                            toast.error(errorMessage);
                           }
                         }
                       }}
@@ -687,7 +683,7 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
                             await updateEntryStatusOptimistic(registrationId, status, reason);
                           } catch (error: unknown) {
                             const errorMessage = error instanceof Error ? error.message : 'Failed to update entry status';
-                            showError(errorMessage);
+                            toast.error(errorMessage);
                           }
                         }
                       }}
@@ -717,7 +713,7 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
                           await updateEntryStatusOptimistic(registrationId, status);
                         } catch (error: unknown) {
                           const errorMessage = error instanceof Error ? error.message : 'Failed to update entry status';
-                          showError(errorMessage);
+                          toast.error(errorMessage);
                         }
                       }
                     }}

@@ -58,10 +58,6 @@ export function useIntelligentPreloading(
   useEffect(() => {
     if (configRef.current.enablePatternAnalysis) {
       IntelligentPreloader.trackNavigation(location.pathname);
-      
-      if (configRef.current.enableDebugLogging) {
-        console.log(`🧭 Navigation tracked: ${location.pathname}`);
-      }
     }
   }, [location.pathname]);
 
@@ -73,10 +69,6 @@ export function useIntelligentPreloading(
       const likelyRoutes = IntelligentPreloader.getLikelyNextRoutes(location.pathname);
       
       if (likelyRoutes.length === 0) return;
-
-      if (configRef.current.enableDebugLogging) {
-        console.log(`🎯 Likely next routes for ${location.pathname}:`, likelyRoutes);
-      }
 
       // Filter routes that haven't been preloaded yet
       const routesToPreload = likelyRoutes
@@ -104,17 +96,9 @@ export function useIntelligentPreloading(
               if (configRef.current.enablePerformanceMonitoring) {
                 LazyLoadingMonitor.recordLoadTime(route, loadTime);
               }
-              
-              if (configRef.current.enableDebugLogging) {
-                console.log(`✅ Preloaded ${route} in ${loadTime.toFixed(2)}ms`);
-              }
-            } catch (error) {
+            } catch {
               if (configRef.current.enablePerformanceMonitoring) {
                 LazyLoadingMonitor.recordFailedLoad(route);
-              }
-              
-              if (configRef.current.enableDebugLogging) {
-                console.warn(`❌ Failed to preload ${route}:`, error);
               }
             } finally {
               activePreloadsRef.current.delete(route);
@@ -167,12 +151,8 @@ export function useRoutePreloading(routePath: string, component: ComponentType<a
   const triggerPreload = () => {
     if (!preloadRef.current && (component as any).preload) {
       preloadRef.current = (component as any).preload();
-      
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`🔄 Manual preload triggered for ${routePath}`);
-      }
     }
-    
+
     return preloadRef.current;
   };
 

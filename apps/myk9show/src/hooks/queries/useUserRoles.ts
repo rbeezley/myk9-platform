@@ -38,7 +38,6 @@ export function useUserRoles(userId?: string) {
         .single();
 
       if (personError || !personData) {
-        console.log('No people record found for auth user:', userId);
         return [];
       }
 
@@ -51,12 +50,10 @@ export function useUserRoles(userId?: string) {
         .eq('user_id', peopleId);
 
       if (userRoleError) {
-        console.error('useUserRoles user_role query error:', userRoleError);
         throw userRoleError;
       }
 
       if (!userRoleData || userRoleData.length === 0) {
-        console.log('No user roles found for user:', userId);
         return [];
       }
 
@@ -68,7 +65,6 @@ export function useUserRoles(userId?: string) {
         .in('id', roleIds);
 
       if (roleError) {
-        console.error('useUserRoles role query error:', roleError);
         throw roleError;
       }
 
@@ -82,11 +78,8 @@ export function useUserRoles(userId?: string) {
         };
       }).filter(item => item.role); // Only include items where we found the role
 
-      console.log('🔍 Raw user roles data:', data);
-
       // Process the data
       if (!data || !Array.isArray(data)) {
-        console.warn('No user roles data returned');
         return [];
       }
 
@@ -109,20 +102,15 @@ export function useUserRoles(userId?: string) {
  * Hook to get user roles as simple array (for backwards compatibility)
  */
 export function useUserRoleNames(userId?: string): UserRole[] {
-  const { data: userRoles, error } = useUserRoles(userId);
-  
-  console.log('🔍 useUserRoleNames debug:', { userId: userId?.substring(0, 8) + '...', userRoles, error });
-  
+  const { data: userRoles } = useUserRoles(userId);
+
   if (!userRoles) {
     return [];
   }
 
-  const roleNames = (userRoles as Array<{role: {name: string}}>)
+  return (userRoles as Array<{role: {name: string}}>)
     .filter((ur) => ur.role)
     .map((ur) => ur.role.name as UserRole);
-  
-  console.log('🔍 Extracted role names:', roleNames);
-  return roleNames;
 }
 
 /**

@@ -110,7 +110,6 @@ export function useMultiAreaTiming({
   const startArea = useCallback((areaIndex: number = 0) => {
     // Validate area can be started
     if (!canStartArea(areaIndex)) {
-      console.warn(`Cannot start area ${areaIndex} - not ready`);
       return;
     }
     
@@ -242,11 +241,11 @@ export function useMultiAreaTiming({
   
   // Stub pause/resume for now (timer is controlled by start/stop)
   const pauseTimer = useCallback(() => {
-    console.warn('Pause not supported in multi-area timing');
+    // Pause not supported in multi-area timing
   }, []);
-  
+
   const resumeTimer = useCallback(() => {
-    console.warn('Resume not supported in multi-area timing');
+    // Resume not supported in multi-area timing
   }, []);
 
   return {

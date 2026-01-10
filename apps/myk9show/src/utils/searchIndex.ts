@@ -84,30 +84,7 @@ class SearchIndex {
 
     const normalizedQuery = this.normalizeText(query);
     const queryTerms = this.tokenize(normalizedQuery);
-    
-    // Debug logging for "Coop" searches
-    if (query.toLowerCase().includes('coop')) {
-      console.log('🔍 Debugging search for:', query);
-      console.log('🔤 Query terms:', queryTerms);
-      console.log('📋 All items in index:', Array.from(this.items.keys()));
-      
-      // Find Cooper specifically
-      const cooperItem = Array.from(this.items.values()).find(item => 
-        item.title.toLowerCase().includes('cooper') || 
-        item.searchText.toLowerCase().includes('cooper')
-      );
-      if (cooperItem) {
-        console.log('🐕 Found Cooper item:', {
-          id: cooperItem.id,
-          title: cooperItem.title,
-          searchText: cooperItem.searchText,
-          tokens: this.tokenize(cooperItem.searchText)
-        });
-      } else {
-        console.log('❌ Cooper not found in items');
-      }
-    }
-    
+
     // Find candidate items
     const candidates = this.findCandidates(queryTerms);
     
@@ -234,50 +211,26 @@ class SearchIndex {
 
   private findCandidates(queryTerms: string[]): Set<string> {
     const candidates = new Set<string>();
-    
-    // Debug logging for "coop" searches
-    const isCoopSearch = queryTerms.some(term => term.includes('coop'));
-    if (isCoopSearch) {
-      console.log('🔍 findCandidates for:', queryTerms);
-      console.log('📚 Inverted index keys:', Array.from(this.invertedIndex.keys()).slice(0, 20));
-      
-      // Check if "cooper" is in the inverted index
-      const cooperInIndex = this.invertedIndex.get('cooper');
-      console.log('🔎 "cooper" in inverted index:', cooperInIndex ? Array.from(cooperInIndex) : 'NOT FOUND');
-    }
-    
+
     // Exact matches first
     queryTerms.forEach(term => {
       const exactMatches = this.invertedIndex.get(term);
       if (exactMatches) {
         exactMatches.forEach(id => candidates.add(id));
       }
-      if (isCoopSearch) {
-        console.log(`🎯 Exact matches for "${term}":`, exactMatches ? Array.from(exactMatches) : 'none');
-      }
     });
-    
+
     // Fuzzy matches using n-grams
     queryTerms.forEach(term => {
       const ngrams = this.generateNgrams(term, 2);
-      if (isCoopSearch) {
-        console.log(`🔤 N-grams for "${term}":`, ngrams);
-      }
       ngrams.forEach(ngram => {
         const matches = this.ngramIndex.get(ngram);
         if (matches) {
           matches.forEach(id => candidates.add(id));
         }
-        if (isCoopSearch && matches) {
-          console.log(`📝 N-gram "${ngram}" matches:`, Array.from(matches));
-        }
       });
     });
-    
-    if (isCoopSearch) {
-      console.log('🎯 Final candidates:', Array.from(candidates));
-    }
-    
+
     return candidates;
   }
 

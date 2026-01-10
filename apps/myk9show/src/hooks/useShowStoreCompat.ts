@@ -63,7 +63,7 @@ export const useShowStoreCompat = () => {
 
     // Data Management
     setShows: () => {
-      console.warn('setShows is not needed with React Query - data is managed automatically');
+      // setShows is not needed with React Query - data is managed automatically
     },
 
     loadShows: async (): Promise<void> => {
@@ -76,9 +76,8 @@ export const useShowStoreCompat = () => {
       return 'synced'; // All operations are immediate with database
     },
 
-    // Legacy methods for compatibility - these just log warnings and call new methods
+    // Legacy methods for compatibility - these call new methods
     addShowLegacy: (show: Show) => {
-      console.warn('addShowLegacy is deprecated. Use addShow() instead.');
       // Convert Show to ShowInput and call new method
       const showInput: ShowInput = {
         name: show.name,
@@ -103,11 +102,10 @@ export const useShowStoreCompat = () => {
         assignedJudges: show.assignedJudges,
         trials: show.trials,
       };
-      createShow(showInput).catch(console.error);
+      createShow(showInput).catch(() => {});
     },
 
     updateShowLegacy: (show: Show) => {
-      console.warn('updateShowLegacy is deprecated. Use updateShow() instead.');
       const showInput: ShowInput = {
         name: show.name,
         type: show.type,
@@ -131,27 +129,25 @@ export const useShowStoreCompat = () => {
         assignedJudges: show.assignedJudges,
         trials: show.trials,
       };
-      updateShow({ id: show.id, updates: showInput }).catch(console.error);
+      updateShow({ id: show.id, updates: showInput }).catch(() => {});
     },
 
     removeShow: (id: string) => {
-      console.warn('removeShow is deprecated. Use deleteShow() instead.');
-      deleteShow({ id }).catch(console.error);
+      deleteShow({ id }).catch(() => {});
     },
 
     removeShowCascading: (id: string) => {
-      console.warn('removeShowCascading is deprecated. Use deleteShowCascading() instead.');
-      deleteShow({ id }).catch(console.error);
+      deleteShow({ id }).catch(() => {});
     },
 
     previewCascadingDelete: (): CascadingDeletePreview | null => {
-      console.warn('previewCascadingDelete is not yet implemented with database backend');
+      // previewCascadingDelete is not yet implemented with database backend
       return null;
     },
 
     // Selection (this could be enhanced with additional state management if needed)
     selectShow: () => {
-      console.warn('selectShow is not implemented in compatibility layer. Consider managing selection state in components.');
+      // selectShow is not implemented in compatibility layer - manage selection state in components
     },
   }), [showsQuery, createShow, updateShow, deleteShow, isCreating, isUpdating, isDeleting]);
 

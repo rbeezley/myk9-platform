@@ -135,8 +135,8 @@ export const useAlerts = (options: UseAlertsOptions = {}): UseAlertsReturn => {
     try {
       const stats = alertingService.getAlertStatistics();
       setStatistics(stats);
-    } catch (err) {
-      console.warn('Failed to update statistics:', err);
+    } catch {
+      // Statistics update failed - continue with stale data
     }
   }, [alertingService]);
 
@@ -420,7 +420,7 @@ export const useAlertNotifications = (
   }, [notificationsEnabled, maxToasts, autoHideDuration, alertingService, dismissToast]);
 
   const markAsRead = useCallback((alertId: string) => {
-    console.log('Marking alert as read:', alertId);
+    void alertId; // alertId tracked for future persistence
     setUnreadCount(prev => Math.max(0, prev - 1));
   }, []);
 

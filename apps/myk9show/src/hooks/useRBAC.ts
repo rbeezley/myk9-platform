@@ -51,7 +51,6 @@ export function useRBAC(options: UseRBACOptions = {}): RBACContextValue {
   // Load user permissions and roles
   const loadUserData = useCallback(async () => {
     if (!user?.id) {
-      console.log('🔐 RBAC Debug - No user ID, clearing data');
       setUserPermissions([]);
       setUserRoles([]);
       setEffectivePermissions([]);
@@ -64,36 +63,20 @@ export function useRBAC(options: UseRBACOptions = {}): RBACContextValue {
       setError(null);
 
       const data = await rbacService.getUserPermissions(user.id);
-      
+
       setUserPermissions(data.permissions);
       setUserRoles(data.roles);
       setEffectivePermissions(data.effectivePermissions);
-      
+
       // Update permission cache
       const newCache = new Map<string, boolean>();
       data.effectivePermissions.forEach(permission => {
         newCache.set(permission, true);
       });
       setPermissionCache(newCache);
-      
-      // Debug logging for RBAC permissions
-      console.log('🔐 RBAC DEBUG - User permissions loaded:');
-      console.log('  - Total effective permissions:', data.effectivePermissions.length);
-      console.log('  - Effective permissions:', data.effectivePermissions);
-      console.log('  - Has show:create:', data.effectivePermissions.includes('show:create'));
-      console.log('  - User roles:', data.roles.map(r => r.role?.name).filter(Boolean));
-      
+
       setLastRefreshed(new Date().toISOString());
-      
-      // Keep one debug log to verify permissions are loaded
-      console.log('🔐 RBAC Loaded:', {
-        userId: user.id.substring(0, 8) + '...',
-        permissionCount: data.effectivePermissions.length,
-        hasShowCreate: newCache.has('show:create'),
-        roles: data.roles.map(r => r.role?.name).filter(Boolean)
-      });
     } catch (err) {
-      console.error('🔐 RBAC Error:', err);
       setError(err instanceof Error ? err.message : 'Failed to load permissions');
     } finally {
       setIsLoading(false);
@@ -119,7 +102,6 @@ export function useRBAC(options: UseRBACOptions = {}): RBACContextValue {
     scope?: { type: string; id: string }
   ): boolean => {
     if (!user?.id) {
-      console.log('🔐 RBAC Debug - hasPermission: No user ID');
       return false;
     }
 
@@ -127,10 +109,8 @@ export function useRBAC(options: UseRBACOptions = {}): RBACContextValue {
     // Scope checking will be enhanced in future iterations
     // Suppress unused parameter warning - scope reserved for future scoped permission feature
     void scope;
-    
-    const hasPermissionResult = permissionCache.has(permission) && permissionCache.get(permission) === true;
-    
-    return hasPermissionResult;
+
+    return permissionCache.has(permission) && permissionCache.get(permission) === true;
   }, [user?.id, permissionCache]);
 
   // Asynchronous permission check (queries database)
@@ -152,8 +132,7 @@ export function useRBAC(options: UseRBACOptions = {}): RBACContextValue {
       });
       
       return hasPermission;
-    } catch (err) {
-      console.error('Permission check failed:', err);
+    } catch {
       return false;
     }
   }, [user?.id]);
@@ -283,8 +262,7 @@ export function usePermission(
       const result = await rbacService.checkPermission(user.id, permission, scope);
       setHasPermission(result);
       return result;
-    } catch (error) {
-      console.error('Permission check failed:', error);
+    } catch {
       setHasPermission(false);
       return false;
     } finally {

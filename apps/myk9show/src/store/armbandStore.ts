@@ -190,7 +190,6 @@ export const useArmbandStore = create<ArmbandState>()(
             });
             
             if (conflict) {
-              console.warn(`Skipping dog ${dogId} due to conflict: ${conflict.reason}`);
               return;
             }
           }
@@ -321,9 +320,8 @@ export const useArmbandStore = create<ArmbandState>()(
         };
       },
       
-      resolveConflict: (conflictId, resolution) => {
+      resolveConflict: (_conflictId, _resolution) => {
         // TODO: Implement conflict resolution strategies
-        console.log('Resolving conflict:', conflictId, resolution);
       },
       
       getAssignmentsByShow: (showId) => {

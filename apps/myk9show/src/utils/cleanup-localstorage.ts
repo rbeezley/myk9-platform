@@ -9,7 +9,6 @@ export function cleanupOldLocalStorage() {
   
   storageKeys.forEach(key => {
     if (localStorage.getItem(key)) {
-      console.log(`Removing old localStorage key: ${key}`);
       localStorage.removeItem(key);
     }
   });
@@ -19,9 +18,8 @@ export function cleanupOldLocalStorage() {
 }
 
 // Run cleanup if not already done
-export function runTemplateStorageCleanup() {
+export function runTemplateStorageCleanup(): void {
   if (!localStorage.getItem('template-storage-cleanup-v1')) {
-    console.log('Running one-time template storage cleanup...');
     cleanupOldLocalStorage();
   }
 }

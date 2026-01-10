@@ -72,8 +72,8 @@ export const useRealTimeUpdates = () => {
       const duration = performance.now() - startTime;
       RelationshipPerformanceMonitor.getInstance().recordOperation('batchUpdate', duration);
       
-    } catch (error) {
-      console.error('Failed to perform batch update:', error);
+    } catch {
+      // Batch update failed
     }
   }, [user, shows, loadShows, loadEntries]);
 
@@ -96,9 +96,8 @@ export const useRealTimeUpdates = () => {
   // Performance monitoring and cleanup
   useEffect(() => {
     return () => {
-      // Log performance metrics when component unmounts
-      const metrics = RelationshipPerformanceMonitor.getInstance().getMetrics();
-      console.log('Real-time update performance metrics:', metrics);
+      // Cleanup performance monitor on unmount
+      RelationshipPerformanceMonitor.getInstance().getMetrics();
     };
   }, []);
 

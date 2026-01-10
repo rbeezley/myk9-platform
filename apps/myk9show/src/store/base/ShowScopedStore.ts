@@ -102,7 +102,6 @@ export function createShowScopedActions<T>(
           totalPages: result.totalPages,
         });
 
-        console.log(`📊 Loaded ${dataType} data for show ${showId} (${result.data.length} items, role: ${userRole})`);
       } catch (error) {
         console.error(`Failed to load ${dataType} data:`, error);
         setState({ 
@@ -128,7 +127,6 @@ export function createShowScopedActions<T>(
         totalPages: 1,
       });
 
-      console.log(`🧹 Cleared ${dataType} data`);
     },
 
     setShowContext: (showId: string | null, userRole: string, userId?: string) => {
@@ -178,7 +176,6 @@ export function createShowScopedActions<T>(
       const setState = arguments[2] as (updates: Partial<ShowScopedData>) => void;
       
       if (!state.activeShowId || !state.userRole) {
-        console.warn('Cannot load page: no active show context');
         return;
       }
 

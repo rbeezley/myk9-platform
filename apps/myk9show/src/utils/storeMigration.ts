@@ -113,8 +113,6 @@ export function createSampleEntries(): Omit<ShowEntry, 'id' | 'status' | 'status
   // Use the current class ID if available, otherwise use a default pattern
   const targetClassId = urlClassId || '1-class-1749403840319-0';
   
-  console.log('🎯 Creating sample entries for classId:', targetClassId);
-  
   return [
     {
       showId: '1', // Summer Specialty Show

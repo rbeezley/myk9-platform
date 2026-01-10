@@ -42,8 +42,6 @@ export function useOptimizedNavigation() {
         const existingData = queryClient.getQueryData<Show>(showQueryKeys.detail(showId));
         
         if (!existingData) {
-          console.log(`⚡ Prefetching show data for ${showId}`);
-          
           // Prefetch in parallel with navigation
           queryClient.prefetchQuery({
             queryKey: showQueryKeys.detail(showId),
@@ -59,12 +57,9 @@ export function useOptimizedNavigation() {
 
       // 2. Navigate using React Router (no page reload)
       navigate(`/shows/${showId}`, { replace });
-      
-      const duration = performance.now() - startTime;
-      console.log(`🚀 Navigation to show ${showId} completed in ${duration.toFixed(2)}ms`);
-      
-    } catch (error) {
-      console.error('❌ Navigation failed:', error);
+
+      void startTime; // Used for performance tracking if needed
+    } catch {
       // Fallback to regular navigation
       if (replace) {
         window.location.replace(`/shows/${showId}`);

@@ -625,14 +625,11 @@ export function useLiveCompetition(options: UseLiveCompetitionOptions) {
       // Setup event listeners
       setupEventListeners();
 
-      setState(prev => ({ 
-        ...prev, 
+      setState(prev => ({
+        ...prev,
         isActive: true,
         currentUser: services.presence?.getCurrentUser() || null,
       }));
-
-      console.log('Live competition started successfully');
-
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to start live competition';
       setState(prev => ({ ...prev, error: errorMessage, isActive: false }));
@@ -684,9 +681,6 @@ export function useLiveCompetition(options: UseLiveCompetitionOptions) {
       await Promise.all(stopPromises);
 
       setState(prev => ({ ...prev, isActive: false }));
-
-      console.log('Live competition stopped');
-
     } catch (error) {
       errorMonitor.captureError(error as Error, {
         additionalData: { showId, classId }
@@ -717,7 +711,8 @@ export function useLiveCompetition(options: UseLiveCompetitionOptions) {
   const broadcastCallToRing = useCallback(async (entryId: string, callType: CallToRingNotification['callType']) => {
     try {
       // This would be implemented based on your specific requirements
-      console.log(`Broadcasting call to ring: ${entryId} (${callType})`);
+      void entryId;
+      void callType;
     } catch (error) {
       errorMonitor.captureError(error as Error, {
         additionalData: { entryId, callType, showId }
@@ -881,9 +876,6 @@ export function useLiveCompetition(options: UseLiveCompetitionOptions) {
         const analytics = services.presence.getAnalytics();
         setState(prev => ({ ...prev, presenceAnalytics: analytics }));
       }
-
-      console.log('Data refreshed');
-
     } catch (error) {
       errorMonitor.captureError(error as Error, {
         additionalData: { showId }
@@ -906,9 +898,7 @@ export function useLiveCompetition(options: UseLiveCompetitionOptions) {
         presenceAnalytics: services.presence?.getAnalytics(),
       };
 
-      console.log('Metrics exported:', exportData);
       return exportData;
-
     } catch (error) {
       errorMonitor.captureError(error as Error, {
         additionalData: { showId }

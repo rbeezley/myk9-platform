@@ -44,6 +44,5 @@ export const resetSpecificStore = (storeName: string) => {
   const key = storeKeys[storeName];
   if (key) {
     localStorage.removeItem(key);
-    console.log(`Reset ${storeName} store`);
   }
 };

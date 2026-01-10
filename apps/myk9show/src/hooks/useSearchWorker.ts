@@ -44,7 +44,6 @@ export function useSearchWorker(): UseSearchWorkerResult {
         URL.revokeObjectURL(workerUrl);
       };
     } catch {
-      console.warn('Web Worker not supported, falling back to main thread');
       setWorkerError('Web Worker not supported');
       setIsWorkerReady(true); // Allow fallback to main thread
     }
@@ -84,13 +83,8 @@ export function useSearchWorker(): UseSearchWorkerResult {
       throw new Error('Search worker not ready');
     }
 
-    try {
-      const result = await sendWorkerMessage('SEARCH', { query, options });
-      return (result && typeof result === 'object' && 'results' in result ? result.results : []) as SearchResult[];
-    } catch (error) {
-      console.error('Search worker error:', error);
-      throw error;
-    }
+    const result = await sendWorkerMessage('SEARCH', { query, options });
+    return (result && typeof result === 'object' && 'results' in result ? result.results : []) as SearchResult[];
   }, [isWorkerReady, sendWorkerMessage]);
 
   const getSuggestions = useCallback(async (query: string, limit = 5): Promise<string[]> => {
@@ -98,13 +92,8 @@ export function useSearchWorker(): UseSearchWorkerResult {
       throw new Error('Search worker not ready');
     }
 
-    try {
-      const result = await sendWorkerMessage('GET_SUGGESTIONS', { query, limit });
-      return (result && typeof result === 'object' && 'suggestions' in result ? result.suggestions : []) as string[];
-    } catch (error) {
-      console.error('Suggestions worker error:', error);
-      throw error;
-    }
+    const result = await sendWorkerMessage('GET_SUGGESTIONS', { query, limit });
+    return (result && typeof result === 'object' && 'suggestions' in result ? result.suggestions : []) as string[];
   }, [isWorkerReady, sendWorkerMessage]);
 
   const buildIndex = useCallback(async (items: SearchableItem[]): Promise<void> => {
@@ -112,12 +101,7 @@ export function useSearchWorker(): UseSearchWorkerResult {
       throw new Error('Search worker not ready');
     }
 
-    try {
-      await sendWorkerMessage('BUILD_INDEX', { items });
-    } catch (error) {
-      console.error('Build index worker error:', error);
-      throw error;
-    }
+    await sendWorkerMessage('BUILD_INDEX', { items });
   }, [isWorkerReady, sendWorkerMessage]);
 
   const clearIndex = useCallback(async (): Promise<void> => {
@@ -125,12 +109,7 @@ export function useSearchWorker(): UseSearchWorkerResult {
       throw new Error('Search worker not ready');
     }
 
-    try {
-      await sendWorkerMessage('CLEAR_INDEX', {});
-    } catch (error) {
-      console.error('Clear index worker error:', error);
-      throw error;
-    }
+    await sendWorkerMessage('CLEAR_INDEX', {});
   }, [isWorkerReady, sendWorkerMessage]);
 
   // Handle worker messages
@@ -152,9 +131,8 @@ export function useSearchWorker(): UseSearchWorkerResult {
         }
       };
 
-      const handleError = (error: ErrorEvent) => {
-        console.error('Worker error:', error);
-        setWorkerError(error.message);
+      const handleError = (event: ErrorEvent) => {
+        setWorkerError(event.message);
       };
 
       currentWorker.addEventListener('message', handleMessage);

@@ -22,23 +22,18 @@ export function useEncryptedStorage() {
    */
   const initializeEncryption = useCallback(async () => {
     if (!user) {
-      console.log('🔐 No user logged in, skipping encryption initialization');
       return false;
     }
 
     try {
-      console.log('🔐 Initializing encryption for user:', user.id.substring(0, 8) + '...');
-      
       // Initialize key management service
       await keyManager.initialize(user.id, user.aud); // Use audience as session token
-      
+
       // Set user context for storage factory
       storageAdapterFactory.setUserContext(user.id, user.aud);
-      
-      console.log('✅ Encryption initialized successfully');
+
       return true;
-    } catch (error) {
-      console.error('❌ Failed to initialize encryption:', error);
+    } catch {
       return false;
     }
   }, [user]);
@@ -48,17 +43,13 @@ export function useEncryptedStorage() {
    */
   const cleanupEncryption = useCallback(async () => {
     try {
-      console.log('🧹 Cleaning up encryption resources');
-      
       // Clean up old keys (keep 30 days for logout cleanup)
       await keyManager.cleanupOldKeys(30);
-      
+
       // Clear user context from storage factory
       storageAdapterFactory.setUserContext('', '');
-      
-      console.log('✅ Encryption cleanup completed');
-    } catch (error) {
-      console.error('❌ Failed to cleanup encryption:', error);
+    } catch {
+      // Cleanup failed silently
     }
   }, []);
 
@@ -69,15 +60,14 @@ export function useEncryptedStorage() {
     try {
       const keyStats = keyManager.getStats();
       const adapterInfo = storageAdapterFactory.getAdapterInfo();
-      
+
       return {
         initialized: keyStats.totalKeys > 0,
         enabled: adapterInfo.enableEncryption,
         keyCount: keyStats.totalKeys,
         lastInitialized: keyStats.newestKey || undefined,
       };
-    } catch (error) {
-      console.warn('Failed to get encryption status:', error);
+    } catch {
       return {
         initialized: false,
         enabled: false,
@@ -94,32 +84,24 @@ export function useEncryptedStorage() {
       throw new Error('User must be logged in to rotate keys');
     }
 
-    try {
-      console.log('🔄 Starting key rotation...');
-      
-      const keyStats = keyManager.getStats();
-      let rotatedCount = 0;
-      
-      // Get all key purposes and rotate their latest keys
-      for (const purpose of Object.keys(keyStats.keysByPurpose)) {
-        try {
-          const keys = keyManager.listKeysForPurpose(purpose);
-          if (keys.length > 0) {
-            const latestKey = keys[0]; // Keys are sorted by creation date descending
-            await keyManager.rotateKey(latestKey.id);
-            rotatedCount++;
-          }
-        } catch (error) {
-          console.error(`Failed to rotate key for purpose ${purpose}:`, error);
+    const keyStats = keyManager.getStats();
+    let rotatedCount = 0;
+
+    // Get all key purposes and rotate their latest keys
+    for (const purpose of Object.keys(keyStats.keysByPurpose)) {
+      try {
+        const keys = keyManager.listKeysForPurpose(purpose);
+        if (keys.length > 0) {
+          const latestKey = keys[0]; // Keys are sorted by creation date descending
+          await keyManager.rotateKey(latestKey.id);
+          rotatedCount++;
         }
+      } catch {
+        // Failed to rotate key for this purpose, continue with others
       }
-      
-      console.log(`✅ Rotated ${rotatedCount} keys`);
-      return rotatedCount;
-    } catch (error) {
-      console.error('❌ Key rotation failed:', error);
-      throw error;
     }
+
+    return rotatedCount;
   }, [user]);
 
   /**
@@ -130,23 +112,12 @@ export function useEncryptedStorage() {
       throw new Error('User must be logged in to migrate data');
     }
 
-    try {
-      console.log('📦 Starting data migration to encrypted format...');
-      
-      // This would need to be implemented per store type
-      // For now, we'll just log that migration would happen here
-      console.log('🔄 Migration logic would be implemented per store');
-      
-      // Example of what migration would look like:
-      // const dogStoreAdapter = storageAdapterFactory.createStoreSpecificStorage('dogStore');
-      // await dogStoreAdapter.migrateToEncrypted();
-      
-      console.log('✅ Data migration completed');
-      return { migrated: 0, errors: 0 };
-    } catch (error) {
-      console.error('❌ Data migration failed:', error);
-      throw error;
-    }
+    // This would need to be implemented per store type
+    // Example of what migration would look like:
+    // const dogStoreAdapter = storageAdapterFactory.createStoreSpecificStorage('dogStore');
+    // await dogStoreAdapter.migrateToEncrypted();
+
+    return { migrated: 0, errors: 0 };
   }, [user]);
 
   /**
@@ -154,12 +125,12 @@ export function useEncryptedStorage() {
    */
   useEffect(() => {
     if (user) {
-      initializeEncryption().catch(error => {
-        console.error('Failed to initialize encryption on user login:', error);
+      initializeEncryption().catch(() => {
+        // Failed to initialize encryption on user login
       });
     } else {
-      cleanupEncryption().catch(error => {
-        console.error('Failed to cleanup encryption on user logout:', error);
+      cleanupEncryption().catch(() => {
+        // Failed to cleanup encryption on user logout
       });
     }
   }, [user, initializeEncryption, cleanupEncryption]);

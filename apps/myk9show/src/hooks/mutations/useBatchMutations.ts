@@ -60,10 +60,10 @@ export const useBatchCreateDogsMutation = () => {
         }
       });
 
-      console.log(`Batch create dogs: ${summary.successful}/${summary.total} successful`);
+      void summary; // Summary available for future logging/metrics
     },
-    onError: (error) => {
-      console.error('Batch create dogs failed:', error);
+    onError: () => {
+      // Error handled by React Query
     }
   });
 };
@@ -118,10 +118,10 @@ export const useBatchUpdateDogsMutation = () => {
 
       // Invalidate lists to ensure consistency
       queryClient.invalidateQueries({ queryKey: queryKeys.dogs });
-      
-      console.log(`Batch update dogs: ${summary.successful}/${summary.total} successful`);
+
+      void summary; // Summary available for future logging/metrics
     },
-    onError: (error, { updates }, context) => {
+    onError: (_error, { updates }, context) => {
       // Rollback optimistic updates on error
       if (context?.previousData) {
         updates.forEach(({ id }) => {
@@ -130,7 +130,7 @@ export const useBatchUpdateDogsMutation = () => {
           }
         });
       }
-      console.error('Batch update dogs failed:', error);
+      // Error handled by React Query
     }
   });
 };
@@ -171,10 +171,10 @@ export const useBatchDeleteDogsMutation = () => {
     onSuccess: ({ summary }) => {
       // Invalidate lists to ensure consistency
       queryClient.invalidateQueries({ queryKey: queryKeys.dogs });
-      
-      console.log(`Batch delete dogs: ${summary.successful}/${summary.total} successful`);
+
+      void summary; // Summary available for future logging/metrics
     },
-    onError: (error, { ids }, context) => {
+    onError: (_error, { ids }, context) => {
       // Restore optimistically deleted dogs on error
       if (context?.previousData) {
         ids.forEach(id => {
@@ -183,7 +183,7 @@ export const useBatchDeleteDogsMutation = () => {
           }
         });
       }
-      console.error('Batch delete dogs failed:', error);
+      // Error handled by React Query
     }
   });
 };
@@ -221,7 +221,7 @@ export const useBatchCreateUsersMutation = () => {
         }
       });
 
-      console.log(`Batch create users: ${summary.successful}/${summary.total} successful`);
+      void summary; // Summary available for future logging/metrics
     }
   });
 };
@@ -255,8 +255,8 @@ export const useBatchUpdateUsersMutation = () => {
       });
 
       queryClient.invalidateQueries({ queryKey: queryKeys.users.lists() });
-      
-      console.log(`Batch update users: ${summary.successful}/${summary.total} successful`);
+
+      void summary; // Summary available for future logging/metrics
     }
   });
 };
@@ -298,7 +298,7 @@ export const useBatchCreateShowsMutation = () => {
         }
       });
 
-      console.log(`Batch create shows: ${summary.successful}/${summary.total} successful`);
+      void summary; // Summary available for future logging/metrics
     }
   });
 };
@@ -341,7 +341,7 @@ export const useBatchCreateClassesMutation = () => {
         }
       });
 
-      console.log(`Batch create classes: ${summary.successful}/${summary.total} successful`);
+      void summary; // Summary available for future logging/metrics
     }
   });
 };
@@ -380,7 +380,7 @@ export const useBatchCreateEntriesMutation = () => {
         }
       });
 
-      console.log(`Batch create entries: ${summary.successful}/${summary.total} successful`);
+      void summary; // Summary available for future logging/metrics
     }
   });
 };
@@ -422,7 +422,7 @@ export const useBatchUpdateEntryStatusesMutation = () => {
         queryClient.invalidateQueries({ queryKey: classKeys.detail(classId) });
       });
 
-      console.log(`Batch update entry statuses: ${summary.successful}/${summary.total} successful`);
+      void summary; // Summary available for future logging/metrics
     }
   });
 };

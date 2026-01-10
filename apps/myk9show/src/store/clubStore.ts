@@ -105,7 +105,6 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
       const replicatedClubs = await replicatedClubsTable.getAllClubs();
       const clubs = replicatedClubs.map(replicatedToClub);
 
-      console.log(`[ClubStore] Loaded ${clubs.length} clubs from local cache`);
 
       set({
         clubs,
@@ -131,8 +130,6 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
       const result = await replicatedClubsTable.sync();
 
       if (result.success) {
-        console.log(`[ClubStore] Synced ${result.rowsAffected} clubs from server`);
-
         // Reload from local cache after sync
         await get().loadClubs();
       } else {

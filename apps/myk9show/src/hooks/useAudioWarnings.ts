@@ -51,7 +51,6 @@ export function useAudioWarnings(settings: AudioSettings) {
       // Create audio context
       const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (!AudioContextClass) {
-        console.warn('Web Audio API not supported');
         return;
       }
 
@@ -63,8 +62,8 @@ export function useAudioWarnings(settings: AudioSettings) {
       }
 
       isInitializedRef.current = true;
-    } catch (error) {
-      console.warn('Failed to initialize audio context:', error);
+    } catch {
+      // Audio initialization failed - continue without audio
     }
   }, []);
 
@@ -97,9 +96,8 @@ export function useAudioWarnings(settings: AudioSettings) {
 
       oscillator.start(context.currentTime);
       oscillator.stop(context.currentTime + duration);
-
-    } catch (error) {
-      console.warn('Failed to play tone:', error);
+    } catch {
+      // Tone playback failed - continue silently
     }
   }, [config.volume, initializeAudio]);
 

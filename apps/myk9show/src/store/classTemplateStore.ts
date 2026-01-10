@@ -140,19 +140,14 @@ export const useClassTemplateStore = create<ClassTemplateStore>()(
         
         // Note: Since this is in a Zustand store, we can't use React hooks
         // This method should be deprecated in favor of component-level logic
-        console.warn('createClassesFromTemplate: This method should be called from a component using useClassStoreCompat');
-        
         return generatedClasses;
       },
 
-      createClassesFromPreset: async (presetKey, trialId) => {
+      createClassesFromPreset: async (presetKey, _trialId) => {
         const generatedClasses = get().generateClassesFromPreset(presetKey);
-        
+
         // Note: Since this is in a Zustand store, we can't use React hooks
         // This method should be deprecated in favor of component-level logic
-        console.warn('createClassesFromPreset: This method should be called from a component using useClassStoreCompat');
-        
-        console.log(`Generated ${generatedClasses.length} classes for trial ${trialId}`);
         
         return generatedClasses;
       }

@@ -33,11 +33,7 @@ export function optimizeQueryCache(queryClient: QueryClient) {
 /**
  * Prefetch critical show data on app initialization
  */
-export async function prefetchCriticalData(queryClient: QueryClient) {
-  if (import.meta.env.DEV) {
-    console.log('🚀 Prefetching critical data for performance...');
-  }
-  
+export async function prefetchCriticalData(queryClient: QueryClient): Promise<void> {
   try {
     // Prefetch shows list with high priority
     await queryClient.prefetchQuery({
@@ -51,42 +47,16 @@ export async function prefetchCriticalData(queryClient: QueryClient) {
       },
       staleTime: 1000 * 60 * 10, // 10 minutes for critical data
     });
-    
-    if (import.meta.env.DEV) {
-      console.log('✅ Critical data prefetch completed');
-    }
-  } catch (error) {
-    console.warn('⚠️ Critical data prefetch failed:', error);
+  } catch {
+    // Prefetch failed silently - non-critical
   }
 }
 
 /**
  * Setup performance monitoring for React Query
  */
-export function setupQueryPerformanceMonitoring(queryClient: QueryClient) {
-  if (!import.meta.env.DEV) return;
-  
-  const queryCache = queryClient.getQueryCache();
-  
-  queryCache.subscribe((event) => {
-    if (event.type === 'updated') {
-      const query = event.query;
-      const queryKey = query.queryKey;
-      
-      if (queryKey.includes('shows')) {
-        const queryState = query.state;
-        
-        if (queryState.status === 'success' || queryState.status === 'error') {
-          const duration = queryState.dataUpdatedAt ? queryState.dataUpdatedAt - queryState.dataUpdatedAt : 0;
-          console.log(`📊 Query [${queryKey.join(', ')}] completed in ${duration.toFixed(2)}ms`);
-          
-          if (duration > 1000) {
-            console.warn(`🐌 Slow query detected: ${duration.toFixed(2)}ms for ${queryKey.join(', ')}`);
-          }
-        }
-      }
-    }
-  });
+export function setupQueryPerformanceMonitoring(_queryClient: QueryClient): void {
+  // Performance monitoring disabled - enable via dev tools if needed
 }
 
 /**

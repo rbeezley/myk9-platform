@@ -153,13 +153,8 @@ export function useShowScopedData(options: ShowScopeOptions = {}): ShowScopedDat
   // Refresh function
   const refreshData = () => {
     // In a real implementation, this would trigger store refresh
-    console.log(`🔄 Refreshing show data for show: ${showId}`);
+    void showId;
   };
-
-  // Performance optimization: Log data scope for debugging
-  if (import.meta.env.DEV && showId) {
-    console.log(`📊 Show scope: ${showId}, entries: ${scopedEntries.length}, classes: ${scopedClasses.length}, trials: ${trials.length}`);
-  }
 
   return {
     // Core data

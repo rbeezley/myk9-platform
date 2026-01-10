@@ -260,15 +260,14 @@ export const useOfflineSync = (options: UseOfflineSyncOptions = {}): UseOfflineS
 
     try {
       const draftId = offlineManager.createDraft(entityType, entityId, data);
-      
+
       setDraftState(prev => ({
         ...prev,
         lastDraftSaved: new Date(),
       }));
-      
+
       updateState();
-      
-      console.log(`Draft created: ${draftId}`);
+
       return draftId;
 
     } catch (error) {
@@ -290,15 +289,13 @@ export const useOfflineSync = (options: UseOfflineSyncOptions = {}): UseOfflineS
 
     try {
       offlineManager.updateDraft(draftId, data);
-      
+
       setDraftState(prev => ({
         ...prev,
         lastDraftSaved: new Date(),
       }));
-      
+
       updateState();
-      
-      console.log(`Draft updated: ${draftId}`);
     } catch (error) {
       setLastError(error as Error);
       throw error;
@@ -345,7 +342,6 @@ export const useOfflineSync = (options: UseOfflineSyncOptions = {}): UseOfflineS
       if (drafts.has(draftId)) {
         drafts.delete(draftId);
         updateState();
-        console.log(`Draft deleted: ${draftId}`);
       }
     } catch (error) {
       setLastError(error as Error);
@@ -368,8 +364,6 @@ export const useOfflineSync = (options: UseOfflineSyncOptions = {}): UseOfflineS
       setState(prev => ({ ...prev, isSyncing: true }));
       await offlineManager.forceSyncNow();
       updateState();
-      
-      console.log('Force sync completed');
     } catch (error) {
       setLastError(error as Error);
       setState(prev => ({ ...prev, isSyncing: false }));
@@ -386,7 +380,6 @@ export const useOfflineSync = (options: UseOfflineSyncOptions = {}): UseOfflineS
       clearInterval(syncIntervalRef.current);
       syncIntervalRef.current = null;
     }
-    console.log('Sync paused');
   }, []);
 
   /**
@@ -397,13 +390,12 @@ export const useOfflineSync = (options: UseOfflineSyncOptions = {}): UseOfflineS
     if (autoSync && !syncIntervalRef.current) {
       syncIntervalRef.current = setInterval(() => {
         if (state.isOnline && state.pendingOperations > 0) {
-          forceSyncNow().catch(error => {
-            console.warn('Auto-sync failed:', error);
+          forceSyncNow().catch(() => {
+            // Auto-sync failed silently
           });
         }
       }, syncInterval);
     }
-    console.log('Sync resumed');
   }, [autoSync, syncInterval, state.isOnline, state.pendingOperations, forceSyncNow]);
 
   /**
@@ -414,8 +406,6 @@ export const useOfflineSync = (options: UseOfflineSyncOptions = {}): UseOfflineS
       offlineManager.clearOfflineData();
       conflictResolver.clearConflicts();
       updateState();
-      
-      console.log('All offline data cleared');
     } catch (error) {
       setLastError(error as Error);
       throw error;
@@ -437,8 +427,6 @@ export const useOfflineSync = (options: UseOfflineSyncOptions = {}): UseOfflineS
     try {
       await conflictResolver.resolveConflict(conflictId, strategy, customData);
       updateState();
-      
-      console.log(`Conflict resolved: ${conflictId} using ${strategy}`);
     } catch (error) {
       setLastError(error as Error);
       throw error;
@@ -460,7 +448,6 @@ export const useOfflineSync = (options: UseOfflineSyncOptions = {}): UseOfflineS
     strategy: ResolutionStrategy
   ): void => {
     conflictResolver.setUserPreference(entityType, strategy);
-    console.log(`Conflict preference set: ${entityType} -> ${strategy}`);
   }, []);
 
   /**
@@ -507,8 +494,6 @@ export const useOfflineSync = (options: UseOfflineSyncOptions = {}): UseOfflineS
       if (state.isOnline) {
         await forceSyncNow();
       }
-      
-      console.log(`Retrying ${failedItems.length} failed operations`);
     } catch (error) {
       setLastError(error as Error);
       throw error;
@@ -568,10 +553,8 @@ export const useOfflineSync = (options: UseOfflineSyncOptions = {}): UseOfflineS
 
       // Clear resolved conflicts
       conflictResolver.clearConflicts();
-      
+
       updateState();
-      
-      console.log('Storage optimization completed');
     } catch (error) {
       setLastError(error as Error);
       throw error;
@@ -591,37 +574,35 @@ export const useOfflineSync = (options: UseOfflineSyncOptions = {}): UseOfflineS
   useEffect(() => {
     const unsubscribeConnectionRestored = offlineManager.addEventListener(
       'connection-restored',
-() => {
-        console.log('Connection restored event received');
+      () => {
         updateState();
       }
     );
 
     const unsubscribeConnectionLost = offlineManager.addEventListener(
       'connection-lost',
-() => {
-        console.log('Connection lost event received');
+      () => {
         updateState();
       }
     );
 
     const unsubscribeSyncStarted = offlineManager.addEventListener(
       'sync-started',
-() => {
+      () => {
         setState(prev => ({ ...prev, isSyncing: true }));
       }
     );
 
     const unsubscribeSyncCompleted = offlineManager.addEventListener(
       'sync-completed',
-() => {
+      () => {
         updateState();
       }
     );
 
     const unsubscribeSyncFailed = offlineManager.addEventListener(
       'sync-failed',
-() => {
+      () => {
         setState(prev => ({ ...prev, isSyncing: false }));
         setLastError(new Error('Sync failed'));
       }
@@ -629,7 +610,7 @@ export const useOfflineSync = (options: UseOfflineSyncOptions = {}): UseOfflineS
 
     const unsubscribeConflictDetected = offlineManager.addEventListener(
       'conflict-detected',
-() => {
+      () => {
         if (enableConflictDetection) {
           setConflictState(prev => ({
             ...prev,
@@ -663,8 +644,8 @@ export const useOfflineSync = (options: UseOfflineSyncOptions = {}): UseOfflineS
     if (autoSync) {
       syncIntervalRef.current = setInterval(() => {
         if (state.isOnline && state.pendingOperations > 0 && !state.isSyncing) {
-          forceSyncNow().catch(error => {
-            console.warn('Auto-sync failed:', error);
+          forceSyncNow().catch(() => {
+            // Auto-sync failed silently
           });
         }
       }, syncInterval);

@@ -2,47 +2,38 @@
  * Completely clear all storage (localStorage, sessionStorage, IndexedDB)
  * Use this to start completely fresh without any mock data
  */
-export async function clearAllStorage() {
-  console.log('🧹 Clearing all storage...');
-  
+export async function clearAllStorage(): Promise<void> {
   // Clear localStorage
   try {
     localStorage.clear();
-    console.log('✅ localStorage cleared');
-  } catch (e: unknown) {
-    console.error('❌ Error clearing localStorage:', e);
+  } catch {
+    // Storage clearing failed silently
   }
-  
+
   // Clear sessionStorage
   try {
     sessionStorage.clear();
-    console.log('✅ sessionStorage cleared');
-  } catch (e: unknown) {
-    console.error('❌ Error clearing sessionStorage:', e);
+  } catch {
+    // Storage clearing failed silently
   }
-  
+
   // Clear IndexedDB
   try {
     const databases = await indexedDB.databases();
     for (const db of databases) {
       if (db.name) {
         await indexedDB.deleteDatabase(db.name);
-        console.log(`✅ Deleted IndexedDB: ${db.name}`);
       }
     }
-  } catch (e: unknown) {
-    void e; // Suppress unused variable warning
+  } catch {
     // Fallback for browsers that don't support databases()
     try {
       await indexedDB.deleteDatabase('myK9ShowDB');
-      console.log('✅ Deleted myK9ShowDB');
-    } catch (err: unknown) {
-      console.error('❌ Error clearing IndexedDB:', err);
+    } catch {
+      // IndexedDB clearing failed silently
     }
   }
-  
-  console.log('🎉 All storage cleared! Refreshing page...');
-  
+
   // Force a hard refresh
   window.location.reload();
 }

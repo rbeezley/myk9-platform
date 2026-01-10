@@ -70,14 +70,7 @@ export function useOptimisticRegistration(
         // In real implementation, this would save to backend
         return { success: true, selectedDogs };
       },
-      {
-        onSuccess: () => {
-          console.log('Dog selection saved successfully');
-        },
-        onError: (error) => {
-          console.error('Failed to save dog selection:', error);
-        }
-      }
+      {}
     );
   }, [registrationState, executeOptimisticUpdate]);
 
@@ -245,11 +238,7 @@ export function useOptimisticRegistration(
         await new Promise(resolve => setTimeout(resolve, 500));
         return { success: true, stepId, completed: true };
       },
-      {
-        onSuccess: () => {
-          console.log(`Step ${stepId} completed`);
-        }
-      }
+      {}
     );
   }, [registrationState, executeOptimisticUpdate]);
 

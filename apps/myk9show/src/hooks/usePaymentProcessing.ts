@@ -60,13 +60,10 @@ export function usePaymentProcessing() {
 
       setFeeCalculation(calculation);
       setState(prev => ({ ...prev, loading: false }));
-      
-      console.log('💰 Fee calculated:', calculation);
       return calculation;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Fee calculation failed';
       setState(prev => ({ ...prev, loading: false, error: errorMessage }));
-      console.error('Fee calculation error:', error);
       return null;
     }
   }, []);
@@ -112,17 +109,15 @@ export function usePaymentProcessing() {
         clientSecret: result.clientSecret || null
       }));
 
-      console.log('💳 Payment created:', result);
       return true;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Payment creation failed';
-      setState(prev => ({ 
-        ...prev, 
-        loading: false, 
-        error: errorMessage, 
-        success: false 
+      setState(prev => ({
+        ...prev,
+        loading: false,
+        error: errorMessage,
+        success: false
       }));
-      console.error('Payment creation error:', error);
       return false;
     }
   }, []);
@@ -144,29 +139,22 @@ export function usePaymentProcessing() {
         paymentMethodInfo
       );
 
-      setState(prev => ({ 
-        ...prev, 
-        loading: false, 
+      setState(prev => ({
+        ...prev,
+        loading: false,
         success,
         error: success ? null : 'Payment confirmation failed'
       }));
 
-      if (success) {
-        console.log('✅ Payment confirmed:', paymentId);
-      } else {
-        console.error('❌ Payment confirmation failed:', paymentId);
-      }
-
       return success;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Payment confirmation failed';
-      setState(prev => ({ 
-        ...prev, 
-        loading: false, 
-        error: errorMessage, 
-        success: false 
+      setState(prev => ({
+        ...prev,
+        loading: false,
+        error: errorMessage,
+        success: false
       }));
-      console.error('Payment confirmation error:', error);
       return false;
     }
   }, []);
@@ -180,19 +168,17 @@ export function usePaymentProcessing() {
   ): Promise<boolean> => {
     try {
       const success = await paymentService.failPayment(paymentId, errorMessage);
-      
+
       if (success) {
-        setState(prev => ({ 
-          ...prev, 
-          error: errorMessage || 'Payment failed', 
-          success: false 
+        setState(prev => ({
+          ...prev,
+          error: errorMessage || 'Payment failed',
+          success: false
         }));
-        console.log('❌ Payment marked as failed:', paymentId);
       }
 
       return success;
     } catch (error) {
-      console.error('Error marking payment as failed:', error);
       return false;
     }
   }, []);
@@ -209,36 +195,29 @@ export function usePaymentProcessing() {
     setState(prev => ({ ...prev, loading: true, error: null }));
 
     try {
-      console.log('Processing refund for user:', userId);
+      void userId; // userId available for future audit logging
       const refundId = await paymentService.processRefund(
         paymentId,
         amount,
         reason
       );
 
-      setState(prev => ({ 
-        ...prev, 
+      setState(prev => ({
+        ...prev,
         loading: false,
         success: !!refundId,
         error: refundId ? null : 'Refund processing failed'
       }));
 
-      if (refundId) {
-        console.log('💸 Refund processed:', refundId);
-      } else {
-        console.error('❌ Refund processing failed');
-      }
-
       return refundId;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Refund processing failed';
-      setState(prev => ({ 
-        ...prev, 
-        loading: false, 
-        error: errorMessage, 
-        success: false 
+      setState(prev => ({
+        ...prev,
+        loading: false,
+        error: errorMessage,
+        success: false
       }));
-      console.error('Refund processing error:', error);
       return null;
     }
   }, []);
@@ -256,12 +235,9 @@ export function usePaymentProcessing() {
       const history = await paymentService.getPaymentHistory(userId, limit);
       setPaymentHistory(history);
       setState(prev => ({ ...prev, loading: false }));
-      
-      console.log(`📋 Loaded ${history.length} payment records`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to load payment history';
       setState(prev => ({ ...prev, loading: false, error: errorMessage }));
-      console.error('Payment history error:', error);
     }
   }, []);
 
@@ -275,12 +251,9 @@ export function usePaymentProcessing() {
       const summary = await paymentService.getShowPaymentSummary(showId);
       setPaymentSummary(summary);
       setState(prev => ({ ...prev, loading: false }));
-      
-      console.log('📊 Payment summary loaded:', summary);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to load payment summary';
       setState(prev => ({ ...prev, loading: false, error: errorMessage }));
-      console.error('Payment summary error:', error);
     }
   }, []);
 
@@ -292,16 +265,8 @@ export function usePaymentProcessing() {
   ): Promise<PaymentDetails | null> => {
     try {
       const payment = await paymentService.checkPaymentStatus(paymentId);
-      
-      if (payment) {
-        console.log('🔍 Payment status checked:', payment.status);
-      } else {
-        console.warn('⚠️ Payment not found:', paymentId);
-      }
-
       return payment;
     } catch (error) {
-      console.error('Payment status check error:', error);
       return null;
     }
   }, []);
@@ -315,18 +280,10 @@ export function usePaymentProcessing() {
     try {
       const receipt = await paymentService.generateReceipt(paymentId);
       setState(prev => ({ ...prev, loading: false }));
-
-      if (receipt) {
-        console.log('🧾 Receipt generated:', receipt.receiptNumber);
-      } else {
-        console.error('❌ Receipt generation failed');
-      }
-
       return receipt;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Receipt generation failed';
       setState(prev => ({ ...prev, loading: false, error: errorMessage }));
-      console.error('Receipt generation error:', error);
       return null;
     }
   }, []);
@@ -339,29 +296,22 @@ export function usePaymentProcessing() {
 
     try {
       const success = await paymentService.testPaymentService();
-      setState(prev => ({ 
-        ...prev, 
-        loading: false, 
+      setState(prev => ({
+        ...prev,
+        loading: false,
         success,
         error: success ? null : 'Payment service test failed'
       }));
 
-      if (success) {
-        console.log('✅ Payment service test successful');
-      } else {
-        console.error('❌ Payment service test failed');
-      }
-
       return success;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Payment service test failed';
-      setState(prev => ({ 
-        ...prev, 
-        loading: false, 
-        error: errorMessage, 
-        success: false 
+      setState(prev => ({
+        ...prev,
+        loading: false,
+        error: errorMessage,
+        success: false
       }));
-      console.error('Payment service test error:', error);
       return false;
     }
   }, []);
@@ -466,7 +416,6 @@ export function usePaymentAutomation() {
     feeAmount: number
   ): Promise<boolean> => {
     if (!entry || !userId || feeAmount <= 0) {
-      console.error('Invalid payment parameters');
       return false;
     }
 
@@ -497,15 +446,6 @@ export function usePaymentAutomation() {
     paymentMethodInfo: PaymentMethodInfo
   ): Promise<boolean> => {
     const success = await confirmPayment(paymentId, transactionId, paymentMethodInfo);
-    
-    if (success) {
-      // Could trigger additional actions like:
-      // - Send confirmation email
-      // - Update entry status
-      // - Log payment event
-      console.log('🎉 Payment successfully processed and confirmed');
-    }
-
     return success;
   }, [confirmPayment]);
 

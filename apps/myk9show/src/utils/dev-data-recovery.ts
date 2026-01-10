@@ -3,52 +3,45 @@
  * Helps recover data from IndexedDB when localStorage is cleared
  */
 
-export const recoverDataFromIndexedDB = async () => {
-  try {
-    // Open IndexedDB
-    const dbRequest = indexedDB.open('myK9ShowDB');
-    
-    return new Promise<{clubs: Record<string, unknown>[], shows: Record<string, unknown>[]}>((resolve, reject) => {
-      dbRequest.onsuccess = () => {
-        const db = dbRequest.result;
-        const transaction = db.transaction(['clubs', 'shows'], 'readonly');
-        
-        const clubsStore = transaction.objectStore('clubs');
-        const showsStore = transaction.objectStore('shows');
-        
-        const clubsRequest = clubsStore.getAll();
-        const showsRequest = showsStore.getAll();
-        
-        let clubsData: Record<string, unknown>[] = [];
-        let showsData: Record<string, unknown>[] = [];
-        
-        clubsRequest.onsuccess = () => {
-          clubsData = clubsRequest.result;
-          console.log('📊 Recovered clubs from IndexedDB:', clubsData);
-        };
-        
-        showsRequest.onsuccess = () => {
-          showsData = showsRequest.result;
-          console.log('📊 Recovered shows from IndexedDB:', showsData);
-        };
-        
-        transaction.oncomplete = () => {
-          resolve({ clubs: clubsData, shows: showsData });
-        };
-        
-        transaction.onerror = () => {
-          reject(transaction.error);
-        };
+export const recoverDataFromIndexedDB = async (): Promise<{clubs: Record<string, unknown>[], shows: Record<string, unknown>[]}> => {
+  // Open IndexedDB
+  const dbRequest = indexedDB.open('myK9ShowDB');
+
+  return new Promise<{clubs: Record<string, unknown>[], shows: Record<string, unknown>[]}>((resolve, reject) => {
+    dbRequest.onsuccess = () => {
+      const db = dbRequest.result;
+      const transaction = db.transaction(['clubs', 'shows'], 'readonly');
+
+      const clubsStore = transaction.objectStore('clubs');
+      const showsStore = transaction.objectStore('shows');
+
+      const clubsRequest = clubsStore.getAll();
+      const showsRequest = showsStore.getAll();
+
+      let clubsData: Record<string, unknown>[] = [];
+      let showsData: Record<string, unknown>[] = [];
+
+      clubsRequest.onsuccess = () => {
+        clubsData = clubsRequest.result;
       };
-      
-      dbRequest.onerror = () => {
-        reject(dbRequest.error);
+
+      showsRequest.onsuccess = () => {
+        showsData = showsRequest.result;
       };
-    });
-  } catch (error) {
-    console.error('Failed to recover data from IndexedDB:', error);
-    throw error;
-  }
+
+      transaction.oncomplete = () => {
+        resolve({ clubs: clubsData, shows: showsData });
+      };
+
+      transaction.onerror = () => {
+        reject(transaction.error);
+      };
+    };
+
+    dbRequest.onerror = () => {
+      reject(dbRequest.error);
+    };
+  });
 };
 
 // Quick club recreation helper
@@ -80,7 +73,7 @@ export const recreateTulsaClub = () => {
     _syncStatus: 'synced' as const,
     _localOnly: false
   };
-  
+
   return tulsaClub;
 };
 

@@ -510,8 +510,8 @@ export const useDraftStore = create<DraftStore>()(
                   localStorage.removeItem(key);
                   migratedCount++;
                 }
-              } catch (error) {
-                console.warn('Failed to migrate legacy draft:', key, error);
+              } catch {
+                // Failed to migrate legacy draft
               }
             }
           });

@@ -506,8 +506,7 @@ export const useCanAddClassToEntry = (entryId: string, classId: string) => {
         
         const entryStatus = entryResult.data.entry_status;
         return entryStatus === 'draft' || entryStatus === 'submitted';
-      } catch (error) {
-        console.error('Error checking can add class to entry:', error);
+      } catch {
         return false;
       }
     },

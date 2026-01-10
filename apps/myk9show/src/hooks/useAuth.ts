@@ -25,8 +25,7 @@ export function useAuth() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setLoading(false);
-    }).catch((error) => {
-      console.error('Error getting session:', error);
+    }).catch(() => {
       setLoading(false);
     });
 
@@ -87,16 +86,13 @@ export function useAuth() {
             ]);
 
           if (insertError) {
-            console.error('Error creating user profile:', insertError);
-            // Don't throw here - auth user is created, profile creation can be retried
+            // Profile creation failed - auth user is created, profile creation can be retried
           }
-        } catch (profileError) {
-          console.error('Error creating user profile:', profileError);
-          // Don't throw here - auth user is created, profile creation can be retried
+        } catch {
+          // Profile creation failed - auth user is created, profile creation can be retried
         }
       }
     } catch (error) {
-      console.error('Error signing up:', error);
       throw error;
     }
   }, []);
@@ -120,7 +116,6 @@ export function useAuth() {
         throw error;
       }
     } catch (error) {
-      console.error('Error signing in:', error);
       setLoading(false);
       throw error;
     }
@@ -137,7 +132,6 @@ export function useAuth() {
         throw error;
       }
     } catch (error) {
-      console.error('Error signing out:', error);
       throw error;
     }
   }, []);
@@ -154,7 +148,6 @@ export function useAuth() {
         throw error;
       }
     } catch (error) {
-      console.error('Error resetting password:', error);
       throw error;
     }
   }, []);
@@ -173,7 +166,6 @@ export function useAuth() {
         throw error;
       }
     } catch (error) {
-      console.error('Error updating password:', error);
       throw error;
     }
   }, []);
@@ -197,7 +189,6 @@ export function useAuth() {
         throw error;
       }
     } catch (error) {
-      console.error('Error updating profile:', error);
       throw error;
     }
   }, []);

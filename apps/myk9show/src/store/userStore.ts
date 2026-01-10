@@ -148,7 +148,6 @@ export const useUserStore = create<UserStore>()(
             isLoading: false
           }));
           
-          console.log(`✅ Created user: ${newUser.firstName} ${newUser.lastName} (ID: ${newUser.id})`);
           
           return newUser;
         } catch (error) {
@@ -194,7 +193,6 @@ export const useUserStore = create<UserStore>()(
             isLoading: false
           }));
           
-          console.log(`✅ Updated user: ${updatedUser.firstName} ${updatedUser.lastName} (ID: ${updatedUser.id})`);
           
           return updatedUser;
         } catch (error) {
@@ -265,7 +263,6 @@ export const useUserStore = create<UserStore>()(
           // Map database results to User objects
           const users = data.map(mapDatabaseToUser);
           
-          console.log(`📦 Loaded ${users.length} users from database`);
           
           set({ 
             users,

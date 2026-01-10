@@ -18,11 +18,8 @@ export const clearMyK9ShowStorage = () => {
   storageKeys.forEach(key => {
     if (localStorage.getItem(key)) {
       localStorage.removeItem(key);
-      console.log(`✓ Cleared ${key}`);
     }
   });
-
-  console.log('All myK9Show storage cleared. Please refresh the page to load mock data.');
 };
 
 // For direct browser console use:

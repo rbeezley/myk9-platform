@@ -200,11 +200,11 @@ export const useClassStoreCompat = () => {
 
   // Legacy compatibility methods (no-op implementations)
   const setClasses = () => {
-    console.warn('setClasses is deprecated in database mode');
+    // setClasses is deprecated in database mode
   };
 
   const setEntries = () => {
-    console.warn('setEntries is deprecated in database mode');
+    // setEntries is deprecated in database mode
   };
 
   const loadClasses = async (): Promise<void> => {
@@ -212,8 +212,7 @@ export const useClassStoreCompat = () => {
   };
 
   const setSelectedClassId = () => {
-    // This would need to be managed by component state or a separate store
-    console.warn('setSelectedClassId should be managed at component level');
+    // setSelectedClassId should be managed at component level
   };
 
   // Template method compatibility
@@ -266,35 +265,17 @@ export const useClassStoreCompat = () => {
       
       return newClasses;
     } catch (error) {
-      console.error('Failed to add classes from template:', error);
       throw error;
     }
   };
 
-  // Legacy methods for backward compatibility
-  const addClassLegacy = () => {
-    console.warn('addClassLegacy is deprecated - use addClass instead');
-  };
-
-  const updateClassLegacy = () => {
-    console.warn('updateClassLegacy is deprecated - use updateClass instead');
-  };
-
-  const deleteClassLegacy = () => {
-    console.warn('deleteClassLegacy is deprecated - use deleteClass instead');
-  };
-
-  const addEntryLegacy = () => {
-    console.warn('addEntryLegacy is deprecated - use addEntry instead');
-  };
-
-  const updateEntryLegacy = () => {
-    console.warn('updateEntryLegacy is deprecated - use updateEntry instead');
-  };
-
-  const deleteEntryLegacy = () => {
-    console.warn('deleteEntryLegacy is deprecated - use deleteEntry instead');
-  };
+  // Legacy methods for backward compatibility (deprecated - use async methods instead)
+  const addClassLegacy = () => {};
+  const updateClassLegacy = () => {};
+  const deleteClassLegacy = () => {};
+  const addEntryLegacy = () => {};
+  const updateEntryLegacy = () => {};
+  const deleteEntryLegacy = () => {};
 
   return {
     // Data

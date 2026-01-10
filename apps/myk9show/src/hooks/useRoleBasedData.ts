@@ -17,42 +17,25 @@ export function useRoleBasedDogs() {
   const allPeople = useUserStore(state => state.people);
   
   const filteredDogs = useMemo(() => {
-    console.log('🐕 useRoleBasedDogs debug:', {
-      isLoading,
-      error: error?.toString(),
-      userWithRoles: userWithRoles?.email,
-      userRoles: userWithRoles?.roles,
-      allDogsCount: allDogs?.length,
-      allDogs: allDogs?.slice(0, 3), // First 3 for debugging
-      hasSiteAdmin: hasRole(UserRole.SITE_ADMIN),
-      hasClubAdmin: hasRole(UserRole.CLUB_ADMIN),
-      hasSecretary: hasRole(UserRole.SECRETARY)
-    });
-
     if (!userWithRoles || isLoading || error) {
-      console.log('🚫 Early return due to:', { userWithRoles: !!userWithRoles, isLoading, error: !!error });
       return [];
     }
-    
+
     // Site admins, club admins, and secretaries see all dogs
-    if (hasRole(UserRole.SITE_ADMIN) || 
-        hasRole(UserRole.CLUB_ADMIN) || 
+    if (hasRole(UserRole.SITE_ADMIN) ||
+        hasRole(UserRole.CLUB_ADMIN) ||
         hasRole(UserRole.SECRETARY)) {
-      console.log('✅ Admin/Secretary access - showing all dogs:', allDogs.length);
       return allDogs;
     }
-    
+
     // Exhibitors only see their own dogs
     const userPerson = getUserPersonFromEmailStable(userWithRoles.email, allPeople);
-    
+
     if (!userPerson) {
-      console.log('🚫 No user person found for email:', userWithRoles.email);
       return [];
     }
-    
-    const filtered = allDogs.filter(dog => dog.ownerId === userPerson.id);
-    console.log('👤 Exhibitor access - filtered to own dogs:', filtered.length);
-    return filtered;
+
+    return allDogs.filter(dog => dog.ownerId === userPerson.id);
   }, [userWithRoles, allDogs, allPeople, hasRole, isLoading, error]);
   
   return filteredDogs;
@@ -63,41 +46,23 @@ export function useRoleBasedPeople() {
   const { data: allPeople = [], isLoading, error } = useUsersQuery();
   
   const filteredPeople = useMemo(() => {
-    // Debug logging
-    console.log('🔍 useRoleBasedPeople debug (Supabase):', {
-      isLoading,
-      error: error?.message,
-      userWithRoles: userWithRoles?.email,
-      userRoles: userWithRoles?.roles,
-      allPeopleCount: allPeople?.length,
-      allPeople: allPeople?.slice(0, 3), // First 3 users for debugging
-      hasSiteAdmin: hasRole(UserRole.SITE_ADMIN),
-      hasClubAdmin: hasRole(UserRole.CLUB_ADMIN),
-      hasSecretary: hasRole(UserRole.SECRETARY)
-    });
-    
     // Early return for loading, error, or empty data
     if (isLoading || error || !userWithRoles || !allPeople || allPeople.length === 0) {
-      console.log('🚫 Early return due to:', { isLoading, error: !!error, userWithRoles: !!userWithRoles, allPeopleLength: allPeople?.length });
       return [];
     }
-    
+
     // Site admins, club admins, and secretaries see all people
-    if (hasRole(UserRole.SITE_ADMIN) || 
-        hasRole(UserRole.CLUB_ADMIN) || 
+    if (hasRole(UserRole.SITE_ADMIN) ||
+        hasRole(UserRole.CLUB_ADMIN) ||
         hasRole(UserRole.SECRETARY)) {
-      console.log('✅ Admin/Secretary access - showing all people:', allPeople.length);
       return allPeople;
     }
-    
+
     // Exhibitors only see themselves - find by user_id matching current auth user
     if (userWithRoles.id) {
-      const filtered = allPeople.filter(person => person.user_id === userWithRoles.id);
-      console.log('👤 Exhibitor access - filtered to own record:', filtered.length);
-      return filtered;
+      return allPeople.filter(person => person.user_id === userWithRoles.id);
     }
-    
-    console.log('🚫 No user ID found for filtering');
+
     return [];
   }, [userWithRoles, hasRole, allPeople, isLoading, error]);
   

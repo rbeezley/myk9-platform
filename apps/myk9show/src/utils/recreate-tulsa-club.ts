@@ -15,7 +15,6 @@ export const recreateTulsaClub = async (): Promise<void> => {
   );
   
   if (existingClub) {
-    console.log('✅ Tulsa Dog Training Club already exists:', existingClub.name);
     return;
   }
   
@@ -49,9 +48,6 @@ export const recreateTulsaClub = async (): Promise<void> => {
   
   // Add the club to the store
   clubStore.addClub(tulsaClub);
-  
-  console.log('✅ Tulsa Dog Training Club recreated successfully!');
-  console.log('🏛️ Club details:', tulsaClub);
 };
 
 // Make available in browser console for development

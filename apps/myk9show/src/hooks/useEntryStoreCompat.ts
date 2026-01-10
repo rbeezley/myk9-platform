@@ -300,9 +300,7 @@ export const useEntryStoreCompat = () => {
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const setEntries = (_newEntries: SyncableShowEntry[]) => {
-    // In React Query mode, this would typically not be used
-    // as data is managed by the server state
-    console.warn('setEntries is not supported in React Query mode');
+    // setEntries is not supported in React Query mode - data is managed by the server state
   };
 
   const loadEntries = async (): Promise<void> => {
@@ -310,45 +308,34 @@ export const useEntryStoreCompat = () => {
   };
 
   const clearAllEntries = () => {
-    console.warn('clearAllEntries is not supported in React Query mode');
+    // clearAllEntries is not supported in React Query mode
   };
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const importEntries = (_newEntries: SyncableShowEntry[]) => {
-    console.warn('importEntries is not supported in React Query mode');
+    // importEntries is not supported in React Query mode
   };
 
-  // Legacy methods for compatibility
+  // Legacy methods for compatibility (deprecated - use async methods instead)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const createEntryLegacy = (_data: Omit<ShowEntry, 'id' | 'status' | 'statusHistory' | 'createdAt' | 'updatedAt'>): string => {
-    console.warn('createEntryLegacy is deprecated, use createEntry instead');
     return 'legacy-not-supported';
   };
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const updateRegistrationLegacy = (_entryId: string, _updates: Partial<RegistrationData>) => {
-    console.warn('updateRegistrationLegacy is deprecated, use updateRegistration instead');
-  };
+  const updateRegistrationLegacy = (_entryId: string, _updates: Partial<RegistrationData>) => {};
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const updateStatusLegacy = (_entryId: string, _status: EntryStatus, _userId: string, _reason?: string) => {
-    console.warn('updateStatusLegacy is deprecated, use updateStatus instead');
-  };
+  const updateStatusLegacy = (_entryId: string, _status: EntryStatus, _userId: string, _reason?: string) => {};
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const deleteEntryLegacy = (_entryId: string) => {
-    console.warn('deleteEntryLegacy is deprecated, use deleteEntry instead');
-  };
+  const deleteEntryLegacy = (_entryId: string) => {};
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const recordResultLegacy = (_entryId: string, _result: CompetitionData) => {
-    console.warn('recordResultLegacy is deprecated, use recordResult instead');
-  };
+  const recordResultLegacy = (_entryId: string, _result: CompetitionData) => {};
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const updateResultLegacy = (_entryId: string, _updates: Partial<CompetitionData>) => {
-    console.warn('updateResultLegacy is deprecated, use updateResult instead');
-  };
+  const updateResultLegacy = (_entryId: string, _updates: Partial<CompetitionData>) => {};
 
   return {
     // Data

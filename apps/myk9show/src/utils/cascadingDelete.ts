@@ -95,12 +95,6 @@ export function performCascadingDelete(showId: string): CascadingDeleteResult {
     classIds.includes(entry.classId)
   );
 
-  console.log('🗑️ Cascading delete for show:', showId);
-  console.log('📊 Will delete:', {
-    trials: trialsToDelete.length,
-    classes: classesToDelete.length,
-    entries: entriesToDelete.length
-  });
 
   // Delete in reverse order: entries → classes → trials
   // (The show itself is deleted by the caller)
@@ -128,7 +122,6 @@ export function performCascadingDelete(showId: string): CascadingDeleteResult {
     totalDeleted: trialsToDelete.length + classesToDelete.length + entriesToDelete.length
   };
 
-  console.log('✅ Cascading delete completed:', result);
   return result;
 }
 

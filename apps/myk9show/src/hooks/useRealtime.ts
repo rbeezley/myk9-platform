@@ -190,10 +190,8 @@ export const useRealtime = (options: UseRealtimeOptions = {}): UseRealtimeReturn
 
       subscriptionsRef.current.add(id);
       updateConnectionState();
-      
-      console.log(`Real-time subscription created: ${id}`);
-      return id;
 
+      return id;
     } catch (error) {
       setLastError(error as Error);
       setState(prev => ({ ...prev, errorCount: prev.errorCount + 1 }));
@@ -209,8 +207,6 @@ export const useRealtime = (options: UseRealtimeOptions = {}): UseRealtimeReturn
       await subscriptionManager.unsubscribe(subscriptionId);
       subscriptionsRef.current.delete(subscriptionId);
       updateConnectionState();
-      
-      console.log(`Real-time subscription removed: ${subscriptionId}`);
     } catch (error) {
       setLastError(error as Error);
       setState(prev => ({ ...prev, errorCount: prev.errorCount + 1 }));
@@ -228,8 +224,6 @@ export const useRealtime = (options: UseRealtimeOptions = {}): UseRealtimeReturn
     try {
       await subscriptionManager.trackPresence(channelName, userData);
       presenceChannelsRef.current.add(channelName);
-      
-      console.log(`Tracking presence in ${channelName}:`, userData.user_id);
     } catch (error) {
       setLastError(error as Error);
       throw error;
@@ -243,8 +237,6 @@ export const useRealtime = (options: UseRealtimeOptions = {}): UseRealtimeReturn
     try {
       await subscriptionManager.untrackPresence(channelName);
       presenceChannelsRef.current.delete(channelName);
-      
-      console.log(`Stopped tracking presence in ${channelName}`);
     } catch (error) {
       setLastError(error as Error);
       throw error;
@@ -265,9 +257,7 @@ export const useRealtime = (options: UseRealtimeOptions = {}): UseRealtimeReturn
       // Update presence count when presence changes
       setState(prev => ({ ...prev, presenceCount: 0 }));
 
-      console.log(`Subscribed to presence in ${channelName}`);
       return id;
-
     } catch (error) {
       setLastError(error as Error);
       throw error;
@@ -289,12 +279,10 @@ export const useRealtime = (options: UseRealtimeOptions = {}): UseRealtimeReturn
       };
       await subscriptionManager.broadcast(channelName, managerEvent);
       
-      setState(prev => ({ 
-        ...prev, 
+      setState(prev => ({
+        ...prev,
         lastActivity: new Date(),
       }));
-
-      console.log(`Broadcast sent to ${channelName}:`, event.type);
     } catch (error) {
       setLastError(error as Error);
       throw error;
@@ -311,10 +299,8 @@ export const useRealtime = (options: UseRealtimeOptions = {}): UseRealtimeReturn
     try {
       const id = await subscriptionManager.subscribeToScoringSession(sessionId, callback);
       subscriptionsRef.current.add(id);
-      
-      console.log(`Subscribed to scoring session: ${sessionId}`);
-      return id;
 
+      return id;
     } catch (error) {
       setLastError(error as Error);
       throw error;
@@ -344,10 +330,8 @@ export const useRealtime = (options: UseRealtimeOptions = {}): UseRealtimeReturn
         }
       });
       subscriptionsRef.current.add(id);
-      
-      console.log(`Subscribed to check-ins for show: ${showId}`);
-      return id;
 
+      return id;
     } catch (error) {
       setLastError(error as Error);
       throw error;
@@ -362,21 +346,18 @@ export const useRealtime = (options: UseRealtimeOptions = {}): UseRealtimeReturn
       setState(prev => ({ ...prev, isConnecting: true }));
       await connectionManager.connect();
       updateConnectionState();
-      
-      console.log('Real-time connection established');
     } catch (error) {
       setLastError(error as Error);
-      setState(prev => ({ 
-        ...prev, 
+      setState(prev => ({
+        ...prev,
         isConnecting: false,
         errorCount: prev.errorCount + 1,
       }));
-      
+
       if (retryOnFailure) {
-        console.log('Retrying connection in 5 seconds...');
         setTimeout(() => connect(), 5000);
       }
-      
+
       throw error;
     }
   }, [retryOnFailure, updateConnectionState]);
@@ -388,8 +369,6 @@ export const useRealtime = (options: UseRealtimeOptions = {}): UseRealtimeReturn
     try {
       await connectionManager.disconnect();
       updateConnectionState();
-      
-      console.log('Real-time connection closed');
     } catch (error) {
       setLastError(error as Error);
       throw error;
@@ -404,12 +383,10 @@ export const useRealtime = (options: UseRealtimeOptions = {}): UseRealtimeReturn
       setState(prev => ({ ...prev, isConnecting: true }));
       await connectionManager.forceReconnect();
       updateConnectionState();
-      
-      console.log('Real-time connection reestablished');
     } catch (error) {
       setLastError(error as Error);
-      setState(prev => ({ 
-        ...prev, 
+      setState(prev => ({
+        ...prev,
         isConnecting: false,
         errorCount: prev.errorCount + 1,
       }));
@@ -459,7 +436,6 @@ export const useRealtime = (options: UseRealtimeOptions = {}): UseRealtimeReturn
     const unsubscribeConnected = connectionManager.addEventListener(
       'connected',
       () => {
-        console.log('Real-time connection event: connected');
         updateConnectionState();
       }
     );
@@ -467,7 +443,6 @@ export const useRealtime = (options: UseRealtimeOptions = {}): UseRealtimeReturn
     const unsubscribeDisconnected = connectionManager.addEventListener(
       'disconnected',
       () => {
-        console.log('Real-time connection event: disconnected');
         updateConnectionState();
       }
     );
@@ -475,7 +450,6 @@ export const useRealtime = (options: UseRealtimeOptions = {}): UseRealtimeReturn
     const unsubscribeError = connectionManager.addEventListener(
       'error',
       (event) => {
-        console.error('Real-time connection error:', event.details?.error);
         setLastError(event.details?.error || new Error('Connection error'));
         setState(prev => ({ ...prev, errorCount: prev.errorCount + 1 }));
       }
@@ -499,8 +473,8 @@ export const useRealtime = (options: UseRealtimeOptions = {}): UseRealtimeReturn
    */
   useEffect(() => {
     if (autoConnect) {
-      connect().catch(error => {
-        console.error('Auto-connect failed:', error);
+      connect().catch(() => {
+        // Connection error already handled in connect()
       });
     }
 
@@ -513,15 +487,15 @@ export const useRealtime = (options: UseRealtimeOptions = {}): UseRealtimeReturn
     return () => {
       // Unsubscribe from all subscriptions
       currentSubscriptions.forEach(id => {
-        unsubscribe(id).catch(error => {
-          console.warn(`Failed to cleanup subscription ${id}:`, error);
+        unsubscribe(id).catch(() => {
+          // Cleanup errors are non-critical
         });
       });
 
       // Stop tracking presence in all channels
       currentPresenceChannels.forEach(channelName => {
-        untrackPresence(channelName).catch(error => {
-          console.warn(`Failed to cleanup presence in ${channelName}:`, error);
+        untrackPresence(channelName).catch(() => {
+          // Cleanup errors are non-critical
         });
       });
 

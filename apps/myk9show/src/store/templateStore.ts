@@ -387,8 +387,6 @@ export const useTemplateStore = create<TemplateStore>()(
           return;
         }
 
-        console.log('🔄 Lazy loading templates on first access...');
-        
         // Initialize templates asynchronously to avoid blocking
         return new Promise<void>((resolve) => {
           // Use setTimeout to allow React to continue rendering
@@ -396,8 +394,7 @@ export const useTemplateStore = create<TemplateStore>()(
             try {
               get().initializeDefaultTemplates();
               resolve();
-            } catch (error) {
-              console.error('Failed to lazy load templates:', error);
+            } catch {
               resolve(); // Don't fail completely
             }
           }, 0);
@@ -588,11 +585,8 @@ export const useTemplateStore = create<TemplateStore>()(
         
         // Quick check to avoid expensive operations
         if (!force && (isInitialized || templates.length > 0)) {
-          console.log('Templates already initialized, skipping...', { isInitialized, count: templates.length });
           return;
         }
-        
-        console.log('Initializing templates...', { force, currentCount: templates.length, isInitialized });
         
         // Mark as initialized immediately to prevent race conditions
         set({ isInitialized: true });
@@ -605,8 +599,7 @@ export const useTemplateStore = create<TemplateStore>()(
             // Only add essential templates to reduce load time
             const currentTemplates = get().templates; // Get fresh state
             const hasAKCTemplate = currentTemplates.some(t => t.id === 'akc-scent-work-official-2024');
-            console.log('AKC template check:', { hasAKCTemplate, force, currentCount: currentTemplates.length });
-            
+
             if (force || !hasAKCTemplate) {
               const akcTemplate: ClassTemplate = {
                 ...AKC_SCENT_WORK_TEMPLATE,
@@ -615,7 +608,6 @@ export const useTemplateStore = create<TemplateStore>()(
                 createdBy: 'system'
               };
               templatesToAdd.push(akcTemplate);
-              console.log('Adding AKC template');
             }
 
             // Defer structured templates to after initial render
@@ -624,13 +616,7 @@ export const useTemplateStore = create<TemplateStore>()(
                 // Deduplicate by ID
                 const existingIds = new Set(state.templates.map(t => t.id));
                 const newTemplates = templatesToAdd.filter(t => !existingIds.has(t.id));
-                
-                console.log('Adding templates:', { 
-                  existing: state.templates.length, 
-                  toAdd: templatesToAdd.length,
-                  actuallyAdding: newTemplates.length 
-                });
-                
+
                 return {
                   templates: [...state.templates, ...newTemplates],
                   error: null
@@ -645,8 +631,7 @@ export const useTemplateStore = create<TemplateStore>()(
               
               STRUCTURED_TEMPLATES.forEach(template => {
                 const exists = currentTemplates.some(t => t.id === template.id);
-                console.log(`Structured template ${template.id}: exists=${exists}, force=${force}`);
-                
+
                 if (force || !exists) {
                   additionalTemplates.push({
                     ...template,
@@ -654,7 +639,6 @@ export const useTemplateStore = create<TemplateStore>()(
                     createdBy: template.createdBy || 'system',
                     updatedAt: new Date()
                   });
-                  console.log(`Adding structured template: ${template.templateName}`);
                 }
               });
               
@@ -663,13 +647,7 @@ export const useTemplateStore = create<TemplateStore>()(
                   // Deduplicate by ID
                   const existingIds = new Set(state.templates.map(t => t.id));
                   const newTemplates = additionalTemplates.filter(t => !existingIds.has(t.id));
-                  
-                  console.log('Adding structured templates:', { 
-                    existing: state.templates.length, 
-                    toAdd: additionalTemplates.length,
-                    actuallyAdding: newTemplates.length 
-                  });
-                  
+
                   return {
                     templates: [...state.templates, ...newTemplates],
                     error: null
@@ -694,22 +672,20 @@ export const useTemplateStore = create<TemplateStore>()(
       
       // Emergency function to clear corrupted data
       clearCorruptedData: async () => {
-        console.log('Clearing corrupted template data');
         set({ templates: [], isInitialized: false });
-        
+
         // Clear both localStorage and IndexedDB
         const storageName = 'myk9show-template-storage';
-        
+
         // Clear localStorage
         localStorage.removeItem(storageName);
-        
+
         // Clear IndexedDB
         try {
           const storage = getOptimalStorage('templates');
           await storage.removeItem(storageName);
-          console.log('Cleared IndexedDB template storage');
-        } catch (error) {
-          console.error('Failed to clear IndexedDB:', error);
+        } catch {
+          // Failed to clear IndexedDB silently
         }
       }
     }),
@@ -747,22 +723,9 @@ export const useTemplateStore = create<TemplateStore>()(
         return persistedState;
       },
       onRehydrateStorage: () => {
-        return (state, error) => {
-          if (error) {
-            console.error('Template storage rehydration error:', error);
-          } else {
-            console.log('Template storage rehydrated with', state?.templates?.length || 0, 'templates');
-            // PERFORMANCE OPTIMIZATION: Skip automatic template initialization
-            // Templates will be loaded on-demand when template features are accessed
-            if (!state?.templates || state.templates.length === 0) {
-              console.log('No templates found in storage - will initialize on first access');
-              // Mark as not initialized to ensure they load when needed
-              // Note: We don't call setState here during hydration to avoid circular dependency
-            } else {
-              console.log('Templates already exist in storage');
-              // Note: We don't call setState here during hydration to avoid circular dependency
-            }
-          }
+        return (_state, _error) => {
+          // PERFORMANCE OPTIMIZATION: Skip automatic template initialization
+          // Templates will be loaded on-demand when template features are accessed
         };
       }
     }

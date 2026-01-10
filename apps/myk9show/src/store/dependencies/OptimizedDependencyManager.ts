@@ -312,7 +312,6 @@ export class OptimizedDependencyManager {
       throw new Error(`Unknown store group: ${groupName}`);
     }
     
-    console.log(`📦 Loading store group: ${groupName} (${group.stores.length} stores)`, group.stores);
     
     // Load all stores in the group in parallel
     const loadPromises = group.stores.map(async (storeName) => {
@@ -333,42 +332,29 @@ export class OptimizedDependencyManager {
       this.loadedStores.add(storeName);
     });
     
-    console.log(`✅ Store group loaded: ${groupName}`);
   }
-  
+
   async loadStoresByPriority(priority: number, storeLoader: (name: StoreName) => Promise<void>): Promise<void> {
     const groups = this.loadGroups.filter(g => g.priority === priority);
-    
+
     if (groups.length === 0) {
       return;
     }
     
-    console.log(`📦 Loading priority ${priority} groups: ${groups.map(g => g.groupName).join(', ')}`);
-    
     // Load all groups at this priority level in parallel
     await Promise.all(groups.map(group => this.loadStoreGroup(group.groupName, storeLoader)));
-    
-    console.log(`✅ Priority ${priority} groups loaded`);
   }
-  
+
   async loadCriticalStores(storeLoader: (name: StoreName) => Promise<void>): Promise<void> {
-    console.log('🚀 Loading critical stores with optimized parallelization...');
-    
     // Load priority 1 and 2 stores (critical)
     await this.loadStoresByPriority(1, storeLoader);
     await this.loadStoresByPriority(2, storeLoader);
-    
-    console.log('✅ Critical stores loaded');
   }
-  
+
   async loadImportantStores(storeLoader: (name: StoreName) => Promise<void>): Promise<void> {
-    console.log('🔄 Loading important stores with parallelization...');
-    
     // Load priority 3 and 4 stores (important)
     await this.loadStoresByPriority(3, storeLoader);
     await this.loadStoresByPriority(4, storeLoader);
-    
-    console.log('✅ Important stores loaded');
   }
   
   getLoadGroups(): LoadGroup[] {

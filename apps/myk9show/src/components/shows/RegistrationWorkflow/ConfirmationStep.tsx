@@ -17,7 +17,7 @@ import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
-import { formatDateMMDDYYYY } from '@/components/common/formatDate';
+import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 
 interface ConfirmationStepProps {
   registrationNumber?: string;

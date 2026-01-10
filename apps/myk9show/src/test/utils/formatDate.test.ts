@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatDateMMDDYYYY, formatDayAbbreviation } from '@/utils/formatDate';
+import { formatDateMMDDYYYY, formatDayAbbreviation } from '@/utils/dateFormat';
 
 describe('formatDate utilities', () => {
   describe('formatDateMMDDYYYY', () => {

@@ -10,7 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useDogStore } from '@/store/dogStore';
 import { Dog, User } from '@/types/dog-types';
-import { formatDateMMDDYYYY } from '@/components/common/formatDate';
+import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
 import { useRegistrationContext } from '@/hooks/useRegistrationContext';
 import { DogSearchInterface } from './DogSearchInterface';

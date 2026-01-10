@@ -241,10 +241,6 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
     }
   };
 
-  // Calculate statistics (currently not used but available for future features)
-  // const competitionsCount = 0; // TODO: Add competitions data
-  // const healthRecordsCount = 0; // TODO: Add health records data
-
   // Convert Dog form data to DogInput for database updates
   const convertDogToDogInput = (dogData: Partial<Dog>): Partial<DogInput> => {
     // Extract breed from registrations or use existing dog breed

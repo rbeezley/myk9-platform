@@ -22,7 +22,7 @@ import { useUserStore } from '@/store/userStore';
 import { useShowStore } from '@/store/showStore';
 import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
 import { useDebounce } from '@/hooks/useDebounce';
-import { formatDateMMDDYYYY } from '@/components/common/formatDate';
+import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 
 interface CommandPaletteProps {
   open: boolean;

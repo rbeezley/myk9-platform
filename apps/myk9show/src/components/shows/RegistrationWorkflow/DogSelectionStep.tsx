@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useDogStore } from '@/store/dogStore';
 import { Dog } from '@/types/dog-types';
-import { formatDateMMDDYYYY } from '@/components/common/formatDate';
+import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 import { cn } from '@/lib/utils';
 import '@/styles/apple-registration-workflow.css';
 

@@ -7,7 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
-import { formatDateMMDDYYYY } from '@/utils/formatDate';
+import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 import '@/styles/apple-show-details.css';
 
 interface TrialHeaderProps {

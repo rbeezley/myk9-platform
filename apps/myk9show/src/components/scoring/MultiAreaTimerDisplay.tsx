@@ -51,7 +51,7 @@ export function MultiAreaTimerDisplay({
   totalElapsedTime,
   totalTimeLimit,
   remainingTime,
-  // isRunning, // TODO: Use for visual state indication
+  isRunning: _isRunning,
   onStartArea,
   onCompleteArea,
   onFailArea,

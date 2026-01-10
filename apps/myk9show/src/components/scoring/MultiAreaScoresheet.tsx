@@ -20,7 +20,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 // Custom components
 import { MultiAreaTimerDisplay } from './MultiAreaTimerDisplay';
 import { useMultiAreaTiming } from '@/hooks/useMultiAreaTiming';
-// import { useAudioSettings } from '@/contexts/AudioSettingsContext';
 
 // Types and utilities
 import type { 
@@ -62,8 +61,6 @@ export function MultiAreaScoresheet({
   onNavigateBack,
   className
 }: MultiAreaScoresheetProps) {
-  // const { settings } = useAudioSettings(); // TODO: Use for audio feedback
-  
   // Extract configuration
   const { classConfig, displayInfo } = entry;
   const areaTimeLimits = getAreaTimeLimits(classConfig.element, classConfig.level);
@@ -97,8 +94,6 @@ export function MultiAreaScoresheet({
     startArea,
     completeCurrentArea,
     failCurrentArea,
-    // reset, // TODO: Implement reset functionality
-    // canStartArea, // TODO: Use for validation
     isComplete,
     hasFailed
   } = useMultiAreaTiming({

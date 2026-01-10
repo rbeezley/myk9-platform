@@ -1,7 +1,7 @@
 import React from 'react';
 import { CommonDialog } from '@/components/common/CommonDialog';
 import { TitleProgress } from './AddTitleProgressDialog';
-import { formatDateMMDDYYYY } from '@/components/common/formatDate';
+import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 
 interface TitleProgressDetailsDialogProps {
   open: boolean;

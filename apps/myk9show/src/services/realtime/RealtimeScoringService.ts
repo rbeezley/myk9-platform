@@ -705,13 +705,11 @@ export class RealtimeScoringService {
   }
 
   // Helper methods for direct Supabase operations
-  private async directSubmitToSupabase(score: Score): Promise<void> {
-    // TODO: Implement direct Supabase submission
-    console.log('TODO: Submit score to Supabase:', score);
+  private async directSubmitToSupabase(_score: Score): Promise<void> {
+    // Direct submission not yet implemented - scores are queued for sync
   }
 
-  private async directDeleteFromSupabase(scoreId: string): Promise<void> {
-    // TODO: Implement direct Supabase deletion
-    console.log('TODO: Delete score from Supabase:', scoreId);
+  private async directDeleteFromSupabase(_scoreId: string): Promise<void> {
+    // Direct deletion not yet implemented - deletions are queued for sync
   }
 }

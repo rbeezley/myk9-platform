@@ -2,7 +2,7 @@ import React from 'react';
 import type { Ancestor } from '@/types/pedigree-types';
 import ThreeDotMenu from '@/components/ui/ThreeDotMenu';
 import { Pencil, Trash2, Eye } from 'lucide-react';
-import { formatDateMMDDYYYY } from '@/components/common/formatDate';
+import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 
 interface PedigreeCardProps {
   ancestor?: Ancestor;

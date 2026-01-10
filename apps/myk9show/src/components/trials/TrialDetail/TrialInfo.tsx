@@ -1,6 +1,6 @@
 import { Card } from '@/components/ui/card';
 import { Trial } from '../types/trial.types';
-import { formatDateMMDDYYYY } from '@/utils/formatDate';
+import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';

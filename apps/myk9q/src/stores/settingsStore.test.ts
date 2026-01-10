@@ -2,7 +2,7 @@
  * Tests for settings store
  */
 
-import { vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useSettingsStore, SETTINGS_VERSION, initializeSettings } from './settingsStore';
 
 // Mock localStorage
@@ -68,7 +68,7 @@ describe('settingsStore', () => {
     useSettingsStore.setState({
       settings: {
         // Display
-        theme: 'light',
+        theme: 'auto',
         accentColor: 'green',
 
         // Performance
@@ -183,7 +183,7 @@ describe('settingsStore', () => {
       store.resetSettings();
 
       const state = useSettingsStore.getState();
-      expect(state.settings.theme).toBe('light');
+      expect(state.settings.theme).toBe('auto');
       expect(state.settings.accentColor).toBe('green');
       expect(state.settings.hapticFeedback).toBe(true);
     });
@@ -195,9 +195,9 @@ describe('settingsStore', () => {
 
       store.resetSettings();
 
-      // Should apply light theme (default)
+      // Should apply auto theme (detects mock dark)
       expect(mockClassList.remove).toHaveBeenCalledWith('theme-light', 'theme-dark');
-      expect(mockClassList.add).toHaveBeenCalledWith('theme-light');
+      expect(mockClassList.add).toHaveBeenCalledWith('theme-dark');
       expect(mockClassList.add).toHaveBeenCalledWith('accent-green');
     });
   });
@@ -375,7 +375,7 @@ describe('settingsStore', () => {
   describe('default values', () => {
     it('should have correct default theme', () => {
       const state = useSettingsStore.getState();
-      expect(state.settings.theme).toBe('light');
+      expect(state.settings.theme).toBe('auto');
     });
 
     it('should have correct default accent color', () => {

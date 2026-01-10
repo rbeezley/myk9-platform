@@ -13,6 +13,7 @@ import { performanceMonitor } from '../performance/PerformanceMonitor';
 import { eventEmitter } from './eventEmitter';
 import type { SyncQueueItem, SyncOperation } from '../../types/sync-types';
 import { SyncPriority, SyncStatus } from '../../types/performance-types';
+import type { SyncProcessor, SyncProcessorResult } from './types/processor';
 
 export interface SyncQueueConfig {
   maxQueueSize: number;
@@ -62,6 +63,7 @@ export class SyncQueue {
   private isProcessing = false;
   private processingTimer: NodeJS.Timeout | null = null;
   private retryTimers = new Map<string, NodeJS.Timeout>();
+  private processors = new Map<string, SyncProcessor>();
 
   constructor(customConfig?: Partial<SyncQueueConfig>) {
     this.config = {
@@ -131,6 +133,29 @@ export class SyncQueue {
 
     console.log(`Added sync item to queue: ${queueItem.id} (priority: ${queueItem.priority})`);
     return queueItem.id;
+  }
+
+  /**
+   * Register a processor for a specific entity type.
+   * Processors handle the actual sync logic for their entity types.
+   */
+  registerProcessor(processor: SyncProcessor): void {
+    this.processors.set(processor.entityType, processor);
+    console.log(`Registered sync processor for entity type: ${processor.entityType}`);
+  }
+
+  /**
+   * Get the processor for a given entity type
+   */
+  getProcessor(entityType: string): SyncProcessor | undefined {
+    return this.processors.get(entityType);
+  }
+
+  /**
+   * Check if a processor is registered for the given entity type
+   */
+  hasProcessor(entityType: string): boolean {
+    return this.processors.has(entityType);
   }
 
   /**
@@ -512,21 +537,63 @@ export class SyncQueue {
   }
 
   /**
-   * Process individual sync item
+   * Process individual sync item using registered processors
    */
   private async processItem(item: SyncQueueItem): Promise<void> {
     try {
       console.log(`Processing sync item: ${item.id} (${item.entityType}.${item.actionType})`);
-      
-      // Simulate processing delay
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Here would be the actual sync logic
-      // For now, we'll just mark as completed
-      this.markCompleted(item.id);
-      
+
+      // Get the processor for this entity type
+      const processor = this.processors.get(item.entityType);
+
+      if (processor) {
+        // Use the registered processor
+        const result: SyncProcessorResult = await processor.processItem(item);
+
+        if (result.success) {
+          this.markCompleted(item.id);
+          eventEmitter.emit('sync-item-completed', {
+            itemId: item.id,
+            entityType: item.entityType,
+            entityId: item.entityId,
+            serverData: result.serverData,
+          });
+        } else if (result.conflictDetected) {
+          // Handle conflict - emit event for conflict resolution
+          eventEmitter.emit('sync-conflict-detected', {
+            itemId: item.id,
+            entityType: item.entityType,
+            entityId: item.entityId,
+            serverVersion: result.serverVersion,
+            serverData: result.serverData,
+            error: result.error?.message,
+          });
+          // Keep in queue for manual resolution
+          this.updateItemStatus(item.id, 'pending');
+        } else {
+          // Regular failure - will be retried
+          this.markFailed(item.id, result.error || new Error('Unknown processing error'));
+        }
+      } else {
+        // No processor registered - use legacy stub behavior
+        console.warn(`No processor registered for entity type: ${item.entityType}`);
+        await new Promise(resolve => setTimeout(resolve, 100));
+        this.markCompleted(item.id);
+      }
+
     } catch (error) {
       this.markFailed(item.id, error as Error);
+    }
+  }
+
+  /**
+   * Update item status without marking as failed
+   */
+  private updateItemStatus(id: string, status: SyncQueueItem['status']): void {
+    const item = this.queue.find(i => i.id === id);
+    if (item) {
+      item.status = status;
+      this.saveToStorage();
     }
   }
 

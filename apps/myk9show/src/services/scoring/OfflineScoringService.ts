@@ -760,6 +760,105 @@ export class OfflineScoringService extends EventEmitter {
   // ========================================================================
 
   /**
+   * Cache a score from realtime events or sync operations.
+   * This is a simpler operation than submitScore - no validation or sync queueing.
+   */
+  async cacheScore(score: BaseScore): Promise<void> {
+    const scoreKey = this.getScoreKey(score.entryId, score.classId, score.judgeId);
+    this.scoreCache.set(scoreKey, score);
+    await this.persistData();
+
+    this.emitEvent('score_cached', {
+      entryId: score.entryId,
+      classId: score.classId,
+      judgeId: score.judgeId
+    });
+  }
+
+  /**
+   * Get a score by its unique ID field.
+   * Searches through the cache to find a score matching the given ID.
+   */
+  getScoreById(scoreId: string): BaseScore | null {
+    for (const score of this.scoreCache.values()) {
+      if (score.id === scoreId) {
+        return score;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Remove a score from cache by its unique ID.
+   * Does NOT queue for sync - used when sync confirms deletion.
+   */
+  async removeScore(scoreId: string): Promise<boolean> {
+    for (const [key, score] of this.scoreCache.entries()) {
+      if (score.id === scoreId) {
+        this.scoreCache.delete(key);
+        await this.persistData();
+
+        this.emitEvent('score_removed', {
+          entryId: score.entryId,
+          classId: score.classId,
+          judgeId: score.judgeId
+        });
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Update a locally cached score with server-confirmed data.
+   * Used after sync to replace local/temporary ID with server ID and update metadata.
+   */
+  async updateCacheWithServerData(
+    localId: string,
+    serverData: Partial<BaseScore> & { id: string }
+  ): Promise<boolean> {
+    // Find the local score by its ID
+    for (const [key, score] of this.scoreCache.entries()) {
+      if (score.id === localId) {
+        // Merge server data into local score
+        const updatedScore: BaseScore = {
+          ...score,
+          ...serverData,
+          syncStatus: 'synced',
+          lastModified: new Date()
+        };
+
+        // Update in cache (same key, since composite key doesn't change)
+        this.scoreCache.set(key, updatedScore);
+        await this.persistData();
+
+        this.emitEvent('score_synced', {
+          entryId: updatedScore.entryId,
+          classId: updatedScore.classId,
+          judgeId: updatedScore.judgeId,
+          localId,
+          serverId: serverData.id
+        });
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Get all pending (unsynced) scores from the cache.
+   */
+  getPendingScores(): BaseScore[] {
+    const pending: BaseScore[] = [];
+    for (const score of this.scoreCache.values()) {
+      if (score.syncStatus === 'pending') {
+        pending.push(score);
+      }
+    }
+    return pending;
+  }
+
+  /**
    * Get sync queue status
    */
   getSyncQueueStatus(): { pending: number; failed: number; lastSync?: Date } {

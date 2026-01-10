@@ -10,29 +10,53 @@
  */
 
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { useOptimisticScoring } from '../useOptimisticScoring';
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
+import { useOptimisticScoring } from '@/hooks/useOptimisticScoring';
 import { submitScore } from '@/services/entryService';
 import { useOfflineQueueStore } from '@/stores/offlineQueueStore';
 
-// Mock dependencies
-vi.mock('@/services/entryService');
-vi.mock('@/stores/offlineQueueStore');
+// Hoist mock functions so they are available to the hoisted vi.mock factories
+const {
+  mockMarkAsScored,
+  mockSubmitScore,
+  mockAddToQueue,
+  mockUpdate
+} = vi.hoisted(() => ({
+  mockMarkAsScored: vi.fn(),
+  mockSubmitScore: vi.fn(),
+  mockAddToQueue: vi.fn(),
+  mockUpdate: vi.fn(async ({ serverUpdate, onSuccess }) => {
+    try {
+      await serverUpdate();
+      onSuccess?.();
+    } catch (err) {
+      // Silent failure for offline
+    }
+  }),
+}));
+
+// Mock dependencies using aliases
+vi.mock('@/services/entryService', () => ({
+  submitScore: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('@/stores/offlineQueueStore', () => ({
+  useOfflineQueueStore: vi.fn(() => ({
+    addToQueue: mockAddToQueue,
+    isOnline: true
+  })),
+}));
+
 vi.mock('@/lib/supabase', () => ({
   getSupabaseLicenseKey: vi.fn(() => 'test-license-key-12345'),
 }));
 
-// Create mock functions we can track
-const mockMarkAsScored = vi.fn();
-const mockSubmitScore = vi.fn();
-const mockAddToQueue = vi.fn();
-const mockUpdate = vi.fn(async ({ serverUpdate, onSuccess }) => {
-  try {
-    await serverUpdate();
-    onSuccess?.();
-  } catch (err) {
-    // Silent failure for offline
-  }
-});
+// Mock replication layer to avoid IndexedDB dependencies
+vi.mock('@/services/replication', () => ({
+  replicatedEntriesTable: {
+    markAsScored: vi.fn().mockResolvedValue(undefined),
+  },
+}));
 
 vi.mock('@/stores/entryStore', () => ({
   useEntryStore: vi.fn(() => ({
@@ -42,7 +66,7 @@ vi.mock('@/stores/entryStore', () => ({
   }))
 }));
 
-vi.mock('@/stores/scoringStore', () => ({
+vi.mock('@myk9/scoring', () => ({
   useScoringStore: vi.fn(() => ({
     submitScore: mockSubmitScore,
     scores: [],
@@ -50,6 +74,7 @@ vi.mock('@/stores/scoringStore', () => ({
   }))
 }));
 
+// Mock the hook specifically
 vi.mock('@/hooks/useOptimisticUpdate', () => ({
   useOptimisticUpdate: vi.fn(() => ({
     update: mockUpdate,
@@ -116,7 +141,7 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
         storeUpdateTime = Date.now();
       });
 
-      (submitScore as vi.Mock).mockImplementation(async () => {
+      (submitScore as Mock).mockImplementation(async () => {
         apiCallTime = Date.now();
         // Simulate network delay
         await new Promise(resolve => setTimeout(resolve, 100));
@@ -226,7 +251,7 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
         value: false
       });
 
-      (useOfflineQueueStore as unknown as vi.Mock).mockReturnValue({
+      (useOfflineQueueStore as unknown as Mock).mockReturnValue({
         addToQueue: mockAddToQueue,
         isOnline: false
       });
@@ -281,7 +306,7 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
     });
 
     it('adds score to offline queue when offline', async () => {
-      const { result} = renderHook(() => useOptimisticScoring());
+      const { result } = renderHook(() => useOptimisticScoring());
 
       await act(async () => {
         await result.current.submitScoreOptimistically({
@@ -307,7 +332,7 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
 
   describe('Scenario 3: Connection Drops Mid-Sync', () => {
     it('does not rollback optimistic update if sync fails', async () => {
-      (submitScore as vi.Mock).mockRejectedValue(new Error('Network timeout'));
+      (submitScore as Mock).mockRejectedValue(new Error('Network timeout'));
 
       const { result } = renderHook(() => useOptimisticScoring());
 
@@ -331,7 +356,7 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
 
     it('does not show error to user when sync fails', async () => {
       const alertSpy = vi.spyOn(window, 'alert').mockImplementation();
-      (submitScore as vi.Mock).mockRejectedValue(new Error('Network error'));
+      (submitScore as Mock).mockRejectedValue(new Error('Network error'));
 
       const { result } = renderHook(() => useOptimisticScoring());
 
@@ -412,7 +437,7 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
       // Should have at least 3 API calls (may be more with retries)
       await waitFor(() => {
         expect(submitScore).toHaveBeenCalled();
-        expect((submitScore as vi.Mock).mock.calls.length).toBeGreaterThanOrEqual(3);
+        expect((submitScore as Mock).mock.calls.length).toBeGreaterThanOrEqual(3);
       }, { timeout: 10000 });
     }, 15000);
   });
@@ -448,7 +473,7 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
         callOrder.push('markAsScored');
       });
 
-      (submitScore as vi.Mock).mockImplementation(async () => {
+      (submitScore as Mock).mockImplementation(async () => {
         callOrder.push('submitScore');
       });
 

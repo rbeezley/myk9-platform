@@ -663,19 +663,32 @@ export class OfflineManager {
   }
 
   /**
-   * Sync single operation
+   * Sync single operation using registered processors
    */
   private async syncSingleOperation(item: SyncQueueItem): Promise<void> {
-    // This would contain the actual sync logic
-    // For now, simulate the operation
-    
     console.log(`Syncing operation: ${item.id} (${item.entityType}.${item.actionType})`);
-    
-    // Simulate network delay
+
+    // Get the processor for this entity type from SyncQueue
+    const processor = syncQueue.getProcessor(item.entityType);
+
+    if (processor) {
+      // Use the registered processor
+      const result = await processor.processItem(item);
+
+      if (!result.success) {
+        if (result.conflictDetected) {
+          throw new Error(`Conflict detected: version ${result.serverVersion}`);
+        }
+        throw result.error || new Error('Sync operation failed');
+      }
+
+      // Success - processor has already updated local cache
+      return;
+    }
+
+    // No processor registered - fall back to stub behavior
+    console.warn(`No processor registered for entity type: ${item.entityType}`);
     await new Promise(resolve => setTimeout(resolve, 100));
-    
-    // Simulate success
-    return Promise.resolve();
   }
 
   /**

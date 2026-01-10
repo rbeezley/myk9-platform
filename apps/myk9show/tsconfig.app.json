@@ -11,9 +11,10 @@
     "declarationMap": false,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": [
+        "src/*"
+      ]
     },
-
     /* Temporarily disabled for Base UI migration and pre-existing type issues */
     /* TODO: Re-enable strict mode incrementally after migration stabilizes */
     "strict": false,
@@ -21,27 +22,26 @@
     "strictFunctionTypes": true,
     "strictBindCallApply": true,
     "strictPropertyInitialization": true,
-
     /* Core Safety Features */
     "noImplicitOverride": false,
     "noImplicitReturns": false,
     "allowUnusedLabels": false,
     "allowUnreachableCode": false,
-
     /* Temporarily Disabled for Gradual Migration */
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "exactOptionalPropertyTypes": false,
     "noPropertyAccessFromIndexSignature": false,
     "noUncheckedIndexedAccess": false,
-
     /* Re-enabled after Base UI migration stabilized */
     "noImplicitAny": true
   },
-  "include": ["src"],
+  "include": [
+    "src"
+  ],
   "exclude": [
     "src/test/**/*",
-    "src/**/__tests__/**/*", 
+    "src/**/__tests__/**/*",
     "src/**/*.test.ts",
     "src/services/sync/backgroundSyncService.ts",
     "src/services/sync/conflictResolutionStrategies.ts",
@@ -57,8 +57,7 @@
     "src/services/conflict/**/*",
     "src/services/conflict/ConflictResolver.ts",
     "src/components/sync/**/*",
-    "src/components/conflict/**/*", 
-    "src/hooks/useConflictResolution.ts",
+    "src/components/conflict/**/*",
     "src/hooks/useBackgroundSync.ts",
     "src/hooks/useFieldLevelSync.ts",
     "src/hooks/useRegistrationConflicts.ts",
@@ -78,11 +77,7 @@
     "src/components/common/StoreLoadingBoundary.tsx",
     "src/components/common/UnifiedSidebar.tsx",
     "src/components/deployment/DeploymentDashboard.tsx",
-    "src/components/dogs/enhanced/**/*",
-    "src/components/entries/EntrySyncMetrics.tsx",
-    "src/components/entries/OfflineEntryForm.tsx",
-    "src/components/exhibitor/RingMonitor.tsx",
-    "src/components/panels/PanelManager.ts",
+    "src/components/base/BulkActionsBar.tsx",
     "src/components/users/enhanced/**/*",
     "src/components/providers/ShowDataProvider.tsx",
     "src/components/shows/EnhancedEmptyStates.tsx",

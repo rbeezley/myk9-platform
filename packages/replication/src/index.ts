@@ -24,11 +24,24 @@ export type {
   PerformanceReport,
   SyncProgress,
   SyncFailure,
+  Conflict,
+  ResolutionContext,
   ConflictStrategy,
+  ConflictResolutionResult,
+  FieldAuthority,
   TableFilter,
   QueryOptions,
   CacheStats,
 } from './types';
+
+// Conflict Resolution
+export { ConflictResolver, conflictResolver } from './conflict/ConflictResolver';
+export { ConflictManager, conflictManager } from './conflict/ConflictManager';
+export type {
+  ConflictEvent,
+  ConflictEventType,
+  ConflictStats,
+} from './conflict/ConflictManager';
 
 // Dependency injection interfaces
 export type {

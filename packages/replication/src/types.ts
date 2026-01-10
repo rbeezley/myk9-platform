@@ -148,6 +148,61 @@ export type ConflictStrategy =
   | 'field-level-merge';        // Merge specific fields
 
 /**
+ * Result of a conflict resolution operation
+ */
+export interface ConflictResolutionResult<T> {
+  resolvedEntity: T;
+  strategy: ConflictStrategy;
+  hadConflict: boolean;
+  conflictingFields?: string[];
+  automatic: boolean;
+}
+
+/**
+ * Context for resolving a conflict
+ */
+export interface ResolutionContext {
+  userId?: string;
+  userRole?: string;
+  userPermissions?: string[];
+  timestamp: Date;
+  deviceId?: string;
+}
+
+/**
+ * Detailed conflict object for history and manual resolution
+ */
+export interface Conflict<T = any> {
+  id: string;
+  entityId: string;
+  entityType?: string;
+  localData: T;
+  remoteData: T;
+  baseData?: T;
+  localTimestamp?: number;
+  remoteTimestamp?: number;
+  detectedAt: Date;
+  status: 'pending' | 'resolved' | 'ignored';
+  resolution?: {
+    strategy: ConflictStrategy;
+    resolvedEntity: T;
+    resolvedAt: Date;
+    resolvedBy?: string;
+  };
+}
+
+/**
+ * Strategy for field-level authority
+ */
+export interface FieldAuthority {
+  /** Fields where server is authoritative (e.g., scores, placements) */
+  serverFields: string[];
+
+  /** Fields where client is authoritative (e.g., check-in status, UI state) */
+  clientFields: string[];
+}
+
+/**
  * Table query filter
  */
 export interface TableFilter<T = Record<string, unknown>> {

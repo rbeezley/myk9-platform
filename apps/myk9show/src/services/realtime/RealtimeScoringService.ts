@@ -1,8 +1,11 @@
 import { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase-client';
 import { BaseScore, Score, PlacementUpdate, ScoringConflict } from '@/types/scoring-types';
-import { SyncQueue } from '../sync/SyncQueue';
+import { syncQueue } from '../sync/SyncQueue';
+import { offlineScoringService } from '../scoring/OfflineScoringService';
+import { scoreSyncProcessor } from '../sync/scoreSyncProcessor';
 import { debounce, throttle } from '@/utils/performance';
+import { generateId } from '@/utils/idUtils';
 import { realtimePerformanceMonitor } from '../performance/realtimePerformanceMonitor';
 import { uiPerformanceManager } from '../performance/uiPerformanceManager';
 import { 
@@ -52,8 +55,6 @@ export class RealtimeScoringService {
     reconnectDelay: 2000
   };
 
-  private syncQueue: SyncQueue;
-  
   // Performance optimization
   private presenceCleanup: (() => void) | null = null;
   private listenersCleanup: (() => void) | null = null;
@@ -61,11 +62,12 @@ export class RealtimeScoringService {
   private isOptimizationEnabled = true;
 
   private constructor() {
-    this.syncQueue = new SyncQueue();
-    
+    // Register the score sync processor with the shared sync queue
+    syncQueue.registerProcessor(scoreSyncProcessor);
+
     // Start performance monitoring
     realtimePerformanceMonitor.startMonitoring();
-    
+
     this.initialize();
   }
 
@@ -205,11 +207,39 @@ export class RealtimeScoringService {
             timestamp: Date.now(),
             data: newScore || oldScore
           });
-      
-          // Update local cache first
-          // TODO: Implement offline service when available
-          console.log('TODO: Update offline cache for score:', newScore || oldScore);
-          
+
+          // Update local cache based on event type
+          if (eventType === 'INSERT' || eventType === 'UPDATE') {
+            if (newScore) {
+              // Cache the score from realtime event
+              offlineScoringService.cacheScore(newScore as BaseScore).catch(err => {
+                console.error('Failed to cache realtime score:', err);
+              });
+
+              // If this score was in our sync queue, remove it (it's now synced)
+              const pendingScores = offlineScoringService.getPendingScores();
+              const matchingPending = pendingScores.find(
+                s => s.entryId === newScore.entryId && s.classId === newScore.classId
+              );
+              if (matchingPending && matchingPending.id) {
+                // Update local with server data
+                offlineScoringService.updateCacheWithServerData(
+                  matchingPending.id,
+                  newScore as BaseScore
+                ).catch(err => {
+                  console.error('Failed to update cache with server data:', err);
+                });
+              }
+            }
+          } else if (eventType === 'DELETE' && oldScore) {
+            // Remove deleted score from local cache
+            if (oldScore.id) {
+              offlineScoringService.removeScore(oldScore.id as string).catch(err => {
+                console.error('Failed to remove score from cache:', err);
+              });
+            }
+          }
+
           // Check for conflicts if this is an update
           if (eventType === 'UPDATE' && newScore && oldScore) {
             this.detectScoringConflict(newScore, oldScore).then(conflict => {
@@ -219,7 +249,7 @@ export class RealtimeScoringService {
               }
             });
           }
-          
+
           // Calculate new placements
           if (newScore?.classId) {
             // Broadcast placement updates - simplified without placement calculator
@@ -230,7 +260,7 @@ export class RealtimeScoringService {
               timestamp: new Date()
             });
           }
-          
+
           // Notify subscribers
           this.notifySubscribers('score-update', {
             eventType,
@@ -441,53 +471,104 @@ export class RealtimeScoringService {
   }
 
   async submitScore(score: Omit<Score, 'id' | 'created_at' | 'updated_at'>): Promise<Score> {
-    // Create score object with id
+    // Create score object with local id
+    const localId = generateId();
     const localScore: Score = {
-      id: `score-${Date.now()}`,
-      ...score
-    };
-    
-    // Queue for sync if online
-    if (this.isConnected) {
-      // TODO: Implement proper sync queue when available
-      try {
-        await this.directSubmitToSupabase(localScore);
-      } catch (error) {
-        console.error('Failed to submit score:', error);
-      }
+      id: localId,
+      ...score,
+      version: 1,
+      syncStatus: 'pending',
+      lastModified: new Date(),
+    } as Score;
+
+    // Cache locally for immediate UI feedback
+    await offlineScoringService.cacheScore(localScore as BaseScore);
+
+    // Enqueue for sync (works both online and offline)
+    syncQueue.enqueue({
+      entityType: 'entry',
+      actionType: 'create',
+      entityId: localScore.entryId,
+      data: localScore as unknown as Record<string, unknown>,
+      priority: 5, // High priority for new scores
+      userId: localScore.recordedBy || 'unknown',
+      retries: 0,
+      scheduledFor: new Date(),
+    });
+
+    // If online, trigger immediate processing
+    if (this.isConnected && navigator.onLine) {
+      // Queue will auto-process, but we can force it
+      syncQueue.resume();
     }
-    
+
     return localScore;
   }
 
   async updateScore(scoreId: string, updates: Partial<Score>): Promise<Score> {
+    // Get existing score from cache
+    const existingScore = offlineScoringService.getScoreById(scoreId);
+
     // Create updated score object
     const updatedScore: Score = {
+      ...(existingScore || {}),
       id: scoreId,
-      ...updates
+      ...updates,
+      version: (existingScore?.version || 0) + 1,
+      syncStatus: 'pending',
+      lastModified: new Date(),
     } as Score;
-    
-    // Queue for sync if online
-    if (this.isConnected) {
-      // TODO: Implement proper sync queue when available
-      try {
-        await this.directSubmitToSupabase(updatedScore);
-      } catch (error) {
-        console.error('Failed to update score:', error);
-      }
+
+    // Update local cache
+    await offlineScoringService.cacheScore(updatedScore as BaseScore);
+
+    // Enqueue for sync
+    syncQueue.enqueue({
+      entityType: 'entry',
+      actionType: 'update',
+      entityId: updatedScore.entryId,
+      data: updatedScore as unknown as Record<string, unknown>,
+      priority: 5,
+      userId: updatedScore.recordedBy || 'unknown',
+      retries: 0,
+      scheduledFor: new Date(),
+    });
+
+    // If online, trigger immediate processing
+    if (this.isConnected && navigator.onLine) {
+      syncQueue.resume();
     }
-    
+
     return updatedScore;
   }
 
   async deleteScore(scoreId: string): Promise<void> {
-    // Queue for sync if online
-    if (this.isConnected) {
-      // TODO: Implement proper sync queue when available
-      try {
-        await this.directDeleteFromSupabase(scoreId);
-      } catch (error) {
-        console.error('Failed to delete score:', error);
+    // Get score info before deleting from cache
+    const existingScore = offlineScoringService.getScoreById(scoreId);
+
+    if (existingScore) {
+      // Remove from local cache
+      await offlineScoringService.removeScore(scoreId);
+
+      // Enqueue deletion for sync
+      syncQueue.enqueue({
+        entityType: 'entry',
+        actionType: 'delete',
+        entityId: existingScore.entryId,
+        data: {
+          entryId: existingScore.entryId,
+          classId: existingScore.classId,
+          judgeId: existingScore.judgeId,
+        },
+        priority: 5,
+        userId: existingScore.recordedBy || 'unknown',
+        retries: 0,
+        scheduledFor: new Date(),
+      });
+
+      // If online, trigger immediate processing
+      if (this.isConnected && navigator.onLine) {
+        syncQueue.resume();
       }
     }
   }
@@ -558,6 +639,10 @@ export class RealtimeScoringService {
   private async handleOnline() {
     console.log('Connection restored, reconnecting to realtime...');
     await this.reconnect();
+
+    // Resume sync queue processing now that we're online
+    console.log('Resuming sync queue processing...');
+    syncQueue.resume();
   }
 
   private handleOffline() {
@@ -609,13 +694,16 @@ export class RealtimeScoringService {
       if (this.presenceChannel) {
         await this.presenceChannel.unsubscribe();
       }
-      
+
       // Re-setup channels
       await this.setupChannels();
-      
-      // Process any queued updates
-      // TODO: Implement processQueue when SyncQueue is properly set up
-      
+
+      // Process any queued updates now that we're reconnected
+      if (navigator.onLine) {
+        console.log('Processing queued sync items after reconnection...');
+        syncQueue.resume();
+      }
+
     } catch (error) {
       console.error('Reconnection failed:', error);
       this.scheduleReconnect();

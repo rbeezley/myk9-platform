@@ -6,7 +6,7 @@
  */
 
 // Core sync event types
-export type SyncEventType = 
+export type SyncEventType =
   | 'sync_started'
   | 'sync_completed'
   | 'sync_failed'
@@ -18,7 +18,7 @@ export type SyncEventType =
   | 'bandwidth_threshold_exceeded';
 
 // Conflict types for tracking different conflict scenarios
-export type ConflictType = 
+export type ConflictType =
   | 'update_update'
   | 'delete_update'
   | 'create_create'
@@ -27,25 +27,31 @@ export type ConflictType =
   | 'permission_conflict';
 
 // Resolution strategy for conflicts
-export type ConflictResolutionStrategy = 
+export type ConflictResolutionStrategy =
   | 'auto_merge'
   | 'last_write_wins'
   | 'manual_resolution'
   | 'field_level_merge'
   | 'timestamp_based'
-  | 'user_preference';
+  | 'user_preference'
+  | 'server-authoritative'
+  | 'client-authoritative'
+  | 'last-write-wins'; // Shared convention
 
 // Sync operation status
-export type SyncStatus = 
+export type SyncStatus =
   | 'pending'
   | 'in_progress'
   | 'completed'
   | 'failed'
   | 'cancelled'
-  | 'conflict_resolution_required';
+  | 'conflict_resolution_required'
+  | 'synced' // Replication consistency
+  | 'error'
+  | 'conflict';
 
 // Network connection status
-export type NetworkStatus = 
+export type NetworkStatus =
   | 'online'
   | 'offline'
   | 'limited'
@@ -121,38 +127,38 @@ export interface SyncMetrics {
   // Time range for these metrics
   startTime: Date;
   endTime: Date;
-  
+
   // Overall health and performance
   syncHealthScore: number; // 0-100 percentage
   successRate: number; // percentage of successful syncs
   averageSyncTime: number; // average time per sync in seconds
-  
+
   // Sync operation counts
   totalSyncs: number;
   successfulSyncs: number;
   failedSyncs: number;
-  
+
   // Conflict metrics
   totalConflicts: number;
   resolvedConflicts: number;
   pendingConflicts: number;
   conflictRate: number; // conflicts per sync percentage
-  
+
   // Network and performance
   bandwidthUsed: number; // total bytes
   compressionRatio: number; // compression efficiency (0-1)
   averageLatency: number; // milliseconds
-  
+
   // Offline usage
   offlineUsageTime: number; // total minutes offline
   offlineSyncsQueued: number;
-  
+
   // Collection breakdown
   collectionMetrics: CollectionSyncMetrics[];
-  
+
   // Recent events for trend analysis
   recentEvents: SyncEvent[];
-  
+
   // Performance trends (last 24 data points)
   syncTimeTrend: Array<{ timestamp: Date; value: number }>;
   successRateTrend: Array<{ timestamp: Date; value: number }>;
@@ -167,17 +173,17 @@ export interface AnalyticsConfig {
   // Retention periods
   detailedMetricsRetention: number; // days
   aggregatedMetricsRetention: number; // days
-  
+
   // Sampling rates
   eventSamplingRate: number; // 0-1
   metricsSamplingRate: number; // 0-1
-  
+
   // Alert thresholds
   healthScoreThreshold: number; // below this triggers alert
   successRateThreshold: number; // below this triggers alert
   conflictRateThreshold: number; // above this triggers alert
   syncTimeThreshold: number; // above this triggers alert (seconds)
-  
+
   // Performance targets
   targetSyncTime: number; // target sync time in seconds
   targetSuccessRate: number; // target success rate percentage

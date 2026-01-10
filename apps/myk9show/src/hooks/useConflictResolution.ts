@@ -1,82 +1,29 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { 
-  Conflict, 
-  ConflictResolution, 
+import type {
+  Conflict,
+  ConflictResolution,
   ResolutionStrategy,
   BaseConflict,
   BaseConflictResolution
 } from '../types/conflict-types';
 
-// Type for conflict priorities
-// type ConflictPriority = 'low' | 'medium' | 'high' | 'critical';
-// TODO: Import conflict manager when it's implemented
-// import { 
-//   conflictManager, 
-//   ConflictEvent, 
-//   ConflictEventType,
-//   ConflictStats,
-//   ConflictNotification
-// } from '../services/conflict/ConflictManager';
+import {
+  conflictManager,
+  type ConflictEvent,
+  type ConflictEventType,
+  type ConflictStats,
+  type ConflictStrategy,
+  type Conflict as SharedConflict
+} from '@myk9/replication';
 
-// Temporary types until ConflictManager is implemented
-interface ConflictEvent {
-  id: string;
-  type: string;
-  timestamp: Date;
-  conflictId?: string;
-  entityType?: string;
-  entityId?: string;
-  data?: Record<string, unknown>;
-}
+import { SyncMetadata } from '../types/core-types';
+import { useAuth } from './useAuth';
 
-interface ConflictStats {
-  total: number;
-  resolved: number;
-  pending: number;
-}
-
-interface ConflictNotification {
+export interface ConflictNotification {
   id: string;
   message: string;
   type: 'info' | 'warning' | 'error';
 }
-
-type ConflictEventType = 'created' | 'resolved' | 'updated' | 'conflict_detected' | 'conflict_resolved' | 'conflict_failed' | 'manual_resolution_required';
-
-// Temporary conflict manager stub until real implementation is available
-const conflictManager = {
-  getConflictStats: (): ConflictStats => ({ total: 0, resolved: 0, pending: 0 }),
-  getPendingConflicts: (): BaseConflict<Record<string, unknown>>[] => [],
-  getResolutionHistory: (): BaseConflictResolution<unknown>[] => [],
-  addEventListener: (type: string, handler: (event: ConflictEvent) => void) => {
-    // No-op stub
-    void type; void handler;
-  },
-  removeEventListener: (type: string, handler: (event: ConflictEvent) => void) => {
-    // No-op stub  
-    void type; void handler;
-  },
-  resolveConflictManually: async (conflictId: string, resolution: ConflictResolution): Promise<boolean> => {
-    console.warn('ConflictManager stub: resolveConflictManually called but not implemented');
-    void conflictId; void resolution;
-    return false;
-  },
-  handleSyncConflict: async (local: unknown, remote: unknown, base?: unknown, context?: unknown): Promise<ConflictResolution> => {
-    console.warn('ConflictManager stub: handleSyncConflict called but not implemented');
-    void local; void remote; void base; void context;
-    return {
-      conflictId: 'stub-conflict',
-      strategy: 'user_decides' as ResolutionStrategy,
-      resolvedEntity: local,
-      resolvedAt: new Date(),
-      resolvedBy: 'system',
-      automatic: false
-    } as ConflictResolution;
-  }
-};
-
-import { SyncMetadata } from '../types/core-types';
-import { useAuth } from './useAuth';
 
 export interface ConflictResolutionHookOptions {
   entityType?: string;
@@ -96,7 +43,7 @@ export interface ConflictResolutionState {
 
 export interface ConflictResolutionActions {
   resolveConflict: (
-    conflictId: string, 
+    conflictId: string,
     strategy: ResolutionStrategy,
     customResolution?: unknown
   ) => Promise<ConflictResolution<{ id: string }>>;
@@ -128,18 +75,43 @@ export function useConflictResolution(
   });
 
   const eventHandlersRef = useRef<Map<ConflictEventType, (event: ConflictEvent) => void>>(new Map());
-  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const refreshConflicts = useCallback(() => {
     try {
-      const conflicts = conflictManager.getPendingConflicts();
-      const resolutions = conflictManager.getResolutionHistory();
+      const sharedConflicts = conflictManager.getPendingConflicts();
+      const sharedResolutions = conflictManager.getResolutionHistory();
       const stats = conflictManager.getConflictStats();
+
+      const mappedConflicts = sharedConflicts.map(c => ({
+        ...c,
+        conflictType: 'sync_conflict' as const,
+        conflictFields: [], // Can be calculated if needed
+        lastModified: {
+          local: c.detectedAt,
+          remote: c.detectedAt
+        },
+        lastModifiedBy: {
+          local: 'me',
+          remote: 'remote'
+        },
+        createdAt: c.detectedAt,
+        priority: 'medium' as const
+      } as unknown as BaseConflict<Record<string, unknown>>));
+
+      const mappedResolutions = sharedResolutions.map(c => ({
+        conflictId: c.id,
+        strategy: 'merge_automatic' as const, // Placeholder
+        resolvedAt: c.resolution?.resolvedAt || new Date(),
+        resolvedBy: c.resolution?.resolvedBy || 'system',
+        automatic: !c.resolution,
+        resolvedEntity: c.resolution?.resolvedEntity
+      } as unknown as BaseConflictResolution<unknown>));
 
       setState(prev => ({
         ...prev,
-        conflicts,
-        resolutions,
+        conflicts: mappedConflicts,
+        resolutions: mappedResolutions,
         stats,
         isLoading: false,
         error: null
@@ -170,7 +142,7 @@ export function useConflictResolution(
           }
         ] : prev.notifications
       }));
-      
+
       // Refresh conflicts list
       refreshConflicts();
     });
@@ -181,7 +153,7 @@ export function useConflictResolution(
         stats: conflictManager.getConflictStats(),
         notifications: prev.notifications.filter(n => n.id !== `notification-${event.conflictId}`)
       }));
-      
+
       // Refresh conflicts and resolutions
       refreshConflicts();
     });
@@ -264,16 +236,22 @@ export function useConflictResolution(
         deviceId: navigator.userAgent // Simple device identification
       };
 
+      const strategyMap: Record<string, ConflictStrategy> = {
+        'local_wins': 'client-authoritative',
+        'remote_wins': 'server-authoritative',
+        'merge_automatic': 'field-level-merge',
+        'merge_manual': 'field-level-merge'
+      };
+
+      const sharedStrategy = strategyMap[strategy] || 'last-write-wins';
+
       await conflictManager.resolveConflictManually(
         conflictId,
         {
-          conflictId,
-          strategy,
+          strategy: sharedStrategy,
           resolvedEntity: customResolution,
-          resolvedAt: new Date(),
-          resolvedBy: context.userId,
-          automatic: false
-        } as ConflictResolution
+          userId: user.id
+        }
       );
 
       setState(prev => ({
@@ -398,6 +376,7 @@ export function useFormConflictResolution<T extends { id: string } & SyncMetadat
   const [conflictResolution, setConflictResolution] = useState<{
     hasConflict: boolean;
     conflict?: Conflict<T>;
+    resolvedEntity?: T;
     requiresManualResolution: boolean;
   } | null>(null);
 

@@ -9,25 +9,46 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
-  LineChart,
-  Line,
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  ScatterChart,
-  Scatter,
-  ComposedChart,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  ReferenceLine,
-  PieChart,
-  Pie
+  LineChart as RechartsLineChart,
+  Line as RechartsLine,
+  AreaChart as RechartsAreaChart,
+  Area as RechartsArea,
+  BarChart as RechartsBarChart,
+  Bar as RechartsBar,
+  ScatterChart as RechartsScatterChart,
+  Scatter as RechartsScatter,
+  ComposedChart as RechartsComposedChart,
+  XAxis as RechartsXAxis,
+  YAxis as RechartsYAxis,
+  CartesianGrid as RechartsCartesianGrid,
+  Tooltip as RechartsTooltip,
+  Legend as RechartsLegend,
+  ResponsiveContainer as RechartsResponsiveContainer,
+  ReferenceLine as RechartsReferenceLine,
+  PieChart as RechartsPieChart,
+  Pie as RechartsPie
 } from 'recharts';
+
+// Cast Recharts components to solve 'not a valid JSX component' type errors
+const LineChart = RechartsLineChart as any;
+const Line = RechartsLine as any;
+const AreaChart = RechartsAreaChart as any;
+const Area = RechartsArea as any;
+const BarChart = RechartsBarChart as any;
+const Bar = RechartsBar as any;
+const ScatterChart = RechartsScatterChart as any;
+const Scatter = RechartsScatter as any;
+const ComposedChart = RechartsComposedChart as any;
+const XAxis = RechartsXAxis as any;
+const YAxis = RechartsYAxis as any;
+const CartesianGrid = RechartsCartesianGrid as any;
+const Tooltip = RechartsTooltip as any;
+const Legend = RechartsLegend as any;
+const ResponsiveContainer = RechartsResponsiveContainer as any;
+const ReferenceLine = RechartsReferenceLine as any;
+const PieChart = RechartsPieChart as any;
+const Pie = RechartsPie as any;
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -35,17 +56,29 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import {
-  Activity,
-  TrendingUp,
-  TrendingDown,
-  Zap,
-  Wifi,
-  Clock,
-  AlertTriangle,
-  CheckCircle,
-  Download,
-  RotateCcw
+  Activity as LucideActivity,
+  TrendingUp as LucideTrendingUp,
+  TrendingDown as LucideTrendingDown,
+  Zap as LucideZap,
+  Wifi as LucideWifi,
+  Clock as LucideClock,
+  AlertTriangle as LucideAlertTriangle,
+  CheckCircle as LucideCheckCircle,
+  Download as LucideDownload,
+  RotateCcw as LucideRotateCcw
 } from 'lucide-react';
+
+const Activity = LucideActivity as any;
+const TrendingUp = LucideTrendingUp as any;
+const TrendingDown = LucideTrendingDown as any;
+const Zap = LucideZap as any;
+const Wifi = LucideWifi as any;
+const Clock = LucideClock as any;
+const AlertTriangle = LucideAlertTriangle as any;
+const CheckCircle = LucideCheckCircle as any;
+const Download = LucideDownload as any;
+const RotateCcw = LucideRotateCcw as any;
+
 import { cn } from '@/lib/utils';
 import { SyncAnalyticsService } from '@/services/analytics/SyncAnalyticsService';
 import { SyncMetrics } from '@/types/analytics-types';
@@ -194,7 +227,7 @@ export function PerformanceGraphs({ className }: PerformanceGraphsProps) {
           metrics.endTime,
           format === 'csv' ? 'csv' : 'json'
         );
-        
+
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -212,21 +245,21 @@ export function PerformanceGraphs({ className }: PerformanceGraphsProps) {
   // Performance status indicator
   const getPerformanceStatus = useCallback((value: number, metric: 'syncTime' | 'successRate' | 'conflictRate') => {
     const thresholds = PERFORMANCE_THRESHOLDS;
-    
+
     if (metric === 'syncTime') {
       if (value <= thresholds.excellent.syncTime) return { status: 'excellent', color: 'text-green-600' };
       if (value <= thresholds.good.syncTime) return { status: 'good', color: 'text-blue-600' };
       if (value <= thresholds.fair.syncTime) return { status: 'fair', color: 'text-yellow-600' };
       return { status: 'poor', color: 'text-red-600' };
     }
-    
+
     if (metric === 'successRate') {
       if (value >= thresholds.excellent.successRate) return { status: 'excellent', color: 'text-green-600' };
       if (value >= thresholds.good.successRate) return { status: 'good', color: 'text-blue-600' };
       if (value >= thresholds.fair.successRate) return { status: 'fair', color: 'text-yellow-600' };
       return { status: 'poor', color: 'text-red-600' };
     }
-    
+
     // conflictRate
     if (value <= thresholds.excellent.conflictRate) return { status: 'excellent', color: 'text-green-600' };
     if (value <= thresholds.good.conflictRate) return { status: 'good', color: 'text-blue-600' };
@@ -269,7 +302,7 @@ export function PerformanceGraphs({ className }: PerformanceGraphsProps) {
   }
 
   return (
-    <motion.div 
+    <motion.div
       className={cn("space-y-6", className)}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -333,11 +366,11 @@ export function PerformanceGraphs({ className }: PerformanceGraphsProps) {
                   </Badge>
                 </div>
                 <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                  {metrics.syncHealthScore >= 90 ? 
+                  {metrics.syncHealthScore >= 90 ?
                     <CheckCircle className="h-6 w-6 text-green-600" /> :
                     metrics.syncHealthScore >= 70 ?
-                    <Clock className="h-6 w-6 text-yellow-600" /> :
-                    <AlertTriangle className="h-6 w-6 text-red-600" />
+                      <Clock className="h-6 w-6 text-yellow-600" /> :
+                      <AlertTriangle className="h-6 w-6 text-red-600" />
                   }
                 </div>
               </div>
@@ -421,17 +454,17 @@ export function PerformanceGraphs({ className }: PerformanceGraphsProps) {
                   <ResponsiveContainer width="100%" height={300}>
                     <LineChart data={metrics.syncTimeTrend}>
                       <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                      <XAxis 
+                      <XAxis
                         dataKey="timestamp"
-                        tickFormatter={(value) => new Date(value).toLocaleTimeString()}
+                        tickFormatter={(value: any) => new Date(value).toLocaleTimeString()}
                       />
                       <YAxis label={{ value: 'Time (s)', angle: -90, position: 'insideLeft' }} />
                       <Tooltip content={<CustomTooltip formatter={(value: number) => `${value.toFixed(2)}s`} />} />
                       <ReferenceLine y={PERFORMANCE_THRESHOLDS.good.syncTime} stroke="#f59e0b" strokeDasharray="5 5" />
-                      <Line 
-                        type="monotone" 
-                        dataKey="value" 
-                        stroke="#3b82f6" 
+                      <Line
+                        type="monotone"
+                        dataKey="value"
+                        stroke="#3b82f6"
                         strokeWidth={2}
                         dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
                       />
@@ -452,17 +485,17 @@ export function PerformanceGraphs({ className }: PerformanceGraphsProps) {
                   <ResponsiveContainer width="100%" height={300}>
                     <AreaChart data={metrics.successRateTrend}>
                       <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                      <XAxis 
+                      <XAxis
                         dataKey="timestamp"
-                        tickFormatter={(value) => new Date(value).toLocaleTimeString()}
+                        tickFormatter={(value: any) => new Date(value).toLocaleTimeString()}
                       />
                       <YAxis domain={[0, 100]} label={{ value: 'Success Rate (%)', angle: -90, position: 'insideLeft' }} />
                       <Tooltip content={<CustomTooltip formatter={(value: number) => `${value.toFixed(1)}%`} />} />
                       <ReferenceLine y={PERFORMANCE_THRESHOLDS.good.successRate} stroke="#10b981" strokeDasharray="5 5" />
-                      <Area 
-                        type="monotone" 
-                        dataKey="value" 
-                        stroke="#10b981" 
+                      <Area
+                        type="monotone"
+                        dataKey="value"
+                        stroke="#10b981"
                         fill="#10b981"
                         fillOpacity={0.3}
                       />
@@ -483,9 +516,9 @@ export function PerformanceGraphs({ className }: PerformanceGraphsProps) {
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={metrics.bandwidthTrend}>
                       <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                      <XAxis 
+                      <XAxis
                         dataKey="timestamp"
-                        tickFormatter={(value) => new Date(value).toLocaleTimeString()}
+                        tickFormatter={(value: any) => new Date(value).toLocaleTimeString()}
                       />
                       <YAxis label={{ value: 'Bandwidth (MB)', angle: -90, position: 'insideLeft' }} />
                       <Tooltip content={<CustomTooltip formatter={(value: number) => `${value.toFixed(2)} MB`} />} />
@@ -507,17 +540,17 @@ export function PerformanceGraphs({ className }: PerformanceGraphsProps) {
                   <ResponsiveContainer width="100%" height={300}>
                     <LineChart data={metrics.conflictRateTrend}>
                       <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                      <XAxis 
+                      <XAxis
                         dataKey="timestamp"
-                        tickFormatter={(value) => new Date(value).toLocaleTimeString()}
+                        tickFormatter={(value: any) => new Date(value).toLocaleTimeString()}
                       />
                       <YAxis label={{ value: 'Conflict Rate (%)', angle: -90, position: 'insideLeft' }} />
                       <Tooltip content={<CustomTooltip formatter={(value: number) => `${value.toFixed(1)}%`} />} />
                       <ReferenceLine y={PERFORMANCE_THRESHOLDS.fair.conflictRate} stroke="#f59e0b" strokeDasharray="5 5" />
-                      <Line 
-                        type="monotone" 
-                        dataKey="value" 
-                        stroke="#f59e0b" 
+                      <Line
+                        type="monotone"
+                        dataKey="value"
+                        stroke="#f59e0b"
                         strokeWidth={2}
                         dot={{ fill: '#f59e0b', strokeWidth: 2, r: 4 }}
                       />
@@ -545,9 +578,9 @@ export function PerformanceGraphs({ className }: PerformanceGraphsProps) {
                     bandwidth: metrics.bandwidthTrend[index]?.value || 0
                   }))}>
                     <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
-                    <XAxis 
+                    <XAxis
                       dataKey="timestamp"
-                      tickFormatter={(value) => new Date(value).toLocaleTimeString()}
+                      tickFormatter={(value: any) => new Date(value).toLocaleTimeString()}
                     />
                     <YAxis yAxisId="left" orientation="left" />
                     <YAxis yAxisId="right" orientation="right" />
@@ -578,7 +611,7 @@ export function PerformanceGraphs({ className }: PerformanceGraphsProps) {
                         <span className="text-sm font-medium">{percentile.toUpperCase()}</span>
                         <div className="flex items-center gap-2">
                           <div className="w-32 bg-muted rounded-full h-2">
-                            <div 
+                            <div
                               className="h-2 rounded-full bg-primary"
                               style={{ width: `${Math.min(100, (value / 10) * 100)}%` }}
                             />
@@ -609,7 +642,7 @@ export function PerformanceGraphs({ className }: PerformanceGraphsProps) {
                         cy="50%"
                         outerRadius={80}
                         dataKey="value"
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        label={({ name, percent }: { name: string; percent: number }) => `${name} ${(percent * 100).toFixed(0)}%`}
                       />
                       <Tooltip />
                     </PieChart>
@@ -625,7 +658,7 @@ export function PerformanceGraphs({ className }: PerformanceGraphsProps) {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  {regressionData.isImproving ? 
+                  {regressionData.isImproving ?
                     <TrendingDown className="h-5 w-5 text-green-600" /> :
                     <TrendingUp className="h-5 w-5 text-red-600" />
                   }
@@ -643,10 +676,10 @@ export function PerformanceGraphs({ className }: PerformanceGraphsProps) {
                     <YAxis dataKey="y" name="Sync Time (s)" />
                     <Tooltip cursor={{ strokeDasharray: '3 3' }} />
                     <Scatter dataKey="y" fill="#3b82f6" />
-                    <Line 
-                      type="monotone" 
-                      dataKey="trend" 
-                      stroke="#ef4444" 
+                    <Line
+                      type="monotone"
+                      dataKey="trend"
+                      stroke="#ef4444"
                       strokeWidth={2}
                       strokeDasharray="5 5"
                       data={regressionData.trendLine}

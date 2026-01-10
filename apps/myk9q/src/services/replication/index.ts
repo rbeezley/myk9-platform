@@ -11,11 +11,13 @@
 export { ReplicatedTable, REPLICATION_STORES } from './ReplicatedTable';
 export { SyncEngine } from './SyncEngine';
 export type { SyncOptions, SyncEngineConfig } from './SyncEngine';
-export { ConflictResolver, conflictResolver } from './ConflictResolver';
-export type {
-  ConflictResolutionResult,
-  FieldAuthority,
-} from './ConflictResolver';
+// Conflict resolution
+export {
+  conflictResolver,
+  ConflictResolver,
+  type ConflictResolutionResult,
+  type FieldAuthority,
+} from '@myk9/replication';
 export {
   ReplicationManager,
   initReplicationManager,

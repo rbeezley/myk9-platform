@@ -92,7 +92,7 @@ export function ConflictResolver() {
     <div className="conflict-resolver">
       <div className="conflict-banner">
         <div className="conflict-banner-content">
-          <AlertTriangle size={20}  style={{ width: '20px', height: '20px', flexShrink: 0 }} />
+          <AlertTriangle size={20} style={{ width: '20px', height: '20px', flexShrink: 0 }} />
           <span>
             <strong>{conflicts.length}</strong> {conflicts.length === 1 ? 'conflict' : 'conflicts'}{' '}
             need{conflicts.length === 1 ? 's' : ''} resolution
@@ -105,11 +105,11 @@ export function ConflictResolver() {
           <div className="conflict-dialog">
             <div className="conflict-dialog-header">
               <div className="conflict-dialog-title">
-                <AlertTriangle size={24}  style={{ width: '24px', height: '24px', flexShrink: 0 }} />
+                <AlertTriangle size={24} style={{ width: '24px', height: '24px', flexShrink: 0 }} />
                 {summary.title}
               </div>
               <button className="conflict-dialog-close" onClick={handleIgnore}>
-                <X size={20}  style={{ width: '20px', height: '20px', flexShrink: 0 }} />
+                <X size={20} style={{ width: '20px', height: '20px', flexShrink: 0 }} />
               </button>
             </div>
 
@@ -117,8 +117,8 @@ export function ConflictResolver() {
               <p className="conflict-description">{summary.description}</p>
 
               <div className="conflict-timestamp">
-                <span>Local: {new Date(selectedConflict.localTimestamp).toLocaleString()}</span>
-                <span>Remote: {new Date(selectedConflict.remoteTimestamp).toLocaleString()}</span>
+                <span>Local: {typeof selectedConflict.localTimestamp === 'number' ? new Date(selectedConflict.localTimestamp).toLocaleString() : 'Recently'}</span>
+                <span>Remote: {typeof selectedConflict.remoteTimestamp === 'number' ? new Date(selectedConflict.remoteTimestamp).toLocaleString() : 'Unknown'}</span>
               </div>
 
               <div className="conflict-options">
@@ -141,7 +141,7 @@ export function ConflictResolver() {
                     onClick={() => handleResolve({ action: 'local' })}
                     disabled={isResolving}
                   >
-                    <Check size={16}  style={{ width: '16px', height: '16px', flexShrink: 0 }} />
+                    <Check size={16} style={{ width: '16px', height: '16px', flexShrink: 0 }} />
                     Use Local
                   </button>
                 </div>
@@ -165,7 +165,7 @@ export function ConflictResolver() {
                     onClick={() => handleResolve({ action: 'remote' })}
                     disabled={isResolving}
                   >
-                    <Check size={16}  style={{ width: '16px', height: '16px', flexShrink: 0 }} />
+                    <Check size={16} style={{ width: '16px', height: '16px', flexShrink: 0 }} />
                     Use Remote
                   </button>
                 </div>
@@ -173,7 +173,7 @@ export function ConflictResolver() {
                 {/* Auto-Merge */}
                 <div className="conflict-option conflict-option-merge">
                   <div className="conflict-option-header">
-                    <GitMerge size={20}  style={{ width: '20px', height: '20px', flexShrink: 0 }} />
+                    <GitMerge size={20} style={{ width: '20px', height: '20px', flexShrink: 0 }} />
                     <span>
                       <strong>Try Auto-Merge</strong>
                       <span className="conflict-option-note">
@@ -186,7 +186,7 @@ export function ConflictResolver() {
                     onClick={handleAutoResolve}
                     disabled={isResolving}
                   >
-                    <GitMerge size={16}  style={{ width: '16px', height: '16px', flexShrink: 0 }} />
+                    <GitMerge size={16} style={{ width: '16px', height: '16px', flexShrink: 0 }} />
                     Auto-Merge
                   </button>
                 </div>

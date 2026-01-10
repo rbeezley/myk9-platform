@@ -123,6 +123,71 @@ export async function submitBatchScores(
 }
 
 /**
+ * Mark all unscored entries in a class as "Absent"
+ * Used when manually completing a class with remaining unscored dogs
+ *
+ * @param classIds - Class ID(s) to process (for combined A & B views)
+ * @returns Number of entries marked as absent
+ */
+export async function markUnscoredEntriesAsAbsent(
+  classIds: number | number[]
+): Promise<number> {
+  const ids = Array.isArray(classIds) ? classIds : [classIds];
+
+  logger.log('🏃 [entryService] markUnscoredEntriesAsAbsent:', { classIds: ids });
+
+  try {
+    // Find all unscored entries in the specified class(es)
+    const { data: unscoredEntries, error: fetchError } = await supabase
+      .from('entries')
+      .select('id')
+      .in('class_id', ids)
+      .eq('is_scored', false);
+
+    if (fetchError) {
+      logger.error('❌ Error fetching unscored entries:', fetchError);
+      throw fetchError;
+    }
+
+    if (!unscoredEntries || unscoredEntries.length === 0) {
+      logger.log('✅ No unscored entries to mark as absent');
+      return 0;
+    }
+
+    const entryIds = unscoredEntries.map(e => e.id);
+    logger.log(`📝 Marking ${entryIds.length} entries as absent:`, entryIds);
+
+    // Update all unscored entries to "absent" status
+    // final_placement 9997 = Absent (see reportUtils.ts)
+    const { error: updateError } = await supabase
+      .from('entries')
+      .update({
+        is_scored: true,
+        result_text: 'absent',
+        result_status: 'absent',
+        search_time_seconds: 0,
+        total_points: 0,
+        final_placement: 9997, // ABS placement code
+        entry_status: 'completed',
+        scoring_completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .in('id', entryIds);
+
+    if (updateError) {
+      logger.error('❌ Error marking entries as absent:', updateError);
+      throw updateError;
+    }
+
+    logger.log(`✅ Successfully marked ${entryIds.length} entries as absent`);
+    return entryIds.length;
+  } catch (error) {
+    logger.error('💥 Exception in markUnscoredEntriesAsAbsent:', error);
+    throw error;
+  }
+}
+
+/**
  * Mark an entry as being in the ring
  * IMPORTANT: Does not overwrite 'completed' status - only changes 'no-status' <-> 'in-ring'
  *

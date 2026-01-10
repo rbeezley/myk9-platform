@@ -52,6 +52,36 @@ export const EMPTY_STATS: StatsData = {
 };
 
 // ========================================
+// STRING HELPERS
+// ========================================
+
+/**
+ * Normalize a judge name for consistent aggregation/deduplication.
+ * Handles case differences, multiple spaces, and leading/trailing whitespace.
+ *
+ * @param name - Raw judge name from database
+ * @returns Normalized name for use as aggregation key
+ *
+ * @example
+ * normalizeJudgeName('Jackie  Stephenson') // 'jackie stephenson'
+ * normalizeJudgeName('JACKIE STEPHENSON') // 'jackie stephenson'
+ * normalizeJudgeName(' Jackie Stephenson ') // 'jackie stephenson'
+ */
+export function normalizeJudgeName(name: string | null | undefined): string {
+  if (!name) return '';
+  return name.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+/**
+ * Get display name for a judge (preserves original casing, just trims).
+ * Use this for display purposes while using normalizeJudgeName for aggregation keys.
+ */
+export function getJudgeDisplayName(name: string | null | undefined): string {
+  if (!name) return 'TBD';
+  return name.trim();
+}
+
+// ========================================
 // TYPES
 // ========================================
 
@@ -471,6 +501,7 @@ export function aggregateJudgeStatsFromData(
   completedClassIds?: Set<number> | null
 ): JudgeStat[] {
   const judgeMap = new Map<string, {
+    displayName: string;  // Preserve original casing for display
     classesJudged: Set<string>;
     totalEntries: number;
     qualifiedCount: number;
@@ -480,8 +511,12 @@ export function aggregateJudgeStatsFromData(
   for (const entry of summaryData) {
     if (!entry.judge_name || !entry.class_id) continue;
 
-    const normalizedJudgeName = entry.judge_name.trim();
-    const existing = judgeMap.get(normalizedJudgeName) || {
+    // Use normalized name as key for deduplication (handles case, multiple spaces)
+    const normalizedKey = normalizeJudgeName(entry.judge_name);
+    if (!normalizedKey) continue;
+
+    const existing = judgeMap.get(normalizedKey) || {
+      displayName: getJudgeDisplayName(entry.judge_name),  // Keep first seen display name
       classesJudged: new Set<string>(),
       totalEntries: 0,
       qualifiedCount: 0,
@@ -500,12 +535,12 @@ export function aggregateJudgeStatsFromData(
       }
     }
 
-    judgeMap.set(normalizedJudgeName, existing);
+    judgeMap.set(normalizedKey, existing);
   }
 
-  return Array.from(judgeMap.entries())
-    .map(([judgeName, stats]) => ({
-      judgeName,
+  return Array.from(judgeMap.values())
+    .map(stats => ({
+      judgeName: stats.displayName,  // Use preserved display name
       classesJudged: stats.classesJudged.size,
       totalEntries: stats.totalEntries,
       qualifiedCount: stats.qualifiedCount,
@@ -543,8 +578,9 @@ export async function fetchJudgeStatsFromView(
 
   if (error) throw error;
 
-  // Deduplicate judges across trials
+  // Deduplicate judges across trials using normalized names
   const judgeAggregateMap = new Map<string, {
+    displayName: string;  // Preserve original casing for display
     classesJudged: number;
     totalEntries: number;
     qualifiedCount: number;
@@ -552,10 +588,12 @@ export async function fetchJudgeStatsFromView(
   }>();
 
   for (const judge of data || []) {
-    const normalizedName = judge.judge_name?.trim();
-    if (!normalizedName) continue;
+    // Use normalized name as key for deduplication (handles case, multiple spaces)
+    const normalizedKey = normalizeJudgeName(judge.judge_name);
+    if (!normalizedKey) continue;
 
-    const existing = judgeAggregateMap.get(normalizedName) || {
+    const existing = judgeAggregateMap.get(normalizedKey) || {
+      displayName: getJudgeDisplayName(judge.judge_name),  // Keep first seen display name
       classesJudged: 0,
       totalEntries: 0,
       qualifiedCount: 0,
@@ -573,12 +611,12 @@ export async function fetchJudgeStatsFromView(
       }
     }
 
-    judgeAggregateMap.set(normalizedName, existing);
+    judgeAggregateMap.set(normalizedKey, existing);
   }
 
-  return Array.from(judgeAggregateMap.entries())
-    .map(([judgeName, stats]) => ({
-      judgeName,
+  return Array.from(judgeAggregateMap.values())
+    .map(stats => ({
+      judgeName: stats.displayName,  // Use preserved display name
       classesJudged: stats.classesJudged,
       totalEntries: stats.totalEntries,
       qualifiedCount: stats.qualifiedCount,

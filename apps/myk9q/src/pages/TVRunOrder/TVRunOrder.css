@@ -186,6 +186,19 @@
   opacity: 0.9;
 }
 
+/* Light mode: ensure toggle button text is white on primary background */
+:root.theme-light .tv-runorder-view-toggle {
+  background: var(--color-primary);
+  color: #ffffff;
+}
+
+@media (prefers-color-scheme: light) {
+  :root.theme-auto .tv-runorder-view-toggle {
+    background: var(--color-primary);
+    color: #ffffff;
+  }
+}
+
 /* View indicator (when showing results only) */
 .tv-runorder-view-indicator {
   display: flex;

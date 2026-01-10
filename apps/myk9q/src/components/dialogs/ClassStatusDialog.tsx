@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, Play, Coffee, CheckCircle, Settings, Calendar, Circle, WifiOff } from 'lucide-react';
+import { Clock, Play, Coffee, CheckCircle, Settings, Calendar, Circle, WifiOff, AlertTriangle, UserX } from 'lucide-react';
 import { DialogContainer } from './DialogContainer';
 import './shared-dialog.css';
 import './ClassStatusDialog.css';
@@ -15,11 +15,14 @@ interface ClassStatusDialogProps {
     class_name: string;
     class_status: string;
     entry_count: number;
+    scored_count?: number;
     briefing_time?: string;
     break_until_time?: string;
     start_time?: string;
   };
   currentStatus: string;
+  /** Callback to mark all unscored entries as absent */
+  onMarkAbsent?: () => Promise<void>;
 }
 
 export const ClassStatusDialog: React.FC<ClassStatusDialogProps> = ({
@@ -27,11 +30,17 @@ export const ClassStatusDialog: React.FC<ClassStatusDialogProps> = ({
   onClose,
   onStatusChange,
   classData,
-  currentStatus
+  currentStatus,
+  onMarkAbsent
 }) => {
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const [timeValue, setTimeValue] = useState<string>('');
   const [isFirstEdit, setIsFirstEdit] = useState(true);
+  const [showAbsentConfirmation, setShowAbsentConfirmation] = useState(false);
+  const [isMarkingAbsent, setIsMarkingAbsent] = useState(false);
+
+  // Calculate unscored count
+  const unscoredCount = (classData.entry_count || 0) - (classData.scored_count || 0);
 
   const statusOptions = [
     {
@@ -126,7 +135,6 @@ export const ClassStatusDialog: React.FC<ClassStatusDialogProps> = ({
         // Check if there's an existing time for this status
         const existingTime = classData[status.timeField as keyof typeof classData] as string | undefined;
         if (existingTime) {
-          // eslint-disable-next-line react-hooks/set-state-in-effect
           setTimeValue(existingTime);
           setIsFirstEdit(false); // Don't clear if there's an existing time
         } else {
@@ -139,13 +147,43 @@ export const ClassStatusDialog: React.FC<ClassStatusDialogProps> = ({
   }, [selectedStatus, isOpen]);
 
   const handleStatusSelect = (statusId: string) => {
-const status = statusOptions.find(s => s.id === statusId);
+    const status = statusOptions.find(s => s.id === statusId);
+
     if (status?.needsTime) {
       setSelectedStatus(statusId);
+    } else if (statusId === 'completed' && unscoredCount > 0 && onMarkAbsent) {
+      // Show confirmation when marking complete with unscored dogs
+      setShowAbsentConfirmation(true);
     } else {
-onStatusChange(statusId);
+      onStatusChange(statusId);
       onClose();
     }
+  };
+
+  const handleMarkAbsentAndComplete = async () => {
+    if (!onMarkAbsent) return;
+
+    setIsMarkingAbsent(true);
+    try {
+      await onMarkAbsent();
+      onStatusChange('completed');
+      onClose();
+    } catch (error) {
+      console.error('Failed to mark entries as absent:', error);
+    } finally {
+      setIsMarkingAbsent(false);
+      setShowAbsentConfirmation(false);
+    }
+  };
+
+  const handleCompleteWithoutMarking = () => {
+    onStatusChange('completed');
+    onClose();
+    setShowAbsentConfirmation(false);
+  };
+
+  const handleCancelAbsentConfirmation = () => {
+    setShowAbsentConfirmation(false);
   };
 
   const handleTimeSubmit = () => {
@@ -313,7 +351,51 @@ onStatusChange(statusId);
         </div>
       </div>
 
-      {selectedStatus ? (
+      {showAbsentConfirmation ? (
+        /* Absent Confirmation Interface */
+        <div className="absent-confirmation-container">
+          <div className="absent-confirmation-header">
+            <div className="absent-confirmation-icon">
+              <AlertTriangle className="h-8 w-8" />
+            </div>
+            <div>
+              <h4 className="absent-confirmation-title">Unscored Entries</h4>
+              <p className="absent-confirmation-description">
+                {unscoredCount} {unscoredCount === 1 ? 'dog has' : 'dogs have'} not been scored
+              </p>
+            </div>
+          </div>
+
+          <div className="absent-confirmation-message">
+            <p>Would you like to mark these entries as <strong>Absent</strong> before completing the class?</p>
+          </div>
+
+          <div className="absent-confirmation-actions">
+            <button
+              className="absent-action-button absent-action-cancel"
+              onClick={handleCancelAbsentConfirmation}
+              disabled={isMarkingAbsent}
+            >
+              Cancel
+            </button>
+            <button
+              className="absent-action-button absent-action-skip"
+              onClick={handleCompleteWithoutMarking}
+              disabled={isMarkingAbsent}
+            >
+              Complete Anyway
+            </button>
+            <button
+              className="absent-action-button absent-action-mark"
+              onClick={handleMarkAbsentAndComplete}
+              disabled={isMarkingAbsent}
+            >
+              <UserX className="h-4 w-4" />
+              {isMarkingAbsent ? 'Marking...' : 'Mark Absent'}
+            </button>
+          </div>
+        </div>
+      ) : selectedStatus ? (
         /* Time Input Interface */
         <div className="time-input-container">
           {(() => {

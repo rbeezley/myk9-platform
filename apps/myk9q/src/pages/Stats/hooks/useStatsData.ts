@@ -33,7 +33,9 @@ import {
   fetchTotalEntriesCount,
   fetchCompletedClassIds,
   hasBreedRelatedFilters,
-  hasAdditionalFilters
+  hasAdditionalFilters,
+  normalizeJudgeName,
+  getJudgeDisplayName
 } from './statsDataHelpers';
 
 // ========================================
@@ -145,19 +147,59 @@ async function fetchJudgeStats(
 
   const result = await applyLevelFilters(query, context)
     .order('total_entries', { ascending: false })
-    .limit(10);
+    .limit(20);  // Fetch more to account for per-trial rows that will be merged
 
   if (result.error) throw result.error;
 
-  // Map view results to JudgeStat format
-  return (result.data || []).map(judge => ({
-    judgeName: judge.judge_name,
-    classesJudged: judge.classes_judged,
-    totalEntries: judge.total_entries,
-    qualifiedCount: judge.qualified_count,
-    qualificationRate: judge.total_entries > 0 ? (judge.qualified_count / judge.total_entries) * 100 : 0,
-    averageQualifiedTime: judge.avg_qualified_time
-  }));
+  // Deduplicate judges across trials using normalized names
+  // The view returns one row per judge per trial, so we need to aggregate
+  const judgeAggregateMap = new Map<string, {
+    displayName: string;
+    classesJudged: number;
+    totalEntries: number;
+    qualifiedCount: number;
+    qualifiedTimes: number[];
+  }>();
+
+  for (const judge of result.data || []) {
+    const normalizedKey = normalizeJudgeName(judge.judge_name);
+    if (!normalizedKey) continue;
+
+    const existing = judgeAggregateMap.get(normalizedKey) || {
+      displayName: getJudgeDisplayName(judge.judge_name),
+      classesJudged: 0,
+      totalEntries: 0,
+      qualifiedCount: 0,
+      qualifiedTimes: []
+    };
+
+    existing.classesJudged += judge.classes_judged;
+    existing.totalEntries += judge.total_entries;
+    existing.qualifiedCount += judge.qualified_count;
+
+    if (judge.avg_qualified_time && judge.avg_qualified_time > 0) {
+      // Weight the average time by number of qualified entries
+      for (let i = 0; i < judge.qualified_count; i++) {
+        existing.qualifiedTimes.push(judge.avg_qualified_time);
+      }
+    }
+
+    judgeAggregateMap.set(normalizedKey, existing);
+  }
+
+  return Array.from(judgeAggregateMap.values())
+    .map(stats => ({
+      judgeName: stats.displayName,
+      classesJudged: stats.classesJudged,
+      totalEntries: stats.totalEntries,
+      qualifiedCount: stats.qualifiedCount,
+      qualificationRate: stats.totalEntries > 0 ? (stats.qualifiedCount / stats.totalEntries) * 100 : 0,
+      averageQualifiedTime: stats.qualifiedTimes.length > 0
+        ? stats.qualifiedTimes.reduce((sum, t) => sum + t, 0) / stats.qualifiedTimes.length
+        : null
+    }))
+    .sort((a, b) => b.totalEntries - a.totalEntries)
+    .slice(0, 10);
 }
 
 // ========================================

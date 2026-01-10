@@ -367,8 +367,8 @@ describe('useStopwatch', () => {
 
       act(() => {
         result.current.start();
-        // Warning triggers at 32s remaining to account for display latency
-        // 180000ms (3:00) - 148000ms = 32000ms = 32s remaining
+        // Advance to exactly 32 seconds remaining (180 - 32 = 148s)
+        // The condition triggers when remainingSeconds is exactly 32
         vi.advanceTimersByTime(148000);
       });
 
@@ -386,8 +386,7 @@ describe('useStopwatch', () => {
 
       act(() => {
         result.current.start();
-        // Same timing as enabled test - 32s remaining triggers the check
-        vi.advanceTimersByTime(148000);
+        vi.advanceTimersByTime(150000);
       });
 
       expect(voiceAnnouncementService.announceTimeRemaining).not.toHaveBeenCalled();

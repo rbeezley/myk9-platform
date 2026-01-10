@@ -150,6 +150,11 @@ export function getFormattedClassStatus(classEntry: ClassEntry): FormattedStatus
     return { label: 'Completed', time: null };
   }
 
+  // If detected as in-progress via scoring activity (dogs scored or in ring), show In Progress
+  if (displayStatus === 'in-progress') {
+    return { label: 'In Progress', time: null };
+  }
+
   const status = classEntry.class_status;
 
   switch (status) {

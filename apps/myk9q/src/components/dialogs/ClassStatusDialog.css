@@ -385,3 +385,140 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* ==========================================================================
+   ABSENT CONFIRMATION UI
+   ========================================================================== */
+
+.absent-confirmation-container {
+  padding: var(--token-space-xl);
+  animation: statusFadeIn 0.3s ease-out;
+}
+
+.absent-confirmation-header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--token-space-xl);
+  margin-bottom: var(--token-space-2xl);
+  padding: var(--token-space-xl);
+  background: var(--token-color-warning-subtle, #fef3c7);
+  border: 2px solid var(--token-color-warning, #f59e0b);
+  border-radius: var(--token-space-lg);
+}
+
+.absent-confirmation-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--token-space-lg);
+  background: var(--token-color-warning, #f59e0b);
+  color: white;
+  flex-shrink: 0;
+}
+
+.absent-confirmation-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0 0 var(--token-space-xs) 0;
+}
+
+.absent-confirmation-description {
+  font-size: 0.9375rem;
+  color: var(--token-text-secondary);
+  margin: 0;
+}
+
+.absent-confirmation-message {
+  margin-bottom: var(--token-space-2xl);
+  padding: var(--token-space-lg);
+  background: var(--muted);
+  border-radius: var(--token-space-md);
+}
+
+.absent-confirmation-message p {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--foreground);
+  line-height: 1.5;
+}
+
+.absent-confirmation-message strong {
+  color: var(--token-color-warning, #f59e0b);
+}
+
+.absent-confirmation-actions {
+  display: flex;
+  gap: var(--token-space-md);
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.absent-action-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--token-space-sm);
+  padding: var(--token-space-lg) var(--token-space-xl);
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: var(--token-space-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.absent-action-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.absent-action-cancel {
+  background: var(--muted);
+  border: 2px solid var(--border);
+  color: var(--foreground);
+}
+
+.absent-action-cancel:hover:not(:disabled) {
+  background: var(--card);
+  border-color: var(--foreground);
+}
+
+.absent-action-skip {
+  background: transparent;
+  border: 2px solid var(--border);
+  color: var(--muted-foreground);
+}
+
+.absent-action-skip:hover:not(:disabled) {
+  background: var(--muted);
+  border-color: var(--muted-foreground);
+  color: var(--foreground);
+}
+
+.absent-action-mark {
+  background: var(--token-color-warning, #f59e0b);
+  border: 2px solid var(--token-color-warning, #f59e0b);
+  color: white;
+}
+
+.absent-action-mark:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: var(--token-shadow-sm);
+}
+
+/* Dark mode overrides for absent confirmation */
+.theme-dark .absent-confirmation-header {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: var(--token-color-warning, #f59e0b);
+}
+
+.theme-dark .absent-confirmation-message {
+  background: var(--card);
+}
+
+.theme-dark .absent-confirmation-message p {
+  color: var(--token-text-white);
+}

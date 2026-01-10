@@ -68,7 +68,7 @@ describe('settingsStore', () => {
     useSettingsStore.setState({
       settings: {
         // Display
-        theme: 'auto',
+        theme: 'light',
         accentColor: 'green',
 
         // Performance
@@ -159,13 +159,12 @@ describe('settingsStore', () => {
       expect(mockClassList.add).toHaveBeenCalledWith('accent-blue');
     });
 
-    it('should apply auto theme based on system preference', () => {
+    it('should apply light theme', () => {
       const store = useSettingsStore.getState();
-      store.updateSettings({ theme: 'auto' });
+      store.updateSettings({ theme: 'light' });
 
-      // Mock returns dark preference
       expect(mockClassList.remove).toHaveBeenCalledWith('theme-light', 'theme-dark');
-      expect(mockClassList.add).toHaveBeenCalledWith('theme-dark');
+      expect(mockClassList.add).toHaveBeenCalledWith('theme-light');
     });
   });
 
@@ -184,7 +183,7 @@ describe('settingsStore', () => {
       store.resetSettings();
 
       const state = useSettingsStore.getState();
-      expect(state.settings.theme).toBe('auto');
+      expect(state.settings.theme).toBe('light');
       expect(state.settings.accentColor).toBe('green');
       expect(state.settings.hapticFeedback).toBe(true);
     });
@@ -196,8 +195,9 @@ describe('settingsStore', () => {
 
       store.resetSettings();
 
-      // Should apply auto theme (detects system preference)
+      // Should apply light theme (default)
       expect(mockClassList.remove).toHaveBeenCalledWith('theme-light', 'theme-dark');
+      expect(mockClassList.add).toHaveBeenCalledWith('theme-light');
       expect(mockClassList.add).toHaveBeenCalledWith('accent-green');
     });
   });
@@ -375,7 +375,7 @@ describe('settingsStore', () => {
   describe('default values', () => {
     it('should have correct default theme', () => {
       const state = useSettingsStore.getState();
-      expect(state.settings.theme).toBe('auto');
+      expect(state.settings.theme).toBe('light');
     });
 
     it('should have correct default accent color', () => {
@@ -420,10 +420,10 @@ describe('settingsStore', () => {
 
       store.updateSettings({ theme: 'dark' });
       store.updateSettings({ theme: 'light' });
-      store.updateSettings({ theme: 'auto' });
+      store.updateSettings({ theme: 'dark' });
 
       const state = useSettingsStore.getState();
-      expect(state.settings.theme).toBe('auto');
+      expect(state.settings.theme).toBe('dark');
     });
 
     it('should handle empty update object', () => {

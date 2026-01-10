@@ -192,7 +192,7 @@
   align-items: center;
   justify-content: center;
   padding: var(--token-space-sm) var(--token-space-lg);
-  border-radius: 0 var(--token-space-lg) 0 0; /* Round top-right corner */
+  border-radius: 0 var(--token-space-lg) 0 1rem; /* Round top-right and bottom-left to match card */
   font-size: 0.75rem;
   font-weight: 600;
   color: white;

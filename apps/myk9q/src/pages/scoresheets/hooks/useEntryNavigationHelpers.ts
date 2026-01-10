@@ -403,6 +403,31 @@ export function getASCADefaultMaxTime(element: string, level: string): string {
 }
 
 /**
+ * UKC Nosework max times by level.
+ * Times are the same for all elements.
+ *
+ * | Level    | Time |
+ * |----------|------|
+ * | Novice   | 2:00 |
+ * | Advanced | 2:30 |
+ * | Superior | 3:00 |
+ * | Master   | 4:00 |
+ * | Elite    | 6:00 |
+ */
+export function getUKCDefaultMaxTime(level: string): string {
+  const lvl = level?.toLowerCase() || '';
+
+  if (lvl.includes('novice')) return '2:00';
+  if (lvl.includes('advanced')) return '2:30';
+  if (lvl.includes('superior')) return '3:00';
+  if (lvl.includes('master')) return '4:00';
+  if (lvl.includes('elite')) return '6:00';
+
+  // Default fallback
+  return '3:00';
+}
+
+/**
  * Get max time for a specific area, falling back to defaults.
  * Supports sport-specific max times (e.g., ASCA has different times than AKC).
  */
@@ -441,7 +466,9 @@ export function getMaxTimeForAreaHelper(
 
   // Fallback to sport-specific defaults
   if (!maxTime || maxTime === '' || maxTime === '0:00') {
-    if (sportType === 'ASCA_SCENT_DETECTION') {
+    if (sportType === 'UKC_NOSEWORK') {
+      maxTime = getUKCDefaultMaxTime(entry.level || '');
+    } else if (sportType === 'ASCA_SCENT_DETECTION') {
       maxTime = getASCADefaultMaxTime(entry.element || '', entry.level || '');
     } else {
       maxTime = getDefaultMaxTime(entry.element || '', entry.level || '');

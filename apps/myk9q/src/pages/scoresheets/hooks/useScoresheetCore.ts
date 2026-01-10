@@ -16,12 +16,12 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useOptimisticScoring } from '../../../hooks/useOptimisticScoring';
 import { useClassCompletion } from '../../../hooks/useClassCompletion';
 import { markInRing } from '../../../services/entryService';
 import type { AreaScore } from '../../../services/scoresheets/areaInitialization';
-import type { QualifyingResult } from '@myk9/scoring';
+import type { QualifyingResult } from '../../../stores/scoringStore';
 import type { Entry } from '../../../stores/entryStore';
 import { logger } from '@/utils/logger';
 
@@ -129,9 +129,13 @@ export interface ScoresheetCoreReturn {
 export function useScoresheetCore(config: ScoresheetCoreConfig = {}): ScoresheetCoreReturn {
   const { sportType = 'AKC_SCENT_WORK' } = config;
 
-  // Route params
+  // Route params and location state
   const { classId, entryId } = useParams<{ classId: string; entryId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Get paired class ID from location state (for combined Novice A & B view)
+  const pairedClassId = (location.state as { pairedClassId?: number } | null)?.pairedClassId;
 
   // ==========================================================================
   // SCORING STATE
@@ -340,6 +344,7 @@ if (!currentEntry) {
         classId: parseInt(classId!),
         armband: currentEntry.armband,
         className: currentEntry.className,
+        pairedClassId, // For combined Novice A & B - enables completion check on both classes
         scoreData: {
           resultText: finalQualifying,
           searchTime: finalTotalTime,
@@ -384,6 +389,7 @@ if (!currentEntry) {
   }, [
     sportType,
     classId,
+    pairedClassId,
     qualifying,
     nonQualifyingReason,
     faultCount,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { CompetitorCard } from '../../../components/scoring/CompetitorCard';
 import { Timer } from '../../../components/scoring/Timer';
 import { useScoringStore, useEntryStore, useOfflineQueueStore } from '../../../stores';
@@ -23,7 +23,11 @@ type QualifyingResult = 'Q' | 'NQ';
 export const UKCRallyScoresheet: React.FC = () => {
   const { classId } = useParams<{ classId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { showContext } = useAuth();
+
+  // Get paired class ID from location state (for combined Novice A & B view)
+  const pairedClassId = (location.state as { pairedClassId?: number } | null)?.pairedClassId;
   
   // Store hooks
   const {
@@ -198,6 +202,7 @@ export const UKCRallyScoresheet: React.FC = () => {
       classId: parseInt(classId!),
       armband: currentEntry.armband,
       className: currentEntry.className,
+      pairedClassId, // For combined A & B - enables completion check on both classes
       scoreData: {
         resultText: finalQualifying,
         searchTime: courseTime,

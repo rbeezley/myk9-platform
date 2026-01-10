@@ -100,9 +100,34 @@ const updateSW = registerSW({
     // Initialize service worker manager when offline-ready
     serviceWorkerManager.initialize().catch(console.error)
   },
-  onRegistered() {
-    // Also initialize here to be safe
+  onRegisteredSW(swUrl, registration) {
+    // Initialize service worker manager
     serviceWorkerManager.initialize().catch(console.error)
+
+    // Periodically check for service worker updates (every 10 minutes)
+    // This ensures users get prompted for updates even if they keep the app open
+    if (registration && !import.meta.env.DEV) {
+      const CHECK_INTERVAL = 10 * 60 * 1000; // 10 minutes
+
+      setInterval(() => {
+        // Only check if user is online and not actively scoring
+        if (navigator.onLine && !isOnScoresheet()) {
+          logger.log('🔄 [PWA] Checking for service worker updates...');
+          registration.update().catch((err: Error) => {
+            logger.warn('⚠️ [PWA] Update check failed:', err.message);
+          });
+        }
+      }, CHECK_INTERVAL);
+
+      // Also check immediately after a brief delay (gives SW time to initialize)
+      setTimeout(() => {
+        if (navigator.onLine) {
+          registration.update().catch((err: Error) => {
+            logger.warn('⚠️ [PWA] Initial update check failed:', err.message);
+          });
+        }
+      }, 5000);
+    }
   }
 })
 

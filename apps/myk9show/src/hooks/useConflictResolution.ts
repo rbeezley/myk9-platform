@@ -83,30 +83,65 @@ export function useConflictResolution(
       const sharedResolutions = conflictManager.getResolutionHistory();
       const stats = conflictManager.getConflictStats();
 
-      const mappedConflicts = sharedConflicts.map(c => ({
-        ...c,
-        conflictType: 'sync_conflict' as const,
-        conflictFields: [], // Can be calculated if needed
-        lastModified: {
-          local: c.detectedAt,
-          remote: c.detectedAt
-        },
-        lastModifiedBy: {
-          local: 'me',
-          remote: 'remote'
-        },
-        createdAt: c.detectedAt,
-        priority: 'medium' as const
-      } as unknown as BaseConflict<Record<string, unknown>>));
+      // Filter by entity type if specified
+      const filteredConflicts = options.entityType
+        ? sharedConflicts.filter(c => c.entityType === options.entityType)
+        : sharedConflicts;
 
-      const mappedResolutions = sharedResolutions.map(c => ({
-        conflictId: c.id,
-        strategy: 'merge_automatic' as const, // Placeholder
-        resolvedAt: c.resolution?.resolvedAt || new Date(),
-        resolvedBy: c.resolution?.resolvedBy || 'system',
-        automatic: !c.resolution,
-        resolvedEntity: c.resolution?.resolvedEntity
-      } as unknown as BaseConflictResolution<unknown>));
+      const filteredResolutions = options.entityType
+        ? sharedResolutions.filter(c => c.entityType === options.entityType)
+        : sharedResolutions;
+
+      const statusMap: Record<string, any> = {
+        'pending': 'pending',
+        'resolved': 'resolved',
+        'ignored': 'dismissed'
+      };
+
+      const strategyMap: Record<ConflictStrategy, ResolutionStrategy> = {
+        'last-write-wins': 'newest_wins',
+        'server-authoritative': 'remote_wins',
+        'client-authoritative': 'local_wins',
+        'field-level-merge': 'merge_automatic'
+      };
+
+      const mappedConflicts = filteredConflicts.map(c => {
+        const baseConflict: BaseConflict<Record<string, unknown>> = {
+          id: c.id,
+          detectedAt: c.detectedAt,
+          createdAt: c.detectedAt,
+          priority: 'medium',
+          status: statusMap[c.status] || 'pending',
+          conflictType: 'sync_conflict',
+          entityType: c.entityType || 'unknown',
+          entityId: c.entityId,
+          localData: c.localData,
+          remoteData: c.remoteData,
+          baseData: c.baseData,
+          conflictFields: [], // Can be calculated by comparing local/remote if needed
+          lastModified: {
+            local: c.detectedAt,
+            remote: c.detectedAt
+          },
+          lastModifiedBy: {
+            local: 'local',
+            remote: 'remote'
+          }
+        };
+        return baseConflict;
+      });
+
+      const mappedResolutions = filteredResolutions.map(c => {
+        const resolution: BaseConflictResolution<unknown> = {
+          conflictId: c.id,
+          strategy: c.resolution ? (strategyMap[c.resolution.strategy] || 'merge_automatic') : 'merge_automatic',
+          resolvedAt: c.resolution?.resolvedAt || new Date(),
+          resolvedBy: c.resolution?.resolvedBy || 'system',
+          automatic: !c.resolution || c.resolution.strategy !== 'field-level-merge', // Simplify for now
+          resolvedEntity: c.resolution?.resolvedEntity
+        };
+        return resolution;
+      });
 
       setState(prev => ({
         ...prev,
@@ -123,7 +158,7 @@ export function useConflictResolution(
         isLoading: false
       }));
     }
-  }, []);
+  }, [options.entityType]);
 
   // Initialize event handlers
   useEffect(() => {
@@ -240,7 +275,8 @@ export function useConflictResolution(
         'local_wins': 'client-authoritative',
         'remote_wins': 'server-authoritative',
         'merge_automatic': 'field-level-merge',
-        'merge_manual': 'field-level-merge'
+        'merge_manual': 'field-level-merge',
+        'newest_wins': 'last-write-wins'
       };
 
       const sharedStrategy = strategyMap[strategy] || 'last-write-wins';
@@ -254,21 +290,24 @@ export function useConflictResolution(
         }
       );
 
+      // Refresh to get updated state
+      refreshConflicts();
+
+      // Look up actual resolution in history if possible
+      const resolvedConflict = conflictManager.getResolutionHistory().find(c => c.id === conflictId);
+
       setState(prev => ({
         ...prev,
         isLoading: false,
         notifications: prev.notifications.filter(n => n.id !== `notification-${conflictId}`)
       }));
 
-      // Refresh to get updated state
-      refreshConflicts();
-
       return {
         conflictId,
-        strategy,
-        resolvedEntity: customResolution,
-        resolvedAt: new Date(),
-        resolvedBy: context.userId,
+        strategy: strategy,
+        resolvedEntity: resolvedConflict?.resolution?.resolvedEntity || customResolution,
+        resolvedAt: resolvedConflict?.resolution?.resolvedAt || new Date(),
+        resolvedBy: resolvedConflict?.resolution?.resolvedBy || user.id,
         automatic: false
       } as BaseConflictResolution<{ id: string }>;
     } catch (error) {

@@ -41,6 +41,39 @@ export interface ReplicatedEntry {
   preferredJudge?: string;
   specialRequests?: string;
   submittedAt?: string;
+
+  // Extra fields for scoring/display (camelCase)
+  isScored?: boolean;
+  resultStatus?: string;
+  resultText?: string;
+  searchTimeSeconds?: number;
+  totalPoints?: number;
+  finalPlacement?: string;
+  dogCallName?: string;
+  dogBreed?: string;
+  handlerName?: string;
+  armbandNumber?: string;
+
+  // Extra fields for scoring/display (snake_case for Compatibility)
+  is_scored?: boolean;
+  result_status?: string;
+  result_text?: string;
+  search_time_seconds?: number;
+  total_points?: number;
+  final_placement?: string;
+  dog_call_name?: string;
+  dog_breed?: string;
+  handler_name?: string;
+  armband_number?: string;
+  class_id?: string;
+  entry_status?: string;
+  element?: string;
+  level?: string;
+  areas?: number;
+  timeLimit?: string;
+  timeLimit2?: string;
+  timeLimit3?: string;
+
   // Sync metadata
   _version?: number;
   _lastModified?: Date;
@@ -53,6 +86,7 @@ export interface ReplicatedEntry {
  * Convert database row to app Entry type
  */
 function rowToEntry(row: EntryRow): ReplicatedEntry {
+  const dbRow = row as any;
   return {
     id: String(row.id),
     classId: row.class_id ?? undefined,
@@ -72,6 +106,38 @@ function rowToEntry(row: EntryRow): ReplicatedEntry {
     preferredJudge: row.preferred_judge ?? undefined,
     specialRequests: row.special_requests ?? undefined,
     submittedAt: row.submitted_at ?? undefined,
+
+    // CamelCase fields
+    isScored: dbRow.is_scored ?? false,
+    resultStatus: dbRow.result_status ?? undefined,
+    resultText: dbRow.result_text ?? undefined,
+    searchTimeSeconds: dbRow.search_time_seconds ?? undefined,
+    totalPoints: dbRow.total_points ?? undefined,
+    finalPlacement: dbRow.final_placement ?? undefined,
+    dogCallName: dbRow.dog_call_name ?? undefined,
+    dogBreed: dbRow.dog_breed ?? undefined,
+    handlerName: row.handler ?? undefined,
+    armbandNumber: row.armband ?? undefined,
+
+    // Snake_case fields (compatibility)
+    is_scored: dbRow.is_scored ?? false,
+    result_status: dbRow.result_status ?? undefined,
+    result_text: dbRow.result_text ?? undefined,
+    search_time_seconds: dbRow.search_time_seconds ?? undefined,
+    total_points: dbRow.total_points ?? undefined,
+    final_placement: dbRow.final_placement ?? undefined,
+    dog_call_name: dbRow.dog_call_name ?? undefined,
+    dog_breed: dbRow.dog_breed ?? undefined,
+    handler_name: row.handler ?? undefined,
+    armband_number: row.armband ?? undefined,
+    class_id: row.class_id ?? undefined,
+    entry_status: row.entry_status ?? undefined,
+    element: dbRow.element ?? undefined,
+    level: dbRow.level ?? undefined,
+    areas: dbRow.area_count ?? undefined,
+    timeLimit: dbRow.time_limit_seconds ? String(dbRow.time_limit_seconds) : undefined,
+    timeLimit2: dbRow.time_limit_area2_seconds ? String(dbRow.time_limit_area2_seconds) : undefined,
+    timeLimit3: dbRow.time_limit_area3_seconds ? String(dbRow.time_limit_area3_seconds) : undefined,
   };
 }
 

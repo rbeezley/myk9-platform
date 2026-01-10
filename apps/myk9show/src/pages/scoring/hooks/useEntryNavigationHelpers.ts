@@ -6,14 +6,15 @@
  */
 
 import type { Entry as StoreEntry } from '../../../stores/entryStore';
-import type { Entry as ReplicatedEntry } from '../../../services/replication/tables/ReplicatedEntriesTable';
-import type { Class } from '../../../services/replication/tables/ReplicatedClassesTable';
-import type { Trial } from '../../../services/replication/tables/ReplicatedTrialsTable';
-import type { Entry } from '../../../stores/entryStore';
-import type { AreaScore } from '../../../services/scoresheets/areaInitialization';
-import { markInRing } from '../../../services/entryService';
-import { initializeAreas } from '../../../services/scoresheets/areaInitialization';
-import { ensureReplicationManager } from '../../../utils/replicationHelper';
+import {
+  type ReplicatedTrial as Trial,
+  type ReplicatedEntry,
+  type ReplicatedClass as Class
+} from '@/services/replication';
+import type { AreaScore } from '@/services/scoresheets/areaInitialization';
+import { markInRing } from '@/services/entryService';
+import { initializeAreas } from '@/services/scoresheets/areaInitialization';
+import { ensureReplicationManager } from '@/utils/replicationHelper';
 import { logger } from '@/utils/logger';
 
 // ============================================================================
@@ -32,20 +33,20 @@ export interface RouteState {
 }
 
 export interface LoadEntriesCallbacks {
-  onEntryLoaded?: (entry: Entry, areas: AreaScore[]) => void;
+  onEntryLoaded?: (entry: StoreEntry, areas: AreaScore[]) => void;
   onTrialDateLoaded?: (date: string) => void;
   onTrialNumberLoaded?: (number: string) => void;
 }
 
 export interface FastPathResult {
-  entry: Entry;
+  entry: StoreEntry;
   classInfo: ClassInfo;
   areas: AreaScore[];
 }
 
 export interface SlowPathResult {
-  entries: Entry[];
-  targetEntry: Entry | null;
+  entries: StoreEntry[];
+  targetEntry: StoreEntry | null;
   classInfo: ClassInfo;
   areas: AreaScore[];
 }
@@ -232,17 +233,17 @@ async function loadClassEntries(
 export function transformEntries(
   classEntries: ReplicatedEntry[],
   classData: Class
-): Entry[] {
+): StoreEntry[] {
   return classEntries.map(entry => ({
     id: parseInt(entry.id),
-    armband: entry.armband_number,
+    armband: parseInt(entry.armband_number || entry.armband || '0'),
     callName: entry.dog_call_name || 'Unknown',
     breed: entry.dog_breed || 'Unknown',
     handler: entry.handler_name || 'Unknown',
     isScored: entry.is_scored || false,
-    status: (entry.entry_status as Entry['status']) || 'no-status',
-    classId: parseInt(entry.class_id),
-    className: `${classData.element} ${classData.level}`,
+    status: (entry.entry_status as StoreEntry['status']) || 'no-status',
+    classId: parseInt(entry.class_id || entry.classId || '0'),
+    className: `${classData.element || ''} ${classData.level || ''}`,
     element: classData.element,
     level: classData.level,
     section: classData.section,
@@ -278,22 +279,25 @@ export async function loadFromIndexedDB(
   const classData = await loadClassData(manager, classId);
 
   const classInfo: ClassInfo = {
-    element: classData.element,
-    level: classData.level,
+    element: classData.element || '',
+    level: classData.level || '',
     section: classData.section
   };
 
   // Load trial data (fire callbacks for date/number)
-  await loadTrialData(manager, classData.trial_id, callbacks);
+  const trialIdToLoad = classData.trialId || classData.trial_id;
+  if (trialIdToLoad) {
+    await loadTrialData(manager, parseInt(trialIdToLoad), callbacks);
+  }
 
   // Load entries
   const classEntries = await loadClassEntries(manager, classId);
   const transformedEntries = transformEntries(classEntries, classData);
 
   // Find target entry
-  let targetEntry: Entry | null = null;
+  let targetEntry: StoreEntry | null = null;
   if (entryId) {
-    targetEntry = transformedEntries.find(e => e.id === parseInt(entryId)) || null;
+    targetEntry = transformedEntries.find(e => String(e.id) === entryId) || null;
   }
   if (!targetEntry && transformedEntries.length > 0) {
     targetEntry = transformedEntries[0];
@@ -407,7 +411,7 @@ export function getASCADefaultMaxTime(element: string, level: string): string {
  * Supports sport-specific max times (e.g., ASCA has different times than AKC).
  */
 export function getMaxTimeForAreaHelper(
-  entry: Entry | null,
+  entry: StoreEntry | null,
   areaIndex: number,
   sportType?: string
 ): string {

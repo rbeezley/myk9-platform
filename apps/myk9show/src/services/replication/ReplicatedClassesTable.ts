@@ -38,6 +38,26 @@ export interface ReplicatedClass {
   handlerAgeMax?: number;
   startTime?: string;
   estimatedDuration?: number;
+
+  // Scent Work specific fields (camelCase)
+  element?: string;
+  section?: string;
+  areaCount?: number;
+  timeLimitSeconds?: number;
+  timeLimitArea2Seconds?: number;
+  timeLimitArea3Seconds?: number;
+  judgeName?: string;
+  classStatus?: string;
+  classOrder?: number;
+  isCompleted?: boolean;
+
+  // Scent Work specific fields (snake_case for Compatibility with older hooks)
+  trial_id?: string;
+  area_count?: number;
+  time_limit_seconds?: number;
+  time_limit_area2_seconds?: number;
+  time_limit_area3_seconds?: number;
+
   // Sync metadata
   _version?: number;
   _lastModified?: Date;
@@ -50,6 +70,7 @@ export interface ReplicatedClass {
  * Convert database row to app Class type
  */
 function rowToClass(row: ClassRow): ReplicatedClass {
+  const dbRow = row as any;
   return {
     id: String(row.id),
     trialId: row.trial_id ?? undefined,
@@ -70,6 +91,25 @@ function rowToClass(row: ClassRow): ReplicatedClass {
     handlerAgeMax: row.handler_age_max ?? undefined,
     startTime: row.start_time ?? undefined,
     estimatedDuration: row.estimated_duration ?? undefined,
+
+    // CamelCase fields
+    element: dbRow.element ?? undefined,
+    section: dbRow.section ?? undefined,
+    areaCount: dbRow.area_count ?? undefined,
+    timeLimitSeconds: dbRow.time_limit_seconds ?? undefined,
+    timeLimitArea2Seconds: dbRow.time_limit_area2_seconds ?? undefined,
+    timeLimitArea3Seconds: dbRow.time_limit_area3_seconds ?? undefined,
+    judgeName: dbRow.judge_name ?? undefined,
+    classStatus: dbRow.class_status ?? undefined,
+    classOrder: dbRow.class_order ?? undefined,
+    isCompleted: dbRow.is_completed ?? false,
+
+    // Snake_case fields (compatibility)
+    trial_id: row.trial_id ?? undefined,
+    area_count: dbRow.area_count ?? undefined,
+    time_limit_seconds: dbRow.time_limit_seconds ?? undefined,
+    time_limit_area2_seconds: dbRow.time_limit_area2_seconds ?? undefined,
+    time_limit_area3_seconds: dbRow.time_limit_area3_seconds ?? undefined,
   };
 }
 

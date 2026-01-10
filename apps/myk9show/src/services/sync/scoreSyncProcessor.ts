@@ -13,7 +13,7 @@
 
 import { supabase } from '@/lib/supabase';
 import type { SyncQueueItem } from '@/types/sync-types';
-import type { BaseScore } from '@/types/scoring-types';
+import type { BaseScore, QualificationStatus } from '@/types/scoring-types';
 import type { SyncProcessor, SyncProcessorResult } from './types/processor';
 import { offlineScoringService } from '../scoring/OfflineScoringService';
 
@@ -39,16 +39,16 @@ function qualificationToResultStatus(qualification: string): string {
 /**
  * Maps database result_status to BaseScore qualification
  */
-function resultStatusToQualification(resultStatus: string): string {
-  const mapping: Record<string, string> = {
-    'qualified': 'Q',
-    'nq': 'NQ',
-    'absent': 'ABS',
-    'excused': 'EX',
-    'withdrawn': 'WD',
-    'pending': 'pending',
+function resultStatusToQualification(resultStatus: string): QualificationStatus {
+  const mapping: Record<string, QualificationStatus> = {
+    'qualified': 'Qualified',
+    'nq': 'Not Qualified',
+    'absent': 'Absent',
+    'excused': 'Excused',
+    'withdrawn': 'Withdrawn',
+    'pending': 'Not Qualified', // Default or sensible fallback
   };
-  return mapping[resultStatus] || 'pending';
+  return mapping[resultStatus] || 'Not Qualified';
 }
 
 /**
@@ -77,7 +77,7 @@ function scoreToEntryUpdate(score: BaseScore): Record<string, unknown> {
     // Sync metadata
     sync_version: score.version,
     last_synced_at: new Date().toISOString(),
-    local_id: score.id,
+    local_id: score.id || null,
   };
 }
 
@@ -89,14 +89,14 @@ function entryToScore(entry: Record<string, unknown>, originalScore: BaseScore):
     ...originalScore,
     id: entry.id as string,
     qualification: resultStatusToQualification(entry.result_status as string),
-    time: entry.search_time_seconds as number,
-    points: entry.points_earned as number,
-    faults: entry.total_faults as number,
-    placement: entry.final_placement as number,
-    judgeNotes: entry.judge_notes as string | undefined,
-    version: entry.sync_version as number,
+    time: (entry.search_time_seconds as number) || 0,
+    points: (entry.points_earned as number) || 0,
+    faults: (entry.total_faults as number) || 0,
+    placement: (entry.final_placement as number) || 0,
+    judgeNotes: (entry.judge_notes as string) || undefined,
+    version: (entry.sync_version as number) || 0,
     syncStatus: 'synced',
-    lastModified: new Date(entry.updated_at as string),
+    lastModified: entry.updated_at ? new Date(entry.updated_at as string) : new Date(),
   };
 }
 

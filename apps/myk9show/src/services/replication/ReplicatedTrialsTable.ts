@@ -28,6 +28,11 @@ export interface ReplicatedTrial {
   maxEntriesPerDog?: number;
   maxTotalEntries?: number;
   maxEntriesPerHandler?: number;
+
+  // Extra fields for scoring
+  trial_date?: string;
+  trial_number?: string;
+
   // Sync metadata
   _version?: number;
   _lastModified?: Date;
@@ -50,6 +55,10 @@ function rowToTrial(row: TrialRow): ReplicatedTrial {
     maxEntriesPerDog: row.max_entries_per_dog ?? undefined,
     maxTotalEntries: row.max_total_entries ?? undefined,
     maxEntriesPerHandler: row.max_entries_per_handler ?? undefined,
+
+    // Map additional fields (from any as they might be missing in older types)
+    trial_date: row.date,
+    trial_number: row.trial_number ?? undefined,
   };
 }
 

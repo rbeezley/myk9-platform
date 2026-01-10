@@ -18,10 +18,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useScoringStore, useEntryStore } from '../../../stores';
-import { useAuth } from '../../../contexts/AuthContext';
-import { markInRing } from '../../../services/entryService';
-import type { AreaScore } from '../../../services/scoresheets/areaInitialization';
-import type { Entry } from '../../../stores/entryStore';
+import { useAuthContext as useAuth } from '@/hooks/useAuthContext';
+import { markInRing } from '@/services/entryService';
+import type { AreaScore } from '@/services/scoresheets/areaInitialization';
+import type { Entry as StoreEntry } from '../../../stores/entryStore';
 import { logger } from '@/utils/logger';
 import {
   type RouteState,
@@ -43,7 +43,7 @@ export interface EntryNavigationConfig {
   /** Sport type for scoring session */
   sportType?: 'AKC_SCENT_WORK' | 'AKC_SCENT_WORK_NATIONAL' | 'AKC_FASTCAT' | 'UKC_NOSEWORK' | 'ASCA_SCENT_DETECTION';
   /** Callback when entry is loaded and areas should be initialized */
-  onEntryLoaded?: (entry: Entry, areas: AreaScore[]) => void;
+  onEntryLoaded?: (entry: StoreEntry, areas: AreaScore[]) => void;
   /** Callback to set trial date */
   onTrialDateLoaded?: (date: string) => void;
   /** Callback to set trial number */
@@ -57,9 +57,9 @@ export interface EntryNavigationConfig {
  */
 export interface EntryNavigationReturn {
   /** Currently selected entry */
-  currentEntry: Entry | null;
+  currentEntry: StoreEntry | null;
   /** All entries for the class */
-  entries: Entry[];
+  entries: StoreEntry[];
   /** Class information */
   classInfo: {
     element: string;
@@ -113,7 +113,7 @@ export function useEntryNavigation(config: EntryNavigationConfig): EntryNavigati
 
   const navigate = useNavigate();
   const location = useLocation();
-  const { showContext } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   // Check for entry data passed via route state (instant load optimization)
   const routeState = location.state as RouteState | null;
@@ -132,7 +132,7 @@ export function useEntryNavigation(config: EntryNavigationConfig): EntryNavigati
   } = useEntryStore();
 
   // Local state
-  const [entries, setLocalEntries] = useState<Entry[]>([]);
+  const [entries, setLocalEntries] = useState<StoreEntry[]>([]);
   const [classInfo, setClassInfo] = useState<{
     element: string;
     level: string;
@@ -169,7 +169,7 @@ export function useEntryNavigation(config: EntryNavigationConfig): EntryNavigati
     return () => {
       const entry = currentEntryRef.current;
       if (entry?.id) {
-        markInRing(entry.id, false).then(() => {}).catch((error) => {
+        markInRing(entry.id, false).then(() => { }).catch((error) => {
           logger.error('❌ Cleanup: Failed to remove dog from ring:', error);
         });
       }
@@ -181,7 +181,7 @@ export function useEntryNavigation(config: EntryNavigationConfig): EntryNavigati
   // ==========================================================================
 
   const loadEntries = useCallback(async () => {
-    if (!classId || !showContext?.licenseKey) {
+    if (!classId || authLoading || !user) {
       return;
     }
 
@@ -203,7 +203,7 @@ export function useEntryNavigation(config: EntryNavigationConfig): EntryNavigati
         startScoringSession(
           parseInt(classId),
           result.entry.className || 'AKC Scent Work',
-          sportType,
+          sportType || 'AKC_SCENT_WORK',
           'judge-1',
           1
         );
@@ -254,7 +254,8 @@ export function useEntryNavigation(config: EntryNavigationConfig): EntryNavigati
   }, [
     classId,
     entryId,
-    showContext?.licenseKey,
+    user,
+    authLoading,
     isNationals,
     sportType,
     isScoring,
@@ -267,10 +268,10 @@ export function useEntryNavigation(config: EntryNavigationConfig): EntryNavigati
 
   // Load entries on mount
   useEffect(() => {
-    if (classId && showContext?.licenseKey) {
+    if (classId && user) {
       loadEntries();
     }
-  }, [classId, entryId, showContext?.licenseKey, loadEntries]);
+  }, [classId, entryId, user, loadEntries]);
 
   // ==========================================================================
   // NAVIGATION

@@ -28,11 +28,13 @@ interface ClubRow {
   website: string | null;
   logo_url: string | null;
   description: string | null;
-  license_key: string | null;
+  license_key?: string | null;
   created_at: string | null;
   updated_at: string | null;
   deleted_at: string | null;
   deleted_by: string | null;
+  // Add other common fields returned by Supabase to avoid type mismatch
+  [key: string]: any;
 }
 
 /**
@@ -147,7 +149,7 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
       // Process each club
       for (const remoteRow of remoteClubs) {
         const clubId = String(remoteRow.id);
-        const remoteClub = rowToClub(remoteRow as ClubRow);
+        const remoteClub = rowToClub(remoteRow as any as ClubRow);
         const localClub = await this.get(clubId);
 
         if (localClub) {

@@ -58,7 +58,7 @@ export interface ScoringConflict {
 // Base Scoring Types
 // ============================================================================
 
-export type ScoringFormat = 
+export type ScoringFormat =
   | 'scent_work'
   | 'agility'
   | 'obedience'
@@ -78,22 +78,22 @@ export interface BaseScore {
   dogId?: string;
   judgeId: string;
   format: ScoringFormat;
-  
+
   // Core scoring data
   qualification: QualificationStatus;
   timestamp: Date;
-  
+
   // Scoring fields
   points?: number;
   faults?: number;
   time?: number;
   placement?: number;
-  
+
   // Judge information
   judgeNotes?: string;
   recordedBy: string;
   recordedAt: Date;
-  
+
   // Metadata for offline support
   isProvisional?: boolean;
   placementCalculated?: number;
@@ -108,22 +108,22 @@ export interface BaseScore {
 
 export interface AgilityScore extends BaseScore {
   format: 'agility';
-  
+
   // Time and faults
   courseTime: number;           // Milliseconds
   standardCourseTime?: number;  // SCT in milliseconds
   timeLimit?: number;          // Maximum time allowed
-  
+
   // Fault tracking
   jumpFaults: number;          // 5-point faults
   refusals: number;            // 20-point faults  
   otherFaults: number;         // Table, contact, etc.
   totalFaults: number;         // Calculated total
-  
+
   // Disqualifications
   excusedEliminated?: boolean;
   eliminationReason?: string;
-  
+
   // Performance data
   yardagePerSecond?: number;   // Speed calculation
   isQualifying?: boolean;      // Q vs NQ
@@ -136,16 +136,16 @@ export interface AgilityScore extends BaseScore {
 
 export interface ObedienceScore extends BaseScore {
   format: 'obedience';
-  
+
   // Exercise scores
   exercises: ObedienceExercise[];
   totalScore: number;          // Sum of all exercises
   maximumScore: number;        // Perfect score for class
-  
+
   // Qualification thresholds
   qualifyingScore: number;     // Minimum to qualify (170+ typically)
   isQualifying: boolean;
-  
+
   // Special conditions
   nonQualifyingExercise?: string; // Exercise that caused NQ
   excusedExercise?: string;      // Exercise dog was excused from
@@ -172,22 +172,22 @@ export interface ObedienceDeduction {
 
 export interface RallyScore extends BaseScore {
   format: 'rally';
-  
+
   // Course performance
   courseTime: number;          // Milliseconds
   maxCourseTime?: number;      // Time limit
-  
+
   // Point deductions
   stationDeductions: number;   // Minor deductions (1-3 points)
   lackOfControl: number;      // 10-point deductions
   repeatStation: number;      // 3-point deductions
   totalDeductions: number;    // Sum of all deductions
-  
+
   // Final score (210 - deductions)
   finalScore: number;
   qualifyingScore: number;    // Usually 170+
   isQualifying: boolean;
-  
+
   // Special circumstances
   timeFault?: boolean;        // Exceeded time limit
   excusedStation?: string;    // Station dog was excused from
@@ -199,21 +199,21 @@ export interface RallyScore extends BaseScore {
 
 export interface ConformationScore extends BaseScore {
   format: 'conformation';
-  
+
   // Placement-based scoring
   placement?: number;          // 1st, 2nd, 3rd, 4th, etc.
   awardLevel?: 'Winners' | 'Best of Breed' | 'Best of Opposite Sex' | 'Select Dog' | 'Select Bitch' | 'Award of Merit';
-  
+
   // Points awarded
   pointsAwarded: number;       // Championship points
   majorWin?: boolean;         // 3+ points
   specialtyWin?: boolean;     // Specialty show win
-  
+
   // Judge assessment (optional)
   gaitScore?: number;         // 1-10 scale
   typeScore?: number;         // 1-10 scale
   temperamentScore?: number;  // 1-10 scale
-  
+
   // Competition level
   competitionLevel: 'Puppy' | 'Open' | 'Bred-by-Exhibitor' | 'American Bred' | 'Specials';
 }
@@ -224,16 +224,16 @@ export interface ConformationScore extends BaseScore {
 
 export interface TrackingScore extends BaseScore {
   format: 'tracking';
-  
+
   // Pass/fail system
   passed: boolean;
-  
+
   // Track details
   trackLength?: number;        // Yards
   trackAge?: number;          // Hours
   articlesFindRequired: number;
   articlesFound: number;
-  
+
   // Weather conditions
   weatherConditions?: string;
   windDirection?: string;
@@ -242,19 +242,19 @@ export interface TrackingScore extends BaseScore {
 
 export interface LureCoursingScore extends BaseScore {
   format: 'lure_coursing';
-  
+
   // Performance scores (1-25 each)
   overall: number;
   follow: number;
   speed: number;
   agility: number;
   endurance: number;
-  
+
   // Total and qualification
   totalScore: number;          // Sum of all categories
   qualifyingScore: number;     // Usually 65+
   isQualifying: boolean;
-  
+
   // Course details
   courseYardage?: number;
   runTime?: number;           // Milliseconds
@@ -262,17 +262,17 @@ export interface LureCoursingScore extends BaseScore {
 
 export interface BarnHuntScore extends BaseScore {
   format: 'barn_hunt';
-  
+
   // Time and performance
   courseTime: number;          // Milliseconds
   timeLimit: number;          // Class time limit
-  
+
   // Rat tube findings
   ratsFound: number;
   ratsRequired: number;
   correctFinds: number;
   falseAlerts: number;
-  
+
   // Special conditions
   safetyViolation?: boolean;
   handlerHelp?: boolean;
@@ -281,16 +281,16 @@ export interface BarnHuntScore extends BaseScore {
 
 export interface FastCatScore extends BaseScore {
   format: 'fast_cat';
-  
+
   // Performance metrics
   runTime: number;            // Milliseconds for 100-yard dash
   speed: number;              // Miles per hour
-  
+
   // Points calculation
   handicapPoints: number;     // Based on height/age
   basePoints: number;        // Speed-based points
   totalPoints: number;       // Final FAST points
-  
+
   // Course conditions
   courseYardage: number;      // Usually 100 yards
   surfaceCondition?: string;
@@ -298,21 +298,21 @@ export interface FastCatScore extends BaseScore {
 
 export interface DockDivingScore extends BaseScore {
   format: 'dock_diving';
-  
+
   // Distance/height measurements
   distance?: number;          // Feet and inches for Big Air
   height?: number;           // Inches for Extreme Vertical
   time?: number;             // Milliseconds for Speed Retrieve
-  
+
   // Division and event type
   division: 'Novice' | 'Senior' | 'Master' | 'Elite';
   eventType: 'Big Air' | 'Extreme Vertical' | 'Speed Retrieve';
-  
+
   // Best measurements
   bestDistance?: number;
   bestHeight?: number;
   bestTime?: number;
-  
+
   // Jump validity
   validJump: boolean;
   invalidReason?: string;
@@ -326,15 +326,15 @@ export interface MultiJudgeScore {
   entryId: string;
   classId: string;
   format: ScoringFormat;
-  
+
   // Judge scores
   judgeScores: Map<string, BaseScore>;  // judgeId -> score
-  
+
   // Conflict resolution
   hasConflicts: boolean;
   conflictResolution?: ConflictResolution;
   finalScore?: BaseScore;
-  
+
   // Metadata
   lastUpdated: Date;
   syncStatus: 'pending' | 'synced' | 'conflict';
@@ -365,14 +365,14 @@ export interface JudgeScore extends BaseScore {
 export interface PlacementCalculation {
   classId: string;
   format: ScoringFormat;
-  
+
   // Placement data
   placements: PlacementEntry[];
-  
+
   // Calculation metadata
   calculatedAt: Date;
   calculatedBy: string;
-  
+
   // Tie handling
   tieBreakingRules: TieBreakingRule[];
   appliedTieBreakers: AppliedTieBreaker[];
@@ -383,17 +383,17 @@ export interface PlacementEntry {
   dogName: string;
   handlerName: string;
   armband: string;
-  
+
   // Placement info
   placement?: number;
   isTied: boolean;
   tiedWith?: string[];        // Entry IDs of tied entries
-  
+
   // Score summary
   primaryScore: number | string;  // Main sorting criteria
   secondaryScore?: number;        // Tie-breaker
   qualification: QualificationStatus;
-  
+
   // Raw score reference
   rawScore: BaseScore;
 }
@@ -418,21 +418,21 @@ export interface AppliedTieBreaker {
 
 export interface ScoringConfiguration {
   format: ScoringFormat;
-  
+
   // Format-specific rules
   qualifyingThreshold?: number;
   timeWarnings?: number[];     // Warning thresholds in seconds
   maxTimeLimit?: number;       // Maximum allowed time
-  
+
   // Placement rules
   placementRules: PlacementRule[];
   tieBreakingRules: TieBreakingRule[];
-  
+
   // Judge settings
   allowMultipleJudges: boolean;
   requireJudgeSignoff: boolean;
   conflictResolutionStrategy: ConflictResolution['strategy'];
-  
+
   // Offline features
   enableOfflineScoring: boolean;
   autoSaveInterval: number;    // Milliseconds
@@ -450,7 +450,7 @@ export interface PlacementRule {
 // Scoring Events and Workflow
 // ============================================================================
 
-export type ScoringEventType = 
+export type ScoringEventType =
   | 'score_started'
   | 'score_updated'
   | 'score_completed'
@@ -465,6 +465,9 @@ export type ScoringEventType =
   | 'conflict_detected'
   | 'sync_queued'
   | 'sync_completed'
+  | 'score_synced'
+  | 'score_removed'
+  | 'score_cached'
   | 'validation_failed';
 
 export interface ScoringEvent {
@@ -482,22 +485,22 @@ export interface ScoringSession {
   classId: string;
   judgeId: string;
   format: ScoringFormat;
-  
+
   // Session state
   status: 'active' | 'paused' | 'completed' | 'aborted';
   startTime: Date;
   endTime?: Date;
-  
+
   // Progress tracking
   totalEntries: number;
   completedEntries: string[]; // Array of completed entry IDs
   currentEntryId?: string;
-  
+
   // Current entry tracking
   entryId?: string; // Current entry being scored
   workflowStep?: string; // Current workflow step
   isActive?: boolean; // Whether session is currently active
-  
+
   // Offline support
   isOffline: boolean;
   pendingSync: BaseScore[];
@@ -586,7 +589,7 @@ export const DEFAULT_SCORING_CONFIGS: Record<ScoringFormat, ScoringConfiguration
     autoSaveInterval: 30000, // 30 seconds
     enableRealTimeSync: true
   },
-  
+
   agility: {
     format: 'agility',
     qualifyingThreshold: 0, // No faults required
@@ -604,7 +607,7 @@ export const DEFAULT_SCORING_CONFIGS: Record<ScoringFormat, ScoringConfiguration
     autoSaveInterval: 30000,
     enableRealTimeSync: true
   },
-  
+
   obedience: {
     format: 'obedience',
     qualifyingThreshold: 170,
@@ -621,7 +624,7 @@ export const DEFAULT_SCORING_CONFIGS: Record<ScoringFormat, ScoringConfiguration
     autoSaveInterval: 30000,
     enableRealTimeSync: true
   },
-  
+
   rally: {
     format: 'rally',
     qualifyingThreshold: 170,
@@ -639,7 +642,7 @@ export const DEFAULT_SCORING_CONFIGS: Record<ScoringFormat, ScoringConfiguration
     autoSaveInterval: 30000,
     enableRealTimeSync: true
   },
-  
+
   conformation: {
     format: 'conformation',
     placementRules: [
@@ -653,7 +656,7 @@ export const DEFAULT_SCORING_CONFIGS: Record<ScoringFormat, ScoringConfiguration
     autoSaveInterval: 30000,
     enableRealTimeSync: true
   },
-  
+
   tracking: {
     format: 'tracking',
     placementRules: [
@@ -667,7 +670,7 @@ export const DEFAULT_SCORING_CONFIGS: Record<ScoringFormat, ScoringConfiguration
     autoSaveInterval: 30000,
     enableRealTimeSync: true
   },
-  
+
   lure_coursing: {
     format: 'lure_coursing',
     qualifyingThreshold: 65,
@@ -684,7 +687,7 @@ export const DEFAULT_SCORING_CONFIGS: Record<ScoringFormat, ScoringConfiguration
     autoSaveInterval: 30000,
     enableRealTimeSync: true
   },
-  
+
   barn_hunt: {
     format: 'barn_hunt',
     placementRules: [
@@ -701,7 +704,7 @@ export const DEFAULT_SCORING_CONFIGS: Record<ScoringFormat, ScoringConfiguration
     autoSaveInterval: 30000,
     enableRealTimeSync: true
   },
-  
+
   fast_cat: {
     format: 'fast_cat',
     placementRules: [
@@ -715,7 +718,7 @@ export const DEFAULT_SCORING_CONFIGS: Record<ScoringFormat, ScoringConfiguration
     autoSaveInterval: 30000,
     enableRealTimeSync: true
   },
-  
+
   dock_diving: {
     format: 'dock_diving',
     placementRules: [

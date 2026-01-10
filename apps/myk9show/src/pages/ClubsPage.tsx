@@ -9,6 +9,9 @@ import { useClubStore } from '@/store/clubStore';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { buildClasses } from '@/utils/designTokens';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Menu } from 'lucide-react';
 
 /**
  * ClubsPage is responsible for displaying club details with a sidebar for navigation.
@@ -60,7 +63,8 @@ const ClubsPage: React.FC = () => {
   };
   
   const [showCreateClubPanel, setShowCreateClubPanel] = useState(false);
-  
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   // Get current user for RBAC role assignment
   const { userWithRoles } = useAuthContext();
 
@@ -86,18 +90,45 @@ const ClubsPage: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-background">
-      {/* Fixed sidebar with proper z-index */}
-      <div className="fixed inset-y-0 left-0 z-[60] w-72 bg-card border-r border-border">
+      {/* Mobile sidebar overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-[55] bg-black/50 backdrop-blur-sm md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Fixed sidebar with responsive transform */}
+      <div className={cn(
+        "fixed inset-y-0 left-0 z-[60] w-72 bg-card border-r border-border",
+        "transform transition-transform duration-300 ease-in-out md:translate-x-0",
+        sidebarOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
         <ClubSidebar
           clubs={clubs}
           selectedClubId={selectedClubId}
-          onSelectClub={handleSelectClub}
+          onSelectClub={(clubId) => {
+            handleSelectClub(clubId);
+            setSidebarOpen(false);
+          }}
           onAddClub={handleOpenCreatePanel}
+          onCloseMobile={() => setSidebarOpen(false)}
         />
       </div>
-      
-      {/* Main content area with proper left margin */}
-      <main className="flex-1 overflow-auto ml-72 pt-16">
+
+      {/* Main content area with responsive left margin */}
+      <main className="flex-1 overflow-auto md:ml-72 pt-16">
+        {/* Mobile menu button */}
+        <div className="md:hidden p-4 border-b border-border bg-background/95 backdrop-blur-sm sticky top-16 z-30">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSidebarOpen(true)}
+          >
+            <Menu className="h-4 w-4 mr-2" />
+            Clubs Menu
+          </Button>
+        </div>
         {clubs.length === 0 ? (
           <div className="flex items-center justify-center min-h-screen">
             <div className="text-center">

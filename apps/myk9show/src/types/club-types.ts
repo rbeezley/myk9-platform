@@ -106,9 +106,6 @@ export const CLUB_TYPES = [
 export const COUNTRIES = [
   { value: 'US', label: 'United States' },
   { value: 'CA', label: 'Canada' },
-  { value: 'UK', label: 'United Kingdom' },
-  { value: 'AU', label: 'Australia' },
-  { value: 'DE', label: 'Germany' },
-  { value: 'FR', label: 'France' },
-  // Add more countries as needed
 ] as const;
+
+export const DEFAULT_COUNTRY = 'US';

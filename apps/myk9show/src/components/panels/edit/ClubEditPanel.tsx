@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Building, MapPin, Phone, Calendar, Camera } from 'lucide-react';
 import ClubPhotoDialog from '@/components/clubs/ClubPhotoDialog';
 import type { Club } from '@/types/club-types';
-import { CLUB_TYPES, COUNTRIES } from '@/types/club-types';
+import { CLUB_TYPES, COUNTRIES, DEFAULT_COUNTRY } from '@/types/club-types';
 import { cn } from '@/lib/utils';
 
 interface ClubEditPanelProps {
@@ -110,7 +110,7 @@ const clubToFormData = (club: Partial<Club>): ClubEditFormData => {
     city: club.address?.city || '',
     state: club.address?.state || '',
     zipCode: club.address?.zipCode || '',
-    country: club.address?.country || '',
+    country: club.address?.country || DEFAULT_COUNTRY,
     founded: club.founded ? new Date(club.founded).toISOString().slice(0, 10) : '',
     clubType: club.clubType || '',
   };

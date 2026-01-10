@@ -19,14 +19,16 @@ interface DogSidebarProps {
   isCollapsed?: boolean;
   toggleCollapsed?: () => void;
   onAdd?: () => void;
+  onCloseMobile?: () => void;
 }
 
-const DogSidebar: React.FC<DogSidebarProps> = ({ 
+const DogSidebar: React.FC<DogSidebarProps> = ({
   selectedDogId,
   className,
   isCollapsed: propIsCollapsed,
   toggleCollapsed: propToggleCollapsed,
-  onAdd
+  onAdd,
+  onCloseMobile
 }) => {
   const navigate = useNavigate();
   const { searchTerm, setSearchTerm } = useDogSidebarStore();
@@ -113,6 +115,7 @@ const DogSidebar: React.FC<DogSidebarProps> = ({
       selectedId={selectedDogId}
       onSelect={handleDogClick}
       onAdd={canCreateDogs ? onAdd : undefined}
+      onCloseMobile={onCloseMobile}
       renderItem={renderDogItem}
       renderCollapsedItem={renderCollapsedDogItem}
       getItemId={(dog) => dog.id}

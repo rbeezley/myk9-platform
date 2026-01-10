@@ -5,9 +5,10 @@ import { useUserSidebarStore } from '@/store/userSidebarStore';
 import { useUserStore, PersonInput } from '@/store/userStore';
 import { useRoleBasedPeople, useCanAccessPerson } from '@/hooks/useRoleBasedData';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Plus, Menu } from 'lucide-react';
 import { UserEditPanel } from '@/components/panels/edit';
 // import { useAuthContext } from '@/hooks/useAuthContext';
+import { cn } from '@/lib/utils';
 
 import UserSidebar from '@/components/users/UserDetails/UserSidebar/UserSidebar';
 import UserDetailsView from '@/components/users/UserDetails/UserDetailsView';
@@ -30,6 +31,7 @@ const UserDetails: React.FC = () => {
   
   // Dialog state
   const [showCreatePersonDialog, setShowCreatePersonDialog] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -100,16 +102,40 @@ const UserDetails: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-background">
-      {/* Fixed sidebar with proper z-index */}
-      <div className="fixed inset-y-0 left-0 z-[60] w-72 bg-card border-r border-border">
+      {/* Mobile sidebar overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-[55] bg-black/50 backdrop-blur-sm md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Fixed sidebar with responsive transform */}
+      <div className={cn(
+        "fixed inset-y-0 left-0 z-[60] w-72 bg-card border-r border-border",
+        "transform transition-transform duration-300 ease-in-out md:translate-x-0",
+        sidebarOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
         <UserSidebar
           selectedPersonId={id || null}
           onAdd={() => setShowCreatePersonDialog(true)}
+          onCloseMobile={() => setSidebarOpen(false)}
         />
       </div>
-      
-      {/* Main content area with proper left margin */}
-      <main className="flex-1 overflow-auto ml-72 pt-16">
+
+      {/* Main content area with responsive left margin */}
+      <main className="flex-1 overflow-auto md:ml-72 pt-16">
+        {/* Mobile menu button */}
+        <div className="md:hidden p-4 border-b border-border bg-background/95 backdrop-blur-sm sticky top-16 z-30">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSidebarOpen(true)}
+          >
+            <Menu className="h-4 w-4 mr-2" />
+            Users Menu
+          </Button>
+        </div>
         {selectedUser ? (
           <UserDetailsView person={selectedUser} />
         ) : people.length === 0 ? (

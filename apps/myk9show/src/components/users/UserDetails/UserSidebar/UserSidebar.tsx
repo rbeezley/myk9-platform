@@ -22,14 +22,16 @@ interface PeopleSidebarProps {
   isCollapsed?: boolean;
   toggleCollapsed?: () => void;
   onAdd?: () => void;
+  onCloseMobile?: () => void;
 }
 
-const PeopleSidebar: React.FC<PeopleSidebarProps> = ({ 
+const PeopleSidebar: React.FC<PeopleSidebarProps> = ({
   selectedPersonId,
   className,
   isCollapsed: propIsCollapsed,
   toggleCollapsed: propToggleCollapsed,
-  onAdd
+  onAdd,
+  onCloseMobile
 }) => {
   const navigate = useNavigate();
   const { searchTerm, setSearchTerm } = useUserSidebarStore();
@@ -143,6 +145,7 @@ const PeopleSidebar: React.FC<PeopleSidebarProps> = ({
       selectedId={selectedPersonId}
       onSelect={handlePersonClick}
       onAdd={canManageUsers ? onAdd : undefined}
+      onCloseMobile={onCloseMobile}
       renderItem={renderPersonItem}
       renderCollapsedItem={renderCollapsedPersonItem}
       getItemId={(person) => person.id}

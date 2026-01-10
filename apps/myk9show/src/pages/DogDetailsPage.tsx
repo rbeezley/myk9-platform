@@ -6,9 +6,10 @@ import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useRoleBasedDogs, useCanAccessDog, useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { Button } from '@/components/ui/button';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus, Loader2, Menu } from 'lucide-react';
 import { AddDogPanel } from '@/components/panels/edit';
 import type { Dog } from '@/types/dog-types';
+import { cn } from '@/lib/utils';
 
 import DogSidebar from '@/components/dogs/DogDetails/DogSidebar/DogSidebar';
 import DogDetailsMain from '@/components/dogs/DogDetailsMain';
@@ -30,6 +31,7 @@ const DogDetails: React.FC = () => {
   
   // Panel state
   const [showCreateDogPanel, setShowCreateDogPanel] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const canAccessDog = useCanAccessDog(id || '');
   
   // Get navigation context from URL parameters
@@ -117,16 +119,40 @@ const DogDetails: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-background">
-      {/* Fixed sidebar with proper z-index */}
-      <div className="fixed inset-y-0 left-0 z-[60] w-72 bg-card border-r border-border">
-        <DogSidebar 
-          selectedDogId={id || null} 
+      {/* Mobile sidebar overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-[55] bg-black/50 backdrop-blur-sm md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Fixed sidebar with responsive transform */}
+      <div className={cn(
+        "fixed inset-y-0 left-0 z-[60] w-72 bg-card border-r border-border",
+        "transform transition-transform duration-300 ease-in-out md:translate-x-0",
+        sidebarOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
+        <DogSidebar
+          selectedDogId={id || null}
           onAdd={() => setShowCreateDogPanel(true)}
+          onCloseMobile={() => setSidebarOpen(false)}
         />
       </div>
-      
-      {/* Main content area with proper left margin */}
-      <main className="flex-1 overflow-auto ml-72 pt-16">
+
+      {/* Main content area with responsive left margin */}
+      <main className="flex-1 overflow-auto md:ml-72 pt-16">
+        {/* Mobile menu button */}
+        <div className="md:hidden p-4 border-b border-border bg-background/95 backdrop-blur-sm sticky top-16 z-30">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSidebarOpen(true)}
+          >
+            <Menu className="h-4 w-4 mr-2" />
+            Dogs Menu
+          </Button>
+        </div>
         {isLoading ? (
           <div className="flex items-center justify-center h-full text-muted-foreground">
             <div className="text-center">

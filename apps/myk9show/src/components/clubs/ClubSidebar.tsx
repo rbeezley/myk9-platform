@@ -16,6 +16,7 @@ interface ClubSidebarProps {
   selectedClubId: string;
   onSelectClub: (id: string) => void;
   onAddClub?: () => void;
+  onCloseMobile?: () => void;
 }
 
 // Utility function for club initials
@@ -28,7 +29,7 @@ const getClubInitials = (name: string) => {
     .slice(0, 3);
 };
 
-const ClubSidebar: React.FC<ClubSidebarProps> = ({ clubs, selectedClubId, onSelectClub, onAddClub }) => {
+const ClubSidebar: React.FC<ClubSidebarProps> = ({ clubs, selectedClubId, onSelectClub, onAddClub, onCloseMobile }) => {
   const { hasPermission, isLoading } = useRBAC();
 
   // Check if user can create clubs (admin only) - only check if RBAC is loaded
@@ -93,6 +94,7 @@ const ClubSidebar: React.FC<ClubSidebarProps> = ({ clubs, selectedClubId, onSele
       selectedId={selectedClubId}
       onSelect={onSelectClub}
       onAdd={canCreateClubs ? onAddClub : undefined}
+      onCloseMobile={onCloseMobile}
       renderItem={renderClubItem}
       renderCollapsedItem={renderCollapsedClubItem}
       getItemId={(club) => club.id}

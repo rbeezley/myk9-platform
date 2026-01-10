@@ -21,7 +21,7 @@ export function ResponsiveLayout({
 
   return (
     <div className={cn('flex h-screen bg-gray-50 dark:bg-gray-900', className)}>
-      {/* Mobile sidebar backdrop */}
+      {/* Mobile sidebar backdrop - positioned below header */}
       <AnimatePresence>
         {sidebarOpen && (
           <motion.div
@@ -29,7 +29,7 @@ export function ResponsiveLayout({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+            className="fixed inset-0 top-16 z-40 bg-black/50 lg:hidden"
             onClick={() => setSidebarOpen(false)}
           />
         )}
@@ -40,7 +40,7 @@ export function ResponsiveLayout({
         {sidebar}
       </div>
 
-      {/* Mobile sidebar */}
+      {/* Mobile sidebar - positioned below header (top-16) */}
       <AnimatePresence>
         {sidebarOpen && (
           <motion.div
@@ -48,7 +48,7 @@ export function ResponsiveLayout({
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-            className="fixed inset-y-0 left-0 z-50 w-64 lg:hidden"
+            className="fixed top-16 bottom-0 left-0 z-40 w-64 lg:hidden"
           >
             {sidebar}
             <Button
@@ -249,12 +249,12 @@ export function ResponsiveTabs({
       {/* Mobile dropdown */}
       <div className="sm:hidden">
         <select
-          value={""}
+          value={activeTab}
           onChange={(e) => onTabChange(e.target.value)}
           className="block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 py-2 pl-3 pr-10 text-base focus:border-blue-500 focus:outline-none focus:ring-blue-500"
         >
           {tabs.map((tab) => (
-            <option key={tab.id} value={""}>
+            <option key={tab.id} value={tab.id}>
               {tab.label}
             </option>
           ))}

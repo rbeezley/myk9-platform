@@ -9,13 +9,15 @@ import { useClubStore } from '@/store/clubStore';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { buildClasses } from '@/utils/designTokens';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Menu } from 'lucide-react';
+import { SidebarLayout, useSidebarLayoutState, SIDEBAR_LAYOUT_CONSTANTS } from '@/components/layout/SidebarLayout';
+
+// Sidebar width constants matching UnifiedSidebar tokens
+const SIDEBAR_WIDTH_EXPANDED = 320; // 20rem
+const SIDEBAR_WIDTH_COLLAPSED = SIDEBAR_LAYOUT_CONSTANTS.COLLAPSED_WIDTH;
 
 /**
  * ClubsPage is responsible for displaying club details with a sidebar for navigation.
- * Uses standard pattern with empty state handling like other entity pages.
+ * Uses SidebarLayout for consistent sidebar behavior across the app.
  */
 const ClubsPage: React.FC = () => {
   const { id: clubIdFromUrl } = useParams<{ id: string }>();
@@ -30,6 +32,15 @@ const ClubsPage: React.FC = () => {
   const isLoading = useClubStore(state => state.isLoading);
   const isSyncing = useClubStore(state => state.isSyncing);
   const subscribeToChanges = useClubStore(state => state.subscribeToChanges);
+
+  // Sidebar state management using the shared hook
+  const {
+    isCollapsed: sidebarCollapsed,
+    setIsCollapsed: setSidebarCollapsed,
+    mobileOpen: sidebarOpen,
+    setMobileOpen: setSidebarOpen,
+    closeMobile,
+  } = useSidebarLayoutState();
 
   // Load clubs from local cache on mount, then sync with server
   useEffect(() => {
@@ -51,8 +62,6 @@ const ClubsPage: React.FC = () => {
     upcomingShows: Array.isArray(rawSelectedClub.upcomingShows) ? rawSelectedClub.upcomingShows : [],
     pastShows: Array.isArray(rawSelectedClub.pastShows) ? rawSelectedClub.pastShows : []
   } : null;
-
-  // Removed auto-initialization - stores should remain empty until user adds data
 
   // Handle URL parameter changes and sync with store
   useEffect(() => {
@@ -78,11 +87,10 @@ const ClubsPage: React.FC = () => {
   const handleSelectClub = (clubId: string) => {
     selectClub(clubId);
     navigate(`/clubs/${clubId}`);
+    closeMobile(); // Close mobile sidebar after selection
   };
 
   const [showCreateClubPanel, setShowCreateClubPanel] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Get current user for RBAC role assignment
   const { userWithRoles } = useAuthContext();
@@ -93,118 +101,98 @@ const ClubsPage: React.FC = () => {
     club: selectedClub ? { id: selectedClub.id, name: selectedClub.name } : undefined
   });
 
-  // Handler for creating a club (moved to panel)
-  const handleClubCreated = (entity: Record<string, unknown>) => {
+  function handleClubCreated(entity: Record<string, unknown>): void {
     const newClub = entity as unknown as Club;
-    // The panel already handles creation, we just need to update UI state
     addClub(newClub);
     selectClub(newClub.id);
     navigate(`/clubs/${newClub.id}`);
     setShowCreateClubPanel(false);
-  };
+  }
 
-  const handleOpenCreatePanel = () => {
+  function handleOpenCreatePanel(): void {
     setShowCreateClubPanel(true);
-  };
+  }
 
-  // Sidebar width constants matching UnifiedSidebar tokens
-  const SIDEBAR_WIDTH_EXPANDED = 320; // 20rem
-  const SIDEBAR_WIDTH_COLLAPSED = 80; // 5rem
+  // Calculate sidebar width based on collapse state
   const sidebarWidth = sidebarCollapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH_EXPANDED;
 
-  return (
-    <div className="flex min-h-screen bg-background">
-      {/* Mobile sidebar overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-[55] bg-black/50 backdrop-blur-sm md:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+  // Render the sidebar component
+  const sidebarContent = (
+    <ClubSidebar
+      clubs={clubs}
+      selectedClubId={selectedClubId}
+      onSelectClub={handleSelectClub}
+      onAddClub={handleOpenCreatePanel}
+      isCollapsed={sidebarCollapsed}
+      onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+    />
+  );
 
-      {/* Fixed sidebar with responsive transform and dynamic width */}
-      <div
-        className={cn(
-          "fixed inset-y-0 left-0 z-[60] bg-card border-r border-border",
-          "transform transition-all duration-300 ease-in-out md:translate-x-0",
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        )}
-        style={{ width: sidebarWidth }}
-      >
-        <ClubSidebar
-          clubs={clubs}
-          selectedClubId={selectedClubId}
-          onSelectClub={(clubId) => {
-            handleSelectClub(clubId);
-            setSidebarOpen(false);
-          }}
-          onAddClub={handleOpenCreatePanel}
-          onCloseMobile={() => setSidebarOpen(false)}
-          isCollapsed={sidebarCollapsed}
-          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-        />
-      </div>
-
-      {/* Main content area with responsive left margin - only on md+ */}
-      <main
-        className={cn(
-          "flex-1 overflow-auto pt-16 transition-all duration-300 ease-in-out",
-          "md:ml-[var(--sidebar-width)]"
-        )}
-        style={{ '--sidebar-width': `${sidebarWidth}px` } as React.CSSProperties}
-      >
-        {/* Mobile menu button */}
-        <div className="md:hidden p-4 border-b border-border bg-background/95 backdrop-blur-sm sticky top-16 z-30">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSidebarOpen(true)}
-          >
-            <Menu className="h-4 w-4 mr-2" />
-            Clubs Menu
-          </Button>
+  // Render main content based on loading/data state
+  const renderContent = () => {
+    if (isLoading) {
+      return (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading clubs...</p>
+          </div>
         </div>
-        {isLoading ? (
-          <div className="flex items-center justify-center min-h-screen">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-              <p className="text-muted-foreground">Loading clubs...</p>
+      );
+    }
+
+    if (clubs.length === 0 && isSyncing) {
+      return (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Syncing clubs from server...</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (clubs.length === 0) {
+      return (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-foreground mb-4">No Clubs Available</h1>
+            <p className="text-muted-foreground mb-6">
+              Get started by creating your first club to manage organizations and events.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={handleOpenCreatePanel}
+                className={`${buildClasses.button.primary} px-4 py-2 rounded-lg transition-colors`}
+              >
+                Add Club
+              </button>
             </div>
           </div>
-        ) : clubs.length === 0 && isSyncing ? (
-          <div className="flex items-center justify-center min-h-screen">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-              <p className="text-muted-foreground">Syncing clubs from server...</p>
-            </div>
-          </div>
-        ) : clubs.length === 0 ? (
-          <div className="flex items-center justify-center min-h-screen">
-            <div className="text-center">
-              <h1 className="text-2xl font-bold text-foreground mb-4">No Clubs Available</h1>
-              <p className="text-muted-foreground mb-6">
-                Get started by creating your first club to manage organizations and events.
-              </p>
-              <div className="flex gap-3 justify-center">
-                <button
-                  onClick={handleOpenCreatePanel}
-                  className={`${buildClasses.button.primary} px-4 py-2 rounded-lg transition-colors`}
-                >
-                  Add Club
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <ClubDetails selectedClub={selectedClub as Club | null} breadcrumbItems={breadcrumbItems} />
-        )}
-      </main>
-      
+        </div>
+      );
+    }
+
+    return <ClubDetails selectedClub={selectedClub as Club | null} breadcrumbItems={breadcrumbItems} />;
+  };
+
+  return (
+    <>
+      <SidebarLayout
+        sidebar={sidebarContent}
+        sidebarWidth={sidebarWidth}
+        isCollapsible={true}
+        isCollapsed={sidebarCollapsed}
+        mobileMenuLabel="Clubs Menu"
+        mobileOpen={sidebarOpen}
+        onMobileOpenChange={setSidebarOpen}
+      >
+        {renderContent()}
+      </SidebarLayout>
+
       {/* Create Club Panel */}
       {showCreateClubPanel && (
-        <PanelProvider
-          onEntityCreated={handleClubCreated}
-        >
+        <PanelProvider onEntityCreated={handleClubCreated}>
           <ClubEditPanel
             open={showCreateClubPanel}
             onClose={() => setShowCreateClubPanel(false)}
@@ -236,7 +224,7 @@ const ClubsPage: React.FC = () => {
                   upcomingShows: [],
                   pastShows: []
                 };
-                
+
                 addClub(newClub);
                 selectClub(newId);
                 navigate(`/clubs/${newId}`);
@@ -247,7 +235,7 @@ const ClubsPage: React.FC = () => {
           <PanelStack maxPanels={3} />
         </PanelProvider>
       )}
-    </div>
+    </>
   );
 };
 

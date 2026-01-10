@@ -12,8 +12,6 @@ import { TrialEditPanel } from '@/components/panels/edit/TrialEditPanel';
 import { RegistrationWorkflow } from '@/components/shows/RegistrationWorkflow';
 import { RegistrationProvider } from '@/context/RegistrationContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Menu } from 'lucide-react';
 import { useTrialStore, type TrialInput } from '@/store/trialStore';
 import { useCompleteShowData } from '@/hooks/useShowScopedData';
 import { useShowsQuery } from '@/hooks/queries/useShowsDatabase';
@@ -23,12 +21,13 @@ import type { Trial } from '@/components/trials/types/trial.types';
 import type { Show } from '@/types/show-types';
 import type { RegistrationFormData } from '@/types/show-registration-types';
 import { buildClasses } from '@/utils/designTokens';
+import { SidebarLayout, useSidebarLayoutState } from '@/components/layout/SidebarLayout';
 
 const ShowDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { endNavigation } = useNavigationPerformance();
-  
+
   // Use fast show details loading with cache optimization
   const {
     showId,
@@ -36,39 +35,37 @@ const ShowDetailsPage: React.FC = () => {
     isLoading: fastLoading,
     hasData,
     isFromCache
-    // loadTime - available but unused
   } = useFastShowDetails(id);
-  
+
   // Track navigation performance when data loads
   useEffect(() => {
     if (currentShow && !fastLoading) {
       endNavigation(isFromCache);
     }
   }, [currentShow, fastLoading, isFromCache, endNavigation]);
-  
+
   // Get trials from complete show data (only if needed)
   const {
     trials: showTrials,
     isLoading: trialsLoading
-    // selectShow - available but unused
   } = useCompleteShowData(id, {
     needsEntries: false,
     needsClasses: false
   });
-  
+
   // Get cached shows data from React Query cache (already loaded in BrowseShows)
   const queryClient = useQueryClient();
   const cachedShows = queryClient.getQueryData<Show[]>(['shows', 'list']) || [];
   const { data: shows = cachedShows } = useShowsQuery();
-  
-  // Get trials and actions from the store - moved to top to avoid conditional hooks
+
+  // Get trials and actions from the store
   const {
     trials,
     addTrial: addTrialToStore,
     updateTrial: updateTrialInStore,
     removeTrial: removeTrialFromStore,
   } = useTrialStore();
-  
+
   // Panel state
   const [showEditPanel, setShowEditPanel] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -78,10 +75,12 @@ const ShowDetailsPage: React.FC = () => {
   const [showEditTrialPanel, setShowEditTrialPanel] = useState(false);
   const [selectedTrial, setSelectedTrial] = useState<Trial | null>(null);
   const [showRegistration, setShowRegistration] = useState(false);
-  
-  // State for sidebar and selection - moved to top level
+
+  // State for sidebar search
   const [searchTerm, setSearchTerm] = useState("");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Sidebar state management using the shared hook
+  const { mobileOpen, setMobileOpen, closeMobile } = useSidebarLayoutState();
 
   // Fallback: Find current show from database if scoped data doesn't have it
   const actualCurrentShow = React.useMemo(() => {
@@ -100,7 +99,6 @@ const ShowDetailsPage: React.FC = () => {
   // Handle navigation and fallback to first show if needed
   useEffect(() => {
     if (!id && shows.length > 0) {
-      // If no ID in URL, redirect to first show
       startTransition(() => {
         navigate(`/shows/${shows[0].id}`, { replace: true });
       });
@@ -121,25 +119,22 @@ const ShowDetailsPage: React.FC = () => {
       plannedStartTime: '09:00 AM',
       order: trial.trialNumber
     }));
-    
-    // Combine both sources, preferring store trials if they exist
+
     return storeTrials.length > 0 ? storeTrials : scopedTrialsFromShow;
   }, [trials, showId, showTrials, actualCurrentShow]);
 
   // Handler for adding a new trial
-  const handleAddTrial = (newTrialDialogData: { name: string; date: string; trialNumber: string; status: string; eventNumber: string; plannedStartTime: string; order: string; showName: string; description?: string; }) => { 
-    // Assuming AddTrialDialog provides a status string that is one of the valid Trial statuses.
-    // A more robust solution would be to validate this or have AddTrialDialog use a stricter type.
+  const handleAddTrial = (newTrialDialogData: { name: string; date: string; trialNumber: string; status: string; eventNumber: string; plannedStartTime: string; order: string; showName: string; description?: string; }) => {
     const validStatus = newTrialDialogData.status as 'Upcoming' | 'In Progress' | 'Completed' | 'Cancelled';
 
     const newTrialForStore: TrialInput = {
-      showId: showId || '', // Use the scoped show ID
-      showName: newTrialDialogData.showName || actualCurrentShow?.name || 'Default Show Name', // Use provided or current show's name
-      name: newTrialDialogData.name, // Add name field for TrialInput
+      showId: showId || '',
+      showName: newTrialDialogData.showName || actualCurrentShow?.name || 'Default Show Name',
+      name: newTrialDialogData.name,
       trialDate: newTrialDialogData.date,
       trialNumber: newTrialDialogData.trialNumber,
-      status: validStatus, // Use the asserted status
-      type: newTrialDialogData.name, // Map dialog's 'name' to store's 'type'
+      status: validStatus,
+      type: newTrialDialogData.name,
       eventNumber: newTrialDialogData.eventNumber,
       plannedStartTime: newTrialDialogData.plannedStartTime,
       order: newTrialDialogData.order
@@ -150,13 +145,12 @@ const ShowDetailsPage: React.FC = () => {
 
   // Handler for editing a trial
   const handleEditTrial = (trial: Trial) => {
-    // Ensure the trial has the correct showName by looking it up from the show store
     const associatedShow = shows.find(show => show.id === trial.showId);
     const enrichedTrial = {
       ...trial,
       showName: associatedShow?.name || trial.showName || 'Unknown Show'
     };
-    
+
     setSelectedTrial(enrichedTrial);
     setShowEditTrialPanel(true);
   };
@@ -166,10 +160,10 @@ const ShowDetailsPage: React.FC = () => {
     setSelectedTrial(trial);
     setShowDeleteTrialDialog(true);
   };
+
   const handleConfirmDeleteTrial = () => {
     if (selectedTrial) {
       removeTrialFromStore(selectedTrial.id);
-      // Navigate back to parent show after trial deletion
       if (selectedTrial.showId) {
         navigate(`/shows/${selectedTrial.showId}`);
       }
@@ -177,163 +171,154 @@ const ShowDetailsPage: React.FC = () => {
     setShowDeleteTrialDialog(false);
     setSelectedTrial(null);
   };
+
   const handleCancelDeleteTrial = () => {
     setShowDeleteTrialDialog(false);
     setSelectedTrial(null);
   };
 
-  // Sidebar search term already defined above
-
-  // Sidebar search and selection logic - removed unused filteredShows
-
-
   // Handler to open Edit panel
   const handleEditShow = () => {
     setShowEditPanel(true);
   };
+
   // Handler to open Delete dialog
   const handleDeleteShow = () => {
     setShowDeleteDialog(true);
   };
+
   // Handler for confirming show delete
   const handleConfirmDelete = () => {
-    // Close dialog first to avoid rendering issues
     setShowDeleteDialog(false);
-    
-    // Small delay to ensure state is updated before navigation
     setTimeout(() => {
-      // Navigate to shows list after successful delete
       navigate('/shows');
     }, 100);
   };
 
-
   // Handler for registering for show
-  const handleRegisterForShow = () => {
-    console.log('Register for show:', actualCurrentShow?.name);
+  function handleRegisterForShow(): void {
     setShowRegistration(true);
-  };
+  }
 
   // Handler for registration completion
-  const handleRegistrationComplete = (registrationData: RegistrationFormData) => {
-    console.log('Registration completed:', registrationData);
+  function handleRegistrationComplete(_registrationData: RegistrationFormData): void {
     setShowRegistration(false);
-    // TODO: Handle registration success (show toast, update UI, etc.)
-  };
+  }
 
+  // Render the sidebar component
+  const sidebarContent = (
+    <ShowGroupedSidebar
+      shows={shows}
+      selectedId={showId}
+      onSelect={(id) => {
+        startTransition(() => {
+          navigate(`/shows/${id}`);
+        });
+        closeMobile();
+      }}
+      searchTerm={searchTerm}
+      onSearchChange={setSearchTerm}
+      onCloseMobile={closeMobile}
+      onAdd={() => setShowWizardDialog(true)}
+    />
+  );
 
-  // Layout assembly only - match AdminLayout structure
-  return (
-    <div className="flex min-h-screen bg-background">
-      {/* Mobile sidebar overlay */}
-      {sidebarOpen && (
-        <div 
-          className="fixed inset-0 z-[55] bg-black/50 backdrop-blur-sm md:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Fixed sidebar that starts from top like AdminLayout */}
-      <div className={`fixed inset-y-0 left-0 z-[60] w-72 bg-card border-r border-border transform transition-transform duration-300 ease-in-out md:translate-x-0 ${
-        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      }`}>
-        <ShowGroupedSidebar
-          shows={shows}
-          selectedId={showId}
-          onSelect={(id) => {
-            // Navigate to the selected show instead of just updating store
-            startTransition(() => {
-              navigate(`/shows/${id}`);
-            });
-          }}
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-          onCloseMobile={() => setSidebarOpen(false)}
-          onAdd={() => setShowWizardDialog(true)}
-        />
-      </div>
-      
-      {/* Main content with left margin to account for fixed sidebar */}
-      <main className="flex-1 overflow-auto md:ml-72 pt-16">
-        {/* Mobile menu button */}
-        <div className="md:hidden p-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSidebarOpen(true)}
-            className="mb-4"
-          >
-            <Menu className="h-4 w-4 mr-2" />
-            Shows Menu
-          </Button>
+  // Render main content based on loading/data state
+  const renderContent = () => {
+    if (fastLoading || trialsLoading) {
+      return (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <h1 className="text-xl font-medium text-foreground">Loading show data...</h1>
+          </div>
         </div>
-        
-        {(fastLoading || trialsLoading) ? (
+      );
+    }
+
+    if (id && !actualHasData && !actualCurrentShow && shows.length > 0) {
+      return (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-foreground mb-4">Show Not Found</h1>
+            <p className="text-muted-foreground mb-4">The show you're looking for doesn't exist.</p>
+            <button
+              onClick={() => startTransition(() => navigate('/shows'))}
+              className={`${buildClasses.button.primary} px-4 py-2 rounded-lg transition-colors`}
+            >
+              Back to Shows
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    if (actualHasData && actualCurrentShow) {
+      return (
+        <Suspense fallback={
           <div className="flex items-center justify-center min-h-screen">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-              <h1 className="text-xl font-medium text-foreground">Loading show data...</h1>
+              <h1 className="text-xl font-medium text-foreground">Loading show details...</h1>
             </div>
           </div>
-        ) : id && !actualHasData && !actualCurrentShow && shows.length > 0 ? (
-          <div className="flex items-center justify-center min-h-screen">
-            <div className="text-center">
-              <h1 className="text-2xl font-bold text-foreground mb-4">Show Not Found</h1>
-              <p className="text-muted-foreground mb-4">The show you're looking for doesn't exist.</p>
-              <button 
-                onClick={() => startTransition(() => navigate('/shows'))}
+        }>
+          <ShowDetailsMain
+            showData={actualCurrentShow}
+            associatedTrials={combinedTrials}
+            onEditShow={handleEditShow}
+            onDeleteShow={handleDeleteShow}
+            onEditTrial={handleEditTrial}
+            onDeleteTrial={handleDeleteTrial}
+            onRegisterForShow={handleRegisterForShow}
+          />
+        </Suspense>
+      );
+    }
+
+    if (shows.length === 0) {
+      return (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-foreground mb-4">No Shows Available</h1>
+            <p className="text-muted-foreground mb-6">
+              Get started by creating your first show to manage competitions and events.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => setShowWizardDialog(true)}
                 className={`${buildClasses.button.primary} px-4 py-2 rounded-lg transition-colors`}
               >
-                Back to Shows
+                Create Your First Show
               </button>
             </div>
           </div>
-        ) : actualHasData && actualCurrentShow ? (
-          <Suspense fallback={
-            <div className="flex items-center justify-center min-h-screen">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-                <h1 className="text-xl font-medium text-foreground">Loading show details...</h1>
-              </div>
-            </div>
-          }>
-            <ShowDetailsMain
-              showData={actualCurrentShow}
-              associatedTrials={combinedTrials}
-              onEditShow={handleEditShow}
-              onDeleteShow={handleDeleteShow}
-              onEditTrial={handleEditTrial}
-              onDeleteTrial={handleDeleteTrial}
-              onRegisterForShow={handleRegisterForShow}
-            />
-          </Suspense>
-        ) : shows.length === 0 ? (
-          <div className="flex items-center justify-center min-h-screen">
-            <div className="text-center">
-              <h1 className="text-2xl font-bold text-foreground mb-4">No Shows Available</h1>
-              <p className="text-muted-foreground mb-6">
-                Get started by creating your first show to manage competitions and events.
-              </p>
-              <div className="flex gap-3 justify-center">
-                <button 
-                  onClick={() => setShowWizardDialog(true)}
-                  className={`${buildClasses.button.primary} px-4 py-2 rounded-lg transition-colors`}
-                >
-                  Create Your First Show
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center justify-center min-h-screen">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-              <h1 className="text-xl font-medium text-foreground">Loading...</h1>
-            </div>
-          </div>
-        )}
-      </main>
-      
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <h1 className="text-xl font-medium text-foreground">Loading...</h1>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <>
+      <SidebarLayout
+        sidebar={sidebarContent}
+        sidebarWidth={288} // w-72 = 18rem = 288px
+        mobileMenuLabel="Shows Menu"
+        mobileOpen={mobileOpen}
+        onMobileOpenChange={setMobileOpen}
+      >
+        {renderContent()}
+      </SidebarLayout>
+
       {/* Dialogs */}
       <AddTrialDialog
         open={showAddTrialDialog}
@@ -382,7 +367,6 @@ const ShowDetailsPage: React.FC = () => {
         showName={actualCurrentShow?.name || ''}
         initialShowData={actualCurrentShow || {}}
         onSave={async () => {
-          // The panel handles the actual saving, we just close it
           setShowEditPanel(false);
         }}
       />
@@ -395,13 +379,13 @@ const ShowDetailsPage: React.FC = () => {
           showName={actualCurrentShow.name || 'Unknown Show'}
         />
       )}
-      
+
       {/* Show Creation Wizard */}
       <ShowCreationWizard
         open={showWizardDialog}
         onOpenChange={setShowWizardDialog}
       />
-      
+
       {/* Registration Dialog */}
       <Dialog open={showRegistration} onOpenChange={setShowRegistration}>
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-background border border-border">
@@ -424,7 +408,7 @@ const ShowDetailsPage: React.FC = () => {
           </RegistrationProvider>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
 

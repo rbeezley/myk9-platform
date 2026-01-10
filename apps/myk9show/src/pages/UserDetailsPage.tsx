@@ -1,59 +1,38 @@
-import React, { useEffect, startTransition, useState } from 'react';
+import { useEffect, startTransition, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useUserSidebarStore } from '@/store/userSidebarStore';
-// import { useDogStore } from '@/store/dogStore';
 import { useUserStore, PersonInput } from '@/store/userStore';
 import { useRoleBasedPeople, useCanAccessPerson } from '@/hooks/useRoleBasedData';
 import { Button } from '@/components/ui/button';
-import { Plus, Menu } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { UserEditPanel } from '@/components/panels/edit';
-// import { useAuthContext } from '@/hooks/useAuthContext';
-import { cn } from '@/lib/utils';
+import { SidebarLayout, useSidebarLayoutState } from '@/components/layout/SidebarLayout';
 
 import UserSidebar from '@/components/users/UserDetails/UserSidebar/UserSidebar';
 import UserDetailsView from '@/components/users/UserDetails/UserDetailsView';
 
 /**
  * UserDetails page component following the standardized entity page pattern.
- * Each entity page has the same structure: sidebar, EntityPageLayout, and EntityCardContainer.
+ * Uses SidebarLayout for consistent sidebar behavior across the app.
  */
-const UserDetails: React.FC = () => {
+function UserDetails(): React.ReactElement {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  // const [searchParams] = useSearchParams();
-  
-  // Mock data initialization disabled - using real user data only
-  
-  const people = useRoleBasedPeople(); // Use filtered people based on role
-  // const dogs = useDogStore(state => state.dogs);
+
+  const people = useRoleBasedPeople();
   const { setSelectedPersonId } = useUserSidebarStore();
   const { addUser } = useUserStore();
-  
+
   // Dialog state
   const [showCreatePersonDialog, setShowCreatePersonDialog] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    streetAddress: '',
-    city: '',
-    state: '',
-    zipCode: '',
-    profileImage: ''
-  });
-  // const { } = useAuthContext(); // Unused for now
   const canAccessPerson = useCanAccessPerson(id || '');
-  
-  // Get navigation context from URL parameters
-  // const fromDogId = searchParams.get('fromDog');
-  // const fromDog = fromDogId ? dogs.find(d => d.id === fromDogId) : undefined;
-  
-  
+
+  // Sidebar state management using the shared hook
+  const { mobileOpen, setMobileOpen, closeMobile } = useSidebarLayoutState();
+
   // Find the selected person
   const selectedUser = id ? people.find(person => person.id === id) : null;
-  
+
   // Update the selected person ID in the sidebar store when the URL param changes
   useEffect(() => {
     setSelectedPersonId(id || null);
@@ -70,7 +49,7 @@ const UserDetails: React.FC = () => {
       }
       return;
     }
-    
+
     if (id && !selectedUser && people.length > 0) {
       startTransition(() => {
         navigate(`/users/${people[0].id}`);
@@ -78,92 +57,63 @@ const UserDetails: React.FC = () => {
     }
   }, [id, selectedUser, people, navigate, canAccessPerson]);
 
-  // Handle person deletion with proper navigation
-  // const handleDeletePerson = () => {
-  //   if (selectedUser) {
-  //     // Remove person from store
-  //     removePerson(selectedUser.id);
-      
-  //     // Navigate to appropriate page after deletion
-  //     const remainingPeople = people.filter(p => p.id !== selectedUser.id);
-  //     if (remainingPeople.length > 0) {
-  //       // Navigate to first remaining person
-  //       navigate(`/users/${remainingPeople[0].id}`, { replace: true });
-  //     } else {
-  //       // No people left, navigate to people list
-  //       navigate('/users', { replace: true });
-  //     }
-  //   }
-  // };
+  // Render the sidebar component
+  const sidebarContent = (
+    <UserSidebar
+      selectedPersonId={id || null}
+      onAdd={() => setShowCreatePersonDialog(true)}
+      onCloseMobile={closeMobile}
+    />
+  );
 
-  // Handle creating a new person - moved to UserEditPanel onSave
+  // Render main content based on data state
+  const renderContent = () => {
+    if (selectedUser) {
+      return <UserDetailsView person={selectedUser} />;
+    }
 
-  // Form data now managed by UserEditPanel
+    if (people.length === 0) {
+      return (
+        <div className="flex items-center justify-center h-full text-muted-foreground">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-foreground mb-4">No Users Available</h1>
+            <p className="text-muted-foreground mb-6">
+              Get started by adding people to your directory to manage contacts, judges, and exhibitors.
+            </p>
+            <Button
+              onClick={() => setShowCreatePersonDialog(true)}
+              className="flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Add User
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex items-center justify-center h-full text-muted-foreground">
+        <div className="text-center">
+          <p className="text-lg mb-2">No person selected</p>
+          <p className="text-sm">Select a person from the sidebar to view details</p>
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <div className="flex min-h-screen bg-background">
-      {/* Mobile sidebar overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-[55] bg-black/50 backdrop-blur-sm md:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+    <>
+      <SidebarLayout
+        sidebar={sidebarContent}
+        sidebarWidth={288} // w-72 = 18rem = 288px
+        mobileMenuLabel="Users Menu"
+        mobileOpen={mobileOpen}
+        onMobileOpenChange={setMobileOpen}
+      >
+        {renderContent()}
+      </SidebarLayout>
 
-      {/* Fixed sidebar with responsive transform */}
-      <div className={cn(
-        "fixed inset-y-0 left-0 z-[60] w-72 bg-card border-r border-border",
-        "transform transition-transform duration-300 ease-in-out md:translate-x-0",
-        sidebarOpen ? "translate-x-0" : "-translate-x-full"
-      )}>
-        <UserSidebar
-          selectedPersonId={id || null}
-          onAdd={() => setShowCreatePersonDialog(true)}
-          onCloseMobile={() => setSidebarOpen(false)}
-        />
-      </div>
-
-      {/* Main content area with responsive left margin */}
-      <main className="flex-1 overflow-auto md:ml-72 pt-16">
-        {/* Mobile menu button */}
-        <div className="md:hidden p-4 border-b border-border bg-background/95 backdrop-blur-sm sticky top-16 z-30">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSidebarOpen(true)}
-          >
-            <Menu className="h-4 w-4 mr-2" />
-            Users Menu
-          </Button>
-        </div>
-        {selectedUser ? (
-          <UserDetailsView person={selectedUser} />
-        ) : people.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-muted-foreground">
-            <div className="text-center">
-              <h1 className="text-2xl font-bold text-foreground mb-4">No Users Available</h1>
-              <p className="text-muted-foreground mb-6">
-                Get started by adding people to your directory to manage contacts, judges, and exhibitors.
-              </p>
-              <Button 
-                onClick={() => setShowCreatePersonDialog(true)}
-                className="flex items-center gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                Add User
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center justify-center h-full text-muted-foreground">
-            <div className="text-center">
-              <p className="text-lg mb-2">No person selected</p>
-              <p className="text-sm">Select a person from the sidebar to view details</p>
-            </div>
-          </div>
-        )}
-      </main>
-      
       {/* Create User Dialog */}
       <UserEditPanel
         open={showCreatePersonDialog}
@@ -171,15 +121,15 @@ const UserDetails: React.FC = () => {
         userId=""
         userName="New User"
         initialUserData={{
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          email: formData.email,
-          phone: formData.phone,
-          streetAddress: formData.streetAddress,
-          city: formData.city,
-          state: formData.state,
-          zipCode: formData.zipCode,
-          profileImage: formData.profileImage,
+          firstName: '',
+          lastName: '',
+          email: '',
+          phone: '',
+          streetAddress: '',
+          city: '',
+          state: '',
+          zipCode: '',
+          profileImage: '',
           judgeQualifications: [],
           roles: [],
         }}
@@ -196,35 +146,15 @@ const UserDetails: React.FC = () => {
               zipCode: userData.zipCode || ''
             }
           };
-          
-          try {
-            const newUser = await addUser(newPersonInput);
-            setShowCreatePersonDialog(false);
-            
-            // Reset form
-            setFormData({
-              firstName: '',
-              lastName: '',
-              email: '',
-              phone: '',
-              streetAddress: '',
-              city: '',
-              state: '',
-              zipCode: '',
-              profileImage: ''
-            });
-            
-            // Navigate to the newly created person using the actual ID
-            navigate(`/users/${newUser.id}`, { replace: true });
-          } catch (error) {
-            console.error('Failed to create user:', error);
-            throw error;
-          }
+
+          const newUser = await addUser(newPersonInput);
+          setShowCreatePersonDialog(false);
+          navigate(`/users/${newUser.id}`, { replace: true });
         }}
         enableAutoSave={false}
         showAdvancedFields={true}
       />
-    </div>
+    </>
   );
 };
 

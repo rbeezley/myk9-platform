@@ -148,26 +148,22 @@ function UnifiedSidebar<T extends { id: string }>({
   const listRef = useRef<List>(null);
   const resizeRef = useRef<HTMLDivElement>(null);
 
-  // Debug logging for add button visibility
-  useEffect(() => {
-    const actualIsCollapsed = controlledIsCollapsed !== undefined ? controlledIsCollapsed : internalIsCollapsed;
-    console.log('🔧 UnifiedSidebar - onAdd:', !!onAdd, 'isCollapsed:', actualIsCollapsed, 'addButtonText:', addButtonText);
-  }, [onAdd, controlledIsCollapsed, internalIsCollapsed, addButtonText]);
-  
   // Controlled vs uncontrolled state
   const searchTerm = controlledSearchTerm !== undefined ? controlledSearchTerm : internalSearchTerm;
   const isCollapsed = controlledIsCollapsed !== undefined ? controlledIsCollapsed : internalIsCollapsed;
   const width = controlledWidth !== undefined ? controlledWidth : internalWidth;
   
   // Calculate list height on mount and window resize
+  // Account for: app header (64px), sidebar header (56px), search (48px if enabled), padding (32px)
   useEffect(() => {
     const updateHeight = () => {
       if (typeof window !== 'undefined') {
-        const headerHeight = enableSearch ? 104 : 56; // Header + search or just header
-        setListHeight(window.innerHeight - headerHeight - 32); // Extra padding
+        const APP_HEADER_HEIGHT = 64; // Fixed app header (h-16 = 4rem = 64px)
+        const sidebarHeaderHeight = enableSearch ? 104 : 56; // Sidebar header + search or just header
+        setListHeight(window.innerHeight - APP_HEADER_HEIGHT - sidebarHeaderHeight - 32); // Extra padding
       }
     };
-    
+
     updateHeight();
     if (typeof window !== 'undefined') {
       window.addEventListener('resize', updateHeight);

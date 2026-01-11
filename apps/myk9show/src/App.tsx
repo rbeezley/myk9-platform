@@ -27,7 +27,6 @@ import { NetworkStatusProvider } from './components/common/NetworkStatusProvider
 
 // Context
 import { AuthProvider } from './context/AuthContext';
-import { EnhancedAuthProvider } from './context/EnhancedAuthProvider';
 import { AudioSettingsProvider } from './contexts/AudioSettingsContext';
 import { FormErrorProvider } from './providers/FormErrorProvider';
 import { StoreProvider } from './providers/StoreProvider';
@@ -170,7 +169,6 @@ function App() {
         <ReplicationSyncProvider autoSync={true} syncOnReconnect={true}>
           <StoreProvider>
             <AuthProvider>
-            <EnhancedAuthProvider>
               <AudioSettingsProvider>
                 <FormErrorProvider>
                   <PanelProvider>
@@ -237,7 +235,6 @@ function App() {
                 </PanelProvider>
               </FormErrorProvider>
               </AudioSettingsProvider>
-            </EnhancedAuthProvider>
             </AuthProvider>
           </StoreProvider>
         </ReplicationSyncProvider>

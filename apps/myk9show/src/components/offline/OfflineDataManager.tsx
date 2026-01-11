@@ -63,6 +63,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
+import { logger } from '@/services/LoggingService';
 
 export interface StorageQuota {
   used: number; // bytes
@@ -197,11 +198,11 @@ export function OfflineDataManager({ className }: OfflineDataManagerProps) {
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       const filename = `myK9Show-export-${new Date().toISOString().split('T')[0]}.${exportOptions.format}`;
-      console.log('Exporting data:', { filename, options: exportOptions });
-      
+      logger.info('Exporting data', 'offline', { filename, format: exportOptions.format, entities: exportOptions.entities });
+
       // In a real implementation, this would trigger a file download
     } catch (error) {
-      console.error('Export failed:', error);
+      logger.error('Export failed', 'offline', {}, error as Error);
     } finally {
       setIsExporting(false);
     }
@@ -213,9 +214,9 @@ export function OfflineDataManager({ className }: OfflineDataManagerProps) {
     try {
       // Simulate import process
       await new Promise(resolve => setTimeout(resolve, 3000));
-      console.log('Importing file:', file.name);
+      logger.info('Importing file', 'offline', { fileName: file.name, fileSize: file.size });
     } catch (error) {
-      console.error('Import failed:', error);
+      logger.error('Import failed', 'offline', {}, error as Error);
     } finally {
       setIsImporting(false);
     }
@@ -245,7 +246,7 @@ export function OfflineDataManager({ className }: OfflineDataManagerProps) {
       
       setBackups(prev => [newBackup, ...prev]);
     } catch (error) {
-      console.error('Backup creation failed:', error);
+      logger.error('Backup creation failed', 'offline', {}, error as Error);
     } finally {
       setIsCreatingBackup(false);
     }
@@ -254,10 +255,10 @@ export function OfflineDataManager({ className }: OfflineDataManagerProps) {
   // Handle data clearing
   const handleClearData = async (entityTypes: string[]) => {
     try {
-      console.log('Clearing data for:', entityTypes);
+      logger.info('Clearing data', 'offline', { entityTypes });
       // In real implementation, clear selected entity data
     } catch (error) {
-      console.error('Data clearing failed:', error);
+      logger.error('Data clearing failed', 'offline', { entityTypes }, error as Error);
     }
   };
 

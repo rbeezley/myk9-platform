@@ -45,6 +45,7 @@ import { getDataExportImportService } from '@/services/data-lifecycle/DataExport
 import { getDeletedClubs, restoreClub, hardDeleteClub } from '@/services/database/queries/clubQueries';
 import { getDeletedDogs, restoreDog, hardDeleteDog } from '@/services/database/queries/dogQueries';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { logger } from '@/services/LoggingService';
 
 export function DataLifecycleManagement() {
   const [archiveStats, setArchiveStats] = useState<ArchiveStats | null>(null);
@@ -80,7 +81,7 @@ export function DataLifecycleManagement() {
       setArchiveStats(stats);
       setSchedulerStatus(status);
     } catch (error) {
-      console.error('Failed to load data:', error);
+      logger.error('Failed to load data', 'data-lifecycle', {}, error as Error);
     } finally {
       setIsLoading(false);
     }
@@ -143,7 +144,7 @@ export function DataLifecycleManagement() {
       });
       
       if (result.success) {
-        console.log('✅ Data exported successfully');
+        logger.info('Data exported successfully', 'data-lifecycle');
       }
     } finally {
       setIsLoading(false);
@@ -160,18 +161,18 @@ export function DataLifecycleManagement() {
       ]);
       
       if (clubsResult.error) {
-        console.error('Failed to load deleted clubs:', clubsResult.error);
+        logger.error('Failed to load deleted clubs', 'data-lifecycle', {}, clubsResult.error);
       } else {
         setDeletedClubs(clubsResult.data as Array<{ id: string; name: string | null; deleted_at: string | null; deleted_by_user?: { email?: string } | null }>);
       }
       
       if (dogsResult.error) {
-        console.error('Failed to load deleted dogs:', dogsResult.error);
+        logger.error('Failed to load deleted dogs', 'data-lifecycle', {}, dogsResult.error);
       } else {
         setDeletedDogs(dogsResult.data as Array<{ id: string; name: string; breed: string; deleted_at: string | null; deleted_by_user?: { email?: string } | null }>);
       }
     } catch (error) {
-      console.error('Failed to load deleted entities:', error);
+      logger.error('Failed to load deleted entities', 'data-lifecycle', {}, error as Error);
     } finally {
       setIsLoadingDeleted(false);
     }
@@ -186,7 +187,7 @@ export function DataLifecycleManagement() {
   // Restore a club or dog
   const handleConfirmRestore = async () => {
     if (!selectedEntity || !userWithRoles?.databaseUserId) {
-      console.error('No entity selected or user context available for restoration');
+      logger.error('No entity selected or user context available for restoration', 'data-lifecycle');
       return;
     }
 
@@ -200,13 +201,13 @@ export function DataLifecycleManagement() {
       }
       
       if (result.error) {
-        console.error(`Failed to restore ${selectedEntity.type}:`, result.error);
+        logger.error(`Failed to restore ${selectedEntity.type}`, 'data-lifecycle', { entityId: selectedEntity.id }, result.error);
       } else {
-        console.log(`✅ ${selectedEntity.type === 'club' ? 'Club' : 'Dog'} restored successfully`);
+        logger.info(`${selectedEntity.type === 'club' ? 'Club' : 'Dog'} restored successfully`, 'data-lifecycle', { entityId: selectedEntity.id });
         await loadDeletedEntities(); // Refresh the list
       }
     } catch (error) {
-      console.error(`Exception while restoring ${selectedEntity.type}:`, error);
+      logger.error(`Exception while restoring ${selectedEntity.type}`, 'data-lifecycle', { entityId: selectedEntity.id }, error as Error);
     } finally {
       setIsLoadingDeleted(false);
       setSelectedEntity(null);
@@ -222,7 +223,7 @@ export function DataLifecycleManagement() {
   // Permanently delete a club or dog
   const handleConfirmDelete = async () => {
     if (!selectedEntity) {
-      console.error('No entity selected for deletion');
+      logger.error('No entity selected for deletion', 'data-lifecycle');
       return;
     }
 
@@ -236,13 +237,13 @@ export function DataLifecycleManagement() {
       }
       
       if (result.error) {
-        console.error(`Failed to permanently delete ${selectedEntity.type}:`, result.error);
+        logger.error(`Failed to permanently delete ${selectedEntity.type}`, 'data-lifecycle', { entityId: selectedEntity.id }, result.error);
       } else {
-        console.log(`✅ ${selectedEntity.type === 'club' ? 'Club' : 'Dog'} permanently deleted`);
+        logger.info(`${selectedEntity.type === 'club' ? 'Club' : 'Dog'} permanently deleted`, 'data-lifecycle', { entityId: selectedEntity.id });
         await loadDeletedEntities(); // Refresh the list
       }
     } catch (error) {
-      console.error(`Exception while permanently deleting ${selectedEntity.type}:`, error);
+      logger.error(`Exception while permanently deleting ${selectedEntity.type}`, 'data-lifecycle', { entityId: selectedEntity.id }, error as Error);
     } finally {
       setIsLoadingDeleted(false);
       setSelectedEntity(null);

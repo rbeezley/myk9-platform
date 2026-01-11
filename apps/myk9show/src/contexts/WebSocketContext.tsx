@@ -1,5 +1,6 @@
 import React, { createContext, useEffect, useState, useCallback, useRef } from 'react';
 import { ExhibitorEvent, RingStatus, ExhibitorEntry, CheckInStatus } from '@/types/exhibitor-types';
+import { logger } from '@/services/LoggingService';
 
 interface WebSocketContextType {
   connected: boolean;
@@ -48,7 +49,7 @@ const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
       wsRef.current = ws;
 
       ws.onopen = () => {
-        console.log('WebSocket connected');
+        logger.info('WebSocket connected', 'websocket', { url });
         setConnected(true);
         reconnectAttempts.current = 0;
 
@@ -74,28 +75,28 @@ const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
           const data: ExhibitorEvent = JSON.parse(event.data);
           handleMessage(data);
         } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
+          logger.error('Error parsing WebSocket message', 'websocket', {}, error as Error);
         }
       };
 
       ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
+        logger.error('WebSocket error', 'websocket', { error });
       };
 
       ws.onclose = () => {
-        console.log('WebSocket disconnected');
+        logger.info('WebSocket disconnected', 'websocket');
         setConnected(false);
         wsRef.current = null;
-        
+
         // Attempt to reconnect
         if (reconnectAttempts.current < maxReconnectAttempts) {
           reconnectAttempts.current++;
-          console.log(`Attempting to reconnect (${reconnectAttempts.current}/${maxReconnectAttempts})...`);
+          logger.info('Attempting to reconnect', 'websocket', { attempt: reconnectAttempts.current, maxAttempts: maxReconnectAttempts });
           reconnectTimeoutRef.current = setTimeout(connect, reconnectDelay);
         }
       };
     } catch (error) {
-      console.error('Error creating WebSocket connection:', error);
+      logger.error('Error creating WebSocket connection', 'websocket', { url }, error as Error);
     }
   }, [url, exhibitorId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -152,7 +153,7 @@ const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
         break;
 
       default:
-        console.warn('Unknown event type:', event.type);
+        logger.warn('Unknown event type', 'websocket', { eventType: event.type });
     }
   }, []);
 

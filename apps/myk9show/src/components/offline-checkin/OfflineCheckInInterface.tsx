@@ -29,6 +29,7 @@ import {
   Activity
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { logger } from '@/services/LoggingService';
 
 // Service imports
 import { offlineCheckInService } from '@/services/offline-checkin/OfflineCheckInService';
@@ -96,7 +97,7 @@ export const OfflineCheckInInterface: React.FC<OfflineCheckInInterfaceProps> = (
       const showEntries = await offlineCheckInService.loadEntriesForShow(showId);
       setEntries(showEntries);
     } catch (error) {
-      console.error('Failed to load entries:', error);
+      logger.error('Failed to load entries', 'offline-checkin', { showId }, error as Error);
       setError('Failed to load entries');
     }
   }, [showId]);
@@ -106,7 +107,7 @@ export const OfflineCheckInInterface: React.FC<OfflineCheckInInterfaceProps> = (
       const stats = await offlineCheckInService.getStatistics();
       setStatistics(stats);
     } catch (error) {
-      console.error('Failed to load statistics:', error);
+      logger.error('Failed to load statistics', 'offline-checkin', {}, error as Error);
     }
   };
 
@@ -136,7 +137,7 @@ export const OfflineCheckInInterface: React.FC<OfflineCheckInInterfaceProps> = (
       }
 
     } catch (error) {
-      console.error('Failed to initialize services:', error);
+      logger.error('Failed to initialize services', 'offline-checkin', { gateId, stewardId }, error as Error);
       setError(error instanceof Error ? error.message : 'Initialization failed');
     } finally {
       setLoading(false);
@@ -150,7 +151,7 @@ export const OfflineCheckInInterface: React.FC<OfflineCheckInInterfaceProps> = (
       setIsCameraActive(true);
       setError('');
     } catch (error) {
-      console.error('Failed to start camera:', error);
+      logger.error('Failed to start camera', 'offline-checkin', {}, error as Error);
       setError(`Camera error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
@@ -160,7 +161,7 @@ export const OfflineCheckInInterface: React.FC<OfflineCheckInInterfaceProps> = (
       await qrScannerService.stopScanning();
       setIsScanning(false);
     } catch (error) {
-      console.error('Failed to stop scanning:', error);
+      logger.error('Failed to stop scanning', 'offline-checkin', {}, error as Error);
     }
   }, []);
 
@@ -192,21 +193,21 @@ export const OfflineCheckInInterface: React.FC<OfflineCheckInInterfaceProps> = (
   }, [entries, stopScanning]);
 
   const handleScanFailed = useCallback((data: unknown) => {
-    console.warn('Scan failed:', data);
+    logger.warn('Scan failed', 'offline-checkin', { data });
     setError('Scan failed - please try again');
   }, []);
 
   const handleScanError = useCallback((data: unknown) => {
-    console.error('Scan error:', data);
-    const errorMessage = (data && typeof data === 'object' && 'error' in data && typeof (data as Record<string, unknown>).error === 'string') 
+    logger.error('Scan error', 'offline-checkin', { data });
+    const errorMessage = (data && typeof data === 'object' && 'error' in data && typeof (data as Record<string, unknown>).error === 'string')
       ? (data as Record<string, unknown>).error as string
       : 'Unknown error';
     setError(`Scan error: ${errorMessage}`);
   }, []);
 
   const handleCheckInEvent = useCallback((event: unknown) => {
-    console.log('Check-in event:', event);
-    
+    logger.debug('Check-in event', 'offline-checkin', { event });
+
     // Reload data after check-in events
     if (event && typeof event === 'object' && 'type' in event && (event as Record<string, unknown>).type === 'check_in_completed') {
       loadEntries();
@@ -215,7 +216,7 @@ export const OfflineCheckInInterface: React.FC<OfflineCheckInInterfaceProps> = (
   }, [loadEntries]);
 
   const handleGateEvent = useCallback((event: unknown) => {
-    console.log('Gate event:', event);
+    logger.debug('Gate event', 'offline-checkin', { event });
   }, []);
 
   const setupEventListeners = useCallback(() => {
@@ -255,7 +256,7 @@ export const OfflineCheckInInterface: React.FC<OfflineCheckInInterfaceProps> = (
         await gateCoordinator.endSession(currentSession.id, stewardId);
       }
     } catch (error) {
-      console.error('Cleanup failed:', error);
+      logger.error('Cleanup failed', 'offline-checkin', { sessionId: currentSession?.id }, error as Error);
     }
   }, [currentSession, stewardId]);
 
@@ -313,7 +314,7 @@ export const OfflineCheckInInterface: React.FC<OfflineCheckInInterfaceProps> = (
       setIsCameraActive(false);
       setIsScanning(false);
     } catch (error) {
-      console.error('Failed to stop camera:', error);
+      logger.error('Failed to stop camera', 'offline-checkin', {}, error as Error);
     }
   };
 

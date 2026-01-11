@@ -6,6 +6,7 @@
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { logger } from '@/services/LoggingService';
 import { useDogStore } from '@/store/dogStore';
 import { useUserStore } from '@/store/userStore';
 import { useEntryStore } from '@/store/entryStore';
@@ -87,7 +88,7 @@ export class OrphanedRecordsCleaner {
       details: [],
     };
     
-    console.log(`🔍 Starting orphaned records cleanup (dry run: ${this.options.dryRun})`);
+    logger.info('Starting orphaned records cleanup', 'data-lifecycle', { dryRun: this.options.dryRun });
     
     try {
       for (const checkType of this.options.checkTypes) {
@@ -103,7 +104,7 @@ export class OrphanedRecordsCleaner {
       }
     } catch (error) {
       report.errors.push(`Cleanup failed: ${error}`);
-      console.error('❌ Orphaned records cleanup failed:', error);
+      logger.error('Orphaned records cleanup failed', 'data-lifecycle', {}, error as Error);
     }
     
     report.scanCompleted = new Date();
@@ -116,7 +117,7 @@ export class OrphanedRecordsCleaner {
    * Find orphaned records of a specific type
    */
   private async findOrphans(checkType: OrphanCheckType): Promise<OrphanedRecord[]> {
-    console.log(`🔍 Checking for: ${checkType}`);
+    logger.debug('Checking for orphan type', 'data-lifecycle', { checkType });
     
     switch (checkType) {
       case 'dogs_without_owners':
@@ -358,7 +359,7 @@ export class OrphanedRecordsCleaner {
         const removedCount = await this.removeOrphansByType(type, typeOrphans);
         removed.push(...typeOrphans.slice(0, removedCount));
       } catch (error) {
-        console.error(`Failed to remove ${type} orphans:`, error);
+        logger.error('Failed to remove orphans', 'data-lifecycle', { type }, error as Error);
       }
     }
     
@@ -421,9 +422,9 @@ export class OrphanedRecordsCleaner {
     // Also save to localStorage for persistence
     try {
       localStorage.setItem(backupKey, JSON.stringify(orphans));
-      console.log(`💾 Backup created: ${backupKey}`);
+      logger.info('Backup created', 'data-lifecycle', { backupKey });
     } catch (error) {
-      console.error('Failed to create backup:', error);
+      logger.error('Failed to create backup', 'data-lifecycle', {}, error as Error);
     }
   }
 
@@ -443,23 +444,19 @@ export class OrphanedRecordsCleaner {
    */
   private logReport(report: CleanupReport): void {
     const duration = report.scanCompleted.getTime() - report.scanStarted.getTime();
-    
-    console.log('📊 Orphaned Records Cleanup Report');
-    console.log('─'.repeat(50));
-    console.log(`Duration: ${duration}ms`);
-    console.log(`Records scanned: ${report.recordsScanned}`);
-    console.log(`Orphans found: ${report.orphansFound}`);
-    console.log(`Orphans removed: ${report.orphansRemoved}`);
-    console.log(`Space reclaimed: ${(report.spaceReclaimed / 1024).toFixed(2)}KB`);
-    
+
+    logger.info('Orphaned Records Cleanup Report', 'data-lifecycle', {
+      duration,
+      recordsScanned: report.recordsScanned,
+      orphansFound: report.orphansFound,
+      orphansRemoved: report.orphansRemoved,
+      spaceReclaimedKB: (report.spaceReclaimed / 1024).toFixed(2),
+      errorCount: report.errors.length,
+      dryRun: this.options.dryRun
+    });
+
     if (report.errors.length > 0) {
-      console.log(`Errors: ${report.errors.length}`);
-      report.errors.forEach(error => console.error(` - ${error}`));
-    }
-    
-    if (this.options.dryRun && report.orphansFound > 0) {
-      console.log('\n⚠️  Dry run mode - no records were actually deleted');
-      console.log('Set dryRun: false to perform actual cleanup');
+      report.errors.forEach(error => logger.error('Cleanup error', 'data-lifecycle', { error }));
     }
   }
 
@@ -485,19 +482,19 @@ export class OrphanedRecordsCleaner {
     try {
       const backupData = localStorage.getItem(backupKey);
       if (!backupData) {
-        console.error('Backup not found:', backupKey);
+        logger.error('Backup not found', 'data-lifecycle', { backupKey });
         return false;
       }
-      
+
       const orphans: OrphanedRecord[] = JSON.parse(backupData);
-      console.log(`🔄 Restoring ${orphans.length} records from backup`);
-      
+      logger.info('Restoring records from backup', 'data-lifecycle', { backupKey, recordCount: orphans.length });
+
       // TODO: Implement actual restoration logic
       // This would require storing the full record data in the backup
-      
+
       return true;
     } catch (error) {
-      console.error('Failed to restore backup:', error);
+      logger.error('Failed to restore backup', 'data-lifecycle', { backupKey }, error as Error);
       return false;
     }
   }

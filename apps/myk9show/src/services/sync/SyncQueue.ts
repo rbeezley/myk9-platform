@@ -6,6 +6,7 @@
  * for robust offline-first architecture.
  */
 
+import { logger } from '@/services/LoggingService';
 import { errorMonitor } from '../../lib/errorMonitoring';
 import { BackoffCalculator } from '../../lib/connectionRecovery';
 import { syncPerformanceOptimizer } from '../performance/syncPerformanceOptimizer';
@@ -107,7 +108,7 @@ export class SyncQueue {
     if (this.config.deduplicationEnabled) {
       const duplicate = this.findDuplicate(queueItem);
       if (duplicate) {
-        console.log(`Duplicate sync item detected, updating existing: ${duplicate.id}`);
+        logger.debug('Duplicate sync item detected, updating existing', 'sync', { itemId: duplicate.id });
         this.updateItem(duplicate.id, queueItem);
         return duplicate.id;
       }
@@ -131,7 +132,7 @@ export class SyncQueue {
       this.saveToStorage();
     }
 
-    console.log(`Added sync item to queue: ${queueItem.id} (priority: ${queueItem.priority})`);
+    logger.debug('Added sync item to queue', 'sync', { itemId: queueItem.id, priority: queueItem.priority });
     return queueItem.id;
   }
 
@@ -141,7 +142,7 @@ export class SyncQueue {
    */
   registerProcessor(processor: SyncProcessor): void {
     this.processors.set(processor.entityType, processor);
-    console.log(`Registered sync processor for entity type: ${processor.entityType}`);
+    logger.info('Registered sync processor', 'sync', { entityType: processor.entityType });
   }
 
   /**
@@ -332,7 +333,7 @@ export class SyncQueue {
         timestamp: Date.now()
       });
 
-      console.log(`Sync item completed: ${itemId}`);
+      logger.debug('Sync item completed', 'sync', { itemId });
       
       if (this.config.persistenceEnabled) {
         this.saveToStorage();
@@ -382,7 +383,7 @@ export class SyncQueue {
     if (item.retryCount < this.config.retryAttempts) {
       this.scheduleRetry(item);
     } else {
-      console.error(`Sync item failed permanently after ${item.retryCount} attempts: ${itemId}`);
+      logger.error('Sync item failed permanently', 'sync', { itemId, retryCount: item.retryCount });
       // Keep in queue for manual intervention or exponentially longer retry
       item.scheduledFor = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
     }
@@ -439,11 +440,11 @@ export class SyncQueue {
     item.scheduledFor = new Date(Date.now() + delay);
     item.status = 'pending';
 
-    console.log(`Scheduling retry for sync item ${item.id} in ${delay}ms (attempt ${item.retryCount})`);
+    logger.debug('Scheduling retry for sync item', 'sync', { itemId: item.id, delay, attempt: item.retryCount });
 
     // Set timer to mark as available for processing
     const timer = setTimeout(() => {
-      console.log(`Retry available for sync item: ${item.id}`);
+      logger.debug('Retry available for sync item', 'sync', { itemId: item.id });
       this.retryTimers.delete(item.id);
     }, delay);
 
@@ -470,7 +471,7 @@ export class SyncQueue {
         const index = this.queue.indexOf(item);
         if (index > -1) {
           this.queue.splice(index, 1);
-          console.log(`Evicted low priority sync item: ${item.id}`);
+          logger.debug('Evicted low priority sync item', 'sync', { itemId: item.id });
         }
       });
     }
@@ -517,7 +518,7 @@ export class SyncQueue {
       const batch = await this.dequeueBatch();
       
       if (batch.length > 0) {
-        console.log(`Processing sync batch of ${batch.length} items`);
+        logger.debug('Processing sync batch', 'sync', { batchSize: batch.length });
         
         // Process batch (actual sync logic would be implemented here)
         await Promise.allSettled(
@@ -526,7 +527,7 @@ export class SyncQueue {
       }
 
     } catch (error) {
-      console.error('Error processing sync queue:', error);
+      logger.error('Error processing sync queue', 'sync', { queueSize: this.queue.length }, error as Error);
       errorMonitor.captureError(error as Error, {
         additionalData: { queueSize: this.queue.length }
       });
@@ -541,7 +542,7 @@ export class SyncQueue {
    */
   private async processItem(item: SyncQueueItem): Promise<void> {
     try {
-      console.log(`Processing sync item: ${item.id} (${item.entityType}.${item.actionType})`);
+      logger.debug('Processing sync item', 'sync', { itemId: item.id, entityType: item.entityType, actionType: item.actionType });
 
       // Get the processor for this entity type
       const processor = this.processors.get(item.entityType);
@@ -576,7 +577,7 @@ export class SyncQueue {
         }
       } else {
         // No processor registered - use legacy stub behavior
-        console.warn(`No processor registered for entity type: ${item.entityType}`);
+        logger.warn('No processor registered for entity type', 'sync', { entityType: item.entityType });
         await new Promise(resolve => setTimeout(resolve, 100));
         this.markCompleted(item.id);
       }
@@ -645,10 +646,10 @@ export class SyncQueue {
         });
         
         this.sortQueue();
-        console.log(`Loaded ${this.queue.length} sync items from storage`);
+        logger.info('Loaded sync items from storage', 'sync', { count: this.queue.length });
       }
     } catch (error) {
-      console.error('Failed to load sync queue from storage:', error);
+      logger.error('Failed to load sync queue from storage', 'sync', {}, error as Error);
     }
   }
 
@@ -667,7 +668,7 @@ export class SyncQueue {
 
       localStorage.setItem(this.storageKey, JSON.stringify(data));
     } catch (error) {
-      console.error('Failed to save sync queue to storage:', error);
+      logger.error('Failed to save sync queue to storage', 'sync', {}, error as Error);
     }
   }
 
@@ -803,7 +804,7 @@ export class SyncQueue {
       this.saveToStorage();
     }
 
-    console.log('Sync queue cleared');
+    logger.info('Sync queue cleared', 'sync');
   }
 
   /**
@@ -814,7 +815,7 @@ export class SyncQueue {
       clearInterval(this.processingTimer);
       this.processingTimer = null;
     }
-    console.log('Sync queue processing paused');
+    logger.info('Sync queue processing paused', 'sync');
   }
 
   /**
@@ -823,7 +824,7 @@ export class SyncQueue {
   resume(): void {
     if (!this.processingTimer) {
       this.startProcessing();
-      console.log('Sync queue processing resumed');
+      logger.info('Sync queue processing resumed', 'sync');
     }
   }
 
@@ -863,7 +864,7 @@ export class SyncQueue {
       this.saveToStorage();
     }
     
-    console.log('Sync queue destroyed');
+    logger.info('Sync queue destroyed', 'sync');
   }
 }
 

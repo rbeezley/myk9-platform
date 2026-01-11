@@ -1,5 +1,6 @@
 // Database connection service using Dexie
 import Dexie, { Table } from 'dexie';
+import { logger } from '@/services/LoggingService';
 import { DATABASE_NAME, DATABASE_VERSION, generateDexieSchema, STORES } from './schema';
 import { compressionService, type CompressedData } from './compression';
 import { migrationManager } from './migrations';
@@ -96,17 +97,17 @@ export class DatabaseService extends Dexie implements DatabaseAPI {
   private initializePerformanceMonitoring(): void {
     // Track query performance
     this.on('ready', () => {
-      console.log(`Database ${DATABASE_NAME} v${DATABASE_VERSION} ready`);
+      logger.info('Database ready', 'database', { name: DATABASE_NAME, version: DATABASE_VERSION });
     });
   }
   
   private async onOpen() {
-    console.log(`Database ${DATABASE_NAME} opened successfully`);
+    logger.info('Database opened successfully', 'database', { name: DATABASE_NAME });
     await this.checkIntegrity();
   }
-  
+
   private onError(error: unknown) {
-    console.error('Database error:', error);
+    logger.error('Database error', 'database', {}, error as Error);
   }
   
   async checkIntegrity(): Promise<boolean> {
@@ -120,7 +121,7 @@ export class DatabaseService extends Dexie implements DatabaseAPI {
       // console.log('Database integrity check passed');
       return true;
     } catch (error) {
-      console.error('Database integrity check failed:', error);
+      logger.error('Database integrity check failed', 'database', {}, error as Error);
       return false;
     }
   }
@@ -348,12 +349,12 @@ export class DatabaseService extends Dexie implements DatabaseAPI {
     if (duration > 100) { // Slow query threshold: 100ms
       this.performanceMetrics.slowQueryCount++;
       this.performanceMetrics.lastSlowQuery = `${operation} on ${store} (${duration.toFixed(2)}ms${recordCount ? `, ${recordCount} records` : ''})`;
-      console.warn('Slow query detected:', this.performanceMetrics.lastSlowQuery);
+      logger.warn('Slow query detected', 'database', { query: this.performanceMetrics.lastSlowQuery });
     }
   }
   
   private trackQueryError(operation: string, store: string, error: unknown): void {
-    console.error(`Database ${operation} error on ${store}:`, error);
+    logger.error('Database operation error', 'database', { operation, store }, error as Error);
   }
   
   // Compression helpers
@@ -442,12 +443,12 @@ export class DatabaseService extends Dexie implements DatabaseAPI {
     try {
       const result = await migrationManager.migrate(this);
       if (!result.success) {
-        console.error('Database migration failed:', result.errors);
+        logger.error('Database migration failed', 'database', { errors: result.errors });
         throw new Error(`Migration failed: ${result.errors.join(', ')}`);
       }
-      console.log(`Database migrated successfully from v${result.fromVersion} to v${result.toVersion}`);
+      logger.info('Database migrated successfully', 'database', { fromVersion: result.fromVersion, toVersion: result.toVersion });
     } catch (error) {
-      console.error('Migration error:', error);
+      logger.error('Migration error', 'database', {}, error as Error);
       throw error;
     }
   }
@@ -496,7 +497,7 @@ function shouldRunMigrations(): boolean {
     
     return true;
   } catch (error) {
-    console.warn('Migration check failed, running migrations:', error);
+    logger.warn('Migration check failed, running migrations', 'database', { error });
     return true;
   }
 }
@@ -506,7 +507,7 @@ function markMigrationsComplete(): void {
     localStorage.setItem('myK9Show_lastMigrationCheck', Date.now().toString());
     localStorage.setItem('myK9Show_lastMigrationVersion', DATABASE_VERSION.toString());
   } catch (error) {
-    console.warn('Could not save migration state:', error);
+    logger.warn('Could not save migration state', 'database', { error });
   }
 }
 
@@ -528,7 +529,7 @@ export const db = {
               // console.log('✅ Database migrations completed and cached');
             })
             .catch(error => {
-              console.error('❌ Migration failed:', error);
+              logger.error('Migration failed', 'database', {}, error as Error);
               _migrationPromise = null; // Allow retry on error
             });
         } else if (!shouldRunMigrations()) {

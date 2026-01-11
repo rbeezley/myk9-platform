@@ -1,6 +1,7 @@
 // Error Tracking Service
 // Phase 0: Performance Infrastructure
 import { queryClient } from '@/lib/queryClient';
+import { logger } from '@/services/LoggingService';
 
 export interface DatabaseError {
   code: string;
@@ -112,7 +113,7 @@ class ErrorTracker {
 
     // Log errors in development
     if (process.env.NODE_ENV === 'development') {
-      console.error('🚨 Error tracked:', fullError);
+      logger.error('Error tracked', 'error-tracking', fullError);
     }
 
     // Check for critical error patterns
@@ -124,25 +125,25 @@ class ErrorTracker {
 
     // Check for error spikes
     if (recentErrors.length > 10) {
-      console.warn('⚠️ Error spike detected: 10+ errors in 5 minutes');
+      logger.warn('Error spike detected: 10+ errors in 5 minutes', 'error-tracking', { errorCount: recentErrors.length });
     }
 
     // Check for repeated errors
-    const sameErrors = recentErrors.filter(e => 
+    const sameErrors = recentErrors.filter(e =>
       e.code === error.code && e.message === error.message
     );
     if (sameErrors.length > 3) {
-      console.warn(`⚠️ Repeated error detected: ${error.code} occurred ${sameErrors.length} times`);
+      logger.warn('Repeated error detected', 'error-tracking', { code: error.code, count: sameErrors.length });
     }
 
     // Check for database connection issues
     if (error.message.includes('connection') || error.message.includes('network')) {
-      console.error('🔌 Database connection issue detected:', error.message);
+      logger.error('Database connection issue detected', 'error-tracking', { message: error.message });
     }
 
     // Check for authentication issues
     if (error.code === 'PGRST301' || error.message.includes('unauthorized')) {
-      console.error('🔒 Authentication error detected:', error.message);
+      logger.error('Authentication error detected', 'error-tracking', { message: error.message });
     }
   }
 
@@ -206,33 +207,14 @@ class ErrorTracker {
     if (process.env.NODE_ENV !== 'development') return;
 
     const stats = this.getStats();
-    
-    console.group('🚨 Error Tracking Summary');
-    console.log(`📊 Total Errors: ${stats.totalErrors}`);
-    console.log(`⏱️  Error Rate: ${stats.errorRate} errors/hour`);
-    
-    if (Object.keys(stats.errorsByType).length > 0) {
-      console.log('📋 Errors by Type:');
-      Object.entries(stats.errorsByType).forEach(([type, count]) => {
-        console.log(`  - ${type}: ${count}`);
-      });
-    }
-    
-    if (Object.keys(stats.errorsByTable).length > 0) {
-      console.log('🗃️ Errors by Table:');
-      Object.entries(stats.errorsByTable).forEach(([table, count]) => {
-        console.log(`  - ${table}: ${count}`);
-      });
-    }
-    
-    if (stats.recentErrors.length > 0) {
-      console.log('🕐 Recent Errors:');
-      stats.recentErrors.slice(-3).forEach(error => {
-        console.log(`  - ${error.code}: ${error.message}`);
-      });
-    }
-    
-    console.groupEnd();
+
+    logger.info('Error Tracking Summary', 'error-tracking', {
+      totalErrors: stats.totalErrors,
+      errorRate: stats.errorRate,
+      errorsByType: stats.errorsByType,
+      errorsByTable: stats.errorsByTable,
+      recentErrors: stats.recentErrors.slice(-3).map(e => ({ code: e.code, message: e.message })),
+    });
   }
 
   // Database-specific error helpers

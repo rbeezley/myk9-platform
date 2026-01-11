@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { logger } from '@/services/LoggingService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -177,7 +178,7 @@ const BrowseShowsPage: React.FC = () => {
           false
         );
       }
-      console.warn(`Access denied to tab: ${newTab}`);
+      logger.warn(`Access denied to tab: ${newTab}`, 'shows', { tab: newTab, userId: user?.id });
       return;
     }
     
@@ -236,7 +237,7 @@ const BrowseShowsPage: React.FC = () => {
     const performanceInterval = setInterval(() => {
       const metrics = RelationshipPerformanceMonitor.getInstance().getMetrics();
       if (Object.keys(metrics).length > 0) {
-        console.log('🔍 Relationship tracking performance:', metrics);
+        logger.debug('Relationship tracking performance', 'shows', { metrics });
       }
     }, 60000); // Log every minute
     
@@ -262,7 +263,7 @@ const BrowseShowsPage: React.FC = () => {
         }
         
       } catch (error) {
-        console.error('Failed to load data:', error);
+        logger.error('Failed to load data', 'shows', {}, error as Error);
       }
     };
 
@@ -288,7 +289,7 @@ const BrowseShowsPage: React.FC = () => {
       }
       
     } catch (error) {
-      console.error('Retry failed:', error);
+      logger.error('Retry failed', 'shows', {}, error as Error);
     }
   }, [loadEntries, user, shows]);
 
@@ -418,12 +419,12 @@ const BrowseShowsPage: React.FC = () => {
               navigate('/secretary/create-show/wizard');
             } else {
               ShowPermissionValidator.auditAction('create_show_denied', user, 'action', 'create_show', false);
-              console.warn('User does not have permission to create shows');
+              logger.warn('User does not have permission to create shows', 'shows', { userId: user?.id });
             }
           }}
           onRegisterShow={() => {
             ShowPermissionValidator.auditAction('register_clicked', user, 'action', 'register', true);
-            console.log('Open registration');
+            logger.debug('Open registration clicked', 'shows');
           }}
           onFindShows={() => {
             ShowPermissionValidator.auditAction('find_shows_clicked', user, 'action', 'find_shows', true);
@@ -443,7 +444,7 @@ const BrowseShowsPage: React.FC = () => {
         return (
           <div className="mt-4">
             <ShowCalendar 
-              onShowRegister={(showId) => console.log('Register for show:', showId)}
+              onShowRegister={(showId) => logger.debug('Register for show', 'shows', { showId })}
               shows={enhancedShows}
             />
           </div>

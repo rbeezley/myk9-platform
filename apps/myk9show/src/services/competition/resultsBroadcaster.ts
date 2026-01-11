@@ -8,6 +8,7 @@
 
 import { subscriptionManager } from '../realtime/subscriptionManager';
 import { errorMonitor } from '../../lib/errorMonitoring';
+import { logger } from '@/services/LoggingService';
 import type { Priority } from '../../types/realtime-types';
 
 export interface ScoreResult {
@@ -177,12 +178,12 @@ export class ResultsBroadcaster {
    */
   async start(): Promise<void> {
     if (this.isActive) {
-      console.warn('Results broadcaster already active');
+      logger.warn('Results broadcaster already active', 'results');
       return;
     }
 
     try {
-      console.log(`Starting results broadcaster for show ${this.showId}`);
+      logger.info('Starting results broadcaster', 'results', { showId: this.showId });
 
       // Subscribe to score updates
       const scoresSubscriptionId = await subscriptionManager.subscribe(
@@ -237,7 +238,7 @@ export class ResultsBroadcaster {
       this.startNotificationProcessing();
 
       this.isActive = true;
-      console.log('Results broadcaster started successfully');
+      logger.info('Results broadcaster started successfully', 'results');
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -254,7 +255,7 @@ export class ResultsBroadcaster {
     if (!this.isActive) return;
 
     try {
-      console.log('Stopping results broadcaster');
+      logger.info('Stopping results broadcaster', 'results');
 
       // Unsubscribe from all updates
       for (const [, subscriptionId] of this.subscriptions) {
@@ -277,7 +278,7 @@ export class ResultsBroadcaster {
       this.subscriptions.clear();
 
       this.isActive = false;
-      console.log('Results broadcaster stopped');
+      logger.info('Results broadcaster stopped', 'results');
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -338,7 +339,7 @@ export class ResultsBroadcaster {
         this.processScoreResult(scoreResult);
       }, this.config.scoreDelayMs);
 
-      console.log(`Score result: ${scoreResult.armband} (${scoreResult.dogName}) - ${scoreResult.score.totalScore}`);
+      logger.debug('Score result', 'results', { armband: scoreResult.armband, dogName: scoreResult.dogName, totalScore: scoreResult.score.totalScore });
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -377,7 +378,7 @@ export class ResultsBroadcaster {
       // Process placement result
       this.processPlacementResult(placementResult);
 
-      console.log(`Placement result: ${placementResult.className} - ${placementResult.placements.length} places`);
+      logger.debug('Placement result', 'results', { className: placementResult.className, placesCount: placementResult.placements.length });
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -429,7 +430,7 @@ export class ResultsBroadcaster {
       // Process award result
       this.processAwardResult(awardResult);
 
-      console.log(`Award result: ${awardResult.title} for ${awardResult.recipient.dogName}`);
+      logger.debug('Award result', 'results', { title: awardResult.title, dogName: awardResult.recipient.dogName });
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -467,7 +468,7 @@ export class ResultsBroadcaster {
         try {
           listener(result);
         } catch (error) {
-          console.error('Error in score listener:', error);
+          logger.error('Error in score listener', 'results', {}, error as Error);
         }
       });
 
@@ -535,7 +536,7 @@ export class ResultsBroadcaster {
         try {
           listener(result);
         } catch (error) {
-          console.error('Error in placement listener:', error);
+          logger.error('Error in placement listener', 'results', {}, error as Error);
         }
       });
 
@@ -577,7 +578,7 @@ export class ResultsBroadcaster {
         try {
           listener(result);
         } catch (error) {
-          console.error('Error in award listener:', error);
+          logger.error('Error in award listener', 'results', {}, error as Error);
         }
       });
 
@@ -622,14 +623,14 @@ export class ResultsBroadcaster {
         try {
           listener(notification);
         } catch (error) {
-          console.error('Error in notification listener:', error);
+          logger.error('Error in notification listener', 'results', {}, error as Error);
         }
       });
 
       // Update metrics
       this.metrics.notificationsSent++;
 
-      console.log(`Results notification sent: ${notification.title}`);
+      logger.debug('Results notification sent', 'results', { title: notification.title });
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -735,7 +736,7 @@ export class ResultsBroadcaster {
         },
       });
 
-      console.log(`Manual score broadcast: ${scoreResult.armband} - ${scoreResult.score.totalScore}`);
+      logger.info('Manual score broadcast', 'results', { armband: scoreResult.armband, totalScore: scoreResult.score.totalScore });
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -759,7 +760,7 @@ export class ResultsBroadcaster {
         },
       });
 
-      console.log(`Manual placement broadcast: ${placementResult.className}`);
+      logger.info('Manual placement broadcast', 'results', { className: placementResult.className });
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {

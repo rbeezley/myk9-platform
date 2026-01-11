@@ -650,7 +650,7 @@ const ShowCreationWizardPage: React.FC = () => {
       }
       // Final step handled by ReviewStep buttons
     } catch (error) {
-      console.error('Error in wizard navigation:', error);
+      logger.error('Error in wizard navigation', 'wizard', {}, error as Error);
       // TODO: Show error message to user
     } finally {
       setIsLoading(false);
@@ -662,9 +662,9 @@ const ShowCreationWizardPage: React.FC = () => {
     try {
       saveProgress();
       // TODO: Show success message
-      console.log('Draft saved successfully');
+      logger.debug('Draft saved successfully', 'wizard');
     } catch (error) {
-      console.error('Error saving draft:', error);
+      logger.error('Error saving draft', 'wizard', {}, error as Error);
       // TODO: Show error message
     } finally {
       setIsLoading(false);
@@ -775,15 +775,15 @@ const ShowCreationWizardPage: React.FC = () => {
   return (
     <PanelProvider
       onEntityCreated={(entity, context) => {
-        console.log('🎉 Entity created:', entity.name || entity.id, 'Type:', context.entityType);
-        
+        logger.debug('Entity created', 'wizard', { entityName: entity.name || entity.id, entityType: context.entityType });
+
         // Handle automatic selection of newly created entities
         if (context.selectionCallback) {
           context.selectionCallback(entity);
         }
       }}
       onPanelResult={(panelId, result) => {
-        console.log('🎛️ Panel result:', panelId, result.action, result.success);
+        logger.debug('Panel result', 'wizard', { panelId, action: result.action, success: result.success });
       }}
     >
       <div className="min-h-screen bg-background">

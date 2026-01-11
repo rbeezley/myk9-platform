@@ -7,6 +7,9 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable no-case-declarations */
+
+import { logger } from '@/services/LoggingService';
+
 export interface RetentionPolicy {
   /** Unique identifier for the policy */
   id: string;
@@ -185,7 +188,7 @@ export class DataRetentionPolicyManager {
    */
   public setPolicy(policy: RetentionPolicy): void {
     this.policies.set(policy.id, policy);
-    console.log(`📋 Retention policy set: ${policy.name}`);
+    logger.info('Retention policy set', 'lifecycle', { policyName: policy.name });
   }
 
   /**
@@ -194,7 +197,7 @@ export class DataRetentionPolicyManager {
   public removePolicy(policyId: string): boolean {
     const result = this.policies.delete(policyId);
     if (result) {
-      console.log(`📋 Retention policy removed: ${policyId}`);
+      logger.info('Retention policy removed', 'lifecycle', { policyId });
     }
     return result;
   }
@@ -239,7 +242,7 @@ export class DataRetentionPolicyManager {
     items: any[],
     actionHandlers: Record<RetentionAction, (item: any, params?: any) => Promise<void>>
   ): Promise<RetentionExecutionResult> {
-    console.log(`🔄 Executing retention policy: ${policy.name}`);
+    logger.info('Executing retention policy', 'lifecycle', { policyName: policy.name });
     
     const result: RetentionExecutionResult = {
       policyId: policy.id,
@@ -270,12 +273,12 @@ export class DataRetentionPolicyManager {
         } catch (error) {
           const errorMsg = `Failed to ${rule.action} item: ${error}`;
           result.errors.push(errorMsg);
-          console.error(errorMsg);
+          logger.error(errorMsg, 'lifecycle');
         }
       }
     }
     
-    console.log(`✅ Policy execution complete: ${result.itemsProcessed} items processed`);
+    logger.info('Policy execution complete', 'lifecycle', { itemsProcessed: result.itemsProcessed });
     return result;
   }
 
@@ -393,7 +396,7 @@ export class DataRetentionPolicyManager {
       this.setPolicy(policy);
     });
     
-    console.log(`📋 Imported ${policies.length} retention policies`);
+    logger.info('Imported retention policies', 'lifecycle', { count: policies.length });
   }
 }
 

@@ -10,6 +10,7 @@ import { syncPerformanceOptimizer } from './syncPerformanceOptimizer';
 import { uiPerformanceManager } from './uiPerformanceManager';
 import { performanceMonitor } from './PerformanceMonitor';
 import { eventEmitter } from '../sync/eventEmitter';
+import { logger } from '@/services/LoggingService';
 
 export interface OverallPerformanceMetrics {
   /** Overall performance score (0-1) */
@@ -188,7 +189,7 @@ export class PerformanceIntegrationCoordinator {
       this.coordinatePerformance();
     }, 5000); // Coordinate every 5 seconds
 
-    console.log('Performance integration coordination started');
+    logger.info('Performance integration coordination started', 'performance');
     eventEmitter.emit('performance:coordination-started', {});
   }
 
@@ -211,7 +212,7 @@ export class PerformanceIntegrationCoordinator {
       this.coordinationInterval = null;
     }
 
-    console.log('Performance integration coordination stopped');
+    logger.info('Performance integration coordination stopped', 'performance');
     eventEmitter.emit('performance:coordination-stopped', {});
   }
 
@@ -253,7 +254,7 @@ export class PerformanceIntegrationCoordinator {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
       });
-      console.error('Error in performance coordination:', error);
+      logger.error('Error in performance coordination', 'performance', {}, error as Error);
     }
   }
 
@@ -463,7 +464,7 @@ export class PerformanceIntegrationCoordinator {
 
     // Log applied optimizations
     if (optimizations.length > 0) {
-      console.log('Applied coordinated optimizations:', optimizations);
+      logger.info('Applied coordinated optimizations', 'performance', { optimizations });
       eventEmitter.emit('performance:optimizations-applied', {
         optimizations,
         metrics,
@@ -493,7 +494,7 @@ export class PerformanceIntegrationCoordinator {
    * Handle critical performance alerts
    */
   private handleCriticalAlert(component: string, alert: { metric?: string; [key: string]: unknown }): void {
-    console.warn(`Critical performance alert from ${component}:`, alert);
+    logger.warn('Critical performance alert', 'performance', { component, alert });
 
     // Apply emergency optimizations
     if (component === 'realtime' && alert.metric === 'latency') {
@@ -595,7 +596,7 @@ export class PerformanceIntegrationCoordinator {
    * Force system-wide optimization
    */
   forceSystemOptimization(): void {
-    console.log('Forcing system-wide performance optimization...');
+    logger.info('Forcing system-wide performance optimization', 'performance');
     
     realtimePerformanceMonitor.forceOptimization();
     uiPerformanceManager.forceOptimization();

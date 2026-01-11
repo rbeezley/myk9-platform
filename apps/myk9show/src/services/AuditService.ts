@@ -3,14 +3,15 @@
  * Foundation Phase implementation supporting all roles
  */
 
-import { 
-  AuditEntry, 
-  AuditEntryInput, 
-  AuditSearchFilters, 
+import {
+  AuditEntry,
+  AuditEntryInput,
+  AuditSearchFilters,
   AuditSearchResult,
   AuditAction,
-  ImpersonationContext 
+  ImpersonationContext
 } from '@/types/audit-types';
+import { logger } from '@/services/LoggingService';
 
 export interface AuditServiceConfig {
   enableLocalStorage?: boolean;
@@ -74,7 +75,7 @@ export class AuditService {
 
     // Console logging for development
     if (this.config.enableConsoleLogging && process.env.NODE_ENV === 'development') {
-      console.log('🔍 Audit Log:', {
+      logger.debug('Audit Log', 'audit', {
         action: entry.action,
         entity: `${entry.entityType}:${entry.entityId}`,
         user: entry.userId,
@@ -88,7 +89,7 @@ export class AuditService {
       try {
         await this.sendToRemote(entry);
       } catch (error) {
-        console.error('Failed to send audit entry to remote:', error);
+        logger.error('Failed to send audit entry to remote', 'audit', {}, error as Error);
       }
     }
 
@@ -106,7 +107,7 @@ export class AuditService {
       try {
         return await this.searchRemoteAuditTrail(filters);
       } catch (error) {
-        console.warn('Failed to search remote audit trail, falling back to localStorage:', error);
+        logger.warn('Failed to search remote audit trail, falling back to localStorage', 'audit', {}, error as Error);
       }
     }
 
@@ -469,7 +470,7 @@ export class AuditService {
         }))
       ));
     } catch (error) {
-      console.error('Failed to save audit entries to localStorage:', error);
+      logger.error('Failed to save audit entries to localStorage', 'audit', {}, error as Error);
     }
   }
 
@@ -488,7 +489,7 @@ export class AuditService {
         }));
       }
     } catch (error) {
-      console.error('Failed to load audit entries from localStorage:', error);
+      logger.error('Failed to load audit entries from localStorage', 'audit', {}, error as Error);
     }
   }
 
@@ -531,8 +532,8 @@ export class AuditService {
 
   private async notifyAdmins(entry: AuditEntry): Promise<void> {
     // This would integrate with the NotificationService
-    // For now, just console log critical actions
-    console.warn('🚨 Critical Audit Action:', entry);
+    // For now, just log critical actions
+    logger.warn('Critical Audit Action', 'audit', { entry });
   }
 
   private isCriticalAction(action: AuditAction): boolean {

@@ -2,6 +2,7 @@ import { presenceService, UserPresence, PresenceUpdate } from './PresenceService
 import { liveUpdatesService, LiveUpdate } from './LiveUpdatesService';
 import { collaborativeEditingService, EditLock, TypingIndicator } from './CollaborativeEditingService';
 import { supabase } from '../../supabaseClient';
+import { logger } from '@/services/LoggingService';
 
 export interface CollaborationEvent {
   id: string;
@@ -77,10 +78,10 @@ export class CollaborationHubService {
       await this.loadNotifications();
 
       this.initialized = true;
-      console.log('Collaboration hub initialized successfully');
+      logger.info('Collaboration hub initialized successfully', 'collaboration');
 
     } catch (error) {
-      console.error('Failed to initialize collaboration hub:', error);
+      logger.error('Failed to initialize collaboration hub', 'collaboration', {}, error as Error);
       throw error;
     }
   }
@@ -193,7 +194,7 @@ export class CollaborationHubService {
       try {
         callback(fullNotification);
       } catch (error) {
-        console.error('Notification callback error:', error);
+        logger.error('Notification callback error', 'collaboration', {}, error as Error);
       }
     });
   }
@@ -316,7 +317,7 @@ export class CollaborationHubService {
       // For now, start with empty notifications
       this.notifications = [];
     } catch (error) {
-      console.error('Failed to load notifications:', error);
+      logger.error('Failed to load notifications', 'collaboration', {}, error as Error);
     }
   }
 
@@ -330,7 +331,7 @@ export class CollaborationHubService {
         payload: notification
       });
     } catch (error) {
-      console.error('Failed to broadcast notification:', error);
+      logger.error('Failed to broadcast notification', 'collaboration', {}, error as Error);
     }
   }
 
@@ -348,7 +349,7 @@ export class CollaborationHubService {
       try {
         callback(event);
       } catch (error) {
-        console.error('Collaboration event callback error:', error);
+        logger.error('Collaboration event callback error', 'collaboration', {}, error as Error);
       }
     });
   }

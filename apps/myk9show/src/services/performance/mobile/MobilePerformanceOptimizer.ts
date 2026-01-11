@@ -23,6 +23,7 @@ import { detectDeviceCapabilities } from './DeviceCapabilityDetector';
 import { detectNetworkConditions, setupNetworkChangeMonitoring } from './NetworkConditionDetector';
 import { createMobileOptimizations } from './OptimizationStrategies';
 import { getRumService } from '../RealUserMonitoring';
+import { logger } from '@/services/LoggingService';
 
 export class MobilePerformanceOptimizer {
   private config: MobileOptimizationConfig;
@@ -44,7 +45,7 @@ export class MobilePerformanceOptimizer {
    * Initialize mobile performance optimization
    */
   public async initialize(): Promise<void> {
-    console.log('📱 Initializing Mobile Performance Optimizer');
+    logger.info('Initializing Mobile Performance Optimizer', 'mobile');
 
     // Start device and network monitoring
     this.startDeviceMonitoring();
@@ -64,7 +65,7 @@ export class MobilePerformanceOptimizer {
     for (const optimization of this.optimizations) {
       if (optimization.condition(this.device, this.network)) {
         try {
-          console.log(`📱 Applying mobile optimization: ${optimization.name}`);
+          logger.debug('Applying mobile optimization', 'mobile', { name: optimization.name });
           await optimization.apply();
           this.appliedOptimizations.add(optimization.name);
 
@@ -76,7 +77,7 @@ export class MobilePerformanceOptimizer {
             expected_battery_improvement: optimization.impact.batteryLife.toString(),
           });
         } catch (error) {
-          console.error(`Failed to apply mobile optimization ${optimization.name}:`, error);
+          logger.error('Failed to apply mobile optimization', 'mobile', { name: optimization.name }, error as Error);
         }
       }
     }
@@ -126,7 +127,7 @@ export class MobilePerformanceOptimizer {
    */
   private startNetworkMonitoring(): void {
     this.cleanupNetworkMonitoring = setupNetworkChangeMonitoring((newNetwork, oldNetwork) => {
-      console.log('Network conditions changed:', newNetwork);
+      logger.debug('Network conditions changed', 'mobile', { network: newNetwork });
 
       // Detect significant network changes
       if (newNetwork.effectiveType !== oldNetwork.effectiveType) {
@@ -141,7 +142,7 @@ export class MobilePerformanceOptimizer {
    * Handle network quality changes
    */
   private handleNetworkQualityChange(oldType: string, newType: string): void {
-    console.log(`Network quality changed from ${oldType} to ${newType}`);
+    logger.info('Network quality changed', 'mobile', { from: oldType, to: newType });
 
     this.rumService.trackCustomMetric('network_quality_change', 1, {
       from: oldType,
@@ -176,7 +177,7 @@ export class MobilePerformanceOptimizer {
       performanceMetrics.vitals.CLS > 0.1;
 
     if (needsReoptimization) {
-      console.log('🔄 Adapting mobile optimizations...');
+      logger.debug('Adapting mobile optimizations', 'mobile');
       this.network = currentNetwork;
       this.applyMobileOptimizations();
     }

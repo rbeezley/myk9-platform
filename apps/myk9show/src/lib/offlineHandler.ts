@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQueryClient, QueryClient } from '@tanstack/react-query';
 import { queryKeys } from './queryClient';
+import { logger } from '@/services/LoggingService';
 import type { Dog } from '../types/dog-types';
 import type { User } from '../types/user-types';
 import type { Show } from '../types/show-types';
@@ -145,7 +146,7 @@ export class OfflineStorageManager {
       const stored = localStorage.getItem(this.storageKey);
       return stored ? JSON.parse(stored) : [];
     } catch (error) {
-      console.error('Failed to load offline operations:', error);
+      logger.error('Failed to load offline operations', 'offline', {}, error as Error);
       return [];
     }
   }
@@ -170,7 +171,7 @@ export class OfflineStorageManager {
 
       localStorage.setItem(this.storageKey, JSON.stringify(operations));
     } catch (error) {
-      console.error('Failed to save offline operation:', error);
+      logger.error('Failed to save offline operation', 'offline', {}, error as Error);
     }
   }
 
@@ -180,7 +181,7 @@ export class OfflineStorageManager {
       const operations = this.getOperations().filter(op => op.id !== operationId);
       localStorage.setItem(this.storageKey, JSON.stringify(operations));
     } catch (error) {
-      console.error('Failed to remove offline operation:', error);
+      logger.error('Failed to remove offline operation', 'offline', {}, error as Error);
     }
   }
 
@@ -189,13 +190,13 @@ export class OfflineStorageManager {
     try {
       const operations = this.getOperations();
       const operation = operations.find(op => op.id === operationId);
-      
+
       if (operation) {
         operation.retryCount++;
         localStorage.setItem(this.storageKey, JSON.stringify(operations));
       }
     } catch (error) {
-      console.error('Failed to update operation retry count:', error);
+      logger.error('Failed to update operation retry count', 'offline', {}, error as Error);
     }
   }
 
@@ -204,7 +205,7 @@ export class OfflineStorageManager {
     try {
       localStorage.removeItem(this.storageKey);
     } catch (error) {
-      console.error('Failed to clear offline operations:', error);
+      logger.error('Failed to clear offline operations', 'offline', {}, error as Error);
     }
   }
 
@@ -305,10 +306,10 @@ export class GracefulDegradationManager {
           this.updateClubCache(type, data, entityId);
           break;
         default:
-          console.warn(`Unknown entity type for optimistic update: ${entityType}`);
+          logger.warn('Unknown entity type for optimistic update', 'offline', { entityType });
       }
     } catch (error) {
-      console.error('Failed to apply optimistic update:', error);
+      logger.error('Failed to apply optimistic update', 'offline', {}, error as Error);
     }
   }
 
@@ -429,7 +430,7 @@ export class GracefulDegradationManager {
         this.offlineStorage.removeOperation(operation.id);
         synced++;
       } catch (error) {
-        console.error(`Failed to sync operation ${operation.id}:`, error);
+        logger.error('Failed to sync operation', 'offline', { operationId: operation.id }, error as Error);
         this.offlineStorage.incrementRetryCount(operation.id);
         failed++;
       }
@@ -497,14 +498,14 @@ export const useOfflineFirst = () => {
         degradationManager.syncOfflineOperations()
           .then(({ synced, failed }) => {
             if (synced > 0) {
-              console.log(`Successfully synced ${synced} offline operations`);
+              logger.info('Successfully synced offline operations', 'offline', { synced });
             }
             if (failed > 0) {
-              console.warn(`Failed to sync ${failed} offline operations`);
+              logger.warn('Failed to sync some offline operations', 'offline', { failed });
             }
           })
           .catch(error => {
-            console.error('Failed to sync offline operations:', error);
+            logger.error('Failed to sync offline operations', 'offline', {}, error as Error);
           });
       }
     }
@@ -534,7 +535,7 @@ export const useOfflineFirst = () => {
       return { success: true };
     } catch (error) {
       // If online operation fails, fallback to offline
-      console.warn('Online operation failed, falling back to offline mode:', error);
+      logger.warn('Online operation failed, falling back to offline mode', 'offline', {}, error as Error);
       return degradationManager.handleOfflineOperation(type, entityType, data, options);
     }
   }, [networkStatus.isOnline, degradationManager]);

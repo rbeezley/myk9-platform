@@ -11,6 +11,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Clock, Users, Award, FileText, Download, Calculator, ArrowLeft, Play, Check } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { logger } from '@/services/LoggingService';
 
 // Add imports for the same data stores ClassDetailsPage uses
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
@@ -105,10 +106,10 @@ export function SecretaryClassDashboard({
   
   // Debug: Log when rawEntries change
   useEffect(() => {
-    console.log('🔄 SecretaryClassDashboard rawEntries changed:', rawEntries.length, rawEntries.map((e: unknown) => {
+    logger.debug('SecretaryClassDashboard rawEntries changed', 'secretary', { count: rawEntries.length, entries: rawEntries.map((e: unknown) => {
       const entry = e as ShowEntry & { updatedAt?: string; competitionData?: CompetitionData };
       return { id: entry.id, updatedAt: entry.updatedAt, time: entry.competitionData?.time };
-    }));
+    }) });
   }, [rawEntries]);
   
   const [activeTab, setActiveTab] = useState('overview');
@@ -192,7 +193,7 @@ export function SecretaryClassDashboard({
       // Find the entry to update
       const entryToUpdate = rawEntries.find(entry => (entry as ShowEntry).id === entryId) as ShowEntry;
       if (!entryToUpdate) {
-        console.error('❌ Entry not found:', entryId);
+        logger.error('Entry not found', 'secretary', { entryId });
         return;
       }
 
@@ -210,17 +211,11 @@ export function SecretaryClassDashboard({
         recordedAt: new Date().toISOString()
       };
       
-      console.log('💾 Saving result for entry:', entryId, {
-        time: competitionData.time,
-        qualified: competitionData.qualified,
-        qualification: competitionData.qualification,
-        faults: competitionData.faults,
-        notes: competitionData.judgeNotes
-      });
+      logger.debug('Saving result for entry', 'secretary', { entryId, time: competitionData.time, qualified: competitionData.qualified, qualification: competitionData.qualification, faults: competitionData.faults, notes: competitionData.judgeNotes });
       updateResult(entryId, competitionData);
-      
+
     } catch (error) {
-      console.error('❌ Error saving result:', error);
+      logger.error('Error saving result', 'secretary', { entryId }, error as Error);
     }
   }, [rawEntries, updateResult]);
 
@@ -275,11 +270,11 @@ export function SecretaryClassDashboard({
         await onCalculatePlacements();
       } else {
         // Default behavior: log action
-        console.log('Calculate placements requested');
+        logger.debug('Calculate placements requested', 'secretary');
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
     } catch (error) {
-      console.error('Failed to calculate placements:', error);
+      logger.error('Failed to calculate placements', 'secretary', {}, error as Error);
     } finally {
       setIsCalculatingPlacements(false);
     }
@@ -293,11 +288,11 @@ export function SecretaryClassDashboard({
         await onExportResults(format);
       } else {
         // Default behavior: log action
-        console.log(`Export results requested in ${format} format`);
+        logger.debug('Export results requested', 'secretary', { format });
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
     } catch (error) {
-      console.error(`Failed to export ${format}:`, error);
+      logger.error('Failed to export results', 'secretary', { format }, error as Error);
     } finally {
       setIsExporting(false);
     }

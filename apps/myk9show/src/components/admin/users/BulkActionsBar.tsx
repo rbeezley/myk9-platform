@@ -52,6 +52,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { logger } from '@/services/LoggingService';
 
 import type { UserRole as UserRoleType } from '@/types/user-types';
 import { SelectedUser } from '@/pages/admin/UserManagementPage';
@@ -153,7 +154,7 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
 
     try {
       // In a real implementation, this would call the appropriate API
-      console.log('Bulk role action:', {
+      logger.debug('Bulk role action', 'admin', {
         action: roleData.action,
         roles: roleData.roles,
         userIds: selectedUsers.map(u => u.id)
@@ -177,7 +178,7 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
     setError(null);
 
     try {
-      console.log('Bulk status action:', {
+      logger.debug('Bulk status action', 'admin', {
         action: statusData.action,
         userIds: selectedUsers.map(u => u.id)
       });
@@ -205,7 +206,7 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
     setError(null);
 
     try {
-      console.log('Bulk email:', {
+      logger.debug('Bulk email', 'admin', {
         subject: emailData.subject,
         message: emailData.message,
         recipients: selectedUsers.map(u => u.user.email).filter(Boolean)
@@ -230,7 +231,7 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
 
     try {
       const userIds = selectedUsers.map(u => u.id);
-      console.log('Bulk delete:', { userIds });
+      logger.debug('Bulk delete', 'admin', { userIds });
 
       // Try to delete each user normally first
       const deletePromises = userIds.map(async (userId) => {
@@ -267,13 +268,13 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
       }
       
       // All deletions successful
-      console.log(`Successfully deleted ${successful.length} user${successful.length > 1 ? 's' : ''}`);
-      
+      logger.info('Successfully deleted users', 'admin', { count: successful.length, userIds: successful.map(r => r.userId) });
+
       closeDialog();
       onBulkComplete();
       onUsersDeleted?.(successful.map(r => r.userId));
     } catch (error) {
-      console.error('Error deleting users:', error);
+      logger.error('Error deleting users', 'admin', { userIds: selectedUsers.map(u => u.id) }, error as Error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to delete users. Please try again.';
       setError(errorMessage);
     } finally {
@@ -289,23 +290,23 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
     setError(null);
 
     try {
-      console.log('Cascade delete:', cascadeData.userIds);
+      logger.debug('Cascade delete', 'admin', { userIds: cascadeData.userIds });
 
       // Delete with cascade option
       const deletePromises = cascadeData.userIds.map(async (userId) => {
         await deleteUserMutation.mutateAsync({ id: userId });
         return userId;
       });
-      
+
       const deletedUserIds = await Promise.all(deletePromises);
-      
-      console.log(`Successfully cascade deleted ${deletedUserIds.length} user${deletedUserIds.length > 1 ? 's' : ''} and related data`);
-      
+
+      logger.info('Successfully cascade deleted users and related data', 'admin', { count: deletedUserIds.length, userIds: deletedUserIds });
+
       closeDialog();
       onBulkComplete();
       onUsersDeleted?.(deletedUserIds);
     } catch (error) {
-      console.error('Error cascade deleting users:', error);
+      logger.error('Error cascade deleting users', 'admin', { userIds: cascadeData.userIds }, error as Error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to delete users. Please try again.';
       setError(errorMessage);
     } finally {

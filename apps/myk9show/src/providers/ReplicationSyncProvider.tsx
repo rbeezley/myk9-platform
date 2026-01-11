@@ -13,6 +13,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { logger } from '@/services/LoggingService';
 
 // Import replicated table singletons
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
@@ -86,7 +87,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
   const syncTable = useCallback(async (tableName: string) => {
     const tableConfig = REPLICATED_TABLES.find(t => t.name === tableName);
     if (!tableConfig) {
-      console.warn(`[ReplicationSync] Unknown table: ${tableName}`);
+      logger.warn('Unknown table', 'replication', { tableName });
       return;
     }
 
@@ -99,20 +100,20 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       const result = await tableConfig.table.sync(licenseKey);
 
       if (result.success) {
-        console.log(`[ReplicationSync] ${tableName} synced: ${result.rowsAffected} rows`);
+        logger.info('Table synced', 'replication', { tableName, rowsAffected: result.rowsAffected });
         setStatus(prev => ({
           ...prev,
           tablesStatus: { ...prev.tablesStatus, [tableName]: 'success' },
         }));
       } else {
-        console.error(`[ReplicationSync] ${tableName} sync failed:`, result.error);
+        logger.error('Table sync failed', 'replication', { tableName, error: result.error });
         setStatus(prev => ({
           ...prev,
           tablesStatus: { ...prev.tablesStatus, [tableName]: 'error' },
         }));
       }
     } catch (error) {
-      console.error(`[ReplicationSync] ${tableName} sync error:`, error);
+      logger.error('Table sync error', 'replication', { tableName }, error as Error);
       setStatus(prev => ({
         ...prev,
         tablesStatus: { ...prev.tablesStatus, [tableName]: 'error' },
@@ -125,16 +126,16 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
    */
   const triggerSync = useCallback(async () => {
     if (!isOnline) {
-      console.log('[ReplicationSync] Skipping sync - offline');
+      logger.debug('Skipping sync - offline', 'replication');
       return;
     }
 
     if (status.isSyncing) {
-      console.log('[ReplicationSync] Sync already in progress');
+      logger.debug('Sync already in progress', 'replication');
       return;
     }
 
-    console.log('[ReplicationSync] Starting full sync...');
+    logger.info('Starting full sync', 'replication');
     setStatus(prev => ({ ...prev, isSyncing: true, error: null }));
 
     try {
@@ -149,20 +150,20 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
           const result = await table.sync(licenseKey);
 
           if (result.success) {
-            console.log(`[ReplicationSync] ✓ ${name}: ${result.rowsAffected} rows synced`);
+            logger.info('Table sync success', 'replication', { name, rowsAffected: result.rowsAffected });
             setStatus(prev => ({
               ...prev,
               tablesStatus: { ...prev.tablesStatus, [name]: 'success' },
             }));
           } else {
-            console.warn(`[ReplicationSync] ✗ ${name}: ${result.error || 'Unknown error'}`);
+            logger.warn('Table sync failed', 'replication', { name, error: result.error || 'Unknown error' });
             setStatus(prev => ({
               ...prev,
               tablesStatus: { ...prev.tablesStatus, [name]: 'error' },
             }));
           }
         } catch (tableError) {
-          console.error(`[ReplicationSync] ✗ ${name} error:`, tableError);
+          logger.error('Table sync error', 'replication', { name }, tableError as Error);
           setStatus(prev => ({
             ...prev,
             tablesStatus: { ...prev.tablesStatus, [name]: 'error' },
@@ -177,10 +178,10 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         lastSyncAt: new Date(),
       }));
 
-      console.log('[ReplicationSync] Full sync complete');
+      logger.info('Full sync complete', 'replication');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Sync failed';
-      console.error('[ReplicationSync] Sync error:', error);
+      logger.error('Sync error', 'replication', {}, error as Error);
       setStatus(prev => ({
         ...prev,
         isSyncing: false,
@@ -195,7 +196,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       hasInitialSynced.current = true;
       // Delay initial sync to not block app startup
       const timer = setTimeout(() => {
-        console.log('[ReplicationSync] Starting initial sync...');
+        logger.info('Starting initial sync', 'replication');
         triggerSync();
       }, 2000);
 
@@ -210,7 +211,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         wasOffline.current = true;
       } else if (wasOffline.current) {
         wasOffline.current = false;
-        console.log('[ReplicationSync] Back online - triggering sync');
+        logger.info('Back online - triggering sync', 'replication');
         triggerSync();
       }
     }

@@ -4,6 +4,7 @@ import { createEnhancedStorage } from '@/services/database/enhanced-storage-adap
 import { createOptimizedStorage } from '@/services/database/optimized-storage-adapter';
 import { createDevelopmentStorage, createQuickDevStorage } from '@/services/database/development-storage-adapter';
 import { createEncryptedStorageAdapter } from '@/services/database/encrypted-storage-adapter';
+import { logger } from '@/services/LoggingService';
 
 export type StorageAdapterType = 'basic' | 'enhanced' | 'optimized' | 'development' | 'quick-dev' | 'encrypted';
 
@@ -60,102 +61,102 @@ class StorageAdapterFactory {
   private createBaseStorage(storeName?: string): StateStorage {
     // Force basic adapter in production if configured
     if (import.meta.env.PROD && this.config.forceBasicInProduction) {
-      console.log(`🔧 Using basic storage adapter for ${storeName || 'store'} (production mode)`);
+      logger.debug('Using basic storage adapter (production mode)', 'storage', { storeName: storeName || 'store' });
       return getOptimalStorage(storeName || 'factory-basic');
     }
-    
+
     switch (this.config.type) {
       case 'basic':
         return getOptimalStorage(storeName || 'factory-basic');
-        
+
       case 'enhanced':
         return createEnhancedStorage({
           enableMetrics: this.config.enableMetrics,
         });
-        
+
       case 'optimized':
         return createOptimizedStorage({
           enableMetrics: this.config.enableMetrics,
           lazyInitialization: true,
         });
-        
+
       case 'development':
-        console.log(`🔧 Using development storage adapter for ${storeName || 'store'} (fast startup)`);
+        logger.debug('Using development storage adapter (fast startup)', 'storage', { storeName: storeName || 'store' });
         return createDevelopmentStorage({
           useLocalStoragePersistence: true,
           enableLogging: false,
           maxMemoryMB: 10,
         });
-        
+
       case 'quick-dev':
-        console.log(`🚀 Using quick development storage adapter for ${storeName || 'store'} (memory only)`);
+        logger.debug('Using quick development storage adapter (memory only)', 'storage', { storeName: storeName || 'store' });
         return createQuickDevStorage();
-        
+
       case 'encrypted': {
-        console.log(`🔐 Using encrypted storage adapter for ${storeName || 'store'}`);
+        logger.debug('Using encrypted storage adapter', 'storage', { storeName: storeName || 'store' });
         const baseAdapter = getOptimalStorage(storeName || 'factory-encrypted');
         return this.wrapWithEncryption(baseAdapter);
       }
-        
+
       default:
-        console.warn(`Unknown storage adapter type: ${this.config.type}, falling back to basic`);
+        logger.warn('Unknown storage adapter type, falling back to basic', 'storage', { type: this.config.type });
         return getOptimalStorage(storeName || 'factory-basic');
     }
   }
   
   createStoreSpecificStorage(storeName: string): StateStorage {
     const baseStorage = this.createStoreSpecificBaseStorage(storeName);
-    
+
     // Wrap with encryption if enabled and sensitive store
     if (this.config.enableEncryption && this.isSensitiveStore(storeName)) {
-      console.log(`🔐 Encrypting sensitive store: ${storeName}`);
+      logger.debug('Encrypting sensitive store', 'storage', { storeName });
       return this.wrapWithEncryption(baseStorage);
     }
-    
+
     return baseStorage;
   }
 
   private createStoreSpecificBaseStorage(storeName: string): StateStorage {
     // Force basic adapter in production if configured
     if (import.meta.env.PROD && this.config.forceBasicInProduction) {
-      console.log(`🔧 Using basic storage adapter for ${storeName} (production mode)`);
+      logger.debug('Using basic storage adapter (production mode)', 'storage', { storeName });
       return getOptimalStorage(storeName);
     }
-    
+
     switch (this.config.type) {
       case 'basic':
         return getOptimalStorage(storeName);
-        
+
       case 'enhanced': {
         // Get store-specific enhanced config
         const enhancedConfig = this.getEnhancedConfigForStore(storeName);
         return createEnhancedStorage(enhancedConfig);
       }
-        
+
       case 'optimized': {
         // Get store-specific optimized config
         const optimizedConfig = this.getOptimizedConfigForStore(storeName);
         return createOptimizedStorage(optimizedConfig);
       }
-        
+
       case 'development':
-        console.log(`🔧 Using development storage adapter for ${storeName} (fast startup)`);
+        logger.debug('Using development storage adapter (fast startup)', 'storage', { storeName });
         return createDevelopmentStorage({
           useLocalStoragePersistence: true,
           enableLogging: storeName === 'templateStore', // Only log template store for debugging
           maxMemoryMB: 10,
         });
-        
+
       case 'quick-dev':
-        console.log(`🚀 Using quick development storage adapter for ${storeName} (memory only)`);
+        logger.debug('Using quick development storage adapter (memory only)', 'storage', { storeName });
         return createQuickDevStorage();
-        
+
       case 'encrypted': {
-        console.log(`🔐 Using encrypted storage adapter for ${storeName}`);
+        logger.debug('Using encrypted storage adapter', 'storage', { storeName });
         const baseAdapter = getOptimalStorage(storeName);
         return this.wrapWithEncryption(baseAdapter);
       }
-        
+
       default:
         return getOptimalStorage(storeName);
     }
@@ -204,9 +205,9 @@ class StorageAdapterFactory {
   // Performance testing utilities
   async switchAdapterAndTest(newType: StorageAdapterType): Promise<void> {
     if (import.meta.env.DEV) {
-      console.log(`🔄 Switching storage adapter to: ${newType}`);
+      logger.info('Switching storage adapter', 'storage', { newType });
       this.config.type = newType;
-      
+
       // Reload page to test new adapter
       window.location.reload();
     }
@@ -284,7 +285,7 @@ class StorageAdapterFactory {
       if (this.config.userId) {
         encryptedAdapter.initialize(this.config.userId, this.config.sessionToken)
           .catch(error => {
-            console.warn('Failed to initialize encryption, using base storage:', error);
+            logger.warn('Failed to initialize encryption, using base storage', 'storage', {}, error as Error);
           });
       }
 
@@ -294,7 +295,7 @@ class StorageAdapterFactory {
         removeItem: (key: string) => encryptedAdapter.removeItem(key),
       };
     } catch (error) {
-      console.error('Failed to create encrypted storage, using base storage:', error);
+      logger.error('Failed to create encrypted storage, using base storage', 'storage', {}, error as Error);
       return baseStorage;
     }
   }

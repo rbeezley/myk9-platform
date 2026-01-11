@@ -8,6 +8,7 @@
 
 import { subscriptionManager } from '../realtime/subscriptionManager';
 import { errorMonitor } from '../../lib/errorMonitoring';
+import { logger } from '@/services/LoggingService';
 import type { CheckInStatus } from '../../types/check-in-types';
 
 export interface EntryStatusUpdate {
@@ -106,12 +107,12 @@ export class EntryStatusBroadcaster {
    */
   async start(): Promise<void> {
     if (this.isActive) {
-      console.warn('Entry status broadcaster already active');
+      logger.warn('Entry status broadcaster already active', 'competition');
       return;
     }
 
     try {
-      console.log(`Starting entry status broadcaster for show ${this.showId}`);
+      logger.info('Starting entry status broadcaster', 'competition', { showId: this.showId });
 
       // Subscribe to entry updates
       this.subscriptionId = await subscriptionManager.subscribe(
@@ -129,7 +130,7 @@ export class EntryStatusBroadcaster {
       );
 
       this.isActive = true;
-      console.log('Entry status broadcaster started successfully');
+      logger.info('Entry status broadcaster started successfully', 'competition');
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -146,7 +147,7 @@ export class EntryStatusBroadcaster {
     if (!this.isActive) return;
 
     try {
-      console.log('Stopping entry status broadcaster');
+      logger.info('Stopping entry status broadcaster', 'competition');
 
       // Unsubscribe from updates
       if (this.subscriptionId) {
@@ -167,7 +168,7 @@ export class EntryStatusBroadcaster {
       this.updateQueue.clear();
 
       this.isActive = false;
-      console.log('Entry status broadcaster stopped');
+      logger.info('Entry status broadcaster stopped', 'competition');
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -277,7 +278,7 @@ export class EntryStatusBroadcaster {
         try {
           listener(update);
         } catch (error) {
-          console.error('Error in status update listener:', error);
+          logger.error('Error in status update listener', 'competition', {}, error as Error);
         }
       });
     });
@@ -285,7 +286,7 @@ export class EntryStatusBroadcaster {
     // Broadcast to other clients
     this.broadcastUpdates(updates);
 
-    console.log(`Processed ${updates.length} entry status updates`);
+    logger.debug('Processed entry status updates', 'competition', { count: updates.length });
   }
 
   /**
@@ -317,7 +318,7 @@ export class EntryStatusBroadcaster {
         try {
           listener(event);
         } catch (error) {
-          console.error('Error in ring event listener:', error);
+          logger.error('Error in ring event listener', 'competition', {}, error as Error);
         }
       });
 
@@ -373,7 +374,7 @@ export class EntryStatusBroadcaster {
       try {
         listener(notification);
       } catch (error) {
-        console.error('Error in call notification listener:', error);
+        logger.error('Error in call notification listener', 'competition', {}, error as Error);
       }
     });
   }
@@ -432,7 +433,7 @@ export class EntryStatusBroadcaster {
         },
       });
 
-      console.log(`Manual entry update: ${entryId} -> ${ringStatus}`);
+      logger.info('Manual entry update', 'competition', { entryId, ringStatus });
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -461,11 +462,11 @@ export class EntryStatusBroadcaster {
         try {
           listener(sequenceUpdate);
         } catch (error) {
-          console.error('Error in sequence update listener:', error);
+          logger.error('Error in sequence update listener', 'competition', {}, error as Error);
         }
       });
 
-      console.log(`Sequence updated for class ${sequenceUpdate.classId}: ${sequenceUpdate.entries.length} entries`);
+      logger.info('Sequence updated', 'competition', { classId: sequenceUpdate.classId, entryCount: sequenceUpdate.entries.length });
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {

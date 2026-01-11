@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { logger } from '@/services/LoggingService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -41,26 +42,27 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
 
   // Filter templates to active ones and matching show type
   const activeTemplates = useMemo(() => {
-    console.log('ClassSelectionStep - Filtering templates:');
-    console.log('- show.type:', show?.type);
-    console.log('- templates count:', templates.length);
-    console.log('- templates:', templates.map(t => ({ 
-      id: t.id, 
-      name: t.templateName, 
-      organization: t.organization,
-      showType: t.showType, 
-      isActive: t.isActive 
-    })));
-    
+    logger.debug('ClassSelectionStep - Filtering templates', 'wizard', {
+      showType: show?.type,
+      templatesCount: templates.length,
+      templates: templates.map(t => ({
+        id: t.id,
+        name: t.templateName,
+        organization: t.organization,
+        showType: t.showType,
+        isActive: t.isActive
+      }))
+    });
+
     if (!show?.type) {
       const filtered = templates.filter(t => t.isActive);
-      console.log('- No show type, returning active templates:', filtered.length);
+      logger.debug('No show type, returning active templates', 'wizard', { count: filtered.length });
       return filtered;
     }
     
     const filtered = templates.filter(template => {
       if (!template.isActive) {
-        console.log(`- Template ${template.templateName} skipped (not active)`);
+        logger.debug('Template skipped (not active)', 'wizard', { templateName: template.templateName });
         return false;
       }
       
@@ -80,27 +82,27 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
       const normalizedTemplateShowType = templateShowType.toLowerCase().trim();
       
       // Check if the show type matches either organization or show type
-      const matches = normalizedShowType === normalizedTemplateOrg || 
+      const matches = normalizedShowType === normalizedTemplateOrg ||
              normalizedShowType === normalizedTemplateShowType ||
              normalizedShowType.includes(normalizedTemplateOrg) ||
              normalizedShowType.includes(normalizedTemplateShowType) ||
              normalizedTemplateOrg.includes(normalizedShowType) ||
              normalizedTemplateShowType.includes(normalizedShowType);
-      
-      console.log(`- Template ${template.templateName}: org="${templateOrganization}" showType="${templateShowType}" matches=${matches}`);
-      
+
+      logger.debug('Template matching result', 'wizard', { templateName: template.templateName, org: templateOrganization, showType: templateShowType, matches });
+
       return matches;
     });
-    
-    console.log('- Final filtered templates before deduplication:', filtered.length);
+
+    logger.debug('Filtered templates before deduplication', 'wizard', { count: filtered.length });
     
     // Deduplicate templates by name to prevent showing multiple with same display name
     const deduplicatedTemplates = filtered.filter((template, index, array) => {
       const templateDisplayName = template.templateName?.toLowerCase();
       return array.findIndex(t => t.templateName?.toLowerCase() === templateDisplayName) === index;
     });
-    
-    console.log('- Final filtered templates after deduplication:', deduplicatedTemplates.length);
+
+    logger.debug('Final filtered templates after deduplication', 'wizard', { count: deduplicatedTemplates.length });
     return deduplicatedTemplates;
   }, [templates, show?.type]);
 

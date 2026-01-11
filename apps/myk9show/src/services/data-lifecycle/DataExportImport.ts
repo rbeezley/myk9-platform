@@ -8,6 +8,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { saveAs } from 'file-saver';
 import { smartCompress, smartDecompress } from '@/services/database/compression-utils';
+import { logger } from '@/services/LoggingService';
 
 export type ExportFormat = 'json' | 'csv' | 'excel' | 'zip';
 
@@ -72,7 +73,7 @@ export class DataExportImportService {
     data: Record<string, unknown[]>,
     options: ExportOptions
   ): Promise<ExportResult> {
-    console.log(`📤 Starting data export (format: ${options.format})`);
+    logger.info('Starting data export', 'lifecycle', { format: options.format });
     
     try {
       // Apply filters if specified
@@ -125,7 +126,7 @@ export class DataExportImportService {
       };
       
     } catch (error) {
-      console.error('Export failed:', error);
+      logger.error('Export failed', 'lifecycle', {}, error as Error);
       return {
         success: false,
         filename: '',
@@ -144,7 +145,7 @@ export class DataExportImportService {
     file: File,
     options: ImportOptions
   ): Promise<ImportResult> {
-    console.log(`📥 Starting data import (file: ${file.name})`);
+    logger.info('Starting data import', 'lifecycle', { fileName: file.name });
     
     const result: ImportResult = {
       success: false,
@@ -194,7 +195,7 @@ export class DataExportImportService {
       
       // Import data (dry run or actual)
       if (options.dryRun) {
-        console.log('🔍 Dry run mode - no data will be imported');
+        logger.info('Dry run mode - no data will be imported', 'lifecycle');
         result.recordsImported = Object.values(data)
           .reduce((sum, records) => sum + records.length, 0);
       } else {
@@ -206,7 +207,7 @@ export class DataExportImportService {
       return result;
       
     } catch (error) {
-      console.error('Import failed:', error);
+      logger.error('Import failed', 'lifecycle', {}, error as Error);
       result.errors.push(error instanceof Error ? error.message : 'Import failed');
       return result;
     }
@@ -637,7 +638,7 @@ export class DataExportImportService {
     // This would integrate with your stores
     
     for (const [dataType, records] of Object.entries(data)) {
-      console.log(`Importing ${records.length} ${dataType} records...`);
+      logger.info('Importing records', 'lifecycle', { count: records.length, dataType });
       
       // Example implementation - replace with actual store integration
       try {

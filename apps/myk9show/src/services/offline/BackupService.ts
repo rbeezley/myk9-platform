@@ -11,6 +11,7 @@
  */
 
 import { BackupInfo, ExportOptions } from '@/components/offline/OfflineDataManager';
+import { logger } from '@/services/LoggingService';
 
 export interface BackupSchedule {
   enabled: boolean;
@@ -205,11 +206,11 @@ export class BackupService {
       }
 
       const endTime = performance.now();
-      console.log(`Backup created in ${Math.round(endTime - startTime)}ms:`, backup.name);
+      logger.info('Backup created', 'backup', { name: backup.name, durationMs: Math.round(endTime - startTime) });
 
       return backup;
     } catch (error) {
-      console.error('Backup creation failed:', error);
+      logger.error('Backup creation failed', 'backup', {}, error as Error);
       throw new Error(`Failed to create backup: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -245,10 +246,10 @@ export class BackupService {
             data.settings = await this.getEntityData('settings');
             break;
           default:
-            console.warn(`Unknown entity type: ${entity}`);
+            logger.warn('Unknown entity type', 'backup', { entity });
         }
       } catch (error) {
-        console.error(`Failed to gather data for entity ${entity}:`, error);
+        logger.error('Failed to gather data for entity', 'backup', { entity }, error as Error);
         data[entity] = []; // Include empty array for failed entities
       }
     }
@@ -445,9 +446,9 @@ export class BackupService {
         }
       }
 
-      console.log(`Successfully restored backup: ${backup.name}`);
+      logger.info('Successfully restored backup', 'backup', { name: backup.name });
     } catch (error) {
-      console.error('Backup restoration failed:', error);
+      logger.error('Backup restoration failed', 'backup', {}, error as Error);
       throw new Error(`Failed to restore backup: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -464,9 +465,9 @@ export class BackupService {
     try {
       await this.removeStoredBackup(backupId);
       this.activeBackups.delete(backupId);
-      console.log(`Backup deleted: ${backup.name}`);
+      logger.info('Backup deleted', 'backup', { name: backup.name });
     } catch (error) {
-      console.error('Failed to delete backup:', error);
+      logger.error('Failed to delete backup', 'backup', { name: backup.name }, error as Error);
       throw new Error(`Failed to delete backup: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -577,8 +578,8 @@ export class BackupService {
 
   private async restoreEntityData(entityType: string, data: unknown[], overwrite = false): Promise<void> {
     // In real implementation, restore data to actual stores
-    console.log(`Restoring ${data.length} items for entity: ${entityType}`, { overwrite });
-    
+    logger.debug('Restoring entity data', 'backup', { entityType, itemCount: data.length, overwrite });
+
     // Simulate restore delay
     await new Promise(resolve => setTimeout(resolve, 100));
   }

@@ -3,6 +3,7 @@
  * Handles email notifications for dog show management system
  */
 
+import { logger } from '@/services/LoggingService';
 // import { supabase } from '@/lib/supabase'; // Unused in mock implementation
 
 export interface EmailTemplate {
@@ -381,7 +382,7 @@ This email was sent by myK9Show. Please do not reply to this email.
   async sendEntryConfirmation(email: string, data: EntryConfirmationData): Promise<boolean> {
     const template = this.templates.get('entry_confirmation');
     if (!template) {
-      console.error('Entry confirmation template not found');
+      logger.error('Entry confirmation template not found', 'notifications');
       return false;
     }
 
@@ -409,7 +410,7 @@ This email was sent by myK9Show. Please do not reply to this email.
   async sendShowReminder(email: string, data: ShowReminderData): Promise<boolean> {
     const template = this.templates.get('show_reminder');
     if (!template) {
-      console.error('Show reminder template not found');
+      logger.error('Show reminder template not found', 'notifications');
       return false;
     }
 
@@ -434,7 +435,7 @@ This email was sent by myK9Show. Please do not reply to this email.
   async sendResultsNotification(email: string, data: ResultsData): Promise<boolean> {
     const template = this.templates.get('results_notification');
     if (!template) {
-      console.error('Results notification template not found');
+      logger.error('Results notification template not found', 'notifications');
       return false;
     }
 
@@ -484,16 +485,16 @@ This email was sent by myK9Show. Please do not reply to this email.
   ): Promise<boolean> {
     try {
       // TODO: Implement proper notification_queue integration
-      console.log('📧 Scheduled Email Notification:', {
+      logger.info('Scheduled Email Notification', 'notifications', {
         to: notification.to,
         status: 'scheduled',
         subject: notification.subject,
         scheduledFor: scheduledFor.toISOString()
       });
-      
+
       return true;
     } catch (error) {
-      console.error('Failed to schedule email notification:', error);
+      logger.error('Failed to schedule email notification', 'notifications', {}, error as Error);
       return false;
     }
   }
@@ -504,10 +505,10 @@ This email was sent by myK9Show. Please do not reply to this email.
   async processScheduledNotifications(): Promise<number> {
     try {
       // TODO: Implement proper notification_queue integration
-      console.log('📧 Processing scheduled notifications (not implemented)');
+      logger.debug('Processing scheduled notifications (not implemented)', 'notifications');
       return 0;
     } catch (error) {
-      console.error('Failed to process scheduled notifications:', error);
+      logger.error('Failed to process scheduled notifications', 'notifications', {}, error as Error);
       return 0;
     }
   }
@@ -518,18 +519,18 @@ This email was sent by myK9Show. Please do not reply to this email.
   private async sendNotification(notification: Omit<EmailNotification, 'id'> | EmailNotification): Promise<boolean> {
     try {
       // For development/testing, we'll log the email instead of sending
-      console.log('📧 Email Notification (Development Mode):', {
+      logger.info('Email Notification (Development Mode)', 'notifications', {
         to: notification.to,
         subject: notification.subject,
         preview: notification.htmlContent.substring(0, 200) + '...'
       });
-      
+
       // TODO: Integrate with notification_queue table properly
       // For now, just return success without database operations
       return true;
-      
+
       /* DISABLED FOR NOW - EmailService needs complete rewrite for notification_queue table
-      
+
       // In production, integrate with email service (SendGrid, AWS SES, etc.)
       // Example with Supabase Edge Function:
       const { error } = await supabase.functions.invoke('send-email', {
@@ -544,14 +545,14 @@ This email was sent by myK9Show. Please do not reply to this email.
       });
 
       if (error) {
-        console.error('Failed to send email notification:', error);
+        logger.error('Failed to send email notification', 'notifications', {}, error);
         return false;
       }
-      
+
       return true;
       */
     } catch (error) {
-      console.error('Failed to send email notification:', error);
+      logger.error('Failed to send email notification', 'notifications', {}, error as Error);
       return false;
     }
   }
@@ -572,10 +573,10 @@ This email was sent by myK9Show. Please do not reply to this email.
   async getNotificationHistory(limit: number = 50): Promise<EmailNotification[]> {
     try {
       // TODO: Implement proper notification_queue integration
-      console.log('📧 Fetching notification history (not implemented)', { limit });
+      logger.debug('Fetching notification history (not implemented)', 'notifications', { limit });
       return [];
     } catch (error) {
-      console.error('Failed to fetch notification history:', error);
+      logger.error('Failed to fetch notification history', 'notifications', {}, error as Error);
       return [];
     }
   }

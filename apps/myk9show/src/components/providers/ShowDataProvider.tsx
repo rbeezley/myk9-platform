@@ -17,6 +17,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import { getDataScopeForRole, applyRoleDataFilter } from '@/services/data-scoping/role-profiles';
+import { logger } from '@/services/LoggingService';
 import type { DataScope } from '@/services/data-scoping/role-profiles';
 
 interface ShowDataContextValue {
@@ -80,13 +81,13 @@ export function ShowDataProvider({
   const setActiveShow = useCallback(async (showId: string | null) => {
     // Clear previous show data if switching shows
     if (activeShowId && showId !== activeShowId) {
-      console.log(`🧹 Clearing show data for ${loadedStores.size} stores`);
-      
+      logger.debug('Clearing show data for stores', 'show-data', { storeCount: loadedStores.size });
+
       loadedStores.forEach(async (storeName) => {
         try {
           const storeModule = await import(`@/store/${storeName}.ts`);
           const useStore = storeModule[`use${storeName.charAt(0).toUpperCase() + storeName.slice(1)}`];
-          
+
           if (useStore) {
             const store = useStore.getState();
             if (store.clearShowData && typeof store.clearShowData === 'function') {
@@ -94,7 +95,7 @@ export function ShowDataProvider({
             }
           }
         } catch (error) {
-          console.warn(`Failed to clear store ${storeName}:`, error);
+          logger.warn('Failed to clear store', 'show-data', { storeName }, error as Error);
         }
       });
 
@@ -112,7 +113,7 @@ export function ShowDataProvider({
    */
   const loadShowData = useCallback(async () => {
     if (!activeShowId) {
-      console.warn('Cannot load show data: no active show set');
+      logger.warn('Cannot load show data: no active show set', 'show-data');
       return;
     }
 
@@ -135,16 +136,16 @@ export function ShowDataProvider({
             }
             
             setLoadedStores(prev => new Set(prev).add(storeName));
-            console.log(`✅ Loaded critical store: ${storeName}`);
+            logger.debug('Loaded critical store', 'show-data', { storeName });
           }
         } catch (error) {
-          console.warn(`Failed to load critical store ${storeName}:`, error);
+          logger.warn('Failed to load critical store', 'show-data', { storeName }, error as Error);
         }
       });
 
       await Promise.all(criticalStorePromises);
 
-      console.log(`📊 Show data loaded for show ${activeShowId} (role: ${userRole})`);
+      logger.info('Show data loaded', 'show-data', { activeShowId, userRole });
       
       // Preload lazy stores in background with lower priority
       setTimeout(() => {
@@ -160,16 +161,16 @@ export function ShowDataProvider({
               }
               
               setLoadedStores(prev => new Set(prev).add(storeName));
-              console.log(`🔄 Lazy loaded store: ${storeName}`);
+              logger.debug('Lazy loaded store', 'show-data', { storeName });
             }
           } catch (error) {
-            console.warn(`Failed to lazy load store ${storeName}:`, error);
+            logger.warn('Failed to lazy load store', 'show-data', { storeName }, error as Error);
           }
         });
       }, 100);
 
     } catch (error) {
-      console.error('Failed to load show data:', error);
+      logger.error('Failed to load show data', 'show-data', {}, error as Error);
       setError(error instanceof Error ? error.message : 'Failed to load show data');
     } finally {
       setIsLoading(false);
@@ -180,13 +181,13 @@ export function ShowDataProvider({
    * Clear all show-specific data to free memory
    */
   const clearShowData = useCallback(() => {
-    console.log(`🧹 Clearing show data for ${loadedStores.size} stores`);
-    
+    logger.debug('Clearing show data for stores', 'show-data', { storeCount: loadedStores.size });
+
     loadedStores.forEach(async (storeName) => {
       try {
         const storeModule = await import(`@/store/${storeName}.ts`);
         const useStore = storeModule[`use${storeName.charAt(0).toUpperCase() + storeName.slice(1)}`];
-        
+
         if (useStore) {
           const store = useStore.getState();
           if (store.clearShowData && typeof store.clearShowData === 'function') {
@@ -194,7 +195,7 @@ export function ShowDataProvider({
           }
         }
       } catch (error) {
-        console.warn(`Failed to clear store ${storeName}:`, error);
+        logger.warn('Failed to clear store', 'show-data', { storeName }, error as Error);
       }
     });
 

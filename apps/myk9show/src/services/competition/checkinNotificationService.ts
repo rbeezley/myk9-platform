@@ -8,6 +8,7 @@
 
 import { subscriptionManager } from '../realtime/subscriptionManager';
 import { errorMonitor } from '../../lib/errorMonitoring';
+import { logger } from '@/services/LoggingService';
 import type { CheckInStatus } from '../../types/check-in-types';
 import type { Priority } from '../../types/realtime-types';
 
@@ -117,12 +118,12 @@ export class CheckInNotificationService {
    */
   async start(): Promise<void> {
     if (this.isActive) {
-      console.warn('Check-in notification service already active');
+      logger.warn('Check-in notification service already active', 'check-in');
       return;
     }
 
     try {
-      console.log(`Starting check-in notification service for show ${this.showId}`);
+      logger.info('Starting check-in notification service', 'check-in', { showId: this.showId });
 
       // Subscribe to check-in updates
       this.subscriptionId = await subscriptionManager.subscribe(
@@ -143,7 +144,7 @@ export class CheckInNotificationService {
       this.startCleanupRoutine();
 
       this.isActive = true;
-      console.log('Check-in notification service started successfully');
+      logger.info('Check-in notification service started successfully', 'check-in');
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -160,7 +161,7 @@ export class CheckInNotificationService {
     if (!this.isActive) return;
 
     try {
-      console.log('Stopping check-in notification service');
+      logger.info('Stopping check-in notification service', 'check-in');
 
       // Unsubscribe from updates
       if (this.subscriptionId) {
@@ -173,7 +174,7 @@ export class CheckInNotificationService {
       this.queueStatuses.clear();
 
       this.isActive = false;
-      console.log('Check-in notification service stopped');
+      logger.info('Check-in notification service stopped', 'check-in');
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -230,7 +231,7 @@ export class CheckInNotificationService {
       // Update metrics
       this.updateMetrics(checkInEvent);
 
-      console.log(`Check-in event: ${checkInEvent.armband} (${checkInEvent.dogName}) -> ${checkInEvent.checkInStatus}`);
+      logger.debug('Check-in event', 'check-in', { armband: checkInEvent.armband, dogName: checkInEvent.dogName, status: checkInEvent.checkInStatus });
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -257,7 +258,7 @@ export class CheckInNotificationService {
           try {
             listener(notification);
           } catch (error) {
-            console.error('Error in notification listener:', error);
+            logger.error('Error in notification listener', 'check-in', {}, error as Error);
           }
         });
       });
@@ -270,7 +271,7 @@ export class CheckInNotificationService {
         try {
           listener(event);
         } catch (error) {
-          console.error('Error in check-in listener:', error);
+          logger.error('Error in check-in listener', 'check-in', {}, error as Error);
         }
       });
 
@@ -428,7 +429,7 @@ export class CheckInNotificationService {
         try {
           listener(queueStatus);
         } catch (error) {
-          console.error('Error in queue update listener:', error);
+          logger.error('Error in queue update listener', 'check-in', {}, error as Error);
         }
       });
 
@@ -581,7 +582,7 @@ export class CheckInNotificationService {
       this.activeNotifications.set(notification.id, notification);
       await this.broadcastNotification(notification);
 
-      console.log(`Manual check-in notification sent for ${entryId}`);
+      logger.info('Manual check-in notification sent', 'check-in', { entryId });
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {

@@ -13,6 +13,7 @@ import {
   ConditionType,
   ConditionOperator
 } from '../../types/deployment-types';
+import { logger } from '@/services/LoggingService';
 
 export interface FeatureFlagContext {
   userId?: string;
@@ -137,7 +138,7 @@ export class FeatureFlagService {
 
       const flag = this.flags.get(flagId);
       if (!flag) {
-        console.warn(`Feature flag ${flagId} not found, defaulting to false`);
+        logger.warn('Feature flag not found, defaulting to false', 'flags', { flagId });
         this.recordEvaluation(flagId, false, performance.now() - startTime);
         return false;
       }
@@ -154,7 +155,7 @@ export class FeatureFlagService {
       return result;
 
     } catch (error) {
-      console.error(`Error evaluating feature flag ${flagId}:`, error);
+      logger.error('Error evaluating feature flag', 'flags', { flagId }, error as Error);
       this.recordEvaluationError(flagId);
       return false;
     }
@@ -306,7 +307,7 @@ export class FeatureFlagService {
 
     this.clearCache();
     
-    console.warn(`Emergency rollback executed for flag ${flagId}: ${reason}`);
+    logger.warn('Emergency rollback executed', 'flags', { flagId, reason });
     
     // In a real implementation, this would trigger alerts
     this.triggerEmergencyAlert(flagId, reason);
@@ -326,7 +327,7 @@ export class FeatureFlagService {
     }
 
     this.clearCache();
-    console.warn('Kill switch activated - all non-critical features disabled');
+    logger.warn('Kill switch activated - all non-critical features disabled', 'flags');
   }
 
   // === Analytics and Monitoring ===
@@ -679,7 +680,7 @@ export class FeatureFlagService {
   // Placeholder implementations for complex features
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private scheduleRolloutIncrements(flagId: string, incrementSize: number, incrementsPerHour: number, durationHours: number): void {
-    console.log(`Scheduled gradual rollout for ${flagId}: ${incrementSize}% increments every ${60/incrementsPerHour} minutes`);
+    logger.info('Scheduled gradual rollout', 'flags', { flagId, incrementSize, intervalMinutes: 60 / incrementsPerHour });
   }
 
   private calculateABTestResults(test: ABTestConfig): ABTestResults {
@@ -708,7 +709,7 @@ export class FeatureFlagService {
   }
 
   private triggerEmergencyAlert(flagId: string, reason: string): void {
-    console.error(`EMERGENCY ALERT: Feature flag ${flagId} rolled back - ${reason}`);
+    logger.error('EMERGENCY ALERT: Feature flag rolled back', 'flags', { flagId, reason });
   }
 
   private isBetaUser(context: FeatureFlagContext): boolean {

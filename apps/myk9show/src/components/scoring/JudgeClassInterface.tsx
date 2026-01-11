@@ -8,6 +8,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { logger } from '@/services/LoggingService';
 import { cn } from '@/lib/utils';
 import '@/styles/apple-show-details.css';
 
@@ -74,14 +75,14 @@ export function JudgeClassInterface({
         try {
           const parsed = JSON.parse(stored);
           const resultsMap = new Map(Object.entries(parsed));
-          console.log('🔄 Loaded results from localStorage:', resultsMap);
+          logger.debug('Loaded results from localStorage', 'scoring', { resultsCount: resultsMap.size });
           return resultsMap;
         } catch (e) {
-          console.warn('Failed to parse stored results:', e);
+          logger.warn('Failed to parse stored results', 'scoring', {}, e as Error);
         }
       }
     }
-    console.log('🔄 No stored results found, starting with empty Map');
+    logger.debug('No stored results found, starting with empty Map', 'scoring');
     return new Map();
   });
   
@@ -180,7 +181,7 @@ export function JudgeClassInterface({
       placements.set(current.entryId, currentPlace);
     }
     
-    console.log('🏆 Calculated placements:', Array.from(placements.entries()));
+    logger.debug('Calculated placements', 'scoring', { placementsCount: placements.size });
     return placements;
   }, []);
 
@@ -242,7 +243,7 @@ export function JudgeClassInterface({
   const handleSaveResult = useCallback(async (result: ScentWorkResult): Promise<ValidationResult> => {
     try {
       // TODO: Replace with actual API call
-      console.log('Saving result for entry:', result.entryId);
+      logger.debug('Saving result for entry', 'scoring', { entryId: result.entryId });
       
       // Simulate API delay
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -255,7 +256,7 @@ export function JudgeClassInterface({
         if (typeof window !== 'undefined' && activeClassId) {
           const resultsObj = Object.fromEntries(newResults);
           localStorage.setItem(`judge-results-${activeClassId}`, JSON.stringify(resultsObj));
-          console.log('💾 Results persisted to localStorage:', resultsObj);
+          logger.debug('Results persisted to localStorage', 'scoring', { resultsCount: Object.keys(resultsObj).length });
         }
         
         return newResults;
@@ -273,7 +274,7 @@ export function JudgeClassInterface({
       };
       
     } catch (err) {
-      console.error('Failed to save result:', err);
+      logger.error('Failed to save result', 'scoring', { entryId: result.entryId }, err as Error);
       return {
         isValid: false,
         errors: [{ field: 'general', message: err instanceof Error ? err.message : 'Failed to save result', code: 'SAVE_ERROR' }],

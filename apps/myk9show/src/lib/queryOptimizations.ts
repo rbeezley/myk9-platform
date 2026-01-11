@@ -2,6 +2,7 @@
 // Intelligent prefetching, debouncing, deduplication, and cache invalidation strategies
 
 import { QueryClient, useQueryClient } from '@tanstack/react-query';
+import { logger } from '@/services/LoggingService';
 import { useCallback, useRef, useEffect } from 'react';
 import { queryKeys, cacheStrategies } from './queryClient';
 import { 
@@ -168,7 +169,7 @@ export class IntelligentPrefetcher {
         );
       }
     } catch (error) {
-      console.warn('Prefetch dogs list failed:', error);
+      logger.warn('Prefetch dogs list failed', 'query', {}, error as Error);
     } finally {
       this.prefetchQueue.delete(cacheKey);
     }
@@ -222,7 +223,7 @@ export class IntelligentPrefetcher {
         }),
       ]);
     } catch (error) {
-      console.warn('Prefetch related dog data failed:', error);
+      logger.warn('Prefetch related dog data failed', 'query', { dogId }, error as Error);
     } finally {
       this.prefetchQueue.delete(cacheKey);
     }
@@ -264,7 +265,7 @@ export class IntelligentPrefetcher {
         staleTime: cacheStrategies.static.staleTime,
       });
     } catch (error) {
-      console.warn('Prefetch upcoming shows failed:', error);
+      logger.warn('Prefetch upcoming shows failed', 'query', {}, error as Error);
     } finally {
       this.prefetchQueue.delete(cacheKey);
     }
@@ -308,7 +309,7 @@ export class IntelligentPrefetcher {
         }),
       ]);
     } catch (error) {
-      console.warn('Prefetch show related data failed:', error);
+      logger.warn('Prefetch show related data failed', 'query', { showId }, error as Error);
     } finally {
       this.prefetchQueue.delete(cacheKey);
     }
@@ -333,7 +334,7 @@ export class IntelligentPrefetcher {
         staleTime: cacheStrategies.moderate.staleTime,
       });
     } catch (error) {
-      console.warn('Prefetch people list failed:', error);
+      logger.warn('Prefetch people list failed', 'query', {}, error as Error);
     } finally {
       this.prefetchQueue.delete(cacheKey);
     }
@@ -455,7 +456,7 @@ export const createInvalidationStrategy = (queryClient: QueryClient) => {
           strategies.invalidateClubRelated(entityId);
           break;
         default:
-          console.warn(`Unknown entity type for invalidation: ${entityType}`);
+          logger.warn('Unknown entity type for invalidation', 'query', { entityType });
       }
     },
   };
@@ -491,7 +492,7 @@ export const optimizeModuleLoading = () => {
         lazyLoadStore('users'),
       ]);
     } catch (error) {
-      console.warn('Failed to preload critical stores:', error);
+      logger.warn('Failed to preload critical stores', 'query', {}, error as Error);
     }
   };
 
@@ -546,7 +547,7 @@ export const useQueryPerformanceMonitoring = () => {
     getPerformanceMetrics,
     monitorQueries: () => {
       const metrics = getPerformanceMetrics();
-      console.debug('Query Performance Metrics:', metrics);
+      logger.debug('Query Performance Metrics', 'query', metrics);
       return metrics;
     },
   };

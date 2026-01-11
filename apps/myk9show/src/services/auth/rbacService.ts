@@ -1,5 +1,6 @@
 // RBAC Service for integrating with Supabase RBAC system
 import { supabase } from '../database/supabaseClient';
+import { logger } from '@/services/LoggingService';
 
 export interface UserRole {
   role_id: string;
@@ -43,7 +44,7 @@ export class RBACService {
     });
 
     if (error) {
-      console.error('Error checking permission:', error);
+      logger.error('Error checking permission', 'rbac', { permission, scopeType, scopeId }, error as Error);
       return false;
     }
 
@@ -67,7 +68,7 @@ export class RBACService {
     });
 
     if (error) {
-      console.error('Error fetching permissions:', error);
+      logger.error('Error fetching permissions', 'rbac', { scopeType, scopeId }, error as Error);
       return [];
     }
 
@@ -86,7 +87,7 @@ export class RBACService {
     });
 
     if (error) {
-      console.error('Error fetching roles:', error);
+      logger.error('Error fetching roles', 'rbac', {}, error as Error);
       return [];
     }
 
@@ -105,7 +106,7 @@ export class RBACService {
     });
 
     if (error) {
-      console.error('Error checking admin status:', error);
+      logger.error('Error checking admin status', 'rbac', {}, error as Error);
       return false;
     }
 
@@ -129,7 +130,7 @@ export class RBACService {
     });
 
     if (error) {
-      console.error('Error fetching effective permissions:', error);
+      logger.error('Error fetching effective permissions', 'rbac', { scopeType, scopeId }, error as Error);
       return [];
     }
 
@@ -159,7 +160,7 @@ export class RBACService {
     });
 
     if (error) {
-      console.error('Error assigning role:', error);
+      logger.error('Error assigning role', 'rbac', { targetUserId, roleName, scopeType, scopeId }, error as Error);
       return null;
     }
 
@@ -187,7 +188,7 @@ export class RBACService {
     });
 
     if (error) {
-      console.error('Error revoking role:', error);
+      logger.error('Error revoking role', 'rbac', { targetUserId, roleName, scopeType, scopeId }, error as Error);
       return false;
     }
 

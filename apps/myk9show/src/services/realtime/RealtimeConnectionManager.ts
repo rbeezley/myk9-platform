@@ -1,5 +1,6 @@
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase-client';
+import { logger } from '@/services/LoggingService';
 
 export interface ConnectionState {
   status: 'disconnected' | 'connecting' | 'connected' | 'error';
@@ -129,10 +130,10 @@ export class RealtimeConnectionManager {
       this.metrics.totalConnections++;
       this.startHeartbeat();
       
-      console.log('Realtime connection established');
-      
+      logger.info('Realtime connection established', 'realtime');
+
     } catch (error) {
-      console.error('Failed to establish realtime connection:', error);
+      logger.error('Failed to establish realtime connection', 'realtime', {}, error as Error);
       
       this.updateConnectionState({
         status: 'error',
@@ -189,7 +190,7 @@ export class RealtimeConnectionManager {
       });
       
     } catch (error) {
-      console.warn('Heartbeat failed:', error);
+      logger.warn('Heartbeat failed', 'realtime', {}, error as Error);
       this.handleConnectionLoss();
     }
   }
@@ -213,7 +214,7 @@ export class RealtimeConnectionManager {
     }
 
     if (this.connectionState.reconnectAttempts >= this.config.maxReconnectAttempts) {
-      console.error('Max reconnection attempts reached');
+      logger.error('Max reconnection attempts reached', 'realtime', { attempts: this.connectionState.reconnectAttempts });
       this.updateConnectionState({
         status: 'error',
         error: 'Max reconnection attempts exceeded'
@@ -226,7 +227,7 @@ export class RealtimeConnectionManager {
       this.config.maxReconnectDelay
     );
 
-    console.log(`Scheduling reconnect attempt ${this.connectionState.reconnectAttempts + 1} in ${delay}ms`);
+    logger.debug('Scheduling reconnect attempt', 'realtime', { attempt: this.connectionState.reconnectAttempts + 1, delayMs: delay });
 
     this.reconnectTimer = setTimeout(() => {
       this.connectionState.reconnectAttempts++;
@@ -265,14 +266,14 @@ export class RealtimeConnectionManager {
 
   // Network event handlers
   private handleNetworkOnline() {
-    console.log('Network connection restored');
+    logger.info('Network connection restored', 'realtime');
     if (this.connectionState.status !== 'connected') {
       this.connect();
     }
   }
 
   private handleNetworkOffline() {
-    console.log('Network connection lost');
+    logger.warn('Network connection lost', 'realtime');
     this.updateConnectionState({
       status: 'disconnected',
       error: 'Network offline'
@@ -308,8 +309,8 @@ export class RealtimeConnectionManager {
 
     // Monitor channel status
     channel.subscribe((status) => {
-      console.log(`Channel ${channelName} status:`, status);
-      
+      logger.debug('Channel status changed', 'realtime', { channelName, status });
+
       if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
         this.handleChannelError(channelName, status);
       }
@@ -327,8 +328,8 @@ export class RealtimeConnectionManager {
   }
 
   private handleChannelError(channelName: string, error: string) {
-    console.error(`Channel ${channelName} error:`, error);
-    
+    logger.error('Channel error', 'realtime', { channelName, error });
+
     // Remove and recreate the channel
     this.removeChannel(channelName);
     
@@ -374,7 +375,7 @@ export class RealtimeConnectionManager {
       try {
         await channel.unsubscribe();
       } catch (error) {
-        console.warn(`Error unsubscribing from channel ${name}:`, error);
+        logger.warn('Error unsubscribing from channel', 'realtime', { channelName: name }, error as Error);
       }
     });
     
@@ -416,7 +417,7 @@ export class RealtimeConnectionManager {
           };
           callback(eventData);
         } catch (error) {
-          console.error(`Error in connection listener for ${event}:`, error);
+          logger.error('Error in connection listener', 'realtime', { event }, error as Error);
         }
       });
     }

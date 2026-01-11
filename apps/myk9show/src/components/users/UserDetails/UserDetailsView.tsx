@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { logger } from '@/services/LoggingService';
 import ProfilePhotoDialog from '@/components/users/ProfilePhotoDialog';
 import { useUserStore } from '@/store/userStore';
 import { useUpdateUserMutation, useDeleteUserMutation } from '@/hooks/queries/useUsersQuery';
@@ -110,7 +111,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   
   const handleDeleteUser = async () => {
     try {
-      console.log('Deleting user:', person.id);
+      logger.debug('Deleting user', 'users', { userId: person.id });
       
       // Delete the user from the database
       await deleteUserMutation.mutateAsync({ id: person.id });
@@ -128,9 +129,9 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
         navigate('/users', { replace: true });
       }
       
-      console.log('User deleted successfully');
+      logger.info('User deleted successfully', 'users', { userId: person.id });
     } catch (error) {
-      console.error('Failed to delete user:', error);
+      logger.error('Failed to delete user', 'users', { userId: person.id }, error as Error);
       // TODO: Show error notification to user
     }
   };
@@ -144,7 +145,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
     // Judge qualifications now managed through UserEditPanel
     
     // TODO: Save to backend
-    console.log('Saving qualifications:', qualifications);
+    logger.debug('Saving qualifications', 'users', { userId: person.id, qualificationsCount: qualifications.length });
   };
   
   const handleUserEditSave = async (userData: Partial<UserType>) => {
@@ -153,7 +154,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
       setFormData(prev => ({ ...prev, ...userData }));
       
       // Save to database using React Query mutation (this will auto-update the cache)
-      console.log('Saving user data:', userData);
+      logger.debug('Saving user data', 'users', { userId: person.id });
       await updateUserMutation.mutateAsync({
         id: person.id,
         updates: {
@@ -168,9 +169,9 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
         }
       });
       
-      console.log('User data saved successfully');
+      logger.info('User data saved successfully', 'users', { userId: person.id });
     } catch (error) {
-      console.error('Failed to save user data:', error);
+      logger.error('Failed to save user data', 'users', { userId: person.id }, error as Error);
       // TODO: Show error notification to user
     }
   };

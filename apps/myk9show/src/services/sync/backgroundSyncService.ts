@@ -5,6 +5,8 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { logger } from '@/services/LoggingService';
+
 export interface BackgroundSyncOptions {
   maxRetries: number;
   retryDelay: number; // Base delay in ms
@@ -165,7 +167,7 @@ export class BackgroundSyncService {
    */
   async forcSync(): Promise<number> {
     if (this.isProcessing) {
-      console.warn('Sync already in progress');
+      logger.warn('Sync already in progress', 'sync');
       return 0;
     }
 
@@ -294,7 +296,7 @@ export class BackgroundSyncService {
           }
 
         } catch (error) {
-          console.error('Error processing sync task:', error);
+          logger.error('Error processing sync task', 'sync', {}, error as Error);
           this.onSyncErrorCallbacks.forEach(callback => 
             callback(error instanceof Error ? error : new Error(String(error)), task)
           );
@@ -397,7 +399,7 @@ export class BackgroundSyncService {
       });
       window.dispatchEvent(event);
     } catch (error) {
-      console.warn('Failed to update local entity:', error);
+      logger.warn('Failed to update local entity', 'sync', {}, error as Error);
     }
   }
 
@@ -481,7 +483,7 @@ export class BackgroundSyncService {
         await (this.serviceWorkerRegistration as any).sync.register('background-sync');
       }
     } catch (error) {
-      console.warn('Service Worker registration failed:', error);
+      logger.warn('Service Worker registration failed', 'sync', {}, error as Error);
     }
   }
 
@@ -513,7 +515,7 @@ export class BackgroundSyncService {
         store.put(task);
       };
     } catch (error) {
-      console.warn('Failed to persist sync task:', error);
+      logger.warn('Failed to persist sync task', 'sync', {}, error as Error);
     }
   }
 
@@ -528,7 +530,7 @@ export class BackgroundSyncService {
         store.delete(taskId);
       };
     } catch (error) {
-      console.warn('Failed to remove persistent sync task:', error);
+      logger.warn('Failed to remove persistent sync task', 'sync', {}, error as Error);
     }
   }
 

@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Clock, Archive, Calendar } from 'lucide-react';
 import { useRBAC } from '@/hooks/useRBAC';
 import UnifiedSidebar, { SidebarGroup } from '@/components/common/UnifiedSidebar';
+import { logger } from '@/services/LoggingService';
 
 interface Show {
   id: string;
@@ -40,15 +41,15 @@ export const ShowGroupedSidebar: React.FC<ShowGroupedSidebarProps> = ({
 
   // Check if user can create shows - only check if RBAC is loaded
   const canCreateShows = !isLoading && hasPermission('show:create');
-  
+
   // Enhanced debug logging
-  console.log('🎪 ShowGroupedSidebar DEBUG:');
-  console.log('  - isLoading:', isLoading);
-  console.log('  - hasPermission("show:create"):', hasPermission('show:create'));
-  console.log('  - canCreateShows:', canCreateShows);
-  console.log('  - onAdd prop provided:', !!onAdd);
-  console.log('  - Final onAdd value:', canCreateShows ? onAdd : undefined);
-  
+  logger.debug('ShowGroupedSidebar permissions', 'shows', {
+    isLoading,
+    hasShowCreatePermission: hasPermission('show:create'),
+    canCreateShows,
+    onAddProvided: !!onAdd,
+  });
+
   // Debug logging
   // console.log('🎪 ShowGroupedSidebar - shows count:', shows.length);
   // console.log('🎪 ShowGroupedSidebar - selectedId:', selectedId);

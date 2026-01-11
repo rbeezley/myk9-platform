@@ -1,6 +1,7 @@
 // Query Performance Monitoring Service
 // Phase 0: Performance Infrastructure
 import { queryClient } from '@/lib/queryClient';
+import { logger } from '@/services/LoggingService';
 
 export interface QueryPerformanceMetrics {
   queryKey: string;
@@ -50,12 +51,12 @@ class QueryPerformanceMonitor {
 
         // Log slow queries in development
         if (process.env.NODE_ENV === 'development' && metric.duration > this.slowQueryThreshold) {
-          console.warn(`🐌 Slow query detected: ${queryKey} took ${metric.duration}ms`);
+          logger.warn('Slow query detected', 'performance', { queryKey, durationMs: metric.duration });
         }
 
         // Log errors
         if (metric.status === 'error' && metric.error) {
-          console.error(`❌ Query error: ${queryKey}`, metric.error);
+          logger.error('Query error', 'performance', { queryKey, error: metric.error });
         }
       }
     });
@@ -152,21 +153,15 @@ class QueryPerformanceMonitor {
     if (process.env.NODE_ENV !== 'development') return;
 
     const stats = this.getStats();
-    
-    console.group('🚀 Query Performance Summary');
-    console.log(`📊 Total Queries: ${stats.totalQueries}`);
-    console.log(`⏱️  Average Time: ${stats.averageTime}ms`);
-    console.log(`💾 Cache Hit Rate: ${(stats.cacheHitRate * 100).toFixed(1)}%`);
-    console.log(`❌ Error Rate: ${(stats.errorRate * 100).toFixed(1)}%`);
-    
-    if (stats.slowQueries.length > 0) {
-      console.log(`🐌 Slow Queries (>${this.slowQueryThreshold}ms):`);
-      stats.slowQueries.forEach(query => {
-        console.log(`  - ${query.queryKey}: ${query.duration}ms`);
-      });
-    }
-    
-    console.groupEnd();
+
+    logger.debug('Query Performance Summary', 'performance', {
+      totalQueries: stats.totalQueries,
+      averageTimeMs: stats.averageTime,
+      cacheHitRate: `${(stats.cacheHitRate * 100).toFixed(1)}%`,
+      errorRate: `${(stats.errorRate * 100).toFixed(1)}%`,
+      slowQueriesCount: stats.slowQueries.length,
+      slowQueries: stats.slowQueries.map(q => ({ queryKey: q.queryKey, durationMs: q.duration }))
+    });
   }
 
   // Detect performance regressions
@@ -221,7 +216,7 @@ if (process.env.NODE_ENV === 'development') {
   setInterval(() => {
     const regression = queryPerformanceMonitor.detectRegressions();
     if (regression.hasRegression) {
-      console.warn('⚠️ Performance regression detected:', regression.details);
+      logger.warn('Performance regression detected', 'performance', { details: regression.details });
     }
   }, 60 * 1000);
 }

@@ -1,6 +1,7 @@
 // Storage migration utilities for localStorage to IndexedDB
 import { createDatabase } from './connection';
 import type { MigrationOptions, MigrationProgress, MigrationResult, MigrationError, DatabaseAPI } from './types';
+import { logger } from '@/services/LoggingService';
 
 export class StorageMigration {
   private static instance: StorageMigration;
@@ -22,12 +23,12 @@ export class StorageMigration {
     const errors: MigrationError[] = [];
     
     try {
-      console.log(`Starting migration for ${options.localStorageKey} -> ${options.targetStore}`);
+      logger.info('Starting migration', 'migration', { from: options.localStorageKey, to: options.targetStore });
       
       // Check if migration already completed
       const migrationStatus = localStorage.getItem(`migration-${options.targetStore}-completed`);
       if (migrationStatus === 'true') {
-        console.log(`Migration for ${options.targetStore} already completed`);
+        logger.debug('Migration already completed', 'migration', { targetStore: options.targetStore });
         return {
           success: true,
           duration: 0,
@@ -42,7 +43,7 @@ export class StorageMigration {
       // 2. Export from localStorage
       const rawData = this.exportFromLocalStorage(options.localStorageKey);
       if (!rawData) {
-        console.log(`No data found in localStorage for ${options.localStorageKey}`);
+        logger.debug('No data found in localStorage', 'migration', { key: options.localStorageKey });
         await this.markComplete(options.targetStore);
         return {
           success: true,
@@ -97,7 +98,7 @@ export class StorageMigration {
       // 6. Mark migration complete
       await this.markComplete(options.targetStore);
       
-      console.log(`Migration completed for ${options.targetStore}: ${validatedData.length} records`);
+      logger.info('Migration completed', 'migration', { targetStore: options.targetStore, recordCount: validatedData.length });
       
       return {
         success: verified,
@@ -106,7 +107,7 @@ export class StorageMigration {
         errors
       };
     } catch (error) {
-      console.error(`Migration failed for ${options.targetStore}:`, error);
+      logger.error('Migration failed', 'migration', { targetStore: options.targetStore }, error as Error);
       await this.rollback(options.localStorageKey);
       throw error;
     }
@@ -117,7 +118,7 @@ export class StorageMigration {
     if (data) {
       const backupKey = `${key}-backup-${Date.now()}`;
       localStorage.setItem(backupKey, data);
-      console.log(`Backup created: ${backupKey}`);
+      logger.debug('Backup created', 'migration', { backupKey });
     }
   }
   
@@ -128,7 +129,7 @@ export class StorageMigration {
     try {
       return JSON.parse(data);
     } catch (error) {
-      console.error(`Failed to parse localStorage data for ${key}:`, error);
+      logger.error('Failed to parse localStorage data', 'migration', { key }, error as Error);
       return null;
     }
   }
@@ -231,7 +232,7 @@ export class StorageMigration {
           phase: 'importing'
         });
       } catch (error) {
-        console.error(`Failed to import batch starting at index ${i}:`, error);
+        logger.error('Failed to import batch', 'migration', { startIndex: i }, error as Error);
         
         // Try individual inserts for failed batch
         for (const item of batch) {
@@ -239,7 +240,7 @@ export class StorageMigration {
             await this.db.create(storeName, item as Record<string, unknown> & { id: string });
             processed++;
           } catch (itemError) {
-            console.error(`Failed to import individual item:`, itemError, item);
+            logger.error('Failed to import individual item', 'migration', { item }, itemError as Error);
           }
         }
         
@@ -283,11 +284,11 @@ export class StorageMigration {
       }
       
       const isValid = indexedDBCount >= expectedCount;
-      console.log(`Migration verification for ${storeName}: ${indexedDBCount}/${expectedCount} records`);
+      logger.debug('Migration verification', 'migration', { storeName, indexedDBCount, expectedCount });
       
       return isValid;
     } catch (error) {
-      console.error(`Verification failed for ${storeName}:`, error);
+      logger.error('Verification failed', 'migration', { storeName }, error as Error);
       return false;
     }
   }
@@ -298,7 +299,7 @@ export class StorageMigration {
   }
   
   private async rollback(localStorageKey: string): Promise<void> {
-    console.log(`Rolling back migration for ${localStorageKey}`);
+    logger.info('Rolling back migration', 'migration', { key: localStorageKey });
     // Find the most recent backup
     const backupKeys = Object.keys(localStorage)
       .filter(key => key.startsWith(`${localStorageKey}-backup-`))
@@ -309,7 +310,7 @@ export class StorageMigration {
       const latestBackup = localStorage.getItem(backupKeys[0]);
       if (latestBackup) {
         localStorage.setItem(localStorageKey, latestBackup);
-        console.log(`Restored from backup: ${backupKeys[0]}`);
+        logger.info('Restored from backup', 'migration', { backupKey: backupKeys[0] });
       }
     }
   }
@@ -346,7 +347,7 @@ export class StorageMigration {
       localStorage.removeItem(key);
     });
     
-    console.log(`Cleaned up ${toDelete.length} old backups for ${localStorageKey}`);
+    logger.debug('Cleaned up old backups', 'migration', { count: toDelete.length, key: localStorageKey });
   }
 }
 

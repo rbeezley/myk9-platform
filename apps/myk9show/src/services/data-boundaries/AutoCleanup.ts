@@ -8,6 +8,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { showIsolationService } from './ShowIsolation';
+import { logger } from '@/services/LoggingService';
 
 interface CleanupRule {
   /** Unique identifier for this cleanup rule */
@@ -154,7 +155,7 @@ export class AutoCleanupService {
    */
   addCleanupRule(rule: CleanupRule): void {
     this.rules.set(rule.id, rule);
-    console.log(`🧹 Added cleanup rule: ${rule.name}`);
+    logger.debug('Added cleanup rule', 'cleanup', { ruleName: rule.name, ruleId: rule.id });
   }
 
   /**
@@ -169,7 +170,7 @@ export class AutoCleanupService {
         clearTimeout(this.pendingCleanups.get(pendingKey)!);
         this.pendingCleanups.delete(pendingKey);
       }
-      console.log(`🗑️ Removed cleanup rule: ${ruleId}`);
+      logger.debug('Removed cleanup rule', 'cleanup', { ruleId });
     }
     return removed;
   }
@@ -185,12 +186,12 @@ export class AutoCleanupService {
    * Trigger cleanup based on a specific trigger
    */
   async triggerCleanup(
-    trigger: CleanupRule['trigger'], 
-    showId?: string, 
+    trigger: CleanupRule['trigger'],
+    showId?: string,
     forceImmediate: boolean = false
   ): Promise<void> {
     if (!this.isEnabled) {
-      console.log('🚫 Cleanup disabled, skipping trigger:', trigger);
+      logger.debug('Cleanup disabled, skipping trigger', 'cleanup', { trigger });
       return;
     }
 
@@ -199,11 +200,11 @@ export class AutoCleanupService {
       .filter(rule => rule.trigger === trigger);
 
     if (matchingRules.length === 0) {
-      console.log(`⚠️ No cleanup rules found for trigger: ${trigger}`);
+      logger.debug('No cleanup rules found for trigger', 'cleanup', { trigger });
       return;
     }
 
-    console.log(`🔄 Triggered cleanup for: ${trigger} (${matchingRules.length} rules)`);
+    logger.debug('Triggered cleanup', 'cleanup', { trigger, ruleCount: matchingRules.length });
 
     // Execute each matching rule
     for (const rule of matchingRules) {
@@ -221,7 +222,7 @@ export class AutoCleanupService {
   ): Promise<void> {
     // Check condition if provided
     if (rule.condition && !rule.condition()) {
-      console.log(`⏭️ Skipping cleanup rule ${rule.name}: condition not met`);
+      logger.debug('Skipping cleanup rule - condition not met', 'cleanup', { ruleName: rule.name });
       return;
     }
 
@@ -230,7 +231,7 @@ export class AutoCleanupService {
       let memoryFreedBytes = 0;
 
       try {
-        console.log(`🧹 Executing cleanup rule: ${rule.name}`);
+        logger.debug('Executing cleanup rule', 'cleanup', { ruleName: rule.name });
 
         // If no specific showId provided, clean all inactive shows
         const showsToClean = showId 
@@ -270,10 +271,10 @@ export class AutoCleanupService {
 
         this.addCleanupEvent(cleanupEvent);
 
-        console.log(`✅ Completed cleanup: ${rule.name} (freed ${(memoryFreedBytes / 1024 / 1024).toFixed(2)}MB in ${cleanupEvent.durationMs}ms)`);
+        logger.info('Completed cleanup', 'cleanup', { ruleName: rule.name, memoryFreedMB: (memoryFreedBytes / 1024 / 1024).toFixed(2), durationMs: cleanupEvent.durationMs });
 
       } catch (error) {
-        console.error(`❌ Cleanup rule ${rule.name} failed:`, error);
+        logger.error('Cleanup rule failed', 'cleanup', { ruleName: rule.name }, error as Error);
       }
     };
 
@@ -295,7 +296,7 @@ export class AutoCleanupService {
       }, rule.delayMs);
 
       this.pendingCleanups.set(pendingKey, timeoutId);
-      console.log(`⏲️ Scheduled cleanup: ${rule.name} in ${rule.delayMs}ms`);
+      logger.debug('Scheduled cleanup', 'cleanup', { ruleName: rule.name, delayMs: rule.delayMs });
     }
   }
 
@@ -303,7 +304,7 @@ export class AutoCleanupService {
    * Default cleanup implementation
    */
   private async defaultCleanup(showId: string, dataTypes: string[], aggressive: boolean): Promise<void> {
-    console.log(`🧹 Default cleanup for show ${showId}: ${dataTypes.join(', ')} (aggressive: ${aggressive})`);
+    logger.debug('Default cleanup for show', 'cleanup', { showId, dataTypes, aggressive });
 
     // Clean up each data type
     for (const dataType of dataTypes) {
@@ -334,7 +335,7 @@ export class AutoCleanupService {
           showIsolationService.unregisterData(showId, dataType);
         }
       } catch (error) {
-        console.warn(`Failed to cleanup ${dataType} for show ${showId}:`, error);
+        logger.warn('Failed to cleanup data type for show', 'cleanup', { dataType, showId }, error as Error);
       }
     }
   }
@@ -405,7 +406,7 @@ export class AutoCleanupService {
    */
   setEnabled(enabled: boolean): void {
     this.isEnabled = enabled;
-    console.log(`🧹 Automatic cleanup ${enabled ? 'enabled' : 'disabled'}`);
+    logger.info('Automatic cleanup status changed', 'cleanup', { enabled });
     
     if (!enabled) {
       // Cancel all pending cleanups
@@ -427,7 +428,7 @@ export class AutoCleanupService {
    * Manually trigger cleanup for a specific show
    */
   async cleanupShow(showId: string, aggressive: boolean = false): Promise<void> {
-    console.log(`🔧 Manual cleanup triggered for show: ${showId}`);
+    logger.info('Manual cleanup triggered for show', 'cleanup', { showId, aggressive });
     
     const rule: CleanupRule = {
       id: 'manual',
@@ -455,7 +456,7 @@ export class AutoCleanupService {
     this.rules.clear();
     this.cleanupHistory = [];
 
-    console.log('🚮 AutoCleanupService destroyed');
+    logger.info('AutoCleanupService destroyed', 'cleanup');
   }
 }
 

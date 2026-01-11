@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { logger } from '@/services/LoggingService';
 import { useTrialStore } from '@/store/trialStore';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useTemplateStore } from '@/store/templateStore';
@@ -42,9 +43,9 @@ const TrialDetailsPage: React.FC = () => {
 
   // Set selected trial based on URL parameter
   useEffect(() => {
-    console.log('TrialDetailsPage useEffect - trialId from URL:', trialId);
+    logger.debug('TrialDetailsPage useEffect - trialId from URL', 'trials', { trialId });
     if (trialId) {
-      console.log('TrialDetailsPage - Selecting trial:', trialId);
+      logger.debug('TrialDetailsPage - Selecting trial', 'trials', { trialId });
       // Always select the trial from URL, regardless of current state
       selectTrial(trialId);
     }
@@ -65,10 +66,12 @@ const TrialDetailsPage: React.FC = () => {
   
   // Debug logging
   useEffect(() => {
-    console.log('TrialDetailsPage - trialId from URL:', trialId);
-    console.log('TrialDetailsPage - selectedTrialId:', selectedTrialId);
-    console.log('TrialDetailsPage - currentTrial:', currentTrial);
-    console.log('TrialDetailsPage - available trials:', trials.map(t => ({ id: t.id, type: t.type })));
+    logger.debug('TrialDetailsPage - state update', 'trials', {
+      trialIdFromUrl: trialId,
+      selectedTrialId,
+      currentTrialId: currentTrial?.id,
+      availableTrials: trials.map(t => ({ id: t.id, type: t.type }))
+    });
   }, [trialId, selectedTrialId, currentTrial, trials]);
   
   // Get the parent show's type
@@ -80,9 +83,11 @@ const TrialDetailsPage: React.FC = () => {
   
   // Debug logging for show type inheritance
   if (currentTrial) {
-    console.log('TrialDetailsPage - Current trial:', currentTrial);
-    console.log('TrialDetailsPage - Parent show:', parentShow);
-    console.log('TrialDetailsPage - Show type:', showType);
+    logger.debug('TrialDetailsPage - show type inheritance', 'trials', {
+      currentTrialId: currentTrial.id,
+      parentShowId: parentShow?.id,
+      showType
+    });
   }
 
   // Handle case where trial doesn't exist
@@ -319,21 +324,21 @@ const TrialDetailsPage: React.FC = () => {
     
     // Provide feedback about duplicates
     if (duplicateClasses.length > 0) {
-      console.log(`Skipped ${duplicateClasses.length} duplicate classes:`);
-      duplicateClasses.forEach(cls => 
-        console.log(`- ${cls.element} ${cls.level} ${cls.section}`)
-      );
+      logger.debug('Skipped duplicate classes', 'trials', {
+        count: duplicateClasses.length,
+        classes: duplicateClasses.map(cls => `${cls.element} ${cls.level} ${cls.section}`)
+      });
     }
-    
+
     if (newClasses.length > 0) {
-      console.log(`Added ${newClasses.length} new classes from template: ${template.templateName}`);
+      logger.info('Added classes from template', 'trials', { count: newClasses.length, templateName: template.templateName });
     } else {
-      console.log('No new classes were added - all selected classes already exist in this trial');
+      logger.debug('No new classes added - all selected classes already exist', 'trials');
     }
   };
 
   const handleEditClass = (classItem: TrialClass) => {
-    console.log('Edit class:', classItem);
+    logger.debug('Edit class', 'trials', { classId: classItem.id, element: classItem.element });
     setSelectedClassForEdit(classItem);
     setEditClassPanelOpen(true);
   };
@@ -346,7 +351,7 @@ const TrialDetailsPage: React.FC = () => {
 
   const handleConfirmDeleteClass = () => {
     if (selectedClassForDelete && currentTrial) {
-      console.log('Delete class:', selectedClassForDelete);
+      logger.debug('Delete class', 'trials', { classId: selectedClassForDelete.id, element: selectedClassForDelete.element });
       
       // Remove the class from the trial's classes array
       const updatedClasses = currentTrial.classes?.filter(cls => 

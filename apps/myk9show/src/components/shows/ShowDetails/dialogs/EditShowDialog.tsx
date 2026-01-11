@@ -8,6 +8,7 @@ import { useTemplateStore } from "@/store/templateStore";
 import { useClubStore } from "@/store/clubStore";
 import { useUserStore } from "@/store/userStore";
 import { ShowJudgeAssignment } from "@/types/judge-types";
+import { logger } from '@/services/LoggingService';
 
 export interface ShowFormData {
   name: string;
@@ -44,13 +45,11 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({ open, onOpenChange, for
   
   // Get all people for personnel selection (chairman, secretary, steward)
   const allPeople = React.useMemo(() => {
-    console.log('🔍 EditShowDialog people data:', {
+    logger.debug('EditShowDialog people data', 'shows', {
       peopleLength: people?.length || 0,
-      people: people?.slice(0, 3), // First 3 for debugging
-      hasFirstPerson: !!people?.[0],
-      firstPersonStructure: people?.[0] ? Object.keys(people[0]) : null
+      hasFirstPerson: !!people?.[0]
     });
-    
+
     return people.map(person => ({
       id: person.id,
       name: `${person.firstName} ${person.lastName}`,
@@ -122,12 +121,14 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({ open, onOpenChange, for
     
     // Convert Set to sorted array
     const uniqueShowTypes = Array.from(showTypesSet).sort();
-    
+
     // Debug logging
-    console.log('EditShowDialog - Templates:', templates);
-    console.log('EditShowDialog - Active templates:', templates.filter(t => t.isActive));
-    console.log('EditShowDialog - Available show types:', uniqueShowTypes);
-    
+    logger.debug('EditShowDialog templates and show types', 'shows', {
+      templatesCount: templates.length,
+      activeTemplatesCount: templates.filter(t => t.isActive).length,
+      availableShowTypes: uniqueShowTypes
+    });
+
     // If no templates are configured, return empty array with a message
     return uniqueShowTypes;
   }, [templates]);
@@ -137,7 +138,7 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({ open, onOpenChange, for
   
   // Debug: log clubs to see if they're loaded
   React.useEffect(() => {
-    console.log('Available clubs:', clubs);
+    logger.debug('Available clubs', 'shows', { clubsCount: clubs.length });
   }, [clubs]);
 
   const handleCancel = () => {
@@ -435,7 +436,7 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({ open, onOpenChange, for
                     onClick={() => {
                       // Reload people from database instead of using mock data
                       const { loadUsers } = useUserStore.getState();
-                      loadUsers().catch(console.error);
+                      loadUsers().catch((error) => logger.error('Failed to load users', 'shows', {}, error as Error));
                     }}
                     className="text-xs"
                   >

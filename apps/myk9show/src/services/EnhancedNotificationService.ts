@@ -2,6 +2,7 @@ import { notificationService } from './NotificationService';
 import { NotificationMessage, NotificationType as AuditNotificationType } from '@/types/audit-types';
 import { auditService } from './AuditService';
 import { AuditAction } from '@/types/audit-types';
+import { logger } from '@/services/LoggingService';
 
 export enum NotificationPriority {
   LOW = 'low',
@@ -471,12 +472,12 @@ export class EnhancedNotificationService {
           
         case NotificationChannel.EMAIL:
           // Email delivery would be implemented here
-          console.log('Email notification delivery not implemented');
+          logger.debug('Email notification delivery not implemented', 'notification');
           break;
-          
+
         case NotificationChannel.SMS:
           // SMS delivery would be implemented here
-          console.log('SMS notification delivery not implemented');
+          logger.debug('SMS notification delivery not implemented', 'notification');
           break;
           
         case NotificationChannel.PUSH:
@@ -500,7 +501,7 @@ export class EnhancedNotificationService {
       });
 
     } catch (error) {
-      console.error(`Failed to deliver notification via ${channel}:`, error);
+      logger.error('Failed to deliver notification', 'notification', { channel, notificationId: notification.id }, error as Error);
     }
   }
 
@@ -638,7 +639,7 @@ export class EnhancedNotificationService {
         );
       }
     } catch (error) {
-      console.error('Failed to load notifications:', error);
+      logger.error('Failed to load notifications', 'notification', {}, error as Error);
     }
   }
 
@@ -647,7 +648,7 @@ export class EnhancedNotificationService {
       const notifications = Array.from(this.notifications.values());
       localStorage.setItem('enhanced_notifications', JSON.stringify(notifications));
     } catch (error) {
-      console.error('Failed to save notifications:', error);
+      logger.error('Failed to save notifications', 'notification', {}, error as Error);
     }
   }
 
@@ -659,7 +660,7 @@ export class EnhancedNotificationService {
         this.preferences = new Map(Object.entries(parsed));
       }
     } catch (error) {
-      console.error('Failed to load notification preferences:', error);
+      logger.error('Failed to load notification preferences', 'notification', {}, error as Error);
     }
   }
 
@@ -668,7 +669,7 @@ export class EnhancedNotificationService {
       const preferences = Object.fromEntries(this.preferences);
       localStorage.setItem('notification_preferences', JSON.stringify(preferences));
     } catch (error) {
-      console.error('Failed to save notification preferences:', error);
+      logger.error('Failed to save notification preferences', 'notification', {}, error as Error);
     }
   }
 }

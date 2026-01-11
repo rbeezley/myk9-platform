@@ -1,8 +1,10 @@
 /**
  * Lazy Loading Metrics - Performance monitoring for code splitting
- * 
+ *
  * Tracks loading times, bundle sizes, and user interactions with lazy components
  */
+
+import { logger } from '@/services/LoggingService';
 
 interface LazyLoadMetric {
   componentName: string;
@@ -26,9 +28,9 @@ class LazyLoadingMetrics {
     
     this.metrics.set(componentName, metric);
     
-    // Report to console in development
+    // Report in development
     if (process.env.NODE_ENV === 'development') {
-      console.log(`🔄 Starting to load lazy component: ${componentName}`);
+      logger.debug('Starting to load lazy component', 'performance', { componentName });
     }
   }
 
@@ -49,11 +51,9 @@ class LazyLoadingMetrics {
     this.metrics.set(componentName, updatedMetric);
     this.notifyListeners(updatedMetric);
 
-    // Report to console in development
+    // Report in development
     if (process.env.NODE_ENV === 'development') {
-      const status = success ? '✅' : '❌';
-      const timeStr = `${loadTime.toFixed(2)}ms`;
-      console.log(`${status} Lazy component ${componentName} loaded in ${timeStr}${error ? ` (Error: ${error})` : ''}`);
+      logger.debug('Lazy component loaded', 'performance', { componentName, loadTimeMs: loadTime.toFixed(2), success, error });
     }
 
     // Report performance to analytics in production
@@ -126,7 +126,7 @@ class LazyLoadingMetrics {
       try {
         listener(metric);
       } catch (e) {
-        console.error('Error in lazy loading metric listener:', e);
+        logger.error('Error in lazy loading metric listener', 'performance', { componentName: metric.componentName }, e as Error);
       }
     });
   }
@@ -199,21 +199,12 @@ export const trackLazyComponentRetry = (componentName: string) => {
 export const logLazyLoadingReport = () => {
   if (process.env.NODE_ENV === 'development') {
     const report = lazyLoadingMetrics.generateReport();
-    console.group('📊 Lazy Loading Performance Report');
-    console.log('Total components loaded:', report.totalComponents);
-    console.log('Average load time:', `${report.averageLoadTime.toFixed(2)}ms`);
-    console.log('Failure rate:', `${(report.failureRate * 100).toFixed(1)}%`);
-    
-    if (report.slowestComponents.length > 0) {
-      console.log('Slowest components:');
-      console.table(report.slowestComponents);
-    }
-    
-    if (report.failedComponents.length > 0) {
-      console.log('Failed components:');
-      console.table(report.failedComponents);
-    }
-    
-    console.groupEnd();
+    logger.debug('Lazy Loading Performance Report', 'performance', {
+      totalComponents: report.totalComponents,
+      averageLoadTimeMs: report.averageLoadTime.toFixed(2),
+      failureRate: `${(report.failureRate * 100).toFixed(1)}%`,
+      slowestComponents: report.slowestComponents,
+      failedComponents: report.failedComponents
+    });
   }
 };

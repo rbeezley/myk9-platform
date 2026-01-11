@@ -11,6 +11,8 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-nocheck - Development service with type mismatches, needs refactoring
 
+import { logger } from '@/services/LoggingService';
+
 export interface BundleAnalysis {
   totalSize: number;
   chunkSizes: ChunkInfo[];
@@ -76,7 +78,7 @@ export class BundleOptimizer {
    * Analyze current bundle composition
    */
   public async analyzeBundles(): Promise<BundleAnalysis> {
-    console.log('📊 Analyzing bundle composition...');
+    logger.info('Analyzing bundle composition', 'bundle');
     
     // Analyze chunk sizes
     const chunkSizes = await this.analyzeChunkSizes();
@@ -286,9 +288,9 @@ export class BundleOptimizer {
     if ('coverage' in console && process.env.NODE_ENV === 'development') {
       try {
         // This would require DevTools Protocol access
-        console.log('Coverage API detected - detailed analysis possible');
+        logger.debug('Coverage API detected - detailed analysis possible', 'bundle');
       } catch (error) {
-        console.warn('Coverage API not accessible:', error);
+        logger.warn('Coverage API not accessible', 'bundle', {}, error as Error);
       }
     }
 
@@ -468,23 +470,23 @@ export class BundleOptimizer {
       await this.analyzeBundles();
     }
 
-    console.log('🔧 Applying bundle optimizations...');
+    logger.info('Applying bundle optimizations', 'bundle');
 
     for (const strategy of this.strategies) {
       try {
-        console.log(`Applying: ${strategy.description}`);
+        logger.debug('Applying optimization strategy', 'bundle', { strategy: strategy.description });
         await strategy.apply();
-        
+
         const verified = await strategy.verify();
         if (verified) {
           this.appliedOptimizations.add(strategy.name);
-          console.log(`✅ ${strategy.name} applied successfully`);
+          logger.info('Strategy applied successfully', 'bundle', { strategy: strategy.name });
         } else {
-          console.warn(`⚠️ ${strategy.name} verification failed`);
+          logger.warn('Strategy verification failed', 'bundle', { strategy: strategy.name });
           await strategy.rollback();
         }
       } catch (error) {
-        console.error(`❌ Failed to apply ${strategy.name}:`, error);
+        logger.error('Failed to apply strategy', 'bundle', { strategy: strategy.name }, error as Error);
         await strategy.rollback();
       }
     }
@@ -536,7 +538,7 @@ export class BundleOptimizer {
   private async loadLazyComponent(componentName: string, container: HTMLElement): Promise<void> {
     try {
       // Simulate dynamic component loading
-      console.log(`Loading lazy component: ${componentName}`);
+      logger.debug('Loading lazy component', 'bundle', { componentName });
       container.classList.add('component-loading');
       
       // Add loading indicator
@@ -554,7 +556,7 @@ export class BundleOptimizer {
       container.classList.add('component-loaded');
       
     } catch (error) {
-      console.error(`Failed to load component ${componentName}:`, error);
+      logger.error('Failed to load component', 'bundle', { componentName }, error as Error);
       container.classList.add('component-error');
     }
   }
@@ -573,7 +575,7 @@ export class BundleOptimizer {
       // Remove polyfill scripts
       const polyfillScripts = document.querySelectorAll('script[src*="polyfill"]');
       polyfillScripts.forEach(script => {
-        console.log('Removing unnecessary polyfill:', script.getAttribute('src'));
+        logger.debug('Removing unnecessary polyfill', 'bundle', { src: script.getAttribute('src') });
         script.remove();
       });
     }
@@ -591,7 +593,7 @@ export class BundleOptimizer {
   private implementTreeShaking(): void {
     // Runtime tree shaking simulation
     // In a real implementation, this would be done at build time
-    console.log('Tree shaking optimization applied');
+    logger.debug('Tree shaking optimization applied', 'bundle');
   }
 
   private async applyResourcePrioritization(): Promise<void> {
@@ -718,7 +720,7 @@ export class BundleOptimizer {
   }
 
   private async rollbackDependencyOptimization(): Promise<void> {
-    console.log('Dependency optimization rollback completed');
+    logger.debug('Dependency optimization rollback completed', 'bundle');
   }
 
   private async rollbackResourcePrioritization(): Promise<void> {

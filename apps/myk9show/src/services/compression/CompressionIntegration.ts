@@ -1,6 +1,7 @@
 import { CompressionService } from './CompressionService';
 import { CompressionOptions, CompressionResult } from '../../types/performance-types';
 import { SyncPayload, SyncOperation } from '../../types/sync-types';
+import { logger } from '@/services/LoggingService';
 
 /**
  * Integration service that adds compression capabilities to the sync system
@@ -59,7 +60,7 @@ export class CompressionIntegration {
       serialized = JSON.stringify(payload);
     } catch (error) {
       // Handle serialization errors (like circular references)
-      console.error('Failed to serialize sync payload:', error);
+      logger.error('Failed to serialize sync payload', 'compression', {}, error as Error);
       return {
         compressed: false,
         data: payload,
@@ -101,7 +102,7 @@ export class CompressionIntegration {
 
       // If compression takes too long, skip it for future similar payloads
       if (compressionTime > this.maxCompressionTime) {
-        console.warn(`Compression took ${compressionTime}ms, which exceeds threshold of ${this.maxCompressionTime}ms`);
+        logger.warn(`Compression took ${compressionTime}ms, which exceeds threshold of ${this.maxCompressionTime}ms`, 'compression', { compressionTime, maxCompressionTime: this.maxCompressionTime });
       }
 
       // Only use compression if it provides meaningful benefit
@@ -131,7 +132,7 @@ export class CompressionIntegration {
         }
       };
     } catch (error) {
-      console.error('Compression failed for sync payload:', error);
+      logger.error('Compression failed for sync payload', 'compression', {}, error as Error);
       return {
         compressed: false,
         data: payload,
@@ -155,7 +156,7 @@ export class CompressionIntegration {
       const decompressed = await this.compressionService.decompress(data, metadata);
       return JSON.parse(decompressed);
     } catch (error) {
-      console.error('Decompression failed for sync payload:', error);
+      logger.error('Decompression failed for sync payload', 'compression', {}, error as Error);
       throw new Error(`Failed to decompress sync payload: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -217,7 +218,7 @@ export class CompressionIntegration {
         }
       };
     } catch (error) {
-      console.error('Failed to compress sync batch:', error);
+      logger.error('Failed to compress sync batch', 'compression', {}, error as Error);
       const serialized = JSON.stringify(operations);
       const size = new TextEncoder().encode(serialized).length;
       return {
@@ -410,7 +411,7 @@ export class CompressionIntegration {
           compressedSize: result.compressedSize
         });
       } catch (error) {
-        console.warn(`Failed to test ${algorithm} compression:`, error);
+        logger.warn(`Failed to test ${algorithm} compression`, 'compression', { algorithm }, error as Error);
       }
     }
 

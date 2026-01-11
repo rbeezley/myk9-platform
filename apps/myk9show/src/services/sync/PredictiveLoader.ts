@@ -2,6 +2,7 @@ import { useDogStore } from '@/store/dogStore';
 import { useUserStore } from '@/store/userStore';
 import { useShowStore } from '@/store/showStore';
 import { useClubStore } from '@/store/clubStore';
+import { logger } from '@/services/LoggingService';
 
 /**
  * Navigation pattern for tracking user movement between routes
@@ -457,11 +458,11 @@ export class PredictiveLoader {
     try {
       await this.executePreloadTask(pendingTask);
       pendingTask.status = 'completed';
-      console.log(`✅ Preloaded: ${pendingTask.type}:${pendingTask.target}`);
+      logger.debug('Preloaded', 'prefetch', { type: pendingTask.type, target: pendingTask.target });
     } catch (error) {
       pendingTask.status = 'failed';
       pendingTask.retries += 1;
-      console.warn(`❌ Preload failed: ${pendingTask.type}:${pendingTask.target}`, error);
+      logger.warn('Preload failed', 'prefetch', { type: pendingTask.type, target: pendingTask.target }, error as Error);
 
       // Retry with lower priority if retries < 3
       if (pendingTask.retries < 3) {
@@ -555,7 +556,7 @@ export class PredictiveLoader {
    */
   private async preloadSearchResults(query: string): Promise<void> {
     // This would pre-execute common searches
-    console.log(`Preloading search results for: ${query}`);
+    logger.debug('Preloading search results', 'prefetch', { query });
     await new Promise(resolve => setTimeout(resolve, 200));
   }
 
@@ -616,7 +617,7 @@ export class PredictiveLoader {
       const data = Array.from(this.navigationPatterns.entries());
       localStorage.setItem('myk9show-nav-patterns', JSON.stringify(data));
     } catch (error) {
-      console.warn('Failed to save navigation patterns:', error);
+      logger.warn('Failed to save navigation patterns', 'prefetch', {}, error as Error);
     }
   }
 
@@ -628,7 +629,7 @@ export class PredictiveLoader {
       const data = Array.from(this.relationshipHints.entries());
       localStorage.setItem('myk9show-relationship-hints', JSON.stringify(data));
     } catch (error) {
-      console.warn('Failed to save relationship hints:', error);
+      logger.warn('Failed to save relationship hints', 'prefetch', {}, error as Error);
     }
   }
 
@@ -657,7 +658,7 @@ export class PredictiveLoader {
         }
       }
     } catch (error) {
-      console.warn('Failed to load predictive data from storage:', error);
+      logger.warn('Failed to load predictive data from storage', 'prefetch', {}, error as Error);
     }
   }
 }

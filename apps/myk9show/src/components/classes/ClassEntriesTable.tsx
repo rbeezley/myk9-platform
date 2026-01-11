@@ -1,5 +1,6 @@
 import { Pencil, Clock, Trash2, Plus, Eye, MoreVertical, Save, AlertCircle, CheckCircle, Download, Keyboard } from "lucide-react";
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { logger } from '@/services/LoggingService';
 import { EntryData } from './types/classTypes';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -314,7 +315,7 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
     setSubmitError(null);
 
     try {
-      console.log('🔄 Starting to submit changes:', changedEntries);
+      logger.debug('Starting to submit changes', 'classes', { entriesCount: changedEntries.length });
       
       for (const { entryId, data } of changedEntries) {
         const updateData = {
@@ -324,12 +325,11 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
           placement: data.placement
         };
         
-        console.log('📤 Updating entry:', entryId, 'with data:', updateData);
-        console.log('📋 Original data was:', data.originalData);
+        logger.debug('Updating entry', 'classes', { entryId, updateData });
         
         await onResultUpdate(entryId, updateData);
         
-        console.log('✅ Entry updated successfully:', entryId);
+        logger.debug('Entry updated successfully', 'classes', { entryId });
       }
 
       // Clear edit data and errors after successful submission
@@ -337,10 +337,9 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
       setErrors([]);
       
       // Show success message
-      console.log(`✅ Successfully submitted ${changedEntries.length} changes`);
+      logger.info('Successfully submitted changes', 'classes', { changesCount: changedEntries.length });
     } catch (error) {
-      console.error('❌ Failed to submit changes:', error);
-      console.error('📊 Failed entries:', changedEntries);
+      logger.error('Failed to submit changes', 'classes', { entriesCount: changedEntries.length }, error as Error);
       const errorMsg = error instanceof Error ? error.message : 'Failed to submit changes';
       setSubmitError(errorMsg);
       setErrors(prev => [...prev, {

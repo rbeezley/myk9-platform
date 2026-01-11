@@ -1,5 +1,6 @@
 import { StateStorage } from 'zustand/middleware';
 import { del, get, getMany, setMany, clear } from 'idb-keyval';
+import { logger } from '@/services/LoggingService';
 
 interface CacheEntry<T = unknown> {
   data: T;
@@ -87,7 +88,7 @@ class EnhancedStorageAdapter implements StateStorage {
       this.updateMetrics('miss', startTime);
       return null;
     } catch (error) {
-      console.error('Enhanced storage getItem error:', error);
+      logger.error('Enhanced storage getItem error', 'storage', { key }, error as Error);
       return null;
     }
   }
@@ -113,7 +114,7 @@ class EnhancedStorageAdapter implements StateStorage {
       this.scheduleFlush();
       
     } catch (error) {
-      console.error('Enhanced storage setItem error:', error);
+      logger.error('Enhanced storage setItem error', 'storage', { key }, error as Error);
     }
   }
   
@@ -123,7 +124,7 @@ class EnhancedStorageAdapter implements StateStorage {
       this.writeQueue.delete(key);
       await del(key);
     } catch (error) {
-      console.error('Enhanced storage removeItem error:', error);
+      logger.error('Enhanced storage removeItem error', 'storage', { key }, error as Error);
     }
   }
   
@@ -133,7 +134,7 @@ class EnhancedStorageAdapter implements StateStorage {
       this.writeQueue.clear();
       await clear();
     } catch (error) {
-      console.error('Enhanced storage clear error:', error);
+      logger.error('Enhanced storage clear error', 'storage', {}, error as Error);
     }
   }
   
@@ -194,7 +195,7 @@ class EnhancedStorageAdapter implements StateStorage {
       return results;
       
     } catch (error) {
-      console.error('Enhanced storage getMany error:', error);
+      logger.error('Enhanced storage getMany error', 'storage', { keys }, error as Error);
       return keys.map(() => null);
     }
   }
@@ -226,7 +227,7 @@ class EnhancedStorageAdapter implements StateStorage {
       this.scheduleFlush();
       
     } catch (error) {
-      console.error('Enhanced storage setMany error:', error);
+      logger.error('Enhanced storage setMany error', 'storage', { entriesCount: entries.length }, error as Error);
     }
   }
   
@@ -341,7 +342,7 @@ class EnhancedStorageAdapter implements StateStorage {
     try {
       await setMany(entries);
     } catch (error) {
-      console.error('Enhanced storage flush error:', error);
+      logger.error('Enhanced storage flush error', 'storage', { entriesCount: entries.length }, error as Error);
       // Re-queue failed writes
       entries.forEach(([key, value]) => {
         this.writeQueue.set(key, value);

@@ -1,17 +1,18 @@
 /**
  * Utility to export all templates from localStorage to a format
  * that can be added to mockTemplatesWithFields.ts
- * 
+ *
  * Run this in the browser console, then copy the output
  */
 import { ClassTemplate } from '@/types/template.types';
+import { logger } from '@/services/LoggingService';
 
 export const exportAllTemplatesToFile = () => {
   // Get templates from localStorage
   const storage = JSON.parse(localStorage.getItem('template-storage') || '{}');
   const templates = storage?.state?.templates || [];
-  
-  console.log(`Found ${templates.length} templates in localStorage\n`);
+
+  logger.info('Templates found in localStorage', 'export', { count: templates.length });
   
   // Generate TypeScript code for each template
   let output = '// Exported Templates from localStorage\n\n';
@@ -60,14 +61,16 @@ export const exportAllTemplatesToFile = () => {
     output += `//   ${constName},\n`;
   });
   output += '// ]\n';
-  
-  console.log(output);
-  console.log('\n\n=== COPY EVERYTHING ABOVE THIS LINE ===\n');
-  console.log('Instructions:');
-  console.log('1. Copy the output above');
-  console.log('2. Add it to /src/data/mockTemplatesWithFields.ts before the STRUCTURED_TEMPLATES export');
-  console.log('3. Update the STRUCTURED_TEMPLATES array to include your templates');
-  
+
+  logger.info('Template export completed', 'export', {
+    output,
+    instructions: [
+      'Copy the output above',
+      'Add it to /src/data/mockTemplatesWithFields.ts before the STRUCTURED_TEMPLATES export',
+      'Update the STRUCTURED_TEMPLATES array to include your templates'
+    ]
+  });
+
   // Also return the data for potential file saving
   return {
     templates,

@@ -1,5 +1,6 @@
 import { StateStorage } from 'zustand/middleware';
 import { del, get, getMany, setMany, clear } from 'idb-keyval';
+import { logger } from '@/services/LoggingService';
 
 interface CacheEntry<T = unknown> {
   data: T;
@@ -111,7 +112,7 @@ class OptimizedStorageAdapter implements StateStorage {
       this.updateMetrics('miss', startTime);
       return null;
     } catch (error) {
-      console.error('Optimized storage getItem error:', error);
+      logger.error('Optimized storage getItem error', 'storage', { key }, error as Error);
       return null;
     }
   }
@@ -139,7 +140,7 @@ class OptimizedStorageAdapter implements StateStorage {
       this.scheduleFlush();
       
     } catch (error) {
-      console.error('Optimized storage setItem error:', error);
+      logger.error('Optimized storage setItem error', 'storage', { key }, error as Error);
     }
   }
   
@@ -150,7 +151,7 @@ class OptimizedStorageAdapter implements StateStorage {
       this.writeQueue.delete(key);
       await del(key);
     } catch (error) {
-      console.error('Optimized storage removeItem error:', error);
+      logger.error('Optimized storage removeItem error', 'storage', { key }, error as Error);
     }
   }
   
@@ -161,7 +162,7 @@ class OptimizedStorageAdapter implements StateStorage {
       this.writeQueue.clear();
       await clear();
     } catch (error) {
-      console.error('Optimized storage clear error:', error);
+      logger.error('Optimized storage clear error', 'storage', {}, error as Error);
     }
   }
   
@@ -223,7 +224,7 @@ class OptimizedStorageAdapter implements StateStorage {
       return results;
       
     } catch (error) {
-      console.error('Optimized storage getMany error:', error);
+      logger.error('Optimized storage getMany error', 'storage', { keys }, error as Error);
       return keys.map(() => null);
     }
   }
@@ -338,7 +339,7 @@ class OptimizedStorageAdapter implements StateStorage {
       // Use batch operations for better performance
       await setMany(entries);
     } catch (error) {
-      console.error('Optimized storage flush error:', error);
+      logger.error('Optimized storage flush error', 'storage', { entriesCount: entries.length }, error as Error);
       // Re-queue failed writes
       entries.forEach(([key, value]) => {
         this.writeQueue.set(key, value);

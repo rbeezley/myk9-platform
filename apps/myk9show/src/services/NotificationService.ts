@@ -4,6 +4,7 @@
  */
 
 import { NotificationMessage, NotificationType } from '@/types/audit-types';
+import { logger } from '@/services/LoggingService';
 
 export interface NotificationHandler {
   (message: NotificationMessage): void;
@@ -50,7 +51,7 @@ export class NotificationService {
       this.ws = new WebSocket(url);
 
       this.ws.onopen = () => {
-        console.log('WebSocket connected');
+        logger.info('WebSocket connected', 'notifications');
         this.isConnecting = false;
         this.reconnectAttempts = 0;
         this.startHeartbeat();
@@ -62,27 +63,27 @@ export class NotificationService {
           const message = JSON.parse(event.data) as NotificationMessage;
           this.handleMessage(message);
         } catch (error) {
-          console.error('Failed to parse WebSocket message:', error);
+          logger.error('Failed to parse WebSocket message', 'notifications', {}, error as Error);
         }
       };
 
       this.ws.onclose = (event) => {
-        console.log('WebSocket disconnected', event.code, event.reason);
+        logger.info('WebSocket disconnected', 'notifications', { code: event.code, reason: event.reason });
         this.isConnecting = false;
         this.stopHeartbeat();
-        
+
         if (!event.wasClean) {
           this.scheduleReconnect();
         }
       };
 
       this.ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
+        logger.error('WebSocket error', 'notifications', {}, error as Error);
         this.isConnecting = false;
       };
 
     } catch (error) {
-      console.error('Failed to connect WebSocket:', error);
+      logger.error('Failed to connect WebSocket', 'notifications', {}, error as Error);
       this.isConnecting = false;
       this.scheduleReconnect();
     }
@@ -176,7 +177,7 @@ export class NotificationService {
         try {
           handler(message);
         } catch (error) {
-          console.error('Error in notification handler:', error);
+          logger.error('Error in notification handler', 'notifications', { channel: message.channel }, error as Error);
         }
       });
     }
@@ -189,7 +190,7 @@ export class NotificationService {
         try {
           handler(message);
         } catch (error) {
-          console.error('Error in wildcard notification handler:', error);
+          logger.error('Error in wildcard notification handler', 'notifications', { channel: wildcardChannel }, error as Error);
         }
       });
     }
@@ -200,7 +201,7 @@ export class NotificationService {
       try {
         this.ws.send(JSON.stringify(message));
       } catch (error) {
-        console.error('Failed to send WebSocket message:', error);
+        logger.error('Failed to send WebSocket message', 'notifications', {}, error as Error);
         this.queueMessage(message);
       }
     } else {
@@ -226,7 +227,7 @@ export class NotificationService {
 
   private scheduleReconnect(): void {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error('Max reconnection attempts reached');
+      logger.error('Max reconnection attempts reached', 'notifications', { attempts: this.maxReconnectAttempts });
       return;
     }
 
@@ -238,7 +239,7 @@ export class NotificationService {
     setTimeout(() => {
       if (this.config) {
         this.reconnectAttempts++;
-        console.log(`Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+        logger.debug('Attempting to reconnect', 'notifications', { attempt: this.reconnectAttempts, maxAttempts: this.maxReconnectAttempts });
         this.connect(this.config);
       }
     }, delay);

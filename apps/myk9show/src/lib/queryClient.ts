@@ -1,14 +1,15 @@
 import { QueryClient, QueryCache, MutationCache } from '@tanstack/react-query';
+import { logger } from '@/services/LoggingService';
 
 // Create custom query cache with enhanced deduplication
 const queryCache = new QueryCache({
   onError: (error, query) => {
-    console.error('Query error:', error, 'Query key:', query.queryKey);
+    logger.error('Query error', 'query', { queryKey: query.queryKey }, error as Error);
   },
   onSuccess: (data, query) => {
     // Log successful queries for debugging in development
     if (process.env.NODE_ENV === 'development') {
-      console.debug('Query success:', query.queryKey, 'Data size:', JSON.stringify(data).length);
+      logger.debug('Query success', 'query', { queryKey: query.queryKey, dataSize: JSON.stringify(data).length });
     }
   },
 });
@@ -16,11 +17,11 @@ const queryCache = new QueryCache({
 // Create custom mutation cache
 const mutationCache = new MutationCache({
   onError: (error, variables) => {
-    console.error('Mutation error:', error, 'Variables:', variables);
+    logger.error('Mutation error', 'query', { variables }, error as Error);
   },
   onSuccess: (data, variables, context, mutation) => {
     if (process.env.NODE_ENV === 'development') {
-      console.debug('Mutation success:', mutation.options.mutationKey);
+      logger.debug('Mutation success', 'query', { mutationKey: mutation.options.mutationKey });
     }
   },
 });
@@ -269,7 +270,7 @@ export const cacheUtils = {
       try {
         await Promise.all(batch.map(fn => fn()));
       } catch (error) {
-        console.warn('Prefetch batch failed:', error);
+        logger.warn('Prefetch batch failed', 'query', {}, error as Error);
       }
       
       isProcessingQueue = false;
@@ -507,7 +508,7 @@ export const cacheUtils = {
         break;
         
       default:
-        console.warn(`Unknown entity type for invalidation: ${entityType}`);
+        logger.warn(`Unknown entity type for invalidation: ${entityType}`, 'query', { entityType });
     }
   },
 

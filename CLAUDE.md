@@ -7,7 +7,9 @@ Project guidance for Claude Code when working with the myK9 Platform monorepo.
 1. **Best practices by default** - Follow established patterns, conventions, and standards
 2. **Deviate only with reason** - If suggesting something non-standard, explain why
 3. **Long-term maintainability first** - Favor clarity, consistency, and future-proofing over clever shortcuts
-4. **Don't guess or assume** - Verify facts, check actual code, ask if uncertain
+4. **Don't guess or assume** - Verify facts, check actual code, ask if uncertain.
+5. **Follow DRY principles** - Dont', Repeat, Yourself. Create reusable components if possible.
+6. **Follow SLC** - Simple, Lovable, Complete. Avoid feature bloat (Simple). Prioritize UX polish, error states, and "delight" (Lovable). Deliver end-to-end functionality with zero placeholders or TODOs (Complete).
 
 ## Commands
 

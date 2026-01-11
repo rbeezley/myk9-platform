@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, startTransition, Suspense } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { logger } from '@/services/LoggingService';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useTrialStore } from '@/store/trialStore';
 import { useShowStore } from '@/store/showStore';
@@ -78,14 +79,17 @@ const ClassDetailsPage: React.FC = () => {
   
   // Debug: Check if rawEntries is updating after store changes
   React.useEffect(() => {
-    console.log('🔄 rawEntries updated:', rawEntries.length, 'entries');
-    rawEntries.forEach((entry, index) => {
-      const typedEntry = entry as ShowEntry & { updatedAt?: string; createdAt?: string };
-      console.log(`  Entry ${index + 1}:`, {
-        id: typedEntry.id,
-        qualified: typedEntry.competitionData?.qualified,
-        updatedAt: typedEntry.updatedAt
-      });
+    logger.debug('rawEntries updated', 'classes', {
+      count: rawEntries.length,
+      entries: rawEntries.map((entry, index) => {
+        const typedEntry = entry as ShowEntry & { updatedAt?: string; createdAt?: string };
+        return {
+          entryIndex: index + 1,
+          id: typedEntry.id,
+          qualified: typedEntry.competitionData?.qualified,
+          updatedAt: typedEntry.updatedAt
+        };
+      })
     });
   }, [rawEntries]);
   
@@ -105,7 +109,7 @@ const ClassDetailsPage: React.FC = () => {
       : undefined;
   
   // Debug logging
-  console.log('🎯 ClassDetailsPage debug:', {
+  logger.debug('ClassDetailsPage debug', 'classes', {
     classId,
     currentClass: currentClass ? { id: currentClass.id, className: currentClass.className, trialId: currentClass.trialId } : null,
     rawEntriesCount: rawEntries.length,
@@ -122,14 +126,13 @@ const ClassDetailsPage: React.FC = () => {
     return rawEntries.map(entry => {
       const typedEntry = entry as ShowEntry;
       const dog = dogs.find(d => d.id === typedEntry.dogId);
-      
+
       // Debug logging for qualification status
-      console.log('🔄 Transform entry:', {
+      logger.debug('Transform entry', 'classes', {
         id: typedEntry.id,
         dogName: dog?.callName || dog?.name,
         competitionData: typedEntry.competitionData,
         qualification: (typedEntry.competitionData as unknown as CompetitionData & { qualification?: string })?.qualification,
-        recordedAt: new Date(), // Add missing required property
         qualified: typedEntry.competitionData?.qualified
       });
       
@@ -244,7 +247,7 @@ const ClassDetailsPage: React.FC = () => {
   const handleSaveEntryEdit = (data: Record<string, unknown>) => {
     if (editEntryId) {
       // TODO: Update entry in store
-      console.log('Save entry:', editEntryId, data);
+      logger.debug('Save entry', 'classes', { editEntryId, data });
     }
     setEditEntryDialogOpen(false);
     setEditEntryId(null);
@@ -261,13 +264,13 @@ const ClassDetailsPage: React.FC = () => {
 
   const handleResultUpdate = async (entryId: string, result: Partial<{ time: string; status: string; score: string; placement: string; qualificationReason?: string }>) => {
     try {
-      console.log('🎯 handleResultUpdate called with:', { entryId, result });
-      
+      logger.debug('handleResultUpdate called', 'classes', { entryId, result });
+
       // Map the status string to the boolean qualified field (for legacy compatibility)
-      const qualified = result.status === 'Qualified' ? true : 
-                       result.status === 'Not Qualified' ? false : 
+      const qualified = result.status === 'Qualified' ? true :
+                       result.status === 'Not Qualified' ? false :
                        undefined;
-      
+
       const storeUpdate = {
         time: result.time,
         qualified, // Keep for legacy compatibility
@@ -278,28 +281,28 @@ const ClassDetailsPage: React.FC = () => {
         recordedBy: 'secretary', // TODO: Get from auth context
         // Note: recordedAt is handled automatically by the store
       };
-      
-      console.log('📝 About to call updateResult with:', { entryId, storeUpdate });
-      
+
+      logger.debug('Calling updateResult', 'classes', { entryId, storeUpdate });
+
       // Update the result in the entry store
       updateResult(entryId, storeUpdate);
-      
-      console.log('✅ updateResult called successfully');
-      
+
+      logger.debug('updateResult called successfully', 'classes', { entryId });
+
       // Let's also check what the store has after the update
       const updatedEntry = rawEntries.find(e => (e as ShowEntry).id === entryId);
-      console.log('📊 Entry after update in store:', updatedEntry);
       if (updatedEntry) {
         const typedUpdatedEntry = updatedEntry as ShowEntry;
-        console.log('🔍 CompetitionData details:', {
+        logger.debug('Entry after update in store', 'classes', {
+          entryId,
           qualified: typedUpdatedEntry.competitionData?.qualified,
           qualification: (typedUpdatedEntry.competitionData as unknown as CompetitionData & { qualification?: string })?.qualification,
-          allCompetitionData: typedUpdatedEntry.competitionData
+          competitionData: typedUpdatedEntry.competitionData
         });
       }
-      
+
     } catch (error) {
-      console.error('❌ Failed to update result:', error);
+      logger.error('Failed to update result', 'classes', { entryId }, error as Error);
       throw error;
     }
   };
@@ -307,10 +310,10 @@ const ClassDetailsPage: React.FC = () => {
 
   // Temporary debug function to clear entries (mock data disabled)
   const forceReinitializeEntries = () => {
-    console.log('🧹 Clearing all entries...');
+    logger.debug('Clearing all entries', 'classes');
     clearAllEntries();
     // No mock data - starting with clean slate per user request
-    console.log('✅ Cleared entries - no mock data loaded');
+    logger.debug('Cleared entries - no mock data loaded', 'classes');
   };
 
   // Early return if we don't have essential data to prevent suspension issues
@@ -412,7 +415,7 @@ const ClassDetailsPage: React.FC = () => {
               isResultsView={isResultsView}
               onEditClass={handleEditClass}
               onDeleteClass={handleDeleteClass}
-              onEditPhoto={() => console.log('Edit photo not implemented')}
+              onEditPhoto={() => logger.debug('Edit photo not implemented', 'classes')}
               onViewTrial={handleViewTrial}
               onAddEntry={handleAddEntry}
               onDeleteEntry={handleDeleteEntry}
@@ -609,7 +612,7 @@ const ClassDetailsPage: React.FC = () => {
                 <RegistrationWorkflow
                   showId={parentShow.id}
                   onComplete={(data) => {
-                    console.log('Registration completed:', data);
+                    logger.info('Registration completed', 'classes', { showId: parentShow.id, data });
                     setAddEntryDialogOpen(false);
                     // TODO: Refresh entries after successful registration
                   }}

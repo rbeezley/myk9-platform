@@ -2,10 +2,12 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 /**
  * Optimized Export Utilities
- * 
+ *
  * Helps eliminate unused exports and improve tree shaking
  * by providing explicit export maps and unused export detection
  */
+
+import { logger } from '@/services/LoggingService';
 
 /**
  * Utility to create optimized barrel exports that support tree shaking
@@ -29,10 +31,7 @@ export function createOptimizedExports<T extends Record<string, any>>(
     setTimeout(() => {
       const unusedExports = Object.keys(exports).filter(key => !usedExports.has(key as keyof T));
       if (unusedExports.length > 0) {
-        console.warn('🌳 Tree shaking opportunity: Unused exports detected', {
-          unusedExports,
-          module: 'optimizedExports'
-        });
+        logger.warn('Tree shaking opportunity: Unused exports detected', 'bundle', { unusedExports, module: 'optimizedExports' });
       }
     }, 5000);
 
@@ -53,7 +52,7 @@ export async function dynamicImport<T = any>(
   try {
     return await importFn();
   } catch (error) {
-    console.error(`Dynamic import failed for ${context}:`, error);
+    logger.error(`Dynamic import failed for ${context}`, 'bundle', { context }, error as Error);
     
     if (fallback) {
       return fallback;
@@ -80,7 +79,7 @@ export async function conditionalImport<T = any>(
   try {
     return await importFn();
   } catch (error) {
-    console.error('Conditional import failed:', error);
+    logger.error('Conditional import failed', 'bundle', {}, error as Error);
     return fallback;
   }
 }
@@ -111,7 +110,7 @@ export class BundleAnalyzer {
     const largeImports = this.getImportStats().filter(stat => stat.size > sizeThreshold);
     
     if (largeImports.length > 0) {
-      console.warn('📦 Large imports detected:', largeImports);
+      logger.warn('Large imports detected', 'bundle', { largeImports });
     }
     
     return largeImports;
@@ -187,7 +186,7 @@ export const TreeShakingHelpers = {
    */
   markUnused: (exportName: string, reason?: string) => {
     if (process.env.NODE_ENV === 'development') {
-      console.warn(`🚫 Export "${exportName}" marked as unused${reason ? `: ${reason}` : ''}`);
+      logger.warn(`Export "${exportName}" marked as unused`, 'bundle', { exportName, reason });
     }
   }
 };
@@ -211,7 +210,7 @@ if (process.env.NODE_ENV === 'development') {
       const growthRatio = (newSize - this.initialSize) / this.initialSize;
       
       if (growthRatio > this.threshold) {
-        console.warn(`📈 Bundle size grew by ${(growthRatio * 100).toFixed(1)}%`, {
+        logger.warn(`Bundle size grew by ${(growthRatio * 100).toFixed(1)}%`, 'bundle', {
           initial: `${(this.initialSize / 1024).toFixed(1)}KB`,
           current: `${(newSize / 1024).toFixed(1)}KB`,
           growth: `+${((newSize - this.initialSize) / 1024).toFixed(1)}KB`

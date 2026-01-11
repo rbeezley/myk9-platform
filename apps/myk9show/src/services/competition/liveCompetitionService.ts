@@ -9,6 +9,7 @@
 import { subscriptionManager } from '../realtime/subscriptionManager';
 import { realtimeClient } from '../realtime/realtimeClient';
 import { errorMonitor } from '../../lib/errorMonitoring';
+import { logger } from '@/services/LoggingService';
 import type { 
   PresenceTrackingData,
   RealtimeEventCallback,
@@ -100,12 +101,12 @@ export class LiveCompetitionService {
    */
   async start(): Promise<void> {
     if (this.isActive) {
-      console.warn('Live competition service already active');
+      logger.warn('Live competition service already active', 'competition');
       return;
     }
 
     try {
-      console.log(`Starting live competition for show ${this.config.showId}`);
+      logger.info('Starting live competition', 'competition', { showId: this.config.showId });
       
       // Initialize real-time connection
       await realtimeClient.connect();
@@ -135,7 +136,7 @@ export class LiveCompetitionService {
       this.startMetricsCollection();
 
       this.isActive = true;
-      console.log('Live competition service started successfully');
+      logger.info('Live competition service started successfully', 'competition');
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -152,7 +153,7 @@ export class LiveCompetitionService {
     if (!this.isActive) return;
 
     try {
-      console.log('Stopping live competition service');
+      logger.info('Stopping live competition service', 'competition');
 
       // Unsubscribe from all real-time updates
       for (const [, subscriptionId] of this.subscriptions) {
@@ -172,7 +173,7 @@ export class LiveCompetitionService {
       this.presenceData.clear();
 
       this.isActive = false;
-      console.log('Live competition service stopped');
+      logger.info('Live competition service stopped', 'competition');
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -309,7 +310,7 @@ export class LiveCompetitionService {
       // Update metrics
       this.updateMetrics();
 
-      console.log(`Entry status updated: ${entryStatus.entryId} -> ${entryStatus.ringStatus}`);
+      logger.debug('Entry status updated', 'competition', { entryId: entryStatus.entryId, ringStatus: entryStatus.ringStatus });
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -349,7 +350,7 @@ export class LiveCompetitionService {
         this.onCheckInNotification(notification);
       }
 
-      console.log(`Check-in notification: ${notification.message}`);
+      logger.debug('Check-in notification', 'competition', { message: notification.message });
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -371,7 +372,7 @@ export class LiveCompetitionService {
         this.onResultsUpdate(resultsData as Record<string, unknown>);
       }
 
-      console.log(`Results updated for entry: ${(resultsData as { entry_id: string }).entry_id}`);
+      logger.debug('Results updated for entry', 'competition', { entryId: (resultsData as { entry_id: string }).entry_id });
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -400,7 +401,7 @@ export class LiveCompetitionService {
       this.metrics.activeUsers = presences.filter(p => p.status === 'active').length;
       this.metrics.activeJudges = presences.filter(p => p.role === 'judge' && p.status === 'active').length;
 
-      console.log(`Presence updated: ${presences.length} users online`);
+      logger.debug('Presence updated', 'competition', { usersOnline: presences.length });
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -417,7 +418,7 @@ export class LiveCompetitionService {
       const judgingData = (event as { payload?: { new?: Record<string, unknown> }; data?: Record<string, unknown> }).payload?.new || event.data;
       if (!judgingData) return;
 
-      console.log(`Judging session updated: ${(judgingData as { session_id: string }).session_id}`);
+      logger.debug('Judging session updated', 'competition', { sessionId: (judgingData as { session_id: string }).session_id });
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -448,7 +449,7 @@ export class LiveCompetitionService {
       // Update metrics
       this.metrics.notificationsSent++;
 
-      console.log(`Notification broadcasted: ${notification.title}`);
+      logger.info('Notification broadcasted', 'competition', { title: notification.title });
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -485,7 +486,7 @@ export class LiveCompetitionService {
         },
       });
 
-      console.log(`Entry ring status updated: ${entryId} -> ${ringStatus}`);
+      logger.info('Entry ring status updated', 'competition', { entryId, ringStatus });
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -503,7 +504,7 @@ export class LiveCompetitionService {
       const channelName = `competition-${this.config.showId}`;
       await subscriptionManager.trackPresence(channelName, userData);
       
-      console.log(`Tracking presence for user: ${userData.user_id}`);
+      logger.debug('Tracking presence for user', 'competition', { userId: userData.user_id });
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -521,7 +522,7 @@ export class LiveCompetitionService {
       const channelName = `competition-${this.config.showId}`;
       await subscriptionManager.untrackPresence(channelName);
       
-      console.log('Stopped tracking presence');
+      logger.debug('Stopped tracking presence', 'competition');
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {

@@ -5,6 +5,7 @@ import { useEffect, useCallback, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNetworkStatus } from './offlineHandler';
 import { errorMonitor } from './errorMonitoring';
+import { logger } from '@/services/LoggingService';
 
 // Retry configuration interface
 export interface RetryConfig {
@@ -171,7 +172,10 @@ export class RetryEngine {
         // Calculate delay for next attempt
         const delay = BackoffCalculator.calculateDelay(attempt, config);
         
-        console.warn(`Retry attempt ${attempt}/${config.maxAttempts} failed. Retrying in ${delay}ms`, {
+        logger.warn('Retry attempt failed', 'connection', {
+          attempt,
+          maxAttempts: config.maxAttempts,
+          delayMs: delay,
           error: lastError.message,
           operationId: retryId,
         });
@@ -308,7 +312,7 @@ export class ConnectionRecoveryManager {
   }
   
   private async handleConnectionRestored(): Promise<void> {
-    console.log('Connection restored - starting recovery process');
+    logger.info('Connection restored - starting recovery process', 'connection');
     this.isRecovering = true;
     this.reconnectAttempts = 0;
     
@@ -322,10 +326,10 @@ export class ConnectionRecoveryManager {
       // Process recovery queue
       await this.processRecoveryQueue();
       
-      console.log('Connection recovery completed successfully');
-      
+      logger.info('Connection recovery completed successfully', 'connection');
+
     } catch (error) {
-      console.error('Connection recovery failed:', error);
+      logger.error('Connection recovery failed', 'connection', {}, error as Error);
       errorMonitor.captureError(error as Error, {
         additionalData: {
           type: 'connection_recovery',
@@ -338,8 +342,8 @@ export class ConnectionRecoveryManager {
   }
   
   private handleConnectionLost(): void {
-    console.warn('Connection lost - pausing operations');
-    
+    logger.warn('Connection lost - pausing operations', 'connection');
+
     // Cancel ongoing retries
     this.retryEngine.cancelAllRetries();
     
@@ -351,8 +355,8 @@ export class ConnectionRecoveryManager {
     const queries = this.queryClient.getQueryCache().getAll();
     const failedQueries = queries.filter((query: unknown) => (query as { state: { error: unknown } }).state.error) as Array<{ fetch: () => Promise<unknown>; queryHash: string }>;
     
-    console.log(`Retrying ${failedQueries.length} failed queries`);
-    
+    logger.info('Retrying failed queries', 'connection', { count: failedQueries.length });
+
     for (const query of failedQueries) {
       try {
         await this.retryEngine.executeWithRetry(
@@ -361,7 +365,7 @@ export class ConnectionRecoveryManager {
           `recovery_query_${query.queryHash}`
         );
       } catch (error) {
-        console.warn(`Failed to recover query ${query.queryHash}:`, error);
+        logger.warn('Failed to recover query', 'connection', { queryHash: query.queryHash }, error as Error);
       }
     }
   }
@@ -373,8 +377,8 @@ export class ConnectionRecoveryManager {
       return priorities[b.priority] - priorities[a.priority];
     });
     
-    console.log(`Processing ${sortedQueue.length} queued operations`);
-    
+    logger.info('Processing queued operations', 'connection', { count: sortedQueue.length });
+
     for (const item of sortedQueue) {
       try {
         await this.retryEngine.executeWithRetry(
@@ -382,12 +386,12 @@ export class ConnectionRecoveryManager {
           item.config,
           item.id
         );
-        
+
         // Remove from queue on success
         this.recoveryQueue = this.recoveryQueue.filter(q => q.id !== item.id);
-        
+
       } catch (error) {
-        console.warn(`Failed to recover operation ${item.id}:`, error);
+        logger.warn('Failed to recover operation', 'connection', { operationId: item.id }, error as Error);
       }
     }
   }

@@ -7,6 +7,7 @@
 
 import { EventEmitter } from '../sync/eventEmitter';
 import { getOptimalStorage } from '../database/storage-adapter';
+import { logger } from '@/services/LoggingService';
 import type { StateStorage } from 'zustand/middleware';
 import type {
   Gate,
@@ -61,9 +62,9 @@ export class GateCoordinator extends EventEmitter {
       
       this.isInitialized = true;
       this.emit('initialized', {});
-      console.log('GateCoordinator initialized successfully');
+      logger.info('GateCoordinator initialized successfully', 'checkin');
     } catch (error) {
-      console.error('Failed to initialize GateCoordinator:', error);
+      logger.error('Failed to initialize GateCoordinator', 'checkin', {}, error as Error);
       throw error;
     }
   }
@@ -496,7 +497,7 @@ export class GateCoordinator extends EventEmitter {
         try {
           await this.assignStewardToGate(availableSteward.id, overloadedGate.gate.id, 'auto-balance');
         } catch (error) {
-          console.warn('Auto-balance assignment failed:', error);
+          logger.warn('Auto-balance assignment failed', 'checkin', {}, error as Error);
         }
       }
     }
@@ -648,7 +649,7 @@ export class GateCoordinator extends EventEmitter {
       try {
         await this.balanceLoad();
       } catch (error) {
-        console.error('Load balancing failed:', error);
+        logger.error('Load balancing failed', 'checkin', {}, error as Error);
       }
     }, 60000); // Every minute
   }
@@ -691,7 +692,7 @@ export class GateCoordinator extends EventEmitter {
       
       await this.storage.setItem('gate-coordinator-data', JSON.stringify(data));
     } catch (error) {
-      console.error('Failed to persist gate coordinator data:', error);
+      logger.error('Failed to persist gate coordinator data', 'checkin', {}, error as Error);
     }
   }
 
@@ -722,7 +723,7 @@ export class GateCoordinator extends EventEmitter {
         this.config = { ...this.config, ...data.config };
       }
     } catch (error) {
-      console.error('Failed to load persisted gate coordinator data:', error);
+      logger.error('Failed to load persisted gate coordinator data', 'checkin', {}, error as Error);
     }
   }
 }

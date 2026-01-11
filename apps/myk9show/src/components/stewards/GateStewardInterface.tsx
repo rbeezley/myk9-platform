@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { logger } from '@/services/LoggingService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -103,7 +104,7 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
         const stats = await offlineCheckInService.getStatistics();
         setOfflineStats(stats);
       } catch (error) {
-        console.error('Failed to load offline stats:', error);
+        logger.error('Failed to load offline stats', 'steward', {}, error as Error);
       }
     }
   }, [servicesInitialized]);
@@ -197,7 +198,7 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
 
       setEntries(mockEntries);
     } catch (error) {
-      console.error('Failed to load gate entries:', error);
+      logger.error('Failed to load gate entries', 'steward', {}, error as Error);
     } finally {
       setIsLoading(false);
     }
@@ -213,12 +214,12 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
       setServicesInitialized(true);
       await loadOfflineStats();
     } catch (error) {
-      console.error('Failed to initialize offline services:', error);
+      logger.error('Failed to initialize offline services', 'steward', {}, error as Error);
     }
   }, [loadOfflineStats]);
 
   const handleOfflineCheckInEvent = useCallback((event: unknown) => {
-    console.log('Offline check-in event:', event);
+    logger.debug('Offline check-in event', 'steward', { event });
     if ((event as { type: string }).type === 'check_in_completed') {
       loadGateEntries();
       loadOfflineStats();
@@ -226,7 +227,7 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
   }, [loadGateEntries, loadOfflineStats]);
 
   const handleGateEvent = (event: unknown) => {
-    console.log('Gate event:', event);
+    logger.debug('Gate event', 'steward', { event });
   };
 
   const setupEventListeners = useCallback(() => {
@@ -263,7 +264,7 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
       offlineCheckInService.removeAllListeners();
       gateCoordinator.removeAllListeners();
     } catch (error) {
-      console.error('Cleanup failed:', error);
+      logger.error('Cleanup failed', 'steward', {}, error as Error);
     }
   };
 
@@ -373,9 +374,9 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
       // Close dialog
       setCheckInDialog({ open: false, entry: null });
     } catch (error) {
-      console.error('Failed to update check-in status:', error);
+      logger.error('Failed to update check-in status', 'steward', { entryId: entry.id }, error as Error);
       // Revert optimistic update
-      setEntries(prev => prev.map(e => 
+      setEntries(prev => prev.map(e =>
         e.id === entry.id ? entry : e
       ));
     }
@@ -407,7 +408,7 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
         }
       });
     } catch (error) {
-      console.error('Failed to update check-in status:', error);
+      logger.error('Failed to update check-in status', 'steward', { entryId: entry.id, status }, error as Error);
     }
   };
 

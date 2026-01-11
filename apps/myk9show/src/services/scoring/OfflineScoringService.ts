@@ -16,6 +16,7 @@
  */
 
 import { EventEmitter } from '../sync/eventEmitter';
+import { logger } from '@/services/LoggingService';
 import type {
   BaseScore,
   ScoringFormat,
@@ -88,7 +89,7 @@ export class OfflineScoringService extends EventEmitter {
       this.startAutoSave();
       this.emit('service_initialized', {});
     } catch (error) {
-      console.error('Failed to initialize offline scoring service:', error);
+      logger.error('Failed to initialize offline scoring service', 'scoring', {}, error as Error);
       this.emit('service_error', { error: (error as Error).message });
     }
   }
@@ -123,9 +124,9 @@ export class OfflineScoringService extends EventEmitter {
         this.activeSessions.set(id, this.deserializeSession(session));
       });
 
-      console.log(`Loaded ${this.scoreCache.size} scores, ${this.syncQueue.length} queued items`);
+      logger.debug('Loaded persisted scoring data', 'scoring', { scoresCount: this.scoreCache.size, queuedItems: this.syncQueue.length });
     } catch (error) {
-      console.error('Failed to load persisted scoring data:', error);
+      logger.error('Failed to load persisted scoring data', 'scoring', {}, error as Error);
     }
   }
 
@@ -274,7 +275,7 @@ export class OfflineScoringService extends EventEmitter {
       return { isValid: true, errors: [], warnings: [] };
 
     } catch (error) {
-      console.error('Failed to submit score:', error);
+      logger.error('Failed to submit score', 'scoring', { entryId: score.entryId, classId: score.classId }, error as Error);
       this.emitEvent('score_error', {
         entryId: score.entryId,
         error: (error as Error).message
@@ -536,9 +537,9 @@ export class OfflineScoringService extends EventEmitter {
         format,
         scoreCount: classScores.length
       });
-      
+
     } catch (error) {
-      console.error('Failed to update class placements:', error);
+      logger.error('Failed to update class placements', 'scoring', { classId }, error as Error);
     }
   }
 
@@ -568,7 +569,7 @@ export class OfflineScoringService extends EventEmitter {
       try {
         await (syncService as { processQueue: () => Promise<void> }).processQueue();
       } catch (error) {
-        console.log('Immediate sync failed, queued for later:', (error as Error).message);
+        logger.debug('Immediate sync failed, queued for later', 'scoring', { errorMessage: (error as Error).message });
       }
     }
   }
@@ -637,7 +638,7 @@ export class OfflineScoringService extends EventEmitter {
       await this.persistSessions();
 
     } catch (error) {
-      console.error('Failed to persist scoring data:', error);
+      logger.error('Failed to persist scoring data', 'scoring', {}, error as Error);
     }
   }
 

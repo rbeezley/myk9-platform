@@ -10,6 +10,7 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Upload, Save, AlertCircle, CheckCircle, Download, Users, FileText } from 'lucide-react';
+import { logger } from '@/services/LoggingService';
 import { cn } from '@/lib/utils';
 
 // UI Components
@@ -171,7 +172,7 @@ export function BulkResultEntry({
 
   // Update bulkData when entries change (to pick up saved data)
   useEffect(() => {
-    console.log('🔄 BulkResultEntry useEffect triggered - entries changed:', entries.length);
+    logger.debug('BulkResultEntry useEffect triggered - entries changed', 'scoring', { entriesCount: entries.length });
     setBulkData(prevData => {
       const newData = entries.map(entry => {
         // Extract existing data from entry if available
@@ -227,7 +228,8 @@ export function BulkResultEntry({
         
         // Enhanced logging for Submit button debugging - only log when there are changes
         if (hasTimeChanges || hasQualificationChanges || hasFaultChanges || hasNotesChanges) {
-          console.log(`📊 Entry ${entry.id} change analysis:`, {
+          logger.debug('Entry change analysis', 'scoring', {
+            entryId: entry.id,
             hasTimeChanges: hasTimeChanges ? `${normalizedSearchTime} vs ${savedTimeFormatted}` : false,
             hasQualificationChanges: hasQualificationChanges ? `${qualification} vs ${savedQualification}` : false,
             hasFaultChanges: hasFaultChanges ? `${prevEntry?.faults || '0'} vs ${competitionData.faults?.toString() || '0'}` : false,
@@ -268,7 +270,7 @@ export function BulkResultEntry({
     // Only log summary when Submit button should change state
     const canSubmit = validEntries > 0 && invalidEntries === 0;
     if (entriesWithData > 0 || invalidEntries > 0) {
-      console.log('📊 Submit button state:', {
+      logger.debug('Submit button state', 'scoring', {
         entriesWithData,
         validEntries,
         invalidEntries,
@@ -339,17 +341,12 @@ export function BulkResultEntry({
       newData[index] = item;
       
       // Enhanced logging for field updates
-      console.log(`✏️ Field update on entry ${item.entryId}:`, {
+      logger.debug('Field update on entry', 'scoring', {
+        entryId: item.entryId,
         field,
         value,
         hasChanges: item.hasChanges,
-        isValid: item.isValid,
-        currentState: {
-          searchTime: item.searchTime,
-          qualification: item.qualification,
-          faults: item.faults,
-          notes: item.notes
-        }
+        isValid: item.isValid
       });
       
       // Update validation errors
@@ -495,14 +492,14 @@ export function BulkResultEntry({
         return baseResult as ScentWorkResult;
       });
 
-      console.log('🔄 Submitting results...', results.length);
+      logger.debug('Submitting results', 'scoring', { resultsCount: results.length });
       await onResultsSubmit(results);
       
       // The useEffect will automatically update state when store entries change
-      console.log('✅ Results submitted, form will refresh automatically from store');
+      logger.info('Results submitted, form will refresh automatically from store', 'scoring');
       
     } catch (error) {
-      console.error('❌ Submit error:', error);
+      logger.error('Submit error', 'scoring', {}, error as Error);
       setSubmitError(error instanceof Error ? error.message : 'Failed to submit results');
     } finally {
       setIsSubmitting(false);

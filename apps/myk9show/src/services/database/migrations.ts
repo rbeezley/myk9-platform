@@ -6,6 +6,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
+import { logger } from '@/services/LoggingService';
 import { DatabaseService } from './connection';
 import { DATABASE_VERSION, STORES } from './schema';
 import { compressionService } from './compression';
@@ -72,8 +73,8 @@ export class MigrationManager {
       up: async (db) => {
         // Migration is handled by Dexie schema versioning
         // Add any data transformations here if needed
-        console.log('Upgrading to version 3 with enhanced indexes');
-        
+        logger.info('Upgrading to version 3 with enhanced indexes', 'migration');
+
         // Initialize compression metadata for existing large records
         await this.initializeCompressionMetadata(db);
         
@@ -88,7 +89,7 @@ export class MigrationManager {
           await db.dogs.where(['ownerId', 'breed']).equals(['test', 'test']).count();
           return true;
         } catch (error) {
-          console.error('Index validation failed:', error);
+          logger.error('Index validation failed', 'migration', {}, error as Error);
           return false;
         }
       }
@@ -100,7 +101,7 @@ export class MigrationManager {
       description: 'Add full-text search indexes',
       up: async () => {
         // Future: Add full-text search capabilities
-        console.log('Upgrading to version 4 with full-text search');
+        logger.info('Upgrading to version 4 with full-text search', 'migration');
       },
       validate: async () => {
         return true;
@@ -249,7 +250,7 @@ export class MigrationManager {
       try {
         backup[storeName] = await db.table(storeName).toArray();
       } catch (error) {
-        console.warn(`Failed to backup store ${storeName}:`, error);
+        logger.warn('Failed to backup store', 'migration', { storeName }, error as Error);
         backup[storeName] = [];
       }
     }
@@ -302,9 +303,9 @@ export class MigrationManager {
         }
       }
 
-      console.log(`Successfully rolled back to backup ${backupId}`);
+      logger.info('Successfully rolled back to backup', 'migration', { backupId });
     } catch (error) {
-      console.error(`Rollback failed:`, error);
+      logger.error('Rollback failed', 'migration', { backupId }, error as Error);
       throw error;
     }
   }
@@ -424,7 +425,7 @@ export class MigrationManager {
       db.classes.count()
     ]);
 
-    console.log('Existing data optimized for new schema');
+    logger.info('Existing data optimized for new schema', 'migration');
   }
 
   /**
@@ -441,7 +442,7 @@ export class MigrationManager {
           const metadata = JSON.parse(localStorage.getItem(key) || '{}');
           backups.push(metadata);
         } catch (error) {
-          console.warn(`Invalid backup metadata: ${key}`);
+          logger.warn('Invalid backup metadata', 'migration', { key });
         }
       }
     }
@@ -462,7 +463,7 @@ export class MigrationManager {
       localStorage.removeItem(`db_backup_meta_${backup.id}`);
     }
 
-    console.log(`Cleaned up ${toDelete.length} old backups`);
+    logger.info('Cleaned up old backups', 'migration', { count: toDelete.length });
   }
 }
 

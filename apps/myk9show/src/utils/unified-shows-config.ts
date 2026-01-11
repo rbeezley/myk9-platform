@@ -1,6 +1,7 @@
 import { UserRole, PERMISSIONS, UserWithRoles } from '@/types/auth-types';
 import { Show } from '@/types/show-types';
 import { SyncableShowEntry } from '@/store/entryStore';
+import { logger } from '@/services/LoggingService';
 import { 
   ShowTab, 
   TabConfiguration, 
@@ -207,7 +208,7 @@ function generateTabActions(userRoles: UserRole[]) {
         id: 'register',
         label: 'Register',
         variant: 'default',
-        onClick: (showId: string) => console.log('Register for show:', showId)
+        onClick: (showId: string) => logger.debug('Register for show action', 'shows', { showId })
       }
     ],
     past: [
@@ -215,7 +216,7 @@ function generateTabActions(userRoles: UserRole[]) {
         id: 'view_results',
         label: 'View Results',
         variant: 'outline',
-        onClick: (showId: string) => console.log('View results for show:', showId)
+        onClick: (showId: string) => logger.debug('View results for show action', 'shows', { showId })
       }
     ],
     entries: [
@@ -223,13 +224,13 @@ function generateTabActions(userRoles: UserRole[]) {
         id: 'view_entry',
         label: 'View Entry',
         variant: 'outline',
-        onClick: (showId: string) => console.log('View entry for show:', showId)
+        onClick: (showId: string) => logger.debug('View entry for show action', 'shows', { showId })
       },
       {
         id: 'modify_entry',
         label: 'Modify',
         variant: 'outline',
-        onClick: (showId: string) => console.log('Modify entry for show:', showId)
+        onClick: (showId: string) => logger.debug('Modify entry for show action', 'shows', { showId })
       }
     ]
   };
@@ -241,7 +242,7 @@ function generateTabActions(userRoles: UserRole[]) {
       label: 'Create Show',
       variant: 'default',
       requiredPermissions: [PERMISSIONS.SHOW_CREATE],
-      onClick: () => console.log('Create new show')
+      onClick: () => logger.debug('Create new show action', 'shows')
     });
 
     actions.managing = [
@@ -250,20 +251,20 @@ function generateTabActions(userRoles: UserRole[]) {
         label: 'Edit Show',
         variant: 'outline',
         requiredPermissions: [PERMISSIONS.SHOW_UPDATE],
-        onClick: (showId: string) => console.log('Edit show:', showId)
+        onClick: (showId: string) => logger.debug('Edit show action', 'shows', { showId })
       },
       {
         id: 'manage_entries',
         label: 'Manage Entries',
         variant: 'outline',
         requiredPermissions: [PERMISSIONS.SHOW_MANAGE_ENTRIES],
-        onClick: (showId: string) => console.log('Manage entries for show:', showId)
+        onClick: (showId: string) => logger.debug('Manage entries for show action', 'shows', { showId })
       },
       {
         id: 'view_reports',
         label: 'Reports',
         variant: 'ghost',
-        onClick: (showId: string) => console.log('View reports for show:', showId)
+        onClick: (showId: string) => logger.debug('View reports for show action', 'shows', { showId })
       }
     ];
   }
@@ -275,14 +276,14 @@ function generateTabActions(userRoles: UserRole[]) {
         label: 'View Assignment',
         variant: 'outline',
         requiredPermissions: [PERMISSIONS.JUDGE_VIEW_ASSIGNMENTS],
-        onClick: (showId: string) => console.log('View assignment for show:', showId)
+        onClick: (showId: string) => logger.debug('View assignment for show action', 'shows', { showId })
       },
       {
         id: 'enter_results',
         label: 'Enter Results',
         variant: 'default',
         requiredPermissions: [PERMISSIONS.JUDGE_ENTER_RESULTS],
-        onClick: (showId: string) => console.log('Enter results for show:', showId)
+        onClick: (showId: string) => logger.debug('Enter results for show action', 'shows', { showId })
       }
     ];
   }

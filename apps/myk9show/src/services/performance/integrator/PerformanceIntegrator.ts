@@ -10,6 +10,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { logger } from '@/services/LoggingService';
 import { initializeCoreWebVitalsOptimization, getCoreWebVitalsOptimizer } from '../CoreWebVitalsOptimizer';
 import { initializeBundleOptimization, getBundleOptimizer } from '../BundleOptimizer';
 import { initializeMobilePerformanceOptimization, getMobilePerformanceOptimizer, MobileOptimizationConfig } from '../MobilePerformanceOptimizer';
@@ -84,11 +85,11 @@ export class PerformanceIntegrator {
    */
   public async initialize(): Promise<void> {
     if (this.isInitialized) {
-      console.warn('Performance integrator already initialized');
+      logger.warn('Performance integrator already initialized', 'performance');
       return;
     }
 
-    console.log('🚀 Starting comprehensive performance optimization');
+    logger.info('Starting comprehensive performance optimization', 'performance');
     this.optimizationStartTime = Date.now();
 
     try {
@@ -100,11 +101,11 @@ export class PerformanceIntegrator {
       this.isInitialized = true;
       this.updateOptimizationPlan('complete', 'Performance optimization completed successfully');
 
-      console.log('✅ Performance optimization completed');
+      logger.info('Performance optimization completed', 'performance');
       this.metricsCalculator.logFinalResults(this.optimizationStartTime);
 
     } catch (error) {
-      console.error('❌ Performance optimization failed:', error);
+      logger.error('Performance optimization failed', 'performance', {}, error as Error);
       this.updateOptimizationPlan('initialization', `Optimization failed: ${error}`);
       throw error;
     }
@@ -221,13 +222,13 @@ export class PerformanceIntegrator {
       const remainingSteps = this.optimizationPlan.totalSteps - this.optimizationPlan.completedSteps;
       this.optimizationPlan.estimatedTimeRemaining = Math.round((avgTimePerStep * remainingSteps) / 1000);
 
-      console.log(`✅ Completed: ${step.description}`);
+      logger.info('Optimization step completed', 'performance', { step: step.description });
       this.notifyCallbacks();
 
     } catch (error) {
       step.status = 'failed';
       step.error = error instanceof Error ? error.message : String(error);
-      console.error(`❌ Failed: ${step.description}`, error);
+      logger.error('Optimization step failed', 'performance', { step: step.description }, error as Error);
       throw error;
     }
   }
@@ -253,11 +254,11 @@ export class PerformanceIntegrator {
 
     this.currentMetrics.bundleSize = getCurrentBundleSize();
 
-    console.log('📊 Current performance baseline:', this.currentMetrics);
+    logger.info('Current performance baseline', 'performance', this.currentMetrics);
   }
 
   private async validateOptimizations(): Promise<void> {
-    console.log('🔍 Validating optimization results...');
+    logger.info('Validating optimization results', 'performance');
     await this.wait(5000);
 
     const rumService = getRumService();
@@ -266,9 +267,10 @@ export class PerformanceIntegrator {
     const improvements = this.metricsCalculator.calculateImprovements(finalMetrics);
     const validationResults = this.metricsCalculator.validateAgainstTargets(finalMetrics);
 
-    console.log('📊 Optimization Results:');
-    console.log('Improvements:', improvements);
-    console.log('Target Validation:', validationResults);
+    logger.info('Optimization Results', 'performance', {
+      improvements,
+      validationResults,
+    });
 
     rumService.trackCustomMetric('optimization_validation_completed', 1, {
       lcp_improvement: improvements.lcp.toString(),
@@ -331,7 +333,7 @@ export class PerformanceIntegrator {
       try {
         callback(this.getOptimizationPlan());
       } catch (error) {
-        console.error('Error in optimization plan callback:', error);
+        logger.error('Error in optimization plan callback', 'performance', {}, error as Error);
       }
     });
   }

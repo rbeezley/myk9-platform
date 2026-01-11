@@ -4,6 +4,7 @@
 // Phase 4.1: Template System Integration
 // This file demonstrates how to use the complete template system
 
+import { logger } from '@/services/LoggingService';
 import { 
   useClassTemplatesQuery,
   useCreateClassTemplateMutation,
@@ -81,12 +82,12 @@ export const createUKCAgilityTemplate = async () => {
       );
       
       await createFieldsMutation.mutateAsync(fieldInserts);
-      
-      console.log('UKC Agility template created successfully:', createdTemplate.id);
+
+      logger.info('UKC Agility template created successfully', 'templates', { templateId: createdTemplate.id });
       return createdTemplate;
     }
   } catch (error) {
-    console.error('Failed to create UKC Agility template:', error);
+    logger.error('Failed to create UKC Agility template', 'templates', {}, error as Error);
     throw error;
   }
 };
@@ -165,8 +166,8 @@ export const analyzeTemplateUsage = async (templateId: string) => {
   // Get usage statistics (in a real app, this would come from the database)
   const mockUsageRecords = [usageRecord]; // This would be fetched from database
   const stats = getTemplateUsageStats(templateId, mockUsageRecords);
-  
-  console.log('Template Usage Statistics:', {
+
+  logger.info('Template Usage Statistics', 'templates', {
     totalUsage: stats.totalUsage,
     popularityScore: stats.popularityScore,
     usageByType: stats.usageByType,
@@ -200,7 +201,7 @@ export const updateTemplateWithVersioning = async (
     'Updated template with new competition fields'
   );
 
-  console.log('Template Version Created:', {
+  logger.info('Template Version Created', 'templates', {
     version: version.version,
     changeCount: version.changes.length,
     changes: version.changes.map(c => c.description),
@@ -217,11 +218,16 @@ export const updateTemplateWithVersioning = async (
 export const generateShowClasses = (template: ClassTemplate) => {
   // Generate all possible classes from the template
   const generatedClasses = generateClassesFromTemplate(template);
-  
-  console.log(`Generated ${generatedClasses.length} classes from template "${template.name}":`);
-  
+
+  logger.info('Generated classes from template', 'templates', {
+    templateName: template.name,
+    classCount: generatedClasses.length,
+  });
+
   generatedClasses.forEach((generatedClass, index) => {
-    console.log(`${index + 1}. ${generatedClass.className}`, {
+    logger.debug('Generated class', 'templates', {
+      index: index + 1,
+      className: generatedClass.className,
       entryFee: generatedClass.entryFee,
       maxEntries: generatedClass.maxEntries,
       element: generatedClass.element,
@@ -257,9 +263,12 @@ export const findTemplatesForShow = (organization: string, showType: string) => 
     return a.name.localeCompare(b.name);
   });
 
-  console.log(`Found ${sortedTemplates.length} templates for ${organization} ${showType}:`, 
-    sortedTemplates.map(t => t.name)
-  );
+  logger.info('Found templates for organization', 'templates', {
+    organization,
+    showType,
+    count: sortedTemplates.length,
+    templateNames: sortedTemplates.map(t => t.name),
+  });
 
   return { templates: sortedTemplates, isLoading: false };
 };
@@ -292,7 +301,7 @@ export const customizeTemplateForShow = (
     removedFields: showCustomizations.removedFields || [],
   });
 
-  console.log('Customized template created:', {
+  logger.info('Customized template created', 'templates', {
     originalName: baseTemplate.name,
     customName: customTemplate.name,
     fieldCount: customTemplate.fields.length,
@@ -308,7 +317,7 @@ export const customizeTemplateForShow = (
  * Example: Complete workflow from template selection to class creation
  */
 export const completeTemplateWorkflow = async () => {
-  console.log('=== Template System Integration Example ===');
+  logger.info('Template System Integration Example started', 'templates');
 
   try {
     // Step 1: Find appropriate templates
@@ -319,7 +328,7 @@ export const completeTemplateWorkflow = async () => {
 
     // Step 2: Select the first template
     const selectedTemplate = templates[0];
-    console.log('Selected template:', selectedTemplate.name);
+    logger.info('Selected template', 'templates', { templateName: selectedTemplate.name });
 
     // Step 3: Customize the template for our show
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -349,7 +358,7 @@ export const completeTemplateWorkflow = async () => {
       { description: 'Updated for spring trials' }
     );
 
-    console.log('=== Workflow Complete ===');
+    logger.info('Template workflow complete', 'templates');
     return {
       template: customTemplate,
       classes,
@@ -358,7 +367,7 @@ export const completeTemplateWorkflow = async () => {
     };
 
   } catch (error) {
-    console.error('Template workflow failed:', error);
+    logger.error('Template workflow failed', 'templates', {}, error as Error);
     return { success: false, error };
   }
 };

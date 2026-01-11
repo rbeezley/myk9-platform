@@ -11,6 +11,7 @@ import {
   MetricType,
   Severity
 } from '../../types/deployment-types';
+import { logger } from '@/services/LoggingService';
 
 // === Error Tracking ===
 
@@ -245,10 +246,10 @@ export class ProductionMonitoringService {
       this.startMonitoringLoops();
       
       this.isInitialized = true;
-      console.log('Production monitoring initialized successfully');
-      
+      logger.info('Production monitoring initialized successfully', 'monitoring');
+
     } catch (error) {
-      console.error('Failed to initialize production monitoring:', error);
+      logger.error('Failed to initialize production monitoring', 'monitoring', {}, error as Error);
       throw error;
     }
   }
@@ -364,7 +365,7 @@ export class ProductionMonitoringService {
       });
     });
 
-    console.log('Web Vitals recorded:', report);
+    logger.debug('Web Vitals recorded', 'monitoring', { report });
   }
 
   /**
@@ -375,7 +376,7 @@ export class ProductionMonitoringService {
     const traceId = this.generateId('trace');
     
     // In a real implementation, this would start a distributed trace
-    console.log(`Started trace: ${name} (${traceId})`);
+    logger.debug('Started trace', 'monitoring', { name, traceId });
     
     return traceId;
   }
@@ -385,7 +386,7 @@ export class ProductionMonitoringService {
    */
   public finishTrace(traceId: string, status: 'success' | 'error' | 'timeout' = 'success'): void {
     // In a real implementation, this would finish the distributed trace
-    console.log(`Finished trace: ${traceId} with status: ${status}`);
+    logger.debug('Finished trace', 'monitoring', { traceId, status });
   }
 
   // === User Analytics ===
@@ -495,7 +496,7 @@ export class ProductionMonitoringService {
     // Send notifications
     this.sendAlertNotifications(alert, rule);
 
-    console.warn(`Alert triggered: ${alert.message}`);
+    logger.warn('Alert triggered', 'monitoring', { message: alert.message });
   }
 
   /**
@@ -593,7 +594,7 @@ export class ProductionMonitoringService {
 
   private async initializeErrorTracking(): Promise<void> {
     // Initialize error tracking provider (Sentry, Bugsnag, etc.)
-    console.log('Initializing error tracking...');
+    logger.debug('Initializing error tracking', 'monitoring');
     
     // Set up global error handlers
     window.addEventListener('error', (event) => {
@@ -613,7 +614,7 @@ export class ProductionMonitoringService {
 
   private async initializePerformanceMonitoring(): Promise<void> {
     // Initialize performance monitoring provider
-    console.log('Initializing performance monitoring...');
+    logger.debug('Initializing performance monitoring', 'monitoring');
     
     // Monitor Web Vitals if enabled
     if (this.config.performanceMonitoring?.enableWebVitals) {
@@ -623,7 +624,7 @@ export class ProductionMonitoringService {
 
   private async initializeUserAnalytics(): Promise<void> {
     // Initialize analytics provider (Mixpanel, Amplitude, etc.)
-    console.log('Initializing user analytics...');
+    logger.debug('Initializing user analytics', 'monitoring');
     
     // Start a new session
     this.startUserSession();
@@ -795,20 +796,20 @@ export class ProductionMonitoringService {
 
   // Placeholder implementations for external service integrations
   private sendToErrorTrackingService(error: ErrorReport): void {
-    console.log('Sending error to tracking service:', error.message);
+    logger.debug('Sending error to tracking service', 'monitoring', { errorMessage: error.message });
   }
 
   private sendToPerformanceService(metric: PerformanceMetric): void {
-    console.log('Sending performance metric:', metric.name, metric.value);
+    logger.debug('Sending performance metric', 'monitoring', { name: metric.name, value: metric.value });
   }
 
   private sendToAnalyticsService(event: UserEvent): void {
-    console.log('Sending user event:', event.event, event.properties);
+    logger.debug('Sending user event', 'monitoring', { event: event.event, properties: event.properties });
   }
 
   private sendAlertNotifications(alert: Alert, rule: AlertRule): void {
     rule.channels.forEach(channel => {
-      console.log(`Sending alert notification via ${channel}:`, alert.message);
+      logger.debug('Sending alert notification', 'monitoring', { channel, message: alert.message });
     });
   }
 
@@ -952,7 +953,7 @@ export class ProductionMonitoringService {
 
   private setupWebVitalsMonitoring(): void {
     // Setup Web Vitals monitoring (would use web-vitals library in real implementation)
-    console.log('Web Vitals monitoring enabled');
+    logger.debug('Web Vitals monitoring enabled', 'monitoring');
   }
 
   private collectSystemMetrics(): void {

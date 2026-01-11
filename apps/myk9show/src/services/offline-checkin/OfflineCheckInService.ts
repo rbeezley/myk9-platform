@@ -8,6 +8,7 @@
 import { EventEmitter } from '../sync/eventEmitter';
 import { syncService } from '../sync/syncService';
 import { getOptimalStorage } from '../database/storage-adapter';
+import { logger } from '@/services/LoggingService';
 import type { StateStorage } from 'zustand/middleware';
 import type {
   CheckInEntry,
@@ -88,9 +89,9 @@ export class OfflineCheckInService extends EventEmitter {
       this.isInitialized = true;
       this.emit('initialized', {});
       
-      console.log('OfflineCheckInService initialized successfully');
+      logger.info('OfflineCheckInService initialized successfully', 'checkin');
     } catch (error) {
-      console.error('Failed to initialize OfflineCheckInService:', error);
+      logger.error('Failed to initialize OfflineCheckInService', 'checkin', {}, error as Error);
       throw error;
     }
   }
@@ -210,7 +211,7 @@ export class OfflineCheckInService extends EventEmitter {
       // Attempt immediate sync if online
       if (navigator.onLine) {
         this.syncOperation(operation).catch(error => {
-          console.warn('Failed to sync operation immediately:', error);
+          logger.warn('Failed to sync operation immediately', 'checkin', {}, error as Error);
         });
       }
 
@@ -638,7 +639,7 @@ export class OfflineCheckInService extends EventEmitter {
       
       await this.storage.setItem('offline-checkin-data', JSON.stringify(data));
     } catch (error) {
-      console.error('Failed to persist check-in data:', error);
+      logger.error('Failed to persist check-in data', 'checkin', {}, error as Error);
     }
   }
 
@@ -669,7 +670,7 @@ export class OfflineCheckInService extends EventEmitter {
         this.offlineQueue = data.offlineQueue;
       }
     } catch (error) {
-      console.error('Failed to load persisted check-in data:', error);
+      logger.error('Failed to load persisted check-in data', 'checkin', {}, error as Error);
     }
   }
 
@@ -765,7 +766,7 @@ export class OfflineCheckInService extends EventEmitter {
         syncSource: 'server'
       };
     } catch (error) {
-      console.error('Time sync failed:', error);
+      logger.error('Time sync failed', 'checkin', {}, error as Error);
       this.timeSyncStatus.isAccurate = false;
     }
   }

@@ -7,8 +7,9 @@
  */
 
 import { errorMonitor } from '../../lib/errorMonitoring';
-import type { 
-  SyncConflict, 
+import { logger } from '@/services/LoggingService';
+import type {
+  SyncConflict,
   ResolutionStrategy,
   EnhancedConflictResolution
 } from '../../types/sync-types';
@@ -121,10 +122,10 @@ export class ConflictResolver {
 
     this.conflicts.set(conflictId, conflict);
     this.metrics.totalConflicts++;
-    this.metrics.conflictsByEntity[entityType] = 
+    this.metrics.conflictsByEntity[entityType] =
       (this.metrics.conflictsByEntity[entityType] || 0) + 1;
 
-    console.log(`Conflict detected: ${conflictId} (${entityType}:${entityId})`);
+    logger.debug('Conflict detected', 'sync', { conflictId, entityType, entityId });
 
     // Try auto-resolution if enabled
     if (this.shouldAutoResolve(conflict)) {
@@ -169,7 +170,7 @@ export class ConflictResolver {
         this.userPreferences.set(conflict.entityType, strategy);
       }
 
-      console.log(`Conflict resolved: ${conflictId} using ${strategy}`);
+      logger.debug('Conflict resolved', 'sync', { conflictId, strategy });
       return resolution;
 
     } catch (error) {
@@ -571,10 +572,10 @@ export class ConflictResolver {
     this.resolveConflict(conflict.id, strategy)
       .then(() => {
         this.metrics.autoResolvedConflicts++;
-        console.log(`Auto-resolved conflict: ${conflict.id} using ${strategy}`);
+        logger.debug('Auto-resolved conflict', 'sync', { conflictId: conflict.id, strategy });
       })
       .catch(error => {
-        console.error(`Failed to auto-resolve conflict ${conflict.id}:`, error);
+        logger.error('Failed to auto-resolve conflict', 'sync', { conflictId: conflict.id }, error as Error);
       });
 
     return conflict;
@@ -710,9 +711,9 @@ export class ConflictResolver {
     });
 
     toDelete.forEach(id => this.conflicts.delete(id));
-    
+
     if (toDelete.length > 0) {
-      console.log(`Cleaned up ${toDelete.length} old conflicts`);
+      logger.debug('Cleaned up old conflicts', 'sync', { count: toDelete.length });
     }
   }
 
@@ -754,7 +755,7 @@ export class ConflictResolver {
    */
   setUserPreference(entityType: string, strategy: ResolutionStrategy): void {
     this.userPreferences.set(entityType, strategy);
-    console.log(`User preference set: ${entityType} -> ${strategy}`);
+    logger.debug('User preference set', 'sync', { entityType, strategy });
   }
 
   /**
@@ -770,7 +771,7 @@ export class ConflictResolver {
   clearConflicts(): void {
     this.conflicts.clear();
     this.metrics = this.initializeMetrics();
-    console.log('All conflicts cleared');
+    logger.debug('All conflicts cleared', 'sync');
   }
 
   /**
@@ -798,8 +799,8 @@ export class ConflictResolver {
     
     this.conflicts.clear();
     this.userPreferences.clear();
-    
-    console.log('Conflict resolver destroyed');
+
+    logger.debug('Conflict resolver destroyed', 'sync');
   }
 }
 

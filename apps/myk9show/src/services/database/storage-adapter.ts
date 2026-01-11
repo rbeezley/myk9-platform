@@ -1,6 +1,7 @@
 // IndexedDB storage adapter for Zustand persist middleware
 import { StateStorage } from 'zustand/middleware';
 import { db } from './connection';
+import { logger } from '@/services/LoggingService';
 
 export function createIndexedDBStorage(): StateStorage {
   return {
@@ -11,7 +12,7 @@ export function createIndexedDBStorage(): StateStorage {
         const data = await db.instance._zustand_state.get(name);
         return data?.state || null;
       } catch (error) {
-        console.error(`IndexedDB getItem error for ${name}:`, error);
+        logger.error('IndexedDB getItem error', 'storage', { name }, error as Error);
         return null;
       }
     },
@@ -26,7 +27,7 @@ export function createIndexedDBStorage(): StateStorage {
           lastModified: new Date()
         });
       } catch (error) {
-        console.error(`IndexedDB setItem error for ${name}:`, error);
+        logger.error('IndexedDB setItem error', 'storage', { name }, error as Error);
         throw error;
       }
     },
@@ -37,7 +38,7 @@ export function createIndexedDBStorage(): StateStorage {
         await db.instance.open();
         await db.instance._zustand_state.delete(name);
       } catch (error) {
-        console.error(`IndexedDB removeItem error for ${name}:`, error);
+        logger.error('IndexedDB removeItem error', 'storage', { name }, error as Error);
         throw error;
       }
     }
@@ -58,7 +59,7 @@ export function createHybridStorage(_storeName: string): StateStorage {
         // Try IndexedDB first
         return await indexedDBStorage.getItem(name);
       } catch (error) {
-        console.warn(`IndexedDB failed, falling back to localStorage for ${name}:`, error);
+        logger.warn('IndexedDB failed, falling back to localStorage', 'storage', { name }, error as Error);
         // Fall back to localStorage
         return localStorage.getItem(name);
       }
@@ -71,7 +72,7 @@ export function createHybridStorage(_storeName: string): StateStorage {
         // Also save to localStorage as backup during migration period
         localStorage.setItem(name, value);
       } catch (error) {
-        console.warn(`IndexedDB failed, using localStorage for ${name}:`, error);
+        logger.warn('IndexedDB failed, using localStorage', 'storage', { name }, error as Error);
         // Fall back to localStorage
         localStorage.setItem(name, value);
       }
@@ -82,7 +83,7 @@ export function createHybridStorage(_storeName: string): StateStorage {
         await indexedDBStorage.removeItem(name);
         localStorage.removeItem(name);
       } catch (error) {
-        console.warn(`IndexedDB failed, using localStorage for ${name}:`, error);
+        logger.warn('IndexedDB removeItem failed, using localStorage', 'storage', { name }, error as Error);
         localStorage.removeItem(name);
       }
     }
@@ -140,18 +141,18 @@ class StorageAdapter implements StateStorage {
 export function getOptimalStorage(storeName: string): StateStorage {
   // In development mode, prefer localStorage for faster startup
   if (import.meta.env.DEV) {
-    console.log(`Using localStorage for ${storeName} (development mode)`);
+    logger.debug('Using localStorage (development mode)', 'storage', { storeName });
     return new StorageAdapter(localStorage);
   }
-  
+
   // Check if IndexedDB is available
   if (!isIndexedDBAvailable()) {
-    console.warn('IndexedDB not available, using localStorage');
+    logger.warn('IndexedDB not available, using localStorage', 'storage');
     return new StorageAdapter(localStorage);
   }
-  
+
   // Production: Use pure IndexedDB (no hybrid fallback)
-  console.log(`Using pure IndexedDB storage for ${storeName}`);
+  logger.debug('Using pure IndexedDB storage', 'storage', { storeName });
   return createIndexedDBStorage();
   
   // Phase 2: Uncomment for hybrid storage with cloud sync

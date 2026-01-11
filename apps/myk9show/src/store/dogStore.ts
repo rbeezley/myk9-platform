@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { Dog } from '@/types/dog-types';
 import { getOptimalStorage } from '@/services/database/storage-adapter';
+import { logger } from '@/services/LoggingService';
 
 // Phase 2.1: Database Integration - Migrating from mock data to React Query
 // Note: Data operations now delegated to React Query hooks via useDogStoreCompat
@@ -111,50 +112,50 @@ export const useDogStore = create<DogStore>()(
       error: null,
       
       addDog: async (): Promise<Dog> => {
-        console.warn('⚠️ dogStore.addDog is deprecated. Use useDogStoreCompat hook instead.');
+        logger.warn('dogStore.addDog is deprecated. Use useDogStoreCompat hook instead', 'dogs');
         throw new Error('dogStore data operations are deprecated. Use useDogStoreCompat hook for data operations.');
       },
-      
+
       updateDog: async (): Promise<Dog | null> => {
-        console.warn('⚠️ dogStore.updateDog is deprecated. Use useDogStoreCompat hook instead.');
+        logger.warn('dogStore.updateDog is deprecated. Use useDogStoreCompat hook instead', 'dogs');
         throw new Error('dogStore data operations are deprecated. Use useDogStoreCompat hook for data operations.');
       },
-      
+
       deleteDog: async (): Promise<void> => {
-        console.warn('⚠️ dogStore.deleteDog is deprecated. Use useDogStoreCompat hook instead.');
+        logger.warn('dogStore.deleteDog is deprecated. Use useDogStoreCompat hook instead', 'dogs');
         throw new Error('dogStore data operations are deprecated. Use useDogStoreCompat hook for data operations.');
       },
-      
+
       getDogById: (): Dog | null => {
-        console.warn('⚠️ dogStore.getDogById is deprecated. Use useDogStoreCompat hook instead.');
+        logger.warn('dogStore.getDogById is deprecated. Use useDogStoreCompat hook instead', 'dogs');
         return null;
       },
-      
+
       getDogsByOwner: (): Dog[] => {
-        console.warn('⚠️ dogStore.getDogsByOwner is deprecated. Use useDogStoreCompat hook instead.');
+        logger.warn('dogStore.getDogsByOwner is deprecated. Use useDogStoreCompat hook instead', 'dogs');
         return [];
       },
-      
+
       getSyncStatus: (): 'synced' | 'pending' | 'error' | 'conflict' => {
-        console.warn('⚠️ dogStore.getSyncStatus is deprecated. Use useDogStoreCompat hook instead.');
+        logger.warn('dogStore.getSyncStatus is deprecated. Use useDogStoreCompat hook instead', 'dogs');
         return 'synced';
       },
-      
+
       // Legacy methods (deprecated)
       addDogLegacy: () => {
-        console.warn('⚠️ dogStore.addDogLegacy is deprecated and no longer functional.');
+        logger.warn('dogStore.addDogLegacy is deprecated and no longer functional', 'dogs');
       },
       updateDogLegacy: () => {
-        console.warn('⚠️ dogStore.updateDogLegacy is deprecated and no longer functional.');
+        logger.warn('dogStore.updateDogLegacy is deprecated and no longer functional', 'dogs');
       },
       removeDog: () => {
-        console.warn('⚠️ dogStore.removeDog is deprecated and no longer functional.');
+        logger.warn('dogStore.removeDog is deprecated and no longer functional', 'dogs');
       },
       setDogs: () => {
-        console.warn('⚠️ dogStore.setDogs is deprecated and no longer functional.');
+        logger.warn('dogStore.setDogs is deprecated and no longer functional', 'dogs');
       },
       loadDogs: async (): Promise<void> => {
-        console.warn('⚠️ dogStore.loadDogs is deprecated and no longer functional.');
+        logger.warn('dogStore.loadDogs is deprecated and no longer functional', 'dogs');
       },
     }),
     {

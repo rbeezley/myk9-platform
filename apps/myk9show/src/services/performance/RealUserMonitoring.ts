@@ -1,9 +1,11 @@
 /**
  * Real User Monitoring (RUM) Service
- * 
+ *
  * Collects and analyzes real user performance metrics including
  * Core Web Vitals, custom metrics, and user experience data.
  */
+
+import { logger } from '@/services/LoggingService';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export interface WebVital {
@@ -109,8 +111,8 @@ export class RealUserMonitoringService {
   public initialize(): void {
     if (this.isInitialized) return;
 
-    console.log('🔍 Initializing Real User Monitoring');
-    
+    logger.debug('Initializing Real User Monitoring', 'performance');
+
     this.setupWebVitalsCollection();
     this.setupLongTaskMonitoring();
     this.setupErrorTracking();
@@ -195,7 +197,7 @@ export class RealUserMonitoringService {
       });
       observer.observe({ type, buffered: true });
     } catch (error) {
-      console.warn(`Failed to observe ${type}:`, error);
+      logger.warn('Failed to observe performance type', 'performance', { type }, error as Error);
     }
   }
 
@@ -230,7 +232,7 @@ export class RealUserMonitoringService {
     this.checkPerformanceBudget(name, value);
 
     // Log significant vitals
-    console.log(`📊 ${name}: ${value.toFixed(2)}ms`);
+    logger.debug('Web vital recorded', 'performance', { name, valueMs: value.toFixed(2) });
   }
 
   /**
@@ -262,7 +264,7 @@ export class RealUserMonitoringService {
 
       this.longTaskObserver.observe({ type: 'longtask', buffered: true });
     } catch (error) {
-      console.warn('Long task monitoring not supported:', error);
+      logger.warn('Long task monitoring not supported', 'performance', {}, error as Error);
     }
   }
 
@@ -477,7 +479,7 @@ export class RealUserMonitoringService {
     };
 
     this.session.errors.push(errorInfo);
-    console.error('🚨 RUM Error tracked:', errorInfo);
+    logger.error('RUM Error tracked', 'performance', { errorInfo });
 
     // Limit errors to prevent memory issues
     if (this.session.errors.length > 100) {
@@ -526,10 +528,9 @@ export class RealUserMonitoringService {
     };
 
     this.alerts.push(alert);
-    
+
     // Log alert
-    const emoji = severity === 'error' ? '🚨' : severity === 'warning' ? '⚠️' : 'ℹ️';
-    console.warn(`${emoji} Performance Alert: ${metric} (${value.toFixed(2)}) exceeded threshold (${threshold})`);
+    logger.warn('Performance Alert', 'performance', { metric, value: value.toFixed(2), threshold, severity });
 
     // Limit alerts
     if (this.alerts.length > 50) {
@@ -603,7 +604,7 @@ export class RealUserMonitoringService {
     // Send session data to analytics service
     this.sendSessionData();
 
-    console.log('📊 RUM Session ended:', this.getPerformanceSummary());
+    logger.debug('RUM Session ended', 'performance', this.getPerformanceSummary());
   }
 
   /**
@@ -627,9 +628,9 @@ export class RealUserMonitoringService {
       Object.keys(localStorage)
         .filter(key => key.startsWith('rum-session-') && !sessions.includes(key))
         .forEach(key => localStorage.removeItem(key));
-        
+
     } catch (error) {
-      console.error('Failed to store session data:', error);
+      logger.error('Failed to store session data', 'performance', {}, error as Error);
     }
   }
 

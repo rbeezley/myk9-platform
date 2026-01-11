@@ -6,6 +6,7 @@
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { logger } from '@/services/LoggingService';
 import { Show } from '@/types/show-types';
 import { Dog } from '@/types/dog-types';
 import { User } from '@/types/user-types';
@@ -92,7 +93,7 @@ export class DataArchiveService {
         this.archiveIndex = new Map(Object.entries(index));
       }
     } catch (error) {
-      console.error('Failed to load archive index:', error);
+      logger.error('Failed to load archive index', 'archive', {}, error as Error);
     }
   }
 
@@ -126,8 +127,8 @@ export class DataArchiveService {
     people: User[],
     results: any[]
   ): Promise<ArchivedShow> {
-    console.log(`📦 Archiving show: ${show.name} (${show.id})`);
-    
+    logger.info('Archiving show', 'archive', { showName: show.name, showId: show.id });
+
     // Generate summary data
     const summary = this.generateShowSummary(show, entries, dogs, people, results);
     
@@ -149,7 +150,7 @@ export class DataArchiveService {
       const jsonData = JSON.stringify(fullData);
       archiveData = smartCompress(jsonData);
       sizeBytes = archiveData.length;
-      console.log(`🗜️ Compressed ${show.name}: ${(jsonData.length / 1024).toFixed(2)}KB → ${(sizeBytes / 1024).toFixed(2)}KB`);
+      logger.debug('Compressed show data', 'archive', { showName: show.name, originalKB: (jsonData.length / 1024).toFixed(2), compressedKB: (sizeBytes / 1024).toFixed(2) });
     } else {
       archiveData = JSON.stringify(fullData);
       sizeBytes = archiveData.length;
@@ -192,7 +193,7 @@ export class DataArchiveService {
   } | null> {
     const archived = this.archiveIndex.get(showId);
     if (!archived) {
-      console.warn(`Archive not found for show: ${showId}`);
+      logger.warn('Archive not found for show', 'archive', { showId });
       return null;
     }
     
@@ -210,8 +211,8 @@ export class DataArchiveService {
       }
       
       const fullData = JSON.parse(jsonData);
-      console.log(`📂 Restored show: ${archived.name}`);
-      
+      logger.info('Restored show', 'archive', { showName: archived.name });
+
       return {
         show: fullData.show,
         entries: fullData.entries,
@@ -220,7 +221,7 @@ export class DataArchiveService {
         results: fullData.results,
       };
     } catch (error) {
-      console.error(`Failed to restore show ${showId}:`, error);
+      logger.error('Failed to restore show', 'archive', { showId }, error as Error);
       return null;
     }
   }
@@ -289,7 +290,7 @@ export class DataArchiveService {
     
     // Check size limit
     if (stats.totalSizeMB > this.config.maxArchiveSizeMB) {
-      console.log(`🔄 Archive rotation needed: ${stats.totalSizeMB}MB > ${this.config.maxArchiveSizeMB}MB`);
+      logger.info('Archive rotation needed', 'archive', { currentSizeMB: stats.totalSizeMB, maxSizeMB: this.config.maxArchiveSizeMB });
       await this.rotateOldArchives();
     }
     
@@ -314,7 +315,7 @@ export class DataArchiveService {
       if (this.config.keepSummaries) {
         archive.compressedData = undefined;
         await this.storage.removeItem(`archive-${archive.id}`);
-        console.log(`🗑️ Rotated archive data for: ${archive.name} (kept summary)`);
+        logger.debug('Rotated archive data (kept summary)', 'archive', { archiveName: archive.name });
       } else {
         // Remove completely
         await this.removeArchive(archive.id);
@@ -336,7 +337,7 @@ export class DataArchiveService {
       
       if (archiveAge > retentionMs) {
         await this.removeArchive(id);
-        console.log(`🗑️ Removed expired archive: ${archive.name}`);
+        logger.debug('Removed expired archive', 'archive', { archiveName: archive.name });
       }
     }
   }

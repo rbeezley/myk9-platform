@@ -4,6 +4,7 @@
  */
 
 import { encryptData, decryptData, generateSecurePassword, hashData } from '@/utils/encryption';
+import { logger } from '@/services/LoggingService';
 
 interface KeyMetadata {
   id: string;
@@ -54,9 +55,9 @@ export class KeyManagementService {
       this.scheduleKeyRotation();
       
       this.initialized = true;
-      console.log('🔐 Key Management Service initialized');
+      logger.info('Key Management Service initialized', 'security');
     } catch (error) {
-      console.error('Failed to initialize Key Management Service:', error);
+      logger.error('Failed to initialize Key Management Service', 'security', {}, error as Error);
       throw new Error('Key management initialization failed');
     }
   }
@@ -93,8 +94,8 @@ export class KeyManagementService {
 
     this.keyStore[keyId] = managedKey;
     await this.saveKeysToStorage();
-    
-    console.log(`🔑 Generated new key for purpose: ${purpose}`);
+
+    logger.debug('Generated new key', 'security', { purpose, keyId });
     return keyId;
   }
 
@@ -106,7 +107,7 @@ export class KeyManagementService {
 
     const managedKey = this.keyStore[keyId];
     if (!managedKey) {
-      console.warn(`Key not found: ${keyId}`);
+      logger.warn('Key not found', 'security', { keyId });
       return null;
     }
 
@@ -167,10 +168,10 @@ export class KeyManagementService {
     
     // Mark old key as deprecated (don't delete yet for decryption compatibility)
     oldKey.metadata.rotationSchedule = 0; // Disable auto-rotation
-    
+
     await this.saveKeysToStorage();
-    
-    console.log(`🔄 Rotated key: ${keyId} -> ${newKeyId}`);
+
+    logger.info('Rotated key', 'security', { oldKeyId: keyId, newKeyId });
     return newKeyId;
   }
 
@@ -183,7 +184,7 @@ export class KeyManagementService {
     if (this.keyStore[keyId]) {
       delete this.keyStore[keyId];
       await this.saveKeysToStorage();
-      console.log(`🗑️ Deleted key: ${keyId}`);
+      logger.debug('Deleted key', 'security', { keyId });
     }
   }
 
@@ -216,12 +217,12 @@ export class KeyManagementService {
     }
 
     if (keysToRotate.length > 0) {
-      console.log(`🔄 Auto-rotating ${keysToRotate.length} keys`);
+      logger.info('Auto-rotating keys', 'security', { count: keysToRotate.length });
       for (const keyId of keysToRotate) {
         try {
           await this.rotateKey(keyId);
         } catch (error) {
-          console.error(`Failed to rotate key ${keyId}:`, error);
+          logger.error('Failed to rotate key', 'security', { keyId }, error as Error);
         }
       }
     }
@@ -234,7 +235,7 @@ export class KeyManagementService {
     // Check for key rotation every hour
     setInterval(() => {
       this.checkAndRotateKeys().catch(error => {
-        console.error('Key rotation check failed:', error);
+        logger.error('Key rotation check failed', 'security', {}, error as Error);
       });
     }, 60 * 60 * 1000); // 1 hour
   }
@@ -252,7 +253,7 @@ export class KeyManagementService {
       const encrypted = await encryptData(keyStoreData, this.masterKey);
       localStorage.setItem('myk9show_keystore', JSON.stringify(encrypted));
     } catch (error) {
-      console.error('Failed to save keys to storage:', error);
+      logger.error('Failed to save keys to storage', 'security', {}, error as Error);
       throw new Error('Key storage failed');
     }
   }
@@ -268,17 +269,17 @@ export class KeyManagementService {
     try {
       const stored = localStorage.getItem('myk9show_keystore');
       if (!stored) {
-        console.log('No existing key store found');
+        logger.debug('No existing key store found', 'security');
         return;
       }
 
       const encrypted = JSON.parse(stored);
       const decrypted = await decryptData(encrypted, this.masterKey);
       this.keyStore = JSON.parse(decrypted);
-      
-      console.log(`📂 Loaded ${Object.keys(this.keyStore).length} keys from storage`);
+
+      logger.info('Loaded keys from storage', 'security', { count: Object.keys(this.keyStore).length });
     } catch (error) {
-      console.warn('Failed to load keys from storage (may be first run):', error);
+      logger.warn('Failed to load keys from storage (may be first run)', 'security', {}, error as Error);
       // Reset key store if loading fails
       this.keyStore = {};
     }
@@ -290,7 +291,7 @@ export class KeyManagementService {
   async clearAllKeys(): Promise<void> {
     this.keyStore = {};
     localStorage.removeItem('myk9show_keystore');
-    console.log('🧹 All keys cleared');
+    logger.info('All keys cleared', 'security');
   }
 
   /**
@@ -347,7 +348,7 @@ export class KeyManagementService {
       await this.deleteKey(keyId);
     }
 
-    console.log(`🧹 Cleaned up ${keysToDelete.length} old keys`);
+    logger.info('Cleaned up old keys', 'security', { count: keysToDelete.length });
     return keysToDelete.length;
   }
 }

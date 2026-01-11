@@ -8,6 +8,7 @@
 import { create } from 'zustand';
 import { replicatedClubsTable, type ReplicatedClub } from '@/services/replication';
 import type { Club } from '@/types/club-types';
+import { logger } from '@/services/LoggingService';
 
 /**
  * Convert ReplicatedClub to app Club type
@@ -113,7 +114,7 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to load clubs';
-      console.error('[ClubStore] Failed to load clubs:', error);
+      logger.error('Failed to load clubs', 'clubs', {}, error as Error);
       set({ error: errorMessage, isLoading: false });
     }
   },
@@ -133,12 +134,12 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
         // Reload from local cache after sync
         await get().loadClubs();
       } else {
-        console.error('[ClubStore] Sync failed:', result.error);
+        logger.error('Sync failed', 'clubs', { error: result.error });
         set({ error: result.error || 'Sync failed' });
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Sync failed';
-      console.error('[ClubStore] Sync error:', error);
+      logger.error('Sync error', 'clubs', {}, error as Error);
       set({ error: errorMessage });
     } finally {
       set({ isSyncing: false });
@@ -159,7 +160,7 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
       await get().loadClubs();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to add club';
-      console.error('[ClubStore] Failed to add club:', error);
+      logger.error('Failed to add club', 'clubs', {}, error as Error);
       set({ error: errorMessage });
     }
   },
@@ -176,7 +177,7 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
       await get().loadClubs();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to update club';
-      console.error('[ClubStore] Failed to update club:', error);
+      logger.error('Failed to update club', 'clubs', {}, error as Error);
       set({ error: errorMessage });
     }
   },
@@ -195,7 +196,7 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
       }));
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to remove club';
-      console.error('[ClubStore] Failed to remove club:', error);
+      logger.error('Failed to remove club', 'clubs', {}, error as Error);
       set({ error: errorMessage });
     }
   },

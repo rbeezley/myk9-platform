@@ -8,6 +8,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { DataArchiveService, getArchiveService } from './DataArchiveService';
+import { logger } from '@/services/LoggingService';
 import { useShowStore } from '@/store/showStore';
 import { useEntryStore } from '@/store/entryStore';
 import { useDogStore } from '@/store/dogStore';
@@ -49,11 +50,11 @@ export class ArchiveScheduler {
    */
   public start(): void {
     if (this.intervalId) {
-      console.log('⏰ Archive scheduler already running');
+      logger.debug('Archive scheduler already running', 'archive');
       return;
     }
-    
-    console.log(`⏰ Starting archive scheduler (interval: ${this.config.checkIntervalMinutes} minutes)`);
+
+    logger.info('Starting archive scheduler', 'archive', { intervalMinutes: this.config.checkIntervalMinutes });
     
     // Run immediately on start
     this.runArchiveCheck();
@@ -72,7 +73,7 @@ export class ArchiveScheduler {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
-      console.log('⏰ Archive scheduler stopped');
+      logger.info('Archive scheduler stopped', 'archive');
     }
   }
 
@@ -81,7 +82,7 @@ export class ArchiveScheduler {
    */
   public async runArchiveCheck(): Promise<void> {
     if (this.isRunning) {
-      console.log('⏳ Archive check already in progress, skipping...');
+      logger.debug('Archive check already in progress, skipping', 'archive');
       return;
     }
     
@@ -89,7 +90,7 @@ export class ArchiveScheduler {
     this.lastRunTime = new Date();
     
     try {
-      console.log('🔍 Checking for archivable shows...');
+      logger.debug('Checking for archivable shows', 'archive');
       
       // Get all shows from store
       const showStore = useShowStore.getState();
@@ -101,11 +102,11 @@ export class ArchiveScheduler {
       );
       
       if (archivableShows.length === 0) {
-        console.log('✅ No shows need archiving');
+        logger.debug('No shows need archiving', 'archive');
         return;
       }
-      
-      console.log(`📦 Found ${archivableShows.length} shows to archive`);
+
+      logger.info('Found shows to archive', 'archive', { count: archivableShows.length });
       
       // Archive in batches
       const batchedShows = archivableShows.slice(0, this.config.batchSize);
@@ -120,7 +121,7 @@ export class ArchiveScheduler {
       }
       
     } catch (error) {
-      console.error('❌ Archive check failed:', error);
+      logger.error('Archive check failed', 'archive', {}, error as Error);
     } finally {
       this.isRunning = false;
     }
@@ -131,7 +132,7 @@ export class ArchiveScheduler {
    */
   private async archiveShow(show: Show): Promise<void> {
     try {
-      console.log(`📦 Archiving show: ${show.name}`);
+      logger.info('Archiving show', 'archive', { showName: show.name });
       
       // Gather related data
       const entryStore = useEntryStore.getState();
@@ -173,10 +174,10 @@ export class ArchiveScheduler {
         await this.removeArchivedData(show, showEntries);
       }
       
-      console.log(`✅ Successfully archived: ${show.name}`);
-      
+      logger.info('Successfully archived show', 'archive', { showName: show.name });
+
     } catch (error) {
-      console.error(`❌ Failed to archive show ${show.name}:`, error);
+      logger.error('Failed to archive show', 'archive', { showName: show.name }, error as Error);
     }
   }
 
@@ -184,7 +185,7 @@ export class ArchiveScheduler {
    * Remove archived data from active stores
    */
   private async removeArchivedData(show: Show, entries: any[]): Promise<void> {
-    console.log(`🧹 Removing archived data from active stores...`);
+    logger.debug('Removing archived data from active stores', 'archive', { showName: show.name });
     
     // Remove show
     const showStore = useShowStore.getState();
@@ -199,8 +200,8 @@ export class ArchiveScheduler {
     });
     
     // Note: We keep dogs and people as they might be used in other shows
-    
-    console.log(`✅ Removed archived data for: ${show.name}`);
+
+    logger.debug('Removed archived data', 'archive', { showName: show.name });
   }
 
   /**
@@ -212,7 +213,7 @@ export class ArchiveScheduler {
       ? `Show "${shows[0].name}" has been archived`
       : `${shows.length} shows have been archived`;
     
-    console.log(`📢 ${message}`);
+    logger.info('Archive notification', 'archive', { message });
     
     // TODO: Integrate with actual notification system
     // For now, we'll just log it

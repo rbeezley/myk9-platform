@@ -5,6 +5,7 @@
  */
 
 import { supabase } from '@/lib/supabase';
+import { logger } from '@/services/LoggingService';
 import {
   Role,
   Permission,
@@ -60,7 +61,7 @@ export class RoleManager {
       this.clearUserCache(request.userId);
       return data;
     } catch (error) {
-      console.error('Role assignment failed:', error);
+      logger.error('Role assignment failed', 'rbac', { userId: request.userId, roleName: request.roleName }, error as Error);
       throw error;
     }
   }
@@ -89,7 +90,7 @@ export class RoleManager {
       this.clearUserCache(request.userId);
       return data || false;
     } catch (error) {
-      console.error('Role revocation failed:', error);
+      logger.error('Role revocation failed', 'rbac', { userId: request.userId, roleName: request.roleName }, error as Error);
       throw error;
     }
   }
@@ -146,7 +147,7 @@ export class RoleManager {
 
       return roleData as Role;
     } catch (error) {
-      console.error('Role creation failed:', error);
+      logger.error('Role creation failed', 'rbac', { roleName: request.name }, error as Error);
       throw error;
     }
   }
@@ -215,7 +216,7 @@ export class RoleManager {
       this.clearAllCache();
       return roleData as Role;
     } catch (error) {
-      console.error('Role update failed:', error);
+      logger.error('Role update failed', 'rbac', { roleId }, error as Error);
       throw error;
     }
   }
@@ -242,7 +243,7 @@ export class RoleManager {
       this.clearAllCache();
       return true;
     } catch (error) {
-      console.error('Role deletion failed:', error);
+      logger.error('Role deletion failed', 'rbac', { roleId }, error as Error);
       throw error;
     }
   }
@@ -382,7 +383,7 @@ export class RoleManager {
 
       this.clearAllCache();
     } catch (error) {
-      console.error('Failed to update role permissions:', error);
+      logger.error('Failed to update role permissions', 'rbac', { roleId, permissionCount: permissionIds.length }, error as Error);
       throw error;
     }
   }
@@ -436,7 +437,7 @@ export class RoleManager {
         this.clearUserCache(userRole.data.user_id || '');
       }
     } catch (error) {
-      console.error('Failed to revoke user role:', error);
+      logger.error('Failed to revoke user role', 'rbac', { userRoleId }, error as Error);
       throw error;
     }
   }
@@ -482,7 +483,7 @@ export class RoleManager {
         details: { migrated_roles: roles }
       });
     } catch (error) {
-      console.error('User role migration failed:', error);
+      logger.error('User role migration failed', 'rbac', { userId, roles }, error as Error);
       throw error;
     }
   }
@@ -511,7 +512,7 @@ export class RoleManager {
         needsMigration: !isMigrated
       };
     } catch (error) {
-      console.error('Migration check failed:', error);
+      logger.error('Migration check failed', 'rbac', { userId }, error as Error);
       return {
         isMigrated: false,
         needsMigration: false

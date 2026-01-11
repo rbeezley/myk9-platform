@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { logger } from '@/services/LoggingService';
 import { useTemplateStore } from '@/store/templateStore';
 import { useTemplates } from '@/hooks/useTemplates';
 import { Organization, ShowType, TemplateFilter } from '@/types/template.types';
@@ -32,13 +33,13 @@ import { cleanupDuplicateTemplates } from '@/utils/cleanup-duplicate-templates';
 // import { DirectSaveTemplatesDialog } from '@/components/templates/DirectSaveTemplatesDialog';
 
 const TemplateManagementPage: React.FC = () => {
-  console.log('🔥 TEMPLATE PAGE v2 - CACHE BUST 2025-07-07-19:15 - CUSTOM DELETE DIALOG READY!');
+  logger.debug('Template page loaded', 'templates');
   const navigate = useNavigate();
   const { searchTemplates, clearError, error, clearCorruptedData, initializeDefaultTemplates, deleteTemplate } = useTemplateStore();
   const { templates, isLoading } = useTemplates(); // Use lazy loading hook
   
   // Debug template duplication
-  console.log('All templates:', templates.map(t => ({ id: t.id, name: t.templateName, isOfficial: t.isOfficial })));
+  logger.debug('All templates', 'templates', { templates: templates.map(t => ({ id: t.id, name: t.templateName, isOfficial: t.isOfficial })) });
   
   // Clean duplicates on mount
   useEffect(() => {
@@ -47,7 +48,7 @@ const TemplateManagementPage: React.FC = () => {
     );
     
     if (uniqueTemplates.length < templates.length) {
-      console.log(`Found ${templates.length - uniqueTemplates.length} duplicate templates, cleaning...`);
+      logger.info('Found duplicate templates, cleaning', 'templates', { duplicateCount: templates.length - uniqueTemplates.length });
       // This would need to be implemented in the store
     }
   }, [templates]);
@@ -104,12 +105,12 @@ const TemplateManagementPage: React.FC = () => {
   const handleDeleteTemplate = (templateId: string) => {
     const template = templates.find(t => t.id === templateId);
     if (!template) {
-      console.log('Template not found:', templateId);
+      logger.warn('Template not found', 'templates', { templateId });
       return;
     }
 
     if (template.isOfficial) {
-      console.log('Attempted to delete official template - blocked');
+      logger.warn('Attempted to delete official template - blocked', 'templates');
       return;
     }
 
@@ -123,14 +124,14 @@ const TemplateManagementPage: React.FC = () => {
   const handleConfirmDelete = () => {
     if (!deleteDialog.template) return;
 
-    console.log('Attempting to delete template:', deleteDialog.template.id);
+    logger.info('Attempting to delete template', 'templates', { templateId: deleteDialog.template.id });
     const success = deleteTemplate(deleteDialog.template.id);
-    console.log('Delete result:', success);
-    
+    logger.debug('Delete result', 'templates', { success });
+
     if (!success) {
-      console.error('Failed to delete template');
+      logger.error('Failed to delete template', 'templates', { templateId: deleteDialog.template.id });
     } else {
-      console.log('Template deleted successfully');
+      logger.info('Template deleted successfully', 'templates', { templateId: deleteDialog.template.id });
     }
 
     // Close dialog
@@ -146,12 +147,14 @@ const TemplateManagementPage: React.FC = () => {
   
   // Debug logging
   React.useEffect(() => {
-    console.log('TemplateManagementPage - Total templates:', templates.length);
-    console.log('Templates by show type:', templates.reduce((acc, t) => {
-      const type = String(t.showType);
-      acc[type] = (acc[type] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>));
+    logger.debug('TemplateManagementPage - Total templates', 'templates', { count: templates.length });
+    logger.debug('Templates by show type', 'templates', {
+      byShowType: templates.reduce((acc, t) => {
+        const type = String(t.showType);
+        acc[type] = (acc[type] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>)
+    });
   }, [templates]);
 
   return (
@@ -167,7 +170,7 @@ const TemplateManagementPage: React.FC = () => {
             <div className="flex gap-2">{/* Save button temporarily removed */}
               <Button 
                 onClick={() => {
-                  console.log('Force initializing templates...');
+                  logger.info('Force initializing templates', 'templates');
                   initializeDefaultTemplates(true);
                 }} 
                 variant="outline"
@@ -190,7 +193,7 @@ const TemplateManagementPage: React.FC = () => {
               <Button 
                 onClick={() => {
                   const removed = cleanupDuplicateTemplates();
-                  console.log(`Cleaned up ${removed} duplicate templates`);
+                  logger.info('Cleaned up duplicate templates', 'templates', { removed });
                 }} 
                 variant="outline"
                 className="text-xs"
@@ -415,7 +418,7 @@ const TemplateManagementPage: React.FC = () => {
                             <button
                               className="flex w-full items-center px-2 py-1.5 text-sm text-red-600 hover:bg-accent hover:text-red-600 cursor-pointer"
                               onClick={() => {
-                                console.log('Delete button clicked for:', template.id, template.templateName);
+                                logger.debug('Delete button clicked', 'templates', { templateId: template.id, templateName: template.templateName });
                                 handleDeleteTemplate(template.id);
                               }}
                             >

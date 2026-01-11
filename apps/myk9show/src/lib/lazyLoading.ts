@@ -2,6 +2,7 @@
 // Phase 3.2: Advanced Query Optimizations
 
 import { lazy } from 'react';
+import { logger } from '@/services/LoggingService';
 
 // Lazy loading utilities for store modules and components
 export const lazyLoadWithRetry = <T extends React.ComponentType>(
@@ -18,7 +19,7 @@ export const lazyLoadWithRetry = <T extends React.ComponentType>(
         attempt++;
         
         if (attempt >= retries) {
-          console.error(`Failed to load module after ${retries} attempts:`, error);
+          logger.error('Failed to load module after multiple attempts', 'loading', { retries }, error as Error);
           throw error;
         }
         
@@ -47,7 +48,7 @@ export const preloadImport = async <T>(
     await importCache.get(key);
   } catch (error) {
     importCache.delete(key);
-    console.warn(`Failed to preload module: ${key}`, error);
+    logger.warn('Failed to preload module', 'loading', { key }, error as Error);
   }
 };
 
@@ -73,7 +74,7 @@ export const cachedDynamicImport = async <T>(
       attempt++;
       
       if (attempt >= retries) {
-        console.error(`Failed to import module: ${key} after ${retries} attempts`, error);
+        logger.error('Failed to import module after multiple attempts', 'loading', { key, retries }, error as Error);
         throw error;
       }
       
@@ -269,7 +270,7 @@ export class RouteBasedPreloader {
       
       this.preloadedRoutes.add(path);
     } catch (error) {
-      console.warn(`Failed to preload for route: ${path}`, error);
+      logger.warn('Failed to preload for route', 'loading', { path }, error as Error);
     } finally {
       this.preloadingQueue.delete(path);
     }
@@ -308,7 +309,7 @@ export const bundleOptimizations = {
         storeLazyLoaders.users.preload(),
       ]);
     } catch (error) {
-      console.warn('Failed to preload critical stores:', error);
+      logger.warn('Failed to preload critical stores', 'loading', {}, error as Error);
     }
   },
   
@@ -319,7 +320,7 @@ export const bundleOptimizations = {
         Object.values(storeLazyLoaders).map(loader => loader.preload())
       );
     } catch (error) {
-      console.warn('Failed to preload all stores:', error);
+      logger.warn('Failed to preload all stores', 'loading', {}, error as Error);
     }
   },
   
@@ -340,7 +341,7 @@ export const bundleOptimizations = {
         storesForRole.map(store => storeLazyLoaders[store].preload())
       );
     } catch (error) {
-      console.warn(`Failed to preload stores for role: ${userRole}`, error);
+      logger.warn('Failed to preload stores for role', 'loading', { userRole }, error as Error);
     }
   },
   
@@ -348,7 +349,7 @@ export const bundleOptimizations = {
   cleanupUnusedImports: () => {
     // This is a simplified cleanup - in production, you'd track usage timestamps
     if (importCache.size > 20) {
-      console.debug('Cache size large, consider cleanup strategies');
+      logger.debug('Cache size large, consider cleanup strategies', 'loading', { cacheSize: importCache.size });
     }
   },
 };

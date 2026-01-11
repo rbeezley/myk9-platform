@@ -6,6 +6,7 @@
 import { ImpersonationContext, ImpersonationSession, AuditAction, NotificationType } from '@/types/audit-types';
 import { auditService } from './AuditService';
 import { notificationService } from './NotificationService';
+import { logger } from '@/services/LoggingService';
 
 export interface ImpersonationConfig {
   maxSessionDuration?: number; // in milliseconds
@@ -206,7 +207,7 @@ export class ImpersonationService {
    */
   async getSessionHistory(userId?: string): Promise<ImpersonationSession[]> {
     // In a real implementation, this would query the database
-    console.log('Getting session history for user:', userId);
+    logger.debug('Getting session history for user', 'impersonation', { userId });
     // For now, return empty array
     return [];
   }
@@ -290,7 +291,7 @@ export class ImpersonationService {
       throw new Error('2FA code required for impersonation');
     }
 
-    console.log('Validating 2FA for admin:', adminUserId);
+    logger.debug('Validating 2FA for admin', 'impersonation', { adminUserId });
     // In a real implementation, this would validate the 2FA code
     // For now, accept any 6-digit code
     if (!/^\d{6}$/.test(code)) {
@@ -300,7 +301,7 @@ export class ImpersonationService {
 
   private async validateTargetUser(targetUserId?: string): Promise<void> {
     // In a real implementation, this would check if target user exists
-    console.log('Validating target user:', targetUserId);
+    logger.debug('Validating target user', 'impersonation', { targetUserId });
     // For now, assume validation passes
     return;
   }
@@ -343,7 +344,7 @@ export class ImpersonationService {
   }
 
   private async handleSessionExpiry(sessionId: string): Promise<void> {
-    console.warn(`Impersonation session ${sessionId} expired`);
+    logger.warn('Impersonation session expired', 'impersonation', { sessionId });
     
     const session = this.activeSessions.get(sessionId);
     if (session) {
@@ -420,7 +421,7 @@ export class ImpersonationService {
 
       localStorage.setItem('impersonationSessions', JSON.stringify(sessions));
     } catch (error) {
-      console.error('Failed to save impersonation sessions:', error);
+      logger.error('Failed to save impersonation sessions', 'impersonation', {}, error as Error);
     }
   }
 
@@ -473,7 +474,7 @@ export class ImpersonationService {
         });
       }
     } catch (error) {
-      console.error('Failed to load impersonation sessions:', error);
+      logger.error('Failed to load impersonation sessions', 'impersonation', {}, error as Error);
     }
   }
 

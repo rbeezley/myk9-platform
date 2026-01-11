@@ -4,6 +4,8 @@
  * Provides strategies for automatic and manual conflict resolution
  */
 
+import { logger } from '@/services/LoggingService';
+
 export interface ConflictData {
   id: string;
   entity: string;
@@ -91,7 +93,7 @@ class ConflictResolutionService {
     this.conflicts.set(conflict.id, conflict);
     await this.persistConflict(conflict);
 
-    console.log(`⚠️ Conflict registered for ${entity}:${entityId}`, conflictFields);
+    logger.info('Conflict registered', 'sync', { entity, entityId, conflictFields });
     return conflict.id;
   }
 
@@ -122,14 +124,14 @@ class ConflictResolutionService {
 
       await this.persistConflict(conflict);
 
-      console.log(`✅ Conflict resolved: ${conflictId} using ${strategyName}`);
+      logger.info('Conflict resolved', 'sync', { conflictId, strategyName });
       
       return {
         success: true,
         resolvedData
       };
     } catch (error) {
-      console.error(`❌ Failed to resolve conflict ${conflictId}:`, error);
+      logger.error('Failed to resolve conflict', 'sync', { conflictId }, error as Error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -177,7 +179,7 @@ class ConflictResolutionService {
 
     await this.persistConflict(conflict);
     
-    console.log(`✅ Conflict manually resolved: ${conflictId}`);
+    logger.info('Conflict manually resolved', 'sync', { conflictId });
     return true;
   }
 
@@ -199,7 +201,7 @@ class ConflictResolutionService {
       await this.deleteConflict(conflict.id);
     }
 
-    console.log(`🧹 Cleared ${toDelete.length} old resolved conflicts`);
+    logger.debug('Cleared old resolved conflicts', 'sync', { count: toDelete.length });
     return toDelete.length;
   }
 
@@ -463,7 +465,7 @@ class ConflictResolutionService {
         for (const conflict of conflicts) {
           this.conflicts.set(conflict.id, conflict);
         }
-        console.log(`📚 Loaded ${conflicts.length} persisted conflicts`);
+        logger.debug('Loaded persisted conflicts', 'sync', { count: conflicts.length });
         resolve();
       };
       request.onerror = () => reject(request.error);

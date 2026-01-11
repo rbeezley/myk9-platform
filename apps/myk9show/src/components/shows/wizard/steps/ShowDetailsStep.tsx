@@ -1,5 +1,6 @@
 // CLEAN REBUILT FILE - Jul 7, 2025 15:17 - NEW FILE TO FORCE REFRESH
 import React, { useEffect, useState } from 'react';
+import { logger } from '@/services/LoggingService';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -26,7 +27,7 @@ const SHOW_TYPES = [
 ];
 
 export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) => {
-  console.log('🎯 CACHE BUST 2025-07-07-15:19 - NEW CLEAN ShowDetailsStep loaded - ALL BUTTONS SHOULD BE VISIBLE NOW!');
+  logger.debug('ShowDetailsStep component loaded', 'wizard');
   const { show, updateShowData, markStepCompleted } = useWizardStore();
   const { clubs } = useClubStore();
   const { people } = useUserStore();
@@ -67,14 +68,14 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         selectionCallback: (entity: Record<string, unknown>) => {
           const club = entity as { id: string; name: string };
           updateShowData({ clubId: club.id });
-          console.log('🎉 Club created and selected:', club.name);
+          logger.debug('Club created and selected', 'wizard', { clubName: club.name });
         }
       }
     });
   };
 
   const handleCreateChairman = () => {
-    console.log('🎯 CREATE CHAIRMAN button clicked!');
+    logger.debug('CREATE CHAIRMAN button clicked', 'wizard');
     panelManager.openPanel({
       type: 'person',
       title: 'Create New Chairman',
@@ -88,14 +89,14 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         selectionCallback: (person) => {
           const chairmanName = `${person.firstName} ${person.lastName}`;
           updateShowData({ chairman: chairmanName });
-          console.log('🎉 Chairman created and selected:', chairmanName);
+          logger.debug('Chairman created and selected', 'wizard', { chairmanName });
         }
       }
     });
   };
 
   const handleCreateSecretary = () => {
-    console.log('🎯 CREATE SECRETARY button clicked!');
+    logger.debug('CREATE SECRETARY button clicked', 'wizard');
     panelManager.openPanel({
       type: 'person',
       title: 'Create New Secretary',
@@ -109,7 +110,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         selectionCallback: (person) => {
           const secretaryName = `${person.firstName} ${person.lastName}`;
           updateShowData({ secretary: secretaryName });
-          console.log('🎉 Secretary created and selected:', secretaryName);
+          logger.debug('Secretary created and selected', 'wizard', { secretaryName });
         }
       }
     });

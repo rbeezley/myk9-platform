@@ -6,6 +6,7 @@
 import { StateStorage } from 'zustand/middleware';
 import { SecureStorage, SENSITIVE_DATA_TYPES } from '@/utils/encryption';
 import { keyManager, KEY_PURPOSES } from '@/services/security/KeyManagementService';
+import { logger } from '@/services/LoggingService';
 
 // Enhanced storage adapter interface with additional methods
 export interface StorageAdapter extends StateStorage {
@@ -42,10 +43,10 @@ export class EncryptedStorageAdapter implements StorageAdapter {
       
       this.secureStorage = new SecureStorage(actualKey);
       this.initialized = true;
-      
-      console.log('🔐 Encrypted Storage Adapter initialized');
+
+      logger.info('Encrypted Storage Adapter initialized', 'storage');
     } catch (error) {
-      console.error('Failed to initialize encrypted storage:', error);
+      logger.error('Failed to initialize encrypted storage', 'storage', {}, error as Error);
       throw new Error('Encrypted storage initialization failed');
     }
   }
@@ -61,10 +62,10 @@ export class EncryptedStorageAdapter implements StorageAdapter {
       try {
         // Store encrypted data with secure storage
         await this.secureStorage.setItem(key, value);
-        console.log(`🔐 Stored encrypted data for key: ${key}`);
+        logger.debug('Stored encrypted data', 'storage', { key });
         return;
       } catch (error) {
-        console.warn(`Failed to encrypt data for key ${key}, falling back to base storage:`, error);
+        logger.warn('Failed to encrypt data, falling back to base storage', 'storage', { key }, error as Error);
       }
     }
     
@@ -81,11 +82,11 @@ export class EncryptedStorageAdapter implements StorageAdapter {
       try {
         const secureValue = await this.secureStorage.getItem(key);
         if (secureValue !== null) {
-          console.log(`🔓 Retrieved encrypted data for key: ${key}`);
+          logger.debug('Retrieved encrypted data', 'storage', { key });
           return secureValue;
         }
       } catch (error) {
-        console.warn(`Failed to decrypt data for key ${key}, trying base storage:`, error);
+        logger.warn('Failed to decrypt data, trying base storage', 'storage', { key }, error as Error);
       }
     }
     
@@ -102,10 +103,10 @@ export class EncryptedStorageAdapter implements StorageAdapter {
       try {
         this.secureStorage.removeItem(key);
       } catch (error) {
-        console.warn(`Failed to remove from secure storage:`, error);
+        logger.warn('Failed to remove from secure storage', 'storage', { key }, error as Error);
       }
     }
-    
+
     // Remove from base storage
     await this.baseAdapter.removeItem(key);
   }
@@ -119,10 +120,10 @@ export class EncryptedStorageAdapter implements StorageAdapter {
       try {
         this.secureStorage.clear();
       } catch (error) {
-        console.warn(`Failed to clear secure storage:`, error);
+        logger.warn('Failed to clear secure storage', 'storage', {}, error as Error);
       }
     }
-    
+
     // Clear base storage
     await this.baseAdapter.clear();
   }
@@ -138,10 +139,10 @@ export class EncryptedStorageAdapter implements StorageAdapter {
       try {
         secureKeys = this.secureStorage.keys();
       } catch (error) {
-        console.warn(`Failed to get secure storage keys:`, error);
+        logger.warn('Failed to get secure storage keys', 'storage', {}, error as Error);
       }
     }
-    
+
     // Combine and deduplicate keys
     return [...new Set([...baseKeys, ...secureKeys])];
   }
@@ -154,19 +155,19 @@ export class EncryptedStorageAdapter implements StorageAdapter {
     try {
       baseSize = await this.baseAdapter.size();
     } catch (error) {
-      console.warn('Failed to get base storage size:', error);
+      logger.warn('Failed to get base storage size', 'storage', {}, error as Error);
     }
-    
+
     let secureSize = 0;
     if (this.secureStorage && this.initialized) {
       try {
         const secureKeys = this.secureStorage.keys();
         secureSize = secureKeys.length;
       } catch (error) {
-        console.warn('Failed to get secure storage size:', error);
+        logger.warn('Failed to get secure storage size', 'storage', {}, error as Error);
       }
     }
-    
+
     return baseSize + secureSize;
   }
 
@@ -276,18 +277,18 @@ export class EncryptedStorageAdapter implements StorageAdapter {
               await this.secureStorage.setItem(key, value);
               await this.baseAdapter.removeItem(key);
               migrated++;
-              console.log(`🔄 Migrated key to encrypted storage: ${key}`);
+              logger.debug('Migrated key to encrypted storage', 'storage', { key });
             }
           }
         } catch (error) {
-          console.error(`Failed to migrate key ${key}:`, error);
+          logger.error('Failed to migrate key', 'storage', { key }, error as Error);
           errors++;
         }
       }
-      
-      console.log(`📦 Migration complete: ${migrated} keys migrated, ${errors} errors`);
+
+      logger.info('Migration complete', 'storage', { migrated, errors });
     } catch (error) {
-      console.error('Migration failed:', error);
+      logger.error('Migration failed', 'storage', {}, error as Error);
       throw new Error('Data migration to encrypted format failed');
     }
     
@@ -310,18 +311,18 @@ export class EncryptedStorageAdapter implements StorageAdapter {
       try {
         encryptedKeys = this.secureStorage.keys().length;
       } catch (error) {
-        console.warn('Failed to get encrypted keys count:', error);
+        logger.warn('Failed to get encrypted keys count', 'storage', {}, error as Error);
       }
     }
-    
+
     try {
       this.baseAdapter.keys().then(keys => {
         unencryptedKeys = keys.length;
       }).catch(error => {
-        console.warn('Failed to get unencrypted keys count:', error);
+        logger.warn('Failed to get unencrypted keys count', 'storage', {}, error as Error);
       });
     } catch (error) {
-      console.warn('Failed to get unencrypted keys count:', error);
+      logger.warn('Failed to get unencrypted keys count', 'storage', {}, error as Error);
     }
     
     return {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, startTransition, lazy, Suspense } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { logger } from '@/services/LoggingService';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
@@ -237,7 +238,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
   const handlePremiumTabClick = (e: React.MouseEvent) => {
     if (!user.isPremium) {
       e.preventDefault();
-      console.log('Premium feature clicked');
+      logger.debug('Premium feature clicked', 'dogs');
     }
   };
 
@@ -816,9 +817,9 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
                   <p className="text-muted-foreground mb-8 max-w-md">
                     Track your dog's competition history and achievements with our premium features.
                   </p>
-                  <Button 
+                  <Button
                     className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-white hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
-                    onClick={() => console.log('Upgrade to Premium')}
+                    onClick={() => logger.debug('Upgrade to Premium clicked', 'dogs', { tab: 'competitions' })}
                   >
                     <Crown className="h-4 w-4 mr-2" />
                     Upgrade to Premium
@@ -841,7 +842,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
                       <div className="apple-premium-description">
                         Monitor your dog's progress toward titles and certifications.
                       </div>
-                      <button className="apple-premium-button" onClick={() => console.log('Upgrade to Premium')}>
+                      <button className="apple-premium-button" onClick={() => logger.debug('Upgrade to Premium clicked', 'dogs', { tab: 'title-progress' })}>
                         Upgrade to Premium
                       </button>
                     </div>
@@ -862,7 +863,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
                       <div className="apple-premium-description">
                         Keep comprehensive health records for your dog's wellbeing.
                       </div>
-                      <button className="apple-premium-button" onClick={() => console.log('Upgrade to Premium')}>
+                      <button className="apple-premium-button" onClick={() => logger.debug('Upgrade to Premium clicked', 'dogs', { tab: 'health-records' })}>
                         Upgrade to Premium
                       </button>
                     </div>
@@ -883,7 +884,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
                       <div className="apple-premium-description">
                         Document training sessions and track your dog's progress.
                       </div>
-                      <button className="apple-premium-button" onClick={() => console.log('Upgrade to Premium')}>
+                      <button className="apple-premium-button" onClick={() => logger.debug('Upgrade to Premium clicked', 'dogs', { tab: 'training-journal' })}>
                         Upgrade to Premium
                       </button>
                     </div>
@@ -910,7 +911,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
                       <div className="apple-premium-description">
                         Explore your dog's lineage and ancestry with detailed pedigree tracking.
                       </div>
-                      <button className="apple-premium-button" onClick={() => console.log('Upgrade to Premium')}>
+                      <button className="apple-premium-button" onClick={() => logger.debug('Upgrade to Premium clicked', 'dogs', { tab: 'pedigree' })}>
                         Upgrade to Premium
                       </button>
                     </div>
@@ -946,19 +947,19 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
             // Save to database if onUpdate prop is available
             if (onUpdate) {
               const dogInputData = convertDogToDogInput(updatedDogData);
-              console.log('Saving dog data to database:', dogInputData);
+              logger.debug('Saving dog data to database', 'dogs', { dogId: updatedDog.id, dogInputData });
               const savedDog = await onUpdate(updatedDog.id, dogInputData);
-              
+
               if (savedDog) {
                 // Update with the data returned from the database
                 setUpdatedDog(savedDog);
-                console.log('Dog data saved successfully:', savedDog);
+                logger.debug('Dog data saved successfully', 'dogs', { dogId: savedDog.id });
               }
             }
-            
+
             setIsEditPanelOpen(false);
           } catch (error) {
-            console.error('Failed to save dog data:', error);
+            logger.error('Failed to save dog data', 'dogs', { dogId: updatedDog.id }, error as Error);
             // TODO: Show error notification to user
             // For now, still close the panel but the changes might not persist
           }

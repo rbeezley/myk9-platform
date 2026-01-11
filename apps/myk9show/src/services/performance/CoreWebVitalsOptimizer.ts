@@ -11,6 +11,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { getRumService } from './RealUserMonitoring';
+import { logger } from '@/services/LoggingService';
 
 export interface PerformanceOptimization {
   name: string;
@@ -49,8 +50,8 @@ export class CoreWebVitalsOptimizer {
    * Initialize all performance optimizations
    */
   public async initialize(): Promise<void> {
-    console.log('🎯 Initializing Core Web Vitals Optimizer');
-    
+    logger.info('Initializing Core Web Vitals Optimizer', 'performance');
+
     // Start monitoring
     this.startWebVitalsMonitoring();
     
@@ -207,9 +208,9 @@ export class CoreWebVitalsOptimizer {
     
     for (const optimization of criticalOpts) {
       try {
-        console.log(`🔧 Applying critical optimization: ${optimization.name}`);
+        logger.debug('Applying critical optimization', 'performance', { name: optimization.name });
         await optimization.implementation();
-        
+
         const verified = await optimization.verification();
         if (verified) {
           this.rum.trackCustomMetric('optimization_applied', 1, {
@@ -219,7 +220,7 @@ export class CoreWebVitalsOptimizer {
           });
         }
       } catch (error) {
-        console.error(`Failed to apply optimization ${optimization.name}:`, error);
+        logger.error('Failed to apply optimization', 'performance', { name: optimization.name }, error as Error);
       }
     }
   }
@@ -238,7 +239,7 @@ export class CoreWebVitalsOptimizer {
           await opt.implementation();
           await opt.verification();
         } catch (error) {
-          console.error(`Failed to apply high priority optimization ${opt.name}:`, error);
+          logger.error('Failed to apply high priority optimization', 'performance', { name: opt.name }, error as Error);
         }
       }
     }, 1000);
@@ -251,7 +252,7 @@ export class CoreWebVitalsOptimizer {
           await opt.implementation();
           await opt.verification();
         } catch (error) {
-          console.error(`Failed to apply medium priority optimization ${opt.name}:`, error);
+          logger.error('Failed to apply medium priority optimization', 'performance', { name: opt.name }, error as Error);
         }
       }
     }, 3000);
@@ -285,7 +286,7 @@ export class CoreWebVitalsOptimizer {
         head.appendChild(link);
       };
       img.onerror = () => {
-        console.warn(`Critical image not found: ${imageSrc}`);
+        logger.warn('Critical image not found', 'performance', { imageSrc });
       };
       img.src = imageSrc;
     }
@@ -700,10 +701,10 @@ export class CoreWebVitalsOptimizer {
   private async loadComponent(componentName: string, container: HTMLElement): Promise<void> {
     try {
       // This would typically use dynamic imports
-      console.log(`Loading component: ${componentName}`);
+      logger.debug('Loading component', 'performance', { componentName });
       container.classList.add('component-loaded');
     } catch (error) {
-      console.error(`Failed to load component ${componentName}:`, error);
+      logger.error('Failed to load component', 'performance', { componentName }, error as Error);
     }
   }
 
@@ -863,8 +864,8 @@ export class CoreWebVitalsOptimizer {
    * Trigger LCP-specific optimizations when threshold is exceeded
    */
   private triggerLCPOptimizations(lcpTime: number): void {
-    console.warn(`🚨 LCP threshold exceeded: ${lcpTime.toFixed(2)}ms`);
-    
+    logger.warn('LCP threshold exceeded', 'performance', { lcpTimeMs: lcpTime.toFixed(2) });
+
     // Apply emergency LCP optimizations
     this.applyEmergencyLCPOptimizations();
   }
@@ -897,8 +898,8 @@ export class CoreWebVitalsOptimizer {
    * Trigger CLS-specific optimizations
    */
   private triggerCLSOptimizations(clsValue: number, problematicShifts: any[]): void {
-    console.warn(`🚨 CLS threshold exceeded: ${clsValue.toFixed(3)}`, problematicShifts);
-    
+    logger.warn('CLS threshold exceeded', 'performance', { clsValue: clsValue.toFixed(3), shiftsCount: problematicShifts.length });
+
     // Apply emergency CLS optimizations
     this.applyEmergencyCLSOptimizations(problematicShifts);
   }

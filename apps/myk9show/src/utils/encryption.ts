@@ -3,6 +3,8 @@
  * Uses Web Crypto API for secure encryption/decryption
  */
 
+import { logger } from '@/services/LoggingService';
+
 interface EncryptedData {
   data: string;
   iv: string;
@@ -90,7 +92,7 @@ export async function encryptData(
       salt: btoa(String.fromCharCode(...salt)),
     };
   } catch (error) {
-    console.error('Encryption failed:', error);
+    logger.error('Encryption failed', 'encryption', {}, error as Error);
     throw new Error('Failed to encrypt data');
   }
 }
@@ -125,7 +127,7 @@ export async function decryptData(
     const decoder = new TextDecoder();
     return decoder.decode(decryptedBuffer);
   } catch (error) {
-    console.error('Decryption failed:', error);
+    logger.error('Decryption failed', 'encryption', {}, error as Error);
     throw new Error('Failed to decrypt data - incorrect password or corrupted data');
   }
 }
@@ -160,7 +162,7 @@ export async function verifyDataIntegrity(data: string, expectedHash: string): P
     const actualHash = await hashData(data);
     return actualHash === expectedHash;
   } catch (error) {
-    console.error('Hash verification failed:', error);
+    logger.error('Hash verification failed', 'encryption', {}, error as Error);
     return false;
   }
 }
@@ -189,7 +191,7 @@ export class SecureStorage {
       
       localStorage.setItem(`secure_${key}`, JSON.stringify(storageData));
     } catch (error) {
-      console.error('Secure storage setItem failed:', error);
+      logger.error('Secure storage setItem failed', 'encryption', {}, error as Error);
       throw new Error('Failed to securely store data');
     }
   }
@@ -207,14 +209,14 @@ export class SecureStorage {
       
       // Verify data integrity
       if (parsed.hash && !(await verifyDataIntegrity(decrypted, parsed.hash))) {
-        console.warn('Data integrity check failed for key:', key);
+        logger.warn('Data integrity check failed for key', 'encryption', { key });
         this.removeItem(key); // Remove corrupted data
         return null;
       }
 
       return decrypted;
     } catch (error) {
-      console.error('Secure storage getItem failed:', error);
+      logger.error('Secure storage getItem failed', 'encryption', {}, error as Error);
       return null;
     }
   }

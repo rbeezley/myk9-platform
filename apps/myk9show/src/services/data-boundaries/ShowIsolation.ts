@@ -7,6 +7,7 @@
  */
 
 import { EventEmitter } from 'events';
+import { logger } from '@/services/LoggingService';
 
 export interface ShowBoundary {
   /** Unique show identifier */
@@ -71,7 +72,7 @@ export class ShowIsolationService extends EventEmitter {
     this.boundaries.set(showId, boundary);
     this.emit('boundary-created', boundary);
 
-    console.log(`🚧 Created data boundary for show: ${showName} (${showId})`);
+    logger.debug('Created data boundary for show', 'data-boundaries', { showName, showId });
     return boundary;
   }
 
@@ -81,7 +82,7 @@ export class ShowIsolationService extends EventEmitter {
   activateBoundary(showId: string): boolean {
     const boundary = this.boundaries.get(showId);
     if (!boundary) {
-      console.error(`Cannot activate boundary: show ${showId} not found`);
+      logger.error('Cannot activate boundary: show not found', 'data-boundaries', { showId });
       return false;
     }
 
@@ -100,7 +101,7 @@ export class ShowIsolationService extends EventEmitter {
     this.activeShowId = showId;
     this.emit('boundary-activated', boundary);
 
-    console.log(`🎯 Activated data boundary for show: ${boundary.showName}`);
+    logger.debug('Activated data boundary for show', 'data-boundaries', { showName: boundary.showName, showId });
     return true;
   }
 
@@ -125,7 +126,7 @@ export class ShowIsolationService extends EventEmitter {
   registerDataLoad(showId: string, dataType: string, sizeBytes: number = 0): void {
     const boundary = this.boundaries.get(showId);
     if (!boundary) {
-      console.warn(`Cannot register data load: boundary ${showId} not found`);
+      logger.warn('Cannot register data load: boundary not found', 'data-boundaries', { showId });
       return;
     }
 
@@ -141,7 +142,7 @@ export class ShowIsolationService extends EventEmitter {
       this.emit('memory-warning', totalMemory, Array.from(this.boundaries.values()));
     }
 
-    console.log(`📊 Registered ${dataType} data in boundary ${showId} (+${sizeBytes} bytes)`);
+    logger.debug('Registered data in boundary', 'data-boundaries', { dataType, showId, sizeBytes });
   }
 
   /**
@@ -154,7 +155,7 @@ export class ShowIsolationService extends EventEmitter {
     boundary.loadedDataTypes.delete(dataType);
     boundary.memoryUsage = Math.max(0, boundary.memoryUsage - sizeBytes);
 
-    console.log(`🗑️ Unregistered ${dataType} data from boundary ${showId} (-${sizeBytes} bytes)`);
+    logger.debug('Unregistered data from boundary', 'data-boundaries', { dataType, showId, sizeBytes });
   }
 
   /**
@@ -173,7 +174,7 @@ export class ShowIsolationService extends EventEmitter {
     this.boundaries.delete(showId);
     this.emit('boundary-destroyed', showId, boundary);
 
-    console.log(`💥 Destroyed data boundary for show: ${boundary.showName}`);
+    logger.debug('Destroyed data boundary for show', 'data-boundaries', { showName: boundary.showName, showId });
     return true;
   }
 
@@ -195,7 +196,7 @@ export class ShowIsolationService extends EventEmitter {
 
     if (cleanedIds.length > 0) {
       this.emit('cleanup-completed', cleanedIds);
-      console.log(`🧹 Cleaned up ${cleanedIds.length} old show boundaries`);
+      logger.debug('Cleaned up old show boundaries', 'data-boundaries', { count: cleanedIds.length });
     }
 
     return cleanedIds;
@@ -217,7 +218,7 @@ export class ShowIsolationService extends EventEmitter {
 
     if (cleanedIds.length > 0) {
       this.emit('cleanup-completed', cleanedIds);
-      console.log(`🧹 Cleaned up ${cleanedIds.length} old show boundaries (older than ${maxAgeMs}ms)`);
+      logger.debug('Cleaned up old show boundaries by age', 'data-boundaries', { count: cleanedIds.length, maxAgeMs });
     }
 
     return cleanedIds;
@@ -267,7 +268,7 @@ export class ShowIsolationService extends EventEmitter {
       return true;
     }
 
-    console.log(`🔄 Switching show context: ${this.activeShowId} -> ${newShowId}`);
+    logger.debug('Switching show context', 'data-boundaries', { from: this.activeShowId, to: newShowId });
 
     // Create boundary if it doesn't exist
     if (!this.boundaries.has(newShowId)) {
@@ -336,9 +337,9 @@ export class ShowIsolationService extends EventEmitter {
     // Destroy all boundaries
     const boundaryIds = Array.from(this.boundaries.keys());
     boundaryIds.forEach(showId => this.destroyBoundary(showId));
-    
+
     this.removeAllListeners();
-    console.log('🚮 ShowIsolationService destroyed');
+    logger.debug('ShowIsolationService destroyed', 'data-boundaries');
   }
 }
 

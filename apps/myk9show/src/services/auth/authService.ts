@@ -4,6 +4,7 @@
  */
 
 import { supabase } from '@/lib/supabase';
+import { logger } from '@/services/LoggingService';
 import type { User, Session } from '@supabase/supabase-js';
 
 // Authentication result types
@@ -77,7 +78,7 @@ export async function signUp(data: SignUpData): Promise<AuthResult> {
       error: null,
     };
   } catch (error) {
-    console.error('Sign up error:', error);
+    logger.error('Sign up error', 'auth', {}, error as Error);
     return {
       success: false,
       user: null,
@@ -115,7 +116,7 @@ export async function signIn(data: SignInData): Promise<AuthResult> {
       error: null,
     };
   } catch (error) {
-    console.error('Sign in error:', error);
+    logger.error('Sign in error', 'auth', {}, error as Error);
     return {
       success: false,
       user: null,
@@ -138,10 +139,10 @@ export async function signOut(): Promise<{ success: boolean; error: string | nul
     
     return { success: true, error: null };
   } catch (error) {
-    console.error('Sign out error:', error);
-    return { 
-      success: false, 
-      error: (error as Error).message || 'Unknown error occurred' 
+    logger.error('Sign out error', 'auth', {}, error as Error);
+    return {
+      success: false,
+      error: (error as Error).message || 'Unknown error occurred'
     };
   }
 }
@@ -157,7 +158,7 @@ export async function getCurrentSession(): Promise<{ session: Session | null; er
       error: result.error ? result.error.message : null,
     };
   } catch (error) {
-    console.error('Get session error:', error);
+    logger.error('Get session error', 'auth', {}, error as Error);
     return {
       session: null,
       error: (error as Error).message || 'Unknown error occurred',
@@ -181,7 +182,7 @@ export async function getCurrentUser(): Promise<{ user: User | null; error: stri
       error: result.error ? result.error.message : null,
     };
   } catch (error) {
-    console.error('Get user error:', error);
+    logger.error('Get user error', 'auth', {}, error as Error);
     return {
       user: null,
       error: (error as Error).message || 'Unknown error occurred',
@@ -204,10 +205,10 @@ export async function resetPassword(email: string): Promise<{ success: boolean; 
     
     return { success: true, error: null };
   } catch (error) {
-    console.error('Password reset error:', error);
-    return { 
-      success: false, 
-      error: (error as Error).message || 'Unknown error occurred' 
+    logger.error('Password reset error', 'auth', {}, error as Error);
+    return {
+      success: false,
+      error: (error as Error).message || 'Unknown error occurred'
     };
   }
 }
@@ -227,10 +228,10 @@ export async function updatePassword(newPassword: string): Promise<{ success: bo
     
     return { success: true, error: null };
   } catch (error) {
-    console.error('Update password error:', error);
-    return { 
-      success: false, 
-      error: (error as Error).message || 'Unknown error occurred' 
+    logger.error('Update password error', 'auth', {}, error as Error);
+    return {
+      success: false,
+      error: (error as Error).message || 'Unknown error occurred'
     };
   }
 }
@@ -278,7 +279,7 @@ export async function updateProfile(data: UpdateProfileData): Promise<AuthResult
       error: null,
     };
   } catch (error) {
-    console.error('Update profile error:', error);
+    logger.error('Update profile error', 'auth', {}, error as Error);
     return {
       success: false,
       user: null,
@@ -311,7 +312,7 @@ export async function refreshSession(): Promise<AuthResult> {
       error: null,
     };
   } catch (error) {
-    console.error('Refresh session error:', error);
+    logger.error('Refresh session error', 'auth', {}, error as Error);
     return {
       success: false,
       user: null,

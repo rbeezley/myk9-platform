@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
+import { logger } from '@/services/LoggingService';
 import { STORE_CATEGORIES, StoreName, StoreCategory } from '@/store/store-categories';
 import { storeMetricsCollector } from '@/store/compositions/StoreComposition';
 
@@ -117,11 +118,11 @@ export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
         }));
 
         const loadStartTime = performance.now();
-        console.log(`📦 Loading store: ${storeName}`);
-        
+        logger.debug('Loading store', 'store', { storeName });
+
         // Simplified: Skip complex dependency loading for better performance
         // await optimizedDependencyManager.loadStoreDependencies(storeName, loadStore);
-        
+
         const storeModule = await STORE_IMPORTS[storeName]();
         
         // Trigger rehydration if the store has persist middleware (non-blocking)
@@ -131,17 +132,17 @@ export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
         if (storeHook && typeof storeHook === 'object' && 'persist' in storeHook) {
           const persist = (storeHook as Record<string, { rehydrate?: () => void }>).persist;
           if (persist?.rehydrate) {
-            console.log(`🔄 Rehydrating store: ${storeName}`);
+            logger.debug('Rehydrating store', 'store', { storeName });
             // Make rehydration non-blocking by not awaiting it
             Promise.resolve().then(() => persist.rehydrate?.()).catch(err => {
-              console.warn(`Failed to rehydrate ${storeName}:`, err);
+              logger.warn('Failed to rehydrate store', 'store', { storeName }, err as Error);
             });
           }
         }
 
         const loadEndTime = performance.now();
         const loadDuration = loadEndTime - loadStartTime;
-        console.log(`✅ Store ${storeName} loaded in ${loadDuration.toFixed(2)}ms`);
+        logger.debug('Store loaded', 'store', { storeName, loadDurationMs: loadDuration.toFixed(2) });
         
         setStores(prev => ({
           ...prev,
@@ -158,9 +159,9 @@ export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
           storeMetricsCollector.recordLoadTime(storeName, loadTime);
         }
 
-        console.log(`✅ Store loaded: ${storeName} (${loadTime.toFixed(2)}ms)`);
+        logger.info('Store loaded successfully', 'store', { storeName, loadTimeMs: loadTime.toFixed(2) });
       } catch (error) {
-        console.error(`❌ Failed to load store ${storeName}:`, error);
+        logger.error('Failed to load store', 'store', { storeName }, error as Error);
         setStores(prev => ({
           ...prev,
           [storeName]: {
@@ -180,20 +181,20 @@ export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
 
   const loadStoresByCategory = async (category: StoreCategory): Promise<void> => {
     const storeNames = STORE_CATEGORIES[category];
-    console.log(`📦 Loading ${category} stores (${storeNames.length} stores) in parallel...`);
+    logger.debug('Loading stores by category', 'store', { category, storeCount: storeNames.length });
     const startTime = performance.now();
-    
+
     // Load stores in parallel for better performance
     await Promise.all(storeNames.map(storeName => loadStore(storeName)));
-    
+
     const endTime = performance.now();
-    console.log(`✅ ${category} stores loaded in ${(endTime - startTime).toFixed(2)}ms`);
+    logger.info('Category stores loaded', 'store', { category, loadTimeMs: (endTime - startTime).toFixed(2) });
   };
 
   const preloadStore = async (storeName: StoreName): Promise<void> => {
     // Preload in background without blocking
     loadStore(storeName).catch(error => {
-      console.warn(`⚠️ Failed to preload store ${storeName}:`, error);
+      logger.warn('Failed to preload store', 'store', { storeName }, error as Error);
     });
   };
 
@@ -211,23 +212,23 @@ export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
 
   // PERFORMANCE OPTIMIZATION: Only load critical stores on app startup
   useEffect(() => {
-    console.log('🚀 StoreProvider initialized - aggressive lazy loading enabled');
-    
+    logger.info('StoreProvider initialized - aggressive lazy loading enabled', 'store');
+
     // Load only critical stores immediately (minimal set)
     const loadCriticalStores = async () => {
       const criticalStores = STORE_CATEGORIES.CRITICAL;
       if (criticalStores.length > 0) {
-        console.log(`⚡ Loading ${criticalStores.length} critical stores:`, criticalStores);
+        logger.debug('Loading critical stores', 'store', { count: criticalStores.length, stores: criticalStores });
         await Promise.all(criticalStores.map(store => loadStore(store)));
-        console.log('✅ Critical stores loaded');
+        logger.info('Critical stores loaded', 'store');
       } else {
-        console.log('⚡ No critical stores to load - maximum performance mode');
+        logger.debug('No critical stores to load - maximum performance mode', 'store');
       }
     };
 
     // Start loading critical stores immediately
     loadCriticalStores().catch(error => {
-      console.error('❌ Failed to load critical stores:', error);
+      logger.error('Failed to load critical stores', 'store', {}, error as Error);
     });
   }, [loadStore]);
 

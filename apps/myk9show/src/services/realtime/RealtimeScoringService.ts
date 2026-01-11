@@ -1,5 +1,6 @@
 import { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase-client';
+import { logger } from '@/services/LoggingService';
 import { BaseScore, Score, PlacementUpdate, ScoringConflict } from '@/types/scoring-types';
 import { syncQueue } from '../sync/SyncQueue';
 import { offlineScoringService } from '../scoring/OfflineScoringService';
@@ -181,7 +182,7 @@ export class RealtimeScoringService {
       });
 
     } catch (error) {
-      console.error('Failed to setup realtime channels:', error);
+      logger.error('Failed to setup realtime channels', 'realtime', {}, error as Error);
       performanceMonitor.endTimer(timerId, { 
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -213,7 +214,7 @@ export class RealtimeScoringService {
             if (newScore) {
               // Cache the score from realtime event
               offlineScoringService.cacheScore(newScore as BaseScore).catch(err => {
-                console.error('Failed to cache realtime score:', err);
+                logger.error('Failed to cache realtime score', 'realtime', {}, err as Error);
               });
 
               // If this score was in our sync queue, remove it (it's now synced)
@@ -227,7 +228,7 @@ export class RealtimeScoringService {
                   matchingPending.id,
                   newScore as BaseScore
                 ).catch(err => {
-                  console.error('Failed to update cache with server data:', err);
+                  logger.error('Failed to update cache with server data', 'realtime', {}, err as Error);
                 });
               }
             }
@@ -235,7 +236,7 @@ export class RealtimeScoringService {
             // Remove deleted score from local cache
             if (oldScore.id) {
               offlineScoringService.removeScore(oldScore.id as string).catch(err => {
-                console.error('Failed to remove score from cache:', err);
+                logger.error('Failed to remove score from cache', 'realtime', {}, err as Error);
               });
             }
           }
@@ -609,7 +610,7 @@ export class RealtimeScoringService {
         try {
           callback(data);
         } catch (error) {
-          console.error(`Error in subscriber for ${event}:`, error);
+          logger.error('Error in subscriber', 'realtime', { event }, error as Error);
         }
       });
     }
@@ -637,22 +638,22 @@ export class RealtimeScoringService {
   }
 
   private async handleOnline() {
-    console.log('Connection restored, reconnecting to realtime...');
+    logger.info('Connection restored, reconnecting to realtime', 'realtime');
     await this.reconnect();
 
     // Resume sync queue processing now that we're online
-    console.log('Resuming sync queue processing...');
+    logger.debug('Resuming sync queue processing', 'realtime');
     syncQueue.resume();
   }
 
   private handleOffline() {
-    console.log('Connection lost, switching to offline mode');
+    logger.info('Connection lost, switching to offline mode', 'realtime');
     this.isConnected = false;
     this.notifySubscribers('connection-lost', { timestamp: new Date() });
   }
 
   private handleConnectionChange(status: string) {
-    console.log('Realtime connection status:', status);
+    logger.debug('Realtime connection status', 'realtime', { status });
     
     if (status === 'SUBSCRIBED') {
       this.reconnectAttempts = 0;
@@ -671,13 +672,13 @@ export class RealtimeScoringService {
       this.reconnectAttempts++;
       const delay = this.config.reconnectDelay * this.reconnectAttempts;
       
-      console.log(`Scheduling reconnect attempt ${this.reconnectAttempts} in ${delay}ms`);
+      logger.debug('Scheduling reconnect attempt', 'realtime', { attempt: this.reconnectAttempts, delayMs: delay });
       
       this.reconnectTimer = setTimeout(() => {
         this.reconnect();
       }, delay);
     } else {
-      console.error('Max reconnection attempts reached');
+      logger.error('Max reconnection attempts reached', 'realtime', { attempts: this.reconnectAttempts });
       this.notifySubscribers('connection-failed', { 
         attempts: this.reconnectAttempts,
         timestamp: new Date() 
@@ -700,12 +701,12 @@ export class RealtimeScoringService {
 
       // Process any queued updates now that we're reconnected
       if (navigator.onLine) {
-        console.log('Processing queued sync items after reconnection...');
+        logger.debug('Processing queued sync items after reconnection', 'realtime');
         syncQueue.resume();
       }
 
     } catch (error) {
-      console.error('Reconnection failed:', error);
+      logger.error('Reconnection failed', 'realtime', {}, error as Error);
       this.scheduleReconnect();
     }
   }

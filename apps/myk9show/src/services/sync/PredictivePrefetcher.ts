@@ -1,4 +1,5 @@
 import { syncService } from './syncService';
+import { logger } from '@/services/LoggingService';
 
 interface NavigationPattern {
   fromRoute: string;
@@ -208,7 +209,7 @@ export class PredictivePrefetcher {
 
     // Check size limits
     if (task.estimatedSize > this.maxPrefetchSize) {
-      console.warn('Prefetch task too large, skipping:', task);
+      logger.warn('Prefetch task too large, skipping', 'prefetch', { taskId: task.id, estimatedSize: task.estimatedSize, maxSize: this.maxPrefetchSize });
       return;
     }
 
@@ -245,7 +246,7 @@ export class PredictivePrefetcher {
    */
   private async executePrefetch(task: PrefetchTask): Promise<void> {
     try {
-      console.log('Executing prefetch:', task);
+      logger.debug('Executing prefetch', 'prefetch', { taskId: task.id, entityType: task.entityType, entityId: task.entityId });
 
       // Set timeout for the task
       const timeoutPromise = new Promise<void>((_, reject) => {
@@ -256,11 +257,11 @@ export class PredictivePrefetcher {
 
       await Promise.race([prefetchPromise, timeoutPromise]);
 
-      console.log('Prefetch completed successfully:', task.id);
+      logger.debug('Prefetch completed successfully', 'prefetch', { taskId: task.id });
       this.updateRuleSuccessRate(task, true);
 
     } catch (error) {
-      console.warn('Prefetch failed:', task.id, error);
+      logger.warn('Prefetch failed', 'prefetch', { taskId: task.id }, error as Error);
       
       // Retry logic
       if (task.retries < 2) {
@@ -294,11 +295,11 @@ export class PredictivePrefetcher {
    */
   private async prefetchSearchResults(query: string, entityType: string): Promise<void> {
     // This would integrate with the search service
-    console.log(`Prefetching search results for "${query}" in ${entityType}`);
-    
+    logger.debug('Prefetching search results', 'prefetch', { query, entityType });
+
     // Mock implementation - in real app would call search API
     await new Promise(resolve => setTimeout(resolve, 100));
-    
+
     // Cache results in IndexedDB or memory cache
     // await searchService.cacheSearchResults(query, entityType, results);
   }
@@ -307,11 +308,11 @@ export class PredictivePrefetcher {
    * Prefetch specific entity
    */
   private async prefetchEntity(entityType: string, entityId: string): Promise<void> {
-    console.log(`Prefetching ${entityType}:${entityId}`);
-    
+    logger.debug('Prefetching entity', 'prefetch', { entityType, entityId });
+
     // Mock implementation - in real app would load from API
     await new Promise(resolve => setTimeout(resolve, 200));
-    
+
     // Queue for sync service to load and cache
     await syncService.addToQueue({
       entityType: entityType as 'club' | 'person' | 'dog' | 'show' | 'entry',
@@ -646,7 +647,7 @@ export class PredictivePrefetcher {
         } as PrefetchRule));
       }
     } catch (error) {
-      console.warn('Failed to load prefetch patterns from storage:', error);
+      logger.warn('Failed to load prefetch patterns from storage', 'prefetch', {}, error as Error);
     }
   }
 
@@ -670,7 +671,7 @@ export class PredictivePrefetcher {
         JSON.stringify(this.prefetchRules)
       );
     } catch (error) {
-      console.warn('Failed to save prefetch patterns to storage:', error);
+      logger.warn('Failed to save prefetch patterns to storage', 'prefetch', {}, error as Error);
     }
   }
 

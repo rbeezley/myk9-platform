@@ -8,6 +8,7 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { logger } from '@/services/LoggingService';
 
 // UI Components
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -197,8 +198,8 @@ export function ScoringDemoPage() {
                       classId={DEMO_CLASS_ID}
                       format="scent_work"
                       maxDisplayEntries={5}
-                      onScoreSelect={(entryId) => 
-                        console.log('Selected entry:', entryId)
+                      onScoreSelect={(entryId) =>
+                        logger.debug('Selected entry', 'scoring-demo', { entryId })
                       }
                     />
                   </CardContent>
@@ -222,8 +223,8 @@ export function ScoringDemoPage() {
                     <OfflineScoringModeIndicator
                       showDetailedStatus={true}
                       showSyncQueue={true}
-                      onRetrySync={() => 
-                        console.log('Retrying sync...')
+                      onRetrySync={() =>
+                        logger.debug('Retrying sync', 'scoring-demo')
                       }
                     />
                   </CardContent>
@@ -248,11 +249,11 @@ export function ScoringDemoPage() {
                   <PlacementRecalculationAlert
                     classId={DEMO_CLASS_ID}
                     format="scent_work"
-                    onDismiss={(alertId) => 
-                      console.log('Dismissed alert:', alertId)
+                    onDismiss={(alertId) =>
+                      logger.debug('Dismissed alert', 'scoring-demo', { alertId })
                     }
-                    onViewPlacements={() => 
-                      console.log('Viewing placements...')
+                    onViewPlacements={() =>
+                      logger.debug('Viewing placements', 'scoring-demo')
                     }
                   />
                 </CardContent>
@@ -271,8 +272,8 @@ export function ScoringDemoPage() {
                 format="scent_work"
                 showOnlyQualified={false}
                 maxDisplayEntries={15}
-                onScoreSelect={(entryId) => 
-                  console.log('Selected entry for detailed view:', entryId)
+                onScoreSelect={(entryId) =>
+                  logger.debug('Selected entry for detailed view', 'scoring-demo', { entryId })
                 }
               />
             </motion.div>
@@ -288,7 +289,7 @@ export function ScoringDemoPage() {
                 showDetailedStatus={true}
                 showSyncQueue={true}
                 onRetrySync={() => {
-                  console.log('Manual sync triggered');
+                  logger.debug('Manual sync triggered', 'scoring-demo');
                   // Simulate sync process
                 }}
               />
@@ -305,10 +306,10 @@ export function ScoringDemoPage() {
                 classId={DEMO_CLASS_ID}
                 format="scent_work"
                 onConflictResolved={(entryId, resolution) => {
-                  console.log('Conflict resolved:', { entryId, resolution });
+                  logger.debug('Conflict resolved', 'scoring-demo', { entryId, resolution });
                 }}
                 onViewScore={(entryId, judgeId) => {
-                  console.log('Viewing score:', { entryId, judgeId });
+                  logger.debug('Viewing score', 'scoring-demo', { entryId, judgeId });
                 }}
               />
             </motion.div>
@@ -325,10 +326,10 @@ export function ScoringDemoPage() {
                 classId={DEMO_CLASS_ID}
                 format="scent_work"
                 onForceSync={() => {
-                  console.log('Force sync initiated by judge');
+                  logger.debug('Force sync initiated by judge', 'scoring-demo');
                 }}
                 onDataExport={() => {
-                  console.log('Exporting judge data...');
+                  logger.debug('Exporting judge data', 'scoring-demo');
                 }}
               />
             </motion.div>

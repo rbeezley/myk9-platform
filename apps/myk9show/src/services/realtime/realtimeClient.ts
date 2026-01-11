@@ -9,6 +9,7 @@
 import { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '../database/supabaseClient';
 import { errorMonitor } from '../../lib/errorMonitoring';
+import { logger } from '@/services/LoggingService';
 // import { RETRY_CONFIGS } from '../../lib/connectionRecovery'; // Future use for retry configuration
 
 export interface RealtimeClientConfig {
@@ -166,7 +167,7 @@ export class EnhancedRealtimeClient {
       const latency = await this.measureConnectionLatency();
       
       if (latency > this.config.targetLatency * 2) {
-        console.warn(`High latency detected: ${latency}ms (target: ${this.config.targetLatency}ms)`);
+        logger.warn('High latency detected', 'realtime', { latencyMs: latency, targetMs: this.config.targetLatency });
       }
 
       this.metrics.connectionLatency = latency;
@@ -175,8 +176,8 @@ export class EnhancedRealtimeClient {
       
       // Start heartbeat monitoring
       this.startHeartbeat();
-      
-      console.log(`Real-time connection established. Latency: ${latency}ms`);
+
+      logger.info('Real-time connection established', 'realtime', { latencyMs: latency });
       
     } catch (error) {
       this.handleConnectionError(error as Error);
@@ -353,7 +354,7 @@ export class EnhancedRealtimeClient {
     // Process batch (implementation depends on use case)
     batch.forEach(message => {
       // Custom batch processing logic here
-      console.debug('Processing batched message:', message.id);
+      logger.debug('Processing batched message', 'realtime', { messageId: message.id });
     });
   }
 
@@ -363,7 +364,7 @@ export class EnhancedRealtimeClient {
   private handleChannelStatus(channelName: string, status: string): void {
     switch (status) {
       case 'SUBSCRIBED':
-        console.log(`Channel ${channelName} subscribed successfully`);
+        logger.debug('Channel subscribed successfully', 'realtime', { channelName });
         break;
       
       case 'CHANNEL_ERROR':
@@ -399,7 +400,7 @@ export class EnhancedRealtimeClient {
       await this.createChannel(channelName);
       
     } catch (error) {
-      console.error(`Failed to recreate channel ${channelName}:`, error);
+      logger.error('Failed to recreate channel', 'realtime', { channelName }, error as Error);
     }
   }
 
@@ -429,7 +430,7 @@ export class EnhancedRealtimeClient {
         this.metrics.messagesSent++;
         
       } catch (error) {
-        console.warn('Heartbeat failed:', error);
+        logger.warn('Heartbeat failed', 'realtime', {}, error as Error);
         this.handleConnectionError(error as Error);
       }
     }, this.config.heartbeatInterval);
@@ -475,11 +476,11 @@ export class EnhancedRealtimeClient {
       this.config.reconnectMaxDelay
     );
 
-    console.log(`Scheduling reconnect attempt ${this.reconnectAttempts} in ${delay}ms`);
+    logger.debug('Scheduling reconnect attempt', 'realtime', { attempt: this.reconnectAttempts, delayMs: delay });
 
     setTimeout(() => {
       this.connect().catch(error => {
-        console.error('Reconnection failed:', error);
+        logger.error('Reconnection failed', 'realtime', {}, error as Error);
       });
     }, delay);
   }
@@ -488,7 +489,7 @@ export class EnhancedRealtimeClient {
    * Handle network restoration
    */
   private handleNetworkRestore(): void {
-    console.log('Network restored, reconnecting...');
+    logger.info('Network restored, reconnecting', 'realtime');
     this.reconnectAttempts = 0; // Reset attempts on network restore
     this.connect();
   }
@@ -497,7 +498,7 @@ export class EnhancedRealtimeClient {
    * Handle network loss
    */
   private handleNetworkLoss(): void {
-    console.log('Network lost, pausing real-time connections');
+    logger.info('Network lost, pausing real-time connections', 'realtime');
     this.isConnected = false;
     
     if (this.heartbeatTimer) {
@@ -553,7 +554,7 @@ export class EnhancedRealtimeClient {
 
     // Log metrics in development
     if (process.env.NODE_ENV === 'development') {
-      console.debug('Real-time metrics:', this.getMetrics());
+      logger.debug('Real-time metrics', 'realtime', { metrics: this.getMetrics() });
     }
   }
 
@@ -662,7 +663,7 @@ export class EnhancedRealtimeClient {
       try {
         await channel.unsubscribe();
       } catch (error) {
-        console.warn(`Error unsubscribing from channel ${name}:`, error);
+        logger.warn('Error unsubscribing from channel', 'realtime', { channelName: name }, error as Error);
       }
     });
 
@@ -685,7 +686,7 @@ export class EnhancedRealtimeClient {
    */
   async disconnect(): Promise<void> {
     this.cleanup();
-    console.log('Real-time client disconnected');
+    logger.info('Real-time client disconnected', 'realtime');
   }
 }
 

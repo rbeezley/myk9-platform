@@ -10,6 +10,7 @@ import type {
   SyncState,
   DeviceOverrides
 } from '@/types/user-preferences';
+import { logger } from '@/services/LoggingService';
 
 // Simple DeviceInfo for backward compatibility
 export interface SimpleDeviceInfo {
@@ -41,55 +42,55 @@ export class UserPreferencesService {
 
   async getUserPreferences(userId: string): Promise<UserPreferences> {
     try {
-      console.log('👤 Loading user preferences (mock)', { userId });
-      
+      logger.debug('Loading user preferences (mock)', 'preferences', { userId });
+
       // Return default preferences for now
       return await this.loadPreferences(userId);
     } catch (error) {
-      console.error('Failed to load user preferences:', error);
+      logger.error('Failed to load user preferences', 'preferences', { userId }, error as Error);
       return await this.loadPreferences(userId);
     }
   }
 
   async updateUserPreferences(
-    userId: string, 
+    userId: string,
     updates: Partial<Omit<UserPreferences, 'userId' | 'createdAt' | 'updatedAt'>>
   ): Promise<boolean> {
     try {
-      console.log('💾 Updating user preferences (mock)', { userId, updates });
+      logger.debug('Updating user preferences (mock)', 'preferences', { userId, updates });
       return true;
     } catch (error) {
-      console.error('Failed to update user preferences:', error);
+      logger.error('Failed to update user preferences', 'preferences', { userId }, error as Error);
       return false;
     }
   }
 
   async resetUserPreferences(userId: string): Promise<boolean> {
     try {
-      console.log('🔄 Resetting user preferences (mock)', { userId });
+      logger.debug('Resetting user preferences (mock)', 'preferences', { userId });
       return true;
     } catch (error) {
-      console.error('Failed to reset user preferences:', error);
+      logger.error('Failed to reset user preferences', 'preferences', { userId }, error as Error);
       return false;
     }
   }
 
   async logDeviceInfo(userId: string, deviceInfo: Partial<DeviceInfo>): Promise<boolean> {
     try {
-      console.log('📱 Logging device info (mock)', { userId, deviceInfo });
+      logger.debug('Logging device info (mock)', 'preferences', { userId, deviceInfo });
       return true;
     } catch (error) {
-      console.error('Failed to log device info:', error);
+      logger.error('Failed to log device info', 'preferences', { userId }, error as Error);
       return false;
     }
   }
 
   async getUserDevices(userId: string): Promise<SimpleDeviceInfo[]> {
     try {
-      console.log('📱 Loading user devices (mock)', { userId });
+      logger.debug('Loading user devices (mock)', 'preferences', { userId });
       return [];
     } catch (error) {
-      console.error('Failed to load user devices:', error);
+      logger.error('Failed to load user devices', 'preferences', { userId }, error as Error);
       return [];
     }
   }
@@ -101,7 +102,7 @@ export class UserPreferencesService {
 
   async loadPreferences(userId: string): Promise<UserPreferences> {
     try {
-      console.log('👤 Loading user preferences (mock)', { userId });
+      logger.debug('Loading user preferences (mock)', 'preferences', { userId });
       
       // Return default preferences structure
       return {
@@ -188,14 +189,14 @@ export class UserPreferencesService {
         updatedAt: new Date()
       };
     } catch (error) {
-      console.error('Failed to load user preferences:', error);
+      logger.error('Failed to load user preferences', 'preferences', { userId }, error as Error);
       throw error;
     }
   }
 
   async updatePreferences(userId: string, updates: PreferencesUpdate): Promise<UserPreferences> {
     try {
-      console.log('💾 Updating user preferences (mock)', { userId, updates });
+      logger.debug('Updating user preferences (mock)', 'preferences', { userId, updates });
       
       // Return updated preferences (merge with defaults)
       const current = await this.loadPreferences(userId);
@@ -214,60 +215,60 @@ export class UserPreferencesService {
       
       return updated;
     } catch (error) {
-      console.error('Failed to update user preferences:', error);
+      logger.error('Failed to update user preferences', 'preferences', { userId }, error as Error);
       throw error;
     }
   }
 
   async resetToDefaults(userId: string, category?: keyof PreferencesUpdate): Promise<UserPreferences> {
     try {
-      console.log('🔄 Resetting user preferences to defaults (mock)', { userId, category });
+      logger.debug('Resetting user preferences to defaults (mock)', 'preferences', { userId, category });
       return await this.loadPreferences(userId);
     } catch (error) {
-      console.error('Failed to reset user preferences:', error);
+      logger.error('Failed to reset user preferences', 'preferences', { userId, category }, error as Error);
       throw error;
     }
   }
 
   async exportPreferences(userId: string): Promise<string> {
     try {
-      console.log('📤 Exporting user preferences (mock)', { userId });
+      logger.debug('Exporting user preferences (mock)', 'preferences', { userId });
       const preferences = await this.loadPreferences(userId);
       return JSON.stringify(preferences, null, 2);
     } catch (error) {
-      console.error('Failed to export user preferences:', error);
+      logger.error('Failed to export user preferences', 'preferences', { userId }, error as Error);
       throw error;
     }
   }
 
   async importPreferences(userId: string, data: string): Promise<UserPreferences> {
     try {
-      console.log('📥 Importing user preferences (mock)', { userId });
+      logger.debug('Importing user preferences (mock)', 'preferences', { userId });
       const imported = JSON.parse(data) as UserPreferences;
       imported.userId = userId;
       imported.updatedAt = new Date();
       return imported;
     } catch (error) {
-      console.error('Failed to import user preferences:', error);
+      logger.error('Failed to import user preferences', 'preferences', { userId }, error as Error);
       throw error;
     }
   }
 
   async forceSync(userId: string): Promise<UserPreferences> {
     try {
-      console.log('🔄 Force syncing user preferences (mock)', { userId });
+      logger.debug('Force syncing user preferences (mock)', 'preferences', { userId });
       this.syncState.status = 'syncing';
-      
+
       // Simulate sync delay
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       this.syncState.status = 'idle';
       this.syncState.lastSyncAt = new Date();
       this.syncState.pendingChanges = false;
-      
+
       return await this.loadPreferences(userId);
     } catch (error) {
-      console.error('Failed to force sync user preferences:', error);
+      logger.error('Failed to force sync user preferences', 'preferences', { userId }, error as Error);
       this.syncState.status = 'error';
       this.syncState.errorMessage = error instanceof Error ? error.message : 'Sync failed';
       throw error;
@@ -276,17 +277,17 @@ export class UserPreferencesService {
 
   async registerDevice(userId: string, deviceInfo?: Partial<DeviceInfo>): Promise<void> {
     try {
-      console.log('📱 Registering device (mock)', { userId, deviceInfo });
+      logger.debug('Registering device (mock)', 'preferences', { userId, deviceInfo });
       // Mock device registration
     } catch (error) {
-      console.error('Failed to register device:', error);
+      logger.error('Failed to register device', 'preferences', { userId }, error as Error);
       throw error;
     }
   }
 
   async getDevices(userId: string): Promise<DeviceInfo[]> {
     try {
-      console.log('📱 Loading user devices (mock)', { userId });
+      logger.debug('Loading user devices (mock)', 'preferences', { userId });
       return [
         {
           id: 'device-1',
@@ -299,17 +300,17 @@ export class UserPreferencesService {
         }
       ];
     } catch (error) {
-      console.error('Failed to load user devices:', error);
+      logger.error('Failed to load user devices', 'preferences', { userId }, error as Error);
       return [];
     }
   }
 
   async removeDevice(userId: string, deviceId: string): Promise<void> {
     try {
-      console.log('🗑️ Removing device (mock)', { userId, deviceId });
+      logger.debug('Removing device (mock)', 'preferences', { userId, deviceId });
       // Mock device removal
     } catch (error) {
-      console.error('Failed to remove device:', error);
+      logger.error('Failed to remove device', 'preferences', { userId, deviceId }, error as Error);
       throw error;
     }
   }

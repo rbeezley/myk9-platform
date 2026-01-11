@@ -6,6 +6,7 @@
  * automatic sync scheduling, and intelligent offline mode detection.
  */
 
+import { logger } from '@/services/LoggingService';
 import { syncQueue } from './SyncQueue';
 import { conflictResolver } from './conflictResolver';
 import { errorMonitor } from '../../lib/errorMonitoring';
@@ -227,7 +228,7 @@ export class OfflineManager {
       return response.ok;
       
     } catch (error) {
-      console.warn('Connectivity check failed:', error);
+      logger.warn('Connectivity check failed', 'offline', { error });
       return false;
     }
   }
@@ -259,7 +260,7 @@ export class OfflineManager {
    * Handle connection restored
    */
   private async handleConnectionRestored(): Promise<void> {
-    console.log('Connection restored');
+    logger.info('Connection restored', 'offline');
     
     // Update state
     this.state.isOnline = true;
@@ -291,7 +292,7 @@ export class OfflineManager {
    * Handle connection lost
    */
   private handleConnectionLost(): void {
-    console.log('Connection lost');
+    logger.info('Connection lost', 'offline');
     
     // Update state
     this.state.isOnline = false;
@@ -312,7 +313,7 @@ export class OfflineManager {
    * Handle browser online event
    */
   private handleOnline(): void {
-    console.log('Browser online event');
+    logger.debug('Browser online event', 'offline');
     this.checkConnectivity().then(isOnline => {
       if (isOnline) {
         this.updateNetworkState(true);
@@ -324,7 +325,7 @@ export class OfflineManager {
    * Handle browser offline event
    */
   private handleOffline(): void {
-    console.log('Browser offline event');
+    logger.debug('Browser offline event', 'offline');
     this.updateNetworkState(false);
   }
 
@@ -424,7 +425,7 @@ export class OfflineManager {
       }
 
     } catch (error) {
-      console.error('Failed to estimate storage:', error);
+      logger.error('Failed to estimate storage', 'offline', {}, error as Error);
     }
   }
 
@@ -515,7 +516,7 @@ export class OfflineManager {
       details: { operationId, entityType, actionType },
     });
 
-    console.log(`Queued offline operation: ${operationId} (${entityType}.${actionType})`);
+    logger.debug('Queued offline operation', 'offline', { operationId, entityType, actionType });
     return operationId;
   }
 
@@ -543,7 +544,7 @@ export class OfflineManager {
 
     this.saveDrafts();
     
-    console.log(`Created draft: ${draftId}`);
+    logger.debug('Created draft', 'offline', { draftId });
     return draftId;
   }
 
@@ -584,7 +585,7 @@ export class OfflineManager {
     this.draftOperations.delete(draftId);
     this.saveDrafts();
 
-    console.log(`Promoted draft ${draftId} to operation ${operationId}`);
+    logger.info('Promoted draft to operation', 'offline', { draftId, operationId });
     return operationId;
   }
 
@@ -666,7 +667,7 @@ export class OfflineManager {
    * Sync single operation using registered processors
    */
   private async syncSingleOperation(item: SyncQueueItem): Promise<void> {
-    console.log(`Syncing operation: ${item.id} (${item.entityType}.${item.actionType})`);
+    logger.debug('Syncing operation', 'offline', { itemId: item.id, entityType: item.entityType, actionType: item.actionType });
 
     // Get the processor for this entity type from SyncQueue
     const processor = syncQueue.getProcessor(item.entityType);
@@ -687,7 +688,7 @@ export class OfflineManager {
     }
 
     // No processor registered - fall back to stub behavior
-    console.warn(`No processor registered for entity type: ${item.entityType}`);
+    logger.warn('No processor registered for entity type', 'offline', { entityType: item.entityType });
     await new Promise(resolve => setTimeout(resolve, 100));
   }
 
@@ -717,7 +718,7 @@ export class OfflineManager {
     );
 
     if (conflict) {
-      console.log(`Conflict detected for ${item.id}, queuing for resolution`);
+      logger.info('Conflict detected, queuing for resolution', 'offline', { itemId: item.id });
       
       this.emitEvent({
         type: 'conflict-detected',
@@ -754,7 +755,7 @@ export class OfflineManager {
       const operations = Array.from(this.pendingOperations.entries());
       localStorage.setItem('myK9Show_pending_operations', JSON.stringify(operations));
     } catch (error) {
-      console.error('Failed to save pending operations:', error);
+      logger.error('Failed to save pending operations', 'offline', {}, error as Error);
     }
   }
 
@@ -769,7 +770,7 @@ export class OfflineManager {
         this.pendingOperations = new Map(operations);
       }
     } catch (error) {
-      console.error('Failed to load pending operations:', error);
+      logger.error('Failed to load pending operations', 'offline', {}, error as Error);
     }
   }
 
@@ -781,7 +782,7 @@ export class OfflineManager {
       const drafts = Array.from(this.draftOperations.entries());
       localStorage.setItem('myK9Show_drafts', JSON.stringify(drafts));
     } catch (error) {
-      console.error('Failed to save drafts:', error);
+      logger.error('Failed to save drafts', 'offline', {}, error as Error);
     }
   }
 
@@ -796,7 +797,7 @@ export class OfflineManager {
         this.draftOperations = new Map(drafts);
       }
     } catch (error) {
-      console.error('Failed to load drafts:', error);
+      logger.error('Failed to load drafts', 'offline', {}, error as Error);
     }
   }
 
@@ -810,7 +811,7 @@ export class OfflineManager {
         try {
           listener(event);
         } catch (error) {
-          console.error(`Error in offline event listener for ${event.type}:`, error);
+          logger.error('Error in offline event listener', 'offline', { eventType: event.type }, error as Error);
         }
       });
     }
@@ -887,7 +888,7 @@ export class OfflineManager {
     
     this.state.pendingSyncOperations = 0;
     
-    console.log('All offline data cleared');
+    logger.info('All offline data cleared', 'offline');
   }
 
   /**
@@ -940,7 +941,7 @@ export class OfflineManager {
     // Clear event listeners
     this.eventListeners.clear();
     
-    console.log('Offline manager destroyed');
+    logger.info('Offline manager destroyed', 'offline');
   }
 }
 

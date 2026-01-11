@@ -20,6 +20,7 @@ import { MemberList } from './members/MemberList';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { ClubAdminService } from '@/services/clubAdminService';
 import { ScopeType } from '@/types/auth-types';
+import { logger } from '@/services/LoggingService';
 
 
 export interface ClubDetailsProps {
@@ -39,9 +40,11 @@ export interface ClubDetailsProps {
  * CACHE_BUST_2025_01_08_20_05 - Fixed undefined array access
  */
 const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems }) => {
-  console.log('🔍 ClubDetails render start - selectedClub:', selectedClub);
-  console.log('🔍 ClubDetails render start - selectedClub type:', typeof selectedClub);
-  console.log('🔍 ClubDetails render start - selectedClub keys:', selectedClub ? Object.keys(selectedClub) : 'null');
+  logger.debug('ClubDetails render start', 'clubs', {
+    selectedClub,
+    selectedClubType: typeof selectedClub,
+    selectedClubKeys: selectedClub ? Object.keys(selectedClub) : null
+  });
   
   const navigate = useNavigate();
   const { updateClub, removeClubOptimistic } = useClubStore();
@@ -82,17 +85,15 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
 
   // Additional safety check for club data integrity
   if (!selectedClub.id || !selectedClub.name) {
-    console.error('ClubDetails: Invalid club data', selectedClub);
+    logger.error('Invalid club data', 'clubs', { selectedClub });
     return <div className="flex items-center justify-center text-gray-500">Invalid club data.</div>;
   }
 
   // Debug: Log club shows data
-  console.log('🏛️ ClubDetails Debug:', {
+  logger.debug('ClubDetails debug', 'clubs', {
     clubId: selectedClub.id,
     clubName: selectedClub.name,
-    upcomingShowsArray: selectedClub.upcomingShows,
     upcomingShowsCount: selectedClub.upcomingShows?.length || 0,
-    pastShowsArray: selectedClub.pastShows,
     pastShowsCount: selectedClub.pastShows?.length || 0
   });
 
@@ -171,25 +172,25 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
   };
 
   const handleConfirmDelete = async () => {
-    console.log('🔍 handleConfirmDelete called:', { 
-      selectedClub: selectedClub?.name, 
+    logger.debug('handleConfirmDelete called', 'clubs', {
+      selectedClub: selectedClub?.name,
       userWithRoles: userWithRoles?.id,
-      databaseUserId: userWithRoles?.databaseUserId 
+      databaseUserId: userWithRoles?.databaseUserId
     });
 
     if (!selectedClub) {
-      console.error('❌ No club selected for deletion');
+      logger.error('No club selected for deletion', 'clubs');
       setShowDeleteDialog(false);
       return;
     }
 
     if (!userWithRoles || !userWithRoles.databaseUserId) {
-      console.error('❌ No user context or database user ID available for deletion');
+      logger.error('No user context or database user ID available for deletion', 'clubs');
       setShowDeleteDialog(false);
       return;
     }
 
-    console.log('🚀 Starting deletion process:', {
+    logger.info('Starting deletion process', 'clubs', {
       clubId: selectedClub.id,
       clubName: selectedClub.name,
       authUserId: userWithRoles.id,
@@ -199,14 +200,14 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
 
     setIsDeleting(true);
     try {
-      console.log('📞 Calling removeClubOptimistic...');
+      logger.debug('Calling removeClubOptimistic', 'clubs');
       await removeClubOptimistic(selectedClub.id, userWithRoles.databaseUserId);
-      console.log('✅ Club deletion completed successfully');
+      logger.info('Club deletion completed successfully', 'clubs', { clubId: selectedClub.id });
       setShowDeleteDialog(false);
       // Navigate back to clubs list after successful deletion
       navigate('/clubs');
     } catch (error) {
-      console.error('💥 Club deletion failed:', error);
+      logger.error('Club deletion failed', 'clubs', { clubId: selectedClub.id }, error as Error);
       // Still close the dialog even on error so user isn't stuck
       setShowDeleteDialog(false);
       // TODO: Show error toast to user
@@ -219,7 +220,7 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
   const handleClubEditComplete = async (formData: Partial<Club>) => {
     if (!selectedClub) return;
     
-    console.log('Saving club form data:', formData);
+    logger.debug('Saving club form data', 'clubs', { formData });
     
     // Convert form data to club object, preserving ID and other non-form fields
     const updatedClub: Club = {
@@ -236,13 +237,13 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
       }
     };
     
-    console.log('Updated club object:', updatedClub);
+    logger.debug('Updated club object', 'clubs', { updatedClub });
     
     try {
       await updateClub(updatedClub);
       setShowEditPanel(false);
     } catch (error) {
-      console.error('Failed to save club:', error);
+      logger.error('Failed to save club', 'clubs', { clubId: selectedClub?.id }, error as Error);
       // Keep the panel open so user can try again
       // TODO: Show error message in panel
     }
@@ -324,7 +325,7 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
   };
 
   const handleRegistrationComplete = (data: RegistrationFormData) => {
-    console.log('Registration completed:', data);
+    logger.info('Registration completed', 'clubs', { registrationData: data });
     setShowRegistrationDialog(false);
     setSelectedShowForRegistration(null);
     // TODO: Handle successful registration (show success message, redirect, etc.)
@@ -373,7 +374,7 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
                 <Phone className="mr-2 h-4 w-4" />
                 Call Club
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => console.log('Visit website - would open club website')}>
+              <DropdownMenuItem onClick={() => logger.logUserAction('visit_website', 'club', { clubId: selectedClub?.id })}>
                 <Globe className="mr-2 h-4 w-4" />
                 Visit Website
               </DropdownMenuItem>
@@ -647,11 +648,11 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
                                 <Eye className="mr-2 h-4 w-4" />
                                 View Results
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => console.log('View awards for:', show.name)}>
+                              <DropdownMenuItem onClick={() => logger.logUserAction('view_awards', 'show', { showName: show.name })}>
                                 <Trophy className="mr-2 h-4 w-4" />
                                 View Awards
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => console.log('View photos for:', show.name)}>
+                              <DropdownMenuItem onClick={() => logger.logUserAction('view_photos', 'show', { showName: show.name })}>
                                 <ExternalLink className="mr-2 h-4 w-4" />
                                 View Photos
                               </DropdownMenuItem>
@@ -793,7 +794,7 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
       {showWizardDialog && (
         <PanelProvider
           onEntityCreated={(entity, context) => {
-            console.log('🎉 Entity created from club page:', entity.name || entity.id, 'Type:', context.entityType);
+            logger.info('Entity created from club page', 'clubs', { entityName: entity.name || entity.id, entityType: context.entityType });
             
             // Handle automatic selection of newly created entities
             if (context.selectionCallback) {
@@ -801,7 +802,7 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
             }
           }}
           onPanelResult={(panelId, result) => {
-            console.log('🎛️ Panel result from club page:', panelId, result.action, result.success);
+            logger.debug('Panel result from club page', 'clubs', { panelId, action: result.action, success: result.success });
           }}
         >
           <ShowCreationWizard

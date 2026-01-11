@@ -2,6 +2,7 @@
 
 import { EventEmitter } from '../sync/eventEmitter';
 import { SyncAnalyticsService } from '../analytics/SyncAnalyticsService';
+import { logger } from '@/services/LoggingService';
 import {
   Alert,
   AlertRule,
@@ -74,7 +75,7 @@ class AlertingService extends EventEmitter {
       
       // [AlertingService] Initialized successfully');
     } catch (error) {
-      console.error('[AlertingService] Initialization failed:', error);
+      logger.error('Initialization failed', 'alerting', {}, error as Error);
       throw error;
     }
   }
@@ -124,7 +125,7 @@ class AlertingService extends EventEmitter {
     await this.sendNotifications(alert, rule.channels);
 
     this.emit('alert_created', alert);
-    console.log(`[AlertingService] Alert created: ${alert.id} - ${alert.title}`);
+    logger.info('Alert created', 'alerting', { alertId: alert.id, title: alert.title });
 
     return alert;
   }
@@ -143,7 +144,7 @@ class AlertingService extends EventEmitter {
     await this.persistAlerts();
 
     this.emit('alert_acknowledged', alert);
-    console.log(`[AlertingService] Alert acknowledged: ${alertId}`);
+    logger.info('Alert acknowledged', 'alerting', { alertId });
   }
 
   async resolveAlert(alertId: string, userId?: string): Promise<void> {
@@ -160,7 +161,7 @@ class AlertingService extends EventEmitter {
     await this.persistAlerts();
 
     this.emit('alert_resolved', alert);
-    console.log(`[AlertingService] Alert resolved: ${alertId}`);
+    logger.info('Alert resolved', 'alerting', { alertId });
   }
 
   async snoozeAlert(alertId: string, duration: number): Promise<void> {
@@ -176,7 +177,7 @@ class AlertingService extends EventEmitter {
     await this.persistAlerts();
 
     this.emit('alert_snoozed', alert);
-    console.log(`[AlertingService] Alert snoozed: ${alertId} until ${alert.snoozedUntil}`);
+    logger.info('Alert snoozed', 'alerting', { alertId, snoozedUntil: alert.snoozedUntil });
   }
 
   // Rule Management
@@ -191,7 +192,7 @@ class AlertingService extends EventEmitter {
     await this.persistRules();
 
     this.emit('rule_created', newRule);
-    console.log(`[AlertingService] Rule created: ${ruleId} - ${newRule.name}`);
+    logger.info('Rule created', 'alerting', { ruleId, ruleName: newRule.name });
 
     return newRule;
   }
@@ -207,7 +208,7 @@ class AlertingService extends EventEmitter {
     await this.persistRules();
 
     this.emit('rule_updated', updatedRule);
-    console.log(`[AlertingService] Rule updated: ${ruleId}`);
+    logger.info('Rule updated', 'alerting', { ruleId });
 
     return updatedRule;
   }
@@ -222,7 +223,7 @@ class AlertingService extends EventEmitter {
     await this.persistRules();
 
     this.emit('rule_deleted', ruleId);
-    console.log(`[AlertingService] Rule deleted: ${ruleId}`);
+    logger.info('Rule deleted', 'alerting', { ruleId });
   }
 
   // Notification Management
@@ -247,7 +248,7 @@ class AlertingService extends EventEmitter {
             delivered: false,
             error: error instanceof Error ? error.message : 'Unknown error'
           });
-          console.error(`[AlertingService] Failed to send ${channel} notification:`, error);
+          logger.error('Failed to send notification', 'alerting', { channel }, error as Error);
         }
       }
     }
@@ -289,7 +290,7 @@ class AlertingService extends EventEmitter {
       case NotificationChannel.SOUND:
         if (this.config.soundUrl) {
           const audio = new Audio(this.config.soundUrl);
-          await audio.play().catch(console.warn);
+          await audio.play().catch((e) => logger.warn('Failed to play alert sound', 'alerting', { error: e }));
         }
         break;
     }
@@ -298,7 +299,7 @@ class AlertingService extends EventEmitter {
   private async sendEmailNotification(alert: Alert): Promise<void> {
     // Email notification implementation would go here
     // This would typically integrate with an email service like SendGrid, AWS SES, etc.
-    console.log(`[AlertingService] Email notification sent for alert: ${alert.id}`);
+    logger.info('Email notification sent', 'alerting', { alertId: alert.id });
   }
 
   // Metric Monitoring
@@ -317,7 +318,7 @@ class AlertingService extends EventEmitter {
       const metrics = await this.analytics.getMetrics(startTime, endTime);
       await this.checkAlertRules(metrics);
     } catch (error) {
-      console.error('[AlertingService] Error checking rules with analytics:', error);
+      logger.error('Error checking rules with analytics', 'alerting', {}, error as Error);
     }
   }
 
@@ -330,7 +331,7 @@ class AlertingService extends EventEmitter {
           await this.triggerAlert(rule, metrics);
         }
       } catch (error) {
-        console.error(`[AlertingService] Error evaluating rule ${ruleId}:`, error);
+        logger.error('Error evaluating rule', 'alerting', { ruleId }, error as Error);
       }
     }
   }
@@ -485,7 +486,7 @@ class AlertingService extends EventEmitter {
     await this.persistPreferences();
     
     this.emit('preferences_updated', { userId, preferences });
-    console.log(`[AlertingService] Preferences updated for user: ${userId}`);
+    logger.info('Preferences updated', 'alerting', { userId });
   }
 
   getPreferences(userId: string): AlertPreferences | undefined {
@@ -613,7 +614,7 @@ class AlertingService extends EventEmitter {
     if (cleaned > 0) {
       this.persistAlerts();
       this.persistNotifications();
-      console.log(`[AlertingService] Cleaned up ${cleaned} old alerts`);
+      logger.info('Cleaned up old alerts', 'alerting', { count: cleaned });
     }
   }
 
@@ -633,7 +634,7 @@ class AlertingService extends EventEmitter {
 
     if (reactivated > 0) {
       this.persistAlerts();
-      console.log(`[AlertingService] Reactivated ${reactivated} snoozed alerts`);
+      logger.info('Reactivated snoozed alerts', 'alerting', { count: reactivated });
     }
   }
 
@@ -781,9 +782,9 @@ class AlertingService extends EventEmitter {
         }
       }
 
-      console.log(`[AlertingService] Loaded ${this.alerts.size} alerts and ${this.rules.size} rules`);
+      logger.info('Loaded persisted data', 'alerting', { alertCount: this.alerts.size, ruleCount: this.rules.size });
     } catch (error) {
-      console.error('[AlertingService] Failed to load persisted data:', error);
+      logger.error('Failed to load persisted data', 'alerting', {}, error as Error);
     }
   }
 
@@ -792,7 +793,7 @@ class AlertingService extends EventEmitter {
       const alerts = Array.from(this.alerts.values());
       localStorage.setItem(this.STORAGE_KEYS.ALERTS, JSON.stringify(alerts));
     } catch (error) {
-      console.error('[AlertingService] Failed to persist alerts:', error);
+      logger.error('Failed to persist alerts', 'alerting', {}, error as Error);
     }
   }
 
@@ -801,7 +802,7 @@ class AlertingService extends EventEmitter {
       const rules = Array.from(this.rules.values());
       localStorage.setItem(this.STORAGE_KEYS.RULES, JSON.stringify(rules));
     } catch (error) {
-      console.error('[AlertingService] Failed to persist rules:', error);
+      logger.error('Failed to persist rules', 'alerting', {}, error as Error);
     }
   }
 
@@ -810,7 +811,7 @@ class AlertingService extends EventEmitter {
       const preferences = Object.fromEntries(this.preferences);
       localStorage.setItem(this.STORAGE_KEYS.PREFERENCES, JSON.stringify(preferences));
     } catch (error) {
-      console.error('[AlertingService] Failed to persist preferences:', error);
+      logger.error('Failed to persist preferences', 'alerting', {}, error as Error);
     }
   }
 
@@ -819,7 +820,7 @@ class AlertingService extends EventEmitter {
       const notifications = Object.fromEntries(this.notifications);
       localStorage.setItem(this.STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(notifications));
     } catch (error) {
-      console.error('[AlertingService] Failed to persist notifications:', error);
+      logger.error('Failed to persist notifications', 'alerting', {}, error as Error);
     }
   }
 

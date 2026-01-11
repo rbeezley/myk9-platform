@@ -3,6 +3,8 @@
  * TODO: Implement proper database integration when payment tables are created
  */
 
+import { logger } from '@/services/LoggingService';
+
 export interface PaymentDetails {
   id: string;
   entryId: string;
@@ -75,7 +77,7 @@ export class PaymentService {
     multipleEntryCount: number = 1
   ): Promise<{ baseFee: number; adjustments: Array<{ type: string; amount: number; description: string }>; totalFee: number }> {
     try {
-      console.log('📊 Calculating entry fee (mock)', { showId, className });
+      logger.debug('Calculating entry fee (mock)', 'payment', { showId, className });
       
       const baseFee = 35.00;
       const adjustments: Array<{ type: string; amount: number; description: string }> = [];
@@ -121,7 +123,7 @@ export class PaymentService {
 
       return { baseFee, adjustments, totalFee };
     } catch (error) {
-      console.error('Failed to calculate entry fee:', error);
+      logger.error('Failed to calculate entry fee', 'payment', {}, error as Error);
       return {
         baseFee: 35.00,
         adjustments: [],
@@ -139,14 +141,14 @@ export class PaymentService {
     metadata: Record<string, unknown> = {}
   ): Promise<{ paymentId: string; clientSecret?: string } | null> {
     try {
-      console.log('💳 Creating payment intent (mock)', { entryId, userId, amount, currency, description, metadata });
+      logger.debug('Creating payment intent (mock)', 'payment', { entryId, userId, amount, currency, description, metadata });
       
       return {
         paymentId: 'mock_' + Date.now().toString(),
         clientSecret: 'mock_client_secret_' + Date.now().toString()
       };
     } catch (error) {
-      console.error('Failed to create payment intent:', error);
+      logger.error('Failed to create payment intent', 'payment', {}, error as Error);
       return null;
     }
   }
@@ -157,20 +159,20 @@ export class PaymentService {
     paymentMethodInfo: PaymentMethodInfo
   ): Promise<boolean> {
     try {
-      console.log('✅ Payment confirmed (mock)', { paymentId, transactionId, paymentMethodInfo });
+      logger.info('Payment confirmed (mock)', 'payment', { paymentId, transactionId, paymentMethodInfo });
       return true;
     } catch (error) {
-      console.error('Failed to confirm payment:', error);
+      logger.error('Failed to confirm payment', 'payment', {}, error as Error);
       return false;
     }
   }
 
   async failPayment(paymentId: string, errorMessage?: string): Promise<boolean> {
     try {
-      console.log('❌ Payment failed (mock)', { paymentId, errorMessage });
+      logger.warn('Payment failed (mock)', 'payment', { paymentId, errorMessage });
       return true;
     } catch (error) {
-      console.error('Failed to mark payment as failed:', error);
+      logger.error('Failed to mark payment as failed', 'payment', {}, error as Error);
       return false;
     }
   }
@@ -181,27 +183,27 @@ export class PaymentService {
     reason: string
   ): Promise<string | null> {
     try {
-      console.log('💸 Processing refund (mock)', { paymentId, amount, reason });
+      logger.info('Processing refund (mock)', 'payment', { paymentId, amount, reason });
       return 'mock_refund_' + Date.now().toString();
     } catch (error) {
-      console.error('Failed to process refund:', error);
+      logger.error('Failed to process refund', 'payment', {}, error as Error);
       return null;
     }
   }
 
   async getPaymentHistory(userId: string, limit: number = 50): Promise<PaymentDetails[]> {
     try {
-      console.log('📋 Loading payment history (mock)', { userId, limit });
+      logger.debug('Loading payment history (mock)', 'payment', { userId, limit });
       return [];
     } catch (error) {
-      console.error('Failed to load payment history:', error);
+      logger.error('Failed to load payment history', 'payment', {}, error as Error);
       return [];
     }
   }
 
   async getShowPaymentSummary(showId: string): Promise<PaymentSummary> {
     try {
-      console.log('📊 Loading payment summary (mock)', { showId });
+      logger.debug('Loading payment summary (mock)', 'payment', { showId });
       return {
         totalEntries: 0,
         totalAmount: 0,
@@ -211,7 +213,7 @@ export class PaymentService {
         completionRate: 0
       };
     } catch (error) {
-      console.error('Failed to load payment summary:', error);
+      logger.error('Failed to load payment summary', 'payment', {}, error as Error);
       return {
         totalEntries: 0,
         totalAmount: 0,
@@ -225,17 +227,17 @@ export class PaymentService {
 
   async checkPaymentStatus(paymentId: string): Promise<PaymentDetails | null> {
     try {
-      console.log('🔍 Checking payment status (mock)', { paymentId });
+      logger.debug('Checking payment status (mock)', 'payment', { paymentId });
       return null;
     } catch (error) {
-      console.error('Failed to check payment status:', error);
+      logger.error('Failed to check payment status', 'payment', {}, error as Error);
       return null;
     }
   }
 
   async generateReceipt(paymentId: string): Promise<PaymentReceipt | null> {
     try {
-      console.log('🧾 Generating receipt (mock)', { paymentId });
+      logger.debug('Generating receipt (mock)', 'payment', { paymentId });
       return {
         receiptNumber: 'RCPT-' + Date.now().toString(),
         paymentId,
@@ -244,17 +246,17 @@ export class PaymentService {
         paidAt: new Date()
       };
     } catch (error) {
-      console.error('Failed to generate receipt:', error);
+      logger.error('Failed to generate receipt', 'payment', {}, error as Error);
       return null;
     }
   }
 
   async testPaymentService(): Promise<boolean> {
     try {
-      console.log('✅ Payment service test (mock)');
+      logger.debug('Payment service test (mock)', 'payment');
       return true;
     } catch (error) {
-      console.error('Payment service test failed:', error);
+      logger.error('Payment service test failed', 'payment', {}, error as Error);
       return false;
     }
   }

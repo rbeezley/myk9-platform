@@ -4,6 +4,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { SyncEventMap } from './types';
 import { SYNCABLE_ENTITIES } from './types';
 import { EventEmitter } from './eventEmitter';
+import { logger } from '@/services/LoggingService';
 
 export class RealtimeManager {
   private eventEmitter: EventEmitter<SyncEventMap>;
@@ -24,9 +25,9 @@ export class RealtimeManager {
       }
 
       this.isEnabled = true;
-      console.log('Real-time sync enabled');
+      logger.info('Real-time sync enabled', 'realtime');
     } catch (error) {
-      console.error('Failed to enable real-time sync:', error);
+      logger.error('Failed to enable real-time sync', 'realtime', {}, error as Error);
       throw error;
     }
   }
@@ -37,12 +38,12 @@ export class RealtimeManager {
     // Unsubscribe from all channels
     this.channels.forEach(async (channel, entityType) => {
       await supabase.removeChannel(channel);
-      console.log(`Unsubscribed from ${entityType}`);
+      logger.debug('Unsubscribed from entity', 'realtime', { entityType });
     });
 
     this.channels.clear();
     this.isEnabled = false;
-    console.log('Real-time sync disabled');
+    logger.info('Real-time sync disabled', 'realtime');
   }
 
   async handleEvent(event: Record<string, unknown>): Promise<void> {
@@ -67,9 +68,9 @@ export class RealtimeManager {
       )
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
-          console.log(`Subscribed to real-time updates for ${entityType}`);
+          logger.debug('Subscribed to real-time updates', 'realtime', { entityType });
         } else if (status === 'CHANNEL_ERROR') {
-          console.error(`Failed to subscribe to ${entityType}:`, status);
+          logger.error('Failed to subscribe to entity', 'realtime', { entityType, status });
         }
       });
 
@@ -83,7 +84,7 @@ export class RealtimeManager {
     const entityType = this.getPayloadProperty(payload, 'entityType') as string | undefined;
 
     if (!entityType || typeof entityType !== 'string') {
-      console.warn('Invalid entityType in realtime event:', payload);
+      logger.warn('Invalid entityType in realtime event', 'realtime', { payload });
       return;
     }
 
@@ -105,7 +106,7 @@ export class RealtimeManager {
           }
           break;
         default:
-          console.warn(`Unknown real-time event type: ${eventType}`);
+          logger.warn('Unknown real-time event type', 'realtime', { eventType });
       }
 
       this.eventEmitter.emit('realtime_event', {
@@ -116,24 +117,24 @@ export class RealtimeManager {
       });
 
     } catch (error) {
-      console.error(`Failed to process real-time event for ${entityType}:`, error);
+      logger.error('Failed to process real-time event', 'realtime', { entityType }, error as Error);
     }
   }
 
   private async handleInsert(entityType: string, record: Record<string, unknown>): Promise<void> {
     const recordId = this.getRecordId(record);
     if (!recordId) {
-      console.warn('Insert record missing id:', record);
+      logger.warn('Insert record missing id', 'realtime', { record });
       return;
     }
-    
+
     // Check if we already have this record locally
     const localRecord = await this.getLocalRecord(entityType, recordId);
-    
+
     if (!localRecord) {
       // New record from remote, add it locally
       await this.addLocalRecord(entityType, record);
-      console.log(`Added new ${entityType} from real-time: ${recordId}`);
+      logger.debug('Added new record from real-time', 'realtime', { entityType, recordId });
     } else {
       // Record exists locally, check for conflicts
       await this.handlePotentialConflict(entityType, record, localRecord);
@@ -144,16 +145,16 @@ export class RealtimeManager {
   private async handleUpdate(entityType: string, newRecord: Record<string, unknown>, _oldRecord?: Record<string, unknown>): Promise<void> {
     const recordId = this.getRecordId(newRecord);
     if (!recordId) {
-      console.warn('Update record missing id:', newRecord);
+      logger.warn('Update record missing id', 'realtime', { newRecord });
       return;
     }
-    
+
     const localRecord = await this.getLocalRecord(entityType, recordId);
-    
+
     if (!localRecord) {
       // Record doesn't exist locally, add it
       await this.addLocalRecord(entityType, newRecord);
-      console.log(`Added ${entityType} from real-time update: ${recordId}`);
+      logger.debug('Added record from real-time update', 'realtime', { entityType, recordId });
     } else {
       // Check for conflicts and merge if possible
       await this.handlePotentialConflict(entityType, newRecord, localRecord);
@@ -163,80 +164,80 @@ export class RealtimeManager {
   private async handleDelete(entityType: string, record: Record<string, unknown>): Promise<void> {
     const recordId = this.getRecordId(record);
     if (!recordId) {
-      console.warn('Delete record missing id:', record);
+      logger.warn('Delete record missing id', 'realtime', { record });
       return;
     }
-    
+
     const localRecord = await this.getLocalRecord(entityType, recordId);
-    
+
     if (localRecord) {
       // Check if local record has pending changes
       const syncMeta = await this.getSyncMetadata(entityType, recordId);
       const hasLocalChanges = this.getSyncMetaProperty(syncMeta, 'syncStatus') === 'pending';
-      
+
       if (hasLocalChanges) {
         // Create a conflict for deletion
         await this.createDeletionConflict(entityType, record, localRecord);
       } else {
         // Safe to delete locally
         await this.deleteLocalRecord(entityType, recordId);
-        console.log(`Deleted ${entityType} from real-time: ${recordId}`);
+        logger.debug('Deleted record from real-time', 'realtime', { entityType, recordId });
       }
     }
   }
 
   private async handlePotentialConflict(
-    entityType: string, 
-    remoteRecord: Record<string, unknown>, 
+    entityType: string,
+    remoteRecord: Record<string, unknown>,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _localRecord: Record<string, unknown>
   ): Promise<void> {
     const recordId = this.getRecordId(remoteRecord);
     if (!recordId) {
-      console.warn('Remote record missing id:', remoteRecord);
+      logger.warn('Remote record missing id', 'realtime', { remoteRecord });
       return;
     }
-    
+
     // Check if local record has pending changes
     const syncMeta = await this.getSyncMetadata(entityType, recordId);
     const hasLocalChanges = this.getSyncMetaProperty(syncMeta, 'syncStatus') === 'pending';
-    
+
     if (hasLocalChanges) {
       // Import conflict resolver to detect conflicts
       const { SyncConflictResolver } = await import('./SyncConflictResolver');
       const conflictResolver = new SyncConflictResolver(this.eventEmitter);
-      
+
       await conflictResolver.detectConflicts(
-        entityType, 
-        recordId, 
+        entityType,
+        recordId,
         remoteRecord
       );
-      
+
       // Conflict detection and handling is managed by the conflict resolver
       // Safe to update after conflict detection
       await this.updateLocalRecord(entityType, remoteRecord);
     } else {
       // No local changes, safe to update
       await this.updateLocalRecord(entityType, remoteRecord);
-      console.log(`Updated ${entityType} from real-time: ${recordId}`);
+      logger.debug('Updated record from real-time', 'realtime', { entityType, recordId });
     }
   }
 
   private async createDeletionConflict(
-    entityType: string, 
-    deletedRecord: Record<string, unknown>, 
+    entityType: string,
+    deletedRecord: Record<string, unknown>,
     localRecord: Record<string, unknown>
   ): Promise<void> {
     const recordId = this.getRecordId(deletedRecord);
     if (!recordId) {
-      console.warn('Deleted record missing id:', deletedRecord);
+      logger.warn('Deleted record missing id', 'realtime', { deletedRecord });
       return;
     }
-    
+
     // Import conflict resolver to create conflict
     const { SyncConflictResolver } = await import('./SyncConflictResolver');
     const conflictResolver = new SyncConflictResolver(this.eventEmitter);
-    
+
     // Create a special conflict for deletion
     const conflictData = {
       id: `deletion-conflict-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
@@ -249,7 +250,7 @@ export class RealtimeManager {
       status: 'pending' as const
     };
 
-    console.log(`Created deletion conflict for ${entityType}:${recordId}`, conflictData, conflictResolver);
+    logger.debug('Created deletion conflict', 'realtime', { entityType, recordId, conflictData, conflictResolver });
   }
 
   private async getLocalRecord(entityType: string, recordId: string): Promise<Record<string, unknown> | null> {
@@ -258,7 +259,7 @@ export class RealtimeManager {
       const table = db.instance.table(entityType);
       return await table.get(recordId);
     } catch (error) {
-      console.error(`Failed to get local record ${entityType}:${recordId}:`, error);
+      logger.error('Failed to get local record', 'realtime', { entityType, recordId }, error as Error);
       return null;
     }
   }
@@ -284,21 +285,21 @@ export class RealtimeManager {
       
       await table.add(recordWithSync);
     } catch (error) {
-      console.error(`Failed to add local record ${entityType}:${record.id}:`, error);
+      logger.error('Failed to add local record', 'realtime', { entityType, recordId: record.id }, error as Error);
     }
   }
 
   private async updateLocalRecord(entityType: string, record: Record<string, unknown>): Promise<void> {
     const recordId = this.getRecordId(record);
     if (!recordId) {
-      console.warn('Update record missing id:', record);
+      logger.warn('Update record missing id', 'realtime', { record });
       return;
     }
-    
+
     try {
       const { db } = await import('../database/connection');
       const table = db.instance.table(entityType);
-      
+
       // Update with sync metadata
       const syncData = this.getSyncData(record);
       const updateData = {
@@ -313,10 +314,10 @@ export class RealtimeManager {
           syncStatus: 'synced'
         }
       };
-      
+
       await table.update(recordId, updateData);
     } catch (error) {
-      console.error(`Failed to update local record ${entityType}:${recordId}:`, error);
+      logger.error('Failed to update local record', 'realtime', { entityType, recordId }, error as Error);
     }
   }
 
@@ -326,7 +327,7 @@ export class RealtimeManager {
       const table = db.instance.table(entityType);
       await table.delete(recordId);
     } catch (error) {
-      console.error(`Failed to delete local record ${entityType}:${recordId}:`, error);
+      logger.error('Failed to delete local record', 'realtime', { entityType, recordId }, error as Error);
     }
   }
 
@@ -337,7 +338,7 @@ export class RealtimeManager {
       const result = await db.instance.syncMetadata.get(metaId);
       return result ? (result as unknown as Record<string, unknown>) : null;
     } catch (error) {
-      console.error(`Failed to get sync metadata for ${entityType}:${entityId}:`, error);
+      logger.error('Failed to get sync metadata', 'realtime', { entityType, entityId }, error as Error);
       return null;
     }
   }

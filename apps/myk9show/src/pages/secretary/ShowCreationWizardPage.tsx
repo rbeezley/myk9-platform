@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { logger } from '@/services/LoggingService';
 import { format } from 'date-fns';
 import { AlertTriangle, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -195,7 +196,7 @@ const ShowCreationWizardPage: React.FC = () => {
 
   // Helper function to create classes in class store with trial mapping
   const createClassesWithTrialMapping = useCallback((showId: string, trialIdMap: Record<string, string>) => {
-    console.log('🎯 createClassesWithTrialMapping called', { showId, trialIdMap });
+    logger.debug('createClassesWithTrialMapping called', 'wizard', { showId, trialIdMap });
     
     // In edit mode, only create classes for NEW trials
     const trialsToProcess = editMode ? (() => {
@@ -207,7 +208,7 @@ const ShowCreationWizardPage: React.FC = () => {
     
     trialsToProcess.forEach(wizardTrial => {
       const trialId = trialIdMap[wizardTrial.id];
-      console.log('🎯 Processing wizard trial:', wizardTrial.name, 'mapped to trial ID:', trialId);
+      logger.debug('Processing wizard trial', 'wizard', { trialName: wizardTrial.name, trialId });
       
       if (trialId && wizardTrial.classes.length > 0) {
         // Create classes for this trial
@@ -246,13 +247,13 @@ const ShowCreationWizardPage: React.FC = () => {
             templateId: cls.templateId
           };
           
-          console.log('🎯 Adding class:', classData);
+          logger.debug('Adding class', 'wizard', { classId: classData.id, className: classData.className });
           addClass(classData);
         });
       } else if (!trialId) {
-        console.log('❌ No trial ID mapping found for wizard trial:', wizardTrial.name);
+        logger.warn('No trial ID mapping found for wizard trial', 'wizard', { trialName: wizardTrial.name });
       } else {
-        console.log('⚠️ Wizard trial has no classes:', wizardTrial.name);
+        logger.debug('Wizard trial has no classes', 'wizard', { trialName: wizardTrial.name });
       }
     });
   }, [trials, addClass, judgeDetails, editMode, existingTrials]);
@@ -368,7 +369,7 @@ const ShowCreationWizardPage: React.FC = () => {
   const handleSaveDraftClick = useCallback(async () => {
     try {
       setIsLoading(true);
-      console.log('Saving draft...');
+      logger.debug('Saving draft', 'wizard');
       
       // Transform wizard data to Show format with draft status
       const newShow = transformWizardDataToShow('draft');
@@ -443,9 +444,9 @@ const ShowCreationWizardPage: React.FC = () => {
       // Navigate to the new draft show
       navigate(`/shows/${newShow.id}`);
       
-      console.log('Draft saved successfully!', newShow);
+      logger.info('Draft saved successfully', 'wizard', { showId: newShow.id, showName: newShow.name });
     } catch (error) {
-      console.error('Error saving draft:', error);
+      logger.error('Error saving draft', 'wizard', {}, error as Error);
       throw error;
     } finally {
       setIsLoading(false);
@@ -455,7 +456,7 @@ const ShowCreationWizardPage: React.FC = () => {
   const handleCreateShowClick = useCallback(async () => {
     try {
       setIsLoading(true);
-      console.log('Creating show (unpublished)...');
+      logger.debug('Creating show (unpublished)', 'wizard');
       
       // Transform wizard data to Show format
       const newShow = transformWizardDataToShow('unpublished');
@@ -530,9 +531,9 @@ const ShowCreationWizardPage: React.FC = () => {
       // Navigate to the new show
       navigate(`/shows/${newShow.id}`);
       
-      console.log('Show created successfully (unpublished)!', newShow);
+      logger.info('Show created successfully (unpublished)', 'wizard', { showId: newShow.id, showName: newShow.name });
     } catch (error) {
-      console.error('Error creating show:', error);
+      logger.error('Error creating show', 'wizard', {}, error as Error);
       throw error;
     } finally {
       setIsLoading(false);
@@ -542,7 +543,7 @@ const ShowCreationWizardPage: React.FC = () => {
   const handleCreateAndPublishClick = useCallback(async () => {
     try {
       setIsLoading(true);
-      console.log('Creating and publishing show...');
+      logger.debug('Creating and publishing show', 'wizard');
       
       // Transform wizard data to Show format with published status
       const newShow = transformWizardDataToShow('published');
@@ -617,9 +618,9 @@ const ShowCreationWizardPage: React.FC = () => {
       // Navigate to the new show
       navigate(`/shows/${newShow.id}`);
       
-      console.log('Show created and published successfully!', newShow);
+      logger.info('Show created and published successfully', 'wizard', { showId: newShow.id, showName: newShow.name });
     } catch (error) {
-      console.error('Error creating and publishing show:', error);
+      logger.error('Error creating and publishing show', 'wizard', {}, error as Error);
       throw error;
     } finally {
       setIsLoading(false);

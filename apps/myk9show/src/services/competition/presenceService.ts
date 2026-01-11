@@ -8,6 +8,7 @@
 
 import { subscriptionManager } from '../realtime/subscriptionManager';
 import { errorMonitor } from '../../lib/errorMonitoring';
+import { logger } from '../../services/LoggingService';
 import type { PresenceTrackingData } from '../../types/realtime-types';
 
 export interface UserPresence {
@@ -147,12 +148,12 @@ export class PresenceService {
    */
   async start(currentUserData: Partial<UserPresence>): Promise<void> {
     if (this.isActive) {
-      console.warn('Presence service already active');
+      logger.warn('Presence service already active', 'presence');
       return;
     }
 
     try {
-      console.log(`Starting presence service for show ${this.showId}`);
+      logger.debug('Starting presence service', 'presence', { showId: this.showId });
 
       // Initialize current user
       await this.initializeCurrentUser(currentUserData);
@@ -187,7 +188,7 @@ export class PresenceService {
       }
 
       this.isActive = true;
-      console.log('Presence service started successfully');
+      logger.info('Presence service started successfully', 'presence', { showId: this.showId });
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -204,7 +205,7 @@ export class PresenceService {
     if (!this.isActive) return;
 
     try {
-      console.log('Stopping presence service');
+      logger.debug('Stopping presence service', 'presence');
 
       // Stop tracking current user presence
       await subscriptionManager.untrackPresence(`presence-${this.showId}`);
@@ -233,7 +234,7 @@ export class PresenceService {
       this.currentUser = null;
 
       this.isActive = false;
-      console.log('Presence service stopped');
+      logger.info('Presence service stopped', 'presence');
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -296,7 +297,7 @@ export class PresenceService {
             try {
               listener(userPresence);
             } catch (error) {
-              console.error('Error in user joined listener:', error);
+              logger.error('Error in user joined listener', 'presence', {}, error as Error);
             }
           });
         } else {
@@ -304,7 +305,7 @@ export class PresenceService {
             try {
               listener(userPresence);
             } catch (error) {
-              console.error('Error in user updated listener:', error);
+              logger.error('Error in user updated listener', 'presence', {}, error as Error);
             }
           });
         }
@@ -320,7 +321,7 @@ export class PresenceService {
             try {
               listener(userId);
             } catch (error) {
-              console.error('Error in user left listener:', error);
+              logger.error('Error in user left listener', 'presence', {}, error as Error);
             }
           });
         }
@@ -332,7 +333,7 @@ export class PresenceService {
       // Update analytics
       this.updateAnalytics();
 
-      console.log(`Presence updated: ${presences.length} users online`);
+      logger.debug('Presence updated', 'presence', { usersOnline: presences.length });
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -357,7 +358,7 @@ export class PresenceService {
         this.convertToPresenceTrackingData(this.currentUser)
       );
 
-      console.log(`Location updated: ${location.page}${location.section ? ` > ${location.section}` : ''}`);
+      logger.debug('Location updated', 'presence', { page: location.page, section: location.section });
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -382,7 +383,7 @@ export class PresenceService {
         this.convertToPresenceTrackingData(this.currentUser)
       );
 
-      console.log(`Activity updated: ${activity.type} - ${activity.description}`);
+      logger.debug('Activity updated', 'presence', { type: activity.type, description: activity.description });
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -407,7 +408,7 @@ export class PresenceService {
         this.convertToPresenceTrackingData(this.currentUser)
       );
 
-      console.log(`Status updated: ${status}`);
+      logger.debug('Status updated', 'presence', { status });
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -454,11 +455,11 @@ export class PresenceService {
         try {
           listener(indicator);
         } catch (error) {
-          console.error('Error in activity listener:', error);
+          logger.error('Error in activity listener', 'presence', {}, error as Error);
         }
       });
 
-      console.log(`Activity indicator: ${type} in ${context}`);
+      logger.debug('Activity indicator', 'presence', { type, context });
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -518,7 +519,7 @@ export class PresenceService {
       this.presenceGroups.set(id, group);
       this.updatePresenceGroups();
 
-      console.log(`Presence group created: ${name}`);
+      logger.debug('Presence group created', 'presence', { id, name, type });
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -695,7 +696,7 @@ export class PresenceService {
           `presence-${this.showId}`,
           this.convertToPresenceTrackingData(this.currentUser)
         ).catch(error => {
-          console.error('Heartbeat failed:', error);
+          logger.error('Heartbeat failed', 'presence', {}, error as Error);
         });
       }
     }, this.config.heartbeatIntervalMs);
@@ -752,7 +753,7 @@ export class PresenceService {
         try {
           listener(group);
         } catch (error) {
-          console.error('Error in group update listener:', error);
+          logger.error('Error in group update listener', 'presence', {}, error as Error);
         }
       });
     });

@@ -10,6 +10,7 @@ import { realtimeClient } from './realtimeClient';
 import { subscriptionManager } from './subscriptionManager';
 import { errorMonitor } from '../../lib/errorMonitoring';
 import { RetryEngine } from '../../lib/connectionRecovery';
+import { logger } from '../../services/LoggingService';
 import type { ConnectionState, ConnectionMetrics } from '../../types/realtime-types';
 import type { ConnectionHealth as RealtimeConnectionHealth } from '../../types/realtime-types';
 import type { ConnectionHealth as ClientConnectionHealth } from './realtimeClient';
@@ -121,7 +122,7 @@ export class ConnectionManager {
    */
   async connect(): Promise<void> {
     if (this.connectionState.status === 'connecting') {
-      console.log('Connection already in progress');
+      logger.debug('Connection already in progress', 'realtime');
       return;
     }
 
@@ -148,7 +149,7 @@ export class ConnectionManager {
           backoffMultiplier: this.config.retryMultiplier,
           jitter: true,
           retryCondition: (error: Error, attempt: number) => {
-            console.log(`Connection attempt ${attempt} failed:`, error.message);
+            logger.warn('Connection attempt failed', 'realtime', { attempt, error: error.message });
             return attempt < this.config.maxRetryAttempts;
           },
         },
@@ -164,7 +165,7 @@ export class ConnectionManager {
         this.startAdaptiveMonitoring();
       }
 
-      console.log('Real-time connection established successfully');
+      logger.info('Real-time connection established successfully', 'realtime');
 
     } catch (error) {
       this.handleConnectionFailure(error as Error);
@@ -188,16 +189,16 @@ export class ConnectionManager {
     
     // Disconnect client
     await realtimeClient.disconnect();
-    
-    console.log('Real-time connection disconnected');
+
+    logger.info('Real-time connection disconnected', 'realtime');
   }
 
   /**
    * Force reconnection
    */
   async forceReconnect(): Promise<void> {
-    console.log('Forcing reconnection...');
-    
+    logger.debug('Forcing reconnection', 'realtime');
+
     try {
       await this.disconnect();
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -236,7 +237,7 @@ export class ConnectionManager {
     if (this.isRecovering) return;
     
     this.isRecovering = true;
-    console.log('Attempting intelligent recovery...');
+    logger.debug('Attempting intelligent recovery', 'realtime');
 
     try {
       const health = realtimeClient.getConnectionHealth();
@@ -257,7 +258,7 @@ export class ConnectionManager {
         .sort((a, b) => b.priority - a.priority);
 
       for (const strategy of applicableStrategies) {
-        console.log(`Trying recovery strategy: ${strategy.name}`);
+        logger.debug('Trying recovery strategy', 'realtime', { strategy: strategy.name });
         
         try {
           await Promise.race([
@@ -270,13 +271,13 @@ export class ConnectionManager {
           // Check if recovery was successful
           const newHealth = await this.checkConnectionHealth();
           if (newHealth.status !== 'unhealthy') {
-            console.log(`Recovery successful with strategy: ${strategy.name}`);
+            logger.info('Recovery successful', 'realtime', { strategy: strategy.name });
             this.addConnectionEvent('recovered');
             break;
           }
           
         } catch (error) {
-          console.warn(`Recovery strategy ${strategy.name} failed:`, error);
+          logger.warn('Recovery strategy failed', 'realtime', { strategy: strategy.name }, error as Error);
         }
       }
 
@@ -355,8 +356,8 @@ export class ConnectionManager {
         priority: 10,
         condition: () => true, // Always applicable as last resort
         action: async () => {
-          console.log('Performing full connection reset...');
-          
+          logger.info('Performing full connection reset', 'realtime');
+
           // Reset all configurations to defaults
           realtimeClient.updateConfig({
             heartbeatInterval: 15000,
@@ -406,7 +407,7 @@ export class ConnectionManager {
         }
 
       } catch (error) {
-        console.warn('Health check failed:', error);
+        logger.warn('Health check failed', 'realtime', {}, error as Error);
       }
     }, this.config.healthCheckInterval);
   }
@@ -456,7 +457,7 @@ export class ConnectionManager {
         }
 
       } catch (error) {
-        console.warn('Network quality measurement failed:', error);
+        logger.warn('Network quality measurement failed', 'realtime', {}, error as Error);
       }
     }, 30000); // Check every 30 seconds
   }
@@ -538,7 +539,7 @@ export class ConnectionManager {
     }
 
     if (Object.keys(updates).length > 0) {
-      console.log('Adapting configuration to network quality:', updates);
+      logger.debug('Adapting configuration to network quality', 'realtime', { updates });
       realtimeClient.updateConfig(updates);
     }
   }
@@ -574,7 +575,7 @@ export class ConnectionManager {
    * Handle network online event
    */
   private async handleNetworkOnline(): Promise<void> {
-    console.log('Network came online');
+    logger.info('Network came online', 'realtime');
     if (this.connectionState.status !== 'connected') {
       await this.connect();
     }
@@ -584,7 +585,7 @@ export class ConnectionManager {
    * Handle network offline event
    */
   private handleNetworkOffline(): void {
-    console.log('Network went offline');
+    logger.warn('Network went offline', 'realtime');
     this.updateConnectionState('disconnected', 'Network offline');
     this.addConnectionEvent('disconnected', { reason: 'Network offline' });
   }
@@ -669,7 +670,7 @@ export class ConnectionManager {
         try {
           listener(data);
         } catch (error) {
-          console.error(`Error in connection event listener for ${event}:`, error);
+          logger.error('Error in connection event listener', 'realtime', { event }, error as Error);
         }
       });
     }
@@ -779,8 +780,8 @@ export class ConnectionManager {
     
     // Disconnect
     await this.disconnect();
-    
-    console.log('Connection manager cleaned up');
+
+    logger.info('Connection manager cleaned up', 'realtime');
   }
 }
 

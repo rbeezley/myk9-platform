@@ -9,6 +9,7 @@
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { realtimeClient } from './realtimeClient';
 import { errorMonitor } from '../../lib/errorMonitoring';
+import { logger } from '../../services/LoggingService';
 import type { 
   RealtimeSubscription, 
   RealtimeEventCallback, 
@@ -78,7 +79,7 @@ export class SubscriptionManager {
   ): Promise<string> {
     // Check if subscription already exists
     if (this.subscriptions.has(subscriptionId)) {
-      console.warn(`Subscription ${subscriptionId} already exists`);
+      logger.warn('Subscription already exists', 'realtime', { subscriptionId });
       return subscriptionId;
     }
 
@@ -144,7 +145,7 @@ export class SubscriptionManager {
       this.subscriptions.set(subscriptionId, subscription);
       this.initializeMetrics(subscriptionId);
 
-      console.log(`Subscription ${subscriptionId} created for table ${config.table}`);
+      logger.debug('Subscription created', 'realtime', { subscriptionId, table: config.table });
       return subscriptionId;
 
     } catch (error) {
@@ -161,7 +162,7 @@ export class SubscriptionManager {
   async unsubscribe(subscriptionId: string): Promise<void> {
     const subscription = this.subscriptions.get(subscriptionId);
     if (!subscription) {
-      console.warn(`Subscription ${subscriptionId} not found`);
+      logger.warn('Subscription not found', 'realtime', { subscriptionId });
       return;
     }
 
@@ -188,7 +189,7 @@ export class SubscriptionManager {
       // Check if we can cleanup the channel
       await this.cleanupChannelIfUnused(subscription.channelName);
 
-      console.log(`Subscription ${subscriptionId} removed`);
+      logger.debug('Subscription removed', 'realtime', { subscriptionId });
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -212,14 +213,14 @@ export class SubscriptionManager {
 
     // Track presence joins
     channel.on('presence', { event: 'join' }, ({ key, newPresences }) => {
-      console.log('User joined:', key, newPresences);
+      logger.debug('User joined', 'realtime', { key, presenceCount: newPresences?.length });
       this.updatePresenceState(channelName, newPresences);
       callback(this.getPresenceState(channelName));
     });
 
     // Track presence leaves
     channel.on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
-      console.log('User left:', key, leftPresences);
+      logger.debug('User left', 'realtime', { key, presenceCount: leftPresences?.length });
       this.removeFromPresenceState(channelName, leftPresences);
       callback(this.getPresenceState(channelName));
     });
@@ -249,7 +250,7 @@ export class SubscriptionManager {
 
     try {
       await channel.track(userData);
-      console.log(`Tracking presence for user ${userData.user_id} in ${channelName}`);
+      logger.debug('Tracking presence', 'realtime', { userId: userData.user_id, channelName });
     } catch (error) {
       errorMonitor.captureError(error as Error, {
         additionalData: { channelName, userData }
@@ -264,13 +265,13 @@ export class SubscriptionManager {
   async untrackPresence(channelName: string): Promise<void> {
     const channel = this.channels.get(channelName);
     if (!channel) {
-      console.warn(`Channel ${channelName} not found for untracking`);
+      logger.warn('Channel not found for untracking', 'realtime', { channelName });
       return;
     }
 
     try {
       await channel.untrack();
-      console.log(`Stopped tracking presence in ${channelName}`);
+      logger.debug('Stopped tracking presence', 'realtime', { channelName });
     } catch (error) {
       errorMonitor.captureError(error as Error, {
         additionalData: { channelName }
@@ -311,7 +312,7 @@ export class SubscriptionManager {
         metrics.messagesProcessed++;
       }
 
-      console.log(`Broadcast sent to ${channelName}:`, event.type);
+      logger.debug('Broadcast sent', 'realtime', { channelName, eventType: event.type });
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -457,11 +458,11 @@ export class SubscriptionManager {
     });
 
     channel.on('presence', { event: 'join' }, ({ newPresences }) => {
-      console.log('New presences:', newPresences);
+      logger.debug('New presences joined', 'realtime', { count: newPresences?.length });
     });
 
     channel.on('presence', { event: 'leave' }, ({ leftPresences }) => {
-      console.log('Left presences:', leftPresences);
+      logger.debug('Presences left', 'realtime', { count: leftPresences?.length });
     });
   }
 
@@ -531,7 +532,7 @@ export class SubscriptionManager {
       try {
         callback(event);
       } catch (error) {
-        console.error('Error processing batched event:', error);
+        logger.error('Error processing batched event', 'realtime', {}, error as Error);
       }
     });
 
@@ -627,7 +628,7 @@ export class SubscriptionManager {
     if (!isUsed) {
       await realtimeClient.removeChannel(channelName);
       this.channels.delete(channelName);
-      console.log(`Cleaned up unused channel: ${channelName}`);
+      logger.debug('Cleaned up unused channel', 'realtime', { channelName });
     }
   }
 
@@ -648,7 +649,7 @@ export class SubscriptionManager {
 
     this.metrics.forEach((metrics, subscriptionId) => {
       if (metrics.lastActivity && metrics.lastActivity < cutoff && metrics.isActive) {
-        console.log(`Auto-cleaning inactive subscription: ${subscriptionId}`);
+        logger.debug('Auto-cleaning inactive subscription', 'realtime', { subscriptionId });
         this.unsubscribe(subscriptionId);
       }
     });
@@ -708,7 +709,7 @@ export class SubscriptionManager {
     this.batchBuffers.clear();
     this.presenceStates.clear();
 
-    console.log('Subscription manager cleaned up');
+    logger.info('Subscription manager cleaned up', 'realtime');
   }
 }
 

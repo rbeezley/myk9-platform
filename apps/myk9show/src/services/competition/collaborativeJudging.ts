@@ -8,8 +8,9 @@
 
 import { subscriptionManager } from '../realtime/subscriptionManager';
 import { errorMonitor } from '../../lib/errorMonitoring';
-import type { 
-  PresenceTrackingData 
+import { logger } from '../../services/LoggingService';
+import type {
+  PresenceTrackingData
 } from '../../types/realtime-types';
 
 export interface JudgeSession {
@@ -175,12 +176,12 @@ export class CollaborativeJudging {
    */
   async start(): Promise<void> {
     if (this.isActive) {
-      console.warn('Collaborative judging already active');
+      logger.warn('Collaborative judging already active', 'judging');
       return;
     }
 
     try {
-      console.log(`Starting collaborative judging for class ${this.classId}`);
+      logger.debug('Starting collaborative judging', 'judging', { classId: this.classId });
 
       // Subscribe to scoring sessions
       const sessionsSubscriptionId = await subscriptionManager.subscribe(
@@ -229,7 +230,7 @@ export class CollaborativeJudging {
       this.startSessionCleanup();
 
       this.isActive = true;
-      console.log('Collaborative judging started successfully');
+      logger.info('Collaborative judging started successfully', 'judging', { showId: this.showId, classId: this.classId });
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -246,7 +247,7 @@ export class CollaborativeJudging {
     if (!this.isActive) return;
 
     try {
-      console.log('Stopping collaborative judging');
+      logger.debug('Stopping collaborative judging', 'judging');
 
       // Resolve any open conflicts
       await this.resolveOpenConflicts();
@@ -272,7 +273,7 @@ export class CollaborativeJudging {
       this.subscriptions.clear();
 
       this.isActive = false;
-      console.log('Collaborative judging stopped');
+      logger.info('Collaborative judging stopped', 'judging');
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -326,14 +327,14 @@ export class CollaborativeJudging {
         try {
           listener(session);
         } catch (error) {
-          console.error('Error in session listener:', error);
+          logger.error('Error in session listener', 'judging', {}, error as Error);
         }
       });
 
       // Update metrics
       this.updateSessionMetrics();
 
-      console.log(`Judge session updated: ${session.judgeName} (${session.status})`);
+      logger.debug('Judge session updated', 'judging', { judgeName: session.judgeName, status: session.status });
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -402,14 +403,14 @@ export class CollaborativeJudging {
         try {
           listener(score);
         } catch (error) {
-          console.error('Error in score listener:', error);
+          logger.error('Error in score listener', 'judging', {}, error as Error);
         }
       });
 
       // Update metrics
       this.updateScoreMetrics();
 
-      console.log(`Collaborative score: ${score.armband} by ${score.judgeName} - ${score.scoreData.points}`);
+      logger.debug('Collaborative score', 'judging', { armband: score.armband, judgeName: score.judgeName, points: score.scoreData.points });
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -436,7 +437,7 @@ export class CollaborativeJudging {
         }
       });
 
-      console.log(`Judge presence updated: ${presences.filter(p => p.role === 'judge').length} judges online`);
+      logger.debug('Judge presence updated', 'judging', { judgesOnline: presences.filter(p => p.role === 'judge').length });
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -532,14 +533,14 @@ export class CollaborativeJudging {
         try {
           listener(conflict);
         } catch (error) {
-          console.error('Error in conflict listener:', error);
+          logger.error('Error in conflict listener', 'judging', {}, error as Error);
         }
       });
 
       // Update metrics
       this.metrics.conflictsDetected++;
 
-      console.log(`Scoring conflict detected: ${conflict.armband} (${comparison.difference} point difference)`);
+      logger.warn('Scoring conflict detected', 'judging', { armband: conflict.armband, pointDifference: comparison.difference });
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -573,10 +574,10 @@ export class CollaborativeJudging {
       // Update metrics
       this.metrics.conflictsResolved++;
       const resolutionTime = (conflict.resolvedAt.getTime() - conflict.detectedAt.getTime()) / (1000 * 60);
-      this.metrics.averageResolutionTime = 
+      this.metrics.averageResolutionTime =
         (this.metrics.averageResolutionTime + resolutionTime) / 2;
 
-      console.log(`Conflict resolved: ${conflictId} by ${resolvedBy}`);
+      logger.info('Conflict resolved', 'judging', { conflictId, resolvedBy });
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -622,7 +623,7 @@ export class CollaborativeJudging {
       // Broadcast discussion update
       await this.broadcastConflictDiscussion(conflictId, discussionNote);
 
-      console.log(`Conflict discussion added: ${conflictId} by ${judge.judgeName}`);
+      logger.debug('Conflict discussion added', 'judging', { conflictId, judgeName: judge.judgeName });
 
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -670,7 +671,7 @@ export class CollaborativeJudging {
         try {
           listener(judgeActivity);
         } catch (error) {
-          console.error('Error in activity listener:', error);
+          logger.error('Error in activity listener', 'judging', {}, error as Error);
         }
       });
 
@@ -882,7 +883,7 @@ export class CollaborativeJudging {
     this.judgeSessions.forEach((session) => {
       if (session.lastActivity < cutoff && session.status === 'active') {
         session.status = 'disconnected';
-        console.log(`Judge session marked as disconnected: ${session.judgeName}`);
+        logger.debug('Judge session marked as disconnected', 'judging', { judgeName: session.judgeName });
       }
     });
   }

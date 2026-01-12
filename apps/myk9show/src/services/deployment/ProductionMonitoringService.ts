@@ -11,7 +11,6 @@ import {
   MetricType,
   Severity
 } from '../../types/deployment-types';
-import { logger } from '@/services/LoggingService';
 
 // === Error Tracking ===
 

@@ -54,3 +54,4 @@ supabase/.temp/
 
 # Claude Code local settings
 .claude_settings.json
+nul

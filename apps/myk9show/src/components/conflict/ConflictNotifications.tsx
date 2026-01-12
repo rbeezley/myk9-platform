@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
+import { logger } from '@/services/LoggingService';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { ScrollArea } from '../ui/scroll-area';
 import { Alert, AlertDescription } from '../ui/alert';
-import { 
-import { logger } from '@/services/LoggingService';
+import {
   useConflictResolution
 } from '../../hooks/useConflictResolution';
 import { ConflictResolutionDialog } from '../sync/ConflictResolutionDialog';

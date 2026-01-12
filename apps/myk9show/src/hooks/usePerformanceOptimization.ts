@@ -6,8 +6,8 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { monitoring } from '../services/MonitoringService';
 import { logger } from '../services/LoggingService';
-import { 
 import { logger } from '@/services/LoggingService';
+import {
   performanceOptimizer,
   PaginationOptions,
   PaginatedResult,

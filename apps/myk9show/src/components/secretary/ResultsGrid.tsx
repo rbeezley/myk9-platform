@@ -9,6 +9,7 @@
  */
 
 import React, { useState, useCallback, useMemo } from 'react';
+import { logger } from '@/services/LoggingService';
 import { Edit2, Trash2, Eye, Search, SortAsc, SortDesc, Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -16,8 +17,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { 
-import { logger } from '@/services/LoggingService';
+import {
   Table, 
   TableBody, 
   TableCell, 

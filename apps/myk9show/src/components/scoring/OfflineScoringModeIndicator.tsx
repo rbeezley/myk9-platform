@@ -19,8 +19,8 @@ import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 
 // Icons
-import { 
 import { logger } from '@/services/LoggingService';
+import {
   WifiOff, 
   Wifi, 
  

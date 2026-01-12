@@ -36,6 +36,7 @@ import {
   performanceQueries
 } from '../../services/database/queries/achievementQueries';
 import { achievementMappers, competitionMappers, pastResultMappers } from '../../services/mappers/achievementMappers';
+import { logger } from '@/services/LoggingService';
 
 // Query Keys
 export const achievementKeys = {

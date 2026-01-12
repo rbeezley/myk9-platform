@@ -3,8 +3,8 @@
  * Handles FCM token management, message receiving, and notification permissions
  */
 
-import { 
 import { logger } from '@/services/LoggingService';
+import {
   getToken, 
   onMessage, 
   deleteToken,

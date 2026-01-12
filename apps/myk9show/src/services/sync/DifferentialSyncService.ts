@@ -2,8 +2,8 @@ import { compress, decompress } from 'fflate';
 import * as jsonpatch from 'fast-json-patch';
 import { diff as deepDiff } from 'deep-object-diff';
 import { isEqual, cloneDeep, get, set, unset } from 'lodash';
-import { 
 import { logger } from '@/services/LoggingService';
+import {
   DeltaPayload, 
   DeltaOperation, 
   DeltaAlgorithm,

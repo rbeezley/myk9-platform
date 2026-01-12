@@ -6,9 +6,9 @@
  */
 
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { logger } from '@/services/LoggingService';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-import { logger } from '@/services/LoggingService';
   DndContext,
   closestCenter,
   DragOverlay,

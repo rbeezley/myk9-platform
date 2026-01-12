@@ -2,8 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { ClassTemplate, ClassDefinition } from '@/types/template.types';
 import { ShowJudgeAssignment } from '@/types/judge-types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
 import { logger } from '@/services/LoggingService';
+import {
   Search, 
   CheckSquare, 
   Square, 

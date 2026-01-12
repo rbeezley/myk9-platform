@@ -1,7 +1,7 @@
 // Users-related database queries
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
-import type {
 import { logger } from '@/services/LoggingService';
+import type {
   DbUserInsert,
   DbUserUpdate,
 } from '../../../types/database-mappings';

@@ -7,6 +7,7 @@ import {
   FieldDataType,
   ShowTypeField
 } from '@/types/field-definition-types';
+import { logger } from '@/services/LoggingService';
 import {
   getConfiguredFieldsWithDefinitions,
   validateFieldValuesWithConstraints,

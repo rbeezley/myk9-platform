@@ -1,6 +1,6 @@
 import { Pencil, Clock, Trash2, Plus, Eye, MoreVertical, Save, AlertCircle, CheckCircle, Download, Keyboard } from "lucide-react";
-import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { logger } from '@/services/LoggingService';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { EntryData } from './types/classTypes';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';

@@ -6,8 +6,8 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
 import { logger } from '@/services/LoggingService';
+import {
   Clock,
   AlertTriangle, 
   MapPin,
@@ -515,7 +515,7 @@ export const ScheduleConflictAlerts: React.FC<ScheduleConflictAlertsProps> = ({
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => logger.debug('View details for:', 'sync', { data: conflict.id });}
+                              onClick={() => logger.debug('View details for:', 'sync', { id: conflict.id })}
                               className="gap-2"
                             >
                               <Eye className="h-3 w-3" />

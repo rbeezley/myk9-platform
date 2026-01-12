@@ -5,8 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
 import { logger } from '@/services/LoggingService';
+import {
   Users, 
   AlertTriangle, 
   CheckCircle, 
@@ -397,7 +397,7 @@ export const EntryCountReconciliation: React.FC<EntryCountReconciliationProps> =
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => logger.debug('View details for:', 'sync', { data: discrepancy.id });}
+                          onClick={() => logger.debug('View details for:', 'sync', { id: discrepancy.id })}
                           className="gap-2"
                         >
                           <Eye className="h-3 w-3" />

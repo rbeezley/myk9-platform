@@ -17,8 +17,8 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { CheckInStatus } from '@/types/check-in-types';
 import { CheckInStatusIndicator } from '@/components/common/CheckInStatusIndicator';
 import { CheckInStatusDialog } from '@/components/common/CheckInStatusDialog';
-import { 
 import { logger } from '@/services/LoggingService';
+import {
   Search, 
   Filter,
   Users, 

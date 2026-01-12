@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
-import { 
 import { logger } from '@/services/LoggingService';
+import {
   OptimisticOperation, 
   RollbackStrategy,
   OptimisticUpdate,

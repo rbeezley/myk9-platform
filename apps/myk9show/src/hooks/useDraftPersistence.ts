@@ -58,7 +58,7 @@ export function useDraftPersistence(
 
   const log = useCallback((message: string, ...args: unknown[]) => {
     if (debug) {
-      logger.debug(`[DraftPersistence] ${message}`, 'hooks', { data: ...args });
+      logger.debug(`[DraftPersistence] ${message}`, 'hooks', { data: args });
     }
   }, [debug]);
 

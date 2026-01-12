@@ -8,8 +8,8 @@
 import { EventEmitter } from '../sync/eventEmitter';
 import { getOptimalStorage } from '../database/storage-adapter';
 import type { StateStorage } from 'zustand/middleware';
-import type {
 import { logger } from '@/services/LoggingService';
+import type {
   ArmbandAssignment,
   ArmbandConflict,
   ArmbandConflictResolution,

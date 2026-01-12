@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { AppleDialog } from '@/components/ui/AppleDialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
 import { logger } from '@/services/LoggingService';
+import {
   Copy,
   ArrowRight,
   Search,

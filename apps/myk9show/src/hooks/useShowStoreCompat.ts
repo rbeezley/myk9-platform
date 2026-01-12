@@ -2,6 +2,7 @@
 import { useMemo } from 'react';
 import type { Show, ShowInput } from '@/types/show-types';
 import type { CascadingDeletePreview } from '@/utils/cascadingDelete';
+import { logger } from '@/services/LoggingService';
 import {
   useShowsQuery,
   useShowQuery,

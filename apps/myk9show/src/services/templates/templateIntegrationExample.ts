@@ -4,7 +4,6 @@
 // Phase 4.1: Template System Integration
 // This file demonstrates how to use the complete template system
 
-import { logger } from '@/services/LoggingService';
 import { 
   useClassTemplatesQuery,
   useCreateClassTemplateMutation,
@@ -28,6 +27,7 @@ import {
   getTemplateUsageStats,
 } from '@/services/templates/templateVersioning';
 import type { ClassTemplate, ClassTemplateField } from '@/types/class-template-types';
+import { logger } from '@/services/LoggingService';
 
 // ===== EXAMPLE 1: Creating a New Template =====
 

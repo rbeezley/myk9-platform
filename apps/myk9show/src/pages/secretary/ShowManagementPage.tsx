@@ -11,6 +11,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { logger } from '@/services/LoggingService';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useShowStore } from '@/store/showStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -19,8 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-import { logger } from '@/services/LoggingService';
+import {
   ArrowLeft,
   Settings,
   Users,

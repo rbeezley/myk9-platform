@@ -6,8 +6,8 @@
  */
 
 import type { Entry as StoreEntry } from '../../../stores/entryStore';
-import {
 import { logger } from '@/services/LoggingService';
+import {
   type ReplicatedTrial as Trial,
   type ReplicatedEntry,
   type ReplicatedClass as Class

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import {
 import { logger } from '@/services/LoggingService';
+import {
   Activity,
   TrendingUp,
   TrendingDown,

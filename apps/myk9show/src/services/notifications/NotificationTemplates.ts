@@ -3,8 +3,8 @@
  * Defines standardized templates for different types of dog show notifications
  */
 
-import { 
 import { logger } from '@/services/LoggingService';
+import {
   NotificationPayload, 
   NotificationTemplateKey,
   ShowReminderData,

@@ -14,6 +14,7 @@
 
 /*
 
+import { logger } from '@/services/LoggingService';
 import {
   ShowRegistration,
   Armband,

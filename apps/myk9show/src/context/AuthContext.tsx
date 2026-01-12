@@ -16,8 +16,8 @@ import { Navigate } from 'react-router-dom';
 import { useUserRoles, useUserRoleNames } from '@/hooks/queries/useUserRoles';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import {
 import { logger } from '@/services/LoggingService';
+import {
   UserWithRoles,
   UserRole,
   Permission,

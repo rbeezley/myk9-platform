@@ -10,8 +10,8 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { 
 import { logger } from '@/services/LoggingService';
+import {
   Users, 
   Search, 
   Filter, 
@@ -78,7 +78,7 @@ const UserManagementPage: React.FC = () => {
   const updateUserMutation = useUpdateUserMutation();
   
   // Debug logging
-  logger.debug('UserManagementPage render - isLoading:', 'admin', { data: isLoading, 'users.length:', users.length, 'error:', error });
+  logger.debug('UserManagementPage render:', 'admin', { isLoading, userCount: users.length, error });
 
   // Filter and search logic
   const filteredUsers = useMemo(() => {

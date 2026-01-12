@@ -1,10 +1,11 @@
 import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { FixedSizeList as List } from 'react-window';
 import { cn } from '@/lib/utils';
-import { ChevronLeft, ChevronRight, ChevronDown, Search, Plus, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, Search, Plus, X, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-// Apple-inspired design tokens matching AdminSidebar
+// Soft Modern design tokens - warm, approachable, polished
+// Uses teal primary color from design system (#14b8a6)
 const SIDEBAR_TOKENS = {
   collapsed: {
     width: '80px',
@@ -21,24 +22,35 @@ const SIDEBAR_TOKENS = {
     item: '44px'
   },
   colors: {
-    container: 'bg-card',
-    border: 'border-border',
-    header: 'bg-card border-b border-border',
-    search: 'bg-background/80 border-border/60 backdrop-blur-sm shadow-sm',
+    // Soft gradient container with subtle warmth
+    container: 'bg-gradient-to-b from-slate-50/80 to-white dark:from-slate-900/80 dark:to-slate-950',
+    border: 'border-slate-200/60 dark:border-slate-800/60',
+    // Header with subtle depth
+    header: 'bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border-b border-slate-200/40 dark:border-slate-800/40',
+    // Elevated search with glass effect
+    search: 'bg-white/90 dark:bg-slate-800/90 border-slate-200/60 dark:border-slate-700/60 backdrop-blur-md',
     item: {
-      default: 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
-      selected: 'bg-gradient-to-r from-primary/10 to-primary/5 text-primary shadow-sm border-l-2 border-primary',
-      collapsed: 'hover:bg-muted/50 text-muted-foreground hover:text-foreground'
+      // Subtle hover state - teal accent
+      default: 'text-slate-600 dark:text-slate-400 hover:bg-teal-50/50 dark:hover:bg-teal-950/30 hover:text-slate-900 dark:hover:text-slate-200',
+      // Teal gradient for selected state (primary color)
+      selected: 'bg-gradient-to-r from-teal-100 to-emerald-50 dark:from-teal-950/50 dark:to-emerald-950/30 text-teal-700 dark:text-teal-300 shadow-sm shadow-teal-200/50 dark:shadow-teal-900/30 border-l-2 border-teal-500 dark:border-teal-400',
+      // Collapsed state
+      collapsed: 'hover:bg-teal-50/50 dark:hover:bg-teal-950/30 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-300'
     },
     text: {
-      primary: 'text-foreground',
-      secondary: 'text-muted-foreground',
-      selected: 'text-primary font-medium',
-      groupHeader: 'text-xs font-medium text-muted-foreground uppercase tracking-wide'
+      primary: 'text-slate-900 dark:text-slate-100',
+      secondary: 'text-slate-500 dark:text-slate-400',
+      selected: 'text-teal-700 dark:text-teal-300 font-medium',
+      groupHeader: 'text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider'
     },
-    groupHeader: 'text-xs font-medium text-muted-foreground uppercase tracking-wide'
+    groupHeader: 'text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider'
   },
-  transitions: 'transition-all duration-200'
+  // Spring-like animation curve for bouncy micro-interactions
+  transitions: {
+    default: 'transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]',
+    fast: 'transition-all duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)]',
+    slow: 'transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]'
+  }
 } as const;
 
 export interface SidebarGroup<T> {
@@ -57,48 +69,48 @@ export interface UnifiedSidebarProps<T> {
   items?: T[];
   groups?: SidebarGroup<T>[];
   selectedId: string | null;
-  
+
   // Callbacks
   onSelect: (id: string) => void;
   onAdd?: () => void;
   onGroupToggle?: (groupId: string, isExpanded: boolean) => void;
   onCloseMobile?: () => void;
-  
+
   // Rendering
   renderItem: (item: T, isSelected: boolean, isCollapsed: boolean) => React.ReactNode;
   renderCollapsedItem?: (item: T, isSelected: boolean) => React.ReactNode;
   getItemId: (item: T) => string;
-  
+
   // Search
   enableSearch?: boolean;
   searchPlaceholder?: string;
   getSearchText?: (item: T) => string;
   searchTerm?: string;
   onSearchChange?: (term: string) => void;
-  
+
   // Appearance
   title: string;
   subtitle?: string;
   headerIcon?: React.ComponentType<{ className?: string }>;
   addButtonText?: string;
   addButtonIcon?: React.ComponentType<{ className?: string }>;
-  
+
   // Behavior
   enableCollapse?: boolean;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
   enableVirtualization?: boolean;
   enableResize?: boolean;
-  
+
   // Styling
   className?: string;
   width?: number;
   onWidthChange?: (width: number) => void;
-  
+
   // Performance
   itemHeight?: number;
   overscan?: number;
-  
+
   // Footer content
   footerContent?: React.ReactNode;
 }
@@ -143,7 +155,8 @@ function UnifiedSidebar<T extends { id: string }>({
   const [expandedGroups] = useState<Set<string>>(new Set());
   const [isResizing, setIsResizing] = useState(false);
   const [listHeight, setListHeight] = useState(500);
-  
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+
   // Refs
   const listRef = useRef<List>(null);
   const resizeRef = useRef<HTMLDivElement>(null);
@@ -152,15 +165,14 @@ function UnifiedSidebar<T extends { id: string }>({
   const searchTerm = controlledSearchTerm !== undefined ? controlledSearchTerm : internalSearchTerm;
   const isCollapsed = controlledIsCollapsed !== undefined ? controlledIsCollapsed : internalIsCollapsed;
   const width = controlledWidth !== undefined ? controlledWidth : internalWidth;
-  
+
   // Calculate list height on mount and window resize
-  // Account for: app header (64px), sidebar header (56px), search (48px if enabled), padding (32px)
   useEffect(() => {
     const updateHeight = () => {
       if (typeof window !== 'undefined') {
-        const APP_HEADER_HEIGHT = 64; // Fixed app header (h-16 = 4rem = 64px)
-        const sidebarHeaderHeight = enableSearch ? 104 : 56; // Sidebar header + search or just header
-        setListHeight(window.innerHeight - APP_HEADER_HEIGHT - sidebarHeaderHeight - 32); // Extra padding
+        const APP_HEADER_HEIGHT = 64;
+        const sidebarHeaderHeight = enableSearch ? 104 : 56;
+        setListHeight(window.innerHeight - APP_HEADER_HEIGHT - sidebarHeaderHeight - 32);
       }
     };
 
@@ -170,33 +182,33 @@ function UnifiedSidebar<T extends { id: string }>({
       return () => window.removeEventListener('resize', updateHeight);
     }
   }, [enableSearch]);
-  
+
   // Resize functionality
   const startResizing = useCallback((e: React.MouseEvent) => {
     if (!enableResize || isCollapsed) return;
-    
+
     e.preventDefault();
     setIsResizing(true);
-    
+
     const startX = e.clientX;
     const startWidth = width;
-    
+
     const handleMouseMove = (e: MouseEvent) => {
       const newWidth = Math.max(280, Math.min(600, startWidth + (e.clientX - startX)));
       setInternalWidth(newWidth);
       onWidthChange?.(newWidth);
     };
-    
+
     const handleMouseUp = () => {
       setIsResizing(false);
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-    
+
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
   }, [enableResize, isCollapsed, width, onWidthChange]);
-  
+
   // Search functionality
   const handleSearchChange = useCallback((value: string) => {
     if (onSearchChange) {
@@ -205,7 +217,7 @@ function UnifiedSidebar<T extends { id: string }>({
       setInternalSearchTerm(value);
     }
   }, [onSearchChange]);
-  
+
   // Collapse functionality
   const handleToggleCollapse = useCallback(() => {
     if (onToggleCollapse) {
@@ -214,32 +226,32 @@ function UnifiedSidebar<T extends { id: string }>({
       setInternalIsCollapsed(prev => !prev);
     }
   }, [onToggleCollapse]);
-  
-  
+
+
   // Filter items based on search
   const filteredItems = useMemo(() => {
     if (!enableSearch || !searchTerm.trim() || !getSearchText) {
       return items;
     }
-    
+
     const term = searchTerm.toLowerCase();
     return items.filter(item => getSearchText(item).toLowerCase().includes(term));
   }, [items, searchTerm, enableSearch, getSearchText]);
-  
+
   // Process groups or create flat list
   const processedData = useMemo(() => {
     if (groups) {
       return groups.map(group => ({
         ...group,
         isExpanded: group.isExpanded !== undefined ? group.isExpanded : expandedGroups.has(group.id),
-        items: enableSearch && searchTerm.trim() && getSearchText 
+        items: enableSearch && searchTerm.trim() && getSearchText
           ? group.items.filter(item => getSearchText(item).toLowerCase().includes(searchTerm.toLowerCase()))
           : group.items
       }));
     }
     return null;
   }, [groups, expandedGroups, enableSearch, searchTerm, getSearchText]);
-  
+
   // Flatten items for virtualization
   const flattenedItems = useMemo(() => {
     if (processedData) {
@@ -252,38 +264,47 @@ function UnifiedSidebar<T extends { id: string }>({
     }
     return filteredItems;
   }, [processedData, filteredItems]);
-  
+
   // Find selected index for virtualization
   const selectedIndex = useMemo(() => {
     if (!selectedId) return -1;
     return flattenedItems.findIndex(item => getItemId(item) === selectedId);
   }, [flattenedItems, selectedId, getItemId]);
-  
+
   // Scroll to selected item
   useEffect(() => {
     if (selectedIndex >= 0 && listRef.current && enableVirtualization) {
       listRef.current.scrollToItem(selectedIndex, 'smart');
     }
   }, [selectedIndex, enableVirtualization]);
-  
+
   // Virtualized row renderer
   const rowRenderer = useCallback(({ index, style }: { index: number, style: React.CSSProperties }) => {
     const item = flattenedItems[index];
     const isSelected = getItemId(item) === selectedId;
-    
+
     const adjustedStyle = isCollapsed ? {
       ...style,
       width: SIDEBAR_TOKENS.collapsed.width,
       left: 0
     } : style;
-    
+
     return (
-      <div style={adjustedStyle} key={getItemId(item)}>
+      <div
+        style={{
+          ...adjustedStyle,
+          // Staggered entrance animation
+          animationDelay: `${Math.min(index * 30, 300)}ms`
+        }}
+        key={getItemId(item)}
+        className="animate-in fade-in slide-in-from-left-2 duration-300"
+      >
         <div
           onClick={() => onSelect(getItemId(item))}
           className={cn(
-            'cursor-pointer transition-colors',
-            isSelected 
+            'cursor-pointer rounded-lg mx-1',
+            SIDEBAR_TOKENS.transitions.default,
+            isSelected
               ? SIDEBAR_TOKENS.colors.item.selected
               : SIDEBAR_TOKENS.colors.item.default
           )}
@@ -296,54 +317,66 @@ function UnifiedSidebar<T extends { id: string }>({
       </div>
     );
   }, [flattenedItems, selectedId, getItemId, isCollapsed, onSelect, renderItem, renderCollapsedItem]);
-  
-  // Render grouped content with AdminSidebar styling
+
+  // Render grouped content with enhanced styling
   const renderGroupedContent = () => {
     if (!processedData) return null;
-    
+
     return (
-      <nav className="space-y-8">
-        {processedData.map((group) => (
-          <div key={group.id}>
-            {/* Group Header - clickable with expand/collapse */}
+      <nav className="space-y-6">
+        {processedData.map((group, groupIndex) => (
+          <div
+            key={group.id}
+            className="animate-in fade-in slide-in-from-left-3 duration-500"
+            style={{ animationDelay: `${groupIndex * 100}ms` }}
+          >
+            {/* Group Header with hover expansion */}
             {!isCollapsed && (
-              <div 
+              <div
                 className={cn(
-                  'mb-3 px-2 cursor-pointer flex items-center justify-between group',
+                  'mb-2 px-3 cursor-pointer flex items-center justify-between group rounded-md py-1.5',
                   SIDEBAR_TOKENS.colors.groupHeader,
-                  'hover:text-foreground transition-colors'
+                  'hover:bg-slate-100/50 dark:hover:bg-slate-800/30',
+                  SIDEBAR_TOKENS.transitions.fast
                 )}
                 onClick={() => onGroupToggle?.(group.id, !group.isExpanded)}
               >
-                <h3 className="text-xs font-medium uppercase tracking-wider">
+                <h3 className="text-[11px] font-semibold uppercase tracking-widest">
                   {group.title}
                 </h3>
-                <div className="opacity-60 group-hover:opacity-100 transition-opacity">
+                <div className={cn(
+                  'opacity-0 group-hover:opacity-100',
+                  SIDEBAR_TOKENS.transitions.fast
+                )}>
                   {group.isExpanded ? (
-                    <ChevronDown className="h-4 w-4" />
+                    <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
                   ) : (
-                    <ChevronRight className="h-4 w-4" />
+                    <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
                   )}
                 </div>
               </div>
             )}
-            
-            {/* Group Items */}
+
+            {/* Group Items with staggered animation */}
             {(group.isExpanded !== false || isCollapsed) && (
-              <div className="space-y-1">
-                {group.items.map(item => {
+              <div className="space-y-0.5">
+                {group.items.map((item, itemIndex) => {
                   const isSelected = getItemId(item) === selectedId;
                   return (
                     <div
                       key={getItemId(item)}
                       onClick={() => onSelect(getItemId(item))}
                       className={cn(
-                        'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm cursor-pointer',
-                        SIDEBAR_TOKENS.transitions,
+                        'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm cursor-pointer',
+                        SIDEBAR_TOKENS.transitions.default,
+                        'animate-in fade-in slide-in-from-left-2 duration-300',
                         isSelected
                           ? SIDEBAR_TOKENS.colors.item.selected
-                          : SIDEBAR_TOKENS.colors.item.default
+                          : SIDEBAR_TOKENS.colors.item.default,
+                        // Subtle scale on hover
+                        'hover:scale-[1.01] active:scale-[0.99]'
                       )}
+                      style={{ animationDelay: `${(groupIndex * 50) + (itemIndex * 25)}ms` }}
                     >
                       {isCollapsed && renderCollapsedItem
                         ? renderCollapsedItem(item, isSelected)
@@ -359,8 +392,8 @@ function UnifiedSidebar<T extends { id: string }>({
       </nav>
     );
   };
-  
-  // Render flat content with AdminSidebar styling
+
+  // Render flat content with enhanced styling
   const renderFlatContent = () => {
     if (enableVirtualization && !isCollapsed && flattenedItems.length > 50) {
       return (
@@ -372,29 +405,33 @@ function UnifiedSidebar<T extends { id: string }>({
             itemCount={flattenedItems.length}
             itemSize={itemHeight}
             overscanCount={overscan}
-            className="scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent"
+            className="scrollbar-thin scrollbar-thumb-slate-300/50 dark:scrollbar-thumb-slate-700/50 scrollbar-track-transparent"
           >
             {rowRenderer}
           </List>
         </div>
       );
     }
-    
+
     return (
-      <nav className="space-y-1">
-        {flattenedItems.map(item => {
+      <nav className="space-y-0.5">
+        {flattenedItems.map((item, index) => {
           const isSelected = getItemId(item) === selectedId;
           return (
             <div
               key={getItemId(item)}
               onClick={() => onSelect(getItemId(item))}
               className={cn(
-                'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm cursor-pointer',
-                SIDEBAR_TOKENS.transitions,
-                isSelected 
+                'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm cursor-pointer',
+                SIDEBAR_TOKENS.transitions.default,
+                'animate-in fade-in slide-in-from-left-2 duration-300',
+                isSelected
                   ? SIDEBAR_TOKENS.colors.item.selected
-                  : SIDEBAR_TOKENS.colors.item.default
+                  : SIDEBAR_TOKENS.colors.item.default,
+                // Subtle scale on hover
+                'hover:scale-[1.01] active:scale-[0.99]'
               )}
+              style={{ animationDelay: `${Math.min(index * 30, 300)}ms` }}
             >
               {isCollapsed && renderCollapsedItem
                 ? renderCollapsedItem(item, isSelected)
@@ -406,14 +443,17 @@ function UnifiedSidebar<T extends { id: string }>({
       </nav>
     );
   };
-  
+
   return (
-    <div 
+    <div
       ref={resizeRef}
       className={cn(
         'flex h-full flex-col relative z-10',
         SIDEBAR_TOKENS.colors.container,
+        // Soft shadow on right edge
+        'shadow-[4px_0_24px_-12px_rgba(0,0,0,0.08)] dark:shadow-[4px_0_24px_-12px_rgba(0,0,0,0.3)]',
         isResizing && 'select-none',
+        SIDEBAR_TOKENS.transitions.slow,
         className
       )}
       style={{
@@ -421,155 +461,218 @@ function UnifiedSidebar<T extends { id: string }>({
         minWidth: isCollapsed ? SIDEBAR_TOKENS.collapsed.minWidth : SIDEBAR_TOKENS.expanded.minWidth
       }}
     >
-      {/* Header - matches AdminSidebar exactly */}
+      {/* Header with glass effect */}
       <div className={cn(
         'flex h-16 items-center',
-        isCollapsed ? 'justify-center px-2' : 'justify-between px-6',
-        SIDEBAR_TOKENS.colors.header
+        isCollapsed ? 'justify-center px-2' : 'justify-between px-5',
+        SIDEBAR_TOKENS.colors.header,
+        SIDEBAR_TOKENS.transitions.default
       )}>
-        <div className="flex items-center gap-3">
+        <div className={cn(
+          'flex items-center gap-3',
+          SIDEBAR_TOKENS.transitions.fast
+        )}>
           {HeaderIcon && (
-            <div className="flex h-8 w-8 items-center justify-center">
-              <HeaderIcon className="h-4 w-4 text-foreground" />
+            <div className={cn(
+              'flex h-9 w-9 items-center justify-center rounded-xl',
+              'bg-gradient-to-br from-teal-500 to-emerald-600 dark:from-teal-600 dark:to-emerald-700',
+              'shadow-lg shadow-teal-500/25 dark:shadow-teal-900/40',
+              SIDEBAR_TOKENS.transitions.default,
+              'hover:scale-105 hover:shadow-xl hover:shadow-teal-500/30'
+            )}>
+              <HeaderIcon className="h-4.5 w-4.5 text-white" />
             </div>
           )}
           {!isCollapsed && (
-            <div>
-              <h2 className="text-base font-semibold" style={{ fontWeight: 590 }}>
+            <div className="animate-in fade-in slide-in-from-left-2 duration-300">
+              <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100" style={{ fontWeight: 600 }}>
                 {title}
               </h2>
               {subtitle && (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                   {subtitle}
                 </p>
               )}
             </div>
           )}
         </div>
-        
-        {/* Mobile close button and actions */}
-        <div className="flex items-center gap-2">
+
+        {/* Actions with smooth transitions */}
+        <div className="flex items-center gap-1.5">
           {onAdd && !isCollapsed && (
             <Button
               size="sm"
               onClick={onAdd}
-              className="h-8 px-3"
-              variant="default"
+              className={cn(
+                'h-8 px-3 rounded-lg',
+                'bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700',
+                'text-white shadow-md shadow-teal-500/25',
+                'hover:shadow-lg hover:shadow-teal-500/30 hover:scale-[1.02]',
+                'active:scale-[0.98]',
+                SIDEBAR_TOKENS.transitions.default
+              )}
             >
-              <AddIcon className="h-4 w-4 mr-1.5" />
+              <AddIcon className="h-3.5 w-3.5 mr-1.5" />
               {addButtonText}
             </Button>
           )}
-          
+
           {onCloseMobile && (
             <Button
               variant="ghost"
               size="sm"
               onClick={onCloseMobile}
-              className="md:hidden"
+              className={cn(
+                'md:hidden h-8 w-8 rounded-lg',
+                'hover:bg-slate-100 dark:hover:bg-slate-800',
+                SIDEBAR_TOKENS.transitions.fast
+              )}
             >
-              <X className="h-4 w-4" />
+              <X className="h-4 w-4 text-slate-500" />
             </Button>
           )}
-          
+
           {enableCollapse && (
             <Button
               size="sm"
               variant="ghost"
               onClick={handleToggleCollapse}
-              className="h-8 w-8 p-0"
+              className={cn(
+                'h-8 w-8 p-0 rounded-lg',
+                'hover:bg-slate-100 dark:hover:bg-slate-800',
+                'hover:scale-105 active:scale-95',
+                SIDEBAR_TOKENS.transitions.default
+              )}
               aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               {isCollapsed ? (
-                <ChevronRight className="h-4 w-4" />
+                <ChevronRight className="h-4 w-4 text-slate-500" />
               ) : (
-                <ChevronLeft className="h-4 w-4" />
+                <ChevronLeft className="h-4 w-4 text-slate-500" />
               )}
             </Button>
           )}
         </div>
       </div>
-      
-      {/* Search */}
+
+      {/* Search with focus animation */}
       {enableSearch && !isCollapsed && (
-        <div className="px-4 py-4 border-b border-border/20 bg-gradient-to-b from-background/50 to-muted/10">
-          <div className="relative group">
+        <div className={cn(
+          'px-4 py-3 border-b',
+          'bg-gradient-to-b from-slate-50/50 to-transparent dark:from-slate-900/50',
+          'border-slate-200/30 dark:border-slate-800/30',
+          SIDEBAR_TOKENS.transitions.default
+        )}>
+          <div className={cn(
+            'relative group',
+            SIDEBAR_TOKENS.transitions.default
+          )}>
             <input
               type="text"
               className={cn(
-                'w-full pl-9 pr-4 py-3 text-sm rounded-xl',
-                'bg-card-secondary shadow',
-                'backdrop-blur-sm shadow-lg shadow-black/5 dark:shadow-black/20',
-                'placeholder:text-gray-400 dark:placeholder:text-gray-500',
-                'text-gray-900 dark:text-gray-100',
-                'focus:ring-4 focus:ring-blue-500/20 dark:focus:ring-blue-400/20',
-                'focus:border-blue-500/60 dark:focus:border-blue-400/60',
-                'focus:bg-white dark:focus:bg-gray-800',
-                'focus:shadow-xl focus:shadow-blue-500/10 dark:focus:shadow-blue-400/10',
-                'hover:border-gray-300/80 dark:hover:border-gray-600/80',
-                'hover:shadow-xl hover:shadow-black/10 dark:hover:shadow-black/30',
-                'transition-all duration-300 ease-out',
-                'focus:outline-none focus:scale-[1.02]'
+                'w-full pl-10 pr-4 py-2.5 text-sm rounded-xl',
+                'bg-white dark:bg-slate-800/80',
+                'border border-slate-200/60 dark:border-slate-700/60',
+                'placeholder:text-slate-400 dark:placeholder:text-slate-500',
+                'text-slate-900 dark:text-slate-100',
+                // Focus states with teal accent (primary color)
+                'focus:ring-2 focus:ring-teal-500/20 dark:focus:ring-teal-400/20',
+                'focus:border-teal-400/60 dark:focus:border-teal-500/60',
+                'focus:bg-white dark:focus:bg-slate-800',
+                'focus:shadow-lg focus:shadow-teal-500/10 dark:focus:shadow-teal-400/10',
+                // Hover states
+                'hover:border-slate-300 dark:hover:border-slate-600',
+                // Scale animation on focus
+                isSearchFocused && 'scale-[1.01]',
+                SIDEBAR_TOKENS.transitions.default,
+                'focus:outline-none'
               )}
               placeholder={searchPlaceholder || `Search ${title.toLowerCase()}...`}
               value={searchTerm}
               onChange={e => handleSearchChange(e.target.value)}
+              onFocus={() => setIsSearchFocused(true)}
+              onBlur={() => setIsSearchFocused(false)}
             />
             <Search className={cn(
-              'absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-all duration-300',
-              searchTerm ? 'text-blue-500 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400',
-              'group-focus-within:text-blue-500 dark:group-focus-within:text-blue-400',
-              'group-focus-within:scale-110'
+              'absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4',
+              SIDEBAR_TOKENS.transitions.default,
+              searchTerm || isSearchFocused
+                ? 'text-teal-500 dark:text-teal-400 scale-110'
+                : 'text-slate-400 dark:text-slate-500'
             )} />
             {searchTerm && (
               <button
                 onClick={() => handleSearchChange('')}
                 className={cn(
-                  'absolute right-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full',
-                  'text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300',
-                  'hover:bg-gray-100 dark:hover:bg-gray-700/50',
+                  'absolute right-3 top-1/2 -translate-y-1/2',
+                  'h-5 w-5 rounded-full',
+                  'text-slate-400 dark:text-slate-500',
+                  'hover:text-slate-600 dark:hover:text-slate-300',
+                  'hover:bg-slate-100 dark:hover:bg-slate-700/50',
                   'hover:scale-110 active:scale-95',
-                  'transition-all duration-200 ease-out',
+                  SIDEBAR_TOKENS.transitions.fast,
                   'flex items-center justify-center'
                 )}
               >
-                <X className="h-3.5 w-3.5" />
+                <X className="h-3 w-3" />
               </button>
             )}
           </div>
         </div>
       )}
-      
-      {/* Navigation Content */}
-      <div className="flex-1 overflow-y-auto px-4 py-6">
+
+      {/* Navigation Content with smooth scrolling */}
+      <div className={cn(
+        'flex-1 overflow-y-auto px-3 py-4',
+        'scrollbar-thin scrollbar-thumb-slate-300/50 dark:scrollbar-thumb-slate-700/50 scrollbar-track-transparent'
+      )}>
         {processedData ? renderGroupedContent() : renderFlatContent()}
-        
-        {/* Empty state - hidden when collapsed */}
+
+        {/* Empty state with refined design */}
         {!isCollapsed && (processedData ? processedData.every(group => group.items.length === 0) : filteredItems.length === 0) && (
-          <div className="flex flex-col items-center justify-center h-full p-4 text-center">
-            <div className="text-sm text-muted-foreground">
-              {searchTerm ? `No ${title.toLowerCase()} match your search` : `No ${title.toLowerCase()} found`}
+          <div className={cn(
+            'flex flex-col items-center justify-center h-full p-6 text-center',
+            'animate-in fade-in zoom-in-95 duration-500'
+          )}>
+            <div className={cn(
+              'w-12 h-12 rounded-2xl mb-4',
+              'bg-gradient-to-br from-teal-100 to-emerald-100 dark:from-teal-900/30 dark:to-emerald-900/30',
+              'flex items-center justify-center',
+              'shadow-inner'
+            )}>
+              <Sparkles className="h-5 w-5 text-teal-500 dark:text-teal-400" />
+            </div>
+            <div className="text-sm font-medium text-slate-600 dark:text-slate-400">
+              {searchTerm ? `No ${title.toLowerCase()} match your search` : `No ${title.toLowerCase()} yet`}
             </div>
             {searchTerm && (
-              <div className="text-xs text-muted-foreground mt-1">
+              <div className="text-xs text-slate-400 dark:text-slate-500 mt-1.5">
                 Try a different search term
               </div>
             )}
           </div>
         )}
       </div>
-      
-      {/* Footer - matches AdminSidebar pattern */}
+
+      {/* Footer with subtle separator */}
       {footerContent && (
-        <div className="border-t border-border p-4">
+        <div className={cn(
+          'border-t border-slate-200/40 dark:border-slate-800/40 p-4',
+          'bg-gradient-to-t from-slate-50/50 to-transparent dark:from-slate-900/50'
+        )}>
           {footerContent}
         </div>
       )}
-      
-      {/* Resize Handle */}
+
+      {/* Resize Handle with visual feedback */}
       {enableResize && !isCollapsed && (
         <div
-          className="absolute top-0 right-0 w-1 h-full cursor-ew-resize hover:bg-primary/30 transition-colors"
+          className={cn(
+            'absolute top-0 right-0 w-1 h-full cursor-ew-resize',
+            'hover:bg-teal-400/40 dark:hover:bg-teal-500/40',
+            'active:bg-teal-500/60 dark:active:bg-teal-400/60',
+            SIDEBAR_TOKENS.transitions.fast
+          )}
           onMouseDown={startResizing}
           onClick={(e) => e.stopPropagation()}
         />

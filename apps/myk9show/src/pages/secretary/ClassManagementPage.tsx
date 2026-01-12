@@ -1,4 +1,5 @@
 import React, { useState, startTransition } from 'react';
+import { logger } from '@/services/LoggingService';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useClassCreationStore } from '@/store/classCreationStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,8 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { 
-import { logger } from '@/services/LoggingService';
+import {
   ArrowLeft,
   Plus,
   Search,

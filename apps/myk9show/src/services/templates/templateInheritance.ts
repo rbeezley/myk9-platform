@@ -1,8 +1,8 @@
 // Template inheritance and customization logic
 // Phase 4.1: Template System Integration
 
-import type { 
 import { logger } from '@/services/LoggingService';
+import type {
   ClassTemplate, 
   ClassTemplateField
 } from '@/types/class-template-types';

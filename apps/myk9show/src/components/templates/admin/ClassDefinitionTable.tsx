@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { logger } from '@/services/LoggingService';
 import { ClassDefinition } from '@/types/template.types';
 import {
   Table,

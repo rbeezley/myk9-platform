@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { logger } from '@/services/LoggingService';
 import { motion } from 'framer-motion';
 import {
   Line,

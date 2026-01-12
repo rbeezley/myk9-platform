@@ -6,7 +6,6 @@
  */
 
 import {
-import { logger } from '@/services/LoggingService';
   SyncEvent,
   SyncMetrics,
   CollectionSyncMetrics,

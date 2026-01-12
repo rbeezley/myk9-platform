@@ -13,8 +13,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 // Input component not used in final implementation
 import { Label } from '@/components/ui/label';
-import { 
 import { logger } from '@/services/LoggingService';
+import {
   Clock, 
   Calendar as CalendarIcon, 
   AlertTriangle,

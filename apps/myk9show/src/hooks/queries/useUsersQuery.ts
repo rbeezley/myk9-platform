@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryClient';
 import type { User, UserRole, JudgeInfo } from '@/types/user-types';
 import type { Json } from '@/types/supabase';
+import { logger } from '@/services/LoggingService';
 import {
   getAllUsers,
   getUserById,

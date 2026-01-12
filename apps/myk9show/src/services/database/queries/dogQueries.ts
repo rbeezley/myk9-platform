@@ -1,7 +1,7 @@
 // Dog-related database queries
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
-import type {
 import { logger } from '@/services/LoggingService';
+import type {
   DbDogInsert,
   DbDogUpdate,
 } from '../../../types/database-mappings';

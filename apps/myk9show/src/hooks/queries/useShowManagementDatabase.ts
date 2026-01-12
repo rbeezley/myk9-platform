@@ -31,6 +31,7 @@ import {
   showManagementQueries
 } from '../../services/database/queries/showManagementQueries';
 import { showRegistrationMappers, armbandMappers } from '../../services/mappers/showManagementMappers';
+import { logger } from '@/services/LoggingService';
 
 // Query Keys
 export const showRegistrationKeys = {

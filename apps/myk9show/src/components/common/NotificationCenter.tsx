@@ -8,8 +8,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
 import { logger } from '@/services/LoggingService';
+import {
   enhancedNotificationService, 
   EnhancedNotification, 
   NotificationCategory, 

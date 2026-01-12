@@ -7,8 +7,8 @@
  */
 
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
 import { logger } from '@/services/LoggingService';
+import { motion } from 'framer-motion';
 
 // UI Components
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { BatchProcessor } from '@/services/sync/BatchProcessor';
+import { logger } from '@/services/LoggingService';
 import {
   SyncOperation,
   SyncPriority,

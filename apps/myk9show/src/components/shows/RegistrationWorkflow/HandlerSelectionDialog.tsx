@@ -151,14 +151,14 @@ export const HandlerSelectionDialog: React.FC<HandlerSelectionDialogProps> = ({
   const checkHandlerPermissions = (person: User, show: unknown): boolean => {
     // TODO: Implement actual permission checking based on show rules
     // For now, return true for all registered users
-    logger.debug('Checking permissions for:', 'shows', { data: person.name, 'in show:', show });
+    logger.debug('Checking permissions for:', 'shows', { personName: person.name, show });
     return true;
   };
   
   const checkHandlerConflicts = (handlerId: string, showId: string): HandlerOption['conflictInfo'] => {
     // TODO: Implement actual conflict checking
     // Check if handler is already handling dogs in conflicting time slots
-    logger.debug('Checking conflicts for handler:', 'shows', { data: handlerId, 'in show:', showId });
+    logger.debug('Checking conflicts for handler:', 'shows', { handlerId, showId });
     return {
       hasConflict: false
     };
@@ -201,7 +201,7 @@ export const HandlerSelectionDialog: React.FC<HandlerSelectionDialogProps> = ({
       // Clear validation error for this dog
       setValidationErrors(prev => {
         const { [dogId]: removed, ...rest } = prev;
-        logger.debug('Removed validation error for dog:', 'shows', { data: dogId, 'error was:', removed });
+        logger.debug('Removed validation error for dog:', 'shows', { dogId, removedError: removed });
         return rest;
       });
     }

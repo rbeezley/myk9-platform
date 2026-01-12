@@ -2,6 +2,7 @@
 // Entry Store Integration - React Query Implementation
 
 import { useMemo } from 'react';
+import { logger } from '@/services/LoggingService';
 import type { ShowEntry, ShowEntryInput, RegistrationData, CompetitionData, EntryStatus, SyncableShowEntry } from '@/store/entryStore';
 import {
   useEntriesQuery,

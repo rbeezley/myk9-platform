@@ -17,8 +17,8 @@
  */
 
 import { EventEmitter } from '../sync/eventEmitter';
-import type {
 import { logger } from '@/services/LoggingService';
+import type {
   ScoringFormat,
   ScoringEvent,
   ConflictResolution

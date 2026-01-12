@@ -18,8 +18,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 
 // Icons
-import { 
 import { logger } from '@/services/LoggingService';
+import {
   CheckCircle2, 
   Clock, 
   AlertCircle, 

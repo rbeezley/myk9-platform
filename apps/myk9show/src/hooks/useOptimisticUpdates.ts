@@ -64,7 +64,7 @@ export function useOptimisticUpdates<T>(
 
   const log = useCallback((message: string, ...args: unknown[]) => {
     if (debug) {
-      logger.debug(`[OptimisticUpdates] ${message}`, 'hooks', { data: ...args });
+      logger.debug(`[OptimisticUpdates] ${message}`, 'hooks', { data: args });
     }
   }, [debug]);
 

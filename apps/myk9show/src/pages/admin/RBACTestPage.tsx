@@ -16,8 +16,8 @@ import { useRBAC, useIsAdmin } from '@/hooks/useRBAC';
 // usePermission not used
 import { PermissionGuard, IfPermission, IfAdmin, PermissionDebugger } from '@/components/rbac/PermissionGuard';
 import { rbacService } from '@/services/rbac/RBACService';
-import { 
 import { logger } from '@/services/LoggingService';
+import {
   CheckCircle, 
   XCircle, 
   AlertTriangle, 

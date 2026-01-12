@@ -34,6 +34,7 @@ import { motion } from 'framer-motion';
 import { format, subDays } from 'date-fns';
 import { useSyncStore } from '@/store/syncStore';
 import { cn } from '@/lib/utils';
+import { logger } from '@/services/LoggingService';
 import {
   Select,
   SelectContent,

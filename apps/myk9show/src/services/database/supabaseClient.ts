@@ -90,9 +90,7 @@ export const logQuery = (
       ...(error && { error }),
     };
     
-    logger.debug(`🗄️ DB Query [${operation.toUpperCase()}]:`, 'database', { data: table,
-      `(${duration}ms)`,
-      error ? `❌ ${error}` : '✅' });
+    logger.debug(`🗄️ DB Query [${operation.toUpperCase()}]: ${table} (${duration}ms) ${error ? `❌ ${error}` : '✅'}`, 'database', logData);
   }
 };
 

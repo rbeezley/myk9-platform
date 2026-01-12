@@ -6,8 +6,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { LiveUpdate, collaborationHub } from '@/services/collaboration/CollaborationHubService';
-import { 
 import { logger } from '@/services/LoggingService';
+import {
   Activity, 
   Plus, 
   Edit, 

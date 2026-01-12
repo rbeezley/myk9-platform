@@ -25,8 +25,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // Icons
-import { 
 import { logger } from '@/services/LoggingService';
+import {
   Mail, 
   Phone, 
   Calendar, 

@@ -8,6 +8,7 @@
  */
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import { logger } from '@/services/LoggingService';
 import { Save, AlertCircle, CheckCircle, Trophy, History, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -17,8 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { SimpleTimeFields } from '@/components/ui/simple-time-fields';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-import { logger } from '@/services/LoggingService';
+import {
   Table, 
   TableBody, 
   TableCell, 

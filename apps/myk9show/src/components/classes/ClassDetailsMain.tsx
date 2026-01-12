@@ -14,8 +14,8 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
 import { createUserPermissions, UserPermissions } from '@/types/user-permissions';
 import { useDogStore } from '@/store/dogStore';
-import type { 
 import { logger } from '@/services/LoggingService';
+import type {
   ScentWorkEntry, 
   ScentWorkResult, 
   MultiAreaScentWorkResult,

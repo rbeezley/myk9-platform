@@ -2,6 +2,7 @@
 // Provides clubStore-like API while using database operations
 import { useMemo } from 'react';
 import type { Club, ClubInput } from '@/types/club-types';
+import { logger } from '@/services/LoggingService';
 import {
   useClubsQuery,
   useClubQuery,

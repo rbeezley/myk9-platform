@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { ClassTemplate } from '@/types/template.types';
 import { useTemplateStore } from '@/store/templateStore';
-import { 
 import { logger } from '@/services/LoggingService';
+import {
   useDeleteClassTemplateMutation
 } from '@/hooks/queries/useTemplatesDatabase';
 import { Button } from '@/components/ui/button';

@@ -7,6 +7,7 @@ import type {
   BaseConflictResolution
 } from '../types/conflict-types';
 
+import { logger } from '@/services/LoggingService';
 import {
   conflictManager,
   type ConflictEvent,

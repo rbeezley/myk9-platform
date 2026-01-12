@@ -7,14 +7,14 @@
  */
 
 import React, { useState, useMemo } from 'react';
+import { logger } from '@/services/LoggingService';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { ScrollArea } from '../ui/scroll-area';
-import { 
-import { logger } from '@/services/LoggingService';
+import {
   Search, 
   Filter,
   Clock,

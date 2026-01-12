@@ -6,8 +6,8 @@
  */
 
 import { Browser, BrowserContext, Page } from '@playwright/test';
-import { 
 import { logger } from '@/services/LoggingService';
+import {
   LoadTestDataGenerator, 
   PerformanceMonitor, 
   LOAD_TEST_SCENARIOS,

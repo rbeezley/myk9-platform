@@ -6,13 +6,14 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Monitor, 
-  Sun, 
-  Moon, 
-  Palette, 
-  Type, 
-  Layout, 
+import { logger } from '@/services/LoggingService';
+import {
+  Monitor,
+  Sun,
+  Moon,
+  Palette,
+  Type,
+  Layout,
   Eye,
   Accessibility,
   RotateCcw,
@@ -25,12 +26,13 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import type { 
-  ThemePreferences, 
-  ThemeMode, 
-  ColorScheme, 
-  LayoutDensity, 
-  FontSizeScale 
+import { useSettingsStore } from '@/stores/settingsStore';
+import type {
+  ThemePreferences,
+  ThemeMode,
+  ColorScheme,
+  LayoutDensity,
+  FontSizeScale
 } from '@/types/user-preferences';
 
 interface ThemeSelectorProps {
@@ -45,11 +47,12 @@ const themeOptions: Array<{ value: ThemeMode; label: string; icon: React.Compone
   { value: 'system', label: 'System', icon: Monitor, description: 'Follow system preference' },
 ];
 
-const colorSchemes: Array<{ value: ColorScheme; label: string; color: string; description: string }> = [
-  { value: 'blue', label: 'Blue', color: '#007AFF', description: 'Classic blue accent' },
-  { value: 'purple', label: 'Purple', color: '#5856D6', description: 'Vibrant purple accent' },
-  { value: 'green', label: 'Green', color: '#34C759', description: 'Natural green accent' },
-  { value: 'orange', label: 'Orange', color: '#FF9500', description: 'Energetic orange accent' },
+// Color schemes matching settingsStore accent colors
+const colorSchemes: Array<{ value: ColorScheme; label: string; color: string; description: string; accentId: 'green' | 'blue' | 'orange' | 'purple' }> = [
+  { value: 'green', label: 'Teal', color: '#14b8a6', description: 'Brand primary color', accentId: 'green' },
+  { value: 'blue', label: 'Ocean', color: '#3b82f6', description: 'Classic professional', accentId: 'blue' },
+  { value: 'orange', label: 'Sunset', color: '#f97316', description: 'Energetic warm', accentId: 'orange' },
+  { value: 'purple', label: 'Royal', color: '#8b5cf6', description: 'Elegant purple', accentId: 'purple' },
 ];
 
 const densityOptions: Array<{ value: LayoutDensity; label: string; description: string }> = [
@@ -67,6 +70,7 @@ const fontSizeOptions: Array<{ value: FontSizeScale; label: string; description:
 
 export function ThemeSelector({ preferences, onUpdate, onReset }: ThemeSelectorProps) {
   const [previewMode, setPreviewMode] = useState<ThemeMode | null>(null);
+  const { settings, updateSettings } = useSettingsStore();
   
   // Apply preview or actual theme
   useEffect(() => {
@@ -90,15 +94,16 @@ export function ThemeSelector({ preferences, onUpdate, onReset }: ThemeSelectorP
 
   /**
    * Handle color scheme change
+   * Updates both the preferences system and the settingsStore for immediate CSS application
    */
   const handleColorSchemeChange = (colorScheme: ColorScheme) => {
     onUpdate({ colorScheme });
-    
-    // Apply CSS custom properties for color scheme
-    const root = document.documentElement;
+
+    // Find the matching accent color for the settingsStore
     const scheme = colorSchemes.find(s => s.value === colorScheme);
     if (scheme) {
-      root.style.setProperty('--theme-primary', scheme.color);
+      // Update settingsStore which applies the accent-{color} CSS class
+      updateSettings({ accentColor: scheme.accentId });
     }
   };
 
@@ -215,28 +220,36 @@ export function ThemeSelector({ preferences, onUpdate, onReset }: ThemeSelectorP
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {colorSchemes.map((scheme) => (
-              <Button
-                key={scheme.value}
-                variant={preferences?.colorScheme === scheme.value ? 'default' : 'outline'}
-                className="h-auto p-4 flex flex-col items-center gap-2"
-                onClick={() => handleColorSchemeChange(scheme.value)}
-              >
-                <div
-                  className="w-6 h-6 rounded-full border-2 border-background shadow-sm"
-                  style={{ backgroundColor: scheme.color }}
-                />
-                <div className="text-center">
-                  <div className="font-medium text-sm">{scheme.label}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {scheme.description}
+            {colorSchemes.map((scheme) => {
+              // Use settingsStore accent color as source of truth
+              const isSelected = settings.accentColor === scheme.accentId;
+              return (
+                <Button
+                  key={scheme.value}
+                  variant={isSelected ? 'default' : 'outline'}
+                  className="h-auto p-4 flex flex-col items-center gap-2 transition-all duration-200"
+                  onClick={() => handleColorSchemeChange(scheme.value)}
+                  style={isSelected ? { backgroundColor: scheme.color, borderColor: scheme.color } : {}}
+                >
+                  <div
+                    className="w-8 h-8 rounded-full shadow-md transition-transform duration-200 hover:scale-110"
+                    style={{
+                      backgroundColor: scheme.color,
+                      boxShadow: isSelected ? `0 0 0 3px white, 0 0 0 5px ${scheme.color}` : undefined
+                    }}
+                  />
+                  <div className="text-center">
+                    <div className="font-medium text-sm">{scheme.label}</div>
+                    <div className={`text-xs ${isSelected ? 'text-white/80' : 'text-muted-foreground'}`}>
+                      {scheme.description}
+                    </div>
                   </div>
-                </div>
-                {preferences?.colorScheme === scheme.value && (
-                  <Check className="h-4 w-4" />
-                )}
-              </Button>
-            ))}
+                  {isSelected && (
+                    <Check className="h-4 w-4" />
+                  )}
+                </Button>
+              );
+            })}
           </div>
         </CardContent>
       </Card>

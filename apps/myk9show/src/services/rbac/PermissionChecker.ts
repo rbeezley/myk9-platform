@@ -5,8 +5,8 @@
  */
 
 import { supabase } from '@/lib/supabase';
-import {
 import { logger } from '@/services/LoggingService';
+import {
   Permission,
   UserRoleWithDetails,
   UserPermissionsResponse,

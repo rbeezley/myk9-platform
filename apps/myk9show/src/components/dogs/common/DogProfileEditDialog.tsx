@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import type { Dog, Owner } from '@/types/dog-types';
 import { Input } from '@/components/ui/input';
 import DatePickerField from '@/components/common/DatePickerField';
+import { logger } from '@/services/LoggingService';
 import {
   Select,
   SelectContent,

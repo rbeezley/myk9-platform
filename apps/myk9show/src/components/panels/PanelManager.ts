@@ -1,5 +1,5 @@
-import { 
 import { logger } from '@/services/LoggingService';
+import {
   EntityType, 
   Panel, 
   PanelStackState, 
@@ -88,7 +88,7 @@ export class PanelManagerImpl implements PanelManager {
       }
     });
 
-    logger.debug('🎛️ Panel opened:', 'panels', { data: panelId, config.type, 'Level:', level });
+    logger.debug('🎛️ Panel opened:', 'panels', { panelId, type: config.type, level });
     return panelId;
   }
 
@@ -141,7 +141,7 @@ export class PanelManagerImpl implements PanelManager {
       }
     }
 
-    logger.debug('🎛️ Panel closed:', 'panels', { data: panelId, result?.action || 'no result' });
+    logger.debug('🎛️ Panel closed:', 'panels', { panelId, action: result?.action || 'no result' });
   }
 
   closeAllPanels(): void {

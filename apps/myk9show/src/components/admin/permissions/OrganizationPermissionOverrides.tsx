@@ -12,8 +12,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 // Switch component removed as not used in final implementation
 // Label component not used in final implementation
-import { 
 import { logger } from '@/services/LoggingService';
+import {
   Building2, 
   Shield, 
   Save, 

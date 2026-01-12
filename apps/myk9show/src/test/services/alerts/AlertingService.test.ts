@@ -2,6 +2,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import AlertingService from '../../../services/alerts/AlertingService';
+import { logger } from '@/services/LoggingService';
 import {
   AlertType,
   AlertSeverity,

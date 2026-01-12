@@ -79,7 +79,7 @@ export const MemberList: React.FC<MemberListProps> = ({ club, canManageMembers =
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => logger.debug('View details:', 'clubs', { data: person.firstName, person.lastName });}>
+                    <DropdownMenuItem onClick={() => logger.debug('View details:', 'clubs', { firstName: person.firstName, lastName: person.lastName })}>
                       <Eye className="mr-2 h-4 w-4" />
                       View Details
                     </DropdownMenuItem>

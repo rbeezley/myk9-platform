@@ -200,7 +200,7 @@ export function PermissionTestChecklist() {
                       [UserRole.SITE_ADMIN]: 'admin@example.com',
                     };
                     // Role switching not implemented - would require backend changes
-                    logger.debug('Would switch to role:', 'admin', { data: role, 'with email:', mockEmails[role as keyof typeof mockEmails] });
+                    logger.debug('Would switch to role:', 'admin', { role, email: mockEmails[role as keyof typeof mockEmails] });
                     setTestResults({}); // Clear results when switching roles
                   }}
                 >

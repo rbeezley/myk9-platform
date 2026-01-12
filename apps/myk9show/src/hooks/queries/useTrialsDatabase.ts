@@ -1,5 +1,6 @@
 // React Query hooks for Trial database operations
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { logger } from '@/services/LoggingService';
 import type { Trial, TrialInput } from '@/store/trialStore';
 import {
   getAllTrials,

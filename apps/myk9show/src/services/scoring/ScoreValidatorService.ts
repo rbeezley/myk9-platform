@@ -16,7 +16,6 @@
  */
 
 import type {
-import { logger } from '@/services/LoggingService';
   BaseScore,
   ScoringFormat,
   ValidationResult,
@@ -35,6 +34,7 @@ import {
   isConformationScore
 } from '@/types/scoring-types';
 import type { ScentWorkResult, MultiAreaScentWorkResult } from '@/types/scent-work-types';
+import { logger } from '@/services/LoggingService';
 
 export interface ValidatorConfig {
   enableRealTimeValidation: boolean;

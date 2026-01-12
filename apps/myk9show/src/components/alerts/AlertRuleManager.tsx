@@ -1,8 +1,8 @@
 // Alert Rule Management Component
 
 import React, { useState, useEffect, useCallback } from 'react';
-import {
 import { logger } from '@/services/LoggingService';
+import {
   Plus,
   Edit,
   Trash2,

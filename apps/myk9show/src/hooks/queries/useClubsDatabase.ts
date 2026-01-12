@@ -1,5 +1,6 @@
 // React Query hooks for Club database operations
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { logger } from '@/services/LoggingService';
 import type { Club, ClubInput } from '@/types/club-types';
 import {
   getAllClubs,

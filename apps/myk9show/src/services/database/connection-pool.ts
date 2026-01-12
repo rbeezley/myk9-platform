@@ -94,7 +94,7 @@ class OptimizedConnectionPool {
 
   private log(message: string, ...args: unknown[]) {
     if (this.config.enableLogging) {
-      logger.debug(`🏊 ConnectionPool: ${message}`, 'database', { data: ...args });
+      logger.debug(`🏊 ConnectionPool: ${message}`, 'database', { data: args });
     }
   }
 

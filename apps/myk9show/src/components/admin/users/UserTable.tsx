@@ -17,9 +17,9 @@
  */
 
 import React, { useState, useMemo } from 'react';
+import { logger } from '@/services/LoggingService';
 import { useNavigate } from 'react-router-dom';
 import {
-import { logger } from '@/services/LoggingService';
   ChevronDown,
   ChevronUp,
   MoreHorizontal,

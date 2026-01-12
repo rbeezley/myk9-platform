@@ -13,7 +13,6 @@ import {
   ConditionType,
   ConditionOperator
 } from '../../types/deployment-types';
-import { logger } from '@/services/LoggingService';
 
 export interface FeatureFlagContext {
   userId?: string;

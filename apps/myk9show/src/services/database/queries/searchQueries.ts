@@ -6,8 +6,8 @@
  */
 
 import { supabase } from '../supabaseClient';
-import {
 import { logger } from '@/services/LoggingService';
+import {
   SearchHistory,
   SearchAnalytics,
   CreateSearchHistoryData,

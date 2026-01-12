@@ -3,8 +3,8 @@ import { EventEmitter } from 'events';
 // For now, we'll create mock implementations to demonstrate the integration
 // import { DifferentialSyncService } from './DifferentialSyncService';
 // import { CompressionService } from './CompressionService';
-import {
 import { logger } from '@/services/LoggingService';
+import {
   SyncOperation,
   SyncPriority,
   SyncConflict,

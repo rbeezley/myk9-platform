@@ -10,8 +10,8 @@
  */
 
 import React, { useState } from 'react';
-import {
 import { logger } from '@/services/LoggingService';
+import {
   User as UserIcon,
   Mail, 
   MapPin,

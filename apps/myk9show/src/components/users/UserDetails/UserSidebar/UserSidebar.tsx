@@ -43,7 +43,7 @@ const PeopleSidebar: React.FC<PeopleSidebarProps> = ({
   const canManageUsers = !isLoading && hasPermission('user:manage');
   
   // Debug logging
-  logger.debug('👥 UserSidebar - isLoading:', 'users', { data: isLoading, 'canManageUsers:', canManageUsers });
+  logger.debug('👥 UserSidebar - isLoading:', 'users', { isLoading, canManageUsers });
   logger.debug('👥 UserSidebar - onAdd prop:', 'users', { data: !!onAdd });
   
   // Note: Automatic mock data loading removed to respect "Reset Everything" functionality

@@ -357,3 +357,107 @@ input, textarea, select {
     color: hsl(var(--foreground));
   }
 }
+
+/* ===================================================================
+   ACCENT COLOR SYSTEM
+   User-selectable accent colors that override primary theme colors
+   Applied via document.documentElement.classList by settingsStore
+   =================================================================== */
+
+/* Green/Teal (Default) - Brand primary color */
+:root.accent-green,
+:root:not(.accent-blue):not(.accent-orange):not(.accent-purple) {
+  --primary: #14b8a6;
+  --primary-hover: #0d9488;
+  --primary-foreground: #ffffff;
+  --accent-glow: rgba(20, 184, 166, 0.3);
+  --ring: #5eead4;
+  /* Tailwind teal palette for consistent theming */
+  --accent-50: #f0fdfa;
+  --accent-100: #ccfbf1;
+  --accent-200: #99f6e4;
+  --accent-500: #14b8a6;
+  --accent-600: #0d9488;
+  --accent-700: #0f766e;
+}
+
+:root.accent-green .dark,
+.dark:not(.accent-blue):not(.accent-orange):not(.accent-purple) {
+  --primary: #2dd4bf;
+  --primary-hover: #14b8a6;
+  --primary-foreground: #042f2e;
+  --accent-glow: rgba(45, 212, 191, 0.3);
+  --ring: #14b8a6;
+}
+
+/* Blue - Classic professional color */
+:root.accent-blue {
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --primary-foreground: #ffffff;
+  --accent-glow: rgba(59, 130, 246, 0.3);
+  --ring: #93c5fd;
+  --accent-50: #eff6ff;
+  --accent-100: #dbeafe;
+  --accent-200: #bfdbfe;
+  --accent-500: #3b82f6;
+  --accent-600: #2563eb;
+  --accent-700: #1d4ed8;
+}
+
+:root.accent-blue.dark,
+.dark.accent-blue {
+  --primary: #60a5fa;
+  --primary-hover: #3b82f6;
+  --primary-foreground: #1e3a8a;
+  --accent-glow: rgba(96, 165, 250, 0.3);
+  --ring: #3b82f6;
+}
+
+/* Orange - Energetic warm color */
+:root.accent-orange {
+  --primary: #f97316;
+  --primary-hover: #ea580c;
+  --primary-foreground: #ffffff;
+  --accent-glow: rgba(249, 115, 22, 0.3);
+  --ring: #fdba74;
+  --accent-50: #fff7ed;
+  --accent-100: #ffedd5;
+  --accent-200: #fed7aa;
+  --accent-500: #f97316;
+  --accent-600: #ea580c;
+  --accent-700: #c2410c;
+}
+
+:root.accent-orange.dark,
+.dark.accent-orange {
+  --primary: #fb923c;
+  --primary-hover: #f97316;
+  --primary-foreground: #7c2d12;
+  --accent-glow: rgba(251, 146, 60, 0.3);
+  --ring: #f97316;
+}
+
+/* Purple - Royal elegant color */
+:root.accent-purple {
+  --primary: #8b5cf6;
+  --primary-hover: #7c3aed;
+  --primary-foreground: #ffffff;
+  --accent-glow: rgba(139, 92, 246, 0.3);
+  --ring: #c4b5fd;
+  --accent-50: #faf5ff;
+  --accent-100: #f3e8ff;
+  --accent-200: #e9d5ff;
+  --accent-500: #8b5cf6;
+  --accent-600: #7c3aed;
+  --accent-700: #6d28d9;
+}
+
+:root.accent-purple.dark,
+.dark.accent-purple {
+  --primary: #a78bfa;
+  --primary-hover: #8b5cf6;
+  --primary-foreground: #3b0764;
+  --accent-glow: rgba(167, 139, 250, 0.3);
+  --ring: #8b5cf6;
+}

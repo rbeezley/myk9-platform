@@ -9,6 +9,7 @@ import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import { DeploymentManager } from '@/services/deployment/DeploymentManager';
 import { FeatureFlagService } from '@/services/deployment/FeatureFlagService';
 import { ProductionMonitoringService } from '@/services/deployment/ProductionMonitoringService';
+import { logger } from '@/services/LoggingService';
 import {
   DeploymentConfig
 } from '@/types/deployment-types';

@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { getOptimalStorage } from '@/services/database/storage-adapter';
-import { 
 import { logger } from '@/services/LoggingService';
+import {
   ClassTemplate, 
   TemplateFilter, 
   Organization, 

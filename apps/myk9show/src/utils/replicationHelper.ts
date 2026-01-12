@@ -1,3 +1,4 @@
+import { logger } from '@/services/LoggingService';
 import {
     replicatedClassesTable,
     replicatedEntriesTable,

@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { logger } from '@/services/LoggingService';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,7 +15,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
 import {
-import { logger } from '@/services/LoggingService';
   Rocket,
   AlertTriangle,
   CheckCircle,

@@ -6,6 +6,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { logger } from '@/services/LoggingService';
 import { 
   judgeQualificationQueries,
   judgeAssignmentQueries,

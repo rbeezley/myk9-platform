@@ -130,7 +130,7 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({ user, dogId
         <p className="text-muted-foreground mb-4">
           Track vaccinations, vet visits, medications, and more with our enhanced timeline view.
         </p>
-        <Button onClick={() => logger.debug('Upgrade to Premium', 'dogs', {});}>
+        <Button onClick={() => logger.debug('Upgrade to Premium', 'dogs')}>
           Upgrade to Premium
         </Button>
       </div>

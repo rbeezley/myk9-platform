@@ -23,6 +23,7 @@ import { markInRing } from '@/services/entryService';
 import type { AreaScore } from '@/services/scoresheets/areaInitialization';
 import type { Entry as StoreEntry } from '../../../stores/entryStore';
 import { logger } from '@/utils/logger';
+import { logger } from '@/services/LoggingService';
 import {
   type RouteState,
   loadFromRouteState,

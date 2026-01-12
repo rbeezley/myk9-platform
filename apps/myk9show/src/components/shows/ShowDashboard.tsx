@@ -24,8 +24,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { usePagination, usePerformanceMetrics, useMemoryMonitoring } from '@/hooks/usePerformanceOptimization';
-import { 
 import { logger } from '@/services/LoggingService';
+import {
   Calendar,
   Users,
   DollarSign,

@@ -1,5 +1,5 @@
-import { 
 import { logger } from '@/services/LoggingService';
+import {
   ShowRegistration, 
   EntryStatus, 
   PaymentStatus,

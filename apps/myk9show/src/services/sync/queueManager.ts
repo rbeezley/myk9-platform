@@ -1,7 +1,7 @@
 // Queue management for offline sync operations
 import { db } from '../database/connection';
-import type { 
 import { logger } from '@/services/LoggingService';
+import type {
   SyncQueueItem, 
   SyncConfiguration, 
   SyncEventMap,

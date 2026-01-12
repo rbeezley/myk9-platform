@@ -705,8 +705,8 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
                     entryStatus={optimisticState.entryStatus}
                     totalFees={currentRegistration?.totalFees || 0}
                     showId={showId}
-                    onDownloadReceipt={() => logger.debug('Download receipt', 'shows', {});}
-                    onSendEmail={() => logger.debug('Send email', 'shows', {});}
+                    onDownloadReceipt={() => logger.debug('Download receipt', 'shows')}
+                    onSendEmail={() => logger.debug('Send email', 'shows')}
                     onStatusChange={async (dogId: string, status: EntryStatus) => {
                       setEntryStatus(status);
                       if (registrationId) {

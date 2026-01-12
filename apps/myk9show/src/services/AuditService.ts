@@ -11,7 +11,6 @@ import {
   AuditAction,
   ImpersonationContext
 } from '@/types/audit-types';
-import { logger } from '@/services/LoggingService';
 
 export interface AuditServiceConfig {
   enableLocalStorage?: boolean;

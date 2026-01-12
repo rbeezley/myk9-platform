@@ -1,4 +1,5 @@
 import React from 'react';
+import { logger } from '@/services/LoggingService';
 import {
   Dialog,
   DialogContent,

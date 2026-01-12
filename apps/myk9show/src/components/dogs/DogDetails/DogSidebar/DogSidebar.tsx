@@ -40,7 +40,7 @@ const DogSidebar: React.FC<DogSidebarProps> = ({
   const canCreateDogs = !isLoading && hasPermission('dog:create');
   
   // Debug logging
-  logger.debug('🐕 DogSidebar - isLoading:', 'dogs', { data: isLoading, 'canCreateDogs:', canCreateDogs });
+  logger.debug('🐕 DogSidebar - isLoading:', 'dogs', { isLoading, canCreateDogs });
   logger.debug('🐕 DogSidebar - onAdd prop:', 'dogs', { data: !!onAdd });
 
   // Helper function to get the first breed from registrations

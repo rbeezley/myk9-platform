@@ -5,6 +5,7 @@ import {
   getCheckInStatusConfig, 
   requiresAction 
 } from '@/types/check-in-types';
+import { logger } from '@/services/LoggingService';
 import {
   Tooltip,
   TooltipContent,

@@ -1,8 +1,8 @@
 // Alert Management Dashboard Component
 
 import React, { useState, useEffect, useCallback } from 'react';
-import {
 import { logger } from '@/services/LoggingService';
+import {
   Bell,
   AlertTriangle,
   CheckCircle,
@@ -482,7 +482,7 @@ export const AlertDashboard: React.FC<AlertDashboardProps> = ({ className }) => 
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => logger.debug('View details', 'alerts', { data: alert.id });}>
+                              <DropdownMenuItem onClick={() => logger.debug('View details', 'alerts', { alertId: alert.id })}>
                                 <Eye className="mr-2 h-4 w-4" />
                                 View Details
                               </DropdownMenuItem>

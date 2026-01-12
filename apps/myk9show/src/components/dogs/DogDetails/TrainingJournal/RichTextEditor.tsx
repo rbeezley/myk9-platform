@@ -4,8 +4,8 @@ import StarterKit from '@tiptap/starter-kit';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { 
 import { logger } from '@/services/LoggingService';
+import {
   Bold, 
   Italic, 
   Strikethrough,

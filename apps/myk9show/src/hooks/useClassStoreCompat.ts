@@ -2,6 +2,7 @@
 // Provides classStore-compatible API while using database operations
 
 import { useMemo } from 'react';
+import { logger } from '@/services/LoggingService';
 import type { ClassInput, EntryInput, SyncableClassData, SyncableEntryData } from '@/store/classStore';
 import type { GeneratedClass } from '@/types/class-template-types';
 import {

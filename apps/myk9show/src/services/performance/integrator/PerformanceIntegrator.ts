@@ -10,8 +10,8 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { logger } from '@/services/LoggingService';
 import { initializeCoreWebVitalsOptimization, getCoreWebVitalsOptimizer } from '../CoreWebVitalsOptimizer';
+import { logger } from '@/services/LoggingService';
 import { initializeBundleOptimization, getBundleOptimizer } from '../BundleOptimizer';
 import { initializeMobilePerformanceOptimization, getMobilePerformanceOptimizer, MobileOptimizationConfig } from '../MobilePerformanceOptimizer';
 import { initializeRUM, getRumService } from '../RealUserMonitoring';

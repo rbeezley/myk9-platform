@@ -25,6 +25,7 @@ import {
   Copy,
   Trash2
 } from 'lucide-react';
+import { logger } from '@/services/LoggingService';
 import {
   DropdownMenu,
   DropdownMenuContent,

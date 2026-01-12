@@ -18,8 +18,8 @@ import { Button } from '@/components/ui/button';
 import { DualTimerDisplay } from '@/components/common/DualTimerDisplay';
 
 // Types and utilities
-import type { 
 import { logger } from '@/services/LoggingService';
+import type {
   ScentWorkEntry, 
   ScentWorkResult, 
   QualificationStatus

@@ -14,8 +14,8 @@ import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { CheckInStatusIndicator } from '@/components/common/CheckInStatusIndicator';
 import { CheckInStatusDialog } from '@/components/common/CheckInStatusDialog';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
-import { 
 import { logger } from '@/services/LoggingService';
+import {
   Calendar, 
   MapPin, 
   Users, 

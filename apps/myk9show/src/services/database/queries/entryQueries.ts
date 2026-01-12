@@ -1,7 +1,7 @@
 // Entry-related database queries
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
-import type {
 import { logger } from '@/services/LoggingService';
+import type {
   DbEntryInsert,
   DbEntryUpdate,
 } from '../../../types/database-mappings';

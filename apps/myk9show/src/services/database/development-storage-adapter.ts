@@ -54,7 +54,7 @@ class DevelopmentStorageAdapter {
 
   private log(operation: string, key: string, details?: unknown) {
     if (this.options.enableLogging) {
-      logger.debug(`🔧 DevStorage ${operation}:`, 'database', { data: key, details || '' });
+      logger.debug(`🔧 DevStorage ${operation}:`, 'database', { key, details: details || '' });
     }
   }
 

@@ -7,9 +7,9 @@
  */
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { logger } from '@/services/LoggingService';
 import { motion } from 'framer-motion';
 import {
-import { logger } from '@/services/LoggingService';
   LineChart as RechartsLineChart,
   Line as RechartsLine,
   AreaChart as RechartsAreaChart,

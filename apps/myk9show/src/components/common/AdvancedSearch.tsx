@@ -11,8 +11,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { Slider } from '@/components/ui/slider';
 import { searchService, SearchQuery, SearchFilters, SearchResult } from '@/services/SearchService';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { 
 import { logger } from '@/services/LoggingService';
+import {
   Search, 
   Filter,
   Calendar as CalendarIcon,

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { logger } from '@/services/LoggingService';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-import { logger } from '@/services/LoggingService';
   Dialog,
   DialogContent,
   DialogDescription,

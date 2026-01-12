@@ -21,8 +21,8 @@ import { replicatedClassesTable } from '@/services/replication/ReplicatedClasses
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 
 // Scoresheets from shared package
-import {
 import { logger } from '@/services/LoggingService';
+import {
   AKCScentWorkScoresheet,
   AKCNationalsScoresheet,
   AKCFastCatScoresheet,

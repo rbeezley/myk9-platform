@@ -1,6 +1,6 @@
 import { SyncMetadata, SyncStatus } from '../../types/sync-types';
-import { 
 import { logger } from '@/services/LoggingService';
+import {
   Conflict, 
   ConflictResolution, 
   ResolutionStrategy, 

@@ -4,8 +4,8 @@ import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Separator } from '../components/ui/separator';
 import { Download, FileText, Database, Wifi, HardDrive } from 'lucide-react';
-import {
 import { logger } from '@/services/LoggingService';
+import {
   OfflineModeBanner,
   SyncProgressIndicator,
   DataFreshnessBadge,

@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useConflictResolution } from './useConflictResolution';
 import { useShowRegistrationStore } from '../store/showRegistrationStore';
+import { logger } from '@/services/LoggingService';
 import {
   RegistrationFormData,
   ClassSelectionData,

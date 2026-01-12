@@ -19,8 +19,8 @@ import { cn } from '@/lib/utils';
 import '@/styles/apple-show-details.css';
 
 // Store and service integration
-import {
 import { logger } from '@/services/LoggingService';
+import {
   useOfflineScoringStore,
   useCurrentScoringSession,
   useJudgeAuth,

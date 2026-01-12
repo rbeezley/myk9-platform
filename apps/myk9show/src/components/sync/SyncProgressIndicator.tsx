@@ -11,6 +11,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
+import { logger } from '@/services/LoggingService';
 import { useSyncStore } from '@/store/syncStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';

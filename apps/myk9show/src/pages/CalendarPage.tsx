@@ -11,8 +11,8 @@ import { useShowStore } from '@/store/showStore';
 import { useEntryStore } from '@/store/entryStore';
 import { useDogStore } from '@/store/dogStore';
 import { RegistrationFormData } from '@/types/show-registration-types';
-import { 
 import { logger } from '@/services/LoggingService';
+import {
   Plus, 
   Calendar as CalendarIcon, 
   Trophy, 

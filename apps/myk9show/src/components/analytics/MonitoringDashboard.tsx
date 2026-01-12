@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { logger } from '@/services/LoggingService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -18,7 +19,6 @@ import {
   Zap
 } from 'lucide-react';
 
-import { logger } from '@/services/LoggingService';
 import { performanceMetrics } from '@/services/analytics/PerformanceMetricsService';
 import { errorAnalytics, ErrorSeverity } from '@/services/analytics/ErrorAnalyticsService';
 import { getStateActivitySummary } from '@/utils/stateLoggingMiddleware';

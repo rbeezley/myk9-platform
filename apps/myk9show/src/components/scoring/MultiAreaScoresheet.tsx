@@ -22,8 +22,8 @@ import { MultiAreaTimerDisplay } from './MultiAreaTimerDisplay';
 import { useMultiAreaTiming } from '@/hooks/useMultiAreaTiming';
 
 // Types and utilities
-import type { 
 import { logger } from '@/services/LoggingService';
+import type {
   ScentWorkEntry, 
   MultiAreaScentWorkResult,
   AreaResult,

@@ -83,11 +83,11 @@ const DropdownMenuContent = React.forwardRef<
   DropdownMenuContentProps
 >(({ className, sideOffset = 4, align = "center", ...props }, ref) => (
   <MenuPrimitive.Portal>
-    <MenuPrimitive.Positioner sideOffset={sideOffset} align={align}>
+    <MenuPrimitive.Positioner sideOffset={sideOffset} align={align} className="z-[9999]">
       <MenuPrimitive.Popup
         ref={ref}
         className={cn(
-          "z-50 max-h-[var(--available-height)] min-w-[8rem] overflow-y-auto overflow-x-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md",
+          "z-[9999] max-h-[var(--available-height)] min-w-[8rem] overflow-y-auto overflow-x-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md",
           "data-[open]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[open]:fade-in-0 data-[closed]:zoom-out-95 data-[open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
           className
         )}

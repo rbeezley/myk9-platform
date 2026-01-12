@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
-import { LogOut, User as UserIcon, ChevronDown, Search, Settings, CreditCard, Heart, Wifi, WifiOff, RefreshCw, Menu, X } from 'lucide-react';
+import { LogOut, User as UserIcon, ChevronDown, Search, Settings, CreditCard, Heart, Wifi, WifiOff, RefreshCw, Menu, X, Palette } from 'lucide-react';
+import { PreferencesDialog } from '@/components/preferences';
 import { ExhibitorNavigation, SecretaryNavigation, JudgeNavigation, AdminNavigation } from './navigation';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,7 @@ const AppHeader: React.FC = () => {
   const networkStatus = useNetworkStatus();
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [preferencesOpen, setPreferencesOpen] = useState(false);
 
   // Handler for opening command palette
   const openCommandPalette = () => {
@@ -214,6 +216,10 @@ const AppHeader: React.FC = () => {
                         Pricing
                       </Link>
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setPreferencesOpen(true)} className="w-full flex items-center gap-2 cursor-pointer">
+                      <Palette className="h-4 w-4" />
+                      Preferences
+                    </DropdownMenuItem>
 
                     {/* Role-specific menu items */}
                     {(hasRole(UserRole.SECRETARY) || hasRole(UserRole.CLUB_ADMIN) || hasRole(UserRole.SITE_ADMIN)) && (
@@ -301,6 +307,12 @@ const AppHeader: React.FC = () => {
       <CommandPalette
         open={commandPaletteOpen}
         onOpenChange={setCommandPaletteOpen}
+      />
+
+      {/* Preferences Dialog */}
+      <PreferencesDialog
+        open={preferencesOpen}
+        onOpenChange={setPreferencesOpen}
       />
     </nav>
   );

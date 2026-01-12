@@ -17,6 +17,7 @@ import { useUserRoles, useUserRoleNames } from '@/hooks/queries/useUserRoles';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import {
+import { logger } from '@/services/LoggingService';
   UserWithRoles,
   UserRole,
   Permission,
@@ -131,7 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .single();
 
       if (error) {
-        console.warn('Could not fetch user profile:', error);
+        logger.warn('Could not fetch user profile:', 'context', {}, error as Error);
         return null;
       }
 
@@ -167,7 +168,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           error: null
         });
       } catch (error) {
-        console.error('Failed to load RBAC data:', error);
+        logger.error('Failed to load RBAC data:', 'app', {}, error as Error);
         setRbacData(prev => ({
           ...prev,
           isLoading: false,
@@ -385,7 +386,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         error: null
       });
     } catch (error) {
-      console.error('Failed to refresh RBAC data:', error);
+      logger.error('Failed to refresh RBAC data:', 'app', {}, error as Error);
       setRbacData(prev => ({
         ...prev,
         isLoading: false,

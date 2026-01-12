@@ -4,6 +4,7 @@
  */
 
 import { 
+import { logger } from '@/services/LoggingService';
   getToken, 
   onMessage, 
   deleteToken,
@@ -341,11 +342,11 @@ export class FCMService {
   ): Promise<void> {
     try {
       // TODO: Implement proper notification_event table integration
-      console.log('📊 Event logged (mock)', { 
+      logger.debug('📊 Event logged (mock)', 'notifications', { data: { 
         user_id: this.userId,
         event_type: event,
         payload: typeof payload === 'object' ? payload : { data: payload }
-      });
+      } });
     } catch (error) {
       // Don't report tracking errors to avoid noise
       console.debug('Failed to track notification event:', error);

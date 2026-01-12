@@ -6,6 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
+import { logger } from '@/services/LoggingService';
   Search, 
   Filter, 
   RefreshCw, 
@@ -174,7 +175,7 @@ export const ClassSyncStatus: React.FC<ClassSyncStatusProps> = ({
 
   const handleRetryClass = (classId: string) => {
     // Retry sync for specific class
-    console.log('Retrying sync for class:', classId);
+    logger.debug('Retrying sync for class:', 'sync', { data: classId });
   };
 
   return (

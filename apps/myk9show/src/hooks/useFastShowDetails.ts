@@ -10,6 +10,7 @@ import { useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useShowQuery, showQueryKeys } from '@/hooks/queries/useShowsDatabase';
 import type { Show } from '@/types/show-types';
+import { logger } from '@/services/LoggingService';
 
 interface FastShowDetailsResult {
   showId: string | null;
@@ -72,7 +73,7 @@ export function useFastShowDetails(explicitShowId?: string): FastShowDetailsResu
       setLoadTime(duration);
       
       if (import.meta.env.DEV) {
-        console.log(`⚡ Show details loaded in ${duration.toFixed(2)}ms${isFromCache ? ' (from cache)' : ' (from network)'}`);
+        logger.debug(`⚡ Show details loaded in ${duration.toFixed(2)}ms${isFromCache ? ' (from cache)' : ' (from network)'}`, 'hooks', {});
       }
     }
   }, [show, loadTime, loadStartTime, isFromCache]);

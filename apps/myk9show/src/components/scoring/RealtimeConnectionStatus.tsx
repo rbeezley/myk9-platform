@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { 
+import { logger } from '@/services/LoggingService';
   Wifi, 
   WifiOff, 
   AlertTriangle, 
@@ -58,7 +59,7 @@ export function RealtimeConnectionStatus({
     try {
       await connectionManager.forceReconnect();
     } catch (error) {
-      console.error('Force reconnect failed:', error);
+      logger.error('Force reconnect failed:', 'scoring', {}, error as Error);
     } finally {
       setIsReconnecting(false);
     }

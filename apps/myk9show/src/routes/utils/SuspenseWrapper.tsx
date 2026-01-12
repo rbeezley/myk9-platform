@@ -10,6 +10,7 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { trackLazyComponentStart, trackLazyComponentEnd, trackLazyComponentRetry } from '@/utils/lazyLoadingMetrics';
+import { logger } from '@/services/LoggingService';
 
 interface SuspenseWrapperProps {
   children: React.ReactNode;
@@ -43,7 +44,7 @@ class LoadingErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('LoadingErrorBoundary caught an error:', error, errorInfo);
+    logger.error('LoadingErrorBoundary caught an error:', 'utils', { data: error, errorInfo });
     
     // Track error in metrics
     if (this.props.componentName) {

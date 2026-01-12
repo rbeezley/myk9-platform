@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { db } from '@/services/database/connection';
+import { logger } from '@/services/LoggingService';
 
 interface StoreData {
   storeName: string;
@@ -26,13 +27,13 @@ export const DatabaseViewer: React.FC = () => {
           const storeData = await db.instance.query(storeName, { limit: 5 });
           data.push({ storeName, count, data: storeData });
         } catch (error) {
-          console.warn(`Error loading ${storeName}:`, error);
+          logger.warn(`Error loading ${storeName}:`, 'debug', {}, error as Error);
           data.push({ storeName, count: 0, data: [] });
         }
       }
       setStoreData(data);
     } catch (error) {
-      console.error('Error loading store data:', error);
+      logger.error('Error loading store data:', 'components', {}, error as Error);
     } finally {
       setLoading(false);
     }
@@ -45,7 +46,7 @@ export const DatabaseViewer: React.FC = () => {
         await loadStoreCounts();
         alert(`${storeName} cleared successfully`);
       } catch (error) {
-        console.error('Error clearing store:', error);
+        logger.error('Error clearing store:', 'components', {}, error as Error);
         alert('Error clearing store');
       }
     }

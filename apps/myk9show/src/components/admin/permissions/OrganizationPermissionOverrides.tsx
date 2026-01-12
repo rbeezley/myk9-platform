@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 // Switch component removed as not used in final implementation
 // Label component not used in final implementation
 import { 
+import { logger } from '@/services/LoggingService';
   Building2, 
   Shield, 
   Save, 
@@ -138,12 +139,12 @@ export const OrganizationPermissionOverrides: React.FC<OrganizationPermissionOve
         const [roleId, permissionId] = overrideKey.split('-');
         
         // Call API to create/update organization permission override
-        console.log('Saving override:', {
+        logger.debug('Saving override:', 'admin', { data: {
           organizationId,
           roleId,
           permissionId,
           overrideType
-        });
+        } });
       }
 
       // Clear pending changes

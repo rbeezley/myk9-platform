@@ -4,6 +4,7 @@
  */
 
 import { generateSecureToken, isSecureContext } from '@/config/security';
+import { logger } from '@/services/LoggingService';
 
 interface EncryptedData {
   data: string;
@@ -159,7 +160,7 @@ export class SecureStorage {
       storage.setItem(key, JSON.stringify(encrypted));
       
     } catch (error) {
-      console.error(`SecureStorage: Failed to encrypt ${key}:`, error);
+      logger.error(`SecureStorage: Failed to encrypt ${key}:`, 'utils', {}, error as Error);
       // Fallback to regular storage
       const storage = options.useSessionStorage ? sessionStorage : localStorage;
       storage.setItem(key, value);
@@ -204,7 +205,7 @@ export class SecureStorage {
       return await this.decrypt(encryptedData);
       
     } catch (error) {
-      console.error(`SecureStorage: Failed to decrypt ${key}:`, error);
+      logger.error(`SecureStorage: Failed to decrypt ${key}:`, 'utils', {}, error as Error);
       return null;
     }
   }

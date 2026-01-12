@@ -1,3 +1,5 @@
+import { logger } from '@/services/LoggingService';
+
 interface UserAction {
   id: string;
   type: 'navigation' | 'entity_access' | 'search' | 'create' | 'update' | 'delete';
@@ -530,7 +532,7 @@ export class UserBehaviorLearning {
       const lastAction = this.actionHistory[this.actionHistory.length - 2];
       if (lastAction.type === 'navigation' && lastAction.route !== action.route) {
         // Detected navigation pattern - could trigger prefetch
-        console.log(`Navigation pattern detected: ${lastAction.route} -> ${action.route}`);
+        logger.debug(`Navigation pattern detected: ${lastAction.route} -> ${action.route}`, 'analytics', {});
       }
     }
 
@@ -542,7 +544,7 @@ export class UserBehaviorLearning {
         .map(a => `${a.entityType}:${a.entityId}`);
       
       if (recentEntityAccess.length > 1) {
-        console.log(`Entity access pattern: ${recentEntityAccess.join(' -> ')}`);
+        logger.debug(`Entity access pattern: ${recentEntityAccess.join(' -> ')}`, 'analytics', {});
       }
     }
   }
@@ -692,7 +694,7 @@ export class UserBehaviorLearning {
         }));
       }
     } catch (error) {
-      console.warn('Failed to load behavior data from storage:', error);
+      logger.warn('Failed to load behavior data from storage:', 'analytics', {}, error as Error);
     }
   }
 
@@ -705,7 +707,7 @@ export class UserBehaviorLearning {
       localStorage.setItem('myk9show-user-profiles', JSON.stringify(Array.from(this.userProfiles.values())));
       localStorage.setItem('myk9show-behavior-patterns', JSON.stringify(this.globalPatterns));
     } catch (error) {
-      console.warn('Failed to save behavior data to storage:', error);
+      logger.warn('Failed to save behavior data to storage:', 'analytics', {}, error as Error);
     }
   }
 

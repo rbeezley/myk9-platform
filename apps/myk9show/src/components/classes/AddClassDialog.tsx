@@ -3,6 +3,7 @@ import EditClassDialog from '@/components/classes/EditClassDialog';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { ClassData } from '@/components/classes/types/classTypes';
 import { TrialClass } from '@/components/trials/types/trial.types';
+import { logger } from '@/services/LoggingService';
 
 interface AddClassDialogProps {
   open: boolean;
@@ -69,7 +70,7 @@ const AddClassDialog: React.FC<AddClassDialogProps> = ({ open, onClose, trialId 
       await addClass(classInput);
       onClose();
     } catch (error) {
-      console.error('Failed to add class:', error);
+      logger.error('Failed to add class:', 'classes', {}, error as Error);
     }
   };
 

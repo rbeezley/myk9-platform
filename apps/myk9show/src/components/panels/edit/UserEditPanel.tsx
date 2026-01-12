@@ -16,6 +16,7 @@ import { useEnhancedAuth } from '@/hooks/useEnhancedAuth';
 import { useRBAC } from '@/hooks/useRBAC';
 import type { User as UserType, UserRole, JudgeQualification } from '@/types/user-types';
 import { cn } from '@/lib/utils';
+import { logger } from '@/services/LoggingService';
 
 interface UserEditPanelProps {
   open: boolean;
@@ -52,7 +53,7 @@ interface UserFormData extends Record<string, unknown> {
 const validateUserData = (data: UserFormData): string[] | null => {
   const errors: string[] = [];
 
-  console.log('🔍 UserEditPanel validation debug:', {
+  logger.debug('🔍 UserEditPanel validation debug:', 'panels', { data: {
     firstName: data.firstName,
     lastName: data.lastName,
     email: data.email,
@@ -63,7 +64,7 @@ const validateUserData = (data: UserFormData): string[] | null => {
     zipCode: data.zipCode,
     roles: data.roles,
     formDataKeys: Object.keys(data),
-  });
+  } });
 
   if (!data.firstName?.trim()) {
     errors.push('First name is required');
@@ -112,9 +113,9 @@ const validateUserData = (data: UserFormData): string[] | null => {
   });
 
   if (errors.length > 0) {
-    console.log('❌ UserEditPanel validation errors:', errors);
+    logger.debug('❌ UserEditPanel validation errors:', 'panels', { data: errors });
   } else {
-    console.log('✅ UserEditPanel validation passed');
+    logger.debug('✅ UserEditPanel validation passed', 'components', {});
   }
 
   return errors.length > 0 ? errors : null;
@@ -143,7 +144,7 @@ const userToFormData = (user: Partial<UserType>): UserFormData => {
     emergencyPhone: userRecord.emergencyPhone as string || '', // Extended field
   };
 
-  console.log('🔍 UserEditPanel userToFormData debug:', {
+  logger.debug('🔍 UserEditPanel userToFormData debug:', 'panels', { data: {
     originalUser: user,
     userRecord: userRecord,
     resultingFormData: result,
@@ -151,7 +152,7 @@ const userToFormData = (user: Partial<UserType>): UserFormData => {
       'user.address': user.address,
       'userRecord.street_address': userRecord.street_address,
     },
-  });
+  } });
 
   return result;
 };

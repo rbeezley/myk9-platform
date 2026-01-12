@@ -1,6 +1,7 @@
 // Optimized IndexedDB storage adapter for Zustand persist middleware
 import { StateStorage } from 'zustand/middleware';
 import { db } from './connection';
+import { logger } from '@/services/LoggingService';
 
 // Simplified cache with longer TTL to reduce database hits
 const stateCache = new Map<string, { data: string; timestamp: number }>();
@@ -46,7 +47,7 @@ export function createOptimizedIndexedDBStorage(): StateStorage {
         
         return null;
       } catch (error) {
-        console.error(`IndexedDB getItem error for ${name}:`, error);
+        logger.error(`IndexedDB getItem error for ${name}:`, 'database', {}, error as Error);
         return null;
       }
     },
@@ -69,7 +70,7 @@ export function createOptimizedIndexedDBStorage(): StateStorage {
           lastModified: new Date()
         });
       } catch (error) {
-        console.error(`IndexedDB setItem error for ${name}:`, error);
+        logger.error(`IndexedDB setItem error for ${name}:`, 'database', {}, error as Error);
         // Remove from cache on error
         stateCache.delete(name);
         throw error;
@@ -86,7 +87,7 @@ export function createOptimizedIndexedDBStorage(): StateStorage {
         
         await db.instance._zustand_state.delete(name);
       } catch (error) {
-        console.error(`IndexedDB removeItem error for ${name}:`, error);
+        logger.error(`IndexedDB removeItem error for ${name}:`, 'database', {}, error as Error);
         throw error;
       }
     }
@@ -116,13 +117,13 @@ export async function batchReadStates(storeNames: string[]): Promise<Map<string,
           });
         }
       } catch (error) {
-        console.warn(`Failed to read state for ${name}:`, error);
+        logger.warn(`Failed to read state for ${name}:`, 'database', {}, error as Error);
       }
     });
     
     await Promise.all(promises);
   } catch (error) {
-    console.error('Batch read failed:', error);
+    logger.error('Batch read failed:', 'database', {}, error as Error);
   }
   
   return results;

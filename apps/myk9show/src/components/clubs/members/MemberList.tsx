@@ -7,6 +7,7 @@ import { Club } from '@/types/club-types';
 import { User } from '@/types/user-types';
 import { Mail, Phone, MoreVertical, UserMinus, Eye, Shield } from 'lucide-react';
 import { ClubAdminService } from '@/services/clubAdminService';
+import { logger } from '@/services/LoggingService';
 
 interface MemberListProps {
   club: Club;
@@ -78,7 +79,7 @@ export const MemberList: React.FC<MemberListProps> = ({ club, canManageMembers =
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => console.log('View details:', person.firstName, person.lastName)}>
+                    <DropdownMenuItem onClick={() => logger.debug('View details:', 'clubs', { data: person.firstName, person.lastName });}>
                       <Eye className="mr-2 h-4 w-4" />
                       View Details
                     </DropdownMenuItem>

@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
+import { logger } from '@/services/LoggingService';
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -171,7 +172,7 @@ export function VirtualScrollList<T>({
   // Performance monitoring
   useEffect(() => {
     if (import.meta.env.DEV) {
-      console.log(`🔄 Virtual scroll: ${visibleItems.length}/${filteredItems.length} items rendered`);
+      logger.debug(`🔄 Virtual scroll: ${visibleItems.length}/${filteredItems.length} items rendered`, 'components', {});
     }
   }, [visibleItems.length, filteredItems.length]);
 

@@ -23,6 +23,7 @@ import { useMultiAreaTiming } from '@/hooks/useMultiAreaTiming';
 
 // Types and utilities
 import type { 
+import { logger } from '@/services/LoggingService';
   ScentWorkEntry, 
   MultiAreaScentWorkResult,
   AreaResult,
@@ -112,7 +113,7 @@ export function MultiAreaScoresheet({
       });
     },
     onAllAreasComplete: (totalTime) => {
-      console.log(`All areas complete. Total time: ${msToDisplay(totalTime, 'hundredths')}`);
+      logger.debug(`All areas complete. Total time: ${msToDisplay(totalTime, 'hundredths')}`, 'scoring', {});
     },
     onTimeExpired: () => {
       // Mark current area as failed due to timeout

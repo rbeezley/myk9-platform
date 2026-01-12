@@ -12,6 +12,7 @@ import { useUserStore } from '@/store/userStore';
 import { useTrialStore } from '@/store/trialStore';
 import ExpandableSection from './ExpandableSection';
 import SectionToggleControls from './SectionToggleControls';
+import { logger } from '@/services/LoggingService';
 
 interface EditClassDialogProps {
   open: boolean;
@@ -69,7 +70,7 @@ const EditClassDialog: React.FC<EditClassDialogProps> = ({
             processedItem.startTime = date.toISOString().slice(0, 16);
           }
         } catch (e) {
-          console.warn('Failed to convert startTime:', e);
+          logger.warn('Failed to convert startTime:', 'classes', {}, e as Error);
         }
       }
       

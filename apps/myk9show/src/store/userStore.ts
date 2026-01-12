@@ -7,6 +7,7 @@ import { getOptimalStorage } from '@/services/database/storage-adapter';
 // import { generateId } from '@/utils/idUtils';
 // import { getLastModifiedBy, getCurrentUserUUID } from '@/utils/authHelpers';
 import { reportStoreError } from '@/utils/standardizedErrorHandler';
+import { logger } from '@/services/LoggingService';
 
 // Input types for creating/updating users
 export interface UserInput {
@@ -274,7 +275,7 @@ export const useUserStore = create<UserStore>()(
           
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to load users';
-          console.error('💥 Failed to load users:', error);
+          logger.error('💥 Failed to load users:', 'store', {}, error as Error);
           reportStoreError('loadUsers', 'userStore', error);
           set({ error: errorMessage, isLoading: false });
         }

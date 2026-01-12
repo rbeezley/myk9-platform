@@ -1,4 +1,5 @@
 import { EventEmitter } from 'events';
+import { logger } from '@/services/LoggingService';
 
 export interface RealtimeEvent {
   id: string;
@@ -193,7 +194,7 @@ export class RealtimeEventBus extends EventEmitter {
       try {
         callback(event);
       } catch (error) {
-        console.error('Error replaying event:', error, event);
+        logger.error('Error replaying event:', 'realtime', { data: error, event });
       }
     });
   }
@@ -267,10 +268,10 @@ export class RealtimeEventBus extends EventEmitter {
           this.subscriptions.delete(subscription.id);
         }
       } catch (error) {
-        console.error('Error in event subscription callback:', error, {
+        logger.error('Error in event subscription callback:', 'realtime', { data: error, {
           subscriptionId: subscription.id,
           event
-        });
+        } });
       }
     });
   }

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { User as UserType } from '@/types/dog-types';
 import type { JudgeQualification } from '@/types/judge-types';
+import { logger } from '@/services/LoggingService';
 
 // Mock user data for testing
 const mockUser: Partial<UserType> = {
@@ -53,14 +54,14 @@ export default function TestPanelPage() {
   const [userData, setUserData] = useState(mockUser);
 
   const handleUserSave = async (data: Partial<UserType>) => {
-    console.log('Saving user data:', data);
+    logger.debug('Saving user data:', 'pages', { data: data });
     setUserData({ ...userData, ...data });
     // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 1000));
   };
 
   const handleQualificationsSave = async (qualifications: JudgeQualification[]) => {
-    console.log('Saving qualifications:', qualifications);
+    logger.debug('Saving qualifications:', 'pages', { data: qualifications });
     setUserData({ ...userData, judgeQualifications: qualifications });
     // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 1000));

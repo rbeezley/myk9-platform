@@ -10,6 +10,7 @@ import { getRumService } from './RealUserMonitoring';
 import { useDogStore } from '@/store/dogStore';
 import { useUserStore } from '@/store/userStore';
 import { useShowStore } from '@/store/showStore';
+import { logger } from '@/services/LoggingService';
 
 export interface EvictionConfig {
   memoryThresholdMB: number;
@@ -62,7 +63,7 @@ export class DataEvictionService {
       return null; // No eviction needed
     }
 
-    console.log(`🗑️ Memory threshold exceeded (${memoryUsage}MB), starting eviction...`);
+    logger.debug(`🗑️ Memory threshold exceeded (${memoryUsage}MB), starting eviction...`, 'performance', {});
     return this.performEviction();
   }
 
@@ -70,7 +71,7 @@ export class DataEvictionService {
    * Force eviction regardless of memory usage
    */
   async forceEviction(): Promise<EvictionResult> {
-    console.log('🗑️ Forcing data eviction...');
+    logger.debug('🗑️ Forcing data eviction...', 'performance', {});
     return this.performEviction();
   }
 
@@ -122,11 +123,11 @@ export class DataEvictionService {
         success: true
       };
 
-      console.log(`✅ Eviction completed:`, result);
+      logger.debug(`✅ Eviction completed:`, 'performance', { data: result });
       return result;
 
     } catch (error) {
-      console.error('❌ Eviction failed:', error);
+      logger.error('❌ Eviction failed:', 'performance', {}, error as Error);
       
       return {
         itemsEvicted: 0,

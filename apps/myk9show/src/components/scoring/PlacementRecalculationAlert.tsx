@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { 
+import { logger } from '@/services/LoggingService';
   Tooltip, 
   TooltipContent, 
   TooltipProvider, 
@@ -260,7 +261,7 @@ export function PlacementRecalculationAlert({
       // setLastCalculationTime(calculation.calculatedAt);
 
     } catch (error) {
-      console.error('Failed to monitor placements:', error);
+      logger.error('Failed to monitor placements:', 'scoring', {}, error as Error);
     }
   }, [classId, format, getScoresByClass, calculatePlacementChanges, createAlertFromChanges, maxAlerts]);
 

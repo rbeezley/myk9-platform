@@ -4,6 +4,7 @@ import { AppleDialog } from '@/components/ui/AppleDialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
+import { logger } from '@/services/LoggingService';
   Copy,
   ArrowRight,
   Search,
@@ -191,7 +192,7 @@ export const ShowCloneDialog: React.FC<ShowCloneDialogProps> = ({
       }, 2000);
       
     } catch (error) {
-      console.error('Error cloning show:', error);
+      logger.error('Error cloning show:', 'shows', {}, error as Error);
     } finally {
       setIsCloning(false);
     }

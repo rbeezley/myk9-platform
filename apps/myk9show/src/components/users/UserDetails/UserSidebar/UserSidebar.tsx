@@ -6,6 +6,7 @@ import { useRoleBasedPeople } from '@/hooks/useRoleBasedData';
 import { useRBAC } from '@/hooks/useRBAC';
 import UnifiedSidebar from '@/components/common/UnifiedSidebar';
 import { cn } from '@/lib/utils';
+import { logger } from '@/services/LoggingService';
 
 interface PersonWithDetails {
   id: string;
@@ -42,8 +43,8 @@ const PeopleSidebar: React.FC<PeopleSidebarProps> = ({
   const canManageUsers = !isLoading && hasPermission('user:manage');
   
   // Debug logging
-  console.log('👥 UserSidebar - isLoading:', isLoading, 'canManageUsers:', canManageUsers);
-  console.log('👥 UserSidebar - onAdd prop:', !!onAdd);
+  logger.debug('👥 UserSidebar - isLoading:', 'users', { data: isLoading, 'canManageUsers:', canManageUsers });
+  logger.debug('👥 UserSidebar - onAdd prop:', 'users', { data: !!onAdd });
   
   // Note: Automatic mock data loading removed to respect "Reset Everything" functionality
   // If you need test data, use the "Load Mock Data" button in development tools

@@ -9,6 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { User as UserIcon, AlertTriangle, CheckCircle } from 'lucide-react';
 import { User } from '@/types/dog-types';
+import { logger } from '@/services/LoggingService';
 
 interface CreateExhibitorDialogProps {
   open: boolean;
@@ -224,7 +225,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
       onExhibitorCreated(newExhibitor);
       handleClose();
     } catch (error) {
-      console.error('Error creating exhibitor:', error);
+      logger.error('Error creating exhibitor:', 'shows', {}, error as Error);
     } finally {
       setIsCreating(false);
     }

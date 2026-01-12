@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import {
+import { logger } from '@/services/LoggingService';
   Dialog,
   DialogContent,
   DialogHeader,
@@ -313,7 +314,7 @@ export const PersonnelManager: React.FC<PersonnelManagerProps> = ({
                   variant="outline"
                   onClick={() => {
                     // Auto-assign based on availability
-                    console.log('Auto-assign functionality to be implemented');
+                    logger.debug('Auto-assign functionality to be implemented', 'components', {});
                   }}
                 >
                   Auto Assign Available

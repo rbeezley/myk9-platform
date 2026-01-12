@@ -1,5 +1,6 @@
 import { RealtimeChannel, RealtimePresenceState } from '@supabase/supabase-js';
 import { supabase } from '../../supabaseClient';
+import { logger } from '@/services/LoggingService';
 
 export interface UserPresence {
   id: string;
@@ -97,7 +98,7 @@ export class PresenceService {
       this.setupUnloadHandler();
 
     } catch (error) {
-      console.error('Failed to initialize presence service:', error);
+      logger.error('Failed to initialize presence service:', 'collaboration', {}, error as Error);
       throw error;
     }
   }
@@ -122,7 +123,7 @@ export class PresenceService {
       });
 
     } catch (error) {
-      console.error('Failed to update presence:', error);
+      logger.error('Failed to update presence:', 'collaboration', {}, error as Error);
     }
   }
 
@@ -233,7 +234,7 @@ export class PresenceService {
       try {
         callback(update);
       } catch (error) {
-        console.error('Presence subscriber error:', error);
+        logger.error('Presence subscriber error:', 'collaboration', {}, error as Error);
       }
     });
   }
@@ -278,7 +279,7 @@ export class PresenceService {
   // Recovery methods
   async reconnect(): Promise<void> {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error('Max reconnection attempts reached');
+      logger.error('Max reconnection attempts reached', 'collaboration', {});
       return;
     }
 
@@ -293,7 +294,7 @@ export class PresenceService {
         this.reconnectAttempts = 0;
       }
     } catch (error) {
-      console.error('Reconnection failed:', error);
+      logger.error('Reconnection failed:', 'collaboration', {}, error as Error);
       setTimeout(() => this.reconnect(), 5000);
     }
   }

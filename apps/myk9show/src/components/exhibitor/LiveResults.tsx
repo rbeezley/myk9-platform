@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { 
+import { logger } from '@/services/LoggingService';
   Trophy, 
   Medal, 
   Clock, 
@@ -338,7 +339,7 @@ const LiveResults: React.FC<LiveResultsProps> = ({
           <button
             onClick={() => {
               // TODO: Implement email results
-              console.log('Email results');
+              logger.debug('Email results', 'components', {});
             }}
             className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
           >
@@ -348,7 +349,7 @@ const LiveResults: React.FC<LiveResultsProps> = ({
           <button
             onClick={() => {
               // TODO: Implement share functionality
-              console.log('Share results');
+              logger.debug('Share results', 'components', {});
             }}
             className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
           >

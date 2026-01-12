@@ -1,4 +1,5 @@
 import { Check } from 'lucide-react';
+import { logger } from '@/services/LoggingService';
 // import { products } from '../stripe-config';
 // import { createCheckoutSession } from '../lib/stripe';
 // import { useAuthContext } from '@/hooks/useAuthContext';
@@ -83,9 +84,9 @@ export default function Pricing() {
 
     try {
       // await createCheckoutSession(priceId, 'subscription');
-      console.log('Would create checkout session for:', priceId);
+      logger.debug('Would create checkout session for:', 'landing', { data: priceId });
     } catch (error) {
-      console.error('Failed to create checkout session:', error);
+      logger.error('Failed to create checkout session:', 'components', {}, error as Error);
     }
   };
 

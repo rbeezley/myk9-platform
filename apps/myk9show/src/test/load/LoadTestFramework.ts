@@ -12,6 +12,7 @@ import { faker } from '@faker-js/faker';
 import type { User, UserRole } from '@/types/auth-types';
 import type { Show } from '@/types/show-types';
 import type { Dog } from '@/types/dog-types';
+import { logger } from '@/services/LoggingService';
 
 // Performance targets and budgets
 export const PERFORMANCE_TARGETS = {
@@ -290,7 +291,7 @@ export class PerformanceMonitor {
   endMeasurement(operation: string, success: boolean = true): number {
     const startTime = this.startTimes.get(operation);
     if (!startTime) {
-      console.warn(`No start time found for operation: ${operation}`);
+      logger.warn(`No start time found for operation: ${operation}`, 'app', {});
       return 0;
     }
 

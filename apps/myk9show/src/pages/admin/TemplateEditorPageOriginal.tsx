@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { 
+import { logger } from '@/services/LoggingService';
   Save, 
   ArrowLeft, 
   Eye, 
@@ -134,7 +135,7 @@ const TemplateEditorPageOriginal: React.FC = () => {
       }
       setHasChanges(false);
     } catch (error) {
-      console.error('Failed to save template:', error);
+      logger.error('Failed to save template:', 'pages', {}, error as Error);
     } finally {
       setSaving(false);
     }
@@ -158,14 +159,14 @@ const TemplateEditorPageOriginal: React.FC = () => {
     try {
       const classDef = template.classDefinitions?.[index];
       if (classDef) {
-        console.log('Editing class:', classDef);
+        logger.debug('Editing class:', 'admin', { data: classDef });
         setEditingClass({ index, class: { ...classDef } });
         setEditDialogOpen(true);
       } else {
-        console.error('Class definition not found at index:', index);
+        logger.error('Class definition not found at index:', 'pages', {}, index as Error);
       }
     } catch (error) {
-      console.error('Error in handleEditClass:', error);
+      logger.error('Error in handleEditClass:', 'pages', {}, error as Error);
     }
   };
 

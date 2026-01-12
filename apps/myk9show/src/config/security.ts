@@ -1,3 +1,5 @@
+import { logger } from '@/services/LoggingService';
+
 /**
  * Security Configuration for MyK9Show
  * 
@@ -38,12 +40,12 @@ function validateEnvironment(): SecurityConfig {
 
   // Validate configuration values
   if (config.sessionTimeout < 300000) { // Minimum 5 minutes
-    console.warn('Session timeout too short, setting to minimum 5 minutes');
+    logger.warn('Session timeout too short, setting to minimum 5 minutes', 'app', {});
     config.sessionTimeout = 300000;
   }
 
   if (config.maxFailedAttempts < 3 || config.maxFailedAttempts > 10) {
-    console.warn('Max failed attempts out of range, setting to 5');
+    logger.warn('Max failed attempts out of range, setting to 5', 'app', {});
     config.maxFailedAttempts = 5;
   }
 

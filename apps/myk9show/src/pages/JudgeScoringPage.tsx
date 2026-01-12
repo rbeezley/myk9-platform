@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
+import { logger } from '@/services/LoggingService';
   Gavel, 
   Trophy, 
   Users, 
@@ -50,12 +51,12 @@ export default function JudgeScoringPage() {
   };
 
   const handleSaveScores = (scores: CompetitorScore[]) => {
-    console.log('Scores saved:', scores);
+    logger.debug('Scores saved:', 'pages', { data: scores });
     // In real app, this would save to backend
   };
 
   const handleSubmitResults = (scores: CompetitorScore[]) => {
-    console.log('Results submitted:', scores);
+    logger.debug('Results submitted:', 'pages', { data: scores });
     setShowInterface(false);
     setSelectedClass(null);
     // In real app, this would submit final results

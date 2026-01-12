@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useShowStore } from '@/store/showStore';
 import { 
+import { logger } from '@/services/LoggingService';
   ArrowLeft, 
   ArrowRight, 
   FileText, 
@@ -58,9 +59,9 @@ export const AddClassesToTrialDialog: React.FC<AddClassesToTrialDialogProps> = (
   const availableJudges = currentShow?.assignedJudges || [];
   
   // Debug logging
-  console.log('AddClassesToTrialDialog - showId:', showId);
-  console.log('AddClassesToTrialDialog - currentShow:', currentShow);
-  console.log('AddClassesToTrialDialog - availableJudges:', availableJudges);
+  logger.debug('AddClassesToTrialDialog - showId:', 'trials', { data: showId });
+  logger.debug('AddClassesToTrialDialog - currentShow:', 'trials', { data: currentShow });
+  logger.debug('AddClassesToTrialDialog - availableJudges:', 'trials', { data: availableJudges });
 
   // Filter templates to active ones and matching show type - memoized to prevent unnecessary re-renders
   const activeTemplates = useMemo(() => availableTemplates.filter(template => {

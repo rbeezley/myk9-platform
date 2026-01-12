@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { useShowTemplateStore } from '@/store/showTemplateStore';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import type { Organization, ShowType } from '@/types/show-template-types';
+import { logger } from '@/services/LoggingService';
 
 interface ShowTemplateManagerProps {
   trialId: string;
@@ -92,7 +93,7 @@ export const ShowTemplateManager: React.FC<ShowTemplateManagerProps> = ({
         setSelectedPreset('');
         setPreviewClasses([]);
       } catch (error) {
-        console.error('Failed to create classes from template:', error);
+        logger.error('Failed to create classes from template:', 'shows', {}, error as Error);
         // TODO: Add proper error handling/notification
       }
     }

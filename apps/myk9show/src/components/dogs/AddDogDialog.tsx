@@ -15,6 +15,7 @@ import { DogInput } from '@/store/dogStore';
 
 // Import Apple dialog styles
 import '@/styles/apple-dialogs-global.css';
+import { logger } from '@/services/LoggingService';
 
 interface AddDogDialogProps {
   open: boolean;
@@ -268,7 +269,7 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
       setFormData(INITIAL_FORM_DATA);
       setValidationErrors({});
     } catch (error) {
-      console.error('Error creating dog:', error);
+      logger.error('Error creating dog:', 'dogs', {}, error as Error);
       // Show error to user
       setValidationErrors({ 
         submit: error instanceof Error ? error.message : 'Failed to create dog' 

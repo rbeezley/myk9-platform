@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Save, X, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EditPanelContext, EditPanelContextValue } from './useEditPanel';
+import { logger } from '@/services/LoggingService';
 
 export interface EditPanelWrapperProps<T = Record<string, unknown>> {
   // Panel configuration
@@ -111,9 +112,9 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
         setIsLoading(true);
         await onAutoSave(data);
         setLastAutoSave(Date.now());
-        console.log('Auto-saved successfully');
+        logger.debug('Auto-saved successfully', 'components', {});
       } catch (error) {
-        console.error('Auto-save failed:', error);
+        logger.error('Auto-save failed:', 'components', {}, error as Error);
       } finally {
         setIsLoading(false);
       }
@@ -135,7 +136,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
   // Handle save
   const handleSave = async () => {
     if (!isValid) {
-      console.warn('Cannot save: validation errors exist');
+      logger.warn('Cannot save: validation errors exist', 'components', {});
       return;
     }
 
@@ -145,7 +146,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
       setHasChanges(false);
       onClose();
     } catch (error) {
-      console.error('Save failed:', error);
+      logger.error('Save failed:', 'components', {}, error as Error);
       // TODO: Show error toast
     } finally {
       setIsLoading(false);

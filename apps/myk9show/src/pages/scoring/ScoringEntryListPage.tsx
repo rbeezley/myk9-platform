@@ -8,6 +8,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
+import { logger } from '@/services/LoggingService';
   DndContext,
   closestCenter,
   DragOverlay,
@@ -109,7 +110,7 @@ export function ScoringEntryListPage() {
         setEntries(scoringEntries);
         setClassInfo(toClassInfo(cls, scoringEntries.length));
       } catch (err) {
-        console.error('Failed to load scoring data:', err);
+        logger.error('Failed to load scoring data:', 'pages', {}, err as Error);
         setError(err instanceof Error ? err.message : 'Failed to load data');
       } finally {
         setIsLoading(false);
@@ -183,7 +184,7 @@ export function ScoringEntryListPage() {
       // ... convert entries (simplified for now)
       setEntries(rawEntries.map((e, i) => toScoringEntry(e, null, i)));
     } catch (err) {
-      console.error('Refresh failed:', err);
+      logger.error('Refresh failed:', 'pages', {}, err as Error);
     } finally {
       setIsLoading(false);
     }

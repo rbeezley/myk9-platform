@@ -3,6 +3,7 @@
 
 import type { ShowEntry, ShowEntryInput, RegistrationData, CompetitionData, EntryStatus } from '@/store/entryStore';
 import type { DbEntryInsert, DbEntryUpdate } from '@/types/database-mappings';
+import { logger } from '@/services/LoggingService';
 
 /**
  * Convert ShowEntryInput (from entryStore) to DbEntryInsert (for database)
@@ -106,7 +107,7 @@ export const mapCompetitionDataToUpdate = (_compData: Partial<CompetitionData>):
 
   // Competition data fields are not in the entry table - they belong in the result table
   // This function is deprecated and should not be used for actual entry updates
-  console.warn('mapCompetitionDataToUpdate is deprecated - competition data belongs in the result table');
+  logger.warn('mapCompetitionDataToUpdate is deprecated - competition data belongs in the result table', 'services', {});
 
   return update;
 };

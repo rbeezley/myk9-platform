@@ -9,6 +9,7 @@ import { useRBAC, usePermission } from '@/hooks/useRBAC';
 import { Lock, Loader2 } from 'lucide-react';
 // AlertCircle not used
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { logger } from '@/services/LoggingService';
 
 interface PermissionGuardProps {
   children: ReactNode;
@@ -97,7 +98,7 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
           onPermissionDenied();
         }
       } catch (error) {
-        console.error('Permission check failed:', error);
+        logger.error('Permission check failed:', 'components', {}, error as Error);
         setHasAccess(false);
       } finally {
         setIsChecking(false);

@@ -2,6 +2,7 @@ import { useEffect, useCallback, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { predictivePrefetcher } from '@/services/sync/PredictivePrefetcher';
 import { userBehaviorLearning } from '@/services/analytics/UserBehaviorLearning';
+import { logger } from '@/services/LoggingService';
 
 interface PredictiveSyncState {
   isActive: boolean;
@@ -188,7 +189,7 @@ export function usePredictiveSync(options: PredictiveSyncOptions = {}) {
       predictivePrefetcher.predictSearchResults(searchQuery, entityType);
     } else if (entityId) {
       // Create a prefetch task manually
-      console.log(`Manual prefetch triggered for ${entityType}:${entityId}`);
+      logger.debug(`Manual prefetch triggered for ${entityType}:${entityId}`, 'hooks', {});
     }
 
     setState(prev => ({

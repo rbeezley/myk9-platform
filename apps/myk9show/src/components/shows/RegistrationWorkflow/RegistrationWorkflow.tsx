@@ -27,6 +27,7 @@ import { toast } from 'sonner';
 import ProgressIndicator from '../wizard/components/ProgressIndicator';
 import WizardNavigation from '../wizard/components/WizardNavigation';
 import '@/styles/apple-registration-workflow.css';
+import { logger } from '@/services/LoggingService';
 
 interface RegistrationStep {
   id: number;
@@ -704,8 +705,8 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
                     entryStatus={optimisticState.entryStatus}
                     totalFees={currentRegistration?.totalFees || 0}
                     showId={showId}
-                    onDownloadReceipt={() => console.log('Download receipt')}
-                    onSendEmail={() => console.log('Send email')}
+                    onDownloadReceipt={() => logger.debug('Download receipt', 'shows', {});}
+                    onSendEmail={() => logger.debug('Send email', 'shows', {});}
                     onStatusChange={async (dogId: string, status: EntryStatus) => {
                       setEntryStatus(status);
                       if (registrationId) {
@@ -718,7 +719,7 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
                       }
                     }}
                     onNotificationToggle={(type, enabled) => {
-                      console.log(`Notification ${type}: ${enabled}`);
+                      logger.debug(`Notification ${type}: ${enabled}`, 'shows', {});
                       // Here you would integrate with notification service
                     }}
                   />

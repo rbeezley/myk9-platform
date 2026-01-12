@@ -20,6 +20,7 @@ import { Separator } from '@/components/ui/separator';
 
 // Icons
 import { 
+import { logger } from '@/services/LoggingService';
   WifiOff, 
   Wifi, 
  
@@ -158,7 +159,7 @@ export function OfflineScoringModeIndicator({
           }));
         }
       } catch (error) {
-        console.warn('Could not estimate storage:', error);
+        logger.warn('Could not estimate storage:', 'scoring', {}, error as Error);
       }
     };
 
@@ -183,7 +184,7 @@ export function OfflineScoringModeIndicator({
       await offlineScoringService.forceSyncAll();
       onRetrySync?.();
     } catch (error) {
-      console.error('Sync retry failed:', error);
+      logger.error('Sync retry failed:', 'scoring', {}, error as Error);
     } finally {
       setSyncInProgress(false);
     }

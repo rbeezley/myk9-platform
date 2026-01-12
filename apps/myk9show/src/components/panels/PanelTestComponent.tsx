@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Building2, User, Gavel, FileText, TestTube } from 'lucide-react';
 import { usePanelManager } from './hooks';
+import { logger } from '@/services/LoggingService';
 
 export const PanelTestComponent: React.FC = () => {
   const panelManager = usePanelManager();
@@ -16,7 +17,7 @@ export const PanelTestComponent: React.FC = () => {
         entityType: 'club',
         mode: 'create',
         selectionCallback: (club) => {
-          console.log('✅ Test: Club created successfully:', club);
+          logger.debug('✅ Test: Club created successfully:', 'panels', { data: club });
           alert(`Club "${club.name}" created successfully!`);
         },
       },
@@ -33,7 +34,7 @@ export const PanelTestComponent: React.FC = () => {
         entityType: 'person',
         mode: 'create',
         selectionCallback: (person) => {
-          console.log('✅ Test: User created successfully:', person);
+          logger.debug('✅ Test: User created successfully:', 'panels', { data: person });
           alert(`User "${person.firstName} ${person.lastName}" created successfully!`);
         },
       },
@@ -50,7 +51,7 @@ export const PanelTestComponent: React.FC = () => {
         entityType: 'judge',
         mode: 'create',
         selectionCallback: (judge) => {
-          console.log('✅ Test: Judge created successfully:', judge);
+          logger.debug('✅ Test: Judge created successfully:', 'panels', { data: judge });
           alert(`Judge "${judge.name}" created successfully!`);
         },
       },
@@ -67,7 +68,7 @@ export const PanelTestComponent: React.FC = () => {
         entityType: 'template',
         mode: 'create',
         selectionCallback: (template) => {
-          console.log('✅ Test: Template created successfully:', template);
+          logger.debug('✅ Test: Template created successfully:', 'panels', { data: template });
           alert(`Template "${template.name}" created successfully!`);
         },
       },

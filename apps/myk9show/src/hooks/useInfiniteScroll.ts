@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { logger } from '@/services/LoggingService';
 // useIntersectionObserver import removed - not used in this hook
 
 export interface InfiniteScrollConfig {
@@ -94,7 +95,7 @@ export function useInfiniteScroll<T extends { id: string }>(
 
   const log = useCallback((message: string, ...args: unknown[]) => {
     if (debug) {
-      console.log(`[InfiniteScroll] ${message}`, ...args);
+      logger.debug(`[InfiniteScroll] ${message}`, 'hooks', { data: ...args });
     }
   }, [debug]);
 

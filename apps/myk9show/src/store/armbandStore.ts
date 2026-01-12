@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { getOptimalStorage } from '@/services/database/storage-adapter';
+import { logger } from '@/services/LoggingService';
 
 export interface ArmbandAssignment {
   id: string;
@@ -207,7 +208,7 @@ export const useArmbandStore = create<ArmbandState>()(
             assignments.push(assignment);
             currentNumber++;
           } catch (error) {
-            console.error(`Failed to assign armband to dog ${dogId}:`, error);
+            logger.error(`Failed to assign armband to dog ${dogId}:`, 'store', {}, error as Error);
           }
         });
         

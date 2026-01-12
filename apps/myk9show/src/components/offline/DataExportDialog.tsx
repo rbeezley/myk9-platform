@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Download, FileText, Database, Settings, X, ChevronDown } from 'lucide-react';
 import {
+import { logger } from '@/services/LoggingService';
   Dialog,
   DialogContent,
   DialogDescription,
@@ -93,13 +94,13 @@ export const DataExportDialog: React.FC<DataExportDialogProps> = ({
       if (result.success) {
         setIsOpen(false);
         // Show success notification
-        console.log('Export completed successfully:', result);
+        logger.debug('Export completed successfully:', 'offline', { data: result });
       } else {
-        console.error('Export failed:', result.error);
+        logger.error('Export failed:', 'offline', { detail: result.error });
         // Show error notification
       }
     } catch (error) {
-      console.error('Export error:', error);
+      logger.error('Export error:', 'components', {}, error as Error);
     } finally {
       setIsExporting(false);
       setExportProgress(null);

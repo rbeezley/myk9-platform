@@ -10,6 +10,7 @@ import { useUserStore } from '@/store/userStore';
 import { usePanelManager } from '@/components/panels/hooks';
 import type { User } from '@/types/user-types';
 import type { JudgeInfo, JudgeQualificationDetailed } from '@/types/dog-types';
+import { logger } from '@/services/LoggingService';
 
 interface JudgeAssignmentStepProps {
   className?: string;
@@ -71,7 +72,7 @@ export const JudgeAssignmentStep: React.FC<JudgeAssignmentStepProps> = ({ classN
         mode: 'create',
         selectionCallback: (entity: Record<string, unknown>) => {
           const judge = (entity as unknown) as User;
-          console.log('✅ Judge created and selected:', judge);
+          logger.debug('✅ Judge created and selected:', 'shows', { data: judge });
           
           // Update creation state
           setJudgeCreationState({

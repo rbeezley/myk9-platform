@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { 
+import { logger } from '@/services/LoggingService';
   ArrowLeft,
   Plus,
   Search,
@@ -35,11 +36,11 @@ export const ClassManagementPage: React.FC = () => {
   
   // Stub functions for missing methods
   const updateClassStatus = (classId: string, status: string) => {
-    console.log('updateClassStatus called with:', classId, status);
+    logger.debug('updateClassStatus called with:', 'secretary', { data: classId, status });
   };
   
   const deleteClass = (classId: string) => {
-    console.log('deleteClass called with:', classId);
+    logger.debug('deleteClass called with:', 'secretary', { data: classId });
   };
 
   const [searchTerm, setSearchTerm] = useState('');

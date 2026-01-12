@@ -3,6 +3,7 @@ import { useDebounce } from './useDebounce';
 import { useRecentSearches } from './useRecentSearches';
 import { useSearchCache, UseSearchOptions, SearchResult } from '@/lib/searchCache';
 import { useSearchAnalytics } from '@/lib/searchCache';
+import { logger } from '@/services/LoggingService';
 
 export interface EnhancedSearchOptions extends UseSearchOptions {
   enableRecentSearches?: boolean;
@@ -192,7 +193,7 @@ export function useEnhancedSearch<T = unknown>(
 
   const loadMore = useCallback(() => {
     // Implementation for pagination would go here
-    console.log('Load more not implemented yet');
+    logger.debug('Load more not implemented yet', 'hooks', {});
   }, []);
 
   const invalidateCache = useCallback(() => {

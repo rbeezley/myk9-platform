@@ -9,6 +9,7 @@ import { SyncOptimizationService, getSyncOptimizationService } from '../sync/Syn
 import { performanceMonitor } from './PerformanceMonitor';
 import { eventEmitter } from '../sync/eventEmitter';
 import { SyncPriority, SyncOperation, CompressionAlgorithm } from '../../types/performance-types';
+import { logger } from '@/services/LoggingService';
 
 export interface SyncPerformanceMetrics {
   /** Queue processing performance */
@@ -234,7 +235,7 @@ export class SyncPerformanceOptimizer {
       this.applyOptimizations();
     }, 5000); // Optimize every 5 seconds
 
-    console.log('Sync performance optimization started');
+    logger.debug('Sync performance optimization started', 'performance', {});
   }
 
   /**
@@ -249,7 +250,7 @@ export class SyncPerformanceOptimizer {
       this.optimizationInterval = null;
     }
 
-    console.log('Sync performance optimization stopped');
+    logger.debug('Sync performance optimization stopped', 'performance', {});
   }
 
   /**

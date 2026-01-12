@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { getOptimalStorage } from '@/services/database/storage-adapter';
 import { 
+import { logger } from '@/services/LoggingService';
   ClassTemplate, 
   TemplateFilter, 
   Organization, 
@@ -657,7 +658,7 @@ export const useTemplateStore = create<TemplateStore>()(
             }, 1000);
             
           } catch (error) {
-            console.error('Error initializing templates:', error);
+            logger.error('Error initializing templates:', 'store', {}, error as Error);
             set({ error: `Failed to initialize templates: ${error instanceof Error ? error.message : 'Unknown error'}` });
           }
         };

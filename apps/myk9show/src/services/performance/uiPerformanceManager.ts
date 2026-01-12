@@ -7,6 +7,7 @@
 
 import { performanceMonitor } from './PerformanceMonitor';
 import { eventEmitter } from '../sync/eventEmitter';
+import { logger } from '@/services/LoggingService';
 
 export interface UIPerformanceMetrics {
   /** Frame rate and rendering performance */
@@ -200,7 +201,7 @@ export class UIPerformanceManager {
       try {
         this.frameObserver.observe({ entryTypes: ['measure', 'navigation', 'paint'] });
       } catch (error) {
-        console.warn('Performance observer not supported:', error);
+        logger.warn('Performance observer not supported:', 'performance', {}, error as Error);
         this.frameObserver = null;
       }
     }
@@ -258,7 +259,7 @@ export class UIPerformanceManager {
       this.startMemoryCleanup();
     }
 
-    console.log('UI performance monitoring started');
+    logger.debug('UI performance monitoring started', 'performance', {});
   }
 
   /**
@@ -277,7 +278,7 @@ export class UIPerformanceManager {
       this.frameObserver.disconnect();
     }
 
-    console.log('UI performance monitoring stopped');
+    logger.debug('UI performance monitoring stopped', 'performance', {});
   }
 
   /**
@@ -445,7 +446,7 @@ export class UIPerformanceManager {
         try {
           updateFn();
         } catch (error) {
-          console.error('Error in batched update:', error);
+          logger.error('Error in batched update:', 'performance', {}, error as Error);
         }
       });
 
@@ -914,7 +915,7 @@ export class UIPerformanceManager {
    * Force performance optimization
    */
   forceOptimization(): void {
-    console.log('Forcing UI performance optimization...');
+    logger.debug('Forcing UI performance optimization...', 'performance', {});
     
     // Enable all optimizations
     this.optimization.memoOptimization = true;

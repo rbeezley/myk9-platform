@@ -1,3 +1,5 @@
+import { logger } from '@/services/LoggingService';
+
 /**
  * Offline Entry Creation System
  * 
@@ -50,9 +52,9 @@ export { OfflineClassSelectionStep } from '@/components/shows/RegistrationWorkfl
  * });
  * 
  * if (result.success) {
- *   console.log('Entry created:', result.entry);
+ *   logger.debug('Entry created:', 'entries', { data: result.entry });
  * } else {
- *   console.log('Errors:', result.errors);
+ *   logger.debug('Errors:', 'entries', { data: result.errors });
  * }
  * ```
  * 

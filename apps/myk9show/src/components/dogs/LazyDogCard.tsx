@@ -4,6 +4,7 @@ import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Skeleton } from '../ui/skeleton/skeleton';
 import { 
+import { logger } from '@/services/LoggingService';
   Dog, 
   Calendar, 
   User, 
@@ -121,10 +122,10 @@ export function LazyDogCard({
       // For now, we'll use the existing store data
       const loadedDog = dogs.find(d => d.id === dogId);
       if (!loadedDog) {
-        console.warn('Dog not found:', dogId);
+        logger.warn('Dog not found:', 'dogs', { data: dogId });
       }
     } catch (error) {
-      console.error('Failed to load dog info:', error);
+      logger.error('Failed to load dog info:', 'dogs', {}, error as Error);
     } finally {
       setIsLoadingDetails(false);
     }
@@ -161,7 +162,7 @@ export function LazyDogCard({
       setDetailsData(mockDetails);
       setHasLoadedDetails(true);
     } catch (error) {
-      console.error('Failed to load dog details:', error);
+      logger.error('Failed to load dog details:', 'dogs', {}, error as Error);
     } finally {
       setIsLoadingDetails(false);
     }

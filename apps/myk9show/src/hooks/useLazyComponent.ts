@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { logger } from '@/services/LoggingService';
 
 interface LazyComponentState<T> {
   component: T | null;
@@ -33,7 +34,7 @@ export function useLazyComponent<T>(
       setComponent(loadedModule.default);
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to load component'));
-      console.error('Failed to load lazy component:', err);
+      logger.error('Failed to load lazy component:', 'hooks', {}, err as Error);
     } finally {
       setLoading(false);
     }

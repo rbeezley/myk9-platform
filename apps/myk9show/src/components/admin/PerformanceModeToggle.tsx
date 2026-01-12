@@ -12,6 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
+import { logger } from '@/services/LoggingService';
   Settings, 
   Zap, 
   Database, 
@@ -71,7 +72,7 @@ export const PerformanceModeToggle: React.FC = () => {
         compression: getCompressionStats(),
       });
     } catch (error) {
-      console.warn('Could not load performance stats:', error);
+      logger.warn('Could not load performance stats:', 'admin', {}, error as Error);
     }
   };
 
@@ -110,7 +111,7 @@ export const PerformanceModeToggle: React.FC = () => {
       }, 1000);
       
     } catch (error) {
-      console.error('Failed to apply settings:', error);
+      logger.error('Failed to apply settings:', 'admin', {}, error as Error);
       setIsApplying(false);
     }
   };

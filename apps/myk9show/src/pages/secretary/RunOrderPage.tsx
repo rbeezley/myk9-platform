@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
+import { logger } from '@/services/LoggingService';
   ArrowLeft,
   Calendar,
   Users,
@@ -283,7 +284,7 @@ export const RunOrderPage: React.FC = () => {
 
   // Handle export
   const handleExport = (format: 'pdf' | 'csv' | 'json') => {
-    console.log(`Exporting schedule in ${format} format`);
+    logger.debug(`Exporting schedule in ${format} format`, 'pages', {});
     // Implementation would depend on export requirements
   };
 

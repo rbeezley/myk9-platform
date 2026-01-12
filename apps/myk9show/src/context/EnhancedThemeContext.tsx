@@ -9,6 +9,7 @@ import React, { createContext, useEffect, useState, useCallback, ReactNode } fro
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useAuthUser } from '@/hooks/useAuthUser';
 import type { ThemeMode, ThemePreferences } from '@/types/user-preferences';
+import { logger } from '@/services/LoggingService';
 
 interface EnhancedThemeContextType {
   // Theme state
@@ -95,7 +96,7 @@ export function EnhancedThemeProvider({ children }: { children: ReactNode }) {
       });
       applyThemeMode(mode);
     } catch (error) {
-      console.error('Failed to update theme mode:', error);
+      logger.error('Failed to update theme mode:', 'app', {}, error as Error);
       // Apply locally even if save fails
       applyThemeMode(mode);
     }
@@ -161,7 +162,7 @@ export function EnhancedThemeProvider({ children }: { children: ReactNode }) {
         await updatePreferences({ theme: prefs });
       }
     } catch (error) {
-      console.error('Failed to apply theme preferences:', error);
+      logger.error('Failed to apply theme preferences:', 'app', {}, error as Error);
     }
   }, [user, userPreferences, updatePreferences, applyThemeMode]);
 

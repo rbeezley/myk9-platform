@@ -5,6 +5,7 @@
 
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getMessaging, Messaging } from 'firebase/messaging';
+import { logger } from '@/services/LoggingService';
 
 // Firebase configuration interface
 interface FirebaseConfig {
@@ -38,7 +39,7 @@ const requiredEnvVars = [
 
 const missingEnvVars = requiredEnvVars.filter(envVar => !import.meta.env[envVar]);
 if (missingEnvVars.length > 0) {
-  console.warn('Missing Firebase environment variables:', missingEnvVars);
+  logger.warn('Missing Firebase environment variables:', 'config', { data: missingEnvVars });
 }
 
 // Initialize Firebase app (singleton pattern)
@@ -69,12 +70,12 @@ export function getFirebaseMessaging(): Messaging | null {
   try {
     // Check for browser support
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
-      console.warn('FCM: Service Worker not supported');
+      logger.warn('FCM: Service Worker not supported', 'app', {});
       return null;
     }
 
     if (!('Notification' in window)) {
-      console.warn('FCM: Notifications not supported');
+      logger.warn('FCM: Notifications not supported', 'app', {});
       return null;
     }
 
@@ -85,7 +86,7 @@ export function getFirebaseMessaging(): Messaging | null {
 
     return messaging;
   } catch (error) {
-    console.error('FCM: Failed to initialize messaging:', error);
+    logger.error('FCM: Failed to initialize messaging:', 'app', {}, error as Error);
     return null;
   }
 }

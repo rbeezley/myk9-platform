@@ -14,6 +14,7 @@ import ClubPhotoDialog from '@/components/clubs/ClubPhotoDialog';
 import type { Club } from '@/types/club-types';
 import { CLUB_TYPES, COUNTRIES, DEFAULT_COUNTRY } from '@/types/club-types';
 import { cn } from '@/lib/utils';
+import { logger } from '@/services/LoggingService';
 
 interface ClubEditPanelProps {
   open: boolean;
@@ -536,9 +537,9 @@ export const ClubEditPanel: React.FC<ClubEditPanelProps> = ({
   
   // Handle save
   const handleSave = useCallback(async (formData: ClubEditFormData) => {
-    console.log('ClubEditPanel handleSave - Raw form data:', formData);
+    logger.debug('ClubEditPanel handleSave - Raw form data:', 'panels', { data: formData });
     const clubData = formDataToClub(formData);
-    console.log('ClubEditPanel handleSave - Converted club data:', clubData);
+    logger.debug('ClubEditPanel handleSave - Converted club data:', 'panels', { data: clubData });
     if (onSave) {
       await onSave(clubData);
     }

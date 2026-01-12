@@ -5,6 +5,7 @@
 
 import React, { useState } from 'react';
 import { Bell, BellOff, Smartphone, Mail, AlertTriangle, TestTube } from 'lucide-react';
+import { logger } from '@/services/LoggingService';
 import { useNotifications } from '@/hooks/useNotifications';
 import { NOTIFICATION_TEMPLATES } from '@/services/notifications/NotificationTemplates';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -79,8 +80,8 @@ export function NotificationSettings({ userId, className }: NotificationSettings
           });
         }
       }
-    } catch (error) {
-      console.error('Failed to enable notifications:', error);
+    } catch (err) {
+      logger.error('Failed to enable notifications', 'components', { userId }, err as Error);
     }
   };
 
@@ -88,8 +89,8 @@ export function NotificationSettings({ userId, className }: NotificationSettings
   const handlePreferenceUpdate = async (updates: Record<string, unknown>) => {
     try {
       await actions.updatePreferences(updates);
-    } catch (error) {
-      console.error('Failed to update preferences:', error);
+    } catch (err) {
+      logger.error('Failed to update preferences', 'components', { updates }, err as Error);
     }
   };
 
@@ -102,8 +103,8 @@ export function NotificationSettings({ userId, className }: NotificationSettings
         location: 'Madison Square Garden',
         hoursUntil: 24
       });
-    } catch (error) {
-      console.error('Failed to send test notification:', error);
+    } catch (err) {
+      logger.error('Failed to send test notification', 'components', { selectedTestTemplate }, err as Error);
     } finally {
       setTestLoading(false);
     }
@@ -146,7 +147,7 @@ export function NotificationSettings({ userId, className }: NotificationSettings
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button 
+            <Button
               onClick={handleEnableNotifications}
               disabled={tokenLoading}
               className="w-full"
@@ -182,7 +183,7 @@ export function NotificationSettings({ userId, className }: NotificationSettings
                     <Label htmlFor={template.key} className="font-medium">
                       {template.name}
                     </Label>
-                    <Badge variant={template.priority === 'critical' ? 'destructive' : 
+                    <Badge variant={template.priority === 'critical' ? 'destructive' :
                                    template.priority === 'high' ? 'default' : 'secondary'}>
                       {template.priority}
                     </Badge>
@@ -218,7 +219,7 @@ export function NotificationSettings({ userId, className }: NotificationSettings
     return (
       <div className="space-y-4">
         <h3 className="text-lg font-medium">Timing Preferences</h3>
-        
+
         <div className="space-y-4">
           <div>
             <Label className="text-sm font-medium">Show Reminders</Label>
@@ -236,7 +237,7 @@ export function NotificationSettings({ userId, className }: NotificationSettings
                     const updated = current.includes(hours)
                       ? current.filter(h => h !== hours)
                       : [...current, hours].sort((a, b) => a - b);
-                    
+
                     handlePreferenceUpdate({
                       timing: {
                         ...preferences.timing,
@@ -267,7 +268,7 @@ export function NotificationSettings({ userId, className }: NotificationSettings
                     const updated = current.includes(hours)
                       ? current.filter(h => h !== hours)
                       : [...current, hours].sort((a, b) => a - b);
-                    
+
                     handlePreferenceUpdate({
                       timing: {
                         ...preferences.timing,
@@ -305,7 +306,7 @@ export function NotificationSettings({ userId, className }: NotificationSettings
                 }}
               />
             </div>
-            
+
             {preferences.timing.quietHours.enabled && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -359,7 +360,7 @@ export function NotificationSettings({ userId, className }: NotificationSettings
     return (
       <div className="space-y-4">
         <h3 className="text-lg font-medium">Delivery Methods</h3>
-        
+
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -417,7 +418,7 @@ export function NotificationSettings({ userId, className }: NotificationSettings
     return (
       <div className="space-y-4">
         <h3 className="text-lg font-medium">Test Notifications</h3>
-        
+
         <div className="space-y-3">
           <div>
             <Label>Notification Template</Label>
@@ -434,7 +435,7 @@ export function NotificationSettings({ userId, className }: NotificationSettings
               </SelectContent>
             </Select>
           </div>
-          
+
           <Button
             onClick={handleTestNotification}
             disabled={testLoading || permission !== 'granted'}
@@ -503,7 +504,7 @@ export function NotificationSettings({ userId, className }: NotificationSettings
               <TabsTrigger value="delivery">Delivery</TabsTrigger>
               <TabsTrigger value="test">Test</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="types" className="space-y-4">
               <Card>
                 <CardContent className="pt-6">
@@ -511,7 +512,7 @@ export function NotificationSettings({ userId, className }: NotificationSettings
                 </CardContent>
               </Card>
             </TabsContent>
-            
+
             <TabsContent value="timing" className="space-y-4">
               <Card>
                 <CardContent className="pt-6">
@@ -519,7 +520,7 @@ export function NotificationSettings({ userId, className }: NotificationSettings
                 </CardContent>
               </Card>
             </TabsContent>
-            
+
             <TabsContent value="delivery" className="space-y-4">
               <Card>
                 <CardContent className="pt-6">
@@ -527,7 +528,7 @@ export function NotificationSettings({ userId, className }: NotificationSettings
                 </CardContent>
               </Card>
             </TabsContent>
-            
+
             <TabsContent value="test" className="space-y-4">
               <Card>
                 <CardContent className="pt-6">

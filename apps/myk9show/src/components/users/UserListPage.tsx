@@ -9,6 +9,7 @@ import { JudgeQualificationPanel } from '../../components/panels/edit';
 import { useUserStore } from '../../store/userStore';
 import { useDogStore } from '../../store/dogStore';
 import { useUsers, useAddPerson, useUpdatePerson, useDeletePerson } from '../../hooks/useUsers';
+import { logger } from '@/services/LoggingService';
 
 const UserListPage: React.FC = () => {
   // State hooks
@@ -139,7 +140,7 @@ const [formData, setFormData] = useState<UserFormData>({
             setIsEditPersonDialogOpen(false);
             setSelectedPerson(null);
           } catch (error) {
-            console.error('Failed to save person:', error);
+            logger.error('Failed to save person:', 'components', {}, error as Error);
             throw error;
           }
         }}
@@ -176,7 +177,7 @@ const [formData, setFormData] = useState<UserFormData>({
         initialQualifications={(selectedUserForQualifications?.judgeQualifications as JudgeQualification[]) || []}
         onSave={async (qualifications: JudgeQualification[]) => {
           // TODO: Save qualifications to backend
-          console.log('Saving qualifications for user:', selectedUserForQualifications?.id, qualifications);
+          logger.debug('Saving qualifications for user:', 'users', { data: selectedUserForQualifications?.id, qualifications });
           
           // For now, just close the panel
           setIsQualificationsPanelOpen(false);

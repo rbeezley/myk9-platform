@@ -8,6 +8,7 @@ import { Loader2, User, AlertTriangle } from 'lucide-react';
 import { useUserStore, PersonInput } from '@/store/userStore';
 import { BasePanelProps } from '../types';
 import type { UserRole } from '@/types/user-types';
+import { logger } from '@/services/LoggingService';
 
 interface PersonFormData {
   firstName: string;
@@ -258,7 +259,7 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
 
       const newPerson = await addUser(personData);
 
-      console.log('✅ User created successfully:', newPerson);
+      logger.debug('✅ User created successfully:', 'panels', { data: newPerson });
 
       // Call the selection callback if provided
       if (context.selectionCallback) {
@@ -273,7 +274,7 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
       });
 
     } catch (error) {
-      console.error('❌ Failed to create person:', error);
+      logger.error('❌ Failed to create person:', 'components', {}, error as Error);
       setErrors({ submit: 'Failed to create person. Please try again.' });
     } finally {
       setIsSubmitting(false);

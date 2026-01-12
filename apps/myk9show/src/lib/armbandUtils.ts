@@ -1,6 +1,7 @@
 import { ArmbandAssignment, ArmbandRange, useArmbandStore } from '@/store/armbandStore';
 import { ClassSelectionData } from '@/types/show-registration-types';
 import { Show } from '@/types/show-types';
+import { logger } from '@/services/LoggingService';
 // import { Trial } from '@/types/trial-types'; // TODO: Create trial types
 interface Trial {
   id: string;
@@ -456,7 +457,7 @@ export function importArmbandAssignmentsFromCSV(
         });
         assignments.push(assignment);
       } catch (error) {
-        console.error(`Failed to import armband assignment for line ${i}:`, error);
+        logger.error(`Failed to import armband assignment for line ${i}:`, 'lib', {}, error as Error);
       }
     }
   }

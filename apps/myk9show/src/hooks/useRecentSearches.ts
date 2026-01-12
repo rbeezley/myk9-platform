@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { logger } from '@/services/LoggingService';
 
 export interface RecentSearch {
   id: string;
@@ -42,7 +43,7 @@ export function useRecentSearches(options: UseRecentSearchesOptions) {
         setRecentSearches(contextSearches);
       }
     } catch (error) {
-      console.warn('Failed to load recent searches:', error);
+      logger.warn('Failed to load recent searches:', 'hooks', {}, error as Error);
       setRecentSearches([]);
     }
   }, [storageKey, context, maxItems]);
@@ -63,7 +64,7 @@ export function useRecentSearches(options: UseRecentSearchesOptions) {
       // Save back to localStorage
       localStorage.setItem(storageKey, JSON.stringify(updatedSearches));
     } catch (error) {
-      console.warn('Failed to save recent searches:', error);
+      logger.warn('Failed to save recent searches:', 'hooks', {}, error as Error);
     }
   }, [storageKey, context]);
 

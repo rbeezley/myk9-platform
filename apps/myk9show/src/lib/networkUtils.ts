@@ -3,6 +3,7 @@
  */
 
 import React from 'react';
+import { logger } from '@/services/LoggingService';
 
 // Network error types
 export enum NetworkErrorType {
@@ -173,7 +174,7 @@ export class NetworkClient {
       // Calculate delay before retry
       if (attempt < retryConfig.maxRetries) {
         const delay = this.calculateDelay(attempt, retryConfig, lastError?.retryAfter);
-        console.log(`Request failed, retrying in ${delay}ms (attempt ${attempt + 1}/${retryConfig.maxRetries})`);
+        logger.debug(`Request failed, retrying in ${delay}ms (attempt ${attempt + 1}/${retryConfig.maxRetries})`, 'lib', {});
         await this.sleep(delay);
       }
     }
@@ -367,7 +368,7 @@ export class ErrorLogger {
 
     // In development, also log to console
     if (process.env.NODE_ENV === 'development') {
-      console.error('Error logged:', error, context);
+      logger.error('Error logged:', 'lib', { data: error, context });
     }
 
     // In production, you might want to send to an error reporting service

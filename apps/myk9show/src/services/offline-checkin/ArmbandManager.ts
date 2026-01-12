@@ -9,6 +9,7 @@ import { EventEmitter } from '../sync/eventEmitter';
 import { getOptimalStorage } from '../database/storage-adapter';
 import type { StateStorage } from 'zustand/middleware';
 import type {
+import { logger } from '@/services/LoggingService';
   ArmbandAssignment,
   ArmbandConflict,
   ArmbandConflictResolution,
@@ -49,9 +50,9 @@ export class ArmbandManager extends EventEmitter {
       await this.loadPersistedData();
       this.isInitialized = true;
       this.emit('initialized', {});
-      console.log('ArmbandManager initialized successfully');
+      logger.debug('ArmbandManager initialized successfully', 'services', {});
     } catch (error) {
-      console.error('Failed to initialize ArmbandManager:', error);
+      logger.error('Failed to initialize ArmbandManager:', 'services', {}, error as Error);
       throw error;
     }
   }
@@ -585,7 +586,7 @@ export class ArmbandManager extends EventEmitter {
       
       await this.storage.setItem('armband-manager-data', JSON.stringify(data));
     } catch (error) {
-      console.error('Failed to persist armband data:', error);
+      logger.error('Failed to persist armband data:', 'services', {}, error as Error);
     }
   }
 
@@ -608,7 +609,7 @@ export class ArmbandManager extends EventEmitter {
         this.config = { ...this.config, ...data.config };
       }
     } catch (error) {
-      console.error('Failed to load persisted armband data:', error);
+      logger.error('Failed to load persisted armband data:', 'services', {}, error as Error);
     }
   }
 }

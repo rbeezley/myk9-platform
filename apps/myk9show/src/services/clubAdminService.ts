@@ -4,6 +4,7 @@
  */
 
 import { UserRole, RoleScope, ScopeType, UserWithRoles, MOCK_USERS, Permission } from '@/types/auth-types';
+import { logger } from '@/services/LoggingService';
 
 export interface ClubAdminAssignment {
   userId: string;
@@ -141,7 +142,7 @@ export class ClubAdminService {
       
       return true;
     } catch (error) {
-      console.error('Failed to transfer club admin:', error);
+      logger.error('Failed to transfer club admin:', 'services', {}, error as Error);
       return false;
     }
   }
@@ -189,7 +190,7 @@ export class ClubAdminService {
         mockUser.scopes.push(roleScope);
       }
     } else {
-      console.warn(`Mock user not found: ${userId}`);
+      logger.warn(`Mock user not found: ${userId}`, 'services', {});
     }
   }
 

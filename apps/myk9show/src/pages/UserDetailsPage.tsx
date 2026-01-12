@@ -10,6 +10,7 @@ import { SidebarLayout, useSidebarLayoutState } from '@/components/layout/Sideba
 
 import UserSidebar from '@/components/users/UserDetails/UserSidebar/UserSidebar';
 import UserDetailsView from '@/components/users/UserDetails/UserDetailsView';
+import { logger } from '@/services/LoggingService';
 
 /**
  * UserDetails page component following the standardized entity page pattern.
@@ -43,7 +44,7 @@ function UserDetails(): React.ReactElement {
     // Check if user has access to the requested person
     if (id && !canAccessPerson) {
       // User doesn't have access to this person
-      console.warn(`User does not have access to person ${id}`);
+      logger.warn(`User does not have access to person ${id}`, 'pages', {});
       if (people.length > 0) {
         navigate(`/users/${people[0].id}`, { replace: true });
       }

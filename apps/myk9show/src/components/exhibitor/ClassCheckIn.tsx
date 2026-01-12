@@ -1,6 +1,7 @@
 import React, { useState, startTransition } from 'react';
 import { format } from 'date-fns';
 import { 
+import { logger } from '@/services/LoggingService';
   CheckCircle2, 
   XCircle, 
   AlertTriangle, 
@@ -181,7 +182,7 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
         await onCheckIn(request);
       } else {
         // Default behavior: log the request
-        console.log('Check-in request:', request);
+        logger.debug('Check-in request:', 'exhibitor', { data: request });
         await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
       }
       

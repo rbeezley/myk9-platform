@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { 
+import { logger } from '@/services/LoggingService';
   Users, 
   Calendar, 
   Trophy, 
@@ -716,7 +717,7 @@ const AdminDashboard: React.FC = () => {
         const metrics = systemHealthService.getSystemHealth();
         setHealthMetrics(metrics);
       } catch (error) {
-        console.warn('Failed to get system health metrics:', error);
+        logger.warn('Failed to get system health metrics:', 'admin', {}, error as Error);
         setHealthMetrics(null);
       }
     };

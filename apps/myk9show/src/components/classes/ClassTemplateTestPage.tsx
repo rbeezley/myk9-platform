@@ -5,6 +5,7 @@ import { ClassTemplateManager } from './ClassTemplateManager';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useClassTemplateStore } from '@/store/classTemplateStore';
 import { ClassData } from './types/classTypes';
+import { logger } from '@/services/LoggingService';
 
 export const ClassTemplateTestPage: React.FC = () => {
   const [selectedTrialId] = useState('test-trial-1');
@@ -15,7 +16,7 @@ export const ClassTemplateTestPage: React.FC = () => {
   const presets = getPresets();
 
   const handleClassesCreated = (classCount: number) => {
-    console.log(`Successfully created ${classCount} classes!`);
+    logger.debug(`Successfully created ${classCount} classes!`, 'classes', {});
   };
 
   return (

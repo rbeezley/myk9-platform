@@ -14,6 +14,7 @@ import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { ScrollArea } from '../ui/scroll-area';
 import { 
+import { logger } from '@/services/LoggingService';
   Search, 
   Filter,
   Clock,
@@ -178,7 +179,7 @@ export function LiveEntryStatus({
     try {
       await onUpdateStatus?.(entryId, newStatus);
     } catch (error) {
-      console.error('Failed to update entry status:', error);
+      logger.error('Failed to update entry status:', 'competition', {}, error as Error);
     }
   };
 

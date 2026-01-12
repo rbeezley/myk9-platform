@@ -1,5 +1,6 @@
 import { EventEmitter } from 'events';
 import { 
+import { logger } from '@/services/LoggingService';
   OptimisticOperation, 
   RollbackStrategy,
   OptimisticUpdate,
@@ -180,7 +181,7 @@ export class OptimisticUIService extends EventEmitter {
       this.pendingOperations.delete(operationId);
       this.stateSnapshots.delete(operationId);
     } catch (rollbackError) {
-      console.error('Rollback failed:', rollbackError);
+      logger.error('Rollback failed:', 'services', {}, rollbackError as Error);
       operation.status = 'rollback_failed';
       this.emit('rollbackFailed', { operationId, error: rollbackError });
     }

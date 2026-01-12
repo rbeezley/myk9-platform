@@ -12,6 +12,7 @@ import { Slider } from '@/components/ui/slider';
 import { searchService, SearchQuery, SearchFilters, SearchResult } from '@/services/SearchService';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { 
+import { logger } from '@/services/LoggingService';
   Search, 
   Filter,
   Calendar as CalendarIcon,
@@ -82,7 +83,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
       const popular = await searchService.getPopularSearches(entityType, 8);
       setPopularSearches(popular);
     } catch (error) {
-      console.error('Failed to load search data:', error);
+      logger.error('Failed to load search data:', 'components', {}, error as Error);
     }
   }, [user?.id, entityType]);
 
@@ -92,7 +93,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
       setSuggestions(suggestions);
       setShowSuggestions(true);
     } catch (error) {
-      console.error('Failed to get suggestions:', error);
+      logger.error('Failed to get suggestions:', 'components', {}, error as Error);
     }
   }, [entityType, searchTerm]);
 
@@ -142,7 +143,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
       const results = await searchService.search(entityType, query, onSearch, user?.id);
       onResults?.(results);
     } catch (error) {
-      console.error('Search failed:', error);
+      logger.error('Search failed:', 'components', {}, error as Error);
     } finally {
       setIsSearching(false);
     }
@@ -170,7 +171,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
       await searchService.clearSearchHistory(user?.id || '');
       setSearchHistory([]);
     } catch (error) {
-      console.error('Failed to clear search history:', error);
+      logger.error('Failed to clear search history:', 'components', {}, error as Error);
     }
   };
 

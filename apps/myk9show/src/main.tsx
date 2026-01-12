@@ -6,6 +6,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { BrowserRouter } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { QueryProvider } from './providers/QueryProvider';
+import { logger } from '@/services/LoggingService';
 
 // Performance Optimization Imports (DISABLED FOR DEBUGGING)
 // import { initializePerformanceOptimization } from './services/performance/PerformanceIntegrator';
@@ -17,15 +18,15 @@ if (import.meta.env.DEV && 'serviceWorker' in navigator) {
       registration.unregister();
     }
   }).catch(error => {
-    console.log('Error clearing service workers:', error);
+    logger.debug('Error clearing service workers:', 'app', { data: error });
   });
 }
 
 // Initialize performance optimization as early as possible (DISABLED FOR DEBUGGING)
-console.log('🚀 Starting myK9Show (performance optimization disabled for debugging)...');
+logger.debug('🚀 Starting myK9Show (performance optimization disabled for debugging)...', 'app', {});
 // Temporarily disabled to fix 404 loading issue
 // initializePerformanceOptimization().catch(error => {
-//   console.error('Performance optimization failed:', error);
+//   logger.error('Performance optimization failed:', 'app', {}, error as Error);
 //   // Continue with app initialization even if performance optimization fails
 // });
 

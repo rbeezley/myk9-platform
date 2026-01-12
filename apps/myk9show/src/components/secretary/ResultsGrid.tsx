@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { 
+import { logger } from '@/services/LoggingService';
   Table, 
   TableBody, 
   TableCell, 
@@ -174,7 +175,7 @@ export function ResultsGrid({
       try {
         await onResultDelete(entryId);
       } catch (error) {
-        console.error('Failed to delete result:', error);
+        logger.error('Failed to delete result:', 'secretary', {}, error as Error);
       }
     }
   }, [onResultDelete]);

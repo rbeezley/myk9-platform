@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import {
+import { logger } from '@/services/LoggingService';
   Select,
   SelectContent,
   SelectItem,
@@ -186,7 +187,7 @@ export function SyncSettingsPanel({ className, onSettingsChange }: SyncSettingsP
       onSettingsChange?.(settings);
       setHasChanges(false);
     } catch (error) {
-      console.error('Failed to save sync settings:', error);
+      logger.error('Failed to save sync settings:', 'sync', {}, error as Error);
     } finally {
       setSaving(false);
     }

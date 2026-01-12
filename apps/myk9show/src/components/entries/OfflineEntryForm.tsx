@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
+import { logger } from '@/services/LoggingService';
   CloudOff, 
   Wifi, 
   WifiOff,
@@ -154,7 +155,7 @@ export const OfflineEntryForm: React.FC<OfflineEntryFormProps> = ({
         setFormData(parsedDraft);
         setHasUnsavedChanges(true);
       } catch (error) {
-        console.warn('Failed to load entry draft from localStorage:', error);
+        logger.warn('Failed to load entry draft from localStorage:', 'entries', {}, error as Error);
       }
     }
   }, [editingEntryId]);

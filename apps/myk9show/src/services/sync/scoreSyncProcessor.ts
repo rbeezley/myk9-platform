@@ -16,6 +16,7 @@ import type { SyncQueueItem } from '@/types/sync-types';
 import type { BaseScore, QualificationStatus } from '@/types/scoring-types';
 import type { SyncProcessor, SyncProcessorResult } from './types/processor';
 import { offlineScoringService } from '../scoring/OfflineScoringService';
+import { logger } from '@/services/LoggingService';
 
 /**
  * Maps BaseScore qualification status to database result_status
@@ -180,7 +181,7 @@ export class ScoreSyncProcessor implements SyncProcessor {
         serverVersion: updatedEntry.sync_version,
       };
     } catch (error) {
-      console.error('Failed to create score:', error);
+      logger.error('Failed to create score:', 'sync', {}, error as Error);
       return {
         success: false,
         error: error as Error,
@@ -267,7 +268,7 @@ export class ScoreSyncProcessor implements SyncProcessor {
         serverVersion: updatedEntry.sync_version,
       };
     } catch (error) {
-      console.error('Failed to update score:', error);
+      logger.error('Failed to update score:', 'sync', {}, error as Error);
       return {
         success: false,
         error: error as Error,
@@ -311,7 +312,7 @@ export class ScoreSyncProcessor implements SyncProcessor {
         serverData: updatedEntry,
       };
     } catch (error) {
-      console.error('Failed to delete score:', error);
+      logger.error('Failed to delete score:', 'sync', {}, error as Error);
       return {
         success: false,
         error: error as Error,

@@ -8,6 +8,7 @@
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { performanceMonitor } from '../services/performance/PerformanceMonitor';
 import { eventEmitter } from '../services/sync/eventEmitter';
+import { logger } from '@/services/LoggingService';
 
 // Define types for better type safety
 type RealtimeMessage = Record<string, unknown>;
@@ -377,7 +378,7 @@ class SmartHeartbeat {
         this.recordHeartbeatResponse(channel, latency);
       } catch (error) {
         this.recordMissedHeartbeat(channel);
-        console.warn(`Heartbeat failed for channel ${channel}:`, error);
+        logger.warn(`Heartbeat failed for channel ${channel}:`, 'utils', {}, error as Error);
       }
       
       // Schedule next heartbeat

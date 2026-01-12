@@ -7,6 +7,7 @@
 
 import type { Entry as StoreEntry } from '../../../stores/entryStore';
 import {
+import { logger } from '@/services/LoggingService';
   type ReplicatedTrial as Trial,
   type ReplicatedEntry,
   type ReplicatedClass as Class
@@ -140,7 +141,7 @@ export async function loadFromRouteState(
 
   // Mark in ring in background (fire-and-forget)
   // Pass current status so it can be restored if scoresheet is canceled
-  markInRing(passedEntry.id, true, passedEntry.status).catch(console.error);
+  markInRing(passedEntry.id, true, passedEntry.status).catch((err) => logger.error('Error', 'scoring', {}, err as Error));
 
   return {
     entry: updatedEntry,

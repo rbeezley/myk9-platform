@@ -7,6 +7,7 @@
 import { useContext } from 'react';
 import { AuthContext } from '@/context/AuthContext';
 import { LoggingService } from '@/services/LoggingService';
+import { logger } from '@/services/LoggingService';
 
 const logger = LoggingService.getInstance();
 
@@ -102,13 +103,13 @@ export async function getCurrentUserUUID(): Promise<string | null> {
     const { data: { user }, error } = await supabase.auth.getUser();
     
     if (error) {
-      console.warn('Error getting current user UUID:', error);
+      logger.warn('Error getting current user UUID:', 'utils', {}, error as Error);
       return null;
     }
     
     return user?.id || null;
   } catch (error) {
-    console.warn('Failed to get current user UUID:', error);
+    logger.warn('Failed to get current user UUID:', 'utils', {}, error as Error);
     return null;
   }
 }

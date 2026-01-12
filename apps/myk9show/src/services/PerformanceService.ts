@@ -1,5 +1,6 @@
 import { auditService } from './AuditService';
 import { AuditAction } from '@/types/audit-types';
+import { logger } from '@/services/LoggingService';
 
 export interface PerformanceMetrics {
   pageLoadTime: number;
@@ -530,7 +531,7 @@ export class PerformanceService {
       this.alerts = this.alerts.slice(-100);
     }
 
-    console.warn(`Performance Alert [${severity}]:`, alert);
+    logger.warn(`Performance Alert [${severity}]:`, 'services', { data: alert });
   }
 
   private async logPageLoadMetric(pageId: string, loadTime: number): Promise<void> {

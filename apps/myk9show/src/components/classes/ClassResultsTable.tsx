@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { SimpleTimeFields } from '@/components/ui/simple-time-fields';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
+import { logger } from '@/services/LoggingService';
   Table, 
   TableBody, 
   TableCell, 
@@ -222,12 +223,12 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
         const competitionData = entry.competitionData;
         
         // Debug logging
-        console.log('🔍 ClassResultsTable - Processing entry:', {
+        logger.debug('🔍 ClassResultsTable - Processing entry:', 'classes', { data: {
           entryId: entry.id,
           competitionData,
           existingData,
           armband: entry.displayInfo.armband
-        });
+        } });
         
         // Determine search time - prefer normalized input format
         let searchTime = '';
@@ -497,7 +498,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
       })));
       
     } catch (error) {
-      console.error('❌ Submit error:', error);
+      logger.error('❌ Submit error:', 'classes', {}, error as Error);
       setSubmitError(error instanceof Error ? error.message : 'Failed to submit results');
     } finally {
       setIsSubmitting(false);

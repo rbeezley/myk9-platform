@@ -15,6 +15,7 @@ import { UserRole } from '@/types/auth-types';
 import { createUserPermissions, UserPermissions } from '@/types/user-permissions';
 import { useDogStore } from '@/store/dogStore';
 import type { 
+import { logger } from '@/services/LoggingService';
   ScentWorkEntry, 
   ScentWorkResult, 
   MultiAreaScentWorkResult,
@@ -344,7 +345,7 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
         await onResultUpdate(result.entryId, entryUpdate);
       }
     } catch (error) {
-      console.error('❌ Error submitting results:', error);
+      logger.error('❌ Error submitting results:', 'classes', {}, error as Error);
     }
   }, [onResultUpdate]);
 

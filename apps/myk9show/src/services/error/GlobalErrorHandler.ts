@@ -8,6 +8,7 @@
 
 import { LoggingService } from '@/services/LoggingService';
 import { MonitoringService } from '@/services/MonitoringService';
+import { logger } from '@/services/LoggingService';
 
 interface ErrorDetails {
   message: string;
@@ -62,7 +63,7 @@ class GlobalErrorHandler {
    */
   initialize(): void {
     if (this.isInitialized) {
-      console.warn('GlobalErrorHandler already initialized');
+      logger.warn('GlobalErrorHandler already initialized', 'services', {});
       return;
     }
 
@@ -252,7 +253,7 @@ class GlobalErrorHandler {
 
     // Log to console in development
     if (process.env.NODE_ENV === 'development') {
-      console.error('GlobalErrorHandler captured error:', errorDetails);
+      logger.error('GlobalErrorHandler captured error:', 'services', {}, errorDetails as Error);
     }
 
     // Send to logging service
@@ -282,7 +283,7 @@ class GlobalErrorHandler {
         sessionStorage.setItem(criticalErrorKey, 'true');
         
         // Could integrate with toast/notification system here
-        console.error('Critical error detected:', errorDetails.message);
+        logger.error('Critical error detected:', 'error', { detail: errorDetails.message });
       }
     }
 

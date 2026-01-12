@@ -7,6 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { LiveUpdate, collaborationHub } from '@/services/collaboration/CollaborationHubService';
 import { 
+import { logger } from '@/services/LoggingService';
   Activity, 
   Plus, 
   Edit, 
@@ -265,7 +266,7 @@ export const LiveUpdateIndicator: React.FC<LiveUpdateIndicatorProps> = ({
                     className="w-full text-xs"
                     onClick={() => {
                       // In a real app, this would show a full updates page
-                      console.log('Show all updates');
+                      logger.debug('Show all updates', 'components', {});
                     }}
                   >
                     View all {updates.length} updates

@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
+import { logger } from '@/services/LoggingService';
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -178,7 +179,7 @@ export function StorageQuotaMonitor({
       setEntityUsage(mockEntityUsage);
       setLastRefresh(new Date());
     } catch (error) {
-      console.error('Failed to load storage info:', error);
+      logger.error('Failed to load storage info:', 'components', {}, error as Error);
     } finally {
       setIsLoading(false);
     }
@@ -238,7 +239,7 @@ export function StorageQuotaMonitor({
 
   // Handle storage actions
   const handleStorageAction = (action: string, entityType?: string) => {
-    console.log(`Storage action: ${action}`, entityType);
+    logger.debug(`Storage action: ${action}`, 'offline', { data: entityType });
     onStorageAction?.(action, entityType);
     
     // Refresh data after action

@@ -1,4 +1,5 @@
 import { DatabaseError } from '../supabaseClient';
+import { logger } from '@/services/LoggingService';
 
 // Exponential backoff configuration
 const DEFAULT_MAX_RETRIES = 3;
@@ -107,10 +108,7 @@ export const withRetry = async <T>(
         
         // Log retry attempt in development
         if (import.meta.env.DEV) {
-          console.log(
-            `🔄 Retrying operation (attempt ${attempt + 1}/${maxRetries}) after ${Math.round(delay)}ms`,
-            { error: error instanceof Error ? error.message : error }
-          );
+          logger.debug(`🔄 Retrying operation (attempt ${attempt + 1}/${maxRetries}) after ${Math.round(delay)}ms`, 'database', { data: { error: error instanceof Error ? error.message : error } });
         }
         
         // Wait before retrying
@@ -210,13 +208,13 @@ export const withPerformanceAndRetry = async <T>(
     
     // Log slow operations in development
     if (import.meta.env.DEV && duration > 1000) {
-      console.warn(`⚠️ Slow operation: ${operationName} took ${Math.round(duration)}ms`);
+      logger.warn(`⚠️ Slow operation: ${operationName} took ${Math.round(duration)}ms`, 'database', {});
     }
     
     return result;
   } catch (error) {
     const duration = performance.now() - startTime;
-    console.error(`❌ Operation failed: ${operationName} after ${Math.round(duration)}ms`, error);
+    logger.error(`❌ Operation failed: ${operationName} after ${Math.round(duration)}ms`, 'database', {}, error as Error);
     throw error;
   }
 };

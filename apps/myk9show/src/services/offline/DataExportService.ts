@@ -1,3 +1,5 @@
+import { logger } from '@/services/LoggingService';
+
 /**
  * DataExportService - Handle data export in multiple formats
  * 
@@ -182,7 +184,7 @@ export class DataExportService {
     });
 
     const endTime = performance.now();
-    console.log(`Export completed in ${Math.round(endTime - startTime)}ms`);
+    logger.debug(`Export completed in ${Math.round(endTime - startTime)}ms`, 'offline', {});
 
     return result;
   }
@@ -217,7 +219,7 @@ export class DataExportService {
         // Simulate loading delay
         await new Promise(resolve => setTimeout(resolve, 200));
       } catch (error) {
-        console.error(`Failed to load ${entity} data:`, error);
+        logger.error(`Failed to load ${entity} data:`, 'offline', {}, error as Error);
         data[entity] = []; // Include empty array for failed entities
       }
     }

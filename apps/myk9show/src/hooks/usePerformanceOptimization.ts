@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { monitoring } from '../services/MonitoringService';
 import { logger } from '../services/LoggingService';
 import { 
+import { logger } from '@/services/LoggingService';
   performanceOptimizer,
   PaginationOptions,
   PaginatedResult,
@@ -530,7 +531,7 @@ export function usePagination<T>(options: UsePaginationOptions) {
         const paginatedResult = performanceOptimizer.paginateData(data, paginationOptions);
         setResult(paginatedResult as PaginatedResult<T>);
       } catch (error) {
-        console.error('Pagination error:', error);
+        logger.error('Pagination error:', 'hooks', {}, error as Error);
         setResult(null);
       } finally {
         setLoading(false);

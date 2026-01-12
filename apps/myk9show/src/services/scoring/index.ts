@@ -15,6 +15,7 @@ export { JudgeWorkflowManager, judgeWorkflowManager } from './JudgeWorkflowManag
 import { offlineScoringService } from './OfflineScoringService';
 import { placementCalculatorService } from './PlacementCalculatorService';
 import { judgeWorkflowManager } from './JudgeWorkflowManager';
+import { logger } from '@/services/LoggingService';
 
 // Service Types
 export type {
@@ -72,9 +73,9 @@ export {
 export async function initializeOfflineScoring(): Promise<void> {
   try {
     // Services auto-initialize on import, but we can force initialization here if needed
-    console.log('Offline scoring services initialized');
+    logger.debug('Offline scoring services initialized', 'scoring', {});
   } catch (error) {
-    console.error('Failed to initialize offline scoring services:', error);
+    logger.error('Failed to initialize offline scoring services:', 'scoring', {}, error as Error);
     throw error;
   }
 }
@@ -90,9 +91,9 @@ export async function cleanupOfflineScoring(): Promise<void> {
       placementCalculatorService.cleanup(),
       judgeWorkflowManager.cleanup()
     ]);
-    console.log('Offline scoring services cleaned up');
+    logger.debug('Offline scoring services cleaned up', 'scoring', {});
   } catch (error) {
-    console.error('Failed to cleanup offline scoring services:', error);
+    logger.error('Failed to cleanup offline scoring services:', 'scoring', {}, error as Error);
   }
 }
 

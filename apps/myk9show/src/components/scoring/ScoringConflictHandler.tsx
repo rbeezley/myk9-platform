@@ -18,6 +18,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
+import { logger } from '@/services/LoggingService';
   Dialog, 
   DialogContent, 
   DialogHeader, 
@@ -202,7 +203,7 @@ export function ScoringConflictHandler({
 
       setConflicts(conflictItems);
     } catch (error) {
-      console.error('Failed to load conflicts:', error);
+      logger.error('Failed to load conflicts:', 'scoring', {}, error as Error);
     }
   }, [classId, getScoresByClass, format]);
 
@@ -274,7 +275,7 @@ export function ScoringConflictHandler({
 
       closeResolutionDialog();
     } catch (error) {
-      console.error('Failed to submit resolution:', error);
+      logger.error('Failed to submit resolution:', 'scoring', {}, error as Error);
     } finally {
       setResolutionDialog(prev => ({ ...prev, isSubmitting: false }));
     }

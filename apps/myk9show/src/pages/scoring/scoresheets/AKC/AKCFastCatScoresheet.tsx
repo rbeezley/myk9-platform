@@ -18,6 +18,7 @@ import { useStopwatch } from '@myk9/scoring-ui';
 import '../BaseScoresheet.css';
 import './scoresheet-shared.css';
 import './AKCScentWorkScoresheet-JudgeDialog.css';
+import { logger } from '@/services/LoggingService';
 
 // FastCAT constants
 const FASTCAT_COURSE = {
@@ -160,7 +161,7 @@ export const AKCFastCatScoresheet: React.FC<AKCFastCatScoresheetProps> = ({
         onBack();
       }
     } catch (error) {
-      console.error('Failed to save score:', error);
+      logger.error('Failed to save score:', 'pages', {}, error as Error);
     } finally {
       setIsSubmitting(false);
     }

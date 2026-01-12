@@ -18,6 +18,7 @@ import { CheckInStatus } from '@/types/check-in-types';
 import { CheckInStatusIndicator } from '@/components/common/CheckInStatusIndicator';
 import { CheckInStatusDialog } from '@/components/common/CheckInStatusDialog';
 import { 
+import { logger } from '@/services/LoggingService';
   Search, 
   Filter,
   Users, 
@@ -97,14 +98,14 @@ const EntryManagementPage: React.FC = () => {
       setEntries(mockEntries);
       setFilteredEntries(mockEntries);
     } catch (error) {
-      console.error('Error loading entries:', error);
+      logger.error('Error loading entries:', 'pages', {}, error as Error);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleEntryUpdate = (update: Record<string, unknown>) => {
-    console.log('Entry update received:', update);
+    logger.debug('Entry update received:', 'secretary', { data: update });
     // Would handle real-time updates here
   };
 
@@ -238,7 +239,7 @@ const EntryManagementPage: React.FC = () => {
       });
 
     } catch (error) {
-      console.error('Failed to update entry status:', error);
+      logger.error('Failed to update entry status:', 'pages', {}, error as Error);
       // Revert optimistic update
       setEntries(prev => prev.map(e =>
         e.id === entryId ? { ...e, entryStatus: oldStatus } : e
@@ -288,7 +289,7 @@ const EntryManagementPage: React.FC = () => {
       // Close dialog
       setCheckInDialog({ open: false, entry: null, classEntry: null });
     } catch (error) {
-      console.error('Failed to update check-in status:', error);
+      logger.error('Failed to update check-in status:', 'pages', {}, error as Error);
       // Revert optimistic update
       setEntries(prev => prev.map(e => {
         if (e.id === entry.id) {
@@ -351,7 +352,7 @@ const EntryManagementPage: React.FC = () => {
       setSelectedEntries(new Set());
       setBulkActionDialog({ open: false, action: null });
     } catch (error) {
-      console.error('Failed to execute bulk action:', error);
+      logger.error('Failed to execute bulk action:', 'pages', {}, error as Error);
     }
   };
 

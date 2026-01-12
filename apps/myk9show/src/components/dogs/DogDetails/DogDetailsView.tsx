@@ -19,6 +19,7 @@ import { ExtendedAncestor } from '@/components/dogs/DogDetails/Pedigree/Pedigree
 import type { Dog, Owner } from '@/types/dog-types';
 import DogBasicInfoCard from '@/components/dogs/common/DogBasicInfoCard';
 import '@/styles/apple-dog-details.css';
+import { logger } from '@/services/LoggingService';
 
 // TEMP: Mock user object for demo/testing premium gating
 const user = { isPremium: true };
@@ -125,7 +126,7 @@ const DogDetailsView: React.FC<DogDetailsViewProps> = ({ dog }) => {
   const handlePremiumTabClick = (e: React.MouseEvent) => {
     if (!user.isPremium) {
       e.preventDefault();
-      console.log('Premium feature clicked');
+      logger.debug('Premium feature clicked', 'dogs', {});
     }
   };
 
@@ -251,7 +252,7 @@ const DogDetailsView: React.FC<DogDetailsViewProps> = ({ dog }) => {
                     <p className="apple-premium-description">
                       Track your dog's competition history, upcoming shows, and achievements with detailed records.
                     </p>
-                    <Button className="apple-premium-button" onClick={() => console.log('Upgrade to Premium')}>
+                    <Button className="apple-premium-button" onClick={() => logger.debug('Upgrade to Premium', 'dogs', {});}>
                       Upgrade to Premium
                     </Button>
                   </div>
@@ -270,7 +271,7 @@ const DogDetailsView: React.FC<DogDetailsViewProps> = ({ dog }) => {
                     <p className="apple-premium-description">
                       Track your dog's progress toward various titles and certifications.
                     </p>
-                    <Button className="apple-premium-button" onClick={() => console.log('Upgrade to Premium')}>
+                    <Button className="apple-premium-button" onClick={() => logger.debug('Upgrade to Premium', 'dogs', {});}>
                       Upgrade to Premium
                     </Button>
                   </div>
@@ -289,7 +290,7 @@ const DogDetailsView: React.FC<DogDetailsViewProps> = ({ dog }) => {
                     <p className="apple-premium-description">
                       Keep detailed health records including vaccinations, vet visits, and medications.
                     </p>
-                    <Button className="apple-premium-button" onClick={() => console.log('Upgrade to Premium')}>
+                    <Button className="apple-premium-button" onClick={() => logger.debug('Upgrade to Premium', 'dogs', {});}>
                       Upgrade to Premium
                     </Button>
                   </div>
@@ -308,7 +309,7 @@ const DogDetailsView: React.FC<DogDetailsViewProps> = ({ dog }) => {
                     <p className="apple-premium-description">
                       Document your dog's training progress with detailed session notes and photos.
                     </p>
-                    <Button className="apple-premium-button" onClick={() => console.log('Upgrade to Premium')}>
+                    <Button className="apple-premium-button" onClick={() => logger.debug('Upgrade to Premium', 'dogs', {});}>
                       Upgrade to Premium
                     </Button>
                   </div>
@@ -333,7 +334,7 @@ const DogDetailsView: React.FC<DogDetailsViewProps> = ({ dog }) => {
                     <p className="apple-premium-description">
                       View and manage your dog's complete family tree and ancestry information.
                     </p>
-                    <Button className="apple-premium-button" onClick={() => console.log('Upgrade to Premium')}>
+                    <Button className="apple-premium-button" onClick={() => logger.debug('Upgrade to Premium', 'dogs', {});}>
                       Upgrade to Premium
                     </Button>
                   </div>

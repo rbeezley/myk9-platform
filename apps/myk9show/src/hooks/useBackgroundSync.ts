@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { backgroundSyncService } from '@/services/sync/backgroundSyncService';
 import { SyncMetrics, NetworkState, SyncEvent } from '@/types/sync-types';
+import { logger } from '@/services/LoggingService';
 
 export interface BackgroundSyncState {
   isOnline: boolean;
@@ -67,7 +68,7 @@ export function useBackgroundSync() {
         isOnline: networkState.isOnline
       }));
     } catch (error) {
-      console.error('Failed to update sync state:', error);
+      logger.error('Failed to update sync state:', 'hooks', {}, error as Error);
     }
   }, []);
 
@@ -121,7 +122,7 @@ export function useBackgroundSync() {
       await backgroundSyncService.forcSync();
       setTimeout(updateSyncState, 100);
     } catch (error) {
-      console.error('Manual sync failed:', error);
+      logger.error('Manual sync failed:', 'hooks', {}, error as Error);
       setSyncState(prev => ({
         ...prev,
         isSyncing: false,
@@ -161,7 +162,7 @@ export function useBackgroundSync() {
           await updateSyncState();
         }
       } catch (error) {
-        console.error('Failed to initialize sync service:', error);
+        logger.error('Failed to initialize sync service:', 'hooks', {}, error as Error);
         if (mounted) {
           setSyncState(prev => ({
             ...prev,

@@ -1,6 +1,7 @@
 // Type mapping utilities for Club entity between Zustand and Supabase
 import type { Club, ClubInput, ClubAddress } from '@/types/club-types';
 import type { DbClub, DbClubInsert, DbClubUpdate } from '@/types/database-mappings';
+import { logger } from '@/services/LoggingService';
 
 /**
  * Maps ClubInput (from Zustand store) to DbClubInsert (for Supabase insertion)
@@ -187,7 +188,7 @@ export const safeParseJson = <T>(jsonString: string | null | undefined, fallback
   try {
     return JSON.parse(jsonString) as T;
   } catch (error) {
-    console.warn('Failed to parse JSON:', error);
+    logger.warn('Failed to parse JSON:', 'mappers', {}, error as Error);
     return fallback;
   }
 };

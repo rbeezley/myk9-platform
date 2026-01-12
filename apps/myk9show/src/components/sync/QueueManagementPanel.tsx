@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
+import { logger } from '@/services/LoggingService';
   Select,
   SelectContent,
   SelectItem,
@@ -107,22 +108,22 @@ export function QueueManagementPanel({
 
   // Mock implementations for missing methods
   const retryItem = useCallback((id: string) => {
-    console.log('Retrying item:', id);
+    logger.debug('Retrying item:', 'sync', { data: id });
     updateOperationStatus(id, 'pending');
   }, [updateOperationStatus]);
 
   const cancelItem = useCallback((id: string) => {
-    console.log('Cancelling item:', id);
+    logger.debug('Cancelling item:', 'sync', { data: id });
     removeOperation(id);
   }, [removeOperation]);
 
   const prioritizeItem = useCallback((id: string) => {
-    console.log('Prioritizing item:', id);
+    logger.debug('Prioritizing item:', 'sync', { data: id });
     // Mock implementation - would update priority
   }, []);
 
   const clearCompleted = useCallback(() => {
-    console.log('Clearing completed items');
+    logger.debug('Clearing completed items', 'sync', {});
     clearOperations();
   }, [clearOperations]);
 

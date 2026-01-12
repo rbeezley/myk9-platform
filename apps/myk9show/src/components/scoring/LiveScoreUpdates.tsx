@@ -19,6 +19,7 @@ import { Separator } from '@/components/ui/separator';
 
 // Icons
 import { 
+import { logger } from '@/services/LoggingService';
   CheckCircle2, 
   Clock, 
   AlertCircle, 
@@ -151,7 +152,7 @@ export function LiveScoreUpdates({
       }));
 
     } catch (error) {
-      console.error('Failed to load live score data:', error);
+      logger.error('Failed to load live score data:', 'scoring', {}, error as Error);
     }
   }, [classId, format, getScoresByClass, getPendingSyncItems, isOffline, previousPlacements]);
 
@@ -319,7 +320,7 @@ export function LiveScoreUpdates({
       await offlineScoringService.forceSyncAll();
       loadData();
     } catch (error) {
-      console.error('Force sync failed:', error);
+      logger.error('Force sync failed:', 'scoring', {}, error as Error);
     } finally {
       setSyncStatus(prev => ({ ...prev, syncInProgress: false }));
     }

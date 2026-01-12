@@ -3,6 +3,7 @@ import { ClassTemplate } from '@/types/template.types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { logger } from '@/services/LoggingService';
 
 interface FieldConfiguratorProps {
   template: Partial<ClassTemplate>;
@@ -83,7 +84,7 @@ export const FieldConfiguratorWorking: React.FC<FieldConfiguratorProps> = ({
             {/* Add Field Button */}
             {!readOnly && (
               <div className="pt-4">
-                <Button onClick={() => console.log('Add field clicked')}>
+                <Button onClick={() => logger.debug('Add field clicked', 'templates', {});}>
                   Add Field
                 </Button>
               </div>

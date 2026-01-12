@@ -5,6 +5,7 @@ import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/tooltip';
+import { logger } from '@/services/LoggingService';
 
 interface StorageInfo {
   used: number; // bytes
@@ -92,7 +93,7 @@ export const StorageUsageMonitor: React.FC<StorageUsageMonitorProps> = ({
         };
       }
     } catch (error) {
-      console.error('Failed to calculate storage usage:', error);
+      logger.error('Failed to calculate storage usage:', 'components', {}, error as Error);
       throw error;
     }
   }, []);
@@ -152,7 +153,7 @@ export const StorageUsageMonitor: React.FC<StorageUsageMonitorProps> = ({
           onCleanupNeeded?.();
         }
       } catch (error) {
-        console.error('Failed to update storage info:', error);
+        logger.error('Failed to update storage info:', 'components', {}, error as Error);
       } finally {
         setIsLoading(false);
       }

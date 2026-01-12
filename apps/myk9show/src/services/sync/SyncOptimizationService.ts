@@ -1,3 +1,5 @@
+import { logger } from '@/services/LoggingService';
+
 /**
  * Sync Optimization Service
  * 
@@ -178,7 +180,7 @@ export class SyncOptimizationService {
         };
         compressed = true;
       } catch (error) {
-        console.warn('Compression failed, sending uncompressed:', error);
+        logger.warn('Compression failed, sending uncompressed:', 'sync', {}, error as Error);
       }
     }
 

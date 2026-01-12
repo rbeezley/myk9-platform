@@ -1,6 +1,7 @@
 import { CompressionMetrics, CompressionAlgorithm, CompressionOptions, CompressionResult } from '../../types/performance-types';
 import { inflate, deflate } from 'pako';
 import { compress as lz4Compress, decompress as lz4Decompress } from 'lz4js';
+import { logger } from '@/services/LoggingService';
 
 /**
  * Compression Service for optimizing sync payload sizes
@@ -132,7 +133,7 @@ export class CompressionService {
         }
       };
     } catch (error) {
-      console.error('Compression failed:', error);
+      logger.error('Compression failed:', 'services', {}, error as Error);
       // Fallback to no compression
       const uncompressed = new TextEncoder().encode(serialized);
       return {
@@ -173,7 +174,7 @@ export class CompressionService {
           throw new Error(`Unknown compression algorithm: ${metadata.algorithm}`);
       }
     } catch (error) {
-      console.error('Decompression failed:', error);
+      logger.error('Decompression failed:', 'services', {}, error as Error);
       throw error;
     }
   }

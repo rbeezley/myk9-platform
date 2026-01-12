@@ -1,3 +1,5 @@
+import { logger } from '@/services/LoggingService';
+
 // CDN Service for static asset delivery optimization
 
 /**
@@ -204,7 +206,7 @@ export class CDNService {
       
       return await response.json();
     } catch (error) {
-      console.error('Failed to fetch CDN analytics:', error);
+      logger.error('Failed to fetch CDN analytics:', 'deployment', {}, error as Error);
       return this.getDefaultAnalytics();
     }
   }
@@ -305,7 +307,7 @@ export class CDNService {
           new URL('../workers/compressionWorker.js', import.meta.url)
         );
       } catch (error) {
-        console.warn('Failed to initialize compression worker:', error);
+        logger.warn('Failed to initialize compression worker:', 'deployment', {}, error as Error);
       }
     }
   }
@@ -366,7 +368,7 @@ export class CDNService {
         };
         
         this.compressionWorker!.onerror = (error) => {
-          console.warn('Compression worker failed, using original file:', error);
+          logger.warn('Compression worker failed, using original file:', 'deployment', {}, error as Error);
           resolve(file);
         };
       });

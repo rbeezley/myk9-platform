@@ -2,6 +2,7 @@
 // Phase 4.1: Template System Integration
 
 import type { 
+import { logger } from '@/services/LoggingService';
   ClassTemplate, 
   ClassTemplateField
 } from '@/types/class-template-types';
@@ -294,7 +295,7 @@ export const deserializeTemplateCustomization = (
       createdAt: new Date(parsed.createdAt || Date.now()),
     };
   } catch (error) {
-    console.error('Failed to deserialize template customization:', error);
+    logger.error('Failed to deserialize template customization:', 'services', {}, error as Error);
     return null;
   }
 };

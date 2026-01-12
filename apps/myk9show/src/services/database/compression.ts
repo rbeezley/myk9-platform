@@ -1,3 +1,5 @@
+import { logger } from '@/services/LoggingService';
+
 /**
  * Data compression service for IndexedDB storage optimization
  * Implements intelligent compression for large datasets while maintaining performance
@@ -91,7 +93,7 @@ export class DataCompressionService {
         timestamp: Date.now()
       };
     } catch (error) {
-      console.warn('Compression failed, storing uncompressed:', error);
+      logger.warn('Compression failed, storing uncompressed:', 'database', {}, error as Error);
       return {
         data: jsonString,
         compressed: false,
@@ -131,7 +133,7 @@ export class DataCompressionService {
 
       return JSON.parse(decompressedString);
     } catch (error) {
-      console.error('Decompression failed:', error);
+      logger.error('Decompression failed:', 'database', {}, error as Error);
       throw new Error(`Failed to decompress data: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }

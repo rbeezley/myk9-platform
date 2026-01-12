@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
+import { logger } from '@/services/LoggingService';
 
 export interface ValidationRule<T = unknown> {
   required?: boolean;
@@ -283,7 +284,7 @@ export function useFormState<T extends Record<string, unknown>>({
         
         await onSubmit(values);
       } catch (error) {
-        console.error('Form submission error:', error);
+        logger.error('Form submission error:', 'hooks', {}, error as Error);
       }
     }
 

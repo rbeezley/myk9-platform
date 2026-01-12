@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
+import { logger } from '@/services/LoggingService';
   ArrowLeft,
   Settings,
   Users,
@@ -176,17 +177,17 @@ export function ShowManagementPage({ className }: ShowManagementPageProps) {
         navigate(`/secretary/shows/${showId}/edit`);
         break;
       case 'duplicate':
-        console.log('Duplicate show:', showId);
+        logger.debug('Duplicate show:', 'secretary', { data: showId });
         break;
       case 'export':
-        console.log('Export show data:', showId);
+        logger.debug('Export show data:', 'secretary', { data: showId });
         break;
       case 'archive':
-        console.log('Archive show:', showId);
+        logger.debug('Archive show:', 'secretary', { data: showId });
         break;
       case 'delete':
         if (confirm('Are you sure you want to delete this show? This action cannot be undone.')) {
-          console.log('Delete show:', showId);
+          logger.debug('Delete show:', 'secretary', { data: showId });
           navigate('/secretary/shows');
         }
         break;

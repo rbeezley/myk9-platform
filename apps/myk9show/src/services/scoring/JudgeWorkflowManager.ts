@@ -18,6 +18,7 @@
 
 import { EventEmitter } from '../sync/eventEmitter';
 import type {
+import { logger } from '@/services/LoggingService';
   ScoringFormat,
   ScoringEvent,
   ConflictResolution
@@ -194,7 +195,7 @@ export class JudgeWorkflowManager extends EventEmitter {
       this.isInitialized = true;
       this.emit('service_initialized', {});
     } catch (error) {
-      console.error('Failed to initialize judge workflow manager:', error);
+      logger.error('Failed to initialize judge workflow manager:', 'scoring', {}, error as Error);
       this.emit('service_error', { error: (error as Error).message });
     }
   }
@@ -241,7 +242,7 @@ export class JudgeWorkflowManager extends EventEmitter {
       });
 
     } catch (error) {
-      console.error('Failed to load persisted workflow data:', error);
+      logger.error('Failed to load persisted workflow data:', 'scoring', {}, error as Error);
     }
   }
 

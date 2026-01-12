@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase';
 import type { Dog } from '@/types/dog-types';
 import { mockDogs } from '@/mockData/mockDogs';
 import { shouldUseMockData } from '@/config/dataSource';
+import { logger } from '@/services/LoggingService';
 
 /**
  * Service for managing dog-related data operations.
@@ -34,9 +35,9 @@ export class DogsService {
    * ```typescript
    * try {
    *   const dogs = await DogsService.getAll();
-   *   console.log(`Found ${dogs.length} dogs`);
+   *   logger.debug(`Found ${dogs.length} dogs`, 'services', {});
    * } catch (error) {
-   *   console.error('Failed to fetch dogs:', error);
+   *   logger.error('Failed to fetch dogs:', 'services', {}, error as Error);
    * }
    * ```
    */
@@ -86,9 +87,9 @@ export class DogsService {
    * ```typescript
    * const dog = await DogsService.getById('dog-123');
    * if (dog) {
-   *   console.log(`Found dog: ${dog.name}`);
+   *   logger.debug(`Found dog: ${dog.name}`, 'services', {});
    * } else {
-   *   console.log('Dog not found');
+   *   logger.debug('Dog not found', 'services', {});
    * }
    * ```
    */
@@ -149,7 +150,7 @@ export class DogsService {
    *     type: 'full'
    *   }]
    * });
-   * console.log(`Created dog with ID: ${newDog.id}`);
+   * logger.debug(`Created dog with ID: ${newDog.id}`, 'services', {});
    * ```
    */
   static async create(dog: Omit<Dog, 'id'>): Promise<Dog> {
@@ -270,9 +271,9 @@ export class DogsService {
    * ```typescript
    * try {
    *   await DogsService.delete('dog-123');
-   *   console.log('Dog deleted successfully');
+   *   logger.debug('Dog deleted successfully', 'services', {});
    * } catch (error) {
-   *   console.error('Failed to delete dog:', error);
+   *   logger.error('Failed to delete dog:', 'services', {}, error as Error);
    * }
    * ```
    */
@@ -304,11 +305,11 @@ export class DogsService {
    * ```typescript
    * // Get all dogs for a specific owner
    * const ownerDogs = await DogsService.getByOwnerId('owner-123');
-   * console.log(`Owner has ${ownerDogs.length} dogs`);
+   * logger.debug(`Owner has ${ownerDogs.length} dogs`, 'services', {});
    * 
    * // Display dog names
    * ownerDogs.forEach(dog => {
-   *   console.log(`- ${dog.name} (${dog.breed})`);
+   *   logger.debug(`- ${dog.name} (${dog.breed})`, 'services', {});
    * });
    * ```
    */

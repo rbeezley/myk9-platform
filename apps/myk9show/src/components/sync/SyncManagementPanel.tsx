@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { 
+import { logger } from '@/services/LoggingService';
   SyncStatusIndicator,
   ConflictResolutionDialog,
   SyncHistoryViewer 
@@ -68,7 +69,7 @@ export function SyncManagementPanel({
     resolution: 'local' | 'remote' | 'merge',
     mergedData?: Record<string, unknown>
   ) => {
-    console.log('Resolving conflict:', { resolution, mergedData, entity: conflictEntity });
+    logger.debug('Resolving conflict:', 'sync', { data: { resolution, mergedData, entity: conflictEntity } });
     
     // In a real implementation, this would call the sync service
     if (onResolveConflict && conflictEntity) {
@@ -260,15 +261,15 @@ export function SyncManagementPanel({
         open={showHistory}
         onOpenChange={setShowHistory}
         onRetrySync={(entryId) => {
-          console.log('Retry sync for entry:', entryId);
+          logger.debug('Retry sync for entry:', 'sync', { data: entryId });
           // In real implementation, would retry specific sync operation
         }}
         onClearHistory={() => {
-          console.log('Clear sync history');
+          logger.debug('Clear sync history', 'sync', {});
           // In real implementation, would clear sync history
         }}
         onExportHistory={() => {
-          console.log('Export sync history');
+          logger.debug('Export sync history', 'sync', {});
           // In real implementation, would export sync history
         }}
       />

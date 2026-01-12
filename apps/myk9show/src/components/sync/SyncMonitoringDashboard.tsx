@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
+import { logger } from '@/services/LoggingService';
   Activity,
   TrendingUp,
   TrendingDown,
@@ -253,7 +254,7 @@ const SyncMonitoringDashboard: React.FC = () => {
       const newMetrics = await analyticsService.getMetrics(startTime, now);
       setMetrics(newMetrics);
     } catch (error) {
-      console.error('Failed to load metrics:', error);
+      logger.error('Failed to load metrics:', 'sync', {}, error as Error);
     } finally {
       setIsRefreshing(false);
     }
@@ -270,7 +271,7 @@ const SyncMonitoringDashboard: React.FC = () => {
   const handleManualSync = useCallback(async () => {
     // Trigger sync through sync service
     // This would integrate with your sync service
-    console.log('Manual sync triggered');
+    logger.debug('Manual sync triggered', 'sync', {});
     await loadMetrics();
   }, [loadMetrics]);
 

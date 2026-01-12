@@ -19,6 +19,7 @@ import { DualTimerDisplay } from '@/components/common/DualTimerDisplay';
 
 // Types and utilities
 import type { 
+import { logger } from '@/services/LoggingService';
   ScentWorkEntry, 
   ScentWorkResult, 
   QualificationStatus
@@ -116,12 +117,12 @@ export function ScentWorkScoresheet({
   }, []);
 
   const handleTimeWarning = useCallback((remainingMs: number) => {
-    console.log(`Time warning: ${remainingMs}ms remaining`);
+    logger.debug(`Time warning: ${remainingMs}ms remaining`, 'scoring', {});
     // Audio handled by DualTimerDisplay component
   }, []);
 
   const handleTimeExpired = useCallback(() => {
-    console.log('Time expired - automatic NQ');
+    logger.debug('Time expired - automatic NQ', 'scoring', {});
     setResult(prev => ({
       ...prev,
       qualification: 'Not Qualified',

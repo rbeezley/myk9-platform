@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
+import { logger } from '@/services/LoggingService';
   Bell,
   AlertTriangle,
   CheckCircle,
@@ -112,7 +113,7 @@ export const AlertDashboard: React.FC<AlertDashboardProps> = ({ className }) => 
       const alertData = alertingService.getAlerts(query);
       setAlerts(alertData);
     } catch (error) {
-      console.error('Failed to load alert data:', error);
+      logger.error('Failed to load alert data:', 'alerts', {}, error as Error);
     } finally {
       setLoading(false);
     }
@@ -158,7 +159,7 @@ export const AlertDashboard: React.FC<AlertDashboardProps> = ({ className }) => 
           break;
       }
     } catch (error) {
-      console.error(`Failed to ${action} alert:`, error);
+      logger.error(`Failed to ${action} alert:`, 'alerts', {}, error as Error);
     }
   };
 
@@ -481,7 +482,7 @@ export const AlertDashboard: React.FC<AlertDashboardProps> = ({ className }) => 
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => console.log('View details', alert.id)}>
+                              <DropdownMenuItem onClick={() => logger.debug('View details', 'alerts', { data: alert.id });}>
                                 <Eye className="mr-2 h-4 w-4" />
                                 View Details
                               </DropdownMenuItem>

@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { fieldLevelSync } from '../services/sync/FieldLevelSyncService';
+import { logger } from '@/services/LoggingService';
 
 interface UseFieldLevelSyncOptions {
   entityType: string;
@@ -179,9 +180,7 @@ export function useFieldLevelSync(
       if (syncState.pendingChanges.size > 0 && !syncState.isSyncing) {
         // Auto-sync would need the entity data
         // In a real app, this would come from a store or context
-        console.log('Auto-sync triggered with pending changes:', 
-          Array.from(syncState.pendingChanges.keys())
-        );
+        logger.debug('Auto-sync triggered with pending changes:', 'hooks', { data: Array.from(syncState.pendingChanges.keys()) });
       }
     }, config.syncInterval);
 

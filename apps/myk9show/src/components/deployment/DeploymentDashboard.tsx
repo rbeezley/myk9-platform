@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
 import {
+import { logger } from '@/services/LoggingService';
   Rocket,
   AlertTriangle,
   CheckCircle,
@@ -217,7 +218,7 @@ export const DeploymentDashboard: React.FC<DeploymentDashboardProps> = ({
 
       setLastUpdated(new Date());
     } catch (error) {
-      console.error('Failed to load dashboard data:', error);
+      logger.error('Failed to load dashboard data:', 'components', {}, error as Error);
     } finally {
       setIsLoading(false);
     }

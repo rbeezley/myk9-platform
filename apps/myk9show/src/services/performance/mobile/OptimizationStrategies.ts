@@ -8,6 +8,7 @@
 
 import type { DeviceCapability, NetworkCondition, MobileOptimization } from './types';
 import { getRumService } from '../RealUserMonitoring';
+import { logger } from '@/services/LoggingService';
 
 // =============================================================================
 // Image Optimization
@@ -333,7 +334,7 @@ function setupWebWorkers(): void {
     const worker = new Worker(workerUrl);
     (window as any).mobileOptimizationWorker = worker;
   } catch (error) {
-    console.warn('Failed to create Web Worker:', error);
+    logger.warn('Failed to create Web Worker:', 'performance', {}, error as Error);
   }
 }
 
@@ -363,7 +364,7 @@ export async function monitorBatteryStatus(
       battery.addEventListener('chargingchange', updateBatteryOptimization);
       updateBatteryOptimization();
     } catch (error) {
-      console.warn('Battery API not available:', error);
+      logger.warn('Battery API not available:', 'performance', {}, error as Error);
     }
   }
 }
@@ -567,7 +568,7 @@ function setupIndexedDBCaching(): void {
   const request = indexedDB.open(dbName, dbVersion);
 
   request.onerror = () => {
-    console.warn('IndexedDB not available for mobile caching');
+    logger.warn('IndexedDB not available for mobile caching', 'performance', {});
   };
 
   request.onsuccess = (event) => {

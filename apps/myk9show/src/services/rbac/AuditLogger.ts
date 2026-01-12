@@ -6,6 +6,7 @@
 
 import { supabase } from '@/lib/supabase';
 import { ActionType, AuditLogEntry, AuditLogFilter } from '@/types/rbac-types';
+import { logger } from '@/services/LoggingService';
 
 export class AuditLogger {
   /**
@@ -38,7 +39,7 @@ export class AuditLogger {
           details: details.details ? JSON.stringify(details.details) as string : null
         });
     } catch (error) {
-      console.error('Failed to log audit event:', error);
+      logger.error('Failed to log audit event:', 'rbac', {}, error as Error);
       // Don't throw - audit logging should not break the main operation
     }
   }
@@ -133,7 +134,7 @@ export class AuditLogger {
         totalCount: count || 0
       };
     } catch (error) {
-      console.error('Failed to get audit log:', error);
+      logger.error('Failed to get audit log:', 'rbac', {}, error as Error);
       throw error;
     }
   }

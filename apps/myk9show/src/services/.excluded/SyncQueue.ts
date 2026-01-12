@@ -1,6 +1,7 @@
 import { SyncQueueItem, SyncAction } from '@/types/sync-types';
 import { SyncPriority } from '@/config/sync-scopes';
 import { db } from '@/services/database/connection';
+import { logger } from '@/services/LoggingService';
 
 export class SyncQueue {
   private static instance: SyncQueue;
@@ -214,7 +215,7 @@ export class SyncQueue {
       }));
       this.sortByPriority();
     } catch (error) {
-      console.error('Failed to load sync queue from storage:', error);
+      logger.error('Failed to load sync queue from storage:', 'services', {}, error as Error);
       this.queue = [];
     }
   }
@@ -238,7 +239,7 @@ export class SyncQueue {
         priority: item.priority
       })));
     } catch (error) {
-      console.error('Failed to save sync queue to storage:', error);
+      logger.error('Failed to save sync queue to storage:', 'services', {}, error as Error);
     }
   }
 }

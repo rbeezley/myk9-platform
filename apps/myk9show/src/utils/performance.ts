@@ -1,3 +1,5 @@
+import { logger } from '@/services/LoggingService';
+
 /**
  * Performance utilities for optimizing realtime operations
  */
@@ -68,7 +70,7 @@ export function batchify<T>(
     try {
       await func(currentBatch);
     } catch (error) {
-      console.error('Batch processing error:', error);
+      logger.error('Batch processing error:', 'utils', {}, error as Error);
       // Re-add failed items to the batch for retry
       batch.unshift(...currentBatch);
     }
@@ -134,7 +136,7 @@ export class PerformanceMonitor {
   endTimer(label: string): number {
     const startTime = this.startTimes.get(label);
     if (!startTime) {
-      console.warn(`No start time found for timer: ${label}`);
+      logger.warn(`No start time found for timer: ${label}`, 'utils', {});
       return 0;
     }
 

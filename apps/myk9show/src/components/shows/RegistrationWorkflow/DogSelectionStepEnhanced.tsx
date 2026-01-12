@@ -18,6 +18,7 @@ import { CreateExhibitorDialog } from './CreateExhibitorDialog';
 import { CreateDogDialog } from './CreateDogDialog';
 import { QuickCreateFlow } from './QuickCreateFlow';
 import { FixedSizeList as List } from 'react-window';
+import { logger } from '@/services/LoggingService';
 
 interface DogSelectionStepProps {
   selectedDogs: string[];
@@ -146,7 +147,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   // Creation flow handlers
   const handleQuickCreateFlowCompleted = (exhibitor: User, newDogs: Dog[]) => {
     // In real app, these would be saved to the backend/store
-    console.log('Quick create flow completed:', { exhibitor, dogs: newDogs });
+    logger.debug('Quick create flow completed:', 'shows', { data: { exhibitor, dogs: newDogs } });
     
     // Auto-select the newly created dogs
     const newDogIds = newDogs.map(dog => dog.id);
@@ -154,13 +155,13 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   };
 
   const handleExhibitorCreated = (exhibitor: User) => {
-    console.log('Exhibitor created:', exhibitor);
+    logger.debug('Exhibitor created:', 'shows', { data: exhibitor });
     // Could open dog creation dialog next
     setShowDogDialog(true);
   };
 
   const handleDogCreated = (dog: Dog) => {
-    console.log('Dog created:', dog);
+    logger.debug('Dog created:', 'shows', { data: dog });
     // Auto-select the newly created dog
     onSelectionChange([...selectedDogs, dog.id]);
   };

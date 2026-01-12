@@ -13,6 +13,7 @@
  */
 
 import { StateStorage } from 'zustand/middleware';
+import { logger } from '@/services/LoggingService';
 
 interface DevStorageOptions {
   /**
@@ -47,13 +48,13 @@ class DevelopmentStorageAdapter {
     };
     
     if (this.options.enableLogging) {
-      console.log('🔧 Development Storage Adapter initialized with options:', this.options);
+      logger.debug('🔧 Development Storage Adapter initialized with options:', 'database', { data: this.options });
     }
   }
 
   private log(operation: string, key: string, details?: unknown) {
     if (this.options.enableLogging) {
-      console.log(`🔧 DevStorage ${operation}:`, key, details || '');
+      logger.debug(`🔧 DevStorage ${operation}:`, 'database', { data: key, details || '' });
     }
   }
 
@@ -100,7 +101,7 @@ class DevelopmentStorageAdapter {
       this.log('GET (miss)', name);
       return null;
     } catch (error) {
-      console.error(`Development storage getItem error for ${name}:`, error);
+      logger.error(`Development storage getItem error for ${name}:`, 'database', {}, error as Error);
       return null;
     }
   };
@@ -128,7 +129,7 @@ class DevelopmentStorageAdapter {
         this.log('SET (localStorage)', name, `${value.length} chars`);
       }
     } catch (error) {
-      console.error(`Development storage setItem error for ${name}:`, error);
+      logger.error(`Development storage setItem error for ${name}:`, 'database', {}, error as Error);
       throw error;
     }
   };
@@ -151,7 +152,7 @@ class DevelopmentStorageAdapter {
         this.log('REMOVE (localStorage)', name);
       }
     } catch (error) {
-      console.error(`Development storage removeItem error for ${name}:`, error);
+      logger.error(`Development storage removeItem error for ${name}:`, 'database', {}, error as Error);
       throw error;
     }
   };

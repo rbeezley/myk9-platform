@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { 
+import { logger } from '@/services/LoggingService';
   Dialog, 
   DialogContent, 
   DialogDescription, 
@@ -100,7 +101,7 @@ export const CheckInManagementOverlay: React.FC<CheckInManagementOverlayProps> =
     try {
       await onUpdateStatus(entryId, status);
     } catch (error) {
-      console.error('Failed to update check-in status:', error);
+      logger.error('Failed to update check-in status:', 'components', {}, error as Error);
       // Revert on error
       setLocalStatuses(prev => {
         const newState = { ...prev };

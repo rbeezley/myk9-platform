@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
+import { logger } from '@/services/LoggingService';
   Heart, 
   User, 
   FileText, 
@@ -308,7 +309,7 @@ export const AddDogPanel: React.FC<AddDogPanelProps> = ({
       setFormData(INITIAL_FORM_DATA);
       setValidationErrors({});
     } catch (error) {
-      console.error('Error creating dog:', error);
+      logger.error('Error creating dog:', 'components', {}, error as Error);
       setValidationErrors({ 
         submit: error instanceof Error ? error.message : 'Failed to create dog' 
       });

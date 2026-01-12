@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { 
+import { logger } from '@/services/LoggingService';
   Eye, 
   Settings, 
   Play, 
@@ -111,7 +112,7 @@ export const TemplatePreview: React.FC<TemplatePreviewProps> = ({ template }) =>
             }
             
             // Default to false for unhandled conditions
-            console.warn('Unhandled condition format:', condition);
+            logger.warn('Unhandled condition format:', 'templates', { data: condition });
             return false;
           };
           
@@ -121,7 +122,7 @@ export const TemplatePreview: React.FC<TemplatePreviewProps> = ({ template }) =>
             errors.push(rule.message);
           }
         } catch (e) {
-          console.error('Error evaluating condition:', e);
+          logger.error('Error evaluating condition:', 'components', {}, e as Error);
         }
       }
     });

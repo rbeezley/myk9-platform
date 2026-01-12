@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 // import { Progress } from '@/components/ui/progress';
 import {
+import { logger } from '@/services/LoggingService';
   AlertTriangle,
   Bell,
   CheckCircle,
@@ -179,7 +180,7 @@ export const ConflictResolutionManager: React.FC<ConflictResolutionManagerProps>
       await onConflictResolve(resolution);
       setResolutionHistory(prev => [resolution, ...prev.slice(0, 49)]); // Keep last 50
     } catch (error) {
-      console.error('Auto-resolve failed:', error);
+      logger.error('Auto-resolve failed:', 'sync', {}, error as Error);
     }
   }, [conflictResolver, onConflictResolve]);
 
@@ -266,16 +267,16 @@ export const ConflictResolutionManager: React.FC<ConflictResolutionManagerProps>
 
   const handleNotificationDismiss = (notificationId: string) => {
     // In a real implementation, this would mark the notification as dismissed
-    console.log('Dismiss notification:', notificationId);
+    logger.debug('Dismiss notification:', 'sync', { data: notificationId });
   };
 
   const handleNotificationRead = (notificationId: string) => {
     // In a real implementation, this would mark the notification as read
-    console.log('Mark notification as read:', notificationId);
+    logger.debug('Mark notification as read:', 'sync', { data: notificationId });
   };
 
   const handleBulkNotificationAction = (notificationIds: string[], action: string) => {
-    console.log('Bulk notification action:', action, notificationIds);
+    logger.debug('Bulk notification action:', 'sync', { data: action, notificationIds });
   };
 
   const getPriorityColor = (priority: string) => {

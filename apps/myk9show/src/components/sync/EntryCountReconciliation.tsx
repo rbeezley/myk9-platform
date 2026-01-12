@@ -6,6 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
+import { logger } from '@/services/LoggingService';
   Users, 
   AlertTriangle, 
   CheckCircle, 
@@ -142,7 +143,7 @@ export const EntryCountReconciliation: React.FC<EntryCountReconciliationProps> =
       // Simulate reconciliation process
       await new Promise(resolve => setTimeout(resolve, 2000));
       // In real implementation, call reconciliation API
-      console.log('Starting entry count reconciliation...');
+      logger.debug('Starting entry count reconciliation...', 'sync', {});
     } finally {
       setIsReconciling(false);
     }
@@ -152,7 +153,7 @@ export const EntryCountReconciliation: React.FC<EntryCountReconciliationProps> =
     const discrepancy = discrepancies.find(d => d.id === discrepancyId);
     if (!discrepancy?.canAutoResolve) return;
 
-    console.log('Auto-resolving discrepancy:', discrepancyId);
+    logger.debug('Auto-resolving discrepancy:', 'sync', { data: discrepancyId });
     // Remove from list after resolution
     setDiscrepancies(prev => prev.filter(d => d.id !== discrepancyId));
   };
@@ -396,7 +397,7 @@ export const EntryCountReconciliation: React.FC<EntryCountReconciliationProps> =
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => console.log('View details for:', discrepancy.id)}
+                          onClick={() => logger.debug('View details for:', 'sync', { data: discrepancy.id });}
                           className="gap-2"
                         >
                           <Eye className="h-3 w-3" />

@@ -1,6 +1,7 @@
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '../../supabaseClient';
 import { presenceService } from './PresenceService';
+import { logger } from '@/services/LoggingService';
 
 export interface LiveUpdate {
   id: string;
@@ -134,7 +135,7 @@ export class LiveUpdatesService {
       this.processUpdate(fullUpdate);
 
     } catch (error) {
-      console.error('Failed to broadcast update:', error);
+      logger.error('Failed to broadcast update:', 'collaboration', {}, error as Error);
     }
   }
 
@@ -292,7 +293,7 @@ export class LiveUpdatesService {
       try {
         sub.callback(update);
       } catch (error) {
-        console.error('Live update callback error:', error);
+        logger.error('Live update callback error:', 'collaboration', {}, error as Error);
       }
     });
   }

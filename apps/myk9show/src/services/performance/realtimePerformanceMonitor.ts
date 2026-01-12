@@ -8,6 +8,7 @@
 import { performanceMonitor } from './PerformanceMonitor';
 import { RealtimeConnectionManager } from '../realtime/RealtimeConnectionManager';
 import { eventEmitter } from '../sync/eventEmitter';
+import { logger } from '@/services/LoggingService';
 
 export interface RealtimePerformanceMetrics {
   /** Connection performance */
@@ -199,7 +200,7 @@ export class RealtimePerformanceMonitor {
       this.optimizeIfNeeded();
     }, 1000); // Monitor every second
 
-    console.log('Real-time performance monitoring started');
+    logger.debug('Real-time performance monitoring started', 'performance', {});
   }
 
   /**
@@ -214,7 +215,7 @@ export class RealtimePerformanceMonitor {
       this.monitoringInterval = null;
     }
 
-    console.log('Real-time performance monitoring stopped');
+    logger.debug('Real-time performance monitoring stopped', 'performance', {});
   }
 
   /**
@@ -261,7 +262,7 @@ export class RealtimePerformanceMonitor {
         success: false, 
         error: error instanceof Error ? error.message : 'Unknown error' 
       });
-      console.error('Error collecting real-time metrics:', error);
+      logger.error('Error collecting real-time metrics:', 'performance', {}, error as Error);
     }
   }
 
@@ -384,7 +385,7 @@ export class RealtimePerformanceMonitor {
         success: false, 
         error: error instanceof Error ? error.message : 'Unknown error' 
       });
-      console.error('Error applying real-time optimizations:', error);
+      logger.error('Error applying real-time optimizations:', 'performance', {}, error as Error);
     }
   }
 
@@ -614,7 +615,7 @@ export class RealtimePerformanceMonitor {
    * Force performance optimization
    */
   forceOptimization(): void {
-    console.log('Forcing real-time performance optimization...');
+    logger.debug('Forcing real-time performance optimization...', 'performance', {});
     this.optimizeLatency();
     this.optimizeQueueProcessing();
     this.optimizeMemoryUsage();

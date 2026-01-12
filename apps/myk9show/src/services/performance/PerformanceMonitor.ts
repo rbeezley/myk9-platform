@@ -1,5 +1,6 @@
 import { PerformanceMetrics, SyncPriority } from '../../types/performance-types';
 import { eventEmitter } from '../sync/eventEmitter';
+import { logger } from '@/services/LoggingService';
 
 interface PerformanceEntry {
   id: string;
@@ -47,7 +48,7 @@ export class PerformanceMonitor {
   endTimer(id: string, additionalMetadata?: Record<string, unknown>): number | null {
     const entry = this.entries.get(id);
     if (!entry) {
-      console.warn(`Performance timer not found: ${id}`);
+      logger.warn(`Performance timer not found: ${id}`, 'performance', {});
       return null;
     }
 

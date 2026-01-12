@@ -14,6 +14,7 @@ import { useUserStore, PersonInput } from '@/store/userStore';
 import { BasePanelProps } from '../types';
 import type { JudgeCertification, JudgeQualificationDetailed } from '@/types/dog-types';
 import type { JudgeInfo } from '@/types/user-types';
+import { logger } from '@/services/LoggingService';
 
 interface JudgeFormData {
   firstName: string;
@@ -297,7 +298,7 @@ export const JudgeCreationPanel: React.FC<JudgeCreationPanelProps> = ({
 
       const newJudge = await addUser(judgeData);
 
-      console.log('✅ Judge created successfully:', newJudge);
+      logger.debug('✅ Judge created successfully:', 'panels', { data: newJudge });
 
       // Call the selection callback if provided
       if (context.selectionCallback) {
@@ -312,7 +313,7 @@ export const JudgeCreationPanel: React.FC<JudgeCreationPanelProps> = ({
       });
 
     } catch (error) {
-      console.error('❌ Failed to create judge:', error);
+      logger.error('❌ Failed to create judge:', 'components', {}, error as Error);
       setErrors({ submit: 'Failed to create judge. Please try again.' });
     } finally {
       setIsSubmitting(false);

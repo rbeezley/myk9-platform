@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { 
+import { logger } from '@/services/LoggingService';
   Save, 
   ArrowLeft, 
   Eye, 
@@ -129,7 +130,7 @@ const TemplateEditorPageWorking: React.FC = () => {
       }
       setHasChanges(false);
     } catch (error) {
-      console.error('Failed to save template:', error);
+      logger.error('Failed to save template:', 'pages', {}, error as Error);
     } finally {
       setSaving(false);
     }

@@ -6,6 +6,7 @@
  */
 
 import { logger } from '../LoggingService';
+import { logger } from '@/services/LoggingService';
 
 export interface PerformanceMetric {
   name: string;
@@ -71,7 +72,7 @@ class PerformanceMonitor {
    */
   public startMonitoring(): void {
     if (this.isMonitoring) {
-      console.warn('Performance monitoring is already active');
+      logger.warn('Performance monitoring is already active', 'services', {});
       return;
     }
 
@@ -203,7 +204,7 @@ class PerformanceMonitor {
    */
   private observeLCP(): void {
     if (!('PerformanceObserver' in window)) {
-      console.warn('PerformanceObserver not supported');
+      logger.warn('PerformanceObserver not supported', 'services', {});
       return;
     }
 

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useShowRegistrationStore } from '../store/showRegistrationStore';
 import { RegistrationFormData } from '../types/show-registration-types';
+import { logger } from '@/services/LoggingService';
 
 export interface DraftPersistenceConfig {
   /** Auto-save interval in milliseconds (default: 30000 = 30 seconds) */
@@ -57,7 +58,7 @@ export function useDraftPersistence(
 
   const log = useCallback((message: string, ...args: unknown[]) => {
     if (debug) {
-      console.log(`[DraftPersistence] ${message}`, ...args);
+      logger.debug(`[DraftPersistence] ${message}`, 'hooks', { data: ...args });
     }
   }, [debug]);
 

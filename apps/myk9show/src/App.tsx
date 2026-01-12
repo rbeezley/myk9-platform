@@ -6,6 +6,7 @@ import { optimizeQueryCache, setupQueryPerformanceMonitoring, prefetchCriticalDa
 
 // Home page loaded synchronously for LCP optimization
 import Home from './pages/Home';
+import { logger } from '@/services/LoggingService';
 
 // Lazy load non-critical pages to improve initial bundle size
 const PricingPage = React.lazy(() => import('./pages/PricingPage'));
@@ -51,7 +52,7 @@ if (import.meta.env.DEV) {
   //   // Run storage benchmark after a delay to avoid blocking startup
   //   setTimeout(runStorageBenchmark, 3000);
   // }).catch(error => {
-  //   console.warn('Failed to load storage benchmarking:', error);
+  //   logger.warn('Failed to load storage benchmarking:', 'app', {}, error as Error);
   // });
 }
 
@@ -139,7 +140,7 @@ function App() {
         const { loadUsers } = useUserStore.getState();
         await loadUsers();
       } catch (error) {
-        console.error('Failed to initialize user data:', error);
+        logger.error('Failed to initialize user data:', 'app', {}, error as Error);
       }
     };
     
@@ -154,7 +155,7 @@ function App() {
         const { loadClubs } = useClubStore.getState();
         await loadClubs();
       } catch (error) {
-        console.error('Failed to initialize club data:', error);
+        logger.error('Failed to initialize club data:', 'app', {}, error as Error);
       }
     };
     

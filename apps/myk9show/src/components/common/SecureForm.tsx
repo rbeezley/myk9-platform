@@ -8,6 +8,7 @@ import { useFormSecurity } from '../../hooks/useSecurityValidation';
 import { cn } from '@/lib/utils';
 import { AlertTriangle, Shield, CheckCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { logger } from '@/services/LoggingService';
 
 /**
  * Security indicator component
@@ -142,7 +143,7 @@ export function SecureForm({
       
       await onSubmit(formData, formSecurity.csrfToken);
     } catch (error) {
-      console.error('Form submission error:', error);
+      logger.error('Form submission error:', 'components', {}, error as Error);
       // Reset security token on error (may be expired)
       const newSecurity = initializeSecureForm();
       setFormSecurity(newSecurity);

@@ -4,6 +4,7 @@ import { createCheckoutSession } from '../lib/stripe';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import AppHeader from '../components/layout/AppHeader';
 import Footer from '../components/layout/Footer';
+import { logger } from '@/services/LoggingService';
 
 const tiers = [
   {
@@ -86,7 +87,7 @@ export default function PricingPage() {
     try {
       await createCheckoutSession(priceId, 'subscription');
     } catch (error) {
-      console.error('Failed to create checkout session:', error);
+      logger.error('Failed to create checkout session:', 'pages', {}, error as Error);
     }
   };
 

@@ -1,3 +1,5 @@
+import { logger } from '@/services/LoggingService';
+
 /**
  * Performance monitoring and optimization utilities for search functionality
  */
@@ -36,11 +38,11 @@ class SearchPerformanceMonitor {
     
     // Log slow searches for debugging
     if (metrics.searchTime > 100) {
-      console.warn('Slow search detected:', {
+      logger.warn('Slow search detected:', 'utils', { data: {
         query: `${metrics.queryLength} chars`,
         time: `${metrics.searchTime}ms`,
         results: metrics.resultsCount
-      });
+      } });
     }
   }
 
@@ -145,7 +147,7 @@ export function measureSearchPerformance<T extends unknown[], R>(
       const endTime = performance.now();
       const duration = endTime - startTime;
       
-      console.error(`${metricType} operation failed after ${duration}ms:`, error);
+      logger.error(`${metricType} operation failed after ${duration}ms:`, 'utils', {}, error as Error);
       throw error;
     }
   };

@@ -14,6 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 // Input component not used in final implementation
 import { Label } from '@/components/ui/label';
 import { 
+import { logger } from '@/services/LoggingService';
   Clock, 
   Calendar as CalendarIcon, 
   AlertTriangle,
@@ -142,7 +143,7 @@ export const RoleExpirationManager: React.FC<RoleExpirationManagerProps> = ({
       setError(null);
 
       // In real implementation, this would call the API
-      console.log('Setting expiration:', { userRoleId, expiresAt });
+      logger.debug('Setting expiration:', 'admin', { data: { userRoleId, expiresAt } });
 
       if (onExpirationUpdate) {
         onExpirationUpdate(userRoleId, expiresAt?.toISOString() || null);

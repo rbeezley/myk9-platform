@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { CDNService, type AssetOptions, type UploadResult, type CDNAnalytics } from '@/services/deployment/CDNService';
+import { logger } from '@/services/LoggingService';
 
 interface UseCDNResult {
   // Asset management
@@ -32,7 +33,7 @@ export function useCDN(): UseCDNResult {
     try {
       return cdnService.getAssetUrl(path, options);
     } catch (err) {
-      console.error('Failed to get asset URL:', err);
+      logger.error('Failed to get asset URL:', 'hooks', {}, err as Error);
       return path; // Fallback to original path
     }
   }, [cdnService]);
@@ -165,7 +166,7 @@ export function useAssetPreloader(assetPaths: string[]) {
       await preloadAssets(assetPaths);
       setPreloadedCount(assetPaths.length);
     } catch (error) {
-      console.error('Asset preloading failed:', error);
+      logger.error('Asset preloading failed:', 'hooks', {}, error as Error);
     } finally {
       setIsPreloading(false);
     }

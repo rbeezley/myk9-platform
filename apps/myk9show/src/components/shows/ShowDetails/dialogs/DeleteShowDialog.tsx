@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useShowStore } from '@/store/showStore';
 import { CascadingDeleteDialog } from '@/components/common/CascadingDeleteDialog';
 import type { CascadingDeletePreview } from '@/utils/cascadingDelete';
+import { logger } from '@/services/LoggingService';
 
 export interface DeleteShowDialogProps {
   open: boolean;
@@ -41,7 +42,7 @@ const DeleteShowDialog: React.FC<DeleteShowDialogProps> = ({
       // Close dialog
       onOpenChange(false);
     } catch (error) {
-      console.error('Failed to delete show:', error);
+      logger.error('Failed to delete show:', 'shows', {}, error as Error);
     } finally {
       setIsDeleting(false);
     }

@@ -1,5 +1,6 @@
 import { ENTITY_SIZE_ESTIMATES, STORAGE_LIMITS } from '@/config/sync-scopes';
 import { SyncScope, StorageInfo, UserRole } from '@/types/sync-types';
+import { logger } from '@/services/LoggingService';
 
 export class StorageEstimator {
   /**
@@ -184,7 +185,7 @@ export class StorageEstimator {
           sizeMB: totalSizeKB / 1024
         };
       } catch (error) {
-        console.warn(`Failed to get count for ${entityType}:`, error);
+        logger.warn(`Failed to get count for ${entityType}:`, 'sync', {}, error as Error);
         breakdown[entityType] = { count: 0, sizeKB: 0, sizeMB: 0 };
       }
     }

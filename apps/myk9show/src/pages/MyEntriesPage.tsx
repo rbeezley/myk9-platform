@@ -15,6 +15,7 @@ import { CheckInStatusIndicator } from '@/components/common/CheckInStatusIndicat
 import { CheckInStatusDialog } from '@/components/common/CheckInStatusDialog';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { 
+import { logger } from '@/services/LoggingService';
   Calendar, 
   MapPin, 
   Users, 
@@ -117,7 +118,7 @@ const MyEntriesPage: React.FC = () => {
       
       setEntries(userEntries);
     } catch (error) {
-      console.error('Failed to load entries:', error);
+      logger.error('Failed to load entries:', 'pages', {}, error as Error);
     } finally {
       setIsLoading(false);
     }
@@ -182,7 +183,7 @@ const MyEntriesPage: React.FC = () => {
       // Close dialog
       setCheckInDialog({ open: false, entry: null, classEntry: null });
     } catch (error) {
-      console.error('Failed to update check-in status:', error);
+      logger.error('Failed to update check-in status:', 'pages', {}, error as Error);
       // Revert optimistic update
       setEntries(prev => prev.map(e => {
         if (e.id === entry.id) {

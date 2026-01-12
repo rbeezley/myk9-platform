@@ -1,6 +1,7 @@
 // Queue management for offline sync operations
 import { db } from '../database/connection';
 import type { 
+import { logger } from '@/services/LoggingService';
   SyncQueueItem, 
   SyncConfiguration, 
   SyncEventMap,
@@ -172,7 +173,7 @@ export class QueueManager {
         }, backoffMs);
       }
 
-      console.error(`Queue item ${record.id} failed:`, error);
+      logger.error(`Queue item ${record.id} failed:`, 'sync', {}, error as Error);
     }
   }
 
@@ -198,17 +199,17 @@ export class QueueManager {
   private async executeCreate(item: SyncQueueItem): Promise<void> {
     // Implementation would create the entity remotely
     // This is a placeholder for the actual sync logic
-    console.log(`Executing create operation for ${item.entityType}:${item.entityId}`);
+    logger.debug(`Executing create operation for ${item.entityType}:${item.entityId}`, 'sync', {});
   }
 
   private async executeUpdate(item: SyncQueueItem): Promise<void> {
     // Implementation would update the entity remotely
-    console.log(`Executing update operation for ${item.entityType}:${item.entityId}`);
+    logger.debug(`Executing update operation for ${item.entityType}:${item.entityId}`, 'sync', {});
   }
 
   private async executeDelete(item: SyncQueueItem): Promise<void> {
     // Implementation would delete the entity remotely
-    console.log(`Executing delete operation for ${item.entityType}:${item.entityId}`);
+    logger.debug(`Executing delete operation for ${item.entityType}:${item.entityId}`, 'sync', {});
   }
 
   private async resetStuckItems(): Promise<void> {

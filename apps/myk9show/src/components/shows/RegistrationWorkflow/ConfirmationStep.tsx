@@ -18,6 +18,7 @@ import { useTrialStore } from '@/store/trialStore';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
+import { logger } from '@/services/LoggingService';
 
 interface ConfirmationStepProps {
   registrationNumber?: string;
@@ -156,7 +157,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
     }
     
     // Enhanced email with preferences
-    console.log('Sending confirmation email with preferences:', notificationPreferences);
+    logger.debug('Sending confirmation email with preferences:', 'shows', { data: notificationPreferences });
   };
 
   const getEntryStatusBadgeColor = (status: EntryStatus) => {

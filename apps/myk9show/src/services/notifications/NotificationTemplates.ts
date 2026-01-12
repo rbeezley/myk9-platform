@@ -4,6 +4,7 @@
  */
 
 import { 
+import { logger } from '@/services/LoggingService';
   NotificationPayload, 
   NotificationTemplateKey,
   ShowReminderData,
@@ -371,7 +372,7 @@ export class NotificationTemplateBuilder {
     try {
       return template.generatePayload(data);
     } catch (error) {
-      console.error(`Failed to build notification for template ${templateKey}:`, error);
+      logger.error(`Failed to build notification for template ${templateKey}:`, 'notifications', {}, error as Error);
       
       // Return fallback notification
       return {

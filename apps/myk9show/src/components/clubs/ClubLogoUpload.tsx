@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { UploadCloud, Edit2 } from 'lucide-react';
+import { logger } from '@/services/LoggingService';
 
 export interface ClubLogoUploadProps {
   logo: string;
@@ -33,7 +34,7 @@ const ClubLogoUpload: React.FC<ClubLogoUploadProps> = ({
       onLogoChange(previewUrl);
       await onLogoUpload(file);
     } catch (error) {
-      console.error('Error uploading logo:', error);
+      logger.error('Error uploading logo:', 'clubs', {}, error as Error);
       alert('Failed to upload logo. Please try again.');
     }
   };

@@ -16,6 +16,7 @@
 
 import { EventEmitter } from '../sync/eventEmitter';
 import type {
+import { logger } from '@/services/LoggingService';
   BaseScore,
   ScoringFormat,
   PlacementCalculation,
@@ -70,7 +71,7 @@ export class PlacementCalculatorService extends EventEmitter {
       this.storage = await getOptimalStorage('placements') as Storage;
       await this.loadCachedPlacements();
     } catch (error) {
-      console.error('Failed to initialize placement calculator:', error);
+      logger.error('Failed to initialize placement calculator:', 'scoring', {}, error as Error);
     }
   }
 
@@ -83,7 +84,7 @@ export class PlacementCalculatorService extends EventEmitter {
         this.placementCache.set(key, this.deserializePlacementCalculation(data));
       });
     } catch (error) {
-      console.error('Failed to load cached placements:', error);
+      logger.error('Failed to load cached placements:', 'scoring', {}, error as Error);
     }
   }
 
@@ -161,7 +162,7 @@ export class PlacementCalculatorService extends EventEmitter {
       return calculation;
 
     } catch (error) {
-      console.error('Failed to calculate placements:', error);
+      logger.error('Failed to calculate placements:', 'scoring', {}, error as Error);
       throw error;
     }
   }
@@ -366,7 +367,7 @@ export class PlacementCalculatorService extends EventEmitter {
       }
     }
 
-    console.warn(`Unknown criteria '${criteria}' for format '${format}'`);
+    logger.warn(`Unknown criteria '${criteria}' for format '${format}'`, 'scoring', {});
     return 0;
   }
 
@@ -630,7 +631,7 @@ export class PlacementCalculatorService extends EventEmitter {
         await this.storage.setItem('placement_cache', JSON.stringify(cacheData));
       }
     } catch (error) {
-      console.error('Failed to cache placement calculation:', error);
+      logger.error('Failed to cache placement calculation:', 'scoring', {}, error as Error);
     }
   }
 

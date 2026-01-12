@@ -1,4 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
+import { logger } from '@/services/LoggingService';
 
 /**
  * Service for managing data prefetching strategies
@@ -118,7 +119,7 @@ export class DataPrefetchService {
 
       await strategy.actions(data);
     } catch (error) {
-      console.warn(`Prefetch strategy ${strategyName} failed:`, error);
+      logger.warn(`Prefetch strategy ${strategyName} failed:`, 'services', {}, error as Error);
     } finally {
       this.prefetchQueue.delete(prefetchKey);
     }

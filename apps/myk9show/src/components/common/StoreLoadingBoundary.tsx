@@ -3,6 +3,7 @@ import React, { ReactNode, useEffect, useState } from 'react';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { useStoreProvider } from '@/providers/StoreProvider';
 import { StoreName } from '@/store/store-categories';
+import { logger } from '@/services/LoggingService';
 
 interface StoreLoadingBoundaryProps {
   children: ReactNode;
@@ -29,7 +30,7 @@ export const StoreLoadingBoundary: React.FC<StoreLoadingBoundaryProps> = ({
         await Promise.all(requiredStores.map(storeName => loadStore(storeName)));
         setHasInitialized(true);
       } catch (error) {
-        console.error('Failed to load required stores:', error);
+        logger.error('Failed to load required stores:', 'components', {}, error as Error);
         setHasInitialized(true); // Still set to true to show error state
       }
     };

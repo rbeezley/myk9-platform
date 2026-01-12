@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { NotificationPreferences } from '@/types/exhibitor-types';
+import { logger } from '@/services/LoggingService';
 
 interface PushNotificationState {
   supported: boolean;
@@ -35,7 +36,7 @@ export function usePushNotifications(): PushNotificationState {
         try {
           setPreferences(JSON.parse(saved));
         } catch (e) {
-          console.error('Error loading notification preferences:', e);
+          logger.error('Error loading notification preferences:', 'hooks', {}, e as Error);
         }
       }
     }
@@ -62,7 +63,7 @@ export function usePushNotifications(): PushNotificationState {
 
       return notification;
     } catch (error) {
-      console.error('Error sending notification:', error);
+      logger.error('Error sending notification:', 'hooks', {}, error as Error);
     }
   }, [supported, permission]);
 
@@ -90,7 +91,7 @@ export function usePushNotifications(): PushNotificationState {
         });
       }
     } catch (error) {
-      console.error('Error requesting notification permission:', error);
+      logger.error('Error requesting notification permission:', 'hooks', {}, error as Error);
     }
   }, [supported, sendNotification]);
 

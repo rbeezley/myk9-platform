@@ -1,6 +1,7 @@
 import { Page, expect } from '@playwright/test';
 import { TestSetup } from './testSetup';
 import { ShowTestDataFactory, type ShowTestData, type TrialTestData, type JudgeTestData } from './showTestDataFactory';
+import { logger } from '@/services/LoggingService';
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
@@ -481,7 +482,7 @@ export class ShowTestHelper extends TestSetup {
     this.testData.results[classId] = results;
     
     // Simulate judging interface interaction
-    console.log(`Judging class ${classId} with ${results.length} results`);
+    logger.debug(`Judging class ${classId} with ${results.length} results`, 'app', {});
   }
 
   /**
@@ -522,7 +523,7 @@ export class ShowTestHelper extends TestSetup {
    * Publish show results
    */
   async publishShowResults(showId: string) {
-    console.log(`Publishing results for show ${showId}`);
+    logger.debug(`Publishing results for show ${showId}`, 'app', {});
     // Mock results publication
   }
 
@@ -530,7 +531,7 @@ export class ShowTestHelper extends TestSetup {
    * Complete show workflow
    */
   async completeShowWorkflow(showId: string) {
-    console.log(`Completing workflow for show ${showId}`);
+    logger.debug(`Completing workflow for show ${showId}`, 'app', {});
     // Mock show completion workflow
   }
 

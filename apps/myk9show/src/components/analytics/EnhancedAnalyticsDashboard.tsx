@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import {
+import { logger } from '@/services/LoggingService';
   BarChart3,
   Activity,
   AlertTriangle,
@@ -113,7 +114,7 @@ export function EnhancedAnalyticsDashboard({ className }: EnhancedAnalyticsDashb
 
       setLoading(false);
     } catch (error) {
-      console.error('Failed to load dashboard data:', error);
+      logger.error('Failed to load dashboard data:', 'analytics', {}, error as Error);
       setLoading(false);
     }
   }, [analyticsService]);

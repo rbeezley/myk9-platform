@@ -1,6 +1,7 @@
 import { useEffect, useCallback, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { predictiveLoader } from '@/services/sync/PredictiveLoader';
+import { logger } from '@/services/LoggingService';
 
 interface PredictiveLoadingState {
   isActive: boolean;
@@ -134,7 +135,7 @@ export function usePredictiveLoading(options: PredictiveLoadingOptions = {}) {
   const triggerPreload = useCallback((target: string, type: 'route' | 'entity' = 'route') => {
     if (!enablePreloading) return;
 
-    console.log(`Manual preload triggered for ${type}: ${target}`);
+    logger.debug(`Manual preload triggered for ${type}: ${target}`, 'hooks', {});
     
     setState(prev => ({
       ...prev,

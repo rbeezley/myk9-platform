@@ -6,6 +6,7 @@ import { useRoleBasedDogs } from '@/hooks/useRoleBasedData';
 import { useRBAC } from '@/hooks/useRBAC';
 import UnifiedSidebar from '@/components/common/UnifiedSidebar';
 import { cn } from '@/lib/utils';
+import { logger } from '@/services/LoggingService';
 
 interface DogWithDetails {
   id: string;
@@ -39,8 +40,8 @@ const DogSidebar: React.FC<DogSidebarProps> = ({
   const canCreateDogs = !isLoading && hasPermission('dog:create');
   
   // Debug logging
-  console.log('🐕 DogSidebar - isLoading:', isLoading, 'canCreateDogs:', canCreateDogs);
-  console.log('🐕 DogSidebar - onAdd prop:', !!onAdd);
+  logger.debug('🐕 DogSidebar - isLoading:', 'dogs', { data: isLoading, 'canCreateDogs:', canCreateDogs });
+  logger.debug('🐕 DogSidebar - onAdd prop:', 'dogs', { data: !!onAdd });
 
   // Helper function to get the first breed from registrations
   const getFirstBreed = (dog: DogWithDetails): string => {

@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
+import { logger } from '@/services/LoggingService';
   Upload, 
   Zap, 
   BarChart3, 
@@ -41,7 +42,7 @@ export const CDNDashboard: React.FC<CDNDashboardProps> = ({ className }) => {
       const data = await cdnService.getAnalytics(timeRange);
       setAnalytics(data);
     } catch (error) {
-      console.error('Failed to load CDN analytics:', error);
+      logger.error('Failed to load CDN analytics:', 'components', {}, error as Error);
     }
   }, [cdnService, timeRange]);
 
@@ -94,9 +95,9 @@ export const CDNDashboard: React.FC<CDNDashboardProps> = ({ className }) => {
         setSelectedFiles(null);
       }, 1000);
       
-      console.log('Upload completed:', result);
+      logger.debug('Upload completed:', 'deployment', { data: result });
     } catch (error) {
-      console.error('Upload failed:', error);
+      logger.error('Upload failed:', 'components', {}, error as Error);
       setIsUploading(false);
       setUploadProgress(0);
     }
@@ -113,7 +114,7 @@ export const CDNDashboard: React.FC<CDNDashboardProps> = ({ className }) => {
       setInvalidationPaths('');
       loadCacheStats();
     } catch (error) {
-      console.error('Cache invalidation failed:', error);
+      logger.error('Cache invalidation failed:', 'components', {}, error as Error);
     } finally {
       setIsInvalidating(false);
     }

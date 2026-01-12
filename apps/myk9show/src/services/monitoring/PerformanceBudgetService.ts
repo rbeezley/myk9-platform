@@ -391,7 +391,7 @@ export class PerformanceBudgetService {
 
     // In production, this could send alerts to monitoring systems
     if (process.env.NODE_ENV === 'production') {
-      console.error('🚨 CRITICAL PERFORMANCE VIOLATION:', violation);
+      logger.error('🚨 CRITICAL PERFORMANCE VIOLATION:', 'services', {}, violation as Error);
     }
   }
 

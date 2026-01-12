@@ -20,6 +20,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 // Types
 import type { AgilityScore, ValidationResult } from '@/types/scoring-types';
 import type { QualificationStatus } from '@/types/scent-work-types';
+import { logger } from '@/services/LoggingService';
 
 export interface AgilityScoresheetProps {
   entry: {
@@ -106,7 +107,7 @@ export function AgilityScoresheet({
     try {
       await onSave(score as AgilityScore);
     } catch (error) {
-      console.error('Failed to submit agility score:', error);
+      logger.error('Failed to submit agility score:', 'scoring', {}, error as Error);
     } finally {
       setIsSubmitting(false);
     }

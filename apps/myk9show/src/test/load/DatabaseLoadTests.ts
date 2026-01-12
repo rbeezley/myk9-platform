@@ -15,6 +15,7 @@ import { LoadTestDataGenerator, PerformanceMonitor, PERFORMANCE_TARGETS } from '
 // import type { User } from '@/types/auth-types';
 // import type { Dog } from '@/types/dog-types';
 import { faker } from '@faker-js/faker';
+import { logger } from '@/services/LoggingService';
 
 interface DatabaseTestConfig {
   concurrentConnections: number;
@@ -49,7 +50,7 @@ class DatabaseLoadTester {
   }
 
   async initializeConnections(count: number): Promise<void> {
-    console.log(`🔌 Creating ${count} database connections...`);
+    logger.debug(`🔌 Creating ${count} database connections...`, 'app', {});
     
     for (let i = 0; i < count; i++) {
       const client = createClient(
@@ -65,19 +66,19 @@ class DatabaseLoadTester {
       this.connections.push(client);
     }
     
-    console.log(`✅ Created ${this.connections.length} connections`);
+    logger.debug(`✅ Created ${this.connections.length} connections`, 'app', {});
   }
 
   async cleanupConnections(): Promise<void> {
-    console.log('🧹 Cleaning up database connections...');
+    logger.debug('🧹 Cleaning up database connections...', 'app', {});
     
     // Note: Supabase connections are automatically managed
     this.connections = [];
   }
 
   async runCrudLoadTest(config: DatabaseTestConfig): Promise<DatabaseTestResults> {
-    console.log(`\n🏃 Running CRUD Load Test...`);
-    console.log(`📊 Config: ${config.concurrentConnections} connections, ${config.operationsPerConnection} ops each`);
+    logger.debug(`\n🏃 Running CRUD Load Test...`, 'app', {});
+    logger.debug(`📊 Config: ${config.concurrentConnections} connections, ${config.operationsPerConnection} ops each`, 'app', {});
 
     const startTime = Date.now();
     const promises: Promise<void>[] = [];
@@ -147,7 +148,7 @@ class DatabaseLoadTester {
         await new Promise(resolve => setTimeout(resolve, faker.number.int({ min: 10, max: 50 })));
         
       } catch (error) {
-        console.error(`Worker ${workerId} operation ${operation} failed:`, error);
+        logger.error(`Worker ${workerId} operation ${operation} failed:`, 'app', {}, error as Error);
       }
     }
   }
@@ -283,7 +284,7 @@ class DatabaseLoadTester {
   }
 
   async runComplexQueryTest(config: DatabaseTestConfig): Promise<DatabaseTestResults> {
-    console.log(`\n🔍 Running Complex Query Load Test...`);
+    logger.debug(`\n🔍 Running Complex Query Load Test...`, 'app', {});
     
     const startTime = Date.now();
     const promises: Promise<void>[] = [];
@@ -358,7 +359,7 @@ class DatabaseLoadTester {
         await new Promise(resolve => setTimeout(resolve, faker.number.int({ min: 20, max: 100 })));
         
       } catch (error) {
-        console.error(`Query worker ${workerId} failed:`, error);
+        logger.error(`Query worker ${workerId} failed:`, 'app', {}, error as Error);
       }
     }
   }
@@ -497,7 +498,7 @@ class DatabaseLoadTester {
   }
 
   async runConnectionPoolTest(maxConnections: number): Promise<void> {
-    console.log(`\n🏊 Running Connection Pool Test (max: ${maxConnections})...`);
+    logger.debug(`\n🏊 Running Connection Pool Test (max: ${maxConnections})...`, 'app', {});
     
     const connections: SupabaseClient[] = [];
     const errors: Error[] = [];
@@ -528,16 +529,16 @@ class DatabaseLoadTester {
         }
       }
       
-      console.log(`✅ Successfully created ${connections.length} connections`);
-      console.log(`❌ Failed to create ${errors.length} connections`);
+      logger.debug(`✅ Successfully created ${connections.length} connections`, 'app', {});
+      logger.debug(`❌ Failed to create ${errors.length} connections`, 'app', {});
       
       if (errors.length > 0) {
-        console.log('Connection errors:', errors.slice(0, 3));
+        logger.debug('Connection errors:', 'test', { data: errors.slice(0, 3) });
       }
       
     } finally {
       // Cleanup is automatic for Supabase
-      console.log('🧹 Connection cleanup complete');
+      logger.debug('🧹 Connection cleanup complete', 'app', {});
     }
   }
 
@@ -617,7 +618,7 @@ describe('Database Load Tests', () => {
     expect(results.averageResponseTime).toBeLessThan(PERFORMANCE_TARGETS.responseTime.api);
     expect(results.throughput).toBeGreaterThan(DATABASE_TEST_CONFIGS.normal.targetThroughput);
     
-    console.log('CRUD Load Test Results:', results);
+    logger.debug('CRUD Load Test Results:', 'test', { data: results });
   });
 
   it('should handle complex queries under load', async () => {
@@ -626,7 +627,7 @@ describe('Database Load Tests', () => {
     expect(results.errorRate).toBeLessThan(PERFORMANCE_TARGETS.errorRate.normal * 100);
     expect(results.p95ResponseTime).toBeLessThan(PERFORMANCE_TARGETS.database.slowQueryThreshold);
     
-    console.log('Complex Query Test Results:', results);
+    logger.debug('Complex Query Test Results:', 'test', { data: results });
   });
 
   it('should manage connection pool effectively', async () => {
@@ -639,11 +640,11 @@ describe('Database Load Tests', () => {
     expect(results.errorRate).toBeLessThan(PERFORMANCE_TARGETS.errorRate.stress * 100);
     expect(results.throughput).toBeGreaterThan(DATABASE_TEST_CONFIGS.stress.targetThroughput * 0.7);
     
-    console.log('Stress Test Results:', results);
+    logger.debug('Stress Test Results:', 'test', { data: results });
   });
 
   afterAll(() => {
-    console.log(tester.generateReport());
+    logger.debug('tester.generateReport()', 'test', { tester.generateReport(): tester.generateReport() });
   });
 });
 

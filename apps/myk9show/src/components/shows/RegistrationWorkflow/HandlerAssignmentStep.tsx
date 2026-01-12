@@ -9,6 +9,7 @@ import { useDogStore } from '@/store/dogStore';
 import { useUserStore } from '@/store/userStore';
 import { ClassSelectionData, HandlerInfo } from '@/types/show-registration-types';
 import { HandlerSelectionDialog } from './HandlerSelectionDialog';
+import { logger } from '@/services/LoggingService';
 
 interface HandlerAssignmentStepProps {
   selectedDogs: string[];
@@ -69,7 +70,7 @@ export const HandlerAssignmentStep: React.FC<HandlerAssignmentStepProps> = ({
   const handleSingleDogEdit = (dogId: string) => {
     // For individual dog edits, we could show a smaller dialog
     // For now, just show the full dialog with that dog pre-selected
-    console.log('Single dog edit for:', dogId); // TODO: implement specific dog editing
+    logger.debug('Single dog edit for:', 'shows', { data: dogId }); // TODO: implement specific dog editing
     setShowHandlerDialog(true);
   };
   

@@ -13,6 +13,7 @@ import { auditService } from '@/services/AuditService';
 import { UserRole } from '@/types/auth-types';
 import { AuditAction } from '@/types/audit-types';
 import { 
+import { logger } from '@/services/LoggingService';
   User, 
   Shield, 
   Clock, 
@@ -131,7 +132,7 @@ export const UserImpersonationDialog: React.FC<UserImpersonationDialogProps> = (
 
       setUsers(mockUsers);
     } catch (error) {
-      console.error('Failed to load users:', error);
+      logger.error('Failed to load users:', 'admin', {}, error as Error);
       setError('Failed to load users');
     }
   };
@@ -179,7 +180,7 @@ export const UserImpersonationDialog: React.FC<UserImpersonationDialogProps> = (
       resetForm();
 
     } catch (error) {
-      console.error('Failed to start impersonation:', error);
+      logger.error('Failed to start impersonation:', 'admin', {}, error as Error);
       setError(error instanceof Error ? error.message : 'Failed to start impersonation');
     } finally {
       setIsLoading(false);
@@ -207,7 +208,7 @@ export const UserImpersonationDialog: React.FC<UserImpersonationDialogProps> = (
 
       onImpersonationEnd?.();
     } catch (error) {
-      console.error('Failed to end impersonation:', error);
+      logger.error('Failed to end impersonation:', 'admin', {}, error as Error);
       setError(error instanceof Error ? error.message : 'Failed to end impersonation');
     } finally {
       setIsLoading(false);

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { 
+import { logger } from '@/services/LoggingService';
   CreditCard, 
   Calendar, 
   Star, 
@@ -103,7 +104,7 @@ export function SubscriptionManager() {
         })) || []);
       }
     } catch (err) {
-      console.error('Error fetching subscription:', err);
+      logger.error('Error fetching subscription:', 'components', {}, err as Error);
       setError('Failed to load subscription information');
     } finally {
       setLoading(false);
@@ -131,7 +132,7 @@ export function SubscriptionManager() {
         window.location.href = data.url;
       }
     } catch (err) {
-      console.error('Error opening customer portal:', err);
+      logger.error('Error opening customer portal:', 'components', {}, err as Error);
       setError('Failed to open customer portal');
     }
   };
@@ -150,7 +151,7 @@ export function SubscriptionManager() {
 
       await fetchSubscriptionData(); // Refresh data
     } catch (err) {
-      console.error('Error upgrading subscription:', err);
+      logger.error('Error upgrading subscription:', 'components', {}, err as Error);
       setError('Failed to upgrade subscription');
     }
   };

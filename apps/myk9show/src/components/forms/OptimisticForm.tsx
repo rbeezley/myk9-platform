@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { useOptimisticForm } from '@/hooks/useOptimisticUI';
 import { FormSaveIndicator } from '../optimistic/OptimisticUpdateIndicator';
+import { logger } from '@/services/LoggingService';
 
 interface OptimisticFormProps<T> {
   entityType: string;
@@ -73,7 +74,7 @@ export function OptimisticForm<T>({
         setLastSaveTime(new Date());
         setErrors([]);
       } catch (error) {
-        console.error('Auto-save failed:', error);
+        logger.error('Auto-save failed:', 'components', {}, error as Error);
       }
     }, autoSaveDelay);
 

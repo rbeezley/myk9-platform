@@ -7,6 +7,7 @@
 
 import { supabase } from '../supabaseClient';
 import {
+import { logger } from '@/services/LoggingService';
   SearchHistory,
   SearchAnalytics,
   CreateSearchHistoryData,
@@ -422,7 +423,7 @@ export const fullTextSearchQueries = {
         const tableResults = await this.searchTable(table, request);
         results.push(...tableResults);
       } catch (error) {
-        console.error(`Search failed for table ${table}:`, error);
+        logger.error(`Search failed for table ${table}:`, 'database', {}, error as Error);
         // Continue with other tables
       }
     }

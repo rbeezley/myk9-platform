@@ -1,6 +1,7 @@
 import React, { useCallback } from 'react';
 import { Dialog, DialogContent, DialogOverlay } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { logger } from '@/services/LoggingService';
 
 interface AppleDialogProps {
   open: boolean;
@@ -102,7 +103,7 @@ export const AppleDialog: React.FC<AppleDialogProps> = ({
 
     if (isPanelInteraction) {
       // Prevent the dialog close - user is interacting with a panel
-      console.log('AppleDialog: Preventing close due to panel interaction', {
+      logger.debug('AppleDialog: Preventing close due to panel interaction', 'ui', { data: {
         activeElement: activeElement?.tagName,
         activeElementClasses: activeElement?.className,
         activeElementClosest: {
@@ -110,7 +111,7 @@ export const AppleDialog: React.FC<AppleDialogProps> = ({
           slideOver: !!activeElement?.closest('.slide-over-panel'),
           panelTitle: !!activeElement?.closest('[aria-labelledby="panel-title"]')
         }
-      });
+      } });
       return;
     }
 

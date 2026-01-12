@@ -14,6 +14,7 @@ import { useDogStore } from '@/store/dogStore';
 import { useUserStore } from '@/store/userStore';
 import { useShowStore } from '@/store/showStore';
 import { getRumService } from '@/services/performance/RealUserMonitoring';
+import { logger } from '@/services/LoggingService';
 
 export interface LoadTestConfig {
   dogs: number;
@@ -52,7 +53,7 @@ export class LoadTestService {
    * Run comprehensive load test with specified data volumes
    */
   async runLoadTest(config: LoadTestConfig): Promise<LoadTestResults> {
-    console.log(`🧪 Starting load test:`, config);
+    logger.debug(`🧪 Starting load test:`, 'testing', { data: config });
     
     const startTime = performance.now();
     const memoryBefore = this.getMemoryUsage();
@@ -95,7 +96,7 @@ export class LoadTestService {
         success: true
       };
 
-      console.log(`✅ Load test completed:`, results);
+      logger.debug(`✅ Load test completed:`, 'testing', { data: results });
 
       // Cleanup if requested
       if (config.cleanupAfter) {
@@ -105,7 +106,7 @@ export class LoadTestService {
       return results;
 
     } catch (error) {
-      console.error('❌ Load test failed:', error);
+      logger.error('❌ Load test failed:', 'services', {}, error as Error);
       return {
         config,
         timing: {
@@ -133,7 +134,7 @@ export class LoadTestService {
    * Generate realistic test data
    */
   private generateTestData(config: LoadTestConfig) {
-    console.log(`📊 Generating ${config.people} people, ${config.dogs} dogs, ${config.shows} shows...`);
+    logger.debug(`📊 Generating ${config.people} people, ${config.dogs} dogs, ${config.shows} shows...`, 'services', {});
 
     // Generate people first
     const people: User[] = [];
@@ -317,7 +318,7 @@ export class LoadTestService {
    * Cleanup test data
    */
   private async cleanupTestData() {
-    console.log('🧹 Cleaning up test data...');
+    logger.debug('🧹 Cleaning up test data...', 'services', {});
     
     const dogStore = useDogStore.getState();
     const userStore = useUserStore.getState();
@@ -332,7 +333,7 @@ export class LoadTestService {
     testPeople.forEach(person => userStore.removePerson(person.id));
     testShows.forEach(show => showStore.removeShow(show.id));
 
-    console.log(`🗑️ Cleaned up ${testDogs.length} dogs, ${testPeople.length} people, ${testShows.length} shows`);
+    logger.debug(`🗑️ Cleaned up ${testDogs.length} dogs, ${testPeople.length} people, ${testShows.length} shows`, 'services', {});
   }
 
   /**
@@ -356,7 +357,7 @@ export class LoadTestService {
     const results = [];
     
     for (const scenario of scenarios) {
-      console.log(`\n🚀 Running ${scenario.name} test...`);
+      logger.debug(`\n🚀 Running ${scenario.name} test...`, 'services', {});
       
       const config: LoadTestConfig = {
         ...scenario,

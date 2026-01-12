@@ -1,4 +1,5 @@
 import { 
+import { logger } from '@/services/LoggingService';
   ShowRegistration, 
   EntryStatus, 
   PaymentStatus,
@@ -106,7 +107,7 @@ export function createBackup(registrations: unknown[]): string {
 export function validateMigration(original: unknown[], migrated: ShowRegistration[]): boolean {
   // Check that we have the same number of registrations
   if (original.length !== migrated.length) {
-    console.error('Migration error: Registration count mismatch');
+    logger.error('Migration error: Registration count mismatch', 'lib', {});
     return false;
   }
 
@@ -115,7 +116,7 @@ export function validateMigration(original: unknown[], migrated: ShowRegistratio
   const migratedIds = new Set(migrated.map(r => r.id));
   
   if (originalIds.size !== migratedIds.size) {
-    console.error('Migration error: ID mismatch');
+    logger.error('Migration error: ID mismatch', 'lib', {});
     return false;
   }
 
@@ -128,7 +129,7 @@ export function validateMigration(original: unknown[], migrated: ShowRegistratio
         orig.showId !== mig.showId || 
         orig.userId !== mig.userId ||
         (orig.entries as unknown[]).length !== mig.entries.length) {
-      console.error(`Migration error: Data mismatch for registration ${orig.id}`);
+      logger.error(`Migration error: Data mismatch for registration ${orig.id}`, 'lib', {});
       return false;
     }
   }

@@ -17,6 +17,7 @@ import { useRBAC, useIsAdmin } from '@/hooks/useRBAC';
 import { PermissionGuard, IfPermission, IfAdmin, PermissionDebugger } from '@/components/rbac/PermissionGuard';
 import { rbacService } from '@/services/rbac/RBACService';
 import { 
+import { logger } from '@/services/LoggingService';
   CheckCircle, 
   XCircle, 
   AlertTriangle, 
@@ -70,7 +71,7 @@ export const RBACTestPage: React.FC = () => {
       
       setDbStatus('connected');
     } catch (error) {
-      console.error('Database connection test failed:', error);
+      logger.error('Database connection test failed:', 'pages', {}, error as Error);
       setDbStatus('error');
       setDbError(error instanceof Error ? error.message : 'Unknown error');
     }

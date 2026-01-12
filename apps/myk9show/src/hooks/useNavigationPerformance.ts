@@ -6,6 +6,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
+import { logger } from '@/services/LoggingService';
 
 interface NavigationMetrics {
   route: string;
@@ -40,11 +41,11 @@ class NavigationPerformanceTracker {
     if (import.meta.env.DEV) {
       const status = isFromCache ? '🚀 CACHED' : '📡 NETWORK';
       const color = loadTime < 500 ? '✅' : loadTime < 2000 ? '⚠️' : '❌';
-      console.log(`${color} ${status} Navigation to ${route}: ${loadTime.toFixed(2)}ms`);
+      logger.debug(`${color} ${status} Navigation to ${route}: ${loadTime.toFixed(2)}ms`, 'hooks', {});
       
       // Alert if navigation is still slow
       if (loadTime > 5000) {
-        console.warn(`🐌 Slow navigation detected: ${loadTime.toFixed(2)}ms to ${route}`);
+        logger.warn(`🐌 Slow navigation detected: ${loadTime.toFixed(2)}ms to ${route}`, 'hooks', {});
       }
     }
     

@@ -5,6 +5,7 @@
 
 import { logger } from '../LoggingService';
 import { performanceMetrics } from './PerformanceMetricsService';
+import { logger } from '@/services/LoggingService';
 
 /**
  * Error severity levels
@@ -401,7 +402,7 @@ export class ErrorAnalyticsService {
     );
 
     // In a real application, this would send alerts to monitoring systems
-    console.error('🚨 CRITICAL ERROR DETECTED:', errorReport);
+    logger.error('🚨 CRITICAL ERROR DETECTED:', 'analytics', {}, errorReport as Error);
   }
 
   /**

@@ -1,5 +1,6 @@
 import { optimisticUI } from '@/services/optimistic/OptimisticUIService';
 import { OptimisticUpdate, ConflictResolution } from '@/types/optimistic-types';
+import { logger } from '@/services/LoggingService';
 
 // Utility functions for common optimistic UI patterns
 
@@ -241,7 +242,7 @@ export const retryFailedOperations = async (entityTypeFilter?: string) => {
       // This would need to be implemented in the service
       // await optimisticUI.retryOperation(op);
     } catch (error) {
-      console.error(`Failed to retry operation ${op.id}:`, error);
+      logger.error(`Failed to retry operation ${op.id}:`, 'utils', {}, error as Error);
     }
   });
 

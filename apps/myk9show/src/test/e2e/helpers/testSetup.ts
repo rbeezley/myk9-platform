@@ -1,4 +1,5 @@
 import { Page, expect } from '@playwright/test';
+import { logger } from '@/services/LoggingService';
 
 export class TestSetup {
   constructor(protected page: Page) {}
@@ -7,7 +8,7 @@ export class TestSetup {
    * Sign in as a test user
    */
   async signIn(role: 'admin' | 'secretary' | 'user' | 'judge' = 'admin') {
-    console.log(`Signing in as ${role}...`);
+    logger.debug(`Signing in as ${role}...`, 'app', {});
     
     // Navigate to sign-in page and wait for it to load
     await this.page.goto('/sign-in', { 
@@ -24,7 +25,7 @@ export class TestSetup {
     };
 
     const creds = credentials[role];
-    console.log(`Using credentials: ${creds.email}`);
+    logger.debug(`Using credentials: ${creds.email}`, 'app', {});
     
     // Wait for the email input to be visible before filling
     await this.page.waitForSelector('[data-testid="email-input"]', { 
@@ -35,23 +36,23 @@ export class TestSetup {
     await this.page.fill('[data-testid="email-input"]', creds.email);
     await this.page.fill('[data-testid="password-input"]', creds.password);
     
-    console.log('Clicking sign in button...');
+    logger.debug('Clicking sign in button...', 'app', {});
     await this.page.click('[data-testid="sign-in-button"]');
     
-    console.log('Waiting for navigation to home page...');
+    logger.debug('Waiting for navigation to home page...', 'app', {});
     
     try {
       // First try to wait for URL change with longer timeout
       await this.page.waitForURL('/', { timeout: 30000 });
-      console.log('URL changed to home page');
+      logger.debug('URL changed to home page', 'app', {});
     } catch {
-      console.log('URL wait failed, checking if we navigated elsewhere...');
+      logger.debug('URL wait failed, checking if we navigated elsewhere...', 'app', {});
       const currentUrl = this.page.url();
-      console.log(`Current URL: ${currentUrl}`);
+      logger.debug(`Current URL: ${currentUrl}`, 'app', {});
       
       // If we're not on sign-in page, we might have been redirected to a role-specific page
       if (!currentUrl.includes('/sign-in')) {
-        console.log('Navigation successful to:', currentUrl);
+        logger.debug('Navigation successful to:', 'test', { data: currentUrl });
       } else {
         throw new Error(`Authentication failed - timeout waiting for navigation. Current URL: ${currentUrl}`);
       }
@@ -66,10 +67,10 @@ export class TestSetup {
         state: 'hidden', 
         timeout: 5000 
       });
-      console.log('Loading spinner hidden');
+      logger.debug('Loading spinner hidden', 'app', {});
     } catch {
       // No spinner found, continue
-      console.log('No loading spinner detected');
+      logger.debug('No loading spinner detected', 'app', {});
     }
     
     // Wait for any authentication-related loading to complete
@@ -81,7 +82,7 @@ export class TestSetup {
       throw new Error('Authentication failed - still on sign-in page');
     }
     
-    console.log(`Successfully signed in! Final URL: ${finalUrl}`);
+    logger.debug(`Successfully signed in! Final URL: ${finalUrl}`, 'app', {});
   }
 
   /**
@@ -143,7 +144,7 @@ export class TestSetup {
         sessionStorage.clear();
       } catch (e) {
         // Handle cases where localStorage is not accessible (like file:// protocol or cross-origin)
-        console.log('Cannot clear storage:', e);
+        logger.debug('Cannot clear storage:', 'test', { data: e });
       }
     });
   }

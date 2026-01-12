@@ -12,6 +12,7 @@ import { ClipboardCheck, ArrowLeft } from 'lucide-react';
 import '../BaseScoresheet.css';
 import '../AKC/scoresheet-shared.css';
 import '../AKC/AKCScentWorkScoresheet-JudgeDialog.css';
+import { logger } from '@/services/LoggingService';
 
 // Types
 interface UKCObedienceScoresheetProps {
@@ -103,7 +104,7 @@ export const UKCObedienceScoresheet: React.FC<UKCObedienceScoresheetProps> = ({
         onBack();
       }
     } catch (error) {
-      console.error('Failed to save score:', error);
+      logger.error('Failed to save score:', 'pages', {}, error as Error);
     } finally {
       setIsSubmitting(false);
     }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
+import { logger } from '@/services/LoggingService';
   Dialog,
   DialogContent,
   DialogDescription,
@@ -252,7 +253,7 @@ export function ConflictResolutionDialog({
       );
       setResolutionHistory(history || []);
     } catch (err) {
-      console.error('Failed to load resolution history:', err);
+      logger.error('Failed to load resolution history:', 'sync', {}, err as Error);
     }
   }, [conflictResolver, conflict]);
 
@@ -280,7 +281,7 @@ export function ConflictResolutionDialog({
           return suggestion.confidence || 50;
         }
       } catch (error) {
-        console.warn('Failed to get confidence score:', error);
+        logger.warn('Failed to get confidence score:', 'sync', {}, error as Error);
       }
     }
     return 50 + Math.random() * 30; // Baseline confidence
@@ -292,7 +293,7 @@ export function ConflictResolutionDialog({
         const suggestion = conflictResolver.suggestResolution(conflict);
         return suggestion?.strategy === strategy && (suggestion?.confidence || 0) > 80;
       } catch (error) {
-        console.warn('Failed to check recommendation:', error);
+        logger.warn('Failed to check recommendation:', 'sync', {}, error as Error);
       }
     }
     return false;

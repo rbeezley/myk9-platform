@@ -12,6 +12,7 @@ import { useEntryStore } from '@/store/entryStore';
 import { useDogStore } from '@/store/dogStore';
 import { RegistrationFormData } from '@/types/show-registration-types';
 import { 
+import { logger } from '@/services/LoggingService';
   Plus, 
   Calendar as CalendarIcon, 
   Trophy, 
@@ -68,7 +69,7 @@ export default function CalendarPage() {
   }, []);
 
   const handleRegistrationComplete = useCallback((registrationData: RegistrationFormData) => {
-    console.log('Registration completed:', registrationData);
+    logger.debug('Registration completed:', 'pages', { data: registrationData });
     
     // Use startTransition to prevent blocking the main thread during heavy processing
     startTransition(() => {
@@ -97,18 +98,18 @@ export default function CalendarPage() {
                   // Update status to confirmed
                   await updateStatus(entry.id, 'confirmed', 'system', 'Registration completed');
                   
-                  console.log(`Created entry for ${dog?.name} in class ${selectedClass.classId}`);
+                  logger.debug(`Created entry for ${dog?.name} in class ${selectedClass.classId}`, 'pages', {});
                 } catch (error) {
-                  console.error('Error creating entry:', error);
+                  logger.error('Error creating entry:', 'pages', {}, error as Error);
                 }
               });
             });
           });
           
-          console.log('Successfully created entries from registration');
+          logger.debug('Successfully created entries from registration', 'pages', {});
         }
       } catch (error) {
-        console.error('Error creating entries from registration:', error);
+        logger.error('Error creating entries from registration:', 'pages', {}, error as Error);
       }
     });
     

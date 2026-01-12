@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Info, CheckCircle } from 'lucide-react';
 import { Dog, Registration, User } from '@/types/dog-types';
+import { logger } from '@/services/LoggingService';
 
 interface CreateDogDialogProps {
   open: boolean;
@@ -255,7 +256,7 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
       onDogCreated(newDog);
       handleClose();
     } catch (error) {
-      console.error('Error creating dog:', error);
+      logger.error('Error creating dog:', 'shows', {}, error as Error);
     } finally {
       setIsCreating(false);
     }

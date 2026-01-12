@@ -4,6 +4,7 @@ import React, { useEffect } from 'react';
 import AlertingService from '../../services/alerts/AlertingService';
 import { AlertToastContainer } from './AlertToast';
 import { useAlertNotifications } from '../../hooks/useAlerts';
+import { logger } from '@/services/LoggingService';
 
 interface AlertInitializerProps {
   children: React.ReactNode;
@@ -29,9 +30,9 @@ export const AlertInitializer: React.FC<AlertInitializerProps> = ({ children }) 
         // Request browser notification permission
         await requestPermission();
         
-        console.log('[AlertInitializer] Alert system initialized');
+        logger.debug('[AlertInitializer] Alert system initialized', 'alerts', {});
       } catch (error) {
-        console.error('[AlertInitializer] Failed to initialize alert system:', error);
+        logger.error('[AlertInitializer] Failed to initialize alert system:', 'alerts', {}, error as Error);
       }
     };
 
@@ -44,7 +45,7 @@ export const AlertInitializer: React.FC<AlertInitializerProps> = ({ children }) 
       await alertingService.acknowledgeAlert(alertId);
       markAsRead(alertId);
     } catch (error) {
-      console.error('[AlertInitializer] Failed to acknowledge alert:', error);
+      logger.error('[AlertInitializer] Failed to acknowledge alert:', 'alerts', {}, error as Error);
     }
   };
 
@@ -54,7 +55,7 @@ export const AlertInitializer: React.FC<AlertInitializerProps> = ({ children }) 
       await alertingService.resolveAlert(alertId);
       dismissToast(alertId);
     } catch (error) {
-      console.error('[AlertInitializer] Failed to resolve alert:', error);
+      logger.error('[AlertInitializer] Failed to resolve alert:', 'alerts', {}, error as Error);
     }
   };
 

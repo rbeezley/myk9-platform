@@ -15,6 +15,7 @@ import { User } from '@/types/user-types';
 import { Dog } from '@/types/dog-types';
 import { Club } from '@/types/club-types';
 import { Show } from '@/types/show-types';
+import { logger } from '@/services/LoggingService';
 
 // ===== MASTER PEOPLE DATA =====
 export const masterPeople: User[] = [
@@ -602,6 +603,6 @@ export const getClubMembers = (clubId: string) => {
  */
 export const getClubAdmin = (): User | undefined => {
   // This function is deprecated. Use ClubAdminService.getClubAdmins() for RBAC-based admin retrieval.
-  console.warn('getClubAdmin is deprecated. Use ClubAdminService.getClubAdmins() instead.');
+  logger.warn('getClubAdmin is deprecated. Use ClubAdminService.getClubAdmins() instead.', 'app', {});
   return undefined;
 };

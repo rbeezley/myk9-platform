@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { Dog } from '@/types/dog-types';
+import { logger } from '@/services/LoggingService';
 // import { User } from '@/types/user-types';
 
 // Temporary interface until people types are available
@@ -285,7 +286,7 @@ export interface SearchAnalytics {
 export const useSearchAnalytics = () => {
   const logSearch = useCallback((analytics: SearchAnalytics) => {
     // In a real app, this would send to analytics service
-    // console.log('Search Analytics:', analytics); // Disabled to reduce logging
+    // logger.debug('Search Analytics:', 'lib', { data: analytics }); // Disabled to reduce logging
     
     // Store in localStorage for debugging
     try {
@@ -295,7 +296,7 @@ export const useSearchAnalytics = () => {
       const recentLogs = existingLogs.slice(-100);
       localStorage.setItem('searchAnalytics', JSON.stringify(recentLogs));
     } catch (error) {
-      console.warn('Failed to log search analytics:', error);
+      logger.warn('Failed to log search analytics:', 'lib', {}, error as Error);
     }
   }, []);
   
@@ -321,7 +322,7 @@ export const useSearchAnalytics = () => {
           .map(([query, count]) => ({ query, count }))
       };
     } catch (error) {
-      console.warn('Failed to get search stats:', error);
+      logger.warn('Failed to get search stats:', 'lib', {}, error as Error);
       return null;
     }
   };

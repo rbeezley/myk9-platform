@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { 
+import { logger } from '@/services/LoggingService';
   RefreshCw, 
   CheckCircle, 
   Clock, 
@@ -103,7 +104,7 @@ export const SyncStatusPanel: React.FC<SyncStatusPanelProps> = ({
 
   const handleManualSync = () => {
     // Trigger manual sync
-    console.log('Manual sync triggered');
+    logger.debug('Manual sync triggered', 'sync', {});
   };
 
   const formatLastSync = (date?: Date): string => {

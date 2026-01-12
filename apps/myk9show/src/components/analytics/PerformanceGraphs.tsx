@@ -9,6 +9,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
+import { logger } from '@/services/LoggingService';
   LineChart as RechartsLineChart,
   Line as RechartsLine,
   AreaChart as RechartsAreaChart,
@@ -134,7 +135,7 @@ export function PerformanceGraphs({ className }: PerformanceGraphsProps) {
       const metricsData = await analyticsService.getMetrics(startTime, endTime);
       setMetrics(metricsData);
     } catch (error) {
-      console.error('Failed to load metrics:', error);
+      logger.error('Failed to load metrics:', 'analytics', {}, error as Error);
     } finally {
       setLoading(false);
     }
@@ -238,7 +239,7 @@ export function PerformanceGraphs({ className }: PerformanceGraphsProps) {
         URL.revokeObjectURL(url);
       }
     } catch (error) {
-      console.error('Export failed:', error);
+      logger.error('Export failed:', 'analytics', {}, error as Error);
     }
   }, [metrics, analyticsService]);
 

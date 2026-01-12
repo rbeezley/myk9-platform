@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
+import { logger } from '@/services/LoggingService';
   ArrowLeft, 
   Building2, 
   Shield, 
@@ -180,7 +181,7 @@ const OrganizationPermissionPage: React.FC = () => {
         organizationId={organization.id}
         organizationName={organization.name}
         onOverrideChange={(overrides) => {
-          console.log('Overrides changed:', overrides);
+          logger.debug('Overrides changed:', 'admin', { data: overrides });
         }}
       />
 

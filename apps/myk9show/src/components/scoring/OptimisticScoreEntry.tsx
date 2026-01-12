@@ -12,6 +12,7 @@ import { useOptimisticScores } from '@/hooks/useOptimisticUI';
 import { SaveIndicator } from '@/components/optimistic/OptimisticUpdateIndicator';
 import { ScoreUpdatedToast } from '@/components/optimistic/UndoToast';
 import { useOptimisticNotifications } from '@/utils/optimisticUtils';
+import { logger } from '@/services/LoggingService';
 
 interface OptimisticScoreEntryProps {
   entryId: string;
@@ -88,7 +89,7 @@ export const OptimisticScoreEntry: React.FC<OptimisticScoreEntryProps> = ({
         () => onScoreUpdate(scoreValue)
       );
     } catch (error) {
-      console.error('Failed to update score:', error);
+      logger.error('Failed to update score:', 'scoring', {}, error as Error);
     }
   }, [entryId, maxScore, optimisticUpdate, onScoreUpdate]);
 
@@ -321,7 +322,7 @@ export const OptimisticBulkScoreEntry: React.FC<{
       showSuccess(`Updated ${scoreUpdates.length} scores successfully`);
       setScores({});
     } catch (error) {
-      console.error('Bulk score update failed:', error);
+      logger.error('Bulk score update failed:', 'scoring', {}, error as Error);
     } finally {
       setIsSubmitting(false);
     }

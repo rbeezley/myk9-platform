@@ -7,6 +7,7 @@
  */
 
 import { LoggingService } from '@/services/LoggingService';
+import { logger } from '@/services/LoggingService';
 
 const logger = LoggingService.getInstance();
 

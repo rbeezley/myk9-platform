@@ -11,6 +11,7 @@
 
 import React, { useState } from 'react';
 import {
+import { logger } from '@/services/LoggingService';
   User as UserIcon,
   Mail, 
   MapPin,
@@ -198,7 +199,7 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
       onUserCreated(newUser);
       onOpenChange(false);
     } catch (error) {
-      console.error('Failed to create user:', error);
+      logger.error('Failed to create user:', 'admin', {}, error as Error);
       setErrors({ general: 'Failed to create user. Please try again.' });
     }
   };

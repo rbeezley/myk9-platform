@@ -16,6 +16,7 @@
  */
 
 import type {
+import { logger } from '@/services/LoggingService';
   BaseScore,
   ScoringFormat,
   ValidationResult,
@@ -188,7 +189,7 @@ export class ScoreValidatorService {
       return result;
 
     } catch (error) {
-      console.error('Validation error:', error);
+      logger.error('Validation error:', 'scoring', {}, error as Error);
       result.errors.push({
         field: 'general',
         message: 'Internal validation error occurred',

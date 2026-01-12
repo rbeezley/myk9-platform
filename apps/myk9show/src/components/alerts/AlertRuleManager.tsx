@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
+import { logger } from '@/services/LoggingService';
   Plus,
   Edit,
   Trash2,
@@ -99,7 +100,7 @@ export const AlertRuleManager: React.FC<AlertRuleManagerProps> = ({ className })
       // This is a mock - in real implementation you'd have a getRules method
       setRules([]);
     } catch (error) {
-      console.error('Failed to load alert rules:', error);
+      logger.error('Failed to load alert rules:', 'alerts', {}, error as Error);
     } finally {
       setLoading(false);
     }
@@ -152,7 +153,7 @@ export const AlertRuleManager: React.FC<AlertRuleManagerProps> = ({ className })
       setShowCreateDialog(false);
       setEditingRule(null);
     } catch (error) {
-      console.error('Failed to save rule:', error);
+      logger.error('Failed to save rule:', 'alerts', {}, error as Error);
       setErrors({ general: 'Failed to save rule. Please try again.' });
     }
   };
@@ -164,7 +165,7 @@ export const AlertRuleManager: React.FC<AlertRuleManagerProps> = ({ className })
       await alertingService.deleteRule(ruleId);
       await loadRules();
     } catch (error) {
-      console.error('Failed to delete rule:', error);
+      logger.error('Failed to delete rule:', 'alerts', {}, error as Error);
     }
   };
 
@@ -173,7 +174,7 @@ export const AlertRuleManager: React.FC<AlertRuleManagerProps> = ({ className })
       await alertingService.updateRule(rule.id, { enabled: !rule.enabled });
       await loadRules();
     } catch (error) {
-      console.error('Failed to toggle rule:', error);
+      logger.error('Failed to toggle rule:', 'alerts', {}, error as Error);
     }
   };
 

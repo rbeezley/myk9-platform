@@ -19,6 +19,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
+import { logger } from '@/services/LoggingService';
   Tooltip, 
   TooltipContent, 
   TooltipProvider, 
@@ -175,7 +176,7 @@ function JudgeSyncDashboard({
       });
 
     } catch (error) {
-      console.error('Failed to calculate sync metrics:', error);
+      logger.error('Failed to calculate sync metrics:', 'scoring', {}, error as Error);
     }
   }, [judgeId, classId, judgeSessions, getScoresByClass]);
 
@@ -198,7 +199,7 @@ function JudgeSyncDashboard({
       onForceSync?.();
       calculateMetrics();
     } catch (error) {
-      console.error('Force sync failed:', error);
+      logger.error('Force sync failed:', 'scoring', {}, error as Error);
     } finally {
       setSyncInProgress(false);
     }

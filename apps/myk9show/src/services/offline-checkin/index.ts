@@ -17,6 +17,7 @@ import { ArmbandManager } from './ArmbandManager';
 import { CheckInValidator } from './CheckInValidator';
 import { GateCoordinator } from './GateCoordinator';
 import { QRScannerService } from './QRScannerService';
+import { logger } from '@/services/LoggingService';
 
 export const offlineCheckInService = new OfflineCheckInService();
 export const armbandManager = new ArmbandManager();
@@ -59,9 +60,9 @@ export const initializeAllServices = async () => {
       gateCoordinator.initialize(),
       qrScannerService.initialize()
     ]);
-    console.log('All offline check-in services initialized successfully');
+    logger.debug('All offline check-in services initialized successfully', 'services', {});
   } catch (error) {
-    console.error('Failed to initialize offline check-in services:', error);
+    logger.error('Failed to initialize offline check-in services:', 'services', {}, error as Error);
     throw error;
   }
 };
@@ -73,9 +74,9 @@ export const shutdownAllServices = async () => {
       gateCoordinator.shutdown(),
       qrScannerService.dispose()
     ]);
-    console.log('All offline check-in services shut down successfully');
+    logger.debug('All offline check-in services shut down successfully', 'services', {});
   } catch (error) {
-    console.error('Error during service shutdown:', error);
+    logger.error('Error during service shutdown:', 'services', {}, error as Error);
     throw error;
   }
 };

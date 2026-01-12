@@ -3,6 +3,7 @@
  */
 import React, { createContext, useState, useCallback, type ReactNode } from 'react';
 import { DEFAULT_AUDIO_SETTINGS, type AudioSettings } from '@/constants/audioSettings';
+import { logger } from '@/services/LoggingService';
 
 
 interface AudioSettingsContextType {
@@ -23,7 +24,7 @@ function AudioSettingsProvider({ children }: { children: ReactNode }) {
           return { ...DEFAULT_AUDIO_SETTINGS, ...JSON.parse(saved) };
         }
       } catch (error) {
-        console.warn('Failed to load audio settings:', error);
+        logger.warn('Failed to load audio settings:', 'context', {}, error as Error);
       }
     }
     return DEFAULT_AUDIO_SETTINGS;
@@ -38,7 +39,7 @@ function AudioSettingsProvider({ children }: { children: ReactNode }) {
         try {
           localStorage.setItem('k9show-audio-settings', JSON.stringify(updated));
         } catch (error) {
-          console.warn('Failed to save audio settings:', error);
+          logger.warn('Failed to save audio settings:', 'context', {}, error as Error);
         }
       }
       
@@ -54,7 +55,7 @@ function AudioSettingsProvider({ children }: { children: ReactNode }) {
       try {
         localStorage.removeItem('k9show-audio-settings');
       } catch (error) {
-        console.warn('Failed to clear audio settings:', error);
+        logger.warn('Failed to clear audio settings:', 'context', {}, error as Error);
       }
     }
   }, []);

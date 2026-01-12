@@ -10,6 +10,7 @@ import { auditService } from '@/services/AuditService';
 import { UserRole } from '@/types/auth-types';
 import { AuditAction, NotificationType } from '@/types/audit-types';
 import { 
+import { logger } from '@/services/LoggingService';
   Trophy, 
   Clock, 
   Users, 
@@ -50,7 +51,7 @@ const JudgeDashboard: React.FC = () => {
     // Handle real-time updates to assignments
     if (update.type === 'assignment_created' || update.type === 'assignment_updated') {
       // Would call loadJudgeData(); to refresh data
-      console.log('Assignment update received:', update);
+      logger.debug('Assignment update received:', 'pages', { data: update });
     }
   }, []);
 
@@ -206,7 +207,7 @@ const JudgeDashboard: React.FC = () => {
 
       navigate(`/shows/${judgeClass.showId}/trials/${judgeClass.trialId}/classes/${judgeClass.classId}/judge`);
     } catch (error) {
-      console.error('Failed to start judging:', error);
+      logger.error('Failed to start judging:', 'pages', {}, error as Error);
     }
   };
 

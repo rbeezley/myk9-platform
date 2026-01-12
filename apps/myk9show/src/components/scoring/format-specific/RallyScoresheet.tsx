@@ -18,6 +18,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 
 // Types
 import type { RallyScore, ValidationResult, QualificationStatus } from '@/types/scoring-types';
+import { logger } from '@/services/LoggingService';
 
 export interface RallyScoresheetProps {
   entry: {
@@ -139,7 +140,7 @@ export function RallyScoresheet({
     try {
       await onSave(score as RallyScore);
     } catch (error) {
-      console.error('Failed to submit rally score:', error);
+      logger.error('Failed to submit rally score:', 'scoring', {}, error as Error);
     } finally {
       setIsSubmitting(false);
     }

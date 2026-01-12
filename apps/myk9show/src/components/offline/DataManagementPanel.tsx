@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { 
+import { logger } from '@/services/LoggingService';
   Database, 
   Download, 
   Upload, 
@@ -61,7 +62,7 @@ export const DataManagementPanel: React.FC<DataManagementPanelProps> = ({
       const result = await dataBackupService.createBackup(backupOptions);
       setBackupResult(result);
     } catch (error) {
-      console.error('Backup creation error:', error);
+      logger.error('Backup creation error:', 'components', {}, error as Error);
     } finally {
       setIsCreatingBackup(false);
     }
@@ -77,7 +78,7 @@ export const DataManagementPanel: React.FC<DataManagementPanelProps> = ({
       });
       setRestoreResult(result);
     } catch (error) {
-      console.error('Restore error:', error);
+      logger.error('Restore error:', 'components', {}, error as Error);
     } finally {
       setIsRestoring(false);
     }
@@ -95,7 +96,7 @@ export const DataManagementPanel: React.FC<DataManagementPanelProps> = ({
       });
       setLastCleanup(result);
     } catch (error) {
-      console.error('Cleanup error:', error);
+      logger.error('Cleanup error:', 'components', {}, error as Error);
     } finally {
       setCleanupInProgress(false);
     }

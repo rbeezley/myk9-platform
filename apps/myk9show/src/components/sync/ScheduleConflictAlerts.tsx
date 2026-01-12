@@ -7,6 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
+import { logger } from '@/services/LoggingService';
   Clock,
   AlertTriangle, 
   MapPin,
@@ -228,7 +229,7 @@ export const ScheduleConflictAlerts: React.FC<ScheduleConflictAlertsProps> = ({
     const conflict = conflicts.find(c => c.id === conflictId);
     if (!conflict?.canAutoResolve) return;
 
-    console.log('Auto-resolving conflict:', conflictId);
+    logger.debug('Auto-resolving conflict:', 'sync', { data: conflictId });
     // Update conflict as resolved
     setConflicts(prev => prev.map(c => 
       c.id === conflictId 
@@ -514,7 +515,7 @@ export const ScheduleConflictAlerts: React.FC<ScheduleConflictAlertsProps> = ({
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => console.log('View details for:', conflict.id)}
+                              onClick={() => logger.debug('View details for:', 'sync', { data: conflict.id });}
                               className="gap-2"
                             >
                               <Eye className="h-3 w-3" />

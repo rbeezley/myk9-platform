@@ -1,3 +1,5 @@
+import { logger } from '@/services/LoggingService';
+
 /**
  * Advanced conflict resolution strategies for synchronization
  * Implements various algorithms for handling data conflicts during sync operations
@@ -114,7 +116,7 @@ export class ConflictResolutionService {
           return result as ResolutionResult<T>;
         }
       } catch (error) {
-        console.warn(`Strategy ${strategy.name} failed:`, error);
+        logger.warn(`Strategy ${strategy.name} failed:`, 'sync', {}, error as Error);
       }
     }
 

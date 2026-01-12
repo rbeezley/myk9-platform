@@ -26,6 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // Icons
 import { 
+import { logger } from '@/services/LoggingService';
   Mail, 
   Phone, 
   Calendar, 
@@ -166,7 +167,7 @@ export function RegistrationConfirmationNotifications({
       await onSendConfirmation(type);
       setSentNotifications(prev => new Set([...prev, type]));
     } catch (error) {
-      console.error(`Failed to send ${type} confirmation:`, error);
+      logger.error(`Failed to send ${type} confirmation:`, 'shows', {}, error as Error);
     } finally {
       setIsSending(false);
     }

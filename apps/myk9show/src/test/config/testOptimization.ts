@@ -4,6 +4,7 @@
  */
 
 import { beforeEach, afterEach, vi } from 'vitest';
+import { logger } from '@/services/LoggingService';
 
 /**
  * Optimized timeout configurations for different test types
@@ -60,7 +61,7 @@ export const performanceMonitor = {
         // Warn about slow tests
         const threshold = TIMEOUT_CONFIG[category] * 0.8; // 80% of timeout
         if (duration > threshold) {
-          console.warn(`⚠️ Slow test: ${testName} took ${duration.toFixed(2)}ms (>${threshold.toFixed(2)}ms)`);
+          logger.warn(`⚠️ Slow test: ${testName} took ${duration.toFixed(2)}ms (>${threshold.toFixed(2)}ms)`, 'app', {});
         }
         
         return metric;
@@ -111,7 +112,7 @@ export const renderingLoopPrevention = {
     
     if (newCount > renderingLoopPrevention.maxRenders) {
       const error = new Error(`Possible infinite render loop detected in ${componentName} (${newCount} renders)`);
-      console.error(error);
+      logger.error('error', 'config', { error: error });
       throw error;
     }
     
@@ -145,8 +146,8 @@ export const memoryLeakDetection = {
   checkLeaks: () => {
     const leakCount = memoryLeakDetection.activeComponents.size;
     if (leakCount > 50) { // Arbitrary threshold
-      console.warn(`⚠️ Possible memory leak: ${leakCount} components still registered`);
-      console.warn('Active components:', Array.from(memoryLeakDetection.activeComponents));
+      logger.warn(`⚠️ Possible memory leak: ${leakCount} components still registered`, 'app', {});
+      logger.warn('Active components:', 'config', { data: Array.from(memoryLeakDetection.activeComponents) });
     }
     return leakCount;
   },

@@ -5,6 +5,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
+import { logger } from '@/services/LoggingService';
   AlertTriangle,
   Lightbulb,
   Play,
@@ -301,7 +302,7 @@ export const ConflictResolutionDemo: React.FC = () => {
   };
 
   const handleConflictResolve = async (resolution: EnhancedConflictResolution) => {
-    console.log('Resolving conflict:', resolution);
+    logger.debug('Resolving conflict:', 'sync', { data: resolution });
     
     // Simulate resolution processing
     await new Promise(resolve => setTimeout(resolve, 500));
@@ -311,7 +312,7 @@ export const ConflictResolutionDemo: React.FC = () => {
   };
 
   const handleBulkResolve = async (conflictIds: string[], strategy: ResolutionStrategy) => {
-    console.log('Bulk resolving conflicts:', conflictIds, 'with strategy:', strategy);
+    logger.debug('Bulk resolving conflicts:', 'sync', { data: conflictIds, 'with strategy:', strategy });
     
     // Simulate bulk resolution
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -321,7 +322,7 @@ export const ConflictResolutionDemo: React.FC = () => {
   };
 
   const handleRefreshConflicts = async () => {
-    console.log('Refreshing conflicts...');
+    logger.debug('Refreshing conflicts...', 'sync', {});
     await new Promise(resolve => setTimeout(resolve, 500));
   };
 

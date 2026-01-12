@@ -22,6 +22,7 @@ import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable'
 
 // Scoresheets from shared package
 import {
+import { logger } from '@/services/LoggingService';
   AKCScentWorkScoresheet,
   AKCNationalsScoresheet,
   AKCFastCatScoresheet,
@@ -133,7 +134,7 @@ export function ScoresheetPage() {
         setEntry(currentEntry);
         setClassInfo(toClassInfo(cls, scoringEntries.length));
       } catch (err) {
-        console.error('Failed to load scoresheet data:', err);
+        logger.error('Failed to load scoresheet data:', 'pages', {}, err as Error);
         setError(err instanceof Error ? err.message : 'Failed to load data');
       } finally {
         setIsLoading(false);
@@ -209,7 +210,7 @@ export function ScoresheetPage() {
         );
       },
       onError: (err) => {
-        console.error('Score submission failed:', err);
+        logger.error('Score submission failed:', 'pages', {}, err as Error);
         // Error is handled by the hook - score is queued for retry
       },
     });

@@ -6,6 +6,7 @@
  */
 
 import { useState, useCallback, useMemo, useRef } from 'react';
+import { logger } from '@/services/LoggingService';
 
 /**
  * Simple consolidated state hook that replaces multiple useState calls
@@ -135,7 +136,7 @@ export function useWhyDidYouUpdate(name: string, props: Record<string, any>) {
     }, {} as Record<string, { from: any; to: any }>);
     
     if (Object.keys(changedProps).length > 0) {
-      console.log('[useWhyDidYouUpdate]', name, changedProps);
+      logger.debug('[useWhyDidYouUpdate]', 'hooks', { data: name, changedProps });
     }
   }
 }

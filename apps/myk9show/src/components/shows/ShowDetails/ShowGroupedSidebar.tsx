@@ -51,10 +51,10 @@ export const ShowGroupedSidebar: React.FC<ShowGroupedSidebarProps> = ({
   });
 
   // Debug logging
-  // console.log('🎪 ShowGroupedSidebar - shows count:', shows.length);
-  // console.log('🎪 ShowGroupedSidebar - selectedId:', selectedId);
-  // console.log('🎪 ShowGroupedSidebar - shows data:', shows.slice(0, 3));
-  // console.log('🎪 ShowGroupedSidebar - expandedGroups:', Array.from(expandedGroups));
+  // logger.debug('🎪 ShowGroupedSidebar - shows count:', 'shows', { data: shows.length });
+  // logger.debug('🎪 ShowGroupedSidebar - selectedId:', 'shows', { data: selectedId });
+  // logger.debug('🎪 ShowGroupedSidebar - shows data:', 'shows', { data: shows.slice(0, 3) });
+  // logger.debug('🎪 ShowGroupedSidebar - expandedGroups:', 'shows', { data: Array.from(expandedGroups) });
 
   // Create hierarchical groups for club > status structure  
   const sidebarGroups = useMemo((): SidebarGroup<Show>[] => {
@@ -125,7 +125,7 @@ export const ShowGroupedSidebar: React.FC<ShowGroupedSidebarProps> = ({
   };
 
   const renderShowItem = (show: Show, isSelected: boolean, isCollapsed: boolean) => {
-    // console.log('🎨 Rendering show item:', show.name, 'selected:', isSelected, 'collapsed:', isCollapsed);
+    // logger.debug('🎨 Rendering show item:', 'shows', { data: show.name, 'selected:', isSelected, 'collapsed:', isCollapsed });
     if (isCollapsed) {
       // Show simplified version when collapsed
       return (
@@ -170,7 +170,7 @@ export const ShowGroupedSidebar: React.FC<ShowGroupedSidebarProps> = ({
       groups={sidebarGroups}
       selectedId={selectedId}
       onSelect={(id) => {
-        // console.log('🔄 ShowGroupedSidebar onSelect called with id:', id);
+        // logger.debug('🔄 ShowGroupedSidebar onSelect called with id:', 'shows', { data: id });
         onSelect(id);
       }}
       onAdd={canCreateShows ? onAdd : undefined}

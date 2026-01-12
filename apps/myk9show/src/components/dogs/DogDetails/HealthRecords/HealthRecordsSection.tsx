@@ -5,6 +5,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Heart, Calendar, List, Plus } from 'lucide-react';
 import type { VaccinationRecord, VetVisitRecord, MedicationRecord, AllergyRecord } from '../../../../types/health';
 import { useDogHealthDataQuery } from '@/hooks/queries/useHealthDatabase';
+import { logger } from '@/services/LoggingService';
 
 interface HealthRecordsSectionProps {
   user: { isPremium: boolean };
@@ -112,12 +113,12 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({ user, dogId
   );
 
   const handleEventClick = (event: HealthEvent) => {
-    console.log('Event clicked:', event);
+    logger.debug('Event clicked:', 'dogs', { data: event });
     // In real app, this would open detailed view/edit dialog
   };
 
   const handleAddEvent = () => {
-    console.log('Add new health event');
+    logger.debug('Add new health event', 'dogs', {});
     // In real app, this would open add health record dialog
   };
 
@@ -129,7 +130,7 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({ user, dogId
         <p className="text-muted-foreground mb-4">
           Track vaccinations, vet visits, medications, and more with our enhanced timeline view.
         </p>
-        <Button onClick={() => console.log('Upgrade to Premium')}>
+        <Button onClick={() => logger.debug('Upgrade to Premium', 'dogs', {});}>
           Upgrade to Premium
         </Button>
       </div>

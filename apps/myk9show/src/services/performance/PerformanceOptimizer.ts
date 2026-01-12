@@ -1,3 +1,5 @@
+import { logger } from '@/services/LoggingService';
+
 /**
  * Performance optimization service for handling large datasets efficiently
  */
@@ -372,7 +374,7 @@ export class PerformanceOptimizer {
           const data = await loader(key);
           this.cache.set(key, data);
         } catch (error) {
-          console.warn(`Failed to preload data for key: ${key}`, error);
+          logger.warn(`Failed to preload data for key: ${key}`, 'performance', {}, error as Error);
         }
       }
     });

@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import { PERMISSIONS, UserRole, Permission } from '@/types/auth-types';
 import { cn } from '@/lib/utils';
+import { logger } from '@/services/LoggingService';
 
 interface PermissionTest {
   id: string;
@@ -199,7 +200,7 @@ export function PermissionTestChecklist() {
                       [UserRole.SITE_ADMIN]: 'admin@example.com',
                     };
                     // Role switching not implemented - would require backend changes
-                    console.log('Would switch to role:', role, 'with email:', mockEmails[role as keyof typeof mockEmails]);
+                    logger.debug('Would switch to role:', 'admin', { data: role, 'with email:', mockEmails[role as keyof typeof mockEmails] });
                     setTestResults({}); // Clear results when switching roles
                   }}
                 >

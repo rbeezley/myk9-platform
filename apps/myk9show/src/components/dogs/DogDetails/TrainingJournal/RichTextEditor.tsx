@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { 
+import { logger } from '@/services/LoggingService';
   Bold, 
   Italic, 
   Strikethrough,
@@ -65,9 +66,9 @@ export function RichTextEditor({
       const imageUrl = await onImageUpload(file);
       // Note: setImage requires Image extension to be installed
       // editor.chain().focus().setImage({ src: imageUrl }).run();
-      console.log('Image upload completed:', imageUrl);
+      logger.debug('Image upload completed:', 'dogs', { data: imageUrl });
     } catch (error) {
-      console.error('Failed to upload image:', error);
+      logger.error('Failed to upload image:', 'dogs', {}, error as Error);
     }
   }, [editor, onImageUpload]);
 

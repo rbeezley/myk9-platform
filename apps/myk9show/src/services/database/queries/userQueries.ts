@@ -1,6 +1,7 @@
 // Users-related database queries
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import type {
+import { logger } from '@/services/LoggingService';
   DbUserInsert,
   DbUserUpdate,
 } from '../../../types/database-mappings';
@@ -21,14 +22,14 @@ export const getAllUsers = async () => {
     const duration = Date.now() - startTime;
     
     // Enhanced debug logging
-    console.log('🔍 Database query result:', {
+    logger.debug('🔍 Database query result:', 'database', { data: {
       data: data?.slice(0, 3), // First 3 for debugging
       dataLength: data?.length,
       error: error?.message,
       tableName: 'user',
       supabaseUrl: 'hidden_for_security',
       duration
-    });
+    } });
     
     logQuery('user', 'select_all', duration, error?.message);
     
@@ -40,7 +41,7 @@ export const getAllUsers = async () => {
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'user', 'select_all');
-    console.error('💥 Database query failed:', { error: dbError, duration });
+    logger.error('💥 Database query failed:', 'database', { data: { error: dbError, duration } });
     logQuery('user', 'select_all', duration, dbError.message);
     return { data: [], error: dbError };
   }

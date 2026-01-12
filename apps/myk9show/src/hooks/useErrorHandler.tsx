@@ -1,5 +1,6 @@
 import React from 'react';
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
+import { logger } from '@/services/LoggingService';
 
 // Higher-order component for wrapping components with error boundaries
 export function withErrorBoundary<P extends object>(
@@ -31,7 +32,7 @@ export const useErrorHandler = () => {
       errorId: `error-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     };
 
-    console.error('Manual Error Report:', errorReport);
+    logger.error('Manual Error Report:', 'hooks', {}, errorReport as Error);
     
     // Store in localStorage for debugging
     try {

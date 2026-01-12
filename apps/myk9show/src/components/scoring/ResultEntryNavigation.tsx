@@ -22,6 +22,7 @@ import { CheckInManagementOverlay } from '@/components/common/CheckInManagementO
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
 import { msToDisplay } from '@/lib/timeUtils';
+import { logger } from '@/services/LoggingService';
 
 // Entry status for navigation
 export type EntryNavigationStatus = 'pending' | 'in-progress' | 'completed';
@@ -96,7 +97,7 @@ export function ResultEntryNavigation({
     
     try {
       // TODO: Replace with actual API call to update check-in status
-      console.log(`Updating check-in status for entry ${selectedEntryForCheckIn.id} to ${status}`);
+      logger.debug(`Updating check-in status for entry ${selectedEntryForCheckIn.id} to ${status}`, 'scoring', {});
       
       // For now, we'll just simulate the update
       // In a real implementation, this would update the backend and trigger a re-fetch
@@ -105,7 +106,7 @@ export function ResultEntryNavigation({
       setCheckInDialogOpen(false);
       setSelectedEntryForCheckIn(null);
     } catch (error) {
-      console.error('Failed to update check-in status:', error);
+      logger.error('Failed to update check-in status:', 'scoring', {}, error as Error);
       // Handle error (show toast, etc.)
     }
   };
@@ -113,14 +114,14 @@ export function ResultEntryNavigation({
   const handleBulkCheckInStatusUpdate = async (entryId: string, status: CheckInStatus) => {
     try {
       // TODO: Replace with actual API call to update check-in status
-      console.log(`Updating check-in status for entry ${entryId} to ${status}`);
+      logger.debug(`Updating check-in status for entry ${entryId} to ${status}`, 'scoring', {});
       
       // For now, we'll just simulate the update
       // In a real implementation, this would update the backend and trigger a re-fetch
       // The entries prop would be updated by the parent component
       
     } catch (error) {
-      console.error('Failed to update check-in status:', error);
+      logger.error('Failed to update check-in status:', 'scoring', {}, error as Error);
       throw error; // Re-throw to show error in overlay
     }
   };
@@ -215,12 +216,12 @@ export function ResultEntryNavigation({
             
             // Debug logging for entries #107 and #108
             if (['107', '108'].includes(entry.displayInfo.armband)) {
-              console.log(`🐕 Entry #${entry.displayInfo.armband}:`, {
+              logger.debug(`🐕 Entry #${entry.displayInfo.armband}:`, 'scoring', { data: {
                 navigationStatus: entry.navigationStatus,
                 hasResult: !!entry.result,
                 result: entry.result,
                 statusClass: getStatusClass()
-              });
+              } });
             }
             
             return (

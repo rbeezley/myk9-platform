@@ -11,6 +11,7 @@
 
 import React, { useState, useEffect } from 'react';
 import {
+import { logger } from '@/services/LoggingService';
   User as UserIcon,
   Mail, 
   MapPin, 
@@ -178,7 +179,7 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
       onUserUpdated(updatedUser);
       setIsEditing(false);
     } catch (error) {
-      console.error('Failed to update user:', error);
+      logger.error('Failed to update user:', 'admin', {}, error as Error);
       setErrors({ general: 'Failed to update user. Please try again.' });
     }
   };

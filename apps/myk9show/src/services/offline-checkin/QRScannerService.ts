@@ -1,11 +1,12 @@
 /**
  * QR Scanner Service
- * 
+ *
  * Handles QR code and barcode scanning functionality,
  * including camera access, code generation, and validation.
  */
 
 import { EventEmitter } from '../sync/eventEmitter';
+import { logger } from '@/services/LoggingService';
 import type {
   QRScanResult,
   QRCode,
@@ -77,9 +78,9 @@ export class QRScannerService extends EventEmitter {
       }
 
       this.emit('initialized', {});
-      console.log('QRScannerService initialized successfully');
+      logger.debug('QRScannerService initialized successfully', 'checkin', {});
     } catch (error) {
-      console.error('Failed to initialize QRScannerService:', error);
+      logger.error('Failed to initialize QRScannerService', 'checkin', {}, error as Error);
       throw error;
     }
   }
@@ -180,7 +181,7 @@ export class QRScannerService extends EventEmitter {
     }
 
     this.isScanning = false;
-    
+
     if (this.scanInterval) {
       clearInterval(this.scanInterval);
       this.scanInterval = undefined;
@@ -226,7 +227,7 @@ export class QRScannerService extends EventEmitter {
         this.emit('scan_failed', { reason: 'max_attempts_exceeded', attempts: this.currentAttempts });
       }
     } catch (error) {
-      console.error('Frame scanning error:', error);
+      logger.error('Frame scanning error', 'checkin', {}, error as Error);
       this.emit('scan_error', { error: error instanceof Error ? error.message : 'Scan error' });
     }
   }
@@ -234,7 +235,7 @@ export class QRScannerService extends EventEmitter {
   private async processImageData(): Promise<QRScanResult> {
     // In a real implementation, this would use a QR code scanning library like jsQR
     // For now, we'll simulate the scanning process
-    
+
     const result: QRScanResult = {
       success: false,
       scannedAt: new Date(),
@@ -244,7 +245,7 @@ export class QRScannerService extends EventEmitter {
     try {
       // Simulate QR detection probability (in real implementation, use jsQR or similar)
       const detectionProbability = Math.random();
-      
+
       if (detectionProbability > 0.95) { // 5% chance of successful scan per frame
         // Simulate successful QR code detection
         const mockQRData = {
@@ -284,9 +285,9 @@ export class QRScannerService extends EventEmitter {
       if (!data || typeof data !== 'object') {
         return false;
       }
-      
+
       const qrData = data as Record<string, unknown>;
-      
+
       // Basic structure validation
       if (!qrData.entryId || !qrData.armband || !qrData.showId) {
         return false;
@@ -302,7 +303,7 @@ export class QRScannerService extends EventEmitter {
 
       return true;
     } catch (error) {
-      console.error('QR validation error:', error);
+      logger.error('QR validation error', 'checkin', {}, error as Error);
       return false;
     }
   }
@@ -397,7 +398,7 @@ export class QRScannerService extends EventEmitter {
       const devices = await navigator.mediaDevices.enumerateDevices();
       return devices.filter(device => device.kind === 'videoinput');
     } catch (error) {
-      console.error('Failed to enumerate cameras:', error);
+      logger.error('Failed to enumerate cameras', 'checkin', {}, error as Error);
       return [];
     }
   }
@@ -408,17 +409,17 @@ export class QRScannerService extends EventEmitter {
     if (!data || typeof data !== 'object') {
       return '';
     }
-    
+
     const objData = data as Record<string, unknown>;
     const str = JSON.stringify(objData, Object.keys(objData).sort());
     let hash = 0;
-    
+
     for (let i = 0; i < str.length; i++) {
       const char = str.charCodeAt(i);
       hash = ((hash << 5) - hash) + char;
       hash = hash & hash; // Convert to 32-bit integer
     }
-    
+
     return Math.abs(hash).toString(36);
   }
 

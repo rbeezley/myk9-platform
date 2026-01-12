@@ -13,6 +13,7 @@ import { useShowStore } from '@/store/showStore';
 import { useUserStore } from '@/store/userStore';
 import { syncService } from '@/services/sync/syncService';
 import { generateId } from '@/utils/idUtils';
+import { logger } from '@/services/LoggingService';
 
 export interface EntryCreationOptions {
   /** Skip validation for admin overrides */
@@ -508,7 +509,7 @@ export class OfflineEntryCreator {
         priority: "medium"
       });
     } catch (syncError) {
-      console.warn('Failed to queue entry for sync:', syncError);
+      logger.warn('Failed to queue entry for sync:', 'entries', {}, syncError as Error);
     }
 
     return entry;
@@ -539,7 +540,7 @@ export class OfflineEntryCreator {
       
       return 'queued';
     } catch (error) {
-      console.warn('Failed to queue payment processing:', error);
+      logger.warn('Failed to queue payment processing:', 'entries', {}, error as Error);
       return 'queued'; // Still return queued as it will be retried
     }
   }
@@ -563,7 +564,7 @@ export class OfflineEntryCreator {
         priority: "medium" // High priority for refunds
       });
     } catch (error) {
-      console.warn('Failed to queue refund processing:', error);
+      logger.warn('Failed to queue refund processing:', 'entries', {}, error as Error);
     }
   }
 
@@ -572,7 +573,7 @@ export class OfflineEntryCreator {
       try {
         await this.entryStore.deleteEntry(entryId);
       } catch (error) {
-        console.error(`Failed to rollback entry ${entryId}:`, error);
+        logger.error(`Failed to rollback entry ${entryId}:`, 'entries', {}, error as Error);
       }
     }
   }

@@ -1,11 +1,12 @@
 import { beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import { cleanup } from '@testing-library/react';
+import { logger } from '@/services/LoggingService';
 
 // Global test setup for unit and integration tests
 
 // Setup before all tests
 beforeAll(() => {
-  console.log('🧪 Starting test suite...');
+  logger.debug('🧪 Starting test suite...', 'app', {});
   
   // Mock console methods to reduce noise during tests
   if (process.env.NODE_ENV === 'test') {
@@ -31,7 +32,7 @@ beforeAll(() => {
 
 // Cleanup after all tests
 afterAll(() => {
-  console.log('✅ Test suite completed');
+  logger.debug('✅ Test suite completed', 'app', {});
   
   // Restore original implementations
   restoreGlobalMocks();

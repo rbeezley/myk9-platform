@@ -4,6 +4,7 @@
  */
 
 import { chromium, Browser, Page } from '@playwright/test';
+import { logger } from '@/services/LoggingService';
 
 interface PerformanceMetrics {
   navigationStart: number;
@@ -102,7 +103,7 @@ async function measurePerformance(url: string): Promise<PerformanceMetrics> {
 }
 
 async function runPerformanceTests() {
-  console.log('🚀 Starting Performance Measurements...\n');
+  logger.debug('🚀 Starting Performance Measurements...\n', 'app', {});
   
   const urls = [
     { name: 'Home Page', url: 'http://localhost:5173/' },
@@ -112,41 +113,41 @@ async function runPerformanceTests() {
   ];
   
   for (const test of urls) {
-    console.log(`📊 Measuring: ${test.name}`);
-    console.log('─'.repeat(50));
+    logger.debug(`📊 Measuring: ${test.name}`, 'app', {});
+    logger.debug(''─'.repeat(50)', 'test', { '─'.repeat(50): '─'.repeat(50) });
     
     try {
       const metrics = await measurePerformance(test.url);
       
-      console.log(`✅ First Contentful Paint (FCP): ${metrics.firstContentfulPaint.toFixed(2)}ms`);
-      console.log(`✅ Largest Contentful Paint (LCP): ${metrics.largestContentfulPaint.toFixed(2)}ms`);
-      console.log(`✅ DOM Content Loaded: ${metrics.domContentLoaded.toFixed(2)}ms`);
-      console.log(`✅ Page Load Complete: ${metrics.loadEventEnd.toFixed(2)}ms`);
-      console.log(`⚠️  Total Blocking Time: ${metrics.totalBlockingTime.toFixed(2)}ms`);
+      logger.debug(`✅ First Contentful Paint (FCP): ${metrics.firstContentfulPaint.toFixed(2)}ms`, 'app', {});
+      logger.debug(`✅ Largest Contentful Paint (LCP): ${metrics.largestContentfulPaint.toFixed(2)}ms`, 'app', {});
+      logger.debug(`✅ DOM Content Loaded: ${metrics.domContentLoaded.toFixed(2)}ms`, 'app', {});
+      logger.debug(`✅ Page Load Complete: ${metrics.loadEventEnd.toFixed(2)}ms`, 'app', {});
+      logger.debug(`⚠️  Total Blocking Time: ${metrics.totalBlockingTime.toFixed(2)}ms`, 'app', {});
       
       if (metrics.memoryUsage) {
         const usedMB = (metrics.memoryUsage.usedJSHeapSize / 1024 / 1024).toFixed(2);
         const totalMB = (metrics.memoryUsage.totalJSHeapSize / 1024 / 1024).toFixed(2);
-        console.log(`💾 Memory Usage: ${usedMB}MB / ${totalMB}MB`);
+        logger.debug(`💾 Memory Usage: ${usedMB}MB / ${totalMB}MB`, 'app', {});
       }
       
-      console.log('\n');
+      logger.debug('\n', 'app', {});
       
       // Add delay between tests
       await new Promise(resolve => setTimeout(resolve, 2000));
       
     } catch (error) {
-      console.error(`❌ Error measuring ${test.name}:`, error);
-      console.log('\n');
+      logger.error(`❌ Error measuring ${test.name}:`, 'app', {}, error as Error);
+      logger.debug('\n', 'app', {});
     }
   }
   
-  console.log('✨ Performance measurements complete!');
+  logger.debug('✨ Performance measurements complete!', 'app', {});
 }
 
 // Run the tests if called directly
 if (require.main === module) {
-  runPerformanceTests().catch(console.error);
+  runPerformanceTests().catch((err) => logger.error('Error', 'test', {}, err as Error));
 }
 
 export { measurePerformance, runPerformanceTests };

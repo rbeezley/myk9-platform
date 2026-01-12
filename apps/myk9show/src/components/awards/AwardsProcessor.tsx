@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { 
+import { logger } from '@/services/LoggingService';
   Trophy, 
   Award, 
   Star, 
@@ -176,7 +177,7 @@ export function AwardsProcessor({
       setProcessingStep('Awards processing complete!');
       
     } catch (error) {
-      console.error('Awards processing error:', error);
+      logger.error('Awards processing error:', 'components', {}, error as Error);
       setProcessingStep('Error processing awards');
     } finally {
       setIsProcessing(false);

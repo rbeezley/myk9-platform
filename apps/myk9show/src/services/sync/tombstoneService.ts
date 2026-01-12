@@ -1,3 +1,5 @@
+import { logger } from '@/services/LoggingService';
+
 /**
  * Tombstone management service for handling entity deletions in sync systems
  * Implements proper deletion tracking, conflict resolution, and cleanup policies
@@ -666,10 +668,10 @@ export class TombstoneService {
       try {
         const cleaned = await this.cleanupExpiredTombstones();
         if (cleaned > 0) {
-          console.log(`Cleaned up ${cleaned} expired tombstones`);
+          logger.debug(`Cleaned up ${cleaned} expired tombstones`, 'sync', {});
         }
       } catch (error) {
-        console.error('Tombstone cleanup failed:', error);
+        logger.error('Tombstone cleanup failed:', 'sync', {}, error as Error);
       }
     }, 60 * 60 * 1000);
   }

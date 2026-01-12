@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import { logger } from '@/services/LoggingService';
 
 export const ClearCacheButton: React.FC = () => {
   const [isClearing, setIsClearing] = useState(false);
 
   const handleClearCache = async () => {
     if (!import.meta.env.DEV) {
-      console.warn('Cache clearing is only available in development mode');
+      logger.warn('Cache clearing is only available in development mode', 'components', {});
       return;
     }
 
@@ -22,19 +23,19 @@ export const ClearCacheButton: React.FC = () => {
       });
 
       // Use a lighter cache clearing for the button to avoid breaking dev server
-      console.log('🔄 Clearing browser caches (lighter version)...');
+      logger.debug('🔄 Clearing browser caches (lighter version)...', 'components', {});
 
       // Clear browser caches only (don't unregister service workers in dev)
       if ('caches' in window) {
         const cacheNames = await caches.keys();
         await Promise.all(cacheNames.map(name => caches.delete(name)));
-        console.log('✅ Browser caches cleared');
+        logger.debug('✅ Browser caches cleared', 'components', {});
       }
 
       // Clear storage
       localStorage.clear();
       sessionStorage.clear();
-      console.log('✅ Storage cleared');
+      logger.debug('✅ Storage cleared', 'components', {});
 
       const success = true;
 
@@ -54,7 +55,7 @@ export const ClearCacheButton: React.FC = () => {
       }
 
     } catch (error) {
-      console.error('❌ Error clearing cache:', error);
+      logger.error('❌ Error clearing cache:', 'components', {}, error as Error);
       toast.error('Failed to clear cache', {
         description: 'Some caches could not be cleared. Check the console for details.',
       });

@@ -1,5 +1,6 @@
 import { SyncMetadata, SyncStatus } from '../../types/sync-types';
 import { 
+import { logger } from '@/services/LoggingService';
   Conflict, 
   ConflictResolution, 
   ResolutionStrategy, 
@@ -162,7 +163,7 @@ export class ConflictManager {
           };
         }
       } catch (error) {
-        console.error('Auto-resolution failed:', error);
+        logger.error('Auto-resolution failed:', 'services', {}, error as Error);
         this.emitEvent('conflict_failed', conflict.id, conflict.entityType, conflict.entityId, {
           error: error instanceof Error ? error.message : 'Unknown error'
         });
@@ -411,7 +412,7 @@ export class ConflictManager {
           return resolution;
         }
       } catch (error) {
-        console.warn(`Auto-resolution strategy ${strategy} failed:`, error);
+        logger.warn(`Auto-resolution strategy ${strategy} failed:`, 'services', {}, error as Error);
         continue;
       }
     }
@@ -502,7 +503,7 @@ export class ConflictManager {
         try {
           handler(event);
         } catch (error) {
-          console.error('Error in conflict event handler:', error);
+          logger.error('Error in conflict event handler:', 'services', {}, error as Error);
         }
       });
     }

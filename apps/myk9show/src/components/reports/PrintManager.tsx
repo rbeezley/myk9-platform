@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Separator } from '@/components/ui/separator';
 import { PrintableReport, type ReportData } from './PrintableReport';
 import { 
+import { logger } from '@/services/LoggingService';
   Printer, 
   Download, 
   Eye, 
@@ -168,7 +169,7 @@ export function PrintManager({ isOpen, onClose, data, preselectedType }: PrintMa
 
   const handleExportPDF = () => {
     // In a real implementation, this would use a library like jsPDF or html2pdf
-    console.log('Exporting to PDF...');
+    logger.debug('Exporting to PDF...', 'components', {});
     handlePrint();
   };
 

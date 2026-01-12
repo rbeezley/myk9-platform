@@ -6,6 +6,7 @@
  */
 
 import {
+import { logger } from '@/services/LoggingService';
   Role,
   Permission,
   UserRole,
@@ -244,12 +245,12 @@ export class RBACService {
     permissionId: string,
     overrideType: 'grant' | 'deny'
   ): Promise<void> {
-    console.log('📝 Creating organization override (mock)', {
+    logger.debug('📝 Creating organization override (mock)', 'rbac', { data: {
       organization_id: organizationId,
       role_id: roleId,
       permission_id: permissionId,
       override_type: overrideType
-    });
+    } });
 
     this.clearAllCache();
 
@@ -268,11 +269,11 @@ export class RBACService {
     roleId: string,
     permissionId: string
   ): Promise<void> {
-    console.log('🗑️ Removing organization override (mock)', {
+    logger.debug('🗑️ Removing organization override (mock)', 'rbac', { data: {
       organization_id: organizationId,
       role_id: roleId,
       permission_id: permissionId
-    });
+    } });
 
     this.clearAllCache();
 
@@ -284,7 +285,7 @@ export class RBACService {
   }
 
   async getOrganizationOverrides(organizationId: string): Promise<Array<Record<string, unknown>>> {
-    console.warn('Organization overrides not implemented yet, table does not exist:', organizationId);
+    logger.warn('Organization overrides not implemented yet, table does not exist:', 'rbac', { data: organizationId });
     return [];
   }
 
@@ -323,7 +324,7 @@ export class RBACService {
         coverageByResource
       };
     } catch (error) {
-      console.error('Failed to analyze role permissions:', error);
+      logger.error('Failed to analyze role permissions:', 'rbac', {}, error as Error);
       throw error;
     }
   }

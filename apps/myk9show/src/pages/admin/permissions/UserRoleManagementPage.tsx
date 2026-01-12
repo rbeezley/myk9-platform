@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
+import { logger } from '@/services/LoggingService';
   Users, 
   ArrowLeft, 
   Search, 
@@ -109,7 +110,7 @@ const UserRoleManagementPage: React.FC = () => {
       await loadData(); // Reload data
       setShowAssignDialog(false);
     } catch (err) {
-      console.error('Failed to assign role:', err);
+      logger.error('Failed to assign role:', 'pages', {}, err as Error);
       throw err; // Let the dialog handle the error
     }
   };

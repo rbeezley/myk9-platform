@@ -4,6 +4,7 @@ import { EventEmitter } from 'events';
 // import { DifferentialSyncService } from './DifferentialSyncService';
 // import { CompressionService } from './CompressionService';
 import {
+import { logger } from '@/services/LoggingService';
   SyncOperation,
   SyncPriority,
   SyncConflict,
@@ -180,7 +181,7 @@ export class BatchProcessor extends EventEmitter {
     this.isProcessing = true;
     this.processingInterval = setInterval(() => {
       this.processNextBatch().catch(error => {
-        console.error('Batch processing error:', error);
+        logger.error('Batch processing error:', 'sync', {}, error as Error);
       });
     }, 100);
     

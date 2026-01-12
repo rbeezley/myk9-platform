@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
+import { logger } from '@/services/LoggingService';
   Activity,
   Play,
   Square,
@@ -75,7 +76,7 @@ export function LoadTestDashboard() {
       const result = await loadTestService.runLoadTest(testConfig);
       setResults(prev => [...prev, { scenario: config.name, ...result }]);
     } catch (error) {
-      console.error('Test failed:', error);
+      logger.error('Test failed:', 'admin', {}, error as Error);
     } finally {
       setIsRunning(false);
       setCurrentTest(null);
@@ -99,7 +100,7 @@ export function LoadTestDashboard() {
       const allResults = [];
       
       for (const scenario of testScenarios) {
-        console.log(`\n🚀 Running ${scenario.name} test...`);
+        logger.debug(`\n🚀 Running ${scenario.name} test...`, 'admin', {});
         
         const config: LoadTestConfig = {
           ...scenario,
@@ -120,7 +121,7 @@ export function LoadTestDashboard() {
       
       setResults(allResults);
     } catch (error) {
-      console.error('Tests failed:', error);
+      logger.error('Tests failed:', 'admin', {}, error as Error);
     } finally {
       setIsRunning(false);
       setCurrentTest(null);
@@ -134,7 +135,7 @@ export function LoadTestDashboard() {
       setEvictionResults(result);
       updateMemoryStats();
     } catch (error) {
-      console.error('Eviction failed:', error);
+      logger.error('Eviction failed:', 'admin', {}, error as Error);
     }
   };
 
@@ -147,9 +148,9 @@ export function LoadTestDashboard() {
     try {
       await loadTestService.manualCleanup();
       updateMemoryStats();
-      console.log('✅ Manual cleanup completed');
+      logger.debug('✅ Manual cleanup completed', 'admin', {});
     } catch (error) {
-      console.error('❌ Manual cleanup failed:', error);
+      logger.error('❌ Manual cleanup failed:', 'admin', {}, error as Error);
     }
   };
 

@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { 
+import { logger } from '@/services/LoggingService';
   ArrowLeft,
   ArrowRight,
   Check,
@@ -136,7 +137,7 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
       setCreatedClasses(result.classes);
       setCurrentStep('complete');
     } catch (error) {
-      console.error('Error creating classes:', error);
+      logger.error('Error creating classes:', 'pages', {}, error as Error);
       setValidationErrors(['Failed to create classes. Please try again.']);
     } finally {
       setIsCreating(false);
@@ -159,7 +160,7 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
 
   const handleBatchCopy = () => {
     // TODO: Implement copy functionality
-    console.log('Copy classes functionality to be implemented');
+    logger.debug('Copy classes functionality to be implemented', 'pages', {});
   };
 
   const handleBatchDelete = () => {
@@ -168,7 +169,7 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
 
   const handleExportSelection = () => {
     // TODO: Implement export functionality
-    console.log('Export selection functionality to be implemented');
+    logger.debug('Export selection functionality to be implemented', 'pages', {});
   };
 
   const getStepProgress = () => {

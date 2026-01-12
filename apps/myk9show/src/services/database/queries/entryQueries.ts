@@ -1,6 +1,7 @@
 // Entry-related database queries
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import type {
+import { logger } from '@/services/LoggingService';
   DbEntryInsert,
   DbEntryUpdate,
 } from '../../../types/database-mappings';
@@ -551,7 +552,7 @@ export const updateEntryStatus = async (params: {
       });
 
     if (historyError) {
-      console.warn('Failed to create status history:', historyError);
+      logger.warn('Failed to create status history:', 'database', {}, historyError as Error);
       // Don't fail the entire operation if history creation fails
     }
     

@@ -15,6 +15,7 @@ import './AKCScentWorkScoresheet-Nationals.css';
 import './scoresheet-shared.css';
 import './AKCScentWorkScoresheet-JudgeDialog.css';
 import '../../styles/containers.css';
+import { logger } from '@/services/LoggingService';
 
 // Types
 interface AKCNationalsScoresheetProps {
@@ -224,7 +225,7 @@ export const AKCNationalsScoresheet: React.FC<AKCNationalsScoresheetProps> = ({
         onBack();
       }
     } catch (error) {
-      console.error('Failed to save score:', error);
+      logger.error('Failed to save score:', 'pages', {}, error as Error);
     } finally {
       setIsSubmitting(false);
     }

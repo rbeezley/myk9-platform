@@ -19,6 +19,7 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+import { logger } from '@/services/LoggingService';
   ChevronDown,
   ChevronUp,
   MoreHorizontal,
@@ -286,7 +287,7 @@ export const UserTable: React.FC<UserTableProps> = ({
   const handleDeleteUser = (user: User, e: React.MouseEvent) => {
     e.stopPropagation();
     // TODO: Implement delete confirmation dialog
-    console.log('Delete user:', user.id);
+    logger.debug('Delete user:', 'admin', { data: user.id });
   };
 
   // Enhanced user utility functions

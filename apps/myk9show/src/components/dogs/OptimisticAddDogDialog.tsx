@@ -16,6 +16,7 @@ import { FormSaveIndicator } from '@/components/optimistic/OptimisticUpdateIndic
 import { useOptimisticNotifications } from '@/utils/optimisticUtils';
 
 import '@/styles/apple-dialogs-global.css';
+import { logger } from '@/services/LoggingService';
 
 interface OptimisticAddDogDialogProps {
   open: boolean;
@@ -75,7 +76,7 @@ export const OptimisticAddDogDialog: React.FC<OptimisticAddDogDialogProps> = ({
         showUndo: true,
         undoAction: () => {
           // Implement undo logic
-          console.log('Undoing dog creation');
+          logger.debug('Undoing dog creation', 'dogs', {});
         }
       });
       onDogCreated(result as Dog);

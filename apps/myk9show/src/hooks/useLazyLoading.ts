@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { logger } from '@/services/LoggingService';
 // useIntersectionObserver import removed - not used in this hook
 
 export interface LazyLoadConfig {
@@ -72,7 +73,7 @@ export function useLazyLoading<T extends { id: string }>(
 
   const log = useCallback((message: string, ...args: unknown[]) => {
     if (debug) {
-      console.log(`[LazyLoading] ${message}`, ...args);
+      logger.debug(`[LazyLoading] ${message}`, 'hooks', { data: ...args });
     }
   }, [debug]);
 

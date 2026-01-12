@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { 
+import { logger } from '@/services/LoggingService';
   GitBranch, 
   Clock, 
   XCircle,
@@ -264,7 +265,7 @@ export const RoleApprovalWorkflow: React.FC<RoleApprovalWorkflowProps> = ({
       setError(null);
 
       // In real implementation, this would call the API
-      console.log('Processing approval:', { requestId, approved, comment: actionComment });
+      logger.debug('Processing approval:', 'admin', { data: { requestId, approved, comment: actionComment } });
 
       // Update local state
       setApprovalRequests(prev => prev.map(req => 
@@ -311,7 +312,7 @@ export const RoleApprovalWorkflow: React.FC<RoleApprovalWorkflowProps> = ({
       setError(null);
 
       // In real implementation, this would call the API
-      console.log('Escalating request:', requestId);
+      logger.debug('Escalating request:', 'admin', { data: requestId });
 
       setApprovalRequests(prev => prev.map(req => 
         req.id === requestId 

@@ -1,5 +1,6 @@
 import { QueryClient } from '@tanstack/react-query';
 import { DatabaseError } from './supabaseClient';
+import { logger } from '@/services/LoggingService';
 
 // Type for query key structures
 type QueryKeyStructure = {
@@ -202,7 +203,7 @@ export const optimisticUpdates = {
 
 // Global error handler for queries
 export const handleQueryError = (error: DatabaseError) => {
-  console.error('Query error:', error);
+  logger.error('Query error:', 'database', {}, error as Error);
   
   // You can add global error handling here
   // For example, showing a toast notification
@@ -228,13 +229,13 @@ export const withPerformanceTracking = async <T>(
     
     // Log slow queries in development
     if (import.meta.env.DEV && duration > 1000) {
-      console.warn(`Slow query detected: ${queryKey.join('/')} took ${duration}ms`);
+      logger.warn(`Slow query detected: ${queryKey.join('/')} took ${duration}ms`, 'database', {});
     }
     
     return result;
   } catch (error) {
     const duration = performance.now() - startTime;
-    console.error(`Query failed: ${queryKey.join('/')} after ${duration}ms`, error);
+    logger.error(`Query failed: ${queryKey.join('/')} after ${duration}ms`, 'database', {}, error as Error);
     throw error;
   }
 };

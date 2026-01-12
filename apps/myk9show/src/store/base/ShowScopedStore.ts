@@ -9,6 +9,7 @@
 import { StateStorage } from 'zustand/middleware';
 import { getOptimalStorage } from '@/services/database/storage-adapter';
 import { applyRoleDataFilter, getPaginationForRole } from '@/services/data-scoping/role-profiles';
+import { logger } from '@/services/LoggingService';
 
 export interface ShowScopedData {
   /** Current active show ID for scoping */
@@ -103,7 +104,7 @@ export function createShowScopedActions<T>(
         });
 
       } catch (error) {
-        console.error(`Failed to load ${dataType} data:`, error);
+        logger.error(`Failed to load ${dataType} data:`, 'store', {}, error as Error);
         setState({ 
           isLoading: false, 
           error: error instanceof Error ? error.message : `Failed to load ${dataType} data` 
@@ -192,7 +193,7 @@ export function createShowScopedActions<T>(
           lastLoaded: Date.now(),
         });
       } catch (error) {
-        console.error(`Failed to load page ${page}:`, error);
+        logger.error(`Failed to load page ${page}:`, 'store', {}, error as Error);
         setState({ 
           isLoading: false, 
           error: error instanceof Error ? error.message : `Failed to load page ${page}` 

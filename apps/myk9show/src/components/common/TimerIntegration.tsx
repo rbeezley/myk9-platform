@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { msToDisplay } from '@/lib/timeUtils';
 import { Volume2, VolumeX, TestTube, RotateCcw } from 'lucide-react';
+import { logger } from '@/services/LoggingService';
 
 // Scent Work time limits by element and level
 const SCENT_WORK_TIME_LIMITS = {
@@ -100,17 +101,17 @@ function TimerIntegrationContent() {
 
   const handleTimeWarning = () => {
     setWarningCount(prev => prev + 1);
-    console.log('Time warning triggered');
+    logger.debug('Time warning triggered', 'components', {});
   };
 
   const handleTimeExpired = () => {
     setExpiredCount(prev => prev + 1);
-    console.log('Time expired');
+    logger.debug('Time expired', 'components', {});
   };
 
   const handleSearchTime = (timeMs: number) => {
     setResultTime(timeMs);
-    console.log('Search time recorded:', msToDisplay(timeMs, 'hundredths'));
+    logger.debug('Search time recorded:', 'common', { data: msToDisplay(timeMs, 'hundredths') });
   };
 
   return (

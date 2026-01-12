@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
+import { logger } from '@/services/LoggingService';
 
 /**
  * Configuration options for page transitions.
@@ -238,7 +239,7 @@ export function useTransitionPrefetch() {
       setPrefetchedRoutes(prev => new Set([...prev, route]));
       
       // Simulate prefetching
-      console.log(`Prefetching route: ${route}`);
+      logger.debug(`Prefetching route: ${route}`, 'hooks', {});
     }
   }, [prefetchedRoutes]);
 

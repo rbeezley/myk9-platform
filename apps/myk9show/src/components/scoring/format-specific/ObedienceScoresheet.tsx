@@ -19,6 +19,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 // Types
 import type { ObedienceScore, ObedienceExercise, ValidationResult } from '@/types/scoring-types';
 import type { QualificationStatus } from '@/types/scent-work-types';
+import { logger } from '@/services/LoggingService';
 
 export interface ObedienceScoresheetProps {
   entry: {
@@ -157,7 +158,7 @@ export function ObedienceScoresheet({
     try {
       await onSave(score as ObedienceScore);
     } catch (error) {
-      console.error('Failed to submit obedience score:', error);
+      logger.error('Failed to submit obedience score:', 'scoring', {}, error as Error);
     } finally {
       setIsSubmitting(false);
     }

@@ -25,6 +25,7 @@ import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { usePagination, usePerformanceMetrics, useMemoryMonitoring } from '@/hooks/usePerformanceOptimization';
 import { 
+import { logger } from '@/services/LoggingService';
   Calendar,
   Users,
   DollarSign,
@@ -236,7 +237,7 @@ export function ShowDashboard({ showId, className }: ShowDashboardProps) {
       
       // Log performance metric
       const refreshTime = performance.now() - startTime;
-      console.log(`Dashboard refresh completed in ${refreshTime.toFixed(2)}ms`);
+      logger.debug(`Dashboard refresh completed in ${refreshTime.toFixed(2)}ms`, 'shows', {});
     } finally {
       setRefreshing(false);
     }

@@ -3,41 +3,42 @@
 
 import { getOptimalStorage, isIndexedDBAvailable } from './storage-adapter';
 import { createDatabase } from './connection';
+import { logger } from '@/services/LoggingService';
 
 export async function testIndexedDBIntegration() {
-  console.log('🔍 Testing IndexedDB Integration...\n');
+  logger.debug('🔍 Testing IndexedDB Integration...\n', 'database', {});
 
   // 1. Check IndexedDB availability
-  console.log('1. Checking IndexedDB availability...');
+  logger.debug('1. Checking IndexedDB availability...', 'database', {});
   const isAvailable = isIndexedDBAvailable();
-  console.log(`   IndexedDB available: ${isAvailable}`);
+  logger.debug(`   IndexedDB available: ${isAvailable}`, 'database', {});
   
   if (!isAvailable) {
-    console.log('❌ IndexedDB not available - tests will use localStorage fallback');
+    logger.debug('❌ IndexedDB not available - tests will use localStorage fallback', 'database', {});
     return false;
   }
 
   // 2. Test database connection
-  console.log('\n2. Testing database connection...');
+  logger.debug('\n2. Testing database connection...', 'database', {});
   try {
     const db = createDatabase();
     await db.open();
-    console.log('   ✅ Database connection successful');
-    console.log(`   Database name: ${db.name}`);
-    console.log(`   Database version: ${db.verno}`);
+    logger.debug('   ✅ Database connection successful', 'database', {});
+    logger.debug(`   Database name: ${db.name}`, 'database', {});
+    logger.debug(`   Database version: ${db.verno}`, 'database', {});
     
     // Check integrity
     const integrity = await db.checkIntegrity();
-    console.log(`   Database integrity: ${integrity ? '✅ Passed' : '❌ Failed'}`);
+    logger.debug(`   Database integrity: ${integrity ? '✅ Passed' : '❌ Failed'}`, 'database', {});
     
     await db.close();
   } catch (error) {
-    console.error('   ❌ Database connection failed:', error);
+    logger.error('   ❌ Database connection failed:', 'database', {}, error as Error);
     return false;
   }
 
   // 3. Test storage adapter
-  console.log('\n3. Testing storage adapter...');
+  logger.debug('\n3. Testing storage adapter...', 'database', {});
   try {
     const storage = getOptimalStorage('test-store');
     
@@ -46,9 +47,9 @@ export async function testIndexedDBIntegration() {
     const retrieved = await storage.getItem('test-key');
     
     if (retrieved === 'test-value') {
-      console.log('   ✅ Basic storage operations working');
+      logger.debug('   ✅ Basic storage operations working', 'database', {});
     } else {
-      console.log('   ❌ Basic storage operations failed');
+      logger.debug('   ❌ Basic storage operations failed', 'database', {});
       return false;
     }
     
@@ -60,9 +61,9 @@ export async function testIndexedDBIntegration() {
     const retrievedJson = await storage.getItem('test-json');
     
     if (retrievedJson === jsonString) {
-      console.log('   ✅ JSON storage operations working');
+      logger.debug('   ✅ JSON storage operations working', 'database', {});
     } else {
-      console.log('   ❌ JSON storage operations failed');
+      logger.debug('   ❌ JSON storage operations failed', 'database', {});
       return false;
     }
     
@@ -71,12 +72,12 @@ export async function testIndexedDBIntegration() {
     await storage.removeItem('test-json');
     
   } catch (error) {
-    console.error('   ❌ Storage adapter test failed:', error);
+    logger.error('   ❌ Storage adapter test failed:', 'database', {}, error as Error);
     return false;
   }
 
   // 4. Test with actual store data
-  console.log('\n4. Testing with store data simulation...');
+  logger.debug('\n4. Testing with store data simulation...', 'database', {});
   try {
     const storage = getOptimalStorage('dogs');
     
@@ -103,15 +104,15 @@ export async function testIndexedDBIntegration() {
     const retrievedStore = await storage.getItem('myk9show-dogs-storage');
     
     if (retrievedStore === storeJson) {
-      console.log('   ✅ Store data persistence working');
+      logger.debug('   ✅ Store data persistence working', 'database', {});
       
       // Parse and verify structure
       const parsed = JSON.parse(retrievedStore);
       if (parsed.state?.dogs?.length === 1) {
-        console.log('   ✅ Store data structure preserved');
+        logger.debug('   ✅ Store data structure preserved', 'database', {});
       }
     } else {
-      console.log('   ❌ Store data persistence failed');
+      logger.debug('   ❌ Store data persistence failed', 'database', {});
       return false;
     }
     
@@ -119,39 +120,39 @@ export async function testIndexedDBIntegration() {
     await storage.removeItem('myk9show-dogs-storage');
     
   } catch (error) {
-    console.error('   ❌ Store data test failed:', error);
+    logger.error('   ❌ Store data test failed:', 'database', {}, error as Error);
     return false;
   }
 
   // 5. Check storage usage
-  console.log('\n5. Checking storage usage...');
+  logger.debug('\n5. Checking storage usage...', 'database', {});
   try {
     const db = createDatabase();
     await db.open();
     const usage = await db.getStorageUsage();
-    console.log(`   Storage used: ${(usage.used / 1024 / 1024).toFixed(2)} MB`);
-    console.log(`   Storage quota: ${(usage.quota / 1024 / 1024).toFixed(2)} MB`);
+    logger.debug(`   Storage used: ${(usage.used / 1024 / 1024).toFixed(2)} MB`, 'database', {});
+    logger.debug(`   Storage quota: ${(usage.quota / 1024 / 1024).toFixed(2)} MB`, 'database', {});
     await db.close();
   } catch (error) {
-    console.log('   ⚠️ Storage usage check not available:', error instanceof Error ? error.message : String(error));
+    logger.debug('   ⚠️ Storage usage check not available:', 'database', { data: error instanceof Error ? error.message : String(error) });
   }
 
-  console.log('\n🎉 IndexedDB Integration Test Complete!\n');
-  console.log('✅ All tests passed - IndexedDB is working correctly');
-  console.log('🔧 Your stores will now persist data to IndexedDB');
-  console.log('📊 Data will survive browser restarts and page refreshes');
+  logger.debug('\n🎉 IndexedDB Integration Test Complete!\n', 'database', {});
+  logger.debug('✅ All tests passed - IndexedDB is working correctly', 'database', {});
+  logger.debug('🔧 Your stores will now persist data to IndexedDB', 'database', {});
+  logger.debug('📊 Data will survive browser restarts and page refreshes', 'database', {});
   
   return true;
 }
 
 // Auto-run if in browser and environment variable is set
 if (typeof window !== 'undefined' && import.meta.env.VITE_ENABLE_INDEXEDDB === 'true') {
-  console.log('🚀 IndexedDB integration is enabled');
+  logger.debug('🚀 IndexedDB integration is enabled', 'database', {});
   
   // Run test on page load (with delay to ensure everything is loaded)
   setTimeout(() => {
     testIndexedDBIntegration().catch(error => {
-      console.error('IndexedDB integration test failed:', error);
+      logger.error('IndexedDB integration test failed:', 'database', {}, error as Error);
     });
   }, 1000);
 }

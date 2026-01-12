@@ -1,5 +1,6 @@
 import { auditService } from './AuditService';
 import { AuditAction } from '@/types/audit-types';
+import { logger } from '@/services/LoggingService';
 
 /**
  * Represents a search query with filters, sorting, and pagination options.
@@ -197,7 +198,7 @@ export class SearchService {
 
       return result;
     } catch (error) {
-      console.error('Search failed:', error);
+      logger.error('Search failed:', 'services', {}, error as Error);
       throw error;
     }
   }
@@ -282,7 +283,7 @@ export class SearchService {
    * ```typescript
    * const history = await searchService.getSearchHistory('user-123', 10);
    * history.forEach(entry => {
-   *   console.log(`${entry.query.term} - ${entry.resultCount} results`);
+   *   logger.debug(`${entry.query.term} - ${entry.resultCount} results`, 'services', {});
    * });
    * ```
    */
@@ -302,7 +303,7 @@ export class SearchService {
    * @example
    * ```typescript
    * await searchService.clearSearchHistory('user-123');
-   * console.log('Search history cleared');
+   * logger.debug('Search history cleared', 'services', {});
    * ```
    */
   async clearSearchHistory(userId: string): Promise<void> {
@@ -521,7 +522,7 @@ export class SearchService {
           });
       }
     } catch (error) {
-      console.error('Failed to load search history:', error);
+      logger.error('Failed to load search history:', 'services', {}, error as Error);
       this.searchHistory = [];
     }
   }
@@ -535,7 +536,7 @@ export class SearchService {
     try {
       localStorage.setItem('search_history', JSON.stringify(this.searchHistory));
     } catch (error) {
-      console.error('Failed to save search history:', error);
+      logger.error('Failed to save search history:', 'services', {}, error as Error);
     }
   }
 

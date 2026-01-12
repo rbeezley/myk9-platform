@@ -6,6 +6,7 @@ import ThreeDotMenu from '@/components/ui/ThreeDotMenu';
 import { Button } from '@/components/ui/button';
 import { Eye, Edit, Trash2 } from 'lucide-react';
 import type { Competition } from '@/types/competition-types';
+import { logger } from '@/services/LoggingService';
 
 // Component state and dialog management
 
@@ -28,7 +29,7 @@ export default function ExternalShowsSection({ shows, addShow, editShow, deleteS
         <h2 className="text-lg font-semibold">External Shows</h2>
         <Button
           onClick={() => {
-            console.log('DEBUG: Add Show button clicked in ExternalShowsSection');
+            logger.debug('DEBUG: Add Show button clicked in ExternalShowsSection', 'dogs', {});
             setAddDialogOpen(true);
           }}
           variant="default"

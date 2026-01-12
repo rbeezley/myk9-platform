@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 import { ScrollArea } from '../ui/scroll-area';
 import { Alert, AlertDescription } from '../ui/alert';
 import { 
+import { logger } from '@/services/LoggingService';
   useConflictResolution
 } from '../../hooks/useConflictResolution';
 import { ConflictResolutionDialog } from '../sync/ConflictResolutionDialog';
@@ -130,7 +131,7 @@ export function ConflictNotifications({
     };
     
     const strategy = strategyMap[resolution] || ResolutionStrategy.MANUAL_REQUIRED;
-    handleResolveConflict(strategy, mergedData).catch(console.error);
+    handleResolveConflict(strategy, mergedData).catch((err) => logger.error('Error', 'conflict', {}, err as Error));
   };
 
   const visibleNotifications = notifications.slice(0, maxNotifications);

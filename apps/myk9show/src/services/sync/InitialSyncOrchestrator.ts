@@ -2,6 +2,7 @@ import { UserRole, SyncProgress, RoleSyncScopes } from '@/types/sync-types';
 import { SYNC_SCOPES } from '@/config/sync-scopes';
 import { StorageEstimator } from './StorageEstimator';
 import { SmartQueryBuilder } from './SmartQueryBuilder';
+import { logger } from '@/services/LoggingService';
 
 export interface InitialSyncPlan {
   totalSteps: number;
@@ -54,11 +55,11 @@ export class InitialSyncOrchestrator {
       // Get optimal sync scope based on storage and role
       const { recommendedScope, reasoning } = await this.storageEstimator.getOptimalSyncScope(role);
       
-      console.log(`Initial sync for ${role}:`, {
+      logger.debug(`Initial sync for ${role}:`, 'sync', { data: {
         scope: recommendedScope,
         reasoning,
         availableStorage: `${storageInfo.available - storageInfo.used}MB`
-      });
+      } });
 
       // Create sync plan
       const syncPlan = this.createSyncPlan(recommendedScope);
@@ -94,7 +95,7 @@ export class InitialSyncOrchestrator {
             message: `Completed ${step.entity}`
           });
         } catch (error) {
-          console.error(`Failed to sync ${step.entity}:`, error);
+          logger.error(`Failed to sync ${step.entity}:`, 'sync', {}, error as Error);
           
           this.emitProgress({
             entity: step.entity,
@@ -233,7 +234,7 @@ export class InitialSyncOrchestrator {
     // TODO: Implement actual sync logic with Supabase
     // For now, simulate the sync process
     
-    console.log(`Syncing ${step.entity} with scope ${step.scope}, limit ${step.limit}`);
+    logger.debug(`Syncing ${step.entity} with scope ${step.scope}, limit ${step.limit}`, 'sync', {});
     
     // Simulate network delay based on entity size
     const delay = Math.max(100, step.estimatedSizeMB * 100); // 100ms per MB
@@ -270,7 +271,7 @@ export class InitialSyncOrchestrator {
       try {
         callback(progress);
       } catch (error) {
-        console.error('Error in progress callback:', error);
+        logger.error('Error in progress callback:', 'sync', {}, error as Error);
       }
     });
   }
@@ -324,7 +325,7 @@ export class InitialSyncOrchestrator {
       
       return !metadata; // If no metadata found, initial sync is needed
     } catch (error) {
-      console.warn('Error checking sync metadata:', error);
+      logger.warn('Error checking sync metadata:', 'sync', {}, error as Error);
       return true; // Assume initial sync is needed if we can't check
     }
   }

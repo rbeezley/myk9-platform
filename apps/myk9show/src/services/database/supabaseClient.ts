@@ -2,6 +2,7 @@
 // Centralized Supabase client configuration
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../../types/supabase';
+import { logger } from '@/services/LoggingService';
 
 // Environment variables with fallbacks
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
@@ -89,12 +90,9 @@ export const logQuery = (
       ...(error && { error }),
     };
     
-    console.log(
-      `🗄️ DB Query [${operation.toUpperCase()}]:`,
-      table,
+    logger.debug(`🗄️ DB Query [${operation.toUpperCase()}]:`, 'database', { data: table,
       `(${duration}ms)`,
-      error ? `❌ ${error}` : '✅'
-    );
+      error ? `❌ ${error}` : '✅' });
   }
 };
 

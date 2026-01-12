@@ -1,4 +1,5 @@
 import { logQuery } from '../supabaseClient';
+import { logger } from '@/services/LoggingService';
 
 interface PerformanceMetric {
   operation: string;
@@ -36,12 +37,12 @@ class PerformanceMonitor {
     
     // Log slow queries
     if (metric.duration > this.slowQueryThreshold) {
-      console.warn('🐌 Slow query detected:', {
+      logger.warn('🐌 Slow query detected:', 'database', { data: {
         operation: metric.operation,
         table: metric.table,
         duration: `${metric.duration}ms`,
         timestamp: new Date(metric.timestamp).toISOString(),
-      });
+      } });
     }
     
     // Send to external monitoring service if configured
@@ -164,7 +165,7 @@ class PerformanceMonitor {
     
     // For now, just log in development mode
     if (process.env.NODE_ENV === 'development') {
-      console.log('Performance metric would be sent:', _metric.operation);
+      logger.debug('Performance metric would be sent:', 'database', { data: _metric.operation });
     }
     
     // Example:
@@ -246,7 +247,7 @@ export const usePerformanceStats = (_refreshInterval = 5000) => {
   // Updated every _refreshInterval milliseconds
   
   // Placeholder implementation - would use React hooks in actual implementation
-  console.log(`Performance stats would refresh every ${_refreshInterval}ms`);
+  logger.debug(`Performance stats would refresh every ${_refreshInterval}ms`, 'database', {});
   return null;
 };
 

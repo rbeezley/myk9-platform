@@ -6,6 +6,7 @@
 
 import { supabase } from '@/lib/supabase';
 import {
+import { logger } from '@/services/LoggingService';
   Permission,
   UserRoleWithDetails,
   UserPermissionsResponse,
@@ -56,7 +57,7 @@ export class PermissionChecker {
 
       return data || false;
     } catch (error) {
-      console.error('Permission check failed:', error);
+      logger.error('Permission check failed:', 'rbac', {}, error as Error);
       return false;
     }
   }
@@ -140,7 +141,7 @@ export class PermissionChecker {
         effectivePermissions: effectivePermissions?.map((ep: { permission_name: string }) => ep.permission_name) || []
       };
     } catch (error) {
-      console.error('Failed to get user permissions:', error);
+      logger.error('Failed to get user permissions:', 'rbac', {}, error as Error);
       throw error;
     }
   }
@@ -163,7 +164,7 @@ export class PermissionChecker {
       // TODO: Check for organization-specific overrides when DB function exists
       return hasBasePermission;
     } catch (error) {
-      console.error('Permission check with organization failed:', error);
+      logger.error('Permission check with organization failed:', 'rbac', {}, error as Error);
       return false;
     }
   }
@@ -233,7 +234,7 @@ export class PermissionChecker {
         implied: impliedPermissions
       };
     } catch (error) {
-      console.error('Failed to get permission inheritance tree:', error);
+      logger.error('Failed to get permission inheritance tree:', 'rbac', {}, error as Error);
       throw error;
     }
   }

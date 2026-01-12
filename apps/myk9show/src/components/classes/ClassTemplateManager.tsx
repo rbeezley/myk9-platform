@@ -8,6 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useClassTemplateStore } from '@/store/classTemplateStore';
 import { GeneratedClass } from '@/types/class-template-types';
+import { logger } from '@/services/LoggingService';
 
 interface ClassTemplateManagerProps {
   trialId: string;
@@ -52,7 +53,7 @@ export const ClassTemplateManager: React.FC<ClassTemplateManagerProps> = ({
         setSelectedPreset('');
         setPreviewClasses([]);
       } catch (error) {
-        console.error('Failed to create classes from preset:', error);
+        logger.error('Failed to create classes from preset:', 'classes', {}, error as Error);
         // TODO: Add proper error handling/notification
       }
     }

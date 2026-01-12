@@ -1,6 +1,7 @@
 // Dog-related database queries
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import type {
+import { logger } from '@/services/LoggingService';
   DbDogInsert,
   DbDogUpdate,
 } from '../../../types/database-mappings';
@@ -212,7 +213,7 @@ export const updateDog = async (id: string, updates: DbDogUpdate) => {
 export const deleteDog = async (id: string, deletedBy?: string) => {
   const startTime = Date.now();
   
-  console.log('🗑️ Database deleteDog called:', { id, deletedBy });
+  logger.debug('🗑️ Database deleteDog called:', 'database', { data: { id, deletedBy } });
   
   try {
     const updateData: Record<string, unknown> = {
@@ -225,7 +226,7 @@ export const deleteDog = async (id: string, deletedBy?: string) => {
       updateData.updated_by = deletedBy;
     }
     
-    console.log('📝 Update data being sent:', updateData);
+    logger.debug('📝 Update data being sent:', 'database', { data: updateData });
     
     const { data, error } = await supabase
       .from('dogs' as 'dog')
@@ -234,23 +235,23 @@ export const deleteDog = async (id: string, deletedBy?: string) => {
       .select('id, name, deleted_at, deleted_by')
       .single();
     
-    console.log('📊 Database response:', { data, error });
+    logger.debug('📊 Database response:', 'database', { data: { data, error } });
     
     const duration = Date.now() - startTime;
     logQuery('dog', 'soft_delete', duration, error?.message);
     
     if (error) {
-      console.error('❌ Supabase error details:', {
+      logger.error('❌ Supabase error details:', 'database', { data: {
         message: error.message,
         code: error.code,
         details: error.details,
         hint: error.hint
-      });
+      } });
       throw createDatabaseError(error, 'dog', 'soft_delete');
     }
 
     if (!data) {
-      console.error('❌ No data returned from delete operation');
+      logger.error('❌ No data returned from delete operation', 'database', {});
       throw new Error('Delete operation returned no data');
     }
     

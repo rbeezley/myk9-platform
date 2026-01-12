@@ -10,6 +10,7 @@ import { useEnhancedAuth } from '@/hooks/useEnhancedAuth';
 import { useRBAC } from '@/hooks/useRBAC';
 import type { JudgeQualification } from '@/types/user-types';
 import { cn } from '@/lib/utils';
+import { logger } from '@/services/LoggingService';
 
 interface JudgeQualificationPanelProps {
   open: boolean;
@@ -137,7 +138,7 @@ export const JudgeQualificationPanel: React.FC<JudgeQualificationPanelProps> = (
       setHasChanges(false);
       onClose();
     } catch (error) {
-      console.error('Failed to save qualifications:', error);
+      logger.error('Failed to save qualifications:', 'components', {}, error as Error);
       // TODO: Show error toast
     } finally {
       setIsLoading(false);

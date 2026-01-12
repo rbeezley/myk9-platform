@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { 
+import { logger } from '@/services/LoggingService';
   Activity,
   Clock,
   TrendingDown,
@@ -99,7 +100,7 @@ export function PerformanceDashboard() {
       });
       setBudgetViolations(violations);
     } catch (error) {
-      console.error('Failed to load performance data:', error);
+      logger.error('Failed to load performance data:', 'admin', {}, error as Error);
     } finally {
       setIsLoading(false);
     }

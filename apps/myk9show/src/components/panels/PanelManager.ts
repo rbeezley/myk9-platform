@@ -1,4 +1,5 @@
 import { 
+import { logger } from '@/services/LoggingService';
   EntityType, 
   Panel, 
   PanelStackState, 
@@ -87,14 +88,14 @@ export class PanelManagerImpl implements PanelManager {
       }
     });
 
-    console.log('🎛️ Panel opened:', panelId, config.type, 'Level:', level);
+    logger.debug('🎛️ Panel opened:', 'panels', { data: panelId, config.type, 'Level:', level });
     return panelId;
   }
 
   closePanel(panelId: string, result?: EntityCreationResult): void {
     const panel = this.state.panels[panelId];
     if (!panel) {
-      console.warn('Panel not found:', panelId);
+      logger.warn('Panel not found:', 'panels', { data: panelId });
       return;
     }
 
@@ -140,7 +141,7 @@ export class PanelManagerImpl implements PanelManager {
       }
     }
 
-    console.log('🎛️ Panel closed:', panelId, result?.action || 'no result');
+    logger.debug('🎛️ Panel closed:', 'panels', { data: panelId, result?.action || 'no result' });
   }
 
   closeAllPanels(): void {
@@ -155,13 +156,13 @@ export class PanelManagerImpl implements PanelManager {
       state.maxLevel = 0;
     });
 
-    console.log('🎛️ All panels closed');
+    logger.debug('🎛️ All panels closed', 'components', {});
   }
 
   goBack(panelId: string): void {
     const panel = this.state.panels[panelId];
     if (!panel?.parentId) {
-      console.warn('Cannot go back - no parent panel:', panelId);
+      logger.warn('Cannot go back - no parent panel:', 'panels', { data: panelId });
       return;
     }
 
@@ -216,7 +217,7 @@ export class PanelManagerImpl implements PanelManager {
 
   // Debug methods
   debug(): void {
-    console.log('🎛️ Panel Manager State:', {
+    logger.debug('🎛️ Panel Manager State:', 'panels', { data: {
       panels: Object.keys(this.state.panels).length,
       stack: this.state.stack,
       activePanel: this.state.activePanel,
@@ -229,7 +230,7 @@ export class PanelManagerImpl implements PanelManager {
         parentId: p.parentId,
         children: p.children?.length || 0,
       })),
-    });
+    } });
   }
 }
 

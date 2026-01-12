@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 // import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
+import { logger } from '@/services/LoggingService';
   AlertTriangle, 
   Users, 
   Wifi, 
@@ -109,7 +110,7 @@ export function RealtimeScoringInterface({
     const unsubscribe = onScoreUpdate((update) => {
       // Show notification for scores from other judges
       if (update.judgeId !== judgeId) {
-        console.log('New score from another judge:', update);
+        logger.debug('New score from another judge:', 'scoring', { data: update });
         // Could trigger toast notification here
       }
     });
@@ -120,7 +121,7 @@ export function RealtimeScoringInterface({
   // Placement update notifications
   useEffect(() => {
     const unsubscribe = onPlacementUpdate((update) => {
-      console.log('Placements updated:', update);
+      logger.debug('Placements updated:', 'scoring', { data: update });
       // Could trigger UI update animation here
     });
 
@@ -130,7 +131,7 @@ export function RealtimeScoringInterface({
   // Conflict detection
   useEffect(() => {
     const unsubscribe = onConflictDetected((conflict) => {
-      console.log('Scoring conflict detected:', conflict);
+      logger.debug('Scoring conflict detected:', 'scoring', { data: conflict });
       // Could show conflict resolution dialog here
     });
 
@@ -176,7 +177,7 @@ export function RealtimeScoringInterface({
       });
 
     } catch (error) {
-      console.error('Failed to submit score:', error);
+      logger.error('Failed to submit score:', 'scoring', {}, error as Error);
     } finally {
       setIsScoring(false);
     }

@@ -2,6 +2,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { 
+import { logger } from '@/services/LoggingService';
   Calendar, 
   Search, 
   Archive, 
@@ -99,7 +100,7 @@ export const EnhancedEmptyState: React.FC<EmptyStateProps> = ({
           variant: 'default' as const,
           secondaryAction: {
             label: 'Learn About Registration',
-            onClick: () => console.log('Open registration help'),
+            onClick: () => logger.debug('Open registration help', 'shows', {});,
             icon: FileText
           }
         };
@@ -137,7 +138,7 @@ export const EnhancedEmptyState: React.FC<EmptyStateProps> = ({
           variant: 'default' as const,
           secondaryAction: {
             label: 'Update Judge Profile',
-            onClick: () => console.log('Open judge profile'),
+            onClick: () => logger.debug('Open judge profile', 'shows', {});,
             icon: Users
           }
         };

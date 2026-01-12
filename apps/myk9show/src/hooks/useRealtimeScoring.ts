@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { RealtimeScoringService } from '@/services/realtime/RealtimeScoringService';
 import { Score, ScoreUpdate, JudgePresence, PlacementUpdate, ScoringConflict } from '@/types/scoring-types';
+import { logger } from '@/services/LoggingService';
 
 interface UseRealtimeScoringOptions {
   classId?: string;
@@ -292,7 +293,7 @@ export function useRealtimeScoring(options: UseRealtimeScoringOptions = {}): Use
   ) => {
     // This would integrate with ConflictResolver
     // Implementation depends on conflict resolution strategy
-    console.log('Resolving conflict:', conflictId, resolution);
+    logger.debug('Resolving conflict:', 'hooks', { data: conflictId, resolution });
   }, []);
 
   // Event handlers

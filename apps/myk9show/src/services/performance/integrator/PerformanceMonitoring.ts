@@ -8,6 +8,7 @@
 
 import { getRumService } from '../RealUserMonitoring';
 import type { PerformanceTargets } from './types';
+import { logger } from '@/services/LoggingService';
 
 /**
  * Get current bundle size from performance entries
@@ -50,7 +51,7 @@ export class PerformanceRegressionChecker {
     }
 
     if (regressions.length > 0) {
-      console.warn('⚠️ Performance regression detected:', regressions);
+      logger.warn('⚠️ Performance regression detected:', 'performance', { data: regressions });
       rumService.trackCustomMetric('performance_regression_detected', regressions.length, {
         regressions: regressions.join('; '),
       });
@@ -99,7 +100,7 @@ export class PerformanceBudgetMonitor {
     }
 
     if (violations.length > 0) {
-      console.warn('⚠️ Performance budget violations:', violations);
+      logger.warn('⚠️ Performance budget violations:', 'performance', { data: violations });
     }
   }
 }
@@ -119,7 +120,7 @@ export class UXMonitor {
         list.getEntries().forEach(entry => {
           const longTask = entry as any;
           if (longTask.duration > 50) {
-            console.warn(`Long task detected: ${longTask.duration}ms`);
+            logger.warn(`Long task detected: ${longTask.duration}ms`, 'performance', {});
             getRumService().trackCustomMetric('long_task_detected', longTask.duration);
           }
         });
@@ -128,7 +129,7 @@ export class UXMonitor {
       try {
         this.longTaskObserver.observe({ type: 'longtask', buffered: true });
       } catch (error) {
-        console.warn('Long task monitoring not supported:', error);
+        logger.warn('Long task monitoring not supported:', 'performance', {}, error as Error);
       }
     }
   }
@@ -215,7 +216,7 @@ export class PerformanceMetricsCalculator {
     const improvements = this.calculateImprovements(finalMetrics);
     const validationResults = this.validateAgainstTargets(finalMetrics);
 
-    console.log(`
+    logger.debug(`
 🎯 Performance Optimization Results
 =====================================
 
@@ -240,6 +241,6 @@ Improvements:
 Targets Met: ${validationResults.targetsMet}/${validationResults.totalTargets}
 
 Total Optimization Time: ${Math.round((Date.now() - optimizationStartTime) / 1000)}s
-    `);
+    `, 'performance', {});
   }
 }

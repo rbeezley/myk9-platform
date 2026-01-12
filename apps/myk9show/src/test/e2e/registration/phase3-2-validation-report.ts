@@ -1,3 +1,5 @@
+import { logger } from '@/services/LoggingService';
+
 /**
  * Phase 3.2: Multi-Class Entry Registration - Validation Report
  * 
@@ -161,5 +163,5 @@ export const validatePhase32Implementation = () => {
   };
 };
 
-console.log('📊 Phase 3.2 Multi-Class Entry Registration Validation Complete');
-console.log('🚀 Ready for Phase 3.3 Advanced Entry Management Features');
+logger.debug('📊 Phase 3.2 Multi-Class Entry Registration Validation Complete', 'app', {});
+logger.debug('🚀 Ready for Phase 3.3 Advanced Entry Management Features', 'app', {});

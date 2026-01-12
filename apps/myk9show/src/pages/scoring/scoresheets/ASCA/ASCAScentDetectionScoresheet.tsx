@@ -13,6 +13,7 @@ import { useStopwatch } from '@myk9/scoring-ui';
 import '../BaseScoresheet.css';
 import '../AKC/scoresheet-shared.css';
 import '../AKC/AKCScentWorkScoresheet-JudgeDialog.css';
+import { logger } from '@/services/LoggingService';
 
 // Types
 interface ASCAScentDetectionScoresheetProps {
@@ -187,7 +188,7 @@ export const ASCAScentDetectionScoresheet: React.FC<ASCAScentDetectionScoresheet
         onBack();
       }
     } catch (error) {
-      console.error('Failed to save score:', error);
+      logger.error('Failed to save score:', 'pages', {}, error as Error);
     } finally {
       setIsSubmitting(false);
     }

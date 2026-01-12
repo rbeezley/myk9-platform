@@ -1,3 +1,5 @@
+import { logger } from '@/services/LoggingService';
+
 /**
  * Performance Budgets System
  * 
@@ -257,7 +259,7 @@ export class PerformanceBudgetService {
    */
   public setRule(rule: BudgetRule): void {
     this.rules.set(rule.id, rule);
-    console.log(`📏 Budget rule set: ${rule.name}`);
+    logger.debug(`📏 Budget rule set: ${rule.name}`, 'performance', {});
   }
 
   /**
@@ -266,7 +268,7 @@ export class PerformanceBudgetService {
   public removeRule(ruleId: string): boolean {
     const result = this.rules.delete(ruleId);
     if (result) {
-      console.log(`📏 Budget rule removed: ${ruleId}`);
+      logger.debug(`📏 Budget rule removed: ${ruleId}`, 'performance', {});
     }
     return result;
   }
@@ -314,7 +316,7 @@ export class PerformanceBudgetService {
 
         // Log violation
         const emoji = rule.severity === 'error' ? '🚨' : rule.severity === 'warning' ? '⚠️' : 'ℹ️';
-        console.warn(`${emoji} Budget violation: ${rule.name} (${value} ${rule.unit} > ${rule.threshold} ${rule.unit})`);
+        logger.warn(`${emoji} Budget violation: ${rule.name} (${value} ${rule.unit} > ${rule.threshold} ${rule.unit})`, 'performance', {});
       }
     }
 
@@ -453,7 +455,7 @@ export class PerformanceBudgetService {
     rules.forEach(rule => {
       this.rules.set(rule.id, rule);
     });
-    console.log(`📏 Imported ${rules.length} budget rules`);
+    logger.debug(`📏 Imported ${rules.length} budget rules`, 'performance', {});
   }
 
   /**
@@ -478,7 +480,7 @@ export class PerformanceBudgetService {
   public clearHistory(): void {
     this.violations = [];
     this.reports = [];
-    console.log('📏 Budget history cleared');
+    logger.debug('📏 Budget history cleared', 'performance', {});
   }
 
   /**

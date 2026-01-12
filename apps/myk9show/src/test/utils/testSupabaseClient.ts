@@ -5,6 +5,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../../types/supabase';
+import { logger } from '@/services/LoggingService';
 
 // Use environment variables for testing
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
@@ -54,7 +55,7 @@ export async function createTestUser(email?: string, password?: string) {
       });
 
       if (signInError) {
-        console.warn('Failed to sign in existing test user:', signInError.message);
+        logger.warn('Failed to sign in existing test user:', 'utils', {}, signInError.message as Error);
         return { user: null, session: null, error: signInError };
       }
 
@@ -66,7 +67,7 @@ export async function createTestUser(email?: string, password?: string) {
     }
 
     if (signUpError) {
-      console.warn('Failed to create test user:', signUpError.message);
+      logger.warn('Failed to create test user:', 'utils', {}, signUpError.message as Error);
       return { user: null, session: null, error: signUpError };
     }
 
@@ -76,7 +77,7 @@ export async function createTestUser(email?: string, password?: string) {
       error: null,
     };
   } catch (error) {
-    console.warn('Test user creation error:', error);
+    logger.warn('Test user creation error:', 'utils', {}, error as Error);
     return {
       user: null,
       session: null,
@@ -92,7 +93,7 @@ export async function cleanupTestUser() {
   try {
     await testClient.auth.signOut();
   } catch (error) {
-    console.warn('Test cleanup error:', error);
+    logger.warn('Test cleanup error:', 'utils', {}, error as Error);
   }
 }
 

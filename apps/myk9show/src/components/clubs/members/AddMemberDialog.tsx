@@ -7,6 +7,7 @@ import { useUserStore } from '@/store/userStore';
 import { useClubStore } from '@/store/clubStore';
 import { Club } from '@/types/club-types';
 import { Users } from 'lucide-react';
+import { logger } from '@/services/LoggingService';
 
 interface AddMemberDialogProps {
   open: boolean;
@@ -46,7 +47,7 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
       setSelectedPersonId('');
       onOpenChange(false);
     } catch (error) {
-      console.error('Failed to add member:', error);
+      logger.error('Failed to add member:', 'clubs', {}, error as Error);
     } finally {
       setIsLoading(false);
     }

@@ -1,3 +1,5 @@
+import { logger } from '@/services/LoggingService';
+
 /**
  * Browser-compatible EventEmitter implementation
  * Provides similar API to Node.js EventEmitter but works in the browser
@@ -55,7 +57,7 @@ export class EventEmitter<TEvents = Record<string, unknown>> {
       try {
         listener(data);
       } catch (error) {
-        console.error(`Error in event listener for "${String(event)}":`, error);
+        logger.error(`Error in event listener for "${String(event)}":`, 'sync', {}, error as Error);
       }
     });
     return true;

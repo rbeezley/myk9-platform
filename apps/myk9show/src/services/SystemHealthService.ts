@@ -1,3 +1,5 @@
+import { logger } from '@/services/LoggingService';
+
 /**
  * System Health Monitoring Service
  * Provides real system status metrics and health checks
@@ -113,7 +115,7 @@ class SystemHealthService {
       try {
         performanceObserver.observe({ entryTypes: ['navigation'] });
       } catch (error) {
-        console.warn('Performance Observer not supported:', error);
+        logger.warn('Performance Observer not supported:', 'services', {}, error as Error);
       }
     }
   }

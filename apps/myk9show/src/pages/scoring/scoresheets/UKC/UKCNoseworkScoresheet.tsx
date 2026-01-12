@@ -17,6 +17,7 @@ import '../BaseScoresheet.css';
 import '../AKC/scoresheet-shared.css';
 import '../AKC/AKCScentWorkScoresheet-JudgeDialog.css';
 import './UKCNoseworkScoresheet.css';
+import { logger } from '@/services/LoggingService';
 
 // Types
 interface UKCNoseworkScoresheetProps {
@@ -190,7 +191,7 @@ export const UKCNoseworkScoresheet: React.FC<UKCNoseworkScoresheetProps> = ({
         onBack();
       }
     } catch (error) {
-      console.error('Failed to save score:', error);
+      logger.error('Failed to save score:', 'pages', {}, error as Error);
     } finally {
       setIsSubmitting(false);
     }

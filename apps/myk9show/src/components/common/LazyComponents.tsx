@@ -13,6 +13,7 @@
 
 /* eslint-disable react-refresh/only-export-components */
 import { lazy } from 'react';
+import { logger } from '@/services/LoggingService';
 
 // Calendar Components (react-big-calendar dependency)
 export const ShowCalendar = lazy(() => 
@@ -100,7 +101,7 @@ export const RegistrationWorkflow = lazy(() =>
  */
 export function preloadHeavyComponents(): void {
   if (import.meta.env.PROD || localStorage.getItem('preload-components') === 'true') {
-    console.log('🚀 Preloading heavy components...');
+    logger.debug('🚀 Preloading heavy components...', 'components', {});
     
     // Stagger preloading to avoid overwhelming the main thread
     const components = [
@@ -116,7 +117,7 @@ export function preloadHeavyComponents(): void {
         try {
           component();
         } catch (error) {
-          console.warn(`Failed to preload component ${index}:`, error);
+          logger.warn(`Failed to preload component ${index}:`, 'common', {}, error as Error);
         }
       }, (index + 1) * 500);
     });
@@ -147,7 +148,7 @@ export function preloadByRole(userRole?: string): void {
           comp._init?.catch?.(() => {});
         }
       } catch (error) {
-        console.warn(`Failed to preload ${userRole} component:`, error);
+        logger.warn(`Failed to preload ${userRole} component:`, 'common', {}, error as Error);
       }
     }, index * 300);
   });

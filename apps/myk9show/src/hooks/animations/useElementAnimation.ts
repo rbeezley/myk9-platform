@@ -1,4 +1,5 @@
 import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
+import { logger } from '@/services/LoggingService';
 
 export interface AnimationConfig {
   duration: number;
@@ -65,7 +66,7 @@ export function useElementAnimation(
       await animationRef.current.finished;
       setHasAnimated(true);
     } catch (error) {
-      console.warn('Animation was cancelled or failed:', error);
+      logger.warn('Animation was cancelled or failed:', 'hooks', {}, error as Error);
     } finally {
       setIsAnimating(false);
     }
@@ -81,7 +82,7 @@ export function useElementAnimation(
       animationRef.current.reverse();
       await animationRef.current.finished;
     } catch (error) {
-      console.warn('Reverse animation was cancelled or failed:', error);
+      logger.warn('Reverse animation was cancelled or failed:', 'hooks', {}, error as Error);
     } finally {
       setIsAnimating(false);
     }
@@ -281,7 +282,7 @@ export function useStaggerAnimation(
       // Wait for all animations to complete
       await Promise.all(animations.map(anim => anim.finished));
     } catch (error) {
-      console.warn('Stagger animation was cancelled or failed:', error);
+      logger.warn('Stagger animation was cancelled or failed:', 'hooks', {}, error as Error);
     } finally {
       setIsAnimating(false);
     }

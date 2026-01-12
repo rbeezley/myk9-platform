@@ -13,6 +13,7 @@ import { SidebarLayout, useSidebarLayoutState } from '@/components/layout/Sideba
 
 import DogSidebar from '@/components/dogs/DogDetails/DogSidebar/DogSidebar';
 import DogDetailsMain from '@/components/dogs/DogDetailsMain';
+import { logger } from '@/services/LoggingService';
 
 /**
  * DogDetails page component that follows the standardized entity page pattern.
@@ -60,7 +61,7 @@ function DogDetails(): React.ReactElement {
 
     // Check if user has access to the requested dog
     if (id && !canAccessDog) {
-      console.warn(`User does not have access to dog ${id}`);
+      logger.warn(`User does not have access to dog ${id}`, 'pages', {});
       if (dogs.length > 0) {
         navigate(`/dogs/${dogs[0].id}`, { replace: true });
       }

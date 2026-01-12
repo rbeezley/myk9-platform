@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PaymentStatus, EntryStatus } from '@/types/show-registration-types';
 import { useRegistrationPermissions, REGISTRATION_PERMISSIONS } from '@/hooks/useRegistrationPermissions';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
+import { logger } from '@/services/LoggingService';
 
 interface PaymentEntry {
   id: string;
@@ -49,7 +50,7 @@ export const PaymentReconciliation: React.FC<PaymentReconciliationProps> = ({
   useRegistrationPermissions();
   
   // Log for debugging purposes
-  console.log('PaymentReconciliation for show:', showId, 'with', entries.length, 'entries');
+  logger.debug('PaymentReconciliation for show:', 'shows', { data: showId, 'with', entries.length, 'entries' });
   
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<PaymentStatus | 'all'>('all');

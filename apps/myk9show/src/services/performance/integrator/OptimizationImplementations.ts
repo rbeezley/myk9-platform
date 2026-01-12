@@ -1,3 +1,5 @@
+import { logger } from '@/services/LoggingService';
+
 /**
  * Optimization Implementations
  *
@@ -168,14 +170,14 @@ export const FontOptimization = {
     if ('fonts' in document) {
       document.fonts.ready.then(() => {
         document.documentElement.classList.add('font-loaded');
-        console.log('✅ Fonts loaded successfully');
+        logger.debug('✅ Fonts loaded successfully', 'performance', {});
       });
 
       // Set a timeout to prevent indefinite waiting
       setTimeout(() => {
         if (!document.documentElement.classList.contains('font-loaded')) {
           document.documentElement.classList.add('font-loaded');
-          console.warn('⚠️ Font loading timeout - proceeding with fallback fonts');
+          logger.warn('⚠️ Font loading timeout - proceeding with fallback fonts', 'performance', {});
         }
       }, 3000);
     }

@@ -3,6 +3,7 @@ import * as jsonpatch from 'fast-json-patch';
 import { diff as deepDiff } from 'deep-object-diff';
 import { isEqual, cloneDeep, get, set, unset } from 'lodash';
 import { 
+import { logger } from '@/services/LoggingService';
   DeltaPayload, 
   DeltaOperation, 
   DeltaAlgorithm,
@@ -210,7 +211,7 @@ export class DifferentialSyncService {
 
       return deltaPayload;
     } catch (error) {
-      console.error('Error calculating delta:', error);
+      logger.error('Error calculating delta:', 'sync', {}, error as Error);
       eventEmitter.emit('sync:error', {
         type: 'delta-calculation',
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -293,7 +294,7 @@ export class DifferentialSyncService {
 
       return result;
     } catch (error) {
-      console.error('Error applying delta:', error);
+      logger.error('Error applying delta:', 'sync', {}, error as Error);
       
       if (rollbackOnError && rollbackState) {
         return rollbackState;

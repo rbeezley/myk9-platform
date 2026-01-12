@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
+import { logger } from '@/services/LoggingService';
   enhancedNotificationService, 
   EnhancedNotification, 
   NotificationCategory, 
@@ -64,7 +65,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
       });
       setNotifications(result.notifications);
     } catch (error) {
-      console.error('Failed to load notifications:', error);
+      logger.error('Failed to load notifications:', 'components', {}, error as Error);
     } finally {
       setIsLoading(false);
     }
@@ -77,7 +78,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
       const count = await enhancedNotificationService.getUnreadCount(user.id);
       setUnreadCount(count);
     } catch (error) {
-      console.error('Failed to load unread count:', error);
+      logger.error('Failed to load unread count:', 'components', {}, error as Error);
     }
   }, [user?.id]);
 
@@ -88,7 +89,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
       const prefs = await enhancedNotificationService.getUserPreferences(user.id);
       setPreferences(prefs);
     } catch (error) {
-      console.error('Failed to load preferences:', error);
+      logger.error('Failed to load preferences:', 'components', {}, error as Error);
     }
   }, [user?.id]);
 

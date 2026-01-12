@@ -1,6 +1,7 @@
 // Type mapping utilities for Show entity between Zustand and Supabase
 import type { Show, ShowInput } from '@/types/show-types';
 import type { DbShow, DbShowInsert, DbShowUpdate } from '@/types/database-mappings';
+import { logger } from '@/services/LoggingService';
 
 /**
  * Maps ShowInput (from Zustand store) to DbShowInsert (for Supabase insertion)
@@ -227,7 +228,7 @@ export const safeParseJson = <T>(jsonString: string | null | undefined, fallback
   try {
     return JSON.parse(jsonString) as T;
   } catch (error) {
-    console.warn('Failed to parse JSON:', error);
+    logger.warn('Failed to parse JSON:', 'mappers', {}, error as Error);
     return fallback;
   }
 };

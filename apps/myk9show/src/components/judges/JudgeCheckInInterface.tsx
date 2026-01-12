@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
+import { logger } from '@/services/LoggingService';
   CheckInStatus, 
   requiresAction,
   canProceedToGate
@@ -160,7 +161,7 @@ export const JudgeCheckInInterface: React.FC<JudgeCheckInInterfaceProps> = ({
 
       setEntries(mockEntries);
     } catch (error) {
-      console.error('Failed to load ring entries:', error);
+      logger.error('Failed to load ring entries:', 'components', {}, error as Error);
     } finally {
       setIsLoading(false);
     }
@@ -260,7 +261,7 @@ export const JudgeCheckInInterface: React.FC<JudgeCheckInInterfaceProps> = ({
       // Close dialog
       setCheckInDialog({ open: false, entry: null });
     } catch (error) {
-      console.error('Failed to update check-in status:', error);
+      logger.error('Failed to update check-in status:', 'components', {}, error as Error);
       // Revert optimistic update
       setEntries(prev => prev.map(e => 
         e.id === entry.id ? entry : e
@@ -295,7 +296,7 @@ export const JudgeCheckInInterface: React.FC<JudgeCheckInInterfaceProps> = ({
         }
       });
     } catch (error) {
-      console.error('Failed to update check-in status:', error);
+      logger.error('Failed to update check-in status:', 'components', {}, error as Error);
     }
   };
 

@@ -5,6 +5,7 @@ import { Badge } from '../components/ui/badge';
 import { Separator } from '../components/ui/separator';
 import { Download, FileText, Database, Wifi, HardDrive } from 'lucide-react';
 import {
+import { logger } from '@/services/LoggingService';
   OfflineModeBanner,
   SyncProgressIndicator,
   DataFreshnessBadge,
@@ -63,7 +64,7 @@ export const OfflineTestPage: React.FC = () => {
                 isOnline={isOnline}
                 lastSyncTime={lastSync}
                 pendingChanges={pendingChanges}
-                onRetrySync={() => console.log('Retry sync')}
+                onRetrySync={() => logger.debug('Retry sync', 'pages', {});}
               />
             </div>
 

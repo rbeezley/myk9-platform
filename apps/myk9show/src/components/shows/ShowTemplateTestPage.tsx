@@ -6,6 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { ShowTemplateManager } from './ShowTemplateManager';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useShowTemplateStore } from '@/store/showTemplateStore';
+import { logger } from '@/services/LoggingService';
 
 export const ShowTemplateTestPage: React.FC = () => {
   const [selectedTrialId] = useState('test-trial-1');
@@ -16,7 +17,7 @@ export const ShowTemplateTestPage: React.FC = () => {
   const allPresets = getAllPresets();
 
   const handleClassesCreated = (classCount: number) => {
-    console.log(`Successfully created ${classCount} classes!`);
+    logger.debug(`Successfully created ${classCount} classes!`, 'shows', {});
   };
 
   // Group presets by organization

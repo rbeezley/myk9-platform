@@ -7,6 +7,7 @@
 
 import { Browser, BrowserContext, Page } from '@playwright/test';
 import { 
+import { logger } from '@/services/LoggingService';
   LoadTestDataGenerator, 
   PerformanceMonitor, 
   LOAD_TEST_SCENARIOS,
@@ -29,14 +30,14 @@ export class LoadTestRunner {
     this.browser = browser;
     
     // Generate test data
-    console.log('Generating test data...');
+    logger.debug('Generating test data...', 'app', {});
     this.testData = this.dataGenerator.generateBulkData({
       users: 1000,
       dogs: 500,
       shows: 200
     });
     
-    console.log(`Generated ${this.testData.users.length} users, ${this.testData.dogs.length} dogs, ${this.testData.shows.length} shows`);
+    logger.debug(`Generated ${this.testData.users.length} users, ${this.testData.dogs.length} dogs, ${this.testData.shows.length} shows`, 'app', {});
   }
 
   async runScenario(scenario: LoadTestScenario): Promise<void> {
@@ -44,10 +45,10 @@ export class LoadTestRunner {
       throw new Error('LoadTestRunner not initialized');
     }
 
-    console.log(`\n🚀 Starting load test scenario: ${scenario.name}`);
-    console.log(`📊 Virtual Users: ${scenario.virtualUsers}`);
-    console.log(`⏱️ Duration: ${scenario.duration}`);
-    console.log(`📈 Ramp-up: ${scenario.rampUp || 'immediate'}`);
+    logger.debug(`\n🚀 Starting load test scenario: ${scenario.name}`, 'app', {});
+    logger.debug(`📊 Virtual Users: ${scenario.virtualUsers}`, 'app', {});
+    logger.debug(`⏱️ Duration: ${scenario.duration}`, 'app', {});
+    logger.debug(`📈 Ramp-up: ${scenario.rampUp || 'immediate'}`, 'app', {});
 
     const startTime = Date.now();
     const durationMs = this.parseDuration(scenario.duration);
@@ -56,14 +57,14 @@ export class LoadTestRunner {
     // Create user contexts based on distribution
     const userContexts = await this.createUserContexts(scenario);
     
-    console.log(`🎭 Created ${userContexts.length} user contexts`);
+    logger.debug(`🎭 Created ${userContexts.length} user contexts`, 'app', {});
 
     try {
       // Execute load test with ramp-up
       await this.executeWithRampUp(userContexts, scenario, rampUpMs, durationMs);
       
       // Generate performance report
-      console.log(this.performanceMonitor.generateReport());
+      logger.debug('this.performanceMonitor.generateReport()', 'test', { this.performanceMonitor.generateReport(): this.performanceMonitor.generateReport() });
       
       // Validate performance targets
       await this.validatePerformanceTargets(scenario);
@@ -74,7 +75,7 @@ export class LoadTestRunner {
     }
 
     const totalTime = Date.now() - startTime;
-    console.log(`✅ Scenario completed in ${totalTime}ms`);
+    logger.debug(`✅ Scenario completed in ${totalTime}ms`, 'app', {});
   }
 
   private async createUserContexts(scenario: LoadTestScenario): Promise<UserContext[]> {
@@ -148,10 +149,10 @@ export class LoadTestRunner {
     }
 
     // Wait for all users to complete their workflows
-    console.log('⏳ Waiting for all user workflows to complete...');
+    logger.debug('⏳ Waiting for all user workflows to complete...', 'app', {});
     await Promise.allSettled(userPromises);
     
-    console.log(`📊 Load test execution completed`);
+    logger.debug(`📊 Load test execution completed`, 'app', {});
   }
 
   private async executeUserWorkflows(
@@ -177,7 +178,7 @@ export class LoadTestRunner {
         await new Promise(resolve => setTimeout(resolve, thinkTime));
         
       } catch (error) {
-        console.error(`❌ Workflow error for user ${userContext.userId}:`, error);
+        logger.error(`❌ Workflow error for user ${userContext.userId}:`, 'app', {}, error as Error);
         
         // Record error and continue
         this.performanceMonitor.endMeasurement('workflow_error', false);
@@ -326,7 +327,7 @@ export class LoadTestRunner {
       if (window.EventSource) {
         const eventSource = new EventSource('/api/realtime/updates');
         eventSource.onmessage = (event) => {
-          console.log('Real-time update received:', event.data);
+          logger.debug('Real-time update received:', 'test', { data: event.data });
         };
       }
     });
@@ -398,7 +399,7 @@ export class LoadTestRunner {
   }
 
   private async validatePerformanceTargets(scenario: LoadTestScenario): Promise<void> {
-    console.log('\n🎯 Validating Performance Targets...');
+    logger.debug('\n🎯 Validating Performance Targets...', 'app', {});
     
     const metrics = this.performanceMonitor.getAllMetrics();
     let allTargetsMet = true;
@@ -411,20 +412,20 @@ export class LoadTestRunner {
         allTargetsMet = false;
       }
       
-      console.log(`${operation}:`);
-      console.log(`  Response Time (P95): ${operationMetrics.p95}ms ${responseTimeOk ? '✅' : '❌'}`);
-      console.log(`  Error Rate: ${operationMetrics.errorRate.toFixed(1)}% ${errorRateOk ? '✅' : '❌'}`);
+      logger.debug(`${operation}:`, 'app', {});
+      logger.debug(`  Response Time (P95): ${operationMetrics.p95}ms ${responseTimeOk ? '✅' : '❌'}`, 'app', {});
+      logger.debug(`  Error Rate: ${operationMetrics.errorRate.toFixed(1)}% ${errorRateOk ? '✅' : '❌'}`, 'app', {});
     }
     
     if (allTargetsMet) {
-      console.log('🎉 All performance targets met!');
+      logger.debug('🎉 All performance targets met!', 'app', {});
     } else {
-      console.log('⚠️ Some performance targets not met');
+      logger.debug('⚠️ Some performance targets not met', 'app', {});
     }
   }
 
   private async cleanupContexts(): Promise<void> {
-    console.log('🧹 Cleaning up browser contexts...');
+    logger.debug('🧹 Cleaning up browser contexts...', 'app', {});
     
     for (const context of this.contexts) {
       await context.close();
@@ -456,7 +457,7 @@ export class LoadTestRunner {
   }
 
   async runAllScenarios(): Promise<void> {
-    console.log('🚀 Starting comprehensive load testing...');
+    logger.debug('🚀 Starting comprehensive load testing...', 'app', {});
     
     for (const scenario of LOAD_TEST_SCENARIOS) {
       try {
@@ -466,14 +467,14 @@ export class LoadTestRunner {
         await new Promise(resolve => setTimeout(resolve, 30000));
         
       } catch (error) {
-        console.error(`❌ Scenario ${scenario.name} failed:`, error);
+        logger.error(`❌ Scenario ${scenario.name} failed:`, 'app', {}, error as Error);
       }
       
       // Reset performance monitor for next scenario
       this.performanceMonitor.reset();
     }
     
-    console.log('✅ All load test scenarios completed');
+    logger.debug('✅ All load test scenarios completed', 'app', {});
   }
 }
 

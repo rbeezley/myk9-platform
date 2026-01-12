@@ -3,6 +3,7 @@ import { ClassTemplate, ClassDefinition } from '@/types/template.types';
 import { ShowJudgeAssignment } from '@/types/judge-types';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
+import { logger } from '@/services/LoggingService';
   Search, 
   CheckSquare, 
   Square, 
@@ -67,7 +68,7 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
   const classesByElement = useMemo(() => {
     const grouped: Record<string, ClassDefinition[]> = {};
     
-    console.log('Grouping classes - filteredClasses:', filteredClasses);
+    logger.debug('Grouping classes - filteredClasses:', 'templates', { data: filteredClasses });
     
     filteredClasses.forEach(cls => {
       if (!grouped[cls.element]) {
@@ -90,7 +91,7 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
       });
     });
     
-    console.log('Grouped classes:', grouped);
+    logger.debug('Grouped classes:', 'templates', { data: grouped });
     return grouped;
   }, [filteredClasses]);
 

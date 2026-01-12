@@ -13,6 +13,7 @@ import '../BaseScoresheet.css';
 import './scoresheet-shared.css';
 import './AKCScentWorkScoresheet-JudgeDialog.css';
 import '../../styles/containers.css';
+import { logger } from '@/services/LoggingService';
 
 // Types
 interface AKCScentWorkScoresheetProps {
@@ -171,7 +172,7 @@ export const AKCScentWorkScoresheet: React.FC<AKCScentWorkScoresheetProps> = ({
         onBack();
       }
     } catch (error) {
-      console.error('Failed to save score:', error);
+      logger.error('Failed to save score:', 'pages', {}, error as Error);
     } finally {
       setIsSubmitting(false);
     }

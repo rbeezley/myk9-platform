@@ -11,6 +11,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { 
+import { logger } from '@/services/LoggingService';
   Users, 
   Search, 
   Filter, 
@@ -77,7 +78,7 @@ const UserManagementPage: React.FC = () => {
   const updateUserMutation = useUpdateUserMutation();
   
   // Debug logging
-  console.log('UserManagementPage render - isLoading:', isLoading, 'users.length:', users.length, 'error:', error);
+  logger.debug('UserManagementPage render - isLoading:', 'admin', { data: isLoading, 'users.length:', users.length, 'error:', error });
 
   // Filter and search logic
   const filteredUsers = useMemo(() => {
@@ -181,7 +182,7 @@ const UserManagementPage: React.FC = () => {
       setSelectedUser(updatedUser);
       setShowUserEditPanel(false);
     } catch (error) {
-      console.error('Failed to update user:', error);
+      logger.error('Failed to update user:', 'pages', {}, error as Error);
       throw error; // Let the edit panel handle the error
     }
   };
@@ -198,7 +199,7 @@ const UserManagementPage: React.FC = () => {
   }, [users]);
 
   if (error) {
-    console.warn('User Management Error (handled gracefully):', error);
+    logger.warn('User Management Error (handled gracefully):', 'admin', {}, error as Error);
     return (
       <div className="p-6">
         <Card>
@@ -524,7 +525,7 @@ const UserManagementPage: React.FC = () => {
                 // Clear selection and refresh data
                 clearSelection();
                 // React Query will automatically refetch data
-                console.log('Users deleted:', deletedUserIds);
+                logger.debug('Users deleted:', 'admin', { data: deletedUserIds });
               }}
             />
           </div>

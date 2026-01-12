@@ -8,6 +8,7 @@
  */
 
 import { lazy, ComponentType } from 'react';
+import { logger } from '@/services/LoggingService';
 
 // Enhanced lazy loading options
 export interface LazyLoadOptions {
@@ -63,7 +64,7 @@ export function createEnhancedLazy<T extends ComponentType<any>>(
       // Track performance
       const loadTime = performance.now() - startTime;
       if (process.env.NODE_ENV === 'development') {
-        console.log(`📦 Lazy loaded ${displayName} in ${loadTime.toFixed(2)}ms`);
+        logger.debug(`📦 Lazy loaded ${displayName} in ${loadTime.toFixed(2)}ms`, 'utils', {});
       }
       
       return result;
@@ -71,13 +72,13 @@ export function createEnhancedLazy<T extends ComponentType<any>>(
       retryCount++;
       
       if (retryCount <= retryAttempts) {
-        console.warn(`🔄 Retrying import for ${displayName} (attempt ${retryCount}/${retryAttempts})`);
+        logger.warn(`🔄 Retrying import for ${displayName} (attempt ${retryCount}/${retryAttempts})`, 'utils', {});
         // Exponential backoff
         await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
         return enhancedImport();
       }
       
-      console.error(`❌ Failed to load ${displayName} after ${retryAttempts} attempts:`, error);
+      logger.error(`❌ Failed to load ${displayName} after ${retryAttempts} attempts:`, 'utils', {}, error as Error);
       throw error;
     }
   };
@@ -220,7 +221,7 @@ export class IntelligentPreloader {
         this.preloadCache.set(route, preloadPromise);
         
         if (process.env.NODE_ENV === 'development') {
-          console.log(`🎯 Preloading likely route: ${route}`);
+          logger.debug(`🎯 Preloading likely route: ${route}`, 'utils', {});
         }
       }
     }

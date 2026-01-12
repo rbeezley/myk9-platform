@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ErrorClassificationService } from '@/services/error/ErrorClassificationService';
 import type { ErrorDetails } from '@/services/error/GlobalErrorHandler';
+import { logger } from '@/services/LoggingService';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -90,7 +91,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       url: window.location.href
     };
 
-    console.error('Error Boundary Caught Error:', errorReport);
+    logger.error('Error Boundary Caught Error:', 'components', {}, errorReport as Error);
     
     // Store in localStorage for debugging
     try {
@@ -281,7 +282,7 @@ export const RegistrationErrorBoundary: React.FC<{ children: ReactNode }> = ({ c
     context="Registration Wizard"
     onError={(error, errorInfo) => {
       // Specific logging for registration errors
-      console.error('Registration Wizard Error:', { error, errorInfo });
+      logger.error('Registration Wizard Error:', 'common', { data: { error, errorInfo } });
     }}
   >
     {children}
@@ -294,7 +295,7 @@ export const SearchErrorBoundary: React.FC<{ children: ReactNode }> = ({ childre
     context="Search Interface"
     onError={(error, errorInfo) => {
       // Specific logging for search errors
-      console.error('Search Interface Error:', { error, errorInfo });
+      logger.error('Search Interface Error:', 'common', { data: { error, errorInfo } });
     }}
   >
     {children}
@@ -307,7 +308,7 @@ export const PaymentErrorBoundary: React.FC<{ children: ReactNode }> = ({ childr
     context="Payment Processing"
     onError={(error, errorInfo) => {
       // Critical logging for payment errors
-      console.error('CRITICAL - Payment Error:', { error, errorInfo });
+      logger.error('CRITICAL - Payment Error:', 'common', { data: { error, errorInfo } });
       // In production, would immediately alert monitoring
     }}
   >

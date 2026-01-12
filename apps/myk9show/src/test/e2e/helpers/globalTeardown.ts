@@ -3,13 +3,14 @@ import fs from 'fs/promises';
 import path from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { logger } from '@/services/LoggingService';
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 const execAsync = promisify(exec);
 
 async function globalTeardown(config: FullConfig) {
-  console.log('🧹 Starting E2E test teardown...');
+  logger.debug('🧹 Starting E2E test teardown...', 'app', {});
   
   try {
     // Kill any remaining browser processes
@@ -18,7 +19,7 @@ async function globalTeardown(config: FullConfig) {
     // Kill any remaining git processes that might be hanging
     await killRemainingGitProcesses();
     // Clean up test artifacts
-    console.log('📂 Cleaning up test artifacts...');
+    logger.debug('📂 Cleaning up test artifacts...', 'app', {});
     
     const testResultsDir = 'test-results';
     const screenshotsDir = path.join(testResultsDir, 'screenshots');
@@ -27,15 +28,15 @@ async function globalTeardown(config: FullConfig) {
       // Only clean up if explicitly requested (not in CI)
       if (!process.env.CI && process.env.CLEAN_TEST_ARTIFACTS === 'true') {
         await fs.rmdir(screenshotsDir, { recursive: true });
-        console.log('✅ Cleaned up screenshots');
+        logger.debug('✅ Cleaned up screenshots', 'app', {});
       }
     } catch {
       // Ignore cleanup errors
-      console.log('⚠️ Could not clean up artifacts (this is normal)');
+      logger.debug('⚠️ Could not clean up artifacts (this is normal)', 'app', {});
     }
     
     // Generate test summary
-    console.log('📊 Generating test summary...');
+    logger.debug('📊 Generating test summary...', 'app', {});
     
     const browser = await chromium.launch();
     const page = await browser.newPage();
@@ -65,16 +66,16 @@ async function globalTeardown(config: FullConfig) {
         sessionStorage.clear();
       });
       
-      console.log('✅ Cleaned up test data from browser storage');
+      logger.debug('✅ Cleaned up test data from browser storage', 'app', {});
       
     } catch (error) {
-      console.log('⚠️ Could not clean up browser storage:', error.message);
+      logger.debug('⚠️ Could not clean up browser storage:', 'test', { data: error.message });
     } finally {
       await browser.close();
     }
     
     // Log test completion statistics
-    console.log('📈 Test run completed');
+    logger.debug('📈 Test run completed', 'app', {});
     
     // Read test results if available
     try {
@@ -119,33 +120,33 @@ async function globalTeardown(config: FullConfig) {
         duration: parsedTestData.stats?.duration || 0
       };
       
-      console.log(`📊 Test Summary:`);
-      console.log(`   Total: ${summary.total}`);
-      console.log(`   Passed: ${summary.passed}`);
-      console.log(`   Failed: ${summary.failed}`);
-      console.log(`   Duration: ${Math.round(summary.duration / 1000)}s`);
+      logger.debug(`📊 Test Summary:`, 'app', {});
+      logger.debug(`   Total: ${summary.total}`, 'app', {});
+      logger.debug(`   Passed: ${summary.passed}`, 'app', {});
+      logger.debug(`   Failed: ${summary.failed}`, 'app', {});
+      logger.debug(`   Duration: ${Math.round(summary.duration / 1000)}s`, 'app', {});
       
       if (summary.failed > 0) {
-        console.log('❌ Some tests failed - check the HTML report for details');
+        logger.debug('❌ Some tests failed - check the HTML report for details', 'app', {});
       } else {
-        console.log('✅ All tests passed!');
+        logger.debug('✅ All tests passed!', 'app', {});
       }
       
     } catch {
-      console.log('⚠️ Could not read test results for summary');
+      logger.debug('⚠️ Could not read test results for summary', 'app', {});
     }
     
   } catch (error) {
-    console.error('❌ Global teardown failed:', error);
+    logger.error('❌ Global teardown failed:', 'app', {}, error as Error);
     // Don't throw - teardown failures shouldn't fail the test run
   }
   
-  console.log('🎉 E2E test teardown completed!');
+  logger.debug('🎉 E2E test teardown completed!', 'app', {});
 }
 
 async function killRemainingBrowserProcesses() {
   try {
-    console.log('🔄 Killing remaining browser processes...');
+    logger.debug('🔄 Killing remaining browser processes...', 'app', {});
     
     const isWindows = process.platform === 'win32';
     
@@ -172,15 +173,15 @@ async function killRemainingBrowserProcesses() {
       await execAsync('pkill -f playwright || echo "No Playwright processes found"');
     }
     
-    console.log('✅ Browser processes cleanup completed');
+    logger.debug('✅ Browser processes cleanup completed', 'app', {});
   } catch (error) {
-    console.log('⚠️ Browser process cleanup had issues (this is usually normal)');
+    logger.debug('⚠️ Browser process cleanup had issues (this is usually normal)', 'app', {});
   }
 }
 
 async function killRemainingGitProcesses() {
   try {
-    console.log('🔄 Checking for hanging development processes...');
+    logger.debug('🔄 Checking for hanging development processes...', 'app', {});
     
     const isWindows = process.platform === 'win32';
     
@@ -190,10 +191,10 @@ async function killRemainingGitProcesses() {
       const gitProcessCount = parseInt(gitStdout.trim()) - 1; // Subtract 1 for header
       
       if (gitProcessCount > 10) {
-        console.log(`⚠️ Found ${gitProcessCount} git processes, cleaning up...`);
+        logger.debug(`⚠️ Found ${gitProcessCount} git processes, cleaning up...`, 'app', {});
         await execAsync('taskkill /f /im git.exe /t 2>nul || echo "Git cleanup completed"');
       } else if (gitProcessCount > 0) {
-        console.log(`ℹ️ Git processes: ${gitProcessCount} (normal)`);
+        logger.debug(`ℹ️ Git processes: ${gitProcessCount} (normal)`, 'app', {});
       }
 
       // Check bash processes
@@ -202,10 +203,10 @@ async function killRemainingGitProcesses() {
         const bashProcessCount = parseInt(bashStdout.trim());
         
         if (bashProcessCount > 5) {
-          console.log(`⚠️ Found ${bashProcessCount} bash processes, cleaning up...`);
+          logger.debug(`⚠️ Found ${bashProcessCount} bash processes, cleaning up...`, 'app', {});
           await execAsync('taskkill /f /im bash.exe /t 2>nul || echo "Bash cleanup completed"');
         } else if (bashProcessCount > 0) {
-          console.log(`ℹ️ Bash processes: ${bashProcessCount} (normal)`);
+          logger.debug(`ℹ️ Bash processes: ${bashProcessCount} (normal)`, 'app', {});
         }
       } catch (error) {
         // Bash processes might not exist, that's fine
@@ -221,7 +222,7 @@ async function killRemainingGitProcesses() {
       const gitProcessCount = parseInt(gitStdout.trim());
       
       if (gitProcessCount > 10) {
-        console.log(`⚠️ Found ${gitProcessCount} git processes, cleaning up...`);
+        logger.debug(`⚠️ Found ${gitProcessCount} git processes, cleaning up...`, 'app', {});
         await execAsync('pkill -f git || echo "Git cleanup completed"');
       }
 
@@ -230,14 +231,14 @@ async function killRemainingGitProcesses() {
       const bashProcessCount = parseInt(bashStdout.trim());
       
       if (bashProcessCount > 5) {
-        console.log(`⚠️ Found ${bashProcessCount} bash processes, cleaning up...`);
+        logger.debug(`⚠️ Found ${bashProcessCount} bash processes, cleaning up...`, 'app', {});
         await execAsync('pkill -f bash || echo "Bash cleanup completed"');
       }
     }
     
-    console.log('✅ Development processes check completed');
+    logger.debug('✅ Development processes check completed', 'app', {});
   } catch (error) {
-    console.log('⚠️ Development process cleanup had issues (this is usually normal)');
+    logger.debug('⚠️ Development process cleanup had issues (this is usually normal)', 'app', {});
   }
 }
 

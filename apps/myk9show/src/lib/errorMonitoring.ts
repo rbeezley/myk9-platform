@@ -3,6 +3,7 @@
 
 import { useEffect, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { logger } from '@/services/LoggingService';
 
 // Error severity levels
 export type ErrorSeverity = 'low' | 'medium' | 'high' | 'critical';
@@ -92,7 +93,7 @@ class ErrorStorage {
       const cutoff = Date.now() - MONITORING_CONFIG.retentionPeriod;
       return errors.filter(error => error.context.timestamp > cutoff);
     } catch (error) {
-      console.error('Failed to load stored errors:', error);
+      logger.error('Failed to load stored errors:', 'lib', {}, error as Error);
       return [];
     }
   }
@@ -109,7 +110,7 @@ class ErrorStorage {
       
       localStorage.setItem(this.storageKey, JSON.stringify(errors));
     } catch (error) {
-      console.error('Failed to store error:', error);
+      logger.error('Failed to store error:', 'lib', {}, error as Error);
     }
   }
 
@@ -117,7 +118,7 @@ class ErrorStorage {
     try {
       localStorage.removeItem(this.storageKey);
     } catch (error) {
-      console.error('Failed to clear errors:', error);
+      logger.error('Failed to clear errors:', 'lib', {}, error as Error);
     }
   }
 
@@ -459,11 +460,11 @@ export class ErrorMonitor {
   }
 
   private triggerCriticalAlert(errors: StructuredError[]): void {
-    console.error('🚨 CRITICAL ERROR THRESHOLD EXCEEDED', {
+    logger.error('🚨 CRITICAL ERROR THRESHOLD EXCEEDED', 'lib', { data: {
       count: errors.length,
       threshold: MONITORING_CONFIG.criticalErrorThreshold,
       errors: errors.map(e => ({ message: e.message, context: e.context }))
-    });
+    } });
     
     // In production, this would trigger alerts (email, Slack, etc.)
   }

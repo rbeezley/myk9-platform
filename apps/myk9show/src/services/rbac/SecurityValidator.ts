@@ -6,6 +6,7 @@
 
 import { supabase } from '@/lib/supabase';
 import type { Role, Permission } from '@/types/rbac-types';
+import { logger } from '@/services/LoggingService';
 
 export class SecurityValidator {
   constructor(
@@ -97,7 +98,7 @@ export class SecurityValidator {
 
       return { isValid: true };
     } catch (error) {
-      console.error('Permission escalation validation failed:', error);
+      logger.error('Permission escalation validation failed:', 'rbac', {}, error as Error);
       return {
         isValid: false,
         reason: 'Security validation failed due to system error'
@@ -152,7 +153,7 @@ export class SecurityValidator {
 
       return { isValid: true };
     } catch (error) {
-      console.error('Bulk operation validation failed:', error);
+      logger.error('Bulk operation validation failed:', 'rbac', {}, error as Error);
       return {
         isValid: false,
         reason: 'Security validation failed due to system error'
@@ -191,7 +192,7 @@ export class SecurityValidator {
         issues
       };
     } catch (error) {
-      console.error('Role permission integrity validation failed:', error);
+      logger.error('Role permission integrity validation failed:', 'rbac', {}, error as Error);
       return {
         isValid: false,
         issues: [`Validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`]

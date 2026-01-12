@@ -20,6 +20,7 @@ import '@/styles/apple-show-details.css';
 
 // Store and service integration
 import {
+import { logger } from '@/services/LoggingService';
   useOfflineScoringStore,
   useCurrentScoringSession,
   useJudgeAuth,
@@ -194,7 +195,7 @@ export function OfflineJudgeInterface({
       await authenticateJudge();
       setCurrentView('setup');
     } catch (error) {
-      console.error('Authentication failed:', error);
+      logger.error('Authentication failed:', 'scoring', {}, error as Error);
     } finally {
       setIsLoading(false);
     }
@@ -215,7 +216,7 @@ export function OfflineJudgeInterface({
       await startJudgingSession(activeClassId, selectedFormat);
       setCurrentView('entry_list');
     } catch (error) {
-      console.error('Failed to start session:', error);
+      logger.error('Failed to start session:', 'scoring', {}, error as Error);
     } finally {
       setIsLoading(false);
     }
@@ -229,7 +230,7 @@ export function OfflineJudgeInterface({
       await endJudgingSession(session?.id || '');
       setCurrentView('completed');
     } catch (error) {
-      console.error('Failed to end session:', error);
+      logger.error('Failed to end session:', 'scoring', {}, error as Error);
     } finally {
       setIsLoading(false);
     }
@@ -275,7 +276,7 @@ export function OfflineJudgeInterface({
       
       return result;
     } catch (error) {
-      console.error('Score submission failed:', error);
+      logger.error('Score submission failed:', 'scoring', {}, error as Error);
       return {
         isValid: false,
         errors: [{ field: 'general', message: 'Submission failed', code: 'SUBMIT_ERROR' }],
@@ -303,7 +304,7 @@ export function OfflineJudgeInterface({
     try {
       advanceWorkflowStep('next');
     } catch (error) {
-      console.error('Failed to advance workflow:', error);
+      logger.error('Failed to advance workflow:', 'scoring', {}, error as Error);
     }
   };
 

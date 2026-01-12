@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { logger } from '@/services/LoggingService';
 
 interface PrefetchOptions {
   staleTime?: number;
@@ -46,7 +47,7 @@ export const useRoutePrefetch = () => {
         )
       );
     } catch (error) {
-      console.warn(`Failed to prefetch route ${routePath}:`, error);
+      logger.warn(`Failed to prefetch route ${routePath}:`, 'hooks', {}, error as Error);
       // Remove from prefetched set so it can be retried
       prefetchedRoutes.current.delete(routePath);
     }

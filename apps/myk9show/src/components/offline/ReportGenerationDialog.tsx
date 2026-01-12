@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FileText, Printer, Download, Settings, ChevronDown } from 'lucide-react';
 import {
+import { logger } from '@/services/LoggingService';
   Dialog,
   DialogContent,
   DialogDescription,
@@ -55,13 +56,13 @@ export const ReportGenerationDialog: React.FC<ReportGenerationDialogProps> = ({
       if (result.success) {
         setIsOpen(false);
         // Show success notification
-        console.log('Report generated successfully:', result.filename);
+        logger.debug('Report generated successfully:', 'offline', { data: result.filename });
       } else {
-        console.error('Report generation failed:', result.error);
+        logger.error('Report generation failed:', 'offline', { detail: result.error });
         // Show error notification
       }
     } catch (error) {
-      console.error('Report generation error:', error);
+      logger.error('Report generation error:', 'components', {}, error as Error);
     } finally {
       setIsGenerating(false);
     }

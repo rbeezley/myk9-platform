@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
+import { logger } from '@/services/LoggingService';
 
 export interface OptimisticUpdate<T> {
   id: string;
@@ -63,7 +64,7 @@ export function useOptimisticUpdates<T>(
 
   const log = useCallback((message: string, ...args: unknown[]) => {
     if (debug) {
-      console.log(`[OptimisticUpdates] ${message}`, ...args);
+      logger.debug(`[OptimisticUpdates] ${message}`, 'hooks', { data: ...args });
     }
   }, [debug]);
 

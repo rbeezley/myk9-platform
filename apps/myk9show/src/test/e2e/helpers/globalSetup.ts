@@ -1,7 +1,8 @@
 import { chromium, FullConfig } from '@playwright/test';
+import { logger } from '@/services/LoggingService';
 
 async function globalSetup(config: FullConfig) {
-  console.log('🚀 Starting E2E test setup...');
+  logger.debug('🚀 Starting E2E test setup...', 'app', {});
   
   // Create browser for setup
   const browser = await chromium.launch();
@@ -10,7 +11,7 @@ async function globalSetup(config: FullConfig) {
   try {
     // Wait for dev server to be ready
     const baseURL = config.projects[0]?.use?.baseURL || 'http://localhost:5173';
-    console.log(`⏳ Waiting for dev server at ${baseURL}...`);
+    logger.debug(`⏳ Waiting for dev server at ${baseURL}...`, 'app', {});
     
     let attempts = 0;
     const maxAttempts = 30;
@@ -19,7 +20,7 @@ async function globalSetup(config: FullConfig) {
       try {
         const response = await page.goto(baseURL, { timeout: 5000 });
         if (response?.ok()) {
-          console.log('✅ Dev server is ready');
+          logger.debug('✅ Dev server is ready', 'app', {});
           break;
         }
       } catch {
@@ -27,13 +28,13 @@ async function globalSetup(config: FullConfig) {
         if (attempts >= maxAttempts) {
           throw new Error(`Dev server not ready after ${maxAttempts} attempts`);
         }
-        console.log(`⏳ Dev server not ready, attempt ${attempts}/${maxAttempts}...`);
+        logger.debug(`⏳ Dev server not ready, attempt ${attempts}/${maxAttempts}...`, 'app', {});
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
     }
     
     // Setup test data
-    console.log('📊 Setting up test data...');
+    logger.debug('📊 Setting up test data...', 'app', {});
     
     // Clear any existing test data
     await page.evaluate(() => {
@@ -104,10 +105,10 @@ async function globalSetup(config: FullConfig) {
       localStorage.setItem('e2e_test_mode', 'true');
     });
     
-    console.log('✅ Test data setup complete');
+    logger.debug('✅ Test data setup complete', 'app', {});
     
     // Verify critical UI elements load
-    console.log('🔍 Verifying app loads correctly...');
+    logger.debug('🔍 Verifying app loads correctly...', 'app', {});
     
     // Check that main app container is present
     await page.waitForSelector('#root', { timeout: 10000 });
@@ -116,16 +117,16 @@ async function globalSetup(config: FullConfig) {
     await page.goto(`${baseURL}/shows`);
     await page.waitForLoadState('networkidle');
     
-    console.log('✅ App verification complete');
+    logger.debug('✅ App verification complete', 'app', {});
     
   } catch (error) {
-    console.error('❌ Global setup failed:', error);
+    logger.error('❌ Global setup failed:', 'app', {}, error as Error);
     throw error;
   } finally {
     await browser.close();
   }
   
-  console.log('🎉 E2E test setup completed successfully!');
+  logger.debug('🎉 E2E test setup completed successfully!', 'app', {});
 }
 
 export default globalSetup;

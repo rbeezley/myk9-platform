@@ -6,6 +6,7 @@
  */
 
 import { DatabaseService, createDatabase } from './connection';
+import { logger } from '@/services/LoggingService';
 
 interface ConnectionPoolConfig {
   /**
@@ -93,7 +94,7 @@ class OptimizedConnectionPool {
 
   private log(message: string, ...args: unknown[]) {
     if (this.config.enableLogging) {
-      console.log(`🏊 ConnectionPool: ${message}`, ...args);
+      logger.debug(`🏊 ConnectionPool: ${message}`, 'database', { data: ...args });
     }
   }
 

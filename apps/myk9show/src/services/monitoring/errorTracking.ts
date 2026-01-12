@@ -1,4 +1,5 @@
 import { DatabaseError } from '../database/supabaseClient';
+import { logger } from '@/services/LoggingService';
 
 interface ErrorContext {
   user?: {
@@ -46,7 +47,7 @@ class ErrorTracker {
       const Sentry = await import('@sentry/react').catch(() => null);
       
       if (!Sentry) {
-        console.warn('Sentry not installed. Install @sentry/react for error tracking.');
+        logger.warn('Sentry not installed. Install @sentry/react for error tracking.', 'services', {});
         return;
       }
       
@@ -78,7 +79,7 @@ class ErrorTracker {
       // Process queued errors
       this.processErrorQueue();
     } catch (error) {
-      console.error('Failed to initialize error tracking:', error);
+      logger.error('Failed to initialize error tracking:', 'services', {}, error as Error);
     }
   }
 
@@ -234,7 +235,7 @@ class ErrorTracker {
         Sentry.captureMessage(report.message, report.level);
       }
     } catch (error) {
-      console.error('Failed to send error to tracking service:', error);
+      logger.error('Failed to send error to tracking service:', 'services', {}, error as Error);
     }
   }
 

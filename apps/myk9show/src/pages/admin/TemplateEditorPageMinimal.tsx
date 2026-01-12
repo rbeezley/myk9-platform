@@ -8,6 +8,7 @@ import { ArrowLeft, Save, FileText, Settings, Eye } from 'lucide-react';
 import { useTemplateStore } from '@/store/templateStore';
 import { ClassTemplate, Organization, ShowType } from '@/types/template.types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { logger } from '@/services/LoggingService';
 
 const TemplateEditorPageMinimal: React.FC = () => {
   const { templateId } = useParams<{ templateId: string }>();
@@ -61,7 +62,7 @@ const TemplateEditorPageMinimal: React.FC = () => {
 
 
   const handleSave = async () => {
-    console.log('Saving template:', template);
+    logger.debug('Saving template:', 'admin', { data: template });
     // TODO: Add save logic
     setHasChanges(false);
   };

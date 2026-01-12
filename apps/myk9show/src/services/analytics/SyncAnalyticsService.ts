@@ -6,6 +6,7 @@
  */
 
 import {
+import { logger } from '@/services/LoggingService';
   SyncEvent,
   SyncMetrics,
   CollectionSyncMetrics,
@@ -176,7 +177,7 @@ export class SyncAnalyticsService {
   public emit(eventType: string, data: unknown): void {
     // This is a placeholder for event emission functionality
     // In a real implementation, this would use EventEmitter or similar
-    console.log(`Analytics event: ${eventType}`, data);
+    logger.debug(`Analytics event: ${eventType}`, 'analytics', { data: data });
   }
 
   /**

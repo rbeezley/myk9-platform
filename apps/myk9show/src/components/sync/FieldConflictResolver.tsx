@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import {
+import { logger } from '@/services/LoggingService';
   Select,
   SelectContent,
   SelectItem,
@@ -106,7 +107,7 @@ export const FieldConflictResolver: React.FC<FieldConflictResolverProps> = ({
           return rawValue;
       }
     } catch (err) {
-      console.error('Parse error:', err);
+      logger.error('Parse error:', 'sync', {}, err as Error);
       throw new Error(`Invalid ${fieldType} format`);
     }
   };

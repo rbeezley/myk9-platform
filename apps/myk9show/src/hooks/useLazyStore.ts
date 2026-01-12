@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useStoreProvider } from '@/providers/StoreProvider';
 import { StoreName, getStoreCategory } from '@/store/store-categories';
+import { logger } from '@/services/LoggingService';
 
 /**
  * Hook for lazy loading stores only when needed
@@ -13,11 +14,11 @@ export function useLazyStore(storeName: StoreName) {
   useEffect(() => {
     if (!hasAttemptedLoad && !isStoreLoaded(storeName) && !isStoreLoading(storeName)) {
       const category = getStoreCategory(storeName);
-      console.log(`🔄 Lazy loading ${category} store: ${storeName}`);
+      logger.debug(`🔄 Lazy loading ${category} store: ${storeName}`, 'hooks', {});
       
       setHasAttemptedLoad(true);
       loadStore(storeName).catch(error => {
-        console.error(`❌ Failed to lazy load store ${storeName}:`, error);
+        logger.error(`❌ Failed to lazy load store ${storeName}:`, 'hooks', {}, error as Error);
       });
     }
   }, [storeName, hasAttemptedLoad, isStoreLoaded, isStoreLoading, loadStore]);
@@ -42,13 +43,13 @@ export function useLazyStores(storeNames: StoreName[]) {
 
   useEffect(() => {
     if (!hasAttemptedLoad && !allLoaded && !anyLoading) {
-      console.log(`🔄 Lazy loading feature stores:`, storeNames);
+      logger.debug(`🔄 Lazy loading feature stores:`, 'hooks', { data: storeNames });
       
       setHasAttemptedLoad(true);
       
       // Load stores in parallel
       Promise.all(storeNames.map(name => loadStore(name))).catch(error => {
-        console.error('❌ Failed to lazy load feature stores:', error);
+        logger.error('❌ Failed to lazy load feature stores:', 'hooks', {}, error as Error);
       });
     }
   }, [storeNames, hasAttemptedLoad, allLoaded, anyLoading, loadStore]);

@@ -6,6 +6,7 @@
  */
 
 import {
+import { logger } from '@/services/LoggingService';
   DeploymentConfig,
   DeploymentChecklist,
   MigrationTask,
@@ -614,7 +615,7 @@ export class DeploymentManager {
 
   private recordEvent(event: DeploymentEvent): void {
     this.events.push(event);
-    console.log(`[${event.severity.toUpperCase()}] ${event.message}`, event.metadata);
+    logger.debug(`[${event.severity.toUpperCase()}] ${event.message}`, 'deployment', { data: event.metadata });
   }
 
   private async executeTaskGroup(tasks: ChecklistTask[], deploymentId: string): Promise<void> {

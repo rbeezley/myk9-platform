@@ -238,7 +238,7 @@ export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
   //     try {
   //       await optimizedDependencyManager.loadImportantStores(loadStore);
   //     } catch (error) {
-  //       console.warn('⚠️ Failed to preload important stores:', error);
+  //       logger.warn('⚠️ Failed to preload important stores:', 'provider', {}, error as Error);
   //     }
   //   };
   //   const timer = setTimeout(preloadImportantStores, 200);

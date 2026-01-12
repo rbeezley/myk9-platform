@@ -1,3 +1,5 @@
+import { logger } from '@/services/LoggingService';
+
 /**
  * Smart compression utilities for storage adapters
  * 
@@ -99,7 +101,7 @@ class SmartCompression {
       
       return data;
     } catch (error) {
-      console.warn('Compression failed, using original data:', error);
+      logger.warn('Compression failed, using original data:', 'database', {}, error as Error);
       return data;
     }
   }
@@ -116,7 +118,7 @@ class SmartCompression {
       const compressed = data.substring('__COMPRESSED__'.length);
       return this.simpleDecompress(compressed);
     } catch (error) {
-      console.error('Decompression failed:', error);
+      logger.error('Decompression failed:', 'database', {}, error as Error);
       // Return the data without the prefix as fallback
       return data.substring('__COMPRESSED__'.length);
     }

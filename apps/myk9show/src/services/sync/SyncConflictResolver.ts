@@ -6,6 +6,7 @@
  */
 
 import { ConflictResolution, ResolutionStrategy, Conflict } from '@/types/conflict-types';
+import { logger } from '@/services/LoggingService';
 
 export class SyncConflictResolver {
   /**
@@ -16,7 +17,7 @@ export class SyncConflictResolver {
     remoteData: unknown,
     strategy: ResolutionStrategy = 'user_decides'
   ): Promise<ConflictResolution> {
-    console.warn('SyncConflictResolver stub: resolveConflict called but not implemented');
+    logger.warn('SyncConflictResolver stub: resolveConflict called but not implemented', 'sync', {});
     
     return {
       conflictId: `stub-${Date.now()}`,
@@ -32,7 +33,7 @@ export class SyncConflictResolver {
    * Auto-resolve conflicts using configured strategy
    */
   static async autoResolve(_conflict: Conflict): Promise<ConflictResolution | null> { // eslint-disable-line @typescript-eslint/no-unused-vars
-    console.warn('SyncConflictResolver stub: autoResolve called but not implemented');
+    logger.warn('SyncConflictResolver stub: autoResolve called but not implemented', 'sync', {});
     return null;
   }
 

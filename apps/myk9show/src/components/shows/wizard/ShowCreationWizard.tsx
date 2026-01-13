@@ -4,7 +4,16 @@ import { format } from 'date-fns';
 import { AlertTriangle } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
 import { AppleDialog } from '@/components/ui/AppleDialog';
-import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { usePanelManager } from '@/components/panels/hooks';
 import type { EntityCreationResult } from '@/components/panels/types';
 import { useWizardStore } from '@/store/wizardStore';
@@ -950,17 +959,22 @@ export const ShowCreationWizard: React.FC<ShowCreationWizardProps> = ({
       </AppleDialog>
 
       {/* Unsaved Changes Confirmation Dialog */}
-      <ConfirmationDialog
-        open={showConfirmDialog}
-        onOpenChange={setShowConfirmDialog}
-        title="Unsaved Changes"
-        description="You have unsaved changes that will be lost. Are you sure you want to close the wizard?"
-        confirmLabel="Close Wizard"
-        cancelLabel="Keep Editing"
-        variant="warning"
-        onConfirm={handleConfirmClose}
-        onCancel={() => setShowConfirmDialog(false)}
-      />
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes that will be lost. Are you sure you want to close the wizard?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Editing</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmClose} className="bg-amber-500 hover:bg-amber-600">
+              Close Wizard
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };

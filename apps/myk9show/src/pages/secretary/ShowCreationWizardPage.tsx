@@ -4,7 +4,16 @@ import { logger } from '@/services/LoggingService';
 import { format } from 'date-fns';
 import { AlertTriangle, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useWizardStore } from '@/store/wizardStore';
 import { useShowStore, type ShowInput } from '@/store/showStore';
 import { useClubStore } from '@/store/clubStore';
@@ -905,17 +914,22 @@ const ShowCreationWizardPage: React.FC = () => {
       <PanelStack maxPanels={3} />
 
       {/* Unsaved Changes Confirmation Dialog */}
-      <ConfirmationDialog
-        open={showConfirmDialog}
-        onOpenChange={setShowConfirmDialog}
-        title="Unsaved Changes"
-        description="You have unsaved changes that will be lost. Are you sure you want to leave the wizard?"
-        confirmLabel="Leave Wizard"
-        cancelLabel="Keep Editing"
-        variant="warning"
-        onConfirm={handleConfirmClose}
-        onCancel={() => setShowConfirmDialog(false)}
-      />
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes that will be lost. Are you sure you want to leave the wizard?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Editing</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmClose} className="bg-amber-500 hover:bg-amber-600">
+              Leave Wizard
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PanelProvider>
   );
 };

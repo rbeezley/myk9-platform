@@ -284,26 +284,28 @@ input, textarea, select {
 @layer base {
   :root {
     color-scheme: light dark;
-    --background: 210 40% 98%;
-    --foreground: 222.2 47.4% 11.2%;
-    --background-alt: #f8fafc;
-    --card: #ffffff;
-    --card-foreground: #18181b; /* Darker for better readability in light mode */
-    --card-secondary: #f8fafc; /* A very light gray for secondary cards in light mode */
-    --card-secondary-foreground: #18181b; /* Darker for better readability in light mode */
-    --muted: 210 40% 96.1%;
-    --muted-foreground: #6b7280; /* Better muted gray for placeholders and secondary text in light mode */
-    --primary: #2563eb;
+    /* Warm backgrounds matching myK9Q */
+    --background: #F8F7F4;  /* Warm off-white */
+    --foreground: #0a0a0a;
+    --background-alt: #F8F7F4;
+    --card: #FEFDFB;        /* Subtle cream tint */
+    --card-foreground: #0a0a0a;
+    --card-secondary: #F8F7F4;
+    --card-secondary-foreground: #0a0a0a;
+    /* Gray neutrals matching myK9Q */
+    --muted: #f6f6f6;
+    --muted-foreground: #6b7280;
+    --primary: #14b8a6;     /* Teal - matches myK9Q */
     --primary-foreground: #ffffff;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --accent: #eff6ff;
-    --accent-foreground: #1e40af;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
+    --secondary: #F8F7F4;
+    --secondary-foreground: #0f172a;
+    --accent: #f0fdfa;      /* Teal-tinted accent */
+    --accent-foreground: #0f766e;
+    --destructive: #ef4444;
+    --destructive-foreground: #ffffff;
     --border: #e5e7eb;
     --input: #f3f4f6;
-    --ring: #93c5fd;
+    --ring: #5eead4;        /* Teal ring */
     --chart-1: #ef4444;
     --chart-2: #22c55e;
     --chart-3: #3b82f6;
@@ -318,34 +320,35 @@ input, textarea, select {
 
   .dark {
     color-scheme: dark;
-    --background: #1a1d23;
-    --foreground: 210 40% 98%; /* Lighter for better readability in dark mode */
-    --background-alt: #23272f;
-    --card: #1f2229;
-    --card-foreground: 210 40% 98%; /* Lighter for better readability in dark mode */
-    --card-secondary: #252931; /* A slightly darker gray for secondary cards in dark mode */
-    --card-secondary-foreground: 210 40% 98%; /* Lighter for better readability in dark mode */
-    --muted: #9ca3af; /* A lighter gray for muted text in dark mode */
-    --muted-foreground: #9ca3af; /* Proper muted gray for placeholders and secondary text in dark mode */
-    --primary: #60a5fa;
-    --primary-foreground: #1e40af;
-    --secondary: 220 9% 23%;
-    --secondary-foreground: 0 0% 95%;
-    --accent: #1e40af;
-    --accent-foreground: #bfdbfe;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: #374151;
+    /* Warm dark backgrounds matching myK9Q */
+    --background: #1a1a1e;  /* Warmer charcoal */
+    --foreground: #ffffff;
+    --background-alt: #26292e;
+    --card: #26292e;        /* Elevated card background */
+    --card-foreground: #ffffff;
+    --card-secondary: #2a2d33;
+    --card-secondary-foreground: #ffffff;
+    --muted: #26292e;
+    --muted-foreground: #9ca3af;
+    --primary: #14b8a6;     /* Teal stays same in dark */
+    --primary-foreground: #ffffff;
+    --secondary: #2a2a2a;
+    --secondary-foreground: #ffffff;
+    --accent: #134e4a;      /* Dark teal accent */
+    --accent-foreground: #5eead4;
+    --destructive: #dc2626;
+    --destructive-foreground: #ffffff;
+    --border: #4a5568;
     --input: #1f2937;
-    --ring: #2563eb;
+    --ring: #14b8a6;
     --chart-1: #ef4444;
     --chart-2: #22c55e;
     --chart-3: #3b82f6;
     --chart-4: #a855f7;
     --chart-5: #f97316;
-    --dialog-input-bg: #1a1d23;
-    --popover: #1f2229;
-    --popover-foreground: 210 40% 98%;
+    --dialog-input-bg: #1a1a1e;
+    --popover: #26292e;
+    --popover-foreground: #ffffff;
   }
 
   * {

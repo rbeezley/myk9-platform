@@ -253,7 +253,7 @@ class GlobalErrorHandler {
 
     // Log to console in development
     if (process.env.NODE_ENV === 'development') {
-      logger.error('GlobalErrorHandler captured error:', 'services', {}, errorDetails as Error);
+      logger.error('GlobalErrorHandler captured error:', 'services', { ...errorDetails });
     }
 
     // Send to logging service

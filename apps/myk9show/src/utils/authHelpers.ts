@@ -6,10 +6,7 @@
 
 import { useContext } from 'react';
 import { AuthContext } from '@/context/AuthContext';
-import { LoggingService } from '@/services/LoggingService';
 import { logger } from '@/services/LoggingService';
-
-const logger = LoggingService.getInstance();
 
 /**
  * Get current user ID with fallback

@@ -561,8 +561,10 @@ export class RealtimePerformanceMonitor {
   }
 
   private getMemoryUsage(): number {
-    if (performance.memory) {
-      return performance.memory.usedJSHeapSize / (1024 * 1024); // Convert to MB
+    // Chrome-specific API - not in standard Performance interface
+    const perf = performance as Performance & { memory?: { usedJSHeapSize: number } };
+    if (perf.memory) {
+      return perf.memory.usedJSHeapSize / (1024 * 1024); // Convert to MB
     }
     return 0;
   }

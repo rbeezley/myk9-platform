@@ -6,10 +6,7 @@
  * to replace scattered console.log/warn/error calls
  */
 
-import { LoggingService } from '@/services/LoggingService';
 import { logger } from '@/services/LoggingService';
-
-const logger = LoggingService.getInstance();
 
 export interface ErrorContext {
   operation: string;

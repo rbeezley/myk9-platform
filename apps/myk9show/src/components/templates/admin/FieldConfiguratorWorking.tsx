@@ -84,7 +84,7 @@ export const FieldConfiguratorWorking: React.FC<FieldConfiguratorProps> = ({
             {/* Add Field Button */}
             {!readOnly && (
               <div className="pt-4">
-                <Button onClick={() => logger.debug('Add field clicked', 'templates', {});}>
+                <Button onClick={() => logger.debug('Add field clicked', 'templates', {})}>
                   Add Field
                 </Button>
               </div>

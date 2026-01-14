@@ -73,7 +73,7 @@ export function useLazyLoading<T extends { id: string }>(
 
   const log = useCallback((message: string, ...args: unknown[]) => {
     if (debug) {
-      logger.debug(`[LazyLoading] ${message}`, 'hooks', { data: ...args });
+      logger.debug(`[LazyLoading] ${message}`, 'hooks', { args });
     }
   }, [debug]);
 

@@ -43,9 +43,9 @@ const EditClubDialog: React.FC<EditClubDialogProps> = ({
     
     if (!validationResult.success) {
       const newErrors: Record<string, string> = {};
-      validationResult.error.errors.forEach((error) => {
-        if (error.path.length > 0) {
-          newErrors[error.path[0] as string] = error.message;
+      validationResult.error.issues.forEach((issue) => {
+        if (issue.path.length > 0) {
+          newErrors[issue.path[0] as string] = issue.message;
         }
       });
       

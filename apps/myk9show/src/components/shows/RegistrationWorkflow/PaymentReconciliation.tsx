@@ -50,7 +50,7 @@ export const PaymentReconciliation: React.FC<PaymentReconciliationProps> = ({
   useRegistrationPermissions();
   
   // Log for debugging purposes
-  logger.debug('PaymentReconciliation for show:', 'shows', { data: showId, 'with', entries.length, 'entries' });
+  logger.debug('PaymentReconciliation for show:', 'shows', { showId, entriesCount: entries.length });
   
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<PaymentStatus | 'all'>('all');

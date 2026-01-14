@@ -271,7 +271,7 @@ export function validateFormData<T extends Record<string, unknown>>(
     };
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const errors = error.errors.reduce((acc, err) => {
+      const errors = error.issues.reduce((acc: Record<string, string>, err) => {
         const field = err.path.join('.');
         acc[field] = err.message;
         return acc;

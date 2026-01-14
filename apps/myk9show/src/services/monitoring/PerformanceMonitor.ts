@@ -5,7 +5,6 @@
  * Tracks Core Web Vitals, custom metrics, and user experience indicators
  */
 
-import { logger } from '../LoggingService';
 import { logger } from '@/services/LoggingService';
 
 export interface PerformanceMetric {

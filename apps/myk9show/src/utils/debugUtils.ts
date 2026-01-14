@@ -36,7 +36,7 @@ const ALL_KEYS = [
  */
 export function clearAppStorage(): void {
   DATA_KEYS.forEach((key) => localStorage.removeItem(key));
-  logger.log('Cleared app data, reloading...');
+  logger.info('Cleared app data, reloading...');
   window.location.reload();
 }
 
@@ -69,7 +69,7 @@ export async function resetEverything(): Promise<void> {
     }
   }
 
-  logger.log('Reset everything, reloading...');
+  logger.info('Reset everything, reloading...');
   window.location.reload();
 }
 
@@ -120,5 +120,5 @@ export function resetSpecificStore(storeName: string): void {
     // Store reset not available
   }
 
-  logger.log(`Reset ${storeName} store`);
+  logger.info(`Reset ${storeName} store`);
 }

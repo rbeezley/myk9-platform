@@ -134,7 +134,7 @@ export class ScoreSyncProcessor implements SyncProcessor {
     try {
       // Check if entry already has a score (might have been created by another device)
       const { data: existingEntry, error: fetchError } = await supabase
-        .from('entries')
+        .from('entry')
         .select('id, sync_version, is_scored, result_status')
         .eq('id', entryId)
         .single();
@@ -159,7 +159,7 @@ export class ScoreSyncProcessor implements SyncProcessor {
       const updateData = scoreToEntryUpdate(scoreData);
 
       const { data: updatedEntry, error: updateError } = await supabase
-        .from('entries')
+        .from('entry')
         .update(updateData)
         .eq('id', entryId)
         .select()
@@ -199,7 +199,7 @@ export class ScoreSyncProcessor implements SyncProcessor {
     try {
       // Fetch current server version for conflict detection
       const { data: currentEntry, error: fetchError } = await supabase
-        .from('entries')
+        .from('entry')
         .select('id, sync_version, is_scored, result_status, updated_at')
         .eq('id', entryId)
         .single();
@@ -237,7 +237,7 @@ export class ScoreSyncProcessor implements SyncProcessor {
       };
 
       const { data: updatedEntry, error: updateError } = await supabase
-        .from('entries')
+        .from('entry')
         .update(updateData)
         .eq('id', entryId)
         .eq('sync_version', serverVersion) // Optimistic locking
@@ -286,7 +286,7 @@ export class ScoreSyncProcessor implements SyncProcessor {
     try {
       // Clear scoring fields (don't delete the entry, just reset scoring state)
       const { data: updatedEntry, error } = await supabase
-        .from('entries')
+        .from('entry')
         .update({
           is_scored: false,
           result_status: 'pending',
@@ -296,7 +296,7 @@ export class ScoreSyncProcessor implements SyncProcessor {
           final_placement: 0,
           judge_notes: null,
           scoring_completed_at: null,
-          sync_version: supabase.rpc ? undefined : 1, // Increment if possible
+          sync_version: 1, // Reset to 1 when clearing score
           last_synced_at: new Date().toISOString(),
         })
         .eq('id', entryId)

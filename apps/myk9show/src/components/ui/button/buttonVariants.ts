@@ -55,11 +55,11 @@ export const buttonVariants = cva(
         premium: "bg-yellow-500 hover:bg-yellow-600 text-primary-foreground font-bold shadow-sm",
       },
       size: {
-        // Apple-inspired sizing from design tokens
-        default: "h-9 px-6 py-2.5", // Enhanced horizontal padding
-        sm: "h-8 rounded-lg px-4 text-xs", // 8px radius for small
-        lg: "h-11 rounded-xl px-8 text-base", // Larger size with proper scaling
-        icon: "h-9 w-9 rounded-xl", // Consistent radius for icons
+        // Touch-friendly sizing (44px minimum recommended)
+        default: "h-10 px-6 py-2.5", // 40px - balanced touch target
+        sm: "h-9 rounded-lg px-4 text-xs", // 36px for compact areas
+        lg: "h-11 rounded-xl px-8 text-base", // 44px - full touch compliance
+        icon: "h-10 w-10 rounded-xl", // 40px square touch target
       },
     },
     defaultVariants: {

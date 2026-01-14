@@ -41,8 +41,8 @@ export const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          // Apple's signature blue gradient button
-          "bg-gradient-to-r from-[#007AFF] to-[#5856D6] text-white shadow-md hover:from-[#007AFF]/90 hover:to-[#5856D6]/90 hover:shadow-lg dark:text-white dark:shadow-xl",
+          // Primary accent color button - follows user's selected accent color
+          "bg-primary text-primary-foreground shadow-md hover:bg-primary/90 hover:shadow-lg dark:text-primary-foreground dark:shadow-xl",
         destructive:
           "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
         outline:

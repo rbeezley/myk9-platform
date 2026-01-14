@@ -19,6 +19,7 @@ const TrialDetailsPage = lazy(() => import('@/pages/TrialDetailsPage'));
 const ClassDetailsPage = lazy(() => import('@/pages/ClassDetailsPage'));
 const CalendarPage = lazy(() => import('@/pages/CalendarPage'));
 const SubscriptionPage = lazy(() => import('@/pages/SubscriptionPage'));
+const PreferencesPage = lazy(() => import('@/pages/PreferencesPage'));
 
 // Exhibitor pages
 const BrowseShowsPage = lazy(() => import('@/pages/BrowseShowsPage'));
@@ -238,6 +239,14 @@ export const PublicRoutes = () => (
     } />
 
     {/* Feature Pages */}
+    <Route path="/preferences" element={
+      <ProtectedRoute>
+        <SuspenseWrapper>
+          <PageTransition><PreferencesPage /></PageTransition>
+        </SuspenseWrapper>
+      </ProtectedRoute>
+    } />
+
     <Route path="/calendar" element={
       <ProtectedRoute>
         <SuspenseWrapper>

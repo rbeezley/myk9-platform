@@ -11,7 +11,6 @@
 @import './styles/apple-template-management.css';
 @import './styles/apple-dog-details.css';
 @import './styles/apple-user-details.css';
-@import './styles/apple-dialogs-global.css';
 @import './styles/apple-table.css';
 @import './styles/theme-preferences.css';
 
@@ -223,25 +222,83 @@
     border-color: rgba(255, 59, 48, 0.2);
   }
 
-  /* Apple-inspired primary colors */
-  .bg-primary\/20 {
-    background-color: rgba(37, 99, 235, 0.2);
-  }
+  /* Primary color opacity variants - use CSS variables for dynamic accent colors */
+  /* Using color-mix() because Tailwind's opacity syntax doesn't work with CSS variables */
   .bg-primary\/10 {
-    background-color: rgba(37, 99, 235, 0.1);
+    background-color: color-mix(in srgb, var(--primary) 10%, transparent);
   }
-  .text-primary {
-    color: rgb(37, 99, 235);
+  .bg-primary\/15 {
+    background-color: color-mix(in srgb, var(--primary) 15%, transparent);
   }
-  
-  .bg-secondary-purple\/20 {
-    background-color: rgba(88, 86, 214, 0.2);
+  .bg-primary\/20 {
+    background-color: color-mix(in srgb, var(--primary) 20%, transparent);
   }
-  .bg-secondary-purple\/10 {
-    background-color: rgba(88, 86, 214, 0.1);
+  .bg-primary\/25 {
+    background-color: color-mix(in srgb, var(--primary) 25%, transparent);
   }
-  .text-secondary-purple {
-    color: rgb(88, 86, 214);
+  .bg-primary\/40 {
+    background-color: color-mix(in srgb, var(--primary) 40%, transparent);
+  }
+  .bg-primary\/60 {
+    background-color: color-mix(in srgb, var(--primary) 60%, transparent);
+  }
+  .bg-primary\/90 {
+    background-color: color-mix(in srgb, var(--primary) 90%, transparent);
+  }
+  .hover\:bg-primary\/90:hover {
+    background-color: color-mix(in srgb, var(--primary) 90%, transparent);
+  }
+  .hover\:bg-primary\/40:hover {
+    background-color: color-mix(in srgb, var(--primary) 40%, transparent);
+  }
+  .active\:bg-primary\/60:active {
+    background-color: color-mix(in srgb, var(--primary) 60%, transparent);
+  }
+  /* Shadow variants with primary color */
+  .shadow-primary\/25 {
+    --tw-shadow-color: color-mix(in srgb, var(--primary) 25%, transparent);
+    --tw-shadow: var(--tw-shadow-colored);
+  }
+  .shadow-primary\/30 {
+    --tw-shadow-color: color-mix(in srgb, var(--primary) 30%, transparent);
+    --tw-shadow: var(--tw-shadow-colored);
+  }
+  .shadow-primary\/40 {
+    --tw-shadow-color: color-mix(in srgb, var(--primary) 40%, transparent);
+    --tw-shadow: var(--tw-shadow-colored);
+  }
+  .hover\:shadow-primary\/30:hover {
+    --tw-shadow-color: color-mix(in srgb, var(--primary) 30%, transparent);
+    --tw-shadow: var(--tw-shadow-colored);
+  }
+  /* Focus ring variants */
+  .focus\:ring-primary\/20:focus {
+    --tw-ring-color: color-mix(in srgb, var(--primary) 20%, transparent);
+  }
+  .focus\:border-primary\/60:focus {
+    border-color: color-mix(in srgb, var(--primary) 60%, transparent);
+  }
+  .focus\:shadow-primary\/10:focus {
+    --tw-shadow-color: color-mix(in srgb, var(--primary) 10%, transparent);
+    --tw-shadow: var(--tw-shadow-colored);
+  }
+  /* Note: .text-primary and .bg-primary (without opacity) are handled by Tailwind using var(--primary) */
+
+  /* Dark mode variants */
+  .dark .bg-primary\/10,
+  .dark .dark\:bg-primary\/10 {
+    background-color: color-mix(in srgb, var(--primary) 10%, transparent);
+  }
+  .dark .bg-primary\/15,
+  .dark .dark\:bg-primary\/15 {
+    background-color: color-mix(in srgb, var(--primary) 15%, transparent);
+  }
+  .dark .bg-primary\/20,
+  .dark .dark\:bg-primary\/20 {
+    background-color: color-mix(in srgb, var(--primary) 20%, transparent);
+  }
+  .dark\:bg-primary\/20 {
+    background-color: color-mix(in srgb, var(--primary) 20%, transparent);
   }
 
   /* Hide native dropdown arrows on hidden select elements */
@@ -295,7 +352,7 @@ input, textarea, select {
     /* Gray neutrals matching myK9Q */
     --muted: #f6f6f6;
     --muted-foreground: #6b7280;
-    --primary: #14b8a6;     /* Teal - matches myK9Q */
+    /* NOTE: --primary is set by accent color classes below, default is green/teal */
     --primary-foreground: #ffffff;
     --secondary: #F8F7F4;
     --secondary-foreground: #0f172a;
@@ -305,7 +362,6 @@ input, textarea, select {
     --destructive-foreground: #ffffff;
     --border: #e5e7eb;
     --input: #f3f4f6;
-    --ring: #5eead4;        /* Teal ring */
     --chart-1: #ef4444;
     --chart-2: #22c55e;
     --chart-3: #3b82f6;
@@ -330,7 +386,7 @@ input, textarea, select {
     --card-secondary-foreground: #ffffff;
     --muted: #26292e;
     --muted-foreground: #9ca3af;
-    --primary: #14b8a6;     /* Teal stays same in dark */
+    /* NOTE: --primary is set by accent color classes below */
     --primary-foreground: #ffffff;
     --secondary: #2a2a2a;
     --secondary-foreground: #ffffff;
@@ -340,7 +396,6 @@ input, textarea, select {
     --destructive-foreground: #ffffff;
     --border: #4a5568;
     --input: #1f2937;
-    --ring: #14b8a6;
     --chart-1: #ef4444;
     --chart-2: #22c55e;
     --chart-3: #3b82f6;

@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight, ChevronDown, Search, Plus, X, Sparkles } fro
 import { Button } from '@/components/ui/button';
 
 // Soft Modern design tokens - warm, approachable, polished
-// Uses teal primary color from design system (#14b8a6)
+// Uses CSS variable --primary for dynamic accent color support
 const SIDEBAR_TOKENS = {
   collapsed: {
     width: '80px',
@@ -30,17 +30,17 @@ const SIDEBAR_TOKENS = {
     // Elevated search with glass effect
     search: 'bg-white/90 dark:bg-slate-800/90 border-slate-200/60 dark:border-slate-700/60 backdrop-blur-md',
     item: {
-      // Subtle hover state - teal accent
-      default: 'text-slate-600 dark:text-slate-400 hover:bg-teal-50/50 dark:hover:bg-teal-950/30 hover:text-slate-900 dark:hover:text-slate-200',
-      // Teal gradient for selected state (primary color)
-      selected: 'bg-gradient-to-r from-teal-100 to-emerald-50 dark:from-teal-950/50 dark:to-emerald-950/30 text-teal-700 dark:text-teal-300 shadow-sm shadow-teal-200/50 dark:shadow-teal-900/30 border-l-2 border-teal-500 dark:border-teal-400',
+      // Subtle hover state - uses primary accent color
+      default: 'text-slate-600 dark:text-slate-400 hover:bg-primary/10 hover:text-slate-900 dark:hover:text-slate-200',
+      // Primary accent color for selected state
+      selected: 'bg-primary/15 dark:bg-primary/20 text-primary shadow-sm border-l-2 border-primary',
       // Collapsed state
-      collapsed: 'hover:bg-teal-50/50 dark:hover:bg-teal-950/30 text-slate-500 dark:text-slate-400 hover:text-teal-600 dark:hover:text-teal-300'
+      collapsed: 'hover:bg-primary/10 text-slate-500 dark:text-slate-400 hover:text-primary'
     },
     text: {
       primary: 'text-slate-900 dark:text-slate-100',
       secondary: 'text-slate-500 dark:text-slate-400',
-      selected: 'text-teal-700 dark:text-teal-300 font-medium',
+      selected: 'text-primary font-medium',
       groupHeader: 'text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider'
     },
     groupHeader: 'text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider'
@@ -475,12 +475,12 @@ function UnifiedSidebar<T extends { id: string }>({
           {HeaderIcon && (
             <div className={cn(
               'flex h-9 w-9 items-center justify-center rounded-xl',
-              'bg-gradient-to-br from-teal-500 to-emerald-600 dark:from-teal-600 dark:to-emerald-700',
-              'shadow-lg shadow-teal-500/25 dark:shadow-teal-900/40',
+              'bg-primary',
+              'shadow-lg shadow-primary/25 dark:shadow-primary/40',
               SIDEBAR_TOKENS.transitions.default,
-              'hover:scale-105 hover:shadow-xl hover:shadow-teal-500/30'
+              'hover:scale-105 hover:shadow-xl hover:shadow-primary/30'
             )}>
-              <HeaderIcon className="h-4.5 w-4.5 text-white" />
+              <HeaderIcon className="h-4.5 w-4.5 text-primary-foreground" />
             </div>
           )}
           {!isCollapsed && (
@@ -505,9 +505,9 @@ function UnifiedSidebar<T extends { id: string }>({
               onClick={onAdd}
               className={cn(
                 'h-8 px-3 rounded-lg',
-                'bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-600 hover:to-emerald-700',
-                'text-white shadow-md shadow-teal-500/25',
-                'hover:shadow-lg hover:shadow-teal-500/30 hover:scale-[1.02]',
+                'bg-primary hover:bg-primary/90',
+                'text-primary-foreground shadow-md shadow-primary/25',
+                'hover:shadow-lg hover:shadow-primary/30 hover:scale-[1.02]',
                 'active:scale-[0.98]',
                 SIDEBAR_TOKENS.transitions.default
               )}
@@ -575,11 +575,11 @@ function UnifiedSidebar<T extends { id: string }>({
                 'border border-slate-200/60 dark:border-slate-700/60',
                 'placeholder:text-slate-400 dark:placeholder:text-slate-500',
                 'text-slate-900 dark:text-slate-100',
-                // Focus states with teal accent (primary color)
-                'focus:ring-2 focus:ring-teal-500/20 dark:focus:ring-teal-400/20',
-                'focus:border-teal-400/60 dark:focus:border-teal-500/60',
+                // Focus states with primary accent color
+                'focus:ring-2 focus:ring-primary/20',
+                'focus:border-primary/60',
                 'focus:bg-white dark:focus:bg-slate-800',
-                'focus:shadow-lg focus:shadow-teal-500/10 dark:focus:shadow-teal-400/10',
+                'focus:shadow-lg focus:shadow-primary/10',
                 // Hover states
                 'hover:border-slate-300 dark:hover:border-slate-600',
                 // Scale animation on focus
@@ -597,7 +597,7 @@ function UnifiedSidebar<T extends { id: string }>({
               'absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4',
               SIDEBAR_TOKENS.transitions.default,
               searchTerm || isSearchFocused
-                ? 'text-teal-500 dark:text-teal-400 scale-110'
+                ? 'text-primary scale-110'
                 : 'text-slate-400 dark:text-slate-500'
             )} />
             {searchTerm && (
@@ -636,11 +636,11 @@ function UnifiedSidebar<T extends { id: string }>({
           )}>
             <div className={cn(
               'w-12 h-12 rounded-2xl mb-4',
-              'bg-gradient-to-br from-teal-100 to-emerald-100 dark:from-teal-900/30 dark:to-emerald-900/30',
+              'bg-primary/10',
               'flex items-center justify-center',
               'shadow-inner'
             )}>
-              <Sparkles className="h-5 w-5 text-teal-500 dark:text-teal-400" />
+              <Sparkles className="h-5 w-5 text-primary" />
             </div>
             <div className="text-sm font-medium text-slate-600 dark:text-slate-400">
               {searchTerm ? `No ${title.toLowerCase()} match your search` : `No ${title.toLowerCase()} yet`}
@@ -669,8 +669,8 @@ function UnifiedSidebar<T extends { id: string }>({
         <div
           className={cn(
             'absolute top-0 right-0 w-1 h-full cursor-ew-resize',
-            'hover:bg-teal-400/40 dark:hover:bg-teal-500/40',
-            'active:bg-teal-500/60 dark:active:bg-teal-400/60',
+            'hover:bg-primary/40',
+            'active:bg-primary/60',
             SIDEBAR_TOKENS.transitions.fast
           )}
           onMouseDown={startResizing}

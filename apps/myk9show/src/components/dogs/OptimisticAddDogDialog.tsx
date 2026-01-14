@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { AppleDialog, AppleFormField, AppleFormGrid } from '@/components/ui/AppleDialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -15,7 +16,6 @@ import { optimisticFormSubmit } from '@/utils/optimisticHelpers';
 import { FormSaveIndicator } from '@/components/optimistic/OptimisticUpdateIndicator';
 import { useOptimisticNotifications } from '@/utils/optimisticUtils';
 
-import '@/styles/apple-dialogs-global.css';
 import { logger } from '@/services/LoggingService';
 
 interface OptimisticAddDogDialogProps {
@@ -67,9 +67,9 @@ export const OptimisticAddDogDialog: React.FC<OptimisticAddDogDialogProps> = ({
 
   const { people } = useUserStore();
   const { showSuccess } = useOptimisticNotifications();
-  
-  const { 
-    isProcessing 
+
+  const {
+    isProcessing
   } = useOptimisticDogs({
     onSuccess: (_operationId, result) => {
       showSuccess(`Dog "${formData.callName}" created successfully`, {
@@ -129,7 +129,7 @@ export const OptimisticAddDogDialog: React.FC<OptimisticAddDogDialogProps> = ({
 
     try {
       const dogId = `dog_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
+
       const newDog: Dog = {
         id: dogId,
         name: formData.callName || 'Unnamed Dog', // Use callName as name if available
@@ -156,12 +156,12 @@ export const OptimisticAddDogDialog: React.FC<OptimisticAddDogDialogProps> = ({
         async () => {
           // Simulate API call
           await new Promise(resolve => setTimeout(resolve, 2000));
-          
+
           // Simulate occasional failure for demonstration
           if (Math.random() < 0.1) {
             throw new Error('Network error: Failed to create dog');
           }
-          
+
           return newDog;
         },
         validateForm
@@ -196,192 +196,202 @@ export const OptimisticAddDogDialog: React.FC<OptimisticAddDogDialogProps> = ({
   const canSubmit = formData.callName && formData.gender && formData.dateOfBirth && formData.ownerId;
 
   return (
-    <AppleDialog 
-      open={open} 
-      onOpenChange={handleClose}
-      title="Add New Dog"
-      description="Enter the dog's information to add them to the system"
-    >
-      <div className="relative">
-        {/* Optimistic UI indicator */}
-        {(isProcessing || isSubmitting) && <FormSaveIndicator operationId="dog-create" />}
-        
-        <Tabs defaultValue="basic" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="basic">Basic Info</TabsTrigger>
-            <TabsTrigger value="details">Details</TabsTrigger>
-          </TabsList>
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>Add New Dog</DialogTitle>
+          <DialogDescription>Enter the dog's information to add them to the system</DialogDescription>
+        </DialogHeader>
 
-          <TabsContent value="basic" className="space-y-6">
-            <AppleFormGrid>
-              <AppleFormField label="Call Name" required>
-                <Input
-                  value={formData.callName}
-                  onChange={(e) => updateField('callName', e.target.value)}
-                  placeholder="Enter call name"
-                  disabled={isSubmitting || isProcessing}
-                />
-              </AppleFormField>
+        <div className="relative flex-1 overflow-y-auto pr-2">
+          {/* Optimistic UI indicator */}
+          {(isProcessing || isSubmitting) && <FormSaveIndicator operationId="dog-create" />}
 
-              <AppleFormField label="Gender" required>
-                <Select 
-                  value={formData.gender} 
-                  onValueChange={(value) => updateField('gender', value)}
-                  disabled={isSubmitting || isProcessing}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select gender" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Male">Male</SelectItem>
-                    <SelectItem value="Female">Female</SelectItem>
-                  </SelectContent>
-                </Select>
-              </AppleFormField>
+          <Tabs defaultValue="basic" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="basic">Basic Info</TabsTrigger>
+              <TabsTrigger value="details">Details</TabsTrigger>
+            </TabsList>
 
-              <AppleFormField label="Date of Birth" required>
-                <Input
-                  type="date"
-                  value={formData.dateOfBirth}
-                  onChange={(e) => updateField('dateOfBirth', e.target.value)}
-                  disabled={isSubmitting || isProcessing}
-                />
-              </AppleFormField>
-
-              <AppleFormField label="Color">
-                <Input
-                  value={formData.color}
-                  onChange={(e) => updateField('color', e.target.value)}
-                  placeholder="Enter color/markings"
-                  disabled={isSubmitting || isProcessing}
-                />
-              </AppleFormField>
-
-              <AppleFormField label="Owner" required>
-                <Select 
-                  value={formData.ownerId} 
-                  onValueChange={(value) => updateField('ownerId', value)}
-                  disabled={isSubmitting || isProcessing}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select owner" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ownerOptions.map(option => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </AppleFormField>
-            </AppleFormGrid>
-          </TabsContent>
-
-          <TabsContent value="details" className="space-y-6">
-            <AppleFormGrid>
-              <AppleFormField label="Height (inches)">
-                <Input
-                  type="number"
-                  value={formData.height}
-                  onChange={(e) => updateField('height', e.target.value)}
-                  placeholder="Enter height"
-                  step="0.1"
-                  disabled={isSubmitting || isProcessing}
-                />
-              </AppleFormField>
-
-              <AppleFormField label="Weight (lbs)">
-                <Input
-                  type="number"
-                  value={formData.weight}
-                  onChange={(e) => updateField('weight', e.target.value)}
-                  placeholder="Enter weight"
-                  step="0.1"
-                  disabled={isSubmitting || isProcessing}
-                />
-              </AppleFormField>
-
-              <AppleFormField label="Microchip">
-                <Input
-                  value={formData.microchip}
-                  onChange={(e) => updateField('microchip', e.target.value)}
-                  placeholder="Enter microchip number"
-                  disabled={isSubmitting || isProcessing}
-                />
-              </AppleFormField>
-
-              <AppleFormField label="Spayed/Neutered">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="spayedNeutered"
-                    checked={formData.spayedNeutered}
-                    onCheckedChange={(checked) => updateField('spayedNeutered', checked)}
+            <TabsContent value="basic" className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Call Name <span className="text-destructive">*</span></Label>
+                  <Input
+                    value={formData.callName}
+                    onChange={(e) => updateField('callName', e.target.value)}
+                    placeholder="Enter call name"
                     disabled={isSubmitting || isProcessing}
                   />
-                  <label
-                    htmlFor="spayedNeutered"
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                  >
-                    Yes, this dog is spayed/neutered
-                  </label>
                 </div>
-              </AppleFormField>
-            </AppleFormGrid>
-          </TabsContent>
-        </Tabs>
 
-        {/* Error Display */}
-        {errors.length > 0 && (
-          <Alert variant="destructive" className="mt-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              <ul className="list-disc list-inside space-y-1">
-                {errors.map((error, index) => (
-                  <li key={index}>{error}</li>
-                ))}
-              </ul>
-            </AlertDescription>
-          </Alert>
-        )}
+                <div className="space-y-2">
+                  <Label>Gender <span className="text-destructive">*</span></Label>
+                  <Select
+                    value={formData.gender}
+                    onValueChange={(value) => updateField('gender', value)}
+                    disabled={isSubmitting || isProcessing}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Male">Male</SelectItem>
+                      <SelectItem value="Female">Female</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-        {/* Processing indicator */}
-        {(isSubmitting || isProcessing) && (
-          <Alert className="mt-4">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <AlertDescription>
-              {isSubmitting ? 'Creating dog...' : 'Saving in background...'}
-            </AlertDescription>
-          </Alert>
-        )}
-      </div>
+                <div className="space-y-2">
+                  <Label>Date of Birth <span className="text-destructive">*</span></Label>
+                  <Input
+                    type="date"
+                    value={formData.dateOfBirth}
+                    onChange={(e) => updateField('dateOfBirth', e.target.value)}
+                    disabled={isSubmitting || isProcessing}
+                  />
+                </div>
 
-      {/* Dialog Actions */}
-      <div className="flex justify-end space-x-2 pt-6">
-        <Button
-          variant="outline"
-          onClick={handleClose}
-          disabled={isSubmitting || isProcessing}
-        >
-          Cancel
-        </Button>
-        <Button
-          onClick={handleSubmit}
-          disabled={!canSubmit || isSubmitting || isProcessing}
-        >
-          {isSubmitting ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Creating...
-            </>
-          ) : (
-            <>
-              <PlusCircle className="w-4 h-4 mr-2" />
-              Create Dog
-            </>
+                <div className="space-y-2">
+                  <Label>Color</Label>
+                  <Input
+                    value={formData.color}
+                    onChange={(e) => updateField('color', e.target.value)}
+                    placeholder="Enter color/markings"
+                    disabled={isSubmitting || isProcessing}
+                  />
+                </div>
+
+                <div className="col-span-2 space-y-2">
+                  <Label>Owner <span className="text-destructive">*</span></Label>
+                  <Select
+                    value={formData.ownerId}
+                    onValueChange={(value) => updateField('ownerId', value)}
+                    disabled={isSubmitting || isProcessing}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select owner" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ownerOptions.map(option => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="details" className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Height (inches)</Label>
+                  <Input
+                    type="number"
+                    value={formData.height}
+                    onChange={(e) => updateField('height', e.target.value)}
+                    placeholder="Enter height"
+                    step="0.1"
+                    disabled={isSubmitting || isProcessing}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Weight (lbs)</Label>
+                  <Input
+                    type="number"
+                    value={formData.weight}
+                    onChange={(e) => updateField('weight', e.target.value)}
+                    placeholder="Enter weight"
+                    step="0.1"
+                    disabled={isSubmitting || isProcessing}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Microchip</Label>
+                  <Input
+                    value={formData.microchip}
+                    onChange={(e) => updateField('microchip', e.target.value)}
+                    placeholder="Enter microchip number"
+                    disabled={isSubmitting || isProcessing}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Spayed/Neutered</Label>
+                  <div className="flex items-center space-x-2 pt-2">
+                    <Checkbox
+                      id="spayedNeutered"
+                      checked={formData.spayedNeutered}
+                      onCheckedChange={(checked) => updateField('spayedNeutered', checked)}
+                      disabled={isSubmitting || isProcessing}
+                    />
+                    <label
+                      htmlFor="spayedNeutered"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      Yes, this dog is spayed/neutered
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          {/* Error Display */}
+          {errors.length > 0 && (
+            <Alert variant="destructive" className="mt-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                <ul className="list-disc list-inside space-y-1">
+                  {errors.map((error, index) => (
+                    <li key={index}>{error}</li>
+                  ))}
+                </ul>
+              </AlertDescription>
+            </Alert>
           )}
-        </Button>
-      </div>
-    </AppleDialog>
+
+          {/* Processing indicator */}
+          {(isSubmitting || isProcessing) && (
+            <Alert className="mt-4">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <AlertDescription>
+                {isSubmitting ? 'Creating dog...' : 'Saving in background...'}
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={handleClose}
+            disabled={isSubmitting || isProcessing}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={!canSubmit || isSubmitting || isProcessing}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              <>
+                <PlusCircle className="w-4 h-4 mr-2" />
+                Create Dog
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };

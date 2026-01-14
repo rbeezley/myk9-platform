@@ -1,12 +1,11 @@
 /**
  * Theme Selector Component
  * Phase 6.4: User Preferences & UI State
- * 
- * Theme switching with preview and accessibility options
+ *
+ * Theme switching and accessibility options
  */
 
-import React, { useState, useEffect } from 'react';
-import { logger } from '@/services/LoggingService';
+import React from 'react';
 import {
   Monitor,
   Sun,
@@ -69,21 +68,7 @@ const fontSizeOptions: Array<{ value: FontSizeScale; label: string; description:
 ];
 
 export function ThemeSelector({ preferences, onUpdate, onReset }: ThemeSelectorProps) {
-  const [previewMode, setPreviewMode] = useState<ThemeMode | null>(null);
   const { settings, updateSettings } = useSettingsStore();
-  
-  // Apply preview or actual theme
-  useEffect(() => {
-    const mode = previewMode || preferences?.mode || 'system';
-    const root = document.documentElement;
-    
-    if (mode === 'system') {
-      const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      root.classList.toggle('dark', systemDark);
-    } else {
-      root.classList.toggle('dark', mode === 'dark');
-    }
-  }, [previewMode, preferences?.mode]);
 
   /**
    * Handle theme mode change
@@ -187,8 +172,6 @@ export function ThemeSelector({ preferences, onUpdate, onReset }: ThemeSelectorP
                 <Label
                   htmlFor={option.value}
                   className="flex flex-col items-center justify-between rounded-lg border-2 border-muted p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
-                  onMouseEnter={() => setPreviewMode(option.value)}
-                  onMouseLeave={() => setPreviewMode(null)}
                 >
                   <option.icon className="h-6 w-6 mb-2" />
                   <div className="text-center">

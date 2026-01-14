@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AppleDialog } from '@/components/ui/AppleDialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { logger } from '@/services/LoggingService';
@@ -290,14 +290,12 @@ export const ShowCloneDialog: React.FC<ShowCloneDialogProps> = ({
   };
 
   return (
-    <AppleDialog
-      open={open}
-      onOpenChange={handleClose}
-      title={getDialogTitle()}
-      maxWidth="5xl"
-      showFooter={false}
-    >
-      <div className="flex h-full max-h-[80vh] flex-col">
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="max-w-5xl p-0">
+        <DialogHeader className="px-6 pt-6 pb-0">
+          <DialogTitle>{getDialogTitle()}</DialogTitle>
+        </DialogHeader>
+        <div className="flex h-full max-h-[75vh] flex-col">
         {/* Progress indicator */}
         {currentStep !== 'complete' && (
           <div className="border-b bg-muted/30 px-6 py-4">
@@ -383,7 +381,8 @@ export const ShowCloneDialog: React.FC<ShowCloneDialogProps> = ({
           </div>
         )}
       </div>
-    </AppleDialog>
+      </DialogContent>
+    </Dialog>
   );
 };
 

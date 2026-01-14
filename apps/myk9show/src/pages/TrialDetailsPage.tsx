@@ -11,7 +11,16 @@ import AddClassesToTrialDialog from '@/components/trials/AddClassesToTrialDialog
 import { TrialEditPanel } from '@/components/panels/edit/TrialEditPanel';
 import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
 import StandardDialog from '@/components/common/StandardDialog';
-import { AppleDialog } from '@/components/ui/AppleDialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Trial, TrialClass } from '@/components/trials/types/trial.types';
 import { ClassTemplate, ClassDefinition } from '@/types/template.types';
 import { TrialStatisticsData } from '@/components/trials/TrialDetail/TrialStatistics';
@@ -476,28 +485,33 @@ const TrialDetailsPage: React.FC = () => {
         }}
       />
 
-      <AppleDialog
-        open={deleteClassDialogOpen}
-        onOpenChange={setDeleteClassDialogOpen}
-        title="Delete Class"
-        onSave={handleConfirmDeleteClass}
-        saveLabel="Delete"
-        maxWidth="md"
-      >
-        <div className="text-center py-6">
-          <div className="text-lg font-medium text-foreground mb-4">
-            Are you sure you want to delete this class?
-          </div>
-          {selectedClassForDelete && (
-            <div className="text-base text-muted-foreground mb-6">
-              <strong>{selectedClassForDelete.element} {selectedClassForDelete.level} {selectedClassForDelete.section}</strong>
-            </div>
-          )}
-          <div className="text-sm text-red-600 dark:text-red-400">
-            This action cannot be undone.
-          </div>
-        </div>
-      </AppleDialog>
+      <AlertDialog open={deleteClassDialogOpen} onOpenChange={setDeleteClassDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Class</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this class?
+              {selectedClassForDelete && (
+                <span className="block mt-2 font-medium text-foreground">
+                  {selectedClassForDelete.element} {selectedClassForDelete.level} {selectedClassForDelete.section}
+                </span>
+              )}
+              <span className="block mt-2 text-destructive">
+                This action cannot be undone.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDeleteClass}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

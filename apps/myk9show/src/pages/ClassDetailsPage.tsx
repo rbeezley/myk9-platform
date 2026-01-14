@@ -10,8 +10,17 @@ import { useEntriesByClass } from '@/hooks/useFilteredEntries';
 // import { seedEntryStore } from '@/utils/storeMigration'; // Disabled - no mock data
 import { ClassGroupedSidebar } from '@/components/classes/ClassGroupedSidebar';
 import ClassDetailsMain from '@/components/classes/ClassDetailsMain';
-import { AppleDialog } from '@/components/ui/AppleDialog';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
 import { RegistrationWorkflow } from '@/components/shows/RegistrationWorkflow';
 import { RegistrationProvider } from '@/context/RegistrationContext';
@@ -443,147 +452,159 @@ const ClassDetailsPage: React.FC = () => {
         }}
       />
 
-      <AppleDialog
-        open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
-        title="Delete Class"
-        onSave={handleConfirmDeleteClass}
-        saveLabel="Delete"
-        maxWidth="md"
-      >
-        <div className="text-center py-6">
-          <div className="text-lg font-medium text-foreground mb-4">
-            Are you sure you want to delete this class?
-          </div>
-          <div className="text-base text-muted-foreground mb-6">
-            <strong>{currentClass?.element} {currentClass?.level} {currentClass?.section}</strong>
-            <br />
-            from {currentClass?.trial}
-          </div>
-          <div className="text-sm text-red-600 dark:text-red-400">
-            This action cannot be undone. All entries will also be deleted.
-          </div>
-        </div>
-      </AppleDialog>
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Class</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this class?
+              <span className="block mt-2 font-medium text-foreground">
+                {currentClass?.element} {currentClass?.level} {currentClass?.section}
+              </span>
+              <span className="block text-sm text-muted-foreground">
+                from {currentClass?.trial}
+              </span>
+              <span className="block mt-2 text-destructive">
+                This action cannot be undone. All entries will also be deleted.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDeleteClass}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Edit Entry Dialog - Combined handler and results editing */}
-      <AppleDialog
-        open={editEntryDialogOpen}
-        onOpenChange={setEditEntryDialogOpen}
-        title="Edit Entry & Results"
-        onSave={() => handleSaveEntryEdit({})}
-        saveLabel="Save Changes"
-        maxWidth="md"
-      >
-        <div className="max-h-[70vh] overflow-y-auto space-y-4">
-          {editEntryId && (() => {
-            const entry = rawEntries.find(e => (e as ShowEntry).id === editEntryId) as ShowEntry | undefined;
-            const dog = dogs.find(d => d.id === entry?.dogId);
-            if (!entry) return <div>Entry not found</div>;
-            
-            return (
-              <div className="space-y-4">
-                {/* Entry Info Header */}
-                <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
-                  <div>
-                    <h3 className="font-semibold">{dog?.callName || dog?.name || 'Unknown Dog'}</h3>
-                    <p className="text-sm text-muted-foreground">Entry ID: {entry.id}</p>
-                  </div>
-                </div>
+      <Dialog open={editEntryDialogOpen} onOpenChange={setEditEntryDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Entry & Results</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto space-y-4">
+            {editEntryId && (() => {
+              const entry = rawEntries.find(e => (e as ShowEntry).id === editEntryId) as ShowEntry | undefined;
+              const dog = dogs.find(d => d.id === entry?.dogId);
+              if (!entry) return <div>Entry not found</div>;
 
-                {/* Handler Information */}
-                <div className="space-y-3">
-                  <h4 className="font-medium">Handler Information</h4>
-                  <div className="grid grid-cols-2 gap-3">
+              return (
+                <div className="space-y-4">
+                  {/* Entry Info Header */}
+                  <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
                     <div>
-                      <label className="block text-sm font-medium mb-1">Handler Name</label>
-                      <input 
-                        type="text" 
-                        defaultValue={entry.registrationData?.handler || ''}
-                        className="w-full px-3 py-2 border rounded-md text-sm"
-                        placeholder="Handler name"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Armband</label>
-                      <input 
-                        type="text" 
-                        defaultValue={entry.registrationData?.armband || ''}
-                        className="w-full px-3 py-2 border rounded-md text-sm"
-                        placeholder="A101"
-                      />
+                      <h3 className="font-semibold">{dog?.callName || dog?.name || 'Unknown Dog'}</h3>
+                      <p className="text-sm text-muted-foreground">Entry ID: {entry.id}</p>
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Special Requests</label>
-                    <textarea 
-                      defaultValue={entry.registrationData?.specialRequests || ''}
-                      className="w-full px-3 py-2 border rounded-md text-sm"
-                      rows={2}
-                      placeholder="Any special requests or notes"
-                    />
-                  </div>
-                </div>
 
-                {/* Results Section */}
-                <div className="space-y-3">
-                  <h4 className="font-medium">Competition Results</h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Score</label>
-                      <input 
-                        type="text" 
-                        defaultValue={entry.competitionData?.score || ''}
-                        className="w-full px-3 py-2 border rounded-md text-sm"
-                        placeholder="85"
-                      />
+                  {/* Handler Information */}
+                  <div className="space-y-3">
+                    <h4 className="font-medium">Handler Information</h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Handler Name</label>
+                        <input
+                          type="text"
+                          defaultValue={entry.registrationData?.handler || ''}
+                          className="w-full px-3 py-2 border rounded-md text-sm"
+                          placeholder="Handler name"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Armband</label>
+                        <input
+                          type="text"
+                          defaultValue={entry.registrationData?.armband || ''}
+                          className="w-full px-3 py-2 border rounded-md text-sm"
+                          placeholder="A101"
+                        />
+                      </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">Time</label>
-                      <input 
-                        type="text" 
-                        defaultValue={entry.competitionData?.time || ''}
+                      <label className="block text-sm font-medium mb-1">Special Requests</label>
+                      <textarea
+                        defaultValue={entry.registrationData?.specialRequests || ''}
                         className="w-full px-3 py-2 border rounded-md text-sm"
-                        placeholder="2:45"
+                        rows={2}
+                        placeholder="Any special requests or notes"
                       />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Placement</label>
-                      <input 
-                        type="text" 
-                        defaultValue={entry.competitionData?.placement || ''}
-                        className="w-full px-3 py-2 border rounded-md text-sm"
-                        placeholder="1"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium mb-1">Status</label>
-                      <select 
-                        defaultValue={entry.competitionData?.qualified ? 'Qualified' : 'Not Qualified'}
-                        className="w-full px-3 py-2 border rounded-md text-sm"
-                      >
-                        <option value="Qualified">Qualified</option>
-                        <option value="Not Qualified">Not Qualified</option>
-                        <option value="Withdrawn">Withdrawn</option>
-                        <option value="Absent">Absent</option>
-                      </select>
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Judge Notes</label>
-                    <textarea 
-                      defaultValue={entry.competitionData?.judgeNotes || ''}
-                      className="w-full px-3 py-2 border rounded-md text-sm"
-                      rows={2}
-                      placeholder="Judge comments or notes"
-                    />
+
+                  {/* Results Section */}
+                  <div className="space-y-3">
+                    <h4 className="font-medium">Competition Results</h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Score</label>
+                        <input
+                          type="text"
+                          defaultValue={entry.competitionData?.score || ''}
+                          className="w-full px-3 py-2 border rounded-md text-sm"
+                          placeholder="85"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Time</label>
+                        <input
+                          type="text"
+                          defaultValue={entry.competitionData?.time || ''}
+                          className="w-full px-3 py-2 border rounded-md text-sm"
+                          placeholder="2:45"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Placement</label>
+                        <input
+                          type="text"
+                          defaultValue={entry.competitionData?.placement || ''}
+                          className="w-full px-3 py-2 border rounded-md text-sm"
+                          placeholder="1"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Status</label>
+                        <select
+                          defaultValue={entry.competitionData?.qualified ? 'Qualified' : 'Not Qualified'}
+                          className="w-full px-3 py-2 border rounded-md text-sm"
+                        >
+                          <option value="Qualified">Qualified</option>
+                          <option value="Not Qualified">Not Qualified</option>
+                          <option value="Withdrawn">Withdrawn</option>
+                          <option value="Absent">Absent</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Judge Notes</label>
+                      <textarea
+                        defaultValue={entry.competitionData?.judgeNotes || ''}
+                        className="w-full px-3 py-2 border rounded-md text-sm"
+                        rows={2}
+                        placeholder="Judge comments or notes"
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })()}
-        </div>
-      </AppleDialog>
+              );
+            })()}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditEntryDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => handleSaveEntryEdit({})}>
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
       {/* TODO: Fix PhotoDialog props
       <PhotoDialog
@@ -625,45 +646,52 @@ const ClassDetailsPage: React.FC = () => {
       )}
 
       {/* Delete Entry Confirmation Dialog */}
-      <AppleDialog
-        open={deleteEntryDialogOpen}
-        onOpenChange={setDeleteEntryDialogOpen}
-        title="Delete Entry"
-        onSave={handleConfirmDeleteEntry}
-        saveLabel="Delete"
-        maxWidth="md"
-      >
-        <div className="text-center py-6">
-          <div className="text-lg font-medium text-foreground mb-4">
-            Are you sure you want to delete this entry?
-          </div>
-          {(() => {
-            const entry = rawEntries.find(e => (e as ShowEntry).id === entryToDelete) as ShowEntry | undefined;
-            const dog = entry ? dogs.find(d => d.id === entry.dogId) : undefined;
-            const hasResults = entry?.competitionData?.time || entry?.competitionData?.score || entry?.competitionData?.placement;
-            
-            return (
-              <>
-                <div className="text-base text-muted-foreground mb-6">
-                  <strong>{dog?.callName || dog?.name || 'Unknown Dog'}</strong>
-                  <br />
-                  Handler: {entry?.registrationData?.handler || 'Unknown'}
-                  <br />
-                  Armband: #{entry?.registrationData?.armband || 'N/A'}
-                </div>
-                {hasResults && (
-                  <div className="text-sm text-red-600 dark:text-red-400 font-semibold">
-                    ⚠️ Warning: This entry has recorded results that will be permanently lost!
-                  </div>
-                )}
-                <div className="text-sm text-red-600 dark:text-red-400 mt-2">
-                  This action cannot be undone.
-                </div>
-              </>
-            );
-          })()}
-        </div>
-      </AppleDialog>
+      <AlertDialog open={deleteEntryDialogOpen} onOpenChange={setDeleteEntryDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Entry</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this entry?
+              {(() => {
+                const entry = rawEntries.find(e => (e as ShowEntry).id === entryToDelete) as ShowEntry | undefined;
+                const dog = entry ? dogs.find(d => d.id === entry.dogId) : undefined;
+                const hasResults = entry?.competitionData?.time || entry?.competitionData?.score || entry?.competitionData?.placement;
+
+                return (
+                  <>
+                    <span className="block mt-2 font-medium text-foreground">
+                      {dog?.callName || dog?.name || 'Unknown Dog'}
+                    </span>
+                    <span className="block text-sm">
+                      Handler: {entry?.registrationData?.handler || 'Unknown'}
+                    </span>
+                    <span className="block text-sm">
+                      Armband: #{entry?.registrationData?.armband || 'N/A'}
+                    </span>
+                    {hasResults && (
+                      <span className="block mt-2 text-destructive font-semibold">
+                        Warning: This entry has recorded results that will be permanently lost!
+                      </span>
+                    )}
+                    <span className="block mt-2 text-destructive">
+                      This action cannot be undone.
+                    </span>
+                  </>
+                );
+              })()}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDeleteEntry}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

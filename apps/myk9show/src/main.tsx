@@ -7,9 +7,13 @@ import { BrowserRouter } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { QueryProvider } from './providers/QueryProvider';
 import { logger } from '@/services/LoggingService';
+import { initializeSettings } from './stores/settingsStore';
 
 // Performance Optimization Imports (DISABLED FOR DEBUGGING)
 // import { initializePerformanceOptimization } from './services/performance/PerformanceIntegrator';
+
+// Initialize settings (applies accent color, theme, etc. from localStorage)
+initializeSettings();
 
 // Clear any existing service workers to prevent console spam
 if (import.meta.env.DEV && 'serviceWorker' in navigator) {

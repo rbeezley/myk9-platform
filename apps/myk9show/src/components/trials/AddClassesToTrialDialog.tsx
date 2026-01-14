@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { ClassTemplate, ClassDefinition } from '@/types/template.types';
 import { TrialClass } from '@/components/trials/types/trial.types';
 import { SimpleClassSelector } from '@/components/templates/secretary/SimpleClassSelector';
-import { AppleDialog } from '@/components/ui/AppleDialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -453,16 +453,13 @@ export const AddClassesToTrialDialog: React.FC<AddClassesToTrialDialogProps> = (
   };
 
   return (
-    <AppleDialog
-      open={open}
-      onOpenChange={onOpenChange}
-      title={getStepTitle()}
-      description={getStepDescription()}
-      maxWidth="6xl"
-      showFooter={false}
-      className=""
-    >
-      <div className="max-h-[70vh] overflow-hidden flex flex-col w-full">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-6xl">
+        <DialogHeader>
+          <DialogTitle>{getStepTitle()}</DialogTitle>
+          <DialogDescription>{getStepDescription()}</DialogDescription>
+        </DialogHeader>
+        <div className="max-h-[60vh] overflow-hidden flex flex-col w-full">
         {/* Step Content - Scrollable area */}
         <div className="flex-1 overflow-y-auto pr-2">
           {renderStepContent()}
@@ -505,7 +502,8 @@ export const AddClassesToTrialDialog: React.FC<AddClassesToTrialDialogProps> = (
           </div>
         </div>
       </div>
-    </AppleDialog>
+      </DialogContent>
+    </Dialog>
   );
 };
 

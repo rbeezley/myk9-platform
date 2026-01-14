@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { AppleDialog, AppleFormField, AppleFormGrid } from '@/components/ui/AppleDialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Registration } from '@/types/dog-types';
 
@@ -34,7 +36,7 @@ const COMMON_BREEDS = [
 
 const REGISTRATION_ORGS = [
   'AKC (American Kennel Club)',
-  'UKC (United Kennel Club)', 
+  'UKC (United Kennel Club)',
   'CKC (Canadian Kennel Club)',
   'ILP (Indefinite Listing Privilege)',
   'PAL (Purebred Alternative Listing)',
@@ -103,103 +105,110 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
   };
 
   return (
-    <AppleDialog
-      open={open}
-      onOpenChange={onOpenChange}
-      onSave={handleSubmit}
-      onCancel={() => onOpenChange(false)}
-      title={initialData ? "Edit Registration" : "Add New Registration"}
-      saveLabel="Save Registration"
-      saveDisabled={!isFormValid()}
-      maxWidth="lg"
-    >
-      <AppleFormField 
-        label="Registration Organization" 
-        required 
-        error={validationErrors.organization}
-      >
-        <Select
-          value={registrationData.organization}
-          onValueChange={(value) => handleFieldChange('organization', value)}
-        >
-          <SelectTrigger className="form-select">
-            <SelectValue placeholder="Select organization" />
-          </SelectTrigger>
-          <SelectContent>
-            {REGISTRATION_ORGS.map(org => (
-              <SelectItem key={org} value={org}>
-                {org}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </AppleFormField>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{initialData ? "Edit Registration" : "Add New Registration"}</DialogTitle>
+        </DialogHeader>
 
-      <AppleFormField 
-        label="Registered Name" 
-        required 
-        error={validationErrors.registeredName}
-      >
-        <Input
-          value={registrationData.registeredName}
-          onChange={(e) => handleFieldChange('registeredName', e.target.value)}
-          placeholder="Full registered name"
-          className="form-input"
-        />
-      </AppleFormField>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Registration Organization <span className="text-destructive">*</span></Label>
+            <Select
+              value={registrationData.organization}
+              onValueChange={(value) => handleFieldChange('organization', value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select organization" />
+              </SelectTrigger>
+              <SelectContent>
+                {REGISTRATION_ORGS.map(org => (
+                  <SelectItem key={org} value={org}>
+                    {org}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {validationErrors.organization && (
+              <p className="text-sm text-destructive">{validationErrors.organization}</p>
+            )}
+          </div>
 
-      <AppleFormField 
-        label="Registered Breed" 
-        required 
-        error={validationErrors.breed}
-      >
-        <Select
-          value={registrationData.breed}
-          onValueChange={(value) => handleFieldChange('breed', value)}
-        >
-          <SelectTrigger className="form-select">
-            <SelectValue placeholder="Select breed" />
-          </SelectTrigger>
-          <SelectContent>
-            {COMMON_BREEDS.map(breed => (
-              <SelectItem key={breed} value={breed}>
-                {breed}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </AppleFormField>
+          <div className="space-y-2">
+            <Label>Registered Name <span className="text-destructive">*</span></Label>
+            <Input
+              value={registrationData.registeredName}
+              onChange={(e) => handleFieldChange('registeredName', e.target.value)}
+              placeholder="Full registered name"
+            />
+            {validationErrors.registeredName && (
+              <p className="text-sm text-destructive">{validationErrors.registeredName}</p>
+            )}
+          </div>
 
-      <AppleFormGrid columns={2}>
-        <AppleFormField 
-          label="Registration Number" 
-          required 
-          error={validationErrors.registrationNumber}
-        >
-          <Input
-            value={registrationData.registrationNumber}
-            onChange={(e) => handleFieldChange('registrationNumber', e.target.value)}
-            placeholder="Enter registration number"
-            className="form-input"
-          />
-        </AppleFormField>
+          <div className="space-y-2">
+            <Label>Registered Breed <span className="text-destructive">*</span></Label>
+            <Select
+              value={registrationData.breed}
+              onValueChange={(value) => handleFieldChange('breed', value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select breed" />
+              </SelectTrigger>
+              <SelectContent>
+                {COMMON_BREEDS.map(breed => (
+                  <SelectItem key={breed} value={breed}>
+                    {breed}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {validationErrors.breed && (
+              <p className="text-sm text-destructive">{validationErrors.breed}</p>
+            )}
+          </div>
 
-        <AppleFormField label="Status">
-          <Select
-            value={registrationData.status}
-            onValueChange={(value) => handleFieldChange('status', value)}
-          >
-            <SelectTrigger className="form-select">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Active">Active</SelectItem>
-              <SelectItem value="Pending">Pending</SelectItem>
-              <SelectItem value="Expired">Expired</SelectItem>
-            </SelectContent>
-          </Select>
-        </AppleFormField>
-      </AppleFormGrid>
-    </AppleDialog>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Registration Number <span className="text-destructive">*</span></Label>
+              <Input
+                value={registrationData.registrationNumber}
+                onChange={(e) => handleFieldChange('registrationNumber', e.target.value)}
+                placeholder="Enter registration number"
+              />
+              {validationErrors.registrationNumber && (
+                <p className="text-sm text-destructive">{validationErrors.registrationNumber}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select
+                value={registrationData.status}
+                onValueChange={(value) => handleFieldChange('status', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Active">Active</SelectItem>
+                  <SelectItem value="Pending">Pending</SelectItem>
+                  <SelectItem value="Expired">Expired</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} disabled={!isFormValid()}>
+            Save Registration
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };

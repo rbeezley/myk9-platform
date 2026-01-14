@@ -3,7 +3,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TimePicker } from '@/components/ui/time-picker';
-import { AppleDialog } from '@/components/ui/AppleDialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { Clock, UserCheck, ClipboardList, DollarSign } from 'lucide-react';
 import { ClassData } from './types/classTypes';
 import { TrialClass } from '@/components/trials/types/trial.types';
@@ -96,14 +97,11 @@ const EditClassDialog: React.FC<EditClassDialogProps> = ({
   if (mode === 'simple' || ('judgeId' in formData && !('estimatedJudgingTime' in formData))) {
     const trialClassData = formData as TrialClass;
     return (
-      <AppleDialog
-        open={open}
-        onOpenChange={onOpenChange}
-        title="Edit Class"
-        onSave={handleSave}
-        saveLabel="Save Changes"
-        maxWidth="6xl"
-      >
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-6xl">
+          <DialogHeader>
+            <DialogTitle>Edit Class</DialogTitle>
+          </DialogHeader>
         {/* Row 1: Element, Level, Section - Read Only */}
         <div className="grid grid-cols-3 gap-4">
           <div className="space-y-3">
@@ -220,7 +218,16 @@ const EditClassDialog: React.FC<EditClassDialogProps> = ({
           <div></div>
           <div></div>
         </div>
-      </AppleDialog>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave}>
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     );
   }
 
@@ -280,16 +287,13 @@ const EditClassDialog: React.FC<EditClassDialogProps> = ({
   };
 
   return (
-    <AppleDialog
-      open={open}
-      onOpenChange={onOpenChange}
-      title="Edit Class"
-      onSave={handleSave}
-      saveLabel="Save Changes"
-      maxWidth="6xl"
-    >
-      {/* Scrollable container for content */}
-      <div className="max-h-[70vh] overflow-y-auto pr-2">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-6xl max-h-[85vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>Edit Class</DialogTitle>
+        </DialogHeader>
+        {/* Scrollable container for content */}
+        <div className="flex-1 overflow-y-auto pr-2">
         {/* Essential Fields - Always Visible */}
         <div className="space-y-6">
         {/* Element, Level, Section */}
@@ -717,7 +721,16 @@ const EditClassDialog: React.FC<EditClassDialogProps> = ({
         </div>
         </div>
       </div>
-    </AppleDialog>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave}>
+            Save Changes
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 

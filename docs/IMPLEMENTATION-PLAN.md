@@ -486,6 +486,48 @@ This document provides step-by-step implementation tasks for building the Online
 
 ---
 
+### 1.5 Phase 1 Unit Tests
+
+**Goal:** Create unit tests for Phase 1 components and utilities.
+
+**Files:**
+- `apps/myk9show/src/test/utils/entryStatusUtils.test.ts` (new)
+- `apps/myk9show/src/test/components/shows/EntryStatusBadge.test.tsx` (new)
+- `apps/myk9show/src/test/hooks/useClassAvailability.test.ts` (new)
+- `apps/myk9show/src/test/hooks/useExhibitorProfile.test.ts` (new)
+
+#### Tasks
+
+- [ ] **1.5.1** Unit tests for `entryStatusUtils.ts`
+  - Test `getEntryStatus()` returns correct status for all date scenarios
+  - Test `isAcceptingEntries()`, `isClosingSoon()`, `isEntriesClosed()`
+  - Test edge cases: same-day open/close, past dates, future dates
+
+- [ ] **1.5.2** Unit tests for `EntryStatusBadge.tsx`
+  - Test renders correct badge variant for each status
+  - Test size prop renders correct classes
+  - Test with mock show data for all status types
+
+- [ ] **1.5.3** Unit tests for `useClassAvailability.ts`
+  - Mock Supabase client
+  - Test loading state
+  - Test successful data fetch and transformation
+  - Test error handling
+  - Test computed values (totalSpotsAvailable, fullClasses)
+
+- [ ] **1.5.4** Unit tests for `useExhibitorProfile.ts`
+  - Mock Supabase client and auth context
+  - Test profile loading states
+  - Test `needsOnboarding` logic
+  - Test profile not found scenario
+
+**Acceptance Criteria:**
+- [ ] All utility functions have >90% coverage
+- [ ] Hooks tested with mocked dependencies
+- [ ] Tests pass in CI (`pnpm test`)
+
+---
+
 ## Phase 2: Entry Flow (Cart, Checkout, Confirmation)
 
 ### 2.1 Entry Cart State Management
@@ -1020,6 +1062,13 @@ This document provides step-by-step implementation tasks for building the Online
 
 ### Unit Tests
 
+**Phase 1:**
+- [ ] `entryStatusUtils` - status calculation logic
+- [ ] `EntryStatusBadge` - component rendering
+- [ ] `useClassAvailability` - hook with mocked Supabase
+- [ ] `useExhibitorProfile` - hook with mocked auth/Supabase
+
+**Phase 2+:**
 - [ ] Cart store actions
 - [ ] Availability calculations
 - [ ] Fee calculations
@@ -1087,6 +1136,10 @@ graph TD
 | `apps/myk9show/src/components/shows/EntryStatusBadge.tsx` | 1.3 | Entry status badge ✅ |
 | `apps/myk9show/src/hooks/useClassAvailability.ts` | 1.4 | Class availability hook ✅ |
 | `apps/myk9show/src/components/shows/ClassAvailability.tsx` | 1.4 | Class availability display ✅ |
+| `apps/myk9show/src/test/utils/entryStatusUtils.test.ts` | 1.5 | Entry status unit tests |
+| `apps/myk9show/src/test/components/shows/EntryStatusBadge.test.tsx` | 1.5 | Badge component tests |
+| `apps/myk9show/src/test/hooks/useClassAvailability.test.ts` | 1.5 | Class availability hook tests |
+| `apps/myk9show/src/test/hooks/useExhibitorProfile.test.ts` | 1.5 | Exhibitor profile hook tests |
 | `apps/myk9show/src/stores/cartStore.ts` | 2.1 | Cart state management |
 | `apps/myk9show/src/pages/CartPage.tsx` | 2.3 | Cart review |
 | `apps/myk9show/src/pages/WaitlistManagementPage.tsx` | 3.1 | Waitlist admin |

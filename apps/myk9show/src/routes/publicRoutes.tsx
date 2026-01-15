@@ -24,6 +24,7 @@ const PreferencesPage = lazy(() => import('@/pages/PreferencesPage'));
 // Exhibitor pages
 const BrowseShowsPage = lazy(() => import('@/pages/BrowseShowsPage'));
 const ExhibitorDashboard = lazy(() => import('@/pages/ExhibitorDashboard'));
+const ExhibitorProfilePage = lazy(() => import('@/pages/exhibitor/ExhibitorProfilePage'));
 const ClassCheckIn = lazy(() => import('@/components/exhibitor/ClassCheckIn'));
 
 // Test pages
@@ -104,11 +105,27 @@ export const PublicRoutes = () => (
         </SuspenseWrapper>
       </ProtectedRoute>
     } />
-    
+
+    <Route path="/exhibitor/profile" element={
+      <ProtectedRoute>
+        <SuspenseWrapper>
+          <PageTransition><ExhibitorProfilePage /></PageTransition>
+        </SuspenseWrapper>
+      </ProtectedRoute>
+    } />
+
+    <Route path="/profile" element={
+      <ProtectedRoute>
+        <SuspenseWrapper>
+          <PageTransition><ExhibitorProfilePage /></PageTransition>
+        </SuspenseWrapper>
+      </ProtectedRoute>
+    } />
+
     <Route path="/exhibitor/account" element={
       <ProtectedRoute>
         <SuspenseWrapper>
-          <PageTransition><ExhibitorDashboard /></PageTransition>
+          <PageTransition><ExhibitorProfilePage /></PageTransition>
         </SuspenseWrapper>
       </ProtectedRoute>
     } />

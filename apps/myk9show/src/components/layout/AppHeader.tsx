@@ -204,6 +204,12 @@ const AppHeader: React.FC = () => {
 
                     {/* Common menu items for all users */}
                     <DropdownMenuItem asChild>
+                      <Link to="/profile" className="w-full flex items-center gap-2">
+                        <UserIcon className="h-4 w-4" />
+                        My Profile
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
                       <Link to="/subscription" className="w-full flex items-center gap-2">
                         <CreditCard className="h-4 w-4" />
                         Subscription

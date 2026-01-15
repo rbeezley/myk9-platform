@@ -39,6 +39,9 @@ import { PanelProvider } from './components/panels/PanelContext';
 // Alert System
 import { AlertInitializer } from './components/alerts';
 
+// Exhibitor Onboarding
+import { ExhibitorOnboardingChecker } from './components/exhibitor';
+
 // Error Handling
 import { GlobalErrorHandler } from './services/error/GlobalErrorHandler';
 
@@ -174,7 +177,8 @@ function App() {
                 <FormErrorProvider>
                   <PanelProvider>
                     <AlertInitializer>
-                    <ErrorBoundary 
+                      <ExhibitorOnboardingChecker>
+                    <ErrorBoundary
                       level="page"
                       context="Application"
                       fallback={({ error, resetErrorBoundary }) => (
@@ -232,6 +236,7 @@ function App() {
                       </div>
                       
                     </ErrorBoundary>
+                      </ExhibitorOnboardingChecker>
                   </AlertInitializer>
                 </PanelProvider>
               </FormErrorProvider>

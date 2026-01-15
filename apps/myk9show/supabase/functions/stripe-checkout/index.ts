@@ -2,28 +2,23 @@ import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL');
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
 
-console.log('Initializing Edge Function with:', {
-  hasSupabaseUrl: !!supabaseUrl,
-  hasServiceKey: !!supabaseServiceKey,
-});
-
-if (!supabaseUrl || !supabaseServiceKey) {
+if (!supabaseUrl || !supabaseServiceKey || !stripeSecret) {
   throw new Error('Missing required environment variables');
 }
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
-const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
 const stripe = new Stripe(stripeSecret, {
   appInfo: {
-    name: 'Bolt Integration',
+    name: 'myK9Show',
     version: '1.0.0',
   },
 });
 
-// Helper function to create responses with CORS headers
+// CORS response helper
 function corsResponse(body: string | object | null, status = 200) {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -31,24 +26,42 @@ function corsResponse(body: string | object | null, status = 200) {
     'Access-Control-Allow-Headers': '*',
   };
 
-  // For 204 No Content, don't include Content-Type or body
   if (status === 204) {
     return new Response(null, { status, headers });
   }
 
   return new Response(JSON.stringify(body), {
     status,
-    headers: {
-      ...headers,
-      'Content-Type': 'application/json',
-    },
+    headers: { ...headers, 'Content-Type': 'application/json' },
   });
 }
 
+// Request types
+interface SubscriptionCheckoutRequest {
+  mode: 'subscription';
+  price_id: string;
+  success_url: string;
+  cancel_url: string;
+}
+
+interface PaymentCheckoutRequest {
+  mode: 'payment';
+  price_id: string;
+  success_url: string;
+  cancel_url: string;
+}
+
+interface EntryCheckoutRequest {
+  mode: 'entry';
+  cart_id: string;
+  success_url: string;
+  cancel_url: string;
+}
+
+type CheckoutRequest = SubscriptionCheckoutRequest | PaymentCheckoutRequest | EntryCheckoutRequest;
+
 Deno.serve(async (req) => {
   try {
-    console.log('Received request:', req.method);
-
     if (req.method === 'OPTIONS') {
       return corsResponse({}, 204);
     }
@@ -57,201 +70,323 @@ Deno.serve(async (req) => {
       return corsResponse({ error: 'Method not allowed' }, 405);
     }
 
-    const { price_id, success_url, cancel_url, mode } = await req.json();
-    console.log('Request payload:', { price_id, success_url, cancel_url, mode });
-
-    const error = validateParameters(
-      { price_id, success_url, cancel_url, mode },
-      {
-        cancel_url: 'string',
-        price_id: 'string',
-        success_url: 'string',
-        mode: { values: ['payment', 'subscription'] },
-      },
-    );
-
-    if (error) {
-      console.error('Parameter validation failed:', error);
-      return corsResponse({ error }, 400);
-    }
-
+    // Authenticate user
     const authHeader = req.headers.get('Authorization');
-    console.log('Auth header present:', !!authHeader);
-
     if (!authHeader) {
       return corsResponse({ error: 'Missing Authorization header' }, 401);
     }
 
     const token = authHeader.replace('Bearer ', '');
-    console.log('Attempting to get user with token');
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
-    const {
-      data: { user },
-      error: getUserError,
-    } = await supabase.auth.getUser(token);
-
-    if (getUserError) {
-      console.error('Failed to authenticate user:', getUserError);
-      return corsResponse({ error: 'Failed to authenticate user' }, 401);
+    if (authError || !user) {
+      console.error('Authentication failed:', authError);
+      return corsResponse({ error: 'Authentication failed' }, 401);
     }
 
-    if (!user) {
-      console.error('No user found after authentication');
-      return corsResponse({ error: 'User not found' }, 404);
+    // Parse request
+    const body: CheckoutRequest = await req.json();
+    const { mode, success_url, cancel_url } = body;
+
+    if (!mode || !success_url || !cancel_url) {
+      return corsResponse({ error: 'Missing required parameters: mode, success_url, cancel_url' }, 400);
     }
 
-    console.log('Successfully authenticated user:', user.id);
+    // Get or create person record for this auth user
+    const { data: person, error: personError } = await supabase
+      .from('people')
+      .select('id')
+      .eq('auth_user_id', user.id)
+      .single();
 
-    const { data: customer, error: getCustomerError } = await supabase
-      .from('stripe_customers')
-      .select('customer_id')
-      .eq('user_id', user.id)
-      .is('deleted_at', null)
-      .maybeSingle();
-
-    if (getCustomerError) {
-      console.error('Failed to fetch customer information from the database:', getCustomerError);
-      return corsResponse({ error: 'Failed to fetch customer information' }, 500);
+    if (personError || !person) {
+      console.error('Person not found for auth user:', personError);
+      return corsResponse({ error: 'User profile not found. Please complete registration.' }, 404);
     }
 
-    let customerId;
-
-    /**
-     * In case we don't have a mapping yet, the customer does not exist and we need to create one.
-     */
-    if (!customer || !customer.customer_id) {
-      console.log('Creating new Stripe customer for user:', user.id);
-
-      const newCustomer = await stripe.customers.create({
-        email: user.email,
-        metadata: {
-          userId: user.id,
-        },
-      });
-
-      console.log(`Created new Stripe customer ${newCustomer.id} for user ${user.id}`);
-
-      const { error: createCustomerError } = await supabase.from('stripe_customers').insert({
-        user_id: user.id,
-        customer_id: newCustomer.id,
-      });
-
-      if (createCustomerError) {
-        console.error('Failed to save customer information in the database:', createCustomerError);
-
-        // Try to clean up both the Stripe customer and subscription record
-        try {
-          await stripe.customers.del(newCustomer.id);
-          await supabase.from('stripe_subscriptions').delete().eq('customer_id', newCustomer.id);
-        } catch (deleteError) {
-          console.error('Failed to clean up after customer mapping error:', deleteError);
-        }
-
-        return corsResponse({ error: 'Failed to create customer mapping' }, 500);
-      }
-
-      if (mode === 'subscription') {
-        const { error: createSubscriptionError } = await supabase.from('stripe_subscriptions').insert({
-          customer_id: newCustomer.id,
-          status: 'not_started',
-        });
-
-        if (createSubscriptionError) {
-          console.error('Failed to save subscription in the database:', createSubscriptionError);
-
-          // Try to clean up the Stripe customer since we couldn't create the subscription
-          try {
-            await stripe.customers.del(newCustomer.id);
-          } catch (deleteError) {
-            console.error('Failed to delete Stripe customer after subscription creation error:', deleteError);
-          }
-
-          return corsResponse({ error: 'Unable to save the subscription in the database' }, 500);
-        }
-      }
-
-      customerId = newCustomer.id;
-
-      console.log(`Successfully set up new customer ${customerId} with subscription record`);
-    } else {
-      customerId = customer.customer_id;
-      console.log('Using existing customer:', customerId);
-
-      if (mode === 'subscription') {
-        // Verify subscription exists for existing customer
-        const { data: subscription, error: getSubscriptionError } = await supabase
-          .from('stripe_subscriptions')
-          .select('status')
-          .eq('customer_id', customerId)
-          .maybeSingle();
-
-        if (getSubscriptionError) {
-          console.error('Failed to fetch subscription information from the database:', getSubscriptionError);
-          return corsResponse({ error: 'Failed to fetch subscription information' }, 500);
-        }
-
-        if (!subscription) {
-          console.log('Creating subscription record for existing customer');
-          // Create subscription record for existing customer if missing
-          const { error: createSubscriptionError } = await supabase.from('stripe_subscriptions').insert({
-            customer_id: customerId,
-            status: 'not_started',
-          });
-
-          if (createSubscriptionError) {
-            console.error('Failed to create subscription record for existing customer:', createSubscriptionError);
-            return corsResponse({ error: 'Failed to create subscription record for existing customer' }, 500);
-          }
-        }
-      }
+    // Get or create Stripe customer
+    const customerId = await getOrCreateStripeCustomer(user, person.id);
+    if (!customerId) {
+      return corsResponse({ error: 'Failed to create payment profile' }, 500);
     }
 
-    console.log('Creating Stripe checkout session');
-    // create Checkout Session
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          price: price_id,
-          quantity: 1,
-        },
-      ],
-      mode,
-      success_url,
-      cancel_url,
-    });
+    // Handle different checkout modes
+    if (mode === 'entry') {
+      return handleEntryCheckout(body as EntryCheckoutRequest, user.id, customerId, success_url, cancel_url);
+    } else if (mode === 'subscription') {
+      return handleSubscriptionCheckout(body as SubscriptionCheckoutRequest, customerId, success_url, cancel_url);
+    } else if (mode === 'payment') {
+      return handlePaymentCheckout(body as PaymentCheckoutRequest, customerId, success_url, cancel_url);
+    }
 
-    console.log(`Created checkout session ${session.id} for customer ${customerId}`);
-
-    return corsResponse({ sessionId: session.id, url: session.url });
+    return corsResponse({ error: 'Invalid checkout mode' }, 400);
   } catch (error: unknown) {
     console.error('Checkout error:', error);
     return corsResponse({ error: error instanceof Error ? error.message : 'Unknown error' }, 500);
   }
 });
 
-type ExpectedType = 'string' | { values: string[] };
-type Expectations<T> = { [K in keyof T]: ExpectedType };
+/**
+ * Get existing Stripe customer or create a new one
+ * Also syncs to exhibitor_profiles if exists
+ */
+async function getOrCreateStripeCustomer(user: { id: string; email?: string }, personId: string): Promise<string | null> {
+  // Check for existing customer
+  const { data: existing, error: lookupError } = await supabase
+    .from('stripe_customers')
+    .select('stripe_customer_id')
+    .eq('person_id', personId)
+    .maybeSingle();
 
-function validateParameters<T extends Record<string, unknown>>(values: T, expected: Expectations<T>): string | undefined {
-  for (const parameter in values) {
-    const expectation = expected[parameter];
-    const value = values[parameter];
-
-    if (expectation === 'string') {
-      if (value == null) {
-        return `Missing required parameter ${parameter}`;
-      }
-      if (typeof value !== 'string') {
-        return `Expected parameter ${parameter} to be a string got ${JSON.stringify(value)}`;
-      }
-    } else {
-      if (!expectation.values.includes(value)) {
-        return `Expected parameter ${parameter} to be one of ${expectation.values.join(', ')}`;
-      }
-    }
+  if (lookupError) {
+    console.error('Error looking up stripe customer:', lookupError);
+    return null;
   }
 
-  return undefined;
+  if (existing?.stripe_customer_id) {
+    return existing.stripe_customer_id;
+  }
+
+  // Create new Stripe customer
+  try {
+    const stripeCustomer = await stripe.customers.create({
+      email: user.email,
+      metadata: {
+        auth_user_id: user.id,
+        person_id: personId,
+      },
+    });
+
+    // Save to stripe_customers table
+    const { error: insertError } = await supabase
+      .from('stripe_customers')
+      .insert({
+        person_id: personId,
+        stripe_customer_id: stripeCustomer.id,
+        email: user.email,
+      });
+
+    if (insertError) {
+      console.error('Error saving stripe customer:', insertError);
+      // Clean up Stripe customer
+      await stripe.customers.del(stripeCustomer.id);
+      return null;
+    }
+
+    // Also update exhibitor_profiles if exists
+    await supabase
+      .from('exhibitor_profiles')
+      .update({ stripe_customer_id: stripeCustomer.id })
+      .eq('person_id', personId);
+
+    console.log(`Created Stripe customer ${stripeCustomer.id} for person ${personId}`);
+    return stripeCustomer.id;
+  } catch (error) {
+    console.error('Error creating Stripe customer:', error);
+    return null;
+  }
+}
+
+/**
+ * Handle entry cart checkout
+ */
+async function handleEntryCheckout(
+  request: EntryCheckoutRequest,
+  authUserId: string,
+  customerId: string,
+  successUrl: string,
+  cancelUrl: string,
+): Promise<Response> {
+  const { cart_id } = request;
+
+  if (!cart_id) {
+    return corsResponse({ error: 'Missing cart_id for entry checkout' }, 400);
+  }
+
+  // Fetch cart with items and verify ownership
+  const { data: cart, error: cartError } = await supabase
+    .from('entry_carts')
+    .select(`
+      *,
+      exhibitor:exhibitor_profiles!inner(auth_user_id),
+      items:entry_cart_items(
+        id,
+        dog_id,
+        class_id,
+        handler_id,
+        entry_fee_cents,
+        jump_height,
+        special_requests,
+        dog:dogs(call_name),
+        class:classes(
+          name,
+          trial:trials(
+            show:shows(name)
+          )
+        )
+      )
+    `)
+    .eq('id', cart_id)
+    .eq('status', 'active')
+    .single();
+
+  if (cartError || !cart) {
+    console.error('Cart not found:', cartError);
+    return corsResponse({ error: 'Cart not found or expired' }, 404);
+  }
+
+  // Verify ownership
+  if (cart.exhibitor.auth_user_id !== authUserId) {
+    return corsResponse({ error: 'Unauthorized access to cart' }, 403);
+  }
+
+  // Check cart hasn't expired
+  if (new Date(cart.expires_at) < new Date()) {
+    await supabase
+      .from('entry_carts')
+      .update({ status: 'expired' })
+      .eq('id', cart_id);
+    return corsResponse({ error: 'Cart has expired. Please create a new cart.' }, 410);
+  }
+
+  // Build line items for Stripe
+  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = cart.items.map((item: {
+    entry_fee_cents: number;
+    dog?: { call_name?: string };
+    class?: { name?: string; trial?: { show?: { name?: string } } };
+  }) => ({
+    price_data: {
+      currency: 'usd',
+      unit_amount: item.entry_fee_cents,
+      product_data: {
+        name: `${item.dog?.call_name || 'Dog'} - ${item.class?.name || 'Class'}`,
+        description: item.class?.trial?.show?.name || 'Show Entry',
+      },
+    },
+    quantity: 1,
+  }));
+
+  if (lineItems.length === 0) {
+    return corsResponse({ error: 'Cart is empty' }, 400);
+  }
+
+  // Calculate platform fee (if applicable)
+  const subtotal = cart.items.reduce((sum: number, item: { entry_fee_cents: number }) => sum + item.entry_fee_cents, 0);
+  const platformFeePercent = 3; // 3% platform fee
+  const platformFeeCents = Math.round(subtotal * platformFeePercent / 100);
+
+  // Add platform fee as line item if > 0
+  if (platformFeeCents > 0) {
+    lineItems.push({
+      price_data: {
+        currency: 'usd',
+        unit_amount: platformFeeCents,
+        product_data: {
+          name: 'Platform Fee',
+          description: 'Online entry processing fee',
+        },
+      },
+      quantity: 1,
+    });
+  }
+
+  // Create checkout session
+  const session = await stripe.checkout.sessions.create({
+    customer: customerId,
+    payment_method_types: ['card'],
+    line_items: lineItems,
+    mode: 'payment',
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+    metadata: {
+      cart_id: cart_id,
+      type: 'entry',
+    },
+    payment_intent_data: {
+      metadata: {
+        cart_id: cart_id,
+        type: 'entry',
+      },
+    },
+  });
+
+  // Update cart with checkout session
+  const { error: updateError } = await supabase
+    .from('entry_carts')
+    .update({
+      stripe_checkout_session_id: session.id,
+      subtotal_cents: subtotal,
+      platform_fee_cents: platformFeeCents,
+      total_cents: subtotal + platformFeeCents,
+    })
+    .eq('id', cart_id);
+
+  if (updateError) {
+    console.error('Error updating cart with session:', updateError);
+  }
+
+  console.log(`Created entry checkout session ${session.id} for cart ${cart_id}`);
+  return corsResponse({ sessionId: session.id, url: session.url });
+}
+
+/**
+ * Handle subscription checkout
+ */
+async function handleSubscriptionCheckout(
+  request: SubscriptionCheckoutRequest,
+  customerId: string,
+  successUrl: string,
+  cancelUrl: string,
+): Promise<Response> {
+  const { price_id } = request;
+
+  if (!price_id) {
+    return corsResponse({ error: 'Missing price_id for subscription checkout' }, 400);
+  }
+
+  const session = await stripe.checkout.sessions.create({
+    customer: customerId,
+    payment_method_types: ['card'],
+    line_items: [{ price: price_id, quantity: 1 }],
+    mode: 'subscription',
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+    metadata: {
+      type: 'subscription',
+    },
+  });
+
+  console.log(`Created subscription checkout session ${session.id}`);
+  return corsResponse({ sessionId: session.id, url: session.url });
+}
+
+/**
+ * Handle one-time payment checkout
+ */
+async function handlePaymentCheckout(
+  request: PaymentCheckoutRequest,
+  customerId: string,
+  successUrl: string,
+  cancelUrl: string,
+): Promise<Response> {
+  const { price_id } = request;
+
+  if (!price_id) {
+    return corsResponse({ error: 'Missing price_id for payment checkout' }, 400);
+  }
+
+  const session = await stripe.checkout.sessions.create({
+    customer: customerId,
+    payment_method_types: ['card'],
+    line_items: [{ price: price_id, quantity: 1 }],
+    mode: 'payment',
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+    metadata: {
+      type: 'payment',
+    },
+  });
+
+  console.log(`Created payment checkout session ${session.id}`);
+  return corsResponse({ sessionId: session.id, url: session.url });
 }

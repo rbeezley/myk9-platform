@@ -1,27 +1,45 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Mail, Lock } from 'lucide-react';
+import { Mail, Lock, User } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 
 const SignUp: React.FC = () => {
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { signUp, loading: authLoading } = useAuthContext();
-  
-  // Show loading indicator if either local loading or authLoading is true
+
   const isLoading = loading || authLoading;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
-    
+
+    // Validation
+    if (!firstName.trim() || !lastName.trim()) {
+      setError('Please enter your first and last name');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
+    setLoading(true);
+
     try {
-      await signUp(email, password);
-      // Redirect to home page after successful sign-up
+      await signUp(email, password, { firstName: firstName.trim(), lastName: lastName.trim() });
       navigate('/');
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : 'An unknown error occurred');
@@ -42,6 +60,41 @@ const SignUp: React.FC = () => {
           <Link to="/sign-in" className="text-primary hover:underline font-medium">Sign in</Link>
         </div>
         <form onSubmit={handleSubmit}>
+          {/* Name fields in a row */}
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div>
+              <label className="block mb-1 font-medium" htmlFor="firstName">First name</label>
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                  <User size={18} />
+                </span>
+                <input
+                  type="text"
+                  id="firstName"
+                  placeholder="First"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  className="w-full p-2 pl-10 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                  required
+                  autoComplete="given-name"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block mb-1 font-medium" htmlFor="lastName">Last name</label>
+              <input
+                type="text"
+                id="lastName"
+                placeholder="Last"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                className="w-full p-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                required
+                autoComplete="family-name"
+              />
+            </div>
+          </div>
+
           <div className="mb-4">
             <label className="block mb-1 font-medium" htmlFor="email">Email address</label>
             <div className="relative">
@@ -56,10 +109,12 @@ const SignUp: React.FC = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full p-2 pl-10 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
                 required
+                autoComplete="email"
               />
             </div>
           </div>
-          <div className="mb-6">
+
+          <div className="mb-4">
             <label className="block mb-1 font-medium" htmlFor="password">Password</label>
             <div className="relative">
               <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
@@ -68,15 +123,38 @@ const SignUp: React.FC = () => {
               <input
                 type="password"
                 id="password"
-                placeholder="Password"
+                placeholder="Password (min 6 characters)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full p-2 pl-10 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
                 required
+                minLength={6}
+                autoComplete="new-password"
               />
             </div>
           </div>
+
+          <div className="mb-6">
+            <label className="block mb-1 font-medium" htmlFor="confirmPassword">Confirm password</label>
+            <div className="relative">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                <Lock size={18} />
+              </span>
+              <input
+                type="password"
+                id="confirmPassword"
+                placeholder="Confirm password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full p-2 pl-10 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-background text-foreground"
+                required
+                autoComplete="new-password"
+              />
+            </div>
+          </div>
+
           {error && <div className="text-destructive mb-4 text-center">{error}</div>}
+
           <button
             type="submit"
             disabled={isLoading}

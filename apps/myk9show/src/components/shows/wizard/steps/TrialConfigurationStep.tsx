@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { Plus, Trash2, GripVertical } from 'lucide-react';
 import { format, isWithinInterval, parseISO } from 'date-fns';
-import { AppleFormField, AppleFormGrid } from '@/components/ui/AppleDialog';
+import { Label } from '@/components/ui/label';
 import { useWizardStore } from '@/store/wizardStore';
 
 interface TrialConfigurationStepProps {
@@ -148,52 +148,50 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({ 
                     </Button>
                   </div>
 
-                  <AppleFormGrid columns={2}>
-                    <AppleFormField 
-                      label="Trial Name" 
-                      required 
-                      error={errors[`trial-${index}-name`]}
-                    >
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Trial Name <span className="text-destructive">*</span></Label>
                       <Input
                         value={trial.name}
                         onChange={(e) => updateTrial(trial.id, { name: e.target.value })}
                         placeholder="e.g., Trial 1, Novice Trial"
-                        className="form-input h-10"
+                        className="h-10"
                       />
-                    </AppleFormField>
+                      {errors[`trial-${index}-name`] && (
+                        <p className="text-sm text-destructive">{errors[`trial-${index}-name`]}</p>
+                      )}
+                    </div>
 
-                    <AppleFormField 
-                      label="Event Number" 
-                      required 
-                      error={errors[`trial-${index}-eventNumber`]}
-                    >
+                    <div className="space-y-2">
+                      <Label>Event Number <span className="text-destructive">*</span></Label>
                       <Input
                         value={trial.eventNumber}
                         onChange={(e) => updateTrial(trial.id, { eventNumber: e.target.value })}
                         placeholder="e.g., 1, 2024-001"
-                        className="form-input h-10"
-                      />
-                    </AppleFormField>
-                  </AppleFormGrid>
-
-                  <AppleFormGrid columns={1}>
-                    <AppleFormField 
-                      label="Trial Date & Time" 
-                      required 
-                      error={errors[`trial-${index}-dateTime`]}
-                    >
-                      <DateTimePicker
-                        value={trial.dateTime ? new Date(trial.dateTime) : undefined}
-                        onChange={(date) => handleTrialDateTimeChange(trial.id, date)}
-                        placeholder="Pick trial date and time"
                         className="h-10"
-                        minDate={show.startDate ? new Date(show.startDate) : new Date()}
-                        maxDate={show.endDate ? new Date(show.endDate) : undefined}
-                        showTime={true}
-                        timeFormat="12h"
                       />
-                    </AppleFormField>
-                  </AppleFormGrid>
+                      {errors[`trial-${index}-eventNumber`] && (
+                        <p className="text-sm text-destructive">{errors[`trial-${index}-eventNumber`]}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Trial Date & Time <span className="text-destructive">*</span></Label>
+                    <DateTimePicker
+                      value={trial.dateTime ? new Date(trial.dateTime) : undefined}
+                      onChange={(date) => handleTrialDateTimeChange(trial.id, date)}
+                      placeholder="Pick trial date and time"
+                      className="h-10"
+                      minDate={show.startDate ? new Date(show.startDate) : new Date()}
+                      maxDate={show.endDate ? new Date(show.endDate) : undefined}
+                      showTime={true}
+                      timeFormat="12h"
+                    />
+                    {errors[`trial-${index}-dateTime`] && (
+                      <p className="text-sm text-destructive">{errors[`trial-${index}-dateTime`]}</p>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

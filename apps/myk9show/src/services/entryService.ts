@@ -9,7 +9,7 @@ import { logger } from '@/utils/logger';
  * @param previousStatus - Optional: The status to restore if inRing is false
  */
 export async function markInRing(
-    entryId: number,
+    entryId: string | number,
     inRing: boolean = true,
     previousStatus: string = 'checked-in'
 ): Promise<boolean> {
@@ -22,16 +22,16 @@ export async function markInRing(
                 status: status,
                 updated_at: new Date().toISOString()
             })
-            .eq('id', entryId);
+            .eq('id', String(entryId));
 
         if (error) {
-            logger.error(`[entryService] Error marking entry ${entryId} as in-ring:`, error);
+            logger.error(`[entryService] Error marking entry ${entryId} as in-ring:`, 'entry', { error: error.message });
             return false;
         }
 
         return true;
     } catch (error) {
-        logger.error(`[entryService] Exception marking entry ${entryId} as in-ring:`, error);
+        logger.error(`[entryService] Exception marking entry ${entryId} as in-ring:`, 'entry', {}, error as Error);
         return false;
     }
 }

@@ -36,9 +36,6 @@ vi.mock('@/components/dogs/AddEditRegistrationDialog', () => ({
   }
 }));
 
-// Mock Apple CSS import
-vi.mock('@/styles/apple-dialogs-global.css', () => ({}));
-
 describe('AddDogDialog', () => {
   const mockUsers = [
     personFactory.build({ id: 'person-1', firstName: 'John', lastName: 'Doe', email: 'john@example.com' }),

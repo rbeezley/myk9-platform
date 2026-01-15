@@ -19,10 +19,12 @@ const TrialDetailsPage = lazy(() => import('@/pages/TrialDetailsPage'));
 const ClassDetailsPage = lazy(() => import('@/pages/ClassDetailsPage'));
 const CalendarPage = lazy(() => import('@/pages/CalendarPage'));
 const SubscriptionPage = lazy(() => import('@/pages/SubscriptionPage'));
+const PreferencesPage = lazy(() => import('@/pages/PreferencesPage'));
 
 // Exhibitor pages
 const BrowseShowsPage = lazy(() => import('@/pages/BrowseShowsPage'));
 const ExhibitorDashboard = lazy(() => import('@/pages/ExhibitorDashboard'));
+const ExhibitorProfilePage = lazy(() => import('@/pages/exhibitor/ExhibitorProfilePage'));
 const ClassCheckIn = lazy(() => import('@/components/exhibitor/ClassCheckIn'));
 
 // Test pages
@@ -103,11 +105,27 @@ export const PublicRoutes = () => (
         </SuspenseWrapper>
       </ProtectedRoute>
     } />
-    
+
+    <Route path="/exhibitor/profile" element={
+      <ProtectedRoute>
+        <SuspenseWrapper>
+          <PageTransition><ExhibitorProfilePage /></PageTransition>
+        </SuspenseWrapper>
+      </ProtectedRoute>
+    } />
+
+    <Route path="/profile" element={
+      <ProtectedRoute>
+        <SuspenseWrapper>
+          <PageTransition><ExhibitorProfilePage /></PageTransition>
+        </SuspenseWrapper>
+      </ProtectedRoute>
+    } />
+
     <Route path="/exhibitor/account" element={
       <ProtectedRoute>
         <SuspenseWrapper>
-          <PageTransition><ExhibitorDashboard /></PageTransition>
+          <PageTransition><ExhibitorProfilePage /></PageTransition>
         </SuspenseWrapper>
       </ProtectedRoute>
     } />
@@ -238,6 +256,14 @@ export const PublicRoutes = () => (
     } />
 
     {/* Feature Pages */}
+    <Route path="/preferences" element={
+      <ProtectedRoute>
+        <SuspenseWrapper>
+          <PageTransition><PreferencesPage /></PageTransition>
+        </SuspenseWrapper>
+      </ProtectedRoute>
+    } />
+
     <Route path="/calendar" element={
       <ProtectedRoute>
         <SuspenseWrapper>

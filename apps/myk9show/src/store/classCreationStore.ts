@@ -1,9 +1,10 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { getOptimalStorage } from '@/services/database/storage-adapter';
-import { 
-  ClassTemplate, 
-  ClassSelectionItem, 
+import {
+  ClassTemplate,
+  ClassDefinition,
+  ClassSelectionItem,
   CreatedClass
 } from '@/types/template.types';
 // Lazy import to avoid circular dependency - imported at runtime, not module load time
@@ -89,7 +90,7 @@ export const useClassCreationStore = create<ClassCreationStore>()(
     }
 
     // Initialize selection items for all classes
-    const selectionItems: ClassSelectionItem[] = template.classDefinitions.map(classDef => ({
+    const selectionItems: ClassSelectionItem[] = template.classDefinitions.map((classDef: ClassDefinition) => ({
       classDefinition: classDef,
       selected: false,
       fieldOverrides: {},
@@ -110,7 +111,7 @@ export const useClassCreationStore = create<ClassCreationStore>()(
   setTemplateData: (template: ClassTemplate) => {
 
     // Initialize selection items for all classes
-    const selectionItems: ClassSelectionItem[] = template.classDefinitions.map(classDef => ({
+    const selectionItems: ClassSelectionItem[] = template.classDefinitions.map((classDef: ClassDefinition) => ({
       classDefinition: classDef,
       selected: false,
       fieldOverrides: {},

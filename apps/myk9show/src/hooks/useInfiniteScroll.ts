@@ -95,7 +95,7 @@ export function useInfiniteScroll<T extends { id: string }>(
 
   const log = useCallback((message: string, ...args: unknown[]) => {
     if (debug) {
-      logger.debug(`[InfiniteScroll] ${message}`, 'hooks', { data: ...args });
+      logger.debug(`[InfiniteScroll] ${message}`, 'hooks', { args });
     }
   }, [debug]);
 

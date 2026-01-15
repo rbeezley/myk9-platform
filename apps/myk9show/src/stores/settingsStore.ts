@@ -170,6 +170,13 @@ export const useSettingsStore = create<SettingsState>()(
       }),
       {
         name: 'myK9Q_settings',
+        onRehydrateStorage: () => (state) => {
+          // Called after settings are loaded from localStorage
+          if (state) {
+            applyAccentColor(state.settings.accentColor || 'green');
+            applyTheme(state.settings.theme || 'auto');
+          }
+        },
       }
     ),
     { name: 'SettingsStore', enabled: import.meta.env.DEV }

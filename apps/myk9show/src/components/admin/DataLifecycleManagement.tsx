@@ -33,7 +33,16 @@ import {
   RefreshCw,
   X
 } from 'lucide-react';
-import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 import { getArchiveService, type ArchiveStats } from '@/services/data-lifecycle/DataArchiveService';
 import { getArchiveScheduler } from '@/services/data-lifecycle/ArchiveScheduler';
@@ -996,30 +1005,48 @@ export function DataLifecycleManagement() {
       )}
 
       {/* Restore Confirmation Dialog */}
-      <ConfirmationDialog
-        open={showRestoreDialog}
-        onOpenChange={setShowRestoreDialog}
-        title={`Restore ${selectedEntity?.type === 'club' ? 'Club' : 'Dog'}?`}
-        description={`Are you sure you want to restore "${selectedEntity?.name}"? This will make it visible and active again in the system.`}
-        confirmLabel="Restore"
-        cancelLabel="Cancel"
-        variant="success"
-        onConfirm={handleConfirmRestore}
-        confirmDisabled={isLoadingDeleted}
-      />
+      <AlertDialog open={showRestoreDialog} onOpenChange={setShowRestoreDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Restore {selectedEntity?.type === 'club' ? 'Club' : 'Dog'}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to restore "{selectedEntity?.name}"? This will make it visible and active again in the system.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmRestore}
+              disabled={isLoadingDeleted}
+              className="bg-green-500 hover:bg-green-600"
+            >
+              Restore
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Permanent Delete Confirmation Dialog */}
-      <ConfirmationDialog
-        open={showDeleteDialog}
-        onOpenChange={setShowDeleteDialog}
-        title={`Permanently Delete ${selectedEntity?.type === 'club' ? 'Club' : 'Dog'}?`}
-        description={`Are you sure you want to permanently delete "${selectedEntity?.name}"? This action cannot be undone and will remove all data associated with this ${selectedEntity?.type} from the database.`}
-        confirmLabel="Delete Forever"
-        cancelLabel="Cancel"
-        variant="destructive"
-        onConfirm={handleConfirmDelete}
-        confirmDisabled={isLoadingDeleted}
-      />
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Permanently Delete {selectedEntity?.type === 'club' ? 'Club' : 'Dog'}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to permanently delete "{selectedEntity?.name}"? This action cannot be undone and will remove all data associated with this {selectedEntity?.type} from the database.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={isLoadingDeleted}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Delete Forever
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       </div>
     </div>
   );

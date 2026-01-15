@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import type { Dog, Owner } from '@/types/dog-types';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import DatePickerField from '@/components/common/DatePickerField';
-import { logger } from '@/services/LoggingService';
 import {
   Select,
   SelectContent,
@@ -10,7 +12,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { AppleDialog, AppleFormField, AppleFormGrid } from '@/components/ui/AppleDialog';
 
 interface DogProfileEditDialogProps {
   open: boolean;
@@ -86,161 +87,170 @@ export const DogProfileEditDialog: React.FC<DogProfileEditDialogProps> = ({ open
 
   const showErrors = (field: keyof Dog) => {
     if (!touched[field]) return false;
-    
+
     // Special handling for boolean fields
     if (field === 'spayedNeutered') {
       return form[field] === undefined;
     }
-    
+
     // For other fields
     return !form[field] || (typeof form[field] === 'string' && !String(form[field]).trim());
   };
 
   return (
-    <AppleDialog
-      open={open}
-      onOpenChange={onClose}
-      title={(!dog || !dog.id) ? 'Add Dog' : 'Edit Dog Profile'}
-      description={(!dog || !dog.id) ? 'Add a new dog to your list.' : "Update your dog's profile information."}
-      onSave={handleSave}
-      saveLabel={(!dog || !dog.id) ? 'Add Dog' : 'Save Changes'}
-      saveDisabled={!isValid()}
-      maxWidth="2xl"
-    >
-      {/* Call Name - Full Width */}
-      <AppleFormGrid columns={1}>
-        <AppleFormField 
-          label="Call Name" 
-          required
-          error={showErrors('callName') ? 'Call Name is required.' : undefined}
-        >
-          <Input
-            name="callName"
-            value={form.callName || ''}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            placeholder="Enter dog's call name"
-            className="form-input h-10"
-          />
-        </AppleFormField>
-      </AppleFormGrid>
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>{(!dog || !dog.id) ? 'Add Dog' : 'Edit Dog Profile'}</DialogTitle>
+          <DialogDescription>
+            {(!dog || !dog.id) ? 'Add a new dog to your list.' : "Update your dog's profile information."}
+          </DialogDescription>
+        </DialogHeader>
 
-      {/* Primary Owner - Full Width (if owners provided) */}
-      {owners && (
-        <AppleFormGrid columns={1}>
-          <AppleFormField label="Primary Owner">
+        <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+          {/* Call Name - Full Width */}
+          <div className="space-y-2">
+            <Label>Call Name <span className="text-destructive">*</span></Label>
+            <Input
+              name="callName"
+              value={form.callName || ''}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              placeholder="Enter dog's call name"
+              className="form-input h-10"
+            />
+            {showErrors('callName') && (
+              <p className="text-sm text-destructive">Call Name is required.</p>
+            )}
+          </div>
+
+          {/* Primary Owner - Full Width (if owners provided) */}
+          {owners && (
+            <div className="space-y-2">
+              <Label>Primary Owner</Label>
+              <Select
+                value={form.ownerId || ''}
+                onValueChange={val => handleChange({ target: { name: 'ownerId', value: val, type: 'select-one' } } as React.ChangeEvent<HTMLSelectElement>)}
+              >
+                <SelectTrigger className="form-input h-10">
+                  <SelectValue placeholder="Select owner" />
+                </SelectTrigger>
+                <SelectContent>
+                  {owners.map(owner => (
+                    <SelectItem key={owner.id} value={owner.id}>{owner.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Date of Birth and Gender - Two Columns */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Date of Birth <span className="text-destructive">*</span></Label>
+              <div className="w-full">
+                <DatePickerField
+                  label=""
+                  value={form.dateOfBirth || ''}
+                  onChange={d => setForm(f => f ? { ...f, dateOfBirth: d } : f)}
+                  required={false}
+                  className="w-full text-sm h-10"
+                />
+              </div>
+              {showErrors('dateOfBirth') && (
+                <p className="text-sm text-destructive">Date of Birth is required.</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label>Gender <span className="text-destructive">*</span></Label>
+              <Select
+                name="gender"
+                value={form.gender || ''}
+                onValueChange={val => handleChange({ target: { name: 'gender', value: val, type: 'select-one' } } as React.ChangeEvent<HTMLSelectElement>)}
+              >
+                <SelectTrigger className="form-input h-10">
+                  <SelectValue placeholder="Select gender" />
+                </SelectTrigger>
+                <SelectContent>
+                  {genderOptions.map(opt => (
+                    <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {showErrors('gender') && (
+                <p className="text-sm text-destructive">Gender is required.</p>
+              )}
+            </div>
+          </div>
+
+          {/* Height, Weight, and Color - Three Column Grid */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label>Height</Label>
+              <Input
+                name="height"
+                value={form.height || ''}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                placeholder="e.g., 24 inches"
+                className="form-input h-10"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Weight</Label>
+              <Input
+                name="weight"
+                value={form.weight || ''}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                placeholder="e.g., 65 lbs"
+                className="form-input h-10"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Color</Label>
+              <Input
+                name="color"
+                value={form.color || ''}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                placeholder="e.g., Black and Tan"
+                className="form-input h-10"
+              />
+            </div>
+          </div>
+
+          {/* Spayed/Neutered - Full Width */}
+          <div className="space-y-2">
+            <Label>Spayed/Neutered <span className="text-destructive">*</span></Label>
             <Select
-              value={form.ownerId || ''}
-              onValueChange={val => handleChange({ target: { name: 'ownerId', value: val, type: 'select-one' } } as React.ChangeEvent<HTMLSelectElement>)}
+              value={form.spayedNeutered === undefined ? '' : form.spayedNeutered.toString()}
+              onValueChange={val => handleChange({ target: { name: 'spayedNeutered', value: val, type: 'select-one' } } as React.ChangeEvent<HTMLSelectElement>)}
             >
               <SelectTrigger className="form-input h-10">
-                <SelectValue placeholder="Select owner" />
+                <SelectValue placeholder="Select" />
               </SelectTrigger>
               <SelectContent>
-                {owners.map(owner => (
-                  <SelectItem key={owner.id} value={owner.id}>{owner.name}</SelectItem>
+                {spayNeuterOptions.map(opt => (
+                  <SelectItem key={opt.value ? 'yes' : 'no'} value={opt.value.toString()}>{opt.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          </AppleFormField>
-        </AppleFormGrid>
-      )}
-
-      {/* Date of Birth and Gender - Two Columns */}
-      <AppleFormGrid columns={2}>
-        <AppleFormField 
-          label="Date of Birth" 
-          required
-          error={showErrors('dateOfBirth') ? 'Date of Birth is required.' : undefined}
-        >
-          <div className="w-full">
-            <DatePickerField
-              label=""
-              value={form.dateOfBirth || ''}
-              onChange={d => setForm(f => f ? { ...f, dateOfBirth: d } : f)}
-              required={false}
-              className="w-full text-sm h-10"
-            />
+            {showErrors('spayedNeutered') && (
+              <p className="text-sm text-destructive">This field is required.</p>
+            )}
           </div>
-        </AppleFormField>
-        <AppleFormField 
-          label="Gender" 
-          required
-          error={showErrors('gender') ? 'Gender is required.' : undefined}
-        >
-          <Select
-            name="gender"
-            value={form.gender || ''}
-            onValueChange={val => handleChange({ target: { name: 'gender', value: val, type: 'select-one' } } as React.ChangeEvent<HTMLSelectElement>)}
-          >
-            <SelectTrigger className="form-input h-10">
-              <SelectValue placeholder="Select gender" />
-            </SelectTrigger>
-            <SelectContent>
-              {genderOptions.map(opt => (
-                <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </AppleFormField>
-      </AppleFormGrid>
+        </div>
 
-      {/* Height, Weight, and Color - Special Three Column Grid */}
-      <div className="grid grid-cols-3 gap-4 mb-4">
-        <AppleFormField label="Height">
-          <Input
-            name="height"
-            value={form.height || ''}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            placeholder="e.g., 24 inches"
-            className="form-input h-10"
-          />
-        </AppleFormField>
-        <AppleFormField label="Weight">
-          <Input
-            name="weight"
-            value={form.weight || ''}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            placeholder="e.g., 65 lbs"
-            className="form-input h-10"
-          />
-        </AppleFormField>
-        <AppleFormField label="Color">
-          <Input
-            name="color"
-            value={form.color || ''}
-            onChange={handleChange}
-            onBlur={handleBlur}
-            placeholder="e.g., Black and Tan"
-            className="form-input h-10"
-          />
-        </AppleFormField>
-      </div>
-
-      {/* Spayed/Neutered - Full Width */}
-      <AppleFormGrid columns={1}>
-        <AppleFormField 
-          label="Spayed/Neutered" 
-          required
-          error={showErrors('spayedNeutered') ? 'This field is required.' : undefined}
-        >
-          <Select
-            value={form.spayedNeutered === undefined ? '' : form.spayedNeutered.toString()}
-            onValueChange={val => handleChange({ target: { name: 'spayedNeutered', value: val, type: 'select-one' } } as React.ChangeEvent<HTMLSelectElement>)}
-          >
-            <SelectTrigger className="form-input h-10">
-              <SelectValue placeholder="Select" />
-            </SelectTrigger>
-            <SelectContent>
-              {spayNeuterOptions.map(opt => (
-                <SelectItem key={opt.value ? 'yes' : 'no'} value={opt.value.toString()}>{opt.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </AppleFormField>
-      </AppleFormGrid>
-    </AppleDialog>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={!isValid()}>
+            {(!dog || !dog.id) ? 'Add Dog' : 'Save Changes'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

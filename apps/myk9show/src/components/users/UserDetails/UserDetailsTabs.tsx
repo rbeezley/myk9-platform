@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AppleTabs } from '@/components/ui/apple-tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import AssociatedDogsSection from '../AssociatedDogsSection';
@@ -206,11 +206,30 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
 
   return (
     <div className="w-full">
-      <AppleTabs
-        tabs={tabsConfig}
-        value="dogs"
-        className="w-full"
-      />
+      <Tabs defaultValue="dogs" className="space-y-6 w-full">
+        <div className="overflow-x-auto">
+          <TabsList
+            className="grid w-full bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 h-auto min-w-max"
+            style={{gridTemplateColumns: `repeat(${tabsConfig.length}, minmax(0, 1fr))`}}
+          >
+            {tabsConfig.map((tab) => (
+              <TabsTrigger
+                key={tab.id}
+                value={tab.id}
+                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300 px-4 py-2 text-sm font-medium whitespace-nowrap"
+              >
+                {tab.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
+
+        {tabsConfig.map((tab) => (
+          <TabsContent key={tab.id} value={tab.id}>
+            {tab.content}
+          </TabsContent>
+        ))}
+      </Tabs>
       {/* The DogProfileEditDialog is self-contained and includes its own StandardDialog */}
       <DogProfileEditDialog
         open={isEditDialogOpen}

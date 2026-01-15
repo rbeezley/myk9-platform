@@ -64,7 +64,7 @@ export const OfflineTestPage: React.FC = () => {
                 isOnline={isOnline}
                 lastSyncTime={lastSync}
                 pendingChanges={pendingChanges}
-                onRetrySync={() => logger.debug('Retry sync', 'pages', {});}
+                onRetrySync={() => logger.debug('Retry sync', 'pages', {})}
               />
             </div>
 

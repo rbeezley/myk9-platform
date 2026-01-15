@@ -238,8 +238,8 @@ export function PreferencesDialog({ open, onOpenChange }: PreferencesDialogProps
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl w-[90vw] h-[80vh] p-0 overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border/30 rounded-2xl backdrop-blur-xl">
-        <DialogHeader className="px-6 py-4 border-b border-border/30">
+      <DialogContent className="max-w-4xl w-[90vw] h-[80vh] p-0 flex flex-col bg-gradient-to-br from-card to-card/80 border border-border/30 rounded-2xl backdrop-blur-xl">
+        <DialogHeader className="px-6 py-4 border-b border-border/30 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div>
               <DialogTitle className="text-2xl font-semibold tracking-tight">
@@ -264,21 +264,21 @@ export function PreferencesDialog({ open, onOpenChange }: PreferencesDialogProps
         </DialogHeader>
 
         {/* Status Messages */}
-        <div className="px-6">
+        <div className="px-6 flex-shrink-0">
           {error && (
             <Alert variant="destructive" className="mb-4">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-          
+
           {actionError && (
             <Alert variant="destructive" className="mb-4">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>{actionError}</AlertDescription>
             </Alert>
           )}
-          
+
           {successMessage && (
             <Alert className="mb-4 border-green-200 bg-green-50 text-green-800">
               <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -295,11 +295,11 @@ export function PreferencesDialog({ open, onOpenChange }: PreferencesDialogProps
             </div>
           </div>
         ) : (
-          <div className="flex-1 flex">
-            <Tabs 
-              value={activeTab} 
+          <div className="flex-1 flex min-h-0">
+            <Tabs
+              value={activeTab}
               onValueChange={(value) => setActiveTab(value as TabValue)}
-              className="flex-1 flex"
+              className="flex-1 flex min-h-0"
             >
               {/* Sidebar Navigation */}
               <div className="w-64 border-r border-border/30 bg-muted/20">
@@ -323,8 +323,8 @@ export function PreferencesDialog({ open, onOpenChange }: PreferencesDialogProps
               </div>
 
               {/* Content Area */}
-              <div className="flex-1 flex flex-col">
-                <div className="flex-1 overflow-y-auto p-6">
+              <div className="flex-1 flex flex-col min-h-0">
+                <div className="flex-1 overflow-y-auto p-6 min-h-0">
                   <TabsContent value="theme" className="mt-0">
                     <ThemeSelector
                       preferences={preferences?.theme}

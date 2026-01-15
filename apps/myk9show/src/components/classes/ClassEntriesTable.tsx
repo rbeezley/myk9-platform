@@ -15,7 +15,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { AppleDialog } from '@/components/ui/AppleDialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { ShowType, ClassTemplate } from '@/types/template.types';
 import { UnifiedEntryData } from '@/types/unified-entry-types';
 import { useTableConfiguration } from '@/hooks/useTableConfiguration';
@@ -1042,28 +1051,33 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
       </div>
 
       {/* Delete Confirmation Dialog */}
-      <AppleDialog
-        open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
-        title="Delete Entry"
-        onSave={handleConfirmDelete}
-        saveLabel="Delete"
-        maxWidth="md"
-      >
-        <div className="text-center py-6">
-          <div className="text-lg font-medium text-foreground mb-4">
-            Are you sure you want to delete this entry?
-          </div>
-          {entryToDelete && (
-            <div className="text-base text-muted-foreground mb-6">
-              <strong>#{entryToDelete.armband}</strong> - <strong>{entryToDelete.handler}</strong> with <strong>{entryToDelete.dog}</strong>
-            </div>
-          )}
-          <div className="text-sm text-red-600 dark:text-red-400">
-            This action cannot be undone.
-          </div>
-        </div>
-      </AppleDialog>
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Entry</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this entry?
+              {entryToDelete && (
+                <span className="block mt-2 font-medium text-foreground">
+                  #{entryToDelete.armband} - {entryToDelete.handler} with {entryToDelete.dog}
+                </span>
+              )}
+              <span className="block mt-2 text-destructive">
+                This action cannot be undone.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -77,8 +77,8 @@ export class NotificationService {
         }
       };
 
-      this.ws.onerror = (error) => {
-        logger.error('WebSocket error', 'notifications', {}, error as Error);
+      this.ws.onerror = (event) => {
+        logger.error('WebSocket error', 'notifications', { event: event.type });
         this.isConnecting = false;
       };
 

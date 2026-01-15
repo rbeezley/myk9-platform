@@ -240,16 +240,19 @@ export class LoggingService {
     this.minLevel = level;
   }
 
-  debug(message: string, category = 'general', metadata?: Record<string, unknown>): void {
-    this.log(LogLevel.DEBUG, message, category, metadata);
+  debug(message: string, category = 'general', metadata?: Record<string, unknown>, error?: Error): void {
+    const logMetadata = error ? { ...metadata, stack: error.stack } : metadata;
+    this.log(LogLevel.DEBUG, message, category, logMetadata);
   }
 
-  info(message: string, category = 'general', metadata?: Record<string, unknown>): void {
-    this.log(LogLevel.INFO, message, category, metadata);
+  info(message: string, category = 'general', metadata?: Record<string, unknown>, error?: Error): void {
+    const logMetadata = error ? { ...metadata, stack: error.stack } : metadata;
+    this.log(LogLevel.INFO, message, category, logMetadata);
   }
 
-  warn(message: string, category = 'general', metadata?: Record<string, unknown>): void {
-    this.log(LogLevel.WARN, message, category, metadata);
+  warn(message: string, category = 'general', metadata?: Record<string, unknown>, error?: Error): void {
+    const logMetadata = error ? { ...metadata, stack: error.stack } : metadata;
+    this.log(LogLevel.WARN, message, category, logMetadata);
   }
 
   error(message: string, category = 'general', metadata?: Record<string, unknown>, error?: Error): void {

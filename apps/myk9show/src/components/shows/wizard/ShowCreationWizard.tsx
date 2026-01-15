@@ -3,8 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { AlertTriangle } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
-import { AppleDialog } from '@/components/ui/AppleDialog';
-import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { usePanelManager } from '@/components/panels/hooks';
 import type { EntityCreationResult } from '@/components/panels/types';
 import { useWizardStore } from '@/store/wizardStore';
@@ -879,22 +888,24 @@ export const ShowCreationWizard: React.FC<ShowCreationWizardProps> = ({
 
   return (
     <>
-      <AppleDialog
+      <Dialog
         open={open}
         onOpenChange={(open) => {
           if (!open) {
             handleClose();
           }
         }}
-        title={editMode 
-          ? `${editMode.mode === 'add-trials' ? 'Add Trials' : 
-               editMode.mode === 'add-classes' ? 'Add Classes' : 'Edit Show'}`
-          : 'Create New Show'
-        }
-        maxWidth="5xl"
-        showFooter={false} // We'll use custom navigation
-        className="wizard-dialog"
       >
+        <DialogContent className="max-w-5xl wizard-dialog p-0">
+          <DialogHeader className="px-6 pt-6 pb-0">
+            <DialogTitle>
+              {editMode
+                ? `${editMode.mode === 'add-trials' ? 'Add Trials' :
+                     editMode.mode === 'add-classes' ? 'Add Classes' : 'Edit Show'}`
+                : 'Create New Show'
+              }
+            </DialogTitle>
+          </DialogHeader>
         <div className="flex flex-col h-[80vh] max-h-[800px] min-h-[600px]">
           {/* Progress Indicator - Fixed height */}
           <div className="flex-shrink-0">
@@ -947,20 +958,26 @@ export const ShowCreationWizard: React.FC<ShowCreationWizardProps> = ({
             </div>
           )}
         </div>
-      </AppleDialog>
+        </DialogContent>
+      </Dialog>
 
       {/* Unsaved Changes Confirmation Dialog */}
-      <ConfirmationDialog
-        open={showConfirmDialog}
-        onOpenChange={setShowConfirmDialog}
-        title="Unsaved Changes"
-        description="You have unsaved changes that will be lost. Are you sure you want to close the wizard?"
-        confirmLabel="Close Wizard"
-        cancelLabel="Keep Editing"
-        variant="warning"
-        onConfirm={handleConfirmClose}
-        onCancel={() => setShowConfirmDialog(false)}
-      />
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes that will be lost. Are you sure you want to close the wizard?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Editing</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmClose} className="bg-amber-500 hover:bg-amber-600">
+              Close Wizard
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { AppleDialog, AppleFormField, AppleFormGrid } from '@/components/ui/AppleDialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -13,8 +15,6 @@ import { useUserStore } from '@/store/userStore';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { DogInput } from '@/store/dogStore';
 
-// Import Apple dialog styles
-import '@/styles/apple-dialogs-global.css';
 import { logger } from '@/services/LoggingService';
 
 interface AddDogDialogProps {
@@ -31,16 +31,16 @@ interface DogFormData {
   gender: 'Male' | 'Female' | '';
   dateOfBirth: string;
   color: string;
-  
+
   // Optional Information
   height: string;
   weight: string;
   microchip: string;
   spayedNeutered: boolean;
-  
+
   // Owner Information
   ownerId: string;
-  
+
   // Registration Information (can be multiple)
   registrations: Registration[];
 }
@@ -57,39 +57,6 @@ const INITIAL_FORM_DATA: DogFormData = {
   ownerId: '',
   registrations: []
 };
-
-// Common dog breeds for quick selection (used in AddEditRegistrationDialog)
-// const COMMON_BREEDS = [
-//   'Australian Cattle Dog',
-//   'Australian Shepherd',
-//   'Border Collie',
-//   'Golden Retriever',
-//   'Labrador Retriever',
-//   'German Shepherd Dog',
-//   'Poodle',
-//   'Standard Poodle',
-//   'Miniature Poodle',
-//   'Belgian Malinois',
-//   'Siberian Husky',
-//   'Jack Russell Terrier',
-//   'Papillon',
-//   'Shetland Sheepdog',
-//   'Shih Tzu',
-//   'Pembroke Welsh Corgi',
-//   'Mixed Breed',
-//   'All American Dog'
-// ];
-
-// Registration organizations (used in AddEditRegistrationDialog)
-// const REGISTRATION_ORGS = [
-//   'AKC (American Kennel Club)',
-//   'UKC (United Kennel Club)', 
-//   'CKC (Canadian Kennel Club)',
-//   'ILP (Indefinite Listing Privilege)',
-//   'PAL (Purebred Alternative Listing)',
-//   'Mixed Breed',
-//   'Other'
-// ];
 
 export const AddDogDialog: React.FC<AddDogDialogProps> = ({
   open,
@@ -125,7 +92,7 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
   // Reset form when dialog opens
   useEffect(() => {
     if (open) {
-      const initialData = { 
+      const initialData = {
         ...INITIAL_FORM_DATA,
         // Set default owner based on user role
         ownerId: userRole === UserRole.EXHIBITOR ? (currentUserPersonId || '') : ''
@@ -172,7 +139,7 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
   // Handle form field changes (for top-level DogFormData fields)
   const handleFieldChange = (field: keyof DogFormData, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    
+
     // Clear validation error for this field
     if (validationErrors[field]) {
       setValidationErrors(prev => {
@@ -212,12 +179,12 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
   // Calculate age from date of birth
   const calculateAge = (dateOfBirth: string): string => {
     if (!dateOfBirth) return '';
-    
+
     const birth = new Date(dateOfBirth);
     const now = new Date();
     const years = now.getFullYear() - birth.getFullYear();
     const months = now.getMonth() - birth.getMonth();
-    
+
     if (years === 0) {
       return `${months + (months === 1 ? ' month' : ' months')}`;
     } else if (months < 0) {
@@ -261,18 +228,18 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
 
       // Create dog using database integration
       const newDog = await addDog(dogInput);
-      
+
       onDogCreated(newDog);
       onOpenChange(false);
-      
+
       // Reset form
       setFormData(INITIAL_FORM_DATA);
       setValidationErrors({});
     } catch (error) {
       logger.error('Error creating dog:', 'dogs', {}, error as Error);
       // Show error to user
-      setValidationErrors({ 
-        submit: error instanceof Error ? error.message : 'Failed to create dog' 
+      setValidationErrors({
+        submit: error instanceof Error ? error.message : 'Failed to create dog'
       });
     } finally {
       setIsCreating(false);
@@ -295,7 +262,7 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
         // If no registrations, the tab is valid (no errors to show)
         if (formData.registrations.length === 0) return true;
         // Check if all registrations are valid
-        return formData.registrations.every((_, index) => 
+        return formData.registrations.every((_, index) =>
           !errors[`registration-${index}-organization`] &&
           !errors[`registration-${index}-registeredName`] &&
           !errors[`registration-${index}-breed`] &&
@@ -309,266 +276,282 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
   };
 
   return (
-    <AppleDialog
-      open={open}
-      onOpenChange={onOpenChange}
-      onSave={handleSubmit}
-      onCancel={() => onOpenChange(false)}
-      title="Add New Dog"
-      saveLabel={isCreating || isSaving ? 'Creating...' : 'Create Dog'}
-      saveDisabled={isCreating || isSaving || !isFormValid()}
-      maxWidth="5xl"
-    >
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'basic' | 'registration' | 'optional')}>
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger 
-            value="basic" 
-            className={`flex items-center gap-2 ${!isTabValid('basic') ? 'text-red-600' : ''}`}
-          >
-            Basic Info *
-            {isTabValid('basic') && <CheckCircle className="h-4 w-4 text-green-600" />}
-          </TabsTrigger>
-          <TabsTrigger 
-            value="registration"
-            className={`flex items-center gap-2 ${!isTabValid('registration') ? 'text-red-600' : ''}`}
-          >
-            Registration
-            {isTabValid('registration') && <CheckCircle className="h-4 w-4 text-green-600" />}
-          </TabsTrigger>
-          <TabsTrigger 
-            value="optional"
-            className={`flex items-center gap-2 ${!isTabValid('optional') ? 'text-red-600' : ''}`}
-          >
-            Additional Info
-            {isTabValid('optional') && <CheckCircle className="h-4 w-4 text-green-600" />}
-          </TabsTrigger>
-        </TabsList>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>Add New Dog</DialogTitle>
+        </DialogHeader>
 
-        {/* Error Display */}
-        {(saveError || validationErrors.submit) && (
-          <Alert className="border-red-200 bg-red-50">
-            <AlertCircle className="h-4 w-4 text-red-600" />
-            <AlertDescription className="text-red-800">
-              {saveError || validationErrors.submit}
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Basic Info Tab */}
-        <TabsContent value="basic" className="space-y-6 mt-6">
-          <AppleFormGrid columns={2}>
-            <AppleFormField 
-              label="Call Name" 
-              required 
-              error={validationErrors.callName}
-            >
-              <Input
-                value={formData.callName}
-                onChange={(e) => handleFieldChange('callName', e.target.value)}
-                placeholder="Everyday name"
-                className="form-input"
-              />
-            </AppleFormField>
-          </AppleFormGrid>
-
-          <AppleFormField 
-            label="Gender" 
-            required 
-            error={validationErrors.gender}
-          >
-            <Select
-              value={formData.gender}
-              onValueChange={(value) => handleFieldChange('gender', value)}
-            >
-              <SelectTrigger className="form-select">
-                <SelectValue placeholder="Select gender" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Male">Male</SelectItem>
-                <SelectItem value="Female">Female</SelectItem>
-              </SelectContent>
-            </Select>
-          </AppleFormField>
-
-          <AppleFormField 
-            label="Date of Birth" 
-            required 
-            error={validationErrors.dateOfBirth}
-          >
-            <Input
-              type="date"
-              value={formData.dateOfBirth}
-              onChange={(e) => handleFieldChange('dateOfBirth', e.target.value)}
-              className="form-input"
-            />
-            {formData.dateOfBirth && !validationErrors.dateOfBirth && (
-              <p className="text-xs text-muted-foreground mt-1">
-                Age: {calculateAge(formData.dateOfBirth)}
-              </p>
-            )}
-          </AppleFormField>
-
-          <AppleFormField label="Color/Markings">
-            <Input
-              value={formData.color}
-              onChange={(e) => handleFieldChange('color', e.target.value)}
-              placeholder="e.g., Black & White, Red, Blue Merle"
-              className="form-input"
-            />
-          </AppleFormField>
-
-          {/* Owner Selection - Show for Secretary/Admin, hidden for Exhibitor */}
-          {(userRole === UserRole.SECRETARY || userRole === UserRole.CLUB_ADMIN || userRole === UserRole.SITE_ADMIN) && (
-            <AppleFormField 
-              label="Owner" 
-              required 
-              error={validationErrors.ownerId}
-            >
-              <Select
-                value={formData.ownerId}
-                onValueChange={(value) => handleFieldChange('ownerId', value)}
+        <div className="flex-1 overflow-y-auto pr-2">
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'basic' | 'registration' | 'optional')}>
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger
+                value="basic"
+                className={`flex items-center gap-2 ${!isTabValid('basic') ? 'text-red-600' : ''}`}
               >
-                <SelectTrigger className="form-select">
-                  <SelectValue placeholder="Select owner" />
-                </SelectTrigger>
-                <SelectContent>
-                  {people.map((person) => (
-                    <SelectItem key={person.id} value={person.id}>
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4" />
-                        {person.firstName} {person.lastName}
-                        {person.email && (
-                          <span className="text-xs text-muted-foreground">({person.email})</span>
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </AppleFormField>
-          )}
+                Basic Info *
+                {isTabValid('basic') && <CheckCircle className="h-4 w-4 text-green-600" />}
+              </TabsTrigger>
+              <TabsTrigger
+                value="registration"
+                className={`flex items-center gap-2 ${!isTabValid('registration') ? 'text-red-600' : ''}`}
+              >
+                Registration
+                {isTabValid('registration') && <CheckCircle className="h-4 w-4 text-green-600" />}
+              </TabsTrigger>
+              <TabsTrigger
+                value="optional"
+                className={`flex items-center gap-2 ${!isTabValid('optional') ? 'text-red-600' : ''}`}
+              >
+                Additional Info
+                {isTabValid('optional') && <CheckCircle className="h-4 w-4 text-green-600" />}
+              </TabsTrigger>
+            </TabsList>
 
-          {/* Show current owner for Exhibitor role */}
-          {userRole === UserRole.EXHIBITOR && currentUserPersonId && (
-            <AppleFormField label="Owner">
-              <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
-                <User className="h-4 w-4" />
-                <span className="text-sm">
-                  {(() => {
-                    const currentPerson = people.find(p => p.id === currentUserPersonId);
-                    return currentPerson ? `${currentPerson.firstName} ${currentPerson.lastName}` : 'You';
-                  })()}
-                </span>
-              </div>
-            </AppleFormField>
-          )}
-        </TabsContent>
-
-        {/* Registration Tab */}
-        <TabsContent value="registration" className="space-y-6 mt-6">
-          <div className="space-y-4">
-            {formData.registrations.length === 0 && (
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  No registrations added yet. Click "Add New Registration" to add one.
+            {/* Error Display */}
+            {(saveError || validationErrors.submit) && (
+              <Alert className="border-red-200 bg-red-50 mt-4">
+                <AlertCircle className="h-4 w-4 text-red-600" />
+                <AlertDescription className="text-red-800">
+                  {saveError || validationErrors.submit}
                 </AlertDescription>
               </Alert>
             )}
 
-            {formData.registrations.map((reg, index) => (
-              <div key={reg.id || index} className="border p-4 rounded-md shadow-sm">
-                <h4 className="font-semibold">{reg.organization}</h4>
-                <p className="text-sm text-muted-foreground">Registered Name: {reg.registeredName}</p>
-                <p className="text-sm text-muted-foreground">Breed: {reg.breed}</p>
-                <p className="text-sm text-muted-foreground">Number: {reg.registrationNumber}</p>
-                <p className="text-sm text-muted-foreground">Status: {reg.status}</p>
-                <div className="flex space-x-2 mt-2">
-                  <button 
-                    className="text-blue-500 text-sm flex items-center gap-1"
-                    onClick={() => {
-                      setCurrentRegToEdit(reg);
-                      setIsAddEditRegDialogOpen(true);
-                    }}
-                  >
-                    <Edit className="h-4 w-4" /> Edit
-                  </button>
-                  <button 
-                    className="text-red-500 text-sm flex items-center gap-1"
-                    onClick={() => handleRemoveRegistration(reg.id)}
-                  >
-                    <Trash2 className="h-4 w-4" /> Remove
-                  </button>
+            {/* Basic Info Tab */}
+            <TabsContent value="basic" className="space-y-6 mt-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Call Name <span className="text-destructive">*</span></Label>
+                  <Input
+                    value={formData.callName}
+                    onChange={(e) => handleFieldChange('callName', e.target.value)}
+                    placeholder="Everyday name"
+                    className="form-input"
+                  />
+                  {validationErrors.callName && (
+                    <p className="text-sm text-destructive">{validationErrors.callName}</p>
+                  )}
                 </div>
               </div>
-            ))}
 
-            <button 
-              className="w-full py-2 px-4 border border-dashed rounded-md text-center text-muted-foreground hover:border-solid hover:text-primary flex items-center justify-center gap-2"
-              onClick={() => {
-                setCurrentRegToEdit(undefined);
-                setIsAddEditRegDialogOpen(true);
-              }}
-            >
-              <PlusCircle className="h-4 w-4" /> Add New Registration
-            </button>
-          </div>
-        </TabsContent>
+              <div className="space-y-2">
+                <Label>Gender <span className="text-destructive">*</span></Label>
+                <Select
+                  value={formData.gender}
+                  onValueChange={(value) => handleFieldChange('gender', value)}
+                >
+                  <SelectTrigger className="form-select">
+                    <SelectValue placeholder="Select gender" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Male">Male</SelectItem>
+                    <SelectItem value="Female">Female</SelectItem>
+                  </SelectContent>
+                </Select>
+                {validationErrors.gender && (
+                  <p className="text-sm text-destructive">{validationErrors.gender}</p>
+                )}
+              </div>
 
-        {/* Optional Tab */}
-        <TabsContent value="optional" className="space-y-6 mt-6">
-          <AppleFormGrid columns={2}>
-            <AppleFormField label="Height (inches)">
-              <Input
-                value={formData.height}
-                onChange={(e) => handleFieldChange('height', e.target.value)}
-                placeholder="e.g., 24"
-                type="number"
-                step="0.1"
-                className="form-input"
-              />
-            </AppleFormField>
+              <div className="space-y-2">
+                <Label>Date of Birth <span className="text-destructive">*</span></Label>
+                <Input
+                  type="date"
+                  value={formData.dateOfBirth}
+                  onChange={(e) => handleFieldChange('dateOfBirth', e.target.value)}
+                  className="form-input"
+                />
+                {formData.dateOfBirth && !validationErrors.dateOfBirth && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Age: {calculateAge(formData.dateOfBirth)}
+                  </p>
+                )}
+                {validationErrors.dateOfBirth && (
+                  <p className="text-sm text-destructive">{validationErrors.dateOfBirth}</p>
+                )}
+              </div>
 
-            <AppleFormField label="Weight (pounds)">
-              <Input
-                value={formData.weight}
-                onChange={(e) => handleFieldChange('weight', e.target.value)}
-                placeholder="e.g., 55"
-                type="number"
-                step="0.1"
-                className="form-input"
-              />
-            </AppleFormField>
-          </AppleFormGrid>
+              <div className="space-y-2">
+                <Label>Color/Markings</Label>
+                <Input
+                  value={formData.color}
+                  onChange={(e) => handleFieldChange('color', e.target.value)}
+                  placeholder="e.g., Black & White, Red, Blue Merle"
+                  className="form-input"
+                />
+              </div>
 
-          <AppleFormField label="Microchip Number">
-            <Input
-              value={formData.microchip}
-              onChange={(e) => handleFieldChange('microchip', e.target.value)}
-              placeholder="15-digit microchip number"
-              className="form-input"
-            />
-          </AppleFormField>
+              {/* Owner Selection - Show for Secretary/Admin, hidden for Exhibitor */}
+              {(userRole === UserRole.SECRETARY || userRole === UserRole.CLUB_ADMIN || userRole === UserRole.SITE_ADMIN) && (
+                <div className="space-y-2">
+                  <Label>Owner <span className="text-destructive">*</span></Label>
+                  <Select
+                    value={formData.ownerId}
+                    onValueChange={(value) => handleFieldChange('ownerId', value)}
+                  >
+                    <SelectTrigger className="form-select">
+                      <SelectValue placeholder="Select owner" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {people.map((person) => (
+                        <SelectItem key={person.id} value={person.id}>
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4" />
+                            {person.firstName} {person.lastName}
+                            {person.email && (
+                              <span className="text-xs text-muted-foreground">({person.email})</span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {validationErrors.ownerId && (
+                    <p className="text-sm text-destructive">{validationErrors.ownerId}</p>
+                  )}
+                </div>
+              )}
 
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="spayedNeutered"
-              checked={formData.spayedNeutered}
-              onCheckedChange={(checked) => handleFieldChange('spayedNeutered', checked === true)}
-            />
-            <label htmlFor="spayedNeutered" className="text-sm font-medium">
-              Spayed/Neutered
-            </label>
-          </div>
-        </TabsContent>
-      </Tabs>
+              {/* Show current owner for Exhibitor role */}
+              {userRole === UserRole.EXHIBITOR && currentUserPersonId && (
+                <div className="space-y-2">
+                  <Label>Owner</Label>
+                  <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
+                    <User className="h-4 w-4" />
+                    <span className="text-sm">
+                      {(() => {
+                        const currentPerson = people.find(p => p.id === currentUserPersonId);
+                        return currentPerson ? `${currentPerson.firstName} ${currentPerson.lastName}` : 'You';
+                      })()}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </TabsContent>
 
-      <AddEditRegistrationDialog
-        open={isAddEditRegDialogOpen}
-        onOpenChange={setIsAddEditRegDialogOpen}
-        onSave={handleSaveRegistration}
-        initialData={currentRegToEdit}
-      />
-    </AppleDialog>
+            {/* Registration Tab */}
+            <TabsContent value="registration" className="space-y-6 mt-6">
+              <div className="space-y-4">
+                {formData.registrations.length === 0 && (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      No registrations added yet. Click "Add New Registration" to add one.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {formData.registrations.map((reg, index) => (
+                  <div key={reg.id || index} className="border p-4 rounded-md shadow-sm">
+                    <h4 className="font-semibold">{reg.organization}</h4>
+                    <p className="text-sm text-muted-foreground">Registered Name: {reg.registeredName}</p>
+                    <p className="text-sm text-muted-foreground">Breed: {reg.breed}</p>
+                    <p className="text-sm text-muted-foreground">Number: {reg.registrationNumber}</p>
+                    <p className="text-sm text-muted-foreground">Status: {reg.status}</p>
+                    <div className="flex space-x-2 mt-2">
+                      <button
+                        className="text-blue-500 text-sm flex items-center gap-1"
+                        onClick={() => {
+                          setCurrentRegToEdit(reg);
+                          setIsAddEditRegDialogOpen(true);
+                        }}
+                      >
+                        <Edit className="h-4 w-4" /> Edit
+                      </button>
+                      <button
+                        className="text-red-500 text-sm flex items-center gap-1"
+                        onClick={() => handleRemoveRegistration(reg.id)}
+                      >
+                        <Trash2 className="h-4 w-4" /> Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                <button
+                  className="w-full py-2 px-4 border border-dashed rounded-md text-center text-muted-foreground hover:border-solid hover:text-primary flex items-center justify-center gap-2"
+                  onClick={() => {
+                    setCurrentRegToEdit(undefined);
+                    setIsAddEditRegDialogOpen(true);
+                  }}
+                >
+                  <PlusCircle className="h-4 w-4" /> Add New Registration
+                </button>
+              </div>
+            </TabsContent>
+
+            {/* Optional Tab */}
+            <TabsContent value="optional" className="space-y-6 mt-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Height (inches)</Label>
+                  <Input
+                    value={formData.height}
+                    onChange={(e) => handleFieldChange('height', e.target.value)}
+                    placeholder="e.g., 24"
+                    type="number"
+                    step="0.1"
+                    className="form-input"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Weight (pounds)</Label>
+                  <Input
+                    value={formData.weight}
+                    onChange={(e) => handleFieldChange('weight', e.target.value)}
+                    placeholder="e.g., 55"
+                    type="number"
+                    step="0.1"
+                    className="form-input"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Microchip Number</Label>
+                <Input
+                  value={formData.microchip}
+                  onChange={(e) => handleFieldChange('microchip', e.target.value)}
+                  placeholder="15-digit microchip number"
+                  className="form-input"
+                />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="spayedNeutered"
+                  checked={formData.spayedNeutered}
+                  onCheckedChange={(checked) => handleFieldChange('spayedNeutered', checked === true)}
+                />
+                <label htmlFor="spayedNeutered" className="text-sm font-medium">
+                  Spayed/Neutered
+                </label>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={isCreating || isSaving || !isFormValid()}
+          >
+            {isCreating || isSaving ? 'Creating...' : 'Create Dog'}
+          </Button>
+        </DialogFooter>
+
+        <AddEditRegistrationDialog
+          open={isAddEditRegDialogOpen}
+          onOpenChange={setIsAddEditRegDialogOpen}
+          onSave={handleSaveRegistration}
+          initialData={currentRegToEdit}
+        />
+      </DialogContent>
+    </Dialog>
   );
 };

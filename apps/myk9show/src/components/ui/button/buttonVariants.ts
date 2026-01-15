@@ -41,8 +41,8 @@ export const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          // Apple's signature blue gradient button
-          "bg-gradient-to-r from-[#007AFF] to-[#5856D6] text-white shadow-md hover:from-[#007AFF]/90 hover:to-[#5856D6]/90 hover:shadow-lg dark:text-white dark:shadow-xl",
+          // Primary accent color button - follows user's selected accent color
+          "bg-primary text-primary-foreground shadow-md hover:bg-primary/90 hover:shadow-lg dark:text-primary-foreground dark:shadow-xl",
         destructive:
           "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
         outline:
@@ -55,11 +55,11 @@ export const buttonVariants = cva(
         premium: "bg-yellow-500 hover:bg-yellow-600 text-primary-foreground font-bold shadow-sm",
       },
       size: {
-        // Apple-inspired sizing from design tokens
-        default: "h-9 px-6 py-2.5", // Enhanced horizontal padding
-        sm: "h-8 rounded-lg px-4 text-xs", // 8px radius for small
-        lg: "h-11 rounded-xl px-8 text-base", // Larger size with proper scaling
-        icon: "h-9 w-9 rounded-xl", // Consistent radius for icons
+        // Touch-friendly sizing (44px minimum recommended)
+        default: "h-10 px-6 py-2.5", // 40px - balanced touch target
+        sm: "h-9 rounded-lg px-4 text-xs", // 36px for compact areas
+        lg: "h-11 rounded-xl px-8 text-base", // 44px - full touch compliance
+        icon: "h-10 w-10 rounded-xl", // 40px square touch target
       },
     },
     defaultVariants: {

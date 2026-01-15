@@ -27,10 +27,10 @@ import {
   RelationshipPerformanceMonitor
 } from '@/utils/show-management-tracking';
 import type { TabConfiguration } from '@/types/unified-shows-types';
-import { 
-  Search, 
-  Calendar, 
-  MapPin, 
+import {
+  Search,
+  Calendar,
+  MapPin,
   Clock,
   Filter,
   DollarSign,
@@ -52,7 +52,8 @@ import {
   Edit3,
   FileOutput,
   BarChart3,
-  X
+  X,
+  Ticket
 } from 'lucide-react';
 import { ShowCalendar } from '@/components/shows/ShowCalendar';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
@@ -63,7 +64,9 @@ import {
   TabContentSkeleton
 } from '@/components/common/SkeletonLoaders';
 import { EnhancedEmptyState } from '@/components/shows/EnhancedEmptyStates';
+import { EntryStatusBadge } from '@/components/shows/EntryStatusBadge';
 import { ShowPermissionValidator } from '@/utils/permissionValidation';
+import { getEntryStatus, userHasEntriesForShow } from '@/utils/entryStatusUtils';
 
 type ViewMode = 'grid' | 'list' | 'calendar';
 
@@ -455,9 +458,12 @@ const BrowseShowsPage: React.FC = () => {
           <div className="space-y-4">
             {enhancedShows.map((show) => {
               const showActions = getShowActions(show, selectedTab, user);
+              const hasUserEntries = userHasEntriesForShow(show.id, entries);
+              const entryStatus = getEntryStatus(show, hasUserEntries);
+              const canEnterShow = entryStatus.status === 'accepting' || entryStatus.status === 'closing_soon';
               return (
-              <Card 
-                key={show.id} 
+              <Card
+                key={show.id}
                 className="bg-card/95 backdrop-blur-sm border-border/50 hover:shadow-md transition-all duration-200"
               >
                 <CardContent className="p-6">
@@ -468,47 +474,58 @@ const BrowseShowsPage: React.FC = () => {
                           <h3 className="text-lg font-semibold">{show.name}</h3>
                           <p className="text-sm text-muted-foreground">{show.events.join(', ')}</p>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
                           {getTypeBadge(show.type)}
-                          {getStatusBadge(show.status)}
+                          <EntryStatusBadge show={show} userHasEntries={hasUserEntries} size="sm" />
                         </div>
                       </div>
-                      
+
                       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4 text-muted-foreground" />
                           <span>
                             {new Date(show.startDate).toLocaleDateString()}
-                            {show.startDate !== show.endDate && 
+                            {show.startDate !== show.endDate &&
                               ` - ${new Date(show.endDate).toLocaleDateString()}`
                             }
                           </span>
                         </div>
-                        
+
                         <div className="flex items-center gap-2">
                           <MapPin className="h-4 w-4 text-muted-foreground" />
                           <span>{show.location}</span>
                         </div>
-                        
+
                         <div className="flex items-center gap-2">
                           <DollarSign className="h-4 w-4 text-muted-foreground" />
                           <span>{show.preEntryFee} entry fee</span>
                         </div>
-                        
+
                         <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4 text-muted-foreground" />
                           <span>Closes {new Date(show.entryCloseDate).toLocaleDateString()}</span>
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center gap-2">
-                      {showActions.slice(0, 3).map((action) => {
+                      {canEnterShow && user && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => navigate(`/shows/${show.id}/enter`)}
+                          className="bg-primary hover:bg-primary/90"
+                        >
+                          <Ticket className="h-4 w-4 mr-2" />
+                          Enter Show
+                        </Button>
+                      )}
+                      {showActions.slice(0, canEnterShow && user ? 2 : 3).map((action) => {
                         const IconComponent = {
                           Eye, UserPlus, Edit, Trophy, Download, Award, Printer, Settings, Users, FileText, List, ClipboardList, Edit3, FileOutput, Plus
                         }[action.icon] || Eye;
                         return (
-                          <Button 
+                          <Button
                             key={action.id}
                             variant={action.variant}
                             size="sm"
@@ -534,14 +551,18 @@ const BrowseShowsPage: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {enhancedShows.map((show) => {
               const showActions = getShowActions(show, selectedTab, user);
+              const hasUserEntries = userHasEntriesForShow(show.id, entries);
+              const entryStatus = getEntryStatus(show, hasUserEntries);
+              const canEnterShow = entryStatus.status === 'accepting' || entryStatus.status === 'closing_soon';
               return (
-              <div 
-                key={show.id} 
+              <div
+                key={show.id}
                 className="apple-browse-card"
               >
                 <div className="apple-browse-card-header">
                   <div className="apple-browse-card-badges">
                     {getTypeBadge(show.type)}
+                    <EntryStatusBadge show={show} userHasEntries={hasUserEntries} size="sm" />
                   </div>
                 </div>
 
@@ -555,23 +576,23 @@ const BrowseShowsPage: React.FC = () => {
                     <div className="apple-browse-card-detail-item">
                       <Calendar className="h-4 w-4" />
                       <span>
-                        {new Date(show.startDate).toLocaleDateString()} 
-                        {show.startDate !== show.endDate && 
+                        {new Date(show.startDate).toLocaleDateString()}
+                        {show.startDate !== show.endDate &&
                           ` - ${new Date(show.endDate).toLocaleDateString()}`
                         }
                       </span>
                     </div>
-                    
+
                     <div className="apple-browse-card-detail-item">
                       <MapPin className="h-4 w-4" />
                       <span>{show.location}</span>
                     </div>
-                    
+
                     <div className="apple-browse-card-detail-item">
                       <DollarSign className="h-4 w-4" />
                       <span>{show.preEntryFee} entry fee</span>
                     </div>
-                    
+
                     <div className="apple-browse-card-detail-item">
                       <Clock className="h-4 w-4" />
                       <span>Entries close {new Date(show.entryCloseDate).toLocaleDateString()}</span>
@@ -581,12 +602,23 @@ const BrowseShowsPage: React.FC = () => {
                   <div className="apple-browse-card-footer">
                     {getStatusBadge(show.status)}
                     <div className="flex gap-2 flex-wrap">
-                      {showActions.slice(0, 2).map((action) => {
+                      {canEnterShow && user && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => navigate(`/shows/${show.id}/enter`)}
+                          className="bg-primary hover:bg-primary/90"
+                        >
+                          <Ticket className="h-4 w-4 mr-1" />
+                          Enter Show
+                        </Button>
+                      )}
+                      {showActions.slice(0, canEnterShow && user ? 1 : 2).map((action) => {
                         const IconComponent = {
                           Eye, UserPlus, Edit, Trophy, Download, Award, Printer, Settings, Users, FileText, List, ClipboardList, Edit3, FileOutput, Plus
                         }[action.icon] || Eye;
                         return (
-                          <Button 
+                          <Button
                             key={action.id}
                             variant={action.variant}
                             size="sm"
@@ -681,18 +713,25 @@ const BrowseShowsPage: React.FC = () => {
       }
     }
 
-    // Entry status filter (map to show status)
+    // Entry status filter (uses proper entry status calculation)
     if (filters.entryStatus !== 'all') {
-      const statusMap: Record<string, string> = {
-        'open': 'Upcoming',
-        'closed': 'Completed',
-        'closing_soon': 'Upcoming',
-        'waitlist': 'Upcoming'
-      };
-      const showStatus = statusMap[filters.entryStatus];
-      if (showStatus) {
-        filtered = filtered.filter(show => show.status === showStatus);
-      }
+      filtered = filtered.filter(show => {
+        const hasUserEntries = userHasEntriesForShow(show.id, entries);
+        const status = getEntryStatus(show, hasUserEntries);
+        switch (filters.entryStatus) {
+          case 'open':
+            return status.status === 'accepting';
+          case 'closing_soon':
+            return status.status === 'closing_soon';
+          case 'closed':
+            return status.status === 'closed';
+          case 'waitlist':
+            // Waitlist not yet implemented, filter out
+            return false;
+          default:
+            return true;
+        }
+      });
     }
 
     // Date range filter (only apply if not already filtered by tab)

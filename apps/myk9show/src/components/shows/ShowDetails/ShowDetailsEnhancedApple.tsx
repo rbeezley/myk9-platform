@@ -2,13 +2,13 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Calendar, 
-  Users, 
-  Trophy, 
-  Clock, 
- 
-  UserPlus, 
+import {
+  Calendar,
+  Users,
+  Trophy,
+  Clock,
+  Ticket,
+  UserPlus,
   AlertCircle,
   CheckCircle,
   Settings,
@@ -17,7 +17,7 @@ import {
   Play,
   Check
 } from 'lucide-react';
-import { formatDistanceToNow, isBefore, isAfter } from 'date-fns';
+import { formatDistanceToNow, isBefore, isAfter, differenceInDays, differenceInHours } from 'date-fns';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -25,6 +25,8 @@ import { UserRole, PERMISSIONS } from '@/types/auth-types';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import Breadcrumb from '@/components/common/Breadcrumb';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
+import { EntryStatusBadge } from '@/components/shows/EntryStatusBadge';
+import { ClassAvailability } from '@/components/shows/ClassAvailability';
 
 interface ShowDetailsEnhancedAppleProps {
   showData: Show;
@@ -73,23 +75,50 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
     return rolePriority.find(role => roleSet.has(role)) || UserRole.EXHIBITOR;
   }, [userWithRoles?.roles]); // Only depend on roles array, not entire object
 
-  // Registration state logic
+  // Registration state logic with enhanced countdown
   const registrationState = useMemo(() => {
     const now = new Date();
-    const entriesOpen = isAfter(now, new Date(showData.entryOpenDate));
-    const entriesClose = isBefore(now, new Date(showData.entryCloseDate));
+    const closeDate = new Date(showData.entryCloseDate);
+    const openDate = new Date(showData.entryOpenDate);
+
+    const entriesOpen = isAfter(now, openDate);
+    const entriesClose = isBefore(now, closeDate);
     const canRegister = entriesOpen && entriesClose && showData.status?.toLowerCase() === 'published';
-    
-    const daysUntilClose = entriesClose 
-      ? Math.ceil((new Date(showData.entryCloseDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-      : 0;
-    
+
+    const daysUntilClose = differenceInDays(closeDate, now);
+    const hoursUntilClose = differenceInHours(closeDate, now);
+
+    // Generate countdown text
+    let countdownText = '';
+    let isUrgent = false;
+    if (!entriesOpen) {
+      const daysUntilOpen = differenceInDays(openDate, now);
+      countdownText = daysUntilOpen <= 1 ? 'Opens tomorrow' : `Opens in ${daysUntilOpen} days`;
+    } else if (entriesClose) {
+      if (hoursUntilClose < 24) {
+        countdownText = hoursUntilClose <= 1 ? 'Closing within an hour!' : `${hoursUntilClose} hours left`;
+        isUrgent = true;
+      } else if (daysUntilClose <= 3) {
+        countdownText = daysUntilClose === 1 ? 'Closes tomorrow' : `${daysUntilClose} days left`;
+        isUrgent = true;
+      } else if (daysUntilClose <= 7) {
+        countdownText = `${daysUntilClose} days left`;
+      } else {
+        countdownText = `Closes ${closeDate.toLocaleDateString()}`;
+      }
+    } else {
+      countdownText = 'Entries closed';
+    }
+
     return {
       canRegister,
       entriesOpen,
       entriesClose,
       isPublished: showData.status?.toLowerCase() === 'published',
-      daysUntilClose: Math.max(0, daysUntilClose)
+      daysUntilClose: Math.max(0, daysUntilClose),
+      hoursUntilClose: Math.max(0, hoursUntilClose),
+      countdownText,
+      isUrgent,
     };
   }, [showData]);
 
@@ -162,28 +191,39 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
     <div className="apple-show-info-card">
       <div className="apple-show-info-header">
         <div>
-          <div className="apple-show-info-title">Registration Information</div>
+          <div className="apple-show-info-title">Entry Information</div>
           <div className="apple-show-subtitle">
             {!registrationState.isPublished ? 'Show not yet published' :
-             !registrationState.entriesOpen ? 'Registration not yet open' :
-             !registrationState.entriesClose ? 'Registration is closed' :
-             `Entries close in ${registrationState.daysUntilClose} days`}
+             !registrationState.entriesOpen ? 'Entries not yet open' :
+             !registrationState.entriesClose ? 'Entries are closed' :
+             registrationState.countdownText}
           </div>
         </div>
         {registrationState.canRegister ? (
           <Button onClick={onRegisterForShow} className="apple-action-button apple-action-button-primary">
-            <UserPlus className="w-4 h-4" />
-            Register Now
+            <Ticket className="w-4 h-4" />
+            Enter Show
           </Button>
         ) : (
           <Button disabled className="apple-action-button">
-            <UserPlus className="w-4 h-4" />
+            <Ticket className="w-4 h-4" />
             {!registrationState.isPublished ? 'Not Published' :
-             !registrationState.entriesOpen ? 'Not Open Yet' : 'Registration Closed'}
+             !registrationState.entriesOpen ? 'Not Open Yet' : 'Entries Closed'}
           </Button>
         )}
       </div>
-      
+
+      {/* Urgent countdown banner */}
+      {registrationState.isUrgent && registrationState.canRegister && (
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4 mb-4 flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+          <div>
+            <div className="font-medium text-amber-600">{registrationState.countdownText}</div>
+            <div className="text-sm text-amber-600/80">Don't miss your chance to enter this show!</div>
+          </div>
+        </div>
+      )}
+
       <div className="apple-show-info-grid">
         <div className="apple-show-info-item">
           <div className="apple-show-info-label">Entries Open</div>
@@ -196,7 +236,7 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
             {registrationState.daysUntilClose <= 7 && registrationState.daysUntilClose > 0 && (
               <span className="apple-show-status apple-show-status-cancelled ml-2">
                 <AlertCircle className="w-3 h-3" />
-                Urgent
+                Soon
               </span>
             )}
           </div>
@@ -394,6 +434,35 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
       });
     }
 
+    // Add classes tab for everyone (with availability)
+    tabs.push({
+      id: 'classes',
+      label: 'Classes',
+      description: 'Available classes and entry spots',
+      content: (
+        <div className="apple-show-info-card">
+          <div className="apple-show-info-header">
+            <div>
+              <div className="apple-show-info-title">Class Availability</div>
+              <div className="apple-show-subtitle">View available classes and entry spots</div>
+            </div>
+            {registrationState.canRegister && onRegisterForShow && (
+              <Button onClick={onRegisterForShow} className="apple-action-button apple-action-button-primary">
+                <Ticket className="w-4 h-4" />
+                Enter Show
+              </Button>
+            )}
+          </div>
+          <div className="mt-6">
+            <ClassAvailability
+              showId={showData.id}
+              onEnterClass={registrationState.canRegister && onRegisterForShow ? () => onRegisterForShow() : undefined}
+            />
+          </div>
+        </div>
+      )
+    });
+
     // Add trials tab for everyone
     tabs.push({
       id: 'trials',
@@ -494,20 +563,33 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
       {/* Show Header */}
       <div className="apple-show-header">
         <div className="flex-1">
-          <div className="flex items-center gap-3 mb-3">
+          <div className="flex items-center gap-3 mb-3 flex-wrap">
             <div className="apple-show-title">{showData.name}</div>
             <div className={`apple-show-status ${getStatusClass(showData.status)}`}>
               {getStatusIcon(showData.status)}
               {showData.status || 'Published'}
             </div>
+            <EntryStatusBadge show={showData} size="md" />
           </div>
-          
-          <div className="apple-show-subtitle mb-6">
-            {showData.events && showData.events.length > 0 
+
+          <div className="apple-show-subtitle mb-4">
+            {showData.events && showData.events.length > 0
               ? showData.events.join(', ')
               : 'Dog show competition with various events and classes.'}
           </div>
-          
+
+          {/* Entry Deadline Countdown */}
+          {registrationState.canRegister && (
+            <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium mb-4 ${
+              registrationState.isUrgent
+                ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20'
+                : 'bg-muted/50 text-muted-foreground'
+            }`}>
+              <Clock className="w-4 h-4" />
+              <span>{registrationState.countdownText}</span>
+            </div>
+          )}
+
           <div className="flex items-center gap-6 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4" />
@@ -524,22 +606,23 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
         <div className="flex items-center gap-3">
           {primaryRole === UserRole.EXHIBITOR && onRegisterForShow && (
             registrationState.canRegister ? (
-              <Button 
-                onClick={onRegisterForShow} 
+              <Button
+                onClick={onRegisterForShow}
                 className="apple-action-button apple-action-button-primary"
+                size="lg"
               >
-                <UserPlus className="w-4 h-4" />
-                Register for Show
+                <Ticket className="w-4 h-4" />
+                Enter Show
               </Button>
             ) : (
-              <Button 
-                disabled 
+              <Button
+                disabled
                 className="apple-action-button"
                 variant="outline"
               >
-                <UserPlus className="w-4 h-4" />
+                <Ticket className="w-4 h-4" />
                 {!registrationState.isPublished ? 'Not Published' :
-                 !registrationState.entriesOpen ? 'Not Open Yet' : 'Registration Closed'}
+                 !registrationState.entriesOpen ? 'Not Open Yet' : 'Entries Closed'}
               </Button>
             )
           )}

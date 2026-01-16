@@ -55,7 +55,17 @@ interface WelcomeEmailData {
   name: string;
 }
 
-type EmailData = EntryConfirmationData | PaymentReceiptData | WelcomeEmailData;
+interface WaitlistOfferData {
+  type: 'waitlist_offer';
+  to: string;
+  name: string;
+  showName: string;
+  className: string;
+  dogName: string;
+  expiresAt: string;
+}
+
+type EmailData = EntryConfirmationData | PaymentReceiptData | WelcomeEmailData | WaitlistOfferData;
 
 Deno.serve(async (req) => {
   // Handle CORS
@@ -112,6 +122,11 @@ Deno.serve(async (req) => {
       case 'welcome':
         subject = 'Welcome to myK9Show!';
         html = generateWelcomeEmail(data);
+        break;
+
+      case 'waitlist_offer':
+        subject = `Spot Available! ${data.className} - ${data.showName}`;
+        html = generateWaitlistOfferEmail(data);
         break;
 
       default:
@@ -434,6 +449,77 @@ function generateWelcomeEmail(data: WelcomeEmailData): string {
       <!-- Footer -->
       <div style="background-color: #f9fafb; padding: 16px; text-align: center; border-top: 1px solid #e5e7eb;">
         <p style="margin: 0; color: #9ca3af; font-size: 12px;">
+          &copy; ${new Date().getFullYear()} myK9Show. All rights reserved.
+        </p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+  `.trim();
+}
+
+/**
+ * Generate waitlist offer email HTML
+ */
+function generateWaitlistOfferEmail(data: WaitlistOfferData): string {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spot Available!</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #1f2937; margin: 0; padding: 0; background-color: #f3f4f6;">
+  <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden;">
+      <!-- Header -->
+      <div style="background-color: #059669; padding: 24px; text-align: center;">
+        <h1 style="color: #ffffff; margin: 0; font-size: 24px;">🎉 A Spot Opened Up!</h1>
+      </div>
+
+      <!-- Content -->
+      <div style="padding: 24px;">
+        <p style="font-size: 18px;">Hi ${escapeHtml(data.name)},</p>
+
+        <p>Great news! A spot has become available and you're next on the waitlist for:</p>
+
+        <div style="background-color: #ecfdf5; border-radius: 6px; padding: 16px; margin: 16px 0; border-left: 4px solid #059669;">
+          <h2 style="margin: 0 0 8px 0; font-size: 18px; color: #1f2937;">${escapeHtml(data.className)}</h2>
+          <p style="margin: 0; color: #6b7280;">
+            <strong>${escapeHtml(data.showName)}</strong><br>
+            For: ${escapeHtml(data.dogName)}
+          </p>
+        </div>
+
+        <div style="background-color: #fef3c7; border-radius: 6px; padding: 16px; margin: 24px 0; border-left: 4px solid #f59e0b;">
+          <h3 style="margin: 0 0 8px 0; color: #92400e; font-size: 16px;">⏰ Time-Sensitive Offer</h3>
+          <p style="margin: 0; color: #78350f;">
+            This spot is being held for you until <strong>${escapeHtml(data.expiresAt)}</strong>.<br>
+            If you don't accept by then, the spot will be offered to the next person on the waitlist.
+          </p>
+        </div>
+
+        <div style="text-align: center; margin: 32px 0;">
+          <a href="https://myk9show.com/my-entries" style="display: inline-block; background-color: #059669; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
+            Accept This Spot
+          </a>
+        </div>
+
+        <p style="color: #6b7280; font-size: 14px;">
+          Click the button above to log in and accept your spot. You'll be prompted to complete payment if you haven't already.
+        </p>
+
+        <p style="margin-top: 24px; color: #6b7280; font-size: 14px;">
+          Don't want this spot? You can decline it from your entries page, and we'll offer it to the next person.
+        </p>
+      </div>
+
+      <!-- Footer -->
+      <div style="background-color: #f9fafb; padding: 16px; text-align: center; border-top: 1px solid #e5e7eb;">
+        <p style="margin: 0; color: #9ca3af; font-size: 12px;">
+          This email was sent by myK9Show<br>
           &copy; ${new Date().getFullYear()} myK9Show. All rights reserved.
         </p>
       </div>

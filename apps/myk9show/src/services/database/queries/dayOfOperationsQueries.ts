@@ -605,6 +605,165 @@ export const getShowDogs = async (showId: string) => {
 };
 
 /**
+ * Get pending move-up requests for a show
+ */
+export const getPendingMoveUpRequests = async (showId: string) => {
+  const startTime = Date.now();
+
+  try {
+    // Get all trials for the show
+    const { data: trials, error: trialsError } = await supabase
+      .from('trial')
+      .select('id')
+      .eq('show_id', showId);
+
+    if (trialsError) {
+      throw createDatabaseError(trialsError, 'trial', 'get_trials_for_move_up_requests');
+    }
+
+    const trialIds = trials?.map((t) => t.id) || [];
+
+    if (trialIds.length === 0) {
+      return { data: [], error: null };
+    }
+
+    // Get entries with move-up requests (status = 'move_up_requested')
+    const { data, error } = await supabase
+      .from('class_entry')
+      .select(`
+        id,
+        class_id,
+        trial_id,
+        status,
+        jump_height,
+        check_in_notes,
+        created_at,
+        updated_at,
+        move_up_target_class_id,
+        entry:entry_id (
+          id,
+          handler,
+          armband_number,
+          dog:dog_id (
+            id,
+            name,
+            call_name
+          )
+        ),
+        class:class_id (
+          id,
+          name,
+          class_number,
+          trial_id
+        )
+      `)
+      .in('trial_id', trialIds)
+      .eq('status', 'move_up_requested')
+      .is('deleted_at', null)
+      .order('created_at', { ascending: true });
+
+    const duration = Date.now() - startTime;
+    logQuery('class_entry', 'get_pending_move_up_requests', duration, error?.message);
+
+    if (error) {
+      throw createDatabaseError(error, 'class_entry', 'get_pending_move_up_requests');
+    }
+
+    // Enhance with target class info
+    const enhancedData = await Promise.all(
+      (data || []).map(async (entry) => {
+        let targetClass = null;
+        if (entry.move_up_target_class_id) {
+          const { data: targetData } = await supabase
+            .from('class')
+            .select('id, name, class_number, entry_limit')
+            .eq('id', entry.move_up_target_class_id)
+            .single();
+          targetClass = targetData;
+        }
+        return { ...entry, targetClass };
+      })
+    );
+
+    return { data: enhancedData, error: null };
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const dbError = createDatabaseError(error, 'class_entry', 'get_pending_move_up_requests');
+    logQuery('class_entry', 'get_pending_move_up_requests', duration, dbError.message);
+    return { data: [], error: dbError };
+  }
+};
+
+/**
+ * Approve a move-up request
+ */
+export const approveMoveUpRequest = async (
+  classEntryId: string,
+  toClassId: string,
+  reason?: string
+) => {
+  // Use the existing processMoveUp function
+  return processMoveUp(classEntryId, toClassId, reason);
+};
+
+/**
+ * Deny a move-up request
+ */
+export const denyMoveUpRequest = async (
+  classEntryId: string,
+  reason?: string
+) => {
+  const startTime = Date.now();
+
+  try {
+    const { data, error } = await supabase
+      .from('class_entry')
+      .update({
+        status: 'accepted', // Revert to accepted status
+        move_up_target_class_id: null,
+        check_in_notes: reason ? `Move-up denied: ${reason}` : 'Move-up request denied',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', classEntryId)
+      .eq('status', 'move_up_requested')
+      .select(`
+        id,
+        status,
+        entry:entry_id (
+          id,
+          handler,
+          created_by,
+          dog:dog_id (
+            id,
+            name,
+            call_name
+          )
+        ),
+        class:class_id (
+          id,
+          name,
+          class_number
+        )
+      `)
+      .single();
+
+    const duration = Date.now() - startTime;
+    logQuery('class_entry', 'deny_move_up_request', duration, error?.message);
+
+    if (error) {
+      throw createDatabaseError(error, 'class_entry', 'deny_move_up_request');
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const dbError = createDatabaseError(error, 'class_entry', 'deny_move_up_request');
+    logQuery('class_entry', 'deny_move_up_request', duration, dbError.message);
+    return { data: null, error: dbError };
+  }
+};
+
+/**
  * Search all dogs (for adding new entries)
  */
 export const searchDogs = async (searchTerm: string) => {
@@ -641,5 +800,386 @@ export const searchDogs = async (searchTerm: string) => {
     const dbError = createDatabaseError(error, 'dog', 'search_dogs');
     logQuery('dog', 'search_dogs', duration, dbError.message);
     return { data: [], error: dbError };
+  }
+};
+
+// ============================================================================
+// Scratch Management with Refunds
+// ============================================================================
+
+export interface ScratchRequest {
+  id: string;
+  class_id: string;
+  trial_id: string;
+  status: string;
+  entry_fee: number;
+  scratched_at: string | null;
+  scratch_reason: string | null;
+  refund_status: 'pending' | 'eligible' | 'processed' | 'denied' | 'not_applicable';
+  refund_amount: number | null;
+  entry: {
+    id: string;
+    handler: string | null;
+    armband_number: string | null;
+    payment_status: string | null;
+    stripe_payment_intent_id: string | null;
+    dog: {
+      id: string;
+      name: string;
+      call_name: string | null;
+    } | null;
+  } | null;
+  class: {
+    id: string;
+    name: string;
+    class_number: string | null;
+  } | null;
+}
+
+/**
+ * Get scratched entries for a show with refund eligibility
+ */
+export const getScratchedEntries = async (showId: string) => {
+  const startTime = Date.now();
+
+  try {
+    // Get all trials for the show
+    const { data: trials, error: trialsError } = await supabase
+      .from('trial')
+      .select('id')
+      .eq('show_id', showId);
+
+    if (trialsError) {
+      throw createDatabaseError(trialsError, 'trial', 'get_trials_for_scratches');
+    }
+
+    const trialIds = trials?.map((t) => t.id) || [];
+
+    if (trialIds.length === 0) {
+      return { data: [], error: null };
+    }
+
+    // Get scratched entries
+    const { data, error } = await supabase
+      .from('class_entry')
+      .select(`
+        id,
+        class_id,
+        trial_id,
+        status,
+        entry_fee,
+        scratched_at,
+        scratch_reason,
+        refund_status,
+        refund_amount,
+        entry:entry_id (
+          id,
+          handler,
+          armband_number,
+          payment_status,
+          stripe_payment_intent_id,
+          dog:dog_id (
+            id,
+            name,
+            call_name
+          )
+        ),
+        class:class_id (
+          id,
+          name,
+          class_number
+        )
+      `)
+      .in('trial_id', trialIds)
+      .eq('status', 'scratched')
+      .is('deleted_at', null)
+      .order('scratched_at', { ascending: false });
+
+    const duration = Date.now() - startTime;
+    logQuery('class_entry', 'get_scratched_entries', duration, error?.message);
+
+    if (error) {
+      throw createDatabaseError(error, 'class_entry', 'get_scratched_entries');
+    }
+
+    return { data: data || [], error: null };
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const dbError = createDatabaseError(error, 'class_entry', 'get_scratched_entries');
+    logQuery('class_entry', 'get_scratched_entries', duration, dbError.message);
+    return { data: [], error: dbError };
+  }
+};
+
+/**
+ * Request a scratch with reason
+ */
+export const requestScratch = async (
+  classEntryId: string,
+  reason?: string
+) => {
+  const startTime = Date.now();
+
+  try {
+    const { data, error } = await supabase
+      .from('class_entry')
+      .update({
+        status: 'scratched',
+        scratched_at: new Date().toISOString(),
+        scratch_reason: reason || null,
+        refund_status: 'pending', // Will be evaluated for eligibility
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', classEntryId)
+      .select(`
+        id,
+        status,
+        entry_fee,
+        scratched_at,
+        scratch_reason,
+        entry:entry_id (
+          id,
+          handler,
+          payment_status,
+          dog:dog_id (
+            id,
+            name,
+            call_name
+          )
+        ),
+        class:class_id (
+          id,
+          name,
+          class_number
+        )
+      `)
+      .single();
+
+    const duration = Date.now() - startTime;
+    logQuery('class_entry', 'request_scratch', duration, error?.message);
+
+    if (error) {
+      throw createDatabaseError(error, 'class_entry', 'request_scratch');
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const dbError = createDatabaseError(error, 'class_entry', 'request_scratch');
+    logQuery('class_entry', 'request_scratch', duration, dbError.message);
+    return { data: null, error: dbError };
+  }
+};
+
+/**
+ * Update refund status for a scratch
+ */
+export const updateRefundStatus = async (
+  classEntryId: string,
+  status: 'eligible' | 'processed' | 'denied' | 'not_applicable',
+  refundAmount?: number
+) => {
+  const startTime = Date.now();
+
+  try {
+    const { data, error } = await supabase
+      .from('class_entry')
+      .update({
+        refund_status: status,
+        refund_amount: refundAmount ?? null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', classEntryId)
+      .eq('status', 'scratched')
+      .select()
+      .single();
+
+    const duration = Date.now() - startTime;
+    logQuery('class_entry', 'update_refund_status', duration, error?.message);
+
+    if (error) {
+      throw createDatabaseError(error, 'class_entry', 'update_refund_status');
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const dbError = createDatabaseError(error, 'class_entry', 'update_refund_status');
+    logQuery('class_entry', 'update_refund_status', duration, dbError.message);
+    return { data: null, error: dbError };
+  }
+};
+
+/**
+ * Get pending scratch requests (entries requesting to scratch)
+ */
+export const getPendingScratchRequests = async (showId: string) => {
+  const startTime = Date.now();
+
+  try {
+    // Get all trials for the show
+    const { data: trials, error: trialsError } = await supabase
+      .from('trial')
+      .select('id')
+      .eq('show_id', showId);
+
+    if (trialsError) {
+      throw createDatabaseError(trialsError, 'trial', 'get_trials_for_scratch_requests');
+    }
+
+    const trialIds = trials?.map((t) => t.id) || [];
+
+    if (trialIds.length === 0) {
+      return { data: [], error: null };
+    }
+
+    // Get entries with scratch_requested status
+    const { data, error } = await supabase
+      .from('class_entry')
+      .select(`
+        id,
+        class_id,
+        trial_id,
+        status,
+        entry_fee,
+        scratch_reason,
+        created_at,
+        entry:entry_id (
+          id,
+          handler,
+          armband_number,
+          payment_status,
+          stripe_payment_intent_id,
+          dog:dog_id (
+            id,
+            name,
+            call_name
+          )
+        ),
+        class:class_id (
+          id,
+          name,
+          class_number
+        )
+      `)
+      .in('trial_id', trialIds)
+      .eq('status', 'scratch_requested')
+      .is('deleted_at', null)
+      .order('created_at', { ascending: true });
+
+    const duration = Date.now() - startTime;
+    logQuery('class_entry', 'get_pending_scratch_requests', duration, error?.message);
+
+    if (error) {
+      throw createDatabaseError(error, 'class_entry', 'get_pending_scratch_requests');
+    }
+
+    return { data: data || [], error: null };
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const dbError = createDatabaseError(error, 'class_entry', 'get_pending_scratch_requests');
+    logQuery('class_entry', 'get_pending_scratch_requests', duration, dbError.message);
+    return { data: [], error: dbError };
+  }
+};
+
+/**
+ * Approve a scratch request (optionally with refund)
+ */
+export const approveScratchRequest = async (
+  classEntryId: string,
+  processRefund: boolean,
+  refundAmount?: number
+) => {
+  const startTime = Date.now();
+
+  try {
+    const { data, error } = await supabase
+      .from('class_entry')
+      .update({
+        status: 'scratched',
+        scratched_at: new Date().toISOString(),
+        refund_status: processRefund ? 'eligible' : 'not_applicable',
+        refund_amount: processRefund ? refundAmount : null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', classEntryId)
+      .eq('status', 'scratch_requested')
+      .select(`
+        id,
+        status,
+        entry_fee,
+        scratched_at,
+        refund_status,
+        refund_amount,
+        entry:entry_id (
+          id,
+          handler,
+          stripe_payment_intent_id,
+          dog:dog_id (
+            id,
+            name,
+            call_name
+          )
+        ),
+        class:class_id (
+          id,
+          name,
+          class_number
+        )
+      `)
+      .single();
+
+    const duration = Date.now() - startTime;
+    logQuery('class_entry', 'approve_scratch_request', duration, error?.message);
+
+    if (error) {
+      throw createDatabaseError(error, 'class_entry', 'approve_scratch_request');
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const dbError = createDatabaseError(error, 'class_entry', 'approve_scratch_request');
+    logQuery('class_entry', 'approve_scratch_request', duration, dbError.message);
+    return { data: null, error: dbError };
+  }
+};
+
+/**
+ * Deny a scratch request
+ */
+export const denyScratchRequest = async (
+  classEntryId: string,
+  reason?: string
+) => {
+  const startTime = Date.now();
+
+  try {
+    const { data, error } = await supabase
+      .from('class_entry')
+      .update({
+        status: 'accepted', // Revert to accepted
+        check_in_notes: reason ? `Scratch denied: ${reason}` : 'Scratch request denied',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', classEntryId)
+      .eq('status', 'scratch_requested')
+      .select()
+      .single();
+
+    const duration = Date.now() - startTime;
+    logQuery('class_entry', 'deny_scratch_request', duration, error?.message);
+
+    if (error) {
+      throw createDatabaseError(error, 'class_entry', 'deny_scratch_request');
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const dbError = createDatabaseError(error, 'class_entry', 'deny_scratch_request');
+    logQuery('class_entry', 'deny_scratch_request', duration, dbError.message);
+    return { data: null, error: dbError };
   }
 };

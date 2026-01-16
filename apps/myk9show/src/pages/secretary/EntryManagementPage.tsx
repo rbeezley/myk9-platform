@@ -47,7 +47,11 @@ import {
   Hash,
   Loader2,
   RefreshCw,
+  ArrowUpCircle,
+  XCircle,
 } from 'lucide-react';
+import { MoveUpRequestsTab } from '@/components/entries/MoveUpRequestsTab';
+import { ScratchManagementTab } from '@/components/entries/ScratchManagementTab';
 
 interface EntryManagementEntry {
   id: string;
@@ -1078,7 +1082,7 @@ const EntryManagementPage: React.FC = () => {
 
       {/* Entries Table */}
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="all">All ({filteredEntries.length})</TabsTrigger>
           <TabsTrigger value="pending">
             Pending ({entries.filter(e => e.entryStatus === EntryStatus.PENDING || e.paymentStatus === PaymentStatus.PENDING).length})
@@ -1088,6 +1092,14 @@ const EntryManagementPage: React.FC = () => {
           </TabsTrigger>
           <TabsTrigger value="waitlist">
             Waitlist ({entries.filter(e => e.entryStatus === EntryStatus.WAITLIST).length})
+          </TabsTrigger>
+          <TabsTrigger value="move-ups">
+            <ArrowUpCircle className="h-4 w-4 mr-1" />
+            Move-Ups
+          </TabsTrigger>
+          <TabsTrigger value="scratches">
+            <XCircle className="h-4 w-4 mr-1" />
+            Scratches
           </TabsTrigger>
           <TabsTrigger value="issues">
             Issues ({entries.filter(e => e.entryStatus === EntryStatus.MISSING_INFO || (e.entryStatus === EntryStatus.ACCEPTED && e.paymentStatus === PaymentStatus.PENDING)).length})
@@ -1235,8 +1247,26 @@ const EntryManagementPage: React.FC = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Move-Ups Tab Content */}
+        <TabsContent value="move-ups" className="mt-6">
+          <Card>
+            <CardContent className="pt-6">
+              <MoveUpRequestsTab showId={selectedShowId} onRefresh={loadEntries} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Scratches Tab Content */}
+        <TabsContent value="scratches" className="mt-6">
+          <Card>
+            <CardContent className="pt-6">
+              <ScratchManagementTab showId={selectedShowId} onRefresh={loadEntries} />
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
-      
+
       {/* Check-In Status Dialog */}
       {checkInDialog.entry && checkInDialog.classEntry && (
         <CheckInStatusDialog

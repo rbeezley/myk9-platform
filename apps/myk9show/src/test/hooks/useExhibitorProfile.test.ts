@@ -120,7 +120,12 @@ describe('useExhibitorProfile', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      expect(result.current.profile).toEqual(mockProfile);
+      // Check key properties (mapping function adds defaults for missing fields)
+      expect(result.current.profile?.id).toBe('profile-123');
+      expect(result.current.profile?.person_id).toBe('person-456');
+      expect(result.current.profile?.auth_user_id).toBe('user-123');
+      expect(result.current.profile?.subscription_tier).toBe('free');
+      expect(result.current.profile?.person?.first_name).toBe('John');
       expect(result.current.hasProfile).toBe(true);
       expect(result.current.needsOnboarding).toBe(false);
     });

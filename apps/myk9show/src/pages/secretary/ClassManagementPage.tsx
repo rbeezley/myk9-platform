@@ -20,7 +20,9 @@ import {
   CheckCircle,
   Clock,
   Settings,
-  MoreVertical
+  MoreVertical,
+  ListOrdered,
+  Users
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -160,14 +162,20 @@ export const ClassManagementPage: React.FC = () => {
           </div>
         </div>
         
-        <Button onClick={() => startTransition(() => navigate(`/trials/${trialId}/classes/create`))}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Classes
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => startTransition(() => navigate('/secretary/waitlist'))}>
+            <ListOrdered className="h-4 w-4 mr-2" />
+            Manage Waitlist
+          </Button>
+          <Button onClick={() => startTransition(() => navigate(`/trials/${trialId}/classes/create`))}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Classes
+          </Button>
+        </div>
       </div>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
         <Card>
           <CardContent className="flex items-center p-4">
             <Settings className="h-8 w-8 text-blue-500 mr-3" />
@@ -210,6 +218,21 @@ export const ClassManagementPage: React.FC = () => {
                 {allClasses.filter(c => c.status === 'Complete').length}
               </div>
               <div className="text-sm text-muted-foreground">Complete</div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card
+          className="cursor-pointer hover:bg-muted/50 transition-colors"
+          onClick={() => startTransition(() => navigate('/secretary/waitlist'))}
+        >
+          <CardContent className="flex items-center p-4">
+            <Users className="h-8 w-8 text-yellow-500 mr-3" />
+            <div>
+              <div className="text-2xl font-bold">
+                {allClasses.reduce((sum, c) => sum + (c.entries.waitlistCount || 0), 0)}
+              </div>
+              <div className="text-sm text-muted-foreground">On Waitlist</div>
             </div>
           </CardContent>
         </Card>
@@ -362,6 +385,12 @@ export const ClassManagementPage: React.FC = () => {
                       
                       <div className="text-sm text-muted-foreground">
                         <div>Entries: {cls.entries.currentEntries}/{cls.entries.maxEntries}</div>
+                        {(cls.entries.waitlistCount || 0) > 0 && (
+                          <div className="flex items-center gap-1 text-yellow-600">
+                            <Users className="h-3 w-3" />
+                            {cls.entries.waitlistCount} waitlisted
+                          </div>
+                        )}
                         <div>Est: {String(cls.fieldValues.estimatedJudgingTime || 30)}min</div>
                       </div>
                       
@@ -377,6 +406,12 @@ export const ClassManagementPage: React.FC = () => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => startTransition(() => navigate('/secretary/waitlist'))}
+                            >
+                              <ListOrdered className="h-4 w-4 mr-2" />
+                              View Waitlist
+                            </DropdownMenuItem>
                             {statuses.map(status => (
                               <DropdownMenuItem
                                 key={status}

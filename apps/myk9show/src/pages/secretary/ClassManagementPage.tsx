@@ -230,7 +230,7 @@ export const ClassManagementPage: React.FC = () => {
             <Users className="h-8 w-8 text-yellow-500 mr-3" />
             <div>
               <div className="text-2xl font-bold">
-                {allClasses.reduce((sum, c) => sum + (c.entries.waitlistCount || 0), 0)}
+                {allClasses.reduce((sum, c) => sum + (c.entries.waitlistEntries || 0), 0)}
               </div>
               <div className="text-sm text-muted-foreground">On Waitlist</div>
             </div>
@@ -385,10 +385,10 @@ export const ClassManagementPage: React.FC = () => {
                       
                       <div className="text-sm text-muted-foreground">
                         <div>Entries: {cls.entries.currentEntries}/{cls.entries.maxEntries}</div>
-                        {(cls.entries.waitlistCount || 0) > 0 && (
+                        {(cls.entries.waitlistEntries || 0) > 0 && (
                           <div className="flex items-center gap-1 text-yellow-600">
                             <Users className="h-3 w-3" />
-                            {cls.entries.waitlistCount} waitlisted
+                            {cls.entries.waitlistEntries} waitlisted
                           </div>
                         )}
                         <div>Est: {String(cls.fieldValues.estimatedJudgingTime || 30)}min</div>

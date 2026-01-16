@@ -364,19 +364,19 @@ export const UserTable: React.FC<UserTableProps> = ({
     return colors[index];
   };
 
-  // Enhanced sort icon with smooth transitions
-  const SortIcon = ({ field }: { field: SortField }) => {
+  // Enhanced sort icon with smooth transitions - returns JSX directly (not a component)
+  const renderSortIcon = (field: SortField) => {
     const isActive = sortField === field;
     const iconClass = `h-4 w-4 transition-all duration-300 ${
       isActive ? 'text-primary opacity-100' : 'text-muted-foreground opacity-40'
     }`;
-    
+
     if (!isActive) {
       return <ChevronDown className={iconClass} />;
     }
-    
-    return sortDirection === 'asc' ? 
-      <ChevronUp className={`${iconClass} transform rotate-0`} /> : 
+
+    return sortDirection === 'asc' ?
+      <ChevronUp className={`${iconClass} transform rotate-0`} /> :
       <ChevronDown className={`${iconClass} transform rotate-0`} />;
   };
 
@@ -559,7 +559,7 @@ export const UserTable: React.FC<UserTableProps> = ({
                     onClick={() => handleSort('name')}
                   >
                     User
-                    <SortIcon field="name" />
+                    {renderSortIcon('name')}
                   </Button>
                 </TableHead>
                 
@@ -573,7 +573,7 @@ export const UserTable: React.FC<UserTableProps> = ({
                     onClick={() => handleSort('email')}
                   >
                     Contact
-                    <SortIcon field="email" />
+                    {renderSortIcon('email')}
                   </Button>
                 </TableHead>
                 
@@ -587,7 +587,7 @@ export const UserTable: React.FC<UserTableProps> = ({
                     onClick={() => handleSort('role')}
                   >
                     Roles
-                    <SortIcon field="role" />
+                    {renderSortIcon('role')}
                   </Button>
                 </TableHead>
                 
@@ -601,7 +601,7 @@ export const UserTable: React.FC<UserTableProps> = ({
                     onClick={() => handleSort('lastLogin')}
                   >
                     Last Activity
-                    <SortIcon field="lastLogin" />
+                    {renderSortIcon('lastLogin')}
                   </Button>
                 </TableHead>
                 

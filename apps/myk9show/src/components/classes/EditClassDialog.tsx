@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -59,25 +59,30 @@ const EditClassDialog: React.FC<EditClassDialogProps> = ({
 
   const assignedJudges = getAssignedJudges();
 
-  useEffect(() => {
-    if (classItem) {
-      // Convert date format for datetime-local input if needed
-      const processedItem = { ...classItem };
-      
-      if ('startTime' in classItem && classItem.startTime && !classItem.startTime.includes('T')) {
-        try {
-          const date = new Date(classItem.startTime);
-          if (!isNaN(date.getTime())) {
-            processedItem.startTime = date.toISOString().slice(0, 16);
-          }
-        } catch (e) {
-          logger.warn('Failed to convert startTime:', 'classes', {}, e as Error);
+  // Process and set form data when classItem changes - using render-time state update pattern
+  const processClassItem = (item: ClassData | TrialClass | null): ClassData | TrialClass | null => {
+    if (!item) return null;
+    const processedItem = { ...item };
+    if ('startTime' in item && item.startTime && !item.startTime.includes('T')) {
+      try {
+        const date = new Date(item.startTime);
+        if (!isNaN(date.getTime())) {
+          processedItem.startTime = date.toISOString().slice(0, 16);
         }
+      } catch (e) {
+        logger.warn('Failed to convert startTime:', 'classes', {}, e as Error);
       }
-      
-      setFormData(processedItem);
     }
-  }, [classItem]);
+    return processedItem;
+  };
+
+  // Track classItem changes and update form data during render
+  const classItemKey = classItem?.id || '';
+  const [lastClassItemKey, setLastClassItemKey] = useState(classItemKey);
+  if (classItemKey !== lastClassItemKey) {
+    setLastClassItemKey(classItemKey);
+    setFormData(processClassItem(classItem));
+  }
 
   const handleChange = (field: string, value: string | number) => {
     const finalValue = value === 'none' ? '' : value;

@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { logger } from '@/services/LoggingService';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -312,7 +311,7 @@ export const ConflictResolutionDemo: React.FC = () => {
   };
 
   const handleBulkResolve = async (conflictIds: string[], strategy: ResolutionStrategy) => {
-    logger.debug('Bulk resolving conflicts:', 'sync', { data: conflictIds, 'with strategy:', strategy });
+    logger.debug('Bulk resolving conflicts:', 'sync', { conflictIds, strategy });
     
     // Simulate bulk resolution
     await new Promise(resolve => setTimeout(resolve, 1000));

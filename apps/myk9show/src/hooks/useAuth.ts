@@ -54,46 +54,42 @@ export function useAuth() {
     password: string, 
     metadata?: { firstName?: string; lastName?: string }
   ) => {
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            first_name: metadata?.firstName || 'First',
-            last_name: metadata?.lastName || 'Name',
-          }
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          first_name: metadata?.firstName || 'First',
+          last_name: metadata?.lastName || 'Name',
         }
-      });
-
-      if (error) {
-        throw error;
       }
+    });
 
-      // If user is created successfully, create corresponding public.user record
-      if (data.user) {
-        try {
-          const { error: insertError } = await supabase
-            .from('people')
-            .insert([
-              {
-                first_name: metadata?.firstName || 'First',
-                last_name: metadata?.lastName || 'Name',
-                email: email,
-                roles: ['exhibitor'],
-                user_id: data.user.id,
-              }
-            ]);
+    if (error) {
+      throw error;
+    }
 
-          if (insertError) {
-            // Profile creation failed - auth user is created, profile creation can be retried
-          }
-        } catch {
+    // If user is created successfully, create corresponding public.user record
+    if (data.user) {
+      try {
+        const { error: insertError } = await supabase
+          .from('people')
+          .insert([
+            {
+              first_name: metadata?.firstName || 'First',
+              last_name: metadata?.lastName || 'Name',
+              email: email,
+              roles: ['exhibitor'],
+              user_id: data.user.id,
+            }
+          ]);
+
+        if (insertError) {
           // Profile creation failed - auth user is created, profile creation can be retried
         }
+      } catch {
+        // Profile creation failed - auth user is created, profile creation can be retried
       }
-    } catch (error) {
-      throw error;
     }
   }, []);
 
@@ -126,12 +122,8 @@ export function useAuth() {
    * @throws {AuthError} If sign out fails
    */
   const signOut = useCallback(async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        throw error;
-      }
-    } catch (error) {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
       throw error;
     }
   }, []);
@@ -142,12 +134,8 @@ export function useAuth() {
    * @throws {AuthError} If the operation fails
    */
   const resetPassword = useCallback(async (email: string) => {
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email);
-      if (error) {
-        throw error;
-      }
-    } catch (error) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    if (error) {
       throw error;
     }
   }, []);
@@ -158,14 +146,10 @@ export function useAuth() {
    * @throws {AuthError} If the operation fails
    */
   const updatePassword = useCallback(async (newPassword: string) => {
-    try {
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword,
-      });
-      if (error) {
-        throw error;
-      }
-    } catch (error) {
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+    if (error) {
       throw error;
     }
   }, []);
@@ -183,12 +167,8 @@ export function useAuth() {
     password?: string;
     data?: Record<string, unknown>;
   }) => {
-    try {
-      const { error } = await supabase.auth.updateUser(updates);
-      if (error) {
-        throw error;
-      }
-    } catch (error) {
+    const { error } = await supabase.auth.updateUser(updates);
+    if (error) {
       throw error;
     }
   }, []);

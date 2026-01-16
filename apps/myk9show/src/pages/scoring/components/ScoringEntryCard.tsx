@@ -9,7 +9,6 @@ import { forwardRef } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { cn } from '@/lib/utils';
-import { logger } from '@/services/LoggingService';
 import {
   GripVertical,
   CheckCircle2,

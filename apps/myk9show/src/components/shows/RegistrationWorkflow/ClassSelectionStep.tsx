@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils';
 import { useExistingEntries } from '@/hooks/useExistingEntries';
 import { useClassAvailability, type ClassAvailability } from '@/hooks/useClassAvailability';
 import { useCartStore, useCartItems, type CartItemWithDetails } from '@/stores/cartStore';
-import { useEntryEligibility, type EligibilityResult } from '@/hooks/useEntryEligibility';
+import { useEntryEligibility } from '@/hooks/useEntryEligibility';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { toast } from 'sonner';
 import '@/styles/apple-registration-workflow.css';
@@ -67,13 +67,11 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   const [isAddingToCart, setIsAddingToCart] = useState<string | null>(null);
 
   // Cart store
-  const cart = useCartStore((state) => state.cart);
   const cartItems = useCartItems();
   const loadCart = useCartStore((state) => state.loadCart);
   const createCart = useCartStore((state) => state.createCart);
   const addItem = useCartStore((state) => state.addItem);
   const removeItem = useCartStore((state) => state.removeItem);
-  const isLoading = useCartStore((state) => state.isLoading);
 
   // Check for existing entries
   const { getExistingEntry, getEntriesForDog } = useExistingEntries(showId);
@@ -88,8 +86,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
 
   // Fetch entry eligibility data
   const {
-    checkEligibility,
-    isLoading: isLoadingEligibility
+    checkEligibility
   } = useEntryEligibility({
     showId,
     dogIds: selectedDogs,
@@ -291,7 +288,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                   style={{ borderBottom: '0.5px solid var(--border)' }}>
           {selectedDogs.map(dogId => {
             const dog = getDogById(dogId);
-            const selection = getSelectionForDog(dogId);
+            const _selection = getSelectionForDog(dogId);
             const isActive = activeTab === dogId;
             const existingEntriesForDog = getEntriesForDog(dogId);
             

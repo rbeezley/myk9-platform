@@ -90,7 +90,7 @@ test.describe('User Creation Interface Validation', () => {
     await page.locator('#state').fill('TX');
     
     // Get the initial count of users in sidebar before creation
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     
     const _initialUsers = await page.locator('[data-testid="sidebar-item"], .sidebar-item, [class*="sidebar"] [class*="item"]').count();
     
     // Submit the form

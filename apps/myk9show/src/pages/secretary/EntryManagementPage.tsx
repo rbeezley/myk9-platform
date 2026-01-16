@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-nocheck
 // TODO: Refactor to use correct types once secretaryEntryQueries.ts is updated to match schema
 import React, { useState, useEffect, useCallback } from 'react';
@@ -25,7 +26,6 @@ import { getSecretaryShows } from '@/services/database/queries/showQueries';
 import {
   getEntriesForShow,
   updateEntryStatus,
-  bulkUpdateEntryStatus,
   updateCheckInStatus,
   bulkCheckIn,
   assignArmband,
@@ -43,7 +43,6 @@ import {
   Mail,
   MessageSquare,
   Download,
-  Upload,
   DollarSign,
   Calendar,
   Hash,

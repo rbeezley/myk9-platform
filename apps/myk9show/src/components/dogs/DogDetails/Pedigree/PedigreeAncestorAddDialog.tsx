@@ -6,7 +6,6 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { Plus } from 'lucide-react';
 import { parseLocalDateString, formatDateLocal } from '@/utils/dateLocal';
 import { Ancestor } from '@/types/pedigree-types';
-import { logger } from '@/services/LoggingService';
 import {
   Select,
   SelectContent,

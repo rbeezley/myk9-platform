@@ -39,9 +39,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { AlertCircle, Loader2, X, Save, Dog, Trophy } from 'lucide-react';
 import {
-  updateClassEntry,
+  updateEntryDetails,
   updateEntryHandler,
-  withdrawClassEntry,
+  withdrawEntry,
   canModifyEntry,
 } from '@/services/database/queries/entryQueries';
 import { logger } from '@/services/LoggingService';
@@ -134,7 +134,7 @@ export function EntryEditDialog({
     setError(null);
 
     try {
-      const { error } = await withdrawClassEntry(scratchDialog.classId);
+      const { error } = await withdrawEntry(scratchDialog.classId);
 
       if (error) {
         setError('Failed to withdraw from class. Please try again.');
@@ -177,8 +177,8 @@ export function EntryEditDialog({
       // Save class entry changes (jump height)
       for (const [classId, edits] of Object.entries(classEdits)) {
         if (edits.jumpHeight && edits.status !== 'withdrawn') {
-          const { error } = await updateClassEntry({
-            classEntryId: classId,
+          const { error } = await updateEntryDetails({
+            entryId: classId,
             updates: { jump_height: edits.jumpHeight },
           });
           if (error) {

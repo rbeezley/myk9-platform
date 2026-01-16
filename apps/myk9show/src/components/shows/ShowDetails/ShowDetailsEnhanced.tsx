@@ -238,7 +238,7 @@ const ExhibitorDashboard: React.FC<ExhibitorDashboardProps> = ({ show, onRegiste
 };
 
 // Secretary-focused component
-const SecretaryDashboard: React.FC<SecretaryDashboardProps> = ({ show: _show, trials, onManageEntries }) => { // eslint-disable-line @typescript-eslint/no-unused-vars
+const SecretaryDashboard: React.FC<SecretaryDashboardProps> = ({ show: _show, trials, onManageEntries }) => {
   const totalTrials = trials.length;
   const completedTrials = trials.filter(t => t.status === 'Completed').length;
   const upcomingTrials = trials.filter(t => t.status === 'Upcoming').length;
@@ -476,10 +476,10 @@ const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
   showData,
   associatedTrials,
   onEditShow,
-  onDeleteShow: _onDeleteShow, // eslint-disable-line @typescript-eslint/no-unused-vars
+  onDeleteShow: _onDeleteShow,
   onRegisterForShow,
   onManageEntries,
-  onViewResults: _onViewResults // eslint-disable-line @typescript-eslint/no-unused-vars
+  onViewResults: _onViewResults
 }) => {
   const navigate = useNavigate();
   const { userWithRoles } = useAuthContext();

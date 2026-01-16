@@ -1,4 +1,3 @@
-import { logger } from '@/services/LoggingService';
 
 /**
  * Offline Entry Creation System

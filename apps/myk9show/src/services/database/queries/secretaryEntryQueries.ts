@@ -1,54 +1,43 @@
-// @ts-nocheck
-// TODO: Refactor queries to match actual Supabase schema (entries table structure differs from assumptions)
 /**
  * Secretary Entry Management Queries
  *
  * Database queries for trial secretaries to manage show entries.
+ * Note: Each row in the entries table represents one dog's entry into one class.
  */
 
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 
 export interface SecretaryEntry {
   id: string;
-  dog_id: string;
-  show_id: string;
+  dog_id: string | null;
+  class_id: string | null;
+  trial_id: string | null;
+  show_id: string | null;
   handler: string | null;
+  handler_id: string | null;
   payment_status: string | null;
   entry_status: string | null;
-  total_fees: number | null;
+  entry_fee: number | null;
   submitted_at: string | null;
-  created_at: string;
-  updated_at: string;
-  armband_number: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  armband: string | null;
   special_requests: string | null;
+  jump_height: string | null;
+  run_order: number | null;
+  is_in_ring: boolean | null;
   dog: {
     id: string;
     name: string;
     call_name: string | null;
     breed: string | null;
   } | null;
-  owner: {
+  class: {
     id: string;
-    first_name: string | null;
-    last_name: string | null;
-    email: string | null;
+    name: string;
+    class_number: string | null;
+    max_entries: number | null;
   } | null;
-  class_entries: Array<{
-    id: string;
-    class_id: string;
-    status: string | null;
-    entry_fee: number | null;
-    jump_height: string | null;
-    armband: string | null;
-    run_order: number | null;
-    check_in_status: string | null;
-    check_in_time: string | null;
-    class: {
-      id: string;
-      name: string;
-      class_number: string | null;
-    } | null;
-  }>;
 }
 
 /**
@@ -63,43 +52,33 @@ export const getEntriesForShow = async (showId: string) => {
       .select(`
         id,
         dog_id,
+        class_id,
+        trial_id,
         show_id,
         handler,
+        handler_id,
         payment_status,
         entry_status,
-        total_fees,
+        entry_fee,
         submitted_at,
         created_at,
         updated_at,
-        armband_number,
+        armband,
         special_requests,
+        jump_height,
+        run_order,
+        is_in_ring,
         dog:dog_id (
           id,
           name,
           call_name,
           breed
         ),
-        owner:created_by (
+        class:class_id (
           id,
-          first_name,
-          last_name,
-          email
-        ),
-        class_entry (
-          id,
-          class_id,
-          status,
-          entry_fee,
-          jump_height,
-          armband,
-          run_order,
-          check_in_status,
-          check_in_time,
-          class:class_id (
-            id,
-            name,
-            class_number
-          )
+          name,
+          class_number,
+          max_entries
         )
       `)
       .eq('show_id', showId)
@@ -113,13 +92,7 @@ export const getEntriesForShow = async (showId: string) => {
       throw createDatabaseError(error, 'entries', 'get_entries_for_show');
     }
 
-    // Transform class_entry to class_entries for consistent naming
-    const transformedData = (data || []).map((entry) => ({
-      ...entry,
-      class_entries: entry.class_entry || [],
-    }));
-
-    return { data: transformedData, error: null };
+    return { data: data || [], error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'entries', 'get_entries_for_show');
@@ -232,81 +205,81 @@ export const bulkUpdateEntryStatus = async (entryIds: string[], status: string) 
 };
 
 /**
- * Update class entry check-in status
+ * Update entry check-in status (mark as in ring)
  */
 export const updateCheckInStatus = async (
-  classEntryId: string,
-  status: string,
+  entryId: string,
+  isInRing: boolean,
   notes?: string
 ) => {
   const startTime = Date.now();
 
   try {
     const updateData: Record<string, unknown> = {
-      check_in_status: status,
+      is_in_ring: isInRing,
       updated_at: new Date().toISOString(),
     };
 
-    if (status === 'checked_in') {
-      updateData.check_in_time = new Date().toISOString();
+    if (isInRing) {
+      updateData.ring_entry_time = new Date().toISOString();
     }
 
     if (notes !== undefined) {
-      updateData.check_in_notes = notes;
+      updateData.judge_notes = notes;
     }
 
     const { data, error } = await supabase
-      .from('class_entries')
+      .from('entries')
       .update(updateData)
-      .eq('id', classEntryId)
+      .eq('id', entryId)
       .select()
       .single();
 
     const duration = Date.now() - startTime;
-    logQuery('class_entries', 'update_check_in', duration, error?.message);
+    logQuery('entries', 'update_check_in', duration, error?.message);
 
     if (error) {
-      throw createDatabaseError(error, 'class_entries', 'update_check_in');
+      throw createDatabaseError(error, 'entries', 'update_check_in');
     }
 
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'class_entries', 'update_check_in');
-    logQuery('class_entries', 'update_check_in', duration, dbError.message);
+    const dbError = createDatabaseError(error, 'entries', 'update_check_in');
+    logQuery('entries', 'update_check_in', duration, dbError.message);
     return { data: null, error: dbError };
   }
 };
 
 /**
- * Bulk check-in entries for a class
+ * Bulk check-in entries
  */
-export const bulkCheckIn = async (classEntryIds: string[]) => {
+export const bulkCheckIn = async (entryIds: string[]) => {
   const startTime = Date.now();
 
   try {
     const { data, error } = await supabase
-      .from('class_entries')
+      .from('entries')
       .update({
-        check_in_status: 'checked_in',
-        check_in_time: new Date().toISOString(),
+        is_in_ring: true,
+        ring_entry_time: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
-      .in('id', classEntryIds)
+      .in('id', entryIds)
       .select();
 
     const duration = Date.now() - startTime;
-    logQuery('class_entries', 'bulk_check_in', duration, error?.message);
+    logQuery('entries', 'bulk_check_in', duration, error?.message);
 
     if (error) {
-      throw createDatabaseError(error, 'class_entries', 'bulk_check_in');
+      throw createDatabaseError(error, 'entries', 'bulk_check_in');
     }
 
     return { data: data || [], error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'class_entries', 'bulk_check_in');
-    logQuery('class_entries', 'bulk_check_in', duration, dbError.message);
+    const dbError = createDatabaseError(error, 'entries', 'bulk_check_in');
+    logQuery('entries', 'bulk_check_in', duration, dbError.message);
     return { data: [], error: dbError };
   }
 };
@@ -314,14 +287,14 @@ export const bulkCheckIn = async (classEntryIds: string[]) => {
 /**
  * Assign armband number to an entry
  */
-export const assignArmband = async (entryId: string, armbandNumber: string) => {
+export const assignArmband = async (entryId: string, armband: string) => {
   const startTime = Date.now();
 
   try {
     const { data, error } = await supabase
       .from('entries')
       .update({
-        armband_number: armbandNumber,
+        armband: armband,
         updated_at: new Date().toISOString(),
       })
       .eq('id', entryId)
@@ -354,11 +327,11 @@ export const autoAssignArmbands = async (showId: string, startNumber: number = 1
     // Get entries without armbands, ordered by created_at
     const { data: entries, error: fetchError } = await supabase
       .from('entries')
-      .select('id, armband_number')
+      .select('id, armband')
       .eq('show_id', showId)
       .eq('entry_status', 'accepted')
       .is('deleted_at', null)
-      .is('armband_number', null)
+      .is('armband', null)
       .order('created_at', { ascending: true });
 
     if (fetchError) {
@@ -372,39 +345,32 @@ export const autoAssignArmbands = async (showId: string, startNumber: number = 1
     // Get the highest existing armband number
     const { data: maxArmband } = await supabase
       .from('entries')
-      .select('armband_number')
+      .select('armband')
       .eq('show_id', showId)
       .is('deleted_at', null)
-      .not('armband_number', 'is', null)
-      .order('armband_number', { ascending: false })
+      .not('armband', 'is', null)
+      .order('armband', { ascending: false })
       .limit(1)
       .single();
 
     let nextNumber = startNumber;
-    if (maxArmband?.armband_number) {
-      const parsed = parseInt(maxArmband.armband_number, 10);
+    if (maxArmband?.armband) {
+      const parsed = parseInt(maxArmband.armband, 10);
       if (!isNaN(parsed)) {
         nextNumber = Math.max(nextNumber, parsed + 1);
       }
     }
 
     // Assign armbands
-    const updates = entries.map((entry, index) => ({
-      id: entry.id,
-      armband_number: String(nextNumber + index),
-      updated_at: new Date().toISOString(),
-    }));
-
-    // Update each entry (Supabase doesn't support bulk upsert with different values easily)
     let assignedCount = 0;
-    for (const update of updates) {
+    for (let i = 0; i < entries.length; i++) {
       const { error: updateError } = await supabase
         .from('entries')
         .update({
-          armband_number: update.armband_number,
-          updated_at: update.updated_at,
+          armband: String(nextNumber + i),
+          updated_at: new Date().toISOString(),
         })
-        .eq('id', update.id);
+        .eq('id', entries[i].id);
 
       if (!updateError) {
         assignedCount++;
@@ -432,10 +398,10 @@ export const checkArmbandConflicts = async (showId: string) => {
   try {
     const { data: entries, error } = await supabase
       .from('entries')
-      .select('id, armband_number, dog:dog_id(name)')
+      .select('id, armband, dog:dog_id(name)')
       .eq('show_id', showId)
       .is('deleted_at', null)
-      .not('armband_number', 'is', null);
+      .not('armband', 'is', null);
 
     const duration = Date.now() - startTime;
     logQuery('entries', 'check_armband_conflicts', duration, error?.message);
@@ -447,7 +413,7 @@ export const checkArmbandConflicts = async (showId: string) => {
     // Find duplicates
     const armbandMap = new Map<string, Array<{ id: string; dogName: string }>>();
     for (const entry of entries || []) {
-      const armband = entry.armband_number;
+      const armband = entry.armband;
       if (armband) {
         const existing = armbandMap.get(armband) || [];
         existing.push({
@@ -489,42 +455,29 @@ export const getEntriesForExport = async (showId: string) => {
       .from('entries')
       .select(`
         id,
-        armband_number,
+        armband,
         handler,
         payment_status,
         entry_status,
-        total_fees,
+        entry_fee,
         submitted_at,
         special_requests,
+        jump_height,
+        run_order,
         dog:dog_id (
           id,
           name,
           call_name,
-          breed,
-          registration_number
+          breed
         ),
-        owner:created_by (
-          first_name,
-          last_name,
-          email,
-          phone
-        ),
-        class_entry (
-          id,
-          status,
-          entry_fee,
-          jump_height,
-          run_order,
-          check_in_status,
-          class:class_id (
-            name,
-            class_number
-          )
+        class:class_id (
+          name,
+          class_number
         )
       `)
       .eq('show_id', showId)
       .is('deleted_at', null)
-      .order('armband_number', { ascending: true, nullsFirst: false });
+      .order('armband', { ascending: true, nullsFirst: false });
 
     const duration = Date.now() - startTime;
     logQuery('entries', 'get_entries_for_export', duration, error?.message);
@@ -539,5 +492,38 @@ export const getEntriesForExport = async (showId: string) => {
     const dbError = createDatabaseError(error, 'entries', 'get_entries_for_export');
     logQuery('entries', 'get_entries_for_export', duration, dbError.message);
     return { data: [], error: dbError };
+  }
+};
+
+/**
+ * Update run order for entries in a class
+ */
+export const updateRunOrder = async (entryId: string, runOrder: number) => {
+  const startTime = Date.now();
+
+  try {
+    const { data, error } = await supabase
+      .from('entries')
+      .update({
+        run_order: runOrder,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', entryId)
+      .select()
+      .single();
+
+    const duration = Date.now() - startTime;
+    logQuery('entries', 'update_run_order', duration, error?.message);
+
+    if (error) {
+      throw createDatabaseError(error, 'entries', 'update_run_order');
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const dbError = createDatabaseError(error, 'entries', 'update_run_order');
+    logQuery('entries', 'update_run_order', duration, dbError.message);
+    return { data: null, error: dbError };
   }
 };

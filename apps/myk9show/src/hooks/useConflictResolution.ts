@@ -7,14 +7,12 @@ import type {
   BaseConflictResolution
 } from '../types/conflict-types';
 
-import { logger } from '@/services/LoggingService';
 import {
   conflictManager,
   type ConflictEvent,
   type ConflictEventType,
   type ConflictStats,
-  type ConflictStrategy,
-  type Conflict as SharedConflict
+  type ConflictStrategy
 } from '@myk9/replication';
 
 import { SyncMetadata } from '../types/core-types';
@@ -93,7 +91,7 @@ export function useConflictResolution(
         ? sharedResolutions.filter(c => c.entityType === options.entityType)
         : sharedResolutions;
 
-      const statusMap: Record<string, any> = {
+      const statusMap: Record<string, string> = {
         'pending': 'pending',
         'resolved': 'resolved',
         'ignored': 'dismissed'
@@ -264,7 +262,7 @@ export function useConflictResolution(
     setState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      const context = {
+      const _context = {
         userId: user.id,
         userRole: 'user',
         userPermissions: [],

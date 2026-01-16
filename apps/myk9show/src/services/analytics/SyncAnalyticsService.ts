@@ -19,10 +19,8 @@ import {
 } from '../../types/analytics-types';
 import {
   conflictManager,
-  type Conflict,
   type ConflictEvent
 } from '@myk9/replication';
-import { logger } from '@/services/LoggingService';
 
 /**
  * Main analytics service class providing comprehensive sync monitoring capabilities
@@ -177,7 +175,7 @@ export class SyncAnalyticsService {
   public emit(eventType: string, data: unknown): void {
     // This is a placeholder for event emission functionality
     // In a real implementation, this would use EventEmitter or similar
-    logger.debug(`Analytics event: ${eventType}`, 'analytics', { data: data });
+    console.debug(`Analytics event: ${eventType}`, data);
   }
 
   /**
@@ -702,8 +700,7 @@ export class SyncAnalyticsService {
   /**
    * Persist event to storage
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private async persistEvent(event: SyncEvent): Promise<void> {
+  private async persistEvent(_event: SyncEvent): Promise<void> {
     // In real implementation, this would save to IndexedDB
     // For now, just store in memory
   }
@@ -711,24 +708,21 @@ export class SyncAnalyticsService {
   /**
    * Persist conflict resolution to storage
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private async persistConflictResolution(resolution: ConflictResolution): Promise<void> {
+  private async persistConflictResolution(_resolution: ConflictResolution): Promise<void> {
     // In real implementation, this would save to IndexedDB
   }
 
   /**
    * Persist benchmark to storage
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private async persistBenchmark(benchmark: PerformanceBenchmark): Promise<void> {
+  private async persistBenchmark(_benchmark: PerformanceBenchmark): Promise<void> {
     // In real implementation, this would save to IndexedDB
   }
 
   /**
    * Persist alert to storage
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private async persistAlert(alert: SyncAlert): Promise<void> {
+  private async persistAlert(_alert: SyncAlert): Promise<void> {
     // In real implementation, this would save to IndexedDB
   }
 

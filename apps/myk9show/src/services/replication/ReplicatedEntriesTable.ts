@@ -86,7 +86,8 @@ export interface ReplicatedEntry {
  * Convert database row to app Entry type
  */
 function rowToEntry(row: EntryRow): ReplicatedEntry {
-  const dbRow = row as any;
+  // Cast to Record for accessing fields not in the Supabase schema type
+  const dbRow = row as EntryRow & Record<string, unknown>;
   return {
     id: String(row.id),
     classId: row.class_id ?? undefined,
@@ -95,11 +96,11 @@ function rowToEntry(row: EntryRow): ReplicatedEntry {
     handlerId: row.handler_id ?? undefined,
     armband: row.armband ?? undefined,
     handler: row.handler ?? undefined,
-    status: dbRow.status ?? undefined,
+    status: (dbRow.status as string | undefined) ?? undefined,
     entryStatus: row.entry_status ?? undefined,
     jumpHeight: row.jump_height ?? undefined,
     entryFee: row.entry_fee ?? undefined,
-    totalFees: dbRow.total_fees ?? undefined,
+    totalFees: (dbRow.total_fees as number | undefined) ?? undefined,
     paymentStatus: row.payment_status ?? undefined,
     runOrder: row.run_order ?? undefined,
     moveUpRequested: row.move_up_requested ?? undefined,
@@ -108,36 +109,36 @@ function rowToEntry(row: EntryRow): ReplicatedEntry {
     submittedAt: row.submitted_at ?? undefined,
 
     // CamelCase fields
-    isScored: dbRow.is_scored ?? false,
-    resultStatus: dbRow.result_status ?? undefined,
-    resultText: dbRow.result_text ?? undefined,
-    searchTimeSeconds: dbRow.search_time_seconds ?? undefined,
-    totalPoints: dbRow.total_points ?? undefined,
-    finalPlacement: dbRow.final_placement ?? undefined,
-    dogCallName: dbRow.dog_call_name ?? undefined,
-    dogBreed: dbRow.dog_breed ?? undefined,
+    isScored: (dbRow.is_scored as boolean | undefined) ?? false,
+    resultStatus: (dbRow.result_status as string | undefined) ?? undefined,
+    resultText: (dbRow.result_text as string | undefined) ?? undefined,
+    searchTimeSeconds: (dbRow.search_time_seconds as number | undefined) ?? undefined,
+    totalPoints: (dbRow.total_points as number | undefined) ?? undefined,
+    finalPlacement: dbRow.final_placement != null ? String(dbRow.final_placement) : undefined,
+    dogCallName: (dbRow.dog_call_name as string | undefined) ?? undefined,
+    dogBreed: (dbRow.dog_breed as string | undefined) ?? undefined,
     handlerName: row.handler ?? undefined,
     armbandNumber: row.armband ?? undefined,
 
     // Snake_case fields (compatibility)
-    is_scored: dbRow.is_scored ?? false,
-    result_status: dbRow.result_status ?? undefined,
-    result_text: dbRow.result_text ?? undefined,
-    search_time_seconds: dbRow.search_time_seconds ?? undefined,
-    total_points: dbRow.total_points ?? undefined,
-    final_placement: dbRow.final_placement ?? undefined,
-    dog_call_name: dbRow.dog_call_name ?? undefined,
-    dog_breed: dbRow.dog_breed ?? undefined,
+    is_scored: (dbRow.is_scored as boolean | undefined) ?? false,
+    result_status: (dbRow.result_status as string | undefined) ?? undefined,
+    result_text: (dbRow.result_text as string | undefined) ?? undefined,
+    search_time_seconds: (dbRow.search_time_seconds as number | undefined) ?? undefined,
+    total_points: (dbRow.total_points as number | undefined) ?? undefined,
+    final_placement: dbRow.final_placement != null ? String(dbRow.final_placement) : undefined,
+    dog_call_name: (dbRow.dog_call_name as string | undefined) ?? undefined,
+    dog_breed: (dbRow.dog_breed as string | undefined) ?? undefined,
     handler_name: row.handler ?? undefined,
     armband_number: row.armband ?? undefined,
     class_id: row.class_id ?? undefined,
     entry_status: row.entry_status ?? undefined,
-    element: dbRow.element ?? undefined,
-    level: dbRow.level ?? undefined,
-    areas: dbRow.area_count ?? undefined,
-    timeLimit: dbRow.time_limit_seconds ? String(dbRow.time_limit_seconds) : undefined,
-    timeLimit2: dbRow.time_limit_area2_seconds ? String(dbRow.time_limit_area2_seconds) : undefined,
-    timeLimit3: dbRow.time_limit_area3_seconds ? String(dbRow.time_limit_area3_seconds) : undefined,
+    element: (dbRow.element as string | undefined) ?? undefined,
+    level: (dbRow.level as string | undefined) ?? undefined,
+    areas: (dbRow.area_count as number | undefined) ?? undefined,
+    timeLimit: dbRow.time_limit_seconds ? String(dbRow.time_limit_seconds as number) : undefined,
+    timeLimit2: dbRow.time_limit_area2_seconds ? String(dbRow.time_limit_area2_seconds as number) : undefined,
+    timeLimit3: dbRow.time_limit_area3_seconds ? String(dbRow.time_limit_area3_seconds as number) : undefined,
   };
 }
 

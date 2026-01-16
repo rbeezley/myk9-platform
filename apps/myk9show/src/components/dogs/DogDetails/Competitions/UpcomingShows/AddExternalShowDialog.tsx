@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import StandardDialog from '@/components/common/StandardDialog';
 import { Input } from '@/components/ui/input';
-import { logger } from '@/services/LoggingService';
 import {
   Select,
   SelectTrigger,

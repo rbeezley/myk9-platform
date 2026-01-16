@@ -22,22 +22,21 @@ export const AlertNotificationCenter: React.FC<AlertNotificationCenterProps> = (
   className,
   maxAlerts = 10
 }) => {
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [isOpen, setIsOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
   const alertingService = AlertingService.getInstance();
 
-  useEffect(() => {
-    // Load initial alerts
-    const activeAlerts = alertingService.getAlerts({
-      status: [AlertStatus.ACTIVE],
-      limit: maxAlerts,
-      sortBy: 'createdAt',
-      sortOrder: 'desc'
-    });
-    setAlerts(activeAlerts);
-    setUnreadCount(activeAlerts.length);
+  // Initialize state with data from the service
+  const getInitialAlerts = () => alertingService.getAlerts({
+    status: [AlertStatus.ACTIVE],
+    limit: maxAlerts,
+    sortBy: 'createdAt',
+    sortOrder: 'desc'
+  });
 
+  const [alerts, setAlerts] = useState<Alert[]>(getInitialAlerts);
+  const [isOpen, setIsOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(() => getInitialAlerts().length);
+
+  useEffect(() => {
     // Listen for new alerts
     const handleNewAlert = (alert: Alert) => {
       setAlerts(prev => [alert, ...prev.slice(0, maxAlerts - 1)]);

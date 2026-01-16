@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-nocheck
 // TODO: Fix type errors - 'status' property not in DbEntryInsert type
 // Type mapping utilities for Entry Store <-> Database integration
@@ -100,7 +101,6 @@ export const mapRegistrationDataToUpdate = (regData: Partial<RegistrationData>):
  * This function is kept for backward compatibility but should not be used for entry updates.
  * Use result-specific mappers for competition data instead.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const mapCompetitionDataToUpdate = (_compData: Partial<CompetitionData>): DbEntryUpdate => {
   const update: DbEntryUpdate = {};
   const now = new Date().toISOString();

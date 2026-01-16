@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import type { ExternalResult } from './AddExternalResultDialog';
@@ -19,17 +19,19 @@ const EditExternalResultDialog: React.FC<EditExternalResultDialogProps> = ({ ope
   const [tags, setTags] = useState<string[]>([]);
   const [status, setStatus] = useState('Completed');
 
-  useEffect(() => {
-    if (result) {
-      setName(result.name);
-      setDate(result.date);
-      setLocation(result.location);
-      setClassName(result.className || '');
-      setResultText(result.result);
-      setTags(result.tags || []);
-      setStatus(result.status);
-    }
-  }, [result]);
+  // Sync form state with result prop - using render-time state update pattern
+  const resultId = result?.id || '';
+  const [lastResultId, setLastResultId] = useState(resultId);
+  if (resultId !== lastResultId && result) {
+    setLastResultId(resultId);
+    setName(result.name);
+    setDate(result.date);
+    setLocation(result.location);
+    setClassName(result.className || '');
+    setResultText(result.result);
+    setTags(result.tags || []);
+    setStatus(result.status);
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

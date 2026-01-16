@@ -96,7 +96,7 @@ test.describe('Show CRUD Operations', () => {
     await page.waitForLoadState('networkidle');
 
     const result = await page.evaluate(async () => {
-      const { createShow, updateShow, deleteShow, getShowById } = await import('/src/services/database/queries/showQueries.ts');
+      const { createShow, updateShow, deleteShow } = await import('/src/services/database/queries/showQueries.ts');
 
       // Calculate dates
       const startDate = new Date();
@@ -122,7 +122,7 @@ test.describe('Show CRUD Operations', () => {
       // Update the show
       const updatedLocation = 'Updated Venue, New City';
       const updatedStatus = 'published';  // Valid status per check constraint
-      const { data: updatedShow, error: updateError } = await updateShow(createdShow.id, {
+      const { data: _updatedShow, error: updateError } = await updateShow(createdShow.id, {
         location: updatedLocation,
         status: updatedStatus,
         max_total_entries: 150

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-nocheck
 // TODO: Fix type errors - missing columns updated_by, created_by, status in database schema
 // Class Data Mappers - Phase 2.5: Class Store Integration

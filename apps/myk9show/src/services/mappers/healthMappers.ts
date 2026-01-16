@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-nocheck
 // TODO: Fix type errors after health tables are added to database (health_record, vaccination, medication, allergy, vet_visit)
 // Health records data mappers - transform between database and application types

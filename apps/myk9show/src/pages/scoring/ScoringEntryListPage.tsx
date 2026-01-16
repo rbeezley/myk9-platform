@@ -6,7 +6,6 @@
  */
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { logger } from '@/services/LoggingService';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   DndContext,
@@ -48,7 +47,6 @@ import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable'
 
 // Local components and types
 import {
-  ScoringEntryCard,
   SortableScoringEntryCard,
 } from './components/ScoringEntryCard';
 import type { ScoringEntry, ClassInfo } from './types';
@@ -128,7 +126,7 @@ export function ScoringEntryListPage() {
     setSortBy,
     searchTerm,
     setSearchTerm,
-    filteredEntries,
+    filteredEntries: _filteredEntries,
     entryCounts,
     pendingEntries,
     completedEntries,

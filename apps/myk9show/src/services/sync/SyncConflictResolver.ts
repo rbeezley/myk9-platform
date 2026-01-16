@@ -32,7 +32,7 @@ export class SyncConflictResolver {
   /**
    * Auto-resolve conflicts using configured strategy
    */
-  static async autoResolve(_conflict: Conflict): Promise<ConflictResolution | null> { // eslint-disable-line @typescript-eslint/no-unused-vars
+  static async autoResolve(_conflict: Conflict): Promise<ConflictResolution | null> {
     logger.warn('SyncConflictResolver stub: autoResolve called but not implemented', 'sync', {});
     return null;
   }
@@ -40,7 +40,7 @@ export class SyncConflictResolver {
   /**
    * Check if a conflict can be auto-resolved
    */
-  static canAutoResolve(_conflict: Conflict): boolean { // eslint-disable-line @typescript-eslint/no-unused-vars
+  static canAutoResolve(_conflict: Conflict): boolean {
     return false; // Conservative approach - require manual resolution
   }
 }

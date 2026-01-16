@@ -169,7 +169,6 @@ export const useWizardStore = create<WizardState & WizardActions>()(
       })),
       
       removeJudgeFromShow: (judgeId) => set((state) => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { [judgeId]: _removed, ...remainingDetails } = state.judgeDetails;
         const newAssignments = Object.entries(state.judgeAssignments)
           .filter(([, jId]) => jId !== judgeId)

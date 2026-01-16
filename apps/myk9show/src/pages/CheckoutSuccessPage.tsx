@@ -6,7 +6,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { CheckCircle, Loader2, AlertCircle, Receipt, Calendar, Dog, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -29,7 +29,7 @@ export default function CheckoutSuccessPage() {
   const sessionId = searchParams.get('session_id');
 
   const [isLoading, setIsLoading] = useState(true);
-  const [isVerified, setIsVerified] = useState(false);
+  const [_isVerified, setIsVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [orderDetails, setOrderDetails] = useState<{
     orderId?: string;

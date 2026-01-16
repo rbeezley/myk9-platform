@@ -2,7 +2,6 @@
 // Provides classStore-compatible API while using database operations
 
 import { useMemo } from 'react';
-import { logger } from '@/services/LoggingService';
 import type { ClassInput, EntryInput, SyncableClassData, SyncableEntryData } from '@/store/classStore';
 import type { GeneratedClass } from '@/types/class-template-types';
 import {
@@ -218,56 +217,52 @@ export const useClassStoreCompat = () => {
 
   // Template method compatibility
   const addClassesFromTemplate = async (trialId: string, generatedClasses: GeneratedClass[]): Promise<SyncableClassData[]> => {
-    try {
-      const newClasses: SyncableClassData[] = [];
-      
-      // Try to get trial information for better class data
-      // Note: This is a simplified approach; in a full implementation, we'd fetch trial data
-      const currentDate = new Date().toISOString().split('T')[0];
-      const trialNumber = `TRL-${Date.now()}`;
-      
-      // Create each class using the database-compatible addClass method
-      for (let index = 0; index < generatedClasses.length; index++) {
-        const genClass = generatedClasses[index];
-        
-        const classInput: ClassInput = {
-          trialId,
-          trial: `Trial ${trialId}`, // Will be enhanced by mapper with actual trial data
-          trialDate: currentDate,
-          trialNumber,
-          classOrder: (index + 1).toString(),
-          status: 'Scheduled' as const,
-          judge: 'TBD',
-          // Use generated class data
-          className: genClass.className,
-          classNumber: genClass.classNumber,
-          element: genClass.element,
-          level: genClass.level,
-          section: genClass.section,
-          entryFee: genClass.entryFee || 25,
-          maxEntries: genClass.maxEntries || 40,
-          requiresJumpHeight: genClass.requiresJumpHeight || false,
-          customFields: genClass.customFields,
-          // Default scent work fields (can be customized per class later)
-          hidesUsed: '',
-          distractionsUsed: '',
-          itemsUsed: '',
-          timeLimit1: '3:00',
-          timeLimit2: '',
-          timeLimit3: '',
-          photoUrl: '',
-          templateId: undefined,
-        };
-        
-        // Use the database-compatible addClass method
-        const createdClass = await addClass(classInput);
-        newClasses.push(createdClass);
-      }
-      
-      return newClasses;
-    } catch (error) {
-      throw error;
+    const newClasses: SyncableClassData[] = [];
+
+    // Try to get trial information for better class data
+    // Note: This is a simplified approach; in a full implementation, we'd fetch trial data
+    const currentDate = new Date().toISOString().split('T')[0];
+    const trialNumber = `TRL-${Date.now()}`;
+
+    // Create each class using the database-compatible addClass method
+    for (let index = 0; index < generatedClasses.length; index++) {
+      const genClass = generatedClasses[index];
+
+      const classInput: ClassInput = {
+        trialId,
+        trial: `Trial ${trialId}`, // Will be enhanced by mapper with actual trial data
+        trialDate: currentDate,
+        trialNumber,
+        classOrder: (index + 1).toString(),
+        status: 'Scheduled' as const,
+        judge: 'TBD',
+        // Use generated class data
+        className: genClass.className,
+        classNumber: genClass.classNumber,
+        element: genClass.element,
+        level: genClass.level,
+        section: genClass.section,
+        entryFee: genClass.entryFee || 25,
+        maxEntries: genClass.maxEntries || 40,
+        requiresJumpHeight: genClass.requiresJumpHeight || false,
+        customFields: genClass.customFields,
+        // Default scent work fields (can be customized per class later)
+        hidesUsed: '',
+        distractionsUsed: '',
+        itemsUsed: '',
+        timeLimit1: '3:00',
+        timeLimit2: '',
+        timeLimit3: '',
+        photoUrl: '',
+        templateId: undefined,
+      };
+
+      // Use the database-compatible addClass method
+      const createdClass = await addClass(classInput);
+      newClasses.push(createdClass);
     }
+
+    return newClasses;
   };
 
   // Legacy methods for backward compatibility (deprecated - use async methods instead)

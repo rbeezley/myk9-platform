@@ -368,7 +368,7 @@ class ConflictResolutionService {
     field: string,
     localValue: unknown,
     serverValue: unknown,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     
     _conflict: ConflictData
   ): Promise<unknown> {
     // Custom field resolution logic

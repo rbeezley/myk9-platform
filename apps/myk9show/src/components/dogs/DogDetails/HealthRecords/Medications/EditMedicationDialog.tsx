@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import StandardDialog from '@/components/common/StandardDialog';
 import type { MedicationRecord } from './AddMedicationDialog';
 import { Input } from '@/components/ui/input';
@@ -20,15 +20,17 @@ const EditMedicationDialog: React.FC<EditMedicationDialogProps> = ({ open, recor
   const [notes, setNotes] = useState('');
   const [expiration, setNextDue] = useState<string>("");
 
-  useEffect(() => {
-    if (record) {
-      setName(record.name);
-      setDosage(record.dosage);
-      setFrequency(record.frequency);
-      setNotes(record.notes);
-      setNextDue(record.expiration || "");
-    }
-  }, [record]);
+  // Sync form state with record prop - using render-time state update pattern
+  const recordId = record?.id || '';
+  const [lastRecordId, setLastRecordId] = useState(recordId);
+  if (recordId !== lastRecordId && record) {
+    setLastRecordId(recordId);
+    setName(record.name);
+    setDosage(record.dosage);
+    setFrequency(record.frequency);
+    setNotes(record.notes);
+    setNextDue(record.expiration || "");
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

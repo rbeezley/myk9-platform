@@ -70,7 +70,8 @@ export interface ReplicatedClass {
  * Convert database row to app Class type
  */
 function rowToClass(row: ClassRow): ReplicatedClass {
-  const dbRow = row as any;
+  // Cast to Record for accessing fields not in the Supabase schema type
+  const dbRow = row as ClassRow & Record<string, unknown>;
   return {
     id: String(row.id),
     trialId: row.trial_id ?? undefined,
@@ -93,23 +94,23 @@ function rowToClass(row: ClassRow): ReplicatedClass {
     estimatedDuration: row.estimated_duration ?? undefined,
 
     // CamelCase fields
-    element: dbRow.element ?? undefined,
-    section: dbRow.section ?? undefined,
-    areaCount: dbRow.area_count ?? undefined,
-    timeLimitSeconds: dbRow.time_limit_seconds ?? undefined,
-    timeLimitArea2Seconds: dbRow.time_limit_area2_seconds ?? undefined,
-    timeLimitArea3Seconds: dbRow.time_limit_area3_seconds ?? undefined,
-    judgeName: dbRow.judge_name ?? undefined,
-    classStatus: dbRow.class_status ?? undefined,
-    classOrder: dbRow.class_order ?? undefined,
-    isCompleted: dbRow.is_completed ?? false,
+    element: (dbRow.element as string | undefined) ?? undefined,
+    section: (dbRow.section as string | undefined) ?? undefined,
+    areaCount: (dbRow.area_count as number | undefined) ?? undefined,
+    timeLimitSeconds: (dbRow.time_limit_seconds as number | undefined) ?? undefined,
+    timeLimitArea2Seconds: (dbRow.time_limit_area2_seconds as number | undefined) ?? undefined,
+    timeLimitArea3Seconds: (dbRow.time_limit_area3_seconds as number | undefined) ?? undefined,
+    judgeName: (dbRow.judge_name as string | undefined) ?? undefined,
+    classStatus: (dbRow.class_status as string | undefined) ?? undefined,
+    classOrder: (dbRow.class_order as number | undefined) ?? undefined,
+    isCompleted: (dbRow.is_completed as boolean | undefined) ?? false,
 
     // Snake_case fields (compatibility)
     trial_id: row.trial_id ?? undefined,
-    area_count: dbRow.area_count ?? undefined,
-    time_limit_seconds: dbRow.time_limit_seconds ?? undefined,
-    time_limit_area2_seconds: dbRow.time_limit_area2_seconds ?? undefined,
-    time_limit_area3_seconds: dbRow.time_limit_area3_seconds ?? undefined,
+    area_count: (dbRow.area_count as number | undefined) ?? undefined,
+    time_limit_seconds: (dbRow.time_limit_seconds as number | undefined) ?? undefined,
+    time_limit_area2_seconds: (dbRow.time_limit_area2_seconds as number | undefined) ?? undefined,
+    time_limit_area3_seconds: (dbRow.time_limit_area3_seconds as number | undefined) ?? undefined,
   };
 }
 

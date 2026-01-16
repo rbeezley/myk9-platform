@@ -268,10 +268,11 @@ export class RealtimeEventBus extends EventEmitter {
           this.subscriptions.delete(subscription.id);
         }
       } catch (error) {
-        logger.error('Error in event subscription callback:', 'realtime', { data: error, {
+        logger.error('Error in event subscription callback:', 'realtime', {
+          error,
           subscriptionId: subscription.id,
           event
-        } });
+        });
       }
     });
   }

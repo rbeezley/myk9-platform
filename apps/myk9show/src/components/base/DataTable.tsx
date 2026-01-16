@@ -1,5 +1,4 @@
 import React, { ReactNode } from 'react';
-import { logger } from '@/services/LoggingService';
 import {
   Table,
   TableBody,

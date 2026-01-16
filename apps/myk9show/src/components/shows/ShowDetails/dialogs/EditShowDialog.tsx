@@ -41,7 +41,7 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({ open, onOpenChange, for
   const { templates } = useTemplateStore();
   
   // Get people who are judges
-  const { people, setPeople: _setPeople } = useUserStore(); // eslint-disable-line @typescript-eslint/no-unused-vars
+  const { people, setPeople: _setPeople } = useUserStore();
   
   // Get all people for personnel selection (chairman, secretary, steward)
   const allPeople = React.useMemo(() => {

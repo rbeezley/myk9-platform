@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { logger } from '@/services/LoggingService';
 import {
-  Bold, 
-  Italic, 
+  Bold,
+  Italic,
   Strikethrough,
   List,
   ListOrdered,
@@ -18,6 +18,34 @@ import {
   Camera
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+// Extracted ToolbarButton component to module level
+interface ToolbarButtonProps {
+  onClick: () => void;
+  isActive?: boolean;
+  disabled?: boolean;
+  children: React.ReactNode;
+}
+
+const ToolbarButton = ({
+  onClick,
+  isActive = false,
+  disabled = false,
+  children
+}: ToolbarButtonProps) => (
+  <Button
+    variant={isActive ? "default" : "ghost"}
+    size="sm"
+    onClick={onClick}
+    disabled={disabled}
+    className={cn(
+      "h-8 w-8 p-0",
+      isActive && "bg-primary text-primary-foreground"
+    )}
+  >
+    {children}
+  </Button>
+);
 
 interface RichTextEditorProps {
   content?: string;
@@ -90,31 +118,6 @@ export function RichTextEditor({
       </Card>
     );
   }
-
-  const ToolbarButton = ({ 
-    onClick, 
-    isActive = false, 
-    disabled = false, 
-    children 
-  }: {
-    onClick: () => void;
-    isActive?: boolean;
-    disabled?: boolean;
-    children: React.ReactNode;
-  }) => (
-    <Button
-      variant={isActive ? "default" : "ghost"}
-      size="sm"
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(
-        "h-8 w-8 p-0",
-        isActive && "bg-primary text-primary-foreground"
-      )}
-    >
-      {children}
-    </Button>
-  );
 
   return (
     <Card className={className}>

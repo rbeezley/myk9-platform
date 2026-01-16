@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import AlertingService from '../services/alerts/AlertingService';
-import { logger } from '@/services/LoggingService';
 import {
   Alert,
   AlertRule,

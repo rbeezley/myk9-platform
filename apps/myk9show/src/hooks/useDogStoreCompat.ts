@@ -2,7 +2,6 @@
 // Phase 2.1: Dog Store Integration
 
 import { useMemo } from 'react';
-import { logger } from '@/services/LoggingService';
 import type { Dog } from '@/types/dog-types';
 import type { DogInput } from '@/store/dogStore';
 import {

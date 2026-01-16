@@ -568,7 +568,6 @@ export class EntryLimitChecker {
     return (start1 < end2 && start2 < end1);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private static getClassById(_classId: string, _context: LimitCheckContext): Class | null {
     // In a real implementation, this would fetch class data from the store
     // For now, return null to avoid conflicts

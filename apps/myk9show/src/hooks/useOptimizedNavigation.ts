@@ -32,7 +32,7 @@ export function useOptimizedNavigation() {
     showId: string, 
     options: NavigationOptions = {}
   ) => {
-    const { prefetch = true, replace = false, preserveData: _preserveData = true } = options; // eslint-disable-line @typescript-eslint/no-unused-vars
+    const { prefetch = true, replace = false, preserveData: _preserveData = true } = options;  
     
     const startTime = performance.now();
     

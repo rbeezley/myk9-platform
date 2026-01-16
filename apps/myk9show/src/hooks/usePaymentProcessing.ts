@@ -178,7 +178,7 @@ export function usePaymentProcessing() {
       }
 
       return success;
-    } catch (error) {
+    } catch (_error) {
       return false;
     }
   }, []);
@@ -266,7 +266,7 @@ export function usePaymentProcessing() {
     try {
       const payment = await paymentService.checkPaymentStatus(paymentId);
       return payment;
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
   }, []);

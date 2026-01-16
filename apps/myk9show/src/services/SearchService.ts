@@ -358,7 +358,7 @@ export class SearchService {
   buildAdvancedQuery(
     searchTerms: string,
     filters: SearchFilters,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     
     _fuzzyMatch: boolean = true
   ): SearchQuery {
     // Parse search terms for advanced operators

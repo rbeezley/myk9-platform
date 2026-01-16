@@ -2,7 +2,6 @@
 // Entry Store Integration - React Query Implementation
 
 import { useMemo } from 'react';
-import { logger } from '@/services/LoggingService';
 import type { ShowEntry, ShowEntryInput, RegistrationData, CompetitionData, EntryStatus, SyncableShowEntry } from '@/store/entryStore';
 import {
   useEntriesQuery,
@@ -264,7 +263,6 @@ export const useEntryStoreCompat = () => {
     );
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const getSyncStatus = (_id: string): 'synced' | 'pending' | 'error' | 'conflict' => {
     if (isLoading) return 'pending';
     if (error) return 'error';
@@ -299,7 +297,6 @@ export const useEntryStoreCompat = () => {
     entriesQuery.refetch();
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const setEntries = (_newEntries: SyncableShowEntry[]) => {
     // setEntries is not supported in React Query mode - data is managed by the server state
   };
@@ -312,30 +309,23 @@ export const useEntryStoreCompat = () => {
     // clearAllEntries is not supported in React Query mode
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const importEntries = (_newEntries: SyncableShowEntry[]) => {
     // importEntries is not supported in React Query mode
   };
 
   // Legacy methods for compatibility (deprecated - use async methods instead)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const createEntryLegacy = (_data: Omit<ShowEntry, 'id' | 'status' | 'statusHistory' | 'createdAt' | 'updatedAt'>): string => {
     return 'legacy-not-supported';
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const updateRegistrationLegacy = (_entryId: string, _updates: Partial<RegistrationData>) => {};
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const updateStatusLegacy = (_entryId: string, _status: EntryStatus, _userId: string, _reason?: string) => {};
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const deleteEntryLegacy = (_entryId: string) => {};
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const recordResultLegacy = (_entryId: string, _result: CompetitionData) => {};
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const updateResultLegacy = (_entryId: string, _updates: Partial<CompetitionData>) => {};
 
   return {

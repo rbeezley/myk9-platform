@@ -601,7 +601,7 @@ export const getShowsByStatus = async (status: string) => {
 };
 
 // Get shows where user is a secretary (excluding soft-deleted)
-export const getSecretaryShows = async (userId: string) => {
+export const getSecretaryShows = async (_userId: string) => {
   const startTime = Date.now();
 
   try {

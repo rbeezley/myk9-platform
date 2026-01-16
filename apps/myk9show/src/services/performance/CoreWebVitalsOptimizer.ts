@@ -624,7 +624,7 @@ export class CoreWebVitalsOptimizer {
   /**
    * Handle link clicks with optimization
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+   
   private handleLinkClick(link: HTMLAnchorElement, _event: Event): void {
     // Prefetch the linked page
     if (link.href && !link.href.startsWith('mailto:') && !link.href.startsWith('tel:')) {

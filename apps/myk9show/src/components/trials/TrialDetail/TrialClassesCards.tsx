@@ -71,7 +71,7 @@ function formatStartTime(startTime: string | undefined): string | undefined {
 export function TrialClassesCards({
   classes,
   onEditClass,
-  onDeleteClass,
+  onDeleteClass: _onDeleteClass,
 }: TrialClassesCardsProps) {
   const navigate = useNavigate();
 

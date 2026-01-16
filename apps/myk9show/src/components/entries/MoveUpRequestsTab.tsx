@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-nocheck
 // TODO: Fix type mismatches with dayOfOperationsQueries results
 /**
@@ -8,7 +9,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -133,7 +134,7 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({
       if (!classesResult.error) {
         setClasses(classesResult.data);
       }
-    } catch (err) {
+    } catch (_err) {
       setError('An unexpected error occurred');
     } finally {
       setIsLoading(false);
@@ -146,7 +147,7 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({
     setIsProcessing(true);
 
     try {
-      const { data, error } = await approveMoveUpRequest(
+      const { error } = await approveMoveUpRequest(
         selectedRequest.id,
         targetClassId
       );
@@ -162,7 +163,7 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({
         await loadData();
         onRefresh?.();
       }
-    } catch (err) {
+    } catch (_err) {
       toast.error('An unexpected error occurred');
     } finally {
       setIsProcessing(false);
@@ -185,7 +186,7 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({
         await loadData();
         onRefresh?.();
       }
-    } catch (err) {
+    } catch (_err) {
       toast.error('An unexpected error occurred');
     } finally {
       setIsProcessing(false);

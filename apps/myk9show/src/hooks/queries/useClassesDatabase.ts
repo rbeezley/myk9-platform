@@ -2,7 +2,6 @@
 // Provides type-safe, cached database operations for classes and entries
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { logger } from '@/services/LoggingService';
 import {
   getAllClasses,
   getClassById,

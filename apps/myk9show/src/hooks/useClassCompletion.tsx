@@ -20,7 +20,6 @@ import React, { useState, useCallback, useRef } from 'react';
 import { ensureReplicationManager } from '@/utils/replicationHelper';
 import type { ReplicatedEntry as Entry } from '@/services/replication/ReplicatedEntriesTable';
 import type { ReplicatedClass as Class } from '@/services/replication/ReplicatedClassesTable';
-import { logger } from '@/services/LoggingService';
 
 // Minimal stub for ClassCompletionCelebration - to be implemented
 interface CelebrationProps {

@@ -1,8 +1,7 @@
-/* eslint-disable */
+ 
 // Centralized Supabase client configuration
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../../types/supabase';
-import { logger } from '@/services/LoggingService';
 
 // Environment variables with fallbacks
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';

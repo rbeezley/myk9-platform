@@ -50,11 +50,11 @@ interface AwardsProcessorProps {
   onClose: () => void;
 }
 
-export function AwardsProcessor({ 
-  trialId: _trialId, // eslint-disable-line @typescript-eslint/no-unused-vars
-  trialName, 
+export function AwardsProcessor({
+  trialId: _trialId,
+  trialName,
   onProcessingComplete,
-  onClose 
+  onClose
 }: AwardsProcessorProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStep, setProcessingStep] = useState<string>('');

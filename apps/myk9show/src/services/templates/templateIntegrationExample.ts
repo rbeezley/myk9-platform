@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-nocheck
 // TODO: Fix type errors after template database migration (missing columns: organization, show_type, is_active)
 /* eslint-disable react-hooks/rules-of-hooks */

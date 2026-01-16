@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-nocheck
 // TODO: Fix type errors after show_registration table schema update (DbShowRegistration type mismatch)
 /**

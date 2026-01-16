@@ -18,15 +18,17 @@ const EditExternalShowDialog: React.FC<EditExternalShowDialogProps> = ({ open, s
   const [events, setEvents] = React.useState<string[]>([]);
   const [status, setStatus] = React.useState('Entry Pending');
 
-  React.useEffect(() => {
-    if (show) {
-      setName(show.name || '');
-      setDate(show.startDate || '');
-      setLocation(show.location || '');
-      setEvents(show.events || []);
-      setStatus(show.status || 'Entry Pending');
-    }
-  }, [show]);
+  // Sync form state with show prop - using render-time state update pattern
+  const showId = show?.id || '';
+  const [lastShowId, setLastShowId] = React.useState(showId);
+  if (showId !== lastShowId && show) {
+    setLastShowId(showId);
+    setName(show.name || '');
+    setDate(show.startDate || '');
+    setLocation(show.location || '');
+    setEvents(show.events || []);
+    setStatus(show.status || 'Entry Pending');
+  }
 
   if (!show) return null;
 

@@ -250,7 +250,6 @@ export const FormErrorProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const unregisterForm = useCallback((formId: string) => {
     setState(prev => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { [formId]: _removed, ...remaining } = prev.forms;
       return { ...prev, forms: remaining };
     });
@@ -284,7 +283,6 @@ export const FormErrorProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const form = prev.forms[formId];
       if (!form) return prev;
 
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { [fieldName]: _removed, ...remainingFields } = form.fields;
       
       return {

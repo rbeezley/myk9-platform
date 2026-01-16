@@ -7,7 +7,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useEnhancedAuth } from './useEnhancedAuth';
 import { rbacService } from '@/services/rbac/RBACService';
-import { logger } from '@/services/LoggingService';
 import {
   // UserPermissionsResponse, // Not used
   PermissionWithRole,

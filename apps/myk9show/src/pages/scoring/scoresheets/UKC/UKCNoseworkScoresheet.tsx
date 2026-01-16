@@ -17,7 +17,6 @@ import '../BaseScoresheet.css';
 import '../AKC/scoresheet-shared.css';
 import '../AKC/AKCScentWorkScoresheet-JudgeDialog.css';
 import './UKCNoseworkScoresheet.css';
-import { logger } from '@/services/LoggingService';
 
 // Types
 interface UKCNoseworkScoresheetProps {
@@ -85,7 +84,7 @@ export const UKCNoseworkScoresheet: React.FC<UKCNoseworkScoresheetProps> = ({
   onNavigate,
   onBack,
   hasNext,
-  hasPrev,
+  hasPrev: _hasPrev,
 }) => {
   // Determine if dual timer mode is needed
   const dualTimerMode = isDualTimerLevel(classInfo.level);

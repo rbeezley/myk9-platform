@@ -5,7 +5,7 @@
  * for testing performance optimizations in a production-like environment.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -48,23 +48,7 @@ export const PerformanceModeToggle: React.FC = () => {
     compression: { avgCompressionRatio: number; cacheSize: number; config: unknown };
   } | null>(null);
 
-  // Load current settings
-  useEffect(() => {
-    const currentInfo = getStorageAdapterInfo();
-    const savedMode = localStorage.getItem('admin-storage-mode') as 'development' | 'production' | 'optimized' | null;
-    
-    setSettings({
-      storageMode: savedMode || (import.meta.env.DEV ? 'development' : 'production'),
-      enableMetrics: currentInfo.enableMetrics,
-      enableCompression: localStorage.getItem('admin-enable-compression') === 'true',
-      enableConnectionPooling: localStorage.getItem('admin-enable-pooling') !== 'false',
-    });
-
-    // Load performance stats
-    loadStats();
-  }, []);
-
-  const loadStats = () => {
+  const loadStats = useCallback(() => {
     try {
       setStats({
         storage: getStorageAdapterInfo(),
@@ -74,7 +58,23 @@ export const PerformanceModeToggle: React.FC = () => {
     } catch (error) {
       logger.warn('Could not load performance stats:', 'admin', {}, error as Error);
     }
-  };
+  }, []);
+
+  // Load current settings
+  useEffect(() => {
+    const currentInfo = getStorageAdapterInfo();
+    const savedMode = localStorage.getItem('admin-storage-mode') as 'development' | 'production' | 'optimized' | null;
+
+    setSettings({
+      storageMode: savedMode || (import.meta.env.DEV ? 'development' : 'production'),
+      enableMetrics: currentInfo.enableMetrics,
+      enableCompression: localStorage.getItem('admin-enable-compression') === 'true',
+      enableConnectionPooling: localStorage.getItem('admin-enable-pooling') !== 'false',
+    });
+
+    // Load performance stats
+    loadStats();
+  }, [loadStats]);
 
   const handleModeChange = (mode: 'development' | 'production' | 'optimized') => {
     setSettings(prev => ({ ...prev, storageMode: mode }));

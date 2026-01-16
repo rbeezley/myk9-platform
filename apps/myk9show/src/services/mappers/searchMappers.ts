@@ -5,7 +5,6 @@
  * handle validation, and provide utility functions for search and analytics data.
  */
 
-import { logger } from '@/services/LoggingService';
 import {
   SearchHistory,
   SearchAnalytics,

@@ -34,7 +34,7 @@ interface ClubRow {
   deleted_at: string | null;
   deleted_by: string | null;
   // Add other common fields returned by Supabase to avoid type mismatch
-  [key: string]: any;
+  [key: string]: string | null | undefined;
 }
 
 /**
@@ -149,7 +149,7 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
       // Process each club
       for (const remoteRow of remoteClubs) {
         const clubId = String(remoteRow.id);
-        const remoteClub = rowToClub(remoteRow as any as ClubRow);
+        const remoteClub = rowToClub(remoteRow as unknown as ClubRow);
         const localClub = await this.get(clubId);
 
         if (localClub) {

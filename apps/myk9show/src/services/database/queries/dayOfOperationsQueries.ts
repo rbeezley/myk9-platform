@@ -1,5 +1,3 @@
-// @ts-nocheck
-// TODO: Refactor queries to match actual Supabase schema (use entries table, fix column/table names)
 /**
  * Day-of Operations Queries
  *
@@ -7,6 +5,8 @@
  * - Day-of entries (walk-in registrations)
  * - Move-up requests
  * - Scratch handling
+ *
+ * Note: Each row in the entries table represents one dog's entry into one class.
  */
 
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
@@ -23,21 +23,17 @@ export interface DayOfEntry {
 
 export interface MoveUpRequest {
   id: string;
-  classEntryId: string;
   fromClassId: string;
   toClassId: string;
   status: 'pending' | 'approved' | 'denied';
   reason?: string;
   created_at: string;
-  entry: {
+  handler: string | null;
+  armband: string | null;
+  dog: {
     id: string;
-    handler: string | null;
-    armband_number: string | null;
-    dog: {
-      id: string;
-      name: string;
-      call_name: string | null;
-    } | null;
+    name: string;
+    call_name: string | null;
   } | null;
   fromClass: {
     id: string;
@@ -48,7 +44,7 @@ export interface MoveUpRequest {
     id: string;
     name: string;
     class_number: string | null;
-    entry_limit: number | null;
+    max_entries: number | null;
   } | null;
 }
 
@@ -56,7 +52,7 @@ export interface ClassWithCapacity {
   id: string;
   name: string;
   class_number: string | null;
-  entry_limit: number | null;
+  max_entries: number | null;
   trial_id: string;
   accepted_count: number;
   available_spots: number;
@@ -71,12 +67,12 @@ export const getClassesWithCapacity = async (showId: string) => {
   try {
     // First get all trials for the show
     const { data: trials, error: trialsError } = await supabase
-      .from('trial')
+      .from('trials')
       .select('id')
       .eq('show_id', showId);
 
     if (trialsError) {
-      throw createDatabaseError(trialsError, 'trial', 'get_trials_for_capacity');
+      throw createDatabaseError(trialsError, 'trials', 'get_trials_for_capacity');
     }
 
     const trialIds = trials?.map((t) => t.id) || [];
@@ -86,34 +82,34 @@ export const getClassesWithCapacity = async (showId: string) => {
     }
 
     // Get classes with their entry counts
+    // Note: class_number column exists but Supabase types need regeneration
     const { data: classes, error: classError } = await supabase
-      .from('class')
+      .from('classes')
       .select(`
         id,
         name,
-        class_number,
-        entry_limit,
+        max_entries,
         trial_id
       `)
       .in('trial_id', trialIds)
       .is('deleted_at', null)
-      .order('class_number', { ascending: true });
+      .order('name', { ascending: true });
 
     if (classError) {
-      throw createDatabaseError(classError, 'class', 'get_classes_for_capacity');
+      throw createDatabaseError(classError, 'classes', 'get_classes_for_capacity');
     }
 
     // Get counts for each class
     const classesWithCapacity = await Promise.all(
       (classes || []).map(async (cls) => {
         const { count: acceptedCount } = await supabase
-          .from('class_entry')
+          .from('entries')
           .select('id', { count: 'exact', head: true })
           .eq('class_id', cls.id)
-          .in('status', ['accepted', 'checked_in'])
+          .in('entry_status', ['accepted', 'checked_in'])
           .is('deleted_at', null);
 
-        const limit = cls.entry_limit || 999;
+        const limit = cls.max_entries || 999;
         const accepted = acceptedCount || 0;
 
         return {
@@ -125,19 +121,20 @@ export const getClassesWithCapacity = async (showId: string) => {
     );
 
     const duration = Date.now() - startTime;
-    logQuery('class', 'get_classes_with_capacity', duration);
+    logQuery('classes', 'get_classes_with_capacity', duration);
 
     return { data: classesWithCapacity, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'class', 'get_classes_with_capacity');
-    logQuery('class', 'get_classes_with_capacity', duration, dbError.message);
+    const dbError = createDatabaseError(error, 'classes', 'get_classes_with_capacity');
+    logQuery('classes', 'get_classes_with_capacity', duration, dbError.message);
     return { data: [], error: dbError };
   }
 };
 
 /**
  * Create a day-of entry (walk-in registration)
+ * Creates one entry row per class (since each entry = one dog in one class)
  */
 export const createDayOfEntry = async (entryData: DayOfEntry, userId: string) => {
   const startTime = Date.now();
@@ -145,127 +142,115 @@ export const createDayOfEntry = async (entryData: DayOfEntry, userId: string) =>
   try {
     // Get the next available armband number
     const { data: maxArmband } = await supabase
-      .from('entry')
-      .select('armband_number')
+      .from('entries')
+      .select('armband')
       .eq('show_id', entryData.showId)
       .is('deleted_at', null)
-      .not('armband_number', 'is', null)
-      .order('armband_number', { ascending: false })
+      .not('armband', 'is', null)
+      .order('armband', { ascending: false })
       .limit(1)
       .single();
 
     let nextArmband = 1;
-    if (maxArmband?.armband_number) {
-      const parsed = parseInt(maxArmband.armband_number, 10);
+    if (maxArmband?.armband) {
+      const parsed = parseInt(maxArmband.armband, 10);
       if (!isNaN(parsed)) {
         nextArmband = parsed + 1;
       }
     }
 
-    // Calculate total fees (simplified - you may want to fetch actual class fees)
-    const totalFees = entryData.classIds.length * 35; // Default fee per class
-
-    // Create the entry
-    const { data: entry, error: entryError } = await supabase
-      .from('entry')
-      .insert({
-        dog_id: entryData.dogId,
-        show_id: entryData.showId,
-        handler: entryData.handler,
-        payment_status: entryData.paymentMethod === 'waived' ? 'waived' : 'paid',
-        entry_status: 'accepted',
-        total_fees: entryData.paymentMethod === 'waived' ? 0 : totalFees,
-        armband_number: String(nextArmband),
-        special_requests: entryData.notes || null,
-        submitted_at: new Date().toISOString(),
-        created_by: userId,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
-
-    if (entryError) {
-      throw createDatabaseError(entryError, 'entry', 'create_day_of_entry');
-    }
-
-    // Get trial_id for each class
+    // Get trial_id and entry_fee for each class
     const { data: classData } = await supabase
-      .from('class')
-      .select('id, trial_id')
+      .from('classes')
+      .select('id, trial_id, entry_fee')
       .in('id', entryData.classIds);
 
-    const classTrialMap = new Map(classData?.map((c) => [c.id, c.trial_id]) || []);
+    const classInfoMap = new Map(
+      classData?.map((c) => [c.id, { trial_id: c.trial_id, entry_fee: c.entry_fee }]) || []
+    );
 
-    // Create class entries for each selected class
-    const classEntries = entryData.classIds.map((classId) => ({
-      entry_id: entry.id,
-      class_id: classId,
-      trial_id: classTrialMap.get(classId),
-      status: 'accepted',
-      entry_fee: 35, // Default fee
-      jump_height: entryData.jumpHeight || null,
-      check_in_status: 'pending',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }));
+    // Calculate total fees
+    const defaultFee = 35;
+    const totalFees = entryData.classIds.reduce((sum, classId) => {
+      const info = classInfoMap.get(classId);
+      return sum + (info?.entry_fee || defaultFee);
+    }, 0);
 
-    const { error: classEntryError } = await supabase
-      .from('class_entry')
-      .insert(classEntries);
+    // Create one entry per class (entries table has one row per class entry)
+    const entries = entryData.classIds.map((classId, index) => {
+      const classInfo = classInfoMap.get(classId);
+      return {
+        dog_id: entryData.dogId,
+        show_id: entryData.showId,
+        class_id: classId,
+        trial_id: classInfo?.trial_id,
+        handler: entryData.handler,
+        handler_id: userId, // Track who created the day-of entry
+        payment_status: entryData.paymentMethod === 'waived' ? 'waived' : 'paid',
+        entry_status: 'accepted',
+        entry_fee: entryData.paymentMethod === 'waived' ? 0 : (classInfo?.entry_fee || defaultFee),
+        armband: String(nextArmband), // Same armband for all classes (same dog/handler)
+        jump_height: entryData.jumpHeight || null,
+        special_requests: index === 0 ? (entryData.notes || null) : null, // Only on first entry
+        submitted_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+    });
 
-    if (classEntryError) {
-      // Rollback entry if class entries fail
-      await supabase.from('entry').delete().eq('id', entry.id);
-      throw createDatabaseError(classEntryError, 'class_entry', 'create_day_of_class_entries');
+    const { data: createdEntries, error: entryError } = await supabase
+      .from('entries')
+      .insert(entries)
+      .select();
+
+    if (entryError) {
+      throw createDatabaseError(entryError, 'entries', 'create_day_of_entry');
     }
 
     const duration = Date.now() - startTime;
-    logQuery('entry', 'create_day_of_entry', duration);
+    logQuery('entries', 'create_day_of_entry', duration);
 
     return {
       data: {
-        entry,
+        entries: createdEntries,
         armbandNumber: nextArmband,
         classCount: entryData.classIds.length,
+        totalFees: entryData.paymentMethod === 'waived' ? 0 : totalFees,
       },
       error: null,
     };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entry', 'create_day_of_entry');
-    logQuery('entry', 'create_day_of_entry', duration, dbError.message);
+    const dbError = createDatabaseError(error, 'entries', 'create_day_of_entry');
+    logQuery('entries', 'create_day_of_entry', duration, dbError.message);
     return { data: null, error: dbError };
   }
 };
 
 /**
- * Mark a class entry as scratched
+ * Mark an entry as scratched
  */
-export const scratchEntry = async (classEntryId: string, reason?: string) => {
+export const scratchEntry = async (entryId: string, reason?: string) => {
   const startTime = Date.now();
 
   try {
     const { data, error } = await supabase
-      .from('class_entry')
+      .from('entries')
       .update({
-        status: 'scratched',
-        check_in_notes: reason || 'Scratched day-of',
+        entry_status: 'scratched',
+        special_requests: reason || 'Scratched day-of',
         updated_at: new Date().toISOString(),
       })
-      .eq('id', classEntryId)
+      .eq('id', entryId)
       .select(`
         id,
-        status,
-        entry:entry_id (
+        entry_status,
+        handler,
+        armband,
+        dog:dog_id (
           id,
-          handler,
-          armband_number,
-          dog:dog_id (
-            id,
-            name,
-            call_name
-          )
+          name,
+          call_name
         ),
         class:class_id (
           id,
@@ -276,63 +261,44 @@ export const scratchEntry = async (classEntryId: string, reason?: string) => {
       .single();
 
     const duration = Date.now() - startTime;
-    logQuery('class_entry', 'scratch_entry', duration, error?.message);
+    logQuery('entries', 'scratch_entry', duration, error?.message);
 
     if (error) {
-      throw createDatabaseError(error, 'class_entry', 'scratch_entry');
+      throw createDatabaseError(error, 'entries', 'scratch_entry');
     }
 
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'class_entry', 'scratch_entry');
-    logQuery('class_entry', 'scratch_entry', duration, dbError.message);
+    const dbError = createDatabaseError(error, 'entries', 'scratch_entry');
+    logQuery('entries', 'scratch_entry', duration, dbError.message);
     return { data: null, error: dbError };
   }
 };
 
 /**
- * Get entries eligible for scratching (checked in but not yet run)
+ * Get entries eligible for scratching (accepted but not yet run)
  */
 export const getScratchableEntries = async (showId: string) => {
   const startTime = Date.now();
 
   try {
-    // Get all trials for the show
-    const { data: trials, error: trialsError } = await supabase
-      .from('trial')
-      .select('id')
-      .eq('show_id', showId);
-
-    if (trialsError) {
-      throw createDatabaseError(trialsError, 'trial', 'get_trials_for_scratch');
-    }
-
-    const trialIds = trials?.map((t) => t.id) || [];
-
-    if (trialIds.length === 0) {
-      return { data: [], error: null };
-    }
-
     // Get entries that can be scratched
     const { data, error } = await supabase
-      .from('class_entry')
+      .from('entries')
       .select(`
         id,
         class_id,
-        status,
-        check_in_status,
+        trial_id,
+        entry_status,
         jump_height,
         run_order,
-        entry:entry_id (
+        handler,
+        armband,
+        dog:dog_id (
           id,
-          handler,
-          armband_number,
-          dog:dog_id (
-            id,
-            name,
-            call_name
-          )
+          name,
+          call_name
         ),
         class:class_id (
           id,
@@ -340,23 +306,23 @@ export const getScratchableEntries = async (showId: string) => {
           class_number
         )
       `)
-      .in('trial_id', trialIds)
-      .in('status', ['accepted', 'checked_in'])
+      .eq('show_id', showId)
+      .in('entry_status', ['accepted', 'checked_in'])
       .is('deleted_at', null)
       .order('run_order', { ascending: true, nullsFirst: false });
 
     const duration = Date.now() - startTime;
-    logQuery('class_entry', 'get_scratchable_entries', duration, error?.message);
+    logQuery('entries', 'get_scratchable_entries', duration, error?.message);
 
     if (error) {
-      throw createDatabaseError(error, 'class_entry', 'get_scratchable_entries');
+      throw createDatabaseError(error, 'entries', 'get_scratchable_entries');
     }
 
     return { data: data || [], error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'class_entry', 'get_scratchable_entries');
-    logQuery('class_entry', 'get_scratchable_entries', duration, dbError.message);
+    const dbError = createDatabaseError(error, 'entries', 'get_scratchable_entries');
+    logQuery('entries', 'get_scratchable_entries', duration, dbError.message);
     return { data: [], error: dbError };
   }
 };
@@ -365,47 +331,45 @@ export const getScratchableEntries = async (showId: string) => {
  * Process a move-up request (move entry from one class to a higher class)
  */
 export const processMoveUp = async (
-  classEntryId: string,
+  entryId: string,
   toClassId: string,
   reason?: string
 ) => {
   const startTime = Date.now();
 
   try {
-    // Get the current class entry details
+    // Get the current entry details
     const { data: currentEntry, error: fetchError } = await supabase
-      .from('class_entry')
+      .from('entries')
       .select(`
         id,
-        entry_id,
+        dog_id,
+        show_id,
         class_id,
         trial_id,
         jump_height,
         entry_fee,
-        entry:entry_id (
-          id,
-          handler,
-          armband_number
-        )
+        handler,
+        armband
       `)
-      .eq('id', classEntryId)
+      .eq('id', entryId)
       .single();
 
     if (fetchError || !currentEntry) {
-      throw createDatabaseError(fetchError || new Error('Entry not found'), 'class_entry', 'process_move_up_fetch');
+      throw createDatabaseError(fetchError || new Error('Entry not found'), 'entries', 'process_move_up_fetch');
     }
 
     // Check capacity in target class
     const { count: acceptedCount } = await supabase
-      .from('class_entry')
+      .from('entries')
       .select('id', { count: 'exact', head: true })
       .eq('class_id', toClassId)
-      .in('status', ['accepted', 'checked_in'])
+      .in('entry_status', ['accepted', 'checked_in'])
       .is('deleted_at', null);
 
     const { data: targetClass } = await supabase
-      .from('class')
-      .select('id, name, entry_limit, trial_id')
+      .from('classes')
+      .select('id, name, max_entries, trial_id')
       .eq('id', toClassId)
       .single();
 
@@ -413,52 +377,52 @@ export const processMoveUp = async (
       throw new Error('Target class not found');
     }
 
-    const limit = targetClass.entry_limit || 999;
+    const limit = targetClass.max_entries || 999;
     if ((acceptedCount || 0) >= limit) {
       return { data: null, error: { message: 'Target class is full' } };
     }
 
     // Mark original entry as 'moved'
     const { error: updateError } = await supabase
-      .from('class_entry')
+      .from('entries')
       .update({
-        status: 'moved',
-        check_in_notes: `Moved up to ${targetClass.name}${reason ? ': ' + reason : ''}`,
+        entry_status: 'moved',
+        special_requests: `Moved up to ${targetClass.name}${reason ? ': ' + reason : ''}`,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', classEntryId);
+      .eq('id', entryId);
 
     if (updateError) {
-      throw createDatabaseError(updateError, 'class_entry', 'process_move_up_update');
+      throw createDatabaseError(updateError, 'entries', 'process_move_up_update');
     }
 
-    // Create new class entry in target class
+    // Create new entry in target class
     const { data: newEntry, error: createError } = await supabase
-      .from('class_entry')
+      .from('entries')
       .insert({
-        entry_id: currentEntry.entry_id,
+        dog_id: currentEntry.dog_id,
+        show_id: currentEntry.show_id,
         class_id: toClassId,
         trial_id: targetClass.trial_id,
-        status: 'accepted',
-        entry_fee: 0, // Move-ups typically don't require additional fees
+        entry_status: 'accepted',
+        payment_status: 'waived', // Move-ups typically don't require additional fees
+        entry_fee: 0,
         jump_height: currentEntry.jump_height,
-        check_in_status: 'pending',
-        check_in_notes: `Moved up from class ${currentEntry.class_id}${reason ? ': ' + reason : ''}`,
+        handler: currentEntry.handler,
+        armband: currentEntry.armband,
+        special_requests: `Moved up from class ${currentEntry.class_id}${reason ? ': ' + reason : ''}`,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
       .select(`
         id,
-        status,
-        entry:entry_id (
+        entry_status,
+        handler,
+        armband,
+        dog:dog_id (
           id,
-          handler,
-          armband_number,
-          dog:dog_id (
-            id,
-            name,
-            call_name
-          )
+          name,
+          call_name
         ),
         class:class_id (
           id,
@@ -471,20 +435,20 @@ export const processMoveUp = async (
     if (createError) {
       // Rollback the status change if new entry fails
       await supabase
-        .from('class_entry')
-        .update({ status: 'accepted', check_in_notes: null, updated_at: new Date().toISOString() })
-        .eq('id', classEntryId);
-      throw createDatabaseError(createError, 'class_entry', 'process_move_up_create');
+        .from('entries')
+        .update({ entry_status: 'accepted', special_requests: null, updated_at: new Date().toISOString() })
+        .eq('id', entryId);
+      throw createDatabaseError(createError, 'entries', 'process_move_up_create');
     }
 
     const duration = Date.now() - startTime;
-    logQuery('class_entry', 'process_move_up', duration);
+    logQuery('entries', 'process_move_up', duration);
 
     return { data: newEntry, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'class_entry', 'process_move_up');
-    logQuery('class_entry', 'process_move_up', duration, dbError.message);
+    const dbError = createDatabaseError(error, 'entries', 'process_move_up');
+    logQuery('entries', 'process_move_up', duration, dbError.message);
     return { data: null, error: dbError };
   }
 };
@@ -496,41 +460,21 @@ export const getMoveUpEligibleEntries = async (showId: string) => {
   const startTime = Date.now();
 
   try {
-    // Get all trials for the show
-    const { data: trials, error: trialsError } = await supabase
-      .from('trial')
-      .select('id')
-      .eq('show_id', showId);
-
-    if (trialsError) {
-      throw createDatabaseError(trialsError, 'trial', 'get_trials_for_move_up');
-    }
-
-    const trialIds = trials?.map((t) => t.id) || [];
-
-    if (trialIds.length === 0) {
-      return { data: [], error: null };
-    }
-
     // Get entries that are accepted/checked-in and could move up
-    // In a real scenario, you'd check if they qualified in a previous class
     const { data, error } = await supabase
-      .from('class_entry')
+      .from('entries')
       .select(`
         id,
         class_id,
-        status,
-        check_in_status,
+        trial_id,
+        entry_status,
         jump_height,
-        entry:entry_id (
+        handler,
+        armband,
+        dog:dog_id (
           id,
-          handler,
-          armband_number,
-          dog:dog_id (
-            id,
-            name,
-            call_name
-          )
+          name,
+          call_name
         ),
         class:class_id (
           id,
@@ -539,23 +483,23 @@ export const getMoveUpEligibleEntries = async (showId: string) => {
           trial_id
         )
       `)
-      .in('trial_id', trialIds)
-      .in('status', ['accepted', 'checked_in'])
+      .eq('show_id', showId)
+      .in('entry_status', ['accepted', 'checked_in'])
       .is('deleted_at', null)
       .order('class_id');
 
     const duration = Date.now() - startTime;
-    logQuery('class_entry', 'get_move_up_eligible', duration, error?.message);
+    logQuery('entries', 'get_move_up_eligible', duration, error?.message);
 
     if (error) {
-      throw createDatabaseError(error, 'class_entry', 'get_move_up_eligible');
+      throw createDatabaseError(error, 'entries', 'get_move_up_eligible');
     }
 
     return { data: data || [], error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'class_entry', 'get_move_up_eligible');
-    logQuery('class_entry', 'get_move_up_eligible', duration, dbError.message);
+    const dbError = createDatabaseError(error, 'entries', 'get_move_up_eligible');
+    logQuery('entries', 'get_move_up_eligible', duration, dbError.message);
     return { data: [], error: dbError };
   }
 };
@@ -569,7 +513,7 @@ export const getShowDogs = async (showId: string) => {
   try {
     // Get dogs that already have entries in this show
     const { data: existingEntries, error: entriesError } = await supabase
-      .from('entry')
+      .from('entries')
       .select(`
         dog_id,
         dog:dog_id (
@@ -583,7 +527,7 @@ export const getShowDogs = async (showId: string) => {
       .is('deleted_at', null);
 
     if (entriesError) {
-      throw createDatabaseError(entriesError, 'entry', 'get_show_dogs');
+      throw createDatabaseError(entriesError, 'entries', 'get_show_dogs');
     }
 
     // Get unique dogs
@@ -595,13 +539,13 @@ export const getShowDogs = async (showId: string) => {
     });
 
     const duration = Date.now() - startTime;
-    logQuery('entry', 'get_show_dogs', duration);
+    logQuery('entries', 'get_show_dogs', duration);
 
     return { data: Array.from(dogMap.values()), error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entry', 'get_show_dogs');
-    logQuery('entry', 'get_show_dogs', duration, dbError.message);
+    const dbError = createDatabaseError(error, 'entries', 'get_show_dogs');
+    logQuery('entries', 'get_show_dogs', duration, dbError.message);
     return { data: [], error: dbError };
   }
 };
@@ -613,44 +557,24 @@ export const getPendingMoveUpRequests = async (showId: string) => {
   const startTime = Date.now();
 
   try {
-    // Get all trials for the show
-    const { data: trials, error: trialsError } = await supabase
-      .from('trial')
-      .select('id')
-      .eq('show_id', showId);
-
-    if (trialsError) {
-      throw createDatabaseError(trialsError, 'trial', 'get_trials_for_move_up_requests');
-    }
-
-    const trialIds = trials?.map((t) => t.id) || [];
-
-    if (trialIds.length === 0) {
-      return { data: [], error: null };
-    }
-
-    // Get entries with move-up requests (status = 'move_up_requested')
+    // Get entries with move-up requests (entry_status = 'move_up_requested')
     const { data, error } = await supabase
-      .from('class_entry')
+      .from('entries')
       .select(`
         id,
         class_id,
         trial_id,
-        status,
+        entry_status,
         jump_height,
-        check_in_notes,
+        special_requests,
         created_at,
         updated_at,
-        move_up_target_class_id,
-        entry:entry_id (
+        handler,
+        armband,
+        dog:dog_id (
           id,
-          handler,
-          armband_number,
-          dog:dog_id (
-            id,
-            name,
-            call_name
-          )
+          name,
+          call_name
         ),
         class:class_id (
           id,
@@ -659,39 +583,23 @@ export const getPendingMoveUpRequests = async (showId: string) => {
           trial_id
         )
       `)
-      .in('trial_id', trialIds)
-      .eq('status', 'move_up_requested')
+      .eq('show_id', showId)
+      .eq('entry_status', 'move_up_requested')
       .is('deleted_at', null)
       .order('created_at', { ascending: true });
 
     const duration = Date.now() - startTime;
-    logQuery('class_entry', 'get_pending_move_up_requests', duration, error?.message);
+    logQuery('entries', 'get_pending_move_up_requests', duration, error?.message);
 
     if (error) {
-      throw createDatabaseError(error, 'class_entry', 'get_pending_move_up_requests');
+      throw createDatabaseError(error, 'entries', 'get_pending_move_up_requests');
     }
 
-    // Enhance with target class info
-    const enhancedData = await Promise.all(
-      (data || []).map(async (entry) => {
-        let targetClass = null;
-        if (entry.move_up_target_class_id) {
-          const { data: targetData } = await supabase
-            .from('class')
-            .select('id, name, class_number, entry_limit')
-            .eq('id', entry.move_up_target_class_id)
-            .single();
-          targetClass = targetData;
-        }
-        return { ...entry, targetClass };
-      })
-    );
-
-    return { data: enhancedData, error: null };
+    return { data: data || [], error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'class_entry', 'get_pending_move_up_requests');
-    logQuery('class_entry', 'get_pending_move_up_requests', duration, dbError.message);
+    const dbError = createDatabaseError(error, 'entries', 'get_pending_move_up_requests');
+    logQuery('entries', 'get_pending_move_up_requests', duration, dbError.message);
     return { data: [], error: dbError };
   }
 };
@@ -700,46 +608,42 @@ export const getPendingMoveUpRequests = async (showId: string) => {
  * Approve a move-up request
  */
 export const approveMoveUpRequest = async (
-  classEntryId: string,
+  entryId: string,
   toClassId: string,
   reason?: string
 ) => {
   // Use the existing processMoveUp function
-  return processMoveUp(classEntryId, toClassId, reason);
+  return processMoveUp(entryId, toClassId, reason);
 };
 
 /**
  * Deny a move-up request
  */
 export const denyMoveUpRequest = async (
-  classEntryId: string,
+  entryId: string,
   reason?: string
 ) => {
   const startTime = Date.now();
 
   try {
     const { data, error } = await supabase
-      .from('class_entry')
+      .from('entries')
       .update({
-        status: 'accepted', // Revert to accepted status
-        move_up_target_class_id: null,
-        check_in_notes: reason ? `Move-up denied: ${reason}` : 'Move-up request denied',
+        entry_status: 'accepted', // Revert to accepted status
+        special_requests: reason ? `Move-up denied: ${reason}` : 'Move-up request denied',
         updated_at: new Date().toISOString(),
       })
-      .eq('id', classEntryId)
-      .eq('status', 'move_up_requested')
+      .eq('id', entryId)
+      .eq('entry_status', 'move_up_requested')
       .select(`
         id,
-        status,
-        entry:entry_id (
+        entry_status,
+        handler,
+        armband,
+        dog:dog_id (
           id,
-          handler,
-          created_by,
-          dog:dog_id (
-            id,
-            name,
-            call_name
-          )
+          name,
+          call_name
         ),
         class:class_id (
           id,
@@ -750,17 +654,17 @@ export const denyMoveUpRequest = async (
       .single();
 
     const duration = Date.now() - startTime;
-    logQuery('class_entry', 'deny_move_up_request', duration, error?.message);
+    logQuery('entries', 'deny_move_up_request', duration, error?.message);
 
     if (error) {
-      throw createDatabaseError(error, 'class_entry', 'deny_move_up_request');
+      throw createDatabaseError(error, 'entries', 'deny_move_up_request');
     }
 
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'class_entry', 'deny_move_up_request');
-    logQuery('class_entry', 'deny_move_up_request', duration, dbError.message);
+    const dbError = createDatabaseError(error, 'entries', 'deny_move_up_request');
+    logQuery('entries', 'deny_move_up_request', duration, dbError.message);
     return { data: null, error: dbError };
   }
 };
@@ -773,7 +677,7 @@ export const searchDogs = async (searchTerm: string) => {
 
   try {
     const { data, error } = await supabase
-      .from('dog')
+      .from('dogs')
       .select(`
         id,
         name,
@@ -790,17 +694,17 @@ export const searchDogs = async (searchTerm: string) => {
       .limit(20);
 
     const duration = Date.now() - startTime;
-    logQuery('dog', 'search_dogs', duration, error?.message);
+    logQuery('dogs', 'search_dogs', duration, error?.message);
 
     if (error) {
-      throw createDatabaseError(error, 'dog', 'search_dogs');
+      throw createDatabaseError(error, 'dogs', 'search_dogs');
     }
 
     return { data: data || [], error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'dog', 'search_dogs');
-    logQuery('dog', 'search_dogs', duration, dbError.message);
+    const dbError = createDatabaseError(error, 'dogs', 'search_dogs');
+    logQuery('dogs', 'search_dogs', duration, dbError.message);
     return { data: [], error: dbError };
   }
 };
@@ -813,23 +717,19 @@ export interface ScratchRequest {
   id: string;
   class_id: string;
   trial_id: string;
-  status: string;
+  entry_status: string;
   entry_fee: number;
   scratched_at: string | null;
   scratch_reason: string | null;
   refund_status: 'pending' | 'eligible' | 'processed' | 'denied' | 'not_applicable';
   refund_amount: number | null;
-  entry: {
+  handler: string | null;
+  armband: string | null;
+  payment_status: string | null;
+  dog: {
     id: string;
-    handler: string | null;
-    armband_number: string | null;
-    payment_status: string | null;
-    stripe_payment_intent_id: string | null;
-    dog: {
-      id: string;
-      name: string;
-      call_name: string | null;
-    } | null;
+    name: string;
+    call_name: string | null;
   } | null;
   class: {
     id: string;
@@ -845,46 +745,24 @@ export const getScratchedEntries = async (showId: string) => {
   const startTime = Date.now();
 
   try {
-    // Get all trials for the show
-    const { data: trials, error: trialsError } = await supabase
-      .from('trial')
-      .select('id')
-      .eq('show_id', showId);
-
-    if (trialsError) {
-      throw createDatabaseError(trialsError, 'trial', 'get_trials_for_scratches');
-    }
-
-    const trialIds = trials?.map((t) => t.id) || [];
-
-    if (trialIds.length === 0) {
-      return { data: [], error: null };
-    }
-
     // Get scratched entries
     const { data, error } = await supabase
-      .from('class_entry')
+      .from('entries')
       .select(`
         id,
         class_id,
         trial_id,
-        status,
+        entry_status,
         entry_fee,
-        scratched_at,
-        scratch_reason,
-        refund_status,
-        refund_amount,
-        entry:entry_id (
+        handler,
+        armband,
+        payment_status,
+        special_requests,
+        updated_at,
+        dog:dog_id (
           id,
-          handler,
-          armband_number,
-          payment_status,
-          stripe_payment_intent_id,
-          dog:dog_id (
-            id,
-            name,
-            call_name
-          )
+          name,
+          call_name
         ),
         class:class_id (
           id,
@@ -892,23 +770,23 @@ export const getScratchedEntries = async (showId: string) => {
           class_number
         )
       `)
-      .in('trial_id', trialIds)
-      .eq('status', 'scratched')
+      .eq('show_id', showId)
+      .eq('entry_status', 'scratched')
       .is('deleted_at', null)
-      .order('scratched_at', { ascending: false });
+      .order('updated_at', { ascending: false });
 
     const duration = Date.now() - startTime;
-    logQuery('class_entry', 'get_scratched_entries', duration, error?.message);
+    logQuery('entries', 'get_scratched_entries', duration, error?.message);
 
     if (error) {
-      throw createDatabaseError(error, 'class_entry', 'get_scratched_entries');
+      throw createDatabaseError(error, 'entries', 'get_scratched_entries');
     }
 
     return { data: data || [], error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'class_entry', 'get_scratched_entries');
-    logQuery('class_entry', 'get_scratched_entries', duration, dbError.message);
+    const dbError = createDatabaseError(error, 'entries', 'get_scratched_entries');
+    logQuery('entries', 'get_scratched_entries', duration, dbError.message);
     return { data: [], error: dbError };
   }
 };
@@ -917,37 +795,31 @@ export const getScratchedEntries = async (showId: string) => {
  * Request a scratch with reason
  */
 export const requestScratch = async (
-  classEntryId: string,
+  entryId: string,
   reason?: string
 ) => {
   const startTime = Date.now();
 
   try {
     const { data, error } = await supabase
-      .from('class_entry')
+      .from('entries')
       .update({
-        status: 'scratched',
-        scratched_at: new Date().toISOString(),
-        scratch_reason: reason || null,
-        refund_status: 'pending', // Will be evaluated for eligibility
+        entry_status: 'scratched',
+        special_requests: reason || null,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', classEntryId)
+      .eq('id', entryId)
       .select(`
         id,
-        status,
+        entry_status,
         entry_fee,
-        scratched_at,
-        scratch_reason,
-        entry:entry_id (
+        handler,
+        armband,
+        payment_status,
+        dog:dog_id (
           id,
-          handler,
-          payment_status,
-          dog:dog_id (
-            id,
-            name,
-            call_name
-          )
+          name,
+          call_name
         ),
         class:class_id (
           id,
@@ -958,56 +830,17 @@ export const requestScratch = async (
       .single();
 
     const duration = Date.now() - startTime;
-    logQuery('class_entry', 'request_scratch', duration, error?.message);
+    logQuery('entries', 'request_scratch', duration, error?.message);
 
     if (error) {
-      throw createDatabaseError(error, 'class_entry', 'request_scratch');
+      throw createDatabaseError(error, 'entries', 'request_scratch');
     }
 
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'class_entry', 'request_scratch');
-    logQuery('class_entry', 'request_scratch', duration, dbError.message);
-    return { data: null, error: dbError };
-  }
-};
-
-/**
- * Update refund status for a scratch
- */
-export const updateRefundStatus = async (
-  classEntryId: string,
-  status: 'eligible' | 'processed' | 'denied' | 'not_applicable',
-  refundAmount?: number
-) => {
-  const startTime = Date.now();
-
-  try {
-    const { data, error } = await supabase
-      .from('class_entry')
-      .update({
-        refund_status: status,
-        refund_amount: refundAmount ?? null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', classEntryId)
-      .eq('status', 'scratched')
-      .select()
-      .single();
-
-    const duration = Date.now() - startTime;
-    logQuery('class_entry', 'update_refund_status', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'class_entry', 'update_refund_status');
-    }
-
-    return { data, error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'class_entry', 'update_refund_status');
-    logQuery('class_entry', 'update_refund_status', duration, dbError.message);
+    const dbError = createDatabaseError(error, 'entries', 'request_scratch');
+    logQuery('entries', 'request_scratch', duration, dbError.message);
     return { data: null, error: dbError };
   }
 };
@@ -1019,44 +852,24 @@ export const getPendingScratchRequests = async (showId: string) => {
   const startTime = Date.now();
 
   try {
-    // Get all trials for the show
-    const { data: trials, error: trialsError } = await supabase
-      .from('trial')
-      .select('id')
-      .eq('show_id', showId);
-
-    if (trialsError) {
-      throw createDatabaseError(trialsError, 'trial', 'get_trials_for_scratch_requests');
-    }
-
-    const trialIds = trials?.map((t) => t.id) || [];
-
-    if (trialIds.length === 0) {
-      return { data: [], error: null };
-    }
-
     // Get entries with scratch_requested status
     const { data, error } = await supabase
-      .from('class_entry')
+      .from('entries')
       .select(`
         id,
         class_id,
         trial_id,
-        status,
+        entry_status,
         entry_fee,
-        scratch_reason,
+        special_requests,
         created_at,
-        entry:entry_id (
+        handler,
+        armband,
+        payment_status,
+        dog:dog_id (
           id,
-          handler,
-          armband_number,
-          payment_status,
-          stripe_payment_intent_id,
-          dog:dog_id (
-            id,
-            name,
-            call_name
-          )
+          name,
+          call_name
         ),
         class:class_id (
           id,
@@ -1064,65 +877,53 @@ export const getPendingScratchRequests = async (showId: string) => {
           class_number
         )
       `)
-      .in('trial_id', trialIds)
-      .eq('status', 'scratch_requested')
+      .eq('show_id', showId)
+      .eq('entry_status', 'scratch_requested')
       .is('deleted_at', null)
       .order('created_at', { ascending: true });
 
     const duration = Date.now() - startTime;
-    logQuery('class_entry', 'get_pending_scratch_requests', duration, error?.message);
+    logQuery('entries', 'get_pending_scratch_requests', duration, error?.message);
 
     if (error) {
-      throw createDatabaseError(error, 'class_entry', 'get_pending_scratch_requests');
+      throw createDatabaseError(error, 'entries', 'get_pending_scratch_requests');
     }
 
     return { data: data || [], error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'class_entry', 'get_pending_scratch_requests');
-    logQuery('class_entry', 'get_pending_scratch_requests', duration, dbError.message);
+    const dbError = createDatabaseError(error, 'entries', 'get_pending_scratch_requests');
+    logQuery('entries', 'get_pending_scratch_requests', duration, dbError.message);
     return { data: [], error: dbError };
   }
 };
 
 /**
- * Approve a scratch request (optionally with refund)
+ * Approve a scratch request
+ * Note: Refund processing should be handled separately via payment service
  */
-export const approveScratchRequest = async (
-  classEntryId: string,
-  processRefund: boolean,
-  refundAmount?: number
-) => {
+export const approveScratchRequest = async (entryId: string) => {
   const startTime = Date.now();
 
   try {
     const { data, error } = await supabase
-      .from('class_entry')
+      .from('entries')
       .update({
-        status: 'scratched',
-        scratched_at: new Date().toISOString(),
-        refund_status: processRefund ? 'eligible' : 'not_applicable',
-        refund_amount: processRefund ? refundAmount : null,
+        entry_status: 'scratched',
         updated_at: new Date().toISOString(),
       })
-      .eq('id', classEntryId)
-      .eq('status', 'scratch_requested')
+      .eq('id', entryId)
+      .eq('entry_status', 'scratch_requested')
       .select(`
         id,
-        status,
+        entry_status,
         entry_fee,
-        scratched_at,
-        refund_status,
-        refund_amount,
-        entry:entry_id (
+        handler,
+        armband,
+        dog:dog_id (
           id,
-          handler,
-          stripe_payment_intent_id,
-          dog:dog_id (
-            id,
-            name,
-            call_name
-          )
+          name,
+          call_name
         ),
         class:class_id (
           id,
@@ -1133,17 +934,17 @@ export const approveScratchRequest = async (
       .single();
 
     const duration = Date.now() - startTime;
-    logQuery('class_entry', 'approve_scratch_request', duration, error?.message);
+    logQuery('entries', 'approve_scratch_request', duration, error?.message);
 
     if (error) {
-      throw createDatabaseError(error, 'class_entry', 'approve_scratch_request');
+      throw createDatabaseError(error, 'entries', 'approve_scratch_request');
     }
 
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'class_entry', 'approve_scratch_request');
-    logQuery('class_entry', 'approve_scratch_request', duration, dbError.message);
+    const dbError = createDatabaseError(error, 'entries', 'approve_scratch_request');
+    logQuery('entries', 'approve_scratch_request', duration, dbError.message);
     return { data: null, error: dbError };
   }
 };
@@ -1152,36 +953,36 @@ export const approveScratchRequest = async (
  * Deny a scratch request
  */
 export const denyScratchRequest = async (
-  classEntryId: string,
+  entryId: string,
   reason?: string
 ) => {
   const startTime = Date.now();
 
   try {
     const { data, error } = await supabase
-      .from('class_entry')
+      .from('entries')
       .update({
-        status: 'accepted', // Revert to accepted
-        check_in_notes: reason ? `Scratch denied: ${reason}` : 'Scratch request denied',
+        entry_status: 'accepted', // Revert to accepted
+        special_requests: reason ? `Scratch denied: ${reason}` : 'Scratch request denied',
         updated_at: new Date().toISOString(),
       })
-      .eq('id', classEntryId)
-      .eq('status', 'scratch_requested')
+      .eq('id', entryId)
+      .eq('entry_status', 'scratch_requested')
       .select()
       .single();
 
     const duration = Date.now() - startTime;
-    logQuery('class_entry', 'deny_scratch_request', duration, error?.message);
+    logQuery('entries', 'deny_scratch_request', duration, error?.message);
 
     if (error) {
-      throw createDatabaseError(error, 'class_entry', 'deny_scratch_request');
+      throw createDatabaseError(error, 'entries', 'deny_scratch_request');
     }
 
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'class_entry', 'deny_scratch_request');
-    logQuery('class_entry', 'deny_scratch_request', duration, dbError.message);
+    const dbError = createDatabaseError(error, 'entries', 'deny_scratch_request');
+    logQuery('entries', 'deny_scratch_request', duration, dbError.message);
     return { data: null, error: dbError };
   }
 };

@@ -25,6 +25,52 @@ export interface UpcomingShowsProps {
   isEmpty?: boolean;
 }
 
+// Extracted LoadingSkeleton component
+interface LoadingSkeletonProps {
+  variant: UpcomingShowsVariant;
+}
+
+const LoadingSkeleton = ({ variant }: LoadingSkeletonProps) => (
+  <div className="animate-pulse">
+    {variant === 'grid' ? (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {[...Array(6)].map((_, i) => (
+          <div key={i} className="h-64 bg-muted rounded-lg"></div>
+        ))}
+      </div>
+    ) : (
+      <div className="flex gap-6 overflow-hidden">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="min-w-[320px] h-64 bg-muted rounded-lg flex-shrink-0"></div>
+        ))}
+      </div>
+    )}
+  </div>
+);
+
+// Extracted EmptyState component
+interface EmptyStateProps {
+  onAddShow?: () => void;
+}
+
+const EmptyState = ({ onAddShow }: EmptyStateProps) => (
+  <div className="text-center py-12">
+    <div className="w-16 h-16 bg-muted rounded-full mx-auto mb-4 flex items-center justify-center">
+      <span className="text-2xl text-muted-foreground">📅</span>
+    </div>
+    <h3 className="text-lg font-medium text-foreground mb-2">No shows scheduled</h3>
+    <p className="text-muted-foreground mb-4">There are no upcoming shows to display at the moment.</p>
+    {onAddShow && (
+      <button
+        onClick={onAddShow}
+        className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
+      >
+        Create Your First Show
+      </button>
+    )}
+  </div>
+);
+
 const CARD_WIDTH = 340; // px, approximate card width including gap
 const AUTO_SCROLL_INTERVAL = 5000; // ms
 
@@ -99,51 +145,13 @@ export const UpcomingShows: React.FC<UpcomingShowsProps> = ({
     onViewDetails?.(String(showId));
   };
 
-  // Loading skeleton component
-  const LoadingSkeleton = () => (
-    <div className="animate-pulse">
-      {variant === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="h-64 bg-muted rounded-lg"></div>
-          ))}
-        </div>
-      ) : (
-        <div className="flex gap-6 overflow-hidden">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="min-w-[320px] h-64 bg-muted rounded-lg flex-shrink-0"></div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-
-  // Empty state component
-  const EmptyState = () => (
-    <div className="text-center py-12">
-      <div className="w-16 h-16 bg-muted rounded-full mx-auto mb-4 flex items-center justify-center">
-        <span className="text-2xl text-muted-foreground">📅</span>
-      </div>
-      <h3 className="text-lg font-medium text-foreground mb-2">No shows scheduled</h3>
-      <p className="text-muted-foreground mb-4">There are no upcoming shows to display at the moment.</p>
-      {onAddShow && (
-        <button
-          onClick={onAddShow}
-          className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
-        >
-          Create Your First Show
-        </button>
-      )}
-    </div>
-  );
-
   // Handle loading and empty states
   if (isLoading) {
-    return <LoadingSkeleton />;
+    return <LoadingSkeleton variant={variant} />;
   }
 
   if (isEmpty || shows.length === 0) {
-    return <EmptyState />;
+    return <EmptyState onAddShow={onAddShow} />;
   }
 
   // Grid layout

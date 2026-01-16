@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-nocheck
 // TODO: Fix type errors after dog_registrations table schema update (missing columns: registered_name, breed, variety, status, etc.)
 // Type mapping utilities for Registration Store <-> Database integration

@@ -24,7 +24,6 @@ import {
   Shield,
   Sparkles
 } from 'lucide-react';
-import { logger } from '@/services/LoggingService';
 import {
   Select,
   SelectContent,

@@ -1,6 +1,8 @@
-// @ts-nocheck
-// TODO: Refactor queries to match actual Supabase schema (table names, column names)
-// Entry-related database queries
+/**
+ * Entry-related database queries
+ *
+ * Note: Each row in the entries table represents one dog's entry into one class.
+ */
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
 import { logger } from '@/services/LoggingService';
 import type {
@@ -11,18 +13,18 @@ import type {
 // Get all entries with related data
 export const getAllEntries = async () => {
   const startTime = Date.now();
-  
+
   try {
     const { data, error } = await supabase
       .from('entries')
       .select(`
         *,
-        dog(
+        dog:dog_id (
           id,
           name,
           call_name,
           breed,
-          owner:"user"(
+          owner:owner_id (
             id,
             first_name,
             last_name,
@@ -30,44 +32,37 @@ export const getAllEntries = async () => {
             phone
           )
         ),
-        class(
+        class:class_id (
           id,
           name,
           class_number,
-          show_id,
           entry_fee,
-          entry_limit
+          max_entries
         ),
-        show(
+        show:show_id (
           id,
           name,
           start_date,
           end_date,
           location,
           status
-        ),
-        entry_status_history(
-          status,
-          changed_at,
-          changed_by,
-          reason,
-          user:changed_by("first_name", "last_name")
         )
       `)
+      .is('deleted_at', null)
       .order('created_at', { ascending: false });
-    
+
     const duration = Date.now() - startTime;
-    logQuery('entry', 'select_all_with_details', duration, error?.message);
-    
+    logQuery('entries', 'select_all_with_details', duration, error?.message);
+
     if (error) {
-      throw createDatabaseError(error, 'entry', 'select_all');
+      throw createDatabaseError(error, 'entries', 'select_all');
     }
-    
+
     return { data: data || [], error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entry', 'select_all');
-    logQuery('entry', 'select_all_with_details', duration, dbError.message);
+    const dbError = createDatabaseError(error, 'entries', 'select_all');
+    logQuery('entries', 'select_all_with_details', duration, dbError.message);
     return { data: [], error: dbError };
   }
 };
@@ -75,19 +70,19 @@ export const getAllEntries = async () => {
 // Get entry by ID with full details
 export const getEntryById = async (id: string) => {
   const startTime = Date.now();
-  
+
   try {
     const { data, error } = await supabase
       .from('entries')
       .select(`
         *,
-        dog(
+        dog:dog_id (
           id,
           name,
           call_name,
           breed,
           registration_number,
-          owner:"user"(
+          owner:owner_id (
             id,
             first_name,
             last_name,
@@ -99,59 +94,39 @@ export const getEntryById = async (id: string) => {
             postal_code
           )
         ),
-        class(
+        class:class_id (
           id,
           name,
           class_number,
           description,
           entry_fee,
-          entry_limit,
-          jump_height,
-          show_id,
-          show(
-            id,
-            name,
-            start_date,
-            end_date,
-            location,
-            status
-          )
+          max_entries,
+          jump_height
         ),
-        entry_status_history(
-          status,
-          changed_at,
-          changed_by,
-          reason,
-          user:changed_by("first_name", "last_name")
-        ),
-        result(
+        show:show_id (
           id,
-          placement,
-          score,
-          time,
-          qualified,
-          faults,
-          judge_notes,
-          recorded_at,
-          recorded_by,
-          judge:recorded_by("first_name", "last_name")
+          name,
+          start_date,
+          end_date,
+          location,
+          status
         )
       `)
       .eq('id', id)
       .single();
-    
+
     const duration = Date.now() - startTime;
-    logQuery('entry', 'select_by_id_detailed', duration, error?.message);
-    
+    logQuery('entries', 'select_by_id_detailed', duration, error?.message);
+
     if (error) {
-      throw createDatabaseError(error, 'entry', 'select_by_id');
+      throw createDatabaseError(error, 'entries', 'select_by_id');
     }
-    
+
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entry', 'select_by_id');
-    logQuery('entry', 'select_by_id_detailed', duration, dbError.message);
+    const dbError = createDatabaseError(error, 'entries', 'select_by_id');
+    logQuery('entries', 'select_by_id_detailed', duration, dbError.message);
     return { data: null, error: dbError };
   }
 };
@@ -159,52 +134,47 @@ export const getEntryById = async (id: string) => {
 // Get entries by show ID
 export const getEntriesByShow = async (showId: string) => {
   const startTime = Date.now();
-  
+
   try {
     const { data, error } = await supabase
       .from('entries')
       .select(`
         *,
-        dog(
+        dog:dog_id (
           id,
           name,
           call_name,
           breed,
-          owner:"user"(
+          owner:owner_id (
             id,
             first_name,
             last_name,
             email
           )
         ),
-        class(
+        class:class_id (
           id,
           name,
           class_number,
           entry_fee
-        ),
-        entry_status_history(
-          status,
-          changed_at,
-          changed_by,
-          reason
         )
       `)
       .eq('show_id', showId)
+      .is('deleted_at', null)
       .order('created_at', { ascending: false });
-    
+
     const duration = Date.now() - startTime;
-    logQuery('entry', 'select_by_show', duration, error?.message);
-    
+    logQuery('entries', 'select_by_show', duration, error?.message);
+
     if (error) {
-      throw createDatabaseError(error, 'entry', 'select_by_show');
+      throw createDatabaseError(error, 'entries', 'select_by_show');
     }
-    
+
     return { data: data || [], error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entry', 'select_by_show');
-    logQuery('entry', 'select_by_show', duration, dbError.message);
+    const dbError = createDatabaseError(error, 'entries', 'select_by_show');
+    logQuery('entries', 'select_by_show', duration, dbError.message);
     return { data: [], error: dbError };
   }
 };
@@ -212,55 +182,41 @@ export const getEntriesByShow = async (showId: string) => {
 // Get entries by class ID
 export const getEntriesByClass = async (classId: string) => {
   const startTime = Date.now();
-  
+
   try {
     const { data, error } = await supabase
       .from('entries')
       .select(`
         *,
-        dog(
+        dog:dog_id (
           id,
           name,
           call_name,
           breed,
-          owner:"user"(
+          owner:owner_id (
             id,
             first_name,
             last_name,
             email
           )
-        ),
-        entry_status_history(
-          status,
-          changed_at,
-          changed_by,
-          reason
-        ),
-        result(
-          id,
-          placement,
-          score,
-          time,
-          qualified,
-          faults,
-          recorded_at
         )
       `)
       .eq('class_id', classId)
-      .order('armband_number', { ascending: true });
-    
+      .is('deleted_at', null)
+      .order('armband', { ascending: true });
+
     const duration = Date.now() - startTime;
-    logQuery('entry', 'select_by_class', duration, error?.message);
-    
+    logQuery('entries', 'select_by_class', duration, error?.message);
+
     if (error) {
-      throw createDatabaseError(error, 'entry', 'select_by_class');
+      throw createDatabaseError(error, 'entries', 'select_by_class');
     }
-    
+
     return { data: data || [], error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entry', 'select_by_class');
-    logQuery('entry', 'select_by_class', duration, dbError.message);
+    const dbError = createDatabaseError(error, 'entries', 'select_by_class');
+    logQuery('entries', 'select_by_class', duration, dbError.message);
     return { data: [], error: dbError };
   }
 };
@@ -268,56 +224,42 @@ export const getEntriesByClass = async (classId: string) => {
 // Get entries by dog ID
 export const getEntriesByDog = async (dogId: string) => {
   const startTime = Date.now();
-  
+
   try {
     const { data, error } = await supabase
       .from('entries')
       .select(`
         *,
-        class(
+        class:class_id (
           id,
           name,
           class_number,
           entry_fee
         ),
-        show(
+        show:show_id (
           id,
           name,
           start_date,
           end_date,
           location
-        ),
-        entry_status_history(
-          status,
-          changed_at,
-          changed_by,
-          reason
-        ),
-        result(
-          id,
-          placement,
-          score,
-          time,
-          qualified,
-          faults,
-          recorded_at
         )
       `)
       .eq('dog_id', dogId)
+      .is('deleted_at', null)
       .order('created_at', { ascending: false });
-    
+
     const duration = Date.now() - startTime;
-    logQuery('entry', 'select_by_dog', duration, error?.message);
-    
+    logQuery('entries', 'select_by_dog', duration, error?.message);
+
     if (error) {
-      throw createDatabaseError(error, 'entry', 'select_by_dog');
+      throw createDatabaseError(error, 'entries', 'select_by_dog');
     }
-    
+
     return { data: data || [], error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entry', 'select_by_dog');
-    logQuery('entry', 'select_by_dog', duration, dbError.message);
+    const dbError = createDatabaseError(error, 'entries', 'select_by_dog');
+    logQuery('entries', 'select_by_dog', duration, dbError.message);
     return { data: [], error: dbError };
   }
 };
@@ -325,52 +267,53 @@ export const getEntriesByDog = async (dogId: string) => {
 // Get entries by status
 export const getEntriesByStatus = async (status: string) => {
   const startTime = Date.now();
-  
+
   try {
     const { data, error } = await supabase
       .from('entries')
       .select(`
         *,
-        dog(
+        dog:dog_id (
           id,
           name,
           call_name,
           breed,
-          owner:"user"(
+          owner:owner_id (
             id,
             first_name,
             last_name,
             email
           )
         ),
-        class(
+        class:class_id (
           id,
           name,
           class_number,
           entry_fee
         ),
-        show(
+        show:show_id (
           id,
           name,
           start_date,
           end_date
         )
       `)
-      .eq('status', status)
+      .eq('entry_status', status)
+      .is('deleted_at', null)
       .order('created_at', { ascending: false });
-    
+
     const duration = Date.now() - startTime;
-    logQuery('entry', 'select_by_status', duration, error?.message);
-    
+    logQuery('entries', 'select_by_status', duration, error?.message);
+
     if (error) {
-      throw createDatabaseError(error, 'entry', 'select_by_status');
+      throw createDatabaseError(error, 'entries', 'select_by_status');
     }
-    
+
     return { data: data || [], error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entry', 'select_by_status');
-    logQuery('entry', 'select_by_status', duration, dbError.message);
+    const dbError = createDatabaseError(error, 'entries', 'select_by_status');
+    logQuery('entries', 'select_by_status', duration, dbError.message);
     return { data: [], error: dbError };
   }
 };
@@ -378,32 +321,32 @@ export const getEntriesByStatus = async (status: string) => {
 // Create new entry
 export const createEntry = async (entryData: DbEntryInsert) => {
   const startTime = Date.now();
-  
+
   try {
     const { data, error } = await supabase
       .from('entries')
       .insert(entryData)
       .select(`
         *,
-        dog(
+        dog:dog_id (
           id,
           name,
           call_name,
           breed,
-          owner:"user"(
+          owner:owner_id (
             id,
             first_name,
             last_name,
             email
           )
         ),
-        class(
+        class:class_id (
           id,
           name,
           class_number,
           entry_fee
         ),
-        show(
+        show:show_id (
           id,
           name,
           start_date,
@@ -411,19 +354,19 @@ export const createEntry = async (entryData: DbEntryInsert) => {
         )
       `)
       .single();
-    
+
     const duration = Date.now() - startTime;
-    logQuery('entry', 'insert', duration, error?.message);
-    
+    logQuery('entries', 'insert', duration, error?.message);
+
     if (error) {
-      throw createDatabaseError(error, 'entry', 'insert');
+      throw createDatabaseError(error, 'entries', 'insert');
     }
-    
+
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entry', 'insert');
-    logQuery('entry', 'insert', duration, dbError.message);
+    const dbError = createDatabaseError(error, 'entries', 'insert');
+    logQuery('entries', 'insert', duration, dbError.message);
     return { data: null, error: dbError };
   }
 };
@@ -432,7 +375,7 @@ export const createEntry = async (entryData: DbEntryInsert) => {
 export const updateEntry = async (params: { id: string; updates: DbEntryUpdate }) => {
   const { id, updates } = params;
   const startTime = Date.now();
-  
+
   try {
     // Add updated_at timestamp
     const updateData = {
@@ -446,25 +389,25 @@ export const updateEntry = async (params: { id: string; updates: DbEntryUpdate }
       .eq('id', id)
       .select(`
         *,
-        dog(
+        dog:dog_id (
           id,
           name,
           call_name,
           breed,
-          owner:"user"(
+          owner:owner_id (
             id,
             first_name,
             last_name,
             email
           )
         ),
-        class(
+        class:class_id (
           id,
           name,
           class_number,
           entry_fee
         ),
-        show(
+        show:show_id (
           id,
           name,
           start_date,
@@ -472,50 +415,50 @@ export const updateEntry = async (params: { id: string; updates: DbEntryUpdate }
         )
       `)
       .single();
-    
+
     const duration = Date.now() - startTime;
-    logQuery('entry', 'update', duration, error?.message);
-    
+    logQuery('entries', 'update', duration, error?.message);
+
     if (error) {
-      throw createDatabaseError(error, 'entry', 'update');
+      throw createDatabaseError(error, 'entries', 'update');
     }
-    
+
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entry', 'update');
-    logQuery('entry', 'update', duration, dbError.message);
+    const dbError = createDatabaseError(error, 'entries', 'update');
+    logQuery('entries', 'update', duration, dbError.message);
     return { data: null, error: dbError };
   }
 };
 
-// Delete entry
+// Delete entry (soft delete)
 export const deleteEntry = async (id: string) => {
   const startTime = Date.now();
-  
+
   try {
     const { error } = await supabase
       .from('entries')
-      .delete()
+      .update({ deleted_at: new Date().toISOString() })
       .eq('id', id);
-    
+
     const duration = Date.now() - startTime;
-    logQuery('entry', 'delete', duration, error?.message);
-    
+    logQuery('entries', 'delete', duration, error?.message);
+
     if (error) {
-      throw createDatabaseError(error, 'entry', 'delete');
+      throw createDatabaseError(error, 'entries', 'delete');
     }
-    
+
     return { error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entry', 'delete');
-    logQuery('entry', 'delete', duration, dbError.message);
+    const dbError = createDatabaseError(error, 'entries', 'delete');
+    logQuery('entries', 'delete', duration, dbError.message);
     return { error: dbError };
   }
 };
 
-// Update entry status with history tracking
+// Update entry status
 export const updateEntryStatus = async (params: {
   id: string;
   status: string;
@@ -524,48 +467,35 @@ export const updateEntryStatus = async (params: {
 }) => {
   const { id, status, userId, reason } = params;
   const startTime = Date.now();
-  
+
   try {
-    // Update entry status and create status history in separate operations
-    // First update the entry status
+    // Update entry status
     const { data: entryData, error: entryError } = await supabase
       .from('entries')
-      .update({ 
-        status,
-        updated_at: new Date().toISOString() 
+      .update({
+        entry_status: status,
+        special_requests: reason ? `Status changed: ${reason}` : undefined,
+        updated_at: new Date().toISOString(),
       })
       .eq('id', id)
       .select()
       .single();
 
     if (entryError) {
-      throw createDatabaseError(entryError, 'entry', 'update_status');
+      throw createDatabaseError(entryError, 'entries', 'update_status');
     }
 
-    // Then create status history record
-    const { error: historyError } = await supabase
-      .from('entry_status_history')
-      .insert({
-        entry_id: id,
-        new_status: status,
-        changed_by: userId,
-        changed_at: new Date().toISOString(),
-        reason: reason || null,
-      });
-
-    if (historyError) {
-      logger.warn('Failed to create status history:', 'database', {}, historyError as Error);
-      // Don't fail the entire operation if history creation fails
-    }
-    
     const duration = Date.now() - startTime;
-    logQuery('entry', 'update_status', duration);
-    
+    logQuery('entries', 'update_status', duration);
+
+    // Log for debugging (userId is for audit purposes)
+    logger.debug(`Entry ${id} status updated to ${status} by user ${userId}`, 'database', {});
+
     return { data: entryData, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entry', 'update_status');
-    logQuery('entry', 'update_status', duration, dbError.message);
+    const dbError = createDatabaseError(error, 'entries', 'update_status');
+    logQuery('entries', 'update_status', duration, dbError.message);
     return { data: null, error: dbError };
   }
 };
@@ -573,51 +503,51 @@ export const updateEntryStatus = async (params: {
 // Bulk create entries
 export const createMultipleEntries = async (entriesData: DbEntryInsert[]) => {
   const startTime = Date.now();
-  
+
   try {
     const { data, error } = await supabase
       .from('entries')
       .insert(entriesData)
       .select(`
         *,
-        dog(
+        dog:dog_id (
           id,
           name,
           call_name,
           breed,
-          owner:"user"(
+          owner:owner_id (
             id,
             first_name,
             last_name,
             email
           )
         ),
-        class(
+        class:class_id (
           id,
           name,
           class_number,
           entry_fee
         ),
-        show(
+        show:show_id (
           id,
           name,
           start_date,
           end_date
         )
       `);
-    
+
     const duration = Date.now() - startTime;
-    logQuery('entry', 'bulk_insert', duration, error?.message);
-    
+    logQuery('entries', 'bulk_insert', duration, error?.message);
+
     if (error) {
-      throw createDatabaseError(error, 'entry', 'bulk_insert');
+      throw createDatabaseError(error, 'entries', 'bulk_insert');
     }
-    
+
     return { data: data || [], error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entry', 'bulk_insert');
-    logQuery('entry', 'bulk_insert', duration, dbError.message);
+    const dbError = createDatabaseError(error, 'entries', 'bulk_insert');
+    logQuery('entries', 'bulk_insert', duration, dbError.message);
     return { data: [], error: dbError };
   }
 };
@@ -625,25 +555,26 @@ export const createMultipleEntries = async (entriesData: DbEntryInsert[]) => {
 // Get entry statistics for a show
 export const getEntryStatistics = async (showId?: string) => {
   const startTime = Date.now();
-  
+
   try {
     let query = supabase
       .from('entries')
-      .select('entry_status, entry_fee, payment_status');
-    
+      .select('entry_status, entry_fee, payment_status')
+      .is('deleted_at', null);
+
     if (showId) {
       query = query.eq('show_id', showId);
     }
-    
+
     const { data, error } = await query;
-    
+
     const duration = Date.now() - startTime;
-    logQuery('entry', 'statistics', duration, error?.message);
-    
+    logQuery('entries', 'statistics', duration, error?.message);
+
     if (error) {
-      throw createDatabaseError(error, 'entry', 'statistics');
+      throw createDatabaseError(error, 'entries', 'statistics');
     }
-    
+
     // Calculate statistics
     const stats = {
       totalEntries: data?.length || 0,
@@ -652,7 +583,7 @@ export const getEntryStatistics = async (showId?: string) => {
       paidRevenue: 0,
       completionRate: 0,
     };
-    
+
     if (data) {
       data.forEach((entry) => {
         // Count by status
@@ -670,24 +601,24 @@ export const getEntryStatistics = async (showId?: string) => {
 
       // Calculate completion rate
       const completedEntries = stats.byStatus['completed'] || 0;
-      const paidEntries = data.filter(e => e.payment_status === 'paid').length;
+      const paidEntries = data.filter((e) => e.payment_status === 'paid').length;
       stats.completionRate = paidEntries > 0 ? (completedEntries / paidEntries) * 100 : 0;
     }
-    
+
     return { data: stats, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entry', 'statistics');
-    logQuery('entry', 'statistics', duration, dbError.message);
-    return { 
+    const dbError = createDatabaseError(error, 'entries', 'statistics');
+    logQuery('entries', 'statistics', duration, dbError.message);
+    return {
       data: {
         totalEntries: 0,
         byStatus: {},
         totalRevenue: 0,
         paidRevenue: 0,
         completionRate: 0,
-      }, 
-      error: dbError 
+      },
+      error: dbError,
     };
   }
 };
@@ -697,20 +628,24 @@ export const getUserEntries = async (userId: string) => {
   const startTime = Date.now();
 
   try {
-    // Query entry table with class_entry for class details
     const { data, error } = await supabase
-      .from('entry')
+      .from('entries')
       .select(`
         id,
         dog_id,
         show_id,
+        class_id,
+        trial_id,
         handler,
         handler_id,
         payment_status,
+        entry_status,
+        entry_fee,
+        armband,
+        run_order,
+        jump_height,
         special_requests,
         submitted_at,
-        entry_status,
-        total_fees,
         created_at,
         updated_at,
         dog:dog_id (
@@ -728,90 +663,79 @@ export const getUserEntries = async (userId: string) => {
           city,
           state
         ),
-        class_entry (
+        class:class_id (
           id,
-          class_id,
-          armband,
-          run_order,
-          jump_height,
-          entry_fee,
-          status,
-          class:class_id (
-            id,
-            name,
-            class_number
-          )
+          name,
+          class_number
         )
       `)
-      .eq('created_by', userId)
+      .eq('handler_id', userId)
       .is('deleted_at', null)
       .order('created_at', { ascending: false });
 
     const duration = Date.now() - startTime;
-    logQuery('entry', 'select_user_entries', duration, error?.message);
+    logQuery('entries', 'select_user_entries', duration, error?.message);
 
     if (error) {
-      throw createDatabaseError(error, 'entry', 'select_user_entries');
+      throw createDatabaseError(error, 'entries', 'select_user_entries');
     }
 
     return { data: data || [], error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entry', 'select_user_entries');
-    logQuery('entry', 'select_user_entries', duration, dbError.message);
+    const dbError = createDatabaseError(error, 'entries', 'select_user_entries');
+    logQuery('entries', 'select_user_entries', duration, dbError.message);
     return { data: [], error: dbError };
   }
 };
 
-// Update a class entry (for entry modification before close)
-export const updateClassEntry = async (params: {
-  classEntryId: string;
+// Update entry details (jump height, handler, etc.)
+export const updateEntryDetails = async (params: {
+  entryId: string;
   updates: {
-    status?: string;
+    entry_status?: string;
     jump_height?: string;
+    handler?: string;
   };
 }) => {
   const startTime = Date.now();
-  const { classEntryId, updates } = params;
+  const { entryId, updates } = params;
 
   try {
     const { data, error } = await supabase
-      .from('class_entry')
+      .from('entries')
       .update({
         ...updates,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', classEntryId)
+      .eq('id', entryId)
       .select()
       .single();
 
     const duration = Date.now() - startTime;
-    logQuery('class_entry', 'update', duration, error?.message);
+    logQuery('entries', 'update_details', duration, error?.message);
 
     if (error) {
-      throw createDatabaseError(error, 'class_entry', 'update');
+      throw createDatabaseError(error, 'entries', 'update_details');
     }
 
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'class_entry', 'update');
-    logQuery('class_entry', 'update', duration, dbError.message);
+    const dbError = createDatabaseError(error, 'entries', 'update_details');
+    logQuery('entries', 'update_details', duration, dbError.message);
     return { data: null, error: dbError };
   }
 };
 
 // Update entry handler
-export const updateEntryHandler = async (params: {
-  entryId: string;
-  handler: string;
-}) => {
+export const updateEntryHandler = async (params: { entryId: string; handler: string }) => {
   const startTime = Date.now();
   const { entryId, handler } = params;
 
   try {
     const { data, error } = await supabase
-      .from('entry')
+      .from('entries')
       .update({
         handler,
         updated_at: new Date().toISOString(),
@@ -821,42 +745,44 @@ export const updateEntryHandler = async (params: {
       .single();
 
     const duration = Date.now() - startTime;
-    logQuery('entry', 'update_handler', duration, error?.message);
+    logQuery('entries', 'update_handler', duration, error?.message);
 
     if (error) {
-      throw createDatabaseError(error, 'entry', 'update_handler');
+      throw createDatabaseError(error, 'entries', 'update_handler');
     }
 
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entry', 'update_handler');
-    logQuery('entry', 'update_handler', duration, dbError.message);
+    const dbError = createDatabaseError(error, 'entries', 'update_handler');
+    logQuery('entries', 'update_handler', duration, dbError.message);
     return { data: null, error: dbError };
   }
 };
 
-// Withdraw (scratch) a class entry
-export const withdrawClassEntry = async (classEntryId: string) => {
-  return updateClassEntry({
-    classEntryId,
-    updates: { status: 'withdrawn' },
+// Withdraw (scratch) an entry
+export const withdrawEntry = async (entryId: string) => {
+  return updateEntryDetails({
+    entryId,
+    updates: { entry_status: 'withdrawn' },
   });
 };
 
 // Check if entry can be modified (show is still accepting entries)
-export const canModifyEntry = async (showId: string): Promise<{ canModify: boolean; reason?: string }> => {
+export const canModifyEntry = async (
+  showId: string
+): Promise<{ canModify: boolean; reason?: string }> => {
   const startTime = Date.now();
 
   try {
     const { data: show, error } = await supabase
-      .from('show')
+      .from('shows')
       .select('entry_close_date, status')
       .eq('id', showId)
       .single();
 
     const duration = Date.now() - startTime;
-    logQuery('show', 'check_can_modify', duration, error?.message);
+    logQuery('shows', 'check_can_modify', duration, error?.message);
 
     if (error || !show) {
       return { canModify: false, reason: 'Show not found' };
@@ -874,61 +800,62 @@ export const canModifyEntry = async (showId: string): Promise<{ canModify: boole
     }
 
     return { canModify: true };
-  } catch (error) {
+  } catch {
     return { canModify: false, reason: 'Unable to verify modification eligibility' };
   }
 };
 
-// Search entries by dog name, owner name, or entry number
+// Search entries by armband or handler name
 export const searchEntries = async (searchTerm: string) => {
   const startTime = Date.now();
-  
+
   try {
     const { data, error } = await supabase
       .from('entries')
       .select(`
         *,
-        dog(
+        dog:dog_id (
           id,
           name,
           call_name,
           breed,
-          owner:"user"(
+          owner:owner_id (
             id,
             first_name,
             last_name,
             email
           )
         ),
-        class(
+        class:class_id (
           id,
           name,
           class_number,
           entry_fee
         ),
-        show(
+        show:show_id (
           id,
           name,
           start_date,
           end_date
         )
       `)
-      .or(`entry_number.ilike.%${searchTerm}%,armband_number.ilike.%${searchTerm}%`)
+      .or(`armband.ilike.%${searchTerm}%,handler.ilike.%${searchTerm}%`)
+      .is('deleted_at', null)
       .order('created_at', { ascending: false })
       .limit(50);
-    
+
     const duration = Date.now() - startTime;
-    logQuery('entry', 'search', duration, error?.message);
-    
+    logQuery('entries', 'search', duration, error?.message);
+
     if (error) {
-      throw createDatabaseError(error, 'entry', 'search');
+      throw createDatabaseError(error, 'entries', 'search');
     }
-    
+
     return { data: data || [], error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'entry', 'search');
-    logQuery('entry', 'search', duration, dbError.message);
+    const dbError = createDatabaseError(error, 'entries', 'search');
+    logQuery('entries', 'search', duration, dbError.message);
     return { data: [], error: dbError };
   }
 };

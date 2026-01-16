@@ -2,7 +2,6 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { logger } from '@/services/LoggingService';
 import {
   RefreshCw, 
   Database, 
@@ -200,7 +199,7 @@ const SyncDemoPage: React.FC = () => {
                         entityType="class" 
                         entityId="class-456"
                         enableActions
-                        onRetry={() => logger.debug('Retry triggered', 'sync', {});}
+                        onRetry={() => logger.debug('Retry triggered', 'sync', {})}
                       />
                     </div>
                     <p className="text-xs text-muted-foreground">

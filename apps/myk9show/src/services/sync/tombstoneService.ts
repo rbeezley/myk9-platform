@@ -5,9 +5,6 @@ import { logger } from '@/services/LoggingService';
  * Implements proper deletion tracking, conflict resolution, and cleanup policies
  */
 
- 
-/* eslint-disable @typescript-eslint/no-unused-vars */
-
 export interface Tombstone {
   id: string;
   entityId: string;

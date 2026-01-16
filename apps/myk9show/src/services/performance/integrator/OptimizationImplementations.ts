@@ -6,8 +6,6 @@ import { logger } from '@/services/LoggingService';
  * Contains specific optimization strategies for images, fonts, resources, and network.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 /**
  * Image optimization module
  */

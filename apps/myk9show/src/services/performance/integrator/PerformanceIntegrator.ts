@@ -8,8 +8,6 @@
  * - FID: <100ms, CLS: <0.1 maintained
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import { initializeCoreWebVitalsOptimization, getCoreWebVitalsOptimizer } from '../CoreWebVitalsOptimizer';
 import { logger } from '@/services/LoggingService';
 import { initializeBundleOptimization, getBundleOptimizer } from '../BundleOptimizer';

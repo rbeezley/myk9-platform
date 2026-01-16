@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { DatePicker } from '@/components/ui/date-picker';
 import StandardDialog from '@/components/common/StandardDialog';
 import RequiredLabel from '@/components/common/RequiredLabel';
@@ -18,14 +18,16 @@ const EditTrainingEntryDialog: React.FC<EditTrainingEntryDialogProps> = ({ open,
   const [date, setDate] = useState('');
   const [tags, setTags] = useState('');
 
-  useEffect(() => {
-    if (entry) {
-      setTitle(entry.title);
-      setNotes(entry.notes);
-      setDate(entry.date);
-      setTags(entry.tags ? entry.tags.join(', ') : '');
-    }
-  }, [entry]);
+  // Sync form state with entry prop - using render-time state update pattern
+  const entryId = entry?.id || '';
+  const [lastEntryId, setLastEntryId] = useState(entryId);
+  if (entryId !== lastEntryId && entry) {
+    setLastEntryId(entryId);
+    setTitle(entry.title);
+    setNotes(entry.notes);
+    setDate(entry.date);
+    setTags(entry.tags ? entry.tags.join(', ') : '');
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

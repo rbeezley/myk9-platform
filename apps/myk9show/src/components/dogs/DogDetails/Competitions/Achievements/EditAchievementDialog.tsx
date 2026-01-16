@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import StandardDialog from '@/components/common/StandardDialog';
 import { Input } from '@/components/ui/input';
 import DatePickerField from '@/components/common/DatePickerField';
@@ -21,12 +21,14 @@ const EditAchievementDialog: React.FC<EditAchievementDialogProps> = ({ open, ach
     color: '#3b82f6',
   });
 
-  useEffect(() => {
-    if (achievement) {
-      const { ...achievementData } = achievement;
-      setForm(achievementData);
-    }
-  }, [achievement]);
+  // Sync form state with achievement prop - using render-time state update pattern
+  const achievementId = achievement?.id || '';
+  const [lastAchievementId, setLastAchievementId] = useState(achievementId);
+  if (achievementId !== lastAchievementId && achievement) {
+    setLastAchievementId(achievementId);
+    const { ...achievementData } = achievement;
+    setForm(achievementData);
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;

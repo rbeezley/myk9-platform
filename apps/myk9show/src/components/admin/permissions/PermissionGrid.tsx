@@ -22,7 +22,6 @@ import {
 } from 'lucide-react';
 import { Role, Permission, RolePermission } from '@/types/rbac-types';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { logger } from '@/services/LoggingService';
 import {
   Select,
   SelectContent,

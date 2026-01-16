@@ -245,7 +245,7 @@ describe('Template System Performance Benchmarks', () => {
           // Use direct state manipulation for testing since these methods don't exist
           useTemplateStore.setState({ searchQuery: 'Template 5' });
           // Simulate filtering by searching through templates manually
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+           
           const _filtered = store.templates.filter(t => 
             t.templateName.includes('Template 5')
           );
@@ -279,7 +279,7 @@ describe('Template System Performance Benchmarks', () => {
       const templates = createMockTemplates(500);
       
       templates.forEach(template => store.createTemplate(template));
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+       
       const _targetId = templates[250].id;
 
       performanceBenchmark(
@@ -384,7 +384,7 @@ describe('Template System Performance Benchmarks', () => {
       const store = useClassCreationStore.getState();
       
       // Simulate having 1000 created classes
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+       
       const _createdClasses = Array.from({ length: 500 }, (_, i) => ({
         id: `class-${i}`,
         trialId: `trial-${Math.floor(i / 20)}`,

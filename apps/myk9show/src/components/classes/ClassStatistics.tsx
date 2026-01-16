@@ -85,9 +85,6 @@ const ClassStatistics: React.FC<ClassStatisticsProps> = ({ classEntries }) => {
             </div>
             <div className="apple-class-stat-details">
               <span>{card.details}</span>
-              <span className="apple-show-stat-trend">
-                +{Math.floor(Math.random() * 15)}%
-              </span>
             </div>
             <div className="apple-class-stat-progress">
               <div 

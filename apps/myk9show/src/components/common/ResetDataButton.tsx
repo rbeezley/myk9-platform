@@ -1,7 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { RotateCcw, Trash2, Bomb } from 'lucide-react';
 import { resetAllMockData, resetEverything, resetSpecificStore } from '@/utils/debugUtils';
-import { logger } from '@/services/LoggingService';
 import {
   DropdownMenu,
   DropdownMenuContent,

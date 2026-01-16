@@ -324,15 +324,24 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
 
 
 
+  // Helper function to format time from milliseconds to MM:SS.HH format
+  const formatTime = React.useCallback((ms: number): string => {
+    const totalSeconds = ms / 1000;
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = Math.floor(totalSeconds % 60);
+    const hundredths = Math.round((totalSeconds % 1) * 100);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}.${hundredths.toString().padStart(2, '0')}`;
+  }, []);
+
   // Handle results submission from BulkResultEntry
   const handleResultsSubmit = React.useCallback(async (results: (ScentWorkResult | MultiAreaScentWorkResult)[]) => {
     if (!onResultUpdate) return;
-    
+
     try {
       for (const result of results) {
         // Check if it's a ScentWorkResult (has searchTime) or MultiAreaScentWorkResult (has totalSearchTime)
         const searchTime = 'searchTime' in result ? result.searchTime : result.totalSearchTime;
-        
+
         // Transform ScentWorkResult back to EntryData format for onResultUpdate
         const entryUpdate: Partial<EntryData> = {
           time: searchTime ? formatTime(searchTime) : '',
@@ -341,22 +350,13 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
           score: searchTime ? (searchTime / 1000).toString() : '',
           placement: (result as ScentWorkResult & { placementCalculated?: number }).placementCalculated?.toString() || ''
         };
-        
+
         await onResultUpdate(result.entryId, entryUpdate);
       }
     } catch (error) {
       logger.error('❌ Error submitting results:', 'classes', {}, error as Error);
     }
-  }, [onResultUpdate]);
-
-  // Helper function to format time from milliseconds to MM:SS.HH format
-  const formatTime = (ms: number): string => {
-    const totalSeconds = ms / 1000;
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = Math.floor(totalSeconds % 60);
-    const hundredths = Math.round((totalSeconds % 1) * 100);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}.${hundredths.toString().padStart(2, '0')}`;
-  };
+  }, [onResultUpdate, formatTime]);
 
   return (
     <div className="apple-show-container">

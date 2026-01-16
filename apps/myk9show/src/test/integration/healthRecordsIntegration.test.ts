@@ -2,7 +2,6 @@
 // Phase 4.2: Health Records System Integration
 
 import { describe, it, expect } from 'vitest';
-import { logger } from '@/services/LoggingService';
 import {
   getAllVaccinations,
   // createVaccination,

@@ -64,7 +64,7 @@ export class LoadTestRunner {
       await this.executeWithRampUp(userContexts, scenario, rampUpMs, durationMs);
       
       // Generate performance report
-      logger.debug('this.performanceMonitor.generateReport()', 'test', { this.performanceMonitor.generateReport(): this.performanceMonitor.generateReport() });
+      logger.debug('Generated report:', 'test', { report: this.performanceMonitor.generateReport() });
       
       // Validate performance targets
       await this.validatePerformanceTargets(scenario);

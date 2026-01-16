@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import StandardDialog from '@/components/common/StandardDialog';
 import type { VaccinationRecord } from './AddVaccinationDialog';
 import { Input } from '@/components/ui/input';
@@ -17,14 +17,16 @@ const EditVaccinationDialog: React.FC<EditVaccinationDialogProps> = ({ open, rec
   const [expiration, setExpiration] = useState<string>("");
   const [vetName, setVeterinarian] = useState('');
 
-  useEffect(() => {
-    if (record) {
-      setVaccination(record.vaccination);
-      setDate(record.date || "");
-      setExpiration(record.expiration || "");
-      setVeterinarian(record.vetName);
-    }
-  }, [record]);
+  // Sync form state with record prop - using render-time state update pattern
+  const recordId = record?.id || '';
+  const [lastRecordId, setLastRecordId] = useState(recordId);
+  if (recordId !== lastRecordId && record) {
+    setLastRecordId(recordId);
+    setVaccination(record.vaccination);
+    setDate(record.date || "");
+    setExpiration(record.expiration || "");
+    setVeterinarian(record.vetName);
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

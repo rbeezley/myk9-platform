@@ -31,24 +31,24 @@ import {
 } from 'recharts';
 
 // Cast Recharts components to solve 'not a valid JSX component' type errors
-const LineChart = RechartsLineChart as any;
-const Line = RechartsLine as any;
-const AreaChart = RechartsAreaChart as any;
-const Area = RechartsArea as any;
-const BarChart = RechartsBarChart as any;
-const Bar = RechartsBar as any;
-const ScatterChart = RechartsScatterChart as any;
-const Scatter = RechartsScatter as any;
-const ComposedChart = RechartsComposedChart as any;
-const XAxis = RechartsXAxis as any;
-const YAxis = RechartsYAxis as any;
-const CartesianGrid = RechartsCartesianGrid as any;
-const Tooltip = RechartsTooltip as any;
-const Legend = RechartsLegend as any;
-const ResponsiveContainer = RechartsResponsiveContainer as any;
-const ReferenceLine = RechartsReferenceLine as any;
-const PieChart = RechartsPieChart as any;
-const Pie = RechartsPie as any;
+const LineChart = RechartsLineChart as React.ComponentType<React.ComponentProps<typeof RechartsLineChart>>;
+const Line = RechartsLine as React.ComponentType<React.ComponentProps<typeof RechartsLine>>;
+const AreaChart = RechartsAreaChart as React.ComponentType<React.ComponentProps<typeof RechartsAreaChart>>;
+const Area = RechartsArea as React.ComponentType<React.ComponentProps<typeof RechartsArea>>;
+const BarChart = RechartsBarChart as React.ComponentType<React.ComponentProps<typeof RechartsBarChart>>;
+const Bar = RechartsBar as React.ComponentType<React.ComponentProps<typeof RechartsBar>>;
+const ScatterChart = RechartsScatterChart as React.ComponentType<React.ComponentProps<typeof RechartsScatterChart>>;
+const Scatter = RechartsScatter as React.ComponentType<React.ComponentProps<typeof RechartsScatter>>;
+const ComposedChart = RechartsComposedChart as React.ComponentType<React.ComponentProps<typeof RechartsComposedChart>>;
+const XAxis = RechartsXAxis as React.ComponentType<React.ComponentProps<typeof RechartsXAxis>>;
+const YAxis = RechartsYAxis as React.ComponentType<React.ComponentProps<typeof RechartsYAxis>>;
+const CartesianGrid = RechartsCartesianGrid as React.ComponentType<React.ComponentProps<typeof RechartsCartesianGrid>>;
+const Tooltip = RechartsTooltip as React.ComponentType<React.ComponentProps<typeof RechartsTooltip>>;
+const Legend = RechartsLegend as React.ComponentType<React.ComponentProps<typeof RechartsLegend>>;
+const ResponsiveContainer = RechartsResponsiveContainer as React.ComponentType<React.ComponentProps<typeof RechartsResponsiveContainer>>;
+const ReferenceLine = RechartsReferenceLine as React.ComponentType<React.ComponentProps<typeof RechartsReferenceLine>>;
+const PieChart = RechartsPieChart as React.ComponentType<React.ComponentProps<typeof RechartsPieChart>>;
+const Pie = RechartsPie as React.ComponentType<React.ComponentProps<typeof RechartsPie>>;
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -69,16 +69,16 @@ import {
   RotateCcw as LucideRotateCcw
 } from 'lucide-react';
 
-const Activity = LucideActivity as any;
-const TrendingUp = LucideTrendingUp as any;
-const TrendingDown = LucideTrendingDown as any;
-const Zap = LucideZap as any;
-const Wifi = LucideWifi as any;
-const Clock = LucideClock as any;
-const AlertTriangle = LucideAlertTriangle as any;
-const CheckCircle = LucideCheckCircle as any;
-const Download = LucideDownload as any;
-const RotateCcw = LucideRotateCcw as any;
+const Activity = LucideActivity as React.ComponentType<React.ComponentProps<typeof LucideActivity>>;
+const TrendingUp = LucideTrendingUp as React.ComponentType<React.ComponentProps<typeof LucideTrendingUp>>;
+const TrendingDown = LucideTrendingDown as React.ComponentType<React.ComponentProps<typeof LucideTrendingDown>>;
+const Zap = LucideZap as React.ComponentType<React.ComponentProps<typeof LucideZap>>;
+const Wifi = LucideWifi as React.ComponentType<React.ComponentProps<typeof LucideWifi>>;
+const Clock = LucideClock as React.ComponentType<React.ComponentProps<typeof LucideClock>>;
+const AlertTriangle = LucideAlertTriangle as React.ComponentType<React.ComponentProps<typeof LucideAlertTriangle>>;
+const CheckCircle = LucideCheckCircle as React.ComponentType<React.ComponentProps<typeof LucideCheckCircle>>;
+const Download = LucideDownload as React.ComponentType<React.ComponentProps<typeof LucideDownload>>;
+const RotateCcw = LucideRotateCcw as React.ComponentType<React.ComponentProps<typeof LucideRotateCcw>>;
 
 import { cn } from '@/lib/utils';
 import { SyncAnalyticsService } from '@/services/analytics/SyncAnalyticsService';
@@ -457,7 +457,7 @@ export function PerformanceGraphs({ className }: PerformanceGraphsProps) {
                       <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                       <XAxis
                         dataKey="timestamp"
-                        tickFormatter={(value: any) => new Date(value).toLocaleTimeString()}
+                        tickFormatter={(value: string | number) => new Date(value).toLocaleTimeString()}
                       />
                       <YAxis label={{ value: 'Time (s)', angle: -90, position: 'insideLeft' }} />
                       <Tooltip content={<CustomTooltip formatter={(value: number) => `${value.toFixed(2)}s`} />} />
@@ -488,7 +488,7 @@ export function PerformanceGraphs({ className }: PerformanceGraphsProps) {
                       <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                       <XAxis
                         dataKey="timestamp"
-                        tickFormatter={(value: any) => new Date(value).toLocaleTimeString()}
+                        tickFormatter={(value: string | number) => new Date(value).toLocaleTimeString()}
                       />
                       <YAxis domain={[0, 100]} label={{ value: 'Success Rate (%)', angle: -90, position: 'insideLeft' }} />
                       <Tooltip content={<CustomTooltip formatter={(value: number) => `${value.toFixed(1)}%`} />} />
@@ -519,7 +519,7 @@ export function PerformanceGraphs({ className }: PerformanceGraphsProps) {
                       <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                       <XAxis
                         dataKey="timestamp"
-                        tickFormatter={(value: any) => new Date(value).toLocaleTimeString()}
+                        tickFormatter={(value: string | number) => new Date(value).toLocaleTimeString()}
                       />
                       <YAxis label={{ value: 'Bandwidth (MB)', angle: -90, position: 'insideLeft' }} />
                       <Tooltip content={<CustomTooltip formatter={(value: number) => `${value.toFixed(2)} MB`} />} />
@@ -543,7 +543,7 @@ export function PerformanceGraphs({ className }: PerformanceGraphsProps) {
                       <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                       <XAxis
                         dataKey="timestamp"
-                        tickFormatter={(value: any) => new Date(value).toLocaleTimeString()}
+                        tickFormatter={(value: string | number) => new Date(value).toLocaleTimeString()}
                       />
                       <YAxis label={{ value: 'Conflict Rate (%)', angle: -90, position: 'insideLeft' }} />
                       <Tooltip content={<CustomTooltip formatter={(value: number) => `${value.toFixed(1)}%`} />} />
@@ -581,7 +581,7 @@ export function PerformanceGraphs({ className }: PerformanceGraphsProps) {
                     <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                     <XAxis
                       dataKey="timestamp"
-                      tickFormatter={(value: any) => new Date(value).toLocaleTimeString()}
+                      tickFormatter={(value: string | number) => new Date(value).toLocaleTimeString()}
                     />
                     <YAxis yAxisId="left" orientation="left" />
                     <YAxis yAxisId="right" orientation="right" />
@@ -643,7 +643,7 @@ export function PerformanceGraphs({ className }: PerformanceGraphsProps) {
                         cy="50%"
                         outerRadius={80}
                         dataKey="value"
-                        label={({ name, percent }: { name: string; percent: number }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        label={({ name, percent }: { name?: string; percent?: number }) => `${name || ''} ${((percent ?? 0) * 100).toFixed(0)}%`}
                       />
                       <Tooltip />
                     </PieChart>

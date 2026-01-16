@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card';
 import { Badge } from '../../ui/badge';
 import DogActionsMenu from './DogActionsMenu';
 import type { Dog, Owner } from '@/types/dog-types';
-import { logger } from '@/services/LoggingService';
 import {
   User,
   Ruler,

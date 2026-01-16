@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import StandardDialog from '@/components/common/StandardDialog';
 import RequiredLabel from '@/components/common/RequiredLabel';
 import type { ExtendedAncestor } from './PedigreeAncestorAddDialog';
@@ -23,16 +23,18 @@ const EditAncestorDialog: React.FC<EditAncestorDialogProps> = ({ open, ancestor,
   const [photoUrl, setPhotoUrl] = useState('');
   const formRef = useRef<HTMLFormElement>(null);
 
-  useEffect(() => {
-    if (ancestor) {
-      setName(ancestor.name);
-      setTitle(ancestor.title || '');
-      setRole(ancestor.role);
-      setRegistration(ancestor.registration || '');
-      setDob(ancestor.dob);
-      setPhotoUrl(ancestor.photoUrl || '');
-    }
-  }, [ancestor]);
+  // Sync form state with ancestor prop - using render-time state update pattern
+  const ancestorId = ancestor?.id || '';
+  const [lastAncestorId, setLastAncestorId] = useState(ancestorId);
+  if (ancestorId !== lastAncestorId && ancestor) {
+    setLastAncestorId(ancestorId);
+    setName(ancestor.name);
+    setTitle(ancestor.title || '');
+    setRole(ancestor.role);
+    setRegistration(ancestor.registration || '');
+    setDob(ancestor.dob);
+    setPhotoUrl(ancestor.photoUrl || '');
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

@@ -644,7 +644,7 @@ describe('Database Load Tests', () => {
   });
 
   afterAll(() => {
-    logger.debug('tester.generateReport()', 'test', { tester.generateReport(): tester.generateReport() });
+    logger.debug('Generated report:', 'test', { report: tester.generateReport() });
   });
 });
 

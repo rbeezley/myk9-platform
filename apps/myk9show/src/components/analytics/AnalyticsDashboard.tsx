@@ -3,13 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
   BarChart,
   Bar,
@@ -19,10 +19,10 @@ import {
   Area,
   AreaChart
 } from 'recharts';
-import { 
-  TrendingUp, 
-  Trophy, 
-  DollarSign, 
+import {
+  TrendingUp,
+  Trophy,
+  DollarSign,
   Calendar,
   Award,
   BarChart3,
@@ -30,6 +30,62 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+// StatCard component moved outside of AnalyticsDashboard to avoid static-components error
+interface StatCardProps {
+  title: string;
+  value: string | number;
+  subtitle?: string;
+  icon: React.ComponentType<{ className?: string }>;
+  trend?: { value: number; positive: boolean };
+  color?: "default" | "success" | "warning" | "danger";
+}
+
+const StatCard: React.FC<StatCardProps> = ({
+  title,
+  value,
+  subtitle,
+  icon: Icon,
+  trend,
+  color = "default"
+}) => (
+  <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:-translate-y-2">
+    <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+    <CardContent className="relative p-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{title}</p>
+          <div className="flex items-baseline gap-2 mt-2">
+            <p className="text-2xl font-bold group-hover:text-primary transition-colors duration-300">{value}</p>
+            {trend && (
+              <Badge variant={trend.positive ? "default" : "destructive"} className="text-xs px-2 py-1 rounded-full">
+                {trend.positive ? '+' : ''}{trend.value}%
+              </Badge>
+            )}
+          </div>
+          {subtitle && (
+            <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
+          )}
+        </div>
+        <div className={cn(
+          "w-12 h-12 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-xl group-hover:scale-110 transition-all duration-300",
+          color === "success" && "bg-gradient-to-br from-green-500/20 to-green-400/10",
+          color === "warning" && "bg-gradient-to-br from-yellow-500/20 to-yellow-400/10",
+          color === "danger" && "bg-gradient-to-br from-red-500/20 to-red-400/10",
+          color === "default" && "bg-gradient-to-br from-primary/20 to-primary/10"
+        )}>
+          <Icon className={cn(
+            "h-6 w-6",
+            color === "success" && "text-green-500",
+            color === "warning" && "text-yellow-500",
+            color === "danger" && "text-red-500",
+            color === "default" && "text-primary"
+          )} />
+        </div>
+      </div>
+    </CardContent>
+  </Card>
+);
 
 interface PerformanceData {
   month: string;
@@ -131,52 +187,6 @@ export function AnalyticsDashboard() {
       winRate: stats.shows > 0 ? (stats.wins / stats.shows * 100).toFixed(1) : '0'
     }));
   }, []);
-
-  const StatCard = ({ title, value, subtitle, icon: Icon, trend, color = "default" }: {
-    title: string;
-    value: string | number;
-    subtitle?: string;
-    icon: React.ComponentType<{ className?: string }>;
-    trend?: { value: number; positive: boolean };
-    color?: "default" | "success" | "warning" | "danger";
-  }) => (
-    <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:-translate-y-2">
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-      <CardContent className="relative p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{title}</p>
-            <div className="flex items-baseline gap-2 mt-2">
-              <p className="text-2xl font-bold group-hover:text-primary transition-colors duration-300">{value}</p>
-              {trend && (
-                <Badge variant={trend.positive ? "default" : "destructive"} className="text-xs px-2 py-1 rounded-full">
-                  {trend.positive ? '+' : ''}{trend.value}%
-                </Badge>
-              )}
-            </div>
-            {subtitle && (
-              <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
-            )}
-          </div>
-          <div className={cn(
-            "w-12 h-12 rounded-xl flex items-center justify-center shadow-sm group-hover:shadow-xl group-hover:scale-110 transition-all duration-300",
-            color === "success" && "bg-gradient-to-br from-green-500/20 to-green-400/10",
-            color === "warning" && "bg-gradient-to-br from-yellow-500/20 to-yellow-400/10",
-            color === "danger" && "bg-gradient-to-br from-red-500/20 to-red-400/10",
-            color === "default" && "bg-gradient-to-br from-primary/20 to-primary/10"
-          )}>
-            <Icon className={cn(
-              "h-6 w-6",
-              color === "success" && "text-green-500",
-              color === "warning" && "text-yellow-500",
-              color === "danger" && "text-red-500",
-              color === "default" && "text-primary"
-            )} />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
 
   return (
     <div className="space-y-8">

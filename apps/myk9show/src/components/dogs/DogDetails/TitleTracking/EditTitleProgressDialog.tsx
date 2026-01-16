@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { DatePicker } from '@/components/ui/date-picker';
 import StandardDialog from '@/components/common/StandardDialog';
 import RequiredLabel from '@/components/common/RequiredLabel';
@@ -20,16 +20,18 @@ const EditTitleProgressDialog: React.FC<EditTitleProgressDialogProps> = ({ open,
   const [points, setPoints] = useState('');
   const [date, setDate] = useState('');
 
-  useEffect(() => {
-    if (progress) {
-      setOrganization(progress.organization || '');
-      setTitleType(progress.titleType || '');
-      setTitleLevel(progress.titleLevel || '');
-      setLegNumber(progress.legNumber || '');
-      setPoints(progress.points || '');
-      setDate(progress.date || '');
-    }
-  }, [progress]);
+  // Sync form state with progress prop - using render-time state update pattern
+  const progressId = progress?.id || '';
+  const [lastProgressId, setLastProgressId] = useState(progressId);
+  if (progressId !== lastProgressId && progress) {
+    setLastProgressId(progressId);
+    setOrganization(progress.organization || '');
+    setTitleType(progress.titleType || '');
+    setTitleLevel(progress.titleLevel || '');
+    setLegNumber(progress.legNumber || '');
+    setPoints(progress.points || '');
+    setDate(progress.date || '');
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

@@ -13,7 +13,6 @@ import { useStopwatch } from '@myk9/scoring-ui';
 import '../BaseScoresheet.css';
 import '../AKC/scoresheet-shared.css';
 import '../AKC/AKCScentWorkScoresheet-JudgeDialog.css';
-import { logger } from '@/services/LoggingService';
 
 // Types
 interface UKCRallyScoresheetProps {
@@ -83,7 +82,7 @@ export const UKCRallyScoresheet: React.FC<UKCRallyScoresheetProps> = ({
   onNavigate,
   onBack,
   hasNext,
-  hasPrev,
+  hasPrev: _hasPrev,
 }) => {
   // Scoring state
   const [totalScore] = useState(100); // UKC Rally starts with 100 points

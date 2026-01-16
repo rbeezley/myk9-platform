@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { supabase } from '../../supabaseClient';
-import { logger } from '@/services/LoggingService';
 import {
   getAllDogs,
   getDogById,

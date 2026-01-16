@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-nocheck
 // TODO: Fix type errors after RBAC database migration (missing RPC functions: user_has_permission, get_user_permissions, get_user_roles, get_effective_permissions)
 /**

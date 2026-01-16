@@ -49,7 +49,6 @@ export function createIndexedDBStorage(): StateStorage {
 import { createOptimizedIndexedDBStorage } from './storage-adapter-optimized';
 
 // Hybrid storage that falls back to localStorage if IndexedDB fails
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function createHybridStorage(_storeName: string): StateStorage {
   const indexedDBStorage = createOptimizedIndexedDBStorage();
   

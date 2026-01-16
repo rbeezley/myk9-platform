@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-nocheck
 // TODO: Fix type mismatches - subscription_tier, Person fields, sex type restrictions
 /**

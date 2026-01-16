@@ -15,7 +15,6 @@ import './AKCScentWorkScoresheet-Nationals.css';
 import './scoresheet-shared.css';
 import './AKCScentWorkScoresheet-JudgeDialog.css';
 import '../../styles/containers.css';
-import { logger } from '@/services/LoggingService';
 
 // Types
 interface AKCNationalsScoresheetProps {
@@ -105,7 +104,7 @@ export const AKCNationalsScoresheet: React.FC<AKCNationalsScoresheetProps> = ({
   onNavigate,
   onBack,
   hasNext,
-  hasPrev,
+  hasPrev: _hasPrev,
 }) => {
   // Scoring state - 5 areas for Nationals
   const [areas, setAreas] = useState<AreaScore[]>(

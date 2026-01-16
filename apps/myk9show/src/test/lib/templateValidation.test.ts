@@ -1,5 +1,4 @@
 import { describe, test, expect } from 'vitest';
-import { logger } from '@/services/LoggingService';
 import {
   validateTemplate,
   validateClassDefinition,

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-nocheck
 // TODO: Fix type mismatches with entry query results
 import React, { useState, useEffect, useCallback } from 'react';

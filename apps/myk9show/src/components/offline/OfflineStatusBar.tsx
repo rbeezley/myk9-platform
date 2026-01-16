@@ -6,7 +6,6 @@ import { ConnectionQualityMeter } from './ConnectionQualityMeter';
 import { DataFreshnessBadge } from './DataFreshnessBadge';
 import { SyncProgressIndicator, SyncStatus } from './SyncProgressIndicator';
 import { DataManagementPanel } from './DataManagementPanel';
-import { logger } from '@/services/LoggingService';
 import {
   Dialog,
   DialogContent,

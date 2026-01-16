@@ -134,7 +134,6 @@ export const useClassTemplateStore = create<ClassTemplateStore>()(
         return classes;
       },
 
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       createClassesFromTemplate: async (templateId, _trialId) => {
         const generatedClasses = get().generateClassesFromTemplate(templateId);
         

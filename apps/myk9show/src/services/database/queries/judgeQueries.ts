@@ -6,7 +6,6 @@
  */
 
 import { supabase } from '../supabaseClient';
-import { logger } from '@/services/LoggingService';
 import {
   JudgeQualification,
   JudgeAssignment,

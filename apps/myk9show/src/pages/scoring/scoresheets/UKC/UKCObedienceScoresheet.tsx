@@ -12,7 +12,6 @@ import { ClipboardCheck, ArrowLeft } from 'lucide-react';
 import '../BaseScoresheet.css';
 import '../AKC/scoresheet-shared.css';
 import '../AKC/AKCScentWorkScoresheet-JudgeDialog.css';
-import { logger } from '@/services/LoggingService';
 
 // Types
 interface UKCObedienceScoresheetProps {
@@ -52,7 +51,7 @@ export const UKCObedienceScoresheet: React.FC<UKCObedienceScoresheetProps> = ({
   onNavigate,
   onBack,
   hasNext,
-  hasPrev,
+  hasPrev: _hasPrev,
 }) => {
   // Scoring state
   const [points, setPoints] = useState('');

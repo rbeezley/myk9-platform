@@ -5,7 +5,6 @@
  * handle validation, and provide utility functions for achievement data.
  */
 
-import { logger } from '@/services/LoggingService';
 import {
   Achievement,
   Competition,

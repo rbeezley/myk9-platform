@@ -1,6 +1,5 @@
 // React Query hooks for Show database operations
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { logger } from '@/services/LoggingService';
 import type { Show, ShowInput } from '@/types/show-types';
 import {
   getAllShows,

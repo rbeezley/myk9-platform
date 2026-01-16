@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import StandardDialog from '@/components/common/StandardDialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -15,12 +15,14 @@ const EditAllergyDialog: React.FC<EditAllergyDialogProps> = ({ open, record, onC
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
 
-  useEffect(() => {
-    if (record) {
-      setName(record.name);
-      setDescription(record.description);
-    }
-  }, [record]);
+  // Sync form state with record prop - using render-time state update pattern
+  const recordId = record?.id || '';
+  const [lastRecordId, setLastRecordId] = useState(recordId);
+  if (recordId !== lastRecordId && record) {
+    setLastRecordId(recordId);
+    setName(record.name);
+    setDescription(record.description);
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Printer, Download, X } from 'lucide-react';
+import { Printer, X } from 'lucide-react';
 
 interface EntryClass {
   id: string;

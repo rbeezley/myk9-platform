@@ -31,7 +31,6 @@ export default function CartPage() {
   const { user } = useAuthContext();
   const cart = useCartStore((state) => state.cart);
   const items = useCartItems();
-  const isLoading = useCartStore((state) => state.isLoading);
   const error = useCartStore((state) => state.error);
   const removeItem = useCartStore((state) => state.removeItem);
   const clearCart = useCartStore((state) => state.clearCart);

@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from 'react';
-import { logger } from '@/services/LoggingService';
 import { ClassDefinition } from '@/types/template.types';
 import {
   Table,
@@ -13,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -43,6 +42,22 @@ interface ClassDefinitionTableProps {
 
 type SortField = 'displayOrder' | 'element' | 'level' | 'section';
 type SortDirection = 'asc' | 'desc';
+
+// Extracted SortIcon component
+interface SortIconProps {
+  field: SortField;
+  sortField: SortField;
+  sortDirection: SortDirection;
+}
+
+const SortIcon = ({ field, sortField, sortDirection }: SortIconProps) => {
+  if (sortField !== field) {
+    return <ArrowUpDown className="h-4 w-4 text-muted-foreground" />;
+  }
+  return sortDirection === 'asc'
+    ? <ArrowUp className="h-4 w-4" />
+    : <ArrowDown className="h-4 w-4" />;
+};
 
 export const ClassDefinitionTable: React.FC<ClassDefinitionTableProps> = ({
   classes,
@@ -210,15 +225,6 @@ export const ClassDefinitionTable: React.FC<ClassDefinitionTableProps> = ({
     setEditingDisplayOrder(null);
   };
 
-  const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) {
-      return <ArrowUpDown className="h-4 w-4 text-muted-foreground" />;
-    }
-    return sortDirection === 'asc' 
-      ? <ArrowUp className="h-4 w-4" />
-      : <ArrowDown className="h-4 w-4" />;
-  };
-
   return (
     <div className="space-y-3">
       {/* Description */}
@@ -300,7 +306,7 @@ export const ClassDefinitionTable: React.FC<ClassDefinitionTableProps> = ({
                   onClick={() => handleSort('displayOrder')}
                 >
                   Order
-                  <SortIcon field="displayOrder" />
+                  <SortIcon field="displayOrder" sortField={sortField} sortDirection={sortDirection} />
                 </Button>
               </TableHead>
               <TableHead>
@@ -311,7 +317,7 @@ export const ClassDefinitionTable: React.FC<ClassDefinitionTableProps> = ({
                   onClick={() => handleSort('element')}
                 >
                   Element
-                  <SortIcon field="element" />
+                  <SortIcon field="element" sortField={sortField} sortDirection={sortDirection} />
                 </Button>
               </TableHead>
               <TableHead>
@@ -322,7 +328,7 @@ export const ClassDefinitionTable: React.FC<ClassDefinitionTableProps> = ({
                   onClick={() => handleSort('level')}
                 >
                   Level
-                  <SortIcon field="level" />
+                  <SortIcon field="level" sortField={sortField} sortDirection={sortDirection} />
                 </Button>
               </TableHead>
               <TableHead>
@@ -333,7 +339,7 @@ export const ClassDefinitionTable: React.FC<ClassDefinitionTableProps> = ({
                   onClick={() => handleSort('section')}
                 >
                   Section
-                  <SortIcon field="section" />
+                  <SortIcon field="section" sortField={sortField} sortDirection={sortDirection} />
                 </Button>
               </TableHead>
               <TableHead>Description</TableHead>

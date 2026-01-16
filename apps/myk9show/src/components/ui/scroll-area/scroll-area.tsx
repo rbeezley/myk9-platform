@@ -42,7 +42,6 @@ interface ScrollBarProps extends React.HTMLAttributes<HTMLDivElement> {
 
 // ScrollBar is now a no-op component for API compatibility
 // Native scrollbars are styled via CSS on the viewport
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function ScrollBar(_props: ScrollBarProps): null {
   return null
 }

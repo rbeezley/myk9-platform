@@ -6,7 +6,6 @@
  */
 
 import { supabase } from '../supabaseClient';
-import { logger } from '@/services/LoggingService';
 
 // Helper for tables not in schema - bypasses type checking
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

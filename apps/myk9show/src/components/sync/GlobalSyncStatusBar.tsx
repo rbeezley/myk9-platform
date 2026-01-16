@@ -10,7 +10,6 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { logger } from '@/services/LoggingService';
 import { useNavigate } from 'react-router-dom';
 import { useSyncStore } from '@/store/syncStore';
 import { useGlobalSyncStatus } from '@/hooks/useGlobalSyncStatus';

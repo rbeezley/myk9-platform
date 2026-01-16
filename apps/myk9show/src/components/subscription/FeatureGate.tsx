@@ -3,21 +3,58 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { 
-  Lock, 
-  ArrowRight, 
-  Check, 
+import {
+  Lock,
+  ArrowRight,
+  Check,
   Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { 
-  PlanType, 
-  FeatureType, 
-  Feature, 
-  features, 
-  planHierarchy, 
-  planDetails 
+import {
+  PlanType,
+  FeatureType,
+  Feature,
+  features,
+  planHierarchy,
+  planDetails
 } from './featureUtils';
+
+// Extracted UpgradeCard component
+interface UpgradeCardProps {
+  feature: Feature;
+  requiredPlanDetails: (typeof planDetails)[keyof typeof planDetails] | undefined;
+  onOpenDialog: () => void;
+}
+
+const UpgradeCard = ({ feature, requiredPlanDetails, onOpenDialog }: UpgradeCardProps) => (
+  <Card className="border-dashed border-2 border-muted-foreground/25">
+    <CardContent className="flex flex-col items-center justify-center p-8 text-center space-y-4">
+      <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+        <Lock className="h-8 w-8 text-muted-foreground" />
+      </div>
+
+      <div className="space-y-2">
+        <h3 className="text-lg font-semibold">{feature.name}</h3>
+        <p className="text-sm text-muted-foreground max-w-sm">
+          {feature.description}
+        </p>
+      </div>
+
+      <Badge variant="outline" className="flex items-center gap-1">
+        {feature.icon}
+        Requires {requiredPlanDetails?.name}
+      </Badge>
+
+      <Button
+        onClick={onOpenDialog}
+        className="flex items-center gap-2"
+      >
+        Upgrade Now
+        <ArrowRight className="h-4 w-4" />
+      </Button>
+    </CardContent>
+  </Card>
+);
 
 interface FeatureGateProps {
   feature: FeatureType;
@@ -64,48 +101,22 @@ interface FeatureUpgradePromptProps {
   onUpgrade?: () => void;
 }
 
-function FeatureUpgradePrompt({ 
-  feature, 
-  userPlan, 
+function FeatureUpgradePrompt({
+  feature,
+  userPlan,
   showDialog = false,
   onUpgrade
 }: FeatureUpgradePromptProps) {
   const [dialogOpen, setDialogOpen] = React.useState(showDialog);
   const requiredPlanDetails = planDetails[feature.requiredPlan as keyof typeof planDetails];
 
-  const UpgradeCard = () => (
-    <Card className="border-dashed border-2 border-muted-foreground/25">
-      <CardContent className="flex flex-col items-center justify-center p-8 text-center space-y-4">
-        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-          <Lock className="h-8 w-8 text-muted-foreground" />
-        </div>
-        
-        <div className="space-y-2">
-          <h3 className="text-lg font-semibold">{feature.name}</h3>
-          <p className="text-sm text-muted-foreground max-w-sm">
-            {feature.description}
-          </p>
-        </div>
-
-        <Badge variant="outline" className="flex items-center gap-1">
-          {feature.icon}
-          Requires {requiredPlanDetails?.name}
-        </Badge>
-
-        <Button 
-          onClick={() => setDialogOpen(true)}
-          className="flex items-center gap-2"
-        >
-          Upgrade Now
-          <ArrowRight className="h-4 w-4" />
-        </Button>
-      </CardContent>
-    </Card>
-  );
-
   return (
     <>
-      <UpgradeCard />
+      <UpgradeCard
+        feature={feature}
+        requiredPlanDetails={requiredPlanDetails}
+        onOpenDialog={() => setDialogOpen(true)}
+      />
       
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl">

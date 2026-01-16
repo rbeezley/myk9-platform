@@ -2,7 +2,6 @@ import { supabase } from '@/lib/supabase';
 import type { Dog } from '@/types/dog-types';
 import { mockDogs } from '@/mockData/mockDogs';
 import { shouldUseMockData } from '@/config/dataSource';
-import { logger } from '@/services/LoggingService';
 
 /**
  * Service for managing dog-related data operations.

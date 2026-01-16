@@ -13,7 +13,6 @@ import '../BaseScoresheet.css';
 import './scoresheet-shared.css';
 import './AKCScentWorkScoresheet-JudgeDialog.css';
 import '../../styles/containers.css';
-import { logger } from '@/services/LoggingService';
 
 // Types
 interface AKCScentWorkScoresheetProps {
@@ -83,7 +82,7 @@ export const AKCScentWorkScoresheet: React.FC<AKCScentWorkScoresheetProps> = ({
   onNavigate,
   onBack,
   hasNext,
-  hasPrev,
+  hasPrev: _hasPrev,
 }) => {
   // Scoring state
   const [areas, setAreas] = useState<AreaScore[]>([{ time: '', areaName: 'Search' }]);

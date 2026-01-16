@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import StandardDialog from '@/components/common/StandardDialog';
 import type { VetVisitRecord } from './AddVetVisitDialog';
 import { Input } from '@/components/ui/input';
@@ -19,15 +19,17 @@ const EditVetVisitDialog: React.FC<EditVetVisitDialogProps> = ({ open, record, o
   const [vetName, setVetName] = useState('');
   const [clinicName, setClinicName] = useState('');
 
-  useEffect(() => {
-    if (record) {
-      setTitle(record.title);
-      setDate(record.date || "");
-      setNotes(record.notes);
-      setVetName(record.vetName || '');
-      setClinicName(record.clinicName || '');
-    }
-  }, [record]);
+  // Sync form state with record prop - using render-time state update pattern
+  const recordId = record?.id || '';
+  const [lastRecordId, setLastRecordId] = useState(recordId);
+  if (recordId !== lastRecordId && record) {
+    setLastRecordId(recordId);
+    setTitle(record.title);
+    setDate(record.date || "");
+    setNotes(record.notes);
+    setVetName(record.vetName || '');
+    setClinicName(record.clinicName || '');
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

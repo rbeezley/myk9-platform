@@ -9,7 +9,7 @@
  * - Form validation and error handling
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { logger } from '@/services/LoggingService';
 import {
   User as UserIcon,
@@ -111,27 +111,32 @@ export const UserDetailsDialog: React.FC<UserDetailsDialogProps> = ({
 
   const updateUserMutation = useUpdateUserMutation();
 
-  // Initialize form data when user changes
-  useEffect(() => {
-    if (user) {
-      setFormData({
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-        email: user.email || '',
-        phone: user.phone || '',
-        address: user.address || '',
-        city: user.city || '',
-        state: user.state || '',
-        zipCode: user.zipCode || '',
-        country: user.country || '',
-        membershipId: user.membershipId || '',
-        clubAffiliations: user.clubAffiliations || [],
-        roles: user.roles || [],
-        isActive: true // Mock - would come from actual user status
-      });
-      setErrors({});
-    }
-  }, [user]);
+  // Derive initial form data from user prop
+  const getInitialFormData = (): UserFormData => ({
+    firstName: user?.firstName || '',
+    lastName: user?.lastName || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
+    address: user?.address || '',
+    city: user?.city || '',
+    state: user?.state || '',
+    zipCode: user?.zipCode || '',
+    country: user?.country || '',
+    membershipId: user?.membershipId || '',
+    clubAffiliations: user?.clubAffiliations || [],
+    roles: user?.roles || [],
+    isActive: true // Mock - would come from actual user status
+  });
+
+  // Reset form when user changes - this pattern is allowed by React
+  // as it's setting state during render based on prop changes
+  const userKey = user?.id || '';
+  const [lastUserKey, setLastUserKey] = useState(userKey);
+  if (userKey !== lastUserKey) {
+    setLastUserKey(userKey);
+    setFormData(getInitialFormData());
+    setErrors({});
+  }
 
   // Form validation
   const validateForm = (): boolean => {

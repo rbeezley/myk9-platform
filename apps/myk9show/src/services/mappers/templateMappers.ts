@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-nocheck
 // TODO: Fix type errors after template tables schema update (missing columns: organization, show_type, fields, class_pattern, etc.)
 // Type mapping utilities for Template Store <-> Database integration

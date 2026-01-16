@@ -1,4 +1,3 @@
-import { logger } from '@/services/LoggingService';
 import {
     replicatedClassesTable,
     replicatedEntriesTable,
@@ -8,12 +7,20 @@ import {
     replicatedClubsTable
 } from '@/services/replication';
 
+// Define the shape of replicated tables
+type ReplicatedTable = {
+    sync?: () => Promise<{ success: boolean; error?: string }>;
+    [key: string]: unknown;
+};
+
+type SyncResult = { success: boolean; error?: string };
+
 /**
  * Simplified ReplicationManager to support existing hooks that expect
  * a centralized manager for table access and synchronization.
  */
 class ReplicationManager {
-    private tables: Record<string, any> = {
+    private tables: Record<string, ReplicatedTable> = {
         classes: replicatedClassesTable,
         entries: replicatedEntriesTable,
         trials: replicatedTrialsTable,
@@ -25,14 +32,14 @@ class ReplicationManager {
     /**
      * Get a replicated table by name
      */
-    getTable<T>(name: string): any {
+    getTable(name: string): ReplicatedTable | undefined {
         return this.tables[name];
     }
 
     /**
      * Trigger sync for a specific table
      */
-    async syncTable(name: string): Promise<any> {
+    async syncTable(name: string): Promise<SyncResult> {
         const table = this.getTable(name);
         if (table && typeof table.sync === 'function') {
             return await table.sync();

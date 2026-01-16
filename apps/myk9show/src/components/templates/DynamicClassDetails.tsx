@@ -6,7 +6,6 @@ import {
   ClassFieldValues,
   FieldDataType
 } from '@/types/field-definition-types';
-import { logger } from '@/services/LoggingService';
 import {
   getConfiguredFieldsWithDefinitions,
   groupFieldsByCategory

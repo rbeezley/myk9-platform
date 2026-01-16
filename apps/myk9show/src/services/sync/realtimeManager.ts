@@ -141,7 +141,7 @@ export class RealtimeManager {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+   
   private async handleUpdate(entityType: string, newRecord: Record<string, unknown>, _oldRecord?: Record<string, unknown>): Promise<void> {
     const recordId = this.getRecordId(newRecord);
     if (!recordId) {
@@ -189,7 +189,7 @@ export class RealtimeManager {
   private async handlePotentialConflict(
     entityType: string,
     remoteRecord: Record<string, unknown>,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     
     _localRecord: Record<string, unknown>
   ): Promise<void> {
     const recordId = this.getRecordId(remoteRecord);

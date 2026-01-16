@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
@@ -54,14 +54,21 @@ const ExpandableSection: React.FC<ExpandableSectionProps> = ({
     return getSmartDefault();
   });
 
-  // Handle external force controls
-  useEffect(() => {
+  // Track previous force values to detect changes during render
+  const prevForceExpandedRef = useRef(forceExpanded);
+  const prevForceCollapsedRef = useRef(forceCollapsed);
+
+  // Handle external force controls - using render-time state update pattern
+  if (forceExpanded !== prevForceExpandedRef.current || forceCollapsed !== prevForceCollapsedRef.current) {
+    prevForceExpandedRef.current = forceExpanded;
+    prevForceCollapsedRef.current = forceCollapsed;
+
     if (forceExpanded && contentCount && contentCount > 0) {
       setIsExpanded(true);
     } else if (forceCollapsed) {
       setIsExpanded(false);
     }
-  }, [forceExpanded, forceCollapsed, contentCount]);
+  }
 
   const handleToggle = (e: React.MouseEvent | React.KeyboardEvent) => {
     e.preventDefault();

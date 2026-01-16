@@ -5,7 +5,6 @@
  */
 
 import React, { useState } from 'react';
-import { logger } from '@/services/LoggingService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';

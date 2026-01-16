@@ -167,10 +167,10 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
         ...tabs[managingTabIndex],
         label: 'Managing',
         description: 'Global administrative view of all shows',
-        getCount: (shows, _entries, _userId) => { // eslint-disable-line @typescript-eslint/no-unused-vars
+        getCount: (shows, _entries, _userId) => {
           return getAdminManagedShows(shows, userRoles).length;
         },
-        filterShows: (shows, _entries, _userId) => { // eslint-disable-line @typescript-eslint/no-unused-vars
+        filterShows: (shows, _entries, _userId) => {
           return getAdminManagedShows(shows, userRoles);
         }
       };
@@ -181,10 +181,10 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
         description: 'Global administrative view of all shows',
         requiredRoles: [UserRole.SITE_ADMIN],
         requiredPermissions: [PERMISSIONS.SHOW_MANAGE],
-        getCount: (shows, _entries, _userId) => { // eslint-disable-line @typescript-eslint/no-unused-vars
+        getCount: (shows, _entries, _userId) => {
           return getAdminManagedShows(shows, userRoles).length;
         },
-        filterShows: (shows, _entries, _userId) => { // eslint-disable-line @typescript-eslint/no-unused-vars
+        filterShows: (shows, _entries, _userId) => {
           return getAdminManagedShows(shows, userRoles);
         }
       });

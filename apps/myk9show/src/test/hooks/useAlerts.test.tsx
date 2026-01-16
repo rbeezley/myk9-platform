@@ -4,7 +4,6 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useAlerts, useAlertNotifications } from '../../hooks/useAlerts';
 import AlertingService from '../../services/alerts/AlertingService';
-import { logger } from '@/services/LoggingService';
 import {
   AlertType,
   AlertSeverity,

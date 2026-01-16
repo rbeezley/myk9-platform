@@ -6,7 +6,6 @@
  */
 
 import React, { useState } from 'react';
-import { logger } from '@/services/LoggingService';
 import { 
   Settings, 
   Monitor, 

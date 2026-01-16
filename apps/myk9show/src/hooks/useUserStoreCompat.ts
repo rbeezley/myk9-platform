@@ -2,7 +2,6 @@
 // Phase 2.2: User Store Integration
 
 import { useMemo } from 'react';
-import { logger } from '@/services/LoggingService';
 import type { User } from '@/types/user-types';
 import type { UserInput } from '@/store/userStore';
 import {

@@ -69,7 +69,7 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({
   sidebarWidth = SIDEBAR_LAYOUT_CONSTANTS.DEFAULT_WIDTH,
   isCollapsible = false,
   isCollapsed = false,
-  onCollapseChange,
+  onCollapseChange: _onCollapseChange,
   mobileMenuLabel = 'Menu',
   showMobileMenuButton = true,
   mobileHeaderContent,

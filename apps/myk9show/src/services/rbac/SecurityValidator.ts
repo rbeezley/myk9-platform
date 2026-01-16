@@ -4,7 +4,6 @@
  * Handles security validation for RBAC operations.
  */
 
-import { supabase } from '@/lib/supabase';
 import type { Role, Permission } from '@/types/rbac-types';
 import { logger } from '@/services/LoggingService';
 

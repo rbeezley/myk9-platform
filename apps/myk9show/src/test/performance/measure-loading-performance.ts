@@ -4,7 +4,6 @@
  */
 
 import { chromium, Browser, Page } from '@playwright/test';
-import { logger } from '@/services/LoggingService';
 
 interface PerformanceMetrics {
   navigationStart: number;
@@ -114,7 +113,7 @@ async function runPerformanceTests() {
   
   for (const test of urls) {
     logger.debug(`📊 Measuring: ${test.name}`, 'app', {});
-    logger.debug(''─'.repeat(50)', 'test', { '─'.repeat(50): '─'.repeat(50) });
+    logger.debug('─'.repeat(50), 'test', {});
     
     try {
       const metrics = await measurePerformance(test.url);

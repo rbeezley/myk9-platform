@@ -62,8 +62,8 @@ const AppHeader: React.FC = () => {
     }
   };
 
-  // Get user's primary role for display
-  const getPrimaryRole = () => {
+  // Get user's primary role for display (reserved for future use)
+  const _getPrimaryRole = () => {
     if (hasRole(UserRole.SITE_ADMIN)) return 'Admin';
     if (hasRole(UserRole.CLUB_ADMIN)) return 'Club Admin';
     if (hasRole(UserRole.SECRETARY)) return 'Secretary';

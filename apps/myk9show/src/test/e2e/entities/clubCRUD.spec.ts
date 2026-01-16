@@ -106,7 +106,7 @@ test.describe('Club CRUD Operations', () => {
       // Update the club
       const updatedPhone = '555-9999';
       const updatedDescription = 'Updated description';
-      const { data: updatedClub, error: updateError } = await updateClub(createdClub.id, {
+      const { data: _updatedClub, error: updateError } = await updateClub(createdClub.id, {
         phone: updatedPhone,
         description: updatedDescription
       });

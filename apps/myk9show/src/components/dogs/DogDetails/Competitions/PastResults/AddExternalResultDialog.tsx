@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import StandardDialog from '@/components/common/StandardDialog';
 import RequiredLabel from '@/components/common/RequiredLabel';
 import { Input } from '@/components/ui/input';
-import { logger } from '@/services/LoggingService';
 import {
   Select,
   SelectContent,

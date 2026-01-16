@@ -215,6 +215,135 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
   }
 
   console.log(`Entry payment completed for cart ${cartId}, created order`);
+
+  // Send confirmation email
+  await sendEntryConfirmationEmail(cart, entryIds, session);
+}
+
+/**
+ * Send entry confirmation email via send-email function
+ */
+async function sendEntryConfirmationEmail(
+  cart: {
+    show_id: string;
+    exhibitor: { id: string; person_id: string };
+    items: Array<{
+      dog_id: string;
+      class_id: string;
+      entry_fee_cents: number;
+    }>;
+    subtotal_cents: number;
+    platform_fee_cents: number;
+    total_cents: number;
+  },
+  entryIds: string[],
+  session: Stripe.Checkout.Session
+) {
+  try {
+    // Get exhibitor email and name
+    const { data: person } = await supabase
+      .from('people')
+      .select('email, first_name, last_name')
+      .eq('id', cart.exhibitor.person_id)
+      .single();
+
+    if (!person?.email) {
+      console.error('No email found for exhibitor');
+      return;
+    }
+
+    // Get show details
+    const { data: show } = await supabase
+      .from('shows')
+      .select('name, start_date, end_date, venue_name, city, state')
+      .eq('id', cart.show_id)
+      .single();
+
+    if (!show) {
+      console.error('Show not found');
+      return;
+    }
+
+    // Get entry details with dog and class info
+    const { data: entries } = await supabase
+      .from('entries')
+      .select(`
+        id,
+        entry_fee_cents,
+        dogs:dog_id (name, call_name),
+        classes:class_id (name, level)
+      `)
+      .in('id', entryIds);
+
+    if (!entries || entries.length === 0) {
+      console.error('No entries found for confirmation email');
+      return;
+    }
+
+    // Format show date
+    const startDate = new Date(show.start_date);
+    const endDate = show.end_date ? new Date(show.end_date) : null;
+    let showDate = startDate.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+    if (endDate && endDate.getTime() !== startDate.getTime()) {
+      showDate += ` - ${endDate.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })}`;
+    }
+
+    // Format location
+    const showLocation = [show.venue_name, show.city, show.state]
+      .filter(Boolean)
+      .join(', ');
+
+    // Build email payload
+    const emailData = {
+      type: 'entry_confirmation',
+      to: person.email,
+      exhibitorName: `${person.first_name} ${person.last_name}`,
+      showName: show.name,
+      showDate,
+      showLocation: showLocation || undefined,
+      entries: entries.map((e) => ({
+        dogName: (e.dogs as { call_name?: string; name: string })?.call_name ||
+          (e.dogs as { name: string })?.name || 'Unknown',
+        className: (e.classes as { name: string })?.name || 'Unknown',
+        classLevel: (e.classes as { level?: string })?.level || undefined,
+        entryFee: e.entry_fee_cents,
+      })),
+      subtotal: cart.subtotal_cents || session.amount_subtotal || 0,
+      platformFee: cart.platform_fee_cents || 0,
+      total: cart.total_cents || session.amount_total || 0,
+      orderId: session.id,
+    };
+
+    // Call send-email function
+    const response = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${supabaseServiceKey}`,
+      },
+      body: JSON.stringify(emailData),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      console.error('Failed to send confirmation email:', error);
+    } else {
+      console.log(`Confirmation email sent to ${person.email}`);
+    }
+  } catch (error) {
+    console.error('Error sending confirmation email:', error);
+    // Don't throw - email failure shouldn't fail the payment processing
+  }
 }
 
 /**

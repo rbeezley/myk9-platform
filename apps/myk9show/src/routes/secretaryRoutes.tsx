@@ -26,6 +26,8 @@ const SyncDashboardPage = lazy(() => import('@/pages/sync/SyncDashboardPage').th
 
 // Entry management
 const EntryManagementPage = lazy(() => import('@/pages/secretary/EntryManagementPage').catch(() => ({ default: () => <div>Entry Management Coming Soon</div> })));
+const WaitlistManagementPage = lazy(() => import('@/pages/secretary/WaitlistManagementPage'));
+const DayOfOperationsPage = lazy(() => import('@/pages/secretary/DayOfOperationsPage'));
 
 export const SecretaryRoutes = () => (
   <>
@@ -95,6 +97,24 @@ export const SecretaryRoutes = () => (
       <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
         <SuspenseWrapper>
           <PageTransition><EntryManagementPage /></PageTransition>
+        </SuspenseWrapper>
+      </ProtectedRoute>
+    } />
+
+    {/* Waitlist Management */}
+    <Route path="/secretary/waitlist" element={
+      <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+        <SuspenseWrapper>
+          <PageTransition><WaitlistManagementPage /></PageTransition>
+        </SuspenseWrapper>
+      </ProtectedRoute>
+    } />
+
+    {/* Day-of Operations */}
+    <Route path="/secretary/day-of" element={
+      <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+        <SuspenseWrapper>
+          <PageTransition><DayOfOperationsPage /></PageTransition>
         </SuspenseWrapper>
       </ProtectedRoute>
     } />

@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
-import { LogOut, User as UserIcon, ChevronDown, Search, Settings, CreditCard, Heart, Wifi, WifiOff, RefreshCw, Menu, X, Palette } from 'lucide-react';
+import { LogOut, User as UserIcon, ChevronDown, Search, Settings, CreditCard, Heart, Wifi, WifiOff, RefreshCw, Menu, X, Palette, ShoppingCart } from 'lucide-react';
 import { ExhibitorNavigation, SecretaryNavigation, JudgeNavigation, AdminNavigation } from './navigation';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import { ClearCacheButton } from '@/components/common/ClearCacheButton';
 import { NotificationCenter } from '@/components/common/NotificationCenter';
 import { useGlobalSyncStatus } from '@/hooks/useGlobalSyncStatus';
 import { buildClasses } from '@/utils/designTokens';
+import { useCartItemCount } from '@/stores/cartStore';
 
 const AppHeader: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
@@ -23,6 +24,7 @@ const AppHeader: React.FC = () => {
   const navigate = useNavigate();
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const cartItemCount = useCartItemCount();
 
   // Handler for opening command palette
   const openCommandPalette = () => {
@@ -126,6 +128,21 @@ const AppHeader: React.FC = () => {
                 >
                   <Search className="h-4 w-4" />
                 </Button>
+
+                {/* Cart Icon */}
+                {cartItemCount > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => navigate('/cart')}
+                    className="p-2 relative"
+                  >
+                    <ShoppingCart className="h-4 w-4" />
+                    <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-primary text-primary-foreground text-[10px] font-medium flex items-center justify-center">
+                      {cartItemCount > 9 ? '9+' : cartItemCount}
+                    </span>
+                  </Button>
+                )}
 
                 {/* Notification Center */}
                 <NotificationCenter />

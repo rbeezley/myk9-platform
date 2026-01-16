@@ -23,9 +23,15 @@ const PreferencesPage = lazy(() => import('@/pages/PreferencesPage'));
 
 // Exhibitor pages
 const BrowseShowsPage = lazy(() => import('@/pages/BrowseShowsPage'));
+const MyEntriesPage = lazy(() => import('@/pages/MyEntriesPage'));
 const ExhibitorDashboard = lazy(() => import('@/pages/ExhibitorDashboard'));
 const ExhibitorProfilePage = lazy(() => import('@/pages/exhibitor/ExhibitorProfilePage'));
 const ClassCheckIn = lazy(() => import('@/components/exhibitor/ClassCheckIn'));
+
+// Cart and checkout pages
+const CartPage = lazy(() => import('@/pages/CartPage'));
+const CheckoutSuccessPage = lazy(() => import('@/pages/CheckoutSuccessPage'));
+const CheckoutCancelPage = lazy(() => import('@/pages/CheckoutCancelPage'));
 
 // Test pages
 const ClassTemplateTestPage = lazy(() => import('@/components/classes/ClassTemplateTestPage').then(m => ({ default: m.ClassTemplateTestPage })));
@@ -88,11 +94,11 @@ export const PublicRoutes = () => (
       </SuspenseWrapper>
     } />
     
-    {/* Legacy route redirect - My Entries functionality now in unified interface */}
+    {/* My Entries - View and manage exhibitor's entries */}
     <Route path="/my-entries" element={
       <ProtectedRoute>
         <SuspenseWrapper>
-          <PageTransition><BrowseShowsPage /></PageTransition>
+          <PageTransition><MyEntriesPage /></PageTransition>
         </SuspenseWrapper>
       </ProtectedRoute>
     } />
@@ -133,15 +139,15 @@ export const PublicRoutes = () => (
     <Route path="/exhibitor/entries" element={
       <ProtectedRoute>
         <SuspenseWrapper>
-          <PageTransition><BrowseShowsPage /></PageTransition>
+          <PageTransition><MyEntriesPage /></PageTransition>
         </SuspenseWrapper>
       </ProtectedRoute>
     } />
-    
+
     <Route path="/exhibitor/entries/history" element={
       <ProtectedRoute>
         <SuspenseWrapper>
-          <PageTransition><BrowseShowsPage /></PageTransition>
+          <PageTransition><MyEntriesPage /></PageTransition>
         </SuspenseWrapper>
       </ProtectedRoute>
     } />
@@ -206,6 +212,31 @@ export const PublicRoutes = () => (
       <ProtectedRoute>
         <SuspenseWrapper>
           <PageTransition><ClassCheckIn /></PageTransition>
+        </SuspenseWrapper>
+      </ProtectedRoute>
+    } />
+
+    {/* Cart and Checkout */}
+    <Route path="/cart" element={
+      <ProtectedRoute>
+        <SuspenseWrapper>
+          <PageTransition><CartPage /></PageTransition>
+        </SuspenseWrapper>
+      </ProtectedRoute>
+    } />
+
+    <Route path="/checkout/success" element={
+      <ProtectedRoute>
+        <SuspenseWrapper>
+          <PageTransition><CheckoutSuccessPage /></PageTransition>
+        </SuspenseWrapper>
+      </ProtectedRoute>
+    } />
+
+    <Route path="/checkout/cancel" element={
+      <ProtectedRoute>
+        <SuspenseWrapper>
+          <PageTransition><CheckoutCancelPage /></PageTransition>
         </SuspenseWrapper>
       </ProtectedRoute>
     } />

@@ -583,19 +583,54 @@ export const getShowsByStatus = async (status: string) => {
       .eq('status', status)
       .is('deleted_at', null)
       .order('start_date', { ascending: true });
-    
+
     const duration = Date.now() - startTime;
     logQuery('show', 'select_by_status', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'show', 'select_by_status');
     }
-    
+
     return { data: data || [], error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'show', 'select_by_status');
     logQuery('show', 'select_by_status', duration, dbError.message);
+    return { data: [], error: dbError };
+  }
+};
+
+// Get shows where user is a secretary (excluding soft-deleted)
+export const getSecretaryShows = async (userId: string) => {
+  const startTime = Date.now();
+
+  try {
+    // First, get shows where user is explicitly assigned as secretary
+    // For now, we'll get all shows since secretary assignment table may not exist
+    // In a full implementation, this would check secretary_assignments or show_staff table
+    const { data, error } = await supabase
+      .from('shows')
+      .select(`
+        id,
+        name,
+        start_date,
+        end_date
+      `)
+      .is('deleted_at', null)
+      .order('start_date', { ascending: false });
+
+    const duration = Date.now() - startTime;
+    logQuery('show', 'select_secretary_shows', duration, error?.message);
+
+    if (error) {
+      throw createDatabaseError(error, 'show', 'select_secretary_shows');
+    }
+
+    return { data: data || [], error: null };
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const dbError = createDatabaseError(error, 'show', 'select_secretary_shows');
+    logQuery('show', 'select_secretary_shows', duration, dbError.message);
     return { data: [], error: dbError };
   }
 };

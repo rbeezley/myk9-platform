@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-// import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useStatusUpdates, notificationService } from '@/services/NotificationService';
 import { auditService } from '@/services/AuditService';
@@ -18,10 +19,22 @@ import { CheckInStatus } from '@/types/check-in-types';
 import { CheckInStatusIndicator } from '@/components/common/CheckInStatusIndicator';
 import { CheckInStatusDialog } from '@/components/common/CheckInStatusDialog';
 import { logger } from '@/services/LoggingService';
+import { getSecretaryShows } from '@/services/database/queries/showQueries';
 import {
-  Search, 
+  getEntriesForShow,
+  updateEntryStatus,
+  bulkUpdateEntryStatus,
+  updateCheckInStatus,
+  bulkCheckIn,
+  assignArmband,
+  autoAssignArmbands,
+  getEntriesForExport,
+  SecretaryEntry,
+} from '@/services/database/queries/secretaryEntryQueries';
+import {
+  Search,
   Filter,
-  Users, 
+  Users,
   Clock,
   CheckCircle2,
   AlertCircle,
@@ -29,7 +42,11 @@ import {
   MessageSquare,
   Download,
   Upload,
-  DollarSign
+  DollarSign,
+  Calendar,
+  Hash,
+  Loader2,
+  RefreshCw,
 } from 'lucide-react';
 
 interface EntryManagementEntry {
@@ -68,8 +85,22 @@ interface BulkAction {
   data: Record<string, unknown>;
 }
 
+interface Show {
+  id: string;
+  name: string | null;
+  start_date: string | null;
+  end_date: string | null;
+}
+
 const EntryManagementPage: React.FC = () => {
   const { user, hasRole } = useAuthContext();
+
+  // Show selection
+  const [shows, setShows] = useState<Show[]>([]);
+  const [selectedShowId, setSelectedShowId] = useState<string>('');
+  const [isLoadingShows, setIsLoadingShows] = useState(true);
+
+  // Entry data
   const [entries, setEntries] = useState<EntryManagementEntry[]>([]);
   const [filteredEntries, setFilteredEntries] = useState<EntryManagementEntry[]>([]);
   const [selectedEntries, setSelectedEntries] = useState<Set<string>>(new Set());
@@ -77,30 +108,163 @@ const EntryManagementPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [paymentFilter, setPaymentFilter] = useState('all');
-  const [isLoading, setIsLoading] = useState(true);
-  // const [showBulkActions, setShowBulkActions] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Dialogs
   const [bulkActionDialog, setBulkActionDialog] = useState<{ open: boolean; action: string | null }>({ open: false, action: null });
   const [checkInDialog, setCheckInDialog] = useState<{
     open: boolean;
     entry: EntryManagementEntry | null;
     classEntry: EntryClass | null;
   }>({ open: false, entry: null, classEntry: null });
+  const [armbandDialog, setArmbandDialog] = useState<{
+    open: boolean;
+    entry: EntryManagementEntry | null;
+    value: string;
+  }>({ open: false, entry: null, value: '' });
+  const [autoArmbandDialog, setAutoArmbandDialog] = useState<{
+    open: boolean;
+    startNumber: string;
+  }>({ open: false, startNumber: '1' });
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // Real-time status updates for entries
   const { status: entryUpdates } = useStatusUpdates('entries', 'all');
 
-  // Mock functions for hooks (would be real implementations)
-  const loadEntries = async () => {
-    setIsLoading(true);
+  // Load shows on mount
+  useEffect(() => {
+    loadShows();
+  }, []);
+
+  // Load entries when show changes
+  useEffect(() => {
+    if (selectedShowId) {
+      loadEntries(selectedShowId);
+    } else {
+      setEntries([]);
+      setFilteredEntries([]);
+    }
+  }, [selectedShowId]);
+
+  const loadShows = async () => {
+    setIsLoadingShows(true);
     try {
-      // Mock implementation
-      const mockEntries: EntryManagementEntry[] = [];
-      setEntries(mockEntries);
-      setFilteredEntries(mockEntries);
-    } catch (error) {
-      logger.error('Error loading entries:', 'pages', {}, error as Error);
+      const { data, error } = await getSecretaryShows(user?.id || '');
+      if (error) {
+        logger.error('Error loading shows:', 'secretary', {}, error as Error);
+      } else {
+        setShows(data || []);
+      }
+    } catch (err) {
+      logger.error('Error loading shows:', 'secretary', {}, err as Error);
+    } finally {
+      setIsLoadingShows(false);
+    }
+  };
+
+  const loadEntries = async (showId: string) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const { data, error } = await getEntriesForShow(showId);
+
+      if (error) {
+        setError('Failed to load entries');
+        logger.error('Error loading entries:', 'secretary', {}, error as Error);
+        return;
+      }
+
+      // Transform database entries to UI format
+      const transformedEntries: EntryManagementEntry[] = (data || []).map((entry: SecretaryEntry) => ({
+        id: entry.id,
+        registrationId: entry.id,
+        entryNumber: entry.armband_number || entry.id.slice(0, 8).toUpperCase(),
+        showId: entry.show_id,
+        dogName: entry.dog?.name || 'Unknown Dog',
+        ownerName: entry.owner
+          ? `${entry.owner.first_name || ''} ${entry.owner.last_name || ''}`.trim() || 'Unknown'
+          : 'Unknown',
+        ownerEmail: entry.owner?.email || '',
+        handlerName: entry.handler || entry.owner
+          ? `${entry.owner?.first_name || ''} ${entry.owner?.last_name || ''}`.trim()
+          : 'Not specified',
+        classes: (entry.class_entries || []).map((ce) => ({
+          id: ce.id,
+          name: ce.class?.name || 'Unknown Class',
+          number: ce.class?.class_number || '',
+          fee: ce.entry_fee || 0,
+          jumpHeight: ce.jump_height || undefined,
+          status: mapClassEntryStatus(ce.status),
+          checkInStatus: ce.check_in_status as CheckInStatus | undefined,
+          checkInTime: ce.check_in_time ? new Date(ce.check_in_time) : undefined,
+        })),
+        totalFee: entry.total_fees || 0,
+        paidAmount: entry.payment_status === 'paid' ? (entry.total_fees || 0) : 0,
+        entryStatus: mapEntryStatus(entry.entry_status),
+        paymentStatus: mapPaymentStatus(entry.payment_status),
+        submittedAt: entry.submitted_at ? new Date(entry.submitted_at) : new Date(entry.created_at),
+        lastUpdated: new Date(entry.updated_at),
+        notes: entry.special_requests || undefined,
+        armbandNumber: entry.armband_number || undefined,
+      }));
+
+      setEntries(transformedEntries);
+      setFilteredEntries(transformedEntries);
+    } catch (err) {
+      setError('Failed to load entries');
+      logger.error('Error loading entries:', 'secretary', {}, err as Error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Helper functions to map database status to UI enums
+  const mapEntryStatus = (status: string | null): EntryStatus => {
+    switch (status) {
+      case 'accepted': return EntryStatus.ACCEPTED;
+      case 'pending': return EntryStatus.PENDING;
+      case 'waitlisted': return EntryStatus.WAITLIST;
+      case 'rejected': return EntryStatus.REJECTED;
+      case 'cancelled': return EntryStatus.CANCELLED;
+      default: return EntryStatus.PENDING;
+    }
+  };
+
+  const mapPaymentStatus = (status: string | null): PaymentStatus => {
+    switch (status) {
+      case 'paid': return PaymentStatus.PAID_ONLINE;
+      case 'pending': return PaymentStatus.PENDING;
+      case 'refunded': return PaymentStatus.REFUNDED;
+      default: return PaymentStatus.PENDING;
+    }
+  };
+
+  const mapClassEntryStatus = (status: string | null): 'entered' | 'scratched' | 'moved' | 'absent' => {
+    switch (status) {
+      case 'accepted':
+      case 'pending':
+        return 'entered';
+      case 'withdrawn':
+      case 'scratched':
+        return 'scratched';
+      case 'moved':
+        return 'moved';
+      case 'absent':
+        return 'absent';
+      default:
+        return 'entered';
+    }
+  };
+
+  const mapStatusToDb = (status: EntryStatus): string => {
+    switch (status) {
+      case EntryStatus.ACCEPTED: return 'accepted';
+      case EntryStatus.PENDING: return 'pending';
+      case EntryStatus.WAITLIST: return 'waitlisted';
+      case EntryStatus.REJECTED: return 'rejected';
+      case EntryStatus.CANCELLED: return 'cancelled';
+      default: return 'pending';
     }
   };
 
@@ -111,28 +275,48 @@ const EntryManagementPage: React.FC = () => {
 
   const applyFilters = useCallback(() => {
     let filtered = entries;
-    
-    // Apply filters
-    if (selectedTab !== 'all') {
-      filtered = filtered.filter(() => {
-        // Filter logic based on selectedTab
-        return true; // Simplified
-      });
-    }
-    
-    if (searchTerm) {
-      filtered = filtered.filter(entry => 
-        entry.dogName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        entry.ownerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        entry.entryNumber.toLowerCase().includes(searchTerm.toLowerCase())
+
+    // Apply tab filters
+    if (selectedTab === 'pending') {
+      filtered = filtered.filter(e =>
+        e.entryStatus === EntryStatus.PENDING || e.paymentStatus === PaymentStatus.PENDING
+      );
+    } else if (selectedTab === 'accepted') {
+      filtered = filtered.filter(e => e.entryStatus === EntryStatus.ACCEPTED);
+    } else if (selectedTab === 'waitlist') {
+      filtered = filtered.filter(e => e.entryStatus === EntryStatus.WAITLIST);
+    } else if (selectedTab === 'issues') {
+      filtered = filtered.filter(e =>
+        e.entryStatus === EntryStatus.MISSING_INFO ||
+        (e.entryStatus === EntryStatus.ACCEPTED && e.paymentStatus === PaymentStatus.PENDING)
       );
     }
-    
+
+    // Apply status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(e => e.entryStatus === statusFilter);
+    }
+
+    // Apply payment filter
+    if (paymentFilter !== 'all') {
+      filtered = filtered.filter(e => e.paymentStatus === paymentFilter);
+    }
+
+    // Apply search
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      filtered = filtered.filter(entry =>
+        entry.dogName.toLowerCase().includes(search) ||
+        entry.ownerName.toLowerCase().includes(search) ||
+        entry.entryNumber.toLowerCase().includes(search) ||
+        entry.armbandNumber?.toLowerCase().includes(search)
+      );
+    }
+
     setFilteredEntries(filtered);
-  }, [entries, selectedTab, searchTerm]);
+  }, [entries, selectedTab, searchTerm, statusFilter, paymentFilter]);
 
   useEffect(() => {
-    loadEntries();
     auditService.log({
       action: AuditAction.READ,
       entityType: 'entry_management',
@@ -152,7 +336,7 @@ const EntryManagementPage: React.FC = () => {
 
   useEffect(() => {
     applyFilters();
-  }, [applyFilters, statusFilter, paymentFilter]);
+  }, [applyFilters]);
 
   // Verify secretary role access
   if (!hasRole(UserRole.SECRETARY) && !hasRole(UserRole.CLUB_ADMIN) && !hasRole(UserRole.SITE_ADMIN)) {
@@ -203,6 +387,13 @@ const EntryManagementPage: React.FC = () => {
     ));
 
     try {
+      // Update in database
+      const { error: dbError } = await updateEntryStatus(entryId, mapStatusToDb(newStatus));
+
+      if (dbError) {
+        throw dbError;
+      }
+
       // Audit log
       await auditService.log({
         action: AuditAction.UPDATE,
@@ -247,19 +438,226 @@ const EntryManagementPage: React.FC = () => {
     }
   };
 
+  // Handle armband assignment
+  const handleAssignArmband = async () => {
+    if (!armbandDialog.entry || !armbandDialog.value.trim()) return;
+
+    setIsProcessing(true);
+    try {
+      const { error: dbError } = await assignArmband(armbandDialog.entry.id, armbandDialog.value.trim());
+
+      if (dbError) {
+        setError('Failed to assign armband');
+        return;
+      }
+
+      // Update local state
+      setEntries(prev => prev.map(e =>
+        e.id === armbandDialog.entry?.id
+          ? { ...e, armbandNumber: armbandDialog.value.trim(), entryNumber: armbandDialog.value.trim() }
+          : e
+      ));
+
+      setArmbandDialog({ open: false, entry: null, value: '' });
+    } catch (err) {
+      setError('Failed to assign armband');
+      logger.error('Error assigning armband:', 'secretary', {}, err as Error);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Handle auto-assign armbands
+  const handleAutoAssignArmbands = async () => {
+    if (!selectedShowId) return;
+
+    setIsProcessing(true);
+    try {
+      const startNum = parseInt(autoArmbandDialog.startNumber, 10) || 1;
+      const { data, error: dbError } = await autoAssignArmbands(selectedShowId, startNum);
+
+      if (dbError) {
+        setError('Failed to auto-assign armbands');
+        return;
+      }
+
+      // Reload entries to get updated armbands
+      await loadEntries(selectedShowId);
+      setAutoArmbandDialog({ open: false, startNumber: '1' });
+
+      logger.info(`Auto-assigned ${data?.assigned} armbands starting at ${data?.startedAt}`, 'secretary');
+    } catch (err) {
+      setError('Failed to auto-assign armbands');
+      logger.error('Error auto-assigning armbands:', 'secretary', {}, err as Error);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Handle bulk check-in
+  const handleBulkCheckIn = async () => {
+    const selectedEntryIds = Array.from(selectedEntries);
+    if (selectedEntryIds.length === 0) return;
+
+    setIsProcessing(true);
+    try {
+      // Get all class entry IDs for selected entries
+      const classEntryIds: string[] = [];
+      for (const entryId of selectedEntryIds) {
+        const entry = entries.find(e => e.id === entryId);
+        if (entry) {
+          entry.classes.forEach(c => classEntryIds.push(c.id));
+        }
+      }
+
+      const { error: dbError } = await bulkCheckIn(classEntryIds);
+
+      if (dbError) {
+        setError('Failed to bulk check-in');
+        return;
+      }
+
+      // Update local state
+      setEntries(prev => prev.map(e => {
+        if (selectedEntryIds.includes(e.id)) {
+          return {
+            ...e,
+            classes: e.classes.map(c => ({
+              ...c,
+              checkInStatus: 'checked_in' as CheckInStatus,
+              checkInTime: new Date(),
+            })),
+          };
+        }
+        return e;
+      }));
+
+      setSelectedEntries(new Set());
+      setBulkActionDialog({ open: false, action: null });
+    } catch (err) {
+      setError('Failed to bulk check-in');
+      logger.error('Error bulk check-in:', 'secretary', {}, err as Error);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Handle CSV export
+  const handleExportCSV = async () => {
+    if (!selectedShowId) return;
+
+    setIsProcessing(true);
+    try {
+      const { data, error: dbError } = await getEntriesForExport(selectedShowId);
+
+      if (dbError || !data) {
+        setError('Failed to export entries');
+        return;
+      }
+
+      // Build CSV content
+      const headers = [
+        'Armband',
+        'Dog Name',
+        'Call Name',
+        'Breed',
+        'Registration #',
+        'Owner First Name',
+        'Owner Last Name',
+        'Owner Email',
+        'Owner Phone',
+        'Handler',
+        'Entry Status',
+        'Payment Status',
+        'Total Fees',
+        'Classes',
+        'Special Requests',
+      ];
+
+      const rows = data.map((entry) => {
+        const dog = entry.dog as { name?: string; call_name?: string; breed?: string; registration_number?: string } | null;
+        const owner = entry.owner as { first_name?: string; last_name?: string; email?: string; phone?: string } | null;
+        const classes = (entry.class_entry || [])
+          .map((ce) => {
+            const cls = ce.class as { name?: string; class_number?: string } | null;
+            return `${cls?.name || 'Unknown'}${ce.jump_height ? ` (${ce.jump_height})` : ''}`;
+          })
+          .join('; ');
+
+        return [
+          entry.armband_number || '',
+          dog?.name || '',
+          dog?.call_name || '',
+          dog?.breed || '',
+          dog?.registration_number || '',
+          owner?.first_name || '',
+          owner?.last_name || '',
+          owner?.email || '',
+          owner?.phone || '',
+          entry.handler || '',
+          entry.entry_status || '',
+          entry.payment_status || '',
+          entry.total_fees?.toString() || '0',
+          classes,
+          entry.special_requests || '',
+        ];
+      });
+
+      // Create CSV string
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')),
+      ].join('\n');
+
+      // Download file
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `entries_export_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      await auditService.log({
+        action: AuditAction.EXPORT,
+        entityType: 'entries_export',
+        entityId: selectedShowId,
+        metadata: {
+          format: 'csv',
+          entryCount: data.length,
+          secretaryId: user?.id,
+        },
+      });
+    } catch (err) {
+      setError('Failed to export entries');
+      logger.error('Error exporting entries:', 'secretary', {}, err as Error);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const handleCheckInStatusUpdate = async (status: CheckInStatus, notes?: string) => {
     if (!checkInDialog.entry || !checkInDialog.classEntry) return;
 
     const { entry, classEntry } = checkInDialog;
-    
+
     try {
+      // Update in database
+      const { error: dbError } = await updateCheckInStatus(classEntry.id, status, notes);
+
+      if (dbError) {
+        throw dbError;
+      }
+
       // Optimistic update
       setEntries(prev => prev.map(e => {
         if (e.id === entry.id) {
           return {
             ...e,
-            classes: e.classes.map(c => 
-              c.id === classEntry.id 
+            classes: e.classes.map(c =>
+              c.id === classEntry.id
                 ? { ...c, checkInStatus: status, checkInTime: new Date() }
                 : c
             )
@@ -295,8 +693,8 @@ const EntryManagementPage: React.FC = () => {
         if (e.id === entry.id) {
           return {
             ...e,
-            classes: e.classes.map(c => 
-              c.id === classEntry.id 
+            classes: e.classes.map(c =>
+              c.id === classEntry.id
                 ? { ...c, checkInStatus: classEntry.checkInStatus, checkInTime: classEntry.checkInTime }
                 : c
             )
@@ -398,20 +796,14 @@ const EntryManagementPage: React.FC = () => {
     revenue: entries.reduce((sum, e) => sum + e.paidAmount, 0)
   };
 
-  if (isLoading) {
-    return (
-      <div className="container mx-auto p-6">
-        <div className="grid gap-6">
-          <div className="h-8 bg-muted rounded animate-pulse" />
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            {[1, 2, 3, 4].map(i => (
-              <div key={i} className="h-24 bg-muted rounded animate-pulse" />
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return 'TBD';
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -424,16 +816,89 @@ const EntryManagementPage: React.FC = () => {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
-            <Upload className="h-4 w-4 mr-2" />
-            Import
+          <Button
+            variant="outline"
+            onClick={() => selectedShowId && loadEntries(selectedShowId)}
+            disabled={!selectedShowId || isLoading}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
           </Button>
-          <Button variant="outline">
+          <Button
+            variant="outline"
+            onClick={() => setAutoArmbandDialog({ open: true, startNumber: '1' })}
+            disabled={!selectedShowId}
+          >
+            <Hash className="h-4 w-4 mr-2" />
+            Auto-Assign Armbands
+          </Button>
+          <Button variant="outline" onClick={handleExportCSV} disabled={!selectedShowId || isProcessing}>
             <Download className="h-4 w-4 mr-2" />
-            Export
+            Export CSV
           </Button>
         </div>
       </div>
+
+      {/* Error Alert */}
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Show Selection */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            Select Show
+          </CardTitle>
+          <CardDescription>Choose a show to manage its entries</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Select
+            value={selectedShowId}
+            onValueChange={setSelectedShowId}
+            disabled={isLoadingShows}
+          >
+            <SelectTrigger className="w-full md:w-96">
+              <SelectValue placeholder={isLoadingShows ? 'Loading shows...' : 'Select a show'} />
+            </SelectTrigger>
+            <SelectContent>
+              {shows.map((show) => (
+                <SelectItem key={show.id} value={show.id}>
+                  {show.name || 'Unnamed Show'} ({formatDate(show.start_date)})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
+
+      {/* No Show Selected */}
+      {!selectedShowId && !isLoadingShows && (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+            <h3 className="text-lg font-medium mb-2">Select a Show</h3>
+            <p className="text-muted-foreground">
+              Choose a show from the dropdown above to manage its entries.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Loading State */}
+      {isLoading && selectedShowId && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      )}
+
+      {/* Main Content - Only show when a show is selected and not loading */}
+      {selectedShowId && !isLoading && (
+        <>
 
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
@@ -592,14 +1057,18 @@ const EntryManagementPage: React.FC = () => {
                   </DialogContent>
                 </Dialog>
 
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setBulkActionDialog({ open: true, action: 'check_in' })}
+                >
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Bulk Check-In
+                </Button>
+
                 <Button size="sm" variant="outline">
                   <Mail className="h-4 w-4 mr-2" />
                   Send Email
-                </Button>
-                
-                <Button size="sm" variant="outline">
-                  <Download className="h-4 w-4 mr-2" />
-                  Export Selected
                 </Button>
               </div>
             </div>
@@ -726,7 +1195,20 @@ const EntryManagementPage: React.FC = () => {
                             </Button>
                           </>
                         )}
-                        
+
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setArmbandDialog({
+                            open: true,
+                            entry,
+                            value: entry.armbandNumber || '',
+                          })}
+                          title="Assign Armband"
+                        >
+                          <Hash className="h-4 w-4" />
+                        </Button>
+
                         <Select onValueChange={(value) => handleStatusChange(entry.id, value as EntryStatus)}>
                           <SelectTrigger className="w-32">
                             <SelectValue placeholder="Actions" />
@@ -777,6 +1259,137 @@ const EntryManagementPage: React.FC = () => {
           userRole="secretary"
         />
       )}
+
+        </>
+      )}
+
+      {/* Armband Assignment Dialog */}
+      <Dialog
+        open={armbandDialog.open}
+        onOpenChange={(open) => !open && setArmbandDialog({ open: false, entry: null, value: '' })}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign Armband</DialogTitle>
+            <DialogDescription>
+              Assign an armband number to {armbandDialog.entry?.dogName}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="armband-number">Armband Number</Label>
+              <Input
+                id="armband-number"
+                value={armbandDialog.value}
+                onChange={(e) => setArmbandDialog((prev) => ({ ...prev, value: e.target.value }))}
+                placeholder="Enter armband number"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setArmbandDialog({ open: false, entry: null, value: '' })}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleAssignArmband} disabled={isProcessing || !armbandDialog.value.trim()}>
+              {isProcessing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Assigning...
+                </>
+              ) : (
+                'Assign'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Auto-Assign Armbands Dialog */}
+      <Dialog
+        open={autoArmbandDialog.open}
+        onOpenChange={(open) => !open && setAutoArmbandDialog({ open: false, startNumber: '1' })}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Auto-Assign Armbands</DialogTitle>
+            <DialogDescription>
+              Automatically assign sequential armband numbers to all accepted entries without armbands.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="start-number">Starting Number</Label>
+              <Input
+                id="start-number"
+                type="number"
+                min="1"
+                value={autoArmbandDialog.startNumber}
+                onChange={(e) =>
+                  setAutoArmbandDialog((prev) => ({ ...prev, startNumber: e.target.value }))
+                }
+                placeholder="1"
+              />
+              <p className="text-xs text-muted-foreground">
+                Armbands will be assigned starting from this number, skipping any already assigned.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setAutoArmbandDialog({ open: false, startNumber: '1' })}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleAutoAssignArmbands} disabled={isProcessing}>
+              {isProcessing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Assigning...
+                </>
+              ) : (
+                'Auto-Assign'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Check-In Dialog */}
+      <Dialog
+        open={bulkActionDialog.open && bulkActionDialog.action === 'check_in'}
+        onOpenChange={(open) => !open && setBulkActionDialog({ open: false, action: null })}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Bulk Check-In</DialogTitle>
+            <DialogDescription>
+              Check in all classes for {selectedEntries.size} selected entries?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setBulkActionDialog({ open: false, action: null })}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleBulkCheckIn} disabled={isProcessing}>
+              {isProcessing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Checking In...
+                </>
+              ) : (
+                'Check In All'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

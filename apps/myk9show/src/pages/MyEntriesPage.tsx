@@ -15,10 +15,13 @@ import { CheckInStatusIndicator } from '@/components/common/CheckInStatusIndicat
 import { CheckInStatusDialog } from '@/components/common/CheckInStatusDialog';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { logger } from '@/services/LoggingService';
+import { getUserEntries } from '@/services/database/queries/entryQueries';
+import { EntryEditDialog } from '@/components/entries/EntryEditDialog';
+import { EntryReceipt } from '@/components/entries/EntryReceipt';
 import {
-  Calendar, 
-  MapPin, 
-  Users, 
+  Calendar,
+  MapPin,
+  Users,
   Clock,
   DollarSign,
   AlertCircle,
@@ -79,6 +82,18 @@ const MyEntriesPage: React.FC = () => {
     classEntry: EntryClass | null;
   }>({ open: false, entry: null, classEntry: null });
 
+  // Edit entry dialog state
+  const [editDialog, setEditDialog] = useState<{
+    open: boolean;
+    entry: MyEntry | null;
+  }>({ open: false, entry: null });
+
+  // Receipt dialog state
+  const [receiptDialog, setReceiptDialog] = useState<{
+    open: boolean;
+    entry: MyEntry | null;
+  }>({ open: false, entry: null });
+
   // Generate breadcrumb items
   const breadcrumbItems = useBreadcrumb({
     currentPage: 'my-entries'
@@ -107,20 +122,131 @@ const MyEntriesPage: React.FC = () => {
   }, [entryUpdates]);
 
   const loadMyEntries = async () => {
+    if (!user?.id) {
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
-      // TODO: Replace with actual API call to fetch user's entries from IndexedDB/Supabase
-      // const userEntries = await fetchUserEntries(user?.id);
-      
-      // For now, start with empty array - no mock data
-      // All data should come from IndexedDB/database in production
-      const userEntries: MyEntry[] = [];
-      
+      const { data, error } = await getUserEntries(user.id);
+
+      if (error) {
+        logger.error('Failed to load entries:', 'pages', {}, error as Error);
+        setEntries([]);
+        return;
+      }
+
+      // Transform database entries to MyEntry format
+      const userEntries: MyEntry[] = data.map((entry) => {
+        // Type assertions for nested objects
+        const dog = entry.dog as { id: string; name: string; call_name?: string } | null;
+        const show = entry.show as {
+          id: string;
+          name: string;
+          start_date: string;
+          venue?: string;
+          city?: string;
+          state?: string;
+        } | null;
+        const classEntries = (entry.class_entry || []) as Array<{
+          id: string;
+          class_id: string;
+          armband?: string;
+          run_order?: number;
+          jump_height?: string;
+          entry_fee?: number;
+          status?: string;
+          class?: { id: string; name: string; class_number?: string } | null;
+        }>;
+
+        // Map class entries to EntryClass format
+        const classes: EntryClass[] = classEntries.map((ce) => ({
+          id: ce.id,
+          name: ce.class?.name || 'Unknown Class',
+          number: ce.class?.class_number || '',
+          fee: ce.entry_fee || 0,
+          jumpHeight: ce.jump_height,
+          runOrder: ce.run_order,
+          status: mapClassEntryStatus(ce.status),
+          checkInStatus: undefined, // Check-in status would come from a separate table
+        }));
+
+        // Map entry status
+        const entryStatus = mapEntryStatus(entry.entry_status);
+        const paymentStatus = mapPaymentStatus(entry.payment_status);
+
+        return {
+          id: entry.id,
+          registrationId: entry.id,
+          showId: show?.id || '',
+          showName: show?.name || 'Unknown Show',
+          showDate: new Date(show?.start_date || Date.now()),
+          location: {
+            venue: show?.venue || '',
+            city: show?.city || '',
+            state: show?.state || '',
+          },
+          dogName: dog?.call_name || dog?.name || 'Unknown Dog',
+          dogId: dog?.id || '',
+          classes,
+          totalFee: entry.total_fees || classes.reduce((sum, c) => sum + c.fee, 0),
+          entryStatus,
+          paymentStatus,
+          registrationNumber: undefined,
+          confirmationNumber: entry.id.slice(0, 8).toUpperCase(),
+          submittedAt: new Date(entry.submitted_at || entry.created_at),
+          lastUpdated: new Date(entry.updated_at),
+        };
+      });
+
       setEntries(userEntries);
     } catch (error) {
       logger.error('Failed to load entries:', 'pages', {}, error as Error);
+      setEntries([]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Helper function to map database entry status to EntryStatus enum
+  const mapEntryStatus = (status?: string | null): EntryStatus => {
+    switch (status) {
+      case 'submitted':
+        return EntryStatus.PENDING;
+      case 'accepted':
+        return EntryStatus.ACCEPTED;
+      case 'rejected':
+        return EntryStatus.REJECTED;
+      case 'withdrawn':
+        return EntryStatus.CANCELLED;
+      default:
+        return EntryStatus.PENDING;
+    }
+  };
+
+  // Helper function to map database payment status to PaymentStatus enum
+  const mapPaymentStatus = (status?: string | null): PaymentStatus => {
+    switch (status) {
+      case 'paid':
+        return PaymentStatus.PAID_ONLINE;
+      case 'refunded':
+        return PaymentStatus.REFUNDED;
+      case 'pending':
+      default:
+        return PaymentStatus.PENDING;
+    }
+  };
+
+  // Helper function to map class entry status
+  const mapClassEntryStatus = (status?: string): 'entered' | 'scratched' | 'moved' | 'absent' => {
+    switch (status) {
+      case 'withdrawn':
+        return 'scratched';
+      case 'rejected':
+        return 'absent';
+      default:
+        return 'entered';
     }
   };
 
@@ -676,28 +802,27 @@ const MyEntriesPage: React.FC = () => {
                         </Link>
                       </Button>
                       
-                      {entry.entryStatus === EntryStatus.PENDING && (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          asChild
+                      {(entry.entryStatus === EntryStatus.PENDING || entry.entryStatus === EntryStatus.ACCEPTED) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditDialog({ open: true, entry })}
                           className="hover:bg-muted/50 transition-all duration-200"
                         >
-                          <Link to={`/entries/${entry.id}/edit`}>
-                            <Edit className="h-4 w-4 mr-1" />
-                            Edit Entry
-                          </Link>
+                          <Edit className="h-4 w-4 mr-1" />
+                          Edit Entry
                         </Button>
                       )}
                       
                       {entry.confirmationNumber && (
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           size="sm"
+                          onClick={() => setReceiptDialog({ open: true, entry })}
                           className="hover:bg-muted/50 transition-all duration-200"
                         >
                           <Download className="h-4 w-4 mr-1" />
-                          Download
+                          Receipt
                         </Button>
                       )}
                     </div>
@@ -730,6 +855,58 @@ const MyEntriesPage: React.FC = () => {
           onUpdateStatus={handleCheckInStatusUpdate}
           readOnly={false}
           userRole="exhibitor"
+        />
+      )}
+
+      {/* Entry Edit Dialog */}
+      {editDialog.entry && (
+        <EntryEditDialog
+          open={editDialog.open}
+          onOpenChange={(open) => {
+            if (!open) {
+              setEditDialog({ open: false, entry: null });
+            }
+          }}
+          entry={{
+            id: editDialog.entry.id,
+            showId: editDialog.entry.showId,
+            showName: editDialog.entry.showName,
+            dogName: editDialog.entry.dogName,
+            classes: editDialog.entry.classes,
+          }}
+          onUpdate={() => {
+            loadMyEntries();
+            setEditDialog({ open: false, entry: null });
+          }}
+        />
+      )}
+
+      {/* Entry Receipt Dialog */}
+      {receiptDialog.entry && (
+        <EntryReceipt
+          open={receiptDialog.open}
+          onOpenChange={(open) => {
+            if (!open) {
+              setReceiptDialog({ open: false, entry: null });
+            }
+          }}
+          entry={{
+            id: receiptDialog.entry.id,
+            confirmationNumber: receiptDialog.entry.confirmationNumber || receiptDialog.entry.id.slice(0, 8).toUpperCase(),
+            showName: receiptDialog.entry.showName,
+            showDate: receiptDialog.entry.showDate,
+            location: receiptDialog.entry.location,
+            dogName: receiptDialog.entry.dogName,
+            classes: receiptDialog.entry.classes,
+            totalFee: receiptDialog.entry.totalFee,
+            submittedAt: receiptDialog.entry.submittedAt,
+            paymentStatus: receiptDialog.entry.paymentStatus === PaymentStatus.PAID_ONLINE ||
+                          receiptDialog.entry.paymentStatus === PaymentStatus.PAID_BY_CHECK ||
+                          receiptDialog.entry.paymentStatus === PaymentStatus.PAID_BY_CASH
+                          ? 'Paid' : 'Pending',
+          }}
+          exhibitorName={user?.email?.split('@')[0]}
+          exhibitorEmail={user?.email}
         />
       )}
     </div>

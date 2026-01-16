@@ -58,13 +58,13 @@ export const publicRouteComponents: Record<string, ImportFunction> = {
   // Browsing and entries
   '/browse-shows': () => import('@/pages/BrowseShowsPage'),
   '/shows/browse': () => import('@/pages/BrowseShowsPage'),
-  '/my-entries': () => import('@/pages/BrowseShowsPage'),
-  
+  '/my-entries': () => import('@/pages/MyEntriesPage'),
+
   // Exhibitor dashboard
   '/exhibitor/dashboard': () => import('@/pages/ExhibitorDashboard'),
   '/exhibitor/account': () => import('@/pages/ExhibitorDashboard'),
-  '/exhibitor/entries': () => import('@/pages/BrowseShowsPage'),
-  '/exhibitor/entries/history': () => import('@/pages/BrowseShowsPage'),
+  '/exhibitor/entries': () => import('@/pages/MyEntriesPage'),
+  '/exhibitor/entries/history': () => import('@/pages/MyEntriesPage'),
   '/exhibitor/results': () => import('@/pages/BrowseShowsPage'),
   '/exhibitor/favorites': () => import('@/pages/BrowseShowsPage'),
   '/exhibitor/health-records': () => import('@/pages/DogDetailsPage'),
@@ -86,7 +86,12 @@ export const publicRouteComponents: Record<string, ImportFunction> = {
   '/calendar': () => import('@/pages/CalendarPage'),
   '/subscription': () => import('@/pages/SubscriptionPage'),
   '/registration': () => import('@/pages/CalendarPage'),
-  
+
+  // Cart and checkout
+  '/cart': () => import('@/pages/CartPage'),
+  '/checkout/success': () => import('@/pages/CheckoutSuccessPage'),
+  '/checkout/cancel': () => import('@/pages/CheckoutCancelPage'),
+
   // Test routes
   '/class-templates': () => import('@/components/classes/ClassTemplateTestPage').then(m => ({ default: m.ClassTemplateTestPage })),
 } as const;

@@ -24,7 +24,7 @@ export const mapShowInputToInsert = (input: ShowInput): DbShowInsert => {
     chief_steward: input.chiefSteward,
     max_entries_per_dog: null, // Will be set from trials
     max_total_entries: null, // Will be set from trials
-    allows_non_owner_handlers: true, // Default to true
+    allow_non_owner_handlers: true, // Default to true
     
     // Additional fields that may not be in the actual schema but are in our types
     ...(input.events && { events: input.events } as Record<string, unknown>),
@@ -172,7 +172,7 @@ export const mapDatabaseToShow = (dbShow: DbShow & { trial?: unknown[], club?: u
     trials: trials,
     maxEntriesPerDog: dbShow.max_entries_per_dog || undefined,
     maxTotalEntries: dbShow.max_total_entries || undefined,
-    allowNonOwnerHandlers: dbShow.allows_non_owner_handlers || true,
+    allowNonOwnerHandlers: dbShow.allow_non_owner_handlers || true,
 
     // Sync metadata for Local-First architecture
     _version: 1, // Default version

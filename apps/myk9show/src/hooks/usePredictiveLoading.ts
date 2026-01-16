@@ -307,42 +307,42 @@ export function useRelationshipPreloading() {
   });
 
   const trackDogRelationships = useCallback((dogId: string, ownerId?: string, showIds?: string[]) => {
-    const relatedEntities = [];
-    
+    const relatedEntities: Array<{ type: 'dog' | 'club' | 'show' | 'entry' | 'person'; ids: string[] }> = [];
+
     if (ownerId) {
-      relatedEntities.push({ type: 'person' as const, ids: [ownerId] });
+      relatedEntities.push({ type: 'person', ids: [ownerId] });
     }
-    
+
     if (showIds && showIds.length > 0) {
-      relatedEntities.push({ type: 'show' as const, ids: showIds });
+      relatedEntities.push({ type: 'show', ids: showIds });
     }
 
     trackEntityAccess('dog', dogId, relatedEntities);
   }, [trackEntityAccess]);
 
   const trackPersonRelationships = useCallback((personId: string, dogIds?: string[], clubIds?: string[]) => {
-    const relatedEntities = [];
-    
+    const relatedEntities: Array<{ type: 'dog' | 'club' | 'show' | 'entry' | 'person'; ids: string[] }> = [];
+
     if (dogIds && dogIds.length > 0) {
-      relatedEntities.push({ type: 'dog' as const, ids: dogIds });
+      relatedEntities.push({ type: 'dog', ids: dogIds });
     }
-    
+
     if (clubIds && clubIds.length > 0) {
-      relatedEntities.push({ type: 'club' as const, ids: clubIds });
+      relatedEntities.push({ type: 'club', ids: clubIds });
     }
 
     trackEntityAccess('person', personId, relatedEntities);
   }, [trackEntityAccess]);
 
   const trackShowRelationships = useCallback((showId: string, clubId?: string, entryIds?: string[]) => {
-    const relatedEntities = [];
-    
+    const relatedEntities: Array<{ type: 'dog' | 'club' | 'show' | 'entry' | 'person'; ids: string[] }> = [];
+
     if (clubId) {
-      relatedEntities.push({ type: 'club' as const, ids: [clubId] });
+      relatedEntities.push({ type: 'club', ids: [clubId] });
     }
-    
+
     if (entryIds && entryIds.length > 0) {
-      relatedEntities.push({ type: 'entry' as const, ids: entryIds });
+      relatedEntities.push({ type: 'entry', ids: entryIds });
     }
 
     trackEntityAccess('show', showId, relatedEntities);

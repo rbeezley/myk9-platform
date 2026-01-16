@@ -16,15 +16,15 @@ interface TrialClassesCardsProps {
 function mapStatus(status: TrialClass['status']): ClassStatus {
   switch (status) {
     case 'Upcoming':
-      return 'scheduled';
+      return 'setup'; // 'scheduled' not in ClassStatus, use 'setup'
     case 'In Progress':
       return 'in-progress';
     case 'Completed':
       return 'completed';
     case 'Cancelled':
-      return 'cancelled';
+      return 'none'; // 'cancelled' not in ClassStatus, use 'none'
     default:
-      return 'scheduled';
+      return 'setup';
   }
 }
 

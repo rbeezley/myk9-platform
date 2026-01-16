@@ -116,7 +116,7 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
 
       // Fetch clubs updated since last sync (excluding soft-deleted)
       const { data: remoteClubs, error } = await supabase
-        .from('club')
+        .from('clubs')
         .select('*')
         .is('deleted_at', null)
         .gt('updated_at', new Date(lastSync).toISOString())

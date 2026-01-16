@@ -16,7 +16,7 @@ import type { Database } from '@/types/supabase';
 /**
  * Database row type from Supabase schema
  */
-type ShowRow = Database['public']['Tables']['show']['Row'];
+type ShowRow = Database['public']['Tables']['shows']['Row'];
 
 /**
  * App-level Show type with camelCase fields and sync metadata
@@ -70,7 +70,7 @@ function rowToShow(row: ShowRow): ReplicatedShow {
     chiefSteward: row.chief_steward ?? undefined,
     maxEntriesPerDog: row.max_entries_per_dog ?? undefined,
     maxTotalEntries: row.max_total_entries ?? undefined,
-    allowsNonOwnerHandlers: row.allows_non_owner_handlers ?? undefined,
+    allowsNonOwnerHandlers: row.allow_non_owner_handlers ?? undefined,
   };
 }
 
@@ -106,7 +106,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
       // Fetch shows updated since last sync
       // Note: myK9Show may not have license_key column, adjust query as needed
       let query = supabase
-        .from('show')
+        .from('shows')
         .select('*')
         .gt('updated_at', new Date(lastSync).toISOString())
         .order('updated_at', { ascending: true });

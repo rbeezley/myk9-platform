@@ -91,7 +91,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       url: window.location.href
     };
 
-    logger.error('Error Boundary Caught Error:', 'components', {}, errorReport as Error);
+    logger.error('Error Boundary Caught Error:', 'components', {}, new Error(errorReport.message));
     
     // Store in localStorage for debugging
     try {

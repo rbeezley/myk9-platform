@@ -1,8 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryClient';
-import type { User, UserRole, JudgeInfo } from '@/types/user-types';
-import type { Json } from '@/types/supabase';
-import { logger } from '@/services/LoggingService';
+import type { User, UserRole } from '@/types/user-types';
 import {
   getAllUsers,
   getUserById,
@@ -28,13 +26,8 @@ const mapDbUserToUser = (dbUser: DbUser): User => ({
   state: dbUser.state || undefined,
   zipCode: dbUser.zip_code || undefined,
   country: dbUser.country || undefined,
-  dateOfBirth: dbUser.date_of_birth || undefined,
-  membershipId: dbUser.membership_id || undefined,
-  clubAffiliations: dbUser.club_affiliations || undefined,
   profileImage: dbUser.profile_image || undefined,
-  roles: dbUser.roles as UserRole[],
-  judgeInfo: dbUser.judge_info ? (dbUser.judge_info as JudgeInfo) : undefined,
-  emergencyContact: dbUser.emergency_contact ? (dbUser.emergency_contact as { [key: string]: unknown; name: string; phone: string; relationship: string }) : undefined,
+  roles: (dbUser.roles as UserRole[]) || [],
   createdAt: dbUser.created_at ? new Date(dbUser.created_at) : undefined,
   updatedAt: dbUser.updated_at ? new Date(dbUser.updated_at) : undefined,
 });
@@ -42,7 +35,7 @@ const mapDbUserToUser = (dbUser: DbUser): User => ({
 // UI to Database mapper for User updates
 const mapUserToDbUpdate = (user: Partial<User>): DbUserUpdate => {
   const dbUpdate: DbUserUpdate = {};
-  
+
   if (user.firstName !== undefined) dbUpdate.first_name = user.firstName;
   if (user.lastName !== undefined) dbUpdate.last_name = user.lastName;
   if (user.email !== undefined) dbUpdate.email = user.email;
@@ -52,13 +45,8 @@ const mapUserToDbUpdate = (user: Partial<User>): DbUserUpdate => {
   if (user.state !== undefined) dbUpdate.state = user.state;
   if (user.zipCode !== undefined) dbUpdate.zip_code = user.zipCode;
   if (user.country !== undefined) dbUpdate.country = user.country;
-  if (user.dateOfBirth !== undefined) dbUpdate.date_of_birth = user.dateOfBirth;
-  if (user.membershipId !== undefined) dbUpdate.membership_id = user.membershipId;
-  if (user.clubAffiliations !== undefined) dbUpdate.club_affiliations = user.clubAffiliations;
   if (user.roles !== undefined) dbUpdate.roles = user.roles;
-  if (user.judgeInfo !== undefined) dbUpdate.judge_info = user.judgeInfo as Json;
-  if (user.emergencyContact !== undefined) dbUpdate.emergency_contact = user.emergencyContact as Json;
-  
+
   return dbUpdate;
 };
 

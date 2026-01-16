@@ -17,7 +17,7 @@ export async function markInRing(
         const status = inRing ? 'in-ring' : previousStatus;
 
         const { error } = await supabase
-            .from('entry')
+            .from('entries')
             .update({
                 status: status,
                 updated_at: new Date().toISOString()

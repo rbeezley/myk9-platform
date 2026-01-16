@@ -12,7 +12,7 @@ export const getAllDogs = async () => {
   
   try {
     const { data, error } = await supabase
-      .from('dogs' as 'dog')
+      .from('dogs')
       .select(`
         *,
         owner:people!dogs_owner_id_fkey(
@@ -48,7 +48,7 @@ export const getDogById = async (id: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('dogs' as 'dog')
+      .from('dogs')
       .select(`
         *,
         owner:people!dogs_owner_id_fkey(
@@ -105,7 +105,7 @@ export const getDogsByOwner = async (ownerId: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('dogs' as 'dog')
+      .from('dogs')
       .select('*')
       .eq('owner_id', ownerId)
       .is('deleted_at', null)
@@ -141,7 +141,7 @@ export const createDog = async (dogData: DbDogInsert) => {
     }
     
     const { data, error } = await supabase
-      .from('dogs' as 'dog')
+      .from('dogs')
       .insert([cleanDogData])
       .select(`
         *,
@@ -176,7 +176,7 @@ export const updateDog = async (id: string, updates: DbDogUpdate) => {
   
   try {
     const { data, error } = await supabase
-      .from('dogs' as 'dog')
+      .from('dogs')
       .update({
         ...updates,
         updated_at: new Date().toISOString(),
@@ -229,7 +229,7 @@ export const deleteDog = async (id: string, deletedBy?: string) => {
     logger.debug('📝 Update data being sent:', 'database', { data: updateData });
     
     const { data, error } = await supabase
-      .from('dogs' as 'dog')
+      .from('dogs')
       .update(updateData)
       .eq('id', id)
       .select('id, name, deleted_at, deleted_by')
@@ -270,7 +270,7 @@ export const searchDogs = async (searchTerm: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('dogs' as 'dog')
+      .from('dogs')
       .select('*')
       .or(`name.ilike.%${searchTerm}%,breed.ilike.%${searchTerm}%,call_name.ilike.%${searchTerm}%`)
       .is('deleted_at', null)
@@ -298,7 +298,7 @@ export const getDogsWithUpcomingShows = async () => {
   
   try {
     const { data, error } = await supabase
-      .from('dogs' as 'dog')
+      .from('dogs')
       .select(`
         *,
         owner:people!dogs_owner_id_fkey(first_name, last_name)
@@ -328,7 +328,7 @@ export const getDogStatistics = async () => {
   
   try {
     const { error, count } = await supabase
-      .from('dogs' as 'dog')
+      .from('dogs')
       .select('id', { count: 'exact', head: true })
       .is('deleted_at', null);
     
@@ -358,7 +358,7 @@ export const hardDeleteDog = async (id: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('dogs' as 'dog')
+      .from('dogs')
       .delete()
       .eq('id', id)
       .select('id, name')
@@ -396,7 +396,7 @@ export const restoreDog = async (id: string, restoredBy?: string) => {
     }
     
     const { data, error } = await supabase
-      .from('dogs' as 'dog')
+      .from('dogs')
       .update(updateData)
       .eq('id', id)
       .select('id, name')
@@ -424,7 +424,7 @@ export const getDeletedDogs = async () => {
   
   try {
     const { data, error } = await supabase
-      .from('dogs' as 'dog')
+      .from('dogs')
       .select(`
         *,
         owner:people!dogs_owner_id_fkey(id, first_name, last_name, email),

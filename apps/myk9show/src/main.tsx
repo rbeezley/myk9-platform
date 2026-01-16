@@ -36,10 +36,7 @@ logger.debug('🚀 Starting myK9Show (performance optimization disabled for debu
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter future={{
-      v7_startTransition: true,
-      v7_relativeSplatPath: true
-    }}>
+    <BrowserRouter>
       <QueryProvider>
         <ThemeProvider>
           <App />

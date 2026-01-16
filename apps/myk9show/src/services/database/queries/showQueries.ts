@@ -11,7 +11,7 @@ export const getAllShows = async () => {
   
   try {
     const { data, error } = await supabase
-      .from('shows' as 'show')
+      .from('shows')
       .select(`
         *,
         club:clubs(
@@ -54,7 +54,7 @@ export const getShowById = async (id: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('shows' as 'show')
+      .from('shows')
       .select(`
         *,
         club:clubs(
@@ -125,7 +125,7 @@ export const getUpcomingShows = async (limit = 10) => {
   
   try {
     const { data, error } = await supabase
-      .from('shows' as 'show')
+      .from('shows')
       .select(`
         *,
         club:clubs(
@@ -167,7 +167,7 @@ export const getShowsByDateRange = async (startDate: string, endDate: string) =>
   
   try {
     const { data, error } = await supabase
-      .from('shows' as 'show')
+      .from('shows')
       .select(`
         *,
         club:clubs(
@@ -209,7 +209,7 @@ export const getShowsByClub = async (clubId: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('shows' as 'show')
+      .from('shows')
       .select(`
         *,
         club:clubs(
@@ -250,7 +250,7 @@ export const createShow = async (showData: DbShowInsert) => {
   
   try {
     const { data, error } = await supabase
-      .from('shows' as 'show')
+      .from('shows')
       .insert([showData])
       .select(`
         *,
@@ -284,7 +284,7 @@ export const updateShow = async (id: string, updates: DbShowUpdate) => {
   
   try {
     const { data, error } = await supabase
-      .from('shows' as 'show')
+      .from('shows')
       .update({
         ...updates,
         updated_at: new Date().toISOString(),
@@ -331,7 +331,7 @@ export const deleteShow = async (id: string, deletedBy?: string) => {
     }
 
     const { data, error } = await supabase
-      .from('shows' as 'show')
+      .from('shows')
       .update(updateData)
       .eq('id', id)
       .is('deleted_at', null)
@@ -360,7 +360,7 @@ export const hardDeleteShow = async (id: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('shows' as 'show')
+      .from('shows')
       .delete()
       .eq('id', id)
       .select('id, name');
@@ -398,7 +398,7 @@ export const restoreShow = async (id: string, restoredBy?: string) => {
     }
 
     const { data, error } = await supabase
-      .from('shows' as 'show')
+      .from('shows')
       .update(updateData)
       .eq('id', id)
       .select('id, name')
@@ -426,7 +426,7 @@ export const getDeletedShows = async () => {
 
   try {
     const { data, error } = await supabase
-      .from('shows' as 'show')
+      .from('shows')
       .select('*')
       .not('deleted_at', 'is', null)
       .order('deleted_at', { ascending: false });
@@ -453,7 +453,7 @@ export const legacyDeleteShow = async (id: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('shows' as 'show')
+      .from('shows')
       .delete()
       .eq('id', id)
       .select('id, name')
@@ -481,7 +481,7 @@ export const searchShows = async (searchTerm: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('shows' as 'show')
+      .from('shows')
       .select('*')
       .or(`name.ilike.%${searchTerm}%,location.ilike.%${searchTerm}%`)
       .is('deleted_at', null)
@@ -509,7 +509,7 @@ export const getShowStatistics = async () => {
   
   try {
     const { error, count } = await supabase
-      .from('shows' as 'show')
+      .from('shows')
       .select('id', { count: 'exact', head: true })
       .is('deleted_at', null);
     
@@ -539,7 +539,7 @@ export const getShowsWithEntryCounts = async () => {
 
   try {
     const { data, error } = await supabase
-      .from('shows' as 'show')
+      .from('shows')
       .select(`
         *,
         club:clubs(
@@ -578,7 +578,7 @@ export const getShowsByStatus = async (status: string) => {
 
   try {
     const { data, error } = await supabase
-      .from('shows' as 'show')
+      .from('shows')
       .select('*')
       .eq('status', status)
       .is('deleted_at', null)

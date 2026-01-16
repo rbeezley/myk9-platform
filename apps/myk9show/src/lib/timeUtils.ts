@@ -288,3 +288,20 @@ export const durationToSeconds = (mmss: string): number => Math.floor(displayToM
 export const secondsToMMSS = (seconds: number): string => msToDisplay(seconds * 1000);
 export const parseMMSSInput = parseTimeInput;
 export const isValidMMSSFormat = isValidTimeFormat;
+
+/**
+ * Format seconds to time display (M:SS format)
+ *
+ * @param seconds - Time in seconds
+ * @returns Formatted time string
+ *
+ * @example
+ * formatSecondsToTime(90) // "1:30"
+ * formatSecondsToTime(125) // "2:05"
+ */
+export function formatSecondsToTime(seconds: number): string {
+  if (!seconds || seconds < 0) return '0:00';
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.round(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}

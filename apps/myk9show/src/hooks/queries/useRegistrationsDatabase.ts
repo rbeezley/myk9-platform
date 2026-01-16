@@ -1,12 +1,11 @@
 // React Query hooks for database registration operations
 // Phase 4.3: Registration System Integration
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
+import {
   getAllRegistrations,
   getRegistrationById,
   getRegistrationsByDog,
   getRegistrationsByOrganization,
-  getRegistrationsByStatus,
   getRegistrationsByOwner,
   createRegistration,
   updateRegistration,
@@ -70,20 +69,6 @@ export const useRegistrationsByOrganizationQuery = (organization: string, enable
       return data;
     },
     enabled: !!organization && enabled,
-    ...cacheStrategies.moderate,
-  });
-};
-
-// Get registrations by status
-export const useRegistrationsByStatusQuery = (status: string, enabled = true) => {
-  return useQuery({
-    queryKey: queryKeys.registrationsByStatus(status),
-    queryFn: async () => {
-      const { data, error } = await getRegistrationsByStatus(status);
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!status && enabled,
     ...cacheStrategies.moderate,
   });
 };
@@ -191,16 +176,10 @@ export const useCreateRegistrationMutation = () => {
         });
       }
 
-      // Invalidate organization and status specific queries
+      // Invalidate organization specific queries
       if (variables.organization) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['registrations', 'organization', variables.organization] 
-        });
-      }
-
-      if (variables.status) {
-        queryClient.invalidateQueries({ 
-          queryKey: queryKeys.registrationsByStatus(variables.status) 
+        queryClient.invalidateQueries({
+          queryKey: ['registrations', 'organization', variables.organization]
         });
       }
 
@@ -263,18 +242,8 @@ export const useUpdateRegistrationMutation = () => {
       if (data?.organization || updates.organization) {
         const org = data?.organization || updates.organization;
         if (org) {
-          queryClient.invalidateQueries({ 
-            queryKey: ['registrations', 'organization', org] 
-          });
-        }
-      }
-
-      // If status changed, invalidate status queries
-      if (data?.status || updates.status) {
-        const status = data?.status || updates.status;
-        if (status) {
-          queryClient.invalidateQueries({ 
-            queryKey: queryKeys.registrationsByStatus(status) 
+          queryClient.invalidateQueries({
+            queryKey: ['registrations', 'organization', org]
           });
         }
       }

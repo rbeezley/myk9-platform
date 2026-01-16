@@ -5,10 +5,10 @@
  * Contains timer logic, calculations, and utility functions.
  */
 
-import type { AreaScore } from '../../../services/scoresheets/areaInitialization';
-import type { ElementType } from '../../../services/nationalsScoring';
-import { NATIONALS_SCORING } from '../../../constants/nationalsConstants';
-import { formatSecondsToTime } from '../../../utils/timeUtils';
+import type { AreaScore } from '../../../../services/scoresheets/areaInitialization';
+import type { ElementType } from '../../../../services/nationalsScoring';
+import { NATIONALS_SCORING } from '../../../../constants/nationalsConstants';
+import { formatSecondsToTime } from '../../../../utils/timeUtils';
 
 // ============================================================================
 // Nationals-specific Types

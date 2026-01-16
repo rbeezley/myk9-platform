@@ -112,7 +112,7 @@ export function useRegistrationConflicts(showId: string, registrationId?: string
         return null;
       }
 
-      const conflictResults = [];
+      const conflictResults: string[] = [];
 
       const localDogs = localRegistrationData.selectedDogs || [];
       const serverDogs = serverData.entries.map(entry => entry.dogId);

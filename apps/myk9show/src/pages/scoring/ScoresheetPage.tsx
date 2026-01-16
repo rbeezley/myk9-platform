@@ -347,9 +347,15 @@ function renderScoresheet(
   const { organization, sportType, entry, classInfo, onSave, onNavigate, hasNext, hasPrev } = context;
 
   // Common props for all scoresheets
+  // Create classInfo with required maxTime for scoresheet components
+  const scoresheetClassInfo = {
+    ...classInfo,
+    maxTime: classInfo.maxTime || '3:00', // Default to 3 minutes if not set
+  };
+
   const scoresheetProps = {
     entry,
-    classInfo,
+    classInfo: scoresheetClassInfo,
     onSave,
     onNavigate,
     onBack,

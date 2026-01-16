@@ -14,4 +14,4 @@ export { NationalsPointsDisplay } from './NationalsPointsDisplay';
 export type { NationalsPointsDisplayProps } from './NationalsPointsDisplay';
 
 export { ScoreConfirmationDialog } from './ScoreConfirmationDialog';
-export type { ScoreConfirmationDialogProps, AreaScore } from './ScoreConfirmationDialog';
+export type { ScoreConfirmationDialogProps } from './ScoreConfirmationDialog';

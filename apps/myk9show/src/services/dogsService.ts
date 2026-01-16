@@ -49,7 +49,7 @@ export class DogsService {
     }
 
     const { data, error } = await supabase
-      .from('dog')
+      .from('dogs')
       .select('*')
       .order('created_at', { ascending: false });
 
@@ -69,7 +69,7 @@ export class DogsService {
       weight: dog.weight || undefined,
       dateOfBirth: dog.date_of_birth || undefined,
       imageUrl: dog.image_url || undefined,
-      spayedNeutered: dog.is_spayed_neutered,
+      spayedNeutered: dog.spayed_neutered,
       microchipNumber: dog.microchip_number || undefined,
       color: dog.color || undefined,
       microchip: dog.microchip_number || undefined
@@ -100,7 +100,7 @@ export class DogsService {
     }
 
     const { data, error } = await supabase
-      .from('dog')
+      .from('dogs')
       .select('*')
       .eq('id', id)
       .single();
@@ -123,7 +123,7 @@ export class DogsService {
       weight: data.weight || undefined,
       dateOfBirth: data.date_of_birth || undefined,
       imageUrl: data.image_url || undefined,
-      spayedNeutered: data.is_spayed_neutered || undefined,
+      spayedNeutered: data.spayed_neutered || undefined,
       microchipNumber: data.microchip_number || undefined,
       color: data.color || undefined,
       microchip: data.microchip_number || undefined
@@ -164,7 +164,7 @@ export class DogsService {
     }
 
     const { data, error } = await supabase
-      .from('dog')
+      .from('dogs')
       .insert([dog])
       .select()
       .single();
@@ -184,7 +184,7 @@ export class DogsService {
       weight: data.weight || undefined,
       dateOfBirth: data.date_of_birth || undefined,
       imageUrl: data.image_url || undefined,
-      spayedNeutered: data.is_spayed_neutered || undefined,
+      spayedNeutered: data.spayed_neutered || undefined,
       microchipNumber: data.microchip_number || undefined,
       color: data.color || undefined,
       microchip: data.microchip_number || undefined
@@ -230,7 +230,7 @@ export class DogsService {
     }
 
     const { data, error } = await supabase
-      .from('dog')
+      .from('dogs')
       .update(updates)
       .eq('id', id)
       .select()
@@ -251,7 +251,7 @@ export class DogsService {
       weight: data.weight || undefined,
       dateOfBirth: data.date_of_birth || undefined,
       imageUrl: data.image_url || undefined,
-      spayedNeutered: data.is_spayed_neutered || undefined,
+      spayedNeutered: data.spayed_neutered || undefined,
       microchipNumber: data.microchip_number || undefined,
       color: data.color || undefined,
       microchip: data.microchip_number || undefined
@@ -285,7 +285,7 @@ export class DogsService {
     }
 
     const { error } = await supabase
-      .from('dog')
+      .from('dogs')
       .delete()
       .eq('id', id);
 
@@ -320,7 +320,7 @@ export class DogsService {
     }
 
     const { data, error } = await supabase
-      .from('dog')
+      .from('dogs')
       .select('*')
       .eq('owner_id', ownerId)
       .order('created_at', { ascending: false });
@@ -341,7 +341,7 @@ export class DogsService {
       weight: dog.weight || undefined,
       dateOfBirth: dog.date_of_birth || undefined,
       imageUrl: dog.image_url || undefined,
-      spayedNeutered: dog.is_spayed_neutered,
+      spayedNeutered: dog.spayed_neutered,
       microchipNumber: dog.microchip_number || undefined,
       color: dog.color || undefined,
       microchip: dog.microchip_number || undefined

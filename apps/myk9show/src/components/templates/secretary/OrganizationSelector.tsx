@@ -54,14 +54,18 @@ export const OrganizationSelector: React.FC<OrganizationSelectorProps> = ({
     }
   }, [organization, showType, templates]);
 
-  const handleOrganizationChange = (value: Organization) => {
-    setOrganization(value);
-    setShowType(undefined);
-    setAvailableTemplates([]);
+  const handleOrganizationChange = (value: string) => {
+    if (value) {
+      setOrganization(value as Organization);
+      setShowType(undefined);
+      setAvailableTemplates([]);
+    }
   };
 
-  const handleShowTypeChange = (value: ShowType) => {
-    setShowType(value);
+  const handleShowTypeChange = (value: string) => {
+    if (value) {
+      setShowType(value as ShowType);
+    }
   };
 
   const handleTemplateSelect = (template: ClassTemplate) => {

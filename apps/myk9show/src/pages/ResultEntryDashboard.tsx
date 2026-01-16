@@ -21,7 +21,15 @@ const ResultEntryDashboard: React.FC = () => {
 
   // Define role-based quick access cards
   const getQuickAccessCards = () => {
-    const cards = [];
+    const cards: Array<{
+      title: string;
+      description: string;
+      icon: React.ComponentType<{ className?: string }>;
+      color: string;
+      bgColor: string;
+      onClick: () => void;
+      stats: { label: string; value: string };
+    }> = [];
 
     // Judge-specific cards
     if (hasRole(UserRole.SITE_ADMIN)) {

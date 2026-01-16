@@ -47,7 +47,7 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
   });
   
   const navigate = useNavigate();
-  const { updateClub, removeClubOptimistic } = useClubStore();
+  const { updateClub, removeClub } = useClubStore();
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past' | 'about' | 'members'>('upcoming');
   const [showEditPanel, setShowEditPanel] = useState(false);
   
@@ -200,8 +200,8 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
 
     setIsDeleting(true);
     try {
-      logger.debug('Calling removeClubOptimistic', 'clubs');
-      await removeClubOptimistic(selectedClub.id, userWithRoles.databaseUserId);
+      logger.debug('Calling removeClub', 'clubs');
+      await removeClub(selectedClub.id);
       logger.info('Club deletion completed successfully', 'clubs', { clubId: selectedClub.id });
       setShowDeleteDialog(false);
       // Navigate back to clubs list after successful deletion

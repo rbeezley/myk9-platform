@@ -18,10 +18,10 @@ export const getAllClassTemplates = async () => {
   
   try {
     const { data, error } = await supabase
-      .from('class_template')
+      .from('class_templates')
       .select(`
         *,
-        template_fields:template_field(
+        template_fields:template_fields(
           id,
           field_name,
           field_type,
@@ -63,10 +63,10 @@ export const getClassTemplateById = async (id: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('class_template')
+      .from('class_templates')
       .select(`
         *,
-        template_fields:template_field(
+        template_fields:template_fields(
           id,
           field_name,
           field_type,
@@ -107,10 +107,10 @@ export const getClassTemplatesByOrganization = async (organization: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('class_template')
+      .from('class_templates')
       .select(`
         *,
-        template_fields:template_field(
+        template_fields:template_fields(
           id,
           field_name,
           field_type,
@@ -152,11 +152,11 @@ export const createClassTemplate = async (templateData: DbClassTemplateInsert) =
   
   try {
     const { data, error } = await supabase
-      .from('class_template')
+      .from('class_templates')
       .insert([templateData])
       .select(`
         *,
-        template_fields:template_field(*)
+        template_fields:template_fields(*)
       `)
       .single();
     
@@ -182,7 +182,7 @@ export const updateClassTemplate = async (id: string, updates: DbClassTemplateUp
   
   try {
     const { data, error } = await supabase
-      .from('class_template')
+      .from('class_templates')
       .update({
         ...updates,
         updated_at: new Date().toISOString(),
@@ -190,7 +190,7 @@ export const updateClassTemplate = async (id: string, updates: DbClassTemplateUp
       .eq('id', id)
       .select(`
         *,
-        template_fields:template_field(*)
+        template_fields:template_fields(*)
       `)
       .single();
     
@@ -216,7 +216,7 @@ export const deleteClassTemplate = async (id: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('class_template')
+      .from('class_templates')
       .update({ 
         is_active: false,
         updated_at: new Date().toISOString(),
@@ -247,10 +247,10 @@ export const searchClassTemplates = async (searchTerm: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('class_template')
+      .from('class_templates')
       .select(`
         *,
-        template_fields:template_field(*)
+        template_fields:template_fields(*)
       `)
       .or(`name.ilike.%${searchTerm}%,organization.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`)
       .eq('is_active', true)
@@ -280,7 +280,7 @@ export const getAllShowTemplates = async () => {
   
   try {
     const { data, error } = await supabase
-      .from('show_template')
+      .from('show_templates')
       .select('*')
       .eq('is_active', true)
       .order('organization', { ascending: true })
@@ -308,7 +308,7 @@ export const getShowTemplateById = async (id: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('show_template')
+      .from('show_templates')
       .select('*')
       .eq('id', id)
       .single();
@@ -335,7 +335,7 @@ export const getShowTemplatesByOrganization = async (organization: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('show_template')
+      .from('show_templates')
       .select('*')
       .eq('organization', organization)
       .eq('is_active', true)
@@ -363,7 +363,7 @@ export const createShowTemplate = async (templateData: DbShowTemplateInsert) => 
   
   try {
     const { data, error } = await supabase
-      .from('show_template')
+      .from('show_templates')
       .insert([templateData])
       .select('*')
       .single();
@@ -390,7 +390,7 @@ export const updateShowTemplate = async (id: string, updates: DbShowTemplateUpda
   
   try {
     const { data, error } = await supabase
-      .from('show_template')
+      .from('show_templates')
       .update({
         ...updates,
         updated_at: new Date().toISOString(),
@@ -415,38 +415,28 @@ export const updateShowTemplate = async (id: string, updates: DbShowTemplateUpda
   }
 };
 
-// Track template usage (increment usage_count and update last_used_at)
+// Track template usage (update updated_at to record last usage)
+// Note: usage_count and last_used_at columns don't exist in schema
 export const trackShowTemplateUsage = async (id: string) => {
   const startTime = Date.now();
-  
+
   try {
-    // First get the current usage count
-    const { data: current, error: fetchError } = await supabase
-      .from('show_template')
-      .select('usage_count')
-      .eq('id', id)
-      .single();
-
-    if (fetchError) throw fetchError;
-
     const { data, error } = await supabase
-      .from('show_template')
+      .from('show_templates')
       .update({
-        usage_count: (current?.usage_count || 0) + 1,
-        last_used_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
       .eq('id', id)
-      .select('id, name, usage_count, last_used_at')
+      .select('id, name, updated_at')
       .single();
-    
+
     const duration = Date.now() - startTime;
     logQuery('show_template', 'track_usage', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'show_template', 'track_usage');
     }
-    
+
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -456,33 +446,37 @@ export const trackShowTemplateUsage = async (id: string) => {
   }
 };
 
-// Soft delete show template
+// Delete show template (hard delete - is_active column doesn't exist in schema)
 export const deleteShowTemplate = async (id: string) => {
   const startTime = Date.now();
-  
+
   try {
-    const { data, error } = await supabase
-      .from('show_template')
-      .update({ 
-        is_active: false,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
+    // First get template info before deletion
+    const { data: templateData, error: fetchError } = await supabase
+      .from('show_templates')
       .select('id, name')
+      .eq('id', id)
       .single();
-    
+
+    if (fetchError) throw fetchError;
+
+    const { error } = await supabase
+      .from('show_templates')
+      .delete()
+      .eq('id', id);
+
     const duration = Date.now() - startTime;
-    logQuery('show_template', 'soft_delete', duration, error?.message);
-    
+    logQuery('show_template', 'delete', duration, error?.message);
+
     if (error) {
       throw createDatabaseError(error, 'show_template', 'delete');
     }
-    
-    return { data, error: null };
+
+    return { data: templateData, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'show_template', 'delete');
-    logQuery('show_template', 'soft_delete', duration, dbError.message);
+    logQuery('show_template', 'delete', duration, dbError.message);
     return { data: null, error: dbError };
   }
 };
@@ -495,7 +489,7 @@ export const getTemplateFields = async (templateId: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('template_field')
+      .from('template_fields')
       .select('*')
       .eq('template_id', templateId)
       .eq('is_active', true)
@@ -524,7 +518,7 @@ export const createTemplateField = async (fieldData: DbTemplateFieldInsert) => {
   
   try {
     const { data, error } = await supabase
-      .from('template_field')
+      .from('template_fields')
       .insert([fieldData])
       .select('*')
       .single();
@@ -551,7 +545,7 @@ export const createTemplateFields = async (fieldsData: DbTemplateFieldInsert[]) 
   
   try {
     const { data, error } = await supabase
-      .from('template_field')
+      .from('template_fields')
       .insert(fieldsData)
       .select('*');
     
@@ -577,7 +571,7 @@ export const updateTemplateField = async (id: string, updates: DbTemplateFieldUp
   
   try {
     const { data, error } = await supabase
-      .from('template_field')
+      .from('template_fields')
       .update({
         ...updates,
         updated_at: new Date().toISOString(),
@@ -602,33 +596,37 @@ export const updateTemplateField = async (id: string, updates: DbTemplateFieldUp
   }
 };
 
-// Delete template field (soft delete)
+// Delete template field (hard delete - is_active column doesn't exist in schema)
 export const deleteTemplateField = async (id: string) => {
   const startTime = Date.now();
-  
+
   try {
-    const { data, error } = await supabase
-      .from('template_field')
-      .update({ 
-        is_active: false,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
+    // First get field info before deletion
+    const { data: fieldData, error: fetchError } = await supabase
+      .from('template_fields')
       .select('id, field_name')
+      .eq('id', id)
       .single();
-    
+
+    if (fetchError) throw fetchError;
+
+    const { error } = await supabase
+      .from('template_fields')
+      .delete()
+      .eq('id', id);
+
     const duration = Date.now() - startTime;
-    logQuery('template_field', 'soft_delete', duration, error?.message);
-    
+    logQuery('template_field', 'delete', duration, error?.message);
+
     if (error) {
       throw createDatabaseError(error, 'template_field', 'delete');
     }
-    
-    return { data, error: null };
+
+    return { data: fieldData, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
     const dbError = createDatabaseError(error, 'template_field', 'delete');
-    logQuery('template_field', 'soft_delete', duration, dbError.message);
+    logQuery('template_field', 'delete', duration, dbError.message);
     return { data: null, error: dbError };
   }
 };
@@ -643,11 +641,11 @@ export const getTemplateStatistics = async () => {
     // Get counts for both class and show templates
     const [classTemplateCount, showTemplateCount] = await Promise.all([
       supabase
-        .from('class_template')
+        .from('class_templates')
         .select('id', { count: 'exact', head: true })
         .eq('is_active', true),
       supabase
-        .from('show_template')
+        .from('show_templates')
         .select('id', { count: 'exact', head: true })
         .eq('is_active', true),
     ]);
@@ -684,7 +682,7 @@ export const getMostUsedShowTemplates = async (limit = 10) => {
   
   try {
     const { data, error } = await supabase
-      .from('show_template')
+      .from('show_templates')
       .select('id, name, organization, usage_count, last_used_at')
       .eq('is_active', true)
       .order('usage_count', { ascending: false })

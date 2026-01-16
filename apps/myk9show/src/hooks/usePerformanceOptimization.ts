@@ -5,7 +5,6 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { monitoring } from '../services/MonitoringService';
-import { logger } from '../services/LoggingService';
 import { logger } from '@/services/LoggingService';
 import {
   performanceOptimizer,
@@ -117,7 +116,7 @@ export const useThrottle = <T extends (...args: unknown[]) => unknown>(
  */
 export const useIntersectionObserver = (
   options: IntersectionObserverInit = {}
-): [React.RefObject<HTMLElement>, boolean] => {
+): [React.RefObject<HTMLElement | null>, boolean] => {
   const [isIntersecting, setIsIntersecting] = useState(false);
   const targetRef = useRef<HTMLElement>(null);
 

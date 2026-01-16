@@ -48,7 +48,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
 
   const getDogEligibilityStatus = (dog: Dog) => {
     // Mock eligibility checks
-    const issues = [];
+    const issues: string[] = [];
     
     // Check age (example: must be at least 6 months old)
     if (dog.dateOfBirth) {

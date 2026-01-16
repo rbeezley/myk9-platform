@@ -485,8 +485,8 @@ export const useConnectionRecovery = () => {
     avgResponseTime: 0,
   });
   
-  const recoveryManagerRef = useRef<ConnectionRecoveryManager>();
-  
+  const recoveryManagerRef = useRef<ConnectionRecoveryManager | undefined>(undefined);
+
   if (!recoveryManagerRef.current) {
     recoveryManagerRef.current = new ConnectionRecoveryManager(queryClient);
   }

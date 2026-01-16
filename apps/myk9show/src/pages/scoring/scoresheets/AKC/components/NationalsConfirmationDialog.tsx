@@ -6,8 +6,8 @@
  */
 
 import React from 'react';
-import { DogCard } from '../../../../components/DogCard';
-import type { AreaScore } from '../../../../services/scoresheets/areaInitialization';
+import { DogCard } from '../../../../../components/DogCard';
+import type { AreaScore } from '../../../../../services/scoresheets/areaInitialization';
 
 interface EntryInfo {
   armband: number;

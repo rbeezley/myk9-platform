@@ -480,7 +480,7 @@ export class GracefulDegradationManager {
 export const useOfflineFirst = () => {
   const queryClient = useQueryClient();
   const networkStatus = useNetworkStatus();
-  const degradationManagerRef = useRef<GracefulDegradationManager>();
+  const degradationManagerRef = useRef<GracefulDegradationManager | undefined>(undefined);
 
   if (!degradationManagerRef.current) {
     degradationManagerRef.current = new GracefulDegradationManager(queryClient);

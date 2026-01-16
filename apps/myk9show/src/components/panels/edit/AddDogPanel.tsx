@@ -347,7 +347,7 @@ export const AddDogPanel: React.FC<AddDogPanelProps> = ({
                                  formData.ownerId;
         
         if (!hasRequiredFields) {
-          const missingFields = [];
+          const missingFields: string[] = [];
           if (!formData.callName?.trim()) missingFields.push('Call name');
           if (!formData.gender) missingFields.push('Gender');
           if (!formData.dateOfBirth) missingFields.push('Date of birth');

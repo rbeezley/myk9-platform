@@ -13,7 +13,7 @@ import type { Database } from '@/types/supabase';
 /**
  * Database row type from Supabase schema
  */
-type ClassRow = Database['public']['Tables']['class']['Row'];
+type ClassRow = Database['public']['Tables']['classes']['Row'];
 
 /**
  * App-level Class type with camelCase fields and sync metadata
@@ -79,7 +79,7 @@ function rowToClass(row: ClassRow): ReplicatedClass {
     entryFee: row.entry_fee ?? undefined,
     jumpHeights: row.jump_heights ?? undefined,
     maxEntries: row.max_entries ?? undefined,
-    allowsWaitlist: row.allows_waitlist ?? undefined,
+    allowsWaitlist: row.allow_waitlist ?? undefined,
     maxDogsPerHandler: row.max_dogs_per_handler ?? undefined,
     level: row.level ?? undefined,
     breedRestrictions: row.breed_restrictions ?? undefined,
@@ -133,7 +133,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
 
       // Filter by trial_id if provided as license key
       let query = supabase
-        .from('class')
+        .from('classes')
         .select('*')
         .gt('updated_at', new Date(lastSync).toISOString())
         .order('updated_at', { ascending: true });

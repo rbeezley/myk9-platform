@@ -3,9 +3,8 @@
  * Provides comprehensive error tracking, analysis, and reporting capabilities
  */
 
-import { logger } from '../LoggingService';
-import { performanceMetrics } from './PerformanceMetricsService';
 import { logger } from '@/services/LoggingService';
+import { performanceMetrics } from './PerformanceMetricsService';
 
 /**
  * Error severity levels
@@ -402,7 +401,12 @@ export class ErrorAnalyticsService {
     );
 
     // In a real application, this would send alerts to monitoring systems
-    logger.error('🚨 CRITICAL ERROR DETECTED:', 'analytics', {}, errorReport as Error);
+    logger.error('🚨 CRITICAL ERROR DETECTED:', 'analytics', {
+      errorId: errorReport.id,
+      message: errorReport.message,
+      category: errorReport.category,
+      count: errorReport.count,
+    });
   }
 
   /**

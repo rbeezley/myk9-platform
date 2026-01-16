@@ -6,20 +6,20 @@ import type {
 } from '@/types/health';
 import type { Database } from '@/types/supabase';
 
-type DbHealthRecordInsert = Database['public']['Tables']['health_record']['Insert'];
-type DbHealthRecordUpdate = Database['public']['Tables']['health_record']['Update'];
+type DbHealthRecordInsert = Database['public']['Tables']['health_records']['Insert'];
+type DbHealthRecordUpdate = Database['public']['Tables']['health_records']['Update'];
 
-type DbVaccinationInsert = Database['public']['Tables']['vaccination']['Insert'];
-type DbVaccinationUpdate = Database['public']['Tables']['vaccination']['Update'];
+type DbVaccinationInsert = Database['public']['Tables']['vaccinations']['Insert'];
+type DbVaccinationUpdate = Database['public']['Tables']['vaccinations']['Update'];
 
-type DbMedicationInsert = Database['public']['Tables']['medication']['Insert'];
-type DbMedicationUpdate = Database['public']['Tables']['medication']['Update'];
+type DbMedicationInsert = Database['public']['Tables']['medications']['Insert'];
+type DbMedicationUpdate = Database['public']['Tables']['medications']['Update'];
 
-type DbAllergyInsert = Database['public']['Tables']['allergy']['Insert'];
-type DbAllergyUpdate = Database['public']['Tables']['allergy']['Update'];
+type DbAllergyInsert = Database['public']['Tables']['allergies']['Insert'];
+type DbAllergyUpdate = Database['public']['Tables']['allergies']['Update'];
 
-type DbVetVisitInsert = Database['public']['Tables']['vet_visit']['Insert'];
-type DbVetVisitUpdate = Database['public']['Tables']['vet_visit']['Update'];
+type DbVetVisitInsert = Database['public']['Tables']['vet_visits']['Insert'];
+type DbVetVisitUpdate = Database['public']['Tables']['vet_visits']['Update'];
 
 // ========================================
 // HEALTH RECORDS (Parent table)
@@ -30,7 +30,7 @@ export const getAllHealthRecords = async (dogId?: string) => {
   
   try {
     let query = supabase
-      .from('health_record')
+      .from('health_records')
       .select('*')
       .order('created_at', { ascending: false });
     
@@ -61,7 +61,7 @@ export const getHealthRecordById = async (id: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('health_record')
+      .from('health_records')
       .select('*')
       .eq('id', id)
       .single();
@@ -87,7 +87,7 @@ export const createHealthRecord = async (healthRecord: DbHealthRecordInsert) => 
   
   try {
     const { data, error } = await supabase
-      .from('health_record')
+      .from('health_records')
       .insert(healthRecord)
       .select()
       .single();
@@ -113,7 +113,7 @@ export const updateHealthRecord = async (id: string, updates: DbHealthRecordUpda
   
   try {
     const { data, error } = await supabase
-      .from('health_record')
+      .from('health_records')
       .update(updates)
       .eq('id', id)
       .select()
@@ -140,7 +140,7 @@ export const deleteHealthRecord = async (id: string) => {
   
   try {
     const { error } = await supabase
-      .from('health_record')
+      .from('health_records')
       .delete()
       .eq('id', id);
     
@@ -169,9 +169,9 @@ export const getAllVaccinations = async (dogId?: string) => {
   
   try {
     let query = supabase
-      .from('vaccination')
+      .from('vaccinations')
       .select('*')
-      .order('date_given', { ascending: false });
+      .order('date_administered', { ascending: false });
     
     if (dogId) {
       query = query.eq('dog_id', dogId);
@@ -200,7 +200,7 @@ export const getVaccinationById = async (id: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('vaccination')
+      .from('vaccinations')
       .select('*')
       .eq('id', id)
       .single();
@@ -226,7 +226,7 @@ export const createVaccination = async (vaccination: DbVaccinationInsert) => {
   
   try {
     const { data, error } = await supabase
-      .from('vaccination')
+      .from('vaccinations')
       .insert(vaccination)
       .select()
       .single();
@@ -252,7 +252,7 @@ export const updateVaccination = async (id: string, updates: DbVaccinationUpdate
   
   try {
     const { data, error } = await supabase
-      .from('vaccination')
+      .from('vaccinations')
       .update(updates)
       .eq('id', id)
       .select()
@@ -279,7 +279,7 @@ export const deleteVaccination = async (id: string) => {
   
   try {
     const { error } = await supabase
-      .from('vaccination')
+      .from('vaccinations')
       .delete()
       .eq('id', id);
     
@@ -307,7 +307,7 @@ export const getUpcomingVaccinations = async (dogId?: string) => {
   
   try {
     let query = supabase
-      .from('vaccination')
+      .from('vaccinations')
       .select('*')
       .not('expiration_date', 'is', null)
       .lte('expiration_date', thirtyDaysFromNow.toISOString())
@@ -344,7 +344,7 @@ export const getAllMedications = async (dogId?: string) => {
   
   try {
     let query = supabase
-      .from('medication')
+      .from('medications')
       .select('*')
       .order('start_date', { ascending: false });
     
@@ -375,7 +375,7 @@ export const getActiveMedications = async (dogId?: string) => {
   
   try {
     let query = supabase
-      .from('medication')
+      .from('medications')
       .select('*')
       .eq('is_active', true)
       .order('start_date', { ascending: false });
@@ -407,7 +407,7 @@ export const createMedication = async (medication: DbMedicationInsert) => {
   
   try {
     const { data, error } = await supabase
-      .from('medication')
+      .from('medications')
       .insert(medication)
       .select()
       .single();
@@ -433,7 +433,7 @@ export const updateMedication = async (id: string, updates: DbMedicationUpdate) 
   
   try {
     const { data, error } = await supabase
-      .from('medication')
+      .from('medications')
       .update(updates)
       .eq('id', id)
       .select()
@@ -460,7 +460,7 @@ export const deleteMedication = async (id: string) => {
   
   try {
     const { error } = await supabase
-      .from('medication')
+      .from('medications')
       .delete()
       .eq('id', id);
     
@@ -489,9 +489,9 @@ export const getAllAllergies = async (dogId?: string) => {
   
   try {
     let query = supabase
-      .from('allergy')
+      .from('allergies')
       .select('*')
-      .order('discovered_date', { ascending: false, nullsFirst: false });
+      .order('diagnosed_date', { ascending: false, nullsFirst: false });
     
     if (dogId) {
       query = query.eq('dog_id', dogId);
@@ -520,9 +520,8 @@ export const getActiveAllergies = async (dogId?: string) => {
   
   try {
     let query = supabase
-      .from('allergy')
+      .from('allergies')
       .select('*')
-      .eq('is_active', true)
       .order('severity', { ascending: false, nullsFirst: false });
     
     if (dogId) {
@@ -552,7 +551,7 @@ export const createAllergy = async (allergy: DbAllergyInsert) => {
   
   try {
     const { data, error } = await supabase
-      .from('allergy')
+      .from('allergies')
       .insert(allergy)
       .select()
       .single();
@@ -578,7 +577,7 @@ export const updateAllergy = async (id: string, updates: DbAllergyUpdate) => {
   
   try {
     const { data, error } = await supabase
-      .from('allergy')
+      .from('allergies')
       .update(updates)
       .eq('id', id)
       .select()
@@ -605,7 +604,7 @@ export const deleteAllergy = async (id: string) => {
   
   try {
     const { error } = await supabase
-      .from('allergy')
+      .from('allergies')
       .delete()
       .eq('id', id);
     
@@ -634,7 +633,7 @@ export const getAllVetVisits = async (dogId?: string) => {
   
   try {
     let query = supabase
-      .from('vet_visit')
+      .from('vet_visits')
       .select('*')
       .order('visit_date', { ascending: false });
     
@@ -665,9 +664,9 @@ export const getVetVisitsRequiringFollowUp = async (dogId?: string) => {
   
   try {
     let query = supabase
-      .from('vet_visit')
+      .from('vet_visits')
       .select('*')
-      .eq('requires_follow_up', true)
+      .not('follow_up_date', 'is', null)
       .order('follow_up_date', { ascending: true, nullsFirst: false });
     
     if (dogId) {
@@ -697,7 +696,7 @@ export const createVetVisit = async (vetVisit: DbVetVisitInsert) => {
   
   try {
     const { data, error } = await supabase
-      .from('vet_visit')
+      .from('vet_visits')
       .insert(vetVisit)
       .select()
       .single();
@@ -723,7 +722,7 @@ export const updateVetVisit = async (id: string, updates: DbVetVisitUpdate) => {
   
   try {
     const { data, error } = await supabase
-      .from('vet_visit')
+      .from('vet_visits')
       .update(updates)
       .eq('id', id)
       .select()
@@ -750,7 +749,7 @@ export const deleteVetVisit = async (id: string) => {
   
   try {
     const { error } = await supabase
-      .from('vet_visit')
+      .from('vet_visits')
       .delete()
       .eq('id', id);
     
@@ -852,9 +851,9 @@ export const getHealthTimeline = async (dogId: string, filters?: HealthFilters) 
         timelineEntries.push({
           id: vaccination.id,
           type: 'vaccination' as const,
-          date: vaccination.date_given,
+          date: vaccination.date_administered,
           title: `${vaccination.vaccine_name} Vaccination`,
-          description: vaccination.vet_name ? `Administered by ${vaccination.vet_name}` : undefined,
+          description: vaccination.administered_by ? `Administered by ${vaccination.administered_by}` : undefined,
           details: vaccination,
           dog_id: dogId,
           urgent: !!(vaccination.expiration_date && new Date(vaccination.expiration_date) < new Date()),
@@ -871,7 +870,7 @@ export const getHealthTimeline = async (dogId: string, filters?: HealthFilters) 
           type: 'medication' as const,
           date: medication.start_date || medication.created_at!,
           title: `${medication.medication_name}`,
-          description: medication.prescribed_by ? `Prescribed by ${medication.prescribed_by}` : undefined,
+          description: medication.prescribing_vet ? `Prescribed by ${medication.prescribing_vet}` : undefined,
           details: medication,
           dog_id: dogId,
           urgent: false,
@@ -886,13 +885,13 @@ export const getHealthTimeline = async (dogId: string, filters?: HealthFilters) 
         timelineEntries.push({
           id: allergy.id,
           type: 'allergy' as const,
-          date: allergy.discovered_date || allergy.created_at || new Date().toISOString(),
+          date: allergy.diagnosed_date || allergy.created_at || new Date().toISOString(),
           title: `Allergy: ${allergy.allergen}`,
           description: allergy.severity ? `Severity: ${allergy.severity}` : undefined,
           details: allergy,
           dog_id: dogId,
           urgent: allergy.severity === 'severe' || allergy.severity === 'life_threatening',
-          status: allergy.is_active ? 'completed' : 'completed'
+          status: 'completed'
         });
       });
     }
@@ -908,8 +907,8 @@ export const getHealthTimeline = async (dogId: string, filters?: HealthFilters) 
           description: visit.vet_name ? `Seen by ${visit.vet_name}` : undefined,
           details: visit,
           dog_id: dogId,
-          urgent: visit.requires_follow_up || false,
-          status: visit.requires_follow_up ? 'upcoming' : 'completed'
+          urgent: !!visit.follow_up_date,
+          status: visit.follow_up_date ? 'upcoming' : 'completed'
         });
       });
     }
@@ -959,17 +958,17 @@ export const searchHealthRecords = async (dogId: string, searchTerm: string, fil
     // Search vaccinations
     if (!filters?.record_type || filters.record_type.includes('vaccination')) {
       const { data: vaccinations } = await supabase
-        .from('vaccination')
+        .from('vaccinations')
         .select('*')
         .eq('dog_id', dogId)
-        .or(`vaccine_name.ilike.%${searchTerm}%,vet_name.ilike.%${searchTerm}%,clinic_name.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%`);
+        .or(`vaccine_name.ilike.%${searchTerm}%,administered_by.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%`);
       
       vaccinations?.forEach(vaccination => {
         results.push({
           id: vaccination.id,
           type: 'vaccination' as const,
           title: `${vaccination.vaccine_name} Vaccination`,
-          date: vaccination.date_given,
+          date: vaccination.date_administered,
           details: vaccination
         });
       });
@@ -978,10 +977,10 @@ export const searchHealthRecords = async (dogId: string, searchTerm: string, fil
     // Search medications
     if (!filters?.record_type || filters.record_type.includes('medication')) {
       const { data: medications } = await supabase
-        .from('medication')
+        .from('medications')
         .select('*')
         .eq('dog_id', dogId)
-        .or(`medication_name.ilike.%${searchTerm}%,prescribed_by.ilike.%${searchTerm}%,pharmacy.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%`);
+        .or(`medication_name.ilike.%${searchTerm}%,prescribing_vet.ilike.%${searchTerm}%,reason.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%`);
       
       medications?.forEach(medication => {
         results.push({
@@ -997,17 +996,17 @@ export const searchHealthRecords = async (dogId: string, searchTerm: string, fil
     // Search allergies
     if (!filters?.record_type || filters.record_type.includes('allergy')) {
       const { data: allergies } = await supabase
-        .from('allergy')
+        .from('allergies')
         .select('*')
         .eq('dog_id', dogId)
-        .or(`allergen.ilike.%${searchTerm}%,reaction.ilike.%${searchTerm}%,discovered_by.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%`);
+        .or(`allergen.ilike.%${searchTerm}%,reaction.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%`);
       
       allergies?.forEach(allergy => {
         results.push({
           id: allergy.id,
           type: 'allergy' as const,
           title: `Allergy: ${allergy.allergen}`,
-          date: allergy.discovered_date || allergy.created_at || new Date().toISOString(),
+          date: allergy.diagnosed_date || allergy.created_at || new Date().toISOString(),
           details: allergy
         });
       });
@@ -1016,7 +1015,7 @@ export const searchHealthRecords = async (dogId: string, searchTerm: string, fil
     // Search vet visits
     if (!filters?.record_type || filters.record_type.includes('vet_visit')) {
       const { data: vetVisits } = await supabase
-        .from('vet_visit')
+        .from('vet_visits')
         .select('*')
         .eq('dog_id', dogId)
         .or(`reason.ilike.%${searchTerm}%,diagnosis.ilike.%${searchTerm}%,treatment.ilike.%${searchTerm}%,vet_name.ilike.%${searchTerm}%,clinic_name.ilike.%${searchTerm}%,notes.ilike.%${searchTerm}%`);

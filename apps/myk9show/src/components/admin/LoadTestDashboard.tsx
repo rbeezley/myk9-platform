@@ -97,8 +97,8 @@ export function LoadTestDashboard() {
         { name: 'Stress Test', dogs: 10000, people: 5000, shows: 100, entries: 20000 }
       ];
 
-      const allResults = [];
-      
+      const allResults: (LoadTestResults & { scenario: string })[] = [];
+
       for (const scenario of testScenarios) {
         logger.debug(`\n🚀 Running ${scenario.name} test...`, 'admin', {});
         

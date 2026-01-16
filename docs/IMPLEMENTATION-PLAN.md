@@ -539,7 +539,7 @@ This document provides step-by-step implementation tasks for building the Online
 
 #### Tasks
 
-- [ ] **2.1.1** Create cartStore with Zustand
+- [x] **2.1.1** Create cartStore with Zustand
   ```typescript
   // Following myK9Qv3 entryStore pattern
   interface CartState {
@@ -562,32 +562,36 @@ This document provides step-by-step implementation tasks for building the Online
     itemCount: number;
   }
   ```
+  **Implemented:** `apps/myk9show/src/stores/cartStore.ts`
 
-- [ ] **2.1.2** Add persistence with localStorage backup
+- [x] **2.1.2** Add persistence with localStorage backup
   ```typescript
   // Persist cart ID for recovery
   // Handle cart expiration (30 min)
   ```
+  **Implemented:** Zustand persist middleware with `myk9-cart-storage` key
 
-- [ ] **2.1.3** Add real-time availability checks
+- [x] **2.1.3** Add real-time availability checks
   ```typescript
   // Before adding item, check class availability
   // Show warning if class nearly full
   // Block if class full (offer waitlist)
   ```
+  **Implemented:** `apps/myk9show/src/hooks/useCartAvailability.ts`
 
-- [ ] **2.1.4** Implement cart expiration handling
+- [x] **2.1.4** Implement cart expiration handling
   ```typescript
   // Track expires_at
   // Show countdown when < 5 min
   // Prompt to extend or checkout
   ```
+  **Implemented:** `apps/myk9show/src/hooks/useCartExpirationTimer.ts`
 
 **Acceptance Criteria:**
-- [ ] Cart persists across page refreshes
-- [ ] Items validated against availability
-- [ ] Expiration clearly shown
-- [ ] Total calculated correctly
+- [x] Cart persists across page refreshes (localStorage backup)
+- [x] Items validated against availability (useCartAvailability hook)
+- [x] Expiration clearly shown (useCartExpirationTimer hook)
+- [x] Total calculated correctly (cartStore computed getters)
 
 **Reference:** myK9Qv3 `entryStore.ts` for Zustand patterns, `scoringStore.ts` for persistence.
 
@@ -603,7 +607,7 @@ This document provides step-by-step implementation tasks for building the Online
 
 #### Tasks
 
-- [ ] **2.2.1** Update ClassSelectionStep to show availability
+- [x] **2.2.1** Update ClassSelectionStep to show availability
   ```typescript
   // For each class, show:
   // - Entry limit
@@ -611,27 +615,31 @@ This document provides step-by-step implementation tasks for building the Online
   // - Spots available
   // - Waitlist count (if full)
   ```
+  **Implemented:** Uses `useClassAvailability` hook, shows badges with spots/limit
 
-- [ ] **2.2.2** Add "Add to Cart" instead of immediate entry
+- [x] **2.2.2** Add "Add to Cart" instead of immediate entry
   ```typescript
   // Don't create entry on selection
   // Add to cart instead
   // Show cart summary in sidebar
   ```
+  **Implemented:** `ClassSelectionStep.tsx` now uses `cartStore` for selections with real-time sync
 
-- [ ] **2.2.3** Add cart preview panel
+- [x] **2.2.3** Add cart preview panel
   - Shows items being added
   - Running total
   - "Continue Shopping" / "Checkout" buttons
+  **Implemented:** `apps/myk9show/src/components/cart/CartPreviewPanel.tsx`
 
-- [ ] **2.2.4** Handle full classes
+- [x] **2.2.4** Handle full classes
   ```typescript
   // If class full, show options:
   // 1. "Join Waitlist" (free, no payment)
   // 2. "Choose Different Class"
   ```
+  **Implemented:** Full classes disabled with "Join Waitlist" button
 
-- [ ] **2.2.5** Validate entry eligibility
+- [x] **2.2.5** Validate entry eligibility
   ```typescript
   // Check dog meets class requirements:
   // - Breed restrictions
@@ -639,12 +647,13 @@ This document provides step-by-step implementation tasks for building the Online
   // - Title requirements
   // - Handler requirements
   ```
+  **Implemented:** `apps/myk9show/src/hooks/useEntryEligibility.ts` validates breed, height, title, age, registration
 
 **Acceptance Criteria:**
-- [ ] Availability visible during selection
-- [ ] Items added to cart, not database
-- [ ] Full classes offer waitlist
-- [ ] Eligibility enforced
+- [x] Availability visible during selection
+- [x] Items added to cart, not database
+- [x] Full classes offer waitlist
+- [x] Eligibility enforced
 
 **Reference:** myK9Qv3 `useEntryListFilters.ts` for filtering patterns.
 

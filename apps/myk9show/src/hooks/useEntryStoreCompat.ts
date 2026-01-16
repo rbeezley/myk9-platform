@@ -170,8 +170,8 @@ export const useEntryStoreCompat = () => {
 
   const recordResult = async (entryId: string, result: CompetitionData): Promise<SyncableShowEntry | null> => {
     const dbUpdates = mapCompetitionDataToUpdate(result);
-    // Also update status to completed
-    dbUpdates.status = 'completed';
+    // Also update entry_status to completed (entries table uses entry_status, not status)
+    dbUpdates.entry_status = 'completed';
     
     const dbResult = await updateMutation.mutateAsync({ id: entryId, updates: dbUpdates });
     

@@ -36,7 +36,8 @@ export class RBACService {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return false;
 
-    const { data, error } = await supabase.rpc('user_has_permission', {
+    // Note: RPC function will be created in future migration
+    const { data, error } = await (supabase.rpc as CallableFunction)('user_has_permission', {
       user_id: user.id,
       permission_name: permission,
       scope_type: scopeType,
@@ -61,7 +62,8 @@ export class RBACService {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return [];
 
-    const { data, error } = await supabase.rpc('get_user_permissions', {
+    // Note: RPC function will be created in future migration
+    const { data, error } = await (supabase.rpc as CallableFunction)('get_user_permissions', {
       user_id: user.id,
       filter_scope_type: scopeType,
       filter_scope_id: scopeId
@@ -82,7 +84,8 @@ export class RBACService {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return [];
 
-    const { data, error } = await supabase.rpc('get_user_roles', {
+    // Note: RPC function will be created in future migration
+    const { data, error } = await (supabase.rpc as CallableFunction)('get_user_roles', {
       user_id: user.id
     });
 
@@ -101,7 +104,8 @@ export class RBACService {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return false;
 
-    const { data, error } = await supabase.rpc('is_site_admin', {
+    // Note: RPC function will be created in future migration
+    const { data, error } = await (supabase.rpc as CallableFunction)('is_site_admin', {
       user_id: user.id
     });
 
@@ -123,7 +127,8 @@ export class RBACService {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return [];
 
-    const { data, error } = await supabase.rpc('get_effective_permissions', {
+    // Note: RPC function will be created in future migration
+    const { data, error } = await (supabase.rpc as CallableFunction)('get_effective_permissions', {
       user_id: user.id,
       filter_scope_type: scopeType,
       filter_scope_id: scopeId
@@ -150,7 +155,8 @@ export class RBACService {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
 
-    const { data, error } = await supabase.rpc('assign_user_role', {
+    // Note: RPC function will be created in future migration
+    const { data, error } = await (supabase.rpc as CallableFunction)('assign_user_role', {
       target_user_id: targetUserId,
       role_name: roleName,
       scope_type: scopeType,
@@ -179,7 +185,8 @@ export class RBACService {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return false;
 
-    const { data, error } = await supabase.rpc('revoke_user_role', {
+    // Note: RPC function will be created in future migration
+    const { data, error } = await (supabase.rpc as CallableFunction)('revoke_user_role', {
       target_user_id: targetUserId,
       role_name: roleName,
       scope_type: scopeType,

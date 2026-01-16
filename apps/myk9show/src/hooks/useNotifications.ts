@@ -79,7 +79,7 @@ export function useNotifications(userId?: string) {
       setState(prev => ({ ...prev, preferencesLoading: true, error: null }));
 
       const { data, error } = await supabase
-        .from('notification_preference')
+        .from('notification_preferences')
         .select('*')
         .eq('user_id', userId)
         .single();
@@ -88,21 +88,24 @@ export function useNotifications(userId?: string) {
         throw error;
       }
 
+      // Map database columns to NotificationPreferences structure
+      // Cast data to access all columns (some may not be in strict Supabase types)
+      const dbData = data as Record<string, unknown>;
       const preferences: NotificationPreferences = data ? {
-        userId: data.user_id,
-        enabled: data.enabled ?? true,
-        fcmToken: data.fcm_token || undefined,
-        types: typeof data.types === 'object' ? data.types as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ : {
-          showReminders: true,
+        userId: (dbData.user_id as string) || userId,
+        enabled: (dbData.push_enabled as boolean) ?? true,
+        fcmToken: undefined,
+        types: {
+          showReminders: (dbData.show_reminders as boolean) ?? true,
           entryDeadlines: true,
-          resultUpdates: true,
-          scheduleChanges: true,
+          resultUpdates: (dbData.result_updates as boolean) ?? true,
+          scheduleChanges: (dbData.schedule_updates as boolean) ?? true,
           judgeAssignments: false,
           emergencyAlerts: true,
-          paymentReminders: true,
-          entryConfirmations: true,
+          paymentReminders: (dbData.payment_receipts as boolean) ?? true,
+          entryConfirmations: (dbData.entry_confirmations as boolean) ?? true,
         },
-        timing: typeof data.timing === 'object' ? data.timing as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ : {
+        timing: {
           showReminderHours: [24, 48],
           entryDeadlineHours: [24, 48],
           quietHours: {
@@ -112,14 +115,14 @@ export function useNotifications(userId?: string) {
             timezone: "America/New_York"
           }
         },
-        delivery: typeof data.delivery === 'object' ? data.delivery as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ : {
-          browser: true,
-          email: true,
-          sms: false
+        delivery: {
+          browser: (dbData.push_enabled as boolean) ?? true,
+          email: (dbData.email_enabled as boolean) ?? true,
+          sms: (dbData.sms_enabled as boolean) ?? false
         },
-        topics: Array.isArray(data.topics) ? data.topics : [],
-        createdAt: new Date(data.created_at || Date.now()),
-        updatedAt: new Date(data.updated_at || Date.now())
+        topics: [],
+        createdAt: new Date((dbData.created_at as string) || Date.now()),
+        updatedAt: new Date((dbData.updated_at as string) || Date.now())
       } : {
         userId,
         enabled: true,
@@ -139,7 +142,7 @@ export function useNotifications(userId?: string) {
           quietHours: {
             enabled: false,
             startTime: "22:00",
-            endTime: "08:00", 
+            endTime: "08:00",
             timezone: "America/New_York"
           }
         },
@@ -284,17 +287,33 @@ export function useNotifications(userId?: string) {
 
       setState(prev => ({ ...prev, preferencesLoading: true }));
 
-      const updatedPreferences = {
+      // Map NotificationPreferences to database columns
+      const dbUpdates: Record<string, unknown> = {
         user_id: userId,
-        ...updates,
         updated_at: new Date().toISOString()
       };
 
+      if (updates.enabled !== undefined) {
+        dbUpdates.push_enabled = updates.enabled;
+      }
+      if (updates.types) {
+        if (updates.types.showReminders !== undefined) dbUpdates.show_reminders = updates.types.showReminders;
+        if (updates.types.resultUpdates !== undefined) dbUpdates.result_updates = updates.types.resultUpdates;
+        if (updates.types.scheduleChanges !== undefined) dbUpdates.schedule_updates = updates.types.scheduleChanges;
+        if (updates.types.paymentReminders !== undefined) dbUpdates.payment_receipts = updates.types.paymentReminders;
+        if (updates.types.entryConfirmations !== undefined) dbUpdates.entry_confirmations = updates.types.entryConfirmations;
+      }
+      if (updates.delivery) {
+        if (updates.delivery.browser !== undefined) dbUpdates.push_enabled = updates.delivery.browser;
+        if (updates.delivery.email !== undefined) dbUpdates.email_enabled = updates.delivery.email;
+        if (updates.delivery.sms !== undefined) dbUpdates.sms_enabled = updates.delivery.sms;
+      }
+
       const { data, error } = await supabase
-        .from('notification_preference')
-        .upsert(updatedPreferences, { 
+        .from('notification_preferences')
+        .upsert(dbUpdates, {
           onConflict: 'user_id',
-          ignoreDuplicates: false 
+          ignoreDuplicates: false
         })
         .select()
         .single();
@@ -304,21 +323,23 @@ export function useNotifications(userId?: string) {
       }
 
       // Convert database row to NotificationPreferences interface
+      // Cast data to access all columns (some may not be in strict Supabase types)
+      const dbResult = data as Record<string, unknown>;
       const updatedPrefs: NotificationPreferences = {
-        userId: data.user_id,
-        enabled: data.enabled ?? false,
-        fcmToken: data.fcm_token || undefined,
-        types: typeof data.types === 'object' ? data.types as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ : {
-          showReminders: true,
+        userId: (dbResult.user_id as string) || userId,
+        enabled: (dbResult.push_enabled as boolean) ?? true,
+        fcmToken: undefined,
+        types: {
+          showReminders: (dbResult.show_reminders as boolean) ?? true,
           entryDeadlines: true,
-          resultUpdates: true,
-          scheduleChanges: true,
+          resultUpdates: (dbResult.result_updates as boolean) ?? true,
+          scheduleChanges: (dbResult.schedule_updates as boolean) ?? true,
           judgeAssignments: false,
           emergencyAlerts: true,
-          paymentReminders: true,
-          entryConfirmations: true,
+          paymentReminders: (dbResult.payment_receipts as boolean) ?? true,
+          entryConfirmations: (dbResult.entry_confirmations as boolean) ?? true,
         },
-        timing: typeof data.timing === 'object' ? data.timing as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ : {
+        timing: {
           showReminderHours: [24, 48],
           entryDeadlineHours: [24, 48],
           quietHours: {
@@ -328,18 +349,18 @@ export function useNotifications(userId?: string) {
             timezone: "America/New_York"
           }
         },
-        delivery: typeof data.delivery === 'object' ? data.delivery as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ : {
-          browser: true,
-          email: true,
-          sms: false
+        delivery: {
+          browser: (dbResult.push_enabled as boolean) ?? true,
+          email: (dbResult.email_enabled as boolean) ?? true,
+          sms: (dbResult.sms_enabled as boolean) ?? false
         },
-        topics: Array.isArray(data.topics) ? data.topics : [],
-        createdAt: new Date(data.created_at || Date.now()),
-        updatedAt: new Date(data.updated_at || Date.now())
+        topics: [],
+        createdAt: new Date((dbResult.created_at as string) || Date.now()),
+        updatedAt: new Date((dbResult.updated_at as string) || Date.now())
       };
 
-      setState(prev => ({ 
-        ...prev, 
+      setState(prev => ({
+        ...prev,
         preferences: updatedPrefs,
         preferencesLoading: false
       }));

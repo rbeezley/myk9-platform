@@ -50,7 +50,7 @@ export const dogSchemas = {
     name: commonValidations.name,
     callName: commonValidations.optionalString,
     breed: commonValidations.required,
-    gender: z.enum(['Male', 'Female'], { required_error: 'Please select a gender' }),
+    gender: z.enum(['Male', 'Female'], { message: 'Please select a gender' }),
     dateOfBirth: commonValidations.date.optional(),
     color: commonValidations.optionalString,
     weight: commonValidations.optionalString,
@@ -72,7 +72,7 @@ export const dogSchemas = {
 
   health: z.object({
     type: z.enum(['vaccination', 'medication', 'allergy', 'vet-visit'], {
-      required_error: 'Please select a health record type'
+      message: 'Please select a health record type'
     }),
     name: commonValidations.required,
     date: commonValidations.date,
@@ -101,7 +101,7 @@ export const showSchemas = {
   basic: z.object({
     name: commonValidations.name,
     type: z.enum(['Specialty', 'All-Breed', 'Fun Match', 'Sanctioned Match'], {
-      required_error: 'Please select a show type'
+      message: 'Please select a show type'
     }),
     startDate: commonValidations.date,
     endDate: commonValidations.date,
@@ -151,7 +151,7 @@ export const clubSchemas = {
     // Additional fields
     founded: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Please enter a valid date (YYYY-MM-DD)').optional().or(z.literal('')),
     clubType: z.enum(['specialty', 'all-breed', 'local', 'regional', 'national'], {
-      required_error: 'Please select a club type'
+      message: 'Please select a club type'
     }).optional().or(z.literal('')),
   }),
 };
@@ -172,7 +172,7 @@ export function validateField<T>(schema: z.ZodSchema<T>, field: string, value: u
     return null;
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const fieldError = error.errors.find(err => err.path.includes(field));
+      const fieldError = error.issues.find(err => err.path.includes(field));
       return fieldError?.message || null;
     }
     return null;
@@ -195,7 +195,7 @@ export function validateForm<T>(schema: z.ZodSchema<T>, data: unknown): {
   } catch (error) {
     if (error instanceof z.ZodError) {
       const errors: Record<string, string> = {};
-      error.errors.forEach((err) => {
+      error.issues.forEach((err) => {
         if (err.path.length > 0) {
           errors[err.path[0] as string] = err.message;
         }

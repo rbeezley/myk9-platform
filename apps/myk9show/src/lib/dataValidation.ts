@@ -30,7 +30,7 @@ export const ValidationSchemas = {
         
         return birthDate <= today && birthDate >= maxAge;
       }, 'Date of birth must be valid and within reasonable range'),
-    gender: z.enum(['male', 'female'], { errorMap: () => ({ message: 'Gender must be either male or female' }) }),
+    gender: z.enum(['male', 'female'], { message: 'Gender must be either male or female' }),
     color: z.string()
       .min(1, 'Color is required')
       .max(50, 'Color must be 50 characters or less'),
@@ -88,7 +88,7 @@ export const ValidationSchemas = {
         return birthDate <= minAge && birthDate >= maxAge;
       }, 'Date of birth must be valid (minimum age 13)'),
     role: z.enum(['admin', 'secretary', 'exhibitor', 'judge', 'viewer'], {
-      errorMap: () => ({ message: 'Invalid role selected' })
+      message: 'Invalid role selected'
     }),
     is_active: z.boolean().default(true),
     emergency_contact_name: z.string().max(100, 'Emergency contact name must be 100 characters or less').optional(),
@@ -129,10 +129,10 @@ export const ValidationSchemas = {
       .max(10000, 'Maximum entries must be reasonable')
       .optional(),
     status: z.enum(['draft', 'open', 'closed', 'cancelled', 'completed'], {
-      errorMap: () => ({ message: 'Invalid show status' })
+      message: 'Invalid show status'
     }),
     type: z.enum(['conformation', 'obedience', 'agility', 'rally', 'tracking', 'mixed'], {
-      errorMap: () => ({ message: 'Invalid show type' })
+      message: 'Invalid show type'
     }),
     sanctioning_organization: z.string()
       .min(1, 'Sanctioning organization is required')
@@ -403,7 +403,7 @@ export const ValidationUtils = {
       if (result.success) {
         return { success: true, data: result.data };
       } else {
-        const errors = result.error.errors.map(err => `${err.path.join('.')}: ${err.message}`);
+        const errors = result.error.issues.map(err => `${err.path.join('.')}: ${err.message}`);
         return { success: false, errors };
       }
     } catch (error) {

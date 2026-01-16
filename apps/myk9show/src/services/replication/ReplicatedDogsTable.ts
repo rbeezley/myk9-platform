@@ -16,7 +16,7 @@ import type { Database } from '@/types/supabase';
 /**
  * Database row type from Supabase schema
  */
-type DogRow = Database['public']['Tables']['dog']['Row'];
+type DogRow = Database['public']['Tables']['dogs']['Row'];
 
 /**
  * App-level Dog type with camelCase fields and sync metadata
@@ -59,7 +59,7 @@ function rowToDog(row: DogRow): ReplicatedDog {
     weight: row.weight ?? undefined,
     color: row.color ?? undefined,
     microchipNumber: row.microchip_number ?? undefined,
-    isSpayedNeutered: row.is_spayed_neutered ?? undefined,
+    isSpayedNeutered: row.spayed_neutered ?? undefined,
     imageUrl: row.image_url ?? undefined,
   };
 }
@@ -84,7 +84,7 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
 
       // Filter by owner_id if provided
       let query = supabase
-        .from('dog')
+        .from('dogs')
         .select('*')
         .gt('updated_at', new Date(lastSync).toISOString())
         .order('updated_at', { ascending: true });

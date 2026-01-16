@@ -297,7 +297,8 @@ export function JudgeClassInterface({
 
   // Generate breadcrumbs manually since we only have IDs, not full objects
   const breadcrumbItems = useMemo(() => {
-    const items = [];
+    type BreadcrumbItem = { label: string; href?: string; onClick?: () => void; isCurrentPage?: boolean };
+    const items: BreadcrumbItem[] = [];
     
     if (showId) {
       items.push({

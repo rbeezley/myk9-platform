@@ -125,17 +125,10 @@ export const useCreateClassTemplateMutation = () => {
         queryClient.setQueryData(queryKeys.classTemplates, context.previousTemplates);
       }
     },
-    onSuccess: (data, variables) => {
+    onSuccess: () => {
       // Invalidate and refetch relevant queries
       invalidateQueries.all('dogs');
-      
-      // Invalidate organization-specific queries
-      if (variables.organization) {
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.classTemplatesByOrganization(variables.organization)
-        });
-      }
-      
+
       // Invalidate statistics
       queryClient.invalidateQueries({ queryKey: queryKeys.templateStatistics });
     },
@@ -177,16 +170,9 @@ export const useUpdateClassTemplateMutation = () => {
     onSuccess: (data, { id }) => {
       // Update specific template cache
       queryClient.setQueryData(queryKeys.classTemplate(id), data);
-      
+
       // Invalidate lists to ensure consistency
       invalidateQueries.lists('dogs');
-      
-      // Invalidate organization queries if organization changed
-      if (data?.organization) {
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.classTemplatesByOrganization(data.organization)
-        });
-      }
     },
   });
 };
@@ -290,16 +276,10 @@ export const useCreateShowTemplateMutation = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: (data, variables) => {
+    onSuccess: () => {
       // Invalidate relevant queries
       invalidateQueries.all('dogs');
-      
-      if (variables.organization) {
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.showTemplatesByOrganization(variables.organization)
-        });
-      }
-      
+
       queryClient.invalidateQueries({ queryKey: queryKeys.templateStatistics });
     },
   });
@@ -318,15 +298,9 @@ export const useUpdateShowTemplateMutation = () => {
     onSuccess: (data, { id }) => {
       // Update specific template cache
       queryClient.setQueryData(queryKeys.showTemplate(id), data);
-      
+
       // Invalidate lists
       invalidateQueries.lists('dogs');
-      
-      if (data?.organization) {
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.showTemplatesByOrganization(data.organization)
-        });
-      }
     },
   });
 };
@@ -343,17 +317,10 @@ export const useTrackShowTemplateUsageMutation = () => {
     },
     onSuccess: (data, id) => {
       // Update specific template cache
-      queryClient.setQueryData(queryKeys.showTemplate(id), (old: unknown) => {
-        if (old && data) {
-          return { 
-            ...(old as Record<string, unknown>), 
-            usage_count: data.usage_count,
-            last_used_at: data.last_used_at 
-          };
-        }
-        return old;
-      });
-      
+      if (data) {
+        queryClient.setQueryData(queryKeys.showTemplate(id), data);
+      }
+
       // Invalidate most used templates
       queryClient.invalidateQueries({ queryKey: queryKeys.mostUsedTemplates });
     },

@@ -23,7 +23,7 @@ import { markInRing } from '../../../services/entryService';
 import type { AreaScore } from '../../../services/scoresheets/areaInitialization';
 import type { QualifyingResult } from '../../../stores/scoringStore';
 import type { Entry } from '../../../stores/entryStore';
-import { logger } from '@/utils/logger';
+import { logger } from '@/services/LoggingService';
 
 // Extended result types for Nationals
 export type NationalsResult = '1st' | '2nd' | '3rd' | '4th';
@@ -264,7 +264,7 @@ export function useScoresheetCore(config: ScoresheetCoreConfig = {}): Scoresheet
    */
   const navigateBackWithRingCleanup = useCallback((currentEntry: Entry | null) => {
      
-    logger.log('🚪 [useScoresheetCore] navigateBackWithRingCleanup called:', {
+    logger.debug('🚪 [useScoresheetCore] navigateBackWithRingCleanup called', 'scoring', {
       hasEntry: !!currentEntry,
       entryId: currentEntry?.id,
       armband: currentEntry?.armband
@@ -272,18 +272,16 @@ export function useScoresheetCore(config: ScoresheetCoreConfig = {}): Scoresheet
 
     // Fire-and-forget: update status in background, navigate immediately
     if (currentEntry?.id) {
-       
-      logger.log('🚪 [useScoresheetCore] Firing markInRing(', currentEntry.id, ', false) in background');
+      logger.debug('🚪 [useScoresheetCore] Firing markInRing in background', 'scoring', { entryId: currentEntry.id });
       markInRing(currentEntry.id, false)
         .then(() => {
-           
-          logger.log('✅ [useScoresheetCore] markInRing completed successfully');
+          logger.debug('✅ [useScoresheetCore] markInRing completed successfully', 'scoring');
         })
         .catch((error) => {
-          logger.error('❌ Failed to remove dog from ring:', error);
+          logger.error('❌ Failed to remove dog from ring', 'scoring', {}, error as Error);
         });
     } else {
-      logger.warn('⚠️ [useScoresheetCore] No currentEntry - skipping markInRing');
+      logger.warn('⚠️ [useScoresheetCore] No currentEntry - skipping markInRing', 'scoring');
     }
 
     // Navigate immediately - don't wait for DB
@@ -302,7 +300,7 @@ export function useScoresheetCore(config: ScoresheetCoreConfig = {}): Scoresheet
     extraData: Partial<ScoreSubmitData['scoreData']> = {}
   ) => {
      
-    logger.log('📝 [useScoresheetCore] submitScore called:', {
+    logger.debug('📝 [useScoresheetCore] submitScore called', 'scoring', {
       entryId: currentEntry?.id,
       armband: currentEntry?.armband,
       qualifying,
@@ -310,7 +308,7 @@ export function useScoresheetCore(config: ScoresheetCoreConfig = {}): Scoresheet
     });
 
 if (!currentEntry) {
-      logger.warn('⚠️ [useScoresheetCore] No currentEntry - aborting');
+      logger.warn('⚠️ [useScoresheetCore] No currentEntry - aborting', 'scoring');
       return;
     }
 
@@ -372,13 +370,13 @@ if (!currentEntry) {
           navigate(-1);
         },
         onError: (error) => {
-          logger.error('❌ Score submission failed:', error);
+          logger.error('❌ Score submission failed', 'scoring', {}, error);
           alert(`Failed to submit score: ${error.message}`);
           setIsSubmitting(false);
         }
       });
     } catch (error) {
-      logger.error('❌ Unexpected error during submission:', error);
+      logger.error('❌ Unexpected error during submission', 'scoring', {}, error as Error);
       setIsSubmitting(false);
     }
   }, [

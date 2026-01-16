@@ -74,7 +74,7 @@ export function useAuth() {
       if (data.user) {
         try {
           const { error: insertError } = await supabase
-            .from('user')
+            .from('people')
             .insert([
               {
                 first_name: metadata?.firstName || 'First',

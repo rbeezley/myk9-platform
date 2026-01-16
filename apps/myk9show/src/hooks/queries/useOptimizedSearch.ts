@@ -262,7 +262,7 @@ export const useGlobalSearch = (searchTerm: string, options?: {
         };
       }
       
-      const searchPromises = [];
+      const searchPromises: Promise<void>[] = [];
       const results: Record<string, unknown[]> = {
         dogs: [],
         users: [],

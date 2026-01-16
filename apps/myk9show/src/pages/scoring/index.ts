@@ -10,13 +10,12 @@ export { ScoresheetPage } from './ScoresheetPage';
 
 // Components
 export { ScoringEntryCard, SortableScoringEntryCard } from './components/ScoringEntryCard';
-export { TimerDisplay, CompactTimer } from './components/TimerDisplay';
-export { AreaTimerInputs, AreaTimeSummary } from './components/AreaTimerInputs';
-export { NationalsPointsDisplay, CompactPointsDisplay } from './components/NationalsPointsDisplay';
+export { TimerDisplay } from './components/TimerDisplay';
+export { NationalsPointsDisplay } from './components/NationalsPointsDisplay';
 
 // Scoresheets
-export { AKCScentWorkScoresheet } from './scoresheets/AKCScentWorkScoresheet';
-export { AKCNationalsScoresheet } from './scoresheets/AKCNationalsScoresheet';
+export { AKCScentWorkScoresheet } from './scoresheets/AKC/AKCScentWorkScoresheet';
+export { AKCNationalsScoresheet } from './scoresheets/AKC/AKCNationalsScoresheet';
 
 // Types
 export type {

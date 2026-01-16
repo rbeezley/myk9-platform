@@ -163,7 +163,7 @@ const TemplateEditorPageOriginal: React.FC = () => {
         setEditingClass({ index, class: { ...classDef } });
         setEditDialogOpen(true);
       } else {
-        logger.error('Class definition not found at index:', 'pages', {}, index as Error);
+        logger.error('Class definition not found at index:', 'pages', { index });
       }
     } catch (error) {
       logger.error('Error in handleEditClass:', 'pages', {}, error as Error);

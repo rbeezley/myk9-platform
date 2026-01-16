@@ -16,7 +16,6 @@ import type { AreaScore } from '@/services/scoresheets/areaInitialization';
 import { markInRing } from '@/services/entryService';
 import { initializeAreas } from '@/services/scoresheets/areaInitialization';
 import { ensureReplicationManager } from '@/utils/replicationHelper';
-import { logger } from '@/utils/logger';
 
 // ============================================================================
 // Types
@@ -102,7 +101,7 @@ export async function loadFromRouteState(
   isNationals: boolean
 ): Promise<FastPathResult> {
 
-  logger.log('⚡ [useEntryNavigation] Using route state for instant load');
+  logger.debug('⚡ [useEntryNavigation] Using route state for instant load', 'scoring');
 
   const passedEntry = routeState.entry!;
   const passedClassInfo = routeState.classInfo!;

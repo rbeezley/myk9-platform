@@ -62,15 +62,16 @@ export const SyncAnalyticsDashboard: React.FC<SyncAnalyticsDashboardProps> = ({ 
 
   // Generate mock analytics data
   const generateTimeSeriesData = (days: number, type: 'success' | 'error' | 'performance') => {
-    const data = [];
+    type DataPoint = { date: string; value: number; success: number; error: number; performance: number };
+    const data: DataPoint[] = [];
     const now = new Date();
-    
+
     for (let i = days - 1; i >= 0; i--) {
       const date = subDays(now, i);
-      const baseValue = type === 'performance' ? 
-        Math.random() * 1000 + 200 : 
+      const baseValue = type === 'performance' ?
+        Math.random() * 1000 + 200 :
         Math.floor(Math.random() * 50) + 10;
-      
+
       data.push({
         date: format(date, 'MMM dd'),
         value: baseValue,
@@ -332,7 +333,7 @@ export const SyncAnalyticsDashboard: React.FC<SyncAnalyticsDashboardProps> = ({ 
                         cy="50%"
                         outerRadius={80}
                         dataKey="value"
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
                       >
                         {syncTypeData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />

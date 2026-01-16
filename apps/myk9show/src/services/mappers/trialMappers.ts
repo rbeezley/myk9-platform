@@ -2,9 +2,9 @@
 import type { Trial, TrialInput } from '@/store/trialStore';
 import type { Database } from '@/types/supabase';
 
-type DbTrial = Database['public']['Tables']['trial']['Row'];
-type DbTrialInsert = Database['public']['Tables']['trial']['Insert'];
-type DbTrialUpdate = Database['public']['Tables']['trial']['Update'];
+type DbTrial = Database['public']['Tables']['trials']['Row'];
+type DbTrialInsert = Database['public']['Tables']['trials']['Insert'];
+type DbTrialUpdate = Database['public']['Tables']['trials']['Update'];
 
 // Type for joined trial data from queries
 export interface DbTrialWithShow extends DbTrial {

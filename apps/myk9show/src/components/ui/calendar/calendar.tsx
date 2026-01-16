@@ -7,14 +7,14 @@ import { buttonVariants } from "@/components/ui/button/buttonVariants"
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>
 
-import type { CaptionProps } from 'react-day-picker';
+import type { MonthCaptionProps } from 'react-day-picker';
 
-interface YearMonthCaptionProps extends CaptionProps {
+interface YearMonthCaptionProps extends MonthCaptionProps {
   onMonthChange?: (month: Date) => void;
 }
 
 function YearMonthCaption(props: YearMonthCaptionProps) {
-  const { displayMonth } = props;
+  const displayMonth = props.calendarMonth.date;
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 100 }, (_, i) => currentYear - i);
   // We'll dispatch a native event to the parent DayPicker for month change
@@ -160,13 +160,11 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        IconLeft: ({ className, ...props }) => (
-          <ChevronLeft className={cn("h-4 w-4", className)} {...props} />
-        ),
-        IconRight: ({ className, ...props }) => (
-          <ChevronRight className={cn("h-4 w-4", className)} {...props} />
-        ),
-        Caption: (captionProps) => (
+        Chevron: ({ orientation, className, ...props }) => {
+          const Icon = orientation === 'left' ? ChevronLeft : ChevronRight;
+          return <Icon className={cn("h-4 w-4", className)} {...props} />;
+        },
+        MonthCaption: (captionProps) => (
           <YearMonthCaption
             {...captionProps}
             onMonthChange={handleMonthChange}

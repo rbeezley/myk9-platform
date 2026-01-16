@@ -15,7 +15,7 @@ import { useCallback, useState, useEffect } from 'react';
 import { useOptimisticUpdate } from './useOptimisticUpdate';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { useScoringStore, type QualifyingResult } from '@/stores/scoringStore';
-import { logger } from '@/utils/logger';
+import { logger } from '@/services/LoggingService';
 
 export interface ScoreSubmissionData {
   entryId: number;
@@ -114,16 +114,14 @@ export function useOptimisticScoring() {
           : 0;
 
         await replicatedEntriesTable.updateEntry(String(entryId), {
-          status: 'scored',
-          resultStatus: resultStatus,
-          searchTimeSeconds: searchTimeSeconds,
-          totalFaults: scoreData.faultCount,
+          result_status: resultStatus,
+          search_time_seconds: searchTimeSeconds,
         });
 
-        logger.log(`✅ [useOptimisticScoring] Updated local cache for entry ${entryId}`);
+        logger.debug(`✅ [useOptimisticScoring] Updated local cache for entry ${entryId}`, 'scoring');
       } catch (cacheError) {
         // Non-fatal: cache update failed but we can continue
-        logger.warn(`⚠️ [useOptimisticScoring] Failed to update local cache:`, cacheError);
+        logger.warn('⚠️ [useOptimisticScoring] Failed to update local cache', 'scoring', {}, cacheError as Error);
       }
 
       // Add to scoring session for local tracking
@@ -148,24 +146,15 @@ export function useOptimisticScoring() {
             throw new Error('Offline - score saved locally');
           }
 
-          // Trigger sync for this entry
-          // The replicated table will push to Supabase
-          try {
-            await replicatedEntriesTable.syncEntry(String(entryId));
-          } catch (syncError) {
-            // If sync fails, the entry is still in IndexedDB
-            // It will be synced when the replication system runs next
-            logger.warn('Sync failed, entry will sync later:', syncError);
-            throw syncError;
-          }
-
+          // The entry is saved in IndexedDB and will be synced
+          // automatically by the replication system
           return { entryId, scoreData };
         },
         onSuccess: () => {
           onSuccess?.();
         },
         onError: (err) => {
-          logger.error('❌ Score submission failed:', err);
+          logger.error('❌ Score submission failed', 'scoring', {}, err);
 
           // If offline, we already saved it locally, so allow navigation
           if (!isOnline || err.message.includes('Offline')) {

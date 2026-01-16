@@ -83,7 +83,7 @@ export function useClassAvailability(
       // Get entry counts for each class
       const classIds = classData.map((c: { id: string }) => c.id);
       const { data: entryCounts, error: countError } = await supabase
-        .from('entry')
+        .from('entries')
         .select('class_id')
         .in('class_id', classIds)
         .in('status', ['pending', 'confirmed', 'paid', 'checked_in']);
@@ -93,8 +93,10 @@ export function useClassAvailability(
       }
 
       // Count entries per class
-      const entryCountMap = (entryCounts || []).reduce((acc: Record<string, number>, entry: { class_id: string }) => {
-        acc[entry.class_id] = (acc[entry.class_id] || 0) + 1;
+      const entryCountMap = (entryCounts || []).reduce((acc: Record<string, number>, entry: { class_id: string | null }) => {
+        if (entry.class_id) {
+          acc[entry.class_id] = (acc[entry.class_id] || 0) + 1;
+        }
         return acc;
       }, {} as Record<string, number>);
 
@@ -108,8 +110,10 @@ export function useClassAvailability(
           .eq('status', 'waiting');
 
         if (!waitlistError && waitlistCounts) {
-          waitlistCountMap = waitlistCounts.reduce((acc: Record<string, number>, entry: { class_id: string }) => {
-            acc[entry.class_id] = (acc[entry.class_id] || 0) + 1;
+          waitlistCountMap = waitlistCounts.reduce((acc: Record<string, number>, entry: { class_id: string | null }) => {
+            if (entry.class_id) {
+              acc[entry.class_id] = (acc[entry.class_id] || 0) + 1;
+            }
             return acc;
           }, {} as Record<string, number>);
         }

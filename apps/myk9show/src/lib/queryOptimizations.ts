@@ -20,7 +20,7 @@ export const useDebounce = <T extends unknown[]>(
   callback: (...args: T) => void,
   delay: number
 ) => {
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   const debouncedCallback = useCallback((...args: T) => {
     if (timeoutRef.current) {
@@ -355,7 +355,7 @@ export class IntelligentPrefetcher {
 // Hook for intelligent prefetching
 export const useIntelligentPrefetching = () => {
   const queryClient = useQueryClient();
-  const prefetcherRef = useRef<IntelligentPrefetcher>();
+  const prefetcherRef = useRef<IntelligentPrefetcher | undefined>(undefined);
 
   if (!prefetcherRef.current) {
     prefetcherRef.current = new IntelligentPrefetcher(queryClient);

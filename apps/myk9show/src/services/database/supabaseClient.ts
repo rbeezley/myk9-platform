@@ -45,7 +45,7 @@ export const checkDatabaseConnection = async (): Promise<{
   try {
     // Simple query to test connection
     const { error } = await supabase
-      .from('club')
+      .from('clubs')
       .select('id')
       .limit(1);
     

@@ -99,7 +99,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
     });
 
     // Calculate discounts
-    const discounts = [];
+    const discounts: Array<{ type: string; amount: number; description: string }> = [];
     if (selectedDogs.length >= 3) {
       discounts.push({
         type: 'multi-dog',

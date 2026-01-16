@@ -17,7 +17,7 @@ import type { Database } from '@/types/supabase';
 /**
  * Database row type from Supabase schema
  */
-type EntryRow = Database['public']['Tables']['entry']['Row'];
+type EntryRow = Database['public']['Tables']['entries']['Row'];
 
 /**
  * App-level Entry type with camelCase fields and sync metadata
@@ -95,11 +95,11 @@ function rowToEntry(row: EntryRow): ReplicatedEntry {
     handlerId: row.handler_id ?? undefined,
     armband: row.armband ?? undefined,
     handler: row.handler ?? undefined,
-    status: row.status ?? undefined,
+    status: dbRow.status ?? undefined,
     entryStatus: row.entry_status ?? undefined,
     jumpHeight: row.jump_height ?? undefined,
     entryFee: row.entry_fee ?? undefined,
-    totalFees: row.total_fees ?? undefined,
+    totalFees: dbRow.total_fees ?? undefined,
     paymentStatus: row.payment_status ?? undefined,
     runOrder: row.run_order ?? undefined,
     moveUpRequested: row.move_up_requested ?? undefined,
@@ -161,7 +161,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
 
       // Filter by show_id if provided
       let query = supabase
-        .from('entry')
+        .from('entries')
         .select('*')
         .gt('updated_at', new Date(lastSync).toISOString())
         .order('updated_at', { ascending: true });

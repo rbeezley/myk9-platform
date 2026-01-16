@@ -129,9 +129,13 @@ export function useAllUsersWithRoles() {
     queryKey: ['allUsersWithRoles'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('user_roles_view')
-        .select('*')
-        .order('email');
+        .from('user_roles')
+        .select(`
+          *,
+          user:people!user_roles_user_id_fkey(id, first_name, last_name, email),
+          role:roles!user_roles_role_id_fkey(id, name, description)
+        `)
+        .order('granted_at', { ascending: false });
 
       if (error) {
         throw error;

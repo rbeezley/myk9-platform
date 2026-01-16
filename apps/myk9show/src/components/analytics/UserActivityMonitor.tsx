@@ -658,7 +658,7 @@ export function UserActivityMonitor({ className }: UserActivityMonitorProps) {
                       cy="50%"
                       outerRadius={100}
                       dataKey="count"
-                      label={({ device, percentage }) => `${device} ${percentage.toFixed(0)}%`}
+                      label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
                     >
                       {userMetrics.deviceBreakdown.map((entry, index) => {
                         const colors = ['#3b82f6', '#10b981', '#f59e0b'];

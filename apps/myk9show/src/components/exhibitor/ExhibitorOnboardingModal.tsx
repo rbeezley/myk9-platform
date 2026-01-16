@@ -62,8 +62,6 @@ export function ExhibitorOnboardingModal({ open, onComplete }: ExhibitorOnboardi
     <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent
         className="sm:max-w-md"
-        onPointerDownOutside={(e) => e.preventDefault()}
-        onEscapeKeyDown={(e) => e.preventDefault()}
       >
         <DialogHeader>
           <DialogTitle>Complete Your Profile</DialogTitle>

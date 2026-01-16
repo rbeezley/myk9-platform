@@ -11,7 +11,7 @@ export const getAllClubs = async () => {
 
   try {
     const { data, error } = await supabase
-      .from('clubs' as 'club')
+      .from('clubs')
       .select('*')
       .is('deleted_at', null)
       .order('name', { ascending: true });
@@ -38,7 +38,7 @@ export const getClubById = async (id: string) => {
 
   try {
     const { data, error } = await supabase
-      .from('clubs' as 'club')
+      .from('clubs')
       .select('*')
       .eq('id', id)
       .is('deleted_at', null)
@@ -66,7 +66,7 @@ export const searchClubsByLocation = async (searchTerm: string) => {
 
   try {
     const { data, error } = await supabase
-      .from('clubs' as 'club')
+      .from('clubs')
       .select('*')
       .is('deleted_at', null)
       .or(`address.ilike.%${searchTerm}%,name.ilike.%${searchTerm}%`)
@@ -94,7 +94,7 @@ export const getActiveClubs = async () => {
 
   try {
     const { data, error } = await supabase
-      .from('clubs' as 'club')
+      .from('clubs')
       .select('*')
       .is('deleted_at', null)
       .order('name', { ascending: true });
@@ -121,7 +121,7 @@ export const createClub = async (clubData: DbClubInsert) => {
   
   try {
     const { data, error } = await supabase
-      .from('clubs' as 'club')
+      .from('clubs')
       .insert([clubData])
       .select()
       .single();
@@ -148,7 +148,7 @@ export const updateClub = async (id: string, updates: DbClubUpdate) => {
   
   try {
     const { data, error } = await supabase
-      .from('clubs' as 'club')
+      .from('clubs')
       .update({
         ...updates,
         updated_at: new Date().toISOString(),
@@ -188,7 +188,7 @@ export const deleteClub = async (id: string, deletedBy?: string) => {
     }
 
     const { data, error } = await supabase
-      .from('clubs' as 'club')
+      .from('clubs')
       .update(updateData)
       .eq('id', id)
       .is('deleted_at', null)
@@ -217,7 +217,7 @@ export const hardDeleteClub = async (id: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('clubs' as 'club')
+      .from('clubs')
       .delete()
       .eq('id', id)
       .select('id, name')
@@ -255,7 +255,7 @@ export const restoreClub = async (id: string, restoredBy?: string) => {
     }
 
     const { data, error } = await supabase
-      .from('clubs' as 'club')
+      .from('clubs')
       .update(updateData)
       .eq('id', id)
       .select('id, name')
@@ -283,7 +283,7 @@ export const getDeletedClubs = async () => {
 
   try {
     const { data, error } = await supabase
-      .from('clubs' as 'club')
+      .from('clubs')
       .select('*')
       .not('deleted_at', 'is', null)
       .order('deleted_at', { ascending: false });
@@ -310,7 +310,7 @@ export const searchClubs = async (searchTerm: string) => {
 
   try {
     const { data, error } = await supabase
-      .from('clubs' as 'club')
+      .from('clubs')
       .select('*')
       .is('deleted_at', null)
       .or(`name.ilike.%${searchTerm}%,address.ilike.%${searchTerm}%`)
@@ -338,7 +338,7 @@ export const getClubsWithShowCounts = async () => {
 
   try {
     const { data, error } = await supabase
-      .from('clubs' as 'club')
+      .from('clubs')
       .select('*')
       .is('deleted_at', null)
       .order('name', { ascending: true });
@@ -371,7 +371,7 @@ export const getClubStatistics = async () => {
 
   try {
     const { error, count } = await supabase
-      .from('clubs' as 'club')
+      .from('clubs')
       .select('id', { count: 'exact', head: true })
       .is('deleted_at', null);
     
@@ -401,7 +401,7 @@ export const checkClubNameExists = async (name: string, excludeId?: string) => {
 
   try {
     let query = supabase
-      .from('clubs' as 'club')
+      .from('clubs')
       .select('id, name')
       .eq('name', name)
       .is('deleted_at', null);

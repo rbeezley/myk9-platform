@@ -22,6 +22,7 @@ import {
   type Conflict,
   type ConflictEvent
 } from '@myk9/replication';
+import { logger } from '@/services/LoggingService';
 
 /**
  * Main analytics service class providing comprehensive sync monitoring capabilities

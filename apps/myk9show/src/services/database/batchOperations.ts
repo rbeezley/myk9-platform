@@ -100,7 +100,7 @@ export const batchCreateDogs = async (
 ): Promise<BatchResult<unknown>[]> => {
   const operations = dogsData.map(dogData => async () => {
     const { data, error } = await supabase
-      .from('dog')
+      .from('dogs')
       .insert([{
         ...dogData,
         created_at: new Date().toISOString(),
@@ -124,7 +124,7 @@ export const batchUpdateDogs = async (
 ): Promise<BatchResult<unknown>[]> => {
   const operations = updates.map(({ id, updates: updateData }) => async () => {
     const { data, error } = await supabase
-      .from('dog')
+      .from('dogs')
       .update({
         ...updateData,
         updated_at: new Date().toISOString(),
@@ -149,7 +149,7 @@ export const batchDeleteDogs = async (
 ): Promise<BatchResult<unknown>[]> => {
   const operations = ids.map(id => async () => {
     const { data, error } = await supabase
-      .from('dog')
+      .from('dogs')
       .delete()
       .eq('id', id)
       .select('id, name')
@@ -173,7 +173,7 @@ export const batchCreateUsers = async (
 ): Promise<BatchResult<unknown>[]> => {
   const operations = usersData.map(userData => async () => {
     const { data, error } = await supabase
-      .from('user')
+      .from('people')
       .insert([{
         ...userData,
         created_at: new Date().toISOString(),
@@ -197,7 +197,7 @@ export const batchUpdateUsers = async (
 ): Promise<BatchResult<unknown>[]> => {
   const operations = updates.map(({ id, updates: updateData }) => async () => {
     const { data, error } = await supabase
-      .from('user')
+      .from('people')
       .update({
         ...updateData,
         updated_at: new Date().toISOString(),
@@ -224,7 +224,7 @@ export const batchCreateShows = async (
 ): Promise<BatchResult<unknown>[]> => {
   const operations = showsData.map(showData => async () => {
     const { data, error } = await supabase
-      .from('show')
+      .from('shows')
       .insert([{
         ...showData,
         created_at: new Date().toISOString(),
@@ -257,7 +257,7 @@ export const batchCreateClasses = async (
 ): Promise<BatchResult<unknown>[]> => {
   const operations = classesData.map(classData => async () => {
     const { data, error } = await supabase
-      .from('class')
+      .from('classes')
       .insert([{
         ...classData,
         created_at: new Date().toISOString(),
@@ -290,7 +290,7 @@ export const batchCreateEntries = async (
 ): Promise<BatchResult<unknown>[]> => {
   const operations = entriesData.map(entryData => async () => {
     const { data, error } = await supabase
-      .from('entry')
+      .from('entries')
       .insert([{
         ...entryData,
         created_at: new Date().toISOString(),
@@ -326,7 +326,7 @@ export const batchUpdateEntryStatuses = async (
 ): Promise<BatchResult<unknown>[]> => {
   const operations = updates.map(({ id, status }) => async () => {
     const { data, error } = await supabase
-      .from('entry')
+      .from('entries')
       .update({
         status,
         updated_at: new Date().toISOString(),

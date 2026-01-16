@@ -12,23 +12,16 @@ export const getAllRegistrations = async () => {
   
   try {
     const { data, error } = await supabase
-      .from('dog_registration')
+      .from('dog_registrations')
       .select(`
         *,
-        dog:dog(
+        dog:dogs(
           id,
           name,
           call_name,
           breed,
           sex,
-          date_of_birth,
-          owner:"user"(
-            id,
-            first_name,
-            last_name,
-            email,
-            phone
-          )
+          date_of_birth
         )
       `)
       .order('created_at', { ascending: false });
@@ -55,10 +48,10 @@ export const getRegistrationById = async (id: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('dog_registration')
+      .from('dog_registrations')
       .select(`
         *,
-        dog:dog(
+        dog:dogs(
           id,
           name,
           call_name,
@@ -66,18 +59,7 @@ export const getRegistrationById = async (id: string) => {
           sex,
           date_of_birth,
           color,
-          microchip_number,
-          owner:"user"(
-            id,
-            first_name,
-            last_name,
-            email,
-            phone,
-            address,
-            city,
-            state,
-            postal_code
-          )
+          microchip_number
         )
       `)
       .eq('id', id)
@@ -105,7 +87,7 @@ export const getRegistrationsByDog = async (dogId: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('dog_registration')
+      .from('dog_registrations')
       .select('*')
       .eq('dog_id', dogId)
       .order('registration_date', { ascending: false });
@@ -132,19 +114,14 @@ export const getRegistrationsByOrganization = async (organization: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('dog_registration')
+      .from('dog_registrations')
       .select(`
         *,
-        dog:dog(
+        dog:dogs(
           id,
           name,
           call_name,
-          breed,
-          owner:"user"(
-            id,
-            first_name,
-            last_name
-          )
+          breed
         )
       `)
       .eq('organization', organization)
@@ -166,67 +143,21 @@ export const getRegistrationsByOrganization = async (organization: string) => {
   }
 };
 
-// Get registrations by status
-export const getRegistrationsByStatus = async (status: string) => {
-  const startTime = Date.now();
-  
-  try {
-    const { data, error } = await supabase
-      .from('dog_registration')
-      .select(`
-        *,
-        dog:dog(
-          id,
-          name,
-          call_name,
-          breed,
-          owner:"user"(
-            id,
-            first_name,
-            last_name
-          )
-        )
-      `)
-      .eq('status', status)
-      .order('created_at', { ascending: false });
-    
-    const duration = Date.now() - startTime;
-    logQuery('dog_registration', 'select_by_status', duration, error?.message);
-    
-    if (error) {
-      throw createDatabaseError(error, 'dog_registration', 'select_by_status');
-    }
-    
-    return { data: data || [], error: null };
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'dog_registration', 'select_by_status');
-    logQuery('dog_registration', 'select_by_status', duration, dbError.message);
-    return { data: [], error: dbError };
-  }
-};
-
 // Create new registration
 export const createRegistration = async (registrationData: DbDogRegistrationInsert) => {
   const startTime = Date.now();
   
   try {
     const { data, error } = await supabase
-      .from('dog_registration')
+      .from('dog_registrations')
       .insert([registrationData])
       .select(`
         *,
-        dog:dog(
+        dog:dogs(
           id,
           name,
           call_name,
-          breed,
-          owner:"user"(
-            id,
-            first_name,
-            last_name,
-            email
-          )
+          breed
         )
       `)
       .single();
@@ -253,7 +184,7 @@ export const updateRegistration = async (id: string, updates: DbDogRegistrationU
   
   try {
     const { data, error } = await supabase
-      .from('dog_registration')
+      .from('dog_registrations')
       .update({
         ...updates,
         updated_at: new Date().toISOString(),
@@ -261,21 +192,15 @@ export const updateRegistration = async (id: string, updates: DbDogRegistrationU
       .eq('id', id)
       .select(`
         *,
-        dog:dog(
+        dog:dogs(
           id,
           name,
           call_name,
-          breed,
-          owner:"user"(
-            id,
-            first_name,
-            last_name,
-            email
-          )
+          breed
         )
       `)
       .single();
-    
+
     const duration = Date.now() - startTime;
     logQuery('dog_registration', 'update', duration, error?.message);
     
@@ -298,7 +223,7 @@ export const deleteRegistration = async (id: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('dog_registration')
+      .from('dog_registrations')
       .delete()
       .eq('id', id)
       .select('id, dog_id, registration_number, organization')
@@ -326,21 +251,17 @@ export const searchRegistrations = async (searchTerm: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('dog_registration')
+      .from('dog_registrations')
       .select(`
         *,
-        dog:dog(
+        dog:dogs(
           id,
           name,
           call_name,
-          breed,
-          owner:"user"(
-            first_name,
-            last_name
-          )
+          breed
         )
       `)
-      .or(`registration_number.ilike.%${searchTerm}%,registered_name.ilike.%${searchTerm}%,dog.name.ilike.%${searchTerm}%`)
+      .ilike('registration_number', `%${searchTerm}%`)
       .order('created_at', { ascending: false });
     
     const duration = Date.now() - startTime;
@@ -366,7 +287,7 @@ export const getRegistrationStatistics = async () => {
   try {
     // Get total count
     const { error: countError, count } = await supabase
-      .from('dog_registration')
+      .from('dog_registrations')
       .select('id', { count: 'exact', head: true });
 
     if (countError) {
@@ -375,7 +296,7 @@ export const getRegistrationStatistics = async () => {
 
     // Get statistics by organization
     const { data: orgStats, error: orgError } = await supabase
-      .from('dog_registration')
+      .from('dog_registrations')
       .select('organization')
       .order('organization');
 
@@ -383,18 +304,18 @@ export const getRegistrationStatistics = async () => {
       throw createDatabaseError(orgError, 'dog_registration', 'statistics_org');
     }
 
-    // Get statistics by status
-    const { data: statusStats, error: statusError } = await supabase
-      .from('dog_registration')
-      .select('status')
-      .order('status');
+    // Get statistics by verified status
+    const { data: verifiedStats, error: verifiedError } = await supabase
+      .from('dog_registrations')
+      .select('verified')
+      .order('verified');
 
-    if (statusError) {
-      throw createDatabaseError(statusError, 'dog_registration', 'statistics_status');
+    if (verifiedError) {
+      throw createDatabaseError(verifiedError, 'dog_registration', 'statistics_verified');
     }
 
     const duration = Date.now() - startTime;
-    
+
     // Calculate organization statistics
     const organizationCounts = (orgStats || []).reduce((acc, item) => {
       const org = item.organization || 'Unknown';
@@ -402,17 +323,17 @@ export const getRegistrationStatistics = async () => {
       return acc;
     }, {} as Record<string, number>);
 
-    // Calculate status statistics
-    const statusCounts = (statusStats || []).reduce((acc, item) => {
-      const status = item.status || 'Unknown';
-      acc[status] = (acc[status] || 0) + 1;
+    // Calculate verified statistics
+    const verifiedCounts = (verifiedStats || []).reduce((acc, item) => {
+      const verified = item.verified ? 'Verified' : 'Unverified';
+      acc[verified] = (acc[verified] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
-    
+
     const stats = {
       total: count || 0,
       byOrganization: organizationCounts,
-      byStatus: statusCounts,
+      byVerified: verifiedCounts,
     };
     
     logQuery('dog_registration', 'statistics', duration);
@@ -432,7 +353,7 @@ export const validateRegistrationNumber = async (organization: string, registrat
   try {
     // Check if registration number already exists in the same organization
     const { data, error } = await supabase
-      .from('dog_registration')
+      .from('dog_registrations')
       .select('id, registration_number')
       .eq('organization', organization)
       .eq('registration_number', registrationNumber);
@@ -500,17 +421,17 @@ export const getRegistrationsByOwner = async (ownerId: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('dog_registration')
+      .from('dog_registrations')
       .select(`
         *,
-        dog:dog!inner(
+        dog:dogs!inner(
           id,
           name,
           call_name,
           breed
         )
       `)
-      .eq('dog.owner_id', ownerId)
+      .eq('dogs.owner_id', ownerId)
       .order('registration_date', { ascending: false });
     
     const duration = Date.now() - startTime;

@@ -20,7 +20,7 @@ interface RoutePrefetchConfig {
  */
 export const useRoutePrefetch = () => {
   const queryClient = useQueryClient();
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const prefetchedRoutes = useRef(new Set<string>());
 
   const prefetchRoute = useCallback(async (

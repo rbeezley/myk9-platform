@@ -119,16 +119,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const legacyUserRoles = useUserRoleNames(auth.user?.id);
   const { isLoading: legacyRolesLoading } = useUserRoles(auth.user?.id);
 
-  // Get user profile data including roles from public.user table
+  // Get user profile data including roles from public.people table
   const { data: userProfile } = useQuery({
     queryKey: ['userProfile', auth.user?.id],
     queryFn: async () => {
       if (!auth.user?.id) return null;
 
       const { data, error } = await supabase
-        .from('user')
+        .from('people')
         .select('id, roles, first_name, last_name, email')
-        .eq('user_id', auth.user.id)
+        .eq('auth_user_id', auth.user.id)
         .single();
 
       if (error) {
@@ -235,7 +235,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } as UserWithRoles;
     }
 
-    // Priority 3: Roles from public.user.roles field
+    // Priority 3: Roles from public.people.roles field
     if (userProfile?.roles && Array.isArray(userProfile.roles) && userProfile.roles.length > 0) {
       const roles = userProfile.roles.map((role: string) => {
         switch (role.toLowerCase()) {

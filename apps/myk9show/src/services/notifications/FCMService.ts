@@ -181,7 +181,7 @@ export class FCMService {
   private async updateUserPreferencesToken(token: string): Promise<void> {
     try {
       const { error } = await supabase
-        .from('notification_preference')
+        .from('notification_preferences')
         .upsert({ 
           user_id: this.userId!,
           fcm_token: token,

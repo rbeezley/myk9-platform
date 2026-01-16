@@ -13,7 +13,7 @@ import type { Database } from '@/types/supabase';
 /**
  * Database row type from Supabase schema
  */
-type TrialRow = Database['public']['Tables']['trial']['Row'];
+type TrialRow = Database['public']['Tables']['trials']['Row'];
 
 /**
  * App-level Trial type with camelCase fields and sync metadata
@@ -81,7 +81,7 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
       logger.log(`[${this.getTableName()}] Starting sync`);
 
       let query = supabase
-        .from('trial')
+        .from('trials')
         .select('*')
         .gt('updated_at', new Date(lastSync).toISOString())
         .order('updated_at', { ascending: true });

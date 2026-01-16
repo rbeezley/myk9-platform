@@ -32,7 +32,7 @@ export const useErrorHandler = () => {
       errorId: `error-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     };
 
-    logger.error('Manual Error Report:', 'hooks', {}, errorReport as Error);
+    logger.error('Manual Error Report:', 'hooks', errorReport, error);
     
     // Store in localStorage for debugging
     try {

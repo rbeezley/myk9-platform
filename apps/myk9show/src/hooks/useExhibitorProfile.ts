@@ -33,6 +33,24 @@ export interface CreateExhibitorProfileData {
   phone?: string;
 }
 
+// Helper to map database result to ExhibitorProfile type
+function mapToExhibitorProfile(data: Record<string, unknown>): ExhibitorProfile {
+  return {
+    id: data.id as string,
+    person_id: data.person_id as string,
+    auth_user_id: data.auth_user_id as string,
+    default_handler_id: data.default_handler_id as string | null,
+    subscription_tier: (data.subscription_tier as 'free' | 'premium' | 'pro') || 'free',
+    subscription_expires_at: data.subscription_expires_at as string | null,
+    stripe_customer_id: data.stripe_customer_id as string | null,
+    created_at: (data.created_at as string) || new Date().toISOString(),
+    updated_at: (data.updated_at as string) || new Date().toISOString(),
+    person: data.person && typeof data.person === 'object' && !('error' in (data.person as object))
+      ? data.person as ExhibitorProfile['person']
+      : undefined,
+  };
+}
+
 /**
  * Hook to fetch and manage the current user's exhibitor profile
  */
@@ -71,7 +89,9 @@ export function useExhibitorProfile() {
         throw error;
       }
 
-      return data;
+      if (!data) return null;
+
+      return mapToExhibitorProfile(data as Record<string, unknown>);
     },
     enabled: !!user?.id,
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -116,7 +136,7 @@ export function useExhibitorProfile() {
           .single();
 
         if (existingProfile) {
-          return existingProfile;
+          return mapToExhibitorProfile(existingProfile as Record<string, unknown>);
         }
 
         // Create profile for existing person
@@ -130,7 +150,7 @@ export function useExhibitorProfile() {
           .single();
 
         if (profileError) throw profileError;
-        return newProfile;
+        return mapToExhibitorProfile(newProfile as Record<string, unknown>);
       }
 
       // Create exhibitor profile
@@ -161,7 +181,7 @@ export function useExhibitorProfile() {
           });
       }
 
-      return profile;
+      return mapToExhibitorProfile(profile as Record<string, unknown>);
     },
     onSuccess: () => {
       // Invalidate and refetch profile

@@ -2,13 +2,13 @@
 import { supabase } from '../supabaseClient';
 import type { Database } from '@/types/supabase';
 
-type DbTrialInsert = Database['public']['Tables']['trial']['Insert'];
-type DbTrialUpdate = Database['public']['Tables']['trial']['Update'];
+type DbTrialInsert = Database['public']['Tables']['trials']['Insert'];
+type DbTrialUpdate = Database['public']['Tables']['trials']['Update'];
 
 // Get all trials (excluding soft-deleted)
 export const getAllTrials = async () => {
   return await supabase
-    .from('trials' as 'trial')
+    .from('trials')
     .select(`
       *,
       show:shows (
@@ -25,7 +25,7 @@ export const getAllTrials = async () => {
 // Get trial by ID (excluding soft-deleted)
 export const getTrialById = async (id: string) => {
   return await supabase
-    .from('trials' as 'trial')
+    .from('trials')
     .select(`
       *,
       show:shows (
@@ -43,7 +43,7 @@ export const getTrialById = async (id: string) => {
 // Get trials by show ID (excluding soft-deleted)
 export const getTrialsByShow = async (showId: string) => {
   return await supabase
-    .from('trials' as 'trial')
+    .from('trials')
     .select(`
       *,
       show:shows (
@@ -61,7 +61,7 @@ export const getTrialsByShow = async (showId: string) => {
 // Search trials by name (excluding soft-deleted)
 export const searchTrials = async (searchTerm: string) => {
   return await supabase
-    .from('trials' as 'trial')
+    .from('trials')
     .select(`
       *,
       show:shows (
@@ -79,7 +79,7 @@ export const searchTrials = async (searchTerm: string) => {
 // Get trials by status (excluding soft-deleted)
 export const getTrialsByStatus = async (status: string) => {
   return await supabase
-    .from('trials' as 'trial')
+    .from('trials')
     .select(`
       *,
       show:shows (
@@ -99,7 +99,7 @@ export const getUpcomingTrials = async (limit?: number) => {
   const today = new Date().toISOString().split('T')[0];
 
   let query = supabase
-    .from('trials' as 'trial')
+    .from('trials')
     .select(`
       *,
       show:shows (
@@ -123,7 +123,7 @@ export const getUpcomingTrials = async (limit?: number) => {
 // Get trials by date range (excluding soft-deleted)
 export const getTrialsByDateRange = async (startDate: string, endDate: string) => {
   return await supabase
-    .from('trials' as 'trial')
+    .from('trials')
     .select(`
       *,
       show:shows (
@@ -142,7 +142,7 @@ export const getTrialsByDateRange = async (startDate: string, endDate: string) =
 // Create a new trial
 export const createTrial = async (trialData: DbTrialInsert) => {
   return await supabase
-    .from('trials' as 'trial')
+    .from('trials')
     .insert([trialData])
     .select()
     .single();
@@ -151,7 +151,7 @@ export const createTrial = async (trialData: DbTrialInsert) => {
 // Update a trial
 export const updateTrial = async (id: string, updates: DbTrialUpdate) => {
   return await supabase
-    .from('trials' as 'trial')
+    .from('trials')
     .update({
       ...updates,
       updated_at: new Date().toISOString(),
@@ -173,7 +173,7 @@ export const deleteTrial = async (id: string, deletedBy?: string) => {
   }
 
   return await supabase
-    .from('trials' as 'trial')
+    .from('trials')
     .update(updateData)
     .eq('id', id)
     .is('deleted_at', null)
@@ -184,7 +184,7 @@ export const deleteTrial = async (id: string, deletedBy?: string) => {
 // Hard delete a trial (permanent removal)
 export const hardDeleteTrial = async (id: string) => {
   return await supabase
-    .from('trials' as 'trial')
+    .from('trials')
     .delete()
     .eq('id', id);
 };
@@ -202,7 +202,7 @@ export const restoreTrial = async (id: string, restoredBy?: string) => {
   }
 
   return await supabase
-    .from('trials' as 'trial')
+    .from('trials')
     .update(updateData)
     .eq('id', id)
     .select('id, name')
@@ -212,7 +212,7 @@ export const restoreTrial = async (id: string, restoredBy?: string) => {
 // Get soft-deleted trials (admin only)
 export const getDeletedTrials = async () => {
   return await supabase
-    .from('trials' as 'trial')
+    .from('trials')
     .select('*')
     .not('deleted_at', 'is', null)
     .order('deleted_at', { ascending: false });
@@ -221,12 +221,12 @@ export const getDeletedTrials = async () => {
 // Get trial statistics (excluding soft-deleted)
 export const getTrialStatistics = async () => {
   const totalQuery = supabase
-    .from('trials' as 'trial')
+    .from('trials')
     .select('id', { count: 'exact' })
     .is('deleted_at', null);
 
   const statusQuery = supabase
-    .from('trials' as 'trial')
+    .from('trials')
     .select('status')
     .is('deleted_at', null);
 

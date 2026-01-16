@@ -209,7 +209,7 @@ export function ConformationScoresheet({
             <div className="space-y-2">
               <Label htmlFor="competition-level">Competition Level *</Label>
               <Select
-                value={score.competitionLevel || ''}
+                value={score.competitionLevel}
                 onValueChange={(value: CompetitionLevel) => {
                   const updatedScore = { ...score, competitionLevel: value };
                   setScore(updatedScore);
@@ -234,7 +234,7 @@ export function ConformationScoresheet({
           <div className="space-y-2">
             <Label htmlFor="award-level">Award Level (if applicable)</Label>
             <Select
-              value={score.awardLevel || ''}
+              value={score.awardLevel}
               onValueChange={handleAwardLevelChange}
               disabled={disabled}
             >

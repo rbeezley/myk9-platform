@@ -12,7 +12,7 @@ export const getAllEntries = async () => {
   
   try {
     const { data, error } = await supabase
-      .from('entry')
+      .from('entries')
       .select(`
         *,
         dog(
@@ -76,7 +76,7 @@ export const getEntryById = async (id: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('entry')
+      .from('entries')
       .select(`
         *,
         dog(
@@ -160,7 +160,7 @@ export const getEntriesByShow = async (showId: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('entry')
+      .from('entries')
       .select(`
         *,
         dog(
@@ -213,7 +213,7 @@ export const getEntriesByClass = async (classId: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('entry')
+      .from('entries')
       .select(`
         *,
         dog(
@@ -269,7 +269,7 @@ export const getEntriesByDog = async (dogId: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('entry')
+      .from('entries')
       .select(`
         *,
         class(
@@ -326,7 +326,7 @@ export const getEntriesByStatus = async (status: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('entry')
+      .from('entries')
       .select(`
         *,
         dog(
@@ -379,7 +379,7 @@ export const createEntry = async (entryData: DbEntryInsert) => {
   
   try {
     const { data, error } = await supabase
-      .from('entry')
+      .from('entries')
       .insert(entryData)
       .select(`
         *,
@@ -439,7 +439,7 @@ export const updateEntry = async (params: { id: string; updates: DbEntryUpdate }
     };
 
     const { data, error } = await supabase
-      .from('entry')
+      .from('entries')
       .update(updateData)
       .eq('id', id)
       .select(`
@@ -493,7 +493,7 @@ export const deleteEntry = async (id: string) => {
   
   try {
     const { error } = await supabase
-      .from('entry')
+      .from('entries')
       .delete()
       .eq('id', id);
     
@@ -527,7 +527,7 @@ export const updateEntryStatus = async (params: {
     // Update entry status and create status history in separate operations
     // First update the entry status
     const { data: entryData, error: entryError } = await supabase
-      .from('entry')
+      .from('entries')
       .update({ 
         status,
         updated_at: new Date().toISOString() 
@@ -545,7 +545,7 @@ export const updateEntryStatus = async (params: {
       .from('entry_status_history')
       .insert({
         entry_id: id,
-        status,
+        new_status: status,
         changed_by: userId,
         changed_at: new Date().toISOString(),
         reason: reason || null,
@@ -574,7 +574,7 @@ export const createMultipleEntries = async (entriesData: DbEntryInsert[]) => {
   
   try {
     const { data, error } = await supabase
-      .from('entry')
+      .from('entries')
       .insert(entriesData)
       .select(`
         *,
@@ -626,8 +626,8 @@ export const getEntryStatistics = async (showId?: string) => {
   
   try {
     let query = supabase
-      .from('entry')
-      .select('status, entry_fee, payment_status');
+      .from('entries')
+      .select('entry_status, entry_fee, payment_status');
     
     if (showId) {
       query = query.eq('show_id', showId);
@@ -654,17 +654,18 @@ export const getEntryStatistics = async (showId?: string) => {
     if (data) {
       data.forEach((entry) => {
         // Count by status
-        stats.byStatus[entry.status || 'unknown'] = (stats.byStatus[entry.status || 'unknown'] || 0) + 1;
-        
+        const status = entry.entry_status || 'unknown';
+        stats.byStatus[status] = (stats.byStatus[status] || 0) + 1;
+
         // Calculate revenue
         const fee = entry.entry_fee || 0;
         stats.totalRevenue += fee;
-        
+
         if (entry.payment_status === 'paid') {
           stats.paidRevenue += fee;
         }
       });
-      
+
       // Calculate completion rate
       const completedEntries = stats.byStatus['completed'] || 0;
       const paidEntries = data.filter(e => e.payment_status === 'paid').length;
@@ -695,7 +696,7 @@ export const searchEntries = async (searchTerm: string) => {
   
   try {
     const { data, error } = await supabase
-      .from('entry')
+      .from('entries')
       .select(`
         *,
         dog(

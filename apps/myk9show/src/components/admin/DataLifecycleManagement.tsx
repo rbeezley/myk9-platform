@@ -170,13 +170,13 @@ export function DataLifecycleManagement() {
       ]);
       
       if (clubsResult.error) {
-        logger.error('Failed to load deleted clubs', 'data-lifecycle', {}, clubsResult.error);
+        logger.error('Failed to load deleted clubs', 'data-lifecycle', {}, new Error(clubsResult.error.message));
       } else {
         setDeletedClubs(clubsResult.data as Array<{ id: string; name: string | null; deleted_at: string | null; deleted_by_user?: { email?: string } | null }>);
       }
-      
+
       if (dogsResult.error) {
-        logger.error('Failed to load deleted dogs', 'data-lifecycle', {}, dogsResult.error);
+        logger.error('Failed to load deleted dogs', 'data-lifecycle', {}, new Error(dogsResult.error.message));
       } else {
         setDeletedDogs(dogsResult.data as Array<{ id: string; name: string; breed: string; deleted_at: string | null; deleted_by_user?: { email?: string } | null }>);
       }

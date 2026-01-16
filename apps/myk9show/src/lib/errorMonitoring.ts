@@ -524,7 +524,7 @@ export const errorMonitor = new ErrorMonitor();
 // Hook for error monitoring
 export const useErrorMonitoring = () => {
   const queryClient = useQueryClient();
-  const captureErrorRef = useRef<(error: Error, context?: Partial<ErrorContext>) => StructuredError>();
+  const captureErrorRef = useRef<((error: Error, context?: Partial<ErrorContext>) => StructuredError) | undefined>(undefined);
 
   // Set up React Query error handling
   useEffect(() => {

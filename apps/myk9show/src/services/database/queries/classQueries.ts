@@ -1,5 +1,3 @@
-// @ts-nocheck
-// TODO: Fix Supabase type inference issues after dependency upgrade
 // Class Database Query Layer - Phase 2.5: Class Store Integration
 // Handles all class and entry-related database operations with comprehensive error handling
 
@@ -28,7 +26,7 @@ export const getAllClasses = async () => {
     log('class', 'select_all_with_relations');
     
     const { data, error } = await supabase
-      .from('classes' as 'class')
+      .from('classes')
       .select(`
         *,
         trial:trials (
@@ -66,7 +64,7 @@ export const getClassById = async (id: string) => {
     log('getClassById', 'Fetching class by ID', { id });
     
     const { data, error } = await supabase
-      .from('classes' as 'class')
+      .from('classes')
       .select(`
         *,
         trial:trials (
@@ -80,10 +78,10 @@ export const getClassById = async (id: string) => {
         ),
         entries (
           id,
-          status,
-          score,
-          time,
-          placement,
+          entry_status,
+          points_earned,
+          search_time_seconds,
+          final_placement,
           dog:dogs (
             id,
             name,
@@ -105,7 +103,7 @@ export const getClassById = async (id: string) => {
       return { data: null, error: createDatabaseError(error) };
     }
 
-    log('getClassById', 'Successfully fetched class', { id, entryCount: data?.entry?.length || 0 });
+    log('getClassById', 'Successfully fetched class', { id, entryCount: data?.entries?.length || 0 });
     return { data, error: null };
   } catch (error) {
     log('getClassById', 'Unexpected error', { id, error });
@@ -121,7 +119,7 @@ export const getClassesByTrialId = async (trialId: string) => {
     log('getClassesByTrialId', 'Fetching classes by trial ID', { trialId });
     
     const { data, error } = await supabase
-      .from('classes' as 'class')
+      .from('classes')
       .select(`
         *,
         entries (
@@ -156,7 +154,7 @@ export const createClass = async (classData: DbClassInsert) => {
     log('createClass', 'Creating new class', { name: classData.name });
     
     const { data, error } = await supabase
-      .from('classes' as 'class')
+      .from('classes')
       .insert([{
         ...classData,
         created_at: new Date().toISOString(),
@@ -193,7 +191,7 @@ export const updateClass = async (id: string, updates: DbClassUpdate) => {
     log('updateClass', 'Updating class', { id });
     
     const { data, error } = await supabase
-      .from('classes' as 'class')
+      .from('classes')
       .update({
         ...updates,
         updated_at: new Date().toISOString(),
@@ -240,7 +238,7 @@ export const deleteClass = async (id: string, deletedBy?: string) => {
     }
 
     const { data, error } = await supabase
-      .from('classes' as 'class')
+      .from('classes')
       .update(updateData)
       .eq('id', id)
       .is('deleted_at', null)
@@ -268,7 +266,7 @@ export const searchClasses = async (searchTerm: string, limit = 50) => {
     log('searchClasses', 'Searching classes', { searchTerm, limit });
     
     const { data, error } = await supabase
-      .from('classes' as 'class')
+      .from('classes')
       .select(`
         *,
         trial:trials (
@@ -310,7 +308,7 @@ export const getClassStatistics = async () => {
     log('getClassStatistics', 'Fetching class statistics');
     
     const { error, count } = await supabase
-      .from('classes' as 'class')
+      .from('classes')
       .select('id', { count: 'exact', head: true })
       .is('deleted_at', null);
 
@@ -338,7 +336,7 @@ export const hardDeleteClass = async (id: string) => {
     log('hardDeleteClass', 'Permanently deleting class', { id });
     
     const { data, error } = await supabase
-      .from('classes' as 'class')
+      .from('classes')
       .delete()
       .eq('id', id);
 
@@ -363,7 +361,7 @@ export const restoreClass = async (id: string, restoredBy?: string) => {
     log('restoreClass', 'Restoring class', { id });
     
     const { data, error } = await supabase
-      .from('classes' as 'class')
+      .from('classes')
       .update({
         deleted_at: null,
         deleted_by: null,
@@ -404,7 +402,7 @@ export const getDeletedClasses = async () => {
     log('getDeletedClasses', 'Fetching deleted classes');
     
     const { data, error } = await supabase
-      .from('classes' as 'class')
+      .from('classes')
       .select(`
         *,
         trial:trials (
@@ -446,7 +444,7 @@ export const getAllEntries = async () => {
     log('getAllEntries', 'Fetching all entries');
     
     const { data, error } = await supabase
-      .from('entries' as 'entry')
+      .from('entries')
       .select(`
         *,
         dog:dogs (
@@ -494,7 +492,7 @@ export const getEntriesByClassId = async (classId: string) => {
     log('getEntriesByClassId', 'Fetching entries by class ID', { classId });
     
     const { data, error } = await supabase
-      .from('entries' as 'entry')
+      .from('entries')
       .select(`
         *,
         dog:dogs (
@@ -536,7 +534,7 @@ export const createEntry = async (entryData: DbEntryInsert) => {
     log('createEntry', 'Creating new entry', { classId: entryData.class_id });
     
     const { data, error } = await supabase
-      .from('entries' as 'entry')
+      .from('entries')
       .insert([{
         ...entryData,
         created_at: new Date().toISOString(),
@@ -577,7 +575,7 @@ export const updateEntry = async (id: string, updates: DbEntryUpdate) => {
     log('updateEntry', 'Updating entry', { id });
     
     const { data, error } = await supabase
-      .from('entries' as 'entry')
+      .from('entries')
       .update({
         ...updates,
         updated_at: new Date().toISOString(),
@@ -619,7 +617,7 @@ export const deleteEntry = async (id: string, deletedBy?: string) => {
     log('deleteEntry', 'Soft deleting entry', { id });
     
     const { data, error } = await supabase
-      .from('entries' as 'entry')
+      .from('entries')
       .update({
         deleted_at: new Date().toISOString(),
         deleted_by: deletedBy || null,
@@ -649,7 +647,7 @@ export const hardDeleteEntry = async (id: string) => {
     log('hardDeleteEntry', 'Permanently deleting entry', { id });
     
     const { data, error } = await supabase
-      .from('entries' as 'entry')
+      .from('entries')
       .delete()
       .eq('id', id);
 
@@ -674,7 +672,7 @@ export const restoreEntry = async (id: string, restoredBy?: string) => {
     log('restoreEntry', 'Restoring entry', { id });
     
     const { data, error } = await supabase
-      .from('entries' as 'entry')
+      .from('entries')
       .update({
         deleted_at: null,
         deleted_by: null,
@@ -719,7 +717,7 @@ export const getDeletedEntries = async () => {
     log('getDeletedEntries', 'Fetching deleted entries');
     
     const { data, error } = await supabase
-      .from('entries' as 'entry')
+      .from('entries')
       .select(`
         *,
         dog:dogs (

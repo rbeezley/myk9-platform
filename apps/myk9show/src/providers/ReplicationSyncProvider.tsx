@@ -11,9 +11,10 @@
  * Uses @myk9/replication package for offline-first data sync.
  */
 
-import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { logger } from '@/services/LoggingService';
+import { ReplicationSyncContext, type ReplicationSyncContextValue } from '@/contexts/ReplicationSyncContext';
 
 // Import replicated table singletons
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
@@ -28,22 +29,6 @@ interface SyncStatus {
   error: string | null;
   tablesStatus: Record<string, 'idle' | 'syncing' | 'success' | 'error'>;
 }
-
-interface ReplicationSyncContextValue {
-  status: SyncStatus;
-  triggerSync: () => Promise<void>;
-  syncTable: (tableName: string) => Promise<void>;
-}
-
-const ReplicationSyncContext = createContext<ReplicationSyncContextValue | null>(null);
-
-export const useReplicationSync = () => {
-  const context = useContext(ReplicationSyncContext);
-  if (!context) {
-    throw new Error('useReplicationSync must be used within ReplicationSyncProvider');
-  }
-  return context;
-};
 
 interface ReplicationSyncProviderProps {
   children: React.ReactNode;

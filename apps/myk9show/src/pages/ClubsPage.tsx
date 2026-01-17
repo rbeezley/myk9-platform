@@ -9,7 +9,8 @@ import { useClubStore } from '@/store/clubStore';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { buildClasses } from '@/utils/designTokens';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { SidebarLayout, useSidebarLayoutState, SIDEBAR_LAYOUT_CONSTANTS } from '@/components/layout/SidebarLayout';
+import { SidebarLayout, SIDEBAR_LAYOUT_CONSTANTS } from '@/components/layout/SidebarLayout';
+import { useSidebarLayoutState } from '@/hooks/useSidebarLayoutState';
 
 // Sidebar width constants matching UnifiedSidebar tokens
 const SIDEBAR_WIDTH_EXPANDED = 320; // 20rem

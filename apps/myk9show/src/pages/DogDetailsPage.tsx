@@ -9,7 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Plus, Loader2 } from 'lucide-react';
 import { AddDogPanel } from '@/components/panels/edit';
 import type { Dog } from '@/types/dog-types';
-import { SidebarLayout, useSidebarLayoutState } from '@/components/layout/SidebarLayout';
+import { SidebarLayout } from '@/components/layout/SidebarLayout';
+import { useSidebarLayoutState } from '@/hooks/useSidebarLayoutState';
 
 import DogSidebar from '@/components/dogs/DogDetails/DogSidebar/DogSidebar';
 import DogDetailsMain from '@/components/dogs/DogDetailsMain';

@@ -7,7 +7,8 @@
 
 import { Outlet } from 'react-router-dom';
 import { SecretarySidebar } from './SecretarySidebar';
-import { SidebarLayout, useSidebarLayoutState } from '@/components/layout/SidebarLayout';
+import { SidebarLayout } from '@/components/layout/SidebarLayout';
+import { useSidebarLayoutState } from '@/hooks/useSidebarLayoutState';
 
 interface SecretaryLayoutProps {
   children?: React.ReactNode;

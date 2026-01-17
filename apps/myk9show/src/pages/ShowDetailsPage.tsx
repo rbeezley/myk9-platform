@@ -21,7 +21,8 @@ import type { Trial } from '@/components/trials/types/trial.types';
 import type { Show } from '@/types/show-types';
 import type { RegistrationFormData } from '@/types/show-registration-types';
 import { buildClasses } from '@/utils/designTokens';
-import { SidebarLayout, useSidebarLayoutState } from '@/components/layout/SidebarLayout';
+import { SidebarLayout } from '@/components/layout/SidebarLayout';
+import { useSidebarLayoutState } from '@/hooks/useSidebarLayoutState';
 
 const ShowDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();

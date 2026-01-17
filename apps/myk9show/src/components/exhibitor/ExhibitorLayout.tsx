@@ -7,7 +7,8 @@
 
 import { Outlet } from 'react-router-dom';
 import { ExhibitorSidebar } from './ExhibitorSidebar';
-import { SidebarLayout, useSidebarLayoutState } from '@/components/layout/SidebarLayout';
+import { SidebarLayout } from '@/components/layout/SidebarLayout';
+import { useSidebarLayoutState } from '@/hooks/useSidebarLayoutState';
 
 interface ExhibitorLayoutProps {
   children?: React.ReactNode;

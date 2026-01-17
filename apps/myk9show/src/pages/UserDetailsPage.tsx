@@ -6,7 +6,8 @@ import { useRoleBasedPeople, useCanAccessPerson } from '@/hooks/useRoleBasedData
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { UserEditPanel } from '@/components/panels/edit';
-import { SidebarLayout, useSidebarLayoutState } from '@/components/layout/SidebarLayout';
+import { SidebarLayout } from '@/components/layout/SidebarLayout';
+import { useSidebarLayoutState } from '@/hooks/useSidebarLayoutState';
 
 import UserSidebar from '@/components/users/UserDetails/UserSidebar/UserSidebar';
 import UserDetailsView from '@/components/users/UserDetails/UserDetailsView';

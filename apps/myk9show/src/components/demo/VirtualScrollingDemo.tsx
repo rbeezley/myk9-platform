@@ -36,16 +36,19 @@ export function VirtualScrollingDemo() {
   const [itemCount, setItemCount] = useState(1000);
   const [renderMode, setRenderMode] = useState<'virtual' | 'traditional'>('virtual');
 
-  // Generate mock data
+  // Generate mock data with deterministic values (based on index)
   const mockData = useMemo(() => {
     const categories = ['Category A', 'Category B', 'Category C', 'Category D', 'Category E'];
     const statuses: MockItem['status'][] = ['active', 'inactive', 'pending'];
-    
+
+    // Simple seeded pseudo-random function for deterministic values
+    const seededValue = (index: number) => ((index * 1103515245 + 12345) >>> 16) % 1000;
+
     return Array.from({ length: itemCount }, (_, i) => ({
       id: `item-${i}`,
       name: `Item ${i + 1}`,
       category: categories[i % categories.length],
-      value: Math.floor(Math.random() * 1000),
+      value: seededValue(i),
       status: statuses[i % statuses.length],
       date: new Date(2024, 0, 1 + (i % 365)).toISOString().split('T')[0],
     }));

@@ -62,7 +62,6 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   const { classes = [] } = useClassStoreCompat();
   const { user } = useAuthContext();
 
-  const [classesWithTrials, setClassesWithTrials] = useState<ClassWithTrial[]>([]);
   const [activeTab, setActiveTab] = useState(selectedDogs[0] || '');
   const [isAddingToCart, setIsAddingToCart] = useState<string | null>(null);
 
@@ -78,6 +77,31 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
 
   // Fetch class availability data
   const { classes: classAvailability, isLoading: isLoadingAvailability } = useClassAvailability(showId);
+
+  const show = shows.find(s => s.id === showId);
+  const showTrials = (trials || []).filter(t => t.showId === showId);
+
+  // Compute classesWithTrials using useMemo (derived state, not useEffect) - must be before allClassIds
+  const classesWithTrials = useMemo(() => {
+    // Group classes by trial
+    const grouped: ClassWithTrial[] = [];
+
+    showTrials.forEach(trial => {
+      const trialClasses = (classes || []).filter(c => c.trialId === trial.id);
+
+      trialClasses.forEach(classData => {
+        grouped.push({
+          classData: {
+            ...classData,
+            name: (classData as unknown as { name?: string }).name || classData.className || 'Unnamed Class'
+          },
+          trial: { id: trial.id, name: trial.name || '', date: trial.trialDate || show?.startDate || '' }
+        });
+      });
+    });
+
+    return grouped;
+  }, [showTrials, classes, show?.startDate]);
 
   // Get all class IDs for eligibility checking
   const allClassIds = useMemo(() => {
@@ -130,30 +154,6 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   const getAvailability = (classId: string): ClassAvailability | undefined => {
     return availabilityMap.get(classId);
   };
-
-  const show = shows.find(s => s.id === showId);
-  const showTrials = (trials || []).filter(t => t.showId === showId);
-
-  useEffect(() => {
-    // Group classes by trial
-    const grouped: ClassWithTrial[] = [];
-    
-    showTrials.forEach(trial => {
-      const trialClasses = (classes || []).filter(c => c.trialId === trial.id);
-      
-      trialClasses.forEach(classData => {
-        grouped.push({ 
-          classData: {
-            ...classData,
-            name: (classData as unknown as { name?: string }).name || classData.className || 'Unnamed Class'
-          }, 
-          trial: { id: trial.id, name: trial.name || '', date: trial.trialDate || show?.startDate || '' } 
-        });
-      });
-    });
-    
-    setClassesWithTrials(grouped);
-  }, [showTrials, classes, show?.startDate]); // Fixed dependencies to prevent infinite loop
 
   const getDogById = (dogId: string): Dog | undefined => {
     return dogs.find(d => d.id === dogId);

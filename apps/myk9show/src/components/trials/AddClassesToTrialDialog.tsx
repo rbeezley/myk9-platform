@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ClassTemplate, ClassDefinition } from '@/types/template.types';
 import { TrialClass } from '@/components/trials/types/trial.types';
 import { SimpleClassSelector } from '@/components/templates/secretary/SimpleClassSelector';
@@ -85,8 +85,11 @@ export const AddClassesToTrialDialog: React.FC<AddClassesToTrialDialogProps> = (
     return true; // Show all if no trial show type specified
   }), [availableTemplates, trialShowType]);
 
-  // Reset state when dialog opens/closes and auto-select single template
-  useEffect(() => {
+  // Track dialog open state and active templates for render-time sync
+  const dialogKey = `${open}-${activeTemplates.length}-${activeTemplates.map(t => t.id).join(',')}`;
+  const [prevDialogKey, setPrevDialogKey] = useState(dialogKey);
+  if (dialogKey !== prevDialogKey) {
+    setPrevDialogKey(dialogKey);
     if (open) {
       // If there's only one active template, auto-select it and go to step 2
       if (activeTemplates.length === 1) {
@@ -101,26 +104,19 @@ export const AddClassesToTrialDialog: React.FC<AddClassesToTrialDialogProps> = (
       setSelectedClasses([]);
       setJudgeAssignments({});
     }
-  }, [open, activeTemplates]); // Added activeTemplates back to dependency array
+  }
 
-  // Handle auto-selection when templates change but don't reset existing selections
-  useEffect(() => {
-    if (open && !selectedTemplateId && activeTemplates.length === 1) {
-      setSelectedTemplateId(activeTemplates[0].id);
-      setSelectedTemplate(activeTemplates[0]);
-      setCurrentStep('classes');
-    }
-  }, [open, selectedTemplateId, activeTemplates]);
-
-  // Update selected template when ID changes
-  useEffect(() => {
+  // Update selected template when ID changes using render-time sync
+  const [prevSelectedTemplateId, setPrevSelectedTemplateId] = useState(selectedTemplateId);
+  if (selectedTemplateId !== prevSelectedTemplateId) {
+    setPrevSelectedTemplateId(selectedTemplateId);
     if (selectedTemplateId) {
       const template = activeTemplates.find(t => t.id === selectedTemplateId);
       setSelectedTemplate(template || null);
     } else {
       setSelectedTemplate(null);
     }
-  }, [selectedTemplateId, activeTemplates]);
+  }
 
   const handleNext = () => {
     if (currentStep === 'template' && selectedTemplate) {

@@ -101,8 +101,18 @@ export function EntryEditDialog({
 
   // Check if modifications are allowed when dialog opens
   useEffect(() => {
+    const checkModifications = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      const result = await canModifyEntry(entry.showId);
+      setCanModify(result.canModify);
+      setModifyReason(result.reason);
+      setIsLoading(false);
+    };
+
     if (open && entry.showId) {
-      checkCanModify();
+      checkModifications();
     }
   }, [open, entry.showId]);
 

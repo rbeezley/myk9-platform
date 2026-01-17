@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useState, ReactNode } from 'react';
 import { RegistrationContext as RegistrationContextType } from '../types/show-registration-types';
 import { 
   UserRole, 
@@ -132,8 +132,11 @@ export function RegistrationProvider({ children }: RegistrationProviderProps) {
     setContext(null);
   };
 
-  // Initialize role on user change
-  useEffect(() => {
+  // Initialize role on user change using render-time sync
+  const rolesKey = userWithRoles?.roles?.join(',') || 'none';
+  const [prevRolesKey, setPrevRolesKey] = useState(rolesKey);
+  if (rolesKey !== prevRolesKey) {
+    setPrevRolesKey(rolesKey);
     if (userWithRoles?.roles && userWithRoles.roles.length > 0) {
       // Default to the highest privilege role
       const roleHierarchy = [UserRole.SITE_ADMIN, UserRole.CLUB_ADMIN, UserRole.SECRETARY, UserRole.EXHIBITOR];
@@ -142,7 +145,7 @@ export function RegistrationProvider({ children }: RegistrationProviderProps) {
     } else {
       setCurrentRole(null);
     }
-  }, [userWithRoles]);
+  }
 
   // Permission-based capabilities
   const canViewAllDogs = can(PERMISSIONS.REGISTRATION_VIEW_ALL_DOGS);

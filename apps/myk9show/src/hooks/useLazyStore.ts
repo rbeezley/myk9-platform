@@ -11,17 +11,20 @@ export function useLazyStore(storeName: StoreName) {
   const { loadStore, isStoreLoaded, isStoreLoading, getStoreError } = useStoreProvider();
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
 
+  // Check if we need to load and trigger async load
+  const needsLoad = !hasAttemptedLoad && !isStoreLoaded(storeName) && !isStoreLoading(storeName);
+
   useEffect(() => {
-    if (!hasAttemptedLoad && !isStoreLoaded(storeName) && !isStoreLoading(storeName)) {
+    if (needsLoad) {
       const category = getStoreCategory(storeName);
-      logger.debug(`🔄 Lazy loading ${category} store: ${storeName}`, 'hooks', {});
-      
+      logger.debug(`Lazy loading ${category} store: ${storeName}`, 'hooks', {});
+
       setHasAttemptedLoad(true);
       loadStore(storeName).catch(error => {
-        logger.error(`❌ Failed to lazy load store ${storeName}:`, 'hooks', {}, error as Error);
+        logger.error(`Failed to lazy load store ${storeName}:`, 'hooks', {}, error as Error);
       });
     }
-  }, [storeName, hasAttemptedLoad, isStoreLoaded, isStoreLoading, loadStore]);
+  }, [needsLoad, storeName, loadStore]);
 
   return {
     isLoaded: isStoreLoaded(storeName),
@@ -41,18 +44,21 @@ export function useLazyStores(storeNames: StoreName[]) {
   const allLoaded = storeNames.every(name => isStoreLoaded(name));
   const anyLoading = storeNames.some(name => isStoreLoading(name));
 
+  // Check if we need to load
+  const needsLoad = !hasAttemptedLoad && !allLoaded && !anyLoading;
+
   useEffect(() => {
-    if (!hasAttemptedLoad && !allLoaded && !anyLoading) {
-      logger.debug(`🔄 Lazy loading feature stores:`, 'hooks', { data: storeNames });
-      
+    if (needsLoad) {
+      logger.debug(`Lazy loading feature stores:`, 'hooks', { data: storeNames });
+
       setHasAttemptedLoad(true);
-      
+
       // Load stores in parallel
       Promise.all(storeNames.map(name => loadStore(name))).catch(error => {
-        logger.error('❌ Failed to lazy load feature stores:', 'hooks', {}, error as Error);
+        logger.error('Failed to lazy load feature stores:', 'hooks', {}, error as Error);
       });
     }
-  }, [storeNames, hasAttemptedLoad, allLoaded, anyLoading, loadStore]);
+  }, [needsLoad, storeNames, loadStore]);
 
   return {
     allLoaded,

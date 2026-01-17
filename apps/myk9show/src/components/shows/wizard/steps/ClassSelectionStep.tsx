@@ -40,10 +40,13 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
   const [trialStates, setTrialStates] = useState<Record<string, TrialClassState>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Extract show type for stable dependency
+  const showType = show?.type;
+
   // Filter templates to active ones and matching show type
   const activeTemplates = useMemo(() => {
     logger.debug('ClassSelectionStep - Filtering templates', 'wizard', {
-      showType: show?.type,
+      showType: showType,
       templatesCount: templates.length,
       templates: templates.map(t => ({
         id: t.id,
@@ -54,33 +57,33 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
       }))
     });
 
-    if (!show?.type) {
+    if (!showType) {
       const filtered = templates.filter(t => t.isActive);
       logger.debug('No show type, returning active templates', 'wizard', { count: filtered.length });
       return filtered;
     }
-    
+
     const filtered = templates.filter(template => {
       if (!template.isActive) {
         logger.debug('Template skipped (not active)', 'wizard', { templateName: template.templateName });
         return false;
       }
-      
+
       // The wizard stores organization (AKC, UKC, etc.) as show.type
       // We need to check if the template's organization matches
-      const templateOrganization = typeof template.organization === 'object' 
-        ? String(Object.values(template.organization)[0] || '') 
+      const templateOrganization = typeof template.organization === 'object'
+        ? String(Object.values(template.organization)[0] || '')
         : String(template.organization || '');
-      
-      const templateShowType = typeof template.showType === 'object' 
-        ? String(Object.values(template.showType)[0] || '') 
+
+      const templateShowType = typeof template.showType === 'object'
+        ? String(Object.values(template.showType)[0] || '')
         : String(template.showType || '');
-      
+
       // Normalize comparison (case-insensitive, handle variations)
-      const normalizedShowType = (show.type || '').toLowerCase().trim();
+      const normalizedShowType = (showType || '').toLowerCase().trim();
       const normalizedTemplateOrg = templateOrganization.toLowerCase().trim();
       const normalizedTemplateShowType = templateShowType.toLowerCase().trim();
-      
+
       // Check if the show type matches either organization or show type
       const matches = normalizedShowType === normalizedTemplateOrg ||
              normalizedShowType === normalizedTemplateShowType ||
@@ -95,7 +98,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
     });
 
     logger.debug('Filtered templates before deduplication', 'wizard', { count: filtered.length });
-    
+
     // Deduplicate templates by name to prevent showing multiple with same display name
     const deduplicatedTemplates = filtered.filter((template, index, array) => {
       const templateDisplayName = template.templateName?.toLowerCase();
@@ -104,7 +107,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
 
     logger.debug('Final filtered templates after deduplication', 'wizard', { count: deduplicatedTemplates.length });
     return deduplicatedTemplates;
-  }, [templates, show?.type]);
+  }, [templates, showType]);
 
   // Initialize trial states from existing data
   useEffect(() => {

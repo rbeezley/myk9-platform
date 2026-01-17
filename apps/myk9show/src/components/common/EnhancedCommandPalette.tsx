@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, startTransition } from 'react';
+import React, { useState, useMemo, useCallback, startTransition } from 'react';
 import { Command } from 'cmdk';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -80,13 +80,15 @@ export function EnhancedCommandPalette({ open, onOpenChange }: EnhancedCommandPa
     [allRecentSearches]
   );
 
-  // Clear search when dialog closes
-  useEffect(() => {
+  // Track open state to clear search when dialog closes
+  const [wasOpen, setWasOpen] = useState(open);
+  if (wasOpen !== open) {
+    setWasOpen(open);
     if (!open) {
       clearSearch();
       setCategoryFilter('all');
     }
-  }, [open, clearSearch]);
+  }
 
   // Navigation commands
   const navigationCommands = useMemo(() => [

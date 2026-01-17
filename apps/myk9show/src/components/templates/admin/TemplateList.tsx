@@ -220,7 +220,7 @@ export const TemplateList: React.FC<TemplateListProps> = ({
             <div className="apple-template-timestamp">
               <Calendar className="h-3 w-3" />
               <span>
-                Updated {formatDistanceToNow(new Date(template.updatedAt || Date.now()), { addSuffix: true })}
+                Updated {formatDistanceToNow(new Date(template.updatedAt || template.createdAt || new Date()), { addSuffix: true })}
               </span>
             </div>
           </div>

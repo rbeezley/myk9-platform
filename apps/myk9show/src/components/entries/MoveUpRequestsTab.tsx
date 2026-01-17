@@ -110,8 +110,34 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({
 
   // Load requests and classes
   useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const [requestsResult, classesResult] = await Promise.all([
+          getPendingMoveUpRequests(showId),
+          getClassesWithCapacity(showId),
+        ]);
+
+        if (requestsResult.error) {
+          setError('Failed to load move-up requests');
+        } else {
+          setRequests(requestsResult.data as MoveUpRequest[]);
+        }
+
+        if (!classesResult.error) {
+          setClasses(classesResult.data);
+        }
+      } catch (_err) {
+        setError('An unexpected error occurred');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
     if (showId) {
-      loadData();
+      fetchData();
     }
   }, [showId]);
 

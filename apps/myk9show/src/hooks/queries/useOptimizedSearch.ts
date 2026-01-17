@@ -2,7 +2,7 @@
 // Phase 3.2: Advanced Query Optimizations
 
 import { useQuery } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { 
   useDebounce, 
   useSearchDeduplication, 
@@ -33,7 +33,7 @@ export const useOptimizedDogSearch = (searchTerm: string, options?: {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const shouldDeduplicateSearch = useSearchDeduplication();
   const paginationConfig = usePaginationConfig();
-  
+
   // Debounce search term updates
   const debouncedUpdate = useDebounce((term: string) => {
     if (shouldDeduplicateSearch(term)) {
@@ -41,14 +41,16 @@ export const useOptimizedDogSearch = (searchTerm: string, options?: {
     }
   }, SEARCH_CONFIG.debounceDelay);
 
-  // Update debounced term when search term changes
-  useMemo(() => {
+  // Update debounced term when search term changes using render-time sync
+  const [prevSearchTerm, setPrevSearchTerm] = useState(searchTerm);
+  if (searchTerm !== prevSearchTerm) {
+    setPrevSearchTerm(searchTerm);
     if (searchTerm.length >= SEARCH_CONFIG.minSearchLength) {
       debouncedUpdate(searchTerm);
     } else {
       setDebouncedSearchTerm('');
     }
-  }, [searchTerm, debouncedUpdate]);
+  }
 
   const page = options?.page ?? 1;
   const pageSize = options?.pageSize ?? paginationConfig.search.pageSize;
@@ -102,20 +104,23 @@ export const useOptimizedUserSearch = (searchTerm: string, options?: {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const shouldDeduplicateSearch = useSearchDeduplication();
   const paginationConfig = usePaginationConfig();
-  
+
   const debouncedUpdate = useDebounce((term: string) => {
     if (shouldDeduplicateSearch(term)) {
       setDebouncedSearchTerm(term);
     }
   }, SEARCH_CONFIG.debounceDelay);
 
-  useMemo(() => {
+  // Update debounced term using render-time sync
+  const [prevSearchTerm, setPrevSearchTerm] = useState(searchTerm);
+  if (searchTerm !== prevSearchTerm) {
+    setPrevSearchTerm(searchTerm);
     if (searchTerm.length >= SEARCH_CONFIG.minSearchLength) {
       debouncedUpdate(searchTerm);
     } else {
       setDebouncedSearchTerm('');
     }
-  }, [searchTerm, debouncedUpdate]);
+  }
 
   const page = options?.page ?? 1;
   const pageSize = options?.pageSize ?? paginationConfig.search.pageSize;
@@ -168,20 +173,23 @@ export const useOptimizedShowSearch = (searchTerm: string, options?: {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const shouldDeduplicateSearch = useSearchDeduplication();
   const paginationConfig = usePaginationConfig();
-  
+
   const debouncedUpdate = useDebounce((term: string) => {
     if (shouldDeduplicateSearch(term)) {
       setDebouncedSearchTerm(term);
     }
   }, SEARCH_CONFIG.debounceDelay);
 
-  useMemo(() => {
+  // Update debounced term using render-time sync
+  const [prevSearchTerm, setPrevSearchTerm] = useState(searchTerm);
+  if (searchTerm !== prevSearchTerm) {
+    setPrevSearchTerm(searchTerm);
     if (searchTerm.length >= SEARCH_CONFIG.minSearchLength) {
       debouncedUpdate(searchTerm);
     } else {
       setDebouncedSearchTerm('');
     }
-  }, [searchTerm, debouncedUpdate]);
+  }
 
   const page = options?.page ?? 1;
   const pageSize = options?.pageSize ?? paginationConfig.shows.pageSize;
@@ -232,20 +240,23 @@ export const useGlobalSearch = (searchTerm: string, options?: {
 }) => {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const shouldDeduplicateSearch = useSearchDeduplication();
-  
+
   const debouncedUpdate = useDebounce((term: string) => {
     if (shouldDeduplicateSearch(term)) {
       setDebouncedSearchTerm(term);
     }
   }, SEARCH_CONFIG.debounceDelay);
 
-  useMemo(() => {
+  // Update debounced term using render-time sync
+  const [prevSearchTerm, setPrevSearchTerm] = useState(searchTerm);
+  if (searchTerm !== prevSearchTerm) {
+    setPrevSearchTerm(searchTerm);
     if (searchTerm.length >= SEARCH_CONFIG.minSearchLength) {
       debouncedUpdate(searchTerm);
     } else {
       setDebouncedSearchTerm('');
     }
-  }, [searchTerm, debouncedUpdate]);
+  }
 
   const enabledEntities = options?.entities ?? ['dogs', 'users', 'shows', 'clubs'];
 
@@ -343,18 +354,21 @@ export const useGlobalSearch = (searchTerm: string, options?: {
 // Search suggestions with intelligent caching
 export const useSearchSuggestions = (searchTerm: string, entityType: 'dogs' | 'users' | 'shows') => {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
-  
+
   const debouncedUpdate = useDebounce((term: string) => {
     setDebouncedSearchTerm(term);
   }, 150); // Faster debounce for suggestions
 
-  useMemo(() => {
+  // Update debounced term using render-time sync
+  const [prevSearchTerm, setPrevSearchTerm] = useState(searchTerm);
+  if (searchTerm !== prevSearchTerm) {
+    setPrevSearchTerm(searchTerm);
     if (searchTerm.length >= 1) { // Lower threshold for suggestions
       debouncedUpdate(searchTerm);
     } else {
       setDebouncedSearchTerm('');
     }
-  }, [searchTerm, debouncedUpdate]);
+  }
 
   return useQuery({
     queryKey: [entityType, 'suggestions', debouncedSearchTerm],

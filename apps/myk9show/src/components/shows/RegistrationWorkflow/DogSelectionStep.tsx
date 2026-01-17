@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Check } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -21,21 +21,17 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
   onSelectionChange
 }) => {
   const { dogs } = useDogStore();
-  const [eligibleDogs, setEligibleDogs] = useState<Dog[]>([]);
 
-  useEffect(() => {
-    // Filter dogs that are eligible for the show
-    // In a real app, this would check against show requirements
-    const eligible = dogs.filter(dog => {
+  // Compute eligible dogs directly from dogs (derived state, no useEffect needed)
+  const eligibleDogs = React.useMemo(() => {
+    return dogs.filter(dog => {
       // Check if dog is not deleted
       if (dog.deletedAt) return false;
-      
+
       // Check if dog has required vaccinations (mock check)
       // In real app, would validate against show requirements
       return true;
     });
-    
-    setEligibleDogs(eligible);
   }, [dogs]);
 
   const handleDogToggle = (dogId: string) => {

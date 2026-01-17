@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, startTransition } from 'react';
+import React, { useState, useMemo, startTransition } from 'react';
 import { Command } from 'cmdk';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { 
@@ -44,12 +44,14 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   const shows = useShowStore(state => state.shows);
   // const clubs = useClubStore(state => state.clubs);
 
-  // Clear search when dialog closes
-  useEffect(() => {
+  // Track open state to clear search when dialog closes
+  const [wasOpen, setWasOpen] = useState(open);
+  if (wasOpen !== open) {
+    setWasOpen(open);
     if (!open) {
       setSearch('');
     }
-  }, [open]);
+  }
 
   // Navigation commands
   const navigationCommands: CommandAction[] = [

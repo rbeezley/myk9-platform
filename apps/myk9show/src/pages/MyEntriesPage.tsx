@@ -106,7 +106,61 @@ const MyEntriesPage: React.FC = () => {
   const { status: entryUpdates } = useStatusUpdates('user_entries', user?.id || '');
 
   useEffect(() => {
-    loadMyEntries();
+    const fetchEntries = async () => {
+      if (!user?.id) {
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        const { data, error: fetchError } = await getUserEntries(user.id);
+
+        if (fetchError) {
+          logger.error('Failed to load entries:', 'pages', {}, fetchError as Error);
+          setEntries([]);
+          return;
+        }
+
+        // Transform database entries to MyEntry format
+        const userEntries: MyEntry[] = data.map((entry) => {
+          const firstClass = entry.entry_classes?.[0];
+          return {
+            id: entry.id,
+            showId: entry.show_id || '',
+            showName: firstClass?.classes?.trial?.show?.name || 'Unknown Show',
+            showDate: firstClass?.classes?.trial?.date || new Date().toISOString(),
+            showLocation: firstClass?.classes?.trial?.show?.location || 'Unknown Location',
+            dogId: entry.dog_id || '',
+            dogName: entry.dog?.name || 'Unknown Dog',
+            breedName: entry.dog?.breed || 'Unknown Breed',
+            handler: entry.handler || user?.email || '',
+            classes: entry.entry_classes?.map((ec) => ({
+              id: ec.id,
+              name: ec.classes?.name || 'Unknown Class',
+              number: ec.classes?.class_number || '',
+              fee: ec.classes?.entry_fee || 0,
+              jumpHeight: ec.jump_height || undefined,
+              runOrder: ec.run_order || undefined,
+              status: (ec.status || 'entered') as 'entered' | 'scratched' | 'moved' | 'absent'
+            })) || [],
+            status: entry.status as 'pending' | 'confirmed' | 'waitlisted' | 'cancelled',
+            totalFees: entry.total_fees || 0,
+            paymentStatus: (entry.payment_status || 'pending') as 'pending' | 'paid' | 'refunded',
+            createdAt: entry.created_at || new Date().toISOString(),
+          };
+        });
+
+        setEntries(userEntries);
+      } catch (err) {
+        logger.error('Error loading entries:', 'pages', {}, err as Error);
+        setEntries([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchEntries();
     auditService.log({
       action: AuditAction.READ,
       entityType: 'my_entries',
@@ -116,7 +170,7 @@ const MyEntriesPage: React.FC = () => {
         loadTime: new Date().toISOString()
       }
     });
-  }, [user?.id]);
+  }, [user?.id, user?.email]);
 
   useEffect(() => {
     if (entryUpdates) {

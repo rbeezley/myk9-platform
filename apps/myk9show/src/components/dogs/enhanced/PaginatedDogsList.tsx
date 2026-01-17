@@ -5,7 +5,7 @@
  * breed filtering, and optimized performance for large datasets.
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useShowData, useShowScopedData } from '@/components/providers/ShowDataProvider';
 import { useDogStore } from '@/store/dogStore';
 import { useUserStore } from '@/store/userStore';
@@ -191,10 +191,13 @@ export function PaginatedDogsList({
     filteredDogs.length
   );
 
-  // Reset to first page when filters change
-  useEffect(() => {
+  // Reset to first page when filters change - use comparison during render
+  const filterKey = `${searchQuery}-${breedFilter}-${sexFilter}-${sortBy}-${sortDirection}`;
+  const [lastFilterKey, setLastFilterKey] = useState(filterKey);
+  if (filterKey !== lastFilterKey) {
+    setLastFilterKey(filterKey);
     setCurrentPage(1);
-  }, [searchQuery, breedFilter, sexFilter, sortBy, sortDirection]);
+  }
 
   // Get owner name for display
   const getOwnerName = (ownerId: string): string => {

@@ -8,7 +8,7 @@
  * - Article finding assessment
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 
 // UI Components
@@ -49,7 +49,7 @@ export function TrackingScoresheet({
   disabled = false,
   className
 }: TrackingScoresheetProps) {
-  const [score, setScore] = useState<Partial<TrackingScore>>({
+  const [score, setScore] = useState<Partial<TrackingScore>>(() => ({
     format: 'tracking',
     entryId: entry.id,
     judgeId: '', // Will be set by parent component
@@ -58,9 +58,18 @@ export function TrackingScoresheet({
     articlesFindRequired: 3,
     articlesFound: 0,
     ...initialScore
-  });
+  }));
 
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+
+  // Track previous initialScore to sync changes during render
+  const [prevInitialScore, setPrevInitialScore] = useState(initialScore);
+  if (initialScore !== prevInitialScore) {
+    setPrevInitialScore(initialScore);
+    if (initialScore) {
+      setScore(prev => ({ ...prev, ...initialScore }));
+    }
+  }
 
   // Handle pass/fail toggle
   const handlePassFailChange = useCallback((passed: boolean) => {
@@ -85,25 +94,25 @@ export function TrackingScoresheet({
   // Validate score before submission
   const validateScore = useCallback((): string[] => {
     const errors: string[] = [];
-    
+
     if (score.passed === undefined) {
       errors.push('Pass/fail status is required');
     }
-    
+
     if (!score.articlesFindRequired || score.articlesFindRequired < 1) {
       errors.push('Number of required articles must be specified');
     }
-    
+
     if (score.articlesFound === undefined || score.articlesFound < 0) {
       errors.push('Number of articles found must be specified');
     }
-    
+
     if (score.articlesFound !== undefined && score.articlesFindRequired !== undefined) {
       if (score.articlesFound > score.articlesFindRequired) {
         errors.push('Articles found cannot exceed articles required');
       }
     }
-    
+
     return errors;
   }, [score]);
 
@@ -111,23 +120,16 @@ export function TrackingScoresheet({
   const handleSave = useCallback(() => {
     const errors = validateScore();
     setValidationErrors(errors);
-    
+
     if (errors.length === 0) {
       const finalScore: TrackingScore = {
         ...score,
         timestamp: new Date()
       } as TrackingScore;
-      
+
       onSave(finalScore);
     }
   }, [score, validateScore, onSave]);
-
-  // Update parent when score changes
-  useEffect(() => {
-    if (initialScore) {
-      setScore(prev => ({ ...prev, ...initialScore }));
-    }
-  }, [initialScore]);
 
   return (
     <div className={cn("space-y-6", className)}>

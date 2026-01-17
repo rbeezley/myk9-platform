@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import StandardDialog from '@/components/common/StandardDialog';
 import RequiredLabel from '@/components/common/RequiredLabel';
 import { Input } from '@/components/ui/input';
@@ -13,38 +13,38 @@ interface PastResultEditDialogProps {
   initialResult?: PastResult;
 }
 
-const PastResultEditDialog: React.FC<PastResultEditDialogProps> = ({ open, onClose, onSave, initialResult }) => {
-  const [form, setForm] = useState<PastResult>(
-    initialResult || {
-      id: '',
-      showName: '',
-      date: '',
-      judge: '',
-      className: '',
-      placement: '',
-      notes: '',
-    }
-  );
-  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+const DEFAULT_FORM: PastResult = {
+  id: '',
+  showName: '',
+  date: '',
+  judge: '',
+  className: '',
+  placement: '',
+  notes: '',
+};
 
-  useEffect(() => {
-    if (open && initialResult) {
+const PastResultEditDialog: React.FC<PastResultEditDialogProps> = ({ open, onClose, onSave, initialResult }) => {
+  const [form, setForm] = useState<PastResult>(initialResult || DEFAULT_FORM);
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [wasOpen, setWasOpen] = useState(open);
+  const [lastInitialResult, setLastInitialResult] = useState(initialResult);
+
+  // Reset form when dialog opens or initialResult changes
+  if (open && (!wasOpen || initialResult !== lastInitialResult)) {
+    setWasOpen(open);
+    setLastInitialResult(initialResult);
+    if (initialResult) {
       setForm({
         ...initialResult,
         date: initialResult.date || '',
       });
-    } else if (open && !initialResult) {
-      setForm({
-        id: '',
-        showName: '',
-        date: '',
-        judge: '',
-        className: '',
-        placement: '',
-        notes: '',
-      });
+    } else {
+      setForm(DEFAULT_FORM);
     }
-  }, [open, initialResult]);
+    setErrors({});
+  } else if (!open && wasOpen) {
+    setWasOpen(false);
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;

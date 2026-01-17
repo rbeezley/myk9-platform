@@ -76,8 +76,34 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
 
   // Load data
   useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const [pendingResult, processedResult] = await Promise.all([
+          getPendingScratchRequests(showId),
+          getScratchedEntries(showId),
+        ]);
+
+        if (pendingResult.error) {
+          setError('Failed to load scratch requests');
+        } else {
+          setPendingRequests(pendingResult.data as ScratchRequest[]);
+        }
+
+        if (!processedResult.error) {
+          setProcessedScratches(processedResult.data as ScratchRequest[]);
+        }
+      } catch (_err) {
+        setError('An unexpected error occurred');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
     if (showId) {
-      loadData();
+      fetchData();
     }
   }, [showId]);
 

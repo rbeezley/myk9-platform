@@ -21,8 +21,9 @@ const DelightfulToast: React.FC<DelightfulToastProps> = ({
   duration = 4000,
   showConfetti = false
 }) => {
-  const [isVisible, setIsVisible] = useState(false);
-  const [showSparkles, setShowSparkles] = useState(false);
+  const [isVisible, setIsVisible] = useState(isOpen);
+  const [showSparkles, setShowSparkles] = useState(isOpen);
+  const [wasOpen, setWasOpen] = useState(isOpen);
 
   const handleClose = useCallback(() => {
     setIsVisible(false);
@@ -31,26 +32,33 @@ const DelightfulToast: React.FC<DelightfulToastProps> = ({
     }, 300);
   }, [onClose]);
 
+  // Handle isOpen changes during render
+  if (isOpen && !wasOpen) {
+    setWasOpen(true);
+    setIsVisible(true);
+    setShowSparkles(true);
+  } else if (!isOpen && wasOpen) {
+    setWasOpen(false);
+  }
+
+  // Setup timers for auto-close and sparkle animation
   useEffect(() => {
-    if (isOpen) {
-      setIsVisible(true);
-      setShowSparkles(true);
-      
-      // Auto-close after duration
-      const timer = setTimeout(() => {
-        handleClose();
-      }, duration);
+    if (!isOpen) return;
 
-      // Hide sparkles after animation
-      const sparkleTimer = setTimeout(() => {
-        setShowSparkles(false);
-      }, 2000);
+    // Auto-close after duration
+    const timer = setTimeout(() => {
+      handleClose();
+    }, duration);
 
-      return () => {
-        clearTimeout(timer);
-        clearTimeout(sparkleTimer);
-      };
-    }
+    // Hide sparkles after animation
+    const sparkleTimer = setTimeout(() => {
+      setShowSparkles(false);
+    }, 2000);
+
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(sparkleTimer);
+    };
   }, [isOpen, duration, handleClose]);
 
   const getTypeConfig = () => {

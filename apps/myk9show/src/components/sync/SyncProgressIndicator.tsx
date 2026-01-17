@@ -104,6 +104,9 @@ export function SyncProgressIndicator({
   
   const [expanded, setExpanded] = useState(!compact);
 
+  // Capture initial time once to avoid Date.now() in useMemo
+  const [now] = useState(() => Date.now());
+
   // Mock active operations for demonstration
   const mockOperations: SyncOperation[] = useMemo(() => [
     {
@@ -116,8 +119,8 @@ export function SyncProgressIndicator({
       totalItems: 150,
       processedItems: 100,
       failedItems: 3,
-      startTime: new Date(Date.now() - 120000), // 2 minutes ago
-      estimatedCompletion: new Date(Date.now() + 60000), // 1 minute from now
+      startTime: new Date(now - 120000), // 2 minutes ago
+      estimatedCompletion: new Date(now + 60000), // 1 minute from now
       speed: 2.5,
       retryCount: 0,
       maxRetries: 3,
@@ -138,8 +141,8 @@ export function SyncProgressIndicator({
       totalItems: 50,
       processedItems: 12,
       failedItems: 0,
-      startTime: new Date(Date.now() - 30000), // 30 seconds ago
-      estimatedCompletion: new Date(Date.now() + 45000), // 45 seconds from now
+      startTime: new Date(now - 30000), // 30 seconds ago
+      estimatedCompletion: new Date(now + 45000), // 45 seconds from now
       speed: 0.8,
       retryCount: 0,
       maxRetries: 3,
@@ -150,7 +153,7 @@ export function SyncProgressIndicator({
         currentItem: 'show-789'
       }
     }
-  ], []);
+  ], [now]);
 
   // Get operations to display
   const operations = useMemo(() => {

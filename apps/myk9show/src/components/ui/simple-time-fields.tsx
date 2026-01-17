@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { Clock } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -65,13 +65,23 @@ export const SimpleTimeFields: React.FC<SimpleTimeFieldsProps> = ({
   const secondsRef = useRef<HTMLInputElement>(null);
   const hundredthsRef = useRef<HTMLInputElement>(null);
 
-  // Load recent times on mount
-  useEffect(() => {
-    setRecentTimes(getRecentTimes());
-  }, []);
+  // Load recent times using lazy initial state (no useEffect needed)
+  const [recentTimesLoaded] = useState(() => {
+    const times = getRecentTimes();
+    return times;
+  });
 
-  // Parse incoming value
-  useEffect(() => {
+  // Sync recent times once on first render
+  const [timesInitialized, setTimesInitialized] = useState(false);
+  if (!timesInitialized) {
+    setTimesInitialized(true);
+    setRecentTimes(recentTimesLoaded);
+  }
+
+  // Parse incoming value using render-time sync
+  const [prevValue, setPrevValue] = useState(value);
+  if (value !== prevValue) {
+    setPrevValue(value);
     if (value) {
       const match = value.match(/^(\d{1,2}):([0-5]\d)\.(\d{2})$/);
       if (match) {
@@ -84,7 +94,7 @@ export const SimpleTimeFields: React.FC<SimpleTimeFieldsProps> = ({
       setSeconds('');
       setHundredths('');
     }
-  }, [value]);
+  }
 
   // Build output value with validation - only call this when needed, not on every keystroke
   const buildValue = () => {

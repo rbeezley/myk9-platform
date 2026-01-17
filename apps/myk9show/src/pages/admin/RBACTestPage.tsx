@@ -4,7 +4,7 @@
  * Created: December 2024
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -56,26 +56,27 @@ export const RBACTestPage: React.FC = () => {
   const [dbStatus, setDbStatus] = useState<'testing' | 'connected' | 'error'>('testing');
   const [dbError, setDbError] = useState<string | null>(null);
 
-  useEffect(() => {
-    testDatabaseConnection();
-  }, []);
-
-  const testDatabaseConnection = async () => {
+  // Declare testDatabaseConnection before the useEffect that uses it
+  const testDatabaseConnection = useCallback(async () => {
     try {
       setDbStatus('testing');
       setDbError(null);
-      
+
       // Test basic database connectivity
       await rbacService.getAllRoles();
       await rbacService.getAllPermissions();
-      
+
       setDbStatus('connected');
     } catch (error) {
       logger.error('Database connection test failed:', 'pages', {}, error as Error);
       setDbStatus('error');
       setDbError(error instanceof Error ? error.message : 'Unknown error');
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    testDatabaseConnection();
+  }, [testDatabaseConnection]);
 
   const runPermissionTests = async () => {
     setIsRunningTests(true);

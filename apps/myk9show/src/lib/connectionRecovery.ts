@@ -1,7 +1,7 @@
 // Connection recovery and retry mechanisms
 // Phase 3.3: Enhanced Error Handling & Recovery
 
-import { useEffect, useCallback, useRef, useState } from 'react';
+import { useEffect, useCallback, useState, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNetworkStatus } from './offlineHandler';
 import { errorMonitor } from './errorMonitoring';
@@ -485,13 +485,12 @@ export const useConnectionRecovery = () => {
     avgResponseTime: 0,
   });
   
-  const recoveryManagerRef = useRef<ConnectionRecoveryManager | undefined>(undefined);
-
-  if (!recoveryManagerRef.current) {
-    recoveryManagerRef.current = new ConnectionRecoveryManager(queryClient);
-  }
-  
-  const recoveryManager = recoveryManagerRef.current;
+  // Use useMemo to ensure stable initialization of the recovery manager
+  // This is the recommended pattern for lazy initialization that doesn't change
+  const recoveryManager = useMemo(
+    () => new ConnectionRecoveryManager(queryClient),
+    [queryClient]
+  );
   
   // Update connection status
   useEffect(() => {

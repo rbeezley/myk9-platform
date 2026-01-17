@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useTemplateStore } from '@/store/templateStore';
 import { Organization, ShowType, ClassTemplate } from '@/types/template.types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -38,21 +38,30 @@ export const OrganizationSelector: React.FC<OrganizationSelectorProps> = ({
     ? Array.from(new Set(templates.filter((t: ClassTemplate) => t.organization === organization && t.isActive).map((t: ClassTemplate) => t.showType))) as ShowType[]
     : [];
 
-  // Update available templates when organization or show type changes
-  useEffect(() => {
+  // Compute available templates using useMemo (derived state, not useEffect)
+  const computedTemplates = React.useMemo(() => {
     if (organization && showType) {
-      const filtered = templates.filter(t => 
-        t.isActive && 
-        t.organization === organization && 
+      return templates.filter(t =>
+        t.isActive &&
+        t.organization === organization &&
         t.showType === showType
       );
-      setAvailableTemplates(filtered);
     } else if (organization) {
-      setAvailableTemplates(templates.filter((t: ClassTemplate) => t.organization === organization && t.isActive));
+      return templates.filter((t: ClassTemplate) => t.organization === organization && t.isActive);
     } else {
-      setAvailableTemplates([]);
+      return [];
     }
   }, [organization, showType, templates]);
+
+  // Sync availableTemplates state with computed value using render-time pattern
+  const [prevComputedKey, setPrevComputedKey] = useState(() =>
+    `${organization}-${showType}-${templates.length}`
+  );
+  const computedKey = `${organization}-${showType}-${templates.length}`;
+  if (computedKey !== prevComputedKey) {
+    setPrevComputedKey(computedKey);
+    setAvailableTemplates(computedTemplates);
+  }
 
   const handleOrganizationChange = (value: string) => {
     if (value) {

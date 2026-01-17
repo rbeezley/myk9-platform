@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import type { Dog, Owner } from '@/types/dog-types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -50,11 +50,18 @@ export const DogProfileEditDialog: React.FC<DogProfileEditDialogProps> = ({ open
 
   const [form, setForm] = useState<Dog | null>(dog ?? blankDog);
   const [touched, setTouched] = useState<{ [K in keyof Dog]?: boolean }>({});
+  const [wasOpen, setWasOpen] = useState(open);
+  const [lastDog, setLastDog] = useState(dog);
 
-  useEffect(() => {
+  // Reset form when dialog opens or dog changes
+  if (open && (!wasOpen || dog !== lastDog)) {
+    setWasOpen(open);
+    setLastDog(dog);
     setForm(dog ?? blankDog);
     setTouched({});
-  }, [dog, open, blankDog]);
+  } else if (!open && wasOpen) {
+    setWasOpen(false);
+  }
 
   if (!open || !form) return null;
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -67,11 +67,15 @@ const PersonEditDialog: React.FC<PersonEditDialogProps> = ({
     return false;
   };
 
-  useEffect(() => {
+  // Sync qualifications with formData using render-time sync pattern
+  const qualificationsKey = JSON.stringify(formData.judgeQualifications || []);
+  const [prevQualificationsKey, setPrevQualificationsKey] = useState(qualificationsKey);
+  if (qualificationsKey !== prevQualificationsKey) {
+    setPrevQualificationsKey(qualificationsKey);
     if (formData.judgeQualifications) {
       setQualifications(formData.judgeQualifications as JudgeQualification[]);
     }
-  }, [formData.judgeQualifications]);
+  }
 
   const addQualification = () => {
     const newQualification: JudgeQualification = {

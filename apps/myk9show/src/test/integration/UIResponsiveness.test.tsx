@@ -537,19 +537,15 @@ describe('UI Responsiveness Tests', () => {
         return <MockDogList />;
       };
 
-      // Wrap in error boundary
-      const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
-        try {
-          return <>{children}</>;
-        } catch {
-          return <div data-testid="error">Error occurred</div>;
-        }
+      // Wrap in error boundary - simple wrapper for test (real error boundary uses class component)
+      const TestWrapper = ({ children }: { children: React.ReactNode }) => {
+        return <>{children}</>;
       };
 
       render(
-        <ErrorBoundary>
+        <TestWrapper>
           <ErrorProneComponent />
-        </ErrorBoundary>
+        </TestWrapper>
       );
 
       // Add dogs normally

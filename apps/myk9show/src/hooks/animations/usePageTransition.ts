@@ -57,12 +57,18 @@ export function usePageTransition(config: Partial<PageTransitionConfig> = {}) {
 
   const finalConfig = useMemo(() => ({ ...defaultConfig, ...config }), [config]);
 
-  // Handle location changes
-  useEffect(() => {
-    if (location.pathname !== previousLocation.pathname) {
-      setIsTransitioning(true);
-      setIsVisible(false);
+  // Handle location changes using render-time sync pattern
+  const locationPath = location.pathname;
+  const [prevLocationPath, setPrevLocationPath] = useState(locationPath);
+  if (locationPath !== prevLocationPath) {
+    setPrevLocationPath(locationPath);
+    setIsTransitioning(true);
+    setIsVisible(false);
+  }
 
+  // Handle transition completion
+  useEffect(() => {
+    if (isTransitioning) {
       const timer = setTimeout(() => {
         setPreviousLocation(location);
         setIsVisible(true);
@@ -71,7 +77,7 @@ export function usePageTransition(config: Partial<PageTransitionConfig> = {}) {
 
       return () => clearTimeout(timer);
     }
-  }, [location, previousLocation, finalConfig.duration]);
+  }, [isTransitioning, location, finalConfig.duration]);
 
   // Get transition styles
   const getTransitionStyles = useCallback(() => {

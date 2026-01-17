@@ -230,12 +230,15 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
     show: showData
   });
 
+  // Extract roles for stable dependency
+  const userRoles = userWithRoles?.roles;
+
   // Optimized role calculation with O(1) lookup instead of O(n) array.includes()
   const primaryRole = useMemo(() => {
-    if (!userWithRoles?.roles?.length) return UserRole.EXHIBITOR;
-    
+    if (!userRoles?.length) return UserRole.EXHIBITOR;
+
     // Use Set for O(1) lookup performance
-    const roleSet = new Set(userWithRoles.roles);
+    const roleSet = new Set(userRoles);
     const rolePriority = [
       UserRole.SITE_ADMIN,
       UserRole.SECRETARY,
@@ -243,10 +246,10 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
       UserRole.JUDGE,
       UserRole.EXHIBITOR
     ];
-    
+
     // Find first matching role with efficient lookup
     return rolePriority.find(role => roleSet.has(role)) || UserRole.EXHIBITOR;
-  }, [userWithRoles?.roles]); // Only depend on roles array, not entire object
+  }, [userRoles]);
 
   // Registration state logic with enhanced countdown
   const registrationState = useMemo(() => {

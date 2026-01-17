@@ -31,30 +31,35 @@ export function useFastShowDetails(explicitShowId?: string): FastShowDetailsResu
   const showId = explicitShowId || id || null;
   
   // Try to get cached data first (from browse shows page)
-  const cachedShow = useMemo(() => {
-    if (!showId) return null;
-    
+  const { cachedShow, foundInCache } = useMemo(() => {
+    if (!showId) return { cachedShow: null, foundInCache: false };
+
     // Check individual show cache first
     const individualCache = queryClient.getQueryData<Show>(showQueryKeys.detail(showId));
     if (individualCache) {
-      setIsFromCache(true);
-      return individualCache;
+      return { cachedShow: individualCache, foundInCache: true };
     }
-    
+
     // Check shows list cache
     const showsList = queryClient.getQueryData<Show[]>(showQueryKeys.lists());
     if (showsList) {
       const foundShow = showsList.find(show => show.id === showId);
       if (foundShow) {
-        setIsFromCache(true);
         // Also cache it for individual queries
         queryClient.setQueryData(showQueryKeys.detail(showId), foundShow);
-        return foundShow;
+        return { cachedShow: foundShow, foundInCache: true };
       }
     }
-    
-    return null;
+
+    return { cachedShow: null, foundInCache: false };
   }, [showId, queryClient]);
+
+  // Update isFromCache state based on useMemo result
+  useEffect(() => {
+    if (foundInCache && !isFromCache) {
+      setIsFromCache(true);
+    }
+  }, [foundInCache, isFromCache]);
   
   // Only use network query if no cached data is available
   const { 

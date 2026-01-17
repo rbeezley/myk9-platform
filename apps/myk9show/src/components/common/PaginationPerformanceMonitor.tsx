@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
@@ -57,38 +57,35 @@ export function PaginationPerformanceMonitor({
   minimized = false,
   onToggleMinimize
 }: PaginationPerformanceMonitorProps) {
-  const [metrics, setMetrics] = useState<PerformanceMetrics>({
-    renderTime: 0,
+  // State for metrics that change independently of props
+  const [internalMetrics, setInternalMetrics] = useState<{
+    memoryUsage: number;
+    scrollPosition: number;
+  }>({
+    memoryUsage: 0,
+    scrollPosition: 0
+  });
+
+  const [performanceHistory, setPerformanceHistory] = useState<number[]>([]);
+
+  // Use ref for last update time - initialize lazily to avoid impure function during render
+  const lastUpdateTimeRef = useRef<number | null>(null);
+  if (lastUpdateTimeRef.current === null) {
+    lastUpdateTimeRef.current = Date.now();
+  }
+
+  // Compute metrics from props
+  const metrics: PerformanceMetrics = {
+    renderTime: renderMetrics?.renderTime || 0,
     itemsRendered: itemCount,
     virtualizedItems: renderMetrics?.virtualizedItems || 0,
     cacheHits: cacheStats?.hits || 0,
     cacheMisses: cacheStats?.misses || 0,
-    memoryUsage: 0,
-    scrollPosition: 0,
+    memoryUsage: internalMetrics.memoryUsage,
+    scrollPosition: internalMetrics.scrollPosition,
     visibleItems: Math.min(pageSize, itemCount),
     totalLoadTime: 0
-  });
-
-  const [performanceHistory, setPerformanceHistory] = useState<number[]>([]);
-  const [lastUpdateTime, setLastUpdateTime] = useState(Date.now());
-
-  // Update metrics when props change
-  useEffect(() => {
-    const startTime = performance.now();
-    
-    setMetrics(prev => ({
-      ...prev,
-      itemsRendered: itemCount,
-      virtualizedItems: renderMetrics?.virtualizedItems || prev.virtualizedItems,
-      cacheHits: cacheStats?.hits || 0,
-      cacheMisses: cacheStats?.misses || 0,
-      renderTime: renderMetrics?.renderTime || prev.renderTime,
-      visibleItems: Math.min(pageSize, itemCount),
-      totalLoadTime: performance.now() - startTime
-    }));
-
-    setLastUpdateTime(Date.now());
-  }, [itemCount, pageSize, cacheStats, renderMetrics]);
+  };
 
   // Monitor scroll performance
   useEffect(() => {
@@ -98,8 +95,8 @@ export function PaginationPerformanceMonitor({
     const handleScroll = () => {
       const now = performance.now();
       const scrollDelta = now - lastScrollTime;
-      
-      setMetrics(prev => ({
+
+      setInternalMetrics(prev => ({
         ...prev,
         scrollPosition: window.scrollY
       }));
@@ -132,7 +129,7 @@ export function PaginationPerformanceMonitor({
     const updateMemoryUsage = () => {
       if ('memory' in performance) {
         const memInfo = (performance as { memory: { usedJSHeapSize: number } }).memory;
-        setMetrics(prev => ({
+        setInternalMetrics(prev => ({
           ...prev,
           memoryUsage: memInfo.usedJSHeapSize / 1024 / 1024 // Convert to MB
         }));
@@ -354,7 +351,7 @@ export function PaginationPerformanceMonitor({
                 <div>Visible Items: {metrics.visibleItems}</div>
                 <div>Virtualized: {metrics.virtualizedItems}</div>
                 <div>Scroll Position: {metrics.scrollPosition.toFixed(0)}px</div>
-                <div>Last Update: {new Date(lastUpdateTime).toLocaleTimeString()}</div>
+                <div>Last Update: {new Date(lastUpdateTimeRef.current).toLocaleTimeString()}</div>
                 <div>Load Time: {metrics.totalLoadTime.toFixed(2)}ms</div>
               </div>
             </details>

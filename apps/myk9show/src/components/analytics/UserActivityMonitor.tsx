@@ -188,6 +188,26 @@ const generateHeatmapData = (sessions: UserSession[]): ActivityHeatmapData[] => 
   return heatmapData;
 };
 
+// Helper component to display time since last activity with interval updates
+function LastActivityDisplay({ lastActivity }: { lastActivity: Date }) {
+  const [minutesAgo, setMinutesAgo] = useState(() =>
+    Math.floor((Date.now() - lastActivity.getTime()) / 60000)
+  );
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMinutesAgo(Math.floor((Date.now() - lastActivity.getTime()) / 60000));
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [lastActivity]);
+
+  return (
+    <p className="text-xs text-muted-foreground mt-1">
+      {minutesAgo}m ago
+    </p>
+  );
+}
+
 export function UserActivityMonitor({ className }: UserActivityMonitorProps) {
   const [selectedTimeRange] = useState<string>('7d');
   const [sessions, setSessions] = useState<UserSession[]>([]);
@@ -595,9 +615,7 @@ export function UserActivityMonitor({ className }: UserActivityMonitorProps) {
                             {session.deviceType === 'desktop' && <Monitor className="h-4 w-4" />}
                           </div>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {Math.floor((Date.now() - session.lastActivity.getTime()) / 60000)}m ago
-                        </p>
+                        <LastActivityDisplay lastActivity={session.lastActivity} />
                       </div>
                     </div>
                   ))}

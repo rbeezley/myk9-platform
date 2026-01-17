@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -23,6 +23,9 @@ import {
  * real-time updates, and interactive controls for managing show synchronization.
  */
 const SyncDemoPage: React.FC = () => {
+  // Capture initial time once to avoid Date.now() during render
+  const [now] = useState(() => Date.now());
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-6 py-20 max-w-7xl">
@@ -183,7 +186,7 @@ const SyncDemoPage: React.FC = () => {
                         status="error" 
                         entityType="show" 
                         entityId="show-123"
-                        lastSyncAt={new Date(Date.now() - 300000)}
+                        lastSyncAt={new Date(now - 300000)}
                         errorMessage="Network connection lost"
                       />
                     </div>

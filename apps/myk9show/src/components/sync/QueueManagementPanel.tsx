@@ -135,6 +135,9 @@ export function QueueManagementPanel({
   const [sortField] = useState<keyof QueueItem>('createdAt');
   const [sortDirection] = useState<'asc' | 'desc'>('desc');
 
+  // Capture initial render time once to avoid Date.now() in useMemo
+  const [now] = useState(() => Date.now());
+
   // Mock queue items for demonstration
   const mockQueueItems: QueueItem[] = useMemo(() => [
     {
@@ -146,9 +149,9 @@ export function QueueManagementPanel({
       priority: 5,
       attempts: 0,
       maxAttempts: 3,
-      createdAt: new Date(Date.now() - 300000),
-      updatedAt: new Date(Date.now() - 300000),
-      scheduledFor: new Date(Date.now() + 60000),
+      createdAt: new Date(now - 300000),
+      updatedAt: new Date(now - 300000),
+      scheduledFor: new Date(now + 60000),
       estimatedDuration: 2000
     },
     {
@@ -160,9 +163,9 @@ export function QueueManagementPanel({
       priority: 8,
       attempts: 1,
       maxAttempts: 3,
-      createdAt: new Date(Date.now() - 180000),
-      updatedAt: new Date(Date.now() - 30000),
-      processingStarted: new Date(Date.now() - 30000),
+      createdAt: new Date(now - 180000),
+      updatedAt: new Date(now - 30000),
+      processingStarted: new Date(now - 30000),
       estimatedDuration: 5000
     },
     {
@@ -174,8 +177,8 @@ export function QueueManagementPanel({
       priority: 3,
       attempts: 3,
       maxAttempts: 3,
-      createdAt: new Date(Date.now() - 600000),
-      updatedAt: new Date(Date.now() - 120000),
+      createdAt: new Date(now - 600000),
+      updatedAt: new Date(now - 120000),
       error: 'Network timeout after 30 seconds'
     },
     {
@@ -187,12 +190,12 @@ export function QueueManagementPanel({
       priority: 7,
       attempts: 1,
       maxAttempts: 3,
-      createdAt: new Date(Date.now() - 900000),
-      updatedAt: new Date(Date.now() - 600000),
-      completedAt: new Date(Date.now() - 600000),
+      createdAt: new Date(now - 900000),
+      updatedAt: new Date(now - 600000),
+      completedAt: new Date(now - 600000),
       actualDuration: 1200
     }
-  ], []);
+  ], [now]);
 
   // Filtered and sorted items
   const filteredItems = useMemo(() => {

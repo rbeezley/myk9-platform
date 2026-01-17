@@ -3,7 +3,7 @@
  * Shows background sync status with visual feedback
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Wifi, 
   WifiOff, 
@@ -22,14 +22,14 @@ interface SyncStatusIndicatorProps {
   size?: 'sm' | 'md' | 'lg';
 }
 
-export function SyncStatusIndicator({ 
-  className, 
-  showDetails = false, 
-  size = 'md' 
+export function SyncStatusIndicator({
+  className,
+  showDetails = false,
+  size = 'md'
 }: SyncStatusIndicatorProps) {
-  const { 
-    isOnline, 
-    isSyncing, 
+  const {
+    isOnline,
+    isSyncing,
     queueSize,
     lastSyncAt,
     error,
@@ -37,13 +37,12 @@ export function SyncStatusIndicator({
     forceSyncNow
   } = useBackgroundSync();
 
-  const getSyncIcon = () => {
-    if (error) return AlertCircle;
-    if (isSyncing) return RefreshCw;
-    if (!isOnline) return CloudOff;
-    if (queueSize > 0) return Clock;
-    return CheckCircle;
-  };
+  // Track current time for relative time display
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 60000); // Update every minute
+    return () => clearInterval(interval);
+  }, []);
 
   const getSyncColor = () => {
     if (error) return 'text-red-500';
@@ -61,20 +60,12 @@ export function SyncStatusIndicator({
     return 'Up to date';
   };
 
-  const getNetworkIcon = () => {
-    if (!isOnline) return WifiOff;
-    return Wifi;
-  };
-
   const getNetworkColor = () => {
     if (!isOnline) return 'text-red-500';
     if (networkState.quality === 'excellent') return 'text-green-500';
     if (networkState.quality === 'good') return 'text-blue-500';
     return 'text-yellow-500';
   };
-
-  const IconComponent = getSyncIcon();
-  const NetworkIcon = getNetworkIcon();
 
   const iconSize = {
     sm: 'w-4 h-4',
@@ -88,11 +79,28 @@ export function SyncStatusIndicator({
     lg: 'text-base'
   }[size];
 
+  // Render the appropriate sync icon based on state
+  const renderSyncIcon = () => {
+    const iconClasses = cn(iconSize, getSyncColor(), isSyncing && 'animate-spin');
+    if (error) return <AlertCircle className={iconClasses} />;
+    if (isSyncing) return <RefreshCw className={iconClasses} />;
+    if (!isOnline) return <CloudOff className={iconClasses} />;
+    if (queueSize > 0) return <Clock className={iconClasses} />;
+    return <CheckCircle className={iconClasses} />;
+  };
+
+  // Render the appropriate network icon based on state
+  const renderNetworkIcon = () => {
+    const iconClasses = cn(iconSize, getNetworkColor());
+    if (!isOnline) return <WifiOff className={iconClasses} />;
+    return <Wifi className={iconClasses} />;
+  };
+
   return (
     <div className={cn('flex items-center gap-2', className)}>
       {/* Network Status */}
       <div className="flex items-center gap-1">
-        <NetworkIcon className={cn(iconSize, getNetworkColor())} />
+        {renderNetworkIcon()}
         {showDetails && (
           <span className={cn(textSize, 'text-muted-foreground')}>
             {isOnline ? networkState.quality : 'offline'}
@@ -101,18 +109,12 @@ export function SyncStatusIndicator({
       </div>
 
       {/* Sync Status */}
-      <div 
-        className="flex items-center gap-1 cursor-pointer" 
+      <div
+        className="flex items-center gap-1 cursor-pointer"
         onClick={forceSyncNow}
         title={getSyncMessage()}
       >
-        <IconComponent 
-          className={cn(
-            iconSize, 
-            getSyncColor(),
-            isSyncing && 'animate-spin'
-          )} 
-        />
+        {renderSyncIcon()}
         {showDetails && (
           <span className={cn(textSize, getSyncColor())}>
             {getSyncMessage()}
@@ -126,7 +128,7 @@ export function SyncStatusIndicator({
           {lastSyncAt && (
             <span>
               Last: {new Intl.RelativeTimeFormat('en', { numeric: 'auto' })
-                .format(-Math.floor((Date.now() - lastSyncAt.getTime()) / 60000), 'minute')}
+                .format(-Math.floor((now - lastSyncAt.getTime()) / 60000), 'minute')}
             </span>
           )}
         </div>
@@ -168,9 +170,9 @@ export function SyncStatusBadge({ className }: { className?: string }) {
 
 // Detailed sync status panel
 export function SyncStatusPanel({ className }: { className?: string }) {
-  const { 
-    isOnline, 
-    isSyncing, 
+  const {
+    isOnline,
+    isSyncing,
     queueSize,
     lastSyncAt,
     error,
@@ -179,6 +181,13 @@ export function SyncStatusPanel({ className }: { className?: string }) {
     forceSyncNow,
     clearError
   } = useBackgroundSync();
+
+  // Track current time for relative time display
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 60000); // Update every minute
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className={cn('p-4 bg-card border rounded-lg space-y-4', className)}>
@@ -234,9 +243,9 @@ export function SyncStatusPanel({ className }: { className?: string }) {
           <div>Avg Sync Time: {(metrics.averageSyncTime / 1000).toFixed(1)}s</div>
           <div>Network: {networkState.quality}</div>
           <div>
-            Last Sync: {lastSyncAt ? 
+            Last Sync: {lastSyncAt ?
               new Intl.RelativeTimeFormat('en', { numeric: 'auto' })
-                .format(-Math.floor((Date.now() - lastSyncAt.getTime()) / 60000), 'minute') :
+                .format(-Math.floor((now - lastSyncAt.getTime()) / 60000), 'minute') :
               'Never'
             }
           </div>

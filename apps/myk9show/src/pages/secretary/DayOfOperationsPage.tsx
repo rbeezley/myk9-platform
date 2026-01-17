@@ -160,13 +160,6 @@ export default function DayOfOperationsPage() {
     loadShows();
   }, [user?.id]);
 
-  // Load data when show changes
-  useEffect(() => {
-    if (selectedShowId) {
-      loadData();
-    }
-  }, [selectedShowId]);
-
   const loadData = useCallback(async () => {
     if (!selectedShowId) return;
     setIsLoading(true);
@@ -185,6 +178,13 @@ export default function DayOfOperationsPage() {
       setIsLoading(false);
     }
   }, [selectedShowId]);
+
+  // Load data when show changes
+  useEffect(() => {
+    if (selectedShowId) {
+      loadData();
+    }
+  }, [selectedShowId, loadData]);
 
   // Search for dogs
   const handleDogSearch = async () => {

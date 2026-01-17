@@ -210,36 +210,39 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
     onDogsFiltered(filteredDogs);
   }, [filteredDogs, onDogsFiltered]);
 
-  // Track search performance
-  useEffect(() => {
+  // Track search performance using render-time sync pattern
+  const [prevSearchQuery, setPrevSearchQuery] = useState(debouncedSearchQuery);
+  if (debouncedSearchQuery !== prevSearchQuery) {
+    setPrevSearchQuery(debouncedSearchQuery);
     if (debouncedSearchQuery.trim()) {
       setIsSearching(true);
       setSearchStartTime(Date.now());
     } else {
       setIsSearching(false);
     }
-  }, [debouncedSearchQuery]);
+  }
 
-  // Add search to recent searches when user performs a search
-  useEffect(() => {
-    if (debouncedSearchQuery.trim() && enablePersistence) {
-      const endTime = Date.now();
-      const responseTime = searchStartTime > 0 ? endTime - searchStartTime : 0;
-      setSearchResponseTime(responseTime);
-      setIsSearching(false);
+  // Track search completion and add to recent searches
+  const searchKey = `${debouncedSearchQuery}-${filteredDogs.length}`;
+  const [prevSearchKey, setPrevSearchKey] = useState(searchKey);
+  if (searchKey !== prevSearchKey && debouncedSearchQuery.trim() && enablePersistence) {
+    setPrevSearchKey(searchKey);
+    const endTime = Date.now();
+    const responseTime = searchStartTime > 0 ? endTime - searchStartTime : 0;
+    setSearchResponseTime(responseTime);
+    setIsSearching(false);
 
-      addSearch(debouncedSearchQuery, {
-        resultCount: filteredDogs.length,
-        filters: {
-          breed: filters.breedFilter,
-          gender: filters.genderFilter,
-          registration: filters.registrationFilter,
-          age: filters.ageFilter,
-          quick: filters.quickFilter
-        }
-      });
-    }
-  }, [debouncedSearchQuery, filteredDogs.length, enablePersistence, addSearch, filters, searchStartTime]);
+    addSearch(debouncedSearchQuery, {
+      resultCount: filteredDogs.length,
+      filters: {
+        breed: filters.breedFilter,
+        gender: filters.genderFilter,
+        registration: filters.registrationFilter,
+        age: filters.ageFilter,
+        quick: filters.quickFilter
+      }
+    });
+  }
 
   // Close suggestions when clicking outside
   useEffect(() => {

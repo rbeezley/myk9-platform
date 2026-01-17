@@ -9,7 +9,7 @@
  * - Competition level tracking
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 
 // UI Components
@@ -53,7 +53,7 @@ export function ConformationScoresheet({
   disabled = false,
   className
 }: ConformationScoresheetProps) {
-  const [score, setScore] = useState<Partial<ConformationScore>>({
+  const [score, setScore] = useState<Partial<ConformationScore>>(() => ({
     format: 'conformation',
     entryId: entry.id,
     judgeId: '', // Will be set by parent component
@@ -61,18 +61,27 @@ export function ConformationScoresheet({
     pointsAwarded: 0,
     competitionLevel: 'Open',
     ...initialScore
-  });
+  }));
 
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+
+  // Track previous initialScore to sync changes during render
+  const [prevInitialScore, setPrevInitialScore] = useState(initialScore);
+  if (initialScore !== prevInitialScore) {
+    setPrevInitialScore(initialScore);
+    if (initialScore) {
+      setScore(prev => ({ ...prev, ...initialScore }));
+    }
+  }
 
   // Calculate championship points based on placement and competition size
   const calculatePoints = useCallback((placement?: number, competitionSize = 5) => {
     if (!placement || placement > 5) return 0;
-    
+
     // Standard AKC point scale
     const pointScale = [15, 14, 13, 12, 11]; // For competition of 5 dogs
     const basePoints = pointScale[placement - 1] || 0;
-    
+
     // Adjust for actual competition size
     const adjustedPoints = Math.max(1, Math.min(5, Math.floor(basePoints * (competitionSize / 5))));
     return adjustedPoints;
@@ -83,14 +92,14 @@ export function ConformationScoresheet({
     const placementNum = parseInt(placement);
     const points = calculatePoints(placementNum);
     const isMajor = points >= 3;
-    
+
     const updatedScore = {
       ...score,
       placement: placementNum,
       pointsAwarded: points,
       majorWin: isMajor
     };
-    
+
     setScore(updatedScore);
     onScoreChange(updatedScore);
   }, [score, calculatePoints, onScoreChange]);
@@ -101,10 +110,10 @@ export function ConformationScoresheet({
       ...score,
       awardLevel,
       // Special awards typically get additional points
-      pointsAwarded: awardLevel === 'Best of Breed' ? 
+      pointsAwarded: awardLevel === 'Best of Breed' ?
         Math.max(score.pointsAwarded || 0, 3) : score.pointsAwarded
     };
-    
+
     setScore(updatedScore);
     onScoreChange(updatedScore);
   }, [score, onScoreChange]);
@@ -115,7 +124,7 @@ export function ConformationScoresheet({
       ...score,
       [field]: value[0]
     };
-    
+
     setScore(updatedScore);
     onScoreChange(updatedScore);
   }, [score, onScoreChange]);
@@ -123,19 +132,19 @@ export function ConformationScoresheet({
   // Validate score before submission
   const validateScore = useCallback((): string[] => {
     const errors: string[] = [];
-    
+
     if (!score.placement || score.placement < 1) {
       errors.push('Placement is required');
     }
-    
+
     if (score.pointsAwarded === undefined || score.pointsAwarded < 0) {
       errors.push('Points awarded must be 0 or greater');
     }
-    
+
     if (!score.competitionLevel) {
       errors.push('Competition level is required');
     }
-    
+
     return errors;
   }, [score]);
 
@@ -143,23 +152,16 @@ export function ConformationScoresheet({
   const handleSave = useCallback(() => {
     const errors = validateScore();
     setValidationErrors(errors);
-    
+
     if (errors.length === 0) {
       const finalScore: ConformationScore = {
         ...score,
         timestamp: new Date()
       } as ConformationScore;
-      
+
       onSave(finalScore);
     }
   }, [score, validateScore, onSave]);
-
-  // Update parent when score changes
-  useEffect(() => {
-    if (initialScore) {
-      setScore(prev => ({ ...prev, ...initialScore }));
-    }
-  }, [initialScore]);
 
   return (
     <div className={cn("space-y-6", className)}>

@@ -65,20 +65,22 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
   preventClose = false,
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
-  const [mounted, setMounted] = useState(false);
+  // Initialize mounted to true - portal is always ready in modern React
+  const [mounted] = useState(true);
   const [isAnimating, setIsAnimating] = useState(false);
 
-  // Handle mount/unmount for portal
-  useEffect(() => {
-    setMounted(true);
-    return () => setMounted(false);
-  }, []);
-
-  // Handle open/close animations and focus management
-  useEffect(() => {
+  // Track open prop changes using render-time sync for animation state
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (open) {
       setIsAnimating(true);
-      
+    }
+  }
+
+  // Handle focus management and cleanup animations
+  useEffect(() => {
+    if (open) {
       // Focus management - focus the panel container first, then first input
       const timer = setTimeout(() => {
         if (panelRef.current) {

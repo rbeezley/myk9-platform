@@ -5,7 +5,7 @@
  * to eliminate the 10-second delay in show details navigation
  */
 
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
@@ -24,9 +24,11 @@ export function useOptimizedNavigation() {
   const queryClient = useQueryClient();
 
   // Set global navigate function for compatibility with show-actions
-  if (typeof window !== 'undefined') {
-    window.__NAVIGATE_FUNCTION__ = navigate;
-  }
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.__NAVIGATE_FUNCTION__ = navigate;
+    }
+  }, [navigate]);
 
   const navigateToShow = useCallback(async (
     showId: string, 

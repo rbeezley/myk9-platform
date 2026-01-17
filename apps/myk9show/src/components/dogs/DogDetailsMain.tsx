@@ -399,8 +399,9 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
                     // Show all breeds with a touch of personality
                     const breedText = breeds.join(', ');
                     const personalityEmojis = ['🌟', '💎', '👑', '✨', '🎭', '🌈'];
-                    const randomEmoji = personalityEmojis[Math.floor(Math.random() * personalityEmojis.length)];
-                    return `${breedText} ${randomEmoji}`;
+                    // Use breed string length as deterministic selector instead of Math.random()
+                    const emojiIndex = breedText.length % personalityEmojis.length;
+                    return `${breedText} ${personalityEmojis[emojiIndex]}`;
                   })()}
                 </p>
               </div>

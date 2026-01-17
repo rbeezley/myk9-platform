@@ -287,7 +287,10 @@ export function PlacementRecalculationAlert({
 
   // Monitor scoring events
   useEffect(() => {
-    monitorPlacements();
+    // Call monitorPlacements via a timeout to avoid synchronous setState in effect
+    const initTimer = setTimeout(() => {
+      monitorPlacements();
+    }, 0);
 
     // Listen for placement calculation events
     const handlePlacementCalculated = () => {
@@ -297,6 +300,7 @@ export function PlacementRecalculationAlert({
     placementCalculatorService.on('placements_calculated', handlePlacementCalculated);
 
     return () => {
+      clearTimeout(initTimer);
       placementCalculatorService.off('placements_calculated', handlePlacementCalculated);
     };
   }, [monitorPlacements]);

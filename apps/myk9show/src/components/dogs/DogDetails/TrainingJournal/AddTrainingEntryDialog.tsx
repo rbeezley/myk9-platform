@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import StandardDialog from '@/components/common/StandardDialog';
 import RequiredLabel from '@/components/common/RequiredLabel';
 import { Input } from '@/components/ui/input';
@@ -25,26 +25,35 @@ const AddTrainingEntryDialog: React.FC<AddTrainingEntryDialogProps> = ({ open, o
   const [notes, setNotes] = useState('');
   const [date, setDate] = useState<string>("");
   const [tags, setTags] = useState('');
-  
+
   // Form validation state
   const [errors, setErrors] = useState<{
     title?: string;
     notes?: string;
     date?: string;
   }>({});
-  
-  // Clear validation errors when input changes
-  useEffect(() => {
-    setErrors(prev => ({ ...prev, title: undefined }));
-  }, [title]);
-  
-  useEffect(() => {
-    setErrors(prev => ({ ...prev, notes: undefined }));
-  }, [notes]);
-  
-  useEffect(() => {
-    setErrors(prev => ({ ...prev, date: undefined }));
-  }, [date]);
+
+  // Clear validation errors when input changes using controlled update pattern
+  const handleTitleChange = (value: string) => {
+    setTitle(value);
+    if (errors.title) {
+      setErrors(prev => ({ ...prev, title: undefined }));
+    }
+  };
+
+  const handleNotesChange = (value: string) => {
+    setNotes(value);
+    if (errors.notes) {
+      setErrors(prev => ({ ...prev, notes: undefined }));
+    }
+  };
+
+  const handleDateChange = (value: string) => {
+    setDate(value);
+    if (errors.date) {
+      setErrors(prev => ({ ...prev, date: undefined }));
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,21 +99,21 @@ const AddTrainingEntryDialog: React.FC<AddTrainingEntryDialogProps> = ({ open, o
       <form id="add-training-entry-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div>
           <RequiredLabel required>Title</RequiredLabel>
-          <Input 
-            type="text" 
-            value={""} 
-            onChange={e => setTitle(e.target.value)} 
-            required 
+          <Input
+            type="text"
+            value={title}
+            onChange={e => handleTitleChange(e.target.value)}
+            required
             className={errors.title ? "border-red-500 focus-visible:ring-red-500" : ""}
           />
           {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title}</p>}
         </div>
         <div>
           <RequiredLabel required>Notes</RequiredLabel>
-          <Textarea 
-            value={""} 
-            onChange={e => setNotes(e.target.value)} 
-            required 
+          <Textarea
+            value={notes}
+            onChange={e => handleNotesChange(e.target.value)}
+            required
             className={errors.notes ? "border-red-500 focus-visible:ring-red-500" : ""}
           />
           {errors.notes && <p className="text-red-500 text-xs mt-1">{errors.notes}</p>}
@@ -112,15 +121,15 @@ const AddTrainingEntryDialog: React.FC<AddTrainingEntryDialogProps> = ({ open, o
         <div>
           <DatePickerField
             label="Date"
-            value={""}
-            onChange={setDate}
+            value={date}
+            onChange={handleDateChange}
             required
           />
           {errors.date && <p className="text-red-500 text-xs mt-1">{errors.date}</p>}
         </div>
         <div>
           <RequiredLabel>Tags <span className="text-muted-foreground">(comma separated)</span></RequiredLabel>
-          <Input type="text" value={""} onChange={e => setTags(e.target.value)} placeholder="e.g. Obedience, Progress" />
+          <Input type="text" value={tags} onChange={e => setTags(e.target.value)} placeholder="e.g. Obedience, Progress" />
         </div>
       </form>
     </StandardDialog>

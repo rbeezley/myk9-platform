@@ -1,7 +1,7 @@
 // Automated error reporting and monitoring system
 // Phase 3.3: Enhanced Error Handling & Recovery
 
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { logger } from '@/services/LoggingService';
 
@@ -524,7 +524,6 @@ export const errorMonitor = new ErrorMonitor();
 // Hook for error monitoring
 export const useErrorMonitoring = () => {
   const queryClient = useQueryClient();
-  const captureErrorRef = useRef<((error: Error, context?: Partial<ErrorContext>) => StructuredError) | undefined>(undefined);
 
   // Set up React Query error handling
   useEffect(() => {
@@ -571,12 +570,12 @@ export const useErrorMonitoring = () => {
     return unsubscribe;
   }, [queryClient]);
 
-  captureErrorRef.current = useCallback((error: Error, context?: Partial<ErrorContext>) => {
+  const captureError = useCallback((error: Error, context?: Partial<ErrorContext>) => {
     return errorMonitor.captureError(error, context);
   }, []);
 
   return {
-    captureError: captureErrorRef.current!,
+    captureError,
     getMetrics: () => errorMonitor.getMetrics(),
     getRecentErrors: (limit?: number) => errorMonitor.getRecentErrors(limit),
     clearErrors: () => errorMonitor.clearErrors(),

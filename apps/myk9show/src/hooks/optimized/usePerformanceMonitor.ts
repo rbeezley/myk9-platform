@@ -4,7 +4,7 @@
  * Performance monitoring hooks for tracking hook usage and re-renders
  */
 
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback, useLayoutEffect } from 'react';
 import { LoggingService } from '@/services/LoggingService';
 
 const logger = LoggingService.getInstance();
@@ -34,15 +34,22 @@ let globalMetrics: PerformanceMetrics = {};
  */
 export function useRenderTracker(componentName: string, props?: Record<string, unknown>) {
   const renderCount = useRef(0);
-  const startTime = useRef(0);
+  const startTimeRef = useRef(0);
   const prevProps = useRef(props);
-  
-  // Track render start
-  startTime.current = performance.now();
-  renderCount.current += 1;
+  const [renderCountState, setRenderCountState] = useState(0);
 
+  // Track render count via useLayoutEffect (not during render)
+  useLayoutEffect(() => {
+    renderCount.current += 1;
+    setRenderCountState(renderCount.current);
+  }, []);
+
+  // Use useEffect to capture render timing after DOM updates
   useEffect(() => {
-    const renderTime = performance.now() - startTime.current;
+    // Capture start time at the beginning of the effect (approximate render end)
+    const startTime = startTimeRef.current || performance.now();
+    startTimeRef.current = performance.now(); // Reset for next render
+    const renderTime = performance.now() - startTime;
     
     // Update global metrics
     if (!globalMetrics[componentName]) {
@@ -108,7 +115,7 @@ export function useRenderTracker(componentName: string, props?: Record<string, u
   });
 
   return {
-    renderCount: renderCount.current,
+    renderCount: renderCountState,
     getMetrics: () => globalMetrics[componentName]
   };
 }

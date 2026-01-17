@@ -5,7 +5,7 @@
  * for testing performance optimizations in a production-like environment.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -33,48 +33,53 @@ interface PerformanceSettings {
   enableConnectionPooling: boolean;
 }
 
+// Helper function to load stats
+function loadStatsData(): {
+  storage: { type?: string; enableMetrics?: boolean; [key: string]: unknown };
+  connection: ConnectionStats;
+  compression: { avgCompressionRatio: number; cacheSize: number; config: unknown };
+} | null {
+  try {
+    return {
+      storage: getStorageAdapterInfo(),
+      connection: getConnectionStats(),
+      compression: getCompressionStats(),
+    };
+  } catch (error) {
+    logger.warn('Could not load performance stats:', 'admin', {}, error as Error);
+    return null;
+  }
+}
+
 export const PerformanceModeToggle: React.FC = () => {
-  const [settings, setSettings] = useState<PerformanceSettings>({
-    storageMode: 'development',
-    enableMetrics: true,
-    enableCompression: false,
-    enableConnectionPooling: true,
-  });
-  
+
   const [isApplying, setIsApplying] = useState(false);
+
+  // Use lazy initial state to load stats on first render
   const [stats, setStats] = useState<{
     storage: { type?: string; enableMetrics?: boolean; [key: string]: unknown };
     connection: ConnectionStats;
     compression: { avgCompressionRatio: number; cacheSize: number; config: unknown };
-  } | null>(null);
+  } | null>(() => loadStatsData());
 
   const loadStats = useCallback(() => {
-    try {
-      setStats({
-        storage: getStorageAdapterInfo(),
-        connection: getConnectionStats(),
-        compression: getCompressionStats(),
-      });
-    } catch (error) {
-      logger.warn('Could not load performance stats:', 'admin', {}, error as Error);
+    const newStats = loadStatsData();
+    if (newStats) {
+      setStats(newStats);
     }
   }, []);
 
-  // Load current settings
-  useEffect(() => {
+  // Initialize settings from storage (lazy initial state)
+  const [settings, setSettings] = useState<PerformanceSettings>(() => {
     const currentInfo = getStorageAdapterInfo();
     const savedMode = localStorage.getItem('admin-storage-mode') as 'development' | 'production' | 'optimized' | null;
-
-    setSettings({
+    return {
       storageMode: savedMode || (import.meta.env.DEV ? 'development' : 'production'),
       enableMetrics: currentInfo.enableMetrics,
       enableCompression: localStorage.getItem('admin-enable-compression') === 'true',
       enableConnectionPooling: localStorage.getItem('admin-enable-pooling') !== 'false',
-    });
-
-    // Load performance stats
-    loadStats();
-  }, [loadStats]);
+    };
+  });
 
   const handleModeChange = (mode: 'development' | 'production' | 'optimized') => {
     setSettings(prev => ({ ...prev, storageMode: mode }));

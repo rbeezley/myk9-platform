@@ -59,27 +59,31 @@ export const SyncAnalyticsDashboard: React.FC<SyncAnalyticsDashboardProps> = ({ 
   const { operations, syncStats, conflicts } = useSyncStore();
   const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d'>('24h');
 
-  // Generate mock analytics data
+  // Generate mock analytics data with deterministic values
   const generateTimeSeriesData = (days: number, type: 'success' | 'error' | 'performance') => {
     type DataPoint = { date: string; value: number; success: number; error: number; performance: number };
     const data: DataPoint[] = [];
     const now = new Date();
 
+    // Seeded pseudo-random for deterministic values
+    const seededRandom = (seed: number, max: number) => ((seed * 1103515245 + 12345) >>> 16) % max;
+
     for (let i = days - 1; i >= 0; i--) {
       const date = subDays(now, i);
+      const seed = i + days * (type === 'success' ? 1 : type === 'error' ? 2 : 3);
       const baseValue = type === 'performance' ?
-        Math.random() * 1000 + 200 :
-        Math.floor(Math.random() * 50) + 10;
+        seededRandom(seed, 1000) + 200 :
+        seededRandom(seed, 50) + 10;
 
       data.push({
         date: format(date, 'MMM dd'),
         value: baseValue,
-        success: type === 'success' ? baseValue : Math.floor(Math.random() * 40) + 20,
-        error: type === 'error' ? baseValue : Math.floor(Math.random() * 5) + 1,
-        performance: type === 'performance' ? baseValue : Math.random() * 800 + 100
+        success: type === 'success' ? baseValue : seededRandom(seed + 100, 40) + 20,
+        error: type === 'error' ? baseValue : seededRandom(seed + 200, 5) + 1,
+        performance: type === 'performance' ? baseValue : seededRandom(seed + 300, 800) + 100
       });
     }
-    
+
     return data;
   };
 
@@ -393,7 +397,8 @@ export const SyncAnalyticsDashboard: React.FC<SyncAnalyticsDashboardProps> = ({ 
                       <span className="font-medium">Resolved</span>
                     </div>
                     <p className="text-2xl font-bold text-green-600 mt-2">
-                      {Math.floor(Math.random() * 50) + 10}
+                      {/* Deterministic value based on conflicts count */}
+                      {(conflicts.length * 3 + 15) % 50 + 10}
                     </p>
                   </div>
                   

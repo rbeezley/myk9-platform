@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
@@ -36,11 +36,14 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
     value ? format(value, timeFormat === '12h' ? 'hh:mm a' : 'HH:mm') : '08:00 AM'
   );
 
-  // Sync internal state when value prop changes
-  useEffect(() => {
+  // Sync internal state when value prop changes using render-time sync
+  const valueKey = value?.getTime() || 'undefined';
+  const [prevValueKey, setPrevValueKey] = useState(valueKey);
+  if (valueKey !== prevValueKey) {
+    setPrevValueKey(valueKey);
     setSelectedDate(value);
     setTimeValue(value ? format(value, timeFormat === '12h' ? 'hh:mm a' : 'HH:mm') : '08:00 AM');
-  }, [value, timeFormat]);
+  }
 
   const handleDateSelect = (date: Date | undefined) => {
     if (!date) {

@@ -103,6 +103,10 @@ const BrowseShowsPage: React.FC = () => {
   const [selectedTab, setSelectedTab] = useState(initialTab);
   const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode);
 
+  // Enhanced loading state management - declared early to be available in callbacks
+  const [isTabSwitching, setIsTabSwitching] = useState(false);
+  const [isViewModeChanging, setIsViewModeChanging] = useState(false);
+
   // Generate tab configuration based on user roles
   const tabConfig: TabConfiguration = useMemo(() => {
     return getTabsForUser(user);
@@ -302,40 +306,32 @@ const BrowseShowsPage: React.FC = () => {
     if (!filteredShows || filteredShows.length === 0) {
       return [];
     }
-    
-    const startTime = performance.now();
-    
+
     // First filter shows by permissions
     const permissionFilteredShows = ShowPermissionValidator.filterShows(filteredShows, user);
-    
+
     // Early return if no shows remain after permission filtering
     if (permissionFilteredShows.length === 0) {
       return [];
     }
-    
+
     if (!userContext) {
-      const result = permissionFilteredShows.map(show => ({ 
-        ...show, 
-        relationship: ['all' as ShowRelationship], 
-        userCanManage: false, 
-        userIsJudging: false, 
-        userHasEntries: false 
+      const result = permissionFilteredShows.map(show => ({
+        ...show,
+        relationship: ['all' as ShowRelationship],
+        userCanManage: false,
+        userIsJudging: false,
+        userHasEntries: false
       }));
-      
-      // Monitor performance only in development and when there are actual shows
-      if (import.meta.env.DEV && result.length > 0) {
-        const duration = performance.now() - startTime;
-        RelationshipPerformanceMonitor.getInstance().recordOperation('enhanceShowsWithRelationships', duration);
-      }
-      
+
       return result;
     }
-    
+
     // Use enhanced tracking system for more detailed relationship context
     const enhanced = permissionFilteredShows.map(show => {
       const enhancedContext = getEnhancedShowContext(show, user, entries);
       const baseRelationship = enhanceShowsWithRelationships([show], userContext)[0];
-      
+
       return {
         ...baseRelationship,
         // Add enhanced tracking information
@@ -345,13 +341,7 @@ const BrowseShowsPage: React.FC = () => {
         userCanViewPrivateData: enhancedContext?.canViewPrivateData || false
       };
     });
-    
-    // Monitor performance only in development and when there are actual shows
-    if (import.meta.env.DEV && enhanced.length > 0) {
-      const duration = performance.now() - startTime;
-      RelationshipPerformanceMonitor.getInstance().recordOperation('enhanceShowsWithRelationships', duration);
-    }
-    
+
     return enhanced;
   }, [filteredShows, userContext, user, entries]);
 
@@ -802,12 +792,8 @@ const BrowseShowsPage: React.FC = () => {
     );
   };
 
-  // Enhanced loading state management
-  const [isTabSwitching, setIsTabSwitching] = useState(false);
-  const [isViewModeChanging, setIsViewModeChanging] = useState(false);
-
-  // Error state component
-  const ErrorState = () => (
+  // Error state content
+  const errorStateContent = (
     <Card className="bg-card/95 backdrop-blur-sm border-border/50 shadow-sm">
       <CardContent className="p-12 text-center">
         <div className="bg-error-red/10 rounded-full p-6 mb-4 inline-block">
@@ -843,7 +829,7 @@ const BrowseShowsPage: React.FC = () => {
                   Error loading show data
                 </p>
               </div>
-              <ErrorState />
+              {errorStateContent}
             </>
           )}
 

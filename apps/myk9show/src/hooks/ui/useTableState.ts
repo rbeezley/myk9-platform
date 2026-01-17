@@ -237,10 +237,12 @@ export function useTableState<T extends { id: string }>({
     return processedData.slice(startIndex, endIndex);
   }, [processedData, pagination.page, pagination.pageSize]);
 
-  // Update total when processed data changes
-  useMemo(() => {
+  // Update total when processed data changes using render-time sync
+  const [prevProcessedLength, setPrevProcessedLength] = useState(processedData.length);
+  if (processedData.length !== prevProcessedLength) {
+    setPrevProcessedLength(processedData.length);
     setPagination(prev => ({ ...prev, total: processedData.length }));
-  }, [processedData.length]);
+  }
 
   // Computed values
   const totalPages = Math.ceil(processedData.length / pagination.pageSize);

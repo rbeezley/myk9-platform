@@ -24,7 +24,7 @@ export const OfflineStatusBar: React.FC<OfflineStatusBarProps> = ({
 }) => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [lastSyncTime, setLastSyncTime] = useState<Date | undefined>(
-    new Date(Date.now() - 5 * 60 * 1000) // 5 minutes ago
+    () => new Date(Date.now() - 5 * 60 * 1000) // 5 minutes ago
   );
   const [pendingChanges, setPendingChanges] = useState(0);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({

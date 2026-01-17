@@ -20,7 +20,7 @@ import {
 
 export const OfflineTestPage: React.FC = () => {
   const [isOnline] = useState(navigator.onLine);
-  const [lastSync] = useState(new Date(Date.now() - 10 * 60 * 1000)); // 10 minutes ago
+  const [lastSync] = useState(() => new Date(Date.now() - 10 * 60 * 1000)); // 10 minutes ago
   const [pendingChanges] = useState(5);
 
   const mockSyncStatus = {

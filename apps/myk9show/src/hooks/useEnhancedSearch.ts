@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useDebounce } from './useDebounce';
 import { useRecentSearches } from './useRecentSearches';
 import { useSearchCache, UseSearchOptions, SearchResult } from '@/lib/searchCache';
@@ -105,52 +105,55 @@ export function useEnhancedSearch<T = unknown>(
   // Execute search with the provided hook
   const searchQuery = searchHook(searchParams);
 
-  // Track search timing
+  // Track search timing using refs and effects to avoid impure function calls during render
+  const prevIsFetching = useRef(searchQuery.isFetching);
+  const prevData = useRef(searchQuery.data);
+  const [isSearching, setIsSearching] = useState(false);
+
+  // Track timing state changes via useEffect
   useEffect(() => {
-    if (searchQuery.isFetching && !searchQuery.isPreviousData) {
+    // Start timing when fetch begins
+    if (searchQuery.isFetching && !searchQuery.isPreviousData && !prevIsFetching.current) {
       setSearchStartTime(Date.now());
+      setIsSearching(true);
     }
+    prevIsFetching.current = searchQuery.isFetching;
   }, [searchQuery.isFetching, searchQuery.isPreviousData]);
 
-  // Handle search completion
+  // Handle search completion via useEffect
   useEffect(() => {
-    if (searchQuery.data && searchStartTime > 0) {
-      const endTime = Date.now();
-      const duration = endTime - searchStartTime;
-      setResponseTime(duration);
+    if (searchQuery.data !== prevData.current && searchQuery.data && !searchQuery.isFetching) {
+      prevData.current = searchQuery.data;
+      setIsSearching(false);
 
-      // Log analytics
-      if (enableAnalytics && debouncedQuery.trim() && searchQuery.data) {
-        logSearch({
-          query: debouncedQuery,
-          context,
-          resultCount: searchQuery.data.totalCount || 0,
-          responseTime: duration,
-          cacheHit: !searchQuery.isFetched, // If not fetched, it was from cache
-          timestamp: endTime
-        });
-      }
+      if (searchStartTime > 0) {
+        const endTime = Date.now();
+        const duration = endTime - searchStartTime;
+        setResponseTime(duration);
+        setSearchStartTime(0); // Reset for next search
 
-      // Add to recent searches
-      if (enableRecentSearches && debouncedQuery.trim() && searchQuery.data) {
-        recentSearchesHook.addSearch(debouncedQuery, {
-          resultCount: searchQuery.data.totalCount || 0,
-          filters
-        });
+        // Log analytics
+        if (enableAnalytics && debouncedQuery.trim()) {
+          logSearch({
+            query: debouncedQuery,
+            context,
+            resultCount: searchQuery.data?.totalCount || 0,
+            responseTime: duration,
+            cacheHit: !searchQuery.isFetched,
+            timestamp: endTime
+          });
+        }
+
+        // Add to recent searches
+        if (enableRecentSearches && debouncedQuery.trim()) {
+          recentSearchesHook.addSearch(debouncedQuery, {
+            resultCount: searchQuery.data?.totalCount || 0,
+            filters
+          });
+        }
       }
     }
-  }, [
-    searchQuery.data,
-    searchStartTime,
-    debouncedQuery,
-    context,
-    enableAnalytics,
-    enableRecentSearches,
-    logSearch,
-    recentSearchesHook,
-    filters,
-    searchQuery.isFetched
-  ]);
+  }, [searchQuery.data, searchQuery.isFetching, searchStartTime, enableAnalytics, debouncedQuery, context, searchQuery.isFetched, logSearch, enableRecentSearches, recentSearchesHook, filters]);
 
   // Prefetch related searches
   useEffect(() => {

@@ -182,8 +182,13 @@ export function EnhancedThemeProvider({ children }: { children: ReactNode }) {
     document.body.className = document.body.className.replace(/\bdensity-\w+\b/g, '');
   };
 
-  // Initialize theme on mount and when preferences change
-  useEffect(() => {
+  // Initialize theme on mount and when preferences change using render-time sync
+  const preferencesKey = themePreferences ? JSON.stringify(themePreferences) : 'none';
+  const userKey = user === null ? 'no-user' : (user?.id || 'loading');
+  const themeKey = `${preferencesKey}-${userKey}`;
+  const [prevThemeKey, setPrevThemeKey] = useState(themeKey);
+  if (themeKey !== prevThemeKey) {
+    setPrevThemeKey(themeKey);
     if (themePreferences) {
       applyThemePreferences(themePreferences);
       setLoading(false);
@@ -193,7 +198,7 @@ export function EnhancedThemeProvider({ children }: { children: ReactNode }) {
       applyThemeMode(savedMode || 'system');
       setLoading(false);
     }
-  }, [themePreferences, user, applyThemePreferences, applyThemeMode]);
+  }
 
   // Listen for system theme changes
   useEffect(() => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -61,13 +61,18 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
 }) => {
   const [registrationData, setRegistrationData] = useState<Registration>(initialData || INITIAL_REGISTRATION_DATA);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [wasOpen, setWasOpen] = useState(open);
+  const [lastInitialData, setLastInitialData] = useState(initialData);
 
-  useEffect(() => {
-    if (open) {
-      setRegistrationData(initialData || INITIAL_REGISTRATION_DATA);
-      setValidationErrors({});
-    }
-  }, [open, initialData]);
+  // Reset state when dialog opens or initialData changes
+  if (open && (!wasOpen || initialData !== lastInitialData)) {
+    setWasOpen(open);
+    setLastInitialData(initialData);
+    setRegistrationData(initialData || INITIAL_REGISTRATION_DATA);
+    setValidationErrors({});
+  } else if (!open && wasOpen) {
+    setWasOpen(false);
+  }
 
   const validateForm = (data: Registration): Record<string, string> => {
     const errors: Record<string, string> = {};

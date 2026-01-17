@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -49,6 +49,9 @@ export function SyncManagementPanel({
   const [conflictEntity, setConflictEntity] = React.useState<SyncEntity | null>(null);
   const [showConflictDialog, setShowConflictDialog] = React.useState(false);
 
+  // Capture initial time once to avoid Date.now() during render
+  const [now] = useState(() => Date.now());
+
   // Calculate sync statistics
   const stats = React.useMemo(() => {
     const total = entities.length;
@@ -91,13 +94,13 @@ export function SyncManagementPanel({
     },
     remote: {
       name: `${conflictEntity.name} (Server)`,
-      lastModified: new Date(Date.now() + 1000 * 60 * 5),
+      lastModified: new Date(now + 1000 * 60 * 5),
       version: 2
     },
     conflictFields: ['name', 'lastModified'],
     lastModified: {
       local: new Date(),
-      remote: new Date(Date.now() + 1000 * 60 * 5)
+      remote: new Date(now + 1000 * 60 * 5)
     },
     lastModifiedBy: {
       local: 'Current User',

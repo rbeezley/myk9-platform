@@ -108,8 +108,8 @@ export const LiveUpdateIndicator: React.FC<LiveUpdateIndicatorProps> = ({
       subscriptions.push(sub);
     }
 
-    // Load initial updates
-    loadInitialUpdates();
+    // Note: Initial updates array is already empty from useState initialization
+    // In a real implementation, this would load recent updates from the backend
 
     return () => {
       // Note: collaborationHub would need an unsubscribe method
@@ -117,12 +117,6 @@ export const LiveUpdateIndicator: React.FC<LiveUpdateIndicatorProps> = ({
       // Cleanup subscriptions would go here
     };
   }, [entityType, entityId, showId, handleUpdate]);
-
-  const loadInitialUpdates = () => {
-    // In a real implementation, this would load recent updates from the backend
-    // For now, we'll start with an empty array
-    setUpdates([]);
-  };
 
   const formatUpdateMessage = (update: LiveUpdate): string => {
     const entityName = update.entityType.charAt(0).toUpperCase() + update.entityType.slice(1);

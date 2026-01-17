@@ -40,67 +40,7 @@ const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
   const maxReconnectAttempts = 5;
   const reconnectDelay = 3000; // 3 seconds
 
-  // Establish WebSocket connection
-  const connect = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
-
-    try {
-      const ws = new WebSocket(url);
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        logger.info('WebSocket connected', 'websocket', { url });
-        setConnected(true);
-        reconnectAttempts.current = 0;
-
-        // Send authentication
-        ws.send(JSON.stringify({
-          type: 'auth',
-          exhibitorId,
-          timestamp: new Date().toISOString()
-        }));
-
-        // Re-subscribe to classes after reconnection
-        subscribedClasses.current.forEach(classId => {
-          ws.send(JSON.stringify({
-            type: 'subscribe',
-            classId,
-            timestamp: new Date().toISOString()
-          }));
-        });
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const data: ExhibitorEvent = JSON.parse(event.data);
-          handleMessage(data);
-        } catch (error) {
-          logger.error('Error parsing WebSocket message', 'websocket', {}, error as Error);
-        }
-      };
-
-      ws.onerror = (error) => {
-        logger.error('WebSocket error', 'websocket', { error });
-      };
-
-      ws.onclose = () => {
-        logger.info('WebSocket disconnected', 'websocket');
-        setConnected(false);
-        wsRef.current = null;
-
-        // Attempt to reconnect
-        if (reconnectAttempts.current < maxReconnectAttempts) {
-          reconnectAttempts.current++;
-          logger.info('Attempting to reconnect', 'websocket', { attempt: reconnectAttempts.current, maxAttempts: maxReconnectAttempts });
-          reconnectTimeoutRef.current = setTimeout(connect, reconnectDelay);
-        }
-      };
-    } catch (error) {
-      logger.error('Error creating WebSocket connection', 'websocket', { url }, error as Error);
-    }
-  }, [url, exhibitorId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Handle incoming messages
+  // Handle incoming messages - declared before connect which uses it
   const handleMessage = useCallback((event: ExhibitorEvent) => {
     setLastUpdate(new Date());
 
@@ -156,6 +96,74 @@ const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
         logger.warn('Unknown event type', 'websocket', { eventType: event.type });
     }
   }, []);
+
+  // Store connect function in a ref to enable self-reference in reconnect logic
+  const connectRef = useRef<() => void>(() => {});
+
+  // Establish WebSocket connection
+  const connect = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+
+    try {
+      const ws = new WebSocket(url);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        logger.info('WebSocket connected', 'websocket', { url });
+        setConnected(true);
+        reconnectAttempts.current = 0;
+
+        // Send authentication
+        ws.send(JSON.stringify({
+          type: 'auth',
+          exhibitorId,
+          timestamp: new Date().toISOString()
+        }));
+
+        // Re-subscribe to classes after reconnection
+        subscribedClasses.current.forEach(classId => {
+          ws.send(JSON.stringify({
+            type: 'subscribe',
+            classId,
+            timestamp: new Date().toISOString()
+          }));
+        });
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data: ExhibitorEvent = JSON.parse(event.data);
+          handleMessage(data);
+        } catch (error) {
+          logger.error('Error parsing WebSocket message', 'websocket', {}, error as Error);
+        }
+      };
+
+      ws.onerror = (error) => {
+        logger.error('WebSocket error', 'websocket', { error });
+      };
+
+      ws.onclose = () => {
+        logger.info('WebSocket disconnected', 'websocket');
+        setConnected(false);
+        wsRef.current = null;
+
+        // Attempt to reconnect using the ref to avoid circular dependency
+        if (reconnectAttempts.current < maxReconnectAttempts) {
+          reconnectAttempts.current++;
+          logger.info('Attempting to reconnect', 'websocket', { attempt: reconnectAttempts.current, maxAttempts: maxReconnectAttempts });
+          reconnectTimeoutRef.current = setTimeout(() => connectRef.current(), reconnectDelay);
+        }
+      };
+    } catch (error) {
+      logger.error('Error creating WebSocket connection', 'websocket', { url }, error as Error);
+    }
+  }, [url, exhibitorId, handleMessage]);
+
+  // Keep the ref updated with the latest connect function via useEffect
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   // Subscribe to class updates
   const subscribe = useCallback((classId: string) => {

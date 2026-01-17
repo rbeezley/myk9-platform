@@ -93,32 +93,7 @@ const WaitlistManagementPage: React.FC = () => {
     entry: WaitlistEntry | null;
   }>({ open: false, action: null, entry: null });
 
-  // Load shows on mount
-  useEffect(() => {
-    loadShows();
-  }, []);
-
-  // Load classes when show changes
-  useEffect(() => {
-    if (selectedShowId) {
-      loadClasses(selectedShowId);
-    } else {
-      setClasses([]);
-      setSelectedClassId('');
-      setWaitlistEntries([]);
-    }
-  }, [selectedShowId]);
-
-  // Load waitlist when class changes
-  useEffect(() => {
-    if (selectedClassId) {
-      loadWaitlist(selectedClassId);
-    } else {
-      setWaitlistEntries([]);
-    }
-  }, [selectedClassId]);
-
-  const loadShows = async () => {
+  const loadShows = useCallback(async () => {
     setIsLoadingShows(true);
     setError(null);
 
@@ -136,9 +111,9 @@ const WaitlistManagementPage: React.FC = () => {
     } finally {
       setIsLoadingShows(false);
     }
-  };
+  }, [user?.id]);
 
-  const loadClasses = async (showId: string) => {
+  const loadClasses = useCallback(async (showId: string) => {
     setIsLoadingClasses(true);
     setError(null);
     setSelectedClassId('');
@@ -158,9 +133,9 @@ const WaitlistManagementPage: React.FC = () => {
     } finally {
       setIsLoadingClasses(false);
     }
-  };
+  }, []);
 
-  const loadWaitlist = async (classId: string) => {
+  const loadWaitlist = useCallback(async (classId: string) => {
     setIsLoadingWaitlist(true);
     setError(null);
 
@@ -178,7 +153,32 @@ const WaitlistManagementPage: React.FC = () => {
     } finally {
       setIsLoadingWaitlist(false);
     }
-  };
+  }, []);
+
+  // Load shows on mount
+  useEffect(() => {
+    loadShows();
+  }, [loadShows]);
+
+  // Load classes when show changes
+  useEffect(() => {
+    if (selectedShowId) {
+      loadClasses(selectedShowId);
+    } else {
+      setClasses([]);
+      setSelectedClassId('');
+      setWaitlistEntries([]);
+    }
+  }, [selectedShowId, loadClasses]);
+
+  // Load waitlist when class changes
+  useEffect(() => {
+    if (selectedClassId) {
+      loadWaitlist(selectedClassId);
+    } else {
+      setWaitlistEntries([]);
+    }
+  }, [selectedClassId, loadWaitlist]);
 
   const handleOfferSpot = async () => {
     if (!actionDialog.entry) return;
@@ -267,7 +267,7 @@ const WaitlistManagementPage: React.FC = () => {
     if (selectedShowId) {
       loadClasses(selectedShowId);
     }
-  }, [selectedClassId, selectedShowId]);
+  }, [selectedClassId, selectedShowId, loadWaitlist, loadClasses]);
 
   // Filter waitlist entries by search term
   const filteredEntries = waitlistEntries.filter((entry) => {

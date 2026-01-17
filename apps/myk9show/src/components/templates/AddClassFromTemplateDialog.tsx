@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ClassTemplate } from '@/types/template.types';
 import { ClassFieldValues } from '@/types/field-definition-types';
 import { DynamicClassForm } from './DynamicClassForm';
@@ -38,24 +38,28 @@ export const AddClassFromTemplateDialog: React.FC<AddClassFromTemplateDialogProp
     usesStructuredFields(template) && template.isActive
   );
   
-  // Reset state when dialog opens/closes
-  useEffect(() => {
+  // Reset state when dialog opens using render-time sync pattern
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (open) {
       setSelectedTemplateId('');
       setSelectedTemplate(null);
       setStep('template');
     }
-  }, [open]);
-  
-  // Update selected template when ID changes
-  useEffect(() => {
+  }
+
+  // Update selected template when ID changes using render-time sync pattern
+  const [prevSelectedTemplateId, setPrevSelectedTemplateId] = useState(selectedTemplateId);
+  if (selectedTemplateId !== prevSelectedTemplateId) {
+    setPrevSelectedTemplateId(selectedTemplateId);
     if (selectedTemplateId) {
       const template = structuredTemplates.find(t => t.id === selectedTemplateId);
       setSelectedTemplate(template || null);
     } else {
       setSelectedTemplate(null);
     }
-  }, [selectedTemplateId, structuredTemplates]);
+  }
   
   const handleTemplateSelect = () => {
     if (selectedTemplate) {

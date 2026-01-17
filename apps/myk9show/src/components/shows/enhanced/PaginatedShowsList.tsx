@@ -5,7 +5,7 @@
  * status filtering, and optimized performance for large datasets.
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useShowData, useShowScopedData } from '@/components/providers/ShowDataProvider';
 import { useShowStore } from '@/store/showStore';
 import { Button } from '@/components/ui/button';
@@ -166,10 +166,13 @@ export function PaginatedShowsList({
     filteredShows.length
   );
 
-  // Reset to first page when filters change
-  useEffect(() => {
+  // Reset to first page when filters change (render-time sync pattern)
+  const filterKey = `${searchQuery}-${statusFilter}-${typeFilter}-${sortBy}-${sortDirection}`;
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
+  if (filterKey !== prevFilterKey) {
+    setPrevFilterKey(filterKey);
     setCurrentPage(1);
-  }, [searchQuery, statusFilter, typeFilter, sortBy, sortDirection]);
+  }
 
   // Get status badge configuration
   const getStatusBadge = (status: string) => {

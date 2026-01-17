@@ -121,13 +121,20 @@ export const EditingIndicator: React.FC<EditingIndicatorProps> = ({
     );
   };
 
+  // Track current time for expiration check
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 10000); // Update every 10 seconds
+    return () => clearInterval(id);
+  }, []);
+
   const renderEditLockIndicator = () => {
     if (!state.editLock) {
       return null;
     }
 
     const { editLock } = state;
-    const isExpiringSoon = editLock.expiresAt.getTime() - Date.now() < 60000; // Less than 1 minute
+    const isExpiringSoon = editLock.expiresAt.getTime() - now < 60000; // Less than 1 minute
 
     if (showAsAlert) {
       return (

@@ -17,15 +17,18 @@ interface RingMonitorProps {
   onRefresh?: () => void;
 }
 
-const RingMonitor: React.FC<RingMonitorProps> = ({ 
+const RingMonitor: React.FC<RingMonitorProps> = ({
   userEntry,
   ringStatus,
-  onRefresh 
+  onRefresh
 }) => {
   const navigate = useNavigate();
   const [elapsedTime, setElapsedTime] = useState(0);
-  const [isUserOnDeck, setIsUserOnDeck] = useState(false);
-  const [isUserNext, setIsUserNext] = useState(false);
+
+  // Derive user on deck and next status from props during render
+  const userPosition = ringStatus.onDeck.findIndex(entry => entry.armband === userEntry.armband);
+  const isUserOnDeck = userPosition !== -1;
+  const isUserNext = userPosition === 0;
 
   // Update elapsed time for current dog
   useEffect(() => {
@@ -36,13 +39,6 @@ const RingMonitor: React.FC<RingMonitorProps> = ({
       return () => clearInterval(interval);
     }
   }, [ringStatus.currentDog, ringStatus.isPaused]);
-
-  // Check if user is on deck or next
-  useEffect(() => {
-    const userPosition = ringStatus.onDeck.findIndex(entry => entry.armband === userEntry.armband);
-    setIsUserOnDeck(userPosition !== -1);
-    setIsUserNext(userPosition === 0);
-  }, [ringStatus.onDeck, userEntry.armband]);
 
   // Calculate estimated time until user's turn
   const calculateEstimatedTime = () => {

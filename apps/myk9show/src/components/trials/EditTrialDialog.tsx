@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -75,7 +75,11 @@ const EditTrialDialog: React.FC<EditTrialDialogProps> = ({ open, onOpenChange, o
     return `${hour24.toString().padStart(2, '0')}:${minutes}`;
   };
 
-  useEffect(() => {
+  // Track trial changes using render-time sync pattern
+  const trialKey = trial?.id || 'new';
+  const [prevTrialKey, setPrevTrialKey] = useState(trialKey);
+  if (trialKey !== prevTrialKey) {
+    setPrevTrialKey(trialKey);
     if (trial) {
       setFormData({
         id: trial.id ? parseInt(trial.id) : null,
@@ -91,7 +95,7 @@ const EditTrialDialog: React.FC<EditTrialDialogProps> = ({ open, onOpenChange, o
       });
       setDate(trial.date ? new Date(trial.date) : new Date());
     }
-  }, [trial]);
+  }
 
   const handleSave = () => {
     onSave({

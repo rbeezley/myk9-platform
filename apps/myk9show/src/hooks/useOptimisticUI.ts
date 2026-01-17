@@ -23,7 +23,11 @@ export const useOptimisticUI = (options: UseOptimisticUIOptions) => {
   const [lastOperationId, setLastOperationId] = useState<string | null>(null);
 
   const optionsRef = useRef(options);
-  optionsRef.current = options;
+
+  // Keep optionsRef updated in an effect (not during render)
+  useEffect(() => {
+    optionsRef.current = options;
+  }, [options]);
 
   // Update pending operations state
   const updatePendingOperations = useCallback(() => {

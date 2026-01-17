@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -51,6 +51,9 @@ export const SyncStatusPanel: React.FC<SyncStatusPanelProps> = ({
 }) => {
   const globalSync = useGlobalSyncStatus();
 
+  // Capture initial time once to avoid Date.now() in component body
+  const [now] = useState(() => Date.now());
+
   // Mock entity sync statistics - in production, this would come from stores/services
   const entityStats: EntitySyncStats[] = [
     {
@@ -61,7 +64,7 @@ export const SyncStatusPanel: React.FC<SyncStatusPanelProps> = ({
       synced: 23,
       pending: 2,
       errors: 0,
-      lastSyncAt: new Date(Date.now() - 5 * 60 * 1000) // 5 minutes ago
+      lastSyncAt: new Date(now - 5 * 60 * 1000) // 5 minutes ago
     },
     {
       entityType: 'people',
@@ -71,7 +74,7 @@ export const SyncStatusPanel: React.FC<SyncStatusPanelProps> = ({
       synced: 150,
       pending: 5,
       errors: 1,
-      lastSyncAt: new Date(Date.now() - 2 * 60 * 1000) // 2 minutes ago
+      lastSyncAt: new Date(now - 2 * 60 * 1000) // 2 minutes ago
     },
     {
       entityType: 'dogs',
@@ -81,7 +84,7 @@ export const SyncStatusPanel: React.FC<SyncStatusPanelProps> = ({
       synced: 87,
       pending: 2,
       errors: 0,
-      lastSyncAt: new Date(Date.now() - 3 * 60 * 1000) // 3 minutes ago
+      lastSyncAt: new Date(now - 3 * 60 * 1000) // 3 minutes ago
     },
     {
       entityType: 'entries',
@@ -91,7 +94,7 @@ export const SyncStatusPanel: React.FC<SyncStatusPanelProps> = ({
       synced: 338,
       pending: 3,
       errors: 1,
-      lastSyncAt: new Date(Date.now() - 1 * 60 * 1000) // 1 minute ago
+      lastSyncAt: new Date(now - 1 * 60 * 1000) // 1 minute ago
     }
   ];
 

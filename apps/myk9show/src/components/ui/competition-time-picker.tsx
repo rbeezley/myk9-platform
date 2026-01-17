@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
@@ -36,8 +36,10 @@ export const CompetitionTimePicker: React.FC<CompetitionTimePickerProps> = ({
   const secondsRef = useRef<HTMLInputElement>(null);
   const hundredthsRef = useRef<HTMLInputElement>(null);
 
-  // Parse incoming value into separate components
-  useEffect(() => {
+  // Parse incoming value into separate components using render-time sync
+  const [prevValue, setPrevValue] = useState(value);
+  if (value !== prevValue) {
+    setPrevValue(value);
     if (value) {
       const match = value.match(/^(\d{1,2}):([0-5]\d)\.(\d{2})$/);
       if (match) {
@@ -50,7 +52,7 @@ export const CompetitionTimePicker: React.FC<CompetitionTimePickerProps> = ({
       setSeconds('');
       setHundredths('');
     }
-  }, [value]);
+  }
 
   // Combine components into MM:SS.HH format
   const updateValue = (newMinutes: string, newSeconds: string, newHundredths: string) => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Expand, Minimize2 } from 'lucide-react';
 
 interface SectionToggleControlsProps {
@@ -14,29 +14,26 @@ const SectionToggleControls: React.FC<SectionToggleControlsProps> = ({
   className = '',
   allExpanded
 }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+  // Internal state only used when no external state is provided
+  const [internalExpanded, setInternalExpanded] = useState(false);
 
-  // Sync with external state if provided
-  useEffect(() => {
-    if (allExpanded !== undefined) {
-      setIsExpanded(allExpanded);
-    }
-  }, [allExpanded]);
+  // Derive the displayed state from props or internal state
+  const isExpanded = allExpanded !== undefined ? allExpanded : internalExpanded;
 
   const handleToggle = (e: React.MouseEvent) => {
     e.preventDefault();
-    
+
     if (isExpanded) {
       onCollapseAll();
       // Only update internal state if no external state is provided
       if (allExpanded === undefined) {
-        setIsExpanded(false);
+        setInternalExpanded(false);
       }
     } else {
       onExpandAll();
       // Only update internal state if no external state is provided
       if (allExpanded === undefined) {
-        setIsExpanded(true);
+        setInternalExpanded(true);
       }
     }
   };

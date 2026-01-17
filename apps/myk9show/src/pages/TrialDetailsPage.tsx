@@ -99,39 +99,37 @@ const TrialDetailsPage: React.FC = () => {
     });
   }
 
-  // Handle case where trial doesn't exist
-  // Add empty classes array if not present
-  if (currentTrial && !currentTrial.classes) {
-    currentTrial.classes = [];
-  }
+  // Compute trial with classes using useMemo instead of mutating the store object
+  // This ensures we don't modify the original store data during render
+  const trialWithClasses = useMemo(() => {
+    if (!currentTrial) return undefined;
 
-  // Sync classes from classStore to trial - populate trial.classes from store
-  useEffect(() => {
-    if (currentTrial) {
-      const trialClasses = classes.filter(c => c.trialId === currentTrial.id);
-      
-      // Convert ClassData to TrialClass format
-      const convertedClasses = trialClasses.map(classData => ({
-        id: classData.id,
-        element: classData.element || 'Unknown',
-        level: classData.level || 'Unknown', 
-        section: classData.section || 'A',
-        status: classData.status === 'Scheduled' ? 'Upcoming' : classData.status as 'Upcoming' | 'In Progress' | 'Completed' | 'Cancelled',
-        judgeId: classData.judge || 'TBD', // Using judge field as judgeId for now
-        judgeName: classData.judge || 'TBD',
-        startTime: new Date().toISOString(), // Default start time - TODO: Get from class data
-        entries: 0 // TODO: Get from entries store
-      }));
-      
-      // Update the trial's classes array
-      currentTrial.classes = convertedClasses;
-    }
+    const trialClasses = classes.filter(c => c.trialId === currentTrial.id);
+
+    // Convert ClassData to TrialClass format
+    const convertedClasses = trialClasses.map(classData => ({
+      id: classData.id,
+      element: classData.element || 'Unknown',
+      level: classData.level || 'Unknown',
+      section: classData.section || 'A',
+      status: classData.status === 'Scheduled' ? 'Upcoming' : classData.status as 'Upcoming' | 'In Progress' | 'Completed' | 'Cancelled',
+      judgeId: classData.judge || 'TBD', // Using judge field as judgeId for now
+      judgeName: classData.judge || 'TBD',
+      startTime: new Date().toISOString(), // Default start time - TODO: Get from class data
+      entries: 0 // TODO: Get from entries store
+    }));
+
+    // Return a new object with classes merged in, without mutating the original
+    return {
+      ...currentTrial,
+      classes: convertedClasses.length > 0 ? convertedClasses : (currentTrial.classes || [])
+    };
   }, [currentTrial, classes]);
 
 
   // Generate statistics for the trial
   const trialStatistics: TrialStatisticsData = useMemo(() => {
-    if (!currentTrial || !currentTrial.classes) {
+    if (!trialWithClasses || !trialWithClasses.classes) {
       return {
         judges: { total: 0, active: 0, onBreak: 0, percentChange: 0 },
         classes: { total: 0, upcoming: 0, completed: 0, percentChange: 0 },
@@ -140,8 +138,8 @@ const TrialDetailsPage: React.FC = () => {
       };
     }
 
-    const totalClasses = currentTrial.classes.length;
-    const completedClasses = currentTrial.classes.filter((c: TrialClass) => c.status === 'Completed').length;
+    const totalClasses = trialWithClasses.classes.length;
+    const completedClasses = trialWithClasses.classes.filter((c: TrialClass) => c.status === 'Completed').length;
     const upcomingClasses = totalClasses - completedClasses;
     
     // Mock some entries data
@@ -153,32 +151,32 @@ const TrialDetailsPage: React.FC = () => {
     const qualifiedEntries = Math.floor(completedEntries * 0.75); // 75% qualification rate
     
     return {
-      judges: { 
-        total: 2, 
-        active: currentTrial.status === 'In Progress' ? 2 : 0, 
-        onBreak: 0, 
-        percentChange: Math.round(((currentTrial.status === 'In Progress' ? 2 : 0) / 2) * 100) 
+      judges: {
+        total: 2,
+        active: trialWithClasses.status === 'In Progress' ? 2 : 0,
+        onBreak: 0,
+        percentChange: Math.round(((trialWithClasses.status === 'In Progress' ? 2 : 0) / 2) * 100)
       },
-      classes: { 
-        total: totalClasses, 
-        upcoming: upcomingClasses, 
-        completed: completedClasses, 
-        percentChange: totalClasses > 0 ? Math.round((completedClasses / totalClasses) * 100) : 0 
+      classes: {
+        total: totalClasses,
+        upcoming: upcomingClasses,
+        completed: completedClasses,
+        percentChange: totalClasses > 0 ? Math.round((completedClasses / totalClasses) * 100) : 0
       },
-      entries: { 
-        total: totalEntries, 
-        upcoming: upcomingEntries, 
-        completed: completedEntries, 
-        percentChange: totalEntries > 0 ? Math.round((completedEntries / totalEntries) * 100) : 0 
+      entries: {
+        total: totalEntries,
+        upcoming: upcomingEntries,
+        completed: completedEntries,
+        percentChange: totalEntries > 0 ? Math.round((completedEntries / totalEntries) * 100) : 0
       },
-      qualifiedRate: { 
-        percent: completedEntries > 0 ? Math.round((qualifiedEntries / completedEntries) * 100) : 0, 
-        qualified: qualifiedEntries, 
-        total: completedEntries, 
-        percentChange: completedEntries > 0 ? Math.round((qualifiedEntries / completedEntries) * 100) : 0 
+      qualifiedRate: {
+        percent: completedEntries > 0 ? Math.round((qualifiedEntries / completedEntries) * 100) : 0,
+        qualified: qualifiedEntries,
+        total: completedEntries,
+        percentChange: completedEntries > 0 ? Math.round((qualifiedEntries / completedEntries) * 100) : 0
       }
     };
-  }, [currentTrial]);
+  }, [trialWithClasses]);
 
   // Handle case where trial doesn't exist - moved after hooks
   if (trialId && !currentTrial && trials.length > 0) {

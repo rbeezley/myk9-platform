@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useShowRegistrationStore } from '../store/showRegistrationStore';
 import { RegistrationFormData } from '../types/show-registration-types';
 import { logger } from '@/services/LoggingService';
@@ -55,6 +55,7 @@ export function useDraftPersistence(
   const { draftData } = useShowRegistrationStore();
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastSavedDataRef = useRef<string>('');
+  const [lastAutoSaveTime, setLastAutoSaveTime] = useState<Date | null>(null);
 
   const log = useCallback((message: string, ...args: unknown[]) => {
     if (debug) {
@@ -209,6 +210,7 @@ export function useDraftPersistence(
     const draftId = saveDraft(draftData);
     if (draftId) {
       lastSavedDataRef.current = currentDataString;
+      setLastAutoSaveTime(new Date());
       log('Auto-saved draft:', draftId);
     }
   }, [draftData, saveDraft, log]);
@@ -276,7 +278,7 @@ export function useDraftPersistence(
     
     // State
     hasUnsavedChanges: draftData && Object.keys(draftData).length > 0,
-    lastAutoSave: lastSavedDataRef.current ? new Date(JSON.parse(lastSavedDataRef.current).timestamp || Date.now()) : null
+    lastAutoSave: lastAutoSaveTime
   };
 }
 

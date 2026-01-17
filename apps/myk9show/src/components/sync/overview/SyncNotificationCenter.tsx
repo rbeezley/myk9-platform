@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -53,8 +53,14 @@ export const SyncNotificationCenter: React.FC<SyncNotificationCenterProps> = ({ 
   const [notifications, setNotifications] = useState<SyncNotification[]>([]);
   const [filter, setFilter] = useState<'all' | 'unread' | 'errors'>('all');
 
-  // Generate notifications from sync operations and conflicts
-  useEffect(() => {
+  // Track operations and conflicts to generate notifications using render-time sync
+  const operationsKey = operations.map(op => `${op.id}-${op.status}`).join(',');
+  const conflictsKey = conflicts.map(c => c.id).join(',');
+  const syncKey = `${operationsKey}-${conflictsKey}`;
+  const [prevSyncKey, setPrevSyncKey] = useState(syncKey);
+
+  if (syncKey !== prevSyncKey) {
+    setPrevSyncKey(syncKey);
     const newNotifications: SyncNotification[] = [];
 
     // Add notifications for completed operations
@@ -96,7 +102,7 @@ export const SyncNotificationCenter: React.FC<SyncNotificationCenterProps> = ({ 
     if (newNotifications.length > 0) {
       setNotifications(prev => [...newNotifications, ...prev].slice(0, 50)); // Keep last 50
     }
-  }, [operations, conflicts, notifications]);
+  }
 
   const filteredNotifications = notifications.filter(notification => {
     if (filter === 'unread') return !notification.read;

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { AlertTriangle, RefreshCw, Home, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -25,15 +25,18 @@ const DelightfulError: React.FC<DelightfulErrorProps> = ({
     }
   };
 
-  const errorMessages = [
-    "Oops! Our digital dog got distracted by a squirrel!",
-    "Woof! Something went a bit ruff...",
-    "Our app is having a ruff day, but we're fetching a solution!",
-    "Even the best dogs have their off days. Let's try again!",
-    "Looks like we hit a snag in the show ring. No worries!"
-  ];
-
-  const randomMessage = errorMessages[Math.floor(Math.random() * errorMessages.length)];
+  // Select message deterministically based on error message length to avoid Math.random()
+  const randomMessage = useMemo(() => {
+    const messages = [
+      "Oops! Our digital dog got distracted by a squirrel!",
+      "Woof! Something went a bit ruff...",
+      "Our app is having a ruff day, but we're fetching a solution!",
+      "Even the best dogs have their off days. Let's try again!",
+      "Looks like we hit a snag in the show ring. No worries!"
+    ];
+    const seed = (error?.message?.length || message?.length || 0) % messages.length;
+    return messages[seed];
+  }, [error?.message, message]);
 
   if (variant === 'page') {
     return (

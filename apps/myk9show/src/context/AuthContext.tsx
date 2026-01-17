@@ -178,7 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     loadRbacData();
-  }, [auth.user?.id]);
+  }, [auth.user?.id, auth.user]);
 
   // Build userWithRoles - priority: mock user > database RBAC > legacy RBAC > profile roles > fallback
   const userWithRoles = useMemo((): UserWithRoles | null => {

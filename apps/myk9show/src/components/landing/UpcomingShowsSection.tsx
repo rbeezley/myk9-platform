@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MapPin, ChevronLeft, ChevronRight } from "lucide-react";
@@ -30,6 +30,23 @@ const UpcomingShowsSection: React.FC<UpcomingShowsSectionProps> = ({ shows, onAd
     setScrollIndex(idx);
   };
 
+  // Scroll function - declared before useEffect that uses it
+  const scroll = useCallback((direction: 'left' | 'right', fromAuto = false) => {
+    if (scrollRef.current) {
+      const { current } = scrollRef;
+      const scrollAmount = CARD_WIDTH;
+      if (direction === 'left') {
+        current.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+      } else {
+        current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+      }
+      if (!fromAuto) setAutoScrollPaused(true);
+    }
+  }, []);
+
+  // Pause auto-scroll on user interaction
+  const handleUserScroll = useCallback(() => setAutoScrollPaused(true), []);
+
   useEffect(() => {
     updateScrollButtons();
     const ref = scrollRef.current;
@@ -49,23 +66,7 @@ const UpcomingShowsSection: React.FC<UpcomingShowsSectionProps> = ({ shows, onAd
       scroll('right', true);
     }, AUTO_SCROLL_INTERVAL);
     return () => clearInterval(interval);
-  }, [autoScrollPaused, canScrollRight]);
-
-  const scroll = (direction: 'left' | 'right', fromAuto = false) => {
-    if (scrollRef.current) {
-      const { current } = scrollRef;
-      const scrollAmount = CARD_WIDTH;
-      if (direction === 'left') {
-        current.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
-      } else {
-        current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
-      }
-      if (!fromAuto) setAutoScrollPaused(true);
-    }
-  };
-
-  // Pause auto-scroll on user interaction
-  const handleUserScroll = () => setAutoScrollPaused(true);
+  }, [autoScrollPaused, canScrollRight, scroll]);
 
   return (
     <section className="py-16 bg-background text-foreground transition-colors duration-300">

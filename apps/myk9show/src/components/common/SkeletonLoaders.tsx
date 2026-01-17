@@ -4,7 +4,7 @@
  * Provides context-aware loading states that match the expected content layout
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 
 // Base skeleton component
@@ -127,41 +127,49 @@ export const CardGridSkeleton: React.FC<{ items?: number }> = ({ items = 6 }) =>
 );
 
 // Calendar skeleton
-export const CalendarSkeleton: React.FC = () => (
-  <div className="space-y-4">
-    {/* Calendar header */}
-    <div className="flex justify-between items-center">
-      <Skeleton className="h-8 w-48" />
-      <div className="flex space-x-2">
-        <Skeleton className="h-10 w-10" />
-        <Skeleton className="h-10 w-10" />
+export const CalendarSkeleton: React.FC = () => {
+  // Pre-compute which days have extra content to avoid Math.random() during render
+  const daysWithContent = useMemo(() => {
+    // Show content on roughly 30% of days (indices: 2, 5, 9, 14, 18, 23, 27, 31)
+    return new Set([2, 5, 9, 14, 18, 23, 27, 31]);
+  }, []);
+
+  return (
+    <div className="space-y-4">
+      {/* Calendar header */}
+      <div className="flex justify-between items-center">
+        <Skeleton className="h-8 w-48" />
+        <div className="flex space-x-2">
+          <Skeleton className="h-10 w-10" />
+          <Skeleton className="h-10 w-10" />
+        </div>
+      </div>
+
+      {/* Calendar grid */}
+      <div className="grid grid-cols-7 gap-1">
+        {/* Week headers */}
+        {Array.from({ length: 7 }).map((_, i) => (
+          <div key={i} className="p-2 text-center">
+            <Skeleton className="h-4 w-8 mx-auto" />
+          </div>
+        ))}
+
+        {/* Calendar days */}
+        {Array.from({ length: 35 }).map((_, i) => (
+          <div key={i} className="p-2 h-24 border">
+            <Skeleton className="h-4 w-6 mb-2" />
+            {daysWithContent.has(i) && (
+              <div className="space-y-1">
+                <Skeleton className="h-2 w-full" />
+                <Skeleton className="h-2 w-3/4" />
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </div>
-
-    {/* Calendar grid */}
-    <div className="grid grid-cols-7 gap-1">
-      {/* Week headers */}
-      {Array.from({ length: 7 }).map((_, i) => (
-        <div key={i} className="p-2 text-center">
-          <Skeleton className="h-4 w-8 mx-auto" />
-        </div>
-      ))}
-      
-      {/* Calendar days */}
-      {Array.from({ length: 35 }).map((_, i) => (
-        <div key={i} className="p-2 h-24 border">
-          <Skeleton className="h-4 w-6 mb-2" />
-          {Math.random() > 0.7 && (
-            <div className="space-y-1">
-              <Skeleton className="h-2 w-full" />
-              <Skeleton className="h-2 w-3/4" />
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  </div>
-);
+  );
+};
 
 // Detail page skeleton
 export const DetailPageSkeleton: React.FC = () => (

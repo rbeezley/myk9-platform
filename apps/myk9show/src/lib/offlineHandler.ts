@@ -1,7 +1,7 @@
 // Offline detection and graceful degradation system
 // Phase 3.3: Enhanced Error Handling & Recovery
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQueryClient, QueryClient } from '@tanstack/react-query';
 import { queryKeys } from './queryClient';
 import { logger } from '@/services/LoggingService';
@@ -480,13 +480,12 @@ export class GracefulDegradationManager {
 export const useOfflineFirst = () => {
   const queryClient = useQueryClient();
   const networkStatus = useNetworkStatus();
-  const degradationManagerRef = useRef<GracefulDegradationManager | undefined>(undefined);
 
-  if (!degradationManagerRef.current) {
-    degradationManagerRef.current = new GracefulDegradationManager(queryClient);
-  }
-
-  const degradationManager = degradationManagerRef.current;
+  // Use useMemo to ensure stable initialization of the degradation manager
+  const degradationManager = useMemo(
+    () => new GracefulDegradationManager(queryClient),
+    [queryClient]
+  );
 
   // Auto-sync when coming back online
   useEffect(() => {

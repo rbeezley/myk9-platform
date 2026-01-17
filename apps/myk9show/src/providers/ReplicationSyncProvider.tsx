@@ -212,7 +212,11 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       } else if (wasOffline.current) {
         wasOffline.current = false;
         logger.info('Back online - triggering sync', 'replication');
-        triggerSync();
+        // Defer to next tick to avoid synchronous setState in effect
+        const timer = setTimeout(() => {
+          triggerSync();
+        }, 0);
+        return () => clearTimeout(timer);
       }
     }
   }, [isOnline, syncOnReconnect, triggerSync]);

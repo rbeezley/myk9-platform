@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import { logger } from '@/services/LoggingService';
 
@@ -60,7 +60,14 @@ export function useOptimisticUpdates<T>(
   const [hasOptimisticChanges, setHasOptimisticChanges] = useState(false);
 
   const pendingUpdatesRef = useRef(pendingUpdates);
-  pendingUpdatesRef.current = pendingUpdates;
+
+  // Keep pendingUpdatesRef in sync via useEffect
+  useEffect(() => {
+    pendingUpdatesRef.current = pendingUpdates;
+  }, [pendingUpdates]);
+
+  // Ref to enable self-reference in executeOptimisticUpdate for retry logic
+  const executeOptimisticUpdateRef = useRef<typeof executeOptimisticUpdate>(null!);
 
   const log = useCallback((message: string, ...args: unknown[]) => {
     if (debug) {
@@ -276,8 +283,8 @@ export function useOptimisticUpdates<T>(
           return newUpdates;
         });
 
-        // Retry with incremented count
-        return executeOptimisticUpdate(type, optimisticData, action, {
+        // Retry with incremented count using ref for self-reference
+        return executeOptimisticUpdateRef.current(type, optimisticData, action, {
           ...options,
           retryCount: retryCount + 1
         });
@@ -301,6 +308,11 @@ export function useOptimisticUpdates<T>(
     confirmUpdate,
     rollbackUpdate
   ]);
+
+  // Keep ref updated with latest function for recursive calls via useEffect
+  useEffect(() => {
+    executeOptimisticUpdateRef.current = executeOptimisticUpdate;
+  }, [executeOptimisticUpdate]);
 
   // Rollback all pending updates
   const rollbackAll = useCallback(() => {

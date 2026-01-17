@@ -1,5 +1,37 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Sparkles, Heart, Star } from 'lucide-react';
+
+// Separate component for confetti to keep random positions stable during rerenders
+const ConfettiExplosion: React.FC<{ confetti: string[] }> = ({ confetti }) => {
+  // Pre-compute positions once per mount to avoid Math.random() during render
+  const positions = useMemo(() =>
+    confetti.map((_, index) => ({
+      // Use deterministic pattern based on index
+      top: ((index * 37 + 13) % 100),
+      left: ((index * 53 + 7) % 100),
+    })),
+    [confetti]
+  );
+
+  return (
+    <div className="absolute inset-0 pointer-events-none">
+      {confetti.map((emoji, index) => (
+        <div
+          key={index}
+          className="absolute text-3xl animate-bounce"
+          style={{
+            top: `${positions[index].top}%`,
+            left: `${positions[index].left}%`,
+            animationDelay: `${index * 0.2}s`,
+            animationDuration: '2s'
+          }}
+        >
+          {emoji}
+        </div>
+      ))}
+    </div>
+  );
+};
 
 interface FirstTimeDelightProps {
   trigger: 'signup' | 'first-show' | 'first-entry' | 'profile-complete';
@@ -84,22 +116,7 @@ const FirstTimeDelight: React.FC<FirstTimeDelightProps> = ({
       <div className="relative max-w-md mx-4">
         {/* Confetti explosion */}
         {animationPhase >= 2 && (
-          <div className="absolute inset-0 pointer-events-none">
-            {config.confetti.map((emoji, index) => (
-              <div
-                key={index}
-                className="absolute text-3xl animate-bounce"
-                style={{
-                  top: `${Math.random() * 100}%`,
-                  left: `${Math.random() * 100}%`,
-                  animationDelay: `${index * 0.2}s`,
-                  animationDuration: '2s'
-                }}
-              >
-                {emoji}
-              </div>
-            ))}
-          </div>
+          <ConfettiExplosion confetti={config.confetti} />
         )}
 
         {/* Main card */}

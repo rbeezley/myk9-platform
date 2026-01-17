@@ -3,7 +3,7 @@
 
 import { QueryClient, useQueryClient } from '@tanstack/react-query';
 import { logger } from '@/services/LoggingService';
-import { useCallback, useRef, useEffect } from 'react';
+import { useCallback, useRef, useEffect, useMemo } from 'react';
 import { queryKeys, cacheStrategies } from './queryClient';
 import { 
   getAllDogs, 
@@ -355,13 +355,14 @@ export class IntelligentPrefetcher {
 // Hook for intelligent prefetching
 export const useIntelligentPrefetching = () => {
   const queryClient = useQueryClient();
-  const prefetcherRef = useRef<IntelligentPrefetcher | undefined>(undefined);
 
-  if (!prefetcherRef.current) {
-    prefetcherRef.current = new IntelligentPrefetcher(queryClient);
-  }
+  // Use useMemo to ensure stable initialization of the prefetcher
+  const prefetcher = useMemo(
+    () => new IntelligentPrefetcher(queryClient),
+    [queryClient]
+  );
 
-  return prefetcherRef.current;
+  return prefetcher;
 };
 
 // Pagination utilities for large result sets

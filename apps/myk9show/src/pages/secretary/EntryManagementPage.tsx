@@ -137,22 +137,7 @@ const EntryManagementPage: React.FC = () => {
   // Real-time status updates for entries
   const { status: entryUpdates } = useStatusUpdates('entries', 'all');
 
-  // Load shows on mount
-  useEffect(() => {
-    loadShows();
-  }, []);
-
-  // Load entries when show changes
-  useEffect(() => {
-    if (selectedShowId) {
-      loadEntries(selectedShowId);
-    } else {
-      setEntries([]);
-      setFilteredEntries([]);
-    }
-  }, [selectedShowId]);
-
-  const loadShows = async () => {
+  const loadShows = useCallback(async () => {
     setIsLoadingShows(true);
     try {
       const { data, error } = await getSecretaryShows(user?.id || '');
@@ -166,9 +151,9 @@ const EntryManagementPage: React.FC = () => {
     } finally {
       setIsLoadingShows(false);
     }
-  };
+  }, [user?.id]);
 
-  const loadEntries = async (showId: string) => {
+  const loadEntries = useCallback(async (showId: string) => {
     setIsLoading(true);
     setError(null);
     try {
@@ -222,7 +207,22 @@ const EntryManagementPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  // Load shows on mount
+  useEffect(() => {
+    loadShows();
+  }, [loadShows]);
+
+  // Load entries when show changes
+  useEffect(() => {
+    if (selectedShowId) {
+      loadEntries(selectedShowId);
+    } else {
+      setEntries([]);
+      setFilteredEntries([]);
+    }
+  }, [selectedShowId, loadEntries]);
 
   // Helper functions to map database status to UI enums
   const mapEntryStatus = (status: string | null): EntryStatus => {

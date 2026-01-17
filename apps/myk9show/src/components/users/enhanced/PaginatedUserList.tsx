@@ -5,7 +5,7 @@
  * and optimized performance for large datasets.
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useShowData, useShowScopedData } from '@/components/providers/ShowDataProvider';
 import { useUserStore } from '@/store/userStore';
 import { useDogStore } from '@/store/dogStore';
@@ -147,10 +147,13 @@ export function PaginatedPeopleList({
     filteredPeople.length
   );
 
-  // Reset to first page when filters change
-  useEffect(() => {
+  // Reset to first page when filters change using render-time sync
+  const filterKey = `${searchQuery}-${roleFilter}-${sortBy}-${sortDirection}`;
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
+  if (filterKey !== prevFilterKey) {
+    setPrevFilterKey(filterKey);
     setCurrentPage(1);
-  }, [searchQuery, roleFilter, sortBy, sortDirection]);
+  }
 
   // Get person's dog count for display
   const getPersonDogCount = (personId: string): number => {

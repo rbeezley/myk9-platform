@@ -62,15 +62,20 @@ export function ThemeProvider({
     return resolveTheme(theme);
   });
 
-  // Update actual theme when theme or system preference changes
-  useEffect(() => {
+  // Track theme changes to update actual theme and apply to DOM
+  const [lastThemeKey, setLastThemeKey] = useState(`${theme}-${attribute}`);
+  const themeKey = `${theme}-${attribute}`;
+
+  // Update actual theme when theme changes during render
+  if (themeKey !== lastThemeKey) {
+    setLastThemeKey(themeKey);
     const newActualTheme = resolveTheme(theme);
     setActualTheme(newActualTheme);
 
     // Apply theme to document
     if (typeof window !== 'undefined') {
       const root = window.document.documentElement;
-      
+
       if (attribute === 'class') {
         root.classList.remove('light', 'dark');
         root.classList.add(newActualTheme);
@@ -78,7 +83,7 @@ export function ThemeProvider({
         root.setAttribute(attribute, newActualTheme);
       }
     }
-  }, [theme, attribute]);
+  }
 
   // Listen for system theme changes when using 'system' theme
   useEffect(() => {

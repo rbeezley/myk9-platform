@@ -1,3 +1,5 @@
+import { useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Check } from 'lucide-react';
 import { products } from '../stripe-config';
 import { createCheckoutSession } from '../lib/stripe';
@@ -71,16 +73,17 @@ const tiers = [
 
 export default function PricingPage() {
   const { user } = useAuthContext();
+  const navigate = useNavigate();
 
-  const handleSubscribe = async (priceId: string | null) => {
+  const handleSubscribe = useCallback(async (priceId: string | null) => {
     if (!priceId) {
       // Handle free tier signup
       return;
     }
 
     if (!user) {
-      // Redirect to sign-in page instead of calling signIn directly
-      window.location.href = '/signin';
+      // Redirect to sign-in page using navigate instead of window.location
+      navigate('/signin');
       return;
     }
 
@@ -89,7 +92,7 @@ export default function PricingPage() {
     } catch (error) {
       logger.error('Failed to create checkout session:', 'pages', {}, error as Error);
     }
-  };
+  }, [user, navigate]);
 
   return (
     <>

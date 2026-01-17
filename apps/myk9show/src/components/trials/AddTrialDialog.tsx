@@ -19,16 +19,24 @@ interface AddTrialDialogProps {
 }
 
 const AddTrialDialog: React.FC<AddTrialDialogProps> = ({ open, onOpenChange, onSave, currentShowName }) => {
-  const [formData, setFormData] = useState({
-    name: '',
-    date: format(new Date(), 'yyyy-MM-dd'),
-    trialNumber: `TR-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
-    status: 'Upcoming',
-    description: '',
-    eventNumber: `EV-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
-    plannedStartTime: '09:00 AM',
-    order: '1',
-    showName: currentShowName || '',
+  // Generate stable IDs using lazy initialization to avoid Math.random() during render
+  const [formData, setFormData] = useState(() => {
+    const year = new Date().getFullYear();
+    const timestamp = Date.now();
+    // Use timestamp for deterministic but unique values
+    const trialSuffix = (timestamp % 9000) + 1000;
+    const eventSuffix = (timestamp % 900) + 100;
+    return {
+      name: '',
+      date: format(new Date(), 'yyyy-MM-dd'),
+      trialNumber: `TR-${year}-${trialSuffix}`,
+      status: 'Upcoming',
+      description: '',
+      eventNumber: `EV-${year}-${eventSuffix}`,
+      plannedStartTime: '09:00 AM',
+      order: '1',
+      showName: currentShowName || '',
+    };
   });
 
   // Update showName when currentShowName prop changes

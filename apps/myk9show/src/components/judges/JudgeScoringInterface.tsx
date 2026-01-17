@@ -78,20 +78,37 @@ export function JudgeScoringInterface({
   const currentScore = competitorScores.find(cs => cs.competitorId === currentCompetitor?.id);
   const totalPossiblePoints = scoringCriteria.reduce((sum, criteria) => sum + criteria.maxPoints, 0);
 
-  // Initialize competitor scores
-  useEffect(() => {
-    const initialScores: CompetitorScore[] = competitors.map(competitor => ({
-      competitorId: competitor.id,
-      scores: scoringCriteria.map(criteria => ({
-        criteriaId: criteria.id,
-        points: 0,
-        notes: ''
-      })),
-      totalPoints: 0,
-      status: 'pending'
-    }));
-    setCompetitorScores(initialScores);
-  }, [competitors, scoringCriteria]);
+  // Initialize competitor scores lazily
+  const createInitialScores = (): CompetitorScore[] => competitors.map(competitor => ({
+    competitorId: competitor.id,
+    scores: scoringCriteria.map(criteria => ({
+      criteriaId: criteria.id,
+      points: 0,
+      notes: ''
+    })),
+    totalPoints: 0,
+    status: 'pending'
+  }));
+
+  // Track competitors/criteria changes to reinitialize scores
+  const competitorIds = competitors.map(c => c.id).join(',');
+  const criteriaIds = scoringCriteria.map(c => c.id).join(',');
+  const [lastCompetitorIds, setLastCompetitorIds] = useState(competitorIds);
+  const [lastCriteriaIds, setLastCriteriaIds] = useState(criteriaIds);
+
+  // Reinitialize scores when competitors or criteria change
+  if (competitorIds !== lastCompetitorIds || criteriaIds !== lastCriteriaIds) {
+    setLastCompetitorIds(competitorIds);
+    setLastCriteriaIds(criteriaIds);
+    setCompetitorScores(createInitialScores());
+  }
+
+  // Initialize scores on first render if empty
+  const [isInitialized, setIsInitialized] = useState(false);
+  if (!isInitialized && competitorScores.length === 0 && competitors.length > 0) {
+    setIsInitialized(true);
+    setCompetitorScores(createInitialScores());
+  }
 
   // Timer effect
   useEffect(() => {

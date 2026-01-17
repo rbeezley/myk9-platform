@@ -380,7 +380,6 @@ if (!currentEntry) {
       setIsSubmitting(false);
     }
   }, [
-    sportType,
     classId,
     qualifying,
     nonQualifyingReason,

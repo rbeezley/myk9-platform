@@ -46,13 +46,16 @@ interface SecurityState {
 
 export const SecurityProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [config] = useState<SecurityConfig>(securityConfig);
-  const [state, setState] = useState<SecurityState>({
-    isSecure: true,
-    failedAttempts: 0,
-    lastActivity: Date.now(),
-    sessionExpiry: Date.now() + config.sessionTimeout,
-    rateLimitRemaining: config.rateLimitMaxRequests,
-    rateLimitReset: Date.now() + config.rateLimitWindow,
+  const [state, setState] = useState<SecurityState>(() => {
+    const now = Date.now();
+    return {
+      isSecure: true,
+      failedAttempts: 0,
+      lastActivity: now,
+      sessionExpiry: now + securityConfig.sessionTimeout,
+      rateLimitRemaining: securityConfig.rateLimitMaxRequests,
+      rateLimitReset: now + securityConfig.rateLimitWindow,
+    };
   });
 
   // Rate limiting storage

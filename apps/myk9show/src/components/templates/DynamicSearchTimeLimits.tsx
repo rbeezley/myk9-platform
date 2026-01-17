@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -25,21 +25,33 @@ export const DynamicSearchTimeLimits: React.FC<DynamicSearchTimeLimitsProps> = (
   minTime = 60000, // Default 1:00
   maxTime = 900000 // Default 15:00
 }) => {
-  const [localTimeLimits, setLocalTimeLimits] = useState<string[]>([]);
-  const [errors, setErrors] = useState<string[]>([]);
-
-  // Initialize local state when props change
-  useEffect(() => {
-    const displayTimes = Array.from({ length: searchAreasCount }, (_, index) => {
-      if (timeLimits[index] !== undefined) {
-        return msToDisplay(timeLimits[index], 'seconds');
+  // Compute display times from props using useMemo (derived state)
+  const computeDisplayTimes = (count: number, limits: number[]) => {
+    return Array.from({ length: count }, (_, index) => {
+      if (limits[index] !== undefined) {
+        return msToDisplay(limits[index], 'seconds');
       }
       // Default to 3:00 for new areas
       return '3:00';
     });
-    setLocalTimeLimits(displayTimes);
+  };
+
+  // Track props to sync local state during render
+  const propsKey = `${searchAreasCount}-${timeLimits.join(',')}`;
+  const [prevPropsKey, setPrevPropsKey] = useState(propsKey);
+  const [localTimeLimits, setLocalTimeLimits] = useState<string[]>(() =>
+    computeDisplayTimes(searchAreasCount, timeLimits)
+  );
+  const [errors, setErrors] = useState<string[]>(() =>
+    new Array(searchAreasCount).fill('')
+  );
+
+  // Sync local state when props change using render-time pattern
+  if (propsKey !== prevPropsKey) {
+    setPrevPropsKey(propsKey);
+    setLocalTimeLimits(computeDisplayTimes(searchAreasCount, timeLimits));
     setErrors(new Array(searchAreasCount).fill(''));
-  }, [searchAreasCount, timeLimits]);
+  }
 
   // Validate and update a single time limit
   const updateTimeLimit = (index: number, timeString: string) => {

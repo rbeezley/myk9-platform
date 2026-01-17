@@ -337,33 +337,37 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
   ]);
 
   // Auto-assign dog owners as handlers when dogs are selected
-  useEffect(() => {
-    if (registrationData.selectedDogs.length > 0 && currentWorkflowConfig.smartDefaults.autoAssignHandler) {
-      const newAssignments: Record<string, HandlerInfo> = { ...handlerAssignments };
-      let hasNewAssignments = false;
-      
-      registrationData.selectedDogs.forEach(dogId => {
-        if (!newAssignments[dogId]) {
-          const dog = dogs.find(d => d.id === dogId);
-          if (dog) {
-            const owner = people.find(p => p.id === dog.ownerId);
-            if (owner) {
-              newAssignments[dogId] = {
-                handlerId: owner.id,
-                handlerName: `${owner.firstName} ${owner.lastName}`,
-                isOwner: true
-              };
-              hasNewAssignments = true;
-            }
+  // Auto-assign handlers using render-time sync pattern
+  const selectedDogsKey = registrationData.selectedDogs.join(',');
+  const [prevSelectedDogsKey, setPrevSelectedDogsKey] = useState(selectedDogsKey);
+  if (selectedDogsKey !== prevSelectedDogsKey &&
+      registrationData.selectedDogs.length > 0 &&
+      currentWorkflowConfig.smartDefaults.autoAssignHandler) {
+    setPrevSelectedDogsKey(selectedDogsKey);
+    const newAssignments: Record<string, HandlerInfo> = { ...handlerAssignments };
+    let hasNewAssignments = false;
+
+    registrationData.selectedDogs.forEach(dogId => {
+      if (!newAssignments[dogId]) {
+        const dog = dogs.find(d => d.id === dogId);
+        if (dog) {
+          const owner = people.find(p => p.id === dog.ownerId);
+          if (owner) {
+            newAssignments[dogId] = {
+              handlerId: owner.id,
+              handlerName: `${owner.firstName} ${owner.lastName}`,
+              isOwner: true
+            };
+            hasNewAssignments = true;
           }
         }
-      });
-      
-      if (hasNewAssignments) {
-        setHandlerAssignments(newAssignments);
       }
+    });
+
+    if (hasNewAssignments) {
+      setHandlerAssignments(newAssignments);
     }
-  }, [registrationData.selectedDogs, dogs, people, currentWorkflowConfig.smartDefaults.autoAssignHandler, handlerAssignments]);
+  }
 
   const canProceed = () => {
     switch (currentStepId) {

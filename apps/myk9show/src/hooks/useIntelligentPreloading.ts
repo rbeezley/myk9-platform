@@ -6,7 +6,7 @@
  * based on user navigation patterns and route priority
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { IntelligentPreloader, LazyLoadingMonitor } from '@/utils/enhancedLazyLoading';
 import type { ComponentType } from 'react';
@@ -147,10 +147,12 @@ export function useIntelligentPreloading(
  */
 export function useRoutePreloading(routePath: string, component: ComponentType<any>) {
   const preloadRef = useRef<Promise<any> | null>(null);
+  const [isPreloaded, setIsPreloaded] = useState(false);
 
   const triggerPreload = () => {
     if (!preloadRef.current && (component as any).preload) {
       preloadRef.current = (component as any).preload();
+      setIsPreloaded(true);
     }
 
     return preloadRef.current;
@@ -174,7 +176,7 @@ export function useRoutePreloading(routePath: string, component: ComponentType<a
     preload: triggerPreload,
     onMouseEnter: onHover,
     onFocus,
-    isPreloaded: preloadRef.current !== null
+    isPreloaded
   };
 }
 

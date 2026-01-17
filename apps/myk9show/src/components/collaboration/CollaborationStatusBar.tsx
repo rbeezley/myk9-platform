@@ -36,19 +36,13 @@ export const CollaborationStatusBar: React.FC<CollaborationStatusBarProps> = ({
   position = 'bottom'
 }) => {
   void showDetailed; // Suppress unused variable warning
-  const [stats, setStats] = useState<CollaborationStats>({
-    activeUsers: 0,
-    onlineJudges: 0,
-    onlineSecretaries: 0,
-    onlineExhibitors: 0,
-    activeEdits: 0,
-    recentUpdates: 0,
-    notifications: 0
-  });
-  const [recentEvents, setRecentEvents] = useState<CollaborationEvent[]>([]);
-  const [notifications, setNotifications] = useState<NotificationEvent[]>([]);
-  const [isConnected, setIsConnected] = useState(true);
-  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+
+  // Initialize state lazily to avoid setState in useEffect
+  const [stats, setStats] = useState<CollaborationStats>(() => collaborationHub.getCollaborationStats());
+  const [recentEvents, setRecentEvents] = useState<CollaborationEvent[]>(() => collaborationHub.getEventHistory(20));
+  const [notifications, setNotifications] = useState<NotificationEvent[]>(() => collaborationHub.getNotifications(10));
+  const [isConnected, setIsConnected] = useState(() => collaborationHub.isHealthy());
+  const [lastUpdate, setLastUpdate] = useState<Date>(() => new Date());
 
   useEffect(() => {
     const updateStats = () => {
@@ -66,11 +60,6 @@ export const CollaborationStatusBar: React.FC<CollaborationStatusBarProps> = ({
       setNotifications(prev => [notification, ...prev.slice(0, 9)]); // Keep last 10 notifications
       updateStats();
     };
-
-    // Initial load
-    updateStats();
-    setRecentEvents(collaborationHub.getEventHistory(20));
-    setNotifications(collaborationHub.getNotifications(10));
 
     // Subscribe to events
     const unsubscribeEvents = collaborationHub.subscribe(handleCollaborationEvent);

@@ -329,9 +329,8 @@ export function VirtualScrollList<T>({
  * Hook for calculating optimal item height based on content
  */
 export function useItemHeight(sampleItem?: unknown): number {
-  const [itemHeight, setItemHeight] = useState(60); // Default height
-
-  useEffect(() => {
+  // Calculate initial height lazily
+  const [itemHeight, setItemHeight] = useState(() => {
     if (sampleItem) {
       // Create a temporary element to measure height
       const tempDiv = document.createElement('div');
@@ -340,16 +339,40 @@ export function useItemHeight(sampleItem?: unknown): number {
       tempDiv.style.height = 'auto';
       tempDiv.style.width = '100%';
       tempDiv.innerHTML = '<div>Sample content</div>'; // Replace with actual content
-      
+
       document.body.appendChild(tempDiv);
       const height = tempDiv.offsetHeight;
       document.body.removeChild(tempDiv);
-      
+
+      if (height > 0) {
+        return Math.max(height, 40); // Minimum height
+      }
+    }
+    return 60; // Default height
+  });
+
+  // Track sampleItem changes for re-measurement
+  const [lastSampleItem, setLastSampleItem] = useState(sampleItem);
+  if (sampleItem !== lastSampleItem) {
+    setLastSampleItem(sampleItem);
+    if (sampleItem) {
+      // Create a temporary element to measure height
+      const tempDiv = document.createElement('div');
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.visibility = 'hidden';
+      tempDiv.style.height = 'auto';
+      tempDiv.style.width = '100%';
+      tempDiv.innerHTML = '<div>Sample content</div>'; // Replace with actual content
+
+      document.body.appendChild(tempDiv);
+      const height = tempDiv.offsetHeight;
+      document.body.removeChild(tempDiv);
+
       if (height > 0) {
         setItemHeight(Math.max(height, 40)); // Minimum height
       }
     }
-  }, [sampleItem]);
+  }
 
   return itemHeight;
 }

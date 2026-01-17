@@ -42,14 +42,16 @@ const LazyImage: React.FC<LazyImageProps> = ({
   srcSet,
   style,
 }) => {
-  const [state, setState] = useState<LazyImageState>({
-    loaded: false,
-    error: false,
-    inView: false,
-  });
 
   const imgRef = useRef<HTMLImageElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
+
+  // Initialize inView for eager loading - declare state before callbacks that use it
+  const [state, setState] = useState<LazyImageState>(() => ({
+    loaded: false,
+    error: false,
+    inView: loading === 'eager',
+  }));
 
   // Handle image load success
   const handleLoad = useCallback(() => {
@@ -65,8 +67,8 @@ const LazyImage: React.FC<LazyImageProps> = ({
 
   // Set up Intersection Observer for lazy loading
   useEffect(() => {
+    // Skip observer setup for eager loading (already handled in initial state)
     if (loading === 'eager') {
-      setState(prev => ({ ...prev, inView: true }));
       return;
     }
 

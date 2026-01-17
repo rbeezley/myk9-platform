@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
@@ -36,7 +36,7 @@ const ExpandableSection: React.FC<ExpandableSectionProps> = ({
         return JSON.parse(saved);
       }
     }
-    
+
     // Smart defaults based on priority and content
     if (priority === 'critical') {
       // Always expand critical sections if they have content
@@ -50,19 +50,27 @@ const ExpandableSection: React.FC<ExpandableSectionProps> = ({
     }
   };
 
-  const [isExpanded, setIsExpanded] = useState(() => {
+  // Compute initial state considering force props
+  const getInitialExpanded = (): boolean => {
+    // Check force props first
+    if (forceExpanded && contentCount && contentCount > 0) {
+      return true;
+    }
+    if (forceCollapsed) {
+      return false;
+    }
+    // Otherwise use smart default
     return getSmartDefault();
-  });
+  };
 
-  // Track previous force values to detect changes during render
-  const prevForceExpandedRef = useRef(forceExpanded);
-  const prevForceCollapsedRef = useRef(forceCollapsed);
+  // Track force state to handle changes during render
+  const forceKey = forceExpanded ? 'expanded' : forceCollapsed ? 'collapsed' : 'default';
+  const [lastForceKey, setLastForceKey] = useState(forceKey);
+  const [isExpanded, setIsExpanded] = useState(() => getInitialExpanded());
 
-  // Handle external force controls - using render-time state update pattern
-  if (forceExpanded !== prevForceExpandedRef.current || forceCollapsed !== prevForceCollapsedRef.current) {
-    prevForceExpandedRef.current = forceExpanded;
-    prevForceCollapsedRef.current = forceCollapsed;
-
+  // Handle external force controls during render (not in useEffect)
+  if (forceKey !== lastForceKey) {
+    setLastForceKey(forceKey);
     if (forceExpanded && contentCount && contentCount > 0) {
       setIsExpanded(true);
     } else if (forceCollapsed) {

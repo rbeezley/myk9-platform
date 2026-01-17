@@ -9,7 +9,7 @@
  * - Sync progress for active operations
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSyncStore } from '@/store/syncStore';
 import { useGlobalSyncStatus } from '@/hooks/useGlobalSyncStatus';
@@ -86,8 +86,10 @@ export function GlobalSyncStatusBar({
   const [showProgress, setShowProgress] = useState(false);
   const [activeOperations, setActiveOperations] = useState<SyncOperation[]>([]);
 
-  // Mock active operations for demonstration
-  useEffect(() => {
+  // Track syncStatus changes using render-time sync pattern
+  const [prevSyncStatus, setPrevSyncStatus] = useState(syncStatus);
+  if (syncStatus !== prevSyncStatus) {
+    setPrevSyncStatus(syncStatus);
     if (syncStatus === 'pending') {
       const operations: SyncOperation[] = [
         {
@@ -107,7 +109,7 @@ export function GlobalSyncStatusBar({
       setActiveOperations([]);
       setShowProgress(false);
     }
-  }, [syncStatus]);
+  }
 
   // Get status icon and color
   const getStatusIcon = () => {

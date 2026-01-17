@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { WifiOff, Wifi, AlertCircle, RefreshCw } from 'lucide-react';
@@ -12,11 +12,13 @@ interface NetworkStatusProviderProps {
 export const NetworkStatusProvider: React.FC<NetworkStatusProviderProps> = ({ children }) => {
   const isOnline = useOnlineStatus();
   const quality = useNetworkQuality();
-  const [showOfflineMessage, setShowOfflineMessage] = useState(false);
-  const [hasBeenOffline, setHasBeenOffline] = useState(false);
+  const [showOfflineMessage, setShowOfflineMessage] = useState(!isOnline);
+  const [hasBeenOffline, setHasBeenOffline] = useState(!isOnline);
+  const [lastOnlineState, setLastOnlineState] = useState(isOnline);
 
-  // Track when user goes offline/online
-  useEffect(() => {
+  // Track when user goes offline/online - using state comparison during render
+  if (isOnline !== lastOnlineState) {
+    setLastOnlineState(isOnline);
     if (!isOnline) {
       setHasBeenOffline(true);
       setShowOfflineMessage(true);
@@ -25,7 +27,7 @@ export const NetworkStatusProvider: React.FC<NetworkStatusProviderProps> = ({ ch
       setShowOfflineMessage(false);
       // Could show a brief "Back online" message here
     }
-  }, [isOnline, hasBeenOffline]);
+  }
 
   const retryConnection = () => {
     // Force a connection test

@@ -139,16 +139,15 @@ export const achievementQueries = {
       total_achievements: achievements.length,
       // is_active doesn't exist in DB schema, count all as active
       active_achievements: achievements.length,
-      organizations: [...new Set(achievements.map(a => a.organization).filter(Boolean) as string[])],
+      organizations: [...new Set(achievements.map((a: Achievement) => a.organization).filter(Boolean) as string[])],
       latest_achievement: achievements[0], // Already sorted by date desc
       achievements_by_type: {},
       achievements_by_organization: {}
     };
 
     // Calculate distributions
-    // Note: achievement_type doesn't exist in DB, use 'sport' field instead
-    achievements.forEach(achievement => {
-      const achievementType = achievement.sport || 'Unknown';
+    achievements.forEach((achievement: Achievement) => {
+      const achievementType = achievement.achievement_type || 'Unknown';
       summary.achievements_by_type[achievementType] =
         (summary.achievements_by_type[achievementType] || 0) + 1;
 
@@ -267,27 +266,27 @@ export const competitionQueries = {
   // Get competition summary for a dog
   async getSummary(dogId: string): Promise<CompetitionSummary> {
     const competitions = await this.getByDogId(dogId);
-    
-    const qualifiedCompetitions = competitions.filter(c => c.qualified === true);
-    const totalPoints = competitions.reduce((sum, c) => sum + (c.points_earned || 0), 0);
-    
+
+    const qualifiedCompetitions = competitions.filter((c: Competition) => c.qualified === true);
+    const totalPoints = competitions.reduce((sum: number, c: Competition) => sum + (c.points_earned || 0), 0);
+
     // Calculate average score for numeric scores
     const numericScores = competitions
-      .map(c => parseFloat(c.score || '0'))
-      .filter(score => !isNaN(score));
-    
+      .map((c: Competition) => parseFloat(c.score || '0'))
+      .filter((score: number) => !isNaN(score));
+
     const summary: CompetitionSummary = {
       total_competitions: competitions.length,
       qualified_competitions: qualifiedCompetitions.length,
-      qualification_rate: competitions.length > 0 ? 
+      qualification_rate: competitions.length > 0 ?
         qualifiedCompetitions.length / competitions.length : 0,
       total_points: totalPoints,
-      average_score: numericScores.length > 0 ? 
-        numericScores.reduce((sum, score) => sum + score, 0) / numericScores.length : undefined,
+      average_score: numericScores.length > 0 ?
+        numericScores.reduce((sum: number, score: number) => sum + score, 0) / numericScores.length : undefined,
       best_placement: this.getBestPlacement(competitions),
       recent_competitions: competitions.slice(0, 5), // Last 5 competitions
-      organizations: [...new Set(competitions.map(c => c.organization).filter(Boolean) as string[])],
-      disciplines: [...new Set(competitions.map(c => c.discipline).filter(Boolean) as string[])]
+      organizations: [...new Set(competitions.map((c: Competition) => c.organization).filter(Boolean) as string[])],
+      disciplines: [...new Set(competitions.map((c: Competition) => c.discipline).filter(Boolean) as string[])]
     };
 
     return summary;

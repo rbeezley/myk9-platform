@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { logger } from '@/services/LoggingService';
 import {
   DndContext,
   closestCenter,

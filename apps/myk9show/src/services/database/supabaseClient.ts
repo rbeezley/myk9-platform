@@ -1,7 +1,7 @@
- 
 // Centralized Supabase client configuration
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../../types/supabase';
+import { logger } from '@/services/LoggingService';
 
 // Environment variables with fallbacks
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
@@ -94,7 +94,8 @@ export const logQuery = (
 };
 
 // Type-safe error handling
-export interface DatabaseError {
+export interface DatabaseError extends Error {
+  name: string;
   message: string;
   details?: string;
   hint?: string;
@@ -117,13 +118,14 @@ export const createDatabaseError = (
   } : {};
   
   return {
+    name: 'DatabaseError',
     message: err.message || 'Database operation failed',
     details: err.details,
     hint: err.hint,
     code: err.code,
     table,
     operation,
-  };
+  } as DatabaseError;
 };
 
 // Authentication utilities

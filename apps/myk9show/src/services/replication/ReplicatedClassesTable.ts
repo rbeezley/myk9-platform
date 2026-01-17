@@ -58,6 +58,10 @@ export interface ReplicatedClass {
   time_limit_area2_seconds?: number;
   time_limit_area3_seconds?: number;
 
+  // Timing fields (used for class completion tracking)
+  actual_start_time?: string;
+  actual_end_time?: string;
+
   // Sync metadata
   _version?: number;
   _lastModified?: Date;
@@ -111,6 +115,10 @@ function rowToClass(row: ClassRow): ReplicatedClass {
     time_limit_seconds: (dbRow.time_limit_seconds as number | undefined) ?? undefined,
     time_limit_area2_seconds: (dbRow.time_limit_area2_seconds as number | undefined) ?? undefined,
     time_limit_area3_seconds: (dbRow.time_limit_area3_seconds as number | undefined) ?? undefined,
+
+    // Timing fields
+    actual_start_time: (dbRow.actual_start_time as string | undefined) ?? undefined,
+    actual_end_time: (dbRow.actual_end_time as string | undefined) ?? undefined,
   };
 }
 

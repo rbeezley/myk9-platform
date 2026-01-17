@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type {
   Conflict,
   ConflictResolution,
+  ConflictStatus,
   ResolutionStrategy,
   BaseConflict,
   BaseConflictResolution
@@ -91,7 +92,7 @@ export function useConflictResolution(
         ? sharedResolutions.filter(c => c.entityType === options.entityType)
         : sharedResolutions;
 
-      const statusMap: Record<string, string> = {
+      const statusMap: Record<string, ConflictStatus> = {
         'pending': 'pending',
         'resolved': 'resolved',
         'ignored': 'dismissed'

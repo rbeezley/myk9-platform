@@ -7,6 +7,7 @@
 
 import React, { useState } from 'react';
 import { ClipboardCheck, ArrowLeft } from 'lucide-react';
+import { logger } from '@/services/LoggingService';
 
 // CSS imports (shared styling)
 import '../BaseScoresheet.css';

@@ -18,9 +18,8 @@
 
 import React, { useState, useCallback, useRef } from 'react';
 import { ensureReplicationManager } from '@/utils/replicationHelper';
-import type { ReplicatedEntry as Entry } from '@/services/replication/ReplicatedEntriesTable';
-import type { ReplicatedClass as Class } from '@/services/replication/ReplicatedClassesTable';
 import { ClassCompletionCelebration } from '@/components/ClassCompletionCelebration';
+import { logger } from '@/services/LoggingService';
 
 interface UseClassCompletionReturn {
   CelebrationModal: React.ReactElement | null;
@@ -49,8 +48,8 @@ export function useClassCompletion(classId: string | undefined): UseClassComplet
 
     try {
       const replicationManager = await ensureReplicationManager();
-      const classesTable = replicationManager.getTable<Class>('classes');
-      const entriesTable = replicationManager.getTable<Entry>('entries');
+      const classesTable = replicationManager.getTable('classes');
+      const entriesTable = replicationManager.getTable('entries');
 
       if (!classesTable || !entriesTable) return;
 

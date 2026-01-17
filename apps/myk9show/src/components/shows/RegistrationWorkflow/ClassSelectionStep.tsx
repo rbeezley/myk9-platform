@@ -407,7 +407,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                 const isLowSpots = !isFull && entryLimit > 0 && spotsAvailable <= 3;
                                 const fee = getClassFee(classData);
                                 const itemKey = `${dogId}-${classData.id}`;
-                                const isProcessing = isAddingToCart === itemKey || isLoading;
+                                const isProcessing = isAddingToCart === itemKey || isLoadingAvailability;
 
                                 // Check eligibility
                                 const eligibilityResult = checkEligibility(dogId, classData.id);

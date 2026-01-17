@@ -8,6 +8,7 @@
 import React, { useState, useCallback } from 'react';
 import { X, ClipboardCheck, ArrowLeft } from 'lucide-react';
 import { useStopwatch } from '@myk9/scoring-ui';
+import { logger } from '@/services/LoggingService';
 
 // CSS imports (shared styling)
 import '../BaseScoresheet.css';

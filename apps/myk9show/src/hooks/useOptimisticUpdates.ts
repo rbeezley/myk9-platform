@@ -29,6 +29,10 @@ export interface OptimisticUpdatesConfig {
   debug?: boolean;
 }
 
+export type OptimisticUpdateResult =
+  | { success: true; result: unknown; updateId: string }
+  | { success: false; error: unknown; updateId?: string };
+
 const DEFAULT_CONFIG: Required<OptimisticUpdatesConfig> = {
   requestTimeout: 30000,
   maxConcurrentUpdates: 10,
@@ -228,7 +232,7 @@ export function useOptimisticUpdates<T>(
       onError?: (error: unknown) => void;
       retryCount?: number;
     }
-  ) => {
+  ): Promise<OptimisticUpdateResult> => {
     // Check concurrent update limit
     if (pendingUpdatesRef.current.size >= maxConcurrentUpdates) {
       const error = new Error(`Maximum concurrent updates exceeded (${maxConcurrentUpdates})`);

@@ -74,6 +74,9 @@ export interface ReplicatedEntry {
   timeLimit2?: string;
   timeLimit3?: string;
 
+  // Timestamps
+  updated_at?: string;
+
   // Sync metadata
   _version?: number;
   _lastModified?: Date;
@@ -139,6 +142,9 @@ function rowToEntry(row: EntryRow): ReplicatedEntry {
     timeLimit: dbRow.time_limit_seconds ? String(dbRow.time_limit_seconds as number) : undefined,
     timeLimit2: dbRow.time_limit_area2_seconds ? String(dbRow.time_limit_area2_seconds as number) : undefined,
     timeLimit3: dbRow.time_limit_area3_seconds ? String(dbRow.time_limit_area3_seconds as number) : undefined,
+
+    // Timestamps
+    updated_at: row.updated_at ?? undefined,
   };
 }
 

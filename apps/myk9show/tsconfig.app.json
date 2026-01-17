@@ -33,9 +33,8 @@
     "exactOptionalPropertyTypes": false,
     "noPropertyAccessFromIndexSignature": false,
     "noUncheckedIndexedAccess": false,
-    /* Temporarily disabled for dependency upgrade - re-enable incrementally */
-    /* TODO: Fix implicit any types in query files and service callbacks */
-    "noImplicitAny": false
+    /* Re-enabled 2025-01-17 - fixing implicit any types incrementally */
+    "noImplicitAny": true
   },
   "include": [
     "src"
@@ -62,6 +61,8 @@
     "src/hooks/useBackgroundSync.ts",
     "src/hooks/useFieldLevelSync.ts",
     "src/hooks/useRegistrationConflicts.ts",
+    "src/hooks/useConflictResolution.ts",
+    "src/hooks/useOptimisticUpdates.ts",
     "src/services/realtime/**/*",
     "src/examples/field-level-sync-example.ts",
     "src/services/scoring/OfflineScoringService.ts",

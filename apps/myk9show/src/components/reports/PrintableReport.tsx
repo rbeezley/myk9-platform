@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import { forwardRef } from 'react';
 import { Separator } from '@/components/ui/separator';
 // Icons removed as they are not used in this print component
 

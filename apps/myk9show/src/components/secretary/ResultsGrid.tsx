@@ -8,7 +8,7 @@
  * - Quick actions (edit, delete, view details)
  */
 
-import React, { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { logger } from '@/services/LoggingService';
 import { Edit2, Trash2, Eye, Search, SortAsc, SortDesc, Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';

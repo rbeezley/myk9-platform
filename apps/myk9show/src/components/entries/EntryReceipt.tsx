@@ -5,7 +5,7 @@
  * via the browser's print dialog.
  */
 
-import React, { useRef } from 'react';
+import { useRef } from 'react';
 import {
   Dialog,
   DialogContent,

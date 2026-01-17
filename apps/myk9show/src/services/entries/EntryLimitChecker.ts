@@ -330,7 +330,7 @@ export class EntryLimitChecker {
    * Check trial-level limits
    */
   private static checkTrialLimits(
-    entryData: ShowEntryInput,
+    _entryData: ShowEntryInput,
     context: LimitCheckContext
   ): { errors: EntryLimitError[]; warnings: EntryLimitError[] } {
     const errors: EntryLimitError[] = [];

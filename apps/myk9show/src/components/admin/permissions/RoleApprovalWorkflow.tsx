@@ -69,21 +69,6 @@ interface ApprovalComment {
   type: 'comment' | 'approval' | 'rejection' | 'escalation';
 }
 
-interface WorkflowRule {
-  id: string;
-  name: string;
-  description: string;
-  triggers: string[];
-  approvers: string[];
-  requiredApprovals: number;
-  autoExpiry: number; // hours
-  escalationRules: {
-    afterHours: number;
-    escalateTo: string[];
-  };
-  isActive: boolean;
-}
-
 interface RoleApprovalWorkflowProps {
   onRequestUpdate?: (request: ApprovalRequest) => void;
 }
@@ -92,7 +77,6 @@ export const RoleApprovalWorkflow: React.FC<RoleApprovalWorkflowProps> = ({
   onRequestUpdate
 }) => {
   const [approvalRequests, setApprovalRequests] = useState<ApprovalRequest[]>([]);
-  // const [workflowRules] = useState<WorkflowRule[]>([]); // Commented out as not used
   const [selectedRequest, setSelectedRequest] = useState<ApprovalRequest | null>(null);
   const [actionComment, setActionComment] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -199,54 +183,7 @@ export const RoleApprovalWorkflow: React.FC<RoleApprovalWorkflowProps> = ({
         }
       ];
 
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const mockRules: WorkflowRule[] = [
-        {
-          id: 'rule-1',
-          name: 'High-Privilege Role Assignment',
-          description: 'Requires approval for roles with administrative permissions',
-          triggers: ['role_assignment:show_manager', 'role_assignment:site_admin'],
-          approvers: ['site-admin', 'club-president'],
-          requiredApprovals: 1,
-          autoExpiry: 24,
-          escalationRules: {
-            afterHours: 24,
-            escalateTo: ['site-admin']
-          },
-          isActive: true
-        },
-        {
-          id: 'rule-2',
-          name: 'Permission Changes',
-          description: 'Requires approval for any permission modifications',
-          triggers: ['permission_change', 'role_creation'],
-          approvers: ['site-admin'],
-          requiredApprovals: 1,
-          autoExpiry: 72,
-          escalationRules: {
-            afterHours: 48,
-            escalateTo: ['system-admin']
-          },
-          isActive: true
-        },
-        {
-          id: 'rule-3',
-          name: 'Bulk Operations',
-          description: 'Requires approval for operations affecting multiple users',
-          triggers: ['bulk_operation'],
-          approvers: ['site-admin', 'club-admin'],
-          requiredApprovals: 1,
-          autoExpiry: 48,
-          escalationRules: {
-            afterHours: 24,
-            escalateTo: ['site-admin']
-          },
-          isActive: true
-        }
-      ];
-
       setApprovalRequests(mockRequests);
-      // setWorkflowRules(mockRules); // Commented out as workflowRules state is not used
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load approval data');
     } finally {

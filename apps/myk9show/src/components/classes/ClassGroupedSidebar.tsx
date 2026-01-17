@@ -127,7 +127,7 @@ export const ClassGroupedSidebar: React.FC<ClassGroupedSidebarProps> = ({
     return parts.join(' ');
   };
 
-  const renderClassItem = (cls: ClassData, isSelected: boolean, isCollapsed: boolean) => {
+  const renderClassItem = (cls: ClassData, _isSelected: boolean, isCollapsed: boolean) => {
     if (isCollapsed) {
       return (
         <div

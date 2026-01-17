@@ -113,7 +113,7 @@ export function useOptimisticUpdateDog() {
       // Return a context object with the snapshotted values
       return { previousDog, previousDogs };
     },
-    onError: (err, variables, context) => {
+    onError: (_err, variables, context) => {
       // If the mutation fails, use the context returned from onMutate to roll back
       if (context?.previousDog) {
         queryClient.setQueryData(queryKeys.dog(variables.id), context.previousDog);
@@ -122,7 +122,7 @@ export function useOptimisticUpdateDog() {
         queryClient.setQueryData(queryKeys.dogs, context.previousDogs);
       }
     },
-    onSettled: (data, error, variables) => {
+    onSettled: (_data, _error, variables) => {
       // Always refetch after error or success to ensure consistency
       queryClient.invalidateQueries({ queryKey: queryKeys.dog(variables.id) });
       queryClient.invalidateQueries({ queryKey: queryKeys.dogs });

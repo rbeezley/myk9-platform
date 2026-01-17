@@ -5,7 +5,7 @@
  * Shows entry fees, platform fee, and total with expiration countdown.
  */
 
-import React from 'react';
+
 import { useNavigate } from 'react-router-dom';
 import { Clock, CreditCard, AlertTriangle, ShoppingCart, ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';

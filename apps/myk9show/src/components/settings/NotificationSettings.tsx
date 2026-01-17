@@ -3,7 +3,7 @@
  * Allows users to manage their push notification preferences and permissions
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Bell, BellOff, Smartphone, Mail, AlertTriangle, TestTube } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
 import { useNotifications } from '@/hooks/useNotifications';

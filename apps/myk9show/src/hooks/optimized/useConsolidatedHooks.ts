@@ -4,8 +4,7 @@
  * and improve performance through better memoization
  */
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useAsyncOperation } from './useSimplifiedHooks';
+import { useState, useMemo } from 'react';
 
 /**
  * Consolidated table management hook that combines sorting, filtering, 

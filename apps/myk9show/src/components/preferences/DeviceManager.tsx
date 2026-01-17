@@ -5,7 +5,7 @@
  * Manage connected devices and cross-device synchronization
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
   Monitor, 
   Smartphone, 

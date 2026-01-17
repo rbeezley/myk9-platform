@@ -711,7 +711,7 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
                     showId={showId}
                     onDownloadReceipt={() => logger.debug('Download receipt', 'shows')}
                     onSendEmail={() => logger.debug('Send email', 'shows')}
-                    onStatusChange={async (dogId: string, status: EntryStatus) => {
+                    onStatusChange={async (_dogId: string, status: EntryStatus) => {
                       setEntryStatus(status);
                       if (registrationId) {
                         try {

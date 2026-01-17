@@ -110,7 +110,7 @@ export class SecurityValidator {
    */
   async validateBulkOperation(
     actorId: string,
-    operationType: string,
+    _operationType: string,
     affectedUsers: string[],
     roleIds?: string[]
   ): Promise<{ isValid: boolean; reason?: string }> {

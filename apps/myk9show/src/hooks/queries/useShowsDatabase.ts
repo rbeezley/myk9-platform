@@ -400,7 +400,7 @@ export const useHardDeleteShowMutation = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: (data, id) => {
+    onSuccess: (_data, id) => {
       // Remove from deleted shows cache
       queryClient.setQueryData<Show[]>(showQueryKeys.deleted(), (old) => {
         if (!old) return [];

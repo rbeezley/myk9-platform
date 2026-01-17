@@ -258,7 +258,7 @@ export function useOptimisticUpdateEntity<T extends { id: string }>(options: Mut
     onSuccess: () => {
       toast.success(onSuccessMessage?.update || `${entityName} updated successfully`);
     },
-    onSettled: (data, error, variables) => {
+    onSettled: (_data, _error, variables) => {
       // Always refetch to ensure consistency
       queryClient.invalidateQueries({ queryKey: queryKeys.single(variables.id) });
       queryClient.invalidateQueries({ queryKey: queryKeys.all });

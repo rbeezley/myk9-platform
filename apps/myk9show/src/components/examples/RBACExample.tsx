@@ -1,4 +1,3 @@
-import React from 'react';
 import { PermissionGuard } from '../auth/PermissionGuard';
 import { useRegistrationPermissions } from '../../hooks/useRegistrationPermissions';
 import { useRegistrationContext } from '@/hooks/useRegistrationContext';

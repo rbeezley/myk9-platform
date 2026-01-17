@@ -468,7 +468,7 @@ export class OfflineEntryCreator {
 
   private static async performEntryCreation(
     entryData: ShowEntryInput,
-    context: EntryValidationContext,
+    _context: EntryValidationContext,
     options: EntryCreationOptions & { userId: string; status?: EntryStatus; overrideReason?: string }
   ): Promise<SyncableShowEntry> {
     const optimisticId = generateId();

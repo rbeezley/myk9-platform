@@ -5,7 +5,7 @@
  * Offers options to return to cart or continue shopping.
  */
 
-import React from 'react';
+
 import { useNavigate } from 'react-router-dom';
 import { XCircle, ShoppingCart, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';

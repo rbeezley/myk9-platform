@@ -530,8 +530,7 @@ class AlertingService extends EventEmitter {
     return alert;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private generateAlertTitle(rule: AlertRule, metrics: SyncMetrics): string {
+  private generateAlertTitle(rule: AlertRule, _metrics: SyncMetrics): string {
     switch (rule.type) {
       case AlertType.SYNC_FAILURE:
         return `Sync Failure Rate Alert: ${rule.name}`;
@@ -568,7 +567,7 @@ class AlertingService extends EventEmitter {
     };
   }
 
-  private async shouldSendNotification(alert: Alert, channel: NotificationChannel): Promise<boolean> {
+  private async shouldSendNotification(_alert: Alert, channel: NotificationChannel): Promise<boolean> {
     // Check user preferences (simplified - in real app would check per user)
     if (channel === NotificationChannel.BROWSER) {
       return 'Notification' in window && Notification.permission === 'granted';

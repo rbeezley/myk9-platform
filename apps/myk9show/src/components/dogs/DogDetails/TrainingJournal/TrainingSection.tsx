@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { EnhancedTrainingJournal } from './EnhancedTrainingJournal';
 import { Button } from '@/components/ui/button';
 import { BookOpen, Calendar, List } from 'lucide-react';

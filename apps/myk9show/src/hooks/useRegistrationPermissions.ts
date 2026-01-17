@@ -135,7 +135,7 @@ export function useRegistrationPermissions() {
   /**
    * Check if user can perform registration operations for a specific show/club
    */
-  const canRegisterForShow = (showId: string, clubId?: string): boolean => {
+  const canRegisterForShow = (_showId: string, clubId?: string): boolean => {
     if (!userWithRoles) return false;
     
     // Site admins can register for any show

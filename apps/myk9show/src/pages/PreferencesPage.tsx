@@ -3,7 +3,7 @@
  * Full page for user preferences using standard SidebarLayout
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   Settings,
   Monitor,

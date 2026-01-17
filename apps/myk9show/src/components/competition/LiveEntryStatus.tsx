@@ -6,7 +6,7 @@
  * showing ring status, check-in status, and call notifications.
  */
 
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { logger } from '@/services/LoggingService';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';

@@ -113,13 +113,13 @@ export const useCreateDogMutation = () => {
       // Return a context object with the snapshotted value
       return { previousDogs };
     },
-    onError: (err, newDog, context) => {
+    onError: (_err, _newDog, context) => {
       // If the mutation fails, use the context returned from onMutate to roll back
       if (context?.previousDogs) {
         queryClient.setQueryData(queryKeys.dogs, context.previousDogs);
       }
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (_data, variables) => {
       // Invalidate and refetch
       invalidateQueries.all('dogs');
       
@@ -161,7 +161,7 @@ export const useUpdateDogMutation = () => {
 
       return { previousDog };
     },
-    onError: (err, { id }, context) => {
+    onError: (_err, { id }, context) => {
       // If the mutation fails, use the context to roll back
       if (context?.previousDog) {
         queryClient.setQueryData(queryKeys.dog(id), context.previousDog);

@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /**
  * Enhanced Lazy Loading Utilities
  * 
@@ -37,9 +36,9 @@ export function createEnhancedLazy<T extends ComponentType<any>>(
   options: LazyLoadOptions = {}
 ): ComponentType<any> {
   const {
-    preloadOnHover = false,
+    preloadOnHover: _preloadOnHover = false,
     preloadOnIdle = false,
-    priority = 'medium',
+    priority: _priority = 'medium',
     timeout = 30000,
     retryAttempts = 2,
     displayName = 'LazyComponent'

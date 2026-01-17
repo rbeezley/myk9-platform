@@ -5,7 +5,7 @@
  * Supports: scratch (withdraw), handler change, jump height change.
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,

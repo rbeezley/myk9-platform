@@ -53,7 +53,6 @@ export class CollaborativeEditingService {
   private fields: Map<string, CollaborativeField> = new Map();
   private typingIndicators: Map<string, TypingIndicator> = new Map();
   private lockRenewalInterval: NodeJS.Timeout | null = null;
-  private operationQueue: Map<string, EditOperation[]> = new Map();
 
   private constructor() {}
 
@@ -273,9 +272,9 @@ export class CollaborativeEditingService {
 
   // Conflict resolution
   async resolveConflict(
-    entityType: string,
-    entityId: string,
-    fieldName: string,
+    _entityType: string,
+    _entityId: string,
+    _fieldName: string,
     localValue: string,
     remoteValue: string,
     resolution: 'local' | 'remote' | 'merge'
@@ -381,8 +380,7 @@ export class CollaborativeEditingService {
     return this.channels.get(channelKey)!;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private async ensureFieldChannel(entityType: string, entityId: string, fieldName: string): Promise<void> {
+  private async ensureFieldChannel(entityType: string, entityId: string, _fieldName: string): Promise<void> {
     const channelKey = `field:${entityType}:${entityId}`;
     
     if (!this.channels.has(channelKey)) {

@@ -80,7 +80,7 @@ export const RETRY_CONFIGS: Record<string, RetryConfig> = {
     maxDelay: 5000,
     backoffMultiplier: 1.2,
     jitter: false,
-    retryCondition: (error, attempt) => {
+    retryCondition: (_error, attempt) => {
       // Quick retries for real-time operations
       return attempt < 20;
     }
@@ -292,8 +292,7 @@ export class ConnectionRecoveryManager {
   }> = [];
   private isRecovering = false;
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 10;
-  
+
   constructor(private queryClient: { getQueryCache: () => { getAll: () => unknown[] } }) {
     this.setupConnectionRecovery();
   }

@@ -350,7 +350,7 @@ export class UserBehaviorLearning {
   /**
    * Predict next entities based on context
    */
-  private predictNextEntities(currentRoute: string, recentEntities: string[]): PredictiveInsight[] {
+  private predictNextEntities(_currentRoute: string, recentEntities: string[]): PredictiveInsight[] {
     const predictions: PredictiveInsight[] = [];
     const entityPatterns = this.extractEntitySequences();
 

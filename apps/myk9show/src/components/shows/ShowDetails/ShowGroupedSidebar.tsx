@@ -124,8 +124,8 @@ export const ShowGroupedSidebar: React.FC<ShowGroupedSidebarProps> = ({
     });
   };
 
-  const renderShowItem = (show: Show, isSelected: boolean, isCollapsed: boolean) => {
-    // logger.debug('🎨 Rendering show item:', 'shows', { data: show.name, 'selected:', isSelected, 'collapsed:', isCollapsed });
+  const renderShowItem = (show: Show, _isSelected: boolean, isCollapsed: boolean) => {
+    // logger.debug('🎨 Rendering show item:', 'shows', { data: show.name, 'selected:', _isSelected, 'collapsed:', isCollapsed });
     if (isCollapsed) {
       // Show simplified version when collapsed
       return (

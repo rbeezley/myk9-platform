@@ -95,7 +95,6 @@ const PERFORMANCE_BUDGETS: PerformanceBudget[] = [
 export class RealUserMonitoringService {
   private sessionId: string;
   private session: UserSession;
-  private vitalsObserver: PerformanceObserver | null = null;
   private longTaskObserver: PerformanceObserver | null = null;
   private alerts: PerformanceAlert[] = [];
   private isInitialized = false;

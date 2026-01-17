@@ -5,7 +5,7 @@
  * Shows area status, individual times, and total elapsed time.
  */
 
-import React from 'react';
+
 import { Clock, CheckCircle2, XCircle, Lock, PlayCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 

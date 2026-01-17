@@ -6,7 +6,7 @@
  * and progress tracking.
  */
 
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Clock, AlertCircle, User, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import '@/styles/apple-show-details.css';

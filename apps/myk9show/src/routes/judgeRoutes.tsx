@@ -4,7 +4,7 @@
  * Includes scoring interfaces, judge dashboards, and check-in systems
  */
 
-import React, { lazy } from 'react';
+import { lazy } from 'react';
 import { Route } from 'react-router-dom';
 import { ProtectedRoute } from '@/context/AuthContext';
 import { PageTransition } from '@/components/common/PageTransition';

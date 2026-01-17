@@ -156,13 +156,13 @@ export const useCreateRegistrationMutation = () => {
       // Return a context object with the snapshotted value
       return { previousRegistrations };
     },
-    onError: (err, newRegistration, context) => {
+    onError: (_err, _newRegistration, context) => {
       // If the mutation fails, use the context returned from onMutate to roll back
       if (context?.previousRegistrations) {
         queryClient.setQueryData(queryKeys.registrations, context.previousRegistrations);
       }
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (_data, variables) => {
       // Invalidate and refetch registration lists
       invalidateQueries.all('dogs');
       
@@ -215,7 +215,7 @@ export const useUpdateRegistrationMutation = () => {
 
       return { previousRegistration };
     },
-    onError: (err, { id }, context) => {
+    onError: (_err, { id }, context) => {
       // If the mutation fails, use the context to roll back
       if (context?.previousRegistration) {
         queryClient.setQueryData(queryKeys.registration(id), context.previousRegistration);
@@ -282,7 +282,7 @@ export const useDeleteRegistrationMutation = () => {
 
       return { previousRegistrations, previousRegistration };
     },
-    onError: (err, deletedId, context) => {
+    onError: (_err, deletedId, context) => {
       // If the mutation fails, use the context to roll back
       if (context?.previousRegistrations) {
         queryClient.setQueryData(queryKeys.registrations, context.previousRegistrations);

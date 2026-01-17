@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { JudgeScoringInterface, type CompetitorScore } from '@/components/judges/JudgeScoringInterface';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';

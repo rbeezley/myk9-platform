@@ -124,37 +124,6 @@ export const PermissionInheritanceView: React.FC<PermissionInheritanceViewProps>
     return nodes;
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const resolvePermissionInheritance = (permission: Permission): PermissionNode[] => {
-    const children: PermissionNode[] = [];
-
-    // Check if this is a manage permission that implies other permissions
-    if (permission.action === 'manage') {
-      const baseActions = ['create', 'read', 'update', 'delete'];
-      baseActions.forEach(action => {
-        const impliedPermission: Permission = {
-          id: `implied-${permission.resource}-${action}`,
-          name: `${permission.resource}:${action}`,
-          display_name: `${permission.resource.charAt(0).toUpperCase() + permission.resource.slice(1)} ${action.charAt(0).toUpperCase() + action.slice(1)}`,
-          description: `Implied by manage permission`,
-          resource: permission.resource,
-          action,
-          is_system: permission.is_system,
-          created_at: permission.created_at,
-          updated_at: permission.updated_at
-        };
-
-        children.push({
-          permission: impliedPermission,
-          source: 'inherited',
-          level: 2
-        });
-      });
-    }
-
-    return children;
-  };
-
   const toggleNode = (nodeId: string) => {
     const newExpanded = new Set(expandedNodes);
     if (newExpanded.has(nodeId)) {

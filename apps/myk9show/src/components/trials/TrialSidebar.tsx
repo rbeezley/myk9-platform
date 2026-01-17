@@ -94,7 +94,7 @@ export const TrialSidebar: React.FC<TrialSidebarProps> = ({
     });
   };
 
-  const renderTrialItem = (trial: Trial, isSelected: boolean, isCollapsed: boolean) => {
+  const renderTrialItem = (trial: Trial, _isSelected: boolean, isCollapsed: boolean) => {
     if (isCollapsed) {
       return (
         <div

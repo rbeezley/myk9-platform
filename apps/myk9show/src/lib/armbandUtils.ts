@@ -368,7 +368,7 @@ function assignByDay(options: BulkArmbandAssignmentOptions): Map<string, Armband
   
   options.dogSelections.forEach(({ dogId, classSelections }) => {
     const classesByDay = groupClassesByDay(classSelections, options.trials);
-    classesByDay.forEach((classes, dayNumber) => {
+    classesByDay.forEach((_classes, dayNumber) => {
       if (!dogsByDay.has(dayNumber)) {
         dogsByDay.set(dayNumber, []);
       }

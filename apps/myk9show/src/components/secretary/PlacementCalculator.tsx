@@ -8,7 +8,7 @@
  * - Multi-area classes use total time across all areas
  */
 
-import React, { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Calculator, Award, RefreshCw, Eye, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 

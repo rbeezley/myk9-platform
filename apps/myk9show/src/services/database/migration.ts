@@ -136,7 +136,7 @@ export class StorageMigration {
   
   private async validateAndTransform<T>(
     rawData: unknown,
-    schema?: unknown,
+    _schema?: unknown,
     transformer?: (data: unknown) => T
   ): Promise<T[]> {
     let data = rawData;

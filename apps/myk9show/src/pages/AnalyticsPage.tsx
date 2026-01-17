@@ -1,4 +1,3 @@
-import React from 'react';
 import { AnalyticsDashboard } from '@/components/analytics/AnalyticsDashboard';
 import { FeatureGate } from '@/components/subscription/FeatureGate';
 

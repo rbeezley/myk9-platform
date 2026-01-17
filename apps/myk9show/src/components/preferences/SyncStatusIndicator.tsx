@@ -5,7 +5,7 @@
  * Real-time sync status feedback and indicators
  */
 
-import React from 'react';
+
 import { 
   WifiOff, 
   RefreshCw, 

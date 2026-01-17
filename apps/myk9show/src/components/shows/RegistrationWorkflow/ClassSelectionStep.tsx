@@ -284,11 +284,10 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="flex gap-0 border-b-0 border-0 bg-transparent h-auto p-0" 
+        <TabsList className="flex gap-0 border-b-0 border-0 bg-transparent h-auto p-0"
                   style={{ borderBottom: '0.5px solid var(--border)' }}>
           {selectedDogs.map(dogId => {
             const dog = getDogById(dogId);
-            const _selection = getSelectionForDog(dogId);
             const isActive = activeTab === dogId;
             const existingEntriesForDog = getEntriesForDog(dogId);
             

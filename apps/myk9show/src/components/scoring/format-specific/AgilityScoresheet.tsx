@@ -5,7 +5,7 @@
  * Handles time + faults scoring with real-time placement calculations.
  */
 
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Clock, Zap, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import '@/styles/apple-show-details.css';

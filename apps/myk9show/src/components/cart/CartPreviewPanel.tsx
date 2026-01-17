@@ -5,7 +5,7 @@
  * Used in the registration workflow to show items being added.
  */
 
-import React from 'react';
+
 import { ShoppingCart, Clock, Trash2, AlertTriangle, ChevronRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';

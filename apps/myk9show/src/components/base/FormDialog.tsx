@@ -1,4 +1,4 @@
-import React, { ReactNode, FormEvent } from 'react';
+import { ReactNode, FormEvent } from 'react';
 import { BaseEntityDialog } from './BaseEntityDialog';
 import { buildClasses } from '@/utils/designTokens';
 

@@ -6,7 +6,7 @@
  * and result submission following the proven Flutter app UX patterns.
  */
 
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Clock, User, Dog, Award } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import '@/styles/apple-show-details.css';

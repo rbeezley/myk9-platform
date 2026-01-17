@@ -1,4 +1,3 @@
-import React from 'react';
 import { motion } from 'framer-motion';
 import { SubscriptionManager } from '@/components/subscription/SubscriptionManager';
 import { Card, CardContent } from '@/components/ui/card';

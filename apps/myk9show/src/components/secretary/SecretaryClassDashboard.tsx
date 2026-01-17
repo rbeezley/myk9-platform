@@ -8,7 +8,7 @@
  * - CSV export and result management
  */
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Clock, Users, Award, FileText, Download, Calculator, ArrowLeft, Play, Check } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';

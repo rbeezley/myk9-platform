@@ -1,7 +1,7 @@
 /**
  * Audio Settings Context for managing user preferences
  */
-import React, { createContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useState, useCallback, type ReactNode } from 'react';
 import { DEFAULT_AUDIO_SETTINGS, type AudioSettings } from '@/constants/audioSettings';
 import { logger } from '@/services/LoggingService';
 

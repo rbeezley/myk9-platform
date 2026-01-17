@@ -3,7 +3,7 @@
  * Shows background sync status with visual feedback
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Wifi, 
   WifiOff, 

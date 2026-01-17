@@ -3,7 +3,7 @@
  * Shows spots available per class for a show
  */
 
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';

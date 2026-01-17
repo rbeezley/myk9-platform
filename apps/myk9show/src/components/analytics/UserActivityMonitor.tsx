@@ -677,7 +677,7 @@ export function UserActivityMonitor({ className }: UserActivityMonitorProps) {
                       dataKey="count"
                       label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
                     >
-                      {userMetrics.deviceBreakdown.map((entry, index) => {
+                      {userMetrics.deviceBreakdown.map((_entry, index) => {
                         const colors = ['#3b82f6', '#10b981', '#f59e0b'];
                         return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
                       })}

@@ -60,7 +60,7 @@ const PeopleSidebar: React.FC<PeopleSidebarProps> = ({
     }
   }, [navigate, propToggleCollapsed]);
 
-  const renderPersonItem = (person: PersonWithDetails, isSelected: boolean, isCollapsed: boolean) => {
+  const renderPersonItem = (person: PersonWithDetails, _isSelected: boolean, isCollapsed: boolean) => {
     // Handle both camelCase and snake_case field names
     const personRecord = person as unknown as Record<string, unknown>;
     const firstName = person.firstName || (personRecord.first_name as string) || '';

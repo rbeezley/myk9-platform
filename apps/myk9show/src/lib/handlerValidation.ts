@@ -129,8 +129,8 @@ export function validateHandlerEligibility(
  */
 export function checkHandlerConflicts(
   handlerId: string,
-  showId: string,
-  dogId: string,
+  _showId: string,
+  _dogId: string,
   classSelections: ClassSelectionData[],
   existingAssignments: Record<string, HandlerInfo>,
   trials?: Trial[]
@@ -227,7 +227,7 @@ export function suggestHandlerAssignments(
     classSelections: ClassSelectionData[];
   }>,
   availableHandlers: User[],
-  showId: string,
+  _showId: string,
   trials?: Trial[]
 ): Record<string, HandlerInfo> {
   const suggestions: Record<string, HandlerInfo> = {};
@@ -289,7 +289,7 @@ function checkHandlerPermissions(handler: User): boolean {
 }
 
 function checkTimeConflicts(
-  handlerId: string,
+  _handlerId: string,
   classSelections: ClassSelectionData[]
 ): HandlerConflict[] {
   const conflicts: HandlerConflict[] = [];

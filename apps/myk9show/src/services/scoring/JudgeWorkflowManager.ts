@@ -171,8 +171,7 @@ export class JudgeWorkflowManager extends EventEmitter {
   private performanceMetrics = new Map<string, JudgePerformanceMetrics>();
   private activityLog: WorkflowAction[] = [];
   
-  // Configuration
-  private isInitialized = false;
+  // Configuration - isInitialized is set by initializeService() to track initialization state
 
   constructor() {
     super();
@@ -192,7 +191,6 @@ export class JudgeWorkflowManager extends EventEmitter {
       // Set up event listeners
       this.setupEventListeners();
       
-      this.isInitialized = true;
       this.emit('service_initialized', {});
     } catch (error) {
       logger.error('Failed to initialize judge workflow manager:', 'scoring', {}, error as Error);
@@ -835,27 +833,6 @@ export class JudgeWorkflowManager extends EventEmitter {
     }
   }
 
-  private async handleValidationFailed(event: ScoringEvent): Promise<void> {
-    // Update error count for session
-    if (!event.data) return;
-    
-    const eventData = event.data as Record<string, string>;
-    const judgeId = eventData.judgeId;
-    const classId = eventData.classId;
-    
-    if (!judgeId || !classId) return;
-    
-    const session = Array.from(this.activeSessions.values()).find(s =>
-      s.judgeId === judgeId && s.classId === classId && s.isActive
-    );
-
-    if (session) {
-      session.errorCount++;
-      session.lastActivity = new Date();
-      await this.persistSessions();
-    }
-  }
-
   // ========================================================================
   // Helper Methods
   // ========================================================================
@@ -902,7 +879,7 @@ export class JudgeWorkflowManager extends EventEmitter {
     });
   }
 
-  private logAction(sessionId: string, type: WorkflowAction['type'], data: Record<string, unknown>): void {
+  private logAction(_sessionId: string, type: WorkflowAction['type'], data: Record<string, unknown>): void {
     const action: WorkflowAction = {
       id: generateId(),
       type,

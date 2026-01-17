@@ -130,11 +130,11 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
       description: 'Shows you are secretary or administrator for',
       requiredRoles: [UserRole.SECRETARY, UserRole.CLUB_ADMIN],
       requiredPermissions: [PERMISSIONS.SHOW_MANAGE],
-      getCount: (shows, entries, userId) => {
+      getCount: (shows, _entries, userId) => {
         if (!userId) return 0;
         return getUserManagedShows(userId, shows, userRoles).length;
       },
-      filterShows: (shows, entries, userId) => {
+      filterShows: (shows, _entries, userId) => {
         if (!userId) return [];
         return getUserManagedShows(userId, shows, userRoles);
       }
@@ -148,11 +148,11 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
       description: 'Shows you are assigned to judge',
       requiredRoles: [UserRole.JUDGE],
       requiredPermissions: [PERMISSIONS.JUDGE_VIEW_ASSIGNMENTS],
-      getCount: (shows, entries, userId) => {
+      getCount: (shows, _entries, userId) => {
         if (!userId) return 0;
         return getUserJudgeAssignments(userId, shows).length;
       },
-      filterShows: (shows, entries, userId) => {
+      filterShows: (shows, _entries, userId) => {
         if (!userId) return [];
         return getUserJudgeAssignments(userId, shows);
       }
@@ -366,7 +366,7 @@ export function enhanceShowsWithRelationships(
 export function filterShowsForTab(
   tabId: string,
   shows: Show[],
-  entries: SyncableShowEntry[],
+  _entries: SyncableShowEntry[],
   context: UserShowContext | null
 ): Show[] {
   if (!context) {

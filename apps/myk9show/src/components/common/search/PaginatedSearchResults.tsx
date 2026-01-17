@@ -399,7 +399,7 @@ export function PaginatedSearchResults<T>({
  * Helper hook for common search scenarios
  */
 export function useSearchableData<T>(
-  data: T[],
+  _data: T[],
   searchFields: (keyof T)[],
   filterOptions?: {
     filters: SearchFilter[];

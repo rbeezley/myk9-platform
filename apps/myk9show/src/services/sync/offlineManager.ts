@@ -760,21 +760,6 @@ export class OfflineManager {
   }
 
   /**
-   * Load pending operations from localStorage
-   */
-  private loadPendingOperations(): void {
-    try {
-      const stored = localStorage.getItem('myK9Show_pending_operations');
-      if (stored) {
-        const operations = JSON.parse(stored);
-        this.pendingOperations = new Map(operations);
-      }
-    } catch (error) {
-      logger.error('Failed to load pending operations', 'offline', {}, error as Error);
-    }
-  }
-
-  /**
    * Save drafts to localStorage
    */
   private saveDrafts(): void {
@@ -783,21 +768,6 @@ export class OfflineManager {
       localStorage.setItem('myK9Show_drafts', JSON.stringify(drafts));
     } catch (error) {
       logger.error('Failed to save drafts', 'offline', {}, error as Error);
-    }
-  }
-
-  /**
-   * Load drafts from localStorage
-   */
-  private loadDrafts(): void {
-    try {
-      const stored = localStorage.getItem('myK9Show_drafts');
-      if (stored) {
-        const drafts = JSON.parse(stored);
-        this.draftOperations = new Map(drafts);
-      }
-    } catch (error) {
-      logger.error('Failed to load drafts', 'offline', {}, error as Error);
     }
   }
 

@@ -151,7 +151,7 @@ export const FormErrorProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     },
     minLength: {
       name: 'minLength',
-      validator: (value, formData, minLength = 1) => {
+      validator: (value, _formData, minLength = 1) => {
         if (!value) return true;
         return value.toString().length >= minLength;
       },
@@ -160,7 +160,7 @@ export const FormErrorProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     },
     maxLength: {
       name: 'maxLength',
-      validator: (value, formData, maxLength = 255) => {
+      validator: (value, _formData, maxLength = 255) => {
         if (!value) return true;
         return value.toString().length <= maxLength;
       },

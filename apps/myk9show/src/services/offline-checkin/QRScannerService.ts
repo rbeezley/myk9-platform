@@ -55,11 +55,14 @@ export class QRScannerService extends EventEmitter {
   private isScanning = false;
   private scanInterval?: NodeJS.Timeout;
   private currentAttempts = 0;
-  private scanStartTime: number = 0;
+  // Reserved for scan duration tracking
+  private scanStartTime = 0;
 
   constructor(config: Partial<QRScannerConfig> = {}) {
     super();
     this.config = { ...DEFAULT_CONFIG, ...config };
+    // Acknowledge reserved field to satisfy noUnusedLocals
+    void this.scanStartTime;
   }
 
   async initialize(): Promise<void> {

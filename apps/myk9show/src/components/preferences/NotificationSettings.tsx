@@ -5,7 +5,7 @@
  * Comprehensive notification preferences with sound, timing, and delivery options
  */
 
-import React from 'react';
+
 import { 
   Bell, 
   BellOff, 

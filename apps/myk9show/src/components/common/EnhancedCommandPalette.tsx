@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, startTransition } from 'react';
+import { useState, useMemo, useCallback, startTransition } from 'react';
 import { Command } from 'cmdk';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';

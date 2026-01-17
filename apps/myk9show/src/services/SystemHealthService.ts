@@ -49,11 +49,9 @@ export interface UptimeRecord {
 
 class SystemHealthService {
   private healthData: Map<string, UptimeRecord[]> = new Map();
-  private performanceHistory: PerformanceMetrics[] = [];
   private readonly MAX_HISTORY_RECORDS = 1000;
   private readonly CHECK_INTERVAL = 30000; // 30 seconds
   private intervalId: NodeJS.Timeout | null = null;
-  private startTime = Date.now();
   private errorCount = 0;
   private totalRequests = 0;
 

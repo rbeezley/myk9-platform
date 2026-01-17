@@ -5,7 +5,7 @@
  * Extended theme context that integrates with user preferences system
  */
 
-import React, { createContext, useEffect, useState, useCallback, ReactNode } from 'react';
+import { createContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 import { useAuthUser } from '@/hooks/useAuthUser';
 import type { ThemeMode, ThemePreferences } from '@/types/user-preferences';

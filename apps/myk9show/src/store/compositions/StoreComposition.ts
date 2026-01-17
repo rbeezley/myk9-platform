@@ -116,7 +116,7 @@ export const STORE_COMPOSITIONS = {
  * Store slice factory for creating consistent store slices
  */
 export function createStoreSlice<T, K extends keyof T>(
-  name: string,
+  _name: string,
   initialState: Pick<T, K>,
   actions: (set: unknown, get: unknown) => Omit<T, K>
 ): StateCreator<T> {

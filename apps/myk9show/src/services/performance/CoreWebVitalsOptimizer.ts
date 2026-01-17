@@ -602,7 +602,7 @@ export class CoreWebVitalsOptimizer {
   /**
    * Handle delegated actions efficiently
    */
-  private handleDelegatedAction(action: string, element: HTMLElement, event: Event): void {
+  private handleDelegatedAction(_action: string, element: HTMLElement, event: Event): void {
     // Prevent multiple rapid clicks
     if (element.dataset.processing === 'true') {
       event.preventDefault();

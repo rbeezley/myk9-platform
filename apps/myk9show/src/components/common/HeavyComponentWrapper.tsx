@@ -52,7 +52,7 @@ export const HeavyComponentWrapper: React.FC<HeavyComponentWrapperProps> = ({
     <SuspenseWrapper 
       fallback={skeletonFallback} 
       timeout={timeout}
-      errorFallback={(error, retry) => (
+      errorFallback={(_error, retry) => (
         <div className="flex flex-col items-center justify-center p-8 border border-border rounded-lg bg-card">
           <div className="text-center max-w-md">
             <div className="text-destructive mb-4">

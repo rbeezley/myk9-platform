@@ -223,7 +223,7 @@ export class SearchService {
    * ```
    */
   async getSearchSuggestions(
-    entityType: string,
+    _entityType: string,
     partialQuery: string,
     limit: number = 5
   ): Promise<string[]> {
@@ -254,7 +254,7 @@ export class SearchService {
    * // Returns: ['golden retriever', 'labrador', 'german shepherd', ...]
    * ```
    */
-  async getPopularSearches(entityType: string, limit: number = 10): Promise<string[]> {
+  async getPopularSearches(_entityType: string, limit: number = 10): Promise<string[]> {
     const searchCounts = new Map<string, number>();
     
     this.searchHistory

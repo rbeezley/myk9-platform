@@ -176,7 +176,7 @@ export class CheckInValidator {
       name: 'armband_unique',
       check: 'armband_unique',
       severity: 'error',
-      validator: async (entry, newStatus, context, data) => {
+      validator: async (entry, newStatus, _context, data) => {
         if (newStatus !== 'checked-in') {
           return null; // Only validate for check-in operations
         }
@@ -190,9 +190,9 @@ export class CheckInValidator {
         } || {};
         const allEntries = additionalData.allEntries || [];
         const conflictingEntry = allEntries.find(
-          e => e.id !== entry.id && 
-               e.classId === entry.classId && 
-               e.armband === entry.armband && 
+          e => e.id !== entry.id &&
+               e.classId === entry.classId &&
+               e.armband === entry.armband &&
                e.checkInStatus === 'checked-in'
         );
 
@@ -341,7 +341,7 @@ export class CheckInValidator {
       name: 'handler_eligible',
       check: 'handler_eligible',
       severity: 'warning',
-      validator: async (entry, newStatus, context, data) => {
+      validator: async (entry, newStatus, _context, data) => {
         if (newStatus !== 'checked-in') {
           return null;
         }
@@ -427,7 +427,7 @@ export class CheckInValidator {
       name: 'special_requirements',
       check: 'special_requirements',
       severity: 'info',
-      validator: async (entry, newStatus, context, data) => {
+      validator: async (entry, _newStatus, _context, data) => {
         const additionalData = data as {
           allEntries?: CheckInEntry[];
           armbandAssignments?: ArmbandAssignment[];

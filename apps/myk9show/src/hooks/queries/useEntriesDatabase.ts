@@ -154,7 +154,7 @@ export const useCreateEntryMutation = () => {
 
       return { previousEntries };
     },
-    onError: (err, newEntry, context) => {
+    onError: (_err, _newEntry, context) => {
       // Rollback on error
       if (context?.previousEntries) {
         queryClient.setQueryData(queryKeys.entries, context.previousEntries);
@@ -198,7 +198,7 @@ export const useUpdateEntryMutation = () => {
 
       return { previousEntry, previousEntries };
     },
-    onError: (err, { id }, context) => {
+    onError: (_err, { id }, context) => {
       // Rollback on error
       if (context?.previousEntry) {
         queryClient.setQueryData(queryKeys.entry(id), context.previousEntry);
@@ -207,7 +207,7 @@ export const useUpdateEntryMutation = () => {
         queryClient.setQueryData(queryKeys.entries, context.previousEntries);
       }
     },
-    onSettled: (data, error, { id }) => {
+    onSettled: (_data, _error, { id }) => {
       // Invalidate and refetch related queries
       queryClient.invalidateQueries({ queryKey: queryKeys.entry(id) });
       invalidateQueries.all('entries');
@@ -242,7 +242,7 @@ export const useDeleteEntryMutation = () => {
 
       return { previousEntries };
     },
-    onError: (err, id, context) => {
+    onError: (_err, _id, context) => {
       // Rollback on error
       if (context?.previousEntries) {
         queryClient.setQueryData(queryKeys.entries, context.previousEntries);
@@ -296,7 +296,7 @@ export const useUpdateEntryStatusMutation = () => {
 
       return { previousEntry, previousEntries };
     },
-    onError: (err, { id }, context) => {
+    onError: (_err, { id }, context) => {
       // Rollback on error
       if (context?.previousEntry) {
         queryClient.setQueryData(queryKeys.entry(id), context.previousEntry);
@@ -305,7 +305,7 @@ export const useUpdateEntryStatusMutation = () => {
         queryClient.setQueryData(queryKeys.entries, context.previousEntries);
       }
     },
-    onSettled: (data, error, { id }) => {
+    onSettled: (_data, _error, { id }) => {
       // Invalidate and refetch related queries
       queryClient.invalidateQueries({ queryKey: queryKeys.entry(id) });
       invalidateQueries.all('entries');
@@ -342,7 +342,7 @@ export const useCreateMultipleEntriesMutation = () => {
 
       return { previousEntries };
     },
-    onError: (err, newEntries, context) => {
+    onError: (_err, _newEntries, context) => {
       // Rollback on error
       if (context?.previousEntries) {
         queryClient.setQueryData(queryKeys.entries, context.previousEntries);

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { UserEditPanel } from '@/components/panels/edit';
 import { JudgeQualificationPanel } from '@/components/panels/edit';
 import { Button } from '@/components/ui/button';

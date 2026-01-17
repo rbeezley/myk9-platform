@@ -53,8 +53,7 @@ const UserRoleManagementPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAssignDialog, setShowAssignDialog] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [selectedUserRole, setSelectedUserRole] = useState<UserRole | null>(null);
+  const [_selectedUserRole, setSelectedUserRole] = useState<UserRole | null>(null);
 
   useEffect(() => {
     loadData();

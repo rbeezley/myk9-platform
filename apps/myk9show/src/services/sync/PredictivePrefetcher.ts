@@ -511,7 +511,7 @@ export class PredictivePrefetcher {
   /**
    * Update rule success rate based on usage
    */
-  private updateRuleSuccessRate(task: PrefetchTask, success: boolean): void {
+  private updateRuleSuccessRate(_task: PrefetchTask, success: boolean): void {
     // Find the rule that generated this task and update its success rate
     // This is a simplified version - in practice you'd track which rule generated each task
     const relevantRules = this.prefetchRules.filter(rule => rule.enabled);

@@ -1,4 +1,3 @@
-import React from 'react';
 import { PermissionTestChecklist } from '@/components/admin/PermissionTestChecklist';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';

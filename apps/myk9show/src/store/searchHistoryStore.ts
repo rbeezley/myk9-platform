@@ -356,7 +356,7 @@ export const useSearchHistoryStore = create<SearchHistoryStore>()(
         return suggestions;
       },
 
-      getSuggestions: (userId, partialQuery, searchType, limit = 10) => {
+      getSuggestions: (_userId, partialQuery, searchType, limit = 10) => {
         let suggestions = get().suggestions.filter(suggestion =>
           (!searchType || suggestion.searchType === searchType)
         );

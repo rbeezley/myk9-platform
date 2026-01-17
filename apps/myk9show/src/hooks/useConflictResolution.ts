@@ -263,13 +263,14 @@ export function useConflictResolution(
     setState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      const _context = {
+      const _resolutionContext = {
         userId: user.id,
         userRole: 'user',
         userPermissions: [],
         timestamp: new Date(),
         deviceId: navigator.userAgent // Simple device identification
       };
+      void _resolutionContext; // Reserved for future use
 
       const strategyMap: Record<string, ConflictStrategy> = {
         'local_wins': 'client-authoritative',

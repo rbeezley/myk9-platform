@@ -330,8 +330,7 @@ export class LiveUpdatesService {
   }
 
   // Utility methods for common update patterns
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  getRecentUpdates(entityType?: string, entityId?: string, limit = 10): LiveUpdate[] {
+  getRecentUpdates(_entityType?: string, _entityId?: string, _limit = 10): LiveUpdate[] {
     // This would typically come from a database query
     // For now, return empty array as this is handled by the queue
     return [];

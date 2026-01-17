@@ -62,15 +62,6 @@ const AppHeader: React.FC = () => {
     }
   };
 
-  // Get user's primary role for display (reserved for future use)
-  const _getPrimaryRole = () => {
-    if (hasRole(UserRole.SITE_ADMIN)) return 'Admin';
-    if (hasRole(UserRole.CLUB_ADMIN)) return 'Club Admin';
-    if (hasRole(UserRole.SECRETARY)) return 'Secretary';
-    if (hasRole(UserRole.JUDGE)) return 'Judge';
-    return 'Exhibitor';
-  };
-
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 border-b bg-background/80 backdrop-blur-lg text-foreground border-border h-16 transition-all duration-300 supports-[backdrop-filter]:bg-background/60">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full">

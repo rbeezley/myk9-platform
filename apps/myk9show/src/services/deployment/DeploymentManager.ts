@@ -624,8 +624,7 @@ export class DeploymentManager {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private async executeTask(task: ChecklistTask, deploymentId: string): Promise<void> {
+  private async executeTask(task: ChecklistTask, _deploymentId: string): Promise<void> {
     task.status = 'in_progress';
     
     try {
@@ -668,8 +667,7 @@ export class DeploymentManager {
     };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private async executeRollbackStep(step: RollbackStep, deploymentId: string): Promise<void> {
+  private async executeRollbackStep(step: RollbackStep, _deploymentId: string): Promise<void> {
     // Simulate rollback step execution
     await new Promise(resolve => setTimeout(resolve, step.estimatedDuration * 100));
   }
@@ -685,8 +683,7 @@ export class DeploymentManager {
     return Math.abs(hash);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private evaluateCondition(condition: Record<string, unknown>, context: Record<string, unknown>): boolean {
+  private evaluateCondition(_condition: Record<string, unknown>, _context: Record<string, unknown>): boolean {
     // Simplified condition evaluation
     return true;
   }

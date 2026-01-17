@@ -480,36 +480,6 @@ export class ConflictResolver {
   }
 
   /**
-   * Analyze field-level conflicts
-   */
-  private analyzeFieldConflicts(
-    localData: Record<string, unknown>,
-    remoteData: Record<string, unknown>,
-    baseData?: Record<string, unknown>
-  ): FieldConflict[] {
-    const conflicts: FieldConflict[] = [];
-    const allFields = new Set([
-      ...Object.keys(localData),
-      ...Object.keys(remoteData),
-      ...(baseData ? Object.keys(baseData) : []),
-    ]);
-
-    for (const fieldName of allFields) {
-      const localValue = localData[fieldName];
-      const remoteValue = remoteData[fieldName];
-      const baseValue = baseData?.[fieldName];
-
-      if (!this.deepEqual(localValue, remoteValue)) {
-        conflicts.push(
-          this.analyzeFieldConflict(fieldName, localValue, remoteValue, baseValue)
-        );
-      }
-    }
-
-    return conflicts;
-  }
-
-  /**
    * Categorize conflict type
    */
   private categorizeConflict(

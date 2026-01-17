@@ -5,7 +5,7 @@
  * Button to navigate to the preferences page
  */
 
-import React from 'react';
+
 import { Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';

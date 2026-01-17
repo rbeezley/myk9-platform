@@ -5,7 +5,7 @@
  * Main preferences management interface with tabs for different categories
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
   Settings, 
   Monitor, 

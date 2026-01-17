@@ -341,7 +341,7 @@ This email was sent by myK9Show. Please do not reply to this email.
     // Handle each loops (basic implementation)
     if (variables.entries && Array.isArray(variables.entries)) {
       const eachRegex = /{{#each entries}}(.*?){{\/each}}/gs;
-      result = result.replace(eachRegex, (match, content) => {
+      result = result.replace(eachRegex, (_match, content) => {
         return variables.entries!.map((entry: Record<string, string | number>) => {
           let entryContent = content;
           for (const [key, value] of Object.entries(entry)) {
@@ -355,7 +355,7 @@ This email was sent by myK9Show. Please do not reply to this email.
     
     if (variables.results && Array.isArray(variables.results)) {
       const eachRegex = /{{#each results}}(.*?){{\/each}}/gs;
-      result = result.replace(eachRegex, (match, content) => {
+      result = result.replace(eachRegex, (_match, content) => {
         return variables.results!.map((result: Record<string, string | number>) => {
           let resultContent = content;
           for (const [key, value] of Object.entries(result)) {
@@ -369,7 +369,7 @@ This email was sent by myK9Show. Please do not reply to this email.
     
     // Handle conditional blocks (basic implementation)
     const ifRegex = /{{#if (\w+)}}(.*?){{\/if}}/gs;
-    result = result.replace(ifRegex, (match, condition, content) => {
+    result = result.replace(ifRegex, (_match, condition, content) => {
       return variables[condition] ? content : '';
     });
     

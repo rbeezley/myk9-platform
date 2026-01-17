@@ -534,7 +534,7 @@ export class ArmbandManager extends EventEmitter {
   }
 
   private async resolveManually(
-    conflict: ArmbandConflict,
+    _conflict: ArmbandConflict,
     resolution: ArmbandConflictResolution,
     resolvedBy: string
   ): Promise<void> {

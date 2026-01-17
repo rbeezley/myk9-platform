@@ -149,7 +149,7 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
   };
 
   // Helper function to get mock show metadata
-  const getShowMetadata = (showName: string, isUpcoming: boolean) => {
+  const getShowMetadata = (_showName: string, isUpcoming: boolean) => {
     const entryCount = 25 + Math.floor(Math.random() * 50);
     const fee = isUpcoming ? '$35' : '$30';
     const judges = ['Dr. Smith', 'Ms. Johnson', 'Mr. Brown'][Math.floor(Math.random() * 3)];

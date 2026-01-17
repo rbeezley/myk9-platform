@@ -586,7 +586,7 @@ export const auditService = new AuditService({
 
 // Decorator for automatic audit logging
 export const Audited = (entityType: string, action?: AuditAction) => {
-  return (target: unknown, propertyName: string, descriptor: PropertyDescriptor) => {
+  return (_target: unknown, propertyName: string, descriptor: PropertyDescriptor) => {
     const method = descriptor.value;
     
     descriptor.value = async function(...args: unknown[]) {

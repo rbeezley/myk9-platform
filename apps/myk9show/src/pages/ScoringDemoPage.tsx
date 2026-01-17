@@ -6,7 +6,7 @@
  * judge sync dashboard, and placement alerts in action.
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { logger } from '@/services/LoggingService';
 import { motion } from 'framer-motion';
 

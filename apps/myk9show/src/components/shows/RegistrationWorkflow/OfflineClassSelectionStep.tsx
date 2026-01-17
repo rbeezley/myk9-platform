@@ -287,7 +287,7 @@ export const OfflineClassSelectionStep: React.FC<OfflineClassSelectionStepProps>
     );
   };
 
-  const renderEligibilityStatus = (dogId: string, eligibility: { eligible: boolean; warnings: string[]; reasons: string[] }) => {
+  const renderEligibilityStatus = (_dogId: string, eligibility: { eligible: boolean; warnings: string[]; reasons: string[] }) => {
     if (eligibility.eligible) {
       return (
         <TooltipProvider>

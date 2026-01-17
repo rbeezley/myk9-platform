@@ -261,7 +261,7 @@ export function useOptimisticUpdateUser() {
 
       return { previousUser, previousUsers };
     },
-    onError: (err, variables, context) => {
+    onError: (_err, variables, context) => {
       if (context?.previousUser) {
         queryClient.setQueryData(queryKeys.users.detail(variables.id), context.previousUser);
       }
@@ -269,7 +269,7 @@ export function useOptimisticUpdateUser() {
         queryClient.setQueryData(queryKeys.users.all, context.previousUsers);
       }
     },
-    onSettled: (data, error, variables) => {
+    onSettled: (_data, _error, variables) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(variables.id) });
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
     },

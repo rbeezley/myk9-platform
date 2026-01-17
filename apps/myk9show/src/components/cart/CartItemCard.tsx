@@ -5,7 +5,7 @@
  * Used in the full cart review page for detailed display.
  */
 
-import React from 'react';
+
 import { Trash2, Dog, Users, Ruler } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';

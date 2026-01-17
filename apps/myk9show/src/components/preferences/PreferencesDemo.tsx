@@ -5,7 +5,7 @@
  * Demonstration component showcasing the preferences system
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
   Settings, 
   Monitor, 

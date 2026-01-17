@@ -24,7 +24,7 @@ export interface RegistrationConflictData {
 /**
  * Hook for managing conflicts in registration workflow
  */
-export function useRegistrationConflicts(showId: string, registrationId?: string) {
+export function useRegistrationConflicts(_showId: string, registrationId?: string) {
   const [isCheckingConflicts, setIsCheckingConflicts] = useState(false);
   const [selectedConflictId, setSelectedConflictId] = useState<string | null>(null);
 

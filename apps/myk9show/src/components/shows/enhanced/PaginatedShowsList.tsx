@@ -5,7 +5,7 @@
  * status filtering, and optimized performance for large datasets.
  */
 
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useShowData, useShowScopedData } from '@/components/providers/ShowDataProvider';
 import { useShowStore } from '@/store/showStore';
 import { Button } from '@/components/ui/button';

@@ -119,7 +119,7 @@ export const useCreateClassTemplateMutation = () => {
 
       return { previousTemplates };
     },
-    onError: (err, newTemplate, context) => {
+    onError: (_err, _newTemplate, context) => {
       // Roll back on error
       if (context?.previousTemplates) {
         queryClient.setQueryData(queryKeys.classTemplates, context.previousTemplates);
@@ -161,7 +161,7 @@ export const useUpdateClassTemplateMutation = () => {
 
       return { previousTemplate };
     },
-    onError: (err, { id }, context) => {
+    onError: (_err, { id }, context) => {
       // Roll back on error
       if (context?.previousTemplate) {
         queryClient.setQueryData(queryKeys.classTemplate(id), context.previousTemplate);
@@ -204,13 +204,13 @@ export const useDeleteClassTemplateMutation = () => {
 
       return { previousTemplates };
     },
-    onError: (err, deletedId, context) => {
+    onError: (_err, _deletedId, context) => {
       // Roll back on error
       if (context?.previousTemplates) {
         queryClient.setQueryData(queryKeys.classTemplates, context.previousTemplates);
       }
     },
-    onSuccess: (data, deletedId) => {
+    onSuccess: (_data, deletedId) => {
       // Remove from cache completely
       queryClient.removeQueries({ queryKey: queryKeys.classTemplate(deletedId) });
       
@@ -337,7 +337,7 @@ export const useDeleteShowTemplateMutation = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: (data, deletedId) => {
+    onSuccess: (_data, deletedId) => {
       // Remove from cache completely
       queryClient.removeQueries({ queryKey: queryKeys.showTemplate(deletedId) });
       
@@ -376,7 +376,7 @@ export const useCreateTemplateFieldMutation = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (_data, variables) => {
       // Invalidate template fields
       if (variables.template_id) {
         queryClient.invalidateQueries({
@@ -402,7 +402,7 @@ export const useCreateTemplateFieldsMutation = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (_data, variables) => {
       // Invalidate all affected templates
       const templateIds = [...new Set(variables.map(field => field.template_id).filter(Boolean))];
       

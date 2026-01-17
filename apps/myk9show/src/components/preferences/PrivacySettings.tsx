@@ -5,7 +5,7 @@
  * Privacy and data sharing preferences
  */
 
-import React from 'react';
+
 import { 
   Shield, 
   Eye, 

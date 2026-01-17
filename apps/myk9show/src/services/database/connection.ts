@@ -100,16 +100,7 @@ export class DatabaseService extends Dexie implements DatabaseAPI {
       logger.info('Database ready', 'database', { name: DATABASE_NAME, version: DATABASE_VERSION });
     });
   }
-  
-  private async onOpen() {
-    logger.info('Database opened successfully', 'database', { name: DATABASE_NAME });
-    await this.checkIntegrity();
-  }
 
-  private onError(error: unknown) {
-    logger.error('Database error', 'database', {}, error as Error);
-  }
-  
   async checkIntegrity(): Promise<boolean> {
     try {
       // Verify all stores exist

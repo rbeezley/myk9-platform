@@ -8,7 +8,7 @@
  * - Article finding assessment
  */
 
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 
 // UI Components

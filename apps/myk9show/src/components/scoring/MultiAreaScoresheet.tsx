@@ -5,7 +5,7 @@
  * Manages sequential area timing, cumulative fault tracking, and multi-area result submission.
  */
 
-import React, { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { ChevronLeft, Clock, User, Dog, Award, MapPin, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 

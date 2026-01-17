@@ -285,7 +285,7 @@ export const ShowCreationWizard: React.FC<ShowCreationWizardProps> = ({
   
   // Listen for panel close events to prevent wizard close confirmation
   useEffect(() => {
-    const handlePanelResult = (panelId: string, result: EntityCreationResult) => {
+    const handlePanelResult = (_panelId: string, result: EntityCreationResult) => {
       // Only set flag for cancel actions (not for successful saves)
       if (result.action === 'cancel') {
         setIsClosingPanel(true);

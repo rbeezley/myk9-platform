@@ -295,7 +295,7 @@ export class ConnectionManager {
       {
         name: 'quick-reconnect',
         priority: 100,
-        condition: (metrics, health) => health.status === 'offline',
+        condition: (_metrics, health) => health.status === 'offline',
         action: async () => {
           await realtimeClient.forceReconnect();
         },
@@ -306,7 +306,7 @@ export class ConnectionManager {
       {
         name: 'adjust-config',
         priority: 80,
-        condition: (metrics, health) => health.factors.latency < 50,
+        condition: (_metrics, health) => health.factors.latency < 50,
         action: async () => {
           // Adjust configuration for better performance
           realtimeClient.updateConfig({

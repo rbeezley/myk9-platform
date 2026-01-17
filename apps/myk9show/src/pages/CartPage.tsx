@@ -5,7 +5,7 @@
  * modify entries, and proceed to checkout.
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ShoppingCart, ArrowLeft, Trash2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';

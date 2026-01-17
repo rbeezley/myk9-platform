@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, memo, startTransition } from 'react';
+import { useState, useMemo, useCallback, memo, startTransition } from 'react';
 import { Calendar, momentLocalizer, ViewName, Event } from 'react-big-calendar';
 import moment from 'moment';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card';

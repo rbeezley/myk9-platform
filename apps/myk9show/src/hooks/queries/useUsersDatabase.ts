@@ -143,7 +143,7 @@ export const useCreateUserMutation = () => {
       // Return a context object with the snapshotted value
       return { previousUsers };
     },
-    onError: (err, newUser, context) => {
+    onError: (_err, _newUser, context) => {
       // If the mutation fails, use the context returned from onMutate to roll back
       if (context?.previousUsers) {
         queryClient.setQueryData(queryKeys.people, context.previousUsers);
@@ -191,7 +191,7 @@ export const useUpdateUserMutation = () => {
 
       return { previousUser };
     },
-    onError: (err, { id }, context) => {
+    onError: (_err, { id }, context) => {
       // If the mutation fails, use the context to roll back
       if (context?.previousUser) {
         queryClient.setQueryData(queryKeys.person(id), context.previousUser);
@@ -243,13 +243,13 @@ export const useDeleteUserMutation = () => {
         queryClient.setQueryData(queryKeys.people, context.previousUsers);
       }
     },
-    onSuccess: (deletedData, { id: deletedId }) => {
+    onSuccess: (_deletedData, { id: deletedId }) => {
       // Remove from cache completely
       queryClient.removeQueries({ queryKey: queryKeys.person(deletedId) });
-      
+
       // Invalidate users list
       invalidateQueries.all('people');
-      
+
       // Invalidate statistics since count changed
       queryClient.invalidateQueries({ queryKey: ['users', 'statistics'] });
       queryClient.invalidateQueries({ queryKey: ['users', 'with-dog-counts'] });
@@ -300,7 +300,7 @@ export const useHardDeleteUserMutation = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: (data, id) => {
+    onSuccess: (_data, id) => {
       // Remove from all caches
       queryClient.removeQueries({ queryKey: queryKeys.person(id) });
       queryClient.invalidateQueries({ queryKey: queryKeys.people });

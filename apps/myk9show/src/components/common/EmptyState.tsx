@@ -5,7 +5,7 @@
  * iconography, and call-to-action patterns. Automatically follows design system.
  */
 
-import React from 'react';
+
 import { cn } from '@/lib/utils';
 import { 
   LucideIcon, 

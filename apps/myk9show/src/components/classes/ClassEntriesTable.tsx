@@ -386,7 +386,7 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
   }, [inlineEditData, autoSaveEnabled, handleSubmitChanges]);
 
   // Enhanced keyboard navigation with advanced features
-  const handleKeyDown = useCallback((event: React.KeyboardEvent, entryId: string, field: string, rowIndex: number) => {
+  const handleKeyDown = useCallback((event: React.KeyboardEvent, _entryId: string, field: string, rowIndex: number) => {
     const { key, shiftKey, ctrlKey, metaKey } = event;
     
     // Handle Ctrl/Cmd + S to save

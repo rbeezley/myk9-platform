@@ -63,7 +63,7 @@ const DogSidebar: React.FC<DogSidebarProps> = ({
     }
   }, [navigate, propToggleCollapsed]);
 
-  const renderDogItem = (dog: DogWithDetails, isSelected: boolean, isCollapsed: boolean) => {
+  const renderDogItem = (dog: DogWithDetails, _isSelected: boolean, isCollapsed: boolean) => {
     if (isCollapsed) {
       const initials = dog.callName ? dog.callName.substring(0, 2).toUpperCase() : 'D';
       return (

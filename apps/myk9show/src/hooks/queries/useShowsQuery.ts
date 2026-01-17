@@ -210,7 +210,7 @@ export function useOptimisticUpdateShow() {
 
       return { previousShow, previousShows };
     },
-    onError: (err, variables, context) => {
+    onError: (_err, variables, context) => {
       if (context?.previousShow) {
         queryClient.setQueryData(queryKeys.show(variables.id), context.previousShow);
       }
@@ -218,7 +218,7 @@ export function useOptimisticUpdateShow() {
         queryClient.setQueryData(queryKeys.shows, context.previousShows);
       }
     },
-    onSettled: (data, error, variables) => {
+    onSettled: (_data, _error, variables) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.show(variables.id) });
       queryClient.invalidateQueries({ queryKey: queryKeys.shows });
       queryClient.invalidateQueries({ queryKey: queryKeys.upcomingShows });

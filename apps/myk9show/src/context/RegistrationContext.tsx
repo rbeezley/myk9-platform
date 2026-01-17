@@ -1,4 +1,4 @@
-import React, { createContext, useState, ReactNode } from 'react';
+import { createContext, useState, ReactNode } from 'react';
 import { RegistrationContext as RegistrationContextType } from '../types/show-registration-types';
 import { 
   UserRole, 

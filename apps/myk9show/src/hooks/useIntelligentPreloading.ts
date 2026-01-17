@@ -145,7 +145,7 @@ export function useIntelligentPreloading(
 /**
  * Hook for route-specific preloading triggers (hover, focus, etc.)
  */
-export function useRoutePreloading(routePath: string, component: ComponentType<any>) {
+export function useRoutePreloading(_routePath: string, component: ComponentType<any>) {
   const preloadRef = useRef<Promise<any> | null>(null);
   const [isPreloaded, setIsPreloaded] = useState(false);
 

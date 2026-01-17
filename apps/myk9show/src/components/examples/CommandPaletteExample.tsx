@@ -1,4 +1,3 @@
-import React from 'react';
 import { CommandPaletteEnhanced } from '../common/CommandPaletteEnhanced';
 import { useCommandPalette } from '@/hooks/useCommandPalette';
 import { Button } from '../ui/button';

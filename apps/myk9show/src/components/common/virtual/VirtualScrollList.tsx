@@ -381,7 +381,7 @@ export function useItemHeight(sampleItem?: unknown): number {
  * Hook for virtual scrolling with search and filtering
  */
 export function useVirtualScrolling<T>(
-  items: T[],
+  _items: T[],
   searchFields: (keyof T)[],
   filterConfig?: {
     filters: Array<{ id: string; name: string; options: { value: string; label: string }[] }>;

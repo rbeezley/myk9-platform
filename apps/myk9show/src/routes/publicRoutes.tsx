@@ -4,7 +4,7 @@
  * Includes show browsing, entries, registration, and exhibitor features
  */
 
-import React, { lazy } from 'react';
+import { lazy } from 'react';
 import { Route } from 'react-router-dom';
 import { ProtectedRoute } from '@/context/AuthContext';
 import { PageTransition } from '@/components/common/PageTransition';

@@ -222,8 +222,8 @@ export function checkBudgetViolation(
  * Get optimization recommendations based on violation
  */
 function getRecommendation(
-  metric: string, 
-  category: keyof PerformanceBudget, 
+  _metric: string,
+  category: keyof PerformanceBudget,
   severity: ViolationSeverity
 ): string {
   const recommendations: Record<keyof PerformanceBudget, Record<ViolationSeverity, string>> = {

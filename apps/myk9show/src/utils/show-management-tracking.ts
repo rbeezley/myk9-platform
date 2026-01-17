@@ -35,7 +35,6 @@ export interface EnhancedShowContext {
 export class ShowManagementTracker {
   private relationships: Map<string, ShowManagementRelationship[]> = new Map();
   private lastUpdate = new Map<string, number>();
-  private readonly CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
   /**
    * Add or update a management relationship
@@ -73,14 +72,6 @@ export class ShowManagementTracker {
   getAllRelationships(showId: string, userId: string): ShowManagementRelationship[] {
     const key = `${showId}-${userId}`;
     return this.relationships.get(key) || [];
-  }
-
-  /**
-   * Check if cache needs refresh
-   */
-  private needsRefresh(key: string): boolean {
-    const lastUpdate = this.lastUpdate.get(key) || 0;
-    return Date.now() - lastUpdate > this.CACHE_TTL;
   }
 
   /**

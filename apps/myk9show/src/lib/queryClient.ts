@@ -19,7 +19,7 @@ const mutationCache = new MutationCache({
   onError: (error, variables) => {
     logger.error('Mutation error', 'query', { variables }, error as Error);
   },
-  onSuccess: (data, variables, context, mutation) => {
+  onSuccess: (_data, _variables, _context, mutation) => {
     if (process.env.NODE_ENV === 'development') {
       logger.debug('Mutation success', 'query', { mutationKey: mutation.options.mutationKey });
     }

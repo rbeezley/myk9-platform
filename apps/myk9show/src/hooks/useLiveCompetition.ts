@@ -909,13 +909,17 @@ export function useLiveCompetition(options: UseLiveCompetitionOptions) {
 
   // Initialize services on mount
   useEffect(() => {
-    initializeServices();
+    queueMicrotask(() => {
+      initializeServices();
+    });
   }, [initializeServices]);
 
   // Auto-start if enabled
   useEffect(() => {
     if (autoStart && state.isInitialized && !state.isActive) {
-      start();
+      queueMicrotask(() => {
+        start();
+      });
     }
   }, [autoStart, state.isInitialized, state.isActive, start]);
 

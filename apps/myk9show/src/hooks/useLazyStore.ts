@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useStoreProvider } from '@/providers/StoreProvider';
 import { StoreName, getStoreCategory } from '@/store/store-categories';
 import { logger } from '@/services/LoggingService';
@@ -9,28 +9,29 @@ import { logger } from '@/services/LoggingService';
  */
 export function useLazyStore(storeName: StoreName) {
   const { loadStore, isStoreLoaded, isStoreLoading, getStoreError } = useStoreProvider();
-  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
+  const hasAttemptedLoadRef = useRef(false);
 
-  // Check if we need to load and trigger async load
-  const needsLoad = !hasAttemptedLoad && !isStoreLoaded(storeName) && !isStoreLoading(storeName);
+  const isLoaded = isStoreLoaded(storeName);
+  const isLoading = isStoreLoading(storeName);
 
   useEffect(() => {
-    if (needsLoad) {
+    if (!hasAttemptedLoadRef.current && !isLoaded && !isLoading) {
+      hasAttemptedLoadRef.current = true;
       const category = getStoreCategory(storeName);
       logger.debug(`Lazy loading ${category} store: ${storeName}`, 'hooks', {});
 
-      setHasAttemptedLoad(true);
       loadStore(storeName).catch(error => {
         logger.error(`Failed to lazy load store ${storeName}:`, 'hooks', {}, error as Error);
       });
     }
-  }, [needsLoad, storeName, loadStore]);
+  }, [isLoaded, isLoading, storeName, loadStore]);
 
   return {
-    isLoaded: isStoreLoaded(storeName),
-    isLoading: isStoreLoading(storeName),
+    isLoaded,
+    isLoading,
     error: getStoreError(storeName),
-    hasAttemptedLoad
+    // Derived from actual state - true if loading has started or completed
+    hasAttemptedLoad: isLoaded || isLoading
   };
 }
 
@@ -39,31 +40,28 @@ export function useLazyStore(storeName: StoreName) {
  */
 export function useLazyStores(storeNames: StoreName[]) {
   const { loadStore, isStoreLoaded, isStoreLoading } = useStoreProvider();
-  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
+  const hasAttemptedLoadRef = useRef(false);
 
   const allLoaded = storeNames.every(name => isStoreLoaded(name));
   const anyLoading = storeNames.some(name => isStoreLoading(name));
 
-  // Check if we need to load
-  const needsLoad = !hasAttemptedLoad && !allLoaded && !anyLoading;
-
   useEffect(() => {
-    if (needsLoad) {
+    if (!hasAttemptedLoadRef.current && !allLoaded && !anyLoading) {
+      hasAttemptedLoadRef.current = true;
       logger.debug(`Lazy loading feature stores:`, 'hooks', { data: storeNames });
-
-      setHasAttemptedLoad(true);
 
       // Load stores in parallel
       Promise.all(storeNames.map(name => loadStore(name))).catch(error => {
         logger.error('Failed to lazy load feature stores:', 'hooks', {}, error as Error);
       });
     }
-  }, [needsLoad, storeNames, loadStore]);
+  }, [allLoaded, anyLoading, storeNames, loadStore]);
 
   return {
     allLoaded,
     anyLoading,
-    hasAttemptedLoad
+    // Derived from actual state - true if loading has started or completed
+    hasAttemptedLoad: allLoaded || anyLoading
   };
 }
 

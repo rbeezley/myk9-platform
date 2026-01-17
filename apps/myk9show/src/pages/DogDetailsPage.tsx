@@ -55,7 +55,9 @@ function DogDetails(): React.ReactElement {
   // Handle loading state and navigation
   useEffect(() => {
     if (dogs.length === 0) {
-      setIsLoading(false);
+      queueMicrotask(() => {
+        setIsLoading(false);
+      });
       return;
     }
 
@@ -71,7 +73,9 @@ function DogDetails(): React.ReactElement {
     if (id && !selectedDog) {
       navigate(`/dogs/${dogs[0].id}`, { replace: true });
     } else {
-      setIsLoading(false);
+      queueMicrotask(() => {
+        setIsLoading(false);
+      });
     }
   }, [id, selectedDog, dogs, navigate, canAccessDog]);
 

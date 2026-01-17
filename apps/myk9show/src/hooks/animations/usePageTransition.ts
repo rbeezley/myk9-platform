@@ -53,7 +53,7 @@ export function usePageTransition(config: Partial<PageTransitionConfig> = {}) {
   const location = useLocation();
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
-  const [previousLocation, setPreviousLocation] = useState(location);
+  const [_previousLocation, setPreviousLocation] = useState(location);
 
   const finalConfig = useMemo(() => ({ ...defaultConfig, ...config }), [config]);
 

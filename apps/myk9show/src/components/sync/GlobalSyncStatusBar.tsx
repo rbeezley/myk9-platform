@@ -86,11 +86,10 @@ export function GlobalSyncStatusBar({
   const [showProgress, setShowProgress] = useState(false);
   const [activeOperations, setActiveOperations] = useState<SyncOperation[]>([]);
 
-  // Track syncStatus changes using render-time sync pattern
-  const [prevSyncStatus, setPrevSyncStatus] = useState(syncStatus);
-  if (syncStatus !== prevSyncStatus) {
-    setPrevSyncStatus(syncStatus);
+  // Track syncStatus changes - use effect to avoid impure function calls during render
+  React.useEffect(() => {
     if (syncStatus === 'pending') {
+      const now = Date.now();
       const operations: SyncOperation[] = [
         {
           id: '1',
@@ -99,8 +98,8 @@ export function GlobalSyncStatusBar({
           entityId: 'batch-1',
           progress: 65,
           status: 'processing',
-          startTime: new Date(Date.now() - 30000),
-          estimatedCompletion: new Date(Date.now() + 15000)
+          startTime: new Date(now - 30000),
+          estimatedCompletion: new Date(now + 15000)
         }
       ];
       setActiveOperations(operations);
@@ -109,7 +108,7 @@ export function GlobalSyncStatusBar({
       setActiveOperations([]);
       setShowProgress(false);
     }
-  }
+  }, [syncStatus]);
 
   // Get status icon and color
   const getStatusIcon = () => {

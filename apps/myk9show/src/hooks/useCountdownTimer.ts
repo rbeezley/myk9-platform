@@ -80,8 +80,6 @@ export function useCountdownTimer(options: UseCountdownTimerOptions): CountdownT
   // Timer state
   const [searchTime, setSearchTime] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
-  const [isWarning, setIsWarning] = useState(false);
-  const [isExpired, setIsExpired] = useState(false);
 
   // Refs for interval and callbacks
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -89,6 +87,14 @@ export function useCountdownTimer(options: UseCountdownTimerOptions): CountdownT
   const pausedTimeRef = useRef<number>(0);
   const warningTriggeredRef = useRef(false);
   const expiredTriggeredRef = useRef(false);
+
+  // Store callbacks in refs to avoid dependency issues - sync in effect
+  const onTimeWarningRef = useRef(onTimeWarning);
+  const onTimeExpiredRef = useRef(onTimeExpired);
+  useEffect(() => {
+    onTimeWarningRef.current = onTimeWarning;
+    onTimeExpiredRef.current = onTimeExpired;
+  });
 
   // Calculate remaining time
   const remainingTime = Math.max(0, maxTimeMs - searchTime);
@@ -144,49 +150,42 @@ export function useCountdownTimer(options: UseCountdownTimerOptions): CountdownT
 
     setSearchTime(0);
     setIsRunning(false);
-    setIsWarning(false);
-    setIsExpired(false);
-    
+
     pausedTimeRef.current = 0;
     startTimeRef.current = 0;
     warningTriggeredRef.current = false;
     expiredTriggeredRef.current = false;
   }, []);
 
-  // Handle warning and expiration logic
+  // Derive warning and expired state from remaining time
+  const remaining = maxTimeMs - searchTime;
+  const isWarning = shouldShowWarnings && remaining <= WARNING_THRESHOLD_MS && remaining > 0;
+  const isExpired = remaining <= 0;
+
+  // Store stop in ref to use in effect without dependency - sync in effect
+  const stopRef = useRef(stop);
   useEffect(() => {
-    const remaining = maxTimeMs - searchTime;
+    stopRef.current = stop;
+  });
 
-    // Check for warning state (30 seconds remaining)
-    if (shouldShowWarnings && remaining <= WARNING_THRESHOLD_MS && remaining > 0 && !isWarning) {
-      setIsWarning(true);
-      
-      if (!warningTriggeredRef.current && onTimeWarning) {
-        warningTriggeredRef.current = true;
-        onTimeWarning(remaining);
-      }
+  // Handle callbacks and auto-stop for expiration
+  useEffect(() => {
+    // Handle warning callback
+    if (isWarning && !warningTriggeredRef.current) {
+      warningTriggeredRef.current = true;
+      onTimeWarningRef.current?.(remaining);
     }
 
-    // Check for expiration
-    if (remaining <= 0 && !isExpired) {
-      setIsExpired(true);
-      
-      // Auto-stop timer when expired
+    // Handle expiration
+    if (isExpired && !expiredTriggeredRef.current) {
+      expiredTriggeredRef.current = true;
+      // Auto-stop timer when expired - use setTimeout to defer the state update
       if (isRunning) {
-        stop();
+        setTimeout(() => stopRef.current(), 0);
       }
-      
-      if (!expiredTriggeredRef.current && onTimeExpired) {
-        expiredTriggeredRef.current = true;
-        onTimeExpired();
-      }
+      onTimeExpiredRef.current?.();
     }
-
-    // Clear warning if time goes back above threshold (after reset)
-    if (remaining > WARNING_THRESHOLD_MS && isWarning) {
-      setIsWarning(false);
-    }
-  }, [searchTime, maxTimeMs, shouldShowWarnings, isWarning, isExpired, isRunning, onTimeWarning, onTimeExpired, stop]);
+  }, [isWarning, isExpired, remaining, isRunning]);
 
   // Cleanup interval on unmount
   useEffect(() => {

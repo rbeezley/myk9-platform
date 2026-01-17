@@ -174,7 +174,8 @@ export const SecurityProvider: React.FC<{ children: ReactNode }> = ({ children }
     }
   };
 
-  const recordSecurityEvent = useCallback((event: string, severity: 'low' | 'medium' | 'high' | 'critical', metadata?: Record<string, unknown>) => {
+  // Not using useCallback - React Compiler handles memoization automatically
+  const recordSecurityEvent = (event: string, severity: 'low' | 'medium' | 'high' | 'critical', metadata?: Record<string, unknown>) => {
     logger.logSecurityEvent(event, severity, {
       url: window.location.href,
       userAgent: navigator.userAgent,
@@ -195,7 +196,7 @@ export const SecurityProvider: React.FC<{ children: ReactNode }> = ({ children }
         failedAttempts: prev.failedAttempts + 1,
       }));
     }
-  }, []);
+  };
 
   const checkRateLimit = (identifier: string): boolean => {
     const now = Date.now();
@@ -247,10 +248,11 @@ export const SecurityProvider: React.FC<{ children: ReactNode }> = ({ children }
     }));
   }, [config]);
 
-  const isSessionValid = useCallback((): boolean => {
+  // Not using useCallback - React Compiler handles memoization automatically
+  const isSessionValid = (): boolean => {
     const now = Date.now();
     const isValid = now < state.sessionExpiry && state.failedAttempts < config.maxFailedAttempts;
-    
+
     if (!isValid) {
       recordSecurityEvent('session_expired', 'low', {
         lastActivity: state.lastActivity,
@@ -259,25 +261,26 @@ export const SecurityProvider: React.FC<{ children: ReactNode }> = ({ children }
     }
 
     return isValid;
-  }, [state.sessionExpiry, state.failedAttempts, state.lastActivity, config.maxFailedAttempts, recordSecurityEvent]);
+  };
 
-  const checkSessionExpiry = useCallback(() => {
+  // Not using useCallback - React Compiler handles memoization automatically
+  const checkSessionExpiry = () => {
     if (!isSessionValid()) {
       setState(prev => ({
         ...prev,
         isSecure: false,
       }));
-      
+
       // Redirect to login or show session expired message
       window.dispatchEvent(new CustomEvent('session-expired'));
     }
-  }, [isSessionValid]);
+  };
 
   // Setup effect - moved after all function definitions
   useEffect(() => {
     // Setup security headers and policies
     setupSecurityHeaders();
-    
+
     // Setup session monitoring
     const sessionInterval = setInterval(() => {
       checkSessionExpiry();
@@ -291,7 +294,7 @@ export const SecurityProvider: React.FC<{ children: ReactNode }> = ({ children }
     // Setup activity tracking
     const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
     const handleActivity = () => updateActivity();
-    
+
     activityEvents.forEach(event => {
       document.addEventListener(event, handleActivity, { passive: true });
     });
@@ -303,7 +306,8 @@ export const SecurityProvider: React.FC<{ children: ReactNode }> = ({ children }
         document.removeEventListener(event, handleActivity);
       });
     };
-  }, [config, checkSessionExpiry, resetRateLimits, setupSecurityHeaders, updateActivity]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- checkSessionExpiry is intentionally excluded to avoid interval recreation
+  }, [config, resetRateLimits, setupSecurityHeaders, updateActivity]);
 
   const contextValue: SecurityContextType = {
     config,

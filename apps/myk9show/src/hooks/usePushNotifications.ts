@@ -26,20 +26,22 @@ export function usePushNotifications(): PushNotificationState {
 
   // Check if notifications are supported
   useEffect(() => {
-    setSupported('Notification' in window);
-    if ('Notification' in window) {
-      setPermission(Notification.permission);
-      
-      // Load saved preferences
-      const saved = localStorage.getItem('notificationPreferences');
-      if (saved) {
-        try {
-          setPreferences(JSON.parse(saved));
-        } catch (e) {
-          logger.error('Error loading notification preferences:', 'hooks', {}, e as Error);
+    queueMicrotask(() => {
+      setSupported('Notification' in window);
+      if ('Notification' in window) {
+        setPermission(Notification.permission);
+
+        // Load saved preferences
+        const saved = localStorage.getItem('notificationPreferences');
+        if (saved) {
+          try {
+            setPreferences(JSON.parse(saved));
+          } catch (e) {
+            logger.error('Error loading notification preferences:', 'hooks', {}, e as Error);
+          }
         }
       }
-    }
+    });
   }, []);
 
 

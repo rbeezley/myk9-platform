@@ -115,7 +115,9 @@ const BrowseShowsPage: React.FC = () => {
   // Update selected tab if current tab is not available for this user (separate effect)
   useEffect(() => {
     if (!tabConfig.tabs.some(tab => tab.id === selectedTab)) {
-      setSelectedTab(tabConfig.defaultTab);
+      queueMicrotask(() => {
+        setSelectedTab(tabConfig.defaultTab);
+      });
     }
   }, [tabConfig, selectedTab]);
 
@@ -224,12 +226,16 @@ const BrowseShowsPage: React.FC = () => {
   useEffect(() => {
     const tabFromUrl = searchParams.get('tab') || 'all';
     const viewFromUrl = (searchParams.get('view') as ViewMode) || 'grid';
-    
+
     if (tabFromUrl !== selectedTab) {
-      setSelectedTab(tabFromUrl);
+      queueMicrotask(() => {
+        setSelectedTab(tabFromUrl);
+      });
     }
     if (viewFromUrl !== viewMode) {
-      setViewMode(viewFromUrl);
+      queueMicrotask(() => {
+        setViewMode(viewFromUrl);
+      });
     }
   }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps -- selectedTab and viewMode intentionally excluded to avoid infinite loop
 
@@ -666,11 +672,13 @@ const BrowseShowsPage: React.FC = () => {
         selectedTab,
         false
       );
-      
+
       // Redirect to default accessible tab
       const accessibleTabs = ShowPermissionValidator.getAccessibleTabs(user);
       if (accessibleTabs.length > 0) {
-        handleTabChange(accessibleTabs[0]);
+        queueMicrotask(() => {
+          handleTabChange(accessibleTabs[0]);
+        });
       }
     }
   }, [selectedTab, user, handleTabChange]);
@@ -748,7 +756,9 @@ const BrowseShowsPage: React.FC = () => {
   }, [shows, entries, userContext, selectedTab, filters]);
 
   useEffect(() => {
-    applyFilters();
+    queueMicrotask(() => {
+      applyFilters();
+    });
   }, [applyFilters]);
 
   const getStatusBadge = (status: string) => {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { logger } from '@/services/LoggingService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -36,9 +36,49 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
   
   const { templates } = useTemplateStore();
   
-  const [currentTrialId, setCurrentTrialId] = useState<string>('');
-  const [trialStates, setTrialStates] = useState<Record<string, TrialClassState>>({});
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  // Track user's selected trial ID (raw state)
+  const [selectedTrialId, setSelectedTrialId] = useState<string>(() =>
+    trials.length > 0 ? trials[0].id : ''
+  );
+
+  // Derive effective current trial ID (ensures validity)
+  const currentTrialId = useMemo(() => {
+    if (trials.length === 0) return '';
+    // If selected trial exists, use it; otherwise fall back to first trial
+    const exists = trials.some(t => t.id === selectedTrialId);
+    return exists ? selectedTrialId : trials[0].id;
+  }, [trials, selectedTrialId]);
+
+  // Track user's explicit trial state selections (raw state)
+  const [rawTrialStates, setRawTrialStates] = useState<Record<string, TrialClassState>>(() => {
+    const initialStates: Record<string, TrialClassState> = {};
+    trials.forEach(trial => {
+      let selectedTemplate: ClassTemplate | null = null;
+      let selectedClasses: ClassDefinition[] = [];
+
+      if (trial.classes.length > 0) {
+        const templateId = trial.classes[0]?.templateId;
+        if (templateId) {
+          selectedTemplate = templates.find(t => t.id === templateId) || null;
+          if (selectedTemplate) {
+            selectedClasses = trial.classes.map(cls => {
+              const templateClass = selectedTemplate!.classDefinitions?.find(def =>
+                def.className === (cls.customizations?.className as string)
+              );
+              return templateClass || {
+                className: (cls.customizations?.className as string) || 'Unknown Class',
+                element: (cls.customizations?.element as string) || 'Unknown Element',
+                displayOrder: 0
+              };
+            });
+          }
+        }
+      }
+
+      initialStates[trial.id] = { selectedTemplate, selectedClasses };
+    });
+    return initialStates;
+  });
 
   // Extract show type for stable dependency
   const showType = show?.type;
@@ -109,80 +149,27 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
     return deduplicatedTemplates;
   }, [templates, showType]);
 
-  // Initialize trial states from existing data
-  useEffect(() => {
-    const initialStates: Record<string, TrialClassState> = {};
-    
+  // Derive complete trial states (fills in missing trials and applies auto-select)
+  const trialStates = useMemo(() => {
+    const states: Record<string, TrialClassState> = { ...rawTrialStates };
+    const autoSelectTemplate = activeTemplates.length === 1 ? activeTemplates[0] : null;
+
     trials.forEach(trial => {
-      if (!trialStates[trial.id]) {
-        // Check if trial already has classes configured
-        let selectedTemplate: ClassTemplate | null = null;
-        let selectedClasses: ClassDefinition[] = [];
-        
-        if (trial.classes.length > 0) {
-          // Find the template used for this trial
-          const templateId = trial.classes[0]?.templateId;
-          if (templateId) {
-            selectedTemplate = templates.find(t => t.id === templateId) || null;
-            
-            // Reconstruct selected classes from trial classes
-            if (selectedTemplate) {
-              selectedClasses = trial.classes.map(cls => {
-                // Find the matching class definition from the template
-                const templateClass = selectedTemplate!.classDefinitions?.find(def => 
-                  def.className === (cls.customizations?.className as string)
-                );
-                return templateClass || {
-                  className: (cls.customizations?.className as string) || 'Unknown Class',
-                  element: (cls.customizations?.element as string) || 'Unknown Element',
-                  displayOrder: 0
-                };
-              });
-            }
-          }
-        }
-        
-        initialStates[trial.id] = {
-          selectedTemplate,
-          selectedClasses
+      if (!states[trial.id]) {
+        // Fill in missing trials with defaults
+        states[trial.id] = { selectedTemplate: null, selectedClasses: [] };
+      }
+      // Auto-select single template for trials with no template and no classes
+      if (autoSelectTemplate && !states[trial.id].selectedTemplate && trial.classes.length === 0) {
+        states[trial.id] = {
+          ...states[trial.id],
+          selectedTemplate: autoSelectTemplate
         };
       }
     });
-    
-    if (Object.keys(initialStates).length > 0) {
-      setTrialStates(prev => ({ ...prev, ...initialStates }));
-    }
-  }, [trials, templates, trialStates]);
 
-  // Set initial trial ID when trials are available
-  useEffect(() => {
-    if (trials.length > 0 && !currentTrialId) {
-      setCurrentTrialId(trials[0].id);
-    }
-  }, [trials, currentTrialId]);
-
-  // Auto-select single template when available (only for trials with no existing template)
-  useEffect(() => {
-    if (activeTemplates.length === 1 && trials.length > 0) {
-      const template = activeTemplates[0];
-      const newStates: Record<string, TrialClassState> = {};
-      
-      trials.forEach(trial => {
-        const currentState = trialStates[trial.id];
-        // Only auto-select if no template is currently selected AND no classes configured
-        if (!currentState?.selectedTemplate && trial.classes.length === 0) {
-          newStates[trial.id] = {
-            selectedTemplate: template,
-            selectedClasses: currentState?.selectedClasses || []
-          };
-        }
-      });
-      
-      if (Object.keys(newStates).length > 0) {
-        setTrialStates(prev => ({ ...prev, ...newStates }));
-      }
-    }
-  }, [activeTemplates, trials, trialStates]);
+    return states;
+  }, [rawTrialStates, trials, activeTemplates]);
 
   // Get current trial and its state
   const currentTrial = trials.find(t => t.id === currentTrialId);
@@ -203,35 +190,35 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
     phone: judgeDetails[judgeId]?.phone || ''
   }));
 
-  // Validate class selection for all trials
-  const validateClassSelection = useCallback(() => {
+  // Derive validation errors (no setState needed)
+  const errors = useMemo(() => {
     const newErrors: Record<string, string> = {};
-    
+
     if (totalClasses === 0) {
       newErrors.classes = 'At least one class must be selected across all trials';
     }
-    
+
     // Check that each trial has completed the class creation process
     trials.forEach((trial, index) => {
       if (trial.classes.length === 0) {
         newErrors[`trial-${index}`] = `${trial.name} must have at least one class`;
       }
     });
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+
+    return newErrors;
   }, [totalClasses, trials]);
 
-  // Auto-validate and mark step complete when classes are selected
+  // Mark step complete when validation passes
+  const isValid = Object.keys(errors).length === 0;
   useEffect(() => {
-    if (validateClassSelection()) {
+    if (isValid) {
       markStepCompleted(2);
     }
-  }, [trials, markStepCompleted, validateClassSelection]);
+  }, [isValid, markStepCompleted]);
 
   // Update trial state
   const updateTrialState = (trialId: string, updates: Partial<TrialClassState>) => {
-    setTrialStates(prev => ({
+    setRawTrialStates(prev => ({
       ...prev,
       [trialId]: { ...prev[trialId], ...updates }
     }));
@@ -323,7 +310,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
               </CardContent>
             </Card>
           ) : (
-            <Tabs value={currentTrialId} onValueChange={setCurrentTrialId}>
+            <Tabs value={currentTrialId} onValueChange={setSelectedTrialId}>
               {/* Trial Tabs */}
               <div className="w-full overflow-x-auto">
                 <TabsList className="grid w-full min-w-max" style={{ gridTemplateColumns: `repeat(${trials.length}, minmax(180px, 1fr))` }}>

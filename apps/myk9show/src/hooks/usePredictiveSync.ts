@@ -69,8 +69,10 @@ export function usePredictiveSync(options: PredictiveSyncOptions = {}) {
       }
     }
 
-    setPreviousRoute(currentRoute);
-    setRouteStartTime(currentTime);
+    queueMicrotask(() => {
+      setPreviousRoute(currentRoute);
+      setRouteStartTime(currentTime);
+    });
   }, [location.pathname, enableAnalytics, enablePrefetching, trackNavigation, previousRoute, routeStartTime]);
 
   /**

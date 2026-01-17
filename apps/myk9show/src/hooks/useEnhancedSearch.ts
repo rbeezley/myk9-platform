@@ -68,7 +68,6 @@ export function useEnhancedSearch<T = unknown>(
   const [query, setQuery] = useState(options.query || '');
   const [filters, setFilters] = useState(options.filters || {});
   const [responseTime, setResponseTime] = useState(0);
-  const [searchStartTime, setSearchStartTime] = useState(0);
 
   // Debounced query
   const debouncedQuery = useDebounce(query, debounceMs);
@@ -105,32 +104,33 @@ export function useEnhancedSearch<T = unknown>(
   // Execute search with the provided hook
   const searchQuery = searchHook(searchParams);
 
-  // Track search timing using refs and effects to avoid impure function calls during render
-  const prevIsFetching = useRef(searchQuery.isFetching);
-  const prevData = useRef(searchQuery.data);
-  const [isSearching, setIsSearching] = useState(false);
+  // Track search timing using refs to avoid setState in effect body
+  const prevIsFetchingRef = useRef(searchQuery.isFetching);
+  const prevDataRef = useRef(searchQuery.data);
+  const searchStartTimeRef = useRef(0);
 
-  // Track timing state changes via useEffect
+  // Track timing state changes via useEffect - use ref for start time
   useEffect(() => {
-    // Start timing when fetch begins
-    if (searchQuery.isFetching && !searchQuery.isPreviousData && !prevIsFetching.current) {
-      setSearchStartTime(Date.now());
-      setIsSearching(true);
+    // Start timing when fetch begins - use ref to track
+    const wasNotFetching = !prevIsFetchingRef.current;
+    const isNowFetching = searchQuery.isFetching && !searchQuery.isPreviousData;
+
+    if (isNowFetching && wasNotFetching) {
+      searchStartTimeRef.current = Date.now();
     }
-    prevIsFetching.current = searchQuery.isFetching;
+    prevIsFetchingRef.current = searchQuery.isFetching;
   }, [searchQuery.isFetching, searchQuery.isPreviousData]);
 
   // Handle search completion via useEffect
   useEffect(() => {
-    if (searchQuery.data !== prevData.current && searchQuery.data && !searchQuery.isFetching) {
-      prevData.current = searchQuery.data;
-      setIsSearching(false);
+    if (searchQuery.data !== prevDataRef.current && searchQuery.data && !searchQuery.isFetching) {
+      prevDataRef.current = searchQuery.data;
 
-      if (searchStartTime > 0) {
+      if (searchStartTimeRef.current > 0) {
         const endTime = Date.now();
-        const duration = endTime - searchStartTime;
+        const duration = endTime - searchStartTimeRef.current;
         setResponseTime(duration);
-        setSearchStartTime(0); // Reset for next search
+        searchStartTimeRef.current = 0; // Reset for next search
 
         // Log analytics
         if (enableAnalytics && debouncedQuery.trim()) {
@@ -153,7 +153,7 @@ export function useEnhancedSearch<T = unknown>(
         }
       }
     }
-  }, [searchQuery.data, searchQuery.isFetching, searchStartTime, enableAnalytics, debouncedQuery, context, searchQuery.isFetched, logSearch, enableRecentSearches, recentSearchesHook, filters]);
+  }, [searchQuery.data, searchQuery.isFetching, enableAnalytics, debouncedQuery, context, searchQuery.isFetched, logSearch, enableRecentSearches, recentSearchesHook, filters]);
 
   // Prefetch related searches
   useEffect(() => {

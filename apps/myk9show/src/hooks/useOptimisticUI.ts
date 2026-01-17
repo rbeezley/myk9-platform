@@ -38,8 +38,10 @@ export const useOptimisticUI = (options: UseOptimisticUIOptions) => {
   }, [options.entityType]);
 
   useEffect(() => {
-    // Initial update
-    updatePendingOperations();
+    // Initial update - deferred to avoid synchronous setState in effect
+    queueMicrotask(() => {
+      updatePendingOperations();
+    });
 
     // Listen for operation events
     const handleOptimisticUpdate = (event: { update: { entityType: string } }) => {

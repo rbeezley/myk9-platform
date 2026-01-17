@@ -74,7 +74,9 @@ const JudgeCheckInDashboard: React.FC = () => {
   }, [user?.email]);
 
   useEffect(() => {
-    loadRingAssignments();
+    queueMicrotask(() => {
+      loadRingAssignments();
+    });
   }, [loadRingAssignments]);
 
   const handleRingSelect = (ringNumber: string) => {

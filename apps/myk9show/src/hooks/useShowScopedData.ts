@@ -122,7 +122,7 @@ export function useShowScopedData(options: ShowScopeOptions = {}): ShowScopedDat
   // Memoized classes data (only compute if requested and show has trials)
   const scopedClasses = useMemo(() => {
     if (!includeClasses || !show?.trials?.length) return [];
-    
+
     // Get classes for all trials in this show
     const allClasses: CreatedClass[] = [];
     for (const trial of show.trials) {
@@ -130,12 +130,12 @@ export function useShowScopedData(options: ShowScopeOptions = {}): ShowScopedDat
       allClasses.push(...trialClasses);
     }
     return allClasses;
-  }, [includeClasses, show?.trials, getClassesByTrial]);
+  }, [includeClasses, show, getClassesByTrial]);
 
   // Memoized trials data
   const trials = useMemo(() => {
     return show?.trials || [];
-  }, [show?.trials]);
+  }, [show]);
 
   // Loading states
   const isShowLoading = showStoreState.isLoading;

@@ -44,9 +44,11 @@ export default function CalendarPage() {
   useEffect(() => {
     const intent = searchParams.get('intent');
     if (intent === 'register') {
-      setShowRegistrationHint(true);
-      // Clear the URL parameter
-      setSearchParams({});
+      queueMicrotask(() => {
+        setShowRegistrationHint(true);
+        // Clear the URL parameter
+        setSearchParams({});
+      });
     }
   }, [searchParams, setSearchParams]);
 

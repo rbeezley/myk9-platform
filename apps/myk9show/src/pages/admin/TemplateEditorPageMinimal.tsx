@@ -46,7 +46,9 @@ const TemplateEditorPageMinimal: React.FC = () => {
     if (!isNew && templateId) {
       const existingTemplate = getTemplate(templateId);
       if (existingTemplate) {
-        setTemplate(existingTemplate);
+        queueMicrotask(() => {
+          setTemplate(existingTemplate);
+        });
       } else {
         navigate('/admin/templates');
       }

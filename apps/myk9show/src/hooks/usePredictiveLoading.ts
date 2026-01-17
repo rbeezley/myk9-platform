@@ -63,15 +63,19 @@ export function usePredictiveLoading(options: PredictiveLoadingOptions = {}) {
       
       // Trigger preloading for next likely views
       predictiveLoader.preloadLikelyViews(currentRoute);
-      
-      setState(prev => ({
-        ...prev,
-        lastPreloadTime: currentTime
-      }));
+
+      queueMicrotask(() => {
+        setState(prev => ({
+          ...prev,
+          lastPreloadTime: currentTime
+        }));
+      });
     }
 
-    setPreviousRoute(currentRoute);
-    setRouteStartTime(currentTime);
+    queueMicrotask(() => {
+      setPreviousRoute(currentRoute);
+      setRouteStartTime(currentTime);
+    });
   }, [location.pathname, enablePreloading, trackNavigation, previousRoute, routeStartTime]);
 
   /**
@@ -202,7 +206,9 @@ export function usePredictiveLoading(options: PredictiveLoadingOptions = {}) {
   // Generate initial show predictions
   useEffect(() => {
     if (enableShowPredictions) {
-      generateShowPredictions();
+      queueMicrotask(() => {
+        generateShowPredictions();
+      });
     }
   }, [enableShowPredictions, generateShowPredictions]);
 

@@ -12,9 +12,13 @@ export function useTemplates() {
   useEffect(() => {
     // Only load if not already initialized and we don't have templates
     if (!isInitialized && templates.length === 0 && !isLoading) {
-      setIsLoading(true);
+      queueMicrotask(() => {
+        setIsLoading(true);
+      });
       ensureTemplatesLoaded().finally(() => {
-        setIsLoading(false);
+        queueMicrotask(() => {
+          setIsLoading(false);
+        });
       });
     }
   }, [isInitialized, templates.length, ensureTemplatesLoaded, isLoading]);

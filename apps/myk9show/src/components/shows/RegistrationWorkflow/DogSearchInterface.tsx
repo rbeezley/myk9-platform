@@ -78,12 +78,14 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
   const searchInputRef = useRef<HTMLInputElement>(null);
   
   // Performance tracking
-  const [searchStartTime, setSearchStartTime] = useState(0);
+  const searchStartTimeRef = useRef(0);
   const [searchResponseTime, setSearchResponseTime] = useState(0);
-  const [isSearching, setIsSearching] = useState(false);
-  
+
   // Debounced search query for performance
   const debouncedSearchQuery = useDebounce(filters.searchQuery, 300);
+
+  // Derive isSearching from query state - searching when there's a pending debounced query
+  const isSearching = filters.searchQuery.trim() !== '' && filters.searchQuery !== debouncedSearchQuery;
 
   // Quick filters for common use cases
   const quickFilters: QuickFilter[] = useMemo(() => [
@@ -210,39 +212,39 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
     onDogsFiltered(filteredDogs);
   }, [filteredDogs, onDogsFiltered]);
 
-  // Track search performance using render-time sync pattern
-  const [prevSearchQuery, setPrevSearchQuery] = useState(debouncedSearchQuery);
-  if (debouncedSearchQuery !== prevSearchQuery) {
-    setPrevSearchQuery(debouncedSearchQuery);
+  // Track search start time using ref (no setState needed)
+  useEffect(() => {
     if (debouncedSearchQuery.trim()) {
-      setIsSearching(true);
-      setSearchStartTime(Date.now());
-    } else {
-      setIsSearching(false);
+      searchStartTimeRef.current = Date.now();
     }
-  }
+  }, [debouncedSearchQuery]);
 
   // Track search completion and add to recent searches
   const searchKey = `${debouncedSearchQuery}-${filteredDogs.length}`;
-  const [prevSearchKey, setPrevSearchKey] = useState(searchKey);
-  if (searchKey !== prevSearchKey && debouncedSearchQuery.trim() && enablePersistence) {
-    setPrevSearchKey(searchKey);
-    const endTime = Date.now();
-    const responseTime = searchStartTime > 0 ? endTime - searchStartTime : 0;
-    setSearchResponseTime(responseTime);
-    setIsSearching(false);
+  const prevSearchKeyRef = useRef(searchKey);
+  useEffect(() => {
+    if (searchKey !== prevSearchKeyRef.current && debouncedSearchQuery.trim() && enablePersistence) {
+      prevSearchKeyRef.current = searchKey;
+      const endTime = Date.now();
+      const responseTime = searchStartTimeRef.current > 0 ? endTime - searchStartTimeRef.current : 0;
 
-    addSearch(debouncedSearchQuery, {
-      resultCount: filteredDogs.length,
-      filters: {
-        breed: filters.breedFilter,
-        gender: filters.genderFilter,
-        registration: filters.registrationFilter,
-        age: filters.ageFilter,
-        quick: filters.quickFilter
-      }
-    });
-  }
+      // Use queueMicrotask to defer state update (avoids synchronous setState in effect)
+      queueMicrotask(() => {
+        setSearchResponseTime(responseTime);
+      });
+
+      addSearch(debouncedSearchQuery, {
+        resultCount: filteredDogs.length,
+        filters: {
+          breed: filters.breedFilter,
+          gender: filters.genderFilter,
+          registration: filters.registrationFilter,
+          age: filters.ageFilter,
+          quick: filters.quickFilter
+        }
+      });
+    }
+  }, [searchKey, debouncedSearchQuery, enablePersistence, filteredDogs.length, addSearch, filters]);
 
   // Close suggestions when clicking outside
   useEffect(() => {

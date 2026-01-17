@@ -89,33 +89,39 @@ const preloadImage = (src: string, options: PreloadOptions = {}): Promise<string
  * Hook for preloading a single image
  */
 export const useImagePreloader = (
-  src: string | undefined, 
+  src: string | undefined,
   options: PreloadOptions = {}
 ): ImagePreloadResult => {
-  const [state, setState] = useState<ImagePreloadResult>({
-    loaded: false,
+  // Use lazy initialization to handle empty src case in initial state
+  const [state, setState] = useState<ImagePreloadResult>(() => ({
+    loaded: src ? loadedImages.has(src) : false,
     error: false,
-    progress: 0,
-  });
+    progress: src && loadedImages.has(src) ? 100 : 0,
+  }));
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
+    // Empty src is handled by initial state - no effect needed
     if (!src) {
-      setState({ loaded: false, error: false, progress: 0 });
       return;
     }
 
-    // Check if already loaded
+    // Check if already loaded - defer state update
     if (loadedImages.has(src)) {
-      setState({ loaded: true, error: false, progress: 100 });
+      queueMicrotask(() => {
+        setState({ loaded: true, error: false, progress: 100 });
+      });
       return;
     }
 
     // Create abort controller for cleanup
     abortControllerRef.current = new AbortController();
-    
-    setState({ loaded: false, error: false, progress: 10 });
+
+    // Defer initial loading state update
+    queueMicrotask(() => {
+      setState({ loaded: false, error: false, progress: 10 });
+    });
 
     preloadImage(src, options)
       .then(() => {
@@ -150,30 +156,41 @@ export const useMultipleImagePreloader = (
   progress: number;
   results: ImagePreloadResult[];
 } => {
-  const [results, setResults] = useState<ImagePreloadResult[]>(() =>
-    sources.map(() => ({ loaded: false, error: false, progress: 0 }))
-  );
+  // Use lazy initialization to properly handle empty sources case
+  const [results, setResults] = useState<ImagePreloadResult[]>(() => {
+    const validSources = sources.filter(Boolean) as string[];
+    if (validSources.length === 0) {
+      return [];
+    }
+    return sources.map((src) =>
+      src && loadedImages.has(src)
+        ? { loaded: true, error: false, progress: 100 }
+        : { loaded: false, error: false, progress: 0 }
+    );
+  });
 
   const abortControllersRef = useRef<AbortController[]>([]);
 
   useEffect(() => {
     const validSources = sources.filter(Boolean) as string[];
-    
+
+    // Empty sources case is handled by initial state - no effect needed
     if (validSources.length === 0) {
-      setResults([]);
       return;
     }
 
     // Create abort controllers for cleanup
     abortControllersRef.current = validSources.map(() => new AbortController());
 
-    // Initialize results
-    const initialResults = sources.map((src) => 
-      src && loadedImages.has(src) 
+    // Initialize results - defer state update
+    const initialResults = sources.map((src) =>
+      src && loadedImages.has(src)
         ? { loaded: true, error: false, progress: 100 }
         : { loaded: false, error: false, progress: 0 }
     );
-    setResults(initialResults);
+    queueMicrotask(() => {
+      setResults(initialResults);
+    });
 
     // Preload all images
     const preloadPromises = validSources.map((src, index) => {

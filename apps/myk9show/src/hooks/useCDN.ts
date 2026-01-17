@@ -121,18 +121,24 @@ export function useCDN(): UseCDNResult {
  */
 export function useCDNImage(src: string, options?: AssetOptions) {
   const { getAssetUrl } = useCDN();
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [isError, setIsError] = useState(false);
+  // Use a state object with the src to reset loading state when src changes
+  const [loadState, setLoadState] = useState<{
+    currentSrc: string;
+    isLoaded: boolean;
+    isError: boolean;
+  }>(() => ({
+    currentSrc: '',
+    isLoaded: false,
+    isError: false
+  }));
 
   const optimizedSrc = getAssetUrl(src, options);
 
   useEffect(() => {
-    setIsLoaded(false);
-    setIsError(false);
-
+    // Reset state for new src by setting it in the callback
     const img = new Image();
-    img.onload = () => setIsLoaded(true);
-    img.onerror = () => setIsError(true);
+    img.onload = () => setLoadState({ currentSrc: optimizedSrc, isLoaded: true, isError: false });
+    img.onerror = () => setLoadState({ currentSrc: optimizedSrc, isLoaded: false, isError: true });
     img.src = optimizedSrc;
 
     return () => {
@@ -141,10 +147,13 @@ export function useCDNImage(src: string, options?: AssetOptions) {
     };
   }, [optimizedSrc]);
 
+  // Derive loading state: if src changed but callbacks haven't fired yet, we're loading
+  const isCurrentSrc = loadState.currentSrc === optimizedSrc;
+
   return {
     src: optimizedSrc,
-    isLoaded,
-    isError
+    isLoaded: isCurrentSrc && loadState.isLoaded,
+    isError: isCurrentSrc && loadState.isError
   };
 }
 

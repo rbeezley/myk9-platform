@@ -31,21 +31,25 @@ export function useSearchWorker(): UseSearchWorkerResult {
         // Worker code will be injected here
         // For now, we'll use a fallback approach
       `;
-      
+
       // Try to create worker
       const blob = new Blob([workerScript], { type: 'application/javascript' });
       const workerUrl = URL.createObjectURL(blob);
-      
+
       // For now, let's use a simpler approach without the worker
       // In a real implementation, you'd load the worker file
-      setIsWorkerReady(true);
-      
+      queueMicrotask(() => {
+        setIsWorkerReady(true);
+      });
+
       return () => {
         URL.revokeObjectURL(workerUrl);
       };
     } catch {
-      setWorkerError('Web Worker not supported');
-      setIsWorkerReady(true); // Allow fallback to main thread
+      queueMicrotask(() => {
+        setWorkerError('Web Worker not supported');
+        setIsWorkerReady(true); // Allow fallback to main thread
+      });
     }
   }, []);
 
@@ -132,7 +136,9 @@ export function useSearchWorker(): UseSearchWorkerResult {
       };
 
       const handleError = (event: ErrorEvent) => {
-        setWorkerError(event.message);
+        queueMicrotask(() => {
+          setWorkerError(event.message);
+        });
       };
 
       currentWorker.addEventListener('message', handleMessage);

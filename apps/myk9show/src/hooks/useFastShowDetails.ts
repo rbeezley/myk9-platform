@@ -5,7 +5,7 @@
  * the 10-second loading delay by using cached data and smart loading strategies
  */
 
-import { useMemo, useEffect, useState } from 'react';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useShowQuery, showQueryKeys } from '@/hooks/queries/useShowsDatabase';
@@ -24,10 +24,11 @@ interface FastShowDetailsResult {
 export function useFastShowDetails(explicitShowId?: string): FastShowDetailsResult {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
+  // Use lazy state initialization for start time (runs only once on mount)
   const [loadStartTime] = useState(() => performance.now());
   const [loadTime, setLoadTime] = useState(0);
-  const [isFromCache, setIsFromCache] = useState(false);
-  
+  const hasRecordedLoadTime = useRef(false);
+
   const showId = explicitShowId || id || null;
   
   // Try to get cached data first (from browse shows page)
@@ -54,13 +55,9 @@ export function useFastShowDetails(explicitShowId?: string): FastShowDetailsResu
     return { cachedShow: null, foundInCache: false };
   }, [showId, queryClient]);
 
-  // Update isFromCache state based on useMemo result
-  useEffect(() => {
-    if (foundInCache && !isFromCache) {
-      setIsFromCache(true);
-    }
-  }, [foundInCache, isFromCache]);
-  
+  // Derive isFromCache directly from foundInCache (no state sync needed)
+  const isFromCache = foundInCache;
+
   // Only use network query if no cached data is available
   const { 
     data: networkShow, 
@@ -70,18 +67,23 @@ export function useFastShowDetails(explicitShowId?: string): FastShowDetailsResu
   // Use cached data if available, otherwise use network data
   const show = cachedShow || networkShow || null;
   const isLoading = !cachedShow && isNetworkLoading;
-  
-  // Track load time
+
+  // Record load time once when data first arrives
   useEffect(() => {
-    if (show && loadTime === 0) {
+    if (show && !hasRecordedLoadTime.current) {
+      hasRecordedLoadTime.current = true;
       const duration = performance.now() - loadStartTime;
-      setLoadTime(duration);
-      
+
+      // Use queueMicrotask to defer state update
+      queueMicrotask(() => {
+        setLoadTime(duration);
+      });
+
       if (import.meta.env.DEV) {
-        logger.debug(`⚡ Show details loaded in ${duration.toFixed(2)}ms${isFromCache ? ' (from cache)' : ' (from network)'}`, 'hooks', {});
+        logger.debug(`Show details loaded in ${duration.toFixed(2)}ms${isFromCache ? ' (from cache)' : ' (from network)'}`, 'hooks', {});
       }
     }
-  }, [show, loadTime, loadStartTime, isFromCache]);
+  }, [show, loadStartTime, isFromCache]);
   
   return {
     showId,

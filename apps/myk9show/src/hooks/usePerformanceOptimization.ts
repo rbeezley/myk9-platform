@@ -57,7 +57,9 @@ export const usePerformanceOptimization = (config: Partial<PerformanceConfig> = 
   const [metrics, setMetrics] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    setIsOptimized(true);
+    queueMicrotask(() => {
+      setIsOptimized(true);
+    });
     logger.info('Performance optimization enabled', 'performance', finalConfig);
   }, [finalConfig]);
 
@@ -153,7 +155,9 @@ export const useLazyLoading = (shouldLoad: boolean = true) => {
 
   useEffect(() => {
     if (shouldLoad && inView && !isVisible) {
-      setIsVisible(true);
+      queueMicrotask(() => {
+        setIsVisible(true);
+      });
       monitoring.trackFeatureUsage('lazy_loading');
     }
   }, [inView, shouldLoad, isVisible]);
@@ -197,7 +201,9 @@ export const useImageOptimization = (src: string, options: {
     if (!src) return;
 
     const optimized = generateOptimizedUrl(src);
-    setOptimizedSrc(optimized);
+    queueMicrotask(() => {
+      setOptimizedSrc(optimized);
+    });
 
     if (!lazy) {
       // Preload the image
@@ -617,14 +623,18 @@ export function useDebouncedSearch<T>(
 
   useEffect(() => {
     if (!query.trim()) {
-      setResults([]);
-      setLoading(false);
-      setError(null);
+      queueMicrotask(() => {
+        setResults([]);
+        setLoading(false);
+        setError(null);
+      });
       return;
     }
 
-    setLoading(true);
-    setError(null);
+    queueMicrotask(() => {
+      setLoading(true);
+      setError(null);
+    });
 
     debouncedSearch(query)
       .then(searchResults => {
@@ -681,7 +691,9 @@ export function useAdvancedVirtualization<T>(options: {
   // Calculate visible items
   useEffect(() => {
     if (!data.length) {
-      setResult(null);
+      queueMicrotask(() => {
+        setResult(null);
+      });
       return;
     }
 
@@ -691,7 +703,9 @@ export function useAdvancedVirtualization<T>(options: {
       { itemHeight, containerHeight, overscan }
     );
 
-    setResult(virtualizedResult);
+    queueMicrotask(() => {
+      setResult(virtualizedResult);
+    });
   }, [data, scrollTop, itemHeight, containerHeight, overscan]);
 
   // Handle scroll events with throttling

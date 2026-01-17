@@ -116,16 +116,6 @@ export function EntryEditDialog({
     }
   }, [open, entry.showId]);
 
-  const checkCanModify = async () => {
-    setIsLoading(true);
-    setError(null);
-
-    const result = await canModifyEntry(entry.showId);
-    setCanModify(result.canModify);
-    setModifyReason(result.reason);
-    setIsLoading(false);
-  };
-
   const handleJumpHeightChange = (classId: string, jumpHeight: string) => {
     setClassEdits((prev) => ({
       ...prev,

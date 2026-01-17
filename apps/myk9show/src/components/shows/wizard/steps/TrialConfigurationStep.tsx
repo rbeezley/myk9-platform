@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { DateTimePicker } from '@/components/ui/date-time-picker';
@@ -12,34 +12,31 @@ interface TrialConfigurationStepProps {
 }
 
 export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({ className }) => {
-  const { 
-    show, 
-    trials, 
-    addTrial, 
-    updateTrial, 
-    removeTrial, 
-    markStepCompleted 
+  const {
+    show,
+    trials,
+    addTrial,
+    updateTrial,
+    removeTrial,
+    markStepCompleted
   } = useWizardStore();
-  
-  const [errors, setErrors] = useState<Record<string, string>>({});
 
-
-  // Validate trials form
-  const validateTrials = useCallback(() => {
+  // Derive errors using useMemo instead of useState + effect
+  const errors = useMemo(() => {
     const newErrors: Record<string, string> = {};
-    
+
     if (trials.length === 0) {
       newErrors.trials = 'At least one trial is required';
     }
-    
+
     // Validate each trial
     trials.forEach((trial, index) => {
       const prefix = `trial-${index}`;
-      
+
       if (!trial.name.trim()) {
         newErrors[`${prefix}-name`] = 'Trial name is required';
       }
-      
+
       if (!trial.dateTime) {
         newErrors[`${prefix}-dateTime`] = 'Trial date and time is required';
       } else if (show.startDate && show.endDate) {
@@ -47,41 +44,43 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({ 
         const trialDate = parseISO(trial.dateTime);
         const showStart = parseISO(show.startDate);
         const showEnd = parseISO(show.endDate);
-        
+
         if (!isWithinInterval(trialDate, { start: showStart, end: showEnd })) {
           newErrors[`${prefix}-dateTime`] = 'Trial date must be within show dates';
         }
       }
-      
+
       if (!trial.eventNumber.trim()) {
         newErrors[`${prefix}-eventNumber`] = 'Event number is required';
       }
     });
-    
+
     // Check for duplicate trial names
     const names = trials.map(t => t.name.trim().toLowerCase());
     const duplicateNames = names.filter((name, index) => names.indexOf(name) !== index);
     if (duplicateNames.length > 0) {
       newErrors.duplicateNames = 'Trial names must be unique';
     }
-    
+
     // Check for duplicate event numbers
     const eventNumbers = trials.map(t => t.eventNumber.trim());
     const duplicateEvents = eventNumbers.filter((num, index) => eventNumbers.indexOf(num) !== index);
     if (duplicateEvents.length > 0) {
       newErrors.duplicateEvents = 'Event numbers must be unique';
     }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+
+    return newErrors;
   }, [trials, show.startDate, show.endDate]);
 
-  // Auto-validate and mark step complete when form is valid
+  // Derive validity from errors
+  const isValid = Object.keys(errors).length === 0;
+
+  // Mark step complete when form is valid
   useEffect(() => {
-    if (validateTrials()) {
+    if (isValid) {
       markStepCompleted(1);
     }
-  }, [trials, markStepCompleted, validateTrials]);
+  }, [isValid, markStepCompleted]);
 
   const handleAddTrial = () => {
     const trialNumber = trials.length + 1;

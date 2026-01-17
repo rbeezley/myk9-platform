@@ -127,7 +127,7 @@ export interface ScoresheetCoreReturn {
  * ```
  */
 export function useScoresheetCore(config: ScoresheetCoreConfig = {}): ScoresheetCoreReturn {
-  const { sportType = 'AKC_SCENT_WORK' } = config;
+  const { sportType: _sportType = 'AKC_SCENT_WORK' } = config;
 
   // Route params
   const { classId, entryId } = useParams<{ classId: string; entryId: string }>();

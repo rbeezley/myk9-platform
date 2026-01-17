@@ -75,7 +75,9 @@ export const RBACTestPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    testDatabaseConnection();
+    queueMicrotask(() => {
+      testDatabaseConnection();
+    });
   }, [testDatabaseConnection]);
 
   const runPermissionTests = async () => {

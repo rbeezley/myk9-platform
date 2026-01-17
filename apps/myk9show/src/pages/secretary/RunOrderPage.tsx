@@ -50,132 +50,138 @@ export const RunOrderPage: React.FC = () => {
   // Load classes for this trial
   useEffect(() => {
     if (trialId) {
-      const trialClasses = getClassesByTrial(trialId);
-      setClasses(trialClasses);
-      
-      // Set trial start time to 9 AM today
-      const startTime = new Date();
-      startTime.setHours(9, 0, 0, 0);
-      setScheduleConfig(prev => ({ ...prev, trialStartTime: startTime }));
+      queueMicrotask(() => {
+        const trialClasses = getClassesByTrial(trialId);
+        setClasses(trialClasses);
+
+        // Set trial start time to 9 AM today
+        const startTime = new Date();
+        startTime.setHours(9, 0, 0, 0);
+        setScheduleConfig(prev => ({ ...prev, trialStartTime: startTime }));
+      });
     }
   }, [trialId, getClassesByTrial]);
 
   // Mock personnel data - in real app this would come from a personnel store
   useEffect(() => {
-    const mockPersonnel: Personnel[] = [
-      {
-        id: 'judge1',
-        name: 'Sarah Johnson',
-        email: 'sarah.j@email.com',
-        phone: '(555) 123-4567',
-        roles: [
-          { type: 'judge', level: 'expert', elements: ['Container', 'Buried', 'Exterior', 'Interior'] }
-        ],
-        certifications: ['AKC Scent Work Judge', 'NACSW Judge'],
-        availability: [{ start: '08:00', end: '17:00' }],
-        preferences: {
-          maxConsecutiveHours: 6,
-          minBreakBetween: 15,
-          preferredElements: ['Container', 'Interior'],
-          avoidElements: [],
-          canWorkWithJudges: []
+    queueMicrotask(() => {
+      const mockPersonnel: Personnel[] = [
+        {
+          id: 'judge1',
+          name: 'Sarah Johnson',
+          email: 'sarah.j@email.com',
+          phone: '(555) 123-4567',
+          roles: [
+            { type: 'judge', level: 'expert', elements: ['Container', 'Buried', 'Exterior', 'Interior'] }
+          ],
+          certifications: ['AKC Scent Work Judge', 'NACSW Judge'],
+          availability: [{ start: '08:00', end: '17:00' }],
+          preferences: {
+            maxConsecutiveHours: 6,
+            minBreakBetween: 15,
+            preferredElements: ['Container', 'Interior'],
+            avoidElements: [],
+            canWorkWithJudges: []
+          }
+        },
+        {
+          id: 'judge2',
+          name: 'Mike Davis',
+          email: 'mike.d@email.com',
+          phone: '(555) 234-5678',
+          roles: [
+            { type: 'judge', level: 'experienced', elements: ['Container', 'Buried', 'Exterior'] }
+          ],
+          certifications: ['AKC Scent Work Judge'],
+          availability: [{ start: '09:00', end: '16:00' }],
+          preferences: {
+            maxConsecutiveHours: 4,
+            minBreakBetween: 20,
+            preferredElements: ['Exterior'],
+            avoidElements: ['Interior'],
+            canWorkWithJudges: []
+          }
+        },
+        {
+          id: 'steward1',
+          name: 'Lisa Brown',
+          email: 'lisa.b@email.com',
+          phone: '(555) 345-6789',
+          roles: [
+            { type: 'gate-steward', level: 'experienced', elements: ['Container', 'Buried', 'Exterior', 'Interior'] },
+            { type: 'table-steward', level: 'expert', elements: ['Container', 'Buried', 'Exterior', 'Interior'] }
+          ],
+          certifications: ['Trial Secretary', 'Steward Training'],
+          availability: [{ start: '07:30', end: '18:00' }],
+          preferences: {
+            maxConsecutiveHours: 8,
+            minBreakBetween: 10,
+            preferredElements: [],
+            avoidElements: [],
+            canWorkWithJudges: ['judge1', 'judge2']
+          }
+        },
+        {
+          id: 'steward2',
+          name: 'Tom Wilson',
+          email: 'tom.w@email.com',
+          phone: '(555) 456-7890',
+          roles: [
+            { type: 'timer', level: 'experienced', elements: ['Container', 'Buried', 'Exterior', 'Interior'] },
+            { type: 'ring-steward', level: 'novice', elements: ['Container', 'Exterior'] }
+          ],
+          certifications: ['Timer Certification'],
+          availability: [{ start: '08:00', end: '17:00' }],
+          preferences: {
+            maxConsecutiveHours: 6,
+            minBreakBetween: 15,
+            preferredElements: ['Container'],
+            avoidElements: [],
+            canWorkWithJudges: ['judge1', 'judge2']
+          }
         }
-      },
-      {
-        id: 'judge2',
-        name: 'Mike Davis',
-        email: 'mike.d@email.com',
-        phone: '(555) 234-5678',
-        roles: [
-          { type: 'judge', level: 'experienced', elements: ['Container', 'Buried', 'Exterior'] }
-        ],
-        certifications: ['AKC Scent Work Judge'],
-        availability: [{ start: '09:00', end: '16:00' }],
-        preferences: {
-          maxConsecutiveHours: 4,
-          minBreakBetween: 20,
-          preferredElements: ['Exterior'],
-          avoidElements: ['Interior'],
-          canWorkWithJudges: []
-        }
-      },
-      {
-        id: 'steward1',
-        name: 'Lisa Brown',
-        email: 'lisa.b@email.com',
-        phone: '(555) 345-6789',
-        roles: [
-          { type: 'gate-steward', level: 'experienced', elements: ['Container', 'Buried', 'Exterior', 'Interior'] },
-          { type: 'table-steward', level: 'expert', elements: ['Container', 'Buried', 'Exterior', 'Interior'] }
-        ],
-        certifications: ['Trial Secretary', 'Steward Training'],
-        availability: [{ start: '07:30', end: '18:00' }],
-        preferences: {
-          maxConsecutiveHours: 8,
-          minBreakBetween: 10,
-          preferredElements: [],
-          avoidElements: [],
-          canWorkWithJudges: ['judge1', 'judge2']
-        }
-      },
-      {
-        id: 'steward2',
-        name: 'Tom Wilson',
-        email: 'tom.w@email.com',
-        phone: '(555) 456-7890',
-        roles: [
-          { type: 'timer', level: 'experienced', elements: ['Container', 'Buried', 'Exterior', 'Interior'] },
-          { type: 'ring-steward', level: 'novice', elements: ['Container', 'Exterior'] }
-        ],
-        certifications: ['Timer Certification'],
-        availability: [{ start: '08:00', end: '17:00' }],
-        preferences: {
-          maxConsecutiveHours: 6,
-          minBreakBetween: 15,
-          preferredElements: ['Container'],
-          avoidElements: [],
-          canWorkWithJudges: ['judge1', 'judge2']
-        }
-      }
-    ];
-    
-    setPersonnel(mockPersonnel);
+      ];
+
+      setPersonnel(mockPersonnel);
+    });
   }, []);
 
   // Generate initial assignments based on current class data
   useEffect(() => {
-    const initialAssignments: PersonnelAssignment[] = [];
-    
-    classes.forEach(cls => {
-      if (cls.personnel.judgeId) {
-        initialAssignments.push({
-          classId: cls.id,
-          className: cls.className,
-          role: 'judgeId',
-          personnelId: cls.personnel.judgeId,
-          startTime: cls.plannedStartTime || new Date(),
-          endTime: new Date((cls.plannedStartTime || new Date()).getTime() + (Number(cls.fieldValues.estimatedJudgingTime || 30) * 60000)),
-          conflicts: []
-        });
-      }
-      
-      // Add steward assignments if they exist
-      Object.entries(cls.personnel.stewards).forEach(([role, stewId]) => {
-        if (stewId) {
+    queueMicrotask(() => {
+      const initialAssignments: PersonnelAssignment[] = [];
+
+      classes.forEach(cls => {
+        if (cls.personnel.judgeId) {
           initialAssignments.push({
             classId: cls.id,
             className: cls.className,
-            role,
-            personnelId: Array.isArray(stewId) ? stewId[0] : stewId,
+            role: 'judgeId',
+            personnelId: cls.personnel.judgeId,
             startTime: cls.plannedStartTime || new Date(),
             endTime: new Date((cls.plannedStartTime || new Date()).getTime() + (Number(cls.fieldValues.estimatedJudgingTime || 30) * 60000)),
             conflicts: []
           });
         }
+
+        // Add steward assignments if they exist
+        Object.entries(cls.personnel.stewards).forEach(([role, stewId]) => {
+          if (stewId) {
+            initialAssignments.push({
+              classId: cls.id,
+              className: cls.className,
+              role,
+              personnelId: Array.isArray(stewId) ? stewId[0] : stewId,
+              startTime: cls.plannedStartTime || new Date(),
+              endTime: new Date((cls.plannedStartTime || new Date()).getTime() + (Number(cls.fieldValues.estimatedJudgingTime || 30) * 60000)),
+              conflicts: []
+            });
+          }
+        });
       });
+
+      setAssignments(initialAssignments);
     });
-    
-    setAssignments(initialAssignments);
   }, [classes]);
 
   // Calculate schedule statistics

@@ -663,7 +663,9 @@ export const useOfflineSync = (options: UseOfflineSyncOptions = {}): UseOfflineS
    * Initial state update
    */
   useEffect(() => {
-    updateState();
+    queueMicrotask(() => {
+      updateState();
+    });
   }, [updateState]);
 
   /**

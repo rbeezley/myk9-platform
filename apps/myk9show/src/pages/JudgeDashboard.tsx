@@ -93,15 +93,17 @@ const JudgeDashboard: React.FC = () => {
   // Load judge data and set up effects
   useEffect(() => {
     if (hasRole(UserRole.JUDGE) || hasRole(UserRole.SITE_ADMIN)) {
-      loadJudgeData();
-      auditService.log({
-        action: AuditAction.READ,
-        entityType: 'judge_dashboard',
-        entityId: user?.id || 'unknown',
-        metadata: {
-          page: 'judge_dashboard',
-          loadTime: new Date().toISOString()
-        }
+      queueMicrotask(() => {
+        loadJudgeData();
+        auditService.log({
+          action: AuditAction.READ,
+          entityType: 'judge_dashboard',
+          entityId: user?.id || 'unknown',
+          metadata: {
+            page: 'judge_dashboard',
+            loadTime: new Date().toISOString()
+          }
+        });
       });
     }
   }, [user?.id, hasRole]);

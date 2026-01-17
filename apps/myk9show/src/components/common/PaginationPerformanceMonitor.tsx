@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
@@ -68,11 +68,8 @@ export function PaginationPerformanceMonitor({
 
   const [performanceHistory, setPerformanceHistory] = useState<number[]>([]);
 
-  // Use ref for last update time - initialize lazily to avoid impure function during render
-  const lastUpdateTimeRef = useRef<number | null>(null);
-  if (lastUpdateTimeRef.current === null) {
-    lastUpdateTimeRef.current = Date.now();
-  }
+  // Track last update time as state with lazy initialization
+  const [lastUpdateTime] = useState<number>(() => Date.now());
 
   // Compute metrics from props
   const metrics: PerformanceMetrics = {
@@ -351,7 +348,7 @@ export function PaginationPerformanceMonitor({
                 <div>Visible Items: {metrics.visibleItems}</div>
                 <div>Virtualized: {metrics.virtualizedItems}</div>
                 <div>Scroll Position: {metrics.scrollPosition.toFixed(0)}px</div>
-                <div>Last Update: {new Date(lastUpdateTimeRef.current).toLocaleTimeString()}</div>
+                <div>Last Update: {new Date(lastUpdateTime).toLocaleTimeString()}</div>
                 <div>Load Time: {metrics.totalLoadTime.toFixed(2)}ms</div>
               </div>
             </details>

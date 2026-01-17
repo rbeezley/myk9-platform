@@ -35,7 +35,9 @@ const Home: React.FC = () => {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('wizard') === 'true') {
-      setShowWizardOpen(true);
+      queueMicrotask(() => {
+        setShowWizardOpen(true);
+      });
       // Don't clean up URL immediately - let the wizard open first
     }
   }, []);

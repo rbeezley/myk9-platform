@@ -31,21 +31,23 @@ export function useRecentSearches(options: UseRecentSearchesOptions) {
 
   // Load recent searches from localStorage on mount
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(storageKey);
-      if (stored) {
-        const allSearches: RecentSearch[] = JSON.parse(stored);
-        // Filter by context and sort by timestamp (most recent first)
-        const contextSearches = allSearches
-          .filter(search => search.context === context)
-          .sort((a, b) => b.timestamp - a.timestamp)
-          .slice(0, maxItems);
-        setRecentSearches(contextSearches);
+    queueMicrotask(() => {
+      try {
+        const stored = localStorage.getItem(storageKey);
+        if (stored) {
+          const allSearches: RecentSearch[] = JSON.parse(stored);
+          // Filter by context and sort by timestamp (most recent first)
+          const contextSearches = allSearches
+            .filter(search => search.context === context)
+            .sort((a, b) => b.timestamp - a.timestamp)
+            .slice(0, maxItems);
+          setRecentSearches(contextSearches);
+        }
+      } catch (error) {
+        logger.warn('Failed to load recent searches:', 'hooks', {}, error as Error);
+        setRecentSearches([]);
       }
-    } catch (error) {
-      logger.warn('Failed to load recent searches:', 'hooks', {}, error as Error);
-      setRecentSearches([]);
-    }
+    });
   }, [storageKey, context, maxItems]);
 
   // Save recent searches to localStorage

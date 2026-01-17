@@ -80,7 +80,9 @@ const TemplateManagementPage: React.FC = () => {
   // Update filtered templates when filter changes
   useEffect(() => {
     const results = searchTemplates(filter);
-    setFilteredTemplates(results);
+    queueMicrotask(() => {
+      setFilteredTemplates(results);
+    });
   }, [filter, templates, searchTemplates]);
 
   const handleFilterChange = (key: keyof TemplateFilter, value: string | boolean | Organization | ShowType | undefined) => {

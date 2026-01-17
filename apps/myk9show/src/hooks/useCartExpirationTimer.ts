@@ -45,11 +45,22 @@ export function useCartExpirationTimer(options?: {
   const extendExpirationAction = useCartStore((state) => state.extendExpiration);
 
   const [timeRemainingMs, setTimeRemainingMs] = useState<number | null>(null);
-  const [hasTriggeredWarning, setHasTriggeredWarning] = useState(false);
-  const [hasTriggeredUrgent, setHasTriggeredUrgent] = useState(false);
-  const [hasTriggeredExpired, setHasTriggeredExpired] = useState(false);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Use refs for trigger state to avoid stale closures in interval callback
+  const hasTriggeredWarningRef = useRef(false);
+  const hasTriggeredUrgentRef = useRef(false);
+  const hasTriggeredExpiredRef = useRef(false);
+
+  // Track previous expiresAt to detect changes for reset
+  const prevExpiresAtRef = useRef(expiresAt);
+
+  // Store options in ref to avoid dependency issues - sync in effect
+  const optionsRef = useRef(options);
+  useEffect(() => {
+    optionsRef.current = options;
+  });
 
   // Calculate time remaining
   const calculateTimeRemaining = useCallback(() => {
@@ -61,58 +72,63 @@ export function useCartExpirationTimer(options?: {
 
   // Update timer
   useEffect(() => {
+    // Check if expiresAt changed (e.g., after extension) and reset triggers if needed
+    if (prevExpiresAtRef.current !== expiresAt) {
+      prevExpiresAtRef.current = expiresAt;
+      const remaining = calculateTimeRemaining();
+      if (remaining !== null && remaining > WARNING_THRESHOLD_MS) {
+        hasTriggeredWarningRef.current = false;
+        hasTriggeredUrgentRef.current = false;
+        hasTriggeredExpiredRef.current = false;
+      }
+    }
+
     if (!expiresAt || !cart) {
-      setTimeRemainingMs(null);
+      // No cart or expiration - clear any existing interval but don't set state synchronously
+      // The timeRemainingMs will be handled via the tick function when cart/expiration exists
       return;
     }
 
-    // Initial calculation
-    setTimeRemainingMs(calculateTimeRemaining());
-
-    // Set up interval for updates
-    intervalRef.current = setInterval(() => {
+    // Set up interval for updates - initial value will be set in first tick
+    const tick = () => {
       const remaining = calculateTimeRemaining();
       setTimeRemainingMs(remaining);
 
       // Trigger callbacks
       if (remaining !== null) {
         // Warning callback (5 minutes)
-        if (remaining <= WARNING_THRESHOLD_MS && remaining > URGENT_WARNING_THRESHOLD_MS && !hasTriggeredWarning) {
-          setHasTriggeredWarning(true);
-          options?.onWarning?.();
+        if (remaining <= WARNING_THRESHOLD_MS && remaining > URGENT_WARNING_THRESHOLD_MS && !hasTriggeredWarningRef.current) {
+          hasTriggeredWarningRef.current = true;
+          optionsRef.current?.onWarning?.();
         }
 
         // Urgent warning callback (1 minute)
-        if (remaining <= URGENT_WARNING_THRESHOLD_MS && remaining > 0 && !hasTriggeredUrgent) {
-          setHasTriggeredUrgent(true);
-          options?.onUrgentWarning?.();
+        if (remaining <= URGENT_WARNING_THRESHOLD_MS && remaining > 0 && !hasTriggeredUrgentRef.current) {
+          hasTriggeredUrgentRef.current = true;
+          optionsRef.current?.onUrgentWarning?.();
         }
 
         // Expired callback
-        if (remaining <= 0 && !hasTriggeredExpired) {
-          setHasTriggeredExpired(true);
-          options?.onExpired?.();
+        if (remaining <= 0 && !hasTriggeredExpiredRef.current) {
+          hasTriggeredExpiredRef.current = true;
+          optionsRef.current?.onExpired?.();
         }
       }
-    }, UPDATE_INTERVAL_MS);
+    };
+
+    // Run immediately then set interval
+    tick();
+    intervalRef.current = setInterval(tick, UPDATE_INTERVAL_MS);
 
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
+      // Reset timeRemainingMs to null when effect cleans up (cart/expiration no longer exists)
+      setTimeRemainingMs(null);
     };
-  }, [expiresAt, cart, calculateTimeRemaining, hasTriggeredWarning, hasTriggeredUrgent, hasTriggeredExpired, options]);
-
-  // Reset triggers when expiration changes (e.g., after extension)
-  useEffect(() => {
-    const remaining = calculateTimeRemaining();
-    if (remaining !== null && remaining > WARNING_THRESHOLD_MS) {
-      setHasTriggeredWarning(false);
-      setHasTriggeredUrgent(false);
-      setHasTriggeredExpired(false);
-    }
-  }, [expiresAt, calculateTimeRemaining]);
+  }, [expiresAt, cart, calculateTimeRemaining]);
 
   // Format time remaining
   const formatTimeRemaining = (ms: number | null): string => {
@@ -130,10 +146,10 @@ export function useCartExpirationTimer(options?: {
   const extendExpiration = useCallback(async () => {
     const success = await extendExpirationAction();
     if (success) {
-      // Reset triggers
-      setHasTriggeredWarning(false);
-      setHasTriggeredUrgent(false);
-      setHasTriggeredExpired(false);
+      // Reset triggers via refs
+      hasTriggeredWarningRef.current = false;
+      hasTriggeredUrgentRef.current = false;
+      hasTriggeredExpiredRef.current = false;
     }
     return success;
   }, [extendExpirationAction]);

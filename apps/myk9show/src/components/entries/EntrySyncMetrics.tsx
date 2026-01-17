@@ -225,6 +225,7 @@ export const EntrySyncMetrics: React.FC<EntrySyncMetricsProps> = ({
       const interval = setInterval(handleRefresh, refreshInterval * 1000);
       return () => clearInterval(interval);
     }
+    return undefined;
   }, [refreshInterval]);
 
   // Chart data

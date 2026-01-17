@@ -142,6 +142,7 @@ export const OfflineEntryForm: React.FC<OfflineEntryFormProps> = ({
 
       return () => clearTimeout(autoSaveTimer);
     }
+    return undefined;
   }, [formData, hasUnsavedChanges, editingEntryId]);
 
   // Load draft from local storage on mount

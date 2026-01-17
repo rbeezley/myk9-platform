@@ -89,6 +89,7 @@ const AvatarFallback = React.forwardRef<HTMLDivElement, AvatarFallbackProps>(
         const timer = setTimeout(() => setShowFallback(true), delayMs)
         return () => clearTimeout(timer)
       }
+      return undefined
     }, [delayMs])
 
     // Show fallback if image errored or hasn't loaded and delay has passed

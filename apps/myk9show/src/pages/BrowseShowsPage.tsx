@@ -130,22 +130,23 @@ const BrowseShowsPage: React.FC = () => {
   useEffect(() => {
     if (user?.id && shows.length > 0) {
       const startTime = performance.now();
-      
+
       // Sync relationships with the new tracking system
       syncShowRelationships(shows, user);
-      
+
       // Monitor performance only in development
       if (import.meta.env.DEV) {
         const duration = performance.now() - startTime;
         RelationshipPerformanceMonitor.getInstance().recordOperation('syncShowRelationships', duration);
       }
-      
+
       // Clear old cache when switching users
       return () => {
         showRelationshipCache.clearUserCache(user.id);
         showManagementTracker.clearUserCache(user.id);
       };
     }
+    return undefined;
   }, [user, shows]);
 
   // Update URL params when tab or view mode changes

@@ -181,6 +181,7 @@ function UnifiedSidebar<T extends { id: string }>({
       window.addEventListener('resize', updateHeight);
       return () => window.removeEventListener('resize', updateHeight);
     }
+    return undefined;
   }, [enableSearch]);
 
   // Resize functionality

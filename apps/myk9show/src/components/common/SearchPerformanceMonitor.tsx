@@ -43,6 +43,7 @@ export const SearchPerformanceMonitor: React.FC = () => {
       const interval = setInterval(doRefresh, 5000);
       return () => clearInterval(interval);
     }
+    return undefined;
   }, [isVisible, getSearchStats]);
 
   // Only show in development

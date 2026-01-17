@@ -301,13 +301,13 @@ export function usePerformanceInsights() {
  */
 export function usePerformanceDebugger(enabled: boolean = process.env.NODE_ENV === 'development') {
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) return undefined;
 
     // Set up performance observer to catch long tasks
     if ('PerformanceObserver' in window) {
       const observer = new PerformanceObserver((list) => {
         const longTasks = list.getEntries().filter(entry => entry.duration > 50);
-        
+
         if (longTasks.length > 0) {
           logger.warn('Long tasks detected', 'performance', {
             tasks: longTasks.map(task => ({
@@ -328,6 +328,7 @@ export function usePerformanceDebugger(enabled: boolean = process.env.NODE_ENV =
 
       return () => observer.disconnect();
     }
+    return undefined;
   }, [enabled]);
 
   // Performance monitoring commands for console

@@ -24,7 +24,7 @@
     "strictPropertyInitialization": true,
     /* Core Safety Features */
     "noImplicitOverride": false,
-    "noImplicitReturns": false,
+    "noImplicitReturns": true,
     "allowUnusedLabels": false,
     "allowUnreachableCode": false,
     /* Temporarily Disabled for Gradual Migration */

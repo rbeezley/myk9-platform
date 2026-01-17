@@ -150,14 +150,15 @@ export const SuspenseWrapper: React.FC<SuspenseWrapperProps> = ({
   useEffect(() => {
     if (componentName) {
       trackLazyComponentStart(componentName);
-      
+
       // Track successful load after a brief delay
       const timer = setTimeout(() => {
         trackLazyComponentEnd(componentName, true);
       }, 100);
-      
+
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [componentName]);
 
   return (

@@ -244,6 +244,7 @@ export function useConflictResolution(
         }
       };
     }
+    return undefined;
   }, [options.autoRefresh, options.refreshInterval, refreshConflicts]);
 
   // Initial load

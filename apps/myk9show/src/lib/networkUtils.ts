@@ -320,7 +320,7 @@ export function useNetworkQuality(): NetworkQuality | null {
   React.useEffect(() => {
     // @ts-expect-error - NetworkInformation is experimental
     const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-    
+
     if (connection) {
       const updateQuality = () => {
         setQuality({
@@ -337,6 +337,7 @@ export function useNetworkQuality(): NetworkQuality | null {
         connection.removeEventListener('change', updateQuality);
       };
     }
+    return undefined;
   }, []);
 
   return quality;

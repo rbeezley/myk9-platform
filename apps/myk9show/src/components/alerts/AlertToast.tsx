@@ -55,6 +55,7 @@ export const AlertToast: React.FC<AlertToastProps> = ({
 
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [autoHideDuration, alert.severity, handleDismiss]);
 
   const handleAcknowledge = () => {

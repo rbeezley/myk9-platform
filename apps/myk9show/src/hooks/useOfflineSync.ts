@@ -657,6 +657,7 @@ export const useOfflineSync = (options: UseOfflineSyncOptions = {}): UseOfflineS
         }
       };
     }
+    return undefined;
   }, [autoSync, syncInterval, state.isOnline, state.pendingOperations, state.isSyncing, forceSyncNow]);
 
   /**

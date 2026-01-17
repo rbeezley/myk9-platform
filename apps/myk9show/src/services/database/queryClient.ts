@@ -110,6 +110,7 @@ export const invalidateQueries = {
     if (keys.detail && typeof keys.detail === 'function') {
       return queryClient.invalidateQueries({ queryKey: keys.detail(id) });
     }
+    return undefined;
   },
   
   // Invalidate list queries
@@ -118,6 +119,7 @@ export const invalidateQueries = {
     if (keys.lists && typeof keys.lists === 'function') {
       return queryClient.invalidateQueries({ queryKey: keys.lists() });
     }
+    return undefined;
   },
 };
 

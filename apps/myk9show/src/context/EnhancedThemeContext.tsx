@@ -205,10 +205,11 @@ export function EnhancedThemeProvider({ children }: { children: ReactNode }) {
     if (themeMode === 'system') {
       const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
       const handleChange = () => applySystemTheme();
-      
+
       mediaQuery.addEventListener('change', handleChange);
       return () => mediaQuery.removeEventListener('change', handleChange);
     }
+    return undefined;
   }, [themeMode]);
 
   // Save theme mode to localStorage as fallback

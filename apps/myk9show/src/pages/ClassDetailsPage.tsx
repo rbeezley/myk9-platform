@@ -71,7 +71,7 @@ const ClassDetailsPage: React.FC = () => {
   // Fixed: Only run after initial render and with proper guards
   useEffect(() => {
     // Add guards to prevent running during SSR or initial hydration
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') return undefined;
     if (!classId && trialClasses.length > 0 && classes.length > 0) {
       // Use requestAnimationFrame to ensure this runs after the current render cycle
       const frameId = requestAnimationFrame(() => {
@@ -81,6 +81,7 @@ const ClassDetailsPage: React.FC = () => {
       });
       return () => cancelAnimationFrame(frameId);
     }
+    return undefined;
   }, [classId, trialClasses, navigate, classes.length]);
 
   // Get entries for current class using safe custom hook

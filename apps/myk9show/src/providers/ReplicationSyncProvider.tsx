@@ -187,6 +187,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
 
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [autoSync, isOnline, triggerSync]);
 
   // Sync when coming back online
@@ -204,6 +205,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         return () => clearTimeout(timer);
       }
     }
+    return undefined;
   }, [isOnline, syncOnReconnect, triggerSync]);
 
   const contextValue: ReplicationSyncContextValue = {

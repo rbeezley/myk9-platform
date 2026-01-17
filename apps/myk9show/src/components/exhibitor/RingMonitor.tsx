@@ -38,6 +38,7 @@ const RingMonitor: React.FC<RingMonitorProps> = ({
       }, 1000);
       return () => clearInterval(interval);
     }
+    return undefined;
   }, [ringStatus.currentDog, ringStatus.isPaused]);
 
   // Calculate estimated time until user's turn

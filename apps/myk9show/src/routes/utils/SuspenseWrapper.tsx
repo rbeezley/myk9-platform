@@ -43,7 +43,7 @@ class LoadingErrorBoundary extends React.Component<
     return { hasError: true, error, retryCount: 0 };
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+  override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     logger.error('LoadingErrorBoundary caught an error:', 'utils', { data: error, errorInfo });
     
     // Track error in metrics
@@ -65,7 +65,7 @@ class LoadingErrorBoundary extends React.Component<
     }));
   };
 
-  render() {
+  override render() {
     if (this.state.hasError && this.state.error) {
       if (this.props.errorFallback) {
         return this.props.errorFallback(this.state.error, this.retry);

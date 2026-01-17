@@ -32,7 +32,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   private maxRetries = 3;
   private errorClassificationService = ErrorClassificationService.getInstance();
 
-  public state: ErrorBoundaryState = {
+  public override state: ErrorBoundaryState = {
     hasError: false,
     error: null,
     errorInfo: null,
@@ -49,7 +49,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     };
   }
 
-  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  public override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     // Classify the error for better handling
     const errorDetails: ErrorDetails = {
       message: error.message,
@@ -153,7 +153,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     );
   };
 
-  public render() {
+  public override render() {
     if (this.state.hasError) {
       // Custom fallback UI if provided
       if (this.props.fallback) {

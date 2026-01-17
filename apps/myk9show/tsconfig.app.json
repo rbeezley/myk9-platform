@@ -23,7 +23,7 @@
     "strictBindCallApply": true,
     "strictPropertyInitialization": true,
     /* Core Safety Features */
-    "noImplicitOverride": false,
+    "noImplicitOverride": true,
     "noImplicitReturns": true,
     "allowUnusedLabels": false,
     "allowUnreachableCode": false,

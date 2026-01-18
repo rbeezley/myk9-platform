@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
+import { Card, CardContent } from '@/components/ui/card';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -53,7 +56,8 @@ import {
   FileOutput,
   BarChart3,
   X,
-  Ticket
+  Ticket,
+  ChevronDown
 } from 'lucide-react';
 import { ShowCalendar } from '@/components/shows/ShowCalendar';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
@@ -106,6 +110,7 @@ const BrowseShowsPage: React.FC = () => {
   // Enhanced loading state management - declared early to be available in callbacks
   const [isTabSwitching, setIsTabSwitching] = useState(false);
   const [isViewModeChanging, setIsViewModeChanging] = useState(false);
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 
   // Generate tab configuration based on user roles
   const tabConfig: TabConfiguration = useMemo(() => {
@@ -392,6 +397,37 @@ const BrowseShowsPage: React.FC = () => {
            filters.organization !== 'all';
   }, [filters]);
 
+  // Calculate quick stats for summary bar
+  const quickStats = useMemo(() => {
+    const now = new Date();
+    let upcoming = 0;
+    let closingSoon = 0;
+    let userEntries = 0;
+
+    shows.forEach(show => {
+      const showDate = new Date(show.startDate);
+      const closeDate = new Date(show.entryCloseDate);
+
+      // Upcoming shows (not yet started)
+      if (showDate > now) {
+        upcoming++;
+      }
+
+      // Closing soon (within 7 days)
+      const daysUntilClose = Math.ceil((closeDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      if (daysUntilClose >= 0 && daysUntilClose <= 7) {
+        closingSoon++;
+      }
+
+      // User has entries
+      if (userHasEntriesForShow(show.id, entries)) {
+        userEntries++;
+      }
+    });
+
+    return { upcoming, closingSoon, userEntries };
+  }, [shows, entries]);
+
   // Clear all filters
   const clearAllFilters = useCallback(() => {
     setFilters({
@@ -461,15 +497,35 @@ const BrowseShowsPage: React.FC = () => {
               return (
               <Card
                 key={show.id}
-                className="bg-card/95 backdrop-blur-sm border-border/50 hover:shadow-md transition-all duration-200"
+                className={cn(
+                  "bg-card/95 backdrop-blur-sm border-border/50 hover:shadow-md transition-all duration-200",
+                  entryStatus.status === 'closed' && "opacity-60",
+                  entryStatus.status === 'closing_soon' && "border-orange-400/50",
+                  entryStatus.status === 'submitted' && "border-green-400/50"
+                )}
               >
                 <CardContent className="p-6">
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                     <div className="flex-1">
                       <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <h3 className="text-lg font-semibold">{show.name}</h3>
-                          <p className="text-sm text-muted-foreground">{show.events.join(', ')}</p>
+                        <div className="flex items-center gap-3">
+                          <div>
+                            <h3 className="text-lg font-semibold">{show.name}</h3>
+                            <p className="text-sm text-muted-foreground">{show.events.join(', ')}</p>
+                          </div>
+                          {/* Urgency indicator inline */}
+                          {entryStatus.status === 'closing_soon' && entryStatus.daysUntilClose !== undefined && (
+                            <Badge className="bg-orange-500 text-white text-xs">
+                              {entryStatus.daysUntilClose === 0
+                                ? 'Closes Today!'
+                                : `${entryStatus.daysUntilClose}d left`}
+                            </Badge>
+                          )}
+                          {entryStatus.status === 'submitted' && (
+                            <Badge className="bg-green-500 text-white text-xs">
+                              Entered
+                            </Badge>
+                          )}
                         </div>
                         <div className="flex gap-2 flex-wrap">
                           {getTypeBadge(show.type)}
@@ -554,8 +610,31 @@ const BrowseShowsPage: React.FC = () => {
               return (
               <div
                 key={show.id}
-                className="apple-browse-card"
+                className={cn(
+                  "apple-browse-card relative",
+                  entryStatus.status === 'closed' && "opacity-60",
+                  entryStatus.status === 'closing_soon' && "ring-2 ring-orange-400/50 shadow-orange-200/30",
+                  entryStatus.status === 'submitted' && "ring-2 ring-green-400/50"
+                )}
               >
+                {/* Urgency ribbon for closing soon */}
+                {entryStatus.status === 'closing_soon' && entryStatus.daysUntilClose !== undefined && (
+                  <div className="absolute top-3 right-3 z-20 bg-orange-500 text-white px-2.5 py-1 text-xs font-semibold rounded-full shadow-md">
+                    {entryStatus.daysUntilClose === 0
+                      ? 'Closes Today!'
+                      : `${entryStatus.daysUntilClose} day${entryStatus.daysUntilClose !== 1 ? 's' : ''} left`}
+                  </div>
+                )}
+
+                {/* Submitted checkmark */}
+                {entryStatus.status === 'submitted' && (
+                  <div className="absolute top-3 right-3 z-20 bg-green-500 text-white p-1.5 rounded-full shadow-md">
+                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                )}
+
                 <div className="apple-browse-card-header">
                   <div className="apple-browse-card-badges">
                     {getTypeBadge(show.type)}
@@ -570,29 +649,35 @@ const BrowseShowsPage: React.FC = () => {
                   </p>
 
                   <div className="apple-browse-card-details">
-                    <div className="apple-browse-card-detail-item">
-                      <Calendar className="h-4 w-4" />
-                      <span>
-                        {new Date(show.startDate).toLocaleDateString()}
-                        {show.startDate !== show.endDate &&
-                          ` - ${new Date(show.endDate).toLocaleDateString()}`
-                        }
-                      </span>
+                    {/* Date and Location grouped */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pb-2 border-b border-border/30">
+                      <div className="apple-browse-card-detail-item">
+                        <Calendar className="h-4 w-4" />
+                        <span>
+                          {new Date(show.startDate).toLocaleDateString()}
+                          {show.startDate !== show.endDate &&
+                            ` - ${new Date(show.endDate).toLocaleDateString()}`
+                          }
+                        </span>
+                      </div>
+
+                      <div className="apple-browse-card-detail-item">
+                        <MapPin className="h-4 w-4" />
+                        <span>{show.location}</span>
+                      </div>
                     </div>
 
-                    <div className="apple-browse-card-detail-item">
-                      <MapPin className="h-4 w-4" />
-                      <span>{show.location}</span>
-                    </div>
+                    {/* Fee and Deadline grouped */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
+                      <div className="apple-browse-card-detail-item">
+                        <DollarSign className="h-4 w-4" />
+                        <span>{show.preEntryFee} entry fee</span>
+                      </div>
 
-                    <div className="apple-browse-card-detail-item">
-                      <DollarSign className="h-4 w-4" />
-                      <span>{show.preEntryFee} entry fee</span>
-                    </div>
-
-                    <div className="apple-browse-card-detail-item">
-                      <Clock className="h-4 w-4" />
-                      <span>Entries close {new Date(show.entryCloseDate).toLocaleDateString()}</span>
+                      <div className="apple-browse-card-detail-item">
+                        <Clock className="h-4 w-4" />
+                        <span>Closes {new Date(show.entryCloseDate).toLocaleDateString()}</span>
+                      </div>
                     </div>
                   </div>
 
@@ -891,46 +976,28 @@ const BrowseShowsPage: React.FC = () => {
                     );
                   })}
                   
-                  {/* Always show calendar link */}
-                  <Link to="/calendar">
-                    <Button variant="outline" size="sm" className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300 shadow-sm rounded-full">
-                      <Calendar className="h-4 w-4 mr-2" />
-                      <span className="hidden sm:inline">View in Calendar</span>
-                      <span className="sm:hidden">Calendar</span>
-                    </Button>
-                  </Link>
+                  {/* Full calendar page with show management */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Link to="/calendar">
+                        <Button variant="outline" size="sm" className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300 shadow-sm rounded-full">
+                          <Calendar className="h-4 w-4 mr-2" />
+                          <span className="hidden sm:inline">Full Calendar</span>
+                          <span className="sm:hidden">Calendar</span>
+                        </Button>
+                      </Link>
+                    </TooltipTrigger>
+                    <TooltipContent>Open full calendar with show management</TooltipContent>
+                  </Tooltip>
                 </div>
               </div>
 
-              {/* Enhanced Filters */}
+              {/* Enhanced Filters - Collapsible */}
               <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl transition-all duration-300 hover:shadow-xl hover:border-primary/30">
-                <CardHeader className="pb-4">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2">
-                      <Filter className="h-5 w-5 text-primary" />
-                      Filter Shows
-                      {hasActiveFilters && (
-                        <Badge variant="secondary" className="ml-2 text-xs">
-                          {Object.values(filters).filter(v => v !== 'all' && v !== 'upcoming' && v !== '').length} active
-                        </Badge>
-                      )}
-                    </CardTitle>
-                    {hasActiveFilters && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={clearAllFilters}
-                        className="text-muted-foreground hover:text-primary"
-                      >
-                        <X className="h-4 w-4 mr-1" />
-                        Clear All
-                      </Button>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                    <div className="relative">
+                <CardContent className="p-4">
+                  {/* Search bar always visible + Filters toggle */}
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="relative flex-1">
                       <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                       <Input
                         placeholder="Search shows..."
@@ -939,79 +1006,157 @@ const BrowseShowsPage: React.FC = () => {
                         className="pl-9 h-10 bg-background border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg transition-all duration-200"
                       />
                     </div>
-
-                    <Select
-                      value={filters.discipline}
-                      onValueChange={(value) => setFilters(prev => ({ ...prev, discipline: value }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Discipline" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Disciplines</SelectItem>
-                        <SelectItem value="agility">Agility</SelectItem>
-                        <SelectItem value="scent_work">Scent Work</SelectItem>
-                        <SelectItem value="rally">Rally</SelectItem>
-                        <SelectItem value="obedience">Obedience</SelectItem>
-                      </SelectContent>
-                    </Select>
-
-                    <Select
-                      value={filters.entryStatus}
-                      onValueChange={(value) => setFilters(prev => ({ ...prev, entryStatus: value }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Entry Status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Status</SelectItem>
-                        <SelectItem value="open">Open</SelectItem>
-                        <SelectItem value="closing_soon">Closing Soon</SelectItem>
-                        <SelectItem value="waitlist">Waitlist</SelectItem>
-                        <SelectItem value="closed">Closed</SelectItem>
-                      </SelectContent>
-                    </Select>
-
-                    <Select
-                      value={filters.dateRange}
-                      onValueChange={(value) => setFilters(prev => ({ ...prev, dateRange: value }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Date Range" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="upcoming">Upcoming</SelectItem>
-                        <SelectItem value="this_month">This Month</SelectItem>
-                        <SelectItem value="next_month">Next Month</SelectItem>
-                        <SelectItem value="all">All Dates</SelectItem>
-                      </SelectContent>
-                    </Select>
-
-                    <Select
-                      value={filters.location}
-                      onValueChange={(value) => setFilters(prev => ({ ...prev, location: value }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Location" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Locations</SelectItem>
-                        <SelectItem value="local">Within 50 miles</SelectItem>
-                        <SelectItem value="regional">Within 200 miles</SelectItem>
-                        <SelectItem value="online">Online Only</SelectItem>
-                      </SelectContent>
-                    </Select>
-
-                    <Button
-                      variant="outline"
-                      onClick={clearAllFilters}
-                      disabled={!hasActiveFilters}
-                      className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed rounded-full"
-                    >
-                      <X className="h-4 w-4 mr-2" />
-                      Clear Filters
-                    </Button>
+                    <Collapsible open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
+                      <CollapsibleTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 transition-all duration-200 gap-2"
+                        >
+                          <Filter className="h-4 w-4" />
+                          <span>Filters</span>
+                          {hasActiveFilters && (
+                            <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">
+                              {Object.values(filters).filter(v => v !== 'all' && v !== 'upcoming' && v !== '').length}
+                            </Badge>
+                          )}
+                          <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isFiltersOpen ? 'rotate-180' : ''}`} />
+                        </Button>
+                      </CollapsibleTrigger>
+                    </Collapsible>
                   </div>
+
+                  {/* Active filter chips */}
+                  {hasActiveFilters && (
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {filters.discipline !== 'all' && (
+                        <Badge
+                          variant="secondary"
+                          className="pl-2 pr-1 py-1 flex items-center gap-1 cursor-pointer hover:bg-destructive/10 transition-colors"
+                          onClick={() => setFilters(prev => ({ ...prev, discipline: 'all' }))}
+                        >
+                          {filters.discipline === 'scent_work' ? 'Scent Work' : filters.discipline.charAt(0).toUpperCase() + filters.discipline.slice(1)}
+                          <X className="h-3 w-3 ml-1" />
+                        </Badge>
+                      )}
+                      {filters.entryStatus !== 'all' && (
+                        <Badge
+                          variant="secondary"
+                          className="pl-2 pr-1 py-1 flex items-center gap-1 cursor-pointer hover:bg-destructive/10 transition-colors"
+                          onClick={() => setFilters(prev => ({ ...prev, entryStatus: 'all' }))}
+                        >
+                          {filters.entryStatus === 'closing_soon' ? 'Closing Soon' : filters.entryStatus.charAt(0).toUpperCase() + filters.entryStatus.slice(1)}
+                          <X className="h-3 w-3 ml-1" />
+                        </Badge>
+                      )}
+                      {filters.dateRange !== 'upcoming' && filters.dateRange !== 'all' && (
+                        <Badge
+                          variant="secondary"
+                          className="pl-2 pr-1 py-1 flex items-center gap-1 cursor-pointer hover:bg-destructive/10 transition-colors"
+                          onClick={() => setFilters(prev => ({ ...prev, dateRange: 'upcoming' }))}
+                        >
+                          {filters.dateRange === 'this_month' ? 'This Month' : filters.dateRange === 'next_month' ? 'Next Month' : filters.dateRange}
+                          <X className="h-3 w-3 ml-1" />
+                        </Badge>
+                      )}
+                      {filters.location !== 'all' && (
+                        <Badge
+                          variant="secondary"
+                          className="pl-2 pr-1 py-1 flex items-center gap-1 cursor-pointer hover:bg-destructive/10 transition-colors"
+                          onClick={() => setFilters(prev => ({ ...prev, location: 'all' }))}
+                        >
+                          {filters.location === 'local' ? 'Within 50 miles' : filters.location === 'regional' ? 'Within 200 miles' : filters.location === 'online' ? 'Online Only' : filters.location}
+                          <X className="h-3 w-3 ml-1" />
+                        </Badge>
+                      )}
+                      {filters.search && (
+                        <Badge
+                          variant="secondary"
+                          className="pl-2 pr-1 py-1 flex items-center gap-1 cursor-pointer hover:bg-destructive/10 transition-colors"
+                          onClick={() => setFilters(prev => ({ ...prev, search: '' }))}
+                        >
+                          "{filters.search}"
+                          <X className="h-3 w-3 ml-1" />
+                        </Badge>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={clearAllFilters}
+                        className="h-6 px-2 text-xs text-muted-foreground hover:text-primary"
+                      >
+                        Clear all
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Collapsible filter dropdowns */}
+                  <Collapsible open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
+                    <CollapsibleContent>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-4 mt-4 border-t border-border/50">
+                        <Select
+                          value={filters.discipline}
+                          onValueChange={(value) => setFilters(prev => ({ ...prev, discipline: value }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Discipline" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Disciplines</SelectItem>
+                            <SelectItem value="agility">Agility</SelectItem>
+                            <SelectItem value="scent_work">Scent Work</SelectItem>
+                            <SelectItem value="rally">Rally</SelectItem>
+                            <SelectItem value="obedience">Obedience</SelectItem>
+                          </SelectContent>
+                        </Select>
+
+                        <Select
+                          value={filters.entryStatus}
+                          onValueChange={(value) => setFilters(prev => ({ ...prev, entryStatus: value }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Entry Status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Status</SelectItem>
+                            <SelectItem value="open">Open</SelectItem>
+                            <SelectItem value="closing_soon">Closing Soon</SelectItem>
+                            <SelectItem value="waitlist">Waitlist</SelectItem>
+                            <SelectItem value="closed">Closed</SelectItem>
+                          </SelectContent>
+                        </Select>
+
+                        <Select
+                          value={filters.dateRange}
+                          onValueChange={(value) => setFilters(prev => ({ ...prev, dateRange: value }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Date Range" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="upcoming">Upcoming</SelectItem>
+                            <SelectItem value="this_month">This Month</SelectItem>
+                            <SelectItem value="next_month">Next Month</SelectItem>
+                            <SelectItem value="all">All Dates</SelectItem>
+                          </SelectContent>
+                        </Select>
+
+                        <Select
+                          value={filters.location}
+                          onValueChange={(value) => setFilters(prev => ({ ...prev, location: value }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Location" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Locations</SelectItem>
+                            <SelectItem value="local">Within 50 miles</SelectItem>
+                            <SelectItem value="regional">Within 200 miles</SelectItem>
+                            <SelectItem value="online">Online Only</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
                 </CardContent>
               </Card>
 
@@ -1020,48 +1165,82 @@ const BrowseShowsPage: React.FC = () => {
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-medium text-muted-foreground">View:</span>
                   <div className="flex bg-muted/50 rounded-lg p-1">
-                    <Button
-                      variant={viewMode === 'grid' ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => handleViewModeChange('grid')}
-                      className="h-8 px-3 transition-all duration-200"
-                      disabled={isViewModeChanging}
-                    >
-                      <Grid3X3 className="h-4 w-4 mr-2" />
-                      <span className="hidden sm:inline">Grid</span>
-                    </Button>
-                    <Button
-                      variant={viewMode === 'list' ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => handleViewModeChange('list')}
-                      className="h-8 px-3 transition-all duration-200"
-                      disabled={isViewModeChanging}
-                    >
-                      <List className="h-4 w-4 mr-2" />
-                      <span className="hidden sm:inline">List</span>
-                    </Button>
-                    <Button
-                      variant={viewMode === 'calendar' ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => handleViewModeChange('calendar')}
-                      className="h-8 px-3 transition-all duration-200"
-                      disabled={isViewModeChanging}
-                    >
-                      <CalendarDays className="h-4 w-4 mr-2" />
-                      <span className="hidden sm:inline">Calendar</span>
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                          size="sm"
+                          onClick={() => handleViewModeChange('grid')}
+                          className="h-8 px-3 transition-all duration-200"
+                          disabled={isViewModeChanging}
+                        >
+                          <Grid3X3 className="h-4 w-4 sm:mr-2" />
+                          <span className="hidden sm:inline">Grid</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="sm:hidden">Grid View</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant={viewMode === 'list' ? 'default' : 'ghost'}
+                          size="sm"
+                          onClick={() => handleViewModeChange('list')}
+                          className="h-8 px-3 transition-all duration-200"
+                          disabled={isViewModeChanging}
+                        >
+                          <List className="h-4 w-4 sm:mr-2" />
+                          <span className="hidden sm:inline">List</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="sm:hidden">List View</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant={viewMode === 'calendar' ? 'default' : 'ghost'}
+                          size="sm"
+                          onClick={() => handleViewModeChange('calendar')}
+                          className="h-8 px-3 transition-all duration-200"
+                          disabled={isViewModeChanging}
+                        >
+                          <CalendarDays className="h-4 w-4 sm:mr-2" />
+                          <span className="hidden sm:inline">Calendar</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="sm:hidden">Calendar View</TooltipContent>
+                    </Tooltip>
                   </div>
                 </div>
                 
-                {/* Show count and filter status */}
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  {shows.length > 0 ? (
-                    <span>
-                      {enhancedShows.length} of {shows.length} show{shows.length !== 1 ? 's' : ''}
-                      {hasActiveFilters && ' (filtered)'}
-                    </span>
-                  ) : (
-                    <span>No shows available</span>
+                {/* Quick stats summary */}
+                <div className="flex items-center gap-4 text-sm">
+                  <span className="text-muted-foreground">
+                    {enhancedShows.length} of {shows.length} show{shows.length !== 1 ? 's' : ''}
+                    {hasActiveFilters && ' (filtered)'}
+                  </span>
+                  {shows.length > 0 && (
+                    <div className="hidden sm:flex items-center gap-3 text-xs">
+                      <span className="flex items-center gap-1.5 px-2 py-0.5 bg-muted/50 rounded-full">
+                        <Calendar className="h-3 w-3 text-primary" />
+                        <span className="font-medium">{quickStats.upcoming}</span>
+                        <span className="text-muted-foreground">upcoming</span>
+                      </span>
+                      {quickStats.userEntries > 0 && (
+                        <span className="flex items-center gap-1.5 px-2 py-0.5 bg-green-500/10 rounded-full">
+                          <Ticket className="h-3 w-3 text-green-600" />
+                          <span className="font-medium text-green-600">{quickStats.userEntries}</span>
+                          <span className="text-green-600/70">entered</span>
+                        </span>
+                      )}
+                      {quickStats.closingSoon > 0 && (
+                        <span className="flex items-center gap-1.5 px-2 py-0.5 bg-orange-500/10 rounded-full">
+                          <Clock className="h-3 w-3 text-orange-600" />
+                          <span className="font-medium text-orange-600">{quickStats.closingSoon}</span>
+                          <span className="text-orange-600/70">closing soon</span>
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>

@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Building, MapPin, Phone, Calendar, Camera } from 'lucide-react';
+import { Building, MapPin, Phone, Camera } from 'lucide-react';
 import ClubPhotoDialog from '@/components/clubs/ClubPhotoDialog';
 import type { Club } from '@/types/club-types';
 import { CLUB_TYPES, COUNTRIES, DEFAULT_COUNTRY } from '@/types/club-types';
@@ -207,27 +207,20 @@ const ClubEditForm: React.FC = () => {
   return (
     <div className="space-y-6 p-6">
       <Tabs defaultValue="basic" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 transition-all duration-300 ease-out">
-          <TabsTrigger 
-            value="basic" 
+        <TabsList className="grid w-full grid-cols-2 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 transition-all duration-300 ease-out">
+          <TabsTrigger
+            value="basic"
             className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
           >
             <Building className="h-4 w-4" />
             Basic Info
           </TabsTrigger>
-          <TabsTrigger 
-            value="contact" 
+          <TabsTrigger
+            value="contact"
             className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
           >
             <Phone className="h-4 w-4" />
             Contact
-          </TabsTrigger>
-          <TabsTrigger 
-            value="details" 
-            className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
-          >
-            <Calendar className="h-4 w-4" />
-            Details
           </TabsTrigger>
         </TabsList>
 
@@ -311,6 +304,39 @@ const ClubEditForm: React.FC = () => {
                   placeholder="Enter club description"
                   className="min-h-[80px] w-full rounded-xl border-0 bg-input px-3.5 py-2.5 text-sm font-medium tracking-tight placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:bg-background focus-visible:shadow-sm transition-all duration-200"
                 />
+              </div>
+
+              <Separator />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="clubType" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Club Type</Label>
+                  <Select
+                    value={data.clubType || ''}
+                    onValueChange={handleSelectChange('clubType')}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select club type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CLUB_TYPES.map((type) => (
+                        <SelectItem key={type.value} value={type.value}>
+                          {type.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="founded" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Founded</Label>
+                  <Input
+                    id="founded"
+                    type="date"
+                    value={data.founded || ''}
+                    onChange={handleInputChange('founded')}
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -451,50 +477,6 @@ const ClubEditForm: React.FC = () => {
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Details Tab */}
-        <TabsContent value="details" className="space-y-6 animate-in slide-in-from-bottom-2 duration-300 ease-out">
-          <Card className="transition-all duration-200 hover:shadow-md hover:shadow-primary/5">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                Additional Details
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="clubType" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Club Type</Label>
-                  <Select
-                    value={data.clubType || ''}
-                    onValueChange={handleSelectChange('clubType')}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select club type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CLUB_TYPES.map((type) => (
-                        <SelectItem key={type.value} value={type.value}>
-                          {type.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="founded" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Founded</Label>
-                  <Input
-                    id="founded"
-                    type="date"
-                    value={data.founded || ''}
-                    onChange={handleInputChange('founded')}
-                  />
                 </div>
               </div>
             </CardContent>

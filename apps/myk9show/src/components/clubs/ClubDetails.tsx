@@ -1,6 +1,6 @@
 import React, { useState, startTransition } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Users, Trophy, MapPin, Eye, ExternalLink, Plus, CheckCircle, Mail, Phone, Globe, Award, Shield, MoreVertical, Edit, Trash2, Camera } from 'lucide-react';
+import { Calendar, Users, MapPin, Eye, ExternalLink, Plus, CheckCircle, Mail, Phone, Globe, Award, Shield, MoreVertical, Edit, Trash2, Camera } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -104,34 +104,22 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
   
   // Real member count from club data
   const memberCount = selectedClub.memberIds?.length || 0;
-  const upcomingEvents = upcomingShows + 2; // Shows + other events
-  
+
   const stats = [
     {
       title: "Total Shows",
       value: totalShows.toString(),
-      trend: totalShows > 5 ? "+15%" : "+8%",
       detail1: `Upcoming: ${upcomingShows}`,
       detail2: `Completed: ${pastShows}`,
       progress: totalShows > 0 ? Math.round((pastShows / totalShows) * 100) : 0,
       type: "shows"
     },
     {
-      title: "Upcoming Events",
-      value: upcomingEvents.toString(),
-      trend: "+6%",
-      detail1: `Shows: ${upcomingShows}`,
-      detail2: `Training: 2`,
-      progress: upcomingEvents > 0 ? Math.round((upcomingShows / upcomingEvents) * 100) : 0,
-      type: "events"
-    },
-    {
       title: "Active Members",
       value: memberCount.toString(),
-      trend: memberCount > 0 ? "+12%" : "0%",
-      detail1: `Current: ${memberCount}`,
-      detail2: memberCount > 0 ? `Active: ${memberCount}` : `No members`,
-      progress: Math.min(Math.round((memberCount / 50) * 100), 100), // Progress out of 50 max members
+      detail1: `Total: ${memberCount}`,
+      detail2: memberCount > 0 ? `In club roster` : `No members yet`,
+      progress: Math.min(Math.round((memberCount / 50) * 100), 100),
       type: "members"
     }
   ];
@@ -146,20 +134,6 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
     if (daysUntil > 30) return { status: 'registration', label: 'Registration Open' };
     if (daysUntil > 0) return { status: 'upcoming', label: 'Upcoming' };
     return { status: 'upcoming', label: 'This Week' };
-  };
-
-  // Helper function to get mock show metadata
-  const getShowMetadata = (_showName: string, isUpcoming: boolean) => {
-    const entryCount = 25 + Math.floor(Math.random() * 50);
-    const fee = isUpcoming ? '$35' : '$30';
-    const judges = ['Dr. Smith', 'Ms. Johnson', 'Mr. Brown'][Math.floor(Math.random() * 3)];
-    
-    return {
-      entries: isUpcoming ? `${entryCount} entries` : `${entryCount} competed`,
-      fee: isUpcoming ? `Entry: ${fee}` : `Fee was: ${fee}`,
-      judge: `Judge: ${judges}`,
-      capacity: isUpcoming ? `${Math.floor(entryCount / 80 * 100)}% full` : `Final results available`
-    };
   };
 
   // Handler functions for club actions
@@ -374,10 +348,16 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
                 <Phone className="mr-2 h-4 w-4" />
                 Call Club
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => logger.logUserAction('visit_website', 'club', { clubId: selectedClub?.id })}>
-                <Globe className="mr-2 h-4 w-4" />
-                Visit Website
-              </DropdownMenuItem>
+              {selectedClub.website && (
+                <DropdownMenuItem onClick={() => window.open(
+                  selectedClub.website?.startsWith('http') ? selectedClub.website : `https://${selectedClub.website}`,
+                  '_blank',
+                  'noopener,noreferrer'
+                )}>
+                  <Globe className="mr-2 h-4 w-4" />
+                  Visit Website
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleDeleteClub} className="text-red-600">
                 <Trash2 className="mr-2 h-4 w-4" />
@@ -398,41 +378,11 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
           />
           <div className="text-center md:text-left">
             <h1 className="text-3xl font-bold text-foreground mb-2">{selectedClub.name}</h1>
-            <div className="flex items-center gap-2 text-muted-foreground mb-4">
+            <div className="flex items-center justify-center md:justify-start gap-2 text-muted-foreground mb-4">
               <Shield className="w-4 h-4" />
               Club #{selectedClub.clubNumber}
             </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-              <Mail className="w-4 h-4" />
-              {selectedClub.email}
-            </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-              <Phone className="w-4 h-4" />
-              {selectedClub.phone}
-            </div>
-            {selectedClub.website && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                <Globe className="w-4 h-4" />
-                <a 
-                  href={selectedClub.website.startsWith('http') ? selectedClub.website : `https://${selectedClub.website}`}
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="hover:text-primary transition-colors"
-                >
-                  {selectedClub.website}
-                </a>
-              </div>
-            )}
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-              <MapPin className="w-4 h-4" />
-              {[
-                selectedClub.address.street,
-                selectedClub.address.city,
-                selectedClub.address.state,
-                selectedClub.address.zipCode
-              ].filter(Boolean).join(', ')}
-            </div>
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-2 flex-wrap justify-center md:justify-start">
               {selectedClub.clubType && (
                 <div className="flex items-center gap-1 px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-medium">
                   <Award className="w-3 h-3" />
@@ -442,8 +392,8 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
               {selectedClub.founded && (
                 <div className="flex items-center gap-1 px-3 py-1 bg-secondary/10 text-secondary-foreground rounded-full text-xs font-medium">
                   <Shield className="w-3 h-3" />
-                  Founded {selectedClub.founded instanceof Date 
-                    ? selectedClub.founded.getFullYear() 
+                  Founded {selectedClub.founded instanceof Date
+                    ? selectedClub.founded.getFullYear()
                     : new Date(selectedClub.founded).getFullYear()}
                 </div>
               )}
@@ -454,38 +404,32 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
 
       {/* Statistics Cards */}
       <div className="mb-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {stats.map((stat, index) => (
             <div key={index} className="bg-card border border-border rounded-xl p-6 hover:shadow-lg transition-shadow">
               <div className="flex items-center justify-between mb-4">
                 <div className={`p-3 rounded-xl ${
-                  stat.type === 'shows' ? 'bg-blue-500/10 text-blue-500' :
-                  stat.type === 'members' ? 'bg-green-500/10 text-green-500' :
-                  'bg-purple-500/10 text-purple-500'
+                  stat.type === 'shows' ? 'bg-blue-500/10 text-blue-500' : 'bg-green-500/10 text-green-500'
                 }`}>
-                  {stat.type === 'shows' && <Calendar className="w-5 h-5" />}
-                  {stat.type === 'members' && <Users className="w-5 h-5" />}
-                  {stat.type === 'events' && <Trophy className="w-5 h-5" />}
+                  {stat.type === 'shows' ? <Calendar className="w-5 h-5" /> : <Users className="w-5 h-5" />}
                 </div>
-                
+
                 <div className="text-right">
                   <div className="text-sm font-medium text-foreground">{stat.title}</div>
                 </div>
               </div>
-              
+
               <div className="text-2xl font-bold text-foreground mb-2">{stat.value}</div>
-              
+
               <div className="flex justify-between text-xs text-muted-foreground mb-3">
                 <span>{stat.detail1}</span>
                 <span>{stat.detail2}</span>
               </div>
-              
+
               <div className="w-full bg-muted rounded-full h-2">
-                <div 
+                <div
                   className={`h-2 rounded-full ${
-                    stat.type === 'shows' ? 'bg-blue-500' :
-                    stat.type === 'members' ? 'bg-green-500' :
-                    'bg-purple-500'
+                    stat.type === 'shows' ? 'bg-blue-500' : 'bg-green-500'
                   }`}
                   style={{ width: `${stat.progress}%` }}
                 ></div>
@@ -507,7 +451,7 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
                 Past Shows ({selectedClub.pastShows?.length || 0})
               </TabsTrigger>
               <TabsTrigger value="about" className="bg-transparent border-b-2 border-transparent rounded-none pb-3 px-0 font-medium text-muted-foreground data-[state=active]:text-primary data-[state=active]:border-primary data-[state=active]:bg-transparent hover:text-foreground transition-colors">
-                Description
+                About
               </TabsTrigger>
               <TabsTrigger value="members" className="bg-transparent border-b-2 border-transparent rounded-none pb-3 px-0 font-medium text-muted-foreground data-[state=active]:text-primary data-[state=active]:border-primary data-[state=active]:bg-transparent hover:text-foreground transition-colors">
                 Members ({selectedClub.memberIds?.length || 0})
@@ -533,8 +477,7 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {(selectedClub.upcomingShows || []).map((show) => {
                   const showStatus = getShowStatus(show.date, true);
-                  const metadata = getShowMetadata(show.name, true);
-                  
+
                   return (
                     <div key={show.id} className="bg-card border border-border rounded-2xl p-5 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/30">
                       <div className="flex justify-between items-start mb-3">
@@ -578,27 +521,10 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
                           {show.location}
                         </div>
                       </div>
-                      
-                      <div className="text-sm text-foreground mb-4 leading-relaxed">{show.description}</div>
-                      
-                      <div className="grid grid-cols-2 gap-2 p-3 bg-muted/30 rounded-lg border border-border">
-                        <div className="flex flex-col gap-1">
-                          <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Entries</div>
-                          <div className="text-sm text-foreground font-medium">{metadata.entries}</div>
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Judge</div>
-                          <div className="text-sm text-foreground font-medium">{metadata.judge}</div>
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Fee</div>
-                          <div className="text-sm text-foreground font-medium">{metadata.fee}</div>
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Status</div>
-                          <div className="text-sm text-foreground font-medium">{metadata.capacity}</div>
-                        </div>
-                      </div>
+
+                      {show.description && (
+                        <div className="text-sm text-foreground leading-relaxed">{show.description}</div>
+                      )}
                     </div>
                   );
                 })}
@@ -625,8 +551,7 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {(selectedClub.pastShows || []).map((show) => {
                   const showStatus = getShowStatus(show.date, false);
-                  const metadata = getShowMetadata(show.name, false);
-                  
+
                   return (
                     <div key={show.id} className="bg-card border border-border rounded-2xl p-5 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 hover:border-primary/30">
                       <div className="flex justify-between items-start mb-3">
@@ -648,14 +573,6 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
                                 <Eye className="mr-2 h-4 w-4" />
                                 View Results
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => logger.logUserAction('view_awards', 'show', { showName: show.name })}>
-                                <Trophy className="mr-2 h-4 w-4" />
-                                View Awards
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => logger.logUserAction('view_photos', 'show', { showName: show.name })}>
-                                <ExternalLink className="mr-2 h-4 w-4" />
-                                View Photos
-                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
@@ -670,27 +587,10 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
                           {show.location}
                         </div>
                       </div>
-                      
-                      <div className="text-sm text-foreground mb-4 leading-relaxed">{show.description}</div>
-                      
-                      <div className="grid grid-cols-2 gap-2 p-3 bg-muted/30 rounded-lg border border-border">
-                        <div className="flex flex-col gap-1">
-                          <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Competed</div>
-                          <div className="text-sm text-foreground font-medium">{metadata.entries}</div>
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Judge</div>
-                          <div className="text-sm text-foreground font-medium">{metadata.judge}</div>
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Entry Fee</div>
-                          <div className="text-sm text-foreground font-medium">{metadata.fee}</div>
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <div className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Results</div>
-                          <div className="text-sm text-foreground font-medium">{metadata.capacity}</div>
-                        </div>
-                      </div>
+
+                      {show.description && (
+                        <div className="text-sm text-foreground leading-relaxed">{show.description}</div>
+                      )}
                     </div>
                   );
                 })}
@@ -699,13 +599,9 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
               <div className="text-center py-16 px-8 bg-muted/50 rounded-2xl border border-dashed border-border">
                 <CheckCircle className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-60" />
                 <div className="text-lg font-medium mb-2 text-foreground">No Past Shows</div>
-                <div className="text-sm text-muted-foreground leading-relaxed mb-5">
+                <div className="text-sm text-muted-foreground leading-relaxed">
                   This club hasn't hosted any shows yet. Once they organize their first event, the results will appear here.
                 </div>
-                <button className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
-                  <Eye className="w-4 h-4" />
-                  Browse Other Clubs
-                </button>
               </div>
             )}
             </div>
@@ -713,7 +609,75 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
 
           <TabsContent value="about" className="pt-6">
             <div className="space-y-6">
-              <div className="text-base text-foreground leading-relaxed">{selectedClub.description}</div>
+              {selectedClub.description && (
+                <div className="text-base text-foreground leading-relaxed">{selectedClub.description}</div>
+              )}
+
+              {/* Contact Information */}
+              <div className="bg-card border border-border rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-foreground mb-4">Contact Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-muted">
+                      <Mail className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground uppercase tracking-wide">Email</div>
+                      <a href={`mailto:${selectedClub.email}`} className="text-sm text-foreground hover:text-primary transition-colors">
+                        {selectedClub.email}
+                      </a>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-muted">
+                      <Phone className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground uppercase tracking-wide">Phone</div>
+                      <a href={`tel:${selectedClub.phone}`} className="text-sm text-foreground hover:text-primary transition-colors">
+                        {selectedClub.phone}
+                      </a>
+                    </div>
+                  </div>
+
+                  {selectedClub.website && (
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-muted">
+                        <Globe className="w-4 h-4 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground uppercase tracking-wide">Website</div>
+                        <a
+                          href={selectedClub.website.startsWith('http') ? selectedClub.website : `https://${selectedClub.website}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-foreground hover:text-primary transition-colors"
+                        >
+                          {selectedClub.website}
+                        </a>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-muted">
+                      <MapPin className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground uppercase tracking-wide">Address</div>
+                      <div className="text-sm text-foreground">
+                        {[
+                          selectedClub.address?.street,
+                          selectedClub.address?.city,
+                          selectedClub.address?.state,
+                          selectedClub.address?.zipCode
+                        ].filter(Boolean).join(', ')}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </TabsContent>
 

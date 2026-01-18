@@ -7,11 +7,13 @@ import { Input } from '@/components/ui/input';
 import { TrialClass } from '../types/trial.types';
 import { FileText, ArrowUpDown, ArrowUp, ArrowDown, Search, LayoutGrid, List, Layers } from 'lucide-react';
 import { TrialClassesCards } from './TrialClassesCards';
+import { getClassStatusBadgeClasses } from '@myk9/core';
 
 type ViewMode = 'table' | 'cards';
 
 interface TrialClassesTableProps {
   classes: TrialClass[];
+  trialId?: string;
   onAddClassesFromTemplate?: () => void;
   onEditClass: (classItem: TrialClass) => void;
   onDeleteClass: (classItem: TrialClass) => void;
@@ -27,6 +29,7 @@ interface SortConfig {
 
 export const TrialClassesTable = ({
   classes,
+  trialId,
   onAddClassesFromTemplate,
   onEditClass,
   onDeleteClass,
@@ -105,12 +108,7 @@ export const TrialClassesTable = ({
   };
 
   const getStatusBadge = (status: string) => {
-    const statusMap: Record<string, string> = {
-      'Upcoming': 'bg-blue-100 text-blue-800',
-      'In Progress': 'bg-yellow-100 text-yellow-800',
-      'Completed': 'bg-green-100 text-green-800',
-    };
-    return statusMap[status] || 'bg-gray-500 text-gray-900';
+    return getClassStatusBadgeClasses(status);
   };
 
   if (classes.length === 0) {
@@ -205,6 +203,7 @@ export const TrialClassesTable = ({
       {viewMode === 'cards' && (
         <TrialClassesCards
           classes={filteredAndSortedClasses}
+          trialId={trialId || ''}
           onEditClass={onEditClass}
           onDeleteClass={onDeleteClass}
         />
@@ -308,7 +307,23 @@ export const TrialClassesTable = ({
                     : 'TBD'
                   }
                 </TableCell>
-                <TableCell>{classItem.entries}</TableCell>
+                <TableCell>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1">
+                      <span>{classItem.completedEntries ?? 0}</span>
+                      <span className="text-muted-foreground">/</span>
+                      <span>{classItem.entries}</span>
+                    </div>
+                    {classItem.entries > 0 && (
+                      <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-primary rounded-full transition-all"
+                          style={{ width: `${Math.min(100, ((classItem.completedEntries ?? 0) / classItem.entries) * 100)}%` }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell>
                   <span className={`inline-block px-3 py-1 text-xs font-semibold rounded-full
     ${getStatusBadge(classItem.status)}

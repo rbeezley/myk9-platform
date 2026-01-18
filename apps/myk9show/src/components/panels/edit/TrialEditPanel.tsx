@@ -13,6 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar as CalendarIcon, Clock, Info, Settings } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Trial } from '@/components/trials/types/trial.types';
+import type { ClassStatusValue } from '@myk9/core';
 import { cn } from '@/lib/utils';
 
 interface TrialEditPanelProps {
@@ -33,7 +34,7 @@ interface TrialEditFormData extends Record<string, unknown> {
   showName: string;
   trialDate: string;
   trialNumber: string;
-  status: 'Upcoming' | 'In Progress' | 'Completed' | 'Cancelled';
+  status: ClassStatusValue;
   plannedStartTime: string;
   timeStarted?: string;
   timeEnded?: string;

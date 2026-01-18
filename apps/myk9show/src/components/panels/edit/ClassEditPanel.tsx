@@ -11,6 +11,7 @@ import { TimePicker } from '@/components/ui/time-picker';
 import { Clock, UserCheck, ClipboardList, Settings } from 'lucide-react';
 import { ClassData } from '@/components/classes/types/classTypes';
 import { TrialClass } from '@/components/trials/types/trial.types';
+import type { ClassStatusValue } from '@myk9/core';
 import { useShowStore } from '@/store/showStore';
 import { useUserStore } from '@/store/userStore';
 import { cn } from '@/lib/utils';
@@ -34,14 +35,14 @@ interface ClassEditFormData extends Record<string, unknown> {
   level: string;
   section: string;
   classOrder: string;
-  status: 'Upcoming' | 'In Progress' | 'Completed' | 'Cancelled' | 'Scheduled';
-  
+  status: ClassStatusValue;
+
   // Timing details
   estimatedJudgingTime?: string;
   timeLimit1?: string;
   timeLimit2?: string;
   timeLimit3?: string;
-  
+
   // Officials
   judge?: string;
   gateSteward?: string;
@@ -50,12 +51,12 @@ interface ClassEditFormData extends Record<string, unknown> {
   ringSteward1?: string;
   ringSteward2?: string;
   ringSteward3?: string;
-  
+
   // Requirements
   hidesUsed?: string;
   distractionsUsed?: string;
   itemsUsed?: string;
-  
+
   // Fee structure
   preEntryFee?: number;
   dayOfShowFee?: number;
@@ -69,7 +70,7 @@ interface TrialClassEditFormData extends Record<string, unknown> {
   judgeId: string;
   judgeName?: string;
   startTime: string;
-  status: 'Upcoming' | 'In Progress' | 'Completed' | 'Cancelled';
+  status: ClassStatusValue;
   entries: number;
 }
 

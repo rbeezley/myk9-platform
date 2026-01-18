@@ -35,8 +35,9 @@ export enum ShowType {
   OTHER = 'Other'
 }
 
-// Class status tracking
-export type ClassStatus = 'Pending' | 'In Progress' | 'Complete' | 'Cancelled';
+// Class status tracking - aligned with @myk9/core CLASS_STATUS constants
+// Includes 'Upcoming' as a valid alias for 'Scheduled' for backward compatibility
+export type ClassStatus = 'Scheduled' | 'Upcoming' | 'In Progress' | 'Completed' | 'Cancelled';
 
 // Field value sources
 export type FieldSource = 'rule-based' | 'judge-set' | 'admin-set' | 'calculated' | 'fixed';

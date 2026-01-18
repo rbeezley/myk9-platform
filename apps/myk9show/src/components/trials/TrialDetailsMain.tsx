@@ -309,6 +309,7 @@ const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
         
         <TrialClassesTable
           classes={trial.classes || []}
+          trialId={trial.id}
           {...(onAddClassesFromTemplate !== undefined && { onAddClassesFromTemplate })}
           onEditClass={onEditClass}
           onDeleteClass={onDeleteClass}

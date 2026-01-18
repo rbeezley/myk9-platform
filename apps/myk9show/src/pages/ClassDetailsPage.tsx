@@ -29,6 +29,7 @@ import { Plus, ArrowLeft } from 'lucide-react';
 import type { ClassData, CompetitionResult } from '@/components/classes/types/classTypes';
 import type { ShowEntry } from '@/types/entry-lifecycle';
 import type { CompetitionData } from '@/store/entryStore';
+import type { ClassStatusValue } from '@myk9/core';
 
 const ClassDetailsPage: React.FC = () => {
   const { classId, showId, trialId } = useParams<{ 
@@ -43,7 +44,7 @@ const ClassDetailsPage: React.FC = () => {
   const isResultsView = location.pathname.endsWith('/results');
   
   const { classes, updateClass, deleteClass } = useClassStoreCompat();
-  const { clearAllEntries, updateResult } = useEntryStore();
+  const { updateResult } = useEntryStore();
   const { dogs } = useDogStore();
   const { trials } = useTrialStore();
   const { shows } = useShowStore();
@@ -266,8 +267,8 @@ const ClassDetailsPage: React.FC = () => {
 
   const handleStatusChange = (newStatus: string) => {
     if (classId) {
-      updateClass(classId, { 
-        status: newStatus as 'Scheduled' | 'In Progress' | 'Completed' | 'Cancelled' | 'Upcoming'
+      updateClass(classId, {
+        status: newStatus as ClassStatusValue
       });
     }
   };
@@ -317,14 +318,6 @@ const ClassDetailsPage: React.FC = () => {
     }
   };
 
-
-  // Temporary debug function to clear entries (mock data disabled)
-  const forceReinitializeEntries = () => {
-    logger.debug('Clearing all entries', 'classes');
-    clearAllEntries();
-    // No mock data - starting with clean slate per user request
-    logger.debug('Cleared entries - no mock data loaded', 'classes');
-  };
 
   // Early return if we don't have essential data to prevent suspension issues
   if (!classId || !currentClass) {
@@ -401,22 +394,6 @@ const ClassDetailsPage: React.FC = () => {
       
       <main className="flex-1 overflow-auto">
         <>
-          {/* Temporary debug button */}
-          <div style={{ position: 'fixed', top: '10px', right: '10px', zIndex: 9999 }}>
-            <button 
-                onClick={forceReinitializeEntries}
-                style={{ 
-                  background: 'red', 
-                  color: 'white', 
-                  padding: '8px 12px', 
-                  border: 'none', 
-                  borderRadius: '4px',
-                  fontSize: '12px'
-                }}
-              >
-                🧹 Clear Entries
-              </button>
-            </div>
             <ClassDetailsMain
               classData={currentClass}
               classEntries={classEntries}

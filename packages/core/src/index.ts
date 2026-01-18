@@ -46,3 +46,16 @@ export type {
   Auditable,
   EntityWithTraits,
 } from './types/entities';
+
+// Class status constants
+export {
+  CLASS_STATUS,
+  CLASS_STATUS_DISPLAY,
+  CLASS_STATUS_ORDER,
+  getNextClassStatus,
+  getClassStatusDisplay,
+  getClassStatusBadgeClasses,
+  LEGACY_STATUS_MAP,
+  normalizeClassStatus,
+  type ClassStatusValue,
+} from './constants/class-status';

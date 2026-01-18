@@ -1,7 +1,8 @@
 import React, { useState, startTransition } from 'react';
-import { logger } from '@/services/LoggingService';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useClassCreationStore } from '@/store/classCreationStore';
+import type { ClassStatus } from '@/types/template.types';
+import { CLASS_STATUS, getClassStatusBadgeClasses } from '@myk9/core';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -34,16 +35,7 @@ import {
 export const ClassManagementPage: React.FC = () => {
   const { trialId } = useParams<{ trialId: string }>();
   const navigate = useNavigate();
-  const { getClassesByTrial } = useClassCreationStore();
-  
-  // Stub functions for missing methods
-  const updateClassStatus = (classId: string, status: string) => {
-    logger.debug('updateClassStatus called with:', 'secretary', { data: classId, status });
-  };
-  
-  const deleteClass = (classId: string) => {
-    logger.debug('deleteClass called with:', 'secretary', { data: classId });
-  };
+  const { getClassesByTrial, updateClassStatus, deleteClass } = useClassCreationStore();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
@@ -68,7 +60,7 @@ export const ClassManagementPage: React.FC = () => {
 
   // Get unique elements for filtering
   const elements = Array.from(new Set(allClasses.map(c => c.element))).sort();
-  const statuses = ['Pending', 'In Progress', 'Complete', 'Cancelled'];
+  const statuses = Object.values(CLASS_STATUS);
 
   // Toggle class selection
   const toggleClassSelection = (classId: string) => {
@@ -100,7 +92,7 @@ export const ClassManagementPage: React.FC = () => {
 
   // Handle status change
   const handleStatusChange = (classId: string, newStatus: string) => {
-    updateClassStatus(classId, newStatus);
+    updateClassStatus(classId, newStatus as ClassStatus);
   };
 
   // Handle delete
@@ -113,7 +105,7 @@ export const ClassManagementPage: React.FC = () => {
   // Bulk operations
   const handleBulkStatusChange = (newStatus: string) => {
     selectedClasses.forEach(classId => {
-      updateClassStatus(classId, newStatus);
+      updateClassStatus(classId, newStatus as ClassStatus);
     });
     setSelectedClasses([]);
   };
@@ -129,20 +121,15 @@ export const ClassManagementPage: React.FC = () => {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'In Progress': return <Play className="h-4 w-4" />;
-      case 'Complete': return <CheckCircle className="h-4 w-4" />;
-      case 'Cancelled': return <Pause className="h-4 w-4" />;
+      case CLASS_STATUS.IN_PROGRESS: return <Play className="h-4 w-4" />;
+      case CLASS_STATUS.COMPLETED: return <CheckCircle className="h-4 w-4" />;
+      case CLASS_STATUS.CANCELLED: return <Pause className="h-4 w-4" />;
       default: return <Clock className="h-4 w-4" />;
     }
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'In Progress': return 'bg-blue-100 text-blue-800';
-      case 'Complete': return 'bg-green-100 text-green-800';
-      case 'Cancelled': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+    return getClassStatusBadgeClasses(status);
   };
 
   return (
@@ -188,34 +175,34 @@ export const ClassManagementPage: React.FC = () => {
         
         <Card>
           <CardContent className="flex items-center p-4">
-            <Clock className="h-8 w-8 text-green-500 mr-3" />
+            <Clock className="h-8 w-8 text-blue-500 mr-3" />
             <div>
               <div className="text-2xl font-bold">
-                {allClasses.filter(c => c.status === 'Pending').length}
+                {allClasses.filter(c => c.status === CLASS_STATUS.SCHEDULED).length}
               </div>
-              <div className="text-sm text-muted-foreground">Pending</div>
+              <div className="text-sm text-muted-foreground">Upcoming</div>
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="flex items-center p-4">
-            <Play className="h-8 w-8 text-orange-500 mr-3" />
+            <Play className="h-8 w-8 text-amber-500 mr-3" />
             <div>
               <div className="text-2xl font-bold">
-                {allClasses.filter(c => c.status === 'In Progress').length}
+                {allClasses.filter(c => c.status === CLASS_STATUS.IN_PROGRESS).length}
               </div>
               <div className="text-sm text-muted-foreground">In Progress</div>
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="flex items-center p-4">
-            <CheckCircle className="h-8 w-8 text-purple-500 mr-3" />
+            <CheckCircle className="h-8 w-8 text-green-500 mr-3" />
             <div>
               <div className="text-2xl font-bold">
-                {allClasses.filter(c => c.status === 'Complete').length}
+                {allClasses.filter(c => c.status === CLASS_STATUS.COMPLETED).length}
               </div>
               <div className="text-sm text-muted-foreground">Complete</div>
             </div>

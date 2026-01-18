@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { Users, Calendar, Trophy, Edit, Trash2, MoreVertical, Clock, UserCheck, ClipboardList, DollarSign, Settings } from 'lucide-react';
+import { CLASS_STATUS, getNextClassStatus, type ClassStatusValue } from '@myk9/core';
 import { ClassData, EntryData } from './types/classTypes';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -199,31 +200,26 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
   }, [classData.element, classData.level, classData.section]);
 
   const getStatusClass = useCallback((status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'scheduled': return 'apple-show-status-upcoming';
-      case 'in progress': return 'apple-show-status-in-progress';
-      case 'completed': return 'apple-show-status-completed';
+    switch (status) {
+      case CLASS_STATUS.SCHEDULED: return 'apple-show-status-upcoming';
+      case CLASS_STATUS.IN_PROGRESS: return 'apple-show-status-in-progress';
+      case CLASS_STATUS.COMPLETED: return 'apple-show-status-completed';
       default: return 'apple-show-status-upcoming';
     }
   }, []);
 
   const getStatusIcon = useCallback((status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'scheduled': return <Calendar className="w-3 h-3" />;
-      case 'in progress': return <Users className="w-3 h-3" />;
-      case 'completed': return <Trophy className="w-3 h-3" />;
+    switch (status) {
+      case CLASS_STATUS.SCHEDULED: return <Calendar className="w-3 h-3" />;
+      case CLASS_STATUS.IN_PROGRESS: return <Users className="w-3 h-3" />;
+      case CLASS_STATUS.COMPLETED: return <Trophy className="w-3 h-3" />;
       default: return <Calendar className="w-3 h-3" />;
     }
   }, []);
 
   const handleStatusClick = useCallback(() => {
     if (!onStatusChange) return;
-    
-    const statusOrder = ['Scheduled', 'In Progress', 'Completed'];
-    const currentIndex = statusOrder.indexOf(classData.status);
-    const nextIndex = (currentIndex + 1) % statusOrder.length;
-    const nextStatus = statusOrder[nextIndex];
-    
+    const nextStatus = getNextClassStatus(classData.status as ClassStatusValue);
     onStatusChange(nextStatus);
   }, [classData.status, onStatusChange]);
 

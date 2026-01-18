@@ -127,9 +127,9 @@ export function ShowDashboard({ showId, className }: ShowDashboardProps) {
       .reduce((sum, entry) => sum + (entry.registrationData.entryFee || 0), 0);
     
     const totalClasses = showClasses.length;
-    const completedClasses = showClasses.filter((c: CreatedClass) => c.status === 'Complete').length;
+    const completedClasses = showClasses.filter((c: CreatedClass) => c.status === 'Completed').length;
     const inProgressClasses = showClasses.filter((c: CreatedClass) => c.status === 'In Progress').length;
-    const pendingClasses = showClasses.filter((c: CreatedClass) => c.status === 'Pending').length;
+    const pendingClasses = showClasses.filter((c: CreatedClass) => c.status === 'Scheduled' || c.status === 'Upcoming').length;
     
     const judgesAssigned = showClasses.filter((c: CreatedClass) => c.personnel.judgeId).length;
     const totalJudgesNeeded = totalClasses;

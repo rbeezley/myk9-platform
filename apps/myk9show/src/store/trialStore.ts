@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { Trial, TrialClass } from '@/components/trials/types/trial.types';
+import type { ClassStatusValue } from '@myk9/core';
 
 // Re-export types for external usage
 export type { Trial, TrialClass };
@@ -32,7 +33,7 @@ export interface TrialInput {
   name: string;
   trialDate: string;
   trialNumber: string;
-  status: 'Upcoming' | 'In Progress' | 'Completed' | 'Cancelled';
+  status: ClassStatusValue;
   eventNumber?: string | undefined;
   type?: string | undefined;
   trialType?: string | undefined;
@@ -51,7 +52,7 @@ export interface TrialInput {
     judgeId: string;
     judgeName?: string | undefined;
     startTime: string;
-    status: 'Upcoming' | 'In Progress' | 'Completed' | 'Cancelled';
+    status: ClassStatusValue;
     entries: number;
   }> | undefined;
 }
@@ -63,7 +64,7 @@ export interface TrialClassInput {
   judgeId: string;
   judgeName?: string | undefined;
   startTime: string;
-  status: 'Upcoming' | 'In Progress' | 'Completed' | 'Cancelled';
+  status: ClassStatusValue;
   entries: number;
 }
 

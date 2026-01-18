@@ -86,7 +86,7 @@ const generateSingleClass = (
     element: classDef.element,
     level: classDef.level,
     section: classDef.section,
-    status: 'Pending',
+    status: 'Scheduled',
     runOrder,
     
     // Field values  

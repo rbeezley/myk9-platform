@@ -5,7 +5,8 @@ import {
   ClassTemplate,
   ClassDefinition,
   ClassSelectionItem,
-  CreatedClass
+  CreatedClass,
+  ClassStatus
 } from '@/types/template.types';
 // Lazy import to avoid circular dependency - imported at runtime, not module load time
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -48,6 +49,8 @@ interface ClassCreationStore {
   updateClassRunOrder: (classId: string, runOrder: number) => void;
   updateClassTime: (classId: string, time: Date) => void;
   updateClassJudge: (classId: string, judgeId: string) => void;
+  updateClassStatus: (classId: string, status: ClassStatus) => void;
+  deleteClass: (classId: string) => void;
   
   // Element and level filtering
   getAvailableElements: () => string[];
@@ -374,7 +377,7 @@ export const useClassCreationStore = create<ClassCreationStore>()(
         classNumber: classDef.classNumber || runOrder.toString().padStart(3, '0'),
         
         // Status
-        status: 'Pending' as const,
+        status: 'Scheduled' as const,
         runOrder: Number(fieldValues.runOrder) || runOrder,
         
         // Field values (convert to proper types)
@@ -488,6 +491,22 @@ export const useClassCreationStore = create<ClassCreationStore>()(
       createdClasses: state.createdClasses.map(cls =>
         cls.id === classId ? { ...cls, personnel: { ...cls.personnel, judgeId } } : cls
       )
+    }));
+  },
+
+  // Update class status
+  updateClassStatus: (classId, status) => {
+    set(state => ({
+      createdClasses: state.createdClasses.map(cls =>
+        cls.id === classId ? { ...cls, status } : cls
+      )
+    }));
+  },
+
+  // Delete class
+  deleteClass: (classId) => {
+    set(state => ({
+      createdClasses: state.createdClasses.filter(cls => cls.id !== classId)
     }));
   },
 

@@ -1,10 +1,12 @@
+import type { ClassStatusValue } from '@myk9/core';
+
 export interface Trial {
   id: string;
   showId: string;
   showName: string;
   trialDate: string;
   trialNumber: string;
-  status: 'Upcoming' | 'In Progress' | 'Completed' | 'Cancelled';
+  status: ClassStatusValue;
   image?: string | undefined;
   plannedStartTime?: string | undefined;
   timeStarted?: string | undefined;
@@ -22,10 +24,17 @@ export interface TrialClass {
   level: string;
   section: string;
   judgeId: string;
-  judgeName?: string | undefined; // For display purposes
+  judgeName?: string | undefined;
   startTime: string;
-  status: 'Upcoming' | 'In Progress' | 'Completed' | 'Cancelled';
+  status: ClassStatusValue;
   entries: number;
+  completedEntries?: number;
+  // Optional fields for enhanced class cards
+  lastResultAt?: string | undefined;
+  timeLimits?: string[] | undefined;
+  resultsVisibility?: 'immediate' | 'after_class' | 'after_review' | undefined;
+  checkInMode?: 'self' | 'table' | undefined;
+  isOfflineScoring?: boolean | undefined;
 }
 
 export interface TrialFormData extends Omit<Trial, 'id' | 'image'> {

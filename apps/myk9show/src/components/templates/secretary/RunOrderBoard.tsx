@@ -344,7 +344,7 @@ export const RunOrderBoard: React.FC<RunOrderBoardProps> = ({
                     {/* Status & Conflicts */}
                     <div className="flex flex-col items-end gap-2">
                       <Badge variant={
-                        cls.status === 'Complete' ? 'default' :
+                        cls.status === 'Completed' ? 'default' :
                         cls.status === 'In Progress' ? 'secondary' :
                         cls.status === 'Cancelled' ? 'destructive' : 'outline'
                       } className="text-xs">

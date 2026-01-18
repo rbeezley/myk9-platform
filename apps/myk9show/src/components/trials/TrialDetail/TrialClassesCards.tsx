@@ -1,11 +1,20 @@
-import { startTransition } from 'react';
+import { startTransition, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ClassCard, type ClassStatus } from '@myk9/ui';
 import { TrialClass } from '../types/trial.types';
 import { Play, CheckCircle2, Clock, XCircle } from 'lucide-react';
+import { CLASS_STATUS } from '@myk9/core';
+import { useClassEntriesPreview } from '@/hooks/useClassEntriesPreview';
+import { useFavoriteClassesStore } from '@/store/favoriteClassesStore';
+import {
+  ClassDetailsPopover,
+  type ClassDetailsData,
+} from '@/components/classes/ClassDetailsPopover';
+import { ClassWarningBanners } from '@/components/classes/ClassWarningBanners';
 
 interface TrialClassesCardsProps {
   classes: TrialClass[];
+  trialId: string;
   onEditClass: (classItem: TrialClass) => void;
   onDeleteClass: (classItem: TrialClass) => void;
 }
@@ -15,13 +24,13 @@ interface TrialClassesCardsProps {
  */
 function mapStatus(status: TrialClass['status']): ClassStatus {
   switch (status) {
-    case 'Upcoming':
+    case CLASS_STATUS.SCHEDULED:
       return 'setup'; // 'scheduled' not in ClassStatus, use 'setup'
-    case 'In Progress':
+    case CLASS_STATUS.IN_PROGRESS:
       return 'in-progress';
-    case 'Completed':
+    case CLASS_STATUS.COMPLETED:
       return 'completed';
-    case 'Cancelled':
+    case CLASS_STATUS.CANCELLED:
       return 'none'; // 'cancelled' not in ClassStatus, use 'none'
     default:
       return 'setup';
@@ -33,13 +42,13 @@ function mapStatus(status: TrialClass['status']): ClassStatus {
  */
 function getStatusIcon(status: TrialClass['status']) {
   switch (status) {
-    case 'Upcoming':
+    case CLASS_STATUS.SCHEDULED:
       return <Clock className="w-3.5 h-3.5" />;
-    case 'In Progress':
+    case CLASS_STATUS.IN_PROGRESS:
       return <Play className="w-3.5 h-3.5" />;
-    case 'Completed':
+    case CLASS_STATUS.COMPLETED:
       return <CheckCircle2 className="w-3.5 h-3.5" />;
-    case 'Cancelled':
+    case CLASS_STATUS.CANCELLED:
       return <XCircle className="w-3.5 h-3.5" />;
     default:
       return <Clock className="w-3.5 h-3.5" />;
@@ -70,10 +79,39 @@ function formatStartTime(startTime: string | undefined): string | undefined {
  */
 export function TrialClassesCards({
   classes,
+  trialId,
   onEditClass,
   onDeleteClass: _onDeleteClass,
 }: TrialClassesCardsProps) {
   const navigate = useNavigate();
+
+  // Favorites store
+  const { loadFavorites, toggleFavorite, isFavorite, justToggled } =
+    useFavoriteClassesStore();
+
+  // Load favorites when trialId changes
+  useEffect(() => {
+    if (trialId) {
+      loadFavorites(trialId);
+    }
+  }, [trialId, loadFavorites]);
+
+  // Get class IDs for entry preview lookup
+  const classIds = useMemo(() => classes.map((c) => c.id), [classes]);
+  const entryPreviewMap = useClassEntriesPreview(classIds);
+
+  // Build class details data for info popover
+  const getClassDetailsData = (classItem: TrialClass): ClassDetailsData => ({
+    id: classItem.id,
+    className: `${classItem.element} ${classItem.level} ${classItem.section}`,
+    status: classItem.status,
+    judgeName: classItem.judgeName,
+    entryCount: classItem.entries,
+    completedEntries: classItem.completedEntries,
+    timeLimits: classItem.timeLimits,
+    resultsVisibility: classItem.resultsVisibility,
+    checkInMode: classItem.checkInMode,
+  });
 
   if (classes.length === 0) {
     return (
@@ -90,23 +128,45 @@ export function TrialClassesCards({
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {classes.map((classItem) => {
         const startTime = formatStartTime(classItem.startTime);
+        const entryPreview = entryPreviewMap.get(classItem.id) || [];
+        const classDetailsData = getClassDetailsData(classItem);
+        const className = `${classItem.element} ${classItem.level} ${classItem.section}`;
+
         return (
-          <ClassCard
+          <ClassDetailsPopover
             key={classItem.id}
-            className={`${classItem.element} ${classItem.level} ${classItem.section}`}
-            judgeName={classItem.judgeName || 'TBD'}
-            {...(startTime !== undefined && { plannedStartTime: startTime })}
-            status={mapStatus(classItem.status)}
-            statusLabel={classItem.status}
-            statusIcon={getStatusIcon(classItem.status)}
-            entryCount={classItem.entries}
-            completedCount={0} // Not available in TrialClass type
-            onCardClick={() => startTransition(() => navigate(`/classes/${classItem.id}`))}
-            onMenuClick={() => {
-              // For now, show edit dialog - could be expanded to a menu
-              onEditClass(classItem);
-            }}
-          />
+            data={classDetailsData}
+          >
+            <div>
+              <ClassCard
+                className={className}
+                judgeName={classItem.judgeName || 'TBD'}
+                {...(startTime !== undefined && { plannedStartTime: startTime })}
+                status={mapStatus(classItem.status)}
+                statusLabel={classItem.status}
+                statusIcon={getStatusIcon(classItem.status)}
+                entryCount={classItem.entries}
+                completedCount={classItem.completedEntries ?? 0}
+                entries={entryPreview}
+                // Favorite support
+                isFavorite={isFavorite(classItem.id)}
+                onFavoriteClick={() => toggleFavorite(classItem.id)}
+                favoriteJustToggled={justToggled === classItem.id}
+                // Warning banners
+                warnings={
+                  <ClassWarningBanners
+                    classStatus={classItem.status}
+                    lastResultAt={classItem.lastResultAt}
+                    isOfflineScoring={classItem.isOfflineScoring}
+                  />
+                }
+                onCardClick={() => startTransition(() => navigate(`/classes/${classItem.id}`))}
+                onMenuClick={() => {
+                  onEditClass(classItem);
+                }}
+              />
+            </div>
+          </ClassDetailsPopover>
         );
       })}
     </div>

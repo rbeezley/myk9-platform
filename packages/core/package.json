@@ -20,12 +20,15 @@
     "build": "tsup src/index.ts --format esm --dts",
     "dev": "tsup src/index.ts --format esm --dts --watch",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "clean": "rimraf dist"
   },
   "dependencies": {},
   "devDependencies": {
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
+    "vitest": "^3.0.0",
     "rimraf": "^6.1.2"
   },
   "peerDependencies": {},

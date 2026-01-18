@@ -324,10 +324,10 @@ export const AddDogPanel: React.FC<AddDogPanelProps> = ({
     const validBasic = isTabValid('basic');
     const validReg = isTabValid('registration');
     const validOptional = isTabValid('optional');
-    
+
     const completedTabs = [validBasic, validReg, validOptional].filter(Boolean).length;
-    
-    return `Step ${completedTabs + 1} of 3 • ${Math.round((completedTabs / 3) * 100)}% complete`;
+
+    return `${completedTabs} of 3 sections complete`;
   }, [isTabValid]);
 
   return (

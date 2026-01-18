@@ -8,6 +8,7 @@ import ThreeDotMenu from '@/components/ui/ThreeDotMenu';
 import { Eye, Edit, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
+import { NoDataEmptyState } from '@/components/common/EmptyState';
 import { useState, useEffect } from 'react';
 import { 
   useDogRegistrationManagement
@@ -146,9 +147,17 @@ export default function RegistrationsSection({ dog, autoOpenAddDialog = false }:
           {isCreating ? 'Adding...' : 'Add New Registration'}
         </Button>
       </div>
+      {(!registrations || registrations.length === 0) ? (
+        <NoDataEmptyState
+          entityName="Registrations"
+          description="Add your first kennel club registration to get started."
+          canCreate={true}
+          onCreateClick={() => setIsAddRegistrationDialogOpen(true)}
+        />
+      ) : (
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-        {(registrations || []).map((reg: any, idx: number) => (
+        {registrations.map((reg: any, idx: number) => (
           <SectionCard key={reg.id || idx} className="min-h-[170px] justify-between">
             <div className="absolute top-4 right-4 z-10">
               <ThreeDotMenu
@@ -225,6 +234,7 @@ export default function RegistrationsSection({ dog, autoOpenAddDialog = false }:
           </SectionCard>
         ))}
       </div>
+      )}
       <AddRegistrationDialog
         open={isAddRegistrationDialogOpen}
         onClose={() => setIsAddRegistrationDialogOpen(false)}

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, startTransition, lazy, Suspense } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { logger } from '@/services/LoggingService';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { 
   Crown, 
@@ -28,6 +28,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import RegistrationsSection from '@/components/dogs/DogDetails/Registrations/RegistrationsSection';
+import { PremiumGate } from '@/components/common/PremiumGate';
 
 // Lazy load heavy components
 const DogEditPanel = lazy(() => import('@/components/panels/edit/DogEditPanel').then(m => ({ default: m.DogEditPanel })));
@@ -186,6 +187,21 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
   const [showCelebration, setShowCelebration] = useState(false);
   const [recentUpdate, setRecentUpdate] = useState<string | null>(null);
 
+  // Photo validation constants
+  const MAX_FILE_SIZE_MB = 5;
+  const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
+  // Validate image file
+  const validateImageFile = (file: File): { valid: boolean; error?: string } => {
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      return { valid: false, error: 'Please select a valid image file (JPEG, PNG, GIF, or WebP)' };
+    }
+    if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      return { valid: false, error: `Image must be smaller than ${MAX_FILE_SIZE_MB}MB` };
+    }
+    return { valid: true };
+  };
+
   // Effect to update local dog state when prop changes
   React.useEffect(() => {
     setUpdatedDog(dog);
@@ -202,8 +218,14 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
       const file = files[0];
+      const validation = validateImageFile(file);
+      if (!validation.valid) {
+        toast.error(validation.error);
+        return;
+      }
       const reader = new FileReader();
       reader.onload = (ev) => setPhotoPreview(ev.target?.result as string);
+      reader.onerror = () => toast.error('Failed to read the image file');
       reader.readAsDataURL(file);
     }
   };
@@ -221,8 +243,15 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
   const handlePhotoFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      const validation = validateImageFile(file);
+      if (!validation.valid) {
+        toast.error(validation.error);
+        e.target.value = ''; // Reset input
+        return;
+      }
       const reader = new FileReader();
       reader.onload = (ev) => setPhotoPreview(ev.target?.result as string);
+      reader.onerror = () => toast.error('Failed to read the image file');
       reader.readAsDataURL(file);
     }
   };
@@ -394,24 +423,19 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
                 <p className="text-lg text-foreground font-medium tracking-wide">
                   {(() => {
                     if (!updatedDog.registrations || updatedDog.registrations.length === 0) {
-                      return `A wonderful companion waiting to be registered! 🐕`;
+                      return 'No breed registered';
                     }
-                    
+
                     // Get unique breeds from all registrations
                     const breeds = Array.from(new Set(
                       updatedDog.registrations.map(reg => reg.breed).filter(Boolean)
                     ));
-                    
+
                     if (breeds.length === 0) {
-                      return `A special pup of unique heritage 💫`;
+                      return 'Breed not specified';
                     }
-                    
-                    // Show all breeds with a touch of personality
-                    const breedText = breeds.join(', ');
-                    const personalityEmojis = ['🌟', '💎', '👑', '✨', '🎭', '🌈'];
-                    // Use breed string length as deterministic selector instead of Math.random()
-                    const emojiIndex = breedText.length % personalityEmojis.length;
-                    return `${breedText} ${personalityEmojis[emojiIndex]}`;
+
+                    return breeds.join(', ');
                   })()}
                 </p>
               </div>
@@ -471,25 +495,17 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
                 <Heart className="h-5 w-5 text-pink-500 hover:text-rose-500 transition-colors duration-200" />
               </div>
               <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                About {updatedDog.callName} 💫
+                About {updatedDog.callName}
               </h3>
             </div>
             
             <div className="space-y-4">
               <div className="flex items-center justify-between py-3" style={{ borderBottom: '0.5px solid rgba(128, 128, 128, 0.2)' }}>
                 <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
-                  Call Name
-                </span>
-                <span className="text-sm font-medium text-foreground">
-                  {updatedDog.callName || 'Waiting for a special name 🏷️'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between py-3" style={{ borderBottom: '0.5px solid rgba(128, 128, 128, 0.2)' }}>
-                <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
                   Registered Name
                 </span>
                 <span className="text-sm font-medium text-foreground">
-                  {updatedDog.callName || 'Soon to be officially named 📜'}
+                  {updatedDog.registrations?.[0]?.registeredName || 'Not specified'}
                 </span>
               </div>
               <div className="flex items-center justify-between py-3" style={{ borderBottom: '0.5px solid rgba(128, 128, 128, 0.2)' }}>
@@ -497,10 +513,9 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
                   Sex
                 </span>
                 <span className="text-sm font-medium text-foreground">
-                  {updatedDog.gender ? 
-                    `${updatedDog.gender.charAt(0).toUpperCase() + updatedDog.gender.slice(1)} ${(updatedDog.gender.toLowerCase() === 'male' || updatedDog.sex === 'male') ? '♂️' : '♀️'}` : 
-                    'Mystery pup 🤔'
-                  }
+                  {updatedDog.gender
+                    ? updatedDog.gender.charAt(0).toUpperCase() + updatedDog.gender.slice(1)
+                    : 'Not specified'}
                 </span>
               </div>
               <div className="flex items-center justify-between py-3">
@@ -508,10 +523,9 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
                   Date of Birth
                 </span>
                 <span className="text-sm font-medium text-foreground">
-                  {updatedDog.dateOfBirth ? 
-                    `${formatDisplayDate(updatedDog.dateOfBirth)} 🎂` : 
-                    'Birthday celebration pending 🎈'
-                  }
+                  {updatedDog.dateOfBirth
+                    ? formatDisplayDate(updatedDog.dateOfBirth)
+                    : 'Not specified'}
                 </span>
               </div>
             </div>
@@ -541,10 +555,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
                   Height
                 </span>
                 <span className="text-sm font-medium text-foreground">
-                  {updatedDog.height ? 
-                    `${updatedDog.height}" ${parseFloat(updatedDog.height.toString()) > 24 ? '🦒' : parseFloat(updatedDog.height.toString()) < 12 ? '🐹' : '🐕'}` : 
-                    'Perfect height, whatever it may be 📏'
-                  }
+                  {updatedDog.height ? `${updatedDog.height}"` : 'Not specified'}
                 </span>
               </div>
               <div className="flex items-center justify-between py-3" style={{ borderBottom: '0.5px solid rgba(128, 128, 128, 0.2)' }}>
@@ -552,10 +563,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
                   Weight
                 </span>
                 <span className="text-sm font-medium text-foreground">
-                  {updatedDog.weight ? 
-                    `${updatedDog.weight} lbs ${parseFloat(updatedDog.weight.toString()) > 80 ? '🐻' : parseFloat(updatedDog.weight.toString()) < 20 ? '🪶' : '⚖️'}` : 
-                    'Just the right size 🤗'
-                  }
+                  {updatedDog.weight ? `${updatedDog.weight} lbs` : 'Not specified'}
                 </span>
               </div>
               <div className="flex items-center justify-between py-3" style={{ borderBottom: '0.5px solid rgba(128, 128, 128, 0.2)' }}>
@@ -563,10 +571,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
                   Color
                 </span>
                 <span className="text-sm font-medium text-foreground">
-                  {updatedDog.color ? 
-                    `${updatedDog.color} 🎨` : 
-                    'Beautifully colored 🌈'
-                  }
+                  {updatedDog.color || 'Not specified'}
                 </span>
               </div>
               <div className="flex items-center justify-between py-3">
@@ -574,10 +579,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
                   Microchip
                 </span>
                 <span className="text-sm font-medium text-foreground">
-                  {updatedDog.microchip ? 
-                    `${updatedDog.microchip} 🔒` : 
-                    'Safety first - get one soon! 💝'
-                  }
+                  {updatedDog.microchip || 'Not specified'}
                 </span>
               </div>
             </div>
@@ -629,7 +631,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
                   {owner.email}
                 </a>
               ) : (
-                <span className="text-sm font-medium text-foreground">Contact info coming soon 📞</span>
+                <span className="text-sm font-medium text-foreground">Not specified</span>
               )}
             </div>
             
@@ -668,8 +670,8 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="flex flex-col items-center text-center p-4 bg-gradient-to-br 
-                           from-muted/30 to-muted/10 rounded-xl apple-subtle-card-border 
+            <div className="flex flex-col items-center text-center p-4 bg-gradient-to-br
+                           from-muted/30 to-muted/10 rounded-xl apple-subtle-card-border
                            hover:scale-105 transition-all duration-300">
               <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-2">
                 Registrations
@@ -678,37 +680,39 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
                 {updatedDog.registrations?.length || 0}
               </span>
             </div>
-            
-            <div className="flex flex-col items-center text-center p-4 bg-gradient-to-br 
-                           from-muted/30 to-muted/10 rounded-xl apple-subtle-card-border 
+
+            <div className="flex flex-col items-center text-center p-4 bg-gradient-to-br
+                           from-muted/30 to-muted/10 rounded-xl apple-subtle-card-border
                            hover:scale-105 transition-all duration-300">
               <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-2">
                 Competitions
               </span>
-              <span className="text-lg font-semibold text-foreground">
-                0
+              <span className="text-xs font-medium text-muted-foreground">
+                Coming soon
               </span>
             </div>
-            
-            <div className="flex flex-col items-center text-center p-4 bg-gradient-to-br 
-                           from-muted/30 to-muted/10 rounded-xl apple-subtle-card-border 
+
+            <div className="flex flex-col items-center text-center p-4 bg-gradient-to-br
+                           from-muted/30 to-muted/10 rounded-xl apple-subtle-card-border
                            hover:scale-105 transition-all duration-300">
               <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-2">
                 Titles Earned
               </span>
-              <span className="text-lg font-semibold text-foreground">
-                0
+              <span className="text-xs font-medium text-muted-foreground">
+                Coming soon
               </span>
             </div>
-            
-            <div className="flex flex-col items-center text-center p-4 bg-gradient-to-br 
-                           from-muted/30 to-muted/10 rounded-xl apple-subtle-card-border 
+
+            <div className="flex flex-col items-center text-center p-4 bg-gradient-to-br
+                           from-muted/30 to-muted/10 rounded-xl apple-subtle-card-border
                            hover:scale-105 transition-all duration-300">
               <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-2">
                 Health Records
               </span>
               <span className="text-lg font-semibold text-foreground">
-                0
+                {(updatedDog.healthRecords?.vaccinations?.length || 0) +
+                  (updatedDog.healthRecords?.medications?.length || 0) +
+                  (updatedDog.healthRecords?.allergies?.length || 0)}
               </span>
             </div>
           </div>
@@ -719,19 +723,19 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
       <div className="space-y-6">
         <TooltipProvider>
           <Tabs defaultValue="registrations" className="w-full">
-            <TabsList className="bg-muted/50 backdrop-blur-sm border-b border-border/50 w-full justify-start rounded-none h-auto p-0">
-              <TabsTrigger 
-                value="registrations" 
-                className="data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none border-b-2 border-transparent"
+            <TabsList className="flex overflow-x-auto no-scrollbar bg-muted/50 backdrop-blur-sm border-b border-border/50 w-full justify-start rounded-none h-auto p-0 gap-1">
+              <TabsTrigger
+                value="registrations"
+                className="flex-shrink-0 min-h-[44px] px-4 data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none border-b-2 border-transparent"
               >
                 <FileText className="w-4 h-4 mr-2" />
                 Registrations
               </TabsTrigger>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <TabsTrigger 
+                  <TabsTrigger
                     value="competitions"
-                    className={`data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none border-b-2 border-transparent ${!user.isPremium ? 'opacity-50' : ''}`}
+                    className={`flex-shrink-0 min-h-[44px] px-4 data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none border-b-2 border-transparent ${!user.isPremium ? 'opacity-50' : ''}`}
                     disabled={!user.isPremium}
                     onClick={!user.isPremium ? handlePremiumTabClick : undefined}
                   >
@@ -745,9 +749,9 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <TabsTrigger 
+                  <TabsTrigger
                     value="title-progress"
-                    className={`data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none border-b-2 border-transparent ${!user.isPremium ? 'opacity-50' : ''}`}
+                    className={`flex-shrink-0 min-h-[44px] px-4 data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none border-b-2 border-transparent ${!user.isPremium ? 'opacity-50' : ''}`}
                     disabled={!user.isPremium}
                     onClick={!user.isPremium ? handlePremiumTabClick : undefined}
                   >
@@ -761,9 +765,9 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <TabsTrigger 
+                  <TabsTrigger
                     value="health-records"
-                    className={`data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none border-b-2 border-transparent ${!user.isPremium ? 'opacity-50' : ''}`}
+                    className={`flex-shrink-0 min-h-[44px] px-4 data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none border-b-2 border-transparent ${!user.isPremium ? 'opacity-50' : ''}`}
                     disabled={!user.isPremium}
                     onClick={!user.isPremium ? handlePremiumTabClick : undefined}
                   >
@@ -777,9 +781,9 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <TabsTrigger 
+                  <TabsTrigger
                     value="training-journal"
-                    className={`data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none border-b-2 border-transparent ${!user.isPremium ? 'opacity-50' : ''}`}
+                    className={`flex-shrink-0 min-h-[44px] px-4 data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none border-b-2 border-transparent ${!user.isPremium ? 'opacity-50' : ''}`}
                     disabled={!user.isPremium}
                     onClick={!user.isPremium ? handlePremiumTabClick : undefined}
                   >
@@ -793,9 +797,9 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <TabsTrigger 
+                  <TabsTrigger
                     value="pedigree"
-                    className={`data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none border-b-2 border-transparent ${!user.isPremium ? 'opacity-50' : ''}`}
+                    className={`flex-shrink-0 min-h-[44px] px-4 data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none border-b-2 border-transparent ${!user.isPremium ? 'opacity-50' : ''}`}
                     disabled={!user.isPremium}
                     onClick={!user.isPremium ? handlePremiumTabClick : undefined}
                   >
@@ -820,114 +824,75 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
                   <CompetitionsTabs />
                 </Suspense>
               ) : (
-                <div className="flex flex-col items-center justify-center py-20 text-center">
-                  <div className="bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-full p-6 mb-6">
-                    <Crown className="h-12 w-12 text-white" />
-                  </div>
-                  <h3 className="text-xl font-semibold mb-3">Competitions</h3>
-                  <p className="text-muted-foreground mb-8 max-w-md">
-                    Track your dog's competition history and achievements with our premium features.
-                  </p>
-                  <Button
-                    className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-white hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
-                    onClick={() => logger.debug('Upgrade to Premium clicked', 'dogs', { tab: 'competitions' })}
-                  >
-                    <Crown className="h-4 w-4 mr-2" />
-                    Upgrade to Premium
-                  </Button>
-                </div>
+                <PremiumGate
+                  title="Competitions"
+                  description="Track your dog's competition history and achievements with our premium features."
+                  trackingContext="competitions"
+                />
               )}
             </TabsContent>
 
-              <TabsContent value="title-progress" className="pt-6">
-                  {user.isPremium ? (
-                    <Suspense fallback={<TabContentSkeleton />}>
-                      <TitleProgressSection initialTitleProgressList={[]} />
-                    </Suspense>
-                  ) : (
-                    <div className="apple-premium-gate">
-                      <div className="apple-premium-icon">
-                        <Crown />
-                      </div>
-                      <div className="apple-premium-title">Title Progress</div>
-                      <div className="apple-premium-description">
-                        Monitor your dog's progress toward titles and certifications.
-                      </div>
-                      <button className="apple-premium-button" onClick={() => logger.debug('Upgrade to Premium clicked', 'dogs', { tab: 'title-progress' })}>
-                        Upgrade to Premium
-                      </button>
-                    </div>
-                  )}
-                </TabsContent>
+            <TabsContent value="title-progress" className="pt-6">
+              {user.isPremium ? (
+                <Suspense fallback={<TabContentSkeleton />}>
+                  <TitleProgressSection initialTitleProgressList={[]} />
+                </Suspense>
+              ) : (
+                <PremiumGate
+                  title="Title Progress"
+                  description="Monitor your dog's progress toward titles and certifications."
+                  trackingContext="title-progress"
+                />
+              )}
+            </TabsContent>
 
-              <TabsContent value="health-records" className="pt-6">
-                  {user.isPremium ? (
-                    <Suspense fallback={<TabContentSkeleton />}>
-                      <HealthRecordsSection user={user} />
-                    </Suspense>
-                  ) : (
-                    <div className="apple-premium-gate">
-                      <div className="apple-premium-icon">
-                        <Crown />
-                      </div>
-                      <div className="apple-premium-title">Health Records</div>
-                      <div className="apple-premium-description">
-                        Keep comprehensive health records for your dog's wellbeing.
-                      </div>
-                      <button className="apple-premium-button" onClick={() => logger.debug('Upgrade to Premium clicked', 'dogs', { tab: 'health-records' })}>
-                        Upgrade to Premium
-                      </button>
-                    </div>
-                  )}
-                </TabsContent>
+            <TabsContent value="health-records" className="pt-6">
+              {user.isPremium ? (
+                <Suspense fallback={<TabContentSkeleton />}>
+                  <HealthRecordsSection user={user} />
+                </Suspense>
+              ) : (
+                <PremiumGate
+                  title="Health Records"
+                  description="Keep comprehensive health records for your dog's wellbeing."
+                  trackingContext="health-records"
+                />
+              )}
+            </TabsContent>
 
-              <TabsContent value="training-journal" className="pt-6">
-                  {user.isPremium ? (
-                    <Suspense fallback={<TabContentSkeleton />}>
-                      <TrainingSection />
-                    </Suspense>
-                  ) : (
-                    <div className="apple-premium-gate">
-                      <div className="apple-premium-icon">
-                        <Crown />
-                      </div>
-                      <div className="apple-premium-title">Training Journal</div>
-                      <div className="apple-premium-description">
-                        Document training sessions and track your dog's progress.
-                      </div>
-                      <button className="apple-premium-button" onClick={() => logger.debug('Upgrade to Premium clicked', 'dogs', { tab: 'training-journal' })}>
-                        Upgrade to Premium
-                      </button>
-                    </div>
-                  )}
-                </TabsContent>
+            <TabsContent value="training-journal" className="pt-6">
+              {user.isPremium ? (
+                <Suspense fallback={<TabContentSkeleton />}>
+                  <TrainingSection />
+                </Suspense>
+              ) : (
+                <PremiumGate
+                  title="Training Journal"
+                  description="Document training sessions and track your dog's progress."
+                  trackingContext="training-journal"
+                />
+              )}
+            </TabsContent>
 
-              <TabsContent value="pedigree" className="pt-6">
-                  {user.isPremium ? (
-                    <Suspense fallback={<TabContentSkeleton />}>
-                      <PedigreeSection
-                        header={<h2 className="text-lg font-semibold flex items-center">Pedigree</h2>}
-                        pedigree={ancestors.length > 0 ? ancestors : mockPedigreeData}
-                        addAncestor={(ancestor) => setAncestors(prev => [...prev, { ...ancestor, id: String(Date.now()) }])}
-                        editAncestor={(id, updated) => setAncestors(prev => prev.map(a => String(a.id) === id ? updated : a))}
-                        deleteAncestor={(id) => setAncestors(prev => prev.filter(a => String(a.id) !== id))}
-                      />
-                    </Suspense>
-                  ) : (
-                    <div className="apple-premium-gate">
-                      <div className="apple-premium-icon">
-                        <Crown />
-                      </div>
-                      <div className="apple-premium-title">Pedigree</div>
-                      <div className="apple-premium-description">
-                        Explore your dog's lineage and ancestry with detailed pedigree tracking.
-                      </div>
-                      <button className="apple-premium-button" onClick={() => logger.debug('Upgrade to Premium clicked', 'dogs', { tab: 'pedigree' })}>
-                        Upgrade to Premium
-                      </button>
-                    </div>
-                  )}
-              </TabsContent>
+            <TabsContent value="pedigree" className="pt-6">
+              {user.isPremium ? (
+                <Suspense fallback={<TabContentSkeleton />}>
+                  <PedigreeSection
+                    header={<h2 className="text-lg font-semibold flex items-center">Pedigree</h2>}
+                    pedigree={ancestors.length > 0 ? ancestors : mockPedigreeData}
+                    addAncestor={(ancestor) => setAncestors(prev => [...prev, { ...ancestor, id: String(Date.now()) }])}
+                    editAncestor={(id, updated) => setAncestors(prev => prev.map(a => String(a.id) === id ? updated : a))}
+                    deleteAncestor={(id) => setAncestors(prev => prev.filter(a => String(a.id) !== id))}
+                  />
+                </Suspense>
+              ) : (
+                <PremiumGate
+                  title="Pedigree"
+                  description="Explore your dog's lineage and ancestry with detailed pedigree tracking."
+                  trackingContext="pedigree"
+                />
+              )}
+            </TabsContent>
             </Tabs>
           </TooltipProvider>
         </div>
@@ -1008,14 +973,24 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
           onFileInput={handlePhotoFileInput}
           onCancel={() => setIsPhotoDialogOpen(false)}
           onSave={(preview) => {
-            handlePhotoSave(preview);
-            // Show celebration for photo update
-            setShowCelebration(true);
-            setRecentUpdate(`New photo of ${updatedDog.callName}! 📸`);
-            setTimeout(() => {
-              setShowCelebration(false);
-              setTimeout(() => setRecentUpdate(null), CELEBRATION_FADE_DELAY_MS);
-            }, CELEBRATION_DURATION_MS);
+            if (!preview) {
+              toast.error('No photo selected');
+              return;
+            }
+            try {
+              handlePhotoSave(preview);
+              toast.success('Photo updated successfully');
+              // Show celebration for photo update
+              setShowCelebration(true);
+              setRecentUpdate(`Photo updated for ${updatedDog.callName}`);
+              setTimeout(() => {
+                setShowCelebration(false);
+                setTimeout(() => setRecentUpdate(null), CELEBRATION_FADE_DELAY_MS);
+              }, CELEBRATION_DURATION_MS);
+            } catch (error) {
+              toast.error('Failed to update photo');
+              logger.error('Photo save failed', 'dogs', { dogId: updatedDog.id }, error as Error);
+            }
           }}
           title={`Update ${updatedDog.callName}'s Photo`}
           previewAlt={`${updatedDog?.callName}'s adorable photo`}

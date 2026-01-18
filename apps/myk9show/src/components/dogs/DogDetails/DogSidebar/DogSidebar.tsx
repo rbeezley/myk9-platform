@@ -63,7 +63,7 @@ const DogSidebar: React.FC<DogSidebarProps> = ({
     }
   }, [navigate, propToggleCollapsed]);
 
-  const renderDogItem = (dog: DogWithDetails, _isSelected: boolean, isCollapsed: boolean) => {
+  const renderDogItem = (dog: DogWithDetails, isSelected: boolean, isCollapsed: boolean) => {
     if (isCollapsed) {
       const initials = dog.callName ? dog.callName.substring(0, 2).toUpperCase() : 'D';
       return (
@@ -77,7 +77,14 @@ const DogSidebar: React.FC<DogSidebarProps> = ({
     }
 
     return (
-      <div className="px-4 py-3 mx-2 my-1 rounded-xl transition-all duration-300">
+      <div
+        className={cn(
+          'px-4 py-3 mx-2 my-1 rounded-xl transition-all duration-300',
+          isSelected
+            ? 'bg-gradient-to-br from-primary/10 to-primary/5 border-l-2 border-primary'
+            : 'hover:bg-muted/50'
+        )}
+      >
         <div className="font-medium text-sm truncate">
           {dog.callName || 'Unnamed Dog'}
         </div>

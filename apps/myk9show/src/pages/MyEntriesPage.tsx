@@ -6,7 +6,6 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Progress } from '@/components/ui/progress';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useStatusUpdates } from '@/services/NotificationService';
 import { auditService } from '@/services/AuditService';
@@ -21,6 +20,7 @@ import { logger } from '@/services/LoggingService';
 import { getUserEntries } from '@/services/database/queries/entryQueries';
 import { EntryEditDialog } from '@/components/entries/EntryEditDialog';
 import { EntryReceipt } from '@/components/entries/EntryReceipt';
+import { EntryStatusStepper } from '@/components/entries/EntryStatusStepper';
 import {
   Calendar,
   MapPin,
@@ -33,8 +33,10 @@ import {
   Eye,
   Edit,
   Download,
-  RefreshCw
+  RefreshCw,
+  Plus
 } from 'lucide-react';
+import { formatDistanceToNow, format, isToday, isTomorrow, differenceInDays } from 'date-fns';
 import '@/styles/apple-show-details.css';
 
 interface MyEntry {
@@ -510,22 +512,6 @@ const MyEntriesPage: React.FC = () => {
     return <Clock className="h-5 w-5 text-[#007AFF]" />;
   };
 
-  const calculateProgress = (entryStatus: EntryStatus, paymentStatus: PaymentStatus) => {
-    if (entryStatus === EntryStatus.ACCEPTED && paymentStatus !== PaymentStatus.PENDING) {
-      return 100; // Complete
-    }
-    if (entryStatus === EntryStatus.ACCEPTED && paymentStatus === PaymentStatus.PENDING) {
-      return 75; // Accepted but payment pending
-    }
-    if (entryStatus === EntryStatus.PENDING) {
-      return 50; // Submitted, awaiting review
-    }
-    if (entryStatus === EntryStatus.WAITLIST) {
-      return 60; // On waitlist
-    }
-    return 25; // Initial submission
-  };
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
@@ -556,7 +542,7 @@ const MyEntriesPage: React.FC = () => {
           />
 
           {/* Header */}
-          <div className="flex justify-between items-start">
+          <div className="flex justify-between items-start gap-4">
             <div className="space-y-2">
               <h1 className="apple-show-title">
                 My Entries
@@ -565,15 +551,26 @@ const MyEntriesPage: React.FC = () => {
                 Track and manage your show entries
               </p>
             </div>
-            <Button
-              variant="outline"
-              onClick={refreshEntries}
-              disabled={refreshing}
-              className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 transition-all duration-200"
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
+            <div className="flex gap-2 flex-shrink-0">
+              <Button
+                asChild
+                className="bg-gradient-to-r from-primary to-[#5856D6] text-primary-foreground hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
+              >
+                <Link to="/shows/browse">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Enter a Show
+                </Link>
+              </Button>
+              <Button
+                variant="outline"
+                onClick={refreshEntries}
+                disabled={refreshing}
+                className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 transition-all duration-200"
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
           </div>
 
           {/* Summary Stats - Apple Style */}
@@ -584,23 +581,22 @@ const MyEntriesPage: React.FC = () => {
                   <div className="apple-show-stat-icon entries">
                     <Users className="w-5 h-5" />
                   </div>
-                  
+
                   <div className="apple-show-stat-content">
                     <div className="apple-show-stat-header">
                       <div className="apple-show-stat-title">Total Entries</div>
-                      <div className="apple-show-stat-trend">+5%</div>
                     </div>
                     <div className="apple-show-stat-number">{entries.length}</div>
                   </div>
                 </div>
-                
+
                 <div className="apple-show-stat-details">
-                  <span>All time: {entries.length}</span>
                   <span>Active: {entries.filter(e => e.entryStatus === EntryStatus.ACCEPTED).length}</span>
+                  <span>{entries.filter(e => e.showDate >= new Date()).length} upcoming</span>
                 </div>
-                
+
                 <div className="apple-show-stat-progress">
-                  <div 
+                  <div
                     className="apple-show-stat-progress-bar entries"
                     style={{ width: `${entries.length > 0 ? Math.round((entries.filter(e => e.entryStatus === EntryStatus.ACCEPTED).length / entries.length) * 100) : 0}%` }}
                   ></div>
@@ -612,27 +608,26 @@ const MyEntriesPage: React.FC = () => {
                   <div className="apple-show-stat-icon judges">
                     <CheckCircle2 className="w-5 h-5" />
                   </div>
-                  
+
                   <div className="apple-show-stat-content">
                     <div className="apple-show-stat-header">
                       <div className="apple-show-stat-title">Accepted</div>
-                      <div className="apple-show-stat-trend">+12%</div>
                     </div>
                     <div className="apple-show-stat-number">
                       {entries.filter(e => e.entryStatus === EntryStatus.ACCEPTED).length}
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="apple-show-stat-details">
                   <span>Ready to compete</span>
-                  <span>Confirmed: {entries.filter(e => e.entryStatus === EntryStatus.ACCEPTED).length}</span>
+                  <span>{entries.filter(e => e.entryStatus === EntryStatus.ACCEPTED && e.paymentStatus !== PaymentStatus.PENDING).length} paid</span>
                 </div>
-                
+
                 <div className="apple-show-stat-progress">
-                  <div 
+                  <div
                     className="apple-show-stat-progress-bar judges"
-                    style={{ width: `${entries.filter(e => e.entryStatus === EntryStatus.ACCEPTED).length > 0 ? 85 : 0}%` }}
+                    style={{ width: `${entries.length > 0 ? Math.round((entries.filter(e => e.entryStatus === EntryStatus.ACCEPTED).length / entries.length) * 100) : 0}%` }}
                   ></div>
                 </div>
               </div>
@@ -642,30 +637,29 @@ const MyEntriesPage: React.FC = () => {
                   <div className="apple-show-stat-icon qualified">
                     <AlertCircle className="w-5 h-5" />
                   </div>
-                  
+
                   <div className="apple-show-stat-content">
                     <div className="apple-show-stat-header">
-                      <div className="apple-show-stat-title">Pending</div>
-                      <div className="apple-show-stat-trend">-3%</div>
+                      <div className="apple-show-stat-title">Needs Action</div>
                     </div>
                     <div className="apple-show-stat-number">
-                      {entries.filter(e => 
-                        e.entryStatus === EntryStatus.PENDING || 
+                      {entries.filter(e =>
+                        e.entryStatus === EntryStatus.PENDING ||
                         e.paymentStatus === PaymentStatus.PENDING
                       ).length}
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="apple-show-stat-details">
-                  <span>Need attention</span>
-                  <span>Review required</span>
+                  <span>{entries.filter(e => e.entryStatus === EntryStatus.PENDING).length} awaiting review</span>
+                  <span>{entries.filter(e => e.entryStatus === EntryStatus.ACCEPTED && e.paymentStatus === PaymentStatus.PENDING).length} payment due</span>
                 </div>
-                
+
                 <div className="apple-show-stat-progress">
-                  <div 
+                  <div
                     className="apple-show-stat-progress-bar qualified"
-                    style={{ width: `${entries.filter(e => e.entryStatus === EntryStatus.PENDING || e.paymentStatus === PaymentStatus.PENDING).length > 0 ? 60 : 0}%` }}
+                    style={{ width: `${entries.length > 0 ? Math.round((entries.filter(e => e.entryStatus === EntryStatus.PENDING || e.paymentStatus === PaymentStatus.PENDING).length / entries.length) * 100) : 0}%` }}
                   ></div>
                 </div>
               </div>
@@ -675,27 +669,26 @@ const MyEntriesPage: React.FC = () => {
                   <div className="apple-show-stat-icon trials">
                     <DollarSign className="w-5 h-5" />
                   </div>
-                  
+
                   <div className="apple-show-stat-content">
                     <div className="apple-show-stat-header">
-                      <div className="apple-show-stat-title">Total Spent</div>
-                      <div className="apple-show-stat-trend">+8%</div>
+                      <div className="apple-show-stat-title">Total Fees</div>
                     </div>
                     <div className="apple-show-stat-number">
                       ${entries.reduce((sum, entry) => sum + entry.totalFee, 0)}
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="apple-show-stat-details">
-                  <span>Entry fees paid</span>
-                  <span>This year: ${entries.reduce((sum, entry) => sum + entry.totalFee, 0)}</span>
+                  <span>${entries.filter(e => e.paymentStatus !== PaymentStatus.PENDING).reduce((sum, e) => sum + e.totalFee, 0)} paid</span>
+                  <span>${entries.filter(e => e.paymentStatus === PaymentStatus.PENDING).reduce((sum, e) => sum + e.totalFee, 0)} pending</span>
                 </div>
-                
+
                 <div className="apple-show-stat-progress">
-                  <div 
+                  <div
                     className="apple-show-stat-progress-bar trials"
-                    style={{ width: `${entries.reduce((sum, entry) => sum + entry.totalFee, 0) > 0 ? 70 : 0}%` }}
+                    style={{ width: `${entries.reduce((sum, entry) => sum + entry.totalFee, 0) > 0 ? Math.round((entries.filter(e => e.paymentStatus !== PaymentStatus.PENDING).reduce((sum, e) => sum + e.totalFee, 0) / entries.reduce((sum, entry) => sum + entry.totalFee, 0)) * 100) : 0}%` }}
                   ></div>
                 </div>
               </div>
@@ -704,36 +697,36 @@ const MyEntriesPage: React.FC = () => {
 
           {/* Entries List */}
           <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-5 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 h-auto gap-1">
-              <TabsTrigger 
-                value="all" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
+            <TabsList className="flex w-full overflow-x-auto scrollbar-hide bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 h-auto gap-1">
+              <TabsTrigger
+                value="all"
+                className="flex-shrink-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300 px-4"
               >
-                All ({entries.length})
+                All
               </TabsTrigger>
-              <TabsTrigger 
+              <TabsTrigger
                 value="pending"
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
+                className="flex-shrink-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300 px-4"
               >
-                Pending ({entries.filter(e => e.entryStatus === EntryStatus.PENDING || e.paymentStatus === PaymentStatus.PENDING).length})
+                Pending
               </TabsTrigger>
-              <TabsTrigger 
+              <TabsTrigger
                 value="accepted"
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
+                className="flex-shrink-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300 px-4"
               >
-                Accepted ({entries.filter(e => e.entryStatus === EntryStatus.ACCEPTED).length})
+                Accepted
               </TabsTrigger>
-              <TabsTrigger 
+              <TabsTrigger
                 value="waitlist"
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
+                className="flex-shrink-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300 px-4"
               >
-                Waitlist ({entries.filter(e => e.entryStatus === EntryStatus.WAITLIST).length})
+                Waitlist
               </TabsTrigger>
-              <TabsTrigger 
+              <TabsTrigger
                 value="upcoming"
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
+                className="flex-shrink-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300 px-4"
               >
-                Upcoming ({entries.filter(e => e.showDate >= new Date() && e.entryStatus === EntryStatus.ACCEPTED).length})
+                Upcoming
               </TabsTrigger>
             </TabsList>
 
@@ -776,15 +769,11 @@ const MyEntriesPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Progress Section */}
-                  <div className="apple-entries-progress-section">
-                    <div className="apple-entries-progress-header">
-                      <span className="apple-entries-progress-label">Entry Progress</span>
-                      <span className="apple-entries-progress-value">{calculateProgress(entry.entryStatus, entry.paymentStatus)}%</span>
-                    </div>
-                    <Progress 
-                      value={calculateProgress(entry.entryStatus, entry.paymentStatus)} 
-                      className="h-3 bg-muted"
+                  {/* Status Stepper */}
+                  <div className="py-4 px-1">
+                    <EntryStatusStepper
+                      entryStatus={entry.entryStatus}
+                      paymentStatus={entry.paymentStatus}
                     />
                   </div>
 
@@ -844,7 +833,40 @@ const MyEntriesPage: React.FC = () => {
                   {/* Actions */}
                   <div className="apple-entries-actions">
                     <div className="apple-entries-last-updated">
-                      Last updated: {entry.lastUpdated.toLocaleDateString()}
+                      {/* Context-aware status message */}
+                      {(() => {
+                        const showDate = new Date(entry.showDate);
+                        const daysUntilShow = differenceInDays(showDate, new Date());
+
+                        // Show is today or tomorrow - highlight check-in
+                        if (isToday(showDate)) {
+                          return <span className="text-primary font-medium">Show is today!</span>;
+                        }
+                        if (isTomorrow(showDate)) {
+                          return <span className="text-primary">Show is tomorrow</span>;
+                        }
+
+                        // Upcoming show within a week
+                        if (daysUntilShow > 0 && daysUntilShow <= 7) {
+                          return <span>Show in {daysUntilShow} days</span>;
+                        }
+
+                        // Status-based messaging
+                        if (entry.entryStatus === EntryStatus.ACCEPTED && entry.paymentStatus === PaymentStatus.PENDING) {
+                          return <span className="text-warning-orange">Payment pending since {format(entry.submittedAt, 'MMM d')}</span>;
+                        }
+
+                        if (entry.entryStatus === EntryStatus.ACCEPTED) {
+                          return <span className="text-success-green">Accepted {formatDistanceToNow(entry.lastUpdated, { addSuffix: true })}</span>;
+                        }
+
+                        if (entry.entryStatus === EntryStatus.PENDING) {
+                          return <span>Submitted {formatDistanceToNow(entry.submittedAt, { addSuffix: true })}</span>;
+                        }
+
+                        // Default fallback
+                        return <span>Updated {formatDistanceToNow(entry.lastUpdated, { addSuffix: true })}</span>;
+                      })()}
                     </div>
                     <div className="apple-entries-action-buttons">
                       <Button 
@@ -872,6 +894,10 @@ const MyEntriesPage: React.FC = () => {
                       )}
                       
                       {entry.confirmationNumber && (
+                        entry.paymentStatus === PaymentStatus.PAID_ONLINE ||
+                        entry.paymentStatus === PaymentStatus.PAID_BY_CHECK ||
+                        entry.paymentStatus === PaymentStatus.PAID_BY_CASH
+                      ) && (
                         <Button
                           variant="outline"
                           size="sm"

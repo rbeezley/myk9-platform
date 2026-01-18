@@ -14,7 +14,7 @@ export interface PremiumButtonProps {
   children: React.ReactNode;
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive';
   size?: 'sm' | 'md' | 'lg';
-  icon?: LucideIcon;
+  icon?: LucideIcon | undefined;
   iconPosition?: 'left' | 'right';
   loading?: boolean;
   disabled?: boolean;

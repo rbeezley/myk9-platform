@@ -281,7 +281,7 @@ export const useDogManagement = () => {
     updateDog: updateMutation.mutate,
     isUpdating: updateMutation.isPending,
     
-    deleteDog: (id: string, deletedBy?: string) => deleteMutation.mutate({ id, deletedBy }),
+    deleteDog: (id: string, deletedBy?: string) => deleteMutation.mutate({ id, ...(deletedBy !== undefined && { deletedBy }) }),
     isDeleting: deleteMutation.isPending,
     
     // Utilities

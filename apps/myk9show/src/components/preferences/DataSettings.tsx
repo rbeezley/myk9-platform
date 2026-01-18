@@ -37,7 +37,7 @@ import type {
 } from '@/types/user-preferences';
 
 interface DataSettingsProps {
-  preferences?: DataPreferences;
+  preferences?: DataPreferences | undefined;
   onUpdate: (preferences: Partial<DataPreferences>) => void;
   onReset: () => void;
 }

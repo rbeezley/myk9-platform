@@ -58,9 +58,9 @@ export interface ClassResultsTableProps {
   classConfig: ScentWorkClassConfig;
   userPermissions: UserPermissions;
   onResultsSubmit: (results: (ScentWorkResult | MultiAreaScentWorkResult)[]) => Promise<void>;
-  onDeleteEntry?: (entryId: string) => void;
-  onAddEntry?: () => void;
-  className?: string;
+  onDeleteEntry?: ((entryId: string) => void) | undefined;
+  onAddEntry?: (() => void) | undefined;
+  className?: string | undefined;
 }
 
 interface BulkEntryData {
@@ -76,9 +76,9 @@ interface BulkEntryData {
   placement: number | null;
   isValid: boolean;
   hasChanges: boolean;
-  modifiedFields?: Set<keyof BulkEntryData>; // Track which fields were modified
-  lastEditedBy?: string; // Who last edited this result
-  lastEditedAt?: Date; // When it was last edited
+  modifiedFields?: Set<keyof BulkEntryData> | undefined; // Track which fields were modified
+  lastEditedBy?: string | undefined; // Who last edited this result
+  lastEditedAt?: Date | undefined; // When it was last edited
 }
 
 // Reason lists for different qualification statuses

@@ -60,29 +60,31 @@ export function LiveCompetitionDashboard({
   // Initialize live competition hook
   const { state, actions, isLoading, hasError, error } = useLiveCompetition({
     showId,
-    classId,
+    ...(classId !== undefined && { classId }),
     autoStart: true,
     enableEntryStatus: true,
     enableCheckIns: true,
     enableResults: true,
     enableCollaborativeJudging: currentUser?.role === 'judge',
     enablePresence: true,
-    currentUser: currentUser ? {
-      userId: currentUser.userId,
-      userName: currentUser.userName,
-      role: currentUser.role,
-      location: {
-        page: 'competition-dashboard',
-        section: 'overview',
-        showId,
-        classId,
+    ...(currentUser !== undefined && {
+      currentUser: {
+        userId: currentUser.userId,
+        userName: currentUser.userName,
+        role: currentUser.role,
+        location: {
+          page: 'competition-dashboard',
+          section: 'overview',
+          showId,
+          ...(classId !== undefined && { classId }),
+        },
+        activity: {
+          type: 'viewing',
+          description: 'Monitoring live competition',
+          startedAt: new Date(),
+        },
       },
-      activity: {
-        type: 'viewing',
-        description: 'Monitoring live competition',
-        startedAt: new Date(),
-      },
-    } : undefined,
+    }),
   });
 
   // Update location when tab changes
@@ -391,10 +393,10 @@ export function LiveCompetitionDashboard({
             entryStatuses={state.entryStatuses}
             ringEvents={state.ringEvents}
             callNotifications={state.callNotifications}
-            onEntryClick={onEntryClick}
+            {...(onEntryClick !== undefined && { onEntryClick })}
             onUpdateStatus={actions.updateEntryRingStatus}
             showId={showId}
-            classId={classId}
+            {...(classId !== undefined && { classId })}
           />
         </TabsContent>
 

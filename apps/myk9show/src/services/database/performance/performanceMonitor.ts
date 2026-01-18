@@ -7,8 +7,8 @@ interface PerformanceMetric {
   duration: number;
   timestamp: number;
   success: boolean;
-  error?: string;
-  rowCount?: number;
+  error?: string | undefined;
+  rowCount?: number | undefined;
 }
 
 interface PerformanceStats {

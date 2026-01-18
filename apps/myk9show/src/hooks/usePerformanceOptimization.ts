@@ -518,7 +518,7 @@ export function usePagination<T>(options: UsePaginationOptions) {
   const paginationOptions = useMemo(() => ({
     page,
     pageSize,
-    sortBy: currentSortBy,
+    ...(currentSortBy !== undefined && { sortBy: currentSortBy }),
     sortDirection: currentSortDirection,
     filters: currentFilters
   }), [page, pageSize, currentSortBy, currentSortDirection, currentFilters]);

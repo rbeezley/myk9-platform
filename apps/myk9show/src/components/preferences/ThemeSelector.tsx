@@ -35,7 +35,7 @@ import type {
 } from '@/types/user-preferences';
 
 interface ThemeSelectorProps {
-  preferences?: ThemePreferences;
+  preferences?: ThemePreferences | undefined;
   onUpdate: (preferences: Partial<ThemePreferences>) => void;
   onReset: () => void;
 }

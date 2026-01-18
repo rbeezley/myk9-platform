@@ -19,20 +19,20 @@ export interface SearchQuery {
  * Supports various filter types including categories, date ranges, and custom fields.
  */
 export interface SearchFilters {
-  categories?: string[];
+  categories?: string[] | undefined;
   dateRange?: {
     start: Date;
     end: Date;
-  };
-  status?: string[];
-  roles?: string[];
-  organizations?: string[];
-  locations?: string[];
+  } | undefined;
+  status?: string[] | undefined;
+  roles?: string[] | undefined;
+  organizations?: string[] | undefined;
+  locations?: string[] | undefined;
   priceRange?: {
     min: number;
     max: number;
-  };
-  customFields?: Record<string, unknown>;
+  } | undefined;
+  customFields?: Record<string, unknown> | undefined;
 }
 
 /**
@@ -371,8 +371,8 @@ export class SearchService {
         // Add parsed filters from search terms
         ...terms.filters
       },
-      sortBy: terms.sortBy,
-      sortOrder: terms.sortOrder
+      ...(terms.sortBy !== undefined && { sortBy: terms.sortBy }),
+      ...(terms.sortOrder !== undefined && { sortOrder: terms.sortOrder })
     };
   }
 
@@ -438,8 +438,8 @@ export class SearchService {
     return {
       main: main.replace(/\s+/g, ' ').trim(),
       filters,
-      sortBy,
-      sortOrder
+      ...(sortBy !== undefined && { sortBy }),
+      ...(sortOrder !== undefined && { sortOrder }),
     };
   }
 

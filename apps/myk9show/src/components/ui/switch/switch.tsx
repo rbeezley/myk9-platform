@@ -5,21 +5,21 @@ import { cn } from "@/lib/utils"
 
 // Explicit interface to ensure TypeScript can infer callback parameter types
 interface SwitchProps extends React.ComponentPropsWithoutRef<'span'> {
-  checked?: boolean
-  defaultChecked?: boolean
-  disabled?: boolean
-  required?: boolean
-  name?: string
-  onCheckedChange?: (checked: boolean) => void
+  checked?: boolean | undefined
+  defaultChecked?: boolean | undefined
+  disabled?: boolean | undefined
+  required?: boolean | undefined
+  name?: string | undefined
+  onCheckedChange?: ((checked: boolean) => void) | undefined
 }
 
 // Using a typed forwardRef pattern for better inference
 interface SwitchComponent extends React.ForwardRefExoticComponent<SwitchProps & React.RefAttributes<HTMLElement>> {
-  displayName?: string
+  displayName?: string | undefined
 }
 
 const Switch: SwitchComponent = React.forwardRef<HTMLElement, SwitchProps>(
-  function Switch({ className, onCheckedChange, ...props }, ref) {
+  function Switch({ className, onCheckedChange, checked, defaultChecked, disabled, required, name, id, style, ...props }, ref) {
     // Wrap to adapt Base UI's (checked, eventDetails) to Radix's (checked)
     const handleCheckedChange = React.useCallback(
       (checked: boolean) => onCheckedChange?.(checked),
@@ -33,6 +33,13 @@ const Switch: SwitchComponent = React.forwardRef<HTMLElement, SwitchProps>(
           className
         )}
         onCheckedChange={handleCheckedChange}
+        {...(checked !== undefined && { checked })}
+        {...(defaultChecked !== undefined && { defaultChecked })}
+        {...(disabled !== undefined && { disabled })}
+        {...(required !== undefined && { required })}
+        {...(name !== undefined && { name })}
+        {...(id !== undefined && { id })}
+        {...(style !== undefined && { style })}
         {...props}
         ref={ref}
       >

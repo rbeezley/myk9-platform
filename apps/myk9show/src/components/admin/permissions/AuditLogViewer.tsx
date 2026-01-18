@@ -49,7 +49,7 @@ interface AuditLogViewerProps {
 }
 
 interface EnhancedAuditEntry extends AuditEntry {
-  rbacDetails?: AuditLogEntry;
+  rbacDetails?: AuditLogEntry | undefined;
 }
 
 export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({

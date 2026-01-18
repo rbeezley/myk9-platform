@@ -90,7 +90,7 @@ export function BulkActionsBar({
                   <DropdownMenuItem
                     key={action.id}
                     onClick={action.onClick}
-                    disabled={action.disabled}
+                    {...(action.disabled !== undefined && { disabled: action.disabled })}
                     className="flex items-center"
                   >
                     {action.icon}
@@ -127,7 +127,7 @@ export function BulkSelectCheckbox({
       type="checkbox"
       checked={checked}
       ref={(el) => {
-        if (el) el.indeterminate = indeterminate || false;
+        if (el) el.indeterminate = indeterminate ?? false;
       }}
       onChange={(e) => onCheckedChange(e.target.checked)}
       aria-label={ariaLabel}

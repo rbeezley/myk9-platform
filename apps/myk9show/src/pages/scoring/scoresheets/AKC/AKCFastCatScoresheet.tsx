@@ -96,7 +96,7 @@ export const AKCFastCatScoresheet: React.FC<AKCFastCatScoresheetProps> = ({
   // Timer - 60 seconds max for FastCAT
   const stopwatch = useStopwatch({
     maxTime: '1:00.00',
-    level: classInfo.level,
+    ...(classInfo.level ? { level: classInfo.level } : {}),
   });
 
   // Auto-copy timer to run time when stopped
@@ -145,7 +145,7 @@ export const AKCFastCatScoresheet: React.FC<AKCFastCatScoresheetProps> = ({
         time: timeInSeconds * 1000, // Convert to ms
         faults: 0,
         qualification: finalQualifying,
-        notes: nonQualifyingReason || undefined,
+        ...(nonQualifyingReason ? { notes: nonQualifyingReason } : {}),
       });
 
       setShowConfirmation(false);

@@ -4,19 +4,19 @@ import { cn } from '@/lib/utils';
 interface LazyImageProps {
   src: string;
   alt: string;
-  className?: string;
-  placeholderSrc?: string;
+  className?: string | undefined;
+  placeholderSrc?: string | undefined;
   threshold?: number;
   rootMargin?: string;
   onLoad?: () => void;
   onError?: () => void;
   fallbackSrc?: string;
   loading?: 'lazy' | 'eager';
-  width?: number | string;
-  height?: number | string;
-  sizes?: string;
-  srcSet?: string;
-  style?: React.CSSProperties;
+  width?: number | string | undefined;
+  height?: number | string | undefined;
+  sizes?: string | undefined;
+  srcSet?: string | undefined;
+  style?: React.CSSProperties | undefined;
 }
 
 interface LazyImageState {

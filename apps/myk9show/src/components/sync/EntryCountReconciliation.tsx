@@ -24,7 +24,7 @@ import { useShowStore } from '@/store/showStore';
 
 interface EntryCountReconciliationProps {
   /** Show ID to filter entries for specific show */
-  showId?: string;
+  showId?: string | undefined;
   /** Custom className */
   className?: string;
 }

@@ -55,7 +55,7 @@ export const useRollbackNotifications = () => {
     id: string;
     operationId: string;
     error: unknown;
-    retryAction?: () => void;
+    retryAction?: (() => void) | undefined;
     timestamp: number;
   }>>([]);
 
@@ -120,7 +120,7 @@ export const useSuccessConfirmation = () => {
     id: string;
     message: string;
     showUndo: boolean;
-    undoAction?: () => void;
+    undoAction?: (() => void) | undefined;
   }>>([]);
 
   const showSuccess = (

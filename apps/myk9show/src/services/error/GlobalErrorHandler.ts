@@ -12,7 +12,7 @@ import { logger } from '@/services/LoggingService';
 
 interface ErrorDetails {
   message: string;
-  stack?: string;
+  stack?: string | undefined;
   filename?: string;
   lineno?: number;
   colno?: number;

@@ -2,44 +2,44 @@ export interface User {
   id: string;
   firstName: string;
   lastName: string;
-  name?: string; // Full name (computed or stored)
-  email?: string;
-  phone?: string;
-  address?: string;
-  streetAddress?: string; // Alternative field name for address
-  city?: string;
-  state?: string;
-  zipCode?: string;
-  country?: string;
-  dateOfBirth?: string;
-  birthDate?: string; // Alias for dateOfBirth
-  membershipId?: string;
-  clubAffiliations?: string[];
-  roles?: UserRole[];
-  judgeInfo?: JudgeInfo;
-  judgeQualifications?: JudgeQualification[]; // Alias for judgeInfo.qualifications
+  name?: string | undefined; // Full name (computed or stored)
+  email?: string | undefined;
+  phone?: string | undefined;
+  address?: string | undefined;
+  streetAddress?: string | undefined; // Alternative field name for address
+  city?: string | undefined;
+  state?: string | undefined;
+  zipCode?: string | undefined;
+  country?: string | undefined;
+  dateOfBirth?: string | undefined;
+  birthDate?: string | undefined; // Alias for dateOfBirth
+  membershipId?: string | undefined;
+  clubAffiliations?: string[] | undefined;
+  roles?: UserRole[] | undefined;
+  judgeInfo?: JudgeInfo | undefined;
+  judgeQualifications?: JudgeQualification[] | undefined; // Alias for judgeInfo.qualifications
   emergencyContact?: {
     name: string;
     phone: string;
     relationship: string;
     [key: string]: unknown; // Index signature for JSON compatibility
-  };
-  profileImage?: string;
-  dogs?: string[]; // Array of dog IDs for UI components
-  associatedDogs?: string[]; // Array of dog IDs for Local-First sync
-  user_id?: string; // Link to auth.users table for RBAC
-  deletedAt?: string;
-  deletedBy?: string;
+  } | undefined;
+  profileImage?: string | undefined;
+  dogs?: string[] | undefined; // Array of dog IDs for UI components
+  associatedDogs?: string[] | undefined; // Array of dog IDs for Local-First sync
+  user_id?: string | undefined; // Link to auth.users table for RBAC
+  deletedAt?: string | undefined;
+  deletedBy?: string | undefined;
 
   // Sync metadata for Local-First architecture
-  _version?: number;
-  _lastModified?: Date;
-  _lastModifiedBy?: string;
-  _syncStatus?: 'synced' | 'pending' | 'error' | 'conflict'; // For internal sync tracking
-  _localOnly?: boolean;
-  
-  createdAt?: Date;
-  updatedAt?: Date;
+  _version?: number | undefined;
+  _lastModified?: Date | undefined;
+  _lastModifiedBy?: string | undefined;
+  _syncStatus?: 'synced' | 'pending' | 'error' | 'conflict' | undefined; // For internal sync tracking
+  _localOnly?: boolean | undefined;
+
+  createdAt?: Date | undefined;
+  updatedAt?: Date | undefined;
 }
 
 export interface Handler extends User {

@@ -97,7 +97,7 @@ export const UKCRallyScoresheet: React.FC<UKCRallyScoresheetProps> = ({
   // Timer - 5 minutes max for rally course
   const stopwatch = useStopwatch({
     maxTime: classInfo.maxTime || '5:00.00',
-    level: classInfo.level,
+    ...(classInfo.level ? { level: classInfo.level } : {}),
   });
 
   const calculateFinalScore = useCallback(() => {
@@ -131,7 +131,7 @@ export const UKCRallyScoresheet: React.FC<UKCRallyScoresheetProps> = ({
         time: timeMs,
         faults: deductions,
         qualification: finalQualifying,
-        notes: nonQualifyingReason || undefined,
+        ...(nonQualifyingReason ? { notes: nonQualifyingReason } : {}),
       });
 
       setShowConfirmation(false);

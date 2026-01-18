@@ -194,7 +194,7 @@ export function useCompleteShowData(showId?: string, requirements?: {
   needsClasses?: boolean;
 }) {
   return useShowScopedData({
-    showId,
+    ...(showId !== undefined && { showId }),
     includeEntries: requirements?.needsEntries ?? false, // Default to false for performance
     includeClasses: requirements?.needsClasses ?? false, // Default to false for performance
     autoLoadStores: false, // Disable auto-loading for faster initial render
@@ -207,7 +207,7 @@ export function useCompleteShowData(showId?: string, requirements?: {
  */
 export function useBasicShowData(showId?: string) {
   return useShowScopedData({
-    showId,
+    ...(showId !== undefined && { showId }),
     includeEntries: false,
     includeClasses: false,
     autoLoadStores: true,

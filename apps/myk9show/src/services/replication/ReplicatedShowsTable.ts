@@ -27,25 +27,25 @@ export interface ReplicatedShow {
   type: string;
   startDate: string;
   endDate: string;
-  location?: string;
-  status?: string;
-  entryOpenDate?: string;
-  entryCloseDate?: string;
-  preEntryFee?: number;
-  dayOfShowFee?: number;
-  clubId?: string;
-  chairman?: string;
-  secretary?: string;
-  chiefSteward?: string;
-  maxEntriesPerDog?: number;
-  maxTotalEntries?: number;
-  allowsNonOwnerHandlers?: boolean;
+  location?: string | undefined;
+  status?: string | undefined;
+  entryOpenDate?: string | undefined;
+  entryCloseDate?: string | undefined;
+  preEntryFee?: number | undefined;
+  dayOfShowFee?: number | undefined;
+  clubId?: string | undefined;
+  chairman?: string | undefined;
+  secretary?: string | undefined;
+  chiefSteward?: string | undefined;
+  maxEntriesPerDog?: number | undefined;
+  maxTotalEntries?: number | undefined;
+  allowsNonOwnerHandlers?: boolean | undefined;
   // Sync metadata
-  _version?: number;
-  _lastModified?: Date;
-  _lastModifiedBy?: string;
-  _syncStatus?: 'synced' | 'pending' | 'error' | 'conflict';
-  _localOnly?: boolean;
+  _version?: number | undefined;
+  _lastModified?: Date | undefined;
+  _lastModifiedBy?: string | undefined;
+  _syncStatus?: 'synced' | 'pending' | 'error' | 'conflict' | undefined;
+  _localOnly?: boolean | undefined;
 }
 
 /**
@@ -129,7 +129,6 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
         await this.updateSyncMetadata({
           lastIncrementalSyncAt: Date.now(),
           syncStatus: 'idle',
-          errorMessage: undefined,
         });
 
         return {
@@ -165,7 +164,6 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
       await this.updateSyncMetadata({
         lastIncrementalSyncAt: Date.now(),
         syncStatus: 'idle',
-        errorMessage: undefined,
       });
 
       const duration = Date.now() - startTime;

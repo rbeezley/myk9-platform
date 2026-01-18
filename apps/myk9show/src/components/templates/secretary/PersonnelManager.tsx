@@ -522,7 +522,7 @@ const PersonnelForm: React.FC<PersonnelFormProps> = ({ personnel, onSave, onCanc
       certifications: formData.certifications || [],
       availability: formData.availability || [],
       preferences: formData.preferences!,
-      notes: formData.notes
+      ...(formData.notes !== undefined && { notes: formData.notes })
     };
 
     onSave(completePersonnel);

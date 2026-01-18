@@ -79,7 +79,7 @@ export function useRecentSearches(options: UseRecentSearchesOptions) {
       query: query.trim(),
       timestamp: Date.now(),
       context,
-      metadata
+      ...(metadata !== undefined && { metadata })
     };
 
     setRecentSearches(prev => {

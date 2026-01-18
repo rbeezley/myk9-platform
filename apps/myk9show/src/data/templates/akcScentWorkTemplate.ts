@@ -78,12 +78,13 @@ export const createCustomAKCScentWorkTemplate = (
   }
   
   // Apply max entries override to all classes if specified
-  if (customizations.maxEntries) {
+  if (customizations.maxEntries !== undefined) {
+    const maxEntries = customizations.maxEntries;
     template.classDefinitions = template.classDefinitions.map(classDef => ({
       ...classDef,
       fieldOverrides: {
         ...classDef.fieldOverrides,
-        maxEntries: { defaultValue: customizations.maxEntries }
+        maxEntries: { defaultValue: maxEntries }
       }
     }));
   }

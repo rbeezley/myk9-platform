@@ -24,7 +24,7 @@ import { ensureReplicationManager } from '@/utils/replicationHelper';
 export interface ClassInfo {
   element: string;
   level: string;
-  section?: string;
+  section?: string | undefined;
 }
 
 export interface RouteState {
@@ -33,9 +33,9 @@ export interface RouteState {
 }
 
 export interface LoadEntriesCallbacks {
-  onEntryLoaded?: (entry: StoreEntry, areas: AreaScore[]) => void;
-  onTrialDateLoaded?: (date: string) => void;
-  onTrialNumberLoaded?: (number: string) => void;
+  onEntryLoaded?: ((entry: StoreEntry, areas: AreaScore[]) => void) | undefined;
+  onTrialDateLoaded?: ((date: string) => void) | undefined;
+  onTrialNumberLoaded?: ((number: string) => void) | undefined;
 }
 
 export interface FastPathResult {
@@ -59,10 +59,10 @@ export interface SlowPathResult {
  * Class settings that can be changed by judges and might be stale in entry cache.
  */
 interface CurrentClassSettings {
-  areaCount?: number;
-  timeLimit?: number;
-  timeLimit2?: number;
-  timeLimit3?: number;
+  areaCount?: number | undefined;
+  timeLimit?: number | undefined;
+  timeLimit2?: number | undefined;
+  timeLimit3?: number | undefined;
 }
 
 /**

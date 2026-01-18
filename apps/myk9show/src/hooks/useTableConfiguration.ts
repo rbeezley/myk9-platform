@@ -17,8 +17,8 @@ import { UnifiedEntryData } from '@/types/unified-entry-types';
 
 export interface UseTableConfigurationProps {
   showType: ShowType;
-  template?: ClassTemplate;
-  customColumns?: string[];
+  template?: ClassTemplate | undefined;
+  customColumns?: string[] | undefined;
 }
 
 export interface UseTableConfigurationReturn {

@@ -134,18 +134,18 @@ export interface PermissionCache {
 // API request/response types
 export interface AssignRoleRequest {
   userId: string;
-  roleName?: string;
-  roleId?: string;
-  scopeType?: string;
-  scopeId?: string;
-  expiresAt?: string;
+  roleName?: string | undefined;
+  roleId?: string | undefined;
+  scopeType?: string | undefined;
+  scopeId?: string | undefined;
+  expiresAt?: string | undefined;
 }
 
 export interface RevokeRoleRequest {
   userId: string;
   roleName: string;
-  scopeType?: string;
-  scopeId?: string;
+  scopeType?: string | undefined;
+  scopeId?: string | undefined;
 }
 
 export interface CreateRoleRequest {
@@ -191,19 +191,19 @@ export interface PermissionTemplate {
 
 // Audit types
 export interface AuditLogFilter {
-  actionType?: string;
-  actorId?: string;
-  userId?: string;
-  targetUserId?: string;
-  targetRoleId?: string;
-  targetPermissionId?: string;
-  entityType?: string;
-  startDate?: Date;
-  endDate?: Date;
-  page?: number;
-  pageSize?: number;
-  limit?: number;
-  offset?: number;
+  actionType?: string | undefined;
+  actorId?: string | undefined;
+  userId?: string | undefined;
+  targetUserId?: string | undefined;
+  targetRoleId?: string | undefined;
+  targetPermissionId?: string | undefined;
+  entityType?: string | undefined;
+  startDate?: Date | undefined;
+  endDate?: Date | undefined;
+  page?: number | undefined;
+  pageSize?: number | undefined;
+  limit?: number | undefined;
+  offset?: number | undefined;
 }
 
 export interface AuditLogEntry extends PermissionAuditLog {

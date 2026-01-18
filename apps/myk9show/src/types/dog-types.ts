@@ -83,9 +83,9 @@ export interface Registration {
 export interface Owner {
   id: string;
   name: string;
-  email?: string;
-  phone?: string;
-  profileImage?: string;
+  email?: string | undefined;
+  phone?: string | undefined;
+  profileImage?: string | undefined;
 }
 
 /**
@@ -127,26 +127,26 @@ export interface Dog {
   name: string; // Official or registered name
   breed: string; // Required field
   sex: 'male' | 'female'; // Required field
-  age?: number; // Or consider dateOfBirth for more precision
+  age?: number | undefined; // Or consider dateOfBirth for more precision
   ownerId: string; // Owner ID
-  ownerName?: string; // Owner name for easier display
-  owner?: Owner; // Owner object (can be populated later)
-  description?: string;
+  ownerName?: string | undefined; // Owner name for easier display
+  owner?: Owner | undefined; // Owner object (can be populated later)
+  description?: string | undefined;
   // Fields from LegacyDog
-  callName?: string; // Added from LegacyDog
-  height?: string;
-  weight?: string;
-  gender?: 'Male' | 'Female' | ''; // Added from LegacyDog, made optional for flexibility
-  dateOfBirth?: string;
-  birthDate?: string; // Alternative naming
-  imageUrl?: string;
-  registrations?: Registration[]; // Added from LegacyDog, made optional
-  color?: string;
-  microchip?: string;
-  spayedNeutered?: boolean;
-  microchipNumber?: string; // Alternative naming
-  deletedAt?: string;
-  deletedBy?: string;
+  callName?: string | undefined; // Added from LegacyDog
+  height?: string | undefined;
+  weight?: string | undefined;
+  gender?: 'Male' | 'Female' | '' | undefined; // Added from LegacyDog, made optional for flexibility
+  dateOfBirth?: string | undefined;
+  birthDate?: string | undefined; // Alternative naming
+  imageUrl?: string | undefined;
+  registrations?: Registration[] | undefined; // Added from LegacyDog, made optional
+  color?: string | undefined;
+  microchip?: string | undefined;
+  spayedNeutered?: boolean | undefined;
+  microchipNumber?: string | undefined; // Alternative naming
+  deletedAt?: string | undefined;
+  deletedBy?: string | undefined;
 
   // Health records
   healthRecords?: {
@@ -154,41 +154,41 @@ export interface Dog {
       id: string;
       name: string;
       date: string;
-      nextDue?: string;
+      nextDue?: string | undefined;
       veterinarian: string;
-    }>;
+    }> | undefined;
     medications?: Array<{
       id: string;
       name: string;
       dosage: string;
       frequency: string;
       startDate: string;
-      endDate?: string;
-    }>;
+      endDate?: string | undefined;
+    }> | undefined;
     allergies?: Array<{
       id: string;
       allergen: string;
       severity: string;
       reaction: string;
-      notes?: string;
-    }>;
-  };
+      notes?: string | undefined;
+    }> | undefined;
+  } | undefined;
 
   // Competition data
-  currentLevel?: string;
+  currentLevel?: string | undefined;
   measurements?: {
-    height?: number;
-    weight?: number;
-    measuredAt?: string;
-    measuredBy?: string;
-  };
+    height?: number | undefined;
+    weight?: number | undefined;
+    measuredAt?: string | undefined;
+    measuredBy?: string | undefined;
+  } | undefined;
 
   // Sync metadata for Local-First architecture
-  _version?: number;
-  _lastModified?: Date;
-  _lastModifiedBy?: string;
-  _syncStatus?: 'synced' | 'pending' | 'error' | 'conflict';
-  _localOnly?: boolean;
+  _version?: number | undefined;
+  _lastModified?: Date | undefined;
+  _lastModifiedBy?: string | undefined;
+  _syncStatus?: 'synced' | 'pending' | 'error' | 'conflict' | undefined;
+  _localOnly?: boolean | undefined;
 }
 
 
@@ -197,47 +197,47 @@ export interface Dog {
 // Input types for creating/updating
 export interface DogInput {
   name: string;
-  callName?: string; // Optional call name (nickname)
+  callName?: string | undefined; // Optional call name (nickname)
   breed: string;
   sex: 'male' | 'female';
-  birthDate?: string;
-  color?: string;
-  weight?: number;
-  height?: number;
+  birthDate?: string | undefined;
+  color?: string | undefined;
+  weight?: number | undefined;
+  height?: number | undefined;
   ownerId: string;
-  ownerName?: string;
-  microchipNumber?: string;
-  imageUrl?: string;
+  ownerName?: string | undefined;
+  microchipNumber?: string | undefined;
+  imageUrl?: string | undefined;
   registrations?: Array<{
     organization: string;
     number: string;
     type: string;
     status: string;
-  }>;
+  }> | undefined;
   healthRecords?: {
     vaccinations?: Array<{
       id: string;
       name: string;
       date: string;
-      nextDue?: string;
+      nextDue?: string | undefined;
       veterinarian: string;
-    }>;
+    }> | undefined;
     medications?: Array<{
       id: string;
       name: string;
       dosage: string;
       frequency: string;
       startDate: string;
-      endDate?: string;
-    }>;
+      endDate?: string | undefined;
+    }> | undefined;
     allergies?: Array<{
       id: string;
       allergen: string;
       severity: string;
       reaction: string;
-      notes?: string;
-    }>;
-  };
+      notes?: string | undefined;
+    }> | undefined;
+  } | undefined;
 }
 
 export interface PersonInput {

@@ -255,8 +255,8 @@ export const DynamicClassForm: React.FC<DynamicClassFormProps> = ({
               timeLimits={currentTimeLimits}
               onChange={(newTimeLimits) => handleFieldChange(field.fieldName, newTimeLimits)}
               readOnly={disabled}
-              minTime={field.minValue}
-              maxTime={field.maxValue}
+              {...(field.minValue !== undefined && { minTime: field.minValue })}
+              {...(field.maxValue !== undefined && { maxTime: field.maxValue })}
             />
           );
         }

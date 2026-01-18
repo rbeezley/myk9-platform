@@ -183,7 +183,7 @@ export const createDayOfEntry = async (entryData: DayOfEntry, userId: string) =>
         dog_id: entryData.dogId,
         show_id: entryData.showId,
         class_id: classId,
-        trial_id: classInfo?.trial_id,
+        ...(classInfo?.trial_id !== undefined && { trial_id: classInfo.trial_id }),
         handler: entryData.handler,
         handler_id: userId, // Track who created the day-of entry
         payment_status: entryData.paymentMethod === 'waived' ? 'waived' : 'paid',

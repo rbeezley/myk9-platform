@@ -119,6 +119,8 @@ export class PerformanceService {
     const paint = performance.getEntriesByType('paint');
     const resources = performance.getEntriesByType('resource') as PerformanceResourceTiming[];
 
+    const memoryUsage = this.getMemoryUsage();
+    const connectionInfo = this.getConnectionInfo();
     const metrics: PerformanceMetrics = {
       pageLoadTime: navigation ? navigation.loadEventEnd - navigation.fetchStart : 0,
       firstContentfulPaint: this.getPaintMetric(paint, 'first-contentful-paint'),
@@ -127,8 +129,8 @@ export class PerformanceService {
       largestContentfulPaint: await this.getLargestContentfulPaint(),
       timeToInteractive: await this.getTimeToInteractive(),
       resourceLoadTimes: this.processResourceTimings(resources),
-      memoryUsage: this.getMemoryUsage(),
-      connectionInfo: this.getConnectionInfo()
+      ...(memoryUsage !== undefined && { memoryUsage }),
+      ...(connectionInfo !== undefined && { connectionInfo })
     };
 
     this.metrics.push(metrics);

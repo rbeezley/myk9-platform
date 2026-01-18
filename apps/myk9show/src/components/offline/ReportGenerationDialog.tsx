@@ -238,9 +238,18 @@ export const ReportGenerationDialog: React.FC<ReportGenerationDialogProps> = ({
                     id="customTitle"
                     placeholder="Leave empty for default title"
                     value={reportOptions.title || ''}
-                    onChange={(e) =>
-                      setReportOptions(prev => ({ ...prev, title: e.target.value || undefined }))
-                    }
+                    onChange={(e) => {
+                      const newTitle = e.target.value;
+                      if (newTitle) {
+                        setReportOptions(prev => ({ ...prev, title: newTitle }));
+                      } else {
+                        // Remove title property when empty
+                        setReportOptions(prev => {
+                          const { title: _, ...rest } = prev;
+                          return rest as ReportOptions;
+                        });
+                      }
+                    }}
                   />
                 </div>
 
@@ -250,9 +259,17 @@ export const ReportGenerationDialog: React.FC<ReportGenerationDialogProps> = ({
                     <Label htmlFor="judgeFilter">Filter by judge (optional)</Label>
                     <Select
                       value={reportOptions.judgeId || ''}
-                      onValueChange={(value) =>
-                        setReportOptions(prev => ({ ...prev, judgeId: value || undefined }))
-                      }
+                      onValueChange={(value) => {
+                        if (value) {
+                          setReportOptions(prev => ({ ...prev, judgeId: value }));
+                        } else {
+                          // Remove judgeId property when empty
+                          setReportOptions(prev => {
+                            const { judgeId: _, ...rest } = prev;
+                            return rest as ReportOptions;
+                          });
+                        }
+                      }}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="All judges" />
@@ -281,10 +298,15 @@ export const ReportGenerationDialog: React.FC<ReportGenerationDialogProps> = ({
                         .split(',')
                         .map(id => id.trim())
                         .filter(id => id.length > 0);
-                      setReportOptions(prev => ({
-                        ...prev,
-                        classIds: classIds.length > 0 ? classIds : undefined
-                      }));
+                      if (classIds.length > 0) {
+                        setReportOptions(prev => ({ ...prev, classIds }));
+                      } else {
+                        // Remove classIds property when empty
+                        setReportOptions(prev => {
+                          const { classIds: _, ...rest } = prev;
+                          return rest as ReportOptions;
+                        });
+                      }
                     }}
                   />
                 </div>

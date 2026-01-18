@@ -104,9 +104,9 @@ export function useOptimisticUpdates<T>(
       timestamp: Date.now(),
       type,
       action,
-      rollbackAction: options?.rollbackAction,
-      onSuccess: options?.onSuccess,
-      onError: options?.onError
+      ...(options?.rollbackAction !== undefined && { rollbackAction: options.rollbackAction }),
+      ...(options?.onSuccess !== undefined && { onSuccess: options.onSuccess }),
+      ...(options?.onError !== undefined && { onError: options.onError })
     };
 
     // Update UI immediately with optimistic data

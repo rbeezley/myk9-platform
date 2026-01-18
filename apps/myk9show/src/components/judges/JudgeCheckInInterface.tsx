@@ -232,9 +232,9 @@ export const JudgeCheckInInterface: React.FC<JudgeCheckInInterfaceProps> = ({
     
     try {
       // Optimistic update
-      setEntries(prev => prev.map(e => 
-        e.id === entry.id 
-          ? { ...e, checkInStatus: status, checkInTime: new Date(), notes }
+      setEntries(prev => prev.map(e =>
+        e.id === entry.id
+          ? { ...e, checkInStatus: status, checkInTime: new Date(), ...(notes !== undefined && { notes }) }
           : e
       ));
 
@@ -254,7 +254,7 @@ export const JudgeCheckInInterface: React.FC<JudgeCheckInInterfaceProps> = ({
           armband: entry.armband,
           dogName: entry.dogName,
           handlerName: entry.handlerName,
-          notes
+          ...(notes !== undefined && { notes })
         }
       });
 

@@ -8,15 +8,15 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 interface DateTimePickerProps {
-  value?: Date;
-  onChange?: (date: Date | undefined) => void;
-  placeholder?: string;
-  className?: string;
-  minDate?: Date;
-  maxDate?: Date;
-  disabled?: boolean;
-  showTime?: boolean;
-  timeFormat?: '12h' | '24h';
+  value?: Date | undefined;
+  onChange?: ((date: Date | undefined) => void) | undefined;
+  placeholder?: string | undefined;
+  className?: string | undefined;
+  minDate?: Date | undefined;
+  maxDate?: Date | undefined;
+  disabled?: boolean | undefined;
+  showTime?: boolean | undefined;
+  timeFormat?: '12h' | '24h' | undefined;
 }
 
 export const DateTimePicker: React.FC<DateTimePickerProps> = ({

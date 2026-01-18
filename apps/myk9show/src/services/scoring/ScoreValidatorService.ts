@@ -499,36 +499,38 @@ export class ScoreValidatorService {
     result: ValidationResult
   ): Promise<void> {
     // Validate total score calculation
-    const calculatedTotal = score.exercises.reduce((sum, exercise) => sum + exercise.pointsAwarded, 0);
-    if (calculatedTotal !== score.totalScore) {
-      result.errors.push({
-        field: 'totalScore',
-        message: 'Total score does not match sum of exercise scores',
-        code: 'SCORE_CALCULATION_ERROR'
+    if (score.exercises && score.exercises.length > 0) {
+      const calculatedTotal = score.exercises.reduce((sum, exercise) => sum + exercise.pointsAwarded, 0);
+      if (calculatedTotal !== (score.totalScore ?? 0)) {
+        result.errors.push({
+          field: 'totalScore',
+          message: 'Total score does not match sum of exercise scores',
+          code: 'SCORE_CALCULATION_ERROR'
+        });
+      }
+
+      // Validate individual exercises
+      score.exercises.forEach((exercise, index) => {
+        if (exercise.pointsAwarded > exercise.maxPoints) {
+          result.errors.push({
+            field: `exercises[${index}].pointsAwarded`,
+            message: `Exercise "${exercise.name}" points exceed maximum`,
+            code: 'POINTS_EXCEED_MAXIMUM'
+          });
+        }
+
+        if (exercise.pointsAwarded < 0) {
+          result.errors.push({
+            field: `exercises[${index}].pointsAwarded`,
+            message: `Exercise "${exercise.name}" points cannot be negative`,
+            code: 'NEGATIVE_POINTS'
+          });
+        }
       });
     }
 
-    // Validate individual exercises
-    score.exercises.forEach((exercise, index) => {
-      if (exercise.pointsAwarded > exercise.maxPoints) {
-        result.errors.push({
-          field: `exercises[${index}].pointsAwarded`,
-          message: `Exercise "${exercise.name}" points exceed maximum`,
-          code: 'POINTS_EXCEED_MAXIMUM'
-        });
-      }
-
-      if (exercise.pointsAwarded < 0) {
-        result.errors.push({
-          field: `exercises[${index}].pointsAwarded`,
-          message: `Exercise "${exercise.name}" points cannot be negative`,
-          code: 'NEGATIVE_POINTS'
-        });
-      }
-    });
-
     // Validate qualifying score logic
-    if (score.isQualifying && score.totalScore < score.qualifyingScore) {
+    if (score.isQualifying && (score.totalScore ?? 0) < (score.qualifyingScore ?? 0)) {
       result.errors.push({
         field: 'isQualifying',
         message: 'Score is below qualifying threshold but marked as qualifying',
@@ -953,7 +955,7 @@ export class ScoreValidatorService {
       return score.courseTime > 0 || score.totalFaults > 0;
     }
     if (isObedienceScore(score)) {
-      return score.totalScore > 0;
+      return (score.totalScore ?? 0) > 0;
     }
     if (isRallyScore(score)) {
       return score.finalScore > 0 || score.courseTime > 0;
@@ -972,7 +974,7 @@ export class ScoreValidatorService {
       if (!score.courseTime) missing.push('course time');
     }
     if (isObedienceScore(score)) {
-      if (!score.totalScore) missing.push('total score');
+      if ((score.totalScore ?? 0) === 0) missing.push('total score');
       if (!score.exercises || score.exercises.length === 0) missing.push('exercise scores');
     }
     if (isRallyScore(score)) {

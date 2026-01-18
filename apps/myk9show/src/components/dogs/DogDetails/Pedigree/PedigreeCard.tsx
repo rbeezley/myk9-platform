@@ -5,12 +5,12 @@ import { Pencil, Trash2, Eye } from 'lucide-react';
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 
 interface PedigreeCardProps {
-  ancestor?: Ancestor;
+  ancestor?: Ancestor | undefined;
   role: string;
-  highlight?: boolean;
-  onView?: () => void;
-  onEdit?: () => void;
-  onDelete?: () => void;
+  highlight?: boolean | undefined;
+  onView?: (() => void) | undefined;
+  onEdit?: (() => void) | undefined;
+  onDelete?: (() => void) | undefined;
 }
 
 const PedigreeCard: React.FC<PedigreeCardProps> = ({ ancestor, role, highlight = false, onView, onEdit, onDelete }) => {

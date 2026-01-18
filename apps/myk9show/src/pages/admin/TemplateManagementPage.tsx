@@ -55,10 +55,8 @@ const TemplateManagementPage: React.FC = () => {
   
   const [filter, setFilter] = useState<TemplateFilter>({
     searchTerm: '',
-    organization: undefined,
-    showType: undefined,
-    isActive: undefined, // Show all templates by default
-    isOfficial: undefined
+    // Optional properties are omitted rather than set to undefined
+    // to satisfy exactOptionalPropertyTypes
   });
   
   const [filteredTemplates, setFilteredTemplates] = useState(templates);
@@ -362,10 +360,10 @@ const TemplateManagementPage: React.FC = () => {
                   </button>
                 </Badge>
               )}
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => setFilter({ searchTerm: '', organization: undefined, showType: undefined, isActive: undefined, isOfficial: undefined })}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setFilter({ searchTerm: '' })}
                 className="text-xs"
               >
                 Clear All

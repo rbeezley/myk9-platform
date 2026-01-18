@@ -89,7 +89,7 @@ export const UKCObedienceScoresheet: React.FC<UKCObedienceScoresheetProps> = ({
         time: 0, // Obedience doesn't use time
         faults: 200 - scoreValue, // Deductions from max
         qualification: finalQualifying,
-        notes: nonQualifyingReason || undefined,
+        ...(nonQualifyingReason && { notes: nonQualifyingReason }),
       });
 
       setShowConfirmation(false);

@@ -9,33 +9,33 @@ export interface SearchQuery {
   timestamp: Date;
   userId: string;
   sessionId: string;
-  filters?: Record<string, unknown>;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
+  filters?: Record<string, unknown> | undefined;
+  sortBy?: string | undefined;
+  sortOrder?: 'asc' | 'desc' | undefined;
 }
 
 export interface SearchResult {
   queryId: string;
   resultCount: number;
   executionTime: number; // milliseconds
-  relevanceScore?: number;
+  relevanceScore?: number | undefined;
   clickedResults: string[]; // IDs of results that were clicked
   wasSuccessful: boolean;
-  errorMessage?: string;
+  errorMessage?: string | undefined;
 }
 
 export interface SearchSession {
   id: string;
   userId: string;
   startTime: Date;
-  endTime?: Date;
+  endTime?: Date | undefined;
   totalQueries: number;
   successfulQueries: number;
   totalExecutionTime: number;
   averageExecutionTime: number;
   mostSearchedType: string;
-  userAgent?: string;
-  deviceType?: 'desktop' | 'tablet' | 'mobile';
+  userAgent?: string | undefined;
+  deviceType?: 'desktop' | 'tablet' | 'mobile' | undefined;
 }
 
 export interface SearchAnalytics {

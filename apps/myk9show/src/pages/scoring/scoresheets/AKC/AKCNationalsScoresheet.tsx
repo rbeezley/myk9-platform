@@ -130,7 +130,7 @@ export const AKCNationalsScoresheet: React.FC<AKCNationalsScoresheetProps> = ({
   // Stopwatch for current area
   const stopwatch = useStopwatch({
     maxTime: areaMaxTimeStr,
-    level: classInfo.level,
+    ...(classInfo.level !== undefined && { level: classInfo.level }),
     onTimeExpired: (formattedTime) => {
       handleAreaUpdate(currentArea, 'time', formattedTime);
     },

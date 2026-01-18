@@ -23,7 +23,7 @@ export interface EntryValidationContext {
   trial: Trial;
   class: Class;
   dog: Dog;
-  handler?: User;
+  handler?: User | undefined;
   existingEntries: ShowEntry[];
 }
 
@@ -38,7 +38,7 @@ export interface EntryValidationResult {
   isValid: boolean;
   errors: EntryValidationError[];
   warnings: EntryValidationError[];
-  normalizedData?: Partial<ShowEntryInput>;
+  normalizedData?: Partial<ShowEntryInput> | undefined;
 }
 
 export class EntryValidator {

@@ -26,7 +26,7 @@ import { RegistrationWorkflow } from '@/components/shows/RegistrationWorkflow';
 import { RegistrationProvider } from '@/context/RegistrationContext';
 import { Button } from '@/components/ui/button';
 import { Plus, ArrowLeft } from 'lucide-react';
-import type { ClassData } from '@/components/classes/types/classTypes';
+import type { ClassData, CompetitionResult } from '@/components/classes/types/classTypes';
 import type { ShowEntry } from '@/types/entry-lifecycle';
 import type { CompetitionData } from '@/store/entryStore';
 
@@ -71,7 +71,7 @@ const ClassDetailsPage: React.FC = () => {
   // Fixed: Only run after initial render and with proper guards
   useEffect(() => {
     // Add guards to prevent running during SSR or initial hydration
-    if (typeof window === 'undefined') return undefined;
+    if (typeof window === 'undefined') return;
     if (!classId && trialClasses.length > 0 && classes.length > 0) {
       // Use requestAnimationFrame to ensure this runs after the current render cycle
       const frameId = requestAnimationFrame(() => {
@@ -81,7 +81,7 @@ const ClassDetailsPage: React.FC = () => {
       });
       return () => cancelAnimationFrame(frameId);
     }
-    return undefined;
+    return;
   }, [classId, trialClasses, navigate, classes.length]);
 
   // Get entries for current class using safe custom hook
@@ -146,15 +146,15 @@ const ClassDetailsPage: React.FC = () => {
         qualified: typedEntry.competitionData?.qualified
       });
       
+      const qualificationReason = (typedEntry.competitionData as unknown as CompetitionData & { qualificationReason?: string })?.qualificationReason;
       return {
         id: typedEntry.id,
         armband: typedEntry.registrationData?.armband || '',
         handler: typedEntry.registrationData?.handler || '',
         dog: dog?.callName || dog?.name || 'Unknown Dog',
-        status: ((typedEntry.competitionData as unknown as CompetitionData & { qualification?: string })?.qualification || 
-                (typedEntry.competitionData?.qualified ? 'Qualified' : 'Not Qualified')) as 'Qualified' | 'Not Qualified' | 'Absent' | 'Excused' | 'Withdrawn',
-        qualificationReason: (typedEntry.competitionData as unknown as CompetitionData & { qualificationReason?: string })?.qualificationReason,
-        recordedAt: new Date(), // Add missing required property
+        status: ((typedEntry.competitionData as unknown as CompetitionData & { qualification?: string })?.qualification ||
+                (typedEntry.competitionData?.qualified ? 'Qualified' : 'Not Qualified')) as 'Qualified' | 'Not Qualified' | 'Absent' | 'Excused' | 'Withdrawn' | 'Eliminated',
+        ...(qualificationReason !== undefined && { qualificationReason }),
         score: typedEntry.competitionData?.score || '',
         time: typedEntry.competitionData?.time || '',
         placement: typedEntry.competitionData?.placement || '',
@@ -272,7 +272,7 @@ const ClassDetailsPage: React.FC = () => {
     }
   };
 
-  const handleResultUpdate = async (entryId: string, result: Partial<{ time: string; status: string; score: string; placement: string; qualificationReason?: string }>) => {
+  const handleResultUpdate = async (entryId: string, result: Partial<CompetitionResult>) => {
     try {
       logger.debug('handleResultUpdate called', 'classes', { entryId, result });
 
@@ -420,8 +420,8 @@ const ClassDetailsPage: React.FC = () => {
             <ClassDetailsMain
               classData={currentClass}
               classEntries={classEntries}
-              parentShow={parentShow}
-              parentTrial={parentTrial}
+              {...(parentShow !== undefined && { parentShow })}
+              {...(parentTrial !== undefined && { parentTrial })}
               isResultsView={isResultsView}
               onEditClass={handleEditClass}
               onDeleteClass={handleDeleteClass}

@@ -12,11 +12,11 @@ import { LucideIcon } from 'lucide-react';
 export interface IconContainerProps {
   icon: LucideIcon;
   size?: 'sm' | 'md' | 'lg' | 'xl';
-  variant?: 'default' | 'success' | 'warning' | 'danger' | 'info' | 'premium';
+  variant?: 'default' | 'success' | 'warning' | 'danger' | 'info' | 'premium' | undefined;
   hover?: boolean;
   rounded?: 'md' | 'lg' | 'xl' | 'full';
   className?: string;
-  onClick?: () => void;
+  onClick?: (() => void) | undefined;
 }
 
 export function IconContainer({

@@ -127,15 +127,15 @@ export interface FieldValidationRule {
 export interface ValueConstraint {
   type: 'range' | 'enum' | 'pattern';
   // For range constraints
-  min?: number;
-  max?: number;
-  unit?: string;
+  min?: number | undefined;
+  max?: number | undefined;
+  unit?: string | undefined;
   // For enum constraints
-  allowedValues?: string[];
+  allowedValues?: string[] | undefined;
   // For pattern constraints
-  pattern?: RegExp;
+  pattern?: RegExp | undefined;
   // Display helper text
-  hint?: string;
+  hint?: string | undefined;
 }
 
 export interface TemplateFieldConfiguration {
@@ -143,12 +143,12 @@ export interface TemplateFieldConfiguration {
   required: boolean;
   visible: boolean;
   editable: boolean;
-  defaultValue?: string | number | boolean | Date | string[] | number[]; // Added number[] for duration arrays
+  defaultValue?: string | number | boolean | Date | string[] | number[] | undefined; // Added number[] for duration arrays
   displayOrder: number;
-  conditionalRules?: ConditionalRule[];
-  overrideOptions?: FieldOption[]; // Template can override field options
-  defaultVariesByClass?: boolean; // Whether default can be customized per class
-  valueConstraints?: ValueConstraint; // Value restrictions and hints
+  conditionalRules?: ConditionalRule[] | undefined;
+  overrideOptions?: FieldOption[] | undefined; // Template can override field options
+  defaultVariesByClass?: boolean | undefined; // Whether default can be customized per class
+  valueConstraints?: ValueConstraint | undefined; // Value restrictions and hints
 }
 
 export interface ConditionalRule {
@@ -229,7 +229,7 @@ export interface StructuredClassData {
   // Administrative fields
   entryLimit?: number;
   currentEntries?: number;
-  notes?: string;
+  notes?: string | undefined;
   status?: string;
   
   // For any truly custom fields that don't fit the schema

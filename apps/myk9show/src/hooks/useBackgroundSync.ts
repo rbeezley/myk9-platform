@@ -7,13 +7,13 @@ export interface BackgroundSyncState {
   isOnline: boolean;
   isSyncing: boolean;
   queueSize: number;
-  lastSyncAt?: Date;
+  lastSyncAt?: Date | undefined;
   syncProgress?: {
     completed: number;
     total: number;
-    currentEntity?: string;
-  };
-  error?: string;
+    currentEntity?: string | undefined;
+  } | undefined;
+  error?: string | undefined;
   metrics: SyncMetrics;
   networkState: NetworkState;
 }

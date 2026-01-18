@@ -25,7 +25,7 @@ type WizardTrial = {
   classes: Array<{
     templateId: string;
     customizations: Record<string, unknown>;
-    judgeId?: string;
+    judgeId?: string | undefined;
   }>;
 };
 
@@ -37,15 +37,15 @@ interface ShowSelectorShow {
   startDate: string;
   endDate: string;
   location: string;
-  clubId?: string;
-  entryDeadline?: string;
-  entryCloseDate?: string;
-  entryFee?: number;
-  preEntryFee?: string;
+  clubId?: string | undefined;
+  entryDeadline?: string | undefined;
+  entryCloseDate?: string | undefined;
+  entryFee?: number | undefined;
+  preEntryFee?: string | undefined;
   status: 'upcoming' | 'active' | 'completed' | 'cancelled';
-  trials?: WizardTrial[];
-  classes?: { id: string; name: string }[];
-  judgeIds?: string[];
+  trials?: WizardTrial[] | undefined;
+  classes?: { id: string; name: string }[] | undefined;
+  judgeIds?: string[] | undefined;
 }
 
 // Cloneable show type matching CloneReviewStep expectations
@@ -59,10 +59,10 @@ interface CloneableShow {
   entryFee: number; // Legacy field for compatibility
   entryDeadline: string; // Alias for entryCloseDate for backward compatibility
   entryCloseDate: string;
-  clubId?: string;
-  trials?: WizardTrial[];
-  classes?: { id: string; name: string }[];
-  judgeIds?: string[];
+  clubId?: string | undefined;
+  trials?: WizardTrial[] | undefined;
+  classes?: { id: string; name: string }[] | undefined;
+  judgeIds?: string[] | undefined;
 }
 
 interface ShowCloneDialogProps {
@@ -77,9 +77,9 @@ interface CloneTransformation {
   updateJudges: boolean;
   updateFees: boolean;
   updateLocation: boolean;
-  newName?: string;
-  newLocation?: string;
-  newEntryFee?: number;
+  newName?: string | undefined;
+  newLocation?: string | undefined;
+  newEntryFee?: number | undefined;
 }
 
 export const ShowCloneDialog: React.FC<ShowCloneDialogProps> = ({

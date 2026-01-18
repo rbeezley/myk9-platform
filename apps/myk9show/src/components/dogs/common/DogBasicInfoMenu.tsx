@@ -2,9 +2,9 @@ import React from 'react';
 import ThreeDotMenu from '@/components/common/ThreeDotMenu';
 
 interface DogBasicInfoMenuProps {
-  onEdit?: () => void;
-  onDelete?: () => void;
-  onEditPhoto?: () => void;
+  onEdit?: (() => void) | undefined;
+  onDelete?: (() => void) | undefined;
+  onEditPhoto?: (() => void) | undefined;
 }
 
 const DogBasicInfoMenu: React.FC<DogBasicInfoMenuProps> = ({ onEdit, onDelete, onEditPhoto }) => {

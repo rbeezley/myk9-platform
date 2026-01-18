@@ -21,9 +21,9 @@ interface CloneTransformation {
   updateJudges: boolean;
   updateFees: boolean;
   updateLocation: boolean;
-  newName?: string;
-  newLocation?: string;
-  newEntryFee?: number;
+  newName?: string | undefined;
+  newLocation?: string | undefined;
+  newEntryFee?: number | undefined;
 }
 
 interface CloneableShow {
@@ -35,16 +35,16 @@ interface CloneableShow {
   location: string;
   entryFee: number;
   entryDeadline: string;
-  trials?: { id: string; name: string }[];
-  classes?: { id: string; name: string }[];
-  judgeIds?: string[];
+  trials?: { id: string; name: string }[] | undefined;
+  classes?: { id: string; name: string }[] | undefined;
+  judgeIds?: string[] | undefined;
 }
 
 interface CloneReviewStepProps {
   originalShow: CloneableShow;
   transformation: CloneTransformation;
   onTransformationChange: (updates: Partial<CloneTransformation>) => void;
-  className?: string;
+  className?: string | undefined;
 }
 
 export const CloneReviewStep: React.FC<CloneReviewStepProps> = ({

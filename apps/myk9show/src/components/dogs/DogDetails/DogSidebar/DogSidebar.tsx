@@ -10,8 +10,8 @@ import { logger } from '@/services/LoggingService';
 
 interface DogWithDetails {
   id: string;
-  callName?: string;
-  registrations?: Array<{ registeredName?: string; breed?: string }>;
+  callName?: string | undefined;
+  registrations?: Array<{ registeredName?: string | undefined; breed?: string | undefined }> | undefined;
 }
 
 interface DogSidebarProps {

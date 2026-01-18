@@ -6,17 +6,17 @@ import { logger } from '@/services/LoggingService';
 export interface ArmbandAssignment {
   id: string;
   showId: string;
-  trialId?: string;
+  trialId?: string | undefined;
   dogId: string;
   armbandNumber: string;
   assignedDate: string;
   assignedBy: string;
   // Support for multi-day shows
-  dayNumber?: number;
-  ringId?: string;
+  dayNumber?: number | undefined;
+  ringId?: string | undefined;
   // Conflict tracking
-  conflicts?: string[];
-  isManualOverride?: boolean;
+  conflicts?: string[] | undefined;
+  isManualOverride?: boolean | undefined;
 }
 
 export interface ArmbandRange {
@@ -93,10 +93,10 @@ interface NumberOptions {
 }
 
 interface ConflictOptions {
-  trialId?: string;
-  ringId?: string;
-  dayNumber?: number;
-  checkAllDays?: boolean;
+  trialId?: string | undefined;
+  ringId?: string | undefined;
+  dayNumber?: number | undefined;
+  checkAllDays?: boolean | undefined;
 }
 
 interface ConflictResolution {

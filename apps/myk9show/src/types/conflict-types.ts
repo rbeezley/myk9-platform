@@ -158,7 +158,7 @@ export interface ScoringConflict extends BaseConflict {
   
   // Competition context
   classId: string;
-  showId?: string;
+  showId?: string | undefined;
   entryId: string;
   judgeIds: string[];
   

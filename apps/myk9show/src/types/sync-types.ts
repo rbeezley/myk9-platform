@@ -16,7 +16,7 @@ export interface SyncAction {
   timestamp: Date;
   userId: string;
   retries: number;
-  lastError?: string;
+  lastError?: string | undefined;
 }
 
 // Alias for backward compatibility and external integrations
@@ -35,8 +35,8 @@ export type SyncOperation = {
 export interface SyncPayload {
   version: string;
   timestamp: number;
-  operations?: SyncOperation[];
-  metadata?: Record<string, unknown>;
+  operations?: SyncOperation[] | undefined;
+  metadata?: Record<string, unknown> | undefined;
 }
 
 // Use unified conflict system
@@ -51,10 +51,10 @@ export interface SyncQueueItem {
   timestamp: Date;
   userId: string;
   retries: number;
-  lastError?: string;
+  lastError?: string | undefined;
   priority: number;
   scheduledFor: Date;
-  processedAt?: Date;
+  processedAt?: Date | undefined;
   status: 'pending' | 'processing' | 'completed' | 'failed';
   retryCount: number;
 }
@@ -65,7 +65,7 @@ export interface SyncMetrics {
   conflictRate: number;
   offlineUsageTime: number;
   queueSize: number;
-  lastSyncAt?: Date;
+  lastSyncAt?: Date | undefined;
 }
 
 export interface SyncScope {
@@ -77,9 +77,9 @@ export interface SyncScope {
     classes: 'none' | 'trial-specific' | 'assigned' | 'all';
     entries: 'none' | 'own' | 'class-specific' | 'show-specific' | 'all';
   };
-  timeRange?: { start: Date; end: Date };
-  maxRecords?: number;
-  geoScope?: { radius: number; center: [lat: number, lon: number] };
+  timeRange?: { start: Date; end: Date } | undefined;
+  maxRecords?: number | undefined;
+  geoScope?: { radius: number; center: [lat: number, lon: number] } | undefined;
 }
 
 export interface SyncScopeConfig {
@@ -135,7 +135,7 @@ export interface SyncProgress {
   total: number;
   completed: number;
   status: 'pending' | 'syncing' | 'completed' | 'error';
-  message?: string;
+  message?: string | undefined;
 }
 
 export interface StorageInfo {
@@ -160,7 +160,7 @@ export interface ConflictSuggestion {
   strategy: ResolutionStrategy;
   confidence: number;
   reason: string;
-  suggestedData?: Record<string, unknown>;
+  suggestedData?: Record<string, unknown> | undefined;
 }
 
 export interface FieldSuggestion {
@@ -179,14 +179,14 @@ export interface NetworkState {
   isOnline: boolean;
   quality: NetworkQuality;
   lastChecked: Date;
-  bandwidth?: number; // in Mbps
+  bandwidth?: number | undefined; // in Mbps
 }
 
 // Sync events for real-time updates
 export interface SyncEvent {
   type: 'sync-started' | 'sync-completed' | 'sync-failed' | 'conflict-detected' | 'conflict-resolved' | 'connection-restored' | 'connection-lost' | 'storage-warning' | 'operation-queued';
-  entityType?: string;
-  entityId?: string;
-  details?: Record<string, unknown>;
+  entityType?: string | undefined;
+  entityId?: string | undefined;
+  details?: Record<string, unknown> | undefined;
   timestamp: Date;
 }

@@ -320,7 +320,7 @@ export const trackTemplateUsage = (
     templateId,
     usedBy,
     usageType,
-    metadata,
+    ...(metadata !== undefined && { metadata }),
     usedAt: new Date(),
   };
 };

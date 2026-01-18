@@ -10,10 +10,10 @@ import { logger } from '@/services/LoggingService';
 
 export interface ErrorContext {
   operation: string;
-  entityType?: string;
-  entityId?: string;
-  userId?: string;
-  metadata?: Record<string, unknown>;
+  entityType?: string | undefined;
+  entityId?: string | undefined;
+  userId?: string | undefined;
+  metadata?: Record<string, unknown> | undefined;
 }
 
 export interface ErrorReport {
@@ -227,7 +227,9 @@ export class StandardErrorHandler {
     const error = new Error(contextualMessage);
     
     if (originalError) {
-      error.stack = originalError.stack;
+      if (originalError.stack !== undefined) {
+        error.stack = originalError.stack;
+      }
       // Note: Error.cause is ES2022+, using custom property for compatibility
       (error as any).originalError = originalError;
     }

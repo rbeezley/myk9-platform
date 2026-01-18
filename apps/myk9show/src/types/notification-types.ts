@@ -99,7 +99,7 @@ export interface JudgeAssignmentData {
 }
 
 export interface EmergencyAlertData {
-  showId?: string;
+  showId?: string | undefined;
   alertType: 'weather' | 'venue' | 'health' | 'general';
   severity: 'low' | 'medium' | 'high' | 'critical';
   message: string;

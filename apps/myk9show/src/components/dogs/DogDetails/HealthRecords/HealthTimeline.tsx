@@ -26,15 +26,15 @@ export interface HealthEvent {
   id: string;
   type: 'vaccination' | 'vet_visit' | 'medication' | 'allergy' | 'surgery' | 'checkup';
   title: string;
-  description?: string;
+  description?: string | undefined;
   date: Date;
-  vetName?: string;
-  clinic?: string;
-  cost?: number;
+  vetName?: string | undefined;
+  clinic?: string | undefined;
+  cost?: number | undefined;
   status: 'completed' | 'scheduled' | 'overdue';
-  attachments?: HealthAttachment[];
-  notes?: string;
-  expiration?: Date;
+  attachments?: HealthAttachment[] | undefined;
+  notes?: string | undefined;
+  expiration?: Date | undefined;
 }
 
 interface HealthAttachment {

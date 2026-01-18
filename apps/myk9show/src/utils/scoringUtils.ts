@@ -18,7 +18,7 @@ export interface SyncMetrics {
   syncedScores: number;
   pendingScores: number;
   failedScores: number;
-  lastSyncTime?: Date;
+  lastSyncTime?: Date | undefined;
   syncSuccess: number; // percentage
   averageSyncTime: number; // ms
 }
@@ -35,7 +35,7 @@ export interface JudgeActivity {
   sessionsCompleted: number;
   scoresSubmitted: number;
   averageScoreTime: number;
-  lastActivity?: Date;
+  lastActivity?: Date | undefined;
 }
 
 // Get status color helper

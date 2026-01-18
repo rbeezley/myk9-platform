@@ -17,15 +17,15 @@ interface PermissionGuardProps {
   scope?: {
     type: string;
     id: string;
-  };
-  fallback?: ReactNode;
-  showFallback?: boolean;
-  requireAll?: string[]; // Require all these permissions
-  requireAny?: string[]; // Require any of these permissions
-  roles?: string[]; // Alternative: check for specific roles
-  onPermissionDenied?: () => void;
-  loading?: ReactNode;
-  className?: string;
+  } | undefined;
+  fallback?: ReactNode | undefined;
+  showFallback?: boolean | undefined;
+  requireAll?: string[] | undefined; // Require all these permissions
+  requireAny?: string[] | undefined; // Require any of these permissions
+  roles?: string[] | undefined; // Alternative: check for specific roles
+  onPermissionDenied?: (() => void) | undefined;
+  loading?: ReactNode | undefined;
+  className?: string | undefined;
 }
 
 /**

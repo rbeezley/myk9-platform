@@ -182,14 +182,14 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
         first_name: formData.firstName,
         last_name: formData.lastName,
         email: formData.email,
-        phone: formData.phone || undefined,
-        // address: formData.address || undefined, // Not in DB schema
-        city: formData.city || undefined,
-        state: formData.state || undefined,
-        zip_code: formData.zipCode || undefined,
-        // country: formData.country || undefined, // Not in DB schema
-        // membershipId: formData.membershipId || undefined, // Not in DB schema
-        // clubAffiliations: formData.clubAffiliations.length > 0 ? formData.clubAffiliations : undefined, // Not in DB schema
+        phone: formData.phone || null,
+        // address: formData.address || null, // Not in DB schema
+        city: formData.city || null,
+        state: formData.state || null,
+        zip_code: formData.zipCode || null,
+        // country: formData.country || null, // Not in DB schema
+        // membershipId: formData.membershipId || null, // Not in DB schema
+        // clubAffiliations: formData.clubAffiliations.length > 0 ? formData.clubAffiliations : null, // Not in DB schema
         roles: formData.roles,
         // In real implementation, password would be handled by Supabase Auth
         // password,

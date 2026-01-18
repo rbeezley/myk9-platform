@@ -14,7 +14,7 @@ import '@/styles/apple-show-details.css';
 interface TrialDetailsMainProps {
   trial: Trial & { classes?: TrialClass[] };
   statistics: TrialStatisticsData;
-  parentShow?: { id: string; name: string; type: string } & Record<string, unknown>;
+  parentShow?: { id: string; name: string; type: string } & Record<string, unknown> | undefined;
   onEdit: () => void;
   onDelete: () => void;
   onAddClassesFromTemplate?: () => void;
@@ -239,7 +239,7 @@ const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
         
         <TrialClassesTable
           classes={trial.classes || []}
-          onAddClassesFromTemplate={onAddClassesFromTemplate}
+          {...(onAddClassesFromTemplate !== undefined && { onAddClassesFromTemplate })}
           onEditClass={onEditClass}
           onDeleteClass={onDeleteClass}
         />

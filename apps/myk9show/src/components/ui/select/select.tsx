@@ -8,15 +8,19 @@ import { cn } from "@/lib/utils"
 // Use generic to allow typed callbacks like (value: MyEnum) => void
 // Note: Base UI Select.Root doesn't support ref forwarding
 interface SelectProps<T extends string = string> extends Omit<React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root>, 'onValueChange' | 'value' | 'defaultValue'> {
-  onValueChange?: (value: T) => void
-  value?: T
-  defaultValue?: T
+  onValueChange?: ((value: T) => void) | undefined
+  value?: T | undefined
+  defaultValue?: T | undefined
 }
 
 function Select<T extends string = string>({ onValueChange, ...props }: SelectProps<T>) {
+  const handleValueChange = onValueChange
+    ? (value: unknown) => onValueChange((value ?? '') as T)
+    : undefined
+
   return (
     <SelectPrimitive.Root
-      onValueChange={onValueChange ? (value: unknown) => onValueChange((value ?? '') as T) : undefined}
+      {...(handleValueChange !== undefined && { onValueChange: handleValueChange })}
       {...props}
     />
   )
@@ -29,7 +33,7 @@ const SelectGroup = SelectPrimitive.Group
 // Base UI's Value component renders the selected item's text
 // For placeholder, we need to show it when no value is selected
 interface SelectValueProps extends Omit<React.ComponentPropsWithoutRef<typeof SelectPrimitive.Value>, 'placeholder'> {
-  placeholder?: string
+  placeholder?: string | undefined
 }
 
 const SelectValue = React.forwardRef<
@@ -38,7 +42,7 @@ const SelectValue = React.forwardRef<
 >(({ placeholder, className, ...props }, ref) => (
   <SelectPrimitive.Value
     ref={ref}
-    className={className}
+    {...(className !== undefined && { className })}
     {...props}
   >
     {(state) => state.value ?? (placeholder ? <span className="text-muted-foreground">{placeholder}</span> : null)}

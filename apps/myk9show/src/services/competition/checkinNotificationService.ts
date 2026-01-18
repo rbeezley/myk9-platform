@@ -25,12 +25,12 @@ export interface CheckInEvent {
   checkInStatus: CheckInStatus;
   previousStatus: CheckInStatus;
   timestamp: Date;
-  location?: string;
+  location?: string | undefined;
   checkedInBy: string;
-  ringAssignment?: string;
+  ringAssignment?: string | undefined;
   sequence: number;
-  estimatedRingTime?: Date;
-  notes?: string;
+  estimatedRingTime?: Date | undefined;
+  notes?: string | undefined;
 }
 
 export interface CheckInNotification {

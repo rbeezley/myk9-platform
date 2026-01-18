@@ -43,12 +43,12 @@ export const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
   const { networkStatus } = useOfflineFirst();
 
   // Convert Error to StructuredError if needed
-  const structuredError: StructuredError = 'severity' in error 
+  const structuredError: StructuredError = 'severity' in error
     ? error as StructuredError
     : {
         id: `error_${Date.now()}`,
         message: error.message,
-        stack: error.stack,
+        ...(error.stack !== undefined && { stack: error.stack }),
         context: {
           sessionId: 'current',
           userAgent: navigator.userAgent,

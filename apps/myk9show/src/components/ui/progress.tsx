@@ -8,7 +8,7 @@ interface ProgressProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 const Progress = React.forwardRef<HTMLDivElement, ProgressProps>(
-  ({ className, value = 0, ...props }, ref) => (
+  ({ className, value = 0, style, ...props }, ref) => (
     <ProgressPrimitive.Root
       ref={ref}
       value={value}
@@ -16,6 +16,7 @@ const Progress = React.forwardRef<HTMLDivElement, ProgressProps>(
         "relative h-4 w-full overflow-hidden rounded-full bg-secondary",
         className
       )}
+      {...(style !== undefined && { style })}
       {...props}
     >
       <ProgressPrimitive.Track className="h-full w-full">

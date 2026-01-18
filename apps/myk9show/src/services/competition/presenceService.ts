@@ -21,16 +21,16 @@ export interface UserPresence {
   joinedAt: Date;
   location: {
     page: string;
-    section?: string;
-    classId?: string;
-    entryId?: string;
+    section?: string | undefined;
+    classId?: string | undefined;
+    entryId?: string | undefined;
     showId: string;
   };
   activity: {
     type: 'viewing' | 'editing' | 'scoring' | 'judging' | 'checking-in' | 'managing' | 'idle';
     description: string;
     startedAt: Date;
-    details?: Record<string, unknown>;
+    details?: Record<string, unknown> | undefined;
   };
   device: {
     type: 'desktop' | 'tablet' | 'mobile';
@@ -39,15 +39,15 @@ export interface UserPresence {
     screen?: {
       width: number;
       height: number;
-    };
+    } | undefined;
   };
   preferences: {
     showPresence: boolean;
     showActivity: boolean;
     notificationLevel: 'all' | 'mentions' | 'none';
   };
-  avatar?: string;
-  badgeColor?: string;
+  avatar?: string | undefined;
+  badgeColor?: string | undefined;
 }
 
 export interface PresenceGroup {
@@ -58,8 +58,8 @@ export interface PresenceGroup {
   userCount: number;
   users: UserPresence[];
   showId: string;
-  classId?: string;
-  metadata?: Record<string, unknown>;
+  classId?: string | undefined;
+  metadata?: Record<string, unknown> | undefined;
 }
 
 export interface ActivityIndicator {
@@ -70,10 +70,10 @@ export interface ActivityIndicator {
   startedAt: Date;
   expiresAt: Date;
   metadata?: {
-    targetElement?: string;
-    progress?: number;
-    estimatedCompletion?: Date;
-  };
+    targetElement?: string | undefined;
+    progress?: number | undefined;
+    estimatedCompletion?: Date | undefined;
+  } | undefined;
   [key: string]: unknown; // Index signature for broadcast compatibility
 }
 

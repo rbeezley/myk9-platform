@@ -79,10 +79,11 @@ export function assignArmbandToDoǵ(options: ArmbandAssignmentOptions): ArmbandA
       assignments.push(assignment);
     } else {
       // Get next available number for this day
+      const ringId = getRingIdFromClasses();
       const armbandNumber = armbandStore.getNextAvailableNumber(options.showId, {
         dayNumber,
         trialId: classes[0].trialId,
-        ringId: getRingIdFromClasses()
+        ...(ringId !== undefined && { ringId })
       });
       
       const assignment = armbandStore.assignArmband({
@@ -293,8 +294,8 @@ function assignSequentially(options: BulkArmbandAssignmentOptions): Map<string, 
       showId: options.showId,
       dogId,
       classSelections,
-      show: options.show,
-      trials: options.trials,
+      ...(options.show !== undefined && { show: options.show }),
+      ...(options.trials !== undefined && { trials: options.trials }),
       assignedBy: options.assignedBy
     });
     assignmentMap.set(dogId, assignments);
@@ -333,8 +334,8 @@ function assignByTrial(options: BulkArmbandAssignmentOptions): Map<string, Armba
       dogIds,
       {
         trialId,
-        prefix: options.prefix,
-        startingNumber: options.startingNumber
+        ...(options.prefix !== undefined && { prefix: options.prefix }),
+        ...(options.startingNumber !== undefined && { startingNumber: options.startingNumber })
       }
     );
     
@@ -389,7 +390,7 @@ function assignByDay(options: BulkArmbandAssignmentOptions): Map<string, Armband
       {
         dayNumber,
         prefix: options.prefix || `D${dayNumber}`,
-        startingNumber: options.startingNumber
+        ...(options.startingNumber !== undefined && { startingNumber: options.startingNumber })
       }
     );
     

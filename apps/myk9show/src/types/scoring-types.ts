@@ -40,7 +40,7 @@ export interface PlacementUpdate {
   classId: string;
   entryId: string;
   newPlacement: number;
-  previousPlacement?: number;
+  previousPlacement?: number | undefined;
   timestamp: Date;
 }
 
@@ -71,11 +71,11 @@ export type ScoringFormat =
   | 'dock_diving';
 
 export interface BaseScore {
-  id?: string;
+  id?: string | undefined;
   entryId: string;
   classId: string;
-  showId?: string;
-  dogId?: string;
+  showId?: string | undefined;
+  dogId?: string | undefined;
   judgeId: string;
   format: ScoringFormat;
 
@@ -84,19 +84,19 @@ export interface BaseScore {
   timestamp: Date;
 
   // Scoring fields
-  points?: number;
-  faults?: number;
-  time?: number;
-  placement?: number;
+  points?: number | undefined;
+  faults?: number | undefined;
+  time?: number | undefined;
+  placement?: number | undefined;
 
   // Judge information
-  judgeNotes?: string;
+  judgeNotes?: string | undefined;
   recordedBy: string;
   recordedAt: Date;
 
   // Metadata for offline support
-  isProvisional?: boolean;
-  placementCalculated?: number;
+  isProvisional?: boolean | undefined;
+  placementCalculated?: number | undefined;
   version: number;
   lastModified: Date;
   syncStatus: 'pending' | 'synced' | 'conflict' | 'error';
@@ -138,17 +138,17 @@ export interface ObedienceScore extends BaseScore {
   format: 'obedience';
 
   // Exercise scores
-  exercises: ObedienceExercise[];
-  totalScore: number;          // Sum of all exercises
-  maximumScore: number;        // Perfect score for class
+  exercises?: ObedienceExercise[] | undefined;
+  totalScore?: number | undefined;          // Sum of all exercises
+  maximumScore?: number | undefined;        // Perfect score for class
 
   // Qualification thresholds
-  qualifyingScore: number;     // Minimum to qualify (170+ typically)
-  isQualifying: boolean;
+  qualifyingScore?: number | undefined;     // Minimum to qualify (170+ typically)
+  isQualifying?: boolean | undefined;
 
   // Special conditions
-  nonQualifyingExercise?: string; // Exercise that caused NQ
-  excusedExercise?: string;      // Exercise dog was excused from
+  nonQualifyingExercise?: string | undefined; // Exercise that caused NQ
+  excusedExercise?: string | undefined;      // Exercise dog was excused from
 }
 
 export interface ObedienceExercise {
@@ -201,21 +201,21 @@ export interface ConformationScore extends BaseScore {
   format: 'conformation';
 
   // Placement-based scoring
-  placement?: number;          // 1st, 2nd, 3rd, 4th, etc.
-  awardLevel?: 'Winners' | 'Best of Breed' | 'Best of Opposite Sex' | 'Select Dog' | 'Select Bitch' | 'Award of Merit';
+  placement?: number | undefined;          // 1st, 2nd, 3rd, 4th, etc.
+  awardLevel?: 'Winners' | 'Best of Breed' | 'Best of Opposite Sex' | 'Select Dog' | 'Select Bitch' | 'Award of Merit' | undefined;
 
   // Points awarded
   pointsAwarded: number;       // Championship points
-  majorWin?: boolean;         // 3+ points
-  specialtyWin?: boolean;     // Specialty show win
+  majorWin?: boolean | undefined;         // 3+ points
+  specialtyWin?: boolean | undefined;     // Specialty show win
 
   // Judge assessment (optional)
-  gaitScore?: number;         // 1-10 scale
-  typeScore?: number;         // 1-10 scale
-  temperamentScore?: number;  // 1-10 scale
+  gaitScore?: number | undefined;         // 1-10 scale
+  typeScore?: number | undefined;         // 1-10 scale
+  temperamentScore?: number | undefined;  // 1-10 scale
 
   // Competition level
-  competitionLevel: 'Puppy' | 'Open' | 'Bred-by-Exhibitor' | 'American Bred' | 'Specials';
+  competitionLevel?: 'Puppy' | 'Open' | 'Bred-by-Exhibitor' | 'American Bred' | 'Specials' | undefined;
 }
 
 // ============================================================================
@@ -226,18 +226,18 @@ export interface TrackingScore extends BaseScore {
   format: 'tracking';
 
   // Pass/fail system
-  passed: boolean;
+  passed?: boolean | undefined;
 
   // Track details
-  trackLength?: number;        // Yards
-  trackAge?: number;          // Hours
-  articlesFindRequired: number;
-  articlesFound: number;
+  trackLength?: number | undefined;        // Yards
+  trackAge?: number | undefined;          // Hours
+  articlesFindRequired?: number | undefined;
+  articlesFound?: number | undefined;
 
   // Weather conditions
-  weatherConditions?: string;
-  windDirection?: string;
-  temperature?: number;
+  weatherConditions?: string | undefined;
+  windDirection?: string | undefined;
+  temperature?: number | undefined;
 }
 
 export interface LureCoursingScore extends BaseScore {
@@ -385,13 +385,13 @@ export interface PlacementEntry {
   armband: string;
 
   // Placement info
-  placement?: number;
+  placement?: number | undefined;
   isTied: boolean;
-  tiedWith?: string[];        // Entry IDs of tied entries
+  tiedWith?: string[] | undefined;        // Entry IDs of tied entries
 
   // Score summary
   primaryScore: number | string;  // Main sorting criteria
-  secondaryScore?: number;        // Tie-breaker
+  secondaryScore?: number | undefined;        // Tie-breaker
   qualification: QualificationStatus;
 
   // Raw score reference

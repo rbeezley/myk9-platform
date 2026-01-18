@@ -98,15 +98,27 @@ const DropdownMenuContent = React.forwardRef<
 ))
 DropdownMenuContent.displayName = "DropdownMenuContent"
 
-interface DropdownMenuItemProps extends React.ComponentPropsWithoutRef<typeof MenuPrimitive.Item> {
+// Use Omit to remove properties we want to redefine for exactOptionalPropertyTypes
+type DropdownMenuItemProps = Omit<
+  React.ComponentPropsWithoutRef<typeof MenuPrimitive.Item>,
+  'onClick' | 'disabled'
+> & {
   inset?: boolean
   asChild?: boolean
+  onClick?: () => void
+  disabled?: boolean
 }
 
 const DropdownMenuItem = React.forwardRef<
   React.ElementRef<typeof MenuPrimitive.Item>,
   DropdownMenuItemProps
->(({ className, inset, asChild, children, ...props }, ref) => {
+>(({ className, inset, asChild, children, onClick, disabled, ...props }, ref) => {
+  // Conditionally include onClick and disabled to avoid passing undefined
+  const conditionalProps = {
+    ...(onClick !== undefined ? { onClick } : {}),
+    ...(disabled !== undefined ? { disabled } : {}),
+  }
+
   if (asChild && React.isValidElement(children)) {
     return (
       <MenuPrimitive.Item
@@ -117,6 +129,7 @@ const DropdownMenuItem = React.forwardRef<
           inset && "pl-8",
           className
         )}
+        {...conditionalProps}
         {...props}
       />
     )
@@ -129,6 +142,7 @@ const DropdownMenuItem = React.forwardRef<
         inset && "pl-8",
         className
       )}
+      {...conditionalProps}
       {...props}
     >
       {children}
@@ -137,27 +151,40 @@ const DropdownMenuItem = React.forwardRef<
 })
 DropdownMenuItem.displayName = "DropdownMenuItem"
 
+// Use Omit to handle checked property for exactOptionalPropertyTypes
+type DropdownMenuCheckboxItemProps = Omit<
+  React.ComponentPropsWithoutRef<typeof MenuPrimitive.CheckboxItem>,
+  'checked'
+> & {
+  checked?: boolean
+}
+
 const DropdownMenuCheckboxItem = React.forwardRef<
   React.ElementRef<typeof MenuPrimitive.CheckboxItem>,
-  React.ComponentPropsWithoutRef<typeof MenuPrimitive.CheckboxItem>
->(({ className, children, checked, ...props }, ref) => (
-  <MenuPrimitive.CheckboxItem
-    ref={ref}
-    className={cn(
-      "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-      className
-    )}
-    checked={checked}
-    {...props}
-  >
-    <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
-      <MenuPrimitive.CheckboxItemIndicator>
-        <Check className="h-4 w-4" />
-      </MenuPrimitive.CheckboxItemIndicator>
-    </span>
-    {children}
-  </MenuPrimitive.CheckboxItem>
-))
+  DropdownMenuCheckboxItemProps
+>(({ className, children, checked, ...props }, ref) => {
+  // Conditionally include checked to avoid passing undefined
+  const checkedProps = checked !== undefined ? { checked } : {}
+
+  return (
+    <MenuPrimitive.CheckboxItem
+      ref={ref}
+      className={cn(
+        "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+        className
+      )}
+      {...checkedProps}
+      {...props}
+    >
+      <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
+        <MenuPrimitive.CheckboxItemIndicator>
+          <Check className="h-4 w-4" />
+        </MenuPrimitive.CheckboxItemIndicator>
+      </span>
+      {children}
+    </MenuPrimitive.CheckboxItem>
+  )
+})
 DropdownMenuCheckboxItem.displayName = "DropdownMenuCheckboxItem"
 
 const DropdownMenuRadioItem = React.forwardRef<

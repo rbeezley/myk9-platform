@@ -6,9 +6,10 @@ import { cn } from "@/lib/utils"
 
 // Wrapper to maintain Radix API compatibility
 // Base UI: onCheckedChange(checked, eventDetails) -> Radix: onCheckedChange(checked)
-interface CheckboxProps extends Omit<React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root>, 'onCheckedChange'> {
-  onChange?: (checked: boolean) => void
-  onCheckedChange?: (checked: boolean) => void
+interface CheckboxProps extends Omit<React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root>, 'onCheckedChange' | 'checked'> {
+  checked?: boolean | undefined
+  onChange?: ((checked: boolean) => void) | undefined
+  onCheckedChange?: ((checked: boolean) => void) | undefined
 }
 
 const Checkbox = React.forwardRef<
@@ -20,6 +21,11 @@ const Checkbox = React.forwardRef<
     onChange?.(checked)
   }, [onChange, onCheckedChange])
 
+  // Filter out undefined optional properties for exactOptionalPropertyTypes
+  const filteredProps = Object.fromEntries(
+    Object.entries(props).filter(([, v]) => v !== undefined)
+  )
+
   return (
     <CheckboxPrimitive.Root
       ref={ref}
@@ -28,7 +34,7 @@ const Checkbox = React.forwardRef<
         className
       )}
       onCheckedChange={handleCheckedChange}
-      {...props}
+      {...filteredProps}
     >
       <CheckboxPrimitive.Indicator
         className={cn("flex items-center justify-center text-current")}

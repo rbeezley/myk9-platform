@@ -6,7 +6,7 @@ import { MoreVertical } from 'lucide-react';
 export interface ThreeDotMenuItem {
   label: string;
   icon: ReactNode;
-  onClick: (e: React.MouseEvent) => void;
+  onClick: () => void;
   className?: string;
 }
 
@@ -29,7 +29,7 @@ const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({ items, align = 'end' }) => 
           <DropdownMenuItem
             key={idx}
             onClick={item.onClick}
-            className={item.className}
+            {...(item.className !== undefined && { className: item.className })}
           >
             {item.icon}
             {item.label}

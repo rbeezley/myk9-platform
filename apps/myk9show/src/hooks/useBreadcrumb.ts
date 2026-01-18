@@ -13,15 +13,15 @@ interface BreadcrumbItem {
 
 interface UseBreadcrumbProps {
   currentPage: 'club' | 'show' | 'trial' | 'class' | 'entries' | 'my-entries' | 'people' | 'person' | 'dogs' | 'dog';
-  club?: { id: string; name: string }; // Club type
-  show?: Show;
-  trial?: Trial;
-  classId?: string;
-  className?: string;
-  person?: User;
-  dog?: Dog;
-  fromPerson?: User; // When viewing a dog from a person's page
-  fromDog?: Dog; // When viewing a person from a dog's page
+  club?: { id: string; name: string } | undefined; // Club type
+  show?: Show | undefined;
+  trial?: Trial | undefined;
+  classId?: string | undefined;
+  className?: string | undefined;
+  person?: User | undefined;
+  dog?: Dog | undefined;
+  fromPerson?: User | undefined; // When viewing a dog from a person's page
+  fromDog?: Dog | undefined; // When viewing a person from a dog's page
 }
 
 export const useBreadcrumb = ({
@@ -43,7 +43,7 @@ export const useBreadcrumb = ({
     if (club) {
       items.push({
         label: club.name,
-        href: currentPage === 'club' ? undefined : `/clubs/${club.id}`,
+        ...(currentPage !== 'club' && { href: `/clubs/${club.id}` }),
         id: club.id,
         isCurrentPage: currentPage === 'club'
       });
@@ -60,7 +60,7 @@ export const useBreadcrumb = ({
     if (show) {
       items.push({
         label: show.name,
-        href: currentPage === 'show' ? undefined : `/shows/${show.id}`,
+        ...(currentPage !== 'show' && { href: `/shows/${show.id}` }),
         id: show.id,
         isCurrentPage: currentPage === 'show'
       });
@@ -70,7 +70,7 @@ export const useBreadcrumb = ({
     if (trial) {
       items.push({
         label: trial.type || trial.trialNumber || 'Trial',
-        href: currentPage === 'trial' ? undefined : `/trials/${trial.id}`,
+        ...(currentPage !== 'trial' && { href: `/trials/${trial.id}` }),
         id: trial.id,
         isCurrentPage: currentPage === 'trial'
       });
@@ -80,7 +80,7 @@ export const useBreadcrumb = ({
     if (classId && className) {
       items.push({
         label: className,
-        href: currentPage === 'class' ? undefined : `/classes/${classId}`,
+        ...(currentPage !== 'class' && { href: `/classes/${classId}` }),
         id: classId,
         isCurrentPage: currentPage === 'class'
       });

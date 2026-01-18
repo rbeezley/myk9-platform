@@ -274,18 +274,15 @@ export const UserTable: React.FC<UserTableProps> = ({
   // Handle row actions
   const navigate = useNavigate();
   
-  const handleViewUser = (user: User, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleViewUser = (user: User) => {
     navigate(`/users/${user.id}`);
   };
 
-  const handleEditUser = (user: User, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleEditUser = (user: User) => {
     onUserClick(user); // Opens the details dialog in edit mode
   };
 
-  const handleDeleteUser = (user: User, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleDeleteUser = (user: User) => {
     // TODO: Implement delete confirmation dialog
     logger.debug('Delete user:', 'admin', { data: user.id });
   };
@@ -800,15 +797,15 @@ export const UserTable: React.FC<UserTableProps> = ({
                           align="end" 
                           className="apple-table-dropdown-content"
                         >
-                          <DropdownMenuItem 
-                            onClick={(e) => handleViewUser(user, e)}
+                          <DropdownMenuItem
+                            onClick={() => handleViewUser(user)}
                             className="apple-table-dropdown-item"
                           >
                             <Eye className="h-4 w-4" />
                             View Details
                           </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={(e) => handleEditUser(user, e)}
+                          <DropdownMenuItem
+                            onClick={() => handleEditUser(user)}
                             className="apple-table-dropdown-item"
                           >
                             <Edit className="h-4 w-4" />
@@ -820,7 +817,7 @@ export const UserTable: React.FC<UserTableProps> = ({
                           </DropdownMenuItem>
                           <DropdownMenuSeparator className="bg-border/30 my-2" />
                           <DropdownMenuItem
-                            onClick={(e) => handleDeleteUser(user, e)}
+                            onClick={() => handleDeleteUser(user)}
                             className="apple-table-dropdown-item destructive"
                           >
                             <Trash2 className="h-4 w-4" />

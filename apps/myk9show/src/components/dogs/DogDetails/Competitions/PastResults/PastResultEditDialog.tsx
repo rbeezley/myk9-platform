@@ -10,7 +10,7 @@ interface PastResultEditDialogProps {
   open: boolean;
   onClose: () => void;
   onSave: (result: PastResult) => void;
-  initialResult?: PastResult;
+  initialResult?: PastResult | undefined;
 }
 
 const DEFAULT_FORM: PastResult = {

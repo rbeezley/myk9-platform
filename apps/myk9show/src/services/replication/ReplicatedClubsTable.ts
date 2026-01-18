@@ -45,22 +45,22 @@ export interface ReplicatedClub {
   name: string;
   email: string;
   phone: string;
-  website?: string;
-  description?: string;
-  logoUrl?: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  zipCode?: string;
+  website?: string | undefined;
+  description?: string | undefined;
+  logoUrl?: string | undefined;
+  address?: string | undefined;
+  city?: string | undefined;
+  state?: string | undefined;
+  zipCode?: string | undefined;
   // Timestamps
-  createdAt?: string;
-  updatedAt?: string;
+  createdAt?: string | undefined;
+  updatedAt?: string | undefined;
   // Sync metadata
-  _version?: number;
-  _lastModified?: Date;
-  _lastModifiedBy?: string;
-  _syncStatus?: 'synced' | 'pending' | 'error' | 'conflict';
-  _localOnly?: boolean;
+  _version?: number | undefined;
+  _lastModified?: Date | undefined;
+  _lastModifiedBy?: string | undefined;
+  _syncStatus?: 'synced' | 'pending' | 'error' | 'conflict' | undefined;
+  _localOnly?: boolean | undefined;
 }
 
 /**
@@ -133,7 +133,6 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
         await this.updateSyncMetadata({
           lastIncrementalSyncAt: Date.now(),
           syncStatus: 'idle',
-          errorMessage: undefined,
         });
 
         return {
@@ -169,7 +168,6 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
       await this.updateSyncMetadata({
         lastIncrementalSyncAt: Date.now(),
         syncStatus: 'idle',
-        errorMessage: undefined,
       });
 
       const duration = Date.now() - startTime;

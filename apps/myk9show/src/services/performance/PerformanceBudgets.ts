@@ -308,7 +308,7 @@ export class PerformanceBudgetService {
           severity: rule.severity,
           timestamp: Date.now(),
           environment,
-          context,
+          ...(context !== undefined && { context }),
         };
 
         violations.push(violation);

@@ -172,12 +172,14 @@ export const useRealtime = (options: UseRealtimeOptions = {}): UseRealtimeReturn
   ): Promise<string> => {
     try {
       // Convert to subscription manager config format
+      const resolvedEnablePresence = enablePresence || config.enablePresence;
+      const resolvedEnableBroadcast = enableBroadcast || config.enableBroadcast;
       const managerConfig = {
         table: config.table,
-        filter: config.filter,
+        ...(config.filter !== undefined && { filter: config.filter }),
         events: config.events as Array<'INSERT' | 'UPDATE' | 'DELETE' | '*'>,
-        enablePresence: enablePresence || config.enablePresence,
-        enableBroadcast: enableBroadcast || config.enableBroadcast,
+        ...(resolvedEnablePresence === true && { enablePresence: true }),
+        ...(resolvedEnableBroadcast === true && { enableBroadcast: true }),
         batchUpdates: batchUpdates,
         bufferTime: bufferTime,
       };

@@ -22,12 +22,12 @@ export interface AreaScore {
  */
 export interface InitializeAreasOptions {
   /** Whether this is a Nationals event (default: false) */
-  isNationalsMode?: boolean;
+  isNationalsMode?: boolean | undefined;
   /**
    * Override the area count (used for ASCA where judges can choose 1 or 2 areas).
    * If provided, this takes precedence over the element/level-based calculation.
    */
-  areaCountOverride?: number;
+  areaCountOverride?: number | undefined;
 }
 
 /**

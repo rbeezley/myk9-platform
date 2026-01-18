@@ -34,20 +34,20 @@ interface WizardState {
     classes: Array<{
       templateId: string;
       customizations: Record<string, unknown>;
-      judgeId?: string;
+      judgeId?: string | undefined;
     }>;
   }>;
-  
+
   // Judge assignments (from show pool)
   judgeAssignments: Record<string, string>; // classId -> judgeId
-  
+
   // Judge metadata
   judgeDetails: Record<string, {
     name: string;
     email: string;
     phone: string;
-    certifications?: string[];
-    notes?: string;
+    certifications?: string[] | undefined;
+    notes?: string | undefined;
   }>;
 }
 

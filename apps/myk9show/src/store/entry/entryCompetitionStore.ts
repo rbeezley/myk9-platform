@@ -4,16 +4,16 @@ import { getOptimalStorage } from '@/services/database/storage-adapter';
 import { generateId } from '@/utils/idUtils';
 
 export interface CompetitionData {
-  startTime?: string;
-  endTime?: string;
-  score?: string;
-  time?: string;
-  placement?: string;
-  qualified?: boolean;
-  qualification?: string;
-  qualificationReason?: string;
-  faults?: number;
-  judgeNotes?: string;
+  startTime?: string | undefined;
+  endTime?: string | undefined;
+  score?: string | undefined;
+  time?: string | undefined;
+  placement?: string | undefined;
+  qualified?: boolean | undefined;
+  qualification?: string | undefined;
+  qualificationReason?: string | undefined;
+  faults?: number | undefined;
+  judgeNotes?: string | undefined;
   recordedBy: string;
   recordedAt: string;
 }

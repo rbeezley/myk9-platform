@@ -17,32 +17,32 @@ import { logger } from '@/services/LoggingService';
 
 export interface EntryCreationOptions {
   /** Skip validation for admin overrides */
-  skipValidation?: boolean;
+  skipValidation?: boolean | undefined;
   /** Force creation even with warnings */
-  ignoreWarnings?: boolean;
+  ignoreWarnings?: boolean | undefined;
   /** Allow waitlist entry if class is full */
-  allowWaitlist?: boolean;
+  allowWaitlist?: boolean | undefined;
   /** Priority for sync queue */
-  syncPriority?: number;
+  syncPriority?: number | undefined;
   /** User ID for audit trail */
-  userId?: string;
+  userId?: string | undefined;
   /** Reason for any validation overrides */
-  overrideReason?: string;
+  overrideReason?: string | undefined;
   /** Dry run - validate only, don't create */
-  dryRun?: boolean;
+  dryRun?: boolean | undefined;
 }
 
 export interface EntryCreationResult {
   success: boolean;
-  entry?: SyncableShowEntry;
+  entry?: SyncableShowEntry | undefined;
   errors: Array<{ code: string; message: string; severity: 'error' | 'warning' | 'info' }>;
   warnings: Array<{ code: string; message: string; severity: 'error' | 'warning' | 'info' }>;
-  validationResult?: EntryValidationResult;
-  limitCheckResult?: EntryLimitCheckResult;
+  validationResult?: EntryValidationResult | undefined;
+  limitCheckResult?: EntryLimitCheckResult | undefined;
   /** Indicates if entry was placed on waitlist */
-  isWaitlisted?: boolean;
+  isWaitlisted?: boolean | undefined;
   /** Payment processing status */
-  paymentStatus?: 'queued' | 'processed' | 'failed' | 'not_required';
+  paymentStatus?: 'queued' | 'processed' | 'failed' | 'not_required' | undefined;
 }
 
 export interface BatchEntryCreationResult {
@@ -157,7 +157,7 @@ export class OfflineEntryCreator {
         ...options,
         userId,
         status: 'submitted' as EntryStatus,
-        overrideReason
+        ...(overrideReason !== undefined && { overrideReason })
       });
 
       // Queue payment processing if needed
@@ -469,7 +469,7 @@ export class OfflineEntryCreator {
   private static async performEntryCreation(
     entryData: ShowEntryInput,
     _context: EntryValidationContext,
-    options: EntryCreationOptions & { userId: string; status?: EntryStatus; overrideReason?: string }
+    options: EntryCreationOptions & { userId: string; status?: EntryStatus | undefined; overrideReason?: string | undefined }
   ): Promise<SyncableShowEntry> {
     const optimisticId = generateId();
     const now = new Date().toISOString();

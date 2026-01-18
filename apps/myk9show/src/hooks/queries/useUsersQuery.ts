@@ -114,8 +114,12 @@ const UserService = {
         };
       }
       const error = new Error(result.error.message) as ErrorWithDetails;
-      error.code = result.error.code;
-      error.details = typeof result.error.details === 'object' ? result.error.details : undefined;
+      if (result.error.code !== undefined) {
+        error.code = result.error.code;
+      }
+      if (typeof result.error.details === 'object' && result.error.details !== null) {
+        error.details = result.error.details;
+      }
       throw error;
     }
   },

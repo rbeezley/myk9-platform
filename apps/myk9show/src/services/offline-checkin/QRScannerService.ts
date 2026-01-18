@@ -53,7 +53,7 @@ export class QRScannerService extends EventEmitter {
   private canvasElement: HTMLCanvasElement | null = null;
   private context: CanvasRenderingContext2D | null = null;
   private isScanning = false;
-  private scanInterval?: NodeJS.Timeout;
+  private scanInterval?: NodeJS.Timeout | undefined;
   private currentAttempts = 0;
   // Reserved for scan duration tracking
   private scanStartTime = 0;

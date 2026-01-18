@@ -12,7 +12,7 @@ export interface PerformanceMetric {
   value: number;
   timestamp: number;
   rating: 'good' | 'needs-improvement' | 'poor';
-  details?: Record<string, unknown>;
+  details?: Record<string, unknown> | undefined;
 }
 
 export interface PerformanceThresholds {
@@ -32,7 +32,7 @@ export interface PerformanceReport {
   deviceInfo: {
     userAgent: string;
     viewportSize: string;
-    connectionType?: string;
+    connectionType?: string | undefined;
   };
 }
 

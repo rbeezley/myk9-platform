@@ -85,11 +85,11 @@ export function FeatureGate({
   }
 
   return (
-    <FeatureUpgradePrompt 
+    <FeatureUpgradePrompt
       feature={featureConfig}
       userPlan={userPlan}
       showDialog={showDialog}
-      onUpgrade={onUpgrade}
+      {...(onUpgrade !== undefined && { onUpgrade })}
     />
   );
 }

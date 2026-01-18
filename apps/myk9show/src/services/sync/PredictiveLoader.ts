@@ -286,7 +286,7 @@ export class PredictiveLoader {
   /**
    * Private: Predict entry for specific dog and show
    */
-  private predictEntryForDogAndShow(dog: { id: string; name: string; breed?: string; ownerId?: string; isActive?: boolean; sex?: string; dateOfBirth?: string }, show: { id: string; name: string; type?: string; location?: string }): ShowEntryPrediction | null {
+  private predictEntryForDogAndShow(dog: { id: string; name: string; breed?: string | undefined; ownerId?: string | undefined; isActive?: boolean | undefined; sex?: string | undefined; dateOfBirth?: string | undefined }, show: { id: string; name: string; type?: string | undefined; location?: string | undefined }): ShowEntryPrediction | null {
     const reasoning: string[] = [];
     let confidence = 0.1;
 
@@ -323,7 +323,7 @@ export class PredictiveLoader {
       showName: show.name,
       dogId: dog.id,
       dogName: dog.name,
-      classes: this.predictLikelyClasses(dog),
+      classes: this.predictLikelyClasses({ ...(dog.sex !== undefined && { sex: dog.sex }), ...(dog.dateOfBirth !== undefined && { dateOfBirth: dog.dateOfBirth }) }),
       confidence: Math.min(0.9, confidence),
       reasoning,
       estimatedEntryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // Estimate 1 week before show

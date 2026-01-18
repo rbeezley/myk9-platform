@@ -18,11 +18,11 @@ interface OptimisticScoreEntryProps {
   entryId: string;
   dogName: string;
   entryNumber: string;
-  currentScore?: number;
+  currentScore?: number | undefined;
   maxScore: number;
   onScoreUpdate: (score: number) => Promise<unknown>;
-  disabled?: boolean;
-  className?: string;
+  disabled?: boolean | undefined;
+  className?: string | undefined;
 }
 
 export const OptimisticScoreEntry: React.FC<OptimisticScoreEntryProps> = ({

@@ -47,20 +47,20 @@ export interface CollaborativeScore {
     points: number;
     time: number;
     faults: number;
-    notes?: string;
+    notes?: string | undefined;
   };
   isTemporary: boolean;
   isPreliminary: boolean;
   submittedAt: Date;
   lastModified: Date;
   version: number;
-  conflictStatus?: 'none' | 'detected' | 'resolved';
+  conflictStatus?: 'none' | 'detected' | 'resolved' | undefined;
   otherJudgeScores?: Array<{
     judgeId: string;
     judgeName: string;
     score: number;
     difference: number;
-  }>;
+  }> | undefined;
 }
 
 export interface ScoringConflict {
@@ -77,15 +77,15 @@ export interface ScoringConflict {
     score: CollaborativeScore;
     position: string; // position/opinion on the conflict
   }>;
-  primaryJudge?: string; // Who has final say
+  primaryJudge?: string | undefined; // Who has final say
   detectedAt: Date;
-  resolvedAt?: Date;
-  resolvedBy?: string;
+  resolvedAt?: Date | undefined;
+  resolvedBy?: string | undefined;
   resolution?: {
     method: 'primary-judge-decision' | 'consensus' | 'average' | 'manual-override';
     finalScore: CollaborativeScore;
     notes: string;
-  };
+  } | undefined;
   status: 'open' | 'under-review' | 'resolved' | 'escalated';
   discussionNotes: Array<{
     judgeId: string;
@@ -99,12 +99,12 @@ export interface ScoringConflict {
 export interface JudgeActivity {
   judgeId: string;
   activity: 'scoring' | 'reviewing' | 'discussing' | 'idle';
-  currentEntry?: string;
-  targetEntry?: string; // Entry they're about to score
+  currentEntry?: string | undefined;
+  targetEntry?: string | undefined; // Entry they're about to score
   activityStarted: Date;
   lastUpdate: Date;
-  typing?: boolean;
-  focusedElement?: string;
+  typing?: boolean | undefined;
+  focusedElement?: string | undefined;
   [key: string]: unknown; // Index signature for broadcast compatibility
 }
 

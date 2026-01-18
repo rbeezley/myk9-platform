@@ -229,7 +229,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
         open={open}
         onClose={handleClose}
         title={title}
-        subtitle={subtitle}
+        {...(subtitle !== undefined && { subtitle })}
         size={size}
         loading={isLoading}
         footer={footer}

@@ -12,9 +12,9 @@ interface PersonWithDetails {
   id: string;
   firstName: string;
   lastName: string;
-  email?: string;
-  phone?: string;
-  roles?: string[];
+  email?: string | undefined;
+  phone?: string | undefined;
+  roles?: string[] | undefined;
 }
 
 interface PeopleSidebarProps {

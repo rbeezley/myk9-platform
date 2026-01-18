@@ -44,18 +44,44 @@ export function getRequiredFields(template: ClassTemplate): TemplateFieldConfigu
  * Get field definition with template configuration merged
  */
 export function getConfiguredField(
-  fieldName: ShowTypeField, 
+  fieldName: ShowTypeField,
   template: ClassTemplate
 ): (FieldDefinition & TemplateFieldConfiguration) | null {
   const fieldDef = getFieldDefinition(fieldName);
   const config = template.fieldConfigurations?.find(c => c.fieldName === fieldName);
-  
+
   if (!fieldDef || !config) return null;
-  
-  return {
-    ...fieldDef,
-    ...config
+
+  // Merge required properties first, then conditionally add optional ones
+  const result: FieldDefinition & TemplateFieldConfiguration = {
+    // Required from FieldDefinition
+    id: fieldDef.id,
+    fieldName: config.fieldName, // Use config's fieldName as it's required in both
+    displayName: fieldDef.displayName,
+    category: fieldDef.category,
+    dataType: fieldDef.dataType,
+    showTypes: fieldDef.showTypes,
+    // Required from TemplateFieldConfiguration
+    required: config.required,
+    visible: config.visible,
+    editable: config.editable,
+    displayOrder: config.displayOrder,
+    // Optional properties from FieldDefinition
+    ...(fieldDef.description !== undefined && { description: fieldDef.description }),
+    ...(fieldDef.options !== undefined && { options: fieldDef.options }),
+    ...(fieldDef.validationRules !== undefined && { validationRules: fieldDef.validationRules }),
+    ...(fieldDef.unit !== undefined && { unit: fieldDef.unit }),
+    ...(fieldDef.minValue !== undefined && { minValue: fieldDef.minValue }),
+    ...(fieldDef.maxValue !== undefined && { maxValue: fieldDef.maxValue }),
+    // Optional properties from TemplateFieldConfiguration (override FieldDefinition)
+    ...(config.defaultValue !== undefined ? { defaultValue: config.defaultValue } : fieldDef.defaultValue !== undefined ? { defaultValue: fieldDef.defaultValue } : {}),
+    ...(config.conditionalRules !== undefined && { conditionalRules: config.conditionalRules }),
+    ...(config.overrideOptions !== undefined && { overrideOptions: config.overrideOptions }),
+    ...(config.defaultVariesByClass !== undefined && { defaultVariesByClass: config.defaultVariesByClass }),
+    ...(config.valueConstraints !== undefined && { valueConstraints: config.valueConstraints }),
   };
+
+  return result;
 }
 
 /**
@@ -63,14 +89,10 @@ export function getConfiguredField(
  */
 export function getConfiguredFieldsWithDefinitions(template: ClassTemplate): (FieldDefinition & TemplateFieldConfiguration)[] {
   if (!template.fieldConfigurations) return [];
-  
+
   return template.fieldConfigurations
-    .map(config => {
-      const fieldDef = getFieldDefinition(config.fieldName);
-      if (!fieldDef) return null;
-      return { ...fieldDef, ...config };
-    })
-    .filter(Boolean) as (FieldDefinition & TemplateFieldConfiguration)[];
+    .map(config => getConfiguredField(config.fieldName, template))
+    .filter((result): result is FieldDefinition & TemplateFieldConfiguration => result !== null);
 }
 
 /**
@@ -481,12 +503,12 @@ export function formatRangeConstraint(constraints: ValueConstraint, fieldDataTyp
 export function getFieldDefaultValue(
   fieldConfig: TemplateFieldConfiguration,
   classSpecificDefaults?: Record<string, unknown>
-): unknown {
+): unknown | undefined {
   // If field varies by class and we have class-specific defaults, use those
-  if (fieldConfig.defaultVariesByClass && classSpecificDefaults?.[fieldConfig.fieldName] !== undefined) {
+  if (fieldConfig.defaultVariesByClass && classSpecificDefaults !== undefined && classSpecificDefaults[fieldConfig.fieldName] !== undefined) {
     return classSpecificDefaults[fieldConfig.fieldName];
   }
-  
+
   // Otherwise use the template's default value
   return fieldConfig.defaultValue;
 }

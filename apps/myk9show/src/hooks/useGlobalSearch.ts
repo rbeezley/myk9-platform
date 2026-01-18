@@ -103,7 +103,7 @@ export function useGlobalSearch(options: UseGlobalSearchOptions = {}): UseGlobal
     try {
       const searchOptions: SearchOptions = {
         maxResults,
-        categories: categories.length > 0 ? categories : undefined,
+        ...(categories.length > 0 && { categories }),
         minScore,
         fuzzyThreshold: 0.6
       };

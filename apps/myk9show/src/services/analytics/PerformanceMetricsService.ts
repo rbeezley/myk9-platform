@@ -46,7 +46,7 @@ export interface PerformanceMeasurement {
   startTime: number;
   endTime: number;
   category: string;
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, unknown> | undefined;
 }
 
 /**

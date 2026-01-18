@@ -36,9 +36,9 @@ export interface EntryStatus {
   armband: string;
   classId: string;
   sequence: number;
-  ringAssignment?: string;
-  callTime?: Date;
-  completedTime?: Date;
+  ringAssignment?: string | undefined;
+  callTime?: Date | undefined;
+  completedTime?: Date | undefined;
   updatedAt: Date;
   updatedBy: string;
 }
@@ -50,13 +50,13 @@ export interface CompetitionNotification {
   title: string;
   message: string;
   targetAudience: 'all' | 'exhibitors' | 'judges' | 'stewards' | 'specific';
-  targetIds?: string[]; // For specific targeting
+  targetIds?: string[] | undefined; // For specific targeting
   showId: string;
-  classId?: string;
-  entryId?: string;
+  classId?: string | undefined;
+  entryId?: string | undefined;
   timestamp: Date;
-  expiresAt?: Date;
-  acknowledged?: string[]; // User IDs who acknowledged
+  expiresAt?: Date | undefined;
+  acknowledged?: string[] | undefined; // User IDs who acknowledged
   [key: string]: unknown; // Index signature for broadcast compatibility
 }
 

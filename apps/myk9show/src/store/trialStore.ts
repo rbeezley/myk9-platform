@@ -12,7 +12,7 @@ export interface SyncableTrial extends Trial {
   _lastModified: Date;
   _lastModifiedBy: string;
   _syncStatus: 'synced' | 'pending' | 'error' | 'conflict';
-  _localOnly?: boolean;
+  _localOnly?: boolean | undefined;
 }
 
 export interface SyncableTrialClass extends TrialClass {
@@ -20,22 +20,40 @@ export interface SyncableTrialClass extends TrialClass {
   _lastModified: Date;
   _lastModifiedBy: string;
   _syncStatus: 'synced' | 'pending' | 'error' | 'conflict';
-  _localOnly?: boolean;
+  _localOnly?: boolean | undefined;
 }
 
 // Input types for creating/updating trials
 export interface TrialInput {
+  // Allow id for update scenarios where full Trial object is passed
+  id?: string | undefined;
   showId: string;
   showName: string;
   name: string;
   trialDate: string;
   trialNumber: string;
   status: 'Upcoming' | 'In Progress' | 'Completed' | 'Cancelled';
-  eventNumber?: string;
-  type?: string;
-  trialType?: string;
-  plannedStartTime?: string;
-  order?: string;
+  eventNumber?: string | undefined;
+  type?: string | undefined;
+  trialType?: string | undefined;
+  plannedStartTime?: string | undefined;
+  order?: string | undefined;
+  // Additional fields from Trial interface for updates
+  image?: string | undefined;
+  timeStarted?: string | undefined;
+  timeEnded?: string | undefined;
+  // Classes associated with this trial
+  classes?: Array<{
+    id: string;
+    element: string;
+    level: string;
+    section: string;
+    judgeId: string;
+    judgeName?: string | undefined;
+    startTime: string;
+    status: 'Upcoming' | 'In Progress' | 'Completed' | 'Cancelled';
+    entries: number;
+  }> | undefined;
 }
 
 export interface TrialClassInput {
@@ -43,7 +61,7 @@ export interface TrialClassInput {
   level: string;
   section: string;
   judgeId: string;
-  judgeName?: string;
+  judgeName?: string | undefined;
   startTime: string;
   status: 'Upcoming' | 'In Progress' | 'Completed' | 'Cancelled';
   entries: number;
@@ -324,22 +342,16 @@ export const useTrialStore = create<TrialStore>()(
 
           // Get current replicated data and update
           const currentReplicated = await replicatedTrialsTable.get(id);
+          // Build update object with only defined values to satisfy exactOptionalPropertyTypes
           const replicatedUpdates: Partial<ReplicatedTrial> = {
-            showId: updates.showId,
-            name: updates.name,
-            date: updates.trialDate,
-            trialNumber: updates.trialNumber,
-            status: updates.status,
             _lastModified: new Date(),
             _syncStatus: 'pending',
           };
-
-          // Remove undefined values
-          Object.keys(replicatedUpdates).forEach(key => {
-            if (replicatedUpdates[key as keyof typeof replicatedUpdates] === undefined) {
-              delete replicatedUpdates[key as keyof typeof replicatedUpdates];
-            }
-          });
+          if (updates.showId !== undefined) replicatedUpdates.showId = updates.showId;
+          if (updates.name !== undefined) replicatedUpdates.name = updates.name;
+          if (updates.trialDate !== undefined) replicatedUpdates.date = updates.trialDate;
+          if (updates.trialNumber !== undefined) replicatedUpdates.trialNumber = updates.trialNumber;
+          if (updates.status !== undefined) replicatedUpdates.status = updates.status;
 
           if (currentReplicated) {
             const updatedReplicated = {
@@ -351,9 +363,26 @@ export const useTrialStore = create<TrialStore>()(
           }
 
           // Create updated trial with incremented version
+          // Filter out undefined values from updates to satisfy exactOptionalPropertyTypes
+          const definedUpdates: Partial<SyncableTrial> = {};
+          if (updates.showId !== undefined) definedUpdates.showId = updates.showId;
+          if (updates.showName !== undefined) definedUpdates.showName = updates.showName;
+          if (updates.name !== undefined) definedUpdates.name = updates.name;
+          if (updates.trialDate !== undefined) definedUpdates.trialDate = updates.trialDate;
+          if (updates.trialNumber !== undefined) definedUpdates.trialNumber = updates.trialNumber;
+          if (updates.status !== undefined) definedUpdates.status = updates.status;
+          if (updates.eventNumber !== undefined) definedUpdates.eventNumber = updates.eventNumber;
+          if (updates.type !== undefined) definedUpdates.type = updates.type;
+          if (updates.trialType !== undefined) definedUpdates.trialType = updates.trialType;
+          if (updates.plannedStartTime !== undefined) definedUpdates.plannedStartTime = updates.plannedStartTime;
+          if (updates.order !== undefined) definedUpdates.order = updates.order;
+          if (updates.image !== undefined) definedUpdates.image = updates.image;
+          if (updates.timeStarted !== undefined) definedUpdates.timeStarted = updates.timeStarted;
+          if (updates.timeEnded !== undefined) definedUpdates.timeEnded = updates.timeEnded;
+
           const updatedTrial: SyncableTrial = {
             ...currentTrial,
-            ...updates,
+            ...definedUpdates,
             _version: currentTrial._version ? currentTrial._version + 1 : 1,
             _lastModified: new Date(),
             _lastModifiedBy: 'current-user',

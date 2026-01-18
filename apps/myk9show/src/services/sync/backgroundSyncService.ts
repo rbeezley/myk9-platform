@@ -349,7 +349,7 @@ export class BackgroundSyncService {
         'Content-Type': 'application/json',
         // Add auth headers here if needed
       },
-      body: task.data ? JSON.stringify(task.data) : undefined,
+      body: task.data ? JSON.stringify(task.data) : null,
       signal: AbortSignal.timeout(this.options.networkTimeout)
     });
 

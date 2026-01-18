@@ -28,8 +28,8 @@ export interface UserPermissions {
   
   // User identification
   role: UserRole;
-  userId?: string;
-  displayName?: string;
+  userId?: string | undefined;
+  displayName?: string | undefined;
 }
 
 /**

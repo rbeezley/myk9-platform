@@ -21,22 +21,22 @@ import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 import { logger } from '@/services/LoggingService';
 
 interface ConfirmationStepProps {
-  registrationNumber?: string;
+  registrationNumber?: string | undefined;
   selectedDogs: string[];
   classSelections: ClassSelectionData[];
   documents: File[];
   paymentMethod: string;
-  paymentStatus?: PaymentStatus;
-  entryStatus?: EntryStatus;
+  paymentStatus?: PaymentStatus | undefined;
+  entryStatus?: EntryStatus | undefined;
   totalFees: number;
   showId: string;
-  armbandAssignments?: { dogId: string; armband: string; ring?: string }[];
-  handlers?: { dogId: string; handlerName: string; isOwner: boolean }[];
-  onDownloadReceipt?: () => void;
-  onSendEmail?: () => void;
-  onStatusChange?: (dogId: string, status: EntryStatus) => void;
-  onArmbandAssign?: (dogId: string, armband: string) => void;
-  onNotificationToggle?: (type: string, enabled: boolean) => void;
+  armbandAssignments?: { dogId: string; armband: string; ring?: string | undefined }[] | undefined;
+  handlers?: { dogId: string; handlerName: string; isOwner: boolean }[] | undefined;
+  onDownloadReceipt?: (() => void) | undefined;
+  onSendEmail?: (() => void) | undefined;
+  onStatusChange?: ((dogId: string, status: EntryStatus) => void) | undefined;
+  onArmbandAssign?: ((dogId: string, armband: string) => void) | undefined;
+  onNotificationToggle?: ((type: string, enabled: boolean) => void) | undefined;
 }
 
 export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
@@ -204,7 +204,7 @@ export const ConfirmationStep: React.FC<ConfirmationStepProps> = ({
     if (!dog || !selection) return null;
 
     const dogClasses = selection.selectedClasses.map(sc => {
-      const classData = classes.find((c: { id: string; className?: string; classNumber?: string }) => c.id === sc.classId);
+      const classData = classes.find((c: { id: string; className?: string | undefined; classNumber?: string | undefined }) => c.id === sc.classId);
       const trial = trials.find(t => t.id === selection.trialId);
       
       return {

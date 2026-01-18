@@ -12,7 +12,7 @@ import { LucideIcon } from 'lucide-react';
 
 export interface PremiumCardProps {
   children: React.ReactNode;
-  className?: string;
+  className?: string | undefined;
   variant?: 'standard' | 'feature' | 'stats' | 'minimal';
   hover?: boolean;
 }

@@ -8,17 +8,17 @@ interface StandardDialogProps {
   onClose: () => void;
   onSave: (e?: React.MouseEvent<HTMLButtonElement>) => void;
   title: string;
-  titleIcon?: React.ReactNode;
-  description?: React.ReactNode;
+  titleIcon?: React.ReactNode | undefined;
+  description?: React.ReactNode | undefined;
   children: React.ReactNode;
-  saveLabel?: React.ReactNode;
-  cancelLabel?: string;
-  isSubmitting?: boolean;
-  formId?: string;
-  saveButtonProps?: ButtonProps;
-  saveIcon?: React.ReactNode;
-  hideSave?: boolean;
-  showIcons?: boolean;
+  saveLabel?: React.ReactNode | undefined;
+  cancelLabel?: string | undefined;
+  isSubmitting?: boolean | undefined;
+  formId?: string | undefined;
+  saveButtonProps?: ButtonProps | undefined;
+  saveIcon?: React.ReactNode | undefined;
+  hideSave?: boolean | undefined;
+  showIcons?: boolean | undefined;
 }
 
 const StandardDialog: React.FC<StandardDialogProps> = ({

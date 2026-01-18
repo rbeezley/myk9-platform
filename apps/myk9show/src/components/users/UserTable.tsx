@@ -114,7 +114,7 @@ const UserTable: React.FC<PeopleTableProps> = ({ people, onView, onEdit, onDelet
               onView={onView}
               onEdit={onEdit}
               onDelete={onDelete}
-              onManageQualifications={onManageQualifications}
+              {...(onManageQualifications !== undefined && { onManageQualifications })}
             />
           ))}
         </tbody>

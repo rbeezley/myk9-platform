@@ -188,7 +188,11 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                 <Label>Start Date <span className="text-destructive">*</span></Label>
                 <DateTimePicker
                   value={show.startDate ? new Date(show.startDate) : undefined}
-                  onChange={(date) => updateShowData({ startDate: date?.toISOString() })}
+                  onChange={(date) => {
+                    if (date) {
+                      updateShowData({ startDate: date.toISOString() });
+                    }
+                  }}
                   placeholder="Select start date"
                   showTime={false}
                 />
@@ -201,7 +205,11 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                 <Label>End Date <span className="text-destructive">*</span></Label>
                 <DateTimePicker
                   value={show.endDate ? new Date(show.endDate) : undefined}
-                  onChange={(date) => updateShowData({ endDate: date?.toISOString() })}
+                  onChange={(date) => {
+                    if (date) {
+                      updateShowData({ endDate: date.toISOString() });
+                    }
+                  }}
                   placeholder="Select end date"
                   showTime={false}
                 />
@@ -367,7 +375,11 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                 <Label>Entry Opens <span className="text-destructive">*</span></Label>
                 <DateTimePicker
                   value={show.entryOpenDate ? new Date(show.entryOpenDate) : undefined}
-                  onChange={(date) => updateShowData({ entryOpenDate: date?.toISOString() })}
+                  onChange={(date) => {
+                    if (date) {
+                      updateShowData({ entryOpenDate: date.toISOString() });
+                    }
+                  }}
                   placeholder="Select entry open date"
                   showTime={false}
                 />
@@ -380,7 +392,11 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                 <Label>Entry Closes <span className="text-destructive">*</span></Label>
                 <DateTimePicker
                   value={show.entryCloseDate ? new Date(show.entryCloseDate) : undefined}
-                  onChange={(date) => updateShowData({ entryCloseDate: date?.toISOString() })}
+                  onChange={(date) => {
+                    if (date) {
+                      updateShowData({ entryCloseDate: date.toISOString() });
+                    }
+                  }}
                   placeholder="Select entry close date"
                   showTime={false}
                 />

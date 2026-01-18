@@ -65,15 +65,15 @@ export interface SyncEvent {
   id: string;
   type: SyncEventType;
   timestamp: Date;
-  duration?: number; // milliseconds
+  duration?: number | undefined; // milliseconds
   status: SyncStatus;
-  collectionName?: string;
-  recordCount?: number;
-  bytesTransferred?: number;
-  errorMessage?: string;
-  conflictType?: ConflictType;
-  resolutionStrategy?: ConflictResolutionStrategy;
-  metadata?: Record<string, unknown>;
+  collectionName?: string | undefined;
+  recordCount?: number | undefined;
+  bytesTransferred?: number | undefined;
+  errorMessage?: string | undefined;
+  conflictType?: ConflictType | undefined;
+  resolutionStrategy?: ConflictResolutionStrategy | undefined;
+  metadata?: Record<string, unknown> | undefined;
 }
 
 /**
@@ -114,7 +114,7 @@ export interface CollectionSyncMetrics {
   syncedRecords: number;
   pendingRecords: number;
   conflictedRecords: number;
-  lastSyncAt?: Date;
+  lastSyncAt?: Date | undefined;
   averageSyncTime: number; // milliseconds
   successRate: number; // percentage
   errorCount: number;
@@ -292,7 +292,7 @@ export interface SyncQueueMetrics {
   priorityOperations: number;
   retryOperations: number;
   failedOperations: number;
-  lastProcessedAt?: Date;
+  lastProcessedAt?: Date | undefined;
 }
 
 /**

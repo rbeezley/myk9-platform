@@ -35,7 +35,7 @@ import { Separator } from '@/components/ui/separator';
 import type { NotificationPreferences } from '@/types/user-preferences';
 
 interface NotificationSettingsProps {
-  preferences?: NotificationPreferences;
+  preferences?: NotificationPreferences | undefined;
   onUpdate: (preferences: Partial<NotificationPreferences>) => void;
   onReset: () => void;
 }

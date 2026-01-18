@@ -96,7 +96,7 @@ export const AKCScentWorkScoresheet: React.FC<AKCScentWorkScoresheetProps> = ({
   // Stopwatch
   const stopwatch = useStopwatch({
     maxTime: classInfo.maxTime,
-    level: classInfo.level,
+    ...(classInfo.level ? { level: classInfo.level } : {}),
     onTimeExpired: (formattedTime) => {
       handleAreaUpdate(0, 'time', formattedTime);
       setQualifying('NQ');
@@ -155,7 +155,7 @@ export const AKCScentWorkScoresheet: React.FC<AKCScentWorkScoresheetProps> = ({
         time: totalMs,
         faults: faultCount,
         qualification: qualifying,
-        notes: nonQualifyingReason || undefined,
+        ...(nonQualifyingReason ? { notes: nonQualifyingReason } : {}),
       });
 
       setShowConfirmation(false);

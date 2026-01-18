@@ -199,9 +199,16 @@ export const DataManagementPanel: React.FC<DataManagementPanelProps> = ({
                     id="backupFilename"
                     placeholder="Leave empty for auto-generated name"
                     value={backupOptions.filename || ''}
-                    onChange={(e) =>
-                      setBackupOptions(prev => ({ ...prev, filename: e.target.value || undefined }))
-                    }
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value) {
+                        setBackupOptions(prev => ({ ...prev, filename: value }));
+                      } else {
+                        const { filename: _, ...rest } = backupOptions;
+                        void _;
+                        setBackupOptions(rest);
+                      }
+                    }}
                   />
                 </div>
 

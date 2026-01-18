@@ -49,13 +49,18 @@ export function useGlobalSyncStatus(): GlobalSyncState {
         (Math.random() > 0.9 ? 'pending' : 'synced') : 
         'offline';
 
-      setSyncState(prev => ({
-        ...prev,
-        status: mockStatus,
-        lastSyncAt: mockStatus === 'synced' ? now : prev.lastSyncAt,
-        isOnline,
-        queueSize: mockStatus === 'pending' ? Math.floor(Math.random() * 5) : 0
-      }));
+      setSyncState(prev => {
+        const newState: GlobalSyncState = {
+          ...prev,
+          status: mockStatus,
+          isOnline,
+          queueSize: mockStatus === 'pending' ? Math.floor(Math.random() * 5) : 0
+        };
+        if (mockStatus === 'synced') {
+          newState.lastSyncAt = now;
+        }
+        return newState;
+      });
     }, 10000); // Update every 10 seconds
 
     return () => {
@@ -106,11 +111,14 @@ export function useEntitySyncStatus(
         status = 'pending';
       }
 
-      setEntityStatus({
-        status,
-        lastSyncAt: status === 'synced' ? new Date() : undefined,
-        errorMessage: status === 'error' ? 'Failed to sync changes' : undefined
-      });
+      const newStatus: { status: SyncStatus; lastSyncAt?: Date; errorMessage?: string } = { status };
+      if (status === 'synced') {
+        newStatus.lastSyncAt = new Date();
+      }
+      if (status === 'error') {
+        newStatus.errorMessage = 'Failed to sync changes';
+      }
+      setEntityStatus(newStatus);
     };
 
     // Check immediately and then periodically
@@ -132,8 +140,11 @@ export function useEntitySyncStatus(
     }, 2000);
   };
 
-  return {
-    ...entityStatus,
-    onRetry: entityStatus.status === 'error' ? handleRetry : undefined
+  const result: { status: SyncStatus; lastSyncAt?: Date; errorMessage?: string; onRetry?: () => void } = {
+    ...entityStatus
   };
+  if (entityStatus.status === 'error') {
+    result.onRetry = handleRetry;
+  }
+  return result;
 }

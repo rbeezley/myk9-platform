@@ -20,52 +20,52 @@ export enum AuditAction {
 export interface AuditEntry {
   id: string;
   timestamp: Date;
-  
+
   // User information
-  userId?: string;
-  userRole?: string;
-  impersonatingUserId?: string; // Admin user doing impersonation
-  sessionId?: string;
-  
+  userId?: string | undefined;
+  userRole?: string | undefined;
+  impersonatingUserId?: string | undefined; // Admin user doing impersonation
+  sessionId?: string | undefined;
+
   // Action details
   action: AuditAction;
   entityType: string;
   entityId: string;
-  
+
   // Change tracking
   changes?: Record<string, {
     from: unknown;
     to: unknown;
-  }>;
-  
+  }> | undefined;
+
   // Context information
-  ipAddress?: string;
-  userAgent?: string;
-  requestId?: string;
-  
+  ipAddress?: string | undefined;
+  userAgent?: string | undefined;
+  requestId?: string | undefined;
+
   // Metadata
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, unknown> | undefined;
 }
 
 export interface AuditEntryInput {
-  userId?: string;
-  userRole?: string;
+  userId?: string | undefined;
+  userRole?: string | undefined;
   action: AuditAction;
   entityType: string;
   entityId: string;
-  changes?: Record<string, { from: unknown; to: unknown }>;
-  metadata?: Record<string, unknown>;
+  changes?: Record<string, { from: unknown; to: unknown }> | undefined;
+  metadata?: Record<string, unknown> | undefined;
 }
 
 export interface AuditSearchFilters {
-  startDate?: Date;
-  endDate?: Date;
-  userId?: string;
-  action?: AuditAction;
-  entityType?: string;
-  entityId?: string;
-  page?: number;
-  pageSize?: number;
+  startDate?: Date | undefined;
+  endDate?: Date | undefined;
+  userId?: string | undefined;
+  action?: AuditAction | undefined;
+  entityType?: string | undefined;
+  entityId?: string | undefined;
+  page?: number | undefined;
+  pageSize?: number | undefined;
 }
 
 export interface AuditSearchResult {
@@ -93,9 +93,9 @@ export interface ImpersonationSession {
   targetUserId: string;
   reason: string;
   startedAt: Date;
-  endedAt?: Date;
+  endedAt?: Date | undefined;
   sessionToken: string;
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, unknown> | undefined;
 }
 
 // System health and monitoring types

@@ -3,6 +3,6 @@ export interface Achievement {
   title: string;
   date: string;
   description: string;
-  icon?: string;
-  color?: string;
+  icon?: string | undefined;
+  color?: string | undefined;
 }

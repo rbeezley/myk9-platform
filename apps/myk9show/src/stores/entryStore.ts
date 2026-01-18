@@ -18,51 +18,51 @@ export interface Entry {
   callName: string;
   breed: string;
   handler: string;
-  jumpHeight?: string;
-  preferredTime?: string;
+  jumpHeight?: string | undefined;
+  preferredTime?: string | undefined;
   isScored: boolean;
   // New unified status field
   status: EntryStatus;
   // Deprecated fields (for backward compatibility during migration)
   /** @deprecated Use status instead */
-  inRing?: boolean;
+  inRing?: boolean | undefined;
   /** @deprecated Use status instead */
-  checkedIn?: boolean;
+  checkedIn?: boolean | undefined;
   /** @deprecated Use status instead */
-  checkinStatus?: EntryStatus;
+  checkinStatus?: EntryStatus | undefined;
 
-  resultText?: string;
-  searchTime?: string;
-  faultCount?: number;
-  placement?: number;
+  resultText?: string | undefined;
+  searchTime?: string | undefined;
+  faultCount?: number | undefined;
+  placement?: number | undefined;
   classId: number;
   className: string;
-  section?: string;
-  element?: string;
-  level?: string;
-  timeLimit?: string;
-  timeLimit2?: string;
-  timeLimit3?: string;
-  areas?: number;
-  exhibitorOrder?: number;
-  actualClassId?: number; // The real class ID for real-time subscriptions
-  competitionType?: string; // Competition type for nationals detection
-  trialDate?: string; // Trial date from view
-  trialNumber?: string | number; // Trial number from view
+  section?: string | undefined;
+  element?: string | undefined;
+  level?: string | undefined;
+  timeLimit?: string | undefined;
+  timeLimit2?: string | undefined;
+  timeLimit3?: string | undefined;
+  areas?: number | undefined;
+  exhibitorOrder?: number | undefined;
+  actualClassId?: number | undefined; // The real class ID for real-time subscriptions
+  competitionType?: string | undefined; // Competition type for nationals detection
+  trialDate?: string | undefined; // Trial date from view
+  trialNumber?: string | number | undefined; // Trial number from view
   // Nationals-specific scoring fields
-  correctFinds?: number;
-  incorrectFinds?: number;
-  noFinishCount?: number;
-  totalPoints?: number;
+  correctFinds?: number | undefined;
+  incorrectFinds?: number | undefined;
+  noFinishCount?: number | undefined;
+  totalPoints?: number | undefined;
   // Reason fields
-  nqReason?: string;
-  excusedReason?: string;
-  withdrawnReason?: string;
+  nqReason?: string | undefined;
+  excusedReason?: string | undefined;
+  withdrawnReason?: string | undefined;
   // Visibility flags - control what results are visible based on user role and timing settings
-  showPlacement?: boolean;
-  showQualification?: boolean;
-  showTime?: boolean;
-  showFaults?: boolean;
+  showPlacement?: boolean | undefined;
+  showQualification?: boolean | undefined;
+  showTime?: boolean | undefined;
+  showFaults?: boolean | undefined;
 }
 
 interface EntryFilters {

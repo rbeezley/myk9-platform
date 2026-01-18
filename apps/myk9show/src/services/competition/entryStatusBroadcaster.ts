@@ -22,13 +22,13 @@ export interface EntryStatusUpdate {
   checkInStatus: CheckInStatus;
   ringStatus: 'waiting' | 'on-deck' | 'called' | 'in-ring' | 'completed' | 'absent' | 'excused';
   sequence: number;
-  estimatedCallTime?: Date;
-  actualCallTime?: Date;
-  completedTime?: Date;
-  ringAssignment?: string;
-  judgeId?: string;
-  judgeName?: string;
-  notes?: string;
+  estimatedCallTime?: Date | undefined;
+  actualCallTime?: Date | undefined;
+  completedTime?: Date | undefined;
+  ringAssignment?: string | undefined;
+  judgeId?: string | undefined;
+  judgeName?: string | undefined;
+  notes?: string | undefined;
   updatedAt: Date;
   updatedBy: string;
 }
@@ -42,11 +42,11 @@ export interface RingStatusEvent {
   timestamp: Date;
   sequence: number;
   metadata?: {
-    estimatedTime?: Date;
-    judgeId?: string;
-    ringNumber?: string;
-    priority?: 'medium' | 'critical';
-  };
+    estimatedTime?: Date | undefined;
+    judgeId?: string | undefined;
+    ringNumber?: string | undefined;
+    priority?: 'medium' | 'critical' | undefined;
+  } | undefined;
 }
 
 export interface SequenceUpdate {

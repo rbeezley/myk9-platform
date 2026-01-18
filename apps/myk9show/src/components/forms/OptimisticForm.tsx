@@ -78,7 +78,7 @@ export function OptimisticForm<T>({
       }
     }, autoSaveDelay);
 
-    return () => clearTimeout(autoSaveTimer);
+    return () => { clearTimeout(autoSaveTimer); };
   }, [formData, isDirty, isProcessing, autoSave, autoSaveDelay, onValidate, save]);
 
   const handleSave = async () => {
@@ -247,7 +247,7 @@ export const OptimisticEntryForm: React.FC<{
     entityId={entryId}
     initialData={initialData}
     onSave={onSave}
-    onValidate={onValidate}
+    {...(onValidate !== undefined && { onValidate })}
     autoSave={false} // Entries require explicit save
   >
     {children}

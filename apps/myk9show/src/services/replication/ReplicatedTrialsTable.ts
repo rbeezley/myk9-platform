@@ -20,25 +20,25 @@ type TrialRow = Database['public']['Tables']['trials']['Row'];
  */
 export interface ReplicatedTrial {
   id: string;
-  showId?: string;
+  showId?: string | undefined;
   name: string;
   date: string;
-  trialNumber?: string;
-  status?: string;
-  maxEntriesPerDog?: number;
-  maxTotalEntries?: number;
-  maxEntriesPerHandler?: number;
+  trialNumber?: string | undefined;
+  status?: string | undefined;
+  maxEntriesPerDog?: number | undefined;
+  maxTotalEntries?: number | undefined;
+  maxEntriesPerHandler?: number | undefined;
 
   // Extra fields for scoring
-  trial_date?: string;
-  trial_number?: string;
+  trial_date?: string | undefined;
+  trial_number?: string | undefined;
 
   // Sync metadata
-  _version?: number;
-  _lastModified?: Date;
-  _lastModifiedBy?: string;
-  _syncStatus?: 'synced' | 'pending' | 'error' | 'conflict';
-  _localOnly?: boolean;
+  _version?: number | undefined;
+  _lastModified?: Date | undefined;
+  _lastModifiedBy?: string | undefined;
+  _syncStatus?: 'synced' | 'pending' | 'error' | 'conflict' | undefined;
+  _localOnly?: boolean | undefined;
 }
 
 /**

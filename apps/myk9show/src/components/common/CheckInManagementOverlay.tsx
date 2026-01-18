@@ -37,7 +37,7 @@ interface EntryForCheckIn {
   armband: string;
   dogName: string;
   handlerName: string;
-  checkInStatus?: CheckInStatus;
+  checkInStatus?: CheckInStatus | undefined;
   navigationStatus: 'pending' | 'in-progress' | 'completed';
 }
 

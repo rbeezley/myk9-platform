@@ -160,8 +160,8 @@ export async function verifyCheckoutSession(sessionId: string): Promise<{
     success: true,
     orderId: order.id,
     entryIds: order.entry_ids || [],
-    showId: order.show_id ?? undefined,
-    showName: (order.shows as { name: string } | null)?.name,
-    totalAmount: order.amount_cents ?? undefined,
+    ...(order.show_id != null && { showId: order.show_id }),
+    ...(order.shows && { showName: (order.shows as { name: string }).name }),
+    ...(order.amount_cents != null && { totalAmount: order.amount_cents }),
   };
 }

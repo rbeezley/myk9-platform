@@ -355,7 +355,7 @@ const ShowDetailsPage: React.FC = () => {
         onSave={async (trialData) => {
           if (selectedTrial?.id && trialData.id) {
             const updatedTrial = { ...selectedTrial, ...trialData };
-            updateTrialInStore(updatedTrial.id, updatedTrial);
+            updateTrialInStore(updatedTrial.id, updatedTrial as Partial<TrialInput>);
             setShowEditTrialPanel(false);
             setSelectedTrial(null);
           }

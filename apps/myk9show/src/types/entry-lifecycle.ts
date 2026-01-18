@@ -18,41 +18,45 @@ export interface ShowEntry {
   showId: string;
   classId: string;
   dogId: string;
-  
+
   // Current state
   status: EntryStatus;
-  
+
   // Registration phase data
   registrationData: {
     submittedAt: Date;
     handler: string;
-    handlerId?: string;
+    handlerId?: string | undefined;
     entryFee: number;
     paymentStatus: 'pending' | 'paid' | 'refunded';
-    specialRequests?: string;
-    armband?: string;
-    runOrder?: number;
+    specialRequests?: string | undefined;
+    armband?: string | undefined;
+    runOrder?: number | undefined;
   };
-  
+
   // Competition phase data (only populated when status >= 'competing')
   competitionData?: {
-    startTime?: Date;
-    endTime?: Date;
-    score?: string;
-    time?: string;
-    placement?: string;
-    qualified?: boolean;
-    judgeNotes?: string;
+    startTime?: Date | undefined;
+    endTime?: Date | undefined;
+    score?: string | undefined;
+    time?: string | undefined;
+    placement?: string | undefined;
+    qualified?: boolean | undefined;
+    judgeNotes?: string | undefined;
     recordedBy: string; // Judge/steward who recorded result
-  };
-  
+  } | undefined;
+
   // Audit trail
   statusHistory: Array<{
     status: EntryStatus;
     timestamp: Date;
     userId: string;
-    reason?: string;
+    reason?: string | undefined;
   }>;
+
+  // Used to enable extensions
+  createdAt?: string | undefined;
+  updatedAt?: string | undefined;
 }
 
 // Store interface

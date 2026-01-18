@@ -48,8 +48,8 @@ export class OfflineCheckInService extends EventEmitter {
   private operations: Map<string, CheckInOperation> = new Map();
   private conflicts: Map<string, CheckInConflict> = new Map();
   private isInitialized = false;
-  private syncInterval?: NodeJS.Timeout;
-  private timeSyncInterval?: NodeJS.Timeout;
+  private syncInterval: NodeJS.Timeout | undefined;
+  private timeSyncInterval: NodeJS.Timeout | undefined;
   private timeSyncStatus: TimeSyncStatus;
   private offlineQueue: OfflineCheckInQueue | null = null;
 
@@ -101,7 +101,7 @@ export class OfflineCheckInService extends EventEmitter {
       clearInterval(this.syncInterval);
       this.syncInterval = undefined;
     }
-    
+
     if (this.timeSyncInterval) {
       clearInterval(this.timeSyncInterval);
       this.timeSyncInterval = undefined;
@@ -176,13 +176,13 @@ export class OfflineCheckInService extends EventEmitter {
         checkInTime: operation.performedAt,
         checkInGate: options.gateId,
         checkInStewardId: performedBy,
-        handlerChange: options.handlerChange || entry.handlerChange,
-        specialRequests: options.specialRequests || entry.specialRequests,
+        ...(options.handlerChange !== undefined ? { handlerChange: options.handlerChange } : entry.handlerChange !== undefined ? { handlerChange: entry.handlerChange } : {}),
+        ...(options.specialRequests !== undefined ? { specialRequests: options.specialRequests } : entry.specialRequests !== undefined ? { specialRequests: entry.specialRequests } : {}),
         isScratched: newStatus === 'pulled',
-        scratchReason: options.scratchReason || entry.scratchReason,
+        ...(options.scratchReason !== undefined ? { scratchReason: options.scratchReason } : entry.scratchReason !== undefined ? { scratchReason: entry.scratchReason } : {}),
         updatedAt: operation.performedAt,
         _sync: {
-          _version: (entry._sync?._version || 0) + 1,
+          _version: (entry._sync?._version ?? 0) + 1,
           _lastModified: operation.performedAt.toISOString(),
           _lastModifiedBy: performedBy,
           _syncStatus: 'pending'
@@ -274,7 +274,7 @@ export class OfflineCheckInService extends EventEmitter {
       if (entry.checkInStatus === 'none') {
         await this.checkInEntry(parsedData.entryId, 'checked-in', performedBy, {
           method: 'qr_scan',
-          gateId
+          ...(gateId !== undefined && { gateId })
         });
       }
 
@@ -298,7 +298,7 @@ export class OfflineCheckInService extends EventEmitter {
       try {
         await this.checkInEntry(entryId, newStatus, performedBy, {
           method: 'bulk_operation',
-          gateId
+          ...(gateId !== undefined && { gateId })
         });
         successful.push(entryId);
       } catch (error) {

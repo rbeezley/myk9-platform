@@ -17,35 +17,35 @@ export interface StatusHistoryEntry {
   status: EntryStatus;
   timestamp: string; // ISO string for persistence
   userId: string;
-  reason?: string;
+  reason?: string | undefined;
 }
 
 export interface RegistrationData {
   submittedAt: string; // ISO string
   handler: string;
-  handlerId?: string;
+  handlerId?: string | undefined;
   entryFee: number;
   paymentStatus: 'pending' | 'paid' | 'refunded';
-  specialRequests?: string;
-  armband?: string;
-  runOrder?: number;
+  specialRequests?: string | undefined;
+  armband?: string | undefined;
+  runOrder?: number | undefined;
   // Additional registration fields
-  jumpHeight?: string;
-  preferredJudge?: string;
-  moveUpRequested?: boolean;
+  jumpHeight?: string | undefined;
+  preferredJudge?: string | undefined;
+  moveUpRequested?: boolean | undefined;
 }
 
 export interface CompetitionData {
-  startTime?: string; // ISO string
-  endTime?: string; // ISO string
-  score?: string;
-  time?: string;
-  placement?: string;
-  qualified?: boolean;
-  qualification?: string; // The specific qualification status (Qualified, Not Qualified, Absent, Excused, etc.)
-  qualificationReason?: string; // Reason for NQ, Excused, or Withdrawn
-  faults?: number; // Added to support fault tracking
-  judgeNotes?: string;
+  startTime?: string | undefined; // ISO string
+  endTime?: string | undefined; // ISO string
+  score?: string | undefined;
+  time?: string | undefined;
+  placement?: string | undefined;
+  qualified?: boolean | undefined;
+  qualification?: string | undefined; // The specific qualification status (Qualified, Not Qualified, Absent, Excused, etc.)
+  qualificationReason?: string | undefined; // Reason for NQ, Excused, or Withdrawn
+  faults?: number | undefined; // Added to support fault tracking
+  judgeNotes?: string | undefined;
   recordedBy: string; // Judge/steward who recorded result
   recordedAt: string; // ISO string
 }
@@ -56,7 +56,7 @@ export interface SyncableShowEntry extends ShowEntry {
   _lastModified: Date;
   _lastModifiedBy: string;
   _syncStatus: 'synced' | 'pending' | 'error' | 'conflict';
-  _localOnly?: boolean;
+  _localOnly?: boolean | undefined;
 }
 
 // Input types for creating/updating entries
@@ -65,7 +65,7 @@ export interface ShowEntryInput {
   classId: string;
   dogId: string;
   registrationData: RegistrationData;
-  competitionData?: CompetitionData;
+  competitionData?: CompetitionData | undefined;
 }
 
 export interface ShowEntry {
@@ -74,19 +74,19 @@ export interface ShowEntry {
   showId: string;
   classId: string;
   dogId: string;
-  
+
   // Current state
   status: EntryStatus;
-  
+
   // Registration phase data
   registrationData: RegistrationData;
-  
+
   // Competition phase data (only populated when status >= 'competing')
-  competitionData?: CompetitionData;
-  
+  competitionData?: CompetitionData | undefined;
+
   // Audit trail
   statusHistory: StatusHistoryEntry[];
-  
+
   // Metadata
   createdAt: string; // ISO string
   updatedAt: string; // ISO string

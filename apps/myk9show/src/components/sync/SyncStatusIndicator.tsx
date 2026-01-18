@@ -17,23 +17,23 @@ interface SyncStatusIndicatorProps {
   /** Current sync status */
   status: SyncStatus;
   /** Entity type for context */
-  entityType?: string;
+  entityType?: string | undefined;
   /** Entity ID for actions */
-  entityId?: string;
+  entityId?: string | undefined;
   /** Show text label alongside icon */
-  showLabel?: boolean;
+  showLabel?: boolean | undefined;
   /** Compact view */
-  compact?: boolean;
+  compact?: boolean | undefined;
   /** Last sync timestamp */
-  lastSyncAt?: Date;
+  lastSyncAt?: Date | undefined;
   /** Error message if status is error */
-  errorMessage?: string;
+  errorMessage?: string | undefined;
   /** Enable quick actions */
-  enableActions?: boolean;
+  enableActions?: boolean | undefined;
   /** Custom className */
-  className?: string;
+  className?: string | undefined;
   /** Callback for retry action */
-  onRetry?: () => void;
+  onRetry?: (() => void) | undefined;
 }
 
 /**

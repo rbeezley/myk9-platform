@@ -273,7 +273,7 @@ export interface UserContext {
   role: UserRole;
   permissions: Permission[];
   organizationId?: string;
-  showId?: string;
+  showId?: string | undefined;
 }
 
 // ============================================================================

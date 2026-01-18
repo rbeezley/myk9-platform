@@ -135,7 +135,7 @@ export function ShowManagementPage({ className }: ShowManagementPageProps) {
       description: 'Show overview and key metrics',
       icon: Eye,
       href: `/secretary/shows/${showId}`,
-      badge: show.status === 'draft' ? 'Setup Required' : undefined
+      ...(show.status === 'draft' ? { badge: 'Setup Required' } : {})
     },
     {
       id: 'entries',
@@ -302,7 +302,7 @@ export function ShowManagementPage({ className }: ShowManagementPageProps) {
         </TabsList>
 
         <TabsContent value="dashboard" className="mt-6">
-          <ShowDashboard showId={showId} />
+          <ShowDashboard {...(showId ? { showId } : {})} />
         </TabsContent>
 
         <TabsContent value="entries" className="mt-6">

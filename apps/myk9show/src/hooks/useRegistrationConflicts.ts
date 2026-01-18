@@ -123,7 +123,7 @@ export function useRegistrationConflicts(_showId: string, registrationId?: strin
           { selectedDogs: localDogs },
           { selectedDogs: serverDogs },
           {
-            lastModifiedBy: serverData.lastModifiedByUserId,
+            ...(serverData.lastModifiedByUserId !== undefined && { lastModifiedBy: serverData.lastModifiedByUserId }),
             lastModifiedAt: serverData.updatedAt
           }
         );
@@ -144,7 +144,7 @@ export function useRegistrationConflicts(_showId: string, registrationId?: strin
             paymentStatus: serverData.paymentStatus
           },
           {
-            lastModifiedBy: serverData.lastModifiedByUserId,
+            ...(serverData.lastModifiedByUserId !== undefined && { lastModifiedBy: serverData.lastModifiedByUserId }),
             lastModifiedAt: serverData.updatedAt
           }
         );
@@ -158,7 +158,7 @@ export function useRegistrationConflicts(_showId: string, registrationId?: strin
           { status: 'draft', data: localRegistrationData },
           { status: serverData.status, data: serverData },
           {
-            lastModifiedBy: serverData.lastModifiedByUserId,
+            ...(serverData.lastModifiedByUserId !== undefined && { lastModifiedBy: serverData.lastModifiedByUserId }),
             lastModifiedAt: serverData.updatedAt
           }
         );
@@ -202,7 +202,7 @@ export function useRegistrationConflicts(_showId: string, registrationId?: strin
         { classSelections: localClassSelections },
         { classSelections: serverClassSelections },
         {
-          lastModifiedBy: serverData.lastModifiedByUserId,
+          ...(serverData.lastModifiedByUserId !== undefined && { lastModifiedBy: serverData.lastModifiedByUserId }),
           lastModifiedAt: serverData.updatedAt
         }
       );
@@ -241,7 +241,7 @@ export function useRegistrationConflicts(_showId: string, registrationId?: strin
         { handlerAssignments: localHandlerAssignments },
         { handlerAssignments: serverHandlerAssignments },
         {
-          lastModifiedBy: serverData.lastModifiedByUserId,
+          ...(serverData.lastModifiedByUserId !== undefined && { lastModifiedBy: serverData.lastModifiedByUserId }),
           lastModifiedAt: serverData.updatedAt
         }
       );

@@ -106,12 +106,12 @@ export function ConformationScoresheet({
 
   // Handle award level change
   const handleAwardLevelChange = useCallback((awardLevel: AwardLevel) => {
-    const updatedScore = {
+    const updatedScore: Partial<ConformationScore> = {
       ...score,
       awardLevel,
       // Special awards typically get additional points
       pointsAwarded: awardLevel === 'Best of Breed' ?
-        Math.max(score.pointsAwarded || 0, 3) : score.pointsAwarded
+        Math.max(score.pointsAwarded || 0, 3) : (score.pointsAwarded ?? 0)
     };
 
     setScore(updatedScore);
@@ -212,8 +212,8 @@ export function ConformationScoresheet({
               <Label htmlFor="competition-level">Competition Level *</Label>
               <Select
                 value={score.competitionLevel}
-                onValueChange={(value: CompetitionLevel) => {
-                  const updatedScore = { ...score, competitionLevel: value };
+                onValueChange={(value: string) => {
+                  const updatedScore: Partial<ConformationScore> = { ...score, competitionLevel: value as CompetitionLevel };
                   setScore(updatedScore);
                   onScoreChange(updatedScore);
                 }}
@@ -237,7 +237,7 @@ export function ConformationScoresheet({
             <Label htmlFor="award-level">Award Level (if applicable)</Label>
             <Select
               value={score.awardLevel}
-              onValueChange={handleAwardLevelChange}
+              onValueChange={(value: string) => handleAwardLevelChange(value as AwardLevel)}
               disabled={disabled}
             >
               <SelectTrigger>

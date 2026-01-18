@@ -14,8 +14,8 @@ import { format, parseISO } from 'date-fns';
 
 interface ClassAvailabilityProps {
   showId: string;
-  onEnterClass?: (classId: string) => void;
-  compact?: boolean;
+  onEnterClass?: ((classId: string) => void) | undefined;
+  compact?: boolean | undefined;
 }
 
 function getAvailabilityBadge(classData: ClassAvailabilityData) {
@@ -67,8 +67,8 @@ function ClassAvailabilityCard({
   compact = false,
 }: {
   classData: ClassAvailabilityData;
-  onEnterClass?: (classId: string) => void;
-  compact?: boolean;
+  onEnterClass?: ((classId: string) => void) | undefined;
+  compact?: boolean | undefined;
 }) {
   const canEnter = !classData.isFull || classData.entryLimit === 0;
 

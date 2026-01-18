@@ -29,15 +29,15 @@ export type EntryNavigationStatus = 'pending' | 'in-progress' | 'completed';
 
 export interface EntryWithResult extends ScentWorkEntry {
   navigationStatus: EntryNavigationStatus;
-  result?: ScentWorkResult;
-  placement?: number;
-  isCurrentEntry?: boolean;
-  checkInStatus?: CheckInStatus;
+  result?: ScentWorkResult | undefined;
+  placement?: number | undefined;
+  isCurrentEntry?: boolean | undefined;
+  checkInStatus?: CheckInStatus | undefined;
 }
 
 export interface ResultEntryNavigationProps {
   entries: EntryWithResult[];
-  currentEntryId?: string;
+  currentEntryId?: string | undefined;
   classInfo: {
     element: string;
     level: string;
@@ -45,9 +45,9 @@ export interface ResultEntryNavigationProps {
     totalEntries: number;
   };
   onSelectEntry: (entryId: string) => void;
-  onStartJudging?: () => void;
-  showProgress?: boolean;
-  className?: string;
+  onStartJudging?: (() => void) | undefined;
+  showProgress?: boolean | undefined;
+  className?: string | undefined;
 }
 
 /**

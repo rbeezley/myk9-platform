@@ -20,7 +20,7 @@ interface ErrorBoundaryState {
   error: Error | null;
   errorInfo: ErrorInfo | null;
   errorId: string;
-  classifiedError?: import('@/services/error/ErrorClassificationService').ClassifiedError;
+  classifiedError?: import('@/services/error/ErrorClassificationService').ClassifiedError | undefined;
 }
 
 /**

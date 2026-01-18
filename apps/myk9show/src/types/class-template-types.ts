@@ -27,14 +27,14 @@ export interface ClassTemplatePreset {
 
 export interface GeneratedClass {
   className: string;
-  classNumber?: string;
-  element?: string;
-  level?: string;
-  section?: string;
-  entryFee?: number;
-  maxEntries?: number;
-  requiresJumpHeight?: boolean;
-  customFields?: Record<string, string>;
+  classNumber?: string | undefined;
+  element?: string | undefined;
+  level?: string | undefined;
+  section?: string | undefined;
+  entryFee?: number | undefined;
+  maxEntries?: number | undefined;
+  requiresJumpHeight?: boolean | undefined;
+  customFields?: Record<string, string> | undefined;
 }
 
 // AKC Scent Work specific types

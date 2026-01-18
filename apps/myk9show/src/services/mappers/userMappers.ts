@@ -123,20 +123,26 @@ export const mapDatabaseUsersArray = (dbUsers: Record<string, unknown>[]): User[
  * Utility to create a UserInput from a User (for editing)
  */
 export const mapUserToUserInput = (user: User): UserInput => {
-  return {
+  // Build address object conditionally to avoid undefined values with exactOptionalPropertyTypes
+  const address: UserInput['address'] = {};
+  const streetValue = user.streetAddress || user.address;
+  if (streetValue) address.street = streetValue;
+  if (user.city) address.city = user.city;
+  if (user.state) address.state = user.state;
+  if (user.zipCode) address.zipCode = user.zipCode;
+
+  // Build result with only defined optional properties
+  const result: UserInput = {
     firstName: user.firstName,
     lastName: user.lastName,
-    email: user.email,
-    phone: user.phone,
-    address: {
-      street: user.streetAddress || user.address,
-      city: user.city,
-      state: user.state,
-      zipCode: user.zipCode,
-    },
-    dogs: user.dogs,
-    // Emergency contact handling can be added if needed
+    address,
   };
+  if (user.email !== undefined) result.email = user.email;
+  if (user.phone !== undefined) result.phone = user.phone;
+  if (user.dogs !== undefined) result.dogs = user.dogs;
+  // Emergency contact handling can be added if needed
+
+  return result;
 };
 
 /**

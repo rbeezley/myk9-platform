@@ -28,9 +28,9 @@ const AddTrainingEntryDialog: React.FC<AddTrainingEntryDialogProps> = ({ open, o
 
   // Form validation state
   const [errors, setErrors] = useState<{
-    title?: string;
-    notes?: string;
-    date?: string;
+    title?: string | undefined;
+    notes?: string | undefined;
+    date?: string | undefined;
   }>({});
 
   // Clear validation errors when input changes using controlled update pattern

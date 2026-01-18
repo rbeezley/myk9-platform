@@ -29,10 +29,10 @@ interface AddClassesToTrialDialogProps {
   onOpenChange: (open: boolean) => void;
   onSave: (selectedClasses: ClassDefinition[], template: ClassTemplate, judgeAssignments: ClassJudgeAssignment[]) => void;
   availableTemplates: ClassTemplate[];
-  trialName?: string;
-  trialShowType?: string; // Filter templates by trial's show type
-  existingClasses?: TrialClass[]; // Classes already in the trial to prevent duplicates
-  showId?: string; // For accessing assigned judges
+  trialName?: string | undefined;
+  trialShowType?: string | undefined; // Filter templates by trial's show type
+  existingClasses?: TrialClass[] | undefined; // Classes already in the trial to prevent duplicates
+  showId?: string | undefined; // For accessing assigned judges
 }
 
 type Step = 'template' | 'classes' | 'confirmation';

@@ -472,24 +472,41 @@ export class ErrorMonitor {
   captureError(error: Error, context: Partial<ErrorContext> = {}): StructuredError {
     const classification = ErrorClassifier.classifyError(error, context);
     
+    // Build context with only defined optional properties
+    const baseContext: ErrorContext = {
+      sessionId: context.sessionId ?? this.sessionId,
+      userAgent: context.userAgent ?? (typeof window !== 'undefined' ? window.navigator.userAgent : 'unknown'),
+      url: context.url ?? (typeof window !== 'undefined' ? window.location.href : 'unknown'),
+      timestamp: context.timestamp ?? Date.now(),
+      ...(context.userId !== undefined && { userId: context.userId }),
+      ...(context.userRole !== undefined && { userRole: context.userRole }),
+      ...((context.buildVersion ?? process.env.VITE_APP_VERSION) !== undefined && { buildVersion: context.buildVersion ?? process.env.VITE_APP_VERSION ?? 'unknown' }),
+      ...(context.networkStatus !== undefined && { networkStatus: context.networkStatus }),
+      ...(context.operationType !== undefined && { operationType: context.operationType }),
+      ...(context.entityType !== undefined && { entityType: context.entityType }),
+      ...(context.queryKey !== undefined && { queryKey: context.queryKey }),
+      ...(context.additionalData !== undefined && { additionalData: context.additionalData }),
+    };
+
+    const resolutionResult = ErrorClassifier.suggestResolution({
+      id: '',
+      message: error.message,
+      ...classification,
+      context: {} as ErrorContext,
+    });
+
     const structuredError: StructuredError = {
       id: `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       message: error.message,
-      stack: error.stack,
+      ...(error.stack !== undefined && { stack: error.stack }),
       ...classification,
-      context: {
-        sessionId: this.sessionId,
-        userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : 'unknown',
-        url: typeof window !== 'undefined' ? window.location.href : 'unknown',
-        timestamp: Date.now(),
-        buildVersion: process.env.VITE_APP_VERSION || 'unknown',
-        ...context,
-      },
-      resolution: ErrorClassifier.suggestResolution({
-        id: '',
-        message: error.message,
-        ...classification,
-        context: {} as ErrorContext,
+      context: baseContext,
+      ...(resolutionResult !== undefined && {
+        resolution: {
+          suggested: resolutionResult.suggested,
+          ...(resolutionResult.automated !== undefined && { automated: resolutionResult.automated }),
+          ...(resolutionResult.steps !== undefined && { steps: resolutionResult.steps }),
+        }
       }),
     };
     

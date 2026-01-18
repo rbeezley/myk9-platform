@@ -24,17 +24,17 @@ export interface DatabaseAPI {
 }
 
 export interface QueryFilter {
-  where?: Record<string, unknown>;
-  orderBy?: string;
-  limit?: number;
-  offset?: number;
+  where?: Record<string, unknown> | undefined;
+  orderBy?: string | undefined;
+  limit?: number | undefined;
+  offset?: number | undefined;
 }
 
 export interface PaginationOptions {
   page: number;
   limit: number;
-  orderBy?: string;
-  filter?: QueryFilter;
+  orderBy?: string | undefined;
+  filter?: QueryFilter | undefined;
 }
 
 export interface PaginatedResult<T> {
@@ -52,9 +52,9 @@ export type MigrationOptions<T> = {
   localStorageKey: string;
   targetStore: string;
   schema: unknown; // Schema validation
-  transformer?: (data: unknown) => T;
-  batchSize?: number;
-  onProgress?: (progress: MigrationProgress) => void;
+  transformer?: ((data: unknown) => T) | undefined;
+  batchSize?: number | undefined;
+  onProgress?: ((progress: MigrationProgress) => void) | undefined;
 }
 
 export interface MigrationProgress {
@@ -73,8 +73,8 @@ export interface MigrationResult {
 
 export interface MigrationError {
   message: string;
-  record?: Record<string, unknown>;
-  index?: number;
+  record?: Record<string, unknown> | undefined;
+  index?: number | undefined;
 }
 
 export interface StorageHealth {

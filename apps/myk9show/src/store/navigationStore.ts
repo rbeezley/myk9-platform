@@ -5,8 +5,8 @@ import { getOptimalStorage } from '@/services/database/storage-adapter';
 export interface Breadcrumb {
   id: string;
   label: string;
-  href?: string;
-  isActive?: boolean;
+  href?: string | undefined;
+  isActive?: boolean | undefined;
 }
 
 export interface NavigationState {

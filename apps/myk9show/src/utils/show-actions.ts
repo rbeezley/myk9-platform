@@ -406,9 +406,9 @@ export interface EmptyStateContent {
   icon: string;
   title: string;
   description: string;
-  actionLabel?: string;
-  actionIcon?: string;
-  onAction?: () => void;
+  actionLabel?: string | undefined;
+  actionIcon?: string | undefined;
+  onAction?: (() => void) | undefined;
 }
 
 export function getEmptyStateContent(

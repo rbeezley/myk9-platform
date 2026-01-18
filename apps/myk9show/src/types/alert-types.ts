@@ -35,8 +35,8 @@ export interface AlertThreshold {
   metric: string;
   operator: 'gt' | 'lt' | 'gte' | 'lte' | 'eq' | 'neq';
   value: number;
-  window?: number; // Time window in ms
-  consecutive?: number; // Number of consecutive violations
+  window?: number | undefined; // Time window in ms
+  consecutive?: number | undefined; // Number of consecutive violations
 }
 
 export interface AlertRule {
@@ -61,14 +61,14 @@ export interface Alert {
   status: AlertStatus;
   title: string;
   message: string;
-  details?: Record<string, unknown>;
+  details?: Record<string, unknown> | undefined;
   createdAt: Date;
-  acknowledgedAt?: Date;
-  resolvedAt?: Date;
-  snoozedUntil?: Date;
-  acknowledgedBy?: string;
-  resolvedBy?: string;
-  groupKey?: string;
+  acknowledgedAt?: Date | undefined;
+  resolvedAt?: Date | undefined;
+  snoozedUntil?: Date | undefined;
+  acknowledgedBy?: string | undefined;
+  resolvedBy?: string | undefined;
+  groupKey?: string | undefined;
   count: number; // For grouped alerts
   lastOccurrence: Date;
   firstOccurrence: Date;

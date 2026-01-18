@@ -84,17 +84,17 @@ const ClassInfo: React.FC<ClassInfoProps> = ({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem onClick={onEdit}>
+            <DropdownMenuItem {...(onEdit !== undefined && { onClick: () => onEdit() })}>
               <Eye className="mr-2 h-4 w-4" />
               View Details
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={onEdit}>
+            <DropdownMenuItem {...(onEdit !== undefined && { onClick: () => onEdit() })}>
               <Edit className="mr-2 h-4 w-4" />
               Edit Class
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem 
-              onClick={onDelete}
+            <DropdownMenuItem
+              {...(onDelete !== undefined && { onClick: () => onDelete() })}
               className="text-red-600 focus:text-red-600"
             >
               <Trash2 className="mr-2 h-4 w-4" />

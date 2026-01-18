@@ -465,7 +465,7 @@ export class OrphanedRecordsCleaner {
    */
   public getStats(): {
     backupsCreated: number;
-    lastCleanup?: Date;
+    lastCleanup?: Date | undefined;
     totalSpaceReclaimed: number;
   } {
     return {

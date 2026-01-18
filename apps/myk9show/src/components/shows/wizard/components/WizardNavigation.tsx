@@ -10,11 +10,11 @@ interface WizardNavigationProps {
   canGoNext: boolean;
   onBack: () => void;
   onNext: () => void;
-  onSaveDraft?: () => void;
-  isLoading?: boolean;
-  nextLabel?: string;
-  backLabel?: string;
-  className?: string;
+  onSaveDraft?: (() => void) | undefined;
+  isLoading?: boolean | undefined;
+  nextLabel?: string | undefined;
+  backLabel?: string | undefined;
+  className?: string | undefined;
 }
 
 export const WizardNavigation: React.FC<WizardNavigationProps> = ({

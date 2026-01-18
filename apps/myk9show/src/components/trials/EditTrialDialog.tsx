@@ -99,7 +99,7 @@ const EditTrialDialog: React.FC<EditTrialDialogProps> = ({ open, onOpenChange, o
 
   const handleSave = () => {
     onSave({
-      id: formData.id ? String(formData.id) : undefined,
+      ...(formData.id !== null && { id: String(formData.id) }),
       name: formData.name,
       date: date ? format(date, 'yyyy-MM-dd') : '',
       type: formData.name,

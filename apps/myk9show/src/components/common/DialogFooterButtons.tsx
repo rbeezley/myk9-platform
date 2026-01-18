@@ -4,13 +4,13 @@ import React from 'react';
 
 interface DialogFooterButtonsProps {
   onCancel: () => void;
-  onSubmit: () => void;
+  onSubmit: (e?: React.MouseEvent<HTMLButtonElement>) => void;
   saveLabel?: React.ReactNode;
   cancelLabel?: string;
   isSubmitting?: boolean;
-  showIcons?: boolean;
-  formId?: string;
-  saveButtonProps?: ButtonProps;
+  showIcons?: boolean | undefined;
+  formId?: string | undefined;
+  saveButtonProps?: ButtonProps | undefined;
   saveIcon?: React.ReactNode;
 }
 

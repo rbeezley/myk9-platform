@@ -82,7 +82,7 @@ export interface ShowInput {
   entryOpenDate: string;
   entryCloseDate: string;
   preEntryFee: string;
-  dayOfShowFee?: string;
+  dayOfShowFee?: string | undefined;
   clubId: string;
   clubName: string;
   clubAddress: string;
@@ -90,14 +90,14 @@ export interface ShowInput {
   chairman: string;
   secretary: string;
   chiefSteward: string;
-  assignedJudges?: ShowJudgeAssignment[];
+  assignedJudges?: ShowJudgeAssignment[] | undefined;
   trials?: Array<{
     id: string;
     name: string;
     date: string;
     trialNumber: string;
     status: string;
-  }>;
+  }> | undefined;
 }
 
 interface ShowStore {
@@ -263,36 +263,53 @@ export const useShowStore = create<ShowStore>()(
           }
 
           // Update in replicated table (handles version increment and sync metadata)
-          const replicatedUpdates: Partial<ReplicatedShow> = {
-            name: updates.name,
-            type: updates.type,
-            startDate: updates.startDate,
-            endDate: updates.endDate,
-            location: updates.location || undefined,
-            status: updates.status || undefined,
-            entryOpenDate: updates.entryOpenDate || undefined,
-            entryCloseDate: updates.entryCloseDate || undefined,
-            preEntryFee: updates.preEntryFee ? parseFloat(updates.preEntryFee) : undefined,
-            dayOfShowFee: updates.dayOfShowFee ? parseFloat(updates.dayOfShowFee) : undefined,
-            clubId: updates.clubId || undefined,
-            chairman: updates.chairman || undefined,
-            secretary: updates.secretary || undefined,
-            chiefSteward: updates.chiefSteward || undefined,
-          };
-
-          // Remove undefined values
-          Object.keys(replicatedUpdates).forEach(key => {
-            if (replicatedUpdates[key as keyof typeof replicatedUpdates] === undefined) {
-              delete replicatedUpdates[key as keyof typeof replicatedUpdates];
-            }
-          });
+          // Build update object with only defined values to satisfy exactOptionalPropertyTypes
+          const replicatedUpdates: Partial<ReplicatedShow> = {};
+          if (updates.name !== undefined) replicatedUpdates.name = updates.name;
+          if (updates.type !== undefined) replicatedUpdates.type = updates.type;
+          if (updates.startDate !== undefined) replicatedUpdates.startDate = updates.startDate;
+          if (updates.endDate !== undefined) replicatedUpdates.endDate = updates.endDate;
+          if (updates.location !== undefined) replicatedUpdates.location = updates.location;
+          if (updates.status !== undefined) replicatedUpdates.status = updates.status;
+          if (updates.entryOpenDate !== undefined) replicatedUpdates.entryOpenDate = updates.entryOpenDate;
+          if (updates.entryCloseDate !== undefined) replicatedUpdates.entryCloseDate = updates.entryCloseDate;
+          if (updates.preEntryFee !== undefined) replicatedUpdates.preEntryFee = parseFloat(updates.preEntryFee);
+          if (updates.dayOfShowFee !== undefined) replicatedUpdates.dayOfShowFee = parseFloat(updates.dayOfShowFee);
+          if (updates.clubId !== undefined) replicatedUpdates.clubId = updates.clubId;
+          if (updates.chairman !== undefined) replicatedUpdates.chairman = updates.chairman;
+          if (updates.secretary !== undefined) replicatedUpdates.secretary = updates.secretary;
+          if (updates.chiefSteward !== undefined) replicatedUpdates.chiefSteward = updates.chiefSteward;
 
           await replicatedShowsTable.updateShow(id, replicatedUpdates);
 
           // Create updated show with local-only fields preserved
+          // Filter out undefined values from updates to satisfy exactOptionalPropertyTypes
+          const definedUpdates: Partial<Show> = {};
+          if (updates.name !== undefined) definedUpdates.name = updates.name;
+          if (updates.type !== undefined) definedUpdates.type = updates.type;
+          if (updates.startDate !== undefined) definedUpdates.startDate = updates.startDate;
+          if (updates.endDate !== undefined) definedUpdates.endDate = updates.endDate;
+          if (updates.location !== undefined) definedUpdates.location = updates.location;
+          if (updates.status !== undefined) definedUpdates.status = updates.status;
+          if (updates.events !== undefined) definedUpdates.events = updates.events;
+          if (updates.source !== undefined) definedUpdates.source = updates.source;
+          if (updates.entryOpenDate !== undefined) definedUpdates.entryOpenDate = updates.entryOpenDate;
+          if (updates.entryCloseDate !== undefined) definedUpdates.entryCloseDate = updates.entryCloseDate;
+          if (updates.preEntryFee !== undefined) definedUpdates.preEntryFee = updates.preEntryFee;
+          if (updates.dayOfShowFee !== undefined) definedUpdates.dayOfShowFee = updates.dayOfShowFee;
+          if (updates.clubId !== undefined) definedUpdates.clubId = updates.clubId;
+          if (updates.clubName !== undefined) definedUpdates.clubName = updates.clubName;
+          if (updates.clubAddress !== undefined) definedUpdates.clubAddress = updates.clubAddress;
+          if (updates.clubEmail !== undefined) definedUpdates.clubEmail = updates.clubEmail;
+          if (updates.chairman !== undefined) definedUpdates.chairman = updates.chairman;
+          if (updates.secretary !== undefined) definedUpdates.secretary = updates.secretary;
+          if (updates.chiefSteward !== undefined) definedUpdates.chiefSteward = updates.chiefSteward;
+          if (updates.assignedJudges !== undefined) definedUpdates.assignedJudges = updates.assignedJudges;
+          if (updates.trials !== undefined) definedUpdates.trials = updates.trials;
+
           const updatedShow: Show = {
             ...currentShow,
-            ...updates,
+            ...definedUpdates,
             // Update sync metadata
             _version: currentShow._version ? currentShow._version + 1 : 1,
             _lastModified: new Date(),

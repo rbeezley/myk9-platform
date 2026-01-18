@@ -188,7 +188,7 @@ export class EnhancedNotificationService {
       category: template.category,
       title,
       body,
-      actionText: template.actionText,
+      ...(template.actionText !== undefined && { actionText: template.actionText }),
       metadata: {
         templateId,
         userId: recipient.userId,
@@ -202,8 +202,8 @@ export class EnhancedNotificationService {
     options: {
       limit?: number;
       offset?: number;
-      category?: NotificationCategory;
-      priority?: NotificationPriority;
+      category?: NotificationCategory | undefined;
+      priority?: NotificationPriority | undefined;
       unreadOnly?: boolean;
       includeArchived?: boolean;
     } = {}

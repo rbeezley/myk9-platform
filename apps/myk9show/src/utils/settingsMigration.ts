@@ -9,7 +9,7 @@ import type { AppSettings } from '@/stores/settingsStore';
 export interface MigrationResult {
   success: boolean;
   settings: AppSettings;
-  migratedFrom?: string;
+  migratedFrom?: string | undefined;
 }
 
 interface ImportedSettings {

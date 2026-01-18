@@ -16,9 +16,9 @@ interface CreateDogDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onDogCreated: (dog: Dog) => void;
-  ownerId?: string; // If provided, dog will be assigned to this owner
-  ownerInfo?: User; // Owner information for display
-  prefilledData?: Partial<DogFormData>; // Pre-fill from search or other sources
+  ownerId?: string | undefined; // If provided, dog will be assigned to this owner
+  ownerInfo?: User | undefined; // Owner information for display
+  prefilledData?: Partial<DogFormData> | undefined; // Pre-fill from search or other sources
 }
 
 interface DogFormData {

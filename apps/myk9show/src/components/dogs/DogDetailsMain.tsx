@@ -136,7 +136,7 @@ function formatDisplayDate(dateStr: string): string {
 
 interface DogDetailsMainProps {
   dog: Dog;
-  fromPerson?: User; // User object when navigating from a person's page
+  fromPerson?: User | undefined; // User object when navigating from a person's page
   onDelete?: () => void; // Callback for when dog is deleted
   onUpdate?: (id: string, updates: Partial<DogInput>) => Promise<Dog | null>; // Callback for when dog is updated
 }
@@ -245,32 +245,42 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
   // Convert Dog form data to DogInput for database updates
   const convertDogToDogInput = (dogData: Partial<Dog>): Partial<DogInput> => {
     // Extract breed from registrations or use existing dog breed
-    const breed = dogData.registrations?.[0]?.breed || 
-                  updatedDog.registrations?.[0]?.breed || 
+    const breed = dogData.registrations?.[0]?.breed ||
+                  updatedDog.registrations?.[0]?.breed ||
                   'Unknown';
-    
-    const result = {
-      name: dogData.callName || dogData.name,
-      callName: dogData.callName,
+
+    // Build result object conditionally to comply with exactOptionalPropertyTypes
+    const result: Partial<DogInput> = {
       breed: breed,
       sex: (dogData.sex || dogData.gender?.toLowerCase()) as 'male' | 'female',
-      birthDate: dogData.dateOfBirth || dogData.birthDate,
-      color: dogData.color,
-      weight: typeof dogData.weight === 'string' ? parseFloat(dogData.weight) : dogData.weight,
-      height: typeof dogData.height === 'string' ? parseFloat(dogData.height) : dogData.height,
       ownerId: dogData.ownerId || dog.ownerId,
-      ownerName: dogData.ownerName,
-      microchipNumber: dogData.microchip || dogData.microchipNumber,
-      imageUrl: dogData.imageUrl,
-      registrations: dogData.registrations?.map(reg => ({
+    };
+
+    // Only add optional properties if they have defined values
+    const name = dogData.callName || dogData.name;
+    if (name !== undefined) result.name = name;
+    if (dogData.callName !== undefined) result.callName = dogData.callName;
+    const birthDate = dogData.dateOfBirth || dogData.birthDate;
+    if (birthDate !== undefined) result.birthDate = birthDate;
+    if (dogData.color !== undefined) result.color = dogData.color;
+    const weight = typeof dogData.weight === 'string' ? parseFloat(dogData.weight) : dogData.weight;
+    if (weight !== undefined) result.weight = weight;
+    const height = typeof dogData.height === 'string' ? parseFloat(dogData.height) : dogData.height;
+    if (height !== undefined) result.height = height;
+    if (dogData.ownerName !== undefined) result.ownerName = dogData.ownerName;
+    const microchipNumber = dogData.microchip || dogData.microchipNumber;
+    if (microchipNumber !== undefined) result.microchipNumber = microchipNumber;
+    if (dogData.imageUrl !== undefined) result.imageUrl = dogData.imageUrl;
+    if (dogData.registrations !== undefined) {
+      result.registrations = dogData.registrations.map(reg => ({
         organization: reg.organization,
         number: reg.registrationNumber,
         type: reg.breed || 'Unknown',
         status: reg.status
-      })),
-      healthRecords: dogData.healthRecords
-    };
-    
+      }));
+    }
+    if (dogData.healthRecords !== undefined) result.healthRecords = dogData.healthRecords;
+
     return result;
   };
 

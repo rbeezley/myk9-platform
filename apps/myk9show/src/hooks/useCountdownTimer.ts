@@ -32,9 +32,9 @@ export interface CountdownTimerState {
 interface UseCountdownTimerOptions {
   maxTimeMs: number;                                    // Class time limit in milliseconds
   level: 'Novice' | 'Advanced' | 'Excellent' | 'Masters'; // Competition level
-  onTimeWarning?: (remainingMs: number) => void;       // Called at 30-second warning
-  onTimeExpired?: () => void;                           // Called when time limit exceeded
-  onSearchTime?: (timeMs: number) => void;              // Called when timer stopped
+  onTimeWarning?: ((remainingMs: number) => void) | undefined;       // Called at 30-second warning
+  onTimeExpired?: (() => void) | undefined;                           // Called when time limit exceeded
+  onSearchTime?: ((timeMs: number) => void) | undefined;              // Called when timer stopped
   precision?: number;                                   // Update interval in ms (default: 10)
 }
 

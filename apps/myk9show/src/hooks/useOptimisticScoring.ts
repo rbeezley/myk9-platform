@@ -31,6 +31,13 @@ export interface ScoreSubmissionData {
     areas?: { [key: string]: string };
     element?: string;
     level?: string;
+    // Additional scoring data (used by specific scoresheets)
+    correctCount?: number;
+    incorrectCount?: number;
+    finishCallErrors?: number;
+    areaTimes?: string[];
+    // Allow additional properties for extensibility
+    [key: string]: unknown;
   };
 }
 
@@ -131,8 +138,8 @@ export function useOptimisticScoring() {
         time: scoreData.searchTime || '0:00.00',
         qualifying: optimisticResult as QualifyingResult,
         areas: scoreData.areas || {},
-        nonQualifyingReason: scoreData.nonQualifyingReason,
-        faults: scoreData.faultCount,
+        ...(scoreData.nonQualifyingReason !== undefined && { nonQualifyingReason: scoreData.nonQualifyingReason }),
+        ...(scoreData.faultCount !== undefined && { faults: scoreData.faultCount }),
       });
 
       // Step 2: Sync with server in background

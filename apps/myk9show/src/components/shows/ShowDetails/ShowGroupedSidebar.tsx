@@ -18,8 +18,8 @@ interface ShowGroupedSidebarProps {
   onSelect: (id: string) => void;
   searchTerm: string;
   onSearchChange: (term: string) => void;
-  onCloseMobile?: () => void;
-  onAdd?: () => void;
+  onCloseMobile?: (() => void) | undefined;
+  onAdd?: (() => void) | undefined;
 }
 
 export const ShowGroupedSidebar: React.FC<ShowGroupedSidebarProps> = ({

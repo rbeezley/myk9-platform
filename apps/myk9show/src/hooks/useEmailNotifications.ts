@@ -291,7 +291,7 @@ export function useEmailAutomation() {
       entryNumber: entry.entryNumber || entry.id || 'N/A',
       confirmationCode: entry.confirmationCode || entry.id || 'N/A',
       venue: entry.venue || 'TBD',
-      judgeName: entry.judgeName,
+      ...(entry.judgeName !== undefined && { judgeName: entry.judgeName }),
       entryFee: entry.entryFee || 0
     };
 
@@ -319,7 +319,7 @@ export function useEmailAutomation() {
         acc[email]?.entries?.push({
           dogName: entry.dogName || 'Dog',
           className: entry.className || 'Open',
-          ringNumber: entry.ringNumber
+          ...(entry.ringNumber !== undefined && { ringNumber: entry.ringNumber })
         });
       }
       return acc;
@@ -369,9 +369,9 @@ export function useEmailAutomation() {
         acc[email]?.results?.push({
           dogName: result.dogName || result.entry?.dogName || 'Dog',
           className: result.className || result.entry?.className || 'Open',
-          placement: result.placement,
-          points: result.points,
-          award: result.award
+          ...(result.placement !== undefined && { placement: result.placement }),
+          ...(result.points !== undefined && { points: result.points }),
+          ...(result.award !== undefined && { award: result.award })
         });
       }
       return acc;

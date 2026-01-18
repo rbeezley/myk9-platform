@@ -10,7 +10,7 @@ interface SeparatorProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const Separator = React.forwardRef<HTMLDivElement, SeparatorProps>(
   (
-    { className, orientation = "horizontal", decorative = true, ...props },
+    { className, orientation = "horizontal", decorative = true, style, ...props },
     ref
   ) => (
     <SeparatorPrimitive
@@ -22,6 +22,7 @@ const Separator = React.forwardRef<HTMLDivElement, SeparatorProps>(
         orientation === "horizontal" ? "h-[1px] w-full" : "h-full w-[1px]",
         className
       )}
+      {...(style !== undefined && { style })}
       {...props}
     />
   )

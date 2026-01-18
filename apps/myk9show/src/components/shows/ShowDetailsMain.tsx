@@ -24,8 +24,8 @@ interface ShowDetailsMainProps {
   onDeleteShow: () => void;
   onEditTrial: (trial: Trial) => void;
   onDeleteTrial: (trial: Trial) => void;
-  onRegisterForShow?: () => void;
-  useEnhancedView?: boolean;
+  onRegisterForShow?: (() => void) | undefined;
+  useEnhancedView?: boolean | undefined;
 }
 
 const ShowDetailsMain: React.FC<ShowDetailsMainProps> = ({

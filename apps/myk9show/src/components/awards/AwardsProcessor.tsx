@@ -38,7 +38,7 @@ interface ProcessingStats {
   totalClasses: number;
   processedClasses: number;
   totalAwards: number;
-  highInTrial?: AwardResult;
+  highInTrial?: AwardResult | undefined;
   newTitles: number;
   qualifyingScores: number;
 }

@@ -36,8 +36,8 @@ interface AddDogPanelProps {
   open: boolean;
   onClose: () => void;
   onDogCreated: (dog: DogType) => void;
-  userRole?: UserRole;
-  currentUserPersonId?: string;
+  userRole?: UserRole | undefined;
+  currentUserPersonId?: string | undefined;
 }
 
 // Form data interface

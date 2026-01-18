@@ -6,13 +6,13 @@ interface ExpandableSectionProps {
   title: string;
   icon: React.ReactNode;
   children: React.ReactNode;
-  initialExpanded?: boolean;
-  storageKey?: string; // For localStorage persistence
-  contentCount?: number; // Number of populated fields
-  className?: string;
-  priority?: 'critical' | 'important' | 'utility'; // Section importance level
-  forceExpanded?: boolean; // External control for expand all
-  forceCollapsed?: boolean; // External control for collapse all
+  initialExpanded?: boolean | undefined;
+  storageKey?: string | undefined; // For localStorage persistence
+  contentCount?: number | undefined; // Number of populated fields
+  className?: string | undefined;
+  priority?: 'critical' | 'important' | 'utility' | undefined; // Section importance level
+  forceExpanded?: boolean | undefined; // External control for expand all
+  forceCollapsed?: boolean | undefined; // External control for collapse all
 }
 
 const ExpandableSection: React.FC<ExpandableSectionProps> = ({

@@ -151,24 +151,38 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   const handleUserEditSave = async (userData: Partial<UserType>) => {
     try {
       // Update local state with user data (for immediate UI feedback)
-      setFormData(prev => ({ ...prev, ...userData }));
-      
+      // Build update object only with defined properties
+      const definedUpdates: Partial<typeof formData> = {};
+      if (userData.firstName !== undefined) definedUpdates.name = `${userData.firstName} ${userData.lastName || ''}`.trim();
+      if (userData.email !== undefined) definedUpdates.email = userData.email;
+      if (userData.phone !== undefined) definedUpdates.phone = userData.phone;
+      if (userData.streetAddress !== undefined) definedUpdates.address = userData.streetAddress;
+      if (userData.city !== undefined) definedUpdates.city = userData.city;
+      if (userData.state !== undefined) definedUpdates.state = userData.state;
+      if (userData.zipCode !== undefined) definedUpdates.zipCode = userData.zipCode;
+
+      setFormData(prev => ({ ...prev, ...definedUpdates }));
+
       // Save to database using React Query mutation (this will auto-update the cache)
       logger.debug('Saving user data', 'users', { userId: person.id });
+
+      // Build updates object using conditional spread for exactOptionalPropertyTypes
+      const updates: Partial<UserType> = {
+        ...(userData.firstName !== undefined && { firstName: userData.firstName }),
+        ...(userData.lastName !== undefined && { lastName: userData.lastName }),
+        ...(userData.email !== undefined && { email: userData.email }),
+        ...(userData.phone !== undefined && { phone: userData.phone }),
+        streetAddress: userData.streetAddress || '',
+        city: userData.city || '',
+        state: userData.state || '',
+        zipCode: userData.zipCode || ''
+      };
+
       await updateUserMutation.mutateAsync({
         id: person.id,
-        updates: {
-          firstName: userData.firstName,
-          lastName: userData.lastName,
-          email: userData.email,
-          phone: userData.phone,
-          streetAddress: userData.streetAddress || '',
-          city: userData.city || '',
-          state: userData.state || '',
-          zipCode: userData.zipCode || ''
-        }
+        updates
       });
-      
+
       logger.info('User data saved successfully', 'users', { userId: person.id });
     } catch (error) {
       logger.error('Failed to save user data', 'users', { userId: person.id }, error as Error);

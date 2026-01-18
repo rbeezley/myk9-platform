@@ -25,32 +25,32 @@ export interface ShowTrial {
   date: string;
   trialNumber: string;
   status: string;
-  classes?: Class[];
+  classes?: Class[] | undefined;
   // Entry limits
-  maxEntriesPerDog?: number;
-  maxTotalEntries?: number;
-  maxEntriesPerHandler?: number;
+  maxEntriesPerDog?: number | undefined;
+  maxTotalEntries?: number | undefined;
+  maxEntriesPerHandler?: number | undefined;
 }
 
 export interface Class {
   id: string;
   name: string;
-  description?: string;
-  entryFee?: number;
-  jumpHeights?: string[];
+  description?: string | undefined;
+  entryFee?: number | undefined;
+  jumpHeights?: string[] | undefined;
   // Entry limits and restrictions
-  maxEntries?: number;
-  allowWaitlist?: boolean;
-  maxDogsPerHandler?: number;
+  maxEntries?: number | undefined;
+  allowWaitlist?: boolean | undefined;
+  maxDogsPerHandler?: number | undefined;
   // Class restrictions
-  level?: string;
-  breedRestrictions?: string[];
-  ageRestrictions?: { min?: number; max?: number };
-  heightRestrictions?: { min?: number; max?: number };
-  handlerAgeRestrictions?: { min?: number; max?: number };
+  level?: string | undefined;
+  breedRestrictions?: string[] | undefined;
+  ageRestrictions?: { min?: number | undefined; max?: number | undefined } | undefined;
+  heightRestrictions?: { min?: number | undefined; max?: number | undefined } | undefined;
+  handlerAgeRestrictions?: { min?: number | undefined; max?: number | undefined } | undefined;
   // Schedule info
-  startTime?: string;
-  estimatedDuration?: number; // in minutes
+  startTime?: string | undefined;
+  estimatedDuration?: number | undefined; // in minutes
 }
 
 export interface Show {
@@ -67,11 +67,11 @@ export interface Show {
   entryOpenDate: string;
   entryCloseDate: string;
   preEntryFee: string;
-  dayOfShowFee?: string; // Fee for registrations made on day of show
-  entryDeadline?: string; // Entry deadline date
-  lateEntryDeadline?: string; // Late entry deadline date
+  dayOfShowFee?: string | undefined; // Fee for registrations made on day of show
+  entryDeadline?: string | undefined; // Entry deadline date
+  lateEntryDeadline?: string | undefined; // Late entry deadline date
   // Club relationship - FIXED: Added proper foreign key
-  clubId: string; // ✅ Proper foreign key to Club
+  clubId: string; // Proper foreign key to Club
   // Club info (denormalized for performance, but club should be source of truth)
   clubName: string;
   clubAddress: string;
@@ -87,16 +87,16 @@ export interface Show {
   // Associated trials
   trials: ShowTrial[];
   // Entry limits
-  maxEntriesPerDog?: number;
-  maxTotalEntries?: number;
-  allowNonOwnerHandlers?: boolean;
+  maxEntriesPerDog?: number | undefined;
+  maxTotalEntries?: number | undefined;
+  allowNonOwnerHandlers?: boolean | undefined;
 
   // Sync metadata for Local-First architecture
-  _version?: number;
-  _lastModified?: Date;
-  _lastModifiedBy?: string;
-  _syncStatus?: 'synced' | 'pending' | 'error' | 'conflict';
-  _localOnly?: boolean;
+  _version?: number | undefined;
+  _lastModified?: Date | undefined;
+  _lastModifiedBy?: string | undefined;
+  _syncStatus?: 'synced' | 'pending' | 'error' | 'conflict' | undefined;
+  _localOnly?: boolean | undefined;
 }
 
 // Export Trial interface (previously ShowTrial)
@@ -115,7 +115,7 @@ export interface ShowInput {
   entryOpenDate: string;
   entryCloseDate: string;
   preEntryFee: string;
-  dayOfShowFee?: string;
+  dayOfShowFee?: string | undefined;
   clubId: string;
   clubName: string;
   clubAddress: string;
@@ -123,8 +123,8 @@ export interface ShowInput {
   chairman: string;
   secretary: string;
   chiefSteward: string;
-  assignedJudges?: ShowJudgeAssignment[];
-  trials?: ShowTrial[];
+  assignedJudges?: ShowJudgeAssignment[] | undefined;
+  trials?: ShowTrial[] | undefined;
   // Index signature for compatibility with Record<string, unknown>
   [key: string]: unknown;
 }

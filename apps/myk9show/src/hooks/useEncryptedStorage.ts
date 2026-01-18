@@ -65,7 +65,7 @@ export function useEncryptedStorage() {
         initialized: keyStats.totalKeys > 0,
         enabled: adapterInfo.enableEncryption,
         keyCount: keyStats.totalKeys,
-        lastInitialized: keyStats.newestKey || undefined,
+        ...(keyStats.newestKey !== undefined && keyStats.newestKey !== null && { lastInitialized: keyStats.newestKey }),
       };
     } catch {
       return {

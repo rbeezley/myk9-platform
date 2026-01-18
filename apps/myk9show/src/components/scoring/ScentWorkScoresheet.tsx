@@ -91,17 +91,16 @@ export function ScentWorkScoresheet({
     classConfig.level as 'Novice' | 'Advanced' | 'Excellent' | 'Masters'
   );
 
-  // Result state
-  const [result, setResult] = useState<Partial<ScentWorkResult>>({
+  // Result state - use type assertion for explicit undefined assignment on required fields
+  const [result, setResult] = useState<Partial<ScentWorkResult>>(() => ({
     entryId: entry.id,
     classId: entry.classId || 'mock-class-id',
     searchTime: 0,
     maxTimeAllowed: maxTimeMs,
-    qualification: undefined,
     faults: 0,
     recordedBy: 'current-judge', // TODO: Get from auth context
     recordedAt: new Date()
-  });
+  }) as Partial<ScentWorkResult>);
 
   // UI state
   const [showConfirmation, setShowConfirmation] = useState(false);

@@ -4,14 +4,14 @@ import { Button } from '@/components/ui/button';
 import { MoreVertical, Eye, Pencil, Trash2, Award } from 'lucide-react';
 
 interface ThreeDotMenuProps {
-  onView?: () => void;
-  onEdit?: () => void;
-  onEditPhoto?: () => void;
-  onManageQualifications?: () => void;
-  onDelete?: () => void;
-  viewLabel?: string;
-  editLabel?: string;
-  showManageQualifications?: boolean;
+  onView?: (() => void) | undefined;
+  onEdit?: (() => void) | undefined;
+  onEditPhoto?: (() => void) | undefined;
+  onManageQualifications?: (() => void) | undefined;
+  onDelete?: (() => void) | undefined;
+  viewLabel?: string | undefined;
+  editLabel?: string | undefined;
+  showManageQualifications?: boolean | undefined;
 }
 
 const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({ 

@@ -10,25 +10,25 @@ export interface PerformanceMetric {
   value: number;
   unit: string;
   timestamp: number;
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, unknown> | undefined;
 }
 
 export interface ErrorMetric {
   message: string;
-  stack?: string;
-  component?: string;
-  userId?: string;
+  stack?: string | undefined;
+  component?: string | undefined;
+  userId?: string | undefined;
   timestamp: number;
   fingerprint: string;
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, unknown> | undefined;
 }
 
 export interface UserMetric {
   event: string;
-  userId?: string;
+  userId?: string | undefined;
   sessionId: string;
   timestamp: number;
-  properties?: Record<string, unknown>;
+  properties?: Record<string, unknown> | undefined;
 }
 
 /**

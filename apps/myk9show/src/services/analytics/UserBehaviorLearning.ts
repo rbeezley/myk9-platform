@@ -3,15 +3,15 @@ import { logger } from '@/services/LoggingService';
 interface UserAction {
   id: string;
   type: 'navigation' | 'entity_access' | 'search' | 'create' | 'update' | 'delete';
-  entityType?: 'club' | 'person' | 'dog' | 'show' | 'entry';
-  entityId?: string;
-  route?: string;
-  searchQuery?: string;
+  entityType?: 'club' | 'person' | 'dog' | 'show' | 'entry' | undefined;
+  entityId?: string | undefined;
+  route?: string | undefined;
+  searchQuery?: string | undefined;
   timestamp: Date;
   sessionId: string;
-  userId?: string;
-  timeSpent?: number;
-  metadata?: Record<string, unknown>;
+  userId?: string | undefined;
+  timeSpent?: number | undefined;
+  metadata?: Record<string, unknown> | undefined;
 }
 
 interface UserSession {

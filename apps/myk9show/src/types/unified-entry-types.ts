@@ -9,36 +9,36 @@ export interface UnifiedEntryData {
   // Core identity
   id: string;
   classId: string;
-  
+
   // Registration data
   armband: string;
   handler: string;
   dog: string;
-  dogId?: string;
-  handlerId?: string;
-  
+  dogId?: string | undefined;
+  handlerId?: string | undefined;
+
   // Competition results
   status: 'Qualified' | 'Not Qualified' | 'Absent' | 'Withdrawn' | 'Excused' | 'Pending' | 'Eliminated';
-  time?: string; // Formatted time string (MM:SS.HH or MM:SS)
-  score?: string; // Score as string (could be points, percentage, etc.)
-  faults?: number;
-  placement?: string;
-  qualification?: string; // More specific than status (can be same as status or more detailed)
-  notes?: string;
-  
+  time?: string | undefined; // Formatted time string (MM:SS.HH or MM:SS)
+  score?: string | undefined; // Score as string (could be points, percentage, etc.)
+  faults?: number | undefined;
+  placement?: string | undefined;
+  qualification?: string | undefined; // More specific than status (can be same as status or more detailed)
+  notes?: string | undefined;
+
   // Metadata
-  showType?: ShowType;
-  updatedAt?: string;
-  recordedBy?: string;
-  
+  showType?: ShowType | undefined;
+  updatedAt?: string | undefined;
+  recordedBy?: string | undefined;
+
   // Raw data for advanced use cases
-  rawTimeMs?: number; // Time in milliseconds for calculations
-  rawScore?: number; // Numeric score for calculations
-  
+  rawTimeMs?: number | undefined; // Time in milliseconds for calculations
+  rawScore?: number | undefined; // Numeric score for calculations
+
   // Display hints
-  isProvisional?: boolean; // Whether results are provisional
-  hasChanges?: boolean; // Whether entry has unsaved changes (for BulkResultEntry)
-  isValid?: boolean; // Whether entry data is valid (for BulkResultEntry)
+  isProvisional?: boolean | undefined; // Whether results are provisional
+  hasChanges?: boolean | undefined; // Whether entry has unsaved changes (for BulkResultEntry)
+  isValid?: boolean | undefined; // Whether entry data is valid (for BulkResultEntry)
 }
 
 /**

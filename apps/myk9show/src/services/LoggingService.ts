@@ -16,17 +16,17 @@ export interface LogEntry {
   level: LogLevel;
   message: string;
   category: string;
-  userId?: string;
-  sessionId?: string;
-  metadata?: Record<string, unknown>;
-  stack?: string;
-  fingerprint?: string;
+  userId?: string | undefined;
+  sessionId?: string | undefined;
+  metadata?: Record<string, unknown> | undefined;
+  stack?: string | undefined;
+  fingerprint?: string | undefined;
 }
 
 export interface LogTransport {
   name: string;
   log(entry: LogEntry): Promise<void>;
-  flush?(): Promise<void>;
+  flush?(): Promise<void> | undefined;
 }
 
 /**

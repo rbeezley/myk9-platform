@@ -94,17 +94,22 @@ export const useNetworkStatus = (): NetworkStatus => {
       const navWithConnection = navigator as NavigatorWithConnection;
       const connection = navWithConnection.connection || navWithConnection.mozConnection || navWithConnection.webkitConnection;
       const isOnline = navigator.onLine;
-      
-      setNetworkStatus(prev => ({
-        ...prev,
-        isOnline,
-        connectionType: (connection?.type as NetworkStatus['connectionType']) || 'unknown',
-        effectiveType: (connection?.effectiveType as NetworkStatus['effectiveType']) || 'unknown',
-        downlink: connection?.downlink || 0,
-        rtt: connection?.rtt || 0,
-        lastConnected: isOnline && !prev.isOnline ? new Date() : prev.lastConnected,
-        lastDisconnected: !isOnline && prev.isOnline ? new Date() : prev.lastDisconnected,
-      }));
+
+      setNetworkStatus(prev => {
+        const lastConnected = isOnline && !prev.isOnline ? new Date() : prev.lastConnected;
+        const lastDisconnected = !isOnline && prev.isOnline ? new Date() : prev.lastDisconnected;
+
+        return {
+          ...prev,
+          isOnline,
+          connectionType: (connection?.type as NetworkStatus['connectionType']) || 'unknown',
+          effectiveType: (connection?.effectiveType as NetworkStatus['effectiveType']) || 'unknown',
+          downlink: connection?.downlink || 0,
+          rtt: connection?.rtt || 0,
+          ...(lastConnected !== undefined && { lastConnected }),
+          ...(lastDisconnected !== undefined && { lastDisconnected }),
+        };
+      });
     };
 
     const handleOnline = () => updateNetworkStatus();
@@ -272,7 +277,7 @@ export class GracefulDegradationManager {
     this.offlineStorage.addOperation({
       type,
       entityType,
-      entityId,
+      ...(entityId !== undefined && { entityId }),
       data,
       priority,
       maxRetries,

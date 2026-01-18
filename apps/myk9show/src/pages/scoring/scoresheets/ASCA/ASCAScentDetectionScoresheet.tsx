@@ -116,7 +116,7 @@ export const ASCAScentDetectionScoresheet: React.FC<ASCAScentDetectionScoresheet
   // Timer
   const stopwatch = useStopwatch({
     maxTime: classInfo.maxTime || '3:00.00',
-    level: classInfo.level,
+    ...(classInfo.level ? { level: classInfo.level } : {}),
     onTimeExpired: (formattedTime) => {
       // Auto-fill first empty area time
       const emptyIndex = areas.findIndex(a => !a.time);
@@ -171,7 +171,7 @@ export const ASCAScentDetectionScoresheet: React.FC<ASCAScentDetectionScoresheet
         time: calculateTotalTime(),
         faults: faultCount,
         qualification: qualifying,
-        notes: nonQualifyingReason || undefined,
+        ...(nonQualifyingReason ? { notes: nonQualifyingReason } : {}),
       });
 
       setShowConfirmation(false);

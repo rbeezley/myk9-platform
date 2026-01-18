@@ -35,7 +35,7 @@ import type {
 } from '@/types/user-preferences';
 
 interface CompetitionSettingsProps {
-  preferences?: CompetitionPreferences;
+  preferences?: CompetitionPreferences | undefined;
   onUpdate: (preferences: Partial<CompetitionPreferences>) => void;
   onReset: () => void;
 }

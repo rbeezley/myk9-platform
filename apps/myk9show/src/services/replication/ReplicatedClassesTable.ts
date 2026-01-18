@@ -20,54 +20,54 @@ type ClassRow = Database['public']['Tables']['classes']['Row'];
  */
 export interface ReplicatedClass {
   id: string;
-  trialId?: string;
+  trialId?: string | undefined;
   name: string;
-  description?: string;
-  entryFee?: number;
-  jumpHeights?: string[];
-  maxEntries?: number;
-  allowsWaitlist?: boolean;
-  maxDogsPerHandler?: number;
-  level?: string;
-  breedRestrictions?: string[];
-  ageMin?: number;
-  ageMax?: number;
-  heightMin?: number;
-  heightMax?: number;
-  handlerAgeMin?: number;
-  handlerAgeMax?: number;
-  startTime?: string;
-  estimatedDuration?: number;
+  description?: string | undefined;
+  entryFee?: number | undefined;
+  jumpHeights?: string[] | undefined;
+  maxEntries?: number | undefined;
+  allowsWaitlist?: boolean | undefined;
+  maxDogsPerHandler?: number | undefined;
+  level?: string | undefined;
+  breedRestrictions?: string[] | undefined;
+  ageMin?: number | undefined;
+  ageMax?: number | undefined;
+  heightMin?: number | undefined;
+  heightMax?: number | undefined;
+  handlerAgeMin?: number | undefined;
+  handlerAgeMax?: number | undefined;
+  startTime?: string | undefined;
+  estimatedDuration?: number | undefined;
 
   // Scent Work specific fields (camelCase)
-  element?: string;
-  section?: string;
-  areaCount?: number;
-  timeLimitSeconds?: number;
-  timeLimitArea2Seconds?: number;
-  timeLimitArea3Seconds?: number;
-  judgeName?: string;
-  classStatus?: string;
-  classOrder?: number;
-  isCompleted?: boolean;
+  element?: string | undefined;
+  section?: string | undefined;
+  areaCount?: number | undefined;
+  timeLimitSeconds?: number | undefined;
+  timeLimitArea2Seconds?: number | undefined;
+  timeLimitArea3Seconds?: number | undefined;
+  judgeName?: string | undefined;
+  classStatus?: string | undefined;
+  classOrder?: number | undefined;
+  isCompleted?: boolean | undefined;
 
   // Scent Work specific fields (snake_case for Compatibility with older hooks)
-  trial_id?: string;
-  area_count?: number;
-  time_limit_seconds?: number;
-  time_limit_area2_seconds?: number;
-  time_limit_area3_seconds?: number;
+  trial_id?: string | undefined;
+  area_count?: number | undefined;
+  time_limit_seconds?: number | undefined;
+  time_limit_area2_seconds?: number | undefined;
+  time_limit_area3_seconds?: number | undefined;
 
   // Timing fields (used for class completion tracking)
-  actual_start_time?: string;
-  actual_end_time?: string;
+  actual_start_time?: string | undefined;
+  actual_end_time?: string | undefined;
 
   // Sync metadata
-  _version?: number;
-  _lastModified?: Date;
-  _lastModifiedBy?: string;
-  _syncStatus?: 'synced' | 'pending' | 'error' | 'conflict';
-  _localOnly?: boolean;
+  _version?: number | undefined;
+  _lastModified?: Date | undefined;
+  _lastModifiedBy?: string | undefined;
+  _syncStatus?: 'synced' | 'pending' | 'error' | 'conflict' | undefined;
+  _localOnly?: boolean | undefined;
 }
 
 /**

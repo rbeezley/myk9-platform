@@ -11,47 +11,47 @@ import { logger } from '@/services/LoggingService';
 // Input types for creating/updating dogs
 export interface DogInput {
   name: string;
-  callName?: string; // Optional call name (nickname)
+  callName?: string | undefined; // Optional call name (nickname)
   breed: string;
-  birthDate?: string;
+  birthDate?: string | undefined;
   sex: 'male' | 'female';
-  color?: string;
-  weight?: number;
-  height?: number;
+  color?: string | undefined;
+  weight?: number | undefined;
+  height?: number | undefined;
   ownerId: string;
-  ownerName?: string;
-  microchipNumber?: string;
-  imageUrl?: string;
+  ownerName?: string | undefined;
+  microchipNumber?: string | undefined;
+  imageUrl?: string | undefined;
   registrations?: Array<{
     organization: string;
     number: string;
     type: string;
     status: string;
-  }>;
+  }> | undefined;
   healthRecords?: {
     vaccinations?: Array<{
       id: string;
       name: string;
       date: string;
-      nextDue?: string;
+      nextDue?: string | undefined;
       veterinarian: string;
-    }>;
+    }> | undefined;
     medications?: Array<{
       id: string;
       name: string;
       dosage: string;
       frequency: string;
       startDate: string;
-      endDate?: string;
-    }>;
+      endDate?: string | undefined;
+    }> | undefined;
     allergies?: Array<{
       id: string;
       allergen: string;
       severity: string;
       reaction: string;
-      notes?: string;
-    }>;
-  };
+      notes?: string | undefined;
+    }> | undefined;
+  } | undefined;
 }
 
 // Phase 2.1: Simplified DogStore interface for UI state management only

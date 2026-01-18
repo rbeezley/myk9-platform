@@ -107,13 +107,14 @@ export const EntrySyncMetrics: React.FC<EntrySyncMetricsProps> = ({
     // Generate sample data for the last 24 hours
     for (let i = 0; i < 100; i++) {
       const timestamp = new Date(now.getTime() - (i * 15 * 60 * 1000)); // Every 15 minutes
+      const hasError = Math.random() <= 0.1;
       history.push({
         timestamp,
         operation: (['create', 'update', 'sync'] as const)[Math.floor(Math.random() * 3)],
         entryId: `entry-${i}`,
         duration: Math.random() * 2000 + 200, // 200-2200ms
         status: Math.random() > 0.1 ? 'success' : 'error',
-        errorMessage: Math.random() > 0.1 ? undefined : 'Network timeout'
+        ...(hasError && { errorMessage: 'Network timeout' })
       });
     }
     
@@ -225,7 +226,7 @@ export const EntrySyncMetrics: React.FC<EntrySyncMetricsProps> = ({
       const interval = setInterval(handleRefresh, refreshInterval * 1000);
       return () => clearInterval(interval);
     }
-    return undefined;
+    return;
   }, [refreshInterval]);
 
   // Chart data

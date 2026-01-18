@@ -22,13 +22,13 @@ interface PaymentStepProps {
   selectedDogs: string[];
   classSelections: ClassSelectionData[];
   paymentMethod: string;
-  paymentStatus?: PaymentStatus;
-  entryStatus?: EntryStatus;
+  paymentStatus?: PaymentStatus | undefined;
+  entryStatus?: EntryStatus | undefined;
   onPaymentMethodChange: (method: string) => void;
-  onPaymentStatusChange?: (status: PaymentStatus) => void;
-  onEntryStatusChange?: (status: EntryStatus, reason?: string) => void;
-  showId?: string; // Optional - passed from RegistrationWorkflow
-  registrationId?: string; // Optional - passed from RegistrationWorkflow
+  onPaymentStatusChange?: ((status: PaymentStatus) => void) | undefined;
+  onEntryStatusChange?: ((status: EntryStatus, reason?: string) => void) | undefined;
+  showId?: string | undefined; // Optional - passed from RegistrationWorkflow
+  registrationId?: string | undefined; // Optional - passed from RegistrationWorkflow
 }
 
 export const PaymentStep: React.FC<PaymentStepProps> = ({

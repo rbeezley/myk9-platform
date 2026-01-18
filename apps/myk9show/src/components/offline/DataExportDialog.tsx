@@ -42,8 +42,8 @@ export const DataExportDialog: React.FC<DataExportDialogProps> = ({
     format: 'csv',
     entities: ['dogs', 'people'],
     includeMetadata: true,
-    showId,
-    clubId
+    ...(showId !== undefined && { showId }),
+    ...(clubId !== undefined && { clubId })
   });
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState<ExportProgress | null>(null);
@@ -221,9 +221,20 @@ export const DataExportDialog: React.FC<DataExportDialogProps> = ({
                     id="filename"
                     placeholder="Leave empty for auto-generated name"
                     value={exportOptions.filename || ''}
-                    onChange={(e) =>
-                      setExportOptions(prev => ({ ...prev, filename: e.target.value || undefined }))
-                    }
+                    onChange={(e) => {
+                      const newFilename = e.target.value || undefined;
+                      setExportOptions(prev => ({
+                        ...prev,
+                        ...(newFilename !== undefined ? { filename: newFilename } : {})
+                      }));
+                      // Clear filename if empty
+                      if (!e.target.value) {
+                        setExportOptions(prev => {
+                          const { filename: _, ...rest } = prev;
+                          return rest as ExportOptions;
+                        });
+                      }
+                    }}
                   />
                 </div>
 
@@ -239,14 +250,18 @@ export const DataExportDialog: React.FC<DataExportDialogProps> = ({
                           type="date"
                           onChange={(e) => {
                             const start = e.target.value ? new Date(e.target.value) : undefined;
-                            setExportOptions(prev => ({
-                              ...prev,
-                              dateRange: start && prev.dateRange?.end
-                                ? { start, end: prev.dateRange.end }
-                                : start
-                                ? { start, end: new Date() }
-                                : undefined
-                            }));
+                            if (start) {
+                              setExportOptions(prev => ({
+                                ...prev,
+                                dateRange: { start, end: prev.dateRange?.end ?? new Date() }
+                              }));
+                            } else {
+                              // Remove dateRange if no start date
+                              setExportOptions(prev => {
+                                const { dateRange: _, ...rest } = prev;
+                                return rest as ExportOptions;
+                              });
+                            }
                           }}
                         />
                       </div>
@@ -257,14 +272,21 @@ export const DataExportDialog: React.FC<DataExportDialogProps> = ({
                           type="date"
                           onChange={(e) => {
                             const end = e.target.value ? new Date(e.target.value) : undefined;
-                            setExportOptions(prev => ({
-                              ...prev,
-                              dateRange: end && prev.dateRange?.start
-                                ? { start: prev.dateRange.start, end }
-                                : end
-                                ? { start: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000), end }
-                                : undefined
-                            }));
+                            if (end) {
+                              setExportOptions(prev => ({
+                                ...prev,
+                                dateRange: {
+                                  start: prev.dateRange?.start ?? new Date(Date.now() - 365 * 24 * 60 * 60 * 1000),
+                                  end
+                                }
+                              }));
+                            } else {
+                              // Remove dateRange if no end date
+                              setExportOptions(prev => {
+                                const { dateRange: _, ...rest } = prev;
+                                return rest as ExportOptions;
+                              });
+                            }
                           }}
                         />
                       </div>

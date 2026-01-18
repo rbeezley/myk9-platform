@@ -162,9 +162,10 @@ export class DogsService {
       return newDog;
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await supabase
       .from('dogs')
-      .insert([dog])
+      .insert([dog as any])
       .select()
       .single();
 
@@ -228,9 +229,10 @@ export class DogsService {
       return { ...existingDog, ...updates };
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await supabase
       .from('dogs')
-      .update(updates)
+      .update(updates as any)
       .eq('id', id)
       .select()
       .single();

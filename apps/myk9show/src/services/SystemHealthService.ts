@@ -35,7 +35,7 @@ export interface HealthStatus {
   status: 'healthy' | 'warning' | 'error';
   uptime: number; // percentage
   responseTime: number; // in ms
-  lastError?: string;
+  lastError?: string | undefined;
   lastChecked: Date;
   uptimeHistory: UptimeRecord[];
 }
@@ -43,8 +43,8 @@ export interface HealthStatus {
 export interface UptimeRecord {
   timestamp: Date;
   success: boolean;
-  responseTime?: number;
-  error?: string;
+  responseTime?: number | undefined;
+  error?: string | undefined;
 }
 
 class SystemHealthService {

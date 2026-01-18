@@ -109,35 +109,37 @@ export const useUserStoreCompat = () => {
 
   // Legacy methods for backward compatibility
   const addUserLegacy = (user: User) => {
+    const street = user.streetAddress || user.address;
     const userInput: UserInput = {
       firstName: user.firstName,
       lastName: user.lastName,
-      email: user.email,
-      phone: user.phone,
+      ...(user.email !== undefined && { email: user.email }),
+      ...(user.phone !== undefined && { phone: user.phone }),
       address: {
-        street: user.streetAddress || user.address,
-        city: user.city,
-        state: user.state,
-        zipCode: user.zipCode,
+        ...(street !== undefined && { street }),
+        ...(user.city !== undefined && { city: user.city }),
+        ...(user.state !== undefined && { state: user.state }),
+        ...(user.zipCode !== undefined && { zipCode: user.zipCode }),
       },
-      dogs: user.dogs,
+      ...(user.dogs !== undefined && { dogs: user.dogs }),
     };
     addUser(userInput);
   };
 
   const updateUserLegacy = (user: User) => {
+    const street = user.streetAddress || user.address;
     const userInput: UserInput = {
       firstName: user.firstName,
       lastName: user.lastName,
-      email: user.email,
-      phone: user.phone,
+      ...(user.email !== undefined && { email: user.email }),
+      ...(user.phone !== undefined && { phone: user.phone }),
       address: {
-        street: user.streetAddress || user.address,
-        city: user.city,
-        state: user.state,
-        zipCode: user.zipCode,
+        ...(street !== undefined && { street }),
+        ...(user.city !== undefined && { city: user.city }),
+        ...(user.state !== undefined && { state: user.state }),
+        ...(user.zipCode !== undefined && { zipCode: user.zipCode }),
       },
-      dogs: user.dogs,
+      ...(user.dogs !== undefined && { dogs: user.dogs }),
     };
     updateUser(user.id, userInput);
   };

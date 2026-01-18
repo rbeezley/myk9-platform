@@ -69,13 +69,12 @@ export function MultiAreaScoresheet({
   const totalTimeLimit = areaTimeLimits.reduce((sum, time) => sum + time, 0);
   
   // Initialize area results
-  const [areaResults, setAreaResults] = useState<AreaResult[]>(() => 
+  const [areaResults, setAreaResults] = useState<AreaResult[]>(() =>
     Array(areaCount).fill(null).map((_, index) => ({
       areaNumber: index + 1,
       searchTime: 0,
-      qualification: undefined,
       faults: 0
-    }))
+    }) as AreaResult)
   );
   
   // UI state
@@ -127,14 +126,17 @@ export function MultiAreaScoresheet({
   const handleAreaQualification = useCallback((areaIndex: number, qualification: QualificationStatus) => {
     setAreaResults(prev => {
       const newResults = [...prev];
-      newResults[areaIndex] = {
+      const updatedArea: AreaResult = {
         ...newResults[areaIndex],
         qualification,
         // Reset faults when changing qualification
-        faults: qualification === 'Qualified' ? newResults[areaIndex].faults : 0,
-        // Set NQ reason if not qualified
-        nqReason: qualification === 'Not Qualified' ? 'noFind' : undefined
+        faults: qualification === 'Qualified' ? newResults[areaIndex].faults : 0
       };
+      // Set NQ reason if not qualified
+      if (qualification === 'Not Qualified') {
+        updatedArea.nqReason = 'noFind';
+      }
+      newResults[areaIndex] = updatedArea;
       return newResults;
     });
     
@@ -163,15 +165,8 @@ export function MultiAreaScoresheet({
     const allQualified = areaResults.every(area => area.qualification === 'Qualified');
     const anyFailed = areaStatuses.some(status => status === 'failed');
     const totalFaults = areaResults.reduce((sum, area) => sum + (area.faults || 0), 0);
-    
-    let qualification: QualificationStatus | undefined;
-    if (isComplete && allQualified) {
-      qualification = 'Qualified';
-    } else if (anyFailed || hasFailed) {
-      qualification = 'Not Qualified';
-    }
-    
-    return {
+
+    const result: Partial<MultiAreaScentWorkResult> = {
       entryId: entry.id,
       classId: entry.classId,
       totalSearchTime: totalElapsedTime,
@@ -179,11 +174,19 @@ export function MultiAreaScoresheet({
         ...area,
         searchTime: areaTimes[index] || area.searchTime
       })),
-      qualification,
       totalFaults,
       recordedBy: 'current-judge', // TODO: Get from auth context
       recordedAt: new Date()
     };
+
+    // Set qualification only when determined
+    if (isComplete && allQualified) {
+      result.qualification = 'Qualified';
+    } else if (anyFailed || hasFailed) {
+      result.qualification = 'Not Qualified';
+    }
+
+    return result;
   }, [entry, areaResults, areaStatuses, areaTimes, totalElapsedTime, isComplete, hasFailed]);
   
   // Validation

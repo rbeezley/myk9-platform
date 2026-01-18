@@ -32,13 +32,13 @@ export interface EmptyStateProps {
     onClick: () => void;
     variant?: 'primary' | 'secondary' | 'outline';
     icon?: LucideIcon;
-  };
+  } | undefined;
   secondaryAction?: {
     label: string;
     onClick: () => void;
     variant?: 'outline' | 'ghost';
     icon?: LucideIcon;
-  };
+  } | undefined;
   className?: string;
   size?: 'sm' | 'md' | 'lg';
 }

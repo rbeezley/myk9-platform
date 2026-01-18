@@ -10,10 +10,10 @@ import { buildClasses } from '@/utils/designTokens';
 // Base field wrapper
 interface FieldWrapperProps {
   label: string;
-  error?: string;
-  required?: boolean;
+  error?: string | undefined;
+  required?: boolean | undefined;
   children: ReactNode;
-  htmlFor?: string;
+  htmlFor?: string | undefined;
 }
 
 export function FieldWrapper({ label, error, required, children, htmlFor }: FieldWrapperProps) {
@@ -91,11 +91,11 @@ export function ValidatedTextarea({
 // Validated select field
 interface ValidatedSelectProps {
   label: string;
-  error?: string;
-  required?: boolean;
+  error?: string | undefined;
+  required?: boolean | undefined;
   value: string;
   onValueChange: (value: string) => void;
-  placeholder?: string;
+  placeholder?: string | undefined;
   options: Array<{ value: string; label: string }>;
 }
 

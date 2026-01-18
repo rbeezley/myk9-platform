@@ -158,13 +158,13 @@ export const SuspenseWrapper: React.FC<SuspenseWrapperProps> = ({
 
       return () => clearTimeout(timer);
     }
-    return undefined;
+    return;
   }, [componentName]);
 
   return (
-    <LoadingErrorBoundary 
-      errorFallback={errorFallback} 
-      componentName={componentName}
+    <LoadingErrorBoundary
+      {...(errorFallback !== undefined && { errorFallback })}
+      {...(componentName !== undefined && { componentName })}
     >
       <Suspense fallback={fallback || <LoadingFallback timeout={timeout} />}>
         {children}

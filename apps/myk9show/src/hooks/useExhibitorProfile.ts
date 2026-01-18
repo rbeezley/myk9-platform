@@ -35,6 +35,10 @@ export interface CreateExhibitorProfileData {
 
 // Helper to map database result to ExhibitorProfile type
 function mapToExhibitorProfile(data: Record<string, unknown>): ExhibitorProfile {
+  const personData = data.person && typeof data.person === 'object' && !('error' in (data.person as object))
+    ? data.person as ExhibitorProfile['person']
+    : undefined;
+
   return {
     id: data.id as string,
     person_id: data.person_id as string,
@@ -45,9 +49,7 @@ function mapToExhibitorProfile(data: Record<string, unknown>): ExhibitorProfile 
     stripe_customer_id: data.stripe_customer_id as string | null,
     created_at: (data.created_at as string) || new Date().toISOString(),
     updated_at: (data.updated_at as string) || new Date().toISOString(),
-    person: data.person && typeof data.person === 'object' && !('error' in (data.person as object))
-      ? data.person as ExhibitorProfile['person']
-      : undefined,
+    ...(personData !== undefined && { person: personData }),
   };
 }
 

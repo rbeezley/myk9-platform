@@ -24,7 +24,7 @@ import type { SyncStatus } from './SyncStatusIndicator';
 
 interface ClassSyncStatusProps {
   /** Show ID to filter classes for specific show */
-  showId?: string;
+  showId?: string | undefined;
   /** Custom className */
   className?: string;
 }

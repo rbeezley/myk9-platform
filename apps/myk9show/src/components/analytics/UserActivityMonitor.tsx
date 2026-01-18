@@ -64,7 +64,7 @@ interface UserSession {
   userName: string;
   userRole: string;
   startTime: Date;
-  endTime?: Date;
+  endTime?: Date | undefined;
   duration: number; // minutes
   deviceType: 'mobile' | 'tablet' | 'desktop';
   platform: string;
@@ -73,7 +73,7 @@ interface UserSession {
     country: string;
     lat: number;
     lng: number;
-  };
+  } | undefined;
   syncCount: number;
   offlineTime: number; // minutes
   activeFeaturesUsed: string[];

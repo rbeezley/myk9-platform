@@ -449,15 +449,15 @@ export class RealUserMonitoringService {
    * Track custom metric
    */
   public trackCustomMetric(
-    name: string, 
-    value: number, 
+    name: string,
+    value: number,
     tags?: Record<string, string>
   ): void {
     const metric: CustomMetric = {
       name,
       value,
       timestamp: Date.now(),
-      tags,
+      ...(tags !== undefined && { tags }),
     };
 
     this.session.customMetrics.push(metric);
@@ -474,7 +474,7 @@ export class RealUserMonitoringService {
   public trackError(error: Omit<ErrorInfo, 'userId'>): void {
     const errorInfo: ErrorInfo = {
       ...error,
-      userId: this.session.userId,
+      ...(this.session.userId !== undefined && { userId: this.session.userId }),
     };
 
     this.session.errors.push(errorInfo);
@@ -522,7 +522,7 @@ export class RealUserMonitoringService {
       severity,
       timestamp: Date.now(),
       url,
-      userId: this.session.userId,
+      ...(this.session.userId !== undefined && { userId: this.session.userId }),
       resolved: false,
     };
 

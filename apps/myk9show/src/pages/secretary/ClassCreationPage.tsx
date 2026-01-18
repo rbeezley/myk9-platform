@@ -286,7 +286,7 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
         {currentStep === 'template' && (
           <OrganizationSelector
             onTemplateSelected={handleTemplateSelected}
-            selectedTemplate={selectedTemplate || undefined}
+            {...(selectedTemplate && { selectedTemplate })}
           />
         )}
 

@@ -4,22 +4,22 @@ import { logger } from '@/services/LoggingService';
 interface ErrorContext {
   user?: {
     id: string;
-    email?: string;
-  };
-  operation?: string;
-  table?: string;
-  environment?: string;
-  version?: string;
+    email?: string | undefined;
+  } | undefined;
+  operation?: string | undefined;
+  table?: string | undefined;
+  environment?: string | undefined;
+  version?: string | undefined;
   [key: string]: unknown;
 }
 
 interface ErrorReport {
   message: string;
-  stack?: string;
+  stack?: string | undefined;
   level: 'error' | 'warning' | 'info';
   timestamp: string;
   context: ErrorContext;
-  fingerprint?: string;
+  fingerprint?: string | undefined;
 }
 
 class ErrorTracker {

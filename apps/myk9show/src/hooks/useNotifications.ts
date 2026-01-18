@@ -94,7 +94,7 @@ export function useNotifications(userId?: string) {
       const preferences: NotificationPreferences = data ? {
         userId: (dbData.user_id as string) || userId,
         enabled: (dbData.push_enabled as boolean) ?? true,
-        fcmToken: undefined,
+        // fcmToken is optional and should be omitted when not present
         types: {
           showReminders: (dbData.show_reminders as boolean) ?? true,
           entryDeadlines: true,
@@ -328,7 +328,7 @@ export function useNotifications(userId?: string) {
       const updatedPrefs: NotificationPreferences = {
         userId: (dbResult.user_id as string) || userId,
         enabled: (dbResult.push_enabled as boolean) ?? true,
-        fcmToken: undefined,
+        // fcmToken is optional and should be omitted when not present
         types: {
           showReminders: (dbResult.show_reminders as boolean) ?? true,
           entryDeadlines: true,

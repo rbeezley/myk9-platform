@@ -166,7 +166,7 @@ export const createSettingsAction = (onSettings: () => void): DashboardAction =>
 
 export const createPrimaryAction = (label: string, onClick: () => void, icon?: LucideIcon): DashboardAction => ({
   label,
-  icon,
+  ...(icon !== undefined && { icon }),
   onClick,
   variant: 'default'
 });

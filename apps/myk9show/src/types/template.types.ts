@@ -101,28 +101,28 @@ export interface ValidationRule {
 export interface ClassDefinition {
   // Identity
   element: string;
-  level?: string;
-  section?: string;
-  
+  level?: string | undefined;
+  section?: string | undefined;
+
   // Display
   className: string;
-  classNumber?: string;
+  classNumber?: string | undefined;
   displayOrder: number;
-  description?: string; // Additional notes about the class
-  
+  description?: string | undefined; // Additional notes about the class
+
   // Field overrides for this specific class
-  fieldOverrides?: Record<string, Partial<FieldSpecification>>;
-  
+  fieldOverrides?: Record<string, Partial<FieldSpecification>> | undefined;
+
   // Class-specific default values for fields marked as defaultVariesByClass
-  classSpecificDefaults?: Record<string, string | number | boolean | Date | string[] | number[]>;
-  
+  classSpecificDefaults?: Record<string, string | number | boolean | Date | string[] | number[]> | undefined;
+
   // Class-specific settings
   settings?: {
-    maxEntries?: number;
-    minEntries?: number;
-    allowWaitlist?: boolean;
-    requiresQualification?: boolean;
-  };
+    maxEntries?: number | undefined;
+    minEntries?: number | undefined;
+    allowWaitlist?: boolean | undefined;
+    requiresQualification?: boolean | undefined;
+  } | undefined;
 }
 
 // Template status and lifecycle
@@ -147,72 +147,72 @@ export interface ClassTemplate {
   showType: ShowType;
   templateName: string;
   version: string;
-  
+
   // Metadata
-  description?: string;
-  officialRulesReference?: string;
-  effectiveDate?: Date;
-  expirationDate?: Date;
-  
+  description?: string | undefined;
+  officialRulesReference?: string | undefined;
+  effectiveDate?: Date | undefined;
+  expirationDate?: Date | undefined;
+
   // NEW: Flexible status system
   status: TemplateStatus;
   type: TemplateType;
-  
+
   // DEPRECATED: Legacy status fields (kept for backward compatibility)
   isActive: boolean;
   isOfficial: boolean; // Official templates from organizations
   isCustom: boolean; // Club-specific customizations
-  
+
   // NEW: Template relationships and versioning
-  sourceTemplateId?: string; // If this is a copy/fork of another template
-  parentVersion?: string;     // Version of source template this was forked from
-  successorId?: string;       // ID of newer version that replaces this one
-  isLatestVersion?: boolean;  // True if this is the current version
-  
+  sourceTemplateId?: string | undefined; // If this is a copy/fork of another template
+  parentVersion?: string | undefined;     // Version of source template this was forked from
+  successorId?: string | undefined;       // ID of newer version that replaces this one
+  isLatestVersion?: boolean | undefined;  // True if this is the current version
+
   // NEW: Edit permissions and warnings
-  allowEditing?: boolean;     // Can this template be edited?
-  editWarning?: string;       // Warning message when editing
-  
+  allowEditing?: boolean | undefined;     // Can this template be edited?
+  editWarning?: string | undefined;       // Warning message when editing
+
   // NEW: Field configurations - references predefined fields with visibility/requirement settings
-  fieldConfigurations?: TemplateFieldConfiguration[];
-  
+  fieldConfigurations?: TemplateFieldConfiguration[] | undefined;
+
   // NEW: Table column configuration for entry tables
   tableColumnConfig?: {
     /** Custom column configuration for this template */
-    customColumns?: string[]; // Column IDs to show
+    customColumns?: string[] | undefined; // Column IDs to show
     /** Whether to use default columns for the show type */
-    useDefaults?: boolean;
+    useDefaults?: boolean | undefined;
     /** Hide specific columns that would normally be shown */
-    hiddenColumns?: string[];
+    hiddenColumns?: string[] | undefined;
     /** Custom column ordering */
-    columnOrder?: string[];
-  };
-  
+    columnOrder?: string[] | undefined;
+  } | undefined;
+
   // DEPRECATED: Field definitions - defines all possible fields (kept for backward compatibility)
   fieldSpecifications: FieldSpecification[];
-  
+
   // Class definitions - defines all classes in template
   classDefinitions: ClassDefinition[];
-  
+
   // Validation rules
   validationRules: ValidationRule[];
-  
+
   // Template-wide defaults
   defaults: {
     entryFees?: {
       preEntry: number;
       dayOfShow: number;
-    };
-    judgingTimeEstimate?: number; // minutes
-    requiredPersonnel?: string[];
-    minimumAge?: number; // months
+    } | undefined;
+    judgingTimeEstimate?: number | undefined; // minutes
+    requiredPersonnel?: string[] | undefined;
+    minimumAge?: number | undefined; // months
   };
-  
+
   // Audit
   createdBy: string;
   createdAt: Date;
-  updatedBy?: string;
-  updatedAt?: Date;
+  updatedBy?: string | undefined;
+  updatedAt?: Date | undefined;
 }
 
 // Created class instance (from template)
@@ -222,53 +222,53 @@ export interface CreatedClass {
   templateId: string;
   templateVersion: string;
   trialId: string;
-  
+
   // Class identity (from template)
   organization: Organization;
   showType: ShowType;
   element: string;
-  level?: string;
-  section?: string;
+  level?: string | undefined;
+  section?: string | undefined;
   className: string;
   classNumber: string;
   
   // Status and scheduling
   status: ClassStatus;
   runOrder: number;
-  plannedStartTime?: Date;
-  actualStartTime?: Date;
-  completionTime?: Date;
-  
+  plannedStartTime?: Date | undefined;
+  actualStartTime?: Date | undefined;
+  completionTime?: Date | undefined;
+
   // All field values (merged from template + overrides)
   fieldValues: Record<string, string | number | boolean | Date | string[]>;
-  
+
   // Personnel assignments
   personnel: {
-    judgeId?: string;
-    judgeName?: string;
+    judgeId?: string | undefined;
+    judgeName?: string | undefined;
     stewards: {
-      gate?: string;
-      table?: string;
-      timer?: string;
-      ring?: string[];
+      gate?: string | undefined;
+      table?: string | undefined;
+      timer?: string | undefined;
+      ring?: string[] | undefined;
     };
   };
-  
+
   // Entry tracking
   entries: {
     maxEntries: number;
     currentEntries: number;
     waitlistEntries: number;
   };
-  
+
   // Audit
   createdBy: string;
   createdAt: Date;
-  modifiedBy?: string;
-  modifiedAt?: Date;
-  cancelledBy?: string;
-  cancelledAt?: Date;
-  cancellationReason?: string;
+  modifiedBy?: string | undefined;
+  modifiedAt?: Date | undefined;
+  cancelledBy?: string | undefined;
+  cancelledAt?: Date | undefined;
+  cancellationReason?: string | undefined;
 }
 
 // Template management

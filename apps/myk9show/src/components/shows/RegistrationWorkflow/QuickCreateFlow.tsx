@@ -422,7 +422,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
         onDogCreated={handleDogCreated}
         ownerId={flowState.exhibitor?.id}
         ownerInfo={flowState.exhibitor || undefined}
-        prefilledData={editingDogIndex !== null ? flowState.dogs[editingDogIndex] : undefined}
+        prefilledData={editingDogIndex !== null ? flowState.dogs[editingDogIndex] as unknown as Parameters<typeof CreateDogDialog>[0]['prefilledData'] : undefined}
       />
     </>
   );

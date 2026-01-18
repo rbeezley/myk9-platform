@@ -199,9 +199,9 @@ export function ScoresheetPage() {
         resultText: mapQualification(result.qualification),
         searchTime: formatTimeForSubmission(result.time),
         faultCount: result.faults,
-        nonQualifyingReason: result.notes,
-        element: classInfo.element,
-        level: classInfo.level,
+        ...(result.notes !== undefined && { nonQualifyingReason: result.notes }),
+        ...(classInfo.element !== undefined && { element: classInfo.element }),
+        ...(classInfo.level !== undefined && { level: classInfo.level }),
       },
       onSuccess: () => {
         // Update local state to reflect scored status

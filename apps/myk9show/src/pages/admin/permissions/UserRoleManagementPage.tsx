@@ -94,17 +94,17 @@ const UserRoleManagementPage: React.FC = () => {
   const handleAssignRole = async (assignment: {
     userId: string;
     roleId: string;
-    scopeType?: string;
-    scopeId?: string;
-    expiresAt?: string;
+    scopeType?: string | undefined;
+    scopeId?: string | undefined;
+    expiresAt?: string | undefined;
   }) => {
     try {
       await rbacService.assignRole({
         userId: assignment.userId,
         roleId: assignment.roleId,
-        scopeType: assignment.scopeType,
-        scopeId: assignment.scopeId,
-        expiresAt: assignment.expiresAt
+        ...(assignment.scopeType !== undefined && { scopeType: assignment.scopeType }),
+        ...(assignment.scopeId !== undefined && { scopeId: assignment.scopeId }),
+        ...(assignment.expiresAt !== undefined && { expiresAt: assignment.expiresAt })
       });
       await loadData(); // Reload data
       setShowAssignDialog(false);

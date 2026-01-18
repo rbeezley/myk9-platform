@@ -11,7 +11,7 @@ export interface SyncableClassData extends ClassData {
   _lastModified: Date;
   _lastModifiedBy: string;
   _syncStatus: 'synced' | 'pending' | 'error' | 'conflict';
-  _localOnly?: boolean;
+  _localOnly?: boolean | undefined;
 }
 
 export interface SyncableEntryData extends EntryData {
@@ -19,7 +19,7 @@ export interface SyncableEntryData extends EntryData {
   _lastModified: Date;
   _lastModifiedBy: string;
   _syncStatus: 'synced' | 'pending' | 'error' | 'conflict';
-  _localOnly?: boolean;
+  _localOnly?: boolean | undefined;
 }
 
 // Input types for creating/updating classes
@@ -31,24 +31,25 @@ export interface ClassInput {
   classOrder: string;
   status: 'Scheduled' | 'In Progress' | 'Completed' | 'Cancelled' | 'Upcoming';
   judge: string;
-  className?: string;
-  classNumber?: string;
-  element?: string;
-  level?: string;
-  section?: string;
-  entryFee?: number;
-  maxEntries?: number;
-  requiresJumpHeight?: boolean;
-  customFields?: Record<string, string>;
+  className?: string | undefined;
+  classNumber?: string | undefined;
+  element?: string | undefined;
+  level?: string | undefined;
+  section?: string | undefined;
+  entryFee?: number | undefined;
+  maxEntries?: number | undefined;
+  requiresJumpHeight?: boolean | undefined;
+  customFields?: Record<string, string> | undefined;
   // Scent work specific fields
-  hidesUsed?: string;
-  distractionsUsed?: string;
-  itemsUsed?: string;
-  timeLimit1?: string;
-  timeLimit2?: string;
-  timeLimit3?: string;
-  photoUrl?: string;
-  templateId?: string;
+  hidesUsed?: string | undefined;
+  distractionsUsed?: string | undefined;
+  itemsUsed?: string | undefined;
+  timeLimit1?: string | undefined;
+  timeLimit2?: string | undefined;
+  timeLimit3?: string | undefined;
+  photoUrl?: string | undefined;
+  templateId?: string | undefined;
+  endTime?: string | undefined;
 }
 
 export interface EntryInput {

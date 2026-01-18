@@ -8,51 +8,80 @@ import { cn } from "@/lib/utils"
 // Wrapper to maintain Radix API compatibility
 // Base UI: onValueChange(value, eventDetails) -> Radix: onValueChange(value)
 interface TabsProps<T extends string = string> extends Omit<React.ComponentPropsWithoutRef<typeof TabsPrimitive.Root>, 'onValueChange' | 'value' | 'defaultValue'> {
-  onValueChange?: (value: T) => void
-  value?: T
+  onValueChange?: ((value: T) => void) | undefined
+  value?: T | undefined
   defaultValue?: T
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const Tabs = React.forwardRef<React.ElementRef<typeof TabsPrimitive.Root>, TabsProps<any>>(
-  ({ onValueChange, ...props }, ref) => (
-    <TabsPrimitive.Root
-      ref={ref}
-      onValueChange={onValueChange ? (value: string) => onValueChange(value) : undefined}
-      {...props}
-    />
-  )
+  ({ onValueChange, ...props }, ref) => {
+    // Create Base UI props, only including onValueChange if it's defined
+    const baseUIProps = onValueChange
+      ? { onValueChange: (value: string) => onValueChange(value) }
+      : {}
+
+    return (
+      <TabsPrimitive.Root
+        ref={ref}
+        {...baseUIProps}
+        {...props}
+      />
+    )
+  }
 )
 Tabs.displayName = "Tabs"
 
+// Use Omit to remove the style property from base type and redefine it for exactOptionalPropertyTypes
+type TabsListProps = Omit<React.ComponentPropsWithoutRef<typeof TabsPrimitive.List>, 'style'> & {
+  style?: React.CSSProperties
+}
+
 const TabsList = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.List>,
-  React.ComponentPropsWithoutRef<typeof TabsPrimitive.List>
->(({ className, ...props }, ref) => (
-  <TabsPrimitive.List
-    ref={ref}
-    className={cn(
-      "inline-flex h-10 items-center justify-center rounded-xl bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 p-1 text-muted-foreground shadow-sm",
-      className
-    )}
-    {...props}
-  />
-))
+  TabsListProps
+>(({ className, style, ...props }, ref) => {
+  // Conditionally include style to avoid passing undefined with exactOptionalPropertyTypes
+  const styleProps = style !== undefined ? { style } : {}
+
+  return (
+    <TabsPrimitive.List
+      ref={ref}
+      className={cn(
+        "inline-flex h-10 items-center justify-center rounded-xl bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 p-1 text-muted-foreground shadow-sm",
+        className
+      )}
+      {...styleProps}
+      {...props}
+    />
+  )
+})
 TabsList.displayName = "TabsList"
+
+// Use Omit to remove disabled from base type and redefine for exactOptionalPropertyTypes
+type TabsTriggerProps = Omit<React.ComponentPropsWithoutRef<typeof TabsPrimitive.Tab>, 'disabled'> & {
+  disabled?: boolean
+}
 
 const TabsTrigger = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.Tab>,
-  React.ComponentPropsWithoutRef<typeof TabsPrimitive.Tab>
->(({ className, ...props }, ref) => (
-  <TabsPrimitive.Tab
-    ref={ref}
-    className={cn(
-      "inline-flex items-center justify-center whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium ring-offset-background transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[selected]:bg-gradient-to-r data-[selected]:from-primary/10 data-[selected]:to-primary/5 data-[selected]:text-primary data-[selected]:shadow-sm data-[selected]:border data-[selected]:border-primary/20",
-      className
-    )}
-    {...props}
-  />
-))
+  TabsTriggerProps
+>(({ className, disabled, ...props }, ref) => {
+  // Conditionally include disabled to avoid passing undefined with exactOptionalPropertyTypes
+  const disabledProps = disabled !== undefined ? { disabled } : {}
+
+  return (
+    <TabsPrimitive.Tab
+      ref={ref}
+      className={cn(
+        "inline-flex items-center justify-center whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium ring-offset-background transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[selected]:bg-gradient-to-r data-[selected]:from-primary/10 data-[selected]:to-primary/5 data-[selected]:text-primary data-[selected]:shadow-sm data-[selected]:border data-[selected]:border-primary/20",
+        className
+      )}
+      {...disabledProps}
+      {...props}
+    />
+  )
+})
 TabsTrigger.displayName = "TabsTrigger"
 
 const TabsContent = React.forwardRef<
@@ -71,3 +100,4 @@ const TabsContent = React.forwardRef<
 TabsContent.displayName = "TabsContent"
 
 export { Tabs, TabsList, TabsTrigger, TabsContent }
+export type { TabsProps, TabsListProps, TabsTriggerProps as TabsTabProps }

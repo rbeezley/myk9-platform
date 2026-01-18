@@ -24,7 +24,7 @@ export interface ExportProgress {
   stage: string;
   totalItems: number;
   processedItems: number;
-  estimatedTimeRemaining?: number;
+  estimatedTimeRemaining?: number | undefined;
 }
 
 export interface ExportResult {

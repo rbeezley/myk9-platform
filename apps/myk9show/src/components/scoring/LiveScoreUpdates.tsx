@@ -59,15 +59,15 @@ interface LiveScoreEntry {
   handlerName: string;
   armband: string;
   score: BaseScore;
-  placement?: number;
-  placementChange?: 'up' | 'down' | 'same';
-  isNew?: boolean;
+  placement?: number | undefined;
+  placementChange?: 'up' | 'down' | 'same' | undefined;
+  isNew?: boolean | undefined;
 }
 
 interface SyncStatusInfo {
   isOnline: boolean;
   pendingCount: number;
-  lastSyncTime?: Date;
+  lastSyncTime?: Date | undefined;
   syncInProgress: boolean;
 }
 
@@ -241,7 +241,7 @@ export function LiveScoreUpdates({
   }, [placements, previousPlacements, newlyAddedEntries, showOnlyQualified, maxDisplayEntries]);
 
   // Format score display based on format
-  const formatScoreDisplay = useCallback((score: BaseScore): { primary: string; secondary?: string } => {
+  const formatScoreDisplay = useCallback((score: BaseScore): { primary: string; secondary?: string | undefined } => {
     switch (format) {
       case 'scent_work': {
         const scentScore = score as BaseScore & { searchTime?: number; totalSearchTime?: number; totalFaults?: number };

@@ -159,10 +159,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setRbacData(prev => ({ ...prev, isLoading: true, error: null }));
         const data = await rbacService.getUserPermissions(auth.user!.id);
         setRbacData({
-          userRoles: data.roles.map((role: UserRoleWithDetails) => ({
-            ...role,
-            scope_type: role.scope_type || undefined
-          })),
+          userRoles: data.roles.map((role: UserRoleWithDetails) => {
+            const { scope_type, ...rest } = role;
+            return {
+              ...rest,
+              ...(scope_type && { scope_type }),
+            };
+          }),
           effectivePermissions: data.effectivePermissions,
           isLoading: false,
           error: null
@@ -377,10 +380,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const data = await rbacService.getUserPermissions(auth.user.id);
       setRbacData({
-        userRoles: data.roles.map((role: UserRoleWithDetails) => ({
-          ...role,
-          scope_type: role.scope_type || undefined
-        })),
+        userRoles: data.roles.map((role: UserRoleWithDetails) => {
+          const { scope_type, ...rest } = role;
+          return {
+            ...rest,
+            ...(scope_type && { scope_type }),
+          };
+        }),
         effectivePermissions: data.effectivePermissions,
         isLoading: false,
         error: null
@@ -461,7 +467,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     rbacError: rbacData.error,
 
     // Admin functions
-    ...(isAdmin ? { assignRole, revokeRole } : {}),
+    ...(assignRole !== undefined && { assignRole }),
+    ...(revokeRole !== undefined && { revokeRole }),
 
     // Cache management
     refreshPermissions

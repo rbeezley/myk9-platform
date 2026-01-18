@@ -365,10 +365,10 @@ export const OfflineCheckInInterface: React.FC<OfflineCheckInInterfaceProps> = (
         {
           method: scanResult ? 'qr_scan' : 'manual_entry',
           gateId,
-          handlerChange: handlerChange || undefined,
-          specialRequests: specialRequests || undefined,
-          scratchReason: scratchReason || undefined,
-          notes: notes || undefined
+          ...(handlerChange && { handlerChange }),
+          ...(specialRequests && { specialRequests }),
+          ...(scratchReason && { scratchReason }),
+          ...(notes && { notes })
         }
       );
 

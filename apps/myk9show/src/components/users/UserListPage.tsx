@@ -82,7 +82,7 @@ const [formData, setFormData] = useState<UserFormData>({
           city: person.city || '',
           state: person.state || '',
           zipCode: person.zipCode || '',
-          profileImage: person.profileImage,
+          ...(person.profileImage !== undefined && { profileImage: person.profileImage }),
           selectedDogIds: person.dogs || [],
           dogs: person.dogs?.map(dogId => dogs.find(dog => dog.id === dogId)).filter((dog): dog is Dog => dog !== undefined) || [],
           judgeQualifications: person.judgeQualifications || []

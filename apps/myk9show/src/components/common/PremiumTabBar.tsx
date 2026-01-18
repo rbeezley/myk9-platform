@@ -17,7 +17,7 @@ export interface TabItem {
   label: string;
   count?: number;
   icon?: LucideIcon;
-  disabled?: boolean;
+  disabled?: boolean | undefined;
   isPremium?: boolean;
   content?: React.ReactNode;
 }
@@ -62,15 +62,15 @@ export function PremiumTabBar({
       onValueChange={onValueChange}
       className="w-full"
     >
-      <TabsList 
+      <TabsList
         className={containerClassName}
-        style={tabCount > 6 ? { gridTemplateColumns: `repeat(${tabCount}, minmax(0, 1fr))` } : undefined}
+        {...(tabCount > 6 && { style: { gridTemplateColumns: `repeat(${tabCount}, minmax(0, 1fr))` } })}
       >
         {tabs.map((tab) => (
           <TabsTrigger
             key={tab.id}
             value={tab.id}
-            disabled={tab.disabled}
+            {...(tab.disabled !== undefined && { disabled: tab.disabled })}
             className={cn(
               triggerClassName,
               variant === 'compact' && "px-2 py-1.5 text-xs"

@@ -350,11 +350,10 @@ export function useOfflineEntryCreation(): UseOfflineEntryCreationResult {
    * Clear validation state
    */
   const clearValidation = useCallback(() => {
-    setState(prev => ({ 
-      ...prev, 
-      lastValidation: undefined,
-      lastCreationResult: undefined 
-    }));
+    setState(prev => {
+      const { lastValidation: _lv, lastCreationResult: _lcr, ...rest } = prev;
+      return rest;
+    });
   }, []);
 
   /**

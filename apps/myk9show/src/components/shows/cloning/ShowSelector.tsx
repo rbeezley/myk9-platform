@@ -27,11 +27,11 @@ interface ShowSelectorShow {
   startDate: string;
   endDate: string;
   location: string;
-  clubId?: string;
-  entryDeadline?: string;
-  entryCloseDate?: string;
-  entryFee?: number;
-  preEntryFee?: string;
+  clubId?: string | undefined;
+  entryDeadline?: string | undefined;
+  entryCloseDate?: string | undefined;
+  entryFee?: number | undefined;
+  preEntryFee?: string | undefined;
   status: 'upcoming' | 'active' | 'completed' | 'cancelled';
   trials?: Array<{
     id: string;
@@ -41,17 +41,17 @@ interface ShowSelectorShow {
     classes: Array<{
       templateId: string;
       customizations: Record<string, unknown>;
-      judgeId?: string;
+      judgeId?: string | undefined;
     }>;
-  }>;
-  classes?: { id: string; name: string }[];
-  judgeIds?: string[];
+  }> | undefined;
+  classes?: { id: string; name: string }[] | undefined;
+  judgeIds?: string[] | undefined;
 }
 
 interface ShowSelectorProps {
   shows: ShowSelectorShow[];
   onShowSelected: (show: ShowSelectorShow) => void;
-  className?: string;
+  className?: string | undefined;
 }
 
 type SortField = 'name' | 'date' | 'type' | 'location';

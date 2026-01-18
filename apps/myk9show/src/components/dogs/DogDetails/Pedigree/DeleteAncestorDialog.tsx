@@ -3,10 +3,10 @@ import StandardDialog from '@/components/common/StandardDialog';
 
 interface DeleteAncestorDialogProps {
   open: boolean;
-  ancestorName?: string;
+  ancestorName?: string | undefined;
   onClose: () => void;
   onDelete: () => void;
-  isSubmitting?: boolean;
+  isSubmitting?: boolean | undefined;
 }
 
 const DeleteAncestorDialog: React.FC<DeleteAncestorDialogProps> = ({ open, ancestorName, onClose, onDelete, isSubmitting }) => {

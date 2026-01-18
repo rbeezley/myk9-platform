@@ -24,7 +24,7 @@ export enum PaymentStatus {
 export interface RegistrationContext {
   mode: 'exhibitor' | 'secretary_existing' | 'secretary_new';
   permissions: string[];
-  scopedClubs?: string[];
+  scopedClubs?: string[] | undefined;
   showId: string;
   userId: string;
 }
@@ -33,33 +33,33 @@ export interface ShowRegistration {
   id: string;
   showId: string;
   userId: string;
-  registrationNumber?: string;
+  registrationNumber?: string | undefined;
   status: 'draft' | 'submitted' | 'confirmed' | 'cancelled';
-  entryStatus?: EntryStatus; // New field for entry acceptance status
+  entryStatus?: EntryStatus | undefined; // New field for entry acceptance status
   totalFees: number;
   paymentStatus: 'pending' | 'paid' | 'refunded' | PaymentStatus; // Backward compatible
-  paymentMethod?: 'credit_card' | 'check' | 'cash';
-  paymentReference?: string;
+  paymentMethod?: 'credit_card' | 'check' | 'cash' | undefined;
+  paymentReference?: string | undefined;
   createdAt: Date;
   updatedAt: Date;
-  submittedAt?: Date;
-  confirmedAt?: Date;
-  notes?: string;
+  submittedAt?: Date | undefined;
+  confirmedAt?: Date | undefined;
+  notes?: string | undefined;
   entries: ShowEntry[];
   // New fields for status tracking
-  statusHistory?: StatusChange[];
-  createdByUserId?: string; // Track who created the registration (for secretary registrations)
-  lastModifiedByUserId?: string;
+  statusHistory?: StatusChange[] | undefined;
+  createdByUserId?: string | undefined; // Track who created the registration (for secretary registrations)
+  lastModifiedByUserId?: string | undefined;
 }
 
 // Handler management types
 export interface Handler {
   id: string;
   name: string;
-  email?: string;
-  phone?: string;
+  email?: string | undefined;
+  phone?: string | undefined;
   isOwner: boolean; // True if handler is the dog owner
-  validatedAt?: Date; // When handler was validated
+  validatedAt?: Date | undefined; // When handler was validated
 }
 
 // Simple handler info for assignments
@@ -72,12 +72,12 @@ export interface HandlerInfo {
 // Armband assignment types
 export interface ArmbandAssignment {
   number: string;
-  showDay?: Date; // For multi-day shows
-  trialId?: string; // Can be scoped to specific trial/ring
-  rangeStart?: number; // For range management
-  rangeEnd?: number;
-  prefix?: string; // For prefixed numbers (e.g., "A-101")
-  isManualOverride?: boolean;
+  showDay?: Date | undefined; // For multi-day shows
+  trialId?: string | undefined; // Can be scoped to specific trial/ring
+  rangeStart?: number | undefined; // For range management
+  rangeEnd?: number | undefined;
+  prefix?: string | undefined; // For prefixed numbers (e.g., "A-101")
+  isManualOverride?: boolean | undefined;
 }
 
 export interface ShowEntry {
@@ -89,22 +89,22 @@ export interface ShowEntry {
   trialName: string; // Denormalized for display
   classes: ClassEntry[];
   handlerName: string;
-  handlerId?: string;
+  handlerId?: string | undefined;
   // Enhanced handler management
-  handler?: Handler; // Full handler object
-  isHandlerValidated?: boolean;
-  handlerOverrideReason?: string; // If handler != owner
+  handler?: Handler | undefined; // Full handler object
+  isHandlerValidated?: boolean | undefined;
+  handlerOverrideReason?: string | undefined; // If handler != owner
   // Enhanced armband management
-  armband?: string; // Backward compatible
-  armbandAssignment?: ArmbandAssignment; // New detailed assignment
-  specialRequests?: string;
+  armband?: string | undefined; // Backward compatible
+  armbandAssignment?: ArmbandAssignment | undefined; // New detailed assignment
+  specialRequests?: string | undefined;
 
   // Sync metadata for Local-First architecture
-  _version?: number;
-  _lastModified?: Date;
-  _lastModifiedBy?: string;
-  _syncStatus?: 'synced' | 'pending' | 'error' | 'conflict';
-  _localOnly?: boolean;
+  _version?: number | undefined;
+  _lastModified?: Date | undefined;
+  _lastModifiedBy?: string | undefined;
+  _syncStatus?: 'synced' | 'pending' | 'error' | 'conflict' | undefined;
+  _localOnly?: boolean | undefined;
 }
 
 export interface ClassEntry {
@@ -114,23 +114,23 @@ export interface ClassEntry {
   className: string; // Denormalized for display
   classNumber: string;
   fee: number;
-  jumpHeight?: string;
-  preferredJudge?: string;
-  moveUpRequested?: boolean;
-  runOrder?: number;
+  jumpHeight?: string | undefined;
+  preferredJudge?: string | undefined;
+  moveUpRequested?: boolean | undefined;
+  runOrder?: number | undefined;
   status: 'entered' | 'scratched' | 'moved' | 'absent';
   // Check-in status for this specific class entry
-  checkInStatus?: CheckInStatus;
-  checkInTime?: Date;
-  checkInNotes?: string;
-  checkInByUserId?: string;
+  checkInStatus?: CheckInStatus | undefined;
+  checkInTime?: Date | undefined;
+  checkInNotes?: string | undefined;
+  checkInByUserId?: string | undefined;
 
   // Sync metadata for Local-First architecture
-  _version?: number;
-  _lastModified?: Date;
-  _lastModifiedBy?: string;
-  _syncStatus?: 'synced' | 'pending' | 'error' | 'conflict';
-  _localOnly?: boolean;
+  _version?: number | undefined;
+  _lastModified?: Date | undefined;
+  _lastModifiedBy?: string | undefined;
+  _syncStatus?: 'synced' | 'pending' | 'error' | 'conflict' | undefined;
+  _localOnly?: boolean | undefined;
 }
 
 export interface RegistrationDocument {
@@ -141,16 +141,16 @@ export interface RegistrationDocument {
   fileUrl: string;
   uploadedAt: Date;
   verified: boolean;
-  notes?: string;
+  notes?: string | undefined;
 }
 
 export interface RegistrationFormData {
   selectedDogs: string[];
   entries: Omit<ShowEntry, 'id' | 'registrationId'>[];
   documents: File[];
-  paymentMethod?: 'credit_card' | 'check' | 'cash';
-  specialRequests?: string;
-  registrationNumber?: string;
+  paymentMethod?: 'credit_card' | 'check' | 'cash' | undefined;
+  specialRequests?: string | undefined;
+  registrationNumber?: string | undefined;
   // Optional workflow state for draft persistence
   _workflowState?: {
     currentStep: string;
@@ -159,7 +159,7 @@ export interface RegistrationFormData {
     handlerAssignments: Record<string, HandlerInfo>;
     paymentStatus: PaymentStatus;
     entryStatus: EntryStatus;
-  };
+  } | undefined;
 }
 
 export interface ClassSelectionData {
@@ -167,8 +167,8 @@ export interface ClassSelectionData {
   trialId: string;
   selectedClasses: {
     classId: string;
-    jumpHeight?: string;
-    moveUpRequested?: boolean;
+    jumpHeight?: string | undefined;
+    moveUpRequested?: boolean | undefined;
   }[];
 }
 
@@ -201,9 +201,9 @@ export interface StatusChange {
   toStatus: string;
   changedAt: Date;
   changedByUserId: string;
-  changedByUserName?: string; // Denormalized for display
-  reason?: string;
-  notes?: string;
+  changedByUserName?: string | undefined; // Denormalized for display
+  reason?: string | undefined;
+  notes?: string | undefined;
 }
 
 // Notification preferences

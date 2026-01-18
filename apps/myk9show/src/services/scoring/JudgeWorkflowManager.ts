@@ -64,7 +64,7 @@ export interface JudgeSession {
   // Entry management
   assignedEntries: string[];
   completedEntries: string[];
-  currentEntryId?: string;
+  currentEntryId?: string | undefined;
   entryAssignmentStrategy: AssignmentStrategy;
   
   // Session configuration
@@ -629,7 +629,8 @@ export class JudgeWorkflowManager extends EventEmitter {
 
       // Auto-advance to next entry if enabled
       if (session.autoAdvance) {
-        session.currentEntryId = this.getNextEntry(sessionId) || undefined;
+        const nextEntry = this.getNextEntry(sessionId);
+        session.currentEntryId = nextEntry ?? undefined;
       }
 
       await this.persistSessions();

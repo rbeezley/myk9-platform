@@ -501,6 +501,10 @@ export const FormErrorProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       const form = prev.forms[formId];
       if (!form) return prev;
 
+      // Create new validation result without globalError property
+      const { globalError: _, ...validationResultWithoutGlobalError } = form.validationResult;
+      void _;
+
       return {
         ...prev,
         forms: {
@@ -508,8 +512,7 @@ export const FormErrorProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           [formId]: {
             ...form,
             validationResult: {
-              ...form.validationResult,
-              globalError: undefined,
+              ...validationResultWithoutGlobalError,
               isValid: form.validationResult.errors.length === 0
             }
           }

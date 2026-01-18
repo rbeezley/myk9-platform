@@ -613,7 +613,7 @@ export class ConnectionManager {
       this.notifyListeners('stateChange', {
         type: status as ConnectionEvent['type'],
         timestamp: new Date(),
-        details: { error: new Error(error) },
+        ...(error !== undefined && { details: { error: new Error(error) } }),
       });
     }
   }
@@ -622,13 +622,13 @@ export class ConnectionManager {
    * Add connection event to history
    */
   private addConnectionEvent(
-    type: ConnectionEvent['type'], 
+    type: ConnectionEvent['type'],
     details?: ConnectionEvent['details']
   ): void {
     const event: ConnectionEvent = {
       type,
       timestamp: new Date(),
-      details,
+      ...(details !== undefined && { details }),
     };
 
     this.connectionHistory.push(event);

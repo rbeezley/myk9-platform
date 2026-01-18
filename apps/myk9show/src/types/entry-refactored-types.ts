@@ -79,7 +79,7 @@ export interface ClassEntry extends BaseEntity, SyncableEntity {
   status: ClassEntryStatus;
   
   // Class-specific Metadata
-  notes?: string;              // Class-specific notes
+  notes?: string | undefined;              // Class-specific notes
   qualifiedForFinals: boolean; // Whether qualified for finals
   movedFromClassId?: string;   // If moved from another class
   movedToClassId?: string;     // If moved to another class
@@ -132,14 +132,14 @@ export interface CreateClassEntryInput {
   classId: string;
   jumpHeight?: string;
   preferredJudge?: string;
-  notes?: string;
+  notes?: string | undefined;
 }
 
 // Class Entry Update (updating class-specific data)
 export interface UpdateClassEntryInput {
   jumpHeight?: string;
   preferredJudge?: string;
-  notes?: string;
+  notes?: string | undefined;
   status?: ClassEntryStatus;
   armband?: string;
   runOrder?: number;
@@ -230,7 +230,7 @@ export interface ClassEntrySummary {
 // ============================================================================
 
 export interface EntryFilters {
-  showId?: string;
+  showId?: string | undefined;
   handlerId?: string;
   dogId?: string;
   entryStatus?: EntryStatus[];

@@ -18,9 +18,9 @@ export interface LiveUpdate {
 
 export interface LiveUpdateSubscription {
   id: string;
-  entityType?: string;
-  entityId?: string;
-  showId?: string;
+  entityType?: string | undefined;
+  entityId?: string | undefined;
+  showId?: string | undefined;
   callback: (update: LiveUpdate) => void;
 }
 

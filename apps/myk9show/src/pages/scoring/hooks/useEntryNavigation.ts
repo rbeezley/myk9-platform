@@ -64,7 +64,7 @@ export interface EntryNavigationReturn {
   classInfo: {
     element: string;
     level: string;
-    section?: string;
+    section?: string | undefined;
   } | null;
   /** Whether entries are being loaded */
   isLoading: boolean;
@@ -136,7 +136,7 @@ export function useEntryNavigation(config: EntryNavigationConfig): EntryNavigati
   const [classInfo, setClassInfo] = useState<{
     element: string;
     level: string;
-    section?: string;
+    section?: string | undefined;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 

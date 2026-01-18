@@ -35,13 +35,13 @@ export interface ScoreResult {
     position: number;
     total: number;
     qualified: boolean;
-    title?: string; // "1st Place", "Winner", etc.
-  };
+    title?: string | undefined; // "1st Place", "Winner", etc.
+  } | undefined;
   status: 'preliminary' | 'official' | 'final';
   timestamp: Date;
   submittedAt: Date;
-  notes?: string;
-  videoUrl?: string;
+  notes?: string | undefined;
+  videoUrl?: string | undefined;
   [key: string]: unknown; // Index signature for broadcast compatibility
 }
 
@@ -60,8 +60,8 @@ export interface PlacementResult {
     armband: string;
     finalScore: number;
     qualified: boolean;
-    award?: string;
-    specialAward?: string;
+    award?: string | undefined;
+    specialAward?: string | undefined;
   }>;
   totalEntries: number;
   qualifyingEntries: number;
@@ -83,17 +83,17 @@ export interface AwardResult {
     ownerName: string;
     armband: string;
   };
-  classId?: string;
-  className?: string;
+  classId?: string | undefined;
+  className?: string | undefined;
   showId: string;
-  value?: number; // Championship points, etc.
+  value?: number | undefined; // Championship points, etc.
   criteria: string;
   awardedAt: Date;
   awardedBy: string;
   certificate?: {
     templateId: string;
-    generatedUrl?: string;
-  };
+    generatedUrl?: string | undefined;
+  } | undefined;
 }
 
 export interface ResultsNotification {
@@ -103,13 +103,13 @@ export interface ResultsNotification {
   title: string;
   message: string;
   targetAudience: 'all' | 'exhibitors' | 'class-participants' | 'specific';
-  targetIds?: string[]; // Entry IDs or User IDs
+  targetIds?: string[] | undefined; // Entry IDs or User IDs
   data: ScoreResult | PlacementResult | AwardResult;
   showId: string;
-  classId?: string;
+  classId?: string | undefined;
   timestamp: Date;
-  expiresAt?: Date;
-  displayDuration?: number; // seconds to display on screen
+  expiresAt?: Date | undefined;
+  displayDuration?: number | undefined; // seconds to display on screen
   [key: string]: unknown; // Index signature for broadcast compatibility
 }
 

@@ -12,8 +12,8 @@ import { formatDistanceToNow } from 'date-fns';
 interface AlertToastProps {
   alert: Alert;
   onDismiss: () => void;
-  onAcknowledge?: () => void;
-  onResolve?: () => void;
+  onAcknowledge?: (() => void) | undefined;
+  onResolve?: (() => void) | undefined;
   autoHideDuration?: number;
   className?: string;
 }

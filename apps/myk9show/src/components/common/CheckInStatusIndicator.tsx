@@ -19,7 +19,7 @@ interface CheckInStatusIndicatorProps {
   size?: 'sm' | 'md' | 'lg';
   showLabel?: boolean;
   showTooltip?: boolean;
-  className?: string;
+  className?: string | undefined;
   animated?: boolean;
 }
 

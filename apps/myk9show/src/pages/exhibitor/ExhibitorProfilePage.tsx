@@ -487,7 +487,6 @@ function DogFormDialog({
     name: '',
     call_name: '',
     breed: '',
-    sex: undefined,
     date_of_birth: '',
     color: '',
     height: '',
@@ -503,7 +502,7 @@ function DogFormDialog({
         name: dog.name,
         call_name: dog.call_name || '',
         breed: dog.breed,
-        sex: dog.sex || undefined,
+        ...(dog.sex && { sex: dog.sex }),
         date_of_birth: dog.date_of_birth || '',
         color: dog.color || '',
         height: dog.height || '',
@@ -516,7 +515,6 @@ function DogFormDialog({
         name: '',
         call_name: '',
         breed: '',
-        sex: undefined,
         date_of_birth: '',
         color: '',
         height: '',
@@ -573,7 +571,15 @@ function DogFormDialog({
               <Label htmlFor="dog-sex">Sex</Label>
               <Select
                 value={formData.sex || ''}
-                onValueChange={(value) => setFormData({ ...formData, sex: value as 'male' | 'female' })}
+                onValueChange={(value) => {
+                  if (value === 'male' || value === 'female') {
+                    setFormData({ ...formData, sex: value });
+                  } else {
+                    // Remove sex property if value is invalid
+                    const { sex: _removed, ...rest } = formData;
+                    setFormData(rest as CreateDogData);
+                  }
+                }}
               >
                 <SelectTrigger id="dog-sex">
                   <SelectValue placeholder="Select sex" />

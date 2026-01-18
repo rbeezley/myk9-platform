@@ -36,10 +36,10 @@ interface ClassWithTrial {
   classData: {
     id: string;
     name: string;
-    description?: string;
-    fee?: number;
-    entryFee?: number;
-    className?: string;
+    description?: string | undefined;
+    fee?: number | undefined;
+    entryFee?: number | undefined;
+    className?: string | undefined;
   } & Record<string, unknown>;
   trial: {
     id: string;

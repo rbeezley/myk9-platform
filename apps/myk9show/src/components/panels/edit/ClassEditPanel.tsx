@@ -171,37 +171,39 @@ const trialClassToFormData = (trialClass: Partial<TrialClass>): TrialClassEditFo
 };
 
 // Convert form data back to ClassData
+// Use conditional spread to satisfy exactOptionalPropertyTypes
 const formDataToClass = (formData: ClassEditFormData): Partial<ClassData> => ({
   element: formData.element,
   level: formData.level,
   section: formData.section,
   classOrder: formData.classOrder,
   status: formData.status,
-  estimatedJudgingTime: formData.estimatedJudgingTime,
-  timeLimit1: formData.timeLimit1,
-  timeLimit2: formData.timeLimit2,
-  timeLimit3: formData.timeLimit3,
-  judge: formData.judge,
-  gateSteward: formData.gateSteward,
-  tableSteward: formData.tableSteward,
-  timerSteward: formData.timerSteward,
-  ringSteward1: formData.ringSteward1,
-  ringSteward2: formData.ringSteward2,
-  ringSteward3: formData.ringSteward3,
-  hidesUsed: formData.hidesUsed,
-  distractionsUsed: formData.distractionsUsed,
-  itemsUsed: formData.itemsUsed,
-  preEntryFee: formData.preEntryFee,
-  dayOfShowFee: formData.dayOfShowFee,
+  ...(formData.estimatedJudgingTime !== undefined && { estimatedJudgingTime: formData.estimatedJudgingTime }),
+  ...(formData.timeLimit1 !== undefined && { timeLimit1: formData.timeLimit1 }),
+  ...(formData.timeLimit2 !== undefined && { timeLimit2: formData.timeLimit2 }),
+  ...(formData.timeLimit3 !== undefined && { timeLimit3: formData.timeLimit3 }),
+  ...(formData.judge !== undefined && { judge: formData.judge }),
+  ...(formData.gateSteward !== undefined && { gateSteward: formData.gateSteward }),
+  ...(formData.tableSteward !== undefined && { tableSteward: formData.tableSteward }),
+  ...(formData.timerSteward !== undefined && { timerSteward: formData.timerSteward }),
+  ...(formData.ringSteward1 !== undefined && { ringSteward1: formData.ringSteward1 }),
+  ...(formData.ringSteward2 !== undefined && { ringSteward2: formData.ringSteward2 }),
+  ...(formData.ringSteward3 !== undefined && { ringSteward3: formData.ringSteward3 }),
+  ...(formData.hidesUsed !== undefined && { hidesUsed: formData.hidesUsed }),
+  ...(formData.distractionsUsed !== undefined && { distractionsUsed: formData.distractionsUsed }),
+  ...(formData.itemsUsed !== undefined && { itemsUsed: formData.itemsUsed }),
+  ...(formData.preEntryFee !== undefined && { preEntryFee: formData.preEntryFee }),
+  ...(formData.dayOfShowFee !== undefined && { dayOfShowFee: formData.dayOfShowFee }),
 });
 
 // Convert form data back to TrialClass
+// Use conditional spread to satisfy exactOptionalPropertyTypes
 const formDataToTrialClass = (formData: TrialClassEditFormData): Partial<TrialClass> => ({
   element: formData.element,
   level: formData.level,
   section: formData.section,
   judgeId: formData.judgeId,
-  judgeName: formData.judgeName,
+  ...(formData.judgeName !== undefined && { judgeName: formData.judgeName }),
   startTime: formData.startTime,
   status: formData.status,
   entries: formData.entries,
@@ -723,9 +725,9 @@ export const ClassEditPanel: React.FC<ClassEditPanelProps> = ({
       cancelLabel="Cancel"
     >
       {isSimpleMode ? (
-        <TrialClassEditForm showId={showId} />
+        <TrialClassEditForm {...(showId !== undefined && { showId })} />
       ) : (
-        <ClassEditForm showId={showId} />
+        <ClassEditForm {...(showId !== undefined && { showId })} />
       )}
     </EditPanelWrapper>
   );

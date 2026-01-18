@@ -11,17 +11,17 @@ export interface Achievement {
   dog_id: string;
   achievement_type: string;
   title: string;
-  abbreviation?: string;
+  abbreviation?: string | undefined;
   organization: string;
-  discipline?: string;
-  level?: string;
+  discipline?: string | undefined;
+  level?: string | undefined;
   date_earned: string; // ISO date string
-  points?: number;
-  location?: string;
-  judge_name?: string;
-  certificate_number?: string;
-  certificate_url?: string;
-  notes?: string;
+  points?: number | undefined;
+  location?: string | undefined;
+  judge_name?: string | undefined;
+  certificate_number?: string | undefined;
+  certificate_url?: string | undefined;
+  notes?: string | undefined;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -31,18 +31,18 @@ export interface CreateAchievementData {
   dog_id: string;
   achievement_type: string;
   title: string;
-  abbreviation?: string;
+  abbreviation?: string | undefined;
   organization: string;
-  discipline?: string;
-  level?: string;
+  discipline?: string | undefined;
+  level?: string | undefined;
   date_earned: string;
-  points?: number;
-  location?: string;
-  judge_name?: string;
-  certificate_number?: string;
-  certificate_url?: string;
-  notes?: string;
-  is_active?: boolean;
+  points?: number | undefined;
+  location?: string | undefined;
+  judge_name?: string | undefined;
+  certificate_number?: string | undefined;
+  certificate_url?: string | undefined;
+  notes?: string | undefined;
+  is_active?: boolean | undefined;
 }
 
 export interface UpdateAchievementData extends Partial<CreateAchievementData> {
@@ -53,42 +53,42 @@ export interface UpdateAchievementData extends Partial<CreateAchievementData> {
 export interface Competition {
   id: string;
   dog_id: string;
-  show_id?: string;
-  class_id?: string;
+  show_id?: string | undefined;
+  class_id?: string | undefined;
   competition_name: string;
   competition_date: string; // ISO date string
-  location?: string;
-  placement?: string;
-  score?: string;
-  time_seconds?: number;
-  qualified?: boolean;
+  location?: string | undefined;
+  placement?: string | undefined;
+  score?: string | undefined;
+  time_seconds?: number | undefined;
+  qualified?: boolean | undefined;
   points_earned: number;
-  organization?: string;
-  discipline?: string;
-  level?: string;
-  judge_name?: string;
-  notes?: string;
+  organization?: string | undefined;
+  discipline?: string | undefined;
+  level?: string | undefined;
+  judge_name?: string | undefined;
+  notes?: string | undefined;
   created_at: string;
   updated_at: string;
 }
 
 export interface CreateCompetitionData {
   dog_id: string;
-  show_id?: string;
-  class_id?: string;
+  show_id?: string | undefined;
+  class_id?: string | undefined;
   competition_name: string;
   competition_date: string;
-  location?: string;
-  placement?: string;
-  score?: string;
-  time_seconds?: number;
-  qualified?: boolean;
-  points_earned?: number;
-  organization?: string;
-  discipline?: string;
-  level?: string;
-  judge_name?: string;
-  notes?: string;
+  location?: string | undefined;
+  placement?: string | undefined;
+  score?: string | undefined;
+  time_seconds?: number | undefined;
+  qualified?: boolean | undefined;
+  points_earned?: number | undefined;
+  organization?: string | undefined;
+  discipline?: string | undefined;
+  level?: string | undefined;
+  judge_name?: string | undefined;
+  notes?: string | undefined;
 }
 
 export interface UpdateCompetitionData extends Partial<CreateCompetitionData> {
@@ -99,38 +99,38 @@ export interface UpdateCompetitionData extends Partial<CreateCompetitionData> {
 export interface PastResult {
   id: string;
   dog_id: string;
-  show_id?: string;
+  show_id?: string | undefined;
   show_name: string;
   show_date: string; // ISO date string
-  show_location?: string;
+  show_location?: string | undefined;
   class_name: string;
-  class_level?: string;
-  placement?: string;
-  score?: string;
-  qualified?: boolean;
-  judge_name?: string;
-  notes?: string;
-  imported_from?: string;
-  external_id?: string;
+  class_level?: string | undefined;
+  placement?: string | undefined;
+  score?: string | undefined;
+  qualified?: boolean | undefined;
+  judge_name?: string | undefined;
+  notes?: string | undefined;
+  imported_from?: string | undefined;
+  external_id?: string | undefined;
   created_at: string;
   updated_at: string;
 }
 
 export interface CreatePastResultData {
   dog_id: string;
-  show_id?: string;
+  show_id?: string | undefined;
   show_name: string;
   show_date: string;
-  show_location?: string;
+  show_location?: string | undefined;
   class_name: string;
-  class_level?: string;
-  placement?: string;
-  score?: string;
-  qualified?: boolean;
-  judge_name?: string;
-  notes?: string;
-  imported_from?: string;
-  external_id?: string;
+  class_level?: string | undefined;
+  placement?: string | undefined;
+  score?: string | undefined;
+  qualified?: boolean | undefined;
+  judge_name?: string | undefined;
+  notes?: string | undefined;
+  imported_from?: string | undefined;
+  external_id?: string | undefined;
 }
 
 export interface UpdatePastResultData extends Partial<CreatePastResultData> {
@@ -142,7 +142,7 @@ export interface AchievementSummary {
   total_achievements: number;
   active_achievements: number;
   organizations: string[];
-  latest_achievement?: Achievement;
+  latest_achievement?: Achievement | undefined;
   achievements_by_type: Record<string, number>;
   achievements_by_organization: Record<string, number>;
 }
@@ -152,8 +152,8 @@ export interface CompetitionSummary {
   qualified_competitions: number;
   qualification_rate: number;
   total_points: number;
-  average_score?: number;
-  best_placement?: string;
+  average_score?: number | undefined;
+  best_placement?: string | undefined;
   recent_competitions: Competition[];
   organizations: string[];
   disciplines: string[];
@@ -169,44 +169,44 @@ export interface PerformanceStats {
     points: number;
   }[];
   career_highlights: {
-    first_achievement?: Achievement;
-    highest_scoring_competition?: Competition;
-    most_recent_title?: Achievement;
-    qualification_streak?: number;
+    first_achievement?: Achievement | undefined;
+    highest_scoring_competition?: Competition | undefined;
+    most_recent_title?: Achievement | undefined;
+    qualification_streak?: number | undefined;
   };
 }
 
 // Search and Filter Types
 export interface AchievementFilters {
-  organization?: string;
-  achievement_type?: string;
-  discipline?: string;
-  level?: string;
-  is_active?: boolean;
-  date_from?: string;
-  date_to?: string;
+  organization?: string | undefined;
+  achievement_type?: string | undefined;
+  discipline?: string | undefined;
+  level?: string | undefined;
+  is_active?: boolean | undefined;
+  date_from?: string | undefined;
+  date_to?: string | undefined;
 }
 
 export interface CompetitionFilters {
-  organization?: string;
-  discipline?: string;
-  level?: string;
-  qualified?: boolean;
-  show_id?: string;
-  date_from?: string;
-  date_to?: string;
-  location?: string;
+  organization?: string | undefined;
+  discipline?: string | undefined;
+  level?: string | undefined;
+  qualified?: boolean | undefined;
+  show_id?: string | undefined;
+  date_from?: string | undefined;
+  date_to?: string | undefined;
+  location?: string | undefined;
 }
 
 export interface PastResultFilters {
-  show_name?: string;
-  class_name?: string;
-  class_level?: string;
-  qualified?: boolean;
-  judge_name?: string;
-  date_from?: string;
-  date_to?: string;
-  imported_from?: string;
+  show_name?: string | undefined;
+  class_name?: string | undefined;
+  class_level?: string | undefined;
+  qualified?: boolean | undefined;
+  judge_name?: string | undefined;
+  date_from?: string | undefined;
+  date_to?: string | undefined;
+  imported_from?: string | undefined;
 }
 
 // Organization-specific Types
@@ -217,7 +217,7 @@ export interface OrganizationConfig {
   disciplines: string[];
   levels: string[];
   scoring_system: 'points' | 'time' | 'placement' | 'qualified';
-  website?: string;
+  website?: string | undefined;
 }
 
 export interface DisciplineConfig {
@@ -236,19 +236,19 @@ export interface ImportAchievementData {
   organization: string;
   date_earned: string;
   source: string;
-  raw_data?: Record<string, unknown>;
+  raw_data?: Record<string, unknown> | undefined;
 }
 
 export interface ImportCompetitionData {
   dog_identifier: string;
   competition_name: string;
   competition_date: string;
-  placement?: string;
-  score?: string;
-  qualified?: boolean;
-  organization?: string;
+  placement?: string | undefined;
+  score?: string | undefined;
+  qualified?: boolean | undefined;
+  organization?: string | undefined;
   source: string;
-  raw_data?: Record<string, unknown>;
+  raw_data?: Record<string, unknown> | undefined;
 }
 
 export interface ImportSummary {

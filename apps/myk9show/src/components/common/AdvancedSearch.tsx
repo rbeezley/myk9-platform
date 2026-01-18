@@ -71,7 +71,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [selectedOrganizations, setSelectedOrganizations] = useState<string[]>([]);
   const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
-  const [dateRange, setDateRange] = useState<{ start?: Date; end?: Date }>({});
+  const [dateRange, setDateRange] = useState<{ start?: Date | undefined; end?: Date | undefined }>({});
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
   const [customFilterValues, setCustomFilterValues] = useState<Record<string, unknown>>({});
 
@@ -417,7 +417,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                         <Calendar
                           mode="single"
                           selected={dateRange.start}
-                          onSelect={(date) => setDateRange({ ...dateRange, start: date })}
+                          onSelect={(date) => setDateRange(prev => ({ ...prev, start: date }))}
                           initialFocus
                         />
                       </PopoverContent>
@@ -434,7 +434,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                         <Calendar
                           mode="single"
                           selected={dateRange.end}
-                          onSelect={(date) => setDateRange({ ...dateRange, end: date })}
+                          onSelect={(date) => setDateRange(prev => ({ ...prev, end: date }))}
                           initialFocus
                         />
                       </PopoverContent>

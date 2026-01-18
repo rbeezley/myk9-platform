@@ -98,7 +98,7 @@ export class ConflictResolver {
       entityId,
       localData,
       remoteData,
-      baseData,
+      ...(baseData !== undefined && { baseData }),
       detectedAt: new Date(),
       createdAt: new Date(),
       priority: 'medium',
@@ -241,7 +241,7 @@ export class ConflictResolver {
 
       case 'retry_later':
         // Keep base data if available, otherwise use empty object
-        resolution.resolvedEntity = conflict.baseData || {};
+        resolution.resolvedEntity = conflict.baseData ?? {};
         resolution.confidence = 0.7;
         resolution.resolutionNotes = 'Both versions rejected, using base data';
         break;

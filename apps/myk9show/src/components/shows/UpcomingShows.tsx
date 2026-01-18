@@ -10,19 +10,19 @@ export interface Show {
   date: string;
   location: string;
   imageUrl: string;
-  type?: string;
+  type?: string | undefined;
 }
 
 export type UpcomingShowsVariant = 'carousel' | 'grid';
 
 export interface UpcomingShowsProps {
   shows: Show[];
-  variant?: UpcomingShowsVariant;
-  onAddShow?: () => void;
-  onViewDetails?: (showId: string) => void;
-  className?: string;
-  isLoading?: boolean;
-  isEmpty?: boolean;
+  variant?: UpcomingShowsVariant | undefined;
+  onAddShow?: (() => void) | undefined;
+  onViewDetails?: ((showId: string) => void) | undefined;
+  className?: string | undefined;
+  isLoading?: boolean | undefined;
+  isEmpty?: boolean | undefined;
 }
 
 // Extracted LoadingSkeleton component
@@ -50,7 +50,7 @@ const LoadingSkeleton = ({ variant }: LoadingSkeletonProps) => (
 
 // Extracted EmptyState component
 interface EmptyStateProps {
-  onAddShow?: () => void;
+  onAddShow?: (() => void) | undefined;
 }
 
 const EmptyState = ({ onAddShow }: EmptyStateProps) => (

@@ -18,13 +18,13 @@ export interface ExportOptions {
   compress: boolean;
   encryption?: {
     enabled: boolean;
-    password?: string;
-  };
+    password?: string | undefined;
+  } | undefined;
   filters?: {
-    dateRange?: { start: Date; end: Date };
-    types?: string[];
-    ids?: string[];
-  };
+    dateRange?: { start: Date; end: Date } | undefined;
+    types?: string[] | undefined;
+    ids?: string[] | undefined;
+  } | undefined;
 }
 
 export interface ExportResult {
@@ -33,14 +33,14 @@ export interface ExportResult {
   sizeBytes: number;
   recordCount: number;
   exportedAt: Date;
-  error?: string;
+  error?: string | undefined;
 }
 
 export interface ImportOptions {
   validateData: boolean;
   mergeStrategy: 'replace' | 'merge' | 'skip';
   dryRun: boolean;
-  transformers?: Record<string, (data: unknown) => unknown>;
+  transformers?: Record<string, (data: unknown) => unknown> | undefined;
 }
 
 export interface ImportResult {
@@ -58,9 +58,9 @@ export interface ExportManifest {
   exportedBy: string;
   dataTypes: string[];
   recordCounts: Record<string, number>;
-  checksum?: string;
-  compression?: string;
-  encryption?: string;
+  checksum?: string | undefined;
+  compression?: string | undefined;
+  encryption?: string | undefined;
 }
 
 export class DataExportImportService {
@@ -556,7 +556,7 @@ export class DataExportImportService {
       data[dataType] = JSON.parse(content);
     }
     
-    return { data, manifest };
+    return { data, ...(manifest !== undefined && { manifest }) };
   }
 
   /**

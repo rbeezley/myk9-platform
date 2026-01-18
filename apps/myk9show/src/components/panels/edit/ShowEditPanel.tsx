@@ -125,9 +125,9 @@ const showToFormData = (show: Partial<Show>): ShowEditFormData => {
     preEntryFee: show.preEntryFee || '',
     dayOfShowFee: show.dayOfShowFee || '',
     assignedJudges: show.assignedJudges || [],
-    maxEntriesPerDog: show.maxEntriesPerDog,
-    maxTotalEntries: show.maxTotalEntries,
-    allowNonOwnerHandlers: show.allowNonOwnerHandlers,
+    ...(show.maxEntriesPerDog !== undefined && { maxEntriesPerDog: show.maxEntriesPerDog }),
+    ...(show.maxTotalEntries !== undefined && { maxTotalEntries: show.maxTotalEntries }),
+    ...(show.allowNonOwnerHandlers !== undefined && { allowNonOwnerHandlers: show.allowNonOwnerHandlers }),
   };
 };
 

@@ -7,7 +7,7 @@ export interface BaseEntityDialogProps {
   onOpenChange: (open: boolean) => void;
   title: string;
   titleIcon?: React.ReactNode;
-  description?: string;
+  description?: string | undefined;
   children: ReactNode;
   onSubmit?: () => void;
   onCancel?: () => void;

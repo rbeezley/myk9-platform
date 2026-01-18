@@ -19,7 +19,7 @@ export interface JudgeQualification {
   is_active: boolean;
   suspension_date?: string;
   suspension_reason?: string;
-  notes?: string;
+  notes?: string | undefined;
   created_at: string;
   updated_at: string;
 }
@@ -40,7 +40,7 @@ export interface JudgeAssignment {
   travel_provided?: boolean;
   expenses_covered?: boolean;
   special_requirements?: string;
-  notes?: string;
+  notes?: string | undefined;
   created_at: string;
   updated_at: string;
 }
@@ -58,7 +58,7 @@ export interface JudgeCertification {
   next_renewal_date?: string;
   continuing_education_hours: number;
   is_active: boolean;
-  notes?: string;
+  notes?: string | undefined;
   created_at: string;
   updated_at: string;
 }
@@ -74,7 +74,7 @@ export interface CreateJudgeQualificationData {
   approval_number?: string;
   approved_by?: string;
   is_active?: boolean;
-  notes?: string;
+  notes?: string | undefined;
 }
 
 export interface UpdateJudgeQualificationData {
@@ -89,7 +89,7 @@ export interface UpdateJudgeQualificationData {
   is_active?: boolean;
   suspension_date?: string;
   suspension_reason?: string;
-  notes?: string;
+  notes?: string | undefined;
 }
 
 export interface CreateJudgeAssignmentData {
@@ -104,7 +104,7 @@ export interface CreateJudgeAssignmentData {
   travel_provided?: boolean;
   expenses_covered?: boolean;
   special_requirements?: string;
-  notes?: string;
+  notes?: string | undefined;
 }
 
 export interface UpdateJudgeAssignmentData {
@@ -120,7 +120,7 @@ export interface UpdateJudgeAssignmentData {
   travel_provided?: boolean;
   expenses_covered?: boolean;
   special_requirements?: string;
-  notes?: string;
+  notes?: string | undefined;
 }
 
 export interface CreateJudgeCertificationData {
@@ -134,7 +134,7 @@ export interface CreateJudgeCertificationData {
   next_renewal_date?: string;
   continuing_education_hours?: number;
   is_active?: boolean;
-  notes?: string;
+  notes?: string | undefined;
 }
 
 export interface UpdateJudgeCertificationData {
@@ -148,7 +148,7 @@ export interface UpdateJudgeCertificationData {
   next_renewal_date?: string;
   continuing_education_hours?: number;
   is_active?: boolean;
-  notes?: string;
+  notes?: string | undefined;
 }
 
 // Filter Types

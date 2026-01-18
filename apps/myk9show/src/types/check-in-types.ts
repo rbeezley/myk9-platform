@@ -18,7 +18,7 @@ export interface CheckInStatusConfig {
   color: string;
   backgroundColor: string;
   borderColor: string;
-  icon?: string;
+  icon?: string | undefined;
   description: string;
   priority: number; // For sorting and display hierarchy
 }
@@ -90,7 +90,7 @@ export interface CheckInInfo {
   status: CheckInStatus;
   timestamp: Date;
   updatedBy: string;
-  notes?: string;
+  notes?: string | undefined;
 }
 
 // Helper functions

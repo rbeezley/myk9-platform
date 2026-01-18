@@ -24,14 +24,16 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     // Support asChild by converting to render prop
     const actualRender = asChild && React.isValidElement(children) ? children : render
 
+    const renderProps = {
+      ...props,
+      className: cn(buttonVariants({ variant, size, className })),
+      ...(asChild ? {} : { children }),
+    }
+
     return useRender({
-      render: actualRender,
+      ...(actualRender !== undefined && { render: actualRender }),
       defaultTagName: 'button',
-      props: {
-        ...props,
-        children: asChild ? undefined : children,
-        className: cn(buttonVariants({ variant, size, className })),
-      },
+      props: renderProps,
       ref,
     })
   }

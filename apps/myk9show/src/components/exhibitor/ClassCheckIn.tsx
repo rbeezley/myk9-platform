@@ -173,8 +173,8 @@ export const ClassCheckIn: React.FC<ClassCheckInProps> = ({
       const request: CheckInRequest = {
         entryId: entry.id,
         status: checkInStatus,
-        handlerChange: handlerChange || undefined,
-        specialRequests: specialRequests || undefined,
+        ...(handlerChange && { handlerChange }),
+        ...(specialRequests && { specialRequests }),
         timestamp: new Date()
       };
 

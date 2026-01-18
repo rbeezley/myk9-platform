@@ -36,9 +36,9 @@ interface UserRoleAssignmentDialogProps {
   onAssign: (assignment: {
     userId: string;
     roleId: string;
-    scopeType?: string;
-    scopeId?: string;
-    expiresAt?: string;
+    scopeType?: string | undefined;
+    scopeId?: string | undefined;
+    expiresAt?: string | undefined;
   }) => Promise<void>;
   roles: Role[];
 }

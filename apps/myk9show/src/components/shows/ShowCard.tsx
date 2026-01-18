@@ -11,14 +11,14 @@ export interface ShowCardProps {
   date: string;
   location: string;
   imageUrl: string;
-  type?: string;
-  className?: string;
-  syncStatus?: SyncStatus;
-  lastSyncAt?: Date;
-  syncErrorMessage?: string;
-  showSyncStatus?: boolean;
-  onViewDetails?: () => void;
-  onSyncRetry?: () => void;
+  type?: string | undefined;
+  className?: string | undefined;
+  syncStatus?: SyncStatus | undefined;
+  lastSyncAt?: Date | undefined;
+  syncErrorMessage?: string | undefined;
+  showSyncStatus?: boolean | undefined;
+  onViewDetails?: (() => void) | undefined;
+  onSyncRetry?: (() => void) | undefined;
 }
 
 export const ShowCard: React.FC<ShowCardProps> = ({

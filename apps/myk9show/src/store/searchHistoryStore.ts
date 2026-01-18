@@ -8,14 +8,14 @@ export interface SearchHistoryItem {
   searchType: 'dogs' | 'people' | 'shows' | 'classes' | 'trials' | 'clubs' | 'templates' | 'global';
   timestamp: Date;
   userId: string;
-  resultCount?: number;
-  selectedResultId?: string;
-  filters?: Record<string, unknown>;
+  resultCount?: number | undefined;
+  selectedResultId?: string | undefined;
+  filters?: Record<string, unknown> | undefined;
   context?: {
     page: string;
-    section?: string;
-    previousQuery?: string;
-  };
+    section?: string | undefined;
+    previousQuery?: string | undefined;
+  } | undefined;
 }
 
 export interface SearchSuggestion {
@@ -37,10 +37,10 @@ export interface SearchBookmark {
   filters: Record<string, unknown>;
   userId: string;
   createdAt: Date;
-  lastUsed?: Date;
+  lastUsed?: Date | undefined;
   useCount: number;
   tags: string[];
-  notes?: string;
+  notes?: string | undefined;
 }
 
 export interface SearchFrequency {

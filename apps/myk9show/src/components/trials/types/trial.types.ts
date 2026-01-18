@@ -5,15 +5,15 @@ export interface Trial {
   trialDate: string;
   trialNumber: string;
   status: 'Upcoming' | 'In Progress' | 'Completed' | 'Cancelled';
-  image?: string;
-  plannedStartTime?: string;
-  timeStarted?: string;
-  timeEnded?: string;
-  eventNumber?: string;
-  type?: string;
-  order?: string;
-  name?: string;
-  trialType?: string;
+  image?: string | undefined;
+  plannedStartTime?: string | undefined;
+  timeStarted?: string | undefined;
+  timeEnded?: string | undefined;
+  eventNumber?: string | undefined;
+  type?: string | undefined;
+  order?: string | undefined;
+  name?: string | undefined;
+  trialType?: string | undefined;
 }
 
 export interface TrialClass {
@@ -22,12 +22,12 @@ export interface TrialClass {
   level: string;
   section: string;
   judgeId: string;
-  judgeName?: string; // For display purposes
+  judgeName?: string | undefined; // For display purposes
   startTime: string;
   status: 'Upcoming' | 'In Progress' | 'Completed' | 'Cancelled';
   entries: number;
 }
 
 export interface TrialFormData extends Omit<Trial, 'id' | 'image'> {
-  tempImage?: string;
+  tempImage?: string | undefined;
 }

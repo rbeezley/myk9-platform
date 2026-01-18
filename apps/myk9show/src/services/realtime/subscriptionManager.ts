@@ -89,14 +89,22 @@ export class SubscriptionManager {
 
       // Create channel if it doesn't exist
       if (!channel) {
-        channel = await realtimeClient.createChannel(channelName, {
+        const channelOptions: {
+          table?: string;
+          filter?: string;
+          enablePresence?: boolean;
+          enableBroadcast?: boolean;
+          lowLatency?: boolean;
+        } = {
           table: config.table,
-          filter: config.filter,
-          enablePresence: config.enablePresence,
-          enableBroadcast: config.enableBroadcast,
           lowLatency: config.priority === 'critical',
-        });
-        
+        };
+        if (config.filter !== undefined) channelOptions.filter = config.filter;
+        if (config.enablePresence !== undefined) channelOptions.enablePresence = config.enablePresence;
+        if (config.enableBroadcast !== undefined) channelOptions.enableBroadcast = config.enableBroadcast;
+
+        channel = await realtimeClient.createChannel(channelName, channelOptions);
+
         this.channels.set(channelName, channel);
       }
 
@@ -123,7 +131,7 @@ export class SubscriptionManager {
             event: events as '*' | 'INSERT' | 'UPDATE' | 'DELETE',
             schema: 'public',
             table: config.table,
-            ...(config.filter && { filter: config.filter }),
+            ...(config.filter !== undefined && { filter: config.filter }),
           },
           (payload) => {
             this.handleDatabaseChange(subscriptionId, payload as Record<string, unknown>, config);

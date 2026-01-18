@@ -377,7 +377,7 @@ export const FieldConfigurator: React.FC<FieldConfiguratorProps> = ({
 // Field Configuration Dialog Component
 interface FieldConfigDialogProps {
   field: FieldDefinition;
-  config?: TemplateFieldConfiguration;
+  config?: TemplateFieldConfiguration | undefined;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (updates: Partial<TemplateFieldConfiguration>) => void;

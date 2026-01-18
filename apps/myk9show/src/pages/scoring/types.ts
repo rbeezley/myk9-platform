@@ -95,11 +95,8 @@ export function toScoringEntry(
     inRing: status === 'in-ring',
     isScored: status === 'scored',
     exhibitorOrder: entry.runOrder || armband || index + 1,
-
-    // Optional fields
-    placement: undefined,
-    result: undefined,
-    section: undefined,
+    // Note: section is optional and not available on ReplicatedEntry
+    // It would need to be passed from class data if needed
   };
 }
 
@@ -152,9 +149,9 @@ export function toClassInfo(
   return {
     id: cls.id,
     name: cls.name,
-    level: level || parts[1],
-    element: element || parts[0],
-    judge: judgeName,
+    ...(level || parts[1] ? { level: level || parts[1] } : {}),
+    ...(element || parts[0] ? { element: element || parts[0] } : {}),
+    ...(judgeName ? { judge: judgeName } : {}),
     maxTime: getMaxTimeForLevel(level),
     entryCount,
   };

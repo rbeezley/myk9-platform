@@ -412,8 +412,7 @@ export class RealtimeConnectionManager {
           const eventData: RealtimeEventData = {
             event,
             payload: typeof data === 'object' && data !== null ? data as Record<string, unknown> : { data },
-            timestamp: Date.now(),
-            channel: undefined
+            timestamp: Date.now()
           };
           callback(eventData);
         } catch (error) {

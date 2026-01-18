@@ -26,7 +26,7 @@ import { useShowStore } from '@/store/showStore';
 
 interface ScheduleConflictAlertsProps {
   /** Show ID to filter conflicts for specific show */
-  showId?: string;
+  showId?: string | undefined;
   /** Custom className */
   className?: string;
 }

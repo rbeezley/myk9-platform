@@ -16,7 +16,7 @@ import { logger } from '@/services/LoggingService';
 
 interface ShowTemplateManagerProps {
   trialId: string;
-  onClassesCreated?: (classCount: number) => void;
+  onClassesCreated?: ((classCount: number) => void) | undefined;
 }
 
 export const ShowTemplateManager: React.FC<ShowTemplateManagerProps> = ({
@@ -27,7 +27,7 @@ export const ShowTemplateManager: React.FC<ShowTemplateManagerProps> = ({
   const [selectedOrganization, setSelectedOrganization] = useState<Organization | 'ALL'>('ALL');
   const [selectedShowType, setSelectedShowType] = useState<ShowType | 'ALL'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
-  const [previewClasses, setPreviewClasses] = useState<{ className: string; entryFee?: number; maxEntries?: number; customFields?: Record<string, unknown> }[]>([]);
+  const [previewClasses, setPreviewClasses] = useState<{ className: string; entryFee?: number | undefined; maxEntries?: number | undefined; customFields?: Record<string, unknown> | undefined }[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   
   const {

@@ -28,7 +28,7 @@ export function useExistingEntries(showId: string) {
             classId: classEntry.classId,
             registrationId: registration.id,
             status: registration.status,
-            entryStatus: registration.entryStatus
+            ...(registration.entryStatus !== undefined && { entryStatus: registration.entryStatus })
           });
         });
       });

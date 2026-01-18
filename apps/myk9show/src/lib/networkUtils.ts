@@ -90,8 +90,8 @@ export class NetworkClient {
     const networkError: NetworkError = {
       ...error,
       type,
-      status: response?.status,
-      retryAfter,
+      ...(response?.status !== undefined && { status: response.status }),
+      ...(retryAfter !== undefined && { retryAfter }),
       isRetryable,
       message: error.message || `Network error: ${type}`
     };
@@ -357,7 +357,7 @@ export class ErrorLogger {
     const errorEntry = {
       error,
       timestamp: new Date(),
-      context
+      ...(context !== undefined && { context })
     };
 
     this.errors.push(errorEntry);

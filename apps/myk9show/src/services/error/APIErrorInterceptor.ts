@@ -168,7 +168,7 @@ class APIErrorInterceptor {
           'X-Attempt': attempt.toString(),
           ...config.headers
         },
-        body: config.body ? JSON.stringify(config.body) : undefined,
+        ...(config.body !== undefined && { body: JSON.stringify(config.body) }),
         signal: controller.signal
       });
 

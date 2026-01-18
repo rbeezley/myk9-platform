@@ -31,14 +31,14 @@ interface HandlerSelectionDialogProps {
 interface HandlerOption {
   id: string;
   name: string;
-  email?: string;
+  email?: string | undefined;
   isOwner: boolean;
   isProfessionalHandler: boolean;
   conflictInfo?: {
     hasConflict: boolean;
-    conflictingClasses?: string[];
-    message?: string;
-  };
+    conflictingClasses?: string[] | undefined;
+    message?: string | undefined;
+  } | undefined;
 }
 
 export const HandlerSelectionDialog: React.FC<HandlerSelectionDialogProps> = ({

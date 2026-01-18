@@ -33,9 +33,20 @@ import {
 export const achievementQueries = {
   // Create new achievement
   async create(data: CreateAchievementData): Promise<Achievement> {
+    // Build insert object with required fields, adding optional fields only when defined
+    // to satisfy exactOptionalPropertyTypes
+    const insertData = {
+      dog_id: data.dog_id,
+      title: data.title,
+      ...(data.organization !== undefined && { organization: data.organization }),
+      ...(data.date_earned !== undefined && { date_earned: data.date_earned }),
+      ...(data.certificate_number !== undefined && { certificate_number: data.certificate_number }),
+      ...(data.notes !== undefined && { notes: data.notes }),
+    };
+
     const { data: achievement, error } = await supabase
       .from('achievements')
-      .insert([data])
+      .insert([insertData])
       .select()
       .single();
 

@@ -24,65 +24,65 @@ type EntryRow = Database['public']['Tables']['entries']['Row'];
  */
 export interface ReplicatedEntry {
   id: string;
-  classId?: string;
-  showId?: string;
-  dogId?: string;
-  handlerId?: string;
-  armband?: string;
-  handler?: string;
-  status?: string;
-  entryStatus?: string;
-  jumpHeight?: string;
-  entryFee?: number;
-  totalFees?: number;
-  paymentStatus?: string;
-  runOrder?: number;
-  moveUpRequested?: boolean;
-  preferredJudge?: string;
-  specialRequests?: string;
-  submittedAt?: string;
+  classId?: string | undefined;
+  showId?: string | undefined;
+  dogId?: string | undefined;
+  handlerId?: string | undefined;
+  armband?: string | undefined;
+  handler?: string | undefined;
+  status?: string | undefined;
+  entryStatus?: string | undefined;
+  jumpHeight?: string | undefined;
+  entryFee?: number | undefined;
+  totalFees?: number | undefined;
+  paymentStatus?: string | undefined;
+  runOrder?: number | undefined;
+  moveUpRequested?: boolean | undefined;
+  preferredJudge?: string | undefined;
+  specialRequests?: string | undefined;
+  submittedAt?: string | undefined;
 
   // Extra fields for scoring/display (camelCase)
-  isScored?: boolean;
-  resultStatus?: string;
-  resultText?: string;
-  searchTimeSeconds?: number;
-  totalPoints?: number;
-  finalPlacement?: string;
-  dogCallName?: string;
-  dogBreed?: string;
-  handlerName?: string;
-  armbandNumber?: string;
+  isScored?: boolean | undefined;
+  resultStatus?: string | undefined;
+  resultText?: string | undefined;
+  searchTimeSeconds?: number | undefined;
+  totalPoints?: number | undefined;
+  finalPlacement?: string | undefined;
+  dogCallName?: string | undefined;
+  dogBreed?: string | undefined;
+  handlerName?: string | undefined;
+  armbandNumber?: string | undefined;
 
   // Extra fields for scoring/display (snake_case for Compatibility)
-  is_scored?: boolean;
-  result_status?: string;
-  result_text?: string;
-  search_time_seconds?: number;
-  total_points?: number;
-  final_placement?: string;
-  dog_call_name?: string;
-  dog_breed?: string;
-  handler_name?: string;
-  armband_number?: string;
-  class_id?: string;
-  entry_status?: string;
-  element?: string;
-  level?: string;
-  areas?: number;
-  timeLimit?: string;
-  timeLimit2?: string;
-  timeLimit3?: string;
+  is_scored?: boolean | undefined;
+  result_status?: string | undefined;
+  result_text?: string | undefined;
+  search_time_seconds?: number | undefined;
+  total_points?: number | undefined;
+  final_placement?: string | undefined;
+  dog_call_name?: string | undefined;
+  dog_breed?: string | undefined;
+  handler_name?: string | undefined;
+  armband_number?: string | undefined;
+  class_id?: string | undefined;
+  entry_status?: string | undefined;
+  element?: string | undefined;
+  level?: string | undefined;
+  areas?: number | undefined;
+  timeLimit?: string | undefined;
+  timeLimit2?: string | undefined;
+  timeLimit3?: string | undefined;
 
   // Timestamps
-  updated_at?: string;
+  updated_at?: string | undefined;
 
   // Sync metadata
-  _version?: number;
-  _lastModified?: Date;
-  _lastModifiedBy?: string;
-  _syncStatus?: 'synced' | 'pending' | 'error' | 'conflict';
-  _localOnly?: boolean;
+  _version?: number | undefined;
+  _lastModified?: Date | undefined;
+  _lastModifiedBy?: string | undefined;
+  _syncStatus?: 'synced' | 'pending' | 'error' | 'conflict' | undefined;
+  _localOnly?: boolean | undefined;
 }
 
 /**

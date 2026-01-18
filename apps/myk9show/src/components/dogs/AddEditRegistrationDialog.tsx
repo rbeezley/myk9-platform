@@ -10,7 +10,7 @@ interface AddEditRegistrationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (registration: Registration) => void;
-  initialData?: Registration; // For editing existing registration
+  initialData?: Registration | undefined; // For editing existing registration
 }
 
 const COMMON_BREEDS = [

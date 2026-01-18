@@ -6,20 +6,20 @@ export interface UserPresence {
   id: string;
   name: string;
   email: string;
-  avatar?: string;
+  avatar?: string | undefined;
   role: 'admin' | 'secretary' | 'judge' | 'exhibitor';
   status: 'online' | 'away' | 'busy' | 'offline';
   lastSeen: Date;
   currentLocation?: {
     page: string;
-    entityId?: string;
-    entityType?: 'show' | 'dog' | 'person' | 'club' | 'entry';
-  };
+    entityId?: string | undefined;
+    entityType?: 'show' | 'dog' | 'person' | 'club' | 'entry' | undefined;
+  } | undefined;
   activity?: {
     type: 'viewing' | 'editing' | 'scoring' | 'judging';
-    details?: string;
+    details?: string | undefined;
     startedAt: Date;
-  };
+  } | undefined;
 }
 
 export interface PresenceUpdate {

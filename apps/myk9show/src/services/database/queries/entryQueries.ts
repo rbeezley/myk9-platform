@@ -474,7 +474,7 @@ export const updateEntryStatus = async (params: {
       .from('entries')
       .update({
         entry_status: status,
-        special_requests: reason ? `Status changed: ${reason}` : undefined,
+        ...(reason ? { special_requests: `Status changed: ${reason}` } : {}),
         updated_at: new Date().toISOString(),
       })
       .eq('id', id)

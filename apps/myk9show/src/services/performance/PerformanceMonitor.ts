@@ -31,13 +31,16 @@ export class PerformanceMonitor {
    */
   startTimer(operation: string, metadata?: Record<string, unknown>): string {
     const id = `${operation}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    this.entries.set(id, {
+
+    const entry: PerformanceEntry = {
       id,
       operation,
       startTime: performance.now(),
-      metadata
-    });
+    };
+    if (metadata !== undefined) {
+      entry.metadata = metadata;
+    }
+    this.entries.set(id, entry);
 
     return id;
   }

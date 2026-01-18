@@ -24,23 +24,23 @@ type DogRow = Database['public']['Tables']['dogs']['Row'];
 export interface ReplicatedDog {
   id: string;
   name: string;
-  callName?: string;
+  callName?: string | undefined;
   breed: string;
-  sex?: string;
-  dateOfBirth?: string;
-  ownerId?: string;
-  height?: string;
-  weight?: string;
-  color?: string;
-  microchipNumber?: string;
-  isSpayedNeutered?: boolean;
-  imageUrl?: string;
+  sex?: string | undefined;
+  dateOfBirth?: string | undefined;
+  ownerId?: string | undefined;
+  height?: string | undefined;
+  weight?: string | undefined;
+  color?: string | undefined;
+  microchipNumber?: string | undefined;
+  isSpayedNeutered?: boolean | undefined;
+  imageUrl?: string | undefined;
   // Sync metadata
-  _version?: number;
-  _lastModified?: Date;
-  _lastModifiedBy?: string;
-  _syncStatus?: 'synced' | 'pending' | 'error' | 'conflict';
-  _localOnly?: boolean;
+  _version?: number | undefined;
+  _lastModified?: Date | undefined;
+  _lastModifiedBy?: string | undefined;
+  _syncStatus?: 'synced' | 'pending' | 'error' | 'conflict' | undefined;
+  _localOnly?: boolean | undefined;
 }
 
 /**

@@ -165,14 +165,14 @@ export function SortableScoringEntryCard({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    zIndex: isDragging ? 50 : undefined,
+    ...(isDragging && { zIndex: 50 }),
   };
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
       <ScoringEntryCard
         entry={entry}
-        onSelect={onSelect}
+        {...(onSelect !== undefined && { onSelect })}
         isDragging={isDragging}
       />
     </div>

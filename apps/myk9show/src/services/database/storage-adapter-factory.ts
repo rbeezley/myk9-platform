@@ -10,12 +10,12 @@ export type StorageAdapterType = 'basic' | 'enhanced' | 'optimized' | 'developme
 
 interface StorageAdapterConfig {
   type: StorageAdapterType;
-  enableInProduction?: boolean;
-  enableMetrics?: boolean;
-  forceBasicInProduction?: boolean;
-  enableEncryption?: boolean;
-  userId?: string;
-  sessionToken?: string;
+  enableInProduction?: boolean | undefined;
+  enableMetrics?: boolean | undefined;
+  forceBasicInProduction?: boolean | undefined;
+  enableEncryption?: boolean | undefined;
+  userId?: string | undefined;
+  sessionToken?: string | undefined;
 }
 
 class StorageAdapterFactory {
@@ -71,12 +71,12 @@ class StorageAdapterFactory {
 
       case 'enhanced':
         return createEnhancedStorage({
-          enableMetrics: this.config.enableMetrics,
+          enableMetrics: this.config.enableMetrics ?? false,
         });
 
       case 'optimized':
         return createOptimizedStorage({
-          enableMetrics: this.config.enableMetrics,
+          enableMetrics: this.config.enableMetrics ?? false,
           lazyInitialization: true,
         });
 
@@ -174,10 +174,10 @@ class StorageAdapterFactory {
     
     return {
       ...configs[storeName as keyof typeof configs] || { maxSize: 100, ttl: 30 * 60 * 1000, enableCompression: true },
-      enableMetrics: this.config.enableMetrics,
+      enableMetrics: this.config.enableMetrics ?? false,
     };
   }
-  
+
   private getOptimizedConfigForStore(storeName: string) {
     const configs = {
       // Critical stores - minimal caching for fastest startup
@@ -198,10 +198,10 @@ class StorageAdapterFactory {
     
     return {
       ...configs[storeName as keyof typeof configs] || { maxSize: 50, ttl: 30 * 60 * 1000, enableCompression: true, lazyInitialization: true },
-      enableMetrics: this.config.enableMetrics,
+      enableMetrics: this.config.enableMetrics ?? false,
     };
   }
-  
+
   // Performance testing utilities
   async switchAdapterAndTest(newType: StorageAdapterType): Promise<void> {
     if (import.meta.env.DEV) {

@@ -321,11 +321,11 @@ export class PlacementCalculatorService extends EventEmitter {
     if (isObedienceScore(score)) {
       switch (criteria) {
         case 'totalScore':
-          return score.totalScore;
+          return score.totalScore ?? 0;
         case 'maximumScore':
-          return score.maximumScore;
+          return score.maximumScore ?? 0;
         case 'qualifyingScore':
-          return score.qualifyingScore;
+          return score.qualifyingScore ?? 0;
       }
     }
 
@@ -562,7 +562,7 @@ export class PlacementCalculatorService extends EventEmitter {
       primaryScore = score.totalFaults;
       secondaryScore = score.courseTime;
     } else if (isObedienceScore(score)) {
-      primaryScore = score.totalScore;
+      primaryScore = score.totalScore ?? 0;
     } else if (isRallyScore(score)) {
       primaryScore = score.finalScore;
       secondaryScore = score.courseTime;

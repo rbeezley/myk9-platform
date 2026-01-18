@@ -52,8 +52,8 @@ export interface OfflineScoringModeIndicatorProps {
 interface ConnectionStatus {
   isOnline: boolean;
   connectionType: 'offline' | 'slow' | 'fast';
-  lastOnlineTime?: Date;
-  estimatedBandwidth?: number;
+  lastOnlineTime?: Date | undefined;
+  estimatedBandwidth?: number | undefined;
 }
 
 interface OfflineCapabilities {

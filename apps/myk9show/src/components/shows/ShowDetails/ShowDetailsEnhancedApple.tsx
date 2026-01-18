@@ -43,7 +43,7 @@ interface RegistrationState {
 interface ExhibitorViewProps {
   showData: Show;
   registrationState: RegistrationState;
-  onRegisterForShow?: () => void;
+  onRegisterForShow?: (() => void) | undefined;
 }
 
 const ExhibitorView = React.memo(({ showData, registrationState, onRegisterForShow }: ExhibitorViewProps) => (
@@ -115,7 +115,7 @@ ExhibitorView.displayName = 'ExhibitorView';
 
 // Extracted SecretaryView component
 interface SecretaryViewProps {
-  onManageEntries?: () => void;
+  onManageEntries?: (() => void) | undefined;
   onEditShow: () => void;
 }
 
@@ -206,9 +206,9 @@ interface ShowDetailsEnhancedAppleProps {
   associatedTrials: Trial[];
   onEditShow: () => void;
   onDeleteShow: () => void;
-  onRegisterForShow?: () => void;
-  onManageEntries?: () => void;
-  onViewResults?: () => void;
+  onRegisterForShow?: (() => void) | undefined;
+  onManageEntries?: (() => void) | undefined;
+  onViewResults?: (() => void) | undefined;
 }
 
 const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({

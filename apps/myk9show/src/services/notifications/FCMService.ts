@@ -235,7 +235,7 @@ export class FCMService {
         requireInteraction: payload.data?.requireInteraction === 'true',
         timestamp: Date.now(),
         data: payload.data || {},
-        url: payload.data?.url,
+        ...(payload.data?.url !== undefined && { url: payload.data.url }),
       };
 
       // Show in-app notification or browser notification
@@ -281,11 +281,11 @@ export class FCMService {
         // Fallback to direct browser notification
         const browserNotification = new Notification(notification.title, {
           body: notification.body,
-          icon: notification.icon,
-          badge: notification.badge,
-          tag: notification.tag,
-          requireInteraction: notification.requireInteraction,
-          data: notification.data
+          ...(notification.icon !== undefined && { icon: notification.icon }),
+          ...(notification.badge !== undefined && { badge: notification.badge }),
+          ...(notification.tag !== undefined && { tag: notification.tag }),
+          ...(notification.requireInteraction !== undefined && { requireInteraction: notification.requireInteraction }),
+          ...(notification.data !== undefined && { data: notification.data })
         });
 
         // Handle notification click

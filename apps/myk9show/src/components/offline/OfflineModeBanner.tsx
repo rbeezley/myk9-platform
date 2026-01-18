@@ -6,7 +6,7 @@ import { Badge } from '../ui/badge';
 
 interface OfflineModeBannerProps {
   isOnline: boolean;
-  lastSyncTime?: Date;
+  lastSyncTime?: Date | undefined;
   pendingChanges?: number;
   onRetrySync?: () => void;
   isSyncing?: boolean;

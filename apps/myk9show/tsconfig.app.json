@@ -30,7 +30,7 @@
     /* Temporarily Disabled for Gradual Migration */
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "exactOptionalPropertyTypes": false,
+    "exactOptionalPropertyTypes": true,
     "noPropertyAccessFromIndexSignature": false,
     "noUncheckedIndexedAccess": false,
     /* Re-enabled 2025-01-17 - fixing implicit any types incrementally */

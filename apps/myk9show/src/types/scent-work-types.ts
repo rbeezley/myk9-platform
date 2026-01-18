@@ -39,56 +39,56 @@ export interface ScentWorkResult {
   // Identity and timing
   entryId: string;
   classId: string;
-  
+
   // Core timing data (in milliseconds for precision)
   searchTime: number;           // Actual search time from stopwatch
   maxTimeAllowed: number;       // Class time limit
-  
+
   // Scoring
   qualification: QualificationStatus;
   faults: number;              // Progressive fault counter
-  nqReason?: NQReason;         // Reason for NQ if applicable (legacy)
-  qualificationReason?: string; // New flexible reason field for NQ/Excused/Withdrawn
-  
+  nqReason?: NQReason | undefined;         // Reason for NQ if applicable (legacy)
+  qualificationReason?: string | undefined; // New flexible reason field for NQ/Excused/Withdrawn
+
   // Judge information
-  judgeNotes?: string;         // Optional judge comments
+  judgeNotes?: string | undefined;         // Optional judge comments
   recordedBy: string;          // Judge/steward who recorded result
   recordedAt: Date;            // Timestamp of result entry
-  
+
   // Metadata
-  isProvisional?: boolean;     // Preliminary result, not yet final
-  placementCalculated?: number; // Calculated placement (1st, 2nd, etc.)
+  isProvisional?: boolean | undefined;     // Preliminary result, not yet final
+  placementCalculated?: number | undefined; // Calculated placement (1st, 2nd, etc.)
 }
 
 // Multi-area result for Interior Excellent & Masters
 export interface AreaResult {
   areaNumber: number;          // 1, 2, or 3
   searchTime: number;          // Individual area time in milliseconds
-  qualification?: QualificationStatus; // Area qualification status
+  qualification?: QualificationStatus | undefined; // Area qualification status
   faults: number;             // Area-specific faults
-  nqReason?: NQReason;        // Area-specific NQ reason
-  hideCount?: number;         // For Masters unknown number of hides
+  nqReason?: NQReason | undefined;        // Area-specific NQ reason
+  hideCount?: number | undefined;         // For Masters unknown number of hides
 }
 
 export interface MultiAreaScentWorkResult {
   // Identity and timing
   entryId: string;
   classId: string;
-  
+
   // Multi-area specific data
   areaResults: AreaResult[];   // Results for each area
   totalSearchTime: number;     // Sum of all area times
   qualification: QualificationStatus; // Overall qualification
   totalFaults: number;         // Sum of all area faults
-  
+
   // Judge information
-  judgeNotes?: string;         
-  recordedBy: string;          
+  judgeNotes?: string | undefined;
+  recordedBy: string;
   recordedAt: Date;
-  
+
   // Metadata
-  isProvisional?: boolean;
-  placementCalculated?: number;
+  isProvisional?: boolean | undefined;
+  placementCalculated?: number | undefined;
 }
 
 // Class configuration for different Scent Work elements and levels
@@ -96,20 +96,20 @@ export interface ScentWorkClassConfig {
   element: 'Container' | 'Interior' | 'Exterior' | 'Buried';
   level: 'Novice' | 'Advanced' | 'Excellent' | 'Masters';
   timeLimit: number;           // Time limit in milliseconds
-  multiArea?: boolean;         // True for Interior Excellent/Masters
-  areaLimits?: number[];       // Individual area time limits for multi-area
+  multiArea?: boolean | undefined;         // True for Interior Excellent/Masters
+  areaLimits?: number[] | undefined;       // Individual area time limits for multi-area
   warningsEnabled: boolean;    // False for Masters level
-  hideCount?: number | 'unknown'; // Number of hides (unknown for Masters)
+  hideCount?: number | 'unknown' | undefined; // Number of hides (unknown for Masters)
 }
 
 // Entry data specifically for Scent Work judging interface
 export interface ScentWorkEntry extends ShowEntry {
   // Additional data needed for judging
   classConfig: ScentWorkClassConfig;
-  
+
   // Dog registration information for tooltip display
-  registrations?: Registration[];
-  
+  registrations?: Registration[] | undefined;
+
   // Dog/handler display information
   displayInfo: {
     armband: string;
@@ -119,16 +119,16 @@ export interface ScentWorkEntry extends ShowEntry {
     dogId: string;
     handlerId: string;
   };
-  
+
   // Current judging state
   judgingState?: {
-    timerStarted?: Date;
-    currentResult?: Partial<ScentWorkResult>;
+    timerStarted?: Date | undefined;
+    currentResult?: Partial<ScentWorkResult> | undefined;
     isInProgress: boolean;
-  };
-  
+  } | undefined;
+
   // Check-in status for exhibitor management
-  checkInStatus?: CheckInStatus;
+  checkInStatus?: CheckInStatus | undefined;
 }
 
 // Store interface for Scent Work results

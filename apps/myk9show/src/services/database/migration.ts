@@ -318,11 +318,11 @@ export class StorageMigration {
   // Utility methods
   async getMigrationStatus(storeName: string): Promise<{
     completed: boolean;
-    date?: string;
+    date?: string | undefined;
   }> {
     const completed = localStorage.getItem(`migration-${storeName}-completed`) === 'true';
     const date = localStorage.getItem(`migration-${storeName}-date`) || undefined;
-    
+
     return { completed, date };
   }
   

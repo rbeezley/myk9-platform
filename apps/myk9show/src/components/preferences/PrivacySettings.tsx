@@ -28,7 +28,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import type { PrivacyPreferences } from '@/types/user-preferences';
 
 interface PrivacySettingsProps {
-  preferences?: PrivacyPreferences;
+  preferences?: PrivacyPreferences | undefined;
   onUpdate: (preferences: Partial<PrivacyPreferences>) => void;
   onReset: () => void;
 }

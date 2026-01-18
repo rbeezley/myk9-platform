@@ -659,10 +659,10 @@ export class DeploymentManager {
       status: isHealthy ? 'healthy' : 'unhealthy',
       responseTime,
       timestamp: new Date(),
-      errorMessage: isHealthy ? undefined : 'Simulated health check failure',
+      ...(isHealthy ? {} : { errorMessage: 'Simulated health check failure' }),
       metadata: {
         type: config.type,
-        endpoint: config.endpoint
+        ...(config.endpoint !== undefined && { endpoint: config.endpoint })
       }
     };
   }

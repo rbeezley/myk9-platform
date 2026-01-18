@@ -9,10 +9,10 @@ import { logger } from '@/services/LoggingService';
 interface LazyLoadMetric {
   componentName: string;
   startTime: number;
-  endTime?: number;
-  loadTime?: number;
-  error?: string;
-  retryCount?: number;
+  endTime?: number | undefined;
+  loadTime?: number | undefined;
+  error?: string | undefined;
+  retryCount?: number | undefined;
 }
 
 class LazyLoadingMetrics {

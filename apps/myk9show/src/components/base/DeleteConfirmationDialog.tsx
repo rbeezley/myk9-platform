@@ -6,14 +6,14 @@ export interface DeleteConfirmationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: () => void;
-  title?: string;
-  titleIcon?: React.ReactNode;
-  description?: string;
+  title?: string | undefined;
+  titleIcon?: React.ReactNode | undefined;
+  description?: string | undefined;
   entityName: string;
   entityType: string;
-  isDeleting?: boolean;
-  confirmLabel?: string;
-  cancelLabel?: string;
+  isDeleting?: boolean | undefined;
+  confirmLabel?: string | undefined;
+  cancelLabel?: string | undefined;
 }
 
 export function DeleteConfirmationDialog({

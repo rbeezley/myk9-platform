@@ -53,19 +53,27 @@ export class PanelManagerImpl implements PanelManager {
       ? (this.state.panels[config.parentId]?.level ?? 0) + 1 
       : this.state.maxLevel + 1;
 
+    // Build context with only defined optional properties
+    const contextBase: EntityCreationContext = {
+      entityType: config.context.entityType,
+      mode: config.context.mode,
+      ...(config.context.preFilledData !== undefined && { preFilledData: config.context.preFilledData }),
+      ...(config.context.selectionCallback !== undefined && { selectionCallback: config.context.selectionCallback }),
+      ...(config.context.validationRules !== undefined && { validationRules: config.context.validationRules }),
+      ...(config.context.metadata !== undefined && { metadata: config.context.metadata }),
+      ...(config.parentId !== undefined && { parentPanelId: config.parentId }),
+    };
+
     const panel: Panel = {
       id: panelId,
       type: config.type,
       title: config.title,
-      subtitle: config.subtitle,
-      context: {
-        ...config.context,
-        parentPanelId: config.parentId,
-      },
+      ...(config.subtitle !== undefined && { subtitle: config.subtitle }),
+      context: contextBase,
       isOpen: true,
       size: config.size || 'lg',
       level,
-      parentId: config.parentId,
+      ...(config.parentId !== undefined && { parentId: config.parentId }),
       children: [],
     };
 

@@ -15,7 +15,7 @@ interface AddTrialDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (trial: { name: string; date: string; trialNumber: string; status: string; eventNumber: string; plannedStartTime: string; order: string; showName: string; description: string }) => void;
-  currentShowName?: string;
+  currentShowName?: string | undefined;
 }
 
 const AddTrialDialog: React.FC<AddTrialDialogProps> = ({ open, onOpenChange, onSave, currentShowName }) => {

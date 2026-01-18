@@ -88,24 +88,27 @@ export function TrialClassesCards({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {classes.map((classItem) => (
-        <ClassCard
-          key={classItem.id}
-          className={`${classItem.element} ${classItem.level} ${classItem.section}`}
-          judgeName={classItem.judgeName || 'TBD'}
-          plannedStartTime={formatStartTime(classItem.startTime)}
-          status={mapStatus(classItem.status)}
-          statusLabel={classItem.status}
-          statusIcon={getStatusIcon(classItem.status)}
-          entryCount={classItem.entries}
-          completedCount={0} // Not available in TrialClass type
-          onCardClick={() => startTransition(() => navigate(`/classes/${classItem.id}`))}
-          onMenuClick={() => {
-            // For now, show edit dialog - could be expanded to a menu
-            onEditClass(classItem);
-          }}
-        />
-      ))}
+      {classes.map((classItem) => {
+        const startTime = formatStartTime(classItem.startTime);
+        return (
+          <ClassCard
+            key={classItem.id}
+            className={`${classItem.element} ${classItem.level} ${classItem.section}`}
+            judgeName={classItem.judgeName || 'TBD'}
+            {...(startTime !== undefined && { plannedStartTime: startTime })}
+            status={mapStatus(classItem.status)}
+            statusLabel={classItem.status}
+            statusIcon={getStatusIcon(classItem.status)}
+            entryCount={classItem.entries}
+            completedCount={0} // Not available in TrialClass type
+            onCardClick={() => startTransition(() => navigate(`/classes/${classItem.id}`))}
+            onMenuClick={() => {
+              // For now, show edit dialog - could be expanded to a menu
+              onEditClass(classItem);
+            }}
+          />
+        );
+      })}
     </div>
   );
 }

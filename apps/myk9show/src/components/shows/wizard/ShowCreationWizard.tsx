@@ -38,7 +38,7 @@ interface ShowCreationWizardProps {
   editMode?: {
     showId: string;
     mode: 'add-trials' | 'add-classes' | 'edit-show';
-  };
+  } | undefined;
 }
 
 const WIZARD_STEPS = [

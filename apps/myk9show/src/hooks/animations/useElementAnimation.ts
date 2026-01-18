@@ -54,13 +54,18 @@ export function useElementAnimation(
       }
 
       // Create new animation
-      animationRef.current = elementRef.current.animate(keyframes, {
+      const animationOptions: KeyframeAnimationOptions = {
         duration: finalConfig.duration,
         easing: finalConfig.easing,
-        delay: finalConfig.delay,
-        fill: finalConfig.fillMode,
-        iterations: finalConfig.iterations === 'infinite' ? Infinity : finalConfig.iterations,
-      });
+        iterations: finalConfig.iterations === 'infinite' ? Infinity : (finalConfig.iterations ?? 1),
+      };
+      if (finalConfig.delay !== undefined) {
+        animationOptions.delay = finalConfig.delay;
+      }
+      if (finalConfig.fillMode !== undefined) {
+        animationOptions.fill = finalConfig.fillMode;
+      }
+      animationRef.current = elementRef.current.animate(keyframes, animationOptions);
 
       // Wait for animation to complete
       await animationRef.current.finished;
@@ -269,13 +274,16 @@ export function useStaggerAnimation(
 
     try {
       elementsRef.current.forEach((element, index) => {
-        const animation = element.animate(keyframes, {
+        const animationOptions: KeyframeAnimationOptions = {
           duration: finalConfig.duration,
           easing: finalConfig.easing,
-          delay: (finalConfig.delay || 0) + (index * staggerDelay),
-          fill: finalConfig.fillMode,
-          iterations: finalConfig.iterations === 'infinite' ? Infinity : finalConfig.iterations,
-        });
+          delay: (finalConfig.delay ?? 0) + (index * staggerDelay),
+          iterations: finalConfig.iterations === 'infinite' ? Infinity : (finalConfig.iterations ?? 1),
+        };
+        if (finalConfig.fillMode !== undefined) {
+          animationOptions.fill = finalConfig.fillMode;
+        }
+        const animation = element.animate(keyframes, animationOptions);
         animations.push(animation);
       });
 

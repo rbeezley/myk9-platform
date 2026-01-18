@@ -19,8 +19,8 @@ export interface DatePickerProps {
   placeholder?: string;
   disabled?: boolean;
   required?: boolean;
-  name?: string;
-  id?: string;
+  name?: string | undefined;
+  id?: string | undefined;
   onBlur?: React.FocusEventHandler<HTMLInputElement>;
 }
 

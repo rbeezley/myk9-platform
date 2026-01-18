@@ -117,10 +117,11 @@ AlertDialogDescription.displayName = "AlertDialogDescription"
 const AlertDialogAction = React.forwardRef<
   HTMLButtonElement,
   React.ButtonHTMLAttributes<HTMLButtonElement>
->(({ className, ...props }, ref) => (
+>(({ className, style, ...props }, ref) => (
   <AlertDialogPrimitive.Close
     ref={ref}
     className={cn(buttonVariants(), className)}
+    {...(style !== undefined && { style })}
     {...props}
   />
 ))
@@ -129,7 +130,7 @@ AlertDialogAction.displayName = "AlertDialogAction"
 const AlertDialogCancel = React.forwardRef<
   HTMLButtonElement,
   React.ButtonHTMLAttributes<HTMLButtonElement>
->(({ className, ...props }, ref) => (
+>(({ className, style, ...props }, ref) => (
   <AlertDialogPrimitive.Close
     ref={ref}
     className={cn(
@@ -137,6 +138,7 @@ const AlertDialogCancel = React.forwardRef<
       "mt-2 sm:mt-0",
       className
     )}
+    {...(style !== undefined && { style })}
     {...props}
   />
 ))

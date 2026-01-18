@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
-import { useTrialStore } from '@/store/trialStore';
+import { useTrialStore, type TrialInput } from '@/store/trialStore';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useTemplateStore } from '@/store/templateStore';
 import { useShowStore } from '@/store/showStore';
@@ -327,7 +327,7 @@ const TrialDetailsPage: React.FC = () => {
       classes: [...existingClasses, ...newTrialClasses]
     };
 
-    updateTrial(updatedTrial.id, updatedTrial);
+    updateTrial(updatedTrial.id, updatedTrial as Partial<TrialInput>);
     
     // Provide feedback about duplicates
     if (duplicateClasses.length > 0) {
@@ -370,7 +370,7 @@ const TrialDetailsPage: React.FC = () => {
         classes: updatedClasses
       };
 
-      updateTrial(updatedTrial.id, updatedTrial);
+      updateTrial(updatedTrial.id, updatedTrial as Partial<TrialInput>);
 
       // Also remove the class from the classStore
       deleteClass(selectedClassForDelete.id);
@@ -440,7 +440,7 @@ const TrialDetailsPage: React.FC = () => {
         onSave={async (trialData) => {
           if (currentTrial?.id && trialData.id) {
             const updatedTrial = { ...currentTrial, ...trialData };
-            updateTrial(currentTrial.id, updatedTrial);
+            updateTrial(currentTrial.id, updatedTrial as Partial<TrialInput>);
             setEditTrialPanelOpen(false);
           }
         }}

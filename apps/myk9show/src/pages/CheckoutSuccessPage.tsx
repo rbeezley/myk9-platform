@@ -61,11 +61,11 @@ export default function CheckoutSuccessPage() {
 
         if (result.success) {
           setOrderDetails({
-            orderId: result.orderId,
-            showName: result.showName,
-            showId: result.showId,
-            totalAmount: result.totalAmount,
-            entryIds: result.entryIds,
+            ...(result.orderId !== undefined && { orderId: result.orderId }),
+            ...(result.showName !== undefined && { showName: result.showName }),
+            ...(result.showId !== undefined && { showId: result.showId }),
+            ...(result.totalAmount !== undefined && { totalAmount: result.totalAmount }),
+            ...(result.entryIds !== undefined && { entryIds: result.entryIds }),
           });
           setIsVerified(true);
 

@@ -16,44 +16,44 @@ export interface CheckInEntry extends SyncableEntity {
   trialId: string;
   dogId: string;
   handlerId: string;
-  
+
   // Entry details
   armband: string;
   runOrder: number;
   entryNumber: string;
-  
+
   // Dog information
   dogName: string;
   dogCallName: string;
   dogBreed: string;
-  dogRegistrationNumber?: string;
-  
+  dogRegistrationNumber?: string | undefined;
+
   // Handler information
   handlerName: string;
-  handlerEmail?: string;
-  handlerPhone?: string;
-  
+  handlerEmail?: string | undefined;
+  handlerPhone?: string | undefined;
+
   // Class information
   className: string;
   classNumber: string;
   ringNumber: number;
   judgeName: string;
-  estimatedStartTime?: Date;
-  
+  estimatedStartTime?: Date | undefined;
+
   // Check-in status
   checkInStatus: CheckInStatus;
-  checkInTime?: Date;
-  checkInGate?: string;
-  checkInStewardId?: string;
-  
+  checkInTime?: Date | undefined;
+  checkInGate?: string | undefined;
+  checkInStewardId?: string | undefined;
+
   // Special requirements
-  specialRequests?: string;
-  handlerChange?: string;
-  needsCallToRing?: boolean;
-  isAbsent?: boolean;
-  isScratched?: boolean;
-  scratchReason?: string;
-  
+  specialRequests?: string | undefined;
+  handlerChange?: string | undefined;
+  needsCallToRing?: boolean | undefined;
+  isAbsent?: boolean | undefined;
+  isScratched?: boolean | undefined;
+  scratchReason?: string | undefined;
+
   // Timestamps
   createdAt: Date;
   updatedAt: Date;
@@ -65,15 +65,15 @@ export interface ArmbandAssignment extends SyncableEntity {
   showId: string;
   classId: string;
   armband: string;
-  entryId?: string;
+  entryId?: string | undefined;
   status: 'available' | 'assigned' | 'used' | 'conflict' | 'reserved';
-  assignedAt?: Date;
-  assignedBy?: string;
-  
+  assignedAt?: Date | undefined;
+  assignedBy?: string | undefined;
+
   // Conflict resolution
-  conflictResolution?: 'reassign' | 'duplicate' | 'manual';
-  originalEntryId?: string;
-  
+  conflictResolution?: 'reassign' | 'duplicate' | 'manual' | undefined;
+  originalEntryId?: string | undefined;
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -85,15 +85,15 @@ export interface ArmbandConflict {
   conflictingEntries: CheckInEntry[];
   conflictType: 'duplicate_assignment' | 'manual_override' | 'system_error';
   detectedAt: Date;
-  resolvedAt?: Date;
-  resolution?: ArmbandConflictResolution;
-  resolvedBy?: string;
+  resolvedAt?: Date | undefined;
+  resolution?: ArmbandConflictResolution | undefined;
+  resolvedBy?: string | undefined;
 }
 
 export interface ArmbandConflictResolution {
   strategy: 'reassign_duplicates' | 'keep_first' | 'manual_assignment' | 'new_armbands';
   newAssignments: { entryId: string; armband: string }[];
-  notes?: string;
+  notes?: string | undefined;
 }
 
 // Gate steward coordination
@@ -104,14 +104,14 @@ export interface GateSteward extends SyncableEntity {
   assignedRings: string[];
   assignedGates: string[];
   isActive: boolean;
-  currentShift?: GateStewardShift;
+  currentShift?: GateStewardShift | undefined;
   capabilities: GateStewardCapabilities;
-  
+
   // Session tracking
-  sessionStart?: Date;
-  lastActivity?: Date;
+  sessionStart?: Date | undefined;
+  lastActivity?: Date | undefined;
   totalCheckIns: number;
-  
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -121,7 +121,7 @@ export interface GateStewardShift {
   stewardId: string;
   showId: string;
   startTime: Date;
-  endTime?: Date;
+  endTime?: Date | undefined;
   assignedRings: string[];
   assignedGates: string[];
   checkInCount: number;
@@ -142,47 +142,47 @@ export interface CheckInOperation {
   id: string;
   entryId: string;
   operationType: 'check_in' | 'scratch' | 'absent' | 'handler_change' | 'special_request';
-  previousStatus?: CheckInStatus;
+  previousStatus?: CheckInStatus | undefined;
   newStatus: CheckInStatus;
-  
+
   // Operation details
   performedBy: string;
   performedAt: Date;
   method: 'qr_scan' | 'manual_entry' | 'bulk_operation' | 'automatic';
-  gateId?: string;
-  deviceId?: string;
-  
+  gateId?: string | undefined;
+  deviceId?: string | undefined;
+
   // Additional data
-  handlerChange?: string;
-  specialRequests?: string;
-  scratchReason?: string;
-  notes?: string;
-  
+  handlerChange?: string | undefined;
+  specialRequests?: string | undefined;
+  scratchReason?: string | undefined;
+  notes?: string | undefined;
+
   // Validation
   validationChecks: CheckInValidationResult[];
   hasWarnings: boolean;
   hasErrors: boolean;
-  
+
   // Sync status
   isSynced: boolean;
-  syncedAt?: Date;
-  syncError?: string;
+  syncedAt?: Date | undefined;
+  syncError?: string | undefined;
 }
 
 export interface CheckInValidationResult {
   check: 'entry_exists' | 'armband_unique' | 'time_window' | 'handler_eligible' | 'dog_eligible' | 'class_open' | 'duplicate_checkin' | 'status_transition' | 'special_requirements' | 'data_integrity';
   status: 'pass' | 'warning' | 'error';
   message: string;
-  details?: Record<string, unknown>;
+  details?: Record<string, unknown> | undefined;
 }
 
 // QR/Barcode scanning
 export interface QRScanResult {
   success: boolean;
-  data?: string;
-  error?: string;
-  entryId?: string;
-  armband?: string;
+  data?: string | undefined;
+  error?: string | undefined;
+  entryId?: string | undefined;
+  armband?: string | undefined;
   scannedAt: Date;
   scannerType: 'camera' | 'barcode_reader' | 'manual';
 }
@@ -206,19 +206,19 @@ export interface Gate {
   ringNumbers: string[];
   showId: string;
   isActive: boolean;
-  currentSteward?: string;
+  currentSteward?: string | undefined;
   capabilities: GateCapabilities;
-  
+
   // Status tracking
   totalCheckIns: number;
   currentLoad: number;
-  lastActivity?: Date;
-  
+  lastActivity?: Date | undefined;
+
   // Equipment
   hasQRScanner: boolean;
   hasBarcodeReader: boolean;
   hasTablet: boolean;
-  
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -237,18 +237,18 @@ export interface GateSession {
   stewardId: string;
   showId: string;
   startTime: Date;
-  endTime?: Date;
-  
+  endTime?: Date | undefined;
+
   // Session statistics
   totalCheckIns: number;
   successfulCheckIns: number;
   failedCheckIns: number;
   conflictsResolved: number;
   averageCheckInTime: number;
-  
+
   // Activity log
   activities: GateActivity[];
-  
+
   isActive: boolean;
 }
 
@@ -257,7 +257,7 @@ export interface GateActivity {
   sessionId: string;
   timestamp: Date;
   type: 'check_in' | 'conflict' | 'error' | 'steward_change' | 'equipment_issue';
-  entryId?: string;
+  entryId?: string | undefined;
   details: Record<string, unknown>;
   severity: 'info' | 'warning' | 'error';
 }
@@ -285,7 +285,7 @@ export interface OfflineCheckInQueue extends SyncableEntity {
   id: string;
   operations: CheckInOperation[];
   queuedAt: Date;
-  lastProcessedAt?: Date;
+  lastProcessedAt?: Date | undefined;
   processingErrors: string[];
   retryCount: number;
   maxRetries: number;
@@ -298,15 +298,15 @@ export interface CheckInConflict {
   entryId: string;
   conflictingData: Record<string, unknown>;
   detectedAt: Date;
-  resolvedAt?: Date;
-  resolution?: ConflictResolution;
-  
+  resolvedAt?: Date | undefined;
+  resolution?: ConflictResolution | undefined;
+
   // Context
-  gateId?: string;
-  stewardId?: string;
+  gateId?: string | undefined;
+  stewardId?: string | undefined;
   originalOperation: CheckInOperation;
-  conflictingOperation?: CheckInOperation;
-  
+  conflictingOperation?: CheckInOperation | undefined;
+
   // Status
   status: 'pending' | 'resolved' | 'escalated';
   priority: 'low' | 'medium' | 'high' | 'critical';
@@ -314,10 +314,10 @@ export interface CheckInConflict {
 
 export interface ConflictResolution {
   strategy: 'accept_local' | 'accept_remote' | 'merge' | 'manual' | 'escalate';
-  resolvedData?: Record<string, unknown>;
+  resolvedData?: Record<string, unknown> | undefined;
   resolvedBy: string;
   resolvedAt: Date;
-  notes?: string;
+  notes?: string | undefined;
 }
 
 // Service interfaces
@@ -339,7 +339,7 @@ export interface ArmbandManagerConfig {
   autoAssignArmbands: boolean;
   allowDuplicates: boolean;
   conflictResolutionStrategy: 'reassign' | 'manual' | 'first_wins';
-  armbandRanges: { start: number; end: number; class?: string }[];
+  armbandRanges: { start: number; end: number; class?: string | undefined }[];
   reservedArmbands: string[];
 }
 
@@ -388,9 +388,9 @@ export interface CheckInEvent {
   data: Record<string, unknown>;
   source: 'gate' | 'service' | 'sync' | 'system';
   priority: 'low' | 'medium' | 'high' | 'critical';
-  gateId?: string;
-  stewardId?: string;
-  entryId?: string;
+  gateId?: string | undefined;
+  stewardId?: string | undefined;
+  entryId?: string | undefined;
 }
 
 // Statistics and monitoring

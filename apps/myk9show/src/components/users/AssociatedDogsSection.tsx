@@ -90,11 +90,11 @@ const AssociatedDogsSection: React.FC<AssociatedDogsSectionProps> = ({
           <DogCard
             key={dog.id}
             dog={dog}
-            onViewDetails={onViewDogDetails}
-            onEditDog={onEditDog}
-            onDeleteDog={onDeleteDog}
+            {...(onViewDogDetails !== undefined && { onViewDetails: onViewDogDetails })}
+            {...(onEditDog !== undefined && { onEditDog })}
+            {...(onDeleteDog !== undefined && { onDeleteDog })}
             onEditDogPhoto={handleOpenDogPhotoDialog}
-            onAddRegistration={onAddRegistration}
+            {...(onAddRegistration !== undefined && { onAddRegistration })}
           />
         ))}
       </div>
@@ -103,16 +103,16 @@ const AssociatedDogsSection: React.FC<AssociatedDogsSectionProps> = ({
       {currentDogForPhotoEdit && (
         <DogPhotoEditDialog
           open={isDogPhotoDialogOpen}
-          onOpenChange={setIsDogPhotoDialogOpen} 
+          onOpenChange={setIsDogPhotoDialogOpen}
           previewImage={dogPreviewImage}
-          currentPhoto={currentDogForPhotoEdit.imageUrl}
+          {...(currentDogForPhotoEdit.imageUrl !== undefined && { currentPhoto: currentDogForPhotoEdit.imageUrl })}
           isDragging={isDogPhotoDragging}
           onDrop={handleDogPhotoDrop}
           onDragOver={handleDogPhotoDragOver}
           onDragLeave={handleDogPhotoDragLeave}
           onFileInput={handleDogPhotoFileInput}
-          dogName={currentDogForPhotoEdit.callName}
-          onSave={handleSaveDogPhotoDialog} // Pass the new handler
+          {...(currentDogForPhotoEdit.callName !== undefined && { dogName: currentDogForPhotoEdit.callName })}
+          onSave={handleSaveDogPhotoDialog}
           onCancel={handleCloseDogPhotoDialog}
         />
       )}

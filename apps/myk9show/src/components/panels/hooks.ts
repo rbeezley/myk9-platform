@@ -74,7 +74,7 @@ export const usePanelOperations = (panelId?: string) => {
   const openChildPanel = useCallback((config: Parameters<PanelManager['openPanel']>[0]) => {
     return manager.openPanel({
       ...config,
-      parentId: panelId,
+      ...(panelId !== undefined && { parentId: panelId }),
     });
   }, [manager, panelId]);
 

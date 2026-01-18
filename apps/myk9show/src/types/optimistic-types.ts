@@ -110,7 +110,7 @@ export interface OptimisticScore {
 
 // UI Component Props
 export interface OptimisticUpdateIndicatorProps {
-  operationId?: string;
+  operationId?: string | undefined;
   showCount?: boolean;
   size?: 'sm' | 'md' | 'lg';
   position?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';

@@ -15,16 +15,16 @@ export interface EntryLimitError {
   code: string;
   message: string;
   severity: 'error' | 'warning' | 'info';
-  details?: Record<string, unknown>;
+  details?: Record<string, unknown> | undefined;
 }
 
 export interface EntryLimitCheckResult {
   isAllowed: boolean;
   errors: EntryLimitError[];
   warnings: EntryLimitError[];
-  currentCount?: number;
-  maxAllowed?: number;
-  waitlistPosition?: number;
+  currentCount?: number | undefined;
+  maxAllowed?: number | undefined;
+  waitlistPosition?: number | undefined;
 }
 
 export interface LimitCheckContext {
@@ -33,7 +33,7 @@ export interface LimitCheckContext {
   class: Class;
   dog: Dog;
   existingEntries: ShowEntry[];
-  pendingEntries?: ShowEntryInput[]; // Entries being created in the same batch
+  pendingEntries?: ShowEntryInput[] | undefined; // Entries being created in the same batch
 }
 
 export class EntryLimitChecker {

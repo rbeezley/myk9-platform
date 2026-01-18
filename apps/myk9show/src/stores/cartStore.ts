@@ -29,18 +29,18 @@ export interface CartItemWithDetails extends EntryCartItem {
     name: string;
     call_name: string | null;
     breed: string;
-  };
+  } | undefined;
   class?: {
     id: string;
     name: string;
     level: string | null;
     trial_id: string;
-  };
+  } | undefined;
   handler?: {
     id: string;
     first_name: string;
     last_name: string;
-  };
+  } | undefined;
 }
 
 // Extended cart with related data
@@ -51,16 +51,16 @@ export interface CartWithDetails extends EntryCart {
     name: string;
     start_date: string;
     entry_close_date: string;
-  };
+  } | undefined;
 }
 
 // New item input type
 export interface NewCartItem {
   dogId: string;
   classId: string;
-  handlerId?: string;
-  jumpHeight?: string;
-  specialRequests?: string;
+  handlerId?: string | undefined;
+  jumpHeight?: string | undefined;
+  specialRequests?: string | undefined;
   entryFeeCents: number;
 }
 

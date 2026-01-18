@@ -10,8 +10,8 @@ export interface RealtimeEvent {
   data: unknown;
   timestamp: Date;
   source: 'local' | 'remote';
-  userId?: string;
-  sessionId?: string;
+  userId?: string | undefined;
+  sessionId?: string | undefined;
 }
 
 // Scoring-specific realtime types
@@ -57,7 +57,7 @@ export interface ScoringConflict {
   remoteValue: unknown;
   detectedAt: Date;
   status: 'pending' | 'resolved' | 'ignored';
-  resolution?: ConflictResolution;
+  resolution?: ConflictResolution | undefined;
 }
 
 export interface ConflictResolution {
@@ -65,7 +65,7 @@ export interface ConflictResolution {
   resolvedAt: Date;
   resolvedBy: string;
   finalValue: unknown;
-  notes?: string;
+  notes?: string | undefined;
 }
 
 // Connection types
@@ -89,7 +89,7 @@ export interface RealtimeSubscription {
   id: string;
   channelName: string;
   table: string;
-  filter?: string;
+  filter?: string | undefined;
   events: string[];
   callback: (payload: unknown) => void;
   isActive: boolean;
@@ -134,7 +134,7 @@ export interface RealtimeSyncEvent {
   timestamp: Date;
   retries: number;
   priority: Priority;
-  sourceEvent?: RealtimeEvent;
+  sourceEvent?: RealtimeEvent | undefined;
 }
 
 // Performance monitoring
@@ -153,7 +153,7 @@ export interface RealtimePerformanceMetrics {
 export interface RealtimeError {
   code: string;
   message: string;
-  details?: Record<string, unknown>;
+  details?: Record<string, unknown> | undefined;
   timestamp: Date;
   source: 'connection' | 'subscription' | 'processing' | 'sync';
   severity: 'low' | 'medium' | 'high' | 'critical';
@@ -175,11 +175,11 @@ export interface RealtimeConfig {
 export interface ChannelConfig {
   name: string;
   table: string;
-  filter?: string;
+  filter?: string | undefined;
   events: string[];
   enablePresence: boolean;
   enableBroadcast: boolean;
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, unknown> | undefined;
 }
 
 // Presence tracking
@@ -187,15 +187,15 @@ export interface PresenceTrackingData {
   user_id: string;
   user_name: string;
   role: 'judge' | 'secretary' | 'steward';
-  class_id?: string;
-  show_id?: string;
+  class_id?: string | undefined;
+  show_id?: string | undefined;
   status: 'active' | 'idle' | 'away';
   last_seen: string;
   device_info?: {
     type: 'desktop' | 'tablet' | 'mobile';
     os: string;
     browser: string;
-  };
+  } | undefined;
 }
 
 // Batch operations
@@ -205,8 +205,8 @@ export interface BatchOperation {
   status: 'pending' | 'processing' | 'completed' | 'failed';
   progress: number;
   startedAt: Date;
-  completedAt?: Date;
-  error?: RealtimeError;
+  completedAt?: Date | undefined;
+  error?: RealtimeError | undefined;
 }
 
 // Real-time scoring specific interfaces
@@ -216,7 +216,7 @@ export interface LiveScoringSession {
   showId: string;
   judgeId: string;
   startedAt: Date;
-  endedAt?: Date;
+  endedAt?: Date | undefined;
   status: 'active' | 'paused' | 'completed';
   scoresSubmitted: number;
   conflictsDetected: number;
@@ -252,10 +252,10 @@ export interface Score {
 // Missing exports that are needed by hooks
 export interface SubscriptionConfig {
   table: string;
-  filter?: string;
+  filter?: string | undefined;
   events: string[];
-  enablePresence?: boolean;
-  enableBroadcast?: boolean;
+  enablePresence?: boolean | undefined;
+  enableBroadcast?: boolean | undefined;
 }
 
 export interface SubscriptionMetrics {

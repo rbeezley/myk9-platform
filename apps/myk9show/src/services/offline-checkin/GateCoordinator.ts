@@ -38,8 +38,8 @@ export class GateCoordinator extends EventEmitter {
   private sessions: Map<string, GateSession> = new Map();
   private activities: Map<string, GateActivity[]> = new Map();
   private isInitialized = false;
-  private loadBalanceInterval?: NodeJS.Timeout;
-  private sessionTimeoutInterval?: NodeJS.Timeout;
+  private loadBalanceInterval: NodeJS.Timeout | undefined;
+  private sessionTimeoutInterval: NodeJS.Timeout | undefined;
 
   constructor(config: Partial<GateCoordinatorConfig> = {}) {
     super();

@@ -320,7 +320,7 @@ if (!currentEntry) {
     const finalTotalTime = calculateTotalTime() || '0.00';
 
     // Get the appropriate reason based on the result type
-    const getFinalReason = () => {
+    const getFinalReason = (): string | undefined => {
       if (finalQualifying === 'Q') return undefined;
       return nonQualifyingReason || undefined;
     };
@@ -333,6 +333,7 @@ if (!currentEntry) {
     });
 
     try {
+      const finalReason = getFinalReason();
       await submitScoreOptimistically({
         entryId: currentEntry.id,
         classId: parseInt(classId!),
@@ -341,7 +342,7 @@ if (!currentEntry) {
         scoreData: {
           resultText: finalQualifying,
           searchTime: finalTotalTime,
-          nonQualifyingReason: getFinalReason(),
+          ...(finalReason !== undefined && { nonQualifyingReason: finalReason }),
           areas: areaResults,
           correctCount: extraData.correctCount ?? 0,
           incorrectCount: extraData.incorrectCount ?? 0,
@@ -349,9 +350,11 @@ if (!currentEntry) {
           finishCallErrors: extraData.finishCallErrors ?? 0,
           points: extraData.points ?? 0,
           areaTimes: areas.map(area => area.time).filter(time => time && time !== ''),
-          element: currentEntry.element,
-          level: currentEntry.level,
-          ...extraData
+          ...(currentEntry.element !== undefined && { element: currentEntry.element }),
+          ...(currentEntry.level !== undefined && { level: currentEntry.level }),
+          ...Object.fromEntries(
+            Object.entries(extraData).filter(([, v]) => v !== undefined)
+          )
         },
         onSuccess: async () => {
 // Check if class is completed and show celebration

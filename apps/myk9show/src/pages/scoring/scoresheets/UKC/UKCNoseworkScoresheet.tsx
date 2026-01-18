@@ -102,7 +102,7 @@ export const UKCNoseworkScoresheet: React.FC<UKCNoseworkScoresheetProps> = ({
   // Search time stopwatch
   const stopwatch = useStopwatch({
     maxTime: classInfo.maxTime,
-    level: classInfo.level,
+    ...(classInfo.level ? { level: classInfo.level } : {}),
     onTimeExpired: (formattedTime) => {
       setSearchTime(formattedTime);
       setQualifying('NQ');
@@ -172,7 +172,7 @@ export const UKCNoseworkScoresheet: React.FC<UKCNoseworkScoresheetProps> = ({
         time: timeMs,
         faults: faultCount,
         qualification: qualifying,
-        notes: nonQualifyingReason || undefined,
+        ...(nonQualifyingReason ? { notes: nonQualifyingReason } : {}),
       });
 
       setShowConfirmation(false);

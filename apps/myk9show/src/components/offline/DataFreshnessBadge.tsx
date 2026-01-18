@@ -6,7 +6,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/
 export type DataFreshness = 'fresh' | 'stale' | 'outdated' | 'offline';
 
 interface DataFreshnessBadgeProps {
-  lastUpdated?: Date;
+  lastUpdated?: Date | undefined;
   freshThreshold?: number; // minutes
   staleThreshold?: number; // minutes
   isOnline?: boolean;

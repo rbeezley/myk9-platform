@@ -61,7 +61,7 @@ const PanelRenderer: React.FC<PanelRendererProps> = ({ panel, zIndex, isTopmost 
         open={panel.isOpen}
         onClose={handleClose}
         title={panel.title}
-        subtitle={panel.subtitle}
+        {...(panel.subtitle !== undefined && { subtitle: panel.subtitle })}
         size={panel.size}
         showBackButton={canGoBack()}
         onBack={handleBack}

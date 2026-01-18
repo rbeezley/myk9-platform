@@ -141,7 +141,7 @@ export const useEntryStoreCompat = () => {
   };
 
   const updateStatus = async (entryId: string, status: EntryStatus, userId: string, reason?: string): Promise<SyncableShowEntry | null> => {
-    await updateStatusMutation.mutateAsync({ id: entryId, status, userId, reason });
+    await updateStatusMutation.mutateAsync({ id: entryId, status, userId, ...(reason !== undefined && { reason }) });
     
     // Return updated entry (simplified - in practice, we'd get it from the mutation result)
     const currentEntry = entries.find(e => e.id === entryId);
@@ -224,8 +224,8 @@ export const useEntryStoreCompat = () => {
   const updateEntriesStatus = async (entryIds: string[], status: EntryStatus, userId: string, reason?: string): Promise<void> => {
     // Execute status updates in parallel
     await Promise.all(
-      entryIds.map(entryId => 
-        updateStatusMutation.mutateAsync({ id: entryId, status, userId, reason })
+      entryIds.map(entryId =>
+        updateStatusMutation.mutateAsync({ id: entryId, status, userId, ...(reason !== undefined && { reason }) })
       )
     );
   };

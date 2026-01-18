@@ -34,7 +34,7 @@ export interface ArchivedShow {
   endDate: string;
   archivedAt: string;
   summaryData: ShowSummary;
-  compressedData?: string;
+  compressedData?: string | undefined;
   sizeBytes: number;
 }
 

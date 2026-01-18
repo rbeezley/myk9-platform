@@ -445,13 +445,12 @@ export class ConnectionRecoveryManager {
   
   getConnectionStatus(): ConnectionStatus {
     const avgResponseTime = this.healthMonitor.getAverageResponseTime();
-    
+
     return {
       isConnected: navigator.onLine && this.healthMonitor.isHealthy(),
       isRecovering: this.isRecovering,
       reconnectAttempts: this.reconnectAttempts,
-      lastConnectionTime: undefined, // Would track in production
-      lastDisconnectionTime: undefined, // Would track in production
+      // lastConnectionTime and lastDisconnectionTime omitted - would track in production
       connectionQuality: this.healthMonitor.getConnectionQuality(),
       avgResponseTime,
     };

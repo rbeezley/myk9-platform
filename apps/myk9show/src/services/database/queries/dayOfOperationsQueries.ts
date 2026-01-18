@@ -986,3 +986,41 @@ export const denyScratchRequest = async (
     return { data: null, error: dbError };
   }
 };
+
+/**
+ * Update refund status for a scratched entry
+ */
+export const updateRefundStatus = async (
+  entryId: string,
+  refundStatus: string,
+  refundAmount: number
+) => {
+  const startTime = Date.now();
+
+  try {
+    const { data, error } = await supabase
+      .from('entries')
+      .update({
+        refund_status: refundStatus,
+        refund_amount: refundAmount,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', entryId)
+      .select()
+      .single();
+
+    const duration = Date.now() - startTime;
+    logQuery('entries', 'update_refund_status', duration, error?.message);
+
+    if (error) {
+      throw createDatabaseError(error, 'entries', 'update_refund_status');
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const dbError = createDatabaseError(error, 'entries', 'update_refund_status');
+    logQuery('entries', 'update_refund_status', duration, dbError.message);
+    return { data: null, error: dbError };
+  }
+};

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /**
  * Consolidated hooks that combine common patterns to reduce hook count
  * and improve performance through better memoization

@@ -14,6 +14,25 @@ export interface PeopleEnhancedSidebarProps {
   className?: string;
 }
 
+// Filter chip component
+const FilterChip: React.FC<{
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}> = ({ label, active, onClick }) => (
+  <button
+    onClick={onClick}
+    className={cn(
+      "px-3 py-1 text-xs font-medium rounded-full transition-all duration-200",
+      active
+        ? "bg-primary text-primary-foreground"
+        : "bg-muted text-muted-foreground hover:bg-muted/80"
+    )}
+  >
+    {label}
+  </button>
+);
+
 const PeopleEnhancedSidebar: React.FC<PeopleEnhancedSidebarProps> = ({
   people,
   selectedId,
@@ -25,12 +44,32 @@ const PeopleEnhancedSidebar: React.FC<PeopleEnhancedSidebarProps> = ({
 }) => {
   const [search, setSearch] = useState('');
   const [internalCollapsed, setInternalCollapsed] = useState(false);
+  const [judgeFilter, setJudgeFilter] = useState(false);
+  const [hasDogsFilter, setHasDogsFilter] = useState(false);
   const collapsed = collapsedProp !== undefined ? collapsedProp : internalCollapsed;
+
+  // Pre-filter people based on active filters
+  const filteredPeople = useMemo(() => {
+    let result = people;
+
+    if (judgeFilter) {
+      result = result.filter(p =>
+        p.roles?.includes('judge') ||
+        (p.judgeQualifications && p.judgeQualifications.length > 0)
+      );
+    }
+
+    if (hasDogsFilter) {
+      result = result.filter(p => p.dogs && p.dogs.length > 0);
+    }
+
+    return result;
+  }, [people, judgeFilter, hasDogsFilter]);
 
   // Enhanced search with fuzzy matching
   const searchResults = useMemo(() => {
     return enhancedSearch(
-      people,
+      filteredPeople,
       search,
       (person) => ({
         name: `${person.firstName} ${person.lastName}`,
@@ -49,7 +88,9 @@ const PeopleEnhancedSidebar: React.FC<PeopleEnhancedSidebarProps> = ({
         fuzzyEnabled: true
       }
     );
-  }, [people, search]);
+  }, [filteredPeople, search]);
+
+  const hasActiveFilters = judgeFilter || hasDogsFilter;
 
   const handleCollapse = () => {
     if (onToggleCollapse) onToggleCollapse();
@@ -140,7 +181,7 @@ const PeopleEnhancedSidebar: React.FC<PeopleEnhancedSidebarProps> = ({
       <div className="flex items-center justify-between p-3 border-b border-border" style={{ flexShrink: 0, height: '56px' }}>
         {!collapsed ? (
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold truncate mr-2">Users</h3>
+            <h3 className="text-sm font-semibold truncate mr-2">People</h3>
             {searchResults.length !== people.length && (
               <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-full">
                 {searchResults.length}
@@ -193,7 +234,22 @@ const PeopleEnhancedSidebar: React.FC<PeopleEnhancedSidebarProps> = ({
               </button>
             )}
           </div>
-          {search && (
+
+          {/* Filter Chips */}
+          <div className="flex flex-wrap gap-2 mt-2">
+            <FilterChip
+              label="Judges"
+              active={judgeFilter}
+              onClick={() => setJudgeFilter(f => !f)}
+            />
+            <FilterChip
+              label="Has Dogs"
+              active={hasDogsFilter}
+              onClick={() => setHasDogsFilter(f => !f)}
+            />
+          </div>
+
+          {(search || hasActiveFilters) && (
             <div className="mt-2 text-xs text-muted-foreground">
               {searchResults.length} of {people.length} people
               {search.length > 2 && searchResults.length === 0 && (
@@ -210,12 +266,14 @@ const PeopleEnhancedSidebar: React.FC<PeopleEnhancedSidebarProps> = ({
           <div className="p-2">
             {searchResults.map(renderPersonItem)}
           </div>
-        ) : search.length > 0 ? (
+        ) : (search.length > 0 || hasActiveFilters) ? (
           <div className="flex flex-col items-center justify-center p-8 text-center">
             <Search className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />
             <p className="text-sm text-muted-foreground mb-2">No people found</p>
             <p className="text-xs text-muted-foreground">
-              Try searching by name, email, role, or location
+              {hasActiveFilters
+                ? 'Try adjusting or clearing your filters'
+                : 'Try searching by name, email, role, or location'}
             </p>
           </div>
         ) : (

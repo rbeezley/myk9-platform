@@ -169,10 +169,10 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
               Add New Dog
             </Button>
           </div>
-          <AssociatedDogsSection 
+          <AssociatedDogsSection
             dogs={userDogs}
             onViewDogDetails={(dogId) => {
-              // Navigate with person context for breadcrumbs: Users > John Smith > Max
+              // Navigate with person context for breadcrumbs: People > John Smith > Max
               navigate(`/dogs/${dogId}?fromPerson=${selectedUser.id}`);
             }}
             onEditDog={(dogId) => {
@@ -182,23 +182,13 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
                 setIsEditDialogOpen(true);
               }
             }}
-            onUpdateDogPhoto={handleUpdateDogPhoto} 
+            onUpdateDogPhoto={handleUpdateDogPhoto}
             onDeleteDog={handleDeleteDog}
             onAddRegistration={(dogId) => {
               // Navigate to the dog's details page with a query parameter to open the add registration dialog
               navigate(`/dogs/${dogId}?addRegistration=true&fromPerson=${selectedUser.id}`);
             }}
           />
-        </div>
-      )
-    },
-    {
-      id: 'settings',
-      label: 'Settings',
-      content: (
-        <div className="mt-4 space-y-4">
-          <h2 className="text-xl font-bold mb-4 text-foreground">Settings</h2>
-          <p>Settings for this person will go here.</p>
         </div>
       )
     }

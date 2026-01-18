@@ -6,10 +6,11 @@ import { useUserStore } from '@/store/userStore';
 import { useUpdateUserMutation, useDeleteUserMutation } from '@/hooks/queries/useUsersQuery';
 import UserDetailsTabs from '@/components/users/UserDetails/UserDetailsTabs';
 import ThreeDotMenu from '@/components/common/ThreeDotMenu';
+import { Breadcrumb } from '@/components/common/Breadcrumb';
 import StandardDialog from '@/components/common/StandardDialog';
 import { JudgeQualificationPanel, UserEditPanel } from '@/components/panels/edit';
 import { User as UserType } from '@/types/dog-types';
-import { Award, Settings, User, MapPin, Camera, Trash2 } from 'lucide-react';
+import { Award, Settings, User, Camera, Trash2, Mail, Phone, Dog } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -224,6 +225,16 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
 
   return (
     <div className="max-w-7xl mx-auto p-8 space-y-8">
+      {/* Breadcrumb Navigation */}
+      <Breadcrumb
+        showHomeIcon
+        items={[
+          { label: 'People', href: '/users' },
+          { label: fullName, isCurrentPage: true }
+        ]}
+        className="mb-2"
+      />
+
       {/* Hero Profile Card - Apple-inspired design */}
       <Card className="relative overflow-hidden bg-gradient-to-br from-card/95 to-card/80 
                        apple-subtle-card-border rounded-2xl p-8 shadow-lg backdrop-blur-xl 
@@ -239,7 +250,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
             onEdit={() => setIsEditModalOpen(true)}
             onDelete={() => setIsDeleteDialogOpen(true)}
             onEditPhoto={() => setIsPhotoModalOpen(true)}
-            editLabel="Edit User"
+            editLabel="Edit Person"
           />
         </div>
         
@@ -297,21 +308,62 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
               <div className="flex flex-wrap gap-3">
                 {person.roles && person.roles.length > 0 ? (
                   person.roles.map((role) => (
-                    <Badge key={role} className="px-4 py-2 text-sm font-medium 
-                                                bg-gradient-to-r from-primary/10 to-primary/5 
-                                                text-primary border border-primary/20 
-                                                backdrop-blur-sm hover:scale-105 
+                    <Badge key={role} className="px-4 py-2 text-sm font-medium
+                                                bg-gradient-to-r from-primary/10 to-primary/5
+                                                text-primary border border-primary/20
+                                                backdrop-blur-sm hover:scale-105
                                                 transition-all duration-200">
                       {role.charAt(0).toUpperCase() + role.slice(1)}
                     </Badge>
                   ))
                 ) : (
-                  <Badge className="px-4 py-2 text-sm font-medium 
-                                  bg-gradient-to-r from-muted/50 to-muted/30 
+                  <Badge className="px-4 py-2 text-sm font-medium
+                                  bg-gradient-to-r from-muted/50 to-muted/30
                                   text-muted-foreground apple-subtle-card-border
                                   backdrop-blur-sm">
                     Member
                   </Badge>
+                )}
+              </div>
+
+              {/* Quick Actions */}
+              <div className="flex flex-wrap items-center gap-3 mt-4">
+                {person.email && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    asChild
+                    className="gap-2 bg-gradient-to-r from-muted/50 to-muted/30 border-border/30
+                              hover:bg-gradient-to-r hover:from-primary/5 hover:to-primary/10
+                              hover:border-primary/20 transition-all duration-300"
+                  >
+                    <a href={`mailto:${person.email}`}>
+                      <Mail className="w-4 h-4" />
+                      Email
+                    </a>
+                  </Button>
+                )}
+                {formData.phone && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    asChild
+                    className="gap-2 bg-gradient-to-r from-muted/50 to-muted/30 border-border/30
+                              hover:bg-gradient-to-r hover:from-primary/5 hover:to-primary/10
+                              hover:border-primary/20 transition-all duration-300"
+                  >
+                    <a href={`tel:${formData.phone.replace(/[^\d]/g, '')}`}>
+                      <Phone className="w-4 h-4" />
+                      Call
+                    </a>
+                  </Button>
+                )}
+                {person.dogs && person.dogs.length > 0 && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg
+                                bg-gradient-to-r from-muted/30 to-muted/20 text-sm text-muted-foreground">
+                    <Dog className="w-4 h-4" />
+                    <span>{person.dogs.length} dog{person.dogs.length !== 1 ? 's' : ''}</span>
+                  </div>
                 )}
               </div>
             </div>
@@ -319,25 +371,25 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
         </div>
       </Card>
 
-      {/* Information Grid - Apple-style cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Personal Information Card */}
-        <Card className="group bg-gradient-to-br from-card/95 to-card/80 apple-subtle-card-border 
-                         rounded-2xl p-6 shadow-md backdrop-blur-xl transition-all duration-500 
-                         hover:shadow-xl hover:-translate-y-1 hover:border-primary/20">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/[0.02] to-transparent 
-                          opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-2xl" />
-          
-          <div className="relative space-y-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-2.5 bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl">
-                <User className="h-5 w-5 text-primary" />
-              </div>
-              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                Personal Information
-              </h3>
+      {/* Contact Information Card - Consolidated Personal + Address */}
+      <Card className="group bg-gradient-to-br from-card/95 to-card/80 apple-subtle-card-border
+                       rounded-2xl p-6 shadow-md backdrop-blur-xl transition-all duration-500
+                       hover:shadow-xl hover:-translate-y-1 hover:border-primary/20">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/[0.02] to-transparent
+                        opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-2xl" />
+
+        <div className="relative space-y-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2.5 bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl">
+              <User className="h-5 w-5 text-primary" />
             </div>
-            
+            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+              Contact Information
+            </h3>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Personal Details Column */}
             <div className="space-y-4">
               <div className="flex items-center justify-between py-3" style={{ borderBottom: '0.5px solid rgba(128, 128, 128, 0.2)' }}>
                 <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
@@ -359,8 +411,8 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
                 <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
                   Email
                 </span>
-                <a href={`mailto:${person.email}`} 
-                   className="text-sm font-medium text-primary dark:text-white hover:text-primary/80 dark:hover:text-white/80 
+                <a href={`mailto:${person.email}`}
+                   className="text-sm font-medium text-primary dark:text-white hover:text-primary/80 dark:hover:text-white/80
                             transition-colors duration-200 hover:underline">
                   {person.email || 'Not provided'}
                 </a>
@@ -370,8 +422,8 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
                   Phone
                 </span>
                 {formData.phone ? (
-                  <a href={`tel:${formData.phone.replace(/[^\d]/g, '')}`} 
-                     className="text-sm font-medium text-primary dark:text-white hover:text-primary/80 dark:hover:text-white/80 
+                  <a href={`tel:${formData.phone.replace(/[^\d]/g, '')}`}
+                     className="text-sm font-medium text-primary dark:text-white hover:text-primary/80 dark:hover:text-white/80
                               transition-colors duration-200 hover:underline">
                     {formData.phone}
                   </a>
@@ -380,26 +432,8 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
                 )}
               </div>
             </div>
-          </div>
-        </Card>
-        
-        {/* Address Information Card */}
-        <Card className="group bg-gradient-to-br from-card/95 to-card/80 apple-subtle-card-border 
-                         rounded-2xl p-6 shadow-md backdrop-blur-xl transition-all duration-500 
-                         hover:shadow-xl hover:-translate-y-1 hover:border-primary/20">
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/[0.02] to-transparent 
-                          opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-2xl" />
-          
-          <div className="relative space-y-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-2.5 bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 rounded-xl">
-                <MapPin className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                Address Information
-              </h3>
-            </div>
-            
+
+            {/* Address Column */}
             <div className="space-y-4">
               <div className="flex items-center justify-between py-3" style={{ borderBottom: '0.5px solid rgba(128, 128, 128, 0.2)' }}>
                 <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
@@ -435,8 +469,8 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
               </div>
             </div>
           </div>
-        </Card>
-      </div>
+        </div>
+      </Card>
 
       {/* Account Summary Card */}
       <Card className="group bg-gradient-to-br from-card/95 to-card/80 apple-subtle-card-border 
@@ -455,14 +489,18 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
             </h3>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="flex flex-col items-center text-center p-4 bg-gradient-to-br 
                            from-muted/30 to-muted/10 rounded-xl apple-subtle-card-border 
                            hover:scale-105 transition-all duration-300">
               <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-2">
                 Member Since
               </span>
-              <span className="text-lg font-semibold text-foreground">January 2024</span>
+              <span className="text-lg font-semibold text-foreground">
+                {person.createdAt
+                  ? new Date(person.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+                  : 'Not available'}
+              </span>
             </div>
             
             <div className="flex flex-col items-center text-center p-4 bg-gradient-to-br 
@@ -490,19 +528,6 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
               </span>
             </div>
             
-            <div className="flex flex-col items-center text-center p-4 bg-gradient-to-br 
-                           from-muted/30 to-muted/10 rounded-xl apple-subtle-card-border 
-                           hover:scale-105 transition-all duration-300">
-              <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-2">
-                Email Status
-              </span>
-              <Badge className={`${person.email 
-                ? 'bg-gradient-to-r from-green-500/10 to-green-500/5 text-green-600 border-green-500/20' 
-                : 'bg-gradient-to-r from-yellow-500/10 to-yellow-500/5 text-yellow-600 border-yellow-500/20'
-              } border font-medium`}>
-                {person.email ? 'Verified' : 'Pending'}
-              </Badge>
-            </div>
           </div>
         </div>
       </Card>
@@ -573,9 +598,11 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
         </Card>
       )}
       
-      {/* Judge Qualifications Card */}
-      <Card className="group bg-gradient-to-br from-card/95 to-card/80 apple-subtle-card-border 
-                       rounded-2xl p-6 shadow-md backdrop-blur-xl transition-all duration-500 
+      {/* Judge Qualifications Card - Only show for judges or users with qualifications */}
+      {(person.roles?.includes('judge') ||
+        (person.judgeQualifications && person.judgeQualifications.length > 0)) && (
+      <Card className="group bg-gradient-to-br from-card/95 to-card/80 apple-subtle-card-border
+                       rounded-2xl p-6 shadow-md backdrop-blur-xl transition-all duration-500
                        hover:shadow-xl hover:-translate-y-1 hover:border-primary/20">
         <div className="absolute inset-0 bg-gradient-to-br from-amber-500/[0.02] to-transparent 
                         opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-2xl" />
@@ -691,12 +718,13 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
           )}
         </div>
       </Card>
-      
-      <UserDetailsTabs 
+      )}
+
+      <UserDetailsTabs
         selectedUser={person}
       />
       
-      {/* Edit User Panel */}
+      {/* Edit Person Panel */}
       <UserEditPanel
         open={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
@@ -744,7 +772,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
         open={isDeleteDialogOpen}
         onClose={() => setIsDeleteDialogOpen(false)}
         onSave={handleDeleteUser}
-        title="Delete User"
+        title="Delete Person"
         titleIcon={<Trash2 className="w-5 h-5" />}
         description="Are you sure you want to delete this person? This action cannot be undone."
         saveLabel="Delete"

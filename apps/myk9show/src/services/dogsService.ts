@@ -162,9 +162,9 @@ export class DogsService {
       return newDog;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await supabase
       .from('dogs')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase schema mismatch
       .insert([dog as any])
       .select()
       .single();
@@ -229,9 +229,9 @@ export class DogsService {
       return { ...existingDog, ...updates };
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await supabase
       .from('dogs')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Supabase schema mismatch
       .update(updates as any)
       .eq('id', id)
       .select()

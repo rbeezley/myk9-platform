@@ -1,5 +1,5 @@
 declare module 'react-window' {
-  import { ComponentType, CSSProperties, ReactNode, Ref } from 'react';
+  import { ComponentType, CSSProperties, Ref } from 'react';
 
   export interface ListChildComponentProps<T = unknown> {
     index: number;

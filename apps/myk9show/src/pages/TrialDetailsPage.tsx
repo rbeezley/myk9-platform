@@ -89,6 +89,26 @@ const TrialDetailsPage: React.FC = () => {
   
   // Filter trials to only show trials from the same show
   const showTrials = currentTrial ? trials.filter(trial => trial.showId === currentTrial.showId) : [];
+
+  // Calculate navigation indices for prev/next trial
+  const currentTrialIndex = showTrials.findIndex(t => t.id === selectedTrialId);
+  const prevTrialId = currentTrialIndex > 0 ? showTrials[currentTrialIndex - 1]?.id : null;
+  const nextTrialId = currentTrialIndex < showTrials.length - 1 ? showTrials[currentTrialIndex + 1]?.id : null;
+
+  // Navigation handlers
+  const handlePrevTrial = () => {
+    if (prevTrialId) {
+      const url = showId ? `/shows/${showId}/trials/${prevTrialId}` : `/trials/${prevTrialId}`;
+      navigate(url);
+    }
+  };
+
+  const handleNextTrial = () => {
+    if (nextTrialId) {
+      const url = showId ? `/shows/${showId}/trials/${nextTrialId}` : `/trials/${nextTrialId}`;
+      navigate(url);
+    }
+  };
   
   // Debug logging for show type inheritance
   if (currentTrial) {
@@ -405,6 +425,12 @@ const TrialDetailsPage: React.FC = () => {
             onAddClassesFromTemplate={handleAddClassesFromTemplate}
             onEditClass={handleEditClass}
             onDeleteClass={handleDeleteClass}
+            onPrevTrial={handlePrevTrial}
+            onNextTrial={handleNextTrial}
+            prevTrialId={prevTrialId}
+            nextTrialId={nextTrialId}
+            currentTrialIndex={currentTrialIndex}
+            totalTrials={showTrials.length}
           />
         ) : (
           <div className="apple-show-container flex items-center justify-center min-h-[60vh]">

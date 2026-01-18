@@ -89,6 +89,16 @@
   background: rgba(255, 149, 0, 0.1);
   color: #FF9500;
   border: 1px solid rgba(255, 149, 0, 0.2);
+  animation: status-pulse 2s ease-in-out infinite;
+}
+
+@keyframes status-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(255, 149, 0, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(255, 149, 0, 0);
+  }
 }
 
 .apple-show-status-completed {
@@ -184,6 +194,13 @@
   border-radius: 8px;
   background: rgba(52, 199, 89, 0.1);
   color: #34C759;
+}
+
+.apple-show-stat-subtitle {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  white-space: nowrap;
 }
 
 .apple-show-stat-content {

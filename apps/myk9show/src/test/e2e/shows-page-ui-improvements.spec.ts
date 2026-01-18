@@ -79,7 +79,7 @@ test.describe('Shows Page - Collapsible Filter Panel', () => {
 
     // Discipline dropdown should be hidden (inside collapsed panel)
     // Note: The content is still in DOM but hidden via animation
-    const filterPanel = page.locator('[data-state="closed"]').filter({ hasText: 'Discipline' });
+    const _filterPanel = page.locator('[data-state="closed"]').filter({ hasText: 'Discipline' });
     // Just verify the button still works - the panel state is managed by the Collapsible component
   });
 
@@ -97,7 +97,7 @@ test.describe('Shows Page - Collapsible Filter Panel', () => {
     await page.locator('[role="option"]:has-text("Agility")').click();
 
     // The Filters button should now show a count badge
-    const filterBadge = filtersButton.locator('.bg-secondary, [class*="Badge"]');
+    const _filterBadge = filtersButton.locator('.bg-secondary, [class*="Badge"]');
     // Check that there's an indication of active filters
     await expect(filtersButton).toContainText('1');
   });
@@ -195,8 +195,8 @@ test.describe('Shows Page - View Mode Toggle', () => {
 
   test('should have Grid, List, and Calendar view buttons', async ({ page }) => {
     const gridButton = page.locator('button:has-text("Grid")');
-    const listButton = page.locator('button:has-text("List")');
-    const calendarButton = page.locator('button:has-text("Calendar")');
+    const _listButton = page.locator('button:has-text("List")');
+    const _calendarButton = page.locator('button:has-text("Calendar")');
 
     // At least the buttons should exist (text may be hidden on mobile)
     await expect(gridButton.or(page.locator('button').filter({ has: page.locator('[class*="Grid"]') }))).toBeVisible();
@@ -211,7 +211,7 @@ test.describe('Shows Page - View Mode Toggle', () => {
     await page.waitForTimeout(300);
 
     // List view should show card-style items in a vertical stack
-    const listItems = page.locator('.space-y-4 > .bg-card, .space-y-4 > [class*="Card"]');
+    const _listItems = page.locator('.space-y-4 > .bg-card, .space-y-4 > [class*="Card"]');
     // Just verify the view changed by checking for list-style layout
   });
 
@@ -223,7 +223,7 @@ test.describe('Shows Page - View Mode Toggle', () => {
     await page.waitForTimeout(500);
 
     // Calendar view should show calendar component
-    const calendarView = page.locator('[class*="calendar"], [class*="Calendar"]');
+    const _calendarView = page.locator('[class*="calendar"], [class*="Calendar"]');
     // Calendar component should be visible
   });
 
@@ -241,7 +241,7 @@ test.describe('Shows Page - View Mode Toggle', () => {
     await page.waitForTimeout(500);
 
     // Tooltip should show "Grid View"
-    const tooltip = page.locator('[role="tooltip"], [class*="Tooltip"]:has-text("Grid")');
+    const _tooltip = page.locator('[role="tooltip"], [class*="Tooltip"]:has-text("Grid")');
     // Note: Tooltips may use different implementations
   });
 });
@@ -266,7 +266,7 @@ test.describe('Shows Page - Card Visual Status Cues', () => {
 
   test('should show urgency ribbon on closing soon cards', async ({ page }) => {
     // Look for cards with "days left" or "Closes Today" text
-    const urgencyRibbon = page.locator('text=/\\d+.*days? left|Closes Today/i');
+    const _urgencyRibbon = page.locator('text=/\\d+.*days? left|Closes Today/i');
 
     // This may or may not be visible depending on test data
     // Just verify the page loaded correctly
@@ -306,7 +306,7 @@ test.describe('Shows Page - Full Calendar Button', () => {
     await page.waitForTimeout(500);
 
     // Tooltip should mention "full calendar" or "show management"
-    const tooltip = page.locator('[role="tooltip"]');
+    const _tooltip2 = page.locator('[role="tooltip"]');
     // Tooltip visibility depends on implementation
   });
 
@@ -334,16 +334,16 @@ test.describe('Shows Page - List View Enhancements', () => {
 
   test('should show urgency badges inline in list view', async ({ page }) => {
     // Look for inline badges in list view
-    const listCards = page.locator('.space-y-4 > [class*="Card"]');
+    const _listCards = page.locator('.space-y-4 > [class*="Card"]');
 
     // List items should have badges for status
-    const statusBadges = page.locator('[class*="Badge"]');
+    const _statusBadges = page.locator('[class*="Badge"]');
     // Just verify the list view loaded
   });
 
   test('should show visual status cues in list view cards', async ({ page }) => {
     // List cards should have border colors for different statuses
-    const listCards = page.locator('.space-y-4 [class*="Card"]');
+    const _listCards2 = page.locator('.space-y-4 [class*="Card"]');
 
     // Cards with closing_soon should have orange border
     // Cards with submitted should have green border

@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { TrialClass } from '../types/trial.types';
-import { FileText, ArrowUpDown, ArrowUp, ArrowDown, Search, LayoutGrid, List } from 'lucide-react';
+import { FileText, ArrowUpDown, ArrowUp, ArrowDown, Search, LayoutGrid, List, Layers } from 'lucide-react';
 import { TrialClassesCards } from './TrialClassesCards';
 
 type ViewMode = 'table' | 'cards';
@@ -116,9 +116,16 @@ export const TrialClassesTable = ({
   if (classes.length === 0) {
     return (
       <div className="text-center py-12">
+        {/* Empty state icon */}
+        <div
+          className="mx-auto w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-4"
+          data-testid="empty-state-icon"
+        >
+          <Layers className="h-7 w-7 text-muted-foreground" />
+        </div>
         <div className="text-muted-foreground mb-6">
           <div className="mb-2 text-lg font-medium">No classes yet</div>
-          <div className="text-sm">Add classes to this trial to get started</div>
+          <div className="text-sm">Add classes to start managing entries and scores</div>
         </div>
         <div className="flex items-center justify-center gap-3">
           {onAddClassesFromTemplate && (
@@ -187,7 +194,7 @@ export const TrialClassesTable = ({
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           type="text"
-          placeholder="Search classes by element, level, section, judge, or status..."
+          placeholder="Search classes..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="pl-10 bg-card"

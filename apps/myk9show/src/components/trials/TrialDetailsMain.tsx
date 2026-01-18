@@ -4,7 +4,7 @@ import { Trial, TrialClass } from './types/trial.types';
 import { TrialStatisticsData } from './TrialDetail/TrialStatistics';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Users, Trophy, Edit, Trash2, MoreVertical, Play, Check, Clock, Gavel } from 'lucide-react';
+import { Users, Trophy, Edit, Trash2, MoreVertical, Play, Check, Clock, Gavel, ChevronLeft, ChevronRight, Copy } from 'lucide-react';
 import { TrialClassesTable } from './TrialDetail/TrialClassesTable';
 import Breadcrumb from '@/components/common/Breadcrumb';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
@@ -20,6 +20,13 @@ interface TrialDetailsMainProps {
   onAddClassesFromTemplate?: () => void;
   onEditClass: (classItem: TrialClass) => void;
   onDeleteClass: (classItem: TrialClass) => void;
+  // Navigation props
+  onPrevTrial?: () => void;
+  onNextTrial?: () => void;
+  prevTrialId?: string | null;
+  nextTrialId?: string | null;
+  currentTrialIndex?: number;
+  totalTrials?: number;
 }
 
 const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
@@ -31,6 +38,12 @@ const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
   onAddClassesFromTemplate,
   onEditClass,
   onDeleteClass,
+  onPrevTrial,
+  onNextTrial,
+  prevTrialId,
+  nextTrialId,
+  currentTrialIndex,
+  totalTrials,
 }) => {
   const navigate = useNavigate();
   
@@ -70,20 +83,25 @@ const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
     }
   };
 
-  const stats = [
+  // Build stats array with contextual subtitles (not misleading percent changes)
+  const baseStats = [
     {
       title: "Judges",
       value: statistics.judges.total.toString(),
-      trend: statistics.judges.percentChange >= 0 ? `+${statistics.judges.percentChange}%` : `${statistics.judges.percentChange}%`,
+      subtitle: statistics.judges.active > 0
+        ? `${statistics.judges.active} active`
+        : "None active",
       detail1: `Active: ${statistics.judges.active}`,
       detail2: `On Break: ${statistics.judges.onBreak}`,
       progress: statistics.judges.total > 0 ? Math.round((statistics.judges.active / statistics.judges.total) * 100) : 0,
       type: "judges"
     },
     {
-      title: "Total Classes", 
+      title: "Total Classes",
       value: statistics.classes.total.toString(),
-      trend: statistics.classes.percentChange >= 0 ? `+${statistics.classes.percentChange}%` : `${statistics.classes.percentChange}%`,
+      subtitle: statistics.classes.total > 0
+        ? `${statistics.classes.completed} of ${statistics.classes.total} completed`
+        : "No classes",
       detail1: `Upcoming: ${statistics.classes.upcoming}`,
       detail2: `Completed: ${statistics.classes.completed}`,
       progress: statistics.classes.total > 0 ? Math.round((statistics.classes.completed / statistics.classes.total) * 100) : 0,
@@ -92,22 +110,31 @@ const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
     {
       title: "Total Entries",
       value: statistics.entries.total.toString(),
-      trend: statistics.entries.percentChange >= 0 ? `+${statistics.entries.percentChange}%` : `${statistics.entries.percentChange}%`, 
+      subtitle: statistics.entries.total > 0
+        ? `${statistics.entries.completed} scored`
+        : "No entries",
       detail1: `Upcoming: ${statistics.entries.upcoming}`,
       detail2: `Completed: ${statistics.entries.completed}`,
       progress: statistics.entries.total > 0 ? Math.round((statistics.entries.completed / statistics.entries.total) * 100) : 0,
       type: "entries"
     },
-    {
-      title: "Qualified Rate",
-      value: `${statistics.qualifiedRate.percent}%`,
-      trend: statistics.qualifiedRate.percentChange >= 0 ? `+${statistics.qualifiedRate.percentChange}%` : `${statistics.qualifiedRate.percentChange}%`,
-      detail1: `Qualified: ${statistics.qualifiedRate.qualified}`,
-      detail2: `Total: ${statistics.qualifiedRate.total}`,
-      progress: statistics.qualifiedRate.percent,
-      type: "qualified"
-    },
   ];
+
+  // Only show Qualified Rate when there are completed entries
+  const stats = statistics.classes.completed > 0
+    ? [
+        ...baseStats,
+        {
+          title: "Qualified Rate",
+          value: `${statistics.qualifiedRate.percent}%`,
+          subtitle: `${statistics.qualifiedRate.qualified} of ${statistics.qualifiedRate.total} qualified`,
+          detail1: `Qualified: ${statistics.qualifiedRate.qualified}`,
+          detail2: `Total: ${statistics.qualifiedRate.total}`,
+          progress: statistics.qualifiedRate.percent,
+          type: "qualified"
+        },
+      ]
+    : baseStats;
 
   return (
     <div className="apple-show-container">
@@ -126,27 +153,70 @@ const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
               </div>
             </div>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={onEdit}>
-                <Edit className="mr-2 h-4 w-4" />
-                Edit Trial
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem 
-                onClick={onDelete}
-                className="text-destructive"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete Trial
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex items-center gap-2">
+            {/* Trial Navigation */}
+            {totalTrials && totalTrials > 1 && (
+              <div className="flex items-center gap-1 mr-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onPrevTrial}
+                  disabled={!prevTrialId}
+                  title="Previous Trial"
+                  className="h-8 w-8 p-0"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="text-xs text-muted-foreground min-w-[4rem] text-center">
+                  {(currentTrialIndex ?? 0) + 1} of {totalTrials}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onNextTrial}
+                  disabled={!nextTrialId}
+                  title="Next Trial"
+                  className="h-8 w-8 p-0"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+
+            {/* Visible Edit button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onEdit}
+              title="Edit Trial"
+              className="h-8 w-8 p-0"
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+
+            {/* Dropdown for less common actions */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={onEdit}>
+                  <Copy className="mr-2 h-4 w-4" />
+                  Duplicate Trial
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={onDelete}
+                  className="text-destructive"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Trial
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
         
         <div className="apple-show-info-grid">
@@ -179,11 +249,11 @@ const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
           </div>
           <div className="apple-show-info-item">
             <div className="apple-show-info-label">Planned Start</div>
-            <div className="apple-show-info-value">{trial.plannedStartTime}</div>
+            <div className="apple-show-info-value">{trial.plannedStartTime || 'TBD'}</div>
           </div>
           <div className="apple-show-info-item">
-            <div className="apple-show-info-label">Order</div>
-            <div className="apple-show-info-value">{trial.order}</div>
+            <div className="apple-show-info-label">Total Classes</div>
+            <div className="apple-show-info-value">{trial.classes?.length || 0}</div>
           </div>
         </div>
       </div>
@@ -204,7 +274,7 @@ const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
                 <div className="apple-show-stat-content">
                   <div className="apple-show-stat-header">
                     <div className="apple-show-stat-title">{stat.title}</div>
-                    <div className="apple-show-stat-trend">{stat.trend}</div>
+                    <div className="apple-show-stat-subtitle">{stat.subtitle}</div>
                   </div>
                   <div className="apple-show-stat-number">{stat.value}</div>
                 </div>

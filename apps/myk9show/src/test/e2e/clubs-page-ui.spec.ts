@@ -111,10 +111,10 @@ test.describe('Clubs Page - Club Details Header', () => {
     await page.waitForTimeout(1000);
 
     // Check for club logo
-    const clubLogo = page.locator('img[alt*="Club"], img.rounded-full').first();
+    const _clubLogo = page.locator('img[alt*="Club"], img.rounded-full').first();
 
     // Check for club name (h1)
-    const clubName = page.locator('h1').first();
+    const _clubName = page.locator('h1').first();
 
     // At least the header structure should exist
     const header = page.locator('.bg-card').first();
@@ -125,7 +125,7 @@ test.describe('Clubs Page - Club Details Header', () => {
     await page.waitForTimeout(1000);
 
     // Look for club number indicator
-    const clubNumber = page.locator('text=/Club #/i');
+    const _clubNumber = page.locator('text=/Club #/i');
     // Club number may or may not be visible depending on data
   });
 
@@ -133,7 +133,7 @@ test.describe('Clubs Page - Club Details Header', () => {
     await page.waitForTimeout(1000);
 
     // Look for club type badges (specialty, all-breed, etc.)
-    const typeBadge = page.locator('text=/specialty|all-breed|local|regional|national/i');
+    const _typeBadge = page.locator('text=/specialty|all-breed|local|regional|national/i');
     // Badge may or may not be visible depending on data
   });
 });
@@ -350,7 +350,7 @@ test.describe('Clubs Page - Upcoming Shows Tab', () => {
     await page.waitForTimeout(1000);
 
     // If there are no upcoming shows, empty state should be visible
-    const emptyState = page.locator('text=No Upcoming Shows');
+    const _emptyState = page.locator('text=No Upcoming Shows');
 
     // This depends on test data - just verify the tab content loaded
     const tabContent = page.locator('[role="tabpanel"]');
@@ -391,7 +391,7 @@ test.describe('Clubs Page - Edit Club Panel', () => {
     await page.waitForTimeout(500);
 
     // Edit panel should open - look for panel or form elements
-    const editPanel = page.locator('[role="dialog"], [class*="panel"], [class*="Panel"]');
+    const _editPanel = page.locator('[role="dialog"], [class*="panel"], [class*="Panel"]');
     // Panel should be visible
   });
 });
@@ -406,7 +406,7 @@ test.describe('Clubs Page - Admin Features', () => {
     await page.waitForTimeout(1000);
 
     // Admin should see Add Club button in sidebar
-    const addClubButton = page.locator('button:has-text("Add Club")');
+    const _addClubButton = page.locator('button:has-text("Add Club")');
     // This may or may not be visible depending on RBAC setup
   });
 
@@ -418,7 +418,7 @@ test.describe('Clubs Page - Admin Features', () => {
     await page.waitForTimeout(300);
 
     // Admin should see Add Member button
-    const addMemberButton = page.locator('button:has-text("Add Member")');
+    const _addMemberButton = page.locator('button:has-text("Add Member")');
     // This may or may not be visible depending on RBAC setup and club data
   });
 });
@@ -430,7 +430,7 @@ test.describe('Clubs Page - Responsive Behavior', () => {
     await navigateToClubs(page);
 
     // Mobile menu trigger should be visible
-    const mobileMenuTrigger = page.locator('button:has-text("Clubs Menu"), button[aria-label*="menu"]');
+    const _mobileMenuTrigger = page.locator('button:has-text("Clubs Menu"), button[aria-label*="menu"]');
     // Mobile menu may be handled differently
   });
 
@@ -456,7 +456,7 @@ test.describe('Clubs Page - Loading States', () => {
     await page.goto('/clubs');
 
     // Loading indicator should appear briefly
-    const loadingIndicator = page.locator('text=Loading clubs');
+    const _loadingIndicator = page.locator('text=Loading clubs');
     // Loading state is transient, so we just verify page loads correctly
 
     await page.waitForLoadState('networkidle');
@@ -467,8 +467,8 @@ test.describe('Clubs Page - Loading States', () => {
     await navigateToClubs(page);
 
     // If there are no clubs, empty state should show
-    const emptyState = page.locator('text=No Clubs Available');
-    const clubContent = page.locator('h1'); // Club name header
+    const _emptyState2 = page.locator('text=No Clubs Available');
+    const _clubContent = page.locator('h1'); // Club name header
 
     // Either empty state or club content should be visible
     await page.waitForTimeout(2000);
@@ -495,7 +495,7 @@ test.describe('Clubs Page - URL Navigation', () => {
     await page.waitForTimeout(2000);
 
     // Should redirect to a specific club
-    const url = page.url();
+    const _url = page.url();
     // URL may stay at /clubs or redirect to /clubs/{id}
   });
 });
@@ -510,7 +510,7 @@ test.describe('Clubs Page - Breadcrumb Navigation', () => {
     await page.waitForTimeout(1000);
 
     // Breadcrumb should be visible
-    const breadcrumb = page.locator('nav[aria-label="Breadcrumb"], [class*="breadcrumb"], [class*="Breadcrumb"]');
+    const _breadcrumb = page.locator('nav[aria-label="Breadcrumb"], [class*="breadcrumb"], [class*="Breadcrumb"]');
     // Breadcrumb may have different implementations
   });
 
@@ -518,7 +518,7 @@ test.describe('Clubs Page - Breadcrumb Navigation', () => {
     await page.waitForTimeout(1000);
 
     // Home icon in breadcrumb
-    const homeIcon = page.locator('svg.lucide-home');
+    const _homeIcon = page.locator('svg.lucide-home');
     // Home icon may or may not be visible
   });
 });

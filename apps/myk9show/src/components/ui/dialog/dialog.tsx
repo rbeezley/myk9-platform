@@ -11,7 +11,7 @@ interface DialogTriggerProps extends React.ComponentPropsWithoutRef<typeof Dialo
 }
 
 const DialogTrigger = React.forwardRef<
-  React.ElementRef<typeof DialogPrimitive.Trigger>,
+  HTMLButtonElement,
   DialogTriggerProps
 >(({ asChild, children, ...props }, ref) => {
   // Convert asChild pattern to render prop for backwards compatibility
@@ -35,7 +35,7 @@ interface DialogCloseProps extends React.ComponentPropsWithoutRef<typeof DialogP
 }
 
 const DialogClose = React.forwardRef<
-  React.ElementRef<typeof DialogPrimitive.Close>,
+  HTMLButtonElement,
   DialogCloseProps
 >(({ asChild, children, ...props }, ref) => {
   if (asChild && React.isValidElement(children)) {

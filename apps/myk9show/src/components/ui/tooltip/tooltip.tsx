@@ -11,7 +11,7 @@ interface TooltipTriggerProps extends React.ComponentPropsWithoutRef<typeof Tool
 }
 
 const TooltipTrigger = React.forwardRef<
-  React.ElementRef<typeof TooltipPrimitive.Trigger>,
+  HTMLButtonElement,
   TooltipTriggerProps
 >(({ asChild, children, ...props }, ref) => {
   if (asChild && React.isValidElement(children)) {

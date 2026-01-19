@@ -1,8 +1,11 @@
 /**
- * Achievement & Competition System Integration Test
- * 
- * Tests the complete achievement system including achievements, competitions,
- * and past results with database operations and React Query integration.
+ * Achievement System Integration Test
+ *
+ * Tests the achievement system including achievements with database
+ * operations and React Query integration.
+ *
+ * Note: Competition and PastResult tests were removed because the corresponding
+ * database tables don't exist. The UI uses local Zustand stores instead.
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
@@ -14,14 +17,10 @@ import { ReactNode } from 'react';
 import {
   Achievement,
   CreateAchievementData,
-  CreateCompetitionData,
 } from '../../types/achievement';
 
 import {
   useAchievements,
-  useCompetitions,
-  usePastResults,
-  usePerformanceStats
 } from '../../hooks/queries/useAchievementsDatabase';
 
 import { achievementMappers, competitionMappers, achievementUtils, importMappers } from '../../services/mappers/achievementMappers';
@@ -55,9 +54,9 @@ const createWrapper = () => {
   );
 };
 
-describe('Achievement & Competition System Integration', () => {
+describe('Achievement System Integration', () => {
   const mockDogId = 'test-dog-123';
-  
+
   const mockAchievement: CreateAchievementData = {
     dog_id: mockDogId,
     achievement_type: 'Title',
@@ -71,22 +70,6 @@ describe('Achievement & Competition System Integration', () => {
     judge_name: 'Jane Smith',
     is_active: true
   };
-
-  const mockCompetition: CreateCompetitionData = {
-    dog_id: mockDogId,
-    competition_name: 'Rocky Mountain Dog Show',
-    competition_date: '2024-02-20',
-    location: 'Colorado Springs, CO',
-    placement: '1st',
-    score: '196.5',
-    qualified: true,
-    points_earned: 5,
-    organization: 'AKC',
-    discipline: 'Obedience',
-    level: 'Novice',
-    judge_name: 'Bob Johnson'
-  };
-
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -112,7 +95,7 @@ describe('Achievement & Competition System Integration', () => {
 
     it('should create achievement with proper data transformation', () => {
       const dbData = achievementMappers.toDatabase(mockAchievement);
-      
+
       expect(dbData.dog_id).toBe(mockDogId);
       expect(dbData.title).toBe('Companion Dog (CD)');
       expect(dbData.organization).toBe('AKC');
@@ -122,22 +105,39 @@ describe('Achievement & Competition System Integration', () => {
 
     it('should use achievement hooks correctly', async () => {
       const wrapper = createWrapper();
-      
+
       const { result } = renderHook(
         () => useAchievements(mockDogId),
         { wrapper }
       );
 
       expect(result.current.isLoading).toBe(true);
-      
+
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
     });
   });
 
-  describe('Competition Operations', () => {
+  describe('Competition Mappers (validation only)', () => {
+    // Note: These tests validate the mapper logic, but the database hooks
+    // and queries were removed since the competition table doesn't exist
     it('should validate competition data correctly', () => {
+      const mockCompetition = {
+        dog_id: mockDogId,
+        competition_name: 'Rocky Mountain Dog Show',
+        competition_date: '2024-02-20',
+        location: 'Colorado Springs, CO',
+        placement: '1st',
+        score: '196.5',
+        qualified: true,
+        points_earned: 5,
+        organization: 'AKC',
+        discipline: 'Obedience',
+        level: 'Novice',
+        judge_name: 'Bob Johnson'
+      };
+
       const errors = competitionMappers.validate(mockCompetition);
       expect(errors).toHaveLength(0);
 
@@ -148,43 +148,6 @@ describe('Achievement & Competition System Integration', () => {
       };
       const invalidErrors = competitionMappers.validate(invalidCompetition);
       expect(invalidErrors.length).toBeGreaterThan(0);
-    });
-
-    it('should use competition hooks correctly', async () => {
-      const wrapper = createWrapper();
-      
-      const { result } = renderHook(
-        () => useCompetitions(mockDogId),
-        { wrapper }
-      );
-
-      expect(result.current.isLoading).toBe(true);
-    });
-  });
-
-  describe('Past Results Operations', () => {
-    it('should use past results hooks correctly', async () => {
-      const wrapper = createWrapper();
-      
-      const { result } = renderHook(
-        () => usePastResults(mockDogId),
-        { wrapper }
-      );
-
-      expect(result.current.isLoading).toBe(true);
-    });
-  });
-
-  describe('Performance Analytics', () => {
-    it('should use performance stats hook correctly', async () => {
-      const wrapper = createWrapper();
-      
-      const { result } = renderHook(
-        () => usePerformanceStats(mockDogId),
-        { wrapper }
-      );
-
-      expect(result.current.isLoading).toBe(true);
     });
   });
 

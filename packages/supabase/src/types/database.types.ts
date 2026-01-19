@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -366,6 +366,7 @@ export type Database = {
           allow_waitlist: boolean | null
           breed_restrictions: string[] | null
           checked_in_count: number | null
+          class_number: string | null
           competition_type: string | null
           created_at: string | null
           deleted_at: string | null
@@ -409,6 +410,7 @@ export type Database = {
           allow_waitlist?: boolean | null
           breed_restrictions?: string[] | null
           checked_in_count?: number | null
+          class_number?: string | null
           competition_type?: string | null
           created_at?: string | null
           deleted_at?: string | null
@@ -452,6 +454,7 @@ export type Database = {
           allow_waitlist?: boolean | null
           breed_restrictions?: string[] | null
           checked_in_count?: number | null
+          class_number?: string | null
           competition_type?: string | null
           created_at?: string | null
           deleted_at?: string | null

@@ -48,8 +48,7 @@ export function CartPreviewPanel({
     percentRemaining,
   } = useCartExpirationTimer({
     onExpired: () => {
-      // Could trigger a modal or redirect
-      console.log('Cart expired');
+      // TODO: Trigger a modal or redirect when cart expires
     },
   });
 

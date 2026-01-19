@@ -586,7 +586,6 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                             className="h-7 text-xs"
                                             onClick={() => {
                                               // TODO: Implement waitlist join functionality
-                                              console.log('Join waitlist for', classData.id);
                                             }}
                                           >
                                             Join Waitlist

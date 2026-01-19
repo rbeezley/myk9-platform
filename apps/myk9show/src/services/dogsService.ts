@@ -4,6 +4,49 @@ import { mockDogs } from '@/mockData/mockDogs';
 import { shouldUseMockData } from '@/config/dataSource';
 
 /**
+ * Database row type for dogs table (snake_case fields from Supabase)
+ */
+interface DogRow {
+  id: string;
+  name: string;
+  breed: string;
+  sex: 'male' | 'female';
+  owner_id: string | null;
+  call_name: string | null;
+  height: string | null;
+  weight: string | null;
+  date_of_birth: string | null;
+  image_url: string | null;
+  spayed_neutered: boolean | null;
+  microchip_number: string | null;
+  color: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+/**
+ * Maps a database row to the Dog domain type
+ */
+function mapDogRowToDog(dog: DogRow): Dog {
+  return {
+    id: dog.id,
+    name: dog.name,
+    breed: dog.breed,
+    sex: dog.sex,
+    ownerId: dog.owner_id || '',
+    callName: dog.call_name || undefined,
+    height: dog.height || undefined,
+    weight: dog.weight || undefined,
+    dateOfBirth: dog.date_of_birth || undefined,
+    imageUrl: dog.image_url || undefined,
+    spayedNeutered: dog.spayed_neutered ?? undefined,
+    microchipNumber: dog.microchip_number || undefined,
+    color: dog.color || undefined,
+    microchip: dog.microchip_number || undefined,
+  };
+}
+
+/**
  * Service for managing dog-related data operations.
  * Provides CRUD operations for dogs with support for both mock and Supabase data sources.
  * 
@@ -56,23 +99,7 @@ export class DogsService {
       throw new Error(`Failed to fetch dogs: ${error.message}`);
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return ((data || []) as any[]).map((dog: any) => ({
-      id: dog.id,
-      name: dog.name,
-      breed: dog.breed,
-      sex: dog.sex as 'male' | 'female',
-      ownerId: dog.owner_id || '',
-      callName: dog.call_name || undefined,
-      height: dog.height || undefined,
-      weight: dog.weight || undefined,
-      dateOfBirth: dog.date_of_birth || undefined,
-      imageUrl: dog.image_url || undefined,
-      spayedNeutered: dog.spayed_neutered,
-      microchipNumber: dog.microchip_number || undefined,
-      color: dog.color || undefined,
-      microchip: dog.microchip_number || undefined
-    }));
+    return ((data || []) as DogRow[]).map(mapDogRowToDog);
   }
 
   /**
@@ -330,22 +357,6 @@ export class DogsService {
       throw new Error(`Failed to fetch dogs by owner: ${error.message}`);
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (data || []).map((dog: any) => ({
-      id: dog.id,
-      name: dog.name,
-      breed: dog.breed,
-      sex: dog.sex as 'male' | 'female',
-      ownerId: dog.owner_id || '',
-      callName: dog.call_name || undefined,
-      height: dog.height || undefined,
-      weight: dog.weight || undefined,
-      dateOfBirth: dog.date_of_birth || undefined,
-      imageUrl: dog.image_url || undefined,
-      spayedNeutered: dog.spayed_neutered,
-      microchipNumber: dog.microchip_number || undefined,
-      color: dog.color || undefined,
-      microchip: dog.microchip_number || undefined
-    } as Dog));
+    return ((data || []) as DogRow[]).map(mapDogRowToDog);
   }
 }

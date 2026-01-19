@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 // @ts-nocheck
 // TODO: Fix type mismatches with entry query results
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -426,6 +426,41 @@ const MyEntriesPage: React.FC = () => {
     applyTabFilter();
   }, [applyTabFilter]);
 
+  // Memoize computed stats to avoid recalculating on every render
+  const entryStats = useMemo(() => {
+    const now = new Date();
+    const accepted = entries.filter(e => e.entryStatus === EntryStatus.ACCEPTED);
+    const pending = entries.filter(e => e.entryStatus === EntryStatus.PENDING);
+    const upcoming = entries.filter(e => e.showDate >= now);
+    const paidEntries = entries.filter(e => e.paymentStatus !== PaymentStatus.PENDING);
+    const unpaidEntries = entries.filter(e => e.paymentStatus === PaymentStatus.PENDING);
+    const acceptedPaid = accepted.filter(e => e.paymentStatus !== PaymentStatus.PENDING);
+    const acceptedUnpaid = accepted.filter(e => e.paymentStatus === PaymentStatus.PENDING);
+    const needsAction = entries.filter(e =>
+      e.entryStatus === EntryStatus.PENDING || e.paymentStatus === PaymentStatus.PENDING
+    );
+
+    const totalFees = entries.reduce((sum, entry) => sum + entry.totalFee, 0);
+    const paidFees = paidEntries.reduce((sum, e) => sum + e.totalFee, 0);
+    const unpaidFees = unpaidEntries.reduce((sum, e) => sum + e.totalFee, 0);
+
+    return {
+      total: entries.length,
+      accepted: accepted.length,
+      pending: pending.length,
+      upcoming: upcoming.length,
+      acceptedPaid: acceptedPaid.length,
+      acceptedUnpaid: acceptedUnpaid.length,
+      needsAction: needsAction.length,
+      totalFees,
+      paidFees,
+      unpaidFees,
+      acceptedPercent: entries.length > 0 ? Math.round((accepted.length / entries.length) * 100) : 0,
+      paidPercent: totalFees > 0 ? Math.round((paidFees / totalFees) * 100) : 0,
+      needsActionPercent: entries.length > 0 ? Math.round((needsAction.length / entries.length) * 100) : 0,
+    };
+  }, [entries]);
+
   const getEntryStatusBadge = (status: EntryStatus) => {
     switch (status) {
       case EntryStatus.ACCEPTED:
@@ -591,14 +626,14 @@ const MyEntriesPage: React.FC = () => {
                 </div>
 
                 <div className="apple-show-stat-details">
-                  <span>Active: {entries.filter(e => e.entryStatus === EntryStatus.ACCEPTED).length}</span>
-                  <span>{entries.filter(e => e.showDate >= new Date()).length} upcoming</span>
+                  <span>Active: {entryStats.accepted}</span>
+                  <span>{entryStats.upcoming} upcoming</span>
                 </div>
 
                 <div className="apple-show-stat-progress">
                   <div
                     className="apple-show-stat-progress-bar entries"
-                    style={{ width: `${entries.length > 0 ? Math.round((entries.filter(e => e.entryStatus === EntryStatus.ACCEPTED).length / entries.length) * 100) : 0}%` }}
+                    style={{ width: `${entryStats.acceptedPercent}%` }}
                   ></div>
                 </div>
               </div>
@@ -614,20 +649,20 @@ const MyEntriesPage: React.FC = () => {
                       <div className="apple-show-stat-title">Accepted</div>
                     </div>
                     <div className="apple-show-stat-number">
-                      {entries.filter(e => e.entryStatus === EntryStatus.ACCEPTED).length}
+                      {entryStats.accepted}
                     </div>
                   </div>
                 </div>
 
                 <div className="apple-show-stat-details">
                   <span>Ready to compete</span>
-                  <span>{entries.filter(e => e.entryStatus === EntryStatus.ACCEPTED && e.paymentStatus !== PaymentStatus.PENDING).length} paid</span>
+                  <span>{entryStats.acceptedPaid} paid</span>
                 </div>
 
                 <div className="apple-show-stat-progress">
                   <div
                     className="apple-show-stat-progress-bar judges"
-                    style={{ width: `${entries.length > 0 ? Math.round((entries.filter(e => e.entryStatus === EntryStatus.ACCEPTED).length / entries.length) * 100) : 0}%` }}
+                    style={{ width: `${entryStats.acceptedPercent}%` }}
                   ></div>
                 </div>
               </div>
@@ -643,23 +678,20 @@ const MyEntriesPage: React.FC = () => {
                       <div className="apple-show-stat-title">Needs Action</div>
                     </div>
                     <div className="apple-show-stat-number">
-                      {entries.filter(e =>
-                        e.entryStatus === EntryStatus.PENDING ||
-                        e.paymentStatus === PaymentStatus.PENDING
-                      ).length}
+                      {entryStats.needsAction}
                     </div>
                   </div>
                 </div>
 
                 <div className="apple-show-stat-details">
-                  <span>{entries.filter(e => e.entryStatus === EntryStatus.PENDING).length} awaiting review</span>
-                  <span>{entries.filter(e => e.entryStatus === EntryStatus.ACCEPTED && e.paymentStatus === PaymentStatus.PENDING).length} payment due</span>
+                  <span>{entryStats.pending} awaiting review</span>
+                  <span>{entryStats.acceptedUnpaid} payment due</span>
                 </div>
 
                 <div className="apple-show-stat-progress">
                   <div
                     className="apple-show-stat-progress-bar qualified"
-                    style={{ width: `${entries.length > 0 ? Math.round((entries.filter(e => e.entryStatus === EntryStatus.PENDING || e.paymentStatus === PaymentStatus.PENDING).length / entries.length) * 100) : 0}%` }}
+                    style={{ width: `${entryStats.needsActionPercent}%` }}
                   ></div>
                 </div>
               </div>
@@ -675,20 +707,20 @@ const MyEntriesPage: React.FC = () => {
                       <div className="apple-show-stat-title">Total Fees</div>
                     </div>
                     <div className="apple-show-stat-number">
-                      ${entries.reduce((sum, entry) => sum + entry.totalFee, 0)}
+                      ${entryStats.totalFees}
                     </div>
                   </div>
                 </div>
 
                 <div className="apple-show-stat-details">
-                  <span>${entries.filter(e => e.paymentStatus !== PaymentStatus.PENDING).reduce((sum, e) => sum + e.totalFee, 0)} paid</span>
-                  <span>${entries.filter(e => e.paymentStatus === PaymentStatus.PENDING).reduce((sum, e) => sum + e.totalFee, 0)} pending</span>
+                  <span>${entryStats.paidFees} paid</span>
+                  <span>${entryStats.unpaidFees} pending</span>
                 </div>
 
                 <div className="apple-show-stat-progress">
                   <div
                     className="apple-show-stat-progress-bar trials"
-                    style={{ width: `${entries.reduce((sum, entry) => sum + entry.totalFee, 0) > 0 ? Math.round((entries.filter(e => e.paymentStatus !== PaymentStatus.PENDING).reduce((sum, e) => sum + e.totalFee, 0) / entries.reduce((sum, entry) => sum + entry.totalFee, 0)) * 100) : 0}%` }}
+                    style={{ width: `${entryStats.paidPercent}%` }}
                   ></div>
                 </div>
               </div>

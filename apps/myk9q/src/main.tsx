@@ -6,9 +6,26 @@ import { registerSW } from 'virtual:pwa-register'
 import { serviceWorkerManager } from './utils/serviceWorkerUtils'
 import { initializeReplication } from './services/replication/initReplication'
 import { initSyncStatusListeners } from './stores/syncStatusStore'
-import { logger } from './utils/logger'
+import { logger, configureLogger } from '@myk9/core'
 import { UpdateToast } from './components/ui/UpdateToast'
 import { buildTimestamp } from './config/appVersion'
+
+// Configure logger with myk9q-specific settings reader
+configureLogger({
+  isDev: import.meta.env.DEV,
+  settingsReader: () => {
+    try {
+      const stored = localStorage.getItem('myK9Q_settings');
+      if (stored) {
+        const parsed = JSON.parse(stored) as { state?: { settings?: { consoleLogging?: 'none' | 'errors' | 'all' } } };
+        return parsed?.state?.settings?.consoleLogging || 'errors';
+      }
+    } catch {
+      // If parsing fails, default to errors
+    }
+    return 'errors';
+  },
+});
 
 // Global error handlers - catch unhandled async errors and uncaught exceptions
 // These provide a safety net for errors that escape try/catch blocks

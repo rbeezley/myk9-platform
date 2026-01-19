@@ -59,3 +59,30 @@ export {
   normalizeClassStatus,
   type ClassStatusValue,
 } from './constants/class-status';
+
+// Time formatting utilities
+export {
+  formatMilliseconds,
+  formatSecondsToMMSS,
+  formatSecondsToTime,
+  convertTimeToSeconds,
+  formatTimeForDisplay,
+  formatTimeLimitSeconds,
+  parseTimeToMs,
+  formatTimeInputToMMSS,
+} from './utils/timeFormatting';
+
+// Date formatting utilities
+export {
+  formatDateDisplay,
+  formatDateMMDDYYYY,
+  formatDateLocal,
+  toYYYYMMDD,
+  parseLocalDateString,
+  getTodayLocal,
+  isValidDateFormat,
+  dateDifferenceInDays,
+  formatDayAbbreviation,
+  formatTime,
+  formatTrialDate,
+} from './utils/dateFormatting';

@@ -25,6 +25,23 @@ interface UseClassAvailabilityOptions {
   enabled?: boolean;
 }
 
+/**
+ * Row type from Supabase query with joined trial data
+ */
+interface ClassWithTrialRow {
+  id: string;
+  name: string;
+  level: string | null;
+  max_entries: number | null;
+  trial_id: string;
+  trials: {
+    id: string;
+    name: string;
+    date: string;
+    show_id: string;
+  };
+}
+
 interface UseClassAvailabilityResult {
   classes: ClassAvailability[];
   isLoading: boolean;
@@ -123,9 +140,8 @@ export function useClassAvailability(
       }
 
       // Transform to ClassAvailability format
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const availability: ClassAvailability[] = classData.map((cls: any) => {
-        const trial = cls.trials as { id: string; name: string; date: string; show_id: string };
+      const availability: ClassAvailability[] = (classData as ClassWithTrialRow[]).map((cls) => {
+        const trial = cls.trials;
         const currentEntries = entryCountMap[cls.id] || 0;
         const entryLimit = cls.max_entries || 0;
         const spotsAvailable = Math.max(0, entryLimit - currentEntries);

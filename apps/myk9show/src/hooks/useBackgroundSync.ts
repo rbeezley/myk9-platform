@@ -141,7 +141,7 @@ export function useBackgroundSync() {
     // This would check the sync service for entity-specific status
     // For now, return a simple check based on entity type and ID
     // TODO: Implement proper entity-specific sync status checking
-    console.debug(`Checking sync status for ${entityType}:${entityId}`);
+    logger.debug(`Checking sync status for ${entityType}:${entityId}`, 'useBackgroundSync', { entityType, entityId });
     return 'synced';
   }, []);
 

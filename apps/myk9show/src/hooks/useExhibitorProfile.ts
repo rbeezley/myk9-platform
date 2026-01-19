@@ -6,6 +6,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuthContext } from './useAuthContext';
+import { logger } from '@/services/LoggingService';
 
 export interface ExhibitorProfile {
   id: string;
@@ -87,7 +88,7 @@ export function useExhibitorProfile() {
         .maybeSingle();
 
       if (error) {
-        console.error('Error fetching exhibitor profile:', error);
+        logger.error('Error fetching exhibitor profile', 'useExhibitorProfile', {}, error as Error);
         throw error;
       }
 

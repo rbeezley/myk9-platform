@@ -200,19 +200,25 @@ class NotificationService {
    * Get quiet hours configuration from settings
    */
   private getQuietHoursConfig(): QuietHoursConfig {
-    // Get from localStorage or settings
-    const stored = localStorage.getItem('notification_quiet_hours');
-    if (stored) {
-      return JSON.parse(stored);
-    }
-
     // Default quiet hours: 10 PM to 8 AM
-    return {
+    const defaultConfig: QuietHoursConfig = {
       enabled: false,
       startTime: '22:00',
       endTime: '08:00',
       allowUrgent: true,
     };
+
+    // Get from localStorage or settings
+    const stored = localStorage.getItem('notification_quiet_hours');
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch {
+        return defaultConfig;
+      }
+    }
+
+    return defaultConfig;
   }
 
   /**
@@ -247,24 +253,30 @@ class NotificationService {
    * Get Do Not Disturb configuration
    */
   private getDNDConfig(): DoNotDisturbConfig {
-    const stored = localStorage.getItem('notification_dnd');
-    if (stored) {
-      const config: DoNotDisturbConfig = JSON.parse(stored);
-
-      // Check if DND has expired
-      if (config.until && config.until < Date.now()) {
-        config.enabled = false;
-        this.setDND(config);
-      }
-
-      return config;
-    }
-
-    return {
+    const defaultConfig: DoNotDisturbConfig = {
       enabled: false,
       allowUrgent: true,
       allowedTypes: [],
     };
+
+    const stored = localStorage.getItem('notification_dnd');
+    if (stored) {
+      try {
+        const config: DoNotDisturbConfig = JSON.parse(stored);
+
+        // Check if DND has expired
+        if (config.until && config.until < Date.now()) {
+          config.enabled = false;
+          this.setDND(config);
+        }
+
+        return config;
+      } catch {
+        return defaultConfig;
+      }
+    }
+
+    return defaultConfig;
   }
 
   /**

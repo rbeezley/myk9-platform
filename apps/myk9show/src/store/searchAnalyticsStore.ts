@@ -424,10 +424,10 @@ export const useSearchAnalyticsStore = create<SearchAnalyticsStore>()(
           averageSessionDuration: sessionDurations.length > 0 
             ? sessionDurations.reduce((sum, d) => sum + d, 0) / sessionDurations.length 
             : 0,
-          mostActiveTimeOfDay: Object.entries(hourCount).reduce((max, [hour, count]) => 
-            count > (hourCount[max] || 0) ? parseInt(hour) : max, 0),
-          mostActiveDayOfWeek: Object.entries(dayCount).reduce((max, [day, count]) => 
-            count > (dayCount[max] || 0) ? parseInt(day) : max, 0),
+          mostActiveTimeOfDay: Object.entries(hourCount).reduce((max, [hour, count]) =>
+            count > (hourCount[max] || 0) ? parseInt(hour, 10) : max, 0),
+          mostActiveDayOfWeek: Object.entries(dayCount).reduce((max, [day, count]) =>
+            count > (dayCount[max] || 0) ? parseInt(day, 10) : max, 0),
           searchEfficiency: userQueries.length > 0 ? totalClicks / userQueries.length : 0,
           commonSearchPatterns: Object.keys(queryCount).slice(0, 10)
         };

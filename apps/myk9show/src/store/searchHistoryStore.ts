@@ -501,7 +501,7 @@ export const useSearchHistoryStore = create<SearchHistoryStore>()(
         const peakSearchHours = Object.entries(hourCount)
           .sort(([, a], [, b]) => b - a)
           .slice(0, 3)
-          .map(([hour]) => parseInt(hour));
+          .map(([hour]) => parseInt(hour, 10));
 
         const commonQueryPrefixes = Object.entries(queryPrefixes)
           .sort(([, a], [, b]) => b - a)

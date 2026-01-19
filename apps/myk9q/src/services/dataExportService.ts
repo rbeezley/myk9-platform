@@ -67,19 +67,27 @@ async function collectUserData(licenseKey?: string): Promise<ExportedData> {
 
       // Auth data
       if (key === 'myK9Q_auth') {
-        const authData = JSON.parse(value);
-        data.auth = {
-          role: authData.role,
-          lastLogin: authData.lastLogin,
-          // Don't export sensitive data like passcodes
-        };
+        try {
+          const authData = JSON.parse(value);
+          data.auth = {
+            role: authData.role,
+            lastLogin: authData.lastLogin,
+            // Don't export sensitive data like passcodes
+          };
+        } catch {
+          // Skip corrupted auth data
+        }
         continue;
       }
 
       // Favorites (all license keys)
       if (key.startsWith('dog_favorites_')) {
-        const favLicenseKey = key.replace('dog_favorites_', '');
-        data.favorites[favLicenseKey] = JSON.parse(value);
+        try {
+          const favLicenseKey = key.replace('dog_favorites_', '');
+          data.favorites[favLicenseKey] = JSON.parse(value);
+        } catch {
+          // Skip corrupted favorites
+        }
         continue;
       }
 

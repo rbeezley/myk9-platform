@@ -482,7 +482,7 @@ export const useTrialStore = create<TrialStore>()(
       
       // Legacy methods for compatibility
       addTrialLegacy: (trial) => set((state) => {
-        const newId = String(Math.max(0, ...state.trials.map(t => parseInt(t.id))) + 1);
+        const newId = String(Math.max(0, ...state.trials.map(t => parseInt(t.id, 10) || 0)) + 1);
         const legacyTrial: SyncableTrial = {
           ...trial,
           id: newId,
@@ -648,7 +648,7 @@ export const useTrialStore = create<TrialStore>()(
         if (!trial) return state;
         
         const classes = state.trialClasses[trialId] || [];
-        const newId = String(Math.max(0, ...classes.map(c => parseInt(c.id))) + 1);
+        const newId = String(Math.max(0, ...classes.map(c => parseInt(c.id, 10) || 0)) + 1);
         
         const legacyClass: SyncableTrialClass = {
           ...trialClass,

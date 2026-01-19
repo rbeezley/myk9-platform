@@ -199,8 +199,8 @@ export function generateMockScentWorkEntries(
   }
   
   // Sort by armband number for consistent display
-  return entries.sort((a, b) => 
-    parseInt(a.displayInfo.armband) - parseInt(b.displayInfo.armband)
+  return entries.sort((a, b) =>
+    parseInt(a.displayInfo.armband, 10) - parseInt(b.displayInfo.armband, 10)
   );
 }
 

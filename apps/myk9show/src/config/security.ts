@@ -31,8 +31,8 @@ function validateEnvironment(): SecurityConfig {
     enableXSSProtection: true,
     enableContentTypeSniffing: false,
     enableReferrerPolicy: true,
-    sessionTimeout: parseInt(import.meta.env.VITE_SESSION_TIMEOUT || '3600000'), // 1 hour default
-    maxFailedAttempts: parseInt(import.meta.env.VITE_MAX_FAILED_ATTEMPTS || '5'),
+    sessionTimeout: parseInt(import.meta.env.VITE_SESSION_TIMEOUT || '3600000', 10), // 1 hour default
+    maxFailedAttempts: parseInt(import.meta.env.VITE_MAX_FAILED_ATTEMPTS || '5', 10),
     rateLimitWindow: 60000, // 1 minute
     rateLimitMaxRequests: 100,
     environment: env as 'development' | 'production' | 'test'
@@ -206,7 +206,7 @@ export class CSRFTokenManager {
     }
 
     // Check expiry
-    if (Date.now() > parseInt(storedExpiry)) {
+    if (Date.now() > parseInt(storedExpiry, 10)) {
       this.clearToken();
       return false;
     }

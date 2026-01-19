@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Authentication Helper Utilities
  * Provides centralized auth context access and fallback mechanisms
@@ -7,6 +6,15 @@
 import { useContext } from 'react';
 import { AuthContext } from '@/context/AuthContext';
 import { logger } from '@/services/LoggingService';
+
+/**
+ * Extended user type that may include name property
+ */
+interface UserWithName {
+  id?: string;
+  email?: string;
+  name?: string;
+}
 
 /**
  * Get current user ID with fallback
@@ -72,10 +80,11 @@ export function useCurrentUser() {
     return getCurrentUserInfo();
   }
   
+  const user = context.user as UserWithName | null;
   return {
-    id: context.user?.id || getCurrentUserId(),
-    email: context.user?.email || 'unknown@example.com',
-    name: (context.user as any)?.name || 'Unknown User'
+    id: user?.id || getCurrentUserId(),
+    email: user?.email || 'unknown@example.com',
+    name: user?.name || 'Unknown User'
   };
 }
 

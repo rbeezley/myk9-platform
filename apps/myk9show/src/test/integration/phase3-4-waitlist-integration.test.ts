@@ -20,7 +20,6 @@ import { OfflineEntryCreator } from '@/services/entries/OfflineEntryCreator';
 import type { Show, Class } from '@/types/show-types';
 import type { Dog } from '@/types/dog-types';
 
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 
 describe('Phase 3.4: Waitlist Integration', () => {
   let entryStore: ReturnType<typeof useEntryStore.getState>;

@@ -27,8 +27,7 @@ export const mapDogInputToInsert = (input: DogInput): DbDogInsert => {
   
   // Defensive programming: Ensure no id field is accidentally included
   if ('id' in dbInsert) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    delete (dbInsert as any).id;
+    delete (dbInsert as Record<string, unknown>)['id'];
   }
   
   return dbInsert;

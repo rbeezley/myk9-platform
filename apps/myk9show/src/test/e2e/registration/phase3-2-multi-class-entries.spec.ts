@@ -1,8 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { TestSetup } from '../helpers/testSetup';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 test.describe('Phase 3.2: Multi-Class Entry Registration Testing', () => {
   let testSetup: TestSetup;
 

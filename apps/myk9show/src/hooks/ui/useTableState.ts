@@ -214,8 +214,14 @@ export function useTableState<T extends { id: string }>({
     // Apply sorting
     if (sortConfig) {
       result.sort((a, b) => {
-        const aValue = (a as any)[sortConfig.key]; // eslint-disable-line @typescript-eslint/no-explicit-any
-        const bValue = (b as any)[sortConfig.key]; // eslint-disable-line @typescript-eslint/no-explicit-any
+        const aRecord = a as Record<string, unknown>;
+        const bRecord = b as Record<string, unknown>;
+        const aValue = aRecord[sortConfig.key];
+        const bValue = bRecord[sortConfig.key];
+
+        if (aValue == null && bValue == null) return 0;
+        if (aValue == null) return sortConfig.direction === 'asc' ? 1 : -1;
+        if (bValue == null) return sortConfig.direction === 'asc' ? -1 : 1;
 
         if (aValue < bValue) {
           return sortConfig.direction === 'asc' ? -1 : 1;

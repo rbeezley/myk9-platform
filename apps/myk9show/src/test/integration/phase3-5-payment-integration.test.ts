@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { PaymentStatus, EntryStatus } from '@/types/show-registration-types';
 
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 
 // Payment Service Integration Tests
 describe('Phase 3.5: Payment Service Integration', () => {

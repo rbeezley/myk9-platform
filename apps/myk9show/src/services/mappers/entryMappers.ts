@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck
-// TODO: Fix type errors - 'status' property not in DbEntryInsert type
 // Type mapping utilities for Entry Store <-> Database integration
 // Entry Store Integration - React Query Implementation
 
@@ -9,11 +6,50 @@ import type { DbEntryInsert, DbEntryUpdate } from '@/types/database-mappings';
 import { logger } from '@/services/LoggingService';
 
 /**
+ * Database entry with optional relations for queries that join related tables
+ */
+interface DbEntryWithRelations extends Record<string, unknown> {
+  id: string;
+  show_id: string;
+  class_id: string;
+  dog_id: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  dog?: {
+    call_name?: string;
+    name?: string;
+    breed?: string;
+    owner?: {
+      first_name?: string;
+      last_name?: string;
+      email?: string;
+    };
+  };
+  class?: {
+    name?: string;
+    class_number?: string;
+  };
+  show?: {
+    name?: string;
+    start_date?: string;
+  };
+  result?: Array<Record<string, unknown>>;
+  entry_status_history?: Array<Record<string, unknown>>;
+}
+
+/**
+ * Extended DbEntryInsert with status field
+ * Note: status column exists in database but may not be in generated types yet
+ */
+type DbEntryInsertWithStatus = DbEntryInsert & { status?: string };
+
+/**
  * Convert ShowEntryInput (from entryStore) to DbEntryInsert (for database)
  */
-export const mapEntryInputToInsert = (input: ShowEntryInput): DbEntryInsert => {
+export const mapEntryInputToInsert = (input: ShowEntryInput): DbEntryInsertWithStatus => {
   const now = new Date().toISOString();
-  
+
   return {
     show_id: input.showId,
     class_id: input.classId,
@@ -188,19 +224,23 @@ export const mapDatabaseEntriesArray = (dbEntries: Array<Record<string, unknown>
 };
 
 /**
+ * Entry with expanded relation data
+ */
+export interface EntryWithRelations extends ShowEntry {
+  dogName?: string | undefined;
+  dogBreed?: string | undefined;
+  ownerName?: string | undefined;
+  ownerEmail?: string | undefined;
+  className?: string | undefined;
+  classNumber?: string | undefined;
+  showName?: string | undefined;
+  showDate?: string | undefined;
+}
+
+/**
  * Convert database entry with relations to ShowEntry with expanded data
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const mapDatabaseToEntryWithRelations = (dbEntry: any): ShowEntry & {
-  dogName?: string;
-  dogBreed?: string;
-  ownerName?: string;
-  ownerEmail?: string;
-  className?: string;
-  classNumber?: string;
-  showName?: string;
-  showDate?: string;
-} => {
+export const mapDatabaseToEntryWithRelations = (dbEntry: DbEntryWithRelations): EntryWithRelations => {
   const baseEntry = mapDatabaseToEntry(dbEntry);
 
   return {
@@ -222,16 +262,6 @@ export const mapDatabaseToEntryWithRelations = (dbEntry: any): ShowEntry & {
 /**
  * Convert array of database entries with relations to ShowEntry array with expanded data
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const mapDatabaseEntriesWithRelationsArray = (dbEntries: any[]): (ShowEntry & {
-  dogName?: string;
-  dogBreed?: string;
-  ownerName?: string;
-  ownerEmail?: string;
-  className?: string;
-  classNumber?: string;
-  showName?: string;
-  showDate?: string;
-})[] => {
+export const mapDatabaseEntriesWithRelationsArray = (dbEntries: DbEntryWithRelations[]): EntryWithRelations[] => {
   return dbEntries.map(mapDatabaseToEntryWithRelations);
 };

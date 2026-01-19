@@ -1,5 +1,4 @@
 import { test, expect } from '@playwright/test';
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 import { TestSetup } from '../helpers/testSetup';
 import { VisualTestHelper } from '../helpers/visualTestHelper';
 

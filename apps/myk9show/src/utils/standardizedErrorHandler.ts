@@ -1,12 +1,19 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Standardized Error Handling Utilities
- * 
+ *
  * Provides consistent error handling patterns across the application
  * to replace scattered console.log/warn/error calls
  */
 
 import { logger } from '@/services/LoggingService';
+
+/**
+ * Extended Error type with additional context
+ */
+interface ContextualError extends Error {
+  originalError?: Error;
+  context?: ErrorContext;
+}
 
 export interface ErrorContext {
   operation: string;
@@ -231,7 +238,7 @@ export class StandardErrorHandler {
         error.stack = originalError.stack;
       }
       // Note: Error.cause is ES2022+, using custom property for compatibility
-      (error as any).originalError = originalError;
+      (error as ContextualError).originalError = originalError;
     }
 
     // Add context as non-enumerable property
@@ -323,7 +330,7 @@ export const ERROR_MIGRATION_PATTERNS = {
 /**
  * Type-safe error handling decorators for stores
  */
-export function withErrorHandling<T extends (...args: any[]) => any>(
+export function withErrorHandling<T extends (...args: unknown[]) => unknown>(
   fn: T,
   context: Omit<ErrorContext, 'metadata'>
 ): T {

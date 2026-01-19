@@ -8,8 +8,6 @@ import { describe, it, expect } from 'vitest';
 import { EntryLimitChecker } from '@/services/entries/EntryLimitChecker';
 import { validatePhase34Implementation } from './e2e/registration/phase3-4-validation-report';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 describe('Phase 3.4: Quick Validation', () => {
   it('should have all required entry limit checking functionality', () => {
     // Test that EntryLimitChecker has all required methods

@@ -1,18 +1,17 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Route Component Registry
- * 
+ *
  * Central registry of all lazy loaded components for intelligent preloading
  * Maps route paths to their corresponding components
  */
 
 import type { ComponentType } from 'react';
 
-// Import lazy components from different route files  
+// Import lazy components from different route files
 // Note: These are import functions, not the components themselves
 
-// Type for import functions
-type ImportFunction = () => Promise<{ default: ComponentType<any> } | ComponentType<any>>;
+// Type for import functions - uses unknown props for generic component handling
+type ImportFunction = () => Promise<{ default: ComponentType<Record<string, unknown>> } | ComponentType<Record<string, unknown>>>;
 
 // Admin route components
 export const adminRouteComponents: Record<string, ImportFunction> = {
@@ -213,9 +212,22 @@ export function getRoutePriority(path: string): 'critical' | 'high' | 'medium' |
   return 'low';
 }
 
-// Development helper
+// Development helper - extend window for dev tools
+declare global {
+  interface Window {
+    __routeRegistry?: {
+      fullRouteRegistry: typeof fullRouteRegistry;
+      routeCategories: typeof routeCategories;
+      navigationPatterns: typeof navigationPatterns;
+      getRouteImportFunction: typeof getRouteImportFunction;
+      getRoutePriority: typeof getRoutePriority;
+      totalRoutes: number;
+    };
+  }
+}
+
 if (process.env.NODE_ENV === 'development') {
-  (window as any).__routeRegistry = {
+  window.__routeRegistry = {
     fullRouteRegistry,
     routeCategories,
     navigationPatterns,

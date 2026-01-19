@@ -1,7 +1,5 @@
 import { faker } from '@faker-js/faker';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 export interface ShowTestData {
   name: string;
   type: 'AKC' | 'UKC' | 'Other';

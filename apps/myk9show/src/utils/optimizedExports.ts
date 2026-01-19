@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/ban-ts-comment */
 /**
  * Optimized Export Utilities
  *
@@ -10,9 +8,14 @@
 import { logger } from '@/services/LoggingService';
 
 /**
+ * Generic function type for tree shaking helpers
+ */
+type AnyFunction = (...args: unknown[]) => unknown;
+
+/**
  * Utility to create optimized barrel exports that support tree shaking
  */
-export function createOptimizedExports<T extends Record<string, any>>(
+export function createOptimizedExports<T extends Record<string, unknown>>(
   exports: T,
   usageMap?: Partial<Record<keyof T, boolean>>
 ): T {
@@ -44,7 +47,7 @@ export function createOptimizedExports<T extends Record<string, any>>(
 /**
  * Dynamic import helper with better error handling
  */
-export async function dynamicImport<T = any>(
+export async function dynamicImport<T = unknown>(
   importFn: () => Promise<T>,
   fallback?: T,
   context?: string
@@ -65,7 +68,7 @@ export async function dynamicImport<T = any>(
 /**
  * Conditional import based on feature flags or conditions
  */
-export async function conditionalImport<T = any>(
+export async function conditionalImport<T = unknown>(
   condition: boolean | (() => boolean),
   importFn: () => Promise<T>,
   fallback?: T
@@ -158,29 +161,41 @@ export function createLazyExport<T>(
 }
 
 /**
+ * Extended function type with bundler annotations
+ */
+interface AnnotatedFunction extends AnyFunction {
+  __PURE__?: boolean;
+}
+
+/**
+ * Extended module type with bundler annotations
+ */
+interface AnnotatedModule {
+  __sideEffects?: boolean;
+}
+
+/**
  * Tree shaking helpers for common patterns
  */
 export const TreeShakingHelpers = {
   /**
    * Mark a function as side-effect free for better tree shaking
    */
-  pure: <T extends (...args: any[]) => any>(fn: T): T => {
-    // @ts-ignore - Add pure annotation for bundlers
-    fn.__PURE__ = true;
+  pure: <T extends AnyFunction>(fn: T): T => {
+    (fn as AnnotatedFunction).__PURE__ = true;
     return fn;
   },
-  
+
   /**
    * Create a module with explicit side effects declaration
    */
   withSideEffects: <T>(module: T, hasSideEffects: boolean): T => {
     if (typeof module === 'object' && module !== null) {
-      // @ts-ignore - Add side effects annotation
-      (module as any).__sideEffects = hasSideEffects;
+      (module as unknown as AnnotatedModule).__sideEffects = hasSideEffects;
     }
     return module;
   },
-  
+
   /**
    * Mark unused exports for development warnings
    */
@@ -192,23 +207,44 @@ export const TreeShakingHelpers = {
 };
 
 /**
+ * Bundle growth tracker for development
+ */
+interface BundleGrowthTracker {
+  initialSize: number;
+  currentSize: number;
+  threshold: number;
+  updateSize(newSize: number): void;
+}
+
+// Extend window for dev tools
+declare global {
+  interface Window {
+    __bundleAnalyzer?: {
+      BundleAnalyzer: typeof BundleAnalyzer;
+      bundleGrowthTracker: BundleGrowthTracker;
+      TreeShakingHelpers: typeof TreeShakingHelpers;
+    };
+  }
+}
+
+/**
  * Development-only bundle size tracking
  */
 if (process.env.NODE_ENV === 'development') {
   // Track bundle size growth over time
-  const bundleGrowthTracker = {
+  const bundleGrowthTracker: BundleGrowthTracker = {
     initialSize: 0,
     currentSize: 0,
     threshold: 0.1, // 10% growth warning
-    
+
     updateSize(newSize: number) {
       if (this.initialSize === 0) {
         this.initialSize = newSize;
       }
-      
+
       this.currentSize = newSize;
       const growthRatio = (newSize - this.initialSize) / this.initialSize;
-      
+
       if (growthRatio > this.threshold) {
         logger.warn(`Bundle size grew by ${(growthRatio * 100).toFixed(1)}%`, 'bundle', {
           initial: `${(this.initialSize / 1024).toFixed(1)}KB`,
@@ -218,9 +254,9 @@ if (process.env.NODE_ENV === 'development') {
       }
     }
   };
-  
+
   // Expose to global for debugging
-  (window as any).__bundleAnalyzer = {
+  window.__bundleAnalyzer = {
     BundleAnalyzer,
     bundleGrowthTracker,
     TreeShakingHelpers

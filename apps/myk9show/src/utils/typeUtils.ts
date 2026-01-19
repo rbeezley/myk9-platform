@@ -1,7 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * TypeScript Utility Functions
- * 
+ *
  * Helper functions to improve type safety and reduce TypeScript errors
  */
 
@@ -159,13 +158,13 @@ export type DeepReadonly<T> = {
  * @param obj - Object to make readonly
  * @returns Deep readonly version of object
  */
-export function deepFreeze<T>(obj: T): DeepReadonly<T> {
+export function deepFreeze<T extends object>(obj: T): DeepReadonly<T> {
   Object.getOwnPropertyNames(obj).forEach(prop => {
-    const value = (obj as any)[prop];
+    const value = (obj as Record<string, unknown>)[prop];
     if (value && typeof value === 'object') {
-      deepFreeze(value);
+      deepFreeze(value as object);
     }
   });
-  
+
   return Object.freeze(obj) as DeepReadonly<T>;
 }

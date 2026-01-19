@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { backgroundSyncService } from '@/services/sync/backgroundSyncService';
 import { SyncMetrics, NetworkState, SyncEvent } from '@/types/sync-types';
 import { logger } from '@/services/LoggingService';
+import { ensureError } from '@myk9/core';
 
 export interface BackgroundSyncState {
   isOnline: boolean;
@@ -68,7 +69,7 @@ export function useBackgroundSync() {
         isOnline: networkState.isOnline
       }));
     } catch (error) {
-      logger.error('Failed to update sync state:', 'hooks', {}, error as Error);
+      logger.error('Failed to update sync state:', 'hooks', {}, ensureError(error));
     }
   }, []);
 
@@ -122,7 +123,7 @@ export function useBackgroundSync() {
       await backgroundSyncService.forcSync();
       setTimeout(updateSyncState, 100);
     } catch (error) {
-      logger.error('Manual sync failed:', 'hooks', {}, error as Error);
+      logger.error('Manual sync failed:', 'hooks', {}, ensureError(error));
       setSyncState(prev => ({
         ...prev,
         isSyncing: false,
@@ -162,7 +163,7 @@ export function useBackgroundSync() {
           await updateSyncState();
         }
       } catch (error) {
-        logger.error('Failed to initialize sync service:', 'hooks', {}, error as Error);
+        logger.error('Failed to initialize sync service:', 'hooks', {}, ensureError(error));
         if (mounted) {
           setSyncState(prev => ({
             ...prev,

@@ -8,6 +8,7 @@
 import React, { useState } from 'react';
 import { ClipboardCheck, ArrowLeft } from 'lucide-react';
 import { Button, Input, Card, cn } from '@myk9/ui';
+import { logger } from '@myk9/core';
 
 // Types
 interface UKCObedienceScoresheetProps {
@@ -99,7 +100,7 @@ export const UKCObedienceScoresheet: React.FC<UKCObedienceScoresheetProps> = ({
         onBack();
       }
     } catch (error) {
-      console.error('Failed to save score:', error);
+      logger.error('Failed to save score:', error);
     } finally {
       setIsSubmitting(false);
     }

@@ -28,6 +28,7 @@ import {
 } from '../types/auth-types';
 import { ProtectedRouteProps, ConvenienceRouteProps } from './authUtils';
 import { rbacService } from '@/services/rbac/RBACService';
+import { ensureError } from '@myk9/core';
 
 // Type for user role with details from RBAC service
 interface UserRoleWithDetails {
@@ -132,7 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .single();
 
       if (error) {
-        logger.warn('Could not fetch user profile:', 'context', {}, error as Error);
+        logger.warn('Could not fetch user profile:', 'context', {}, ensureError(error));
         return null;
       }
 
@@ -171,7 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           error: null
         });
       } catch (error) {
-        logger.error('Failed to load RBAC data:', 'app', {}, error as Error);
+        logger.error('Failed to load RBAC data:', 'app', {}, ensureError(error));
         setRbacData(prev => ({
           ...prev,
           isLoading: false,
@@ -392,7 +393,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         error: null
       });
     } catch (error) {
-      logger.error('Failed to refresh RBAC data:', 'app', {}, error as Error);
+      logger.error('Failed to refresh RBAC data:', 'app', {}, ensureError(error));
       setRbacData(prev => ({
         ...prev,
         isLoading: false,

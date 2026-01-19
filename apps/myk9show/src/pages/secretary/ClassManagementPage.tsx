@@ -2,7 +2,7 @@ import React, { useState, startTransition } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useClassCreationStore } from '@/store/classCreationStore';
 import type { ClassStatus } from '@/types/template.types';
-import { CLASS_STATUS, getClassStatusBadgeClasses } from '@myk9/core';
+import { CLASS_STATUS, getClassStatusBadgeClasses, matchesAny } from '@myk9/core';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -47,14 +47,10 @@ export const ClassManagementPage: React.FC = () => {
   
   // Filter classes
   const filteredClasses = allClasses.filter(cls => {
-    const matchesSearch = !searchTerm || 
-      cls.className.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cls.element.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cls.level?.toLowerCase().includes(searchTerm.toLowerCase());
-    
+    const matchesSearch = matchesAny([cls.className, cls.element, cls.level], searchTerm);
     const matchesStatus = !statusFilter || cls.status === statusFilter;
     const matchesElement = !elementFilter || cls.element === elementFilter;
-    
+
     return matchesSearch && matchesStatus && matchesElement;
   });
 

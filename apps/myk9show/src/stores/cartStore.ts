@@ -11,6 +11,7 @@ import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
+import { ensureError } from '@myk9/core';
 import type { Database } from '@myk9/supabase';
 
 // Types from database
@@ -184,7 +185,7 @@ export const useCartStore = create<CartState>()(
           } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to load cart';
             set({ error: message, isLoading: false });
-            logger.error('Failed to load cart', 'cartStore', { showId, exhibitorId }, error as Error);
+            logger.error('Failed to load cart', 'cartStore', { showId, exhibitorId }, ensureError(error));
             return null;
           }
         },
@@ -238,7 +239,7 @@ export const useCartStore = create<CartState>()(
           } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to create cart';
             set({ error: message, isLoading: false });
-            logger.error('Failed to create cart', 'cartStore', { showId, exhibitorId }, error as Error);
+            logger.error('Failed to create cart', 'cartStore', { showId, exhibitorId }, ensureError(error));
             return null;
           }
         },
@@ -312,7 +313,7 @@ export const useCartStore = create<CartState>()(
           } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to add item';
             set({ error: message });
-            logger.error('Failed to add cart item', 'cartStore', { item }, error as Error);
+            logger.error('Failed to add cart item', 'cartStore', { item }, ensureError(error));
             return false;
           }
         },
@@ -370,7 +371,7 @@ export const useCartStore = create<CartState>()(
           } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to remove item';
             set({ error: message });
-            logger.error('Failed to remove cart item', 'cartStore', { itemId }, error as Error);
+            logger.error('Failed to remove cart item', 'cartStore', { itemId }, ensureError(error));
             return false;
           }
         },
@@ -441,7 +442,7 @@ export const useCartStore = create<CartState>()(
           } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to update item';
             set({ error: message });
-            logger.error('Failed to update cart item', 'cartStore', { itemId, updates }, error as Error);
+            logger.error('Failed to update cart item', 'cartStore', { itemId, updates }, ensureError(error));
             return false;
           }
         },
@@ -493,7 +494,7 @@ export const useCartStore = create<CartState>()(
           } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to clear cart';
             set({ error: message });
-            logger.error('Failed to clear cart', 'cartStore', {}, error as Error);
+            logger.error('Failed to clear cart', 'cartStore', {}, ensureError(error));
             return false;
           }
         },
@@ -538,7 +539,7 @@ export const useCartStore = create<CartState>()(
           } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to extend expiration';
             set({ error: message });
-            logger.error('Failed to extend cart expiration', 'cartStore', {}, error as Error);
+            logger.error('Failed to extend cart expiration', 'cartStore', {}, ensureError(error));
             return false;
           }
         },
@@ -572,7 +573,7 @@ export const useCartStore = create<CartState>()(
           } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to abandon cart';
             set({ error: message });
-            logger.error('Failed to abandon cart', 'cartStore', {}, error as Error);
+            logger.error('Failed to abandon cart', 'cartStore', {}, ensureError(error));
             return false;
           }
         },

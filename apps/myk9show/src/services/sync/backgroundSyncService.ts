@@ -6,6 +6,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { logger } from '@/services/LoggingService';
+import { ensureError } from '@myk9/core';
 
 export interface BackgroundSyncOptions {
   maxRetries: number;
@@ -296,7 +297,7 @@ export class BackgroundSyncService {
           }
 
         } catch (error) {
-          logger.error('Error processing sync task', 'sync', {}, error as Error);
+          logger.error('Error processing sync task', 'sync', {}, ensureError(error));
           this.onSyncErrorCallbacks.forEach(callback => 
             callback(error instanceof Error ? error : new Error(String(error)), task)
           );
@@ -399,7 +400,7 @@ export class BackgroundSyncService {
       });
       window.dispatchEvent(event);
     } catch (error) {
-      logger.warn('Failed to update local entity', 'sync', {}, error as Error);
+      logger.warn('Failed to update local entity', 'sync', {}, ensureError(error));
     }
   }
 
@@ -483,7 +484,7 @@ export class BackgroundSyncService {
         await (this.serviceWorkerRegistration as any).sync.register('background-sync');
       }
     } catch (error) {
-      logger.warn('Service Worker registration failed', 'sync', {}, error as Error);
+      logger.warn('Service Worker registration failed', 'sync', {}, ensureError(error));
     }
   }
 
@@ -515,7 +516,7 @@ export class BackgroundSyncService {
         store.put(task);
       };
     } catch (error) {
-      logger.warn('Failed to persist sync task', 'sync', {}, error as Error);
+      logger.warn('Failed to persist sync task', 'sync', {}, ensureError(error));
     }
   }
 
@@ -530,7 +531,7 @@ export class BackgroundSyncService {
         store.delete(taskId);
       };
     } catch (error) {
-      logger.warn('Failed to remove persistent sync task', 'sync', {}, error as Error);
+      logger.warn('Failed to remove persistent sync task', 'sync', {}, ensureError(error));
     }
   }
 

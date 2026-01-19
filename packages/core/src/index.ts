@@ -86,3 +86,20 @@ export {
   formatTime,
   formatTrialDate,
 } from './utils/dateFormatting';
+
+// Error handling utilities
+export {
+  ensureError,
+  isErrorLike,
+  getErrorMessage,
+} from './utils/errors';
+
+// Search and filter utilities
+export {
+  matchesSearch,
+  matchesAny,
+  createSearchFilter,
+  filterBySearchTerm,
+  normalizeSearchTerm,
+  createDebouncedSearch,
+} from './utils/search';

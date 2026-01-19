@@ -8,6 +8,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { X, ClipboardCheck, ArrowLeft, Minus, Plus } from 'lucide-react';
 import { Button, Input, Card, cn } from '@myk9/ui';
+import { logger } from '@myk9/core';
 import { useStopwatch } from '../../../hooks/useStopwatch';
 
 // Types
@@ -183,7 +184,7 @@ export const ASCAScentDetectionScoresheet: React.FC<ASCAScentDetectionScoresheet
         onBack();
       }
     } catch (error) {
-      console.error('Failed to save score:', error);
+      logger.error('Failed to save score:', error);
     } finally {
       setIsSubmitting(false);
     }

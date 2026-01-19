@@ -47,9 +47,9 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
+  padding: 8px 14px;
   border-radius: 50px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 590;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -127,9 +127,9 @@
 }
 
 .apple-show-stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
-  border-color: rgba(0, 122, 255, 0.2);
+  transform: translateY(-4px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
+  border-color: rgba(0, 122, 255, 0.4);
 }
 
 .apple-show-stat-layout {
@@ -197,7 +197,7 @@
 }
 
 .apple-show-stat-subtitle {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--muted-foreground);
   white-space: nowrap;
@@ -209,7 +209,7 @@
 }
 
 .apple-show-stat-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 590;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -327,12 +327,12 @@
 }
 
 .apple-show-info-label {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--muted-foreground);
-  opacity: 0.7;
+  opacity: 0.8;
   margin-bottom: 2px;
 }
 
@@ -395,9 +395,9 @@
 }
 
 .apple-trial-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.06);
-  border-color: rgba(0, 122, 255, 0.3);
+  transform: translateY(-4px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.1);
+  border-color: rgba(0, 122, 255, 0.4);
 }
 
 .apple-trial-header {
@@ -423,9 +423,9 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 8px;
+  padding: 6px 12px;
   border-radius: 50px;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 590;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -735,15 +735,15 @@
 }
 
 .apple-sidebar-subgroup-title {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   text-transform: capitalize;
 }
 
 .apple-sidebar-subgroup-count {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 400;
-  opacity: 0.6;
+  opacity: 0.7;
 }
 
 .apple-show-sidebar-item {
@@ -774,14 +774,14 @@
 }
 
 .apple-show-sidebar-club {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--muted-foreground);
   margin-bottom: 1px;
   line-height: 1.2;
 }
 
 .apple-show-sidebar-date {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--muted-foreground);
   opacity: 0.8;
   line-height: 1.2;
@@ -1261,8 +1261,8 @@
 }
 
 .apple-browse-view-details-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0, 122, 255, 0.4);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(0, 122, 255, 0.5);
   background: linear-gradient(135deg, #0056CC 0%, #4A4A9E 100%);
 }
 
@@ -1569,9 +1569,9 @@
 }
 
 .apple-entry-result-badge {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 650;
-  padding: 4px 8px;
+  padding: 6px 12px;
   border-radius: 8px;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -1716,8 +1716,8 @@
 }
 
 .apple-judge-stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
 }
 
 .apple-judge-stat-number {
@@ -2033,8 +2033,8 @@
 }
 
 .apple-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.14);
 }
 
 .apple-card-header {
@@ -2081,9 +2081,9 @@
 }
 
 .apple-button-qualification:hover {
-  transform: translateY(-2px);
+  transform: translateY(-4px);
   border-color: var(--primary);
-  box-shadow: 0 8px 24px rgba(0, 122, 255, 0.15);
+  box-shadow: 0 12px 28px rgba(0, 122, 255, 0.2);
 }
 
 .apple-button-qualified.selected {
@@ -2227,8 +2227,8 @@
 }
 
 .apple-button-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 122, 255, 0.4);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(0, 122, 255, 0.5);
   background: linear-gradient(135deg, #0056CC 0%, #4A4A9E 100%);
 }
 

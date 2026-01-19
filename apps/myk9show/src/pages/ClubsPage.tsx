@@ -11,6 +11,7 @@ import { buildClasses } from '@/utils/designTokens';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { SidebarLayout, SIDEBAR_LAYOUT_CONSTANTS } from '@/components/layout/SidebarLayout';
 import { useSidebarLayoutState } from '@/hooks/useSidebarLayoutState';
+import { ClubsPageSkeleton } from '@/components/common/SkeletonLoaders';
 
 // Sidebar width constants matching UnifiedSidebar tokens
 const SIDEBAR_WIDTH_EXPANDED = 320; // 20rem
@@ -131,26 +132,8 @@ const ClubsPage: React.FC = () => {
 
   // Render main content based on loading/data state
   const renderContent = () => {
-    if (isLoading) {
-      return (
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading clubs...</p>
-          </div>
-        </div>
-      );
-    }
-
-    if (clubs.length === 0 && isSyncing) {
-      return (
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Syncing clubs from server...</p>
-          </div>
-        </div>
-      );
+    if (isLoading || (clubs.length === 0 && isSyncing)) {
+      return <ClubsPageSkeleton />;
     }
 
     if (clubs.length === 0) {

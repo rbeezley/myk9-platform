@@ -18,19 +18,19 @@ export const buttonVariants = cva(
     'rounded-xl',
     'shadow-sm',
 
-    // Focus states
+    // Focus states - enhanced for accessibility
     'focus-visible:outline-none',
-    'focus-visible:ring-2',
-    'focus-visible:ring-primary/30',
-    'focus-visible:ring-offset-1',
+    'focus-visible:ring-[3px]',
+    'focus-visible:ring-primary/40',
+    'focus-visible:ring-offset-2',
     'focus-visible:shadow-md',
 
     // Transitions
     'transition-all duration-200 ease-apple',
 
-    // Hover/active micro-interactions
-    'hover:shadow-md hover:scale-[1.02]',
-    'active:scale-[0.98] active:shadow-sm',
+    // Hover/active micro-interactions - enhanced for visibility
+    'hover:shadow-md hover:scale-[1.03]',
+    'active:scale-[0.95] active:shadow-sm',
 
     // Disabled states
     'disabled:pointer-events-none',
@@ -38,8 +38,8 @@ export const buttonVariants = cva(
     'disabled:scale-100',
     'disabled:shadow-none',
 
-    // Icon handling
-    '[&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
+    // Icon handling - slightly larger icons for better visibility
+    '[&_svg]:pointer-events-none [&_svg]:size-5 [&_svg]:shrink-0',
   ].join(' '),
   {
     variants: {
@@ -69,7 +69,8 @@ export const buttonVariants = cva(
         default: 'h-9 px-6 py-2.5',
         sm: 'h-8 rounded-lg px-4 text-xs',
         lg: 'h-11 rounded-xl px-8 text-base',
-        icon: 'h-9 w-9 rounded-xl',
+        icon: 'h-10 w-10 rounded-xl', // Increased from h-9 w-9 for better touch targets
+        'icon-lg': 'h-11 w-11 min-w-[44px] min-h-[44px] rounded-xl', // Accessible 44px touch target
       },
     },
     defaultVariants: {

@@ -326,8 +326,8 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
         <div className="absolute top-4 right-4">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                <MoreVertical className="h-4 w-4" />
+              <Button variant="ghost" size="icon" className="h-10 w-10 p-0">
+                <MoreVertical className="h-5 w-5" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -462,10 +462,9 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
             {activeTab === 'upcoming' && (
               <Button
                 onClick={handleAddShow}
-                className="mb-3"
-                size="sm"
+                className="mb-3 min-h-[44px]"
               >
-                <Plus className="w-4 h-4 mr-2" />
+                <Plus className="w-5 h-5 mr-2" />
                 Add Show
               </Button>
             )}
@@ -688,8 +687,8 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold">Club Members</h3>
                     {canManageMembers && (
-                      <Button onClick={() => setShowAddMemberDialog(true)} size="sm">
-                        <Plus className="w-4 h-4 mr-2" />
+                      <Button onClick={() => setShowAddMemberDialog(true)} className="min-h-[44px]">
+                        <Plus className="w-5 h-5 mr-2" />
                         Add Member
                       </Button>
                     )}

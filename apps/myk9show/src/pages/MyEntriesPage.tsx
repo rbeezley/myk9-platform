@@ -869,30 +869,28 @@ const MyEntriesPage: React.FC = () => {
                       })()}
                     </div>
                     <div className="apple-entries-action-buttons">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
+                      <Button
+                        variant="outline"
                         asChild
-                        className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 transition-all duration-200"
+                        className="min-h-[44px] border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 transition-all duration-200"
                       >
                         <Link to={`/shows/${entry.showId}`}>
-                          <Eye className="h-4 w-4 mr-1" />
+                          <Eye className="h-5 w-5 mr-1.5" />
                           View Show
                         </Link>
                       </Button>
-                      
+
                       {(entry.entryStatus === EntryStatus.PENDING || entry.entryStatus === EntryStatus.ACCEPTED) && (
                         <Button
                           variant="outline"
-                          size="sm"
                           onClick={() => setEditDialog({ open: true, entry })}
-                          className="hover:bg-muted/50 transition-all duration-200"
+                          className="min-h-[44px] hover:bg-muted/50 transition-all duration-200"
                         >
-                          <Edit className="h-4 w-4 mr-1" />
+                          <Edit className="h-5 w-5 mr-1.5" />
                           Edit Entry
                         </Button>
                       )}
-                      
+
                       {entry.confirmationNumber && (
                         entry.paymentStatus === PaymentStatus.PAID_ONLINE ||
                         entry.paymentStatus === PaymentStatus.PAID_BY_CHECK ||
@@ -900,11 +898,10 @@ const MyEntriesPage: React.FC = () => {
                       ) && (
                         <Button
                           variant="outline"
-                          size="sm"
                           onClick={() => setReceiptDialog({ open: true, entry })}
-                          className="hover:bg-muted/50 transition-all duration-200"
+                          className="min-h-[44px] hover:bg-muted/50 transition-all duration-200"
                         >
-                          <Download className="h-4 w-4 mr-1" />
+                          <Download className="h-5 w-5 mr-1.5" />
                           Receipt
                         </Button>
                       )}

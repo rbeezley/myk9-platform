@@ -20,8 +20,8 @@ const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({ items, align = 'end' }) => 
   return (
     <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-8 w-8 p-0" aria-label="More actions">
-          <MoreVertical className="h-4 w-4" />
+        <Button variant="ghost" size="icon" className="h-10 w-10 p-0" aria-label="More actions">
+          <MoreVertical className="h-5 w-5" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align={align}>
@@ -29,7 +29,7 @@ const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({ items, align = 'end' }) => 
           <DropdownMenuItem
             key={idx}
             onClick={item.onClick}
-            {...(item.className !== undefined && { className: item.className })}
+            className={`min-h-[44px] ${item.className || ''}`}
           >
             {item.icon}
             {item.label}

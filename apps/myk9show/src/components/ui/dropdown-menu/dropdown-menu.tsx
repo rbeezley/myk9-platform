@@ -11,7 +11,7 @@ interface DropdownMenuTriggerProps extends React.ComponentPropsWithoutRef<typeof
 }
 
 const DropdownMenuTrigger = React.forwardRef<
-  HTMLButtonElement,
+  React.ElementRef<typeof MenuPrimitive.Trigger>,
   DropdownMenuTriggerProps
 >(({ asChild, children, ...props }, ref) => {
   if (asChild && React.isValidElement(children)) {
@@ -36,7 +36,7 @@ const DropdownMenuSub = MenuPrimitive.SubmenuRoot
 const DropdownMenuRadioGroup = MenuPrimitive.RadioGroup
 
 const DropdownMenuSubTrigger = React.forwardRef<
-  HTMLDivElement,
+  React.ElementRef<typeof MenuPrimitive.SubmenuTrigger>,
   React.ComponentPropsWithoutRef<typeof MenuPrimitive.SubmenuTrigger> & {
     inset?: boolean
   }

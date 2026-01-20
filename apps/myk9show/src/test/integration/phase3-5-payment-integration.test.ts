@@ -467,7 +467,7 @@ describe('Phase 3.5: Payment Service Integration', () => {
 
 // Mock implementation classes and functions
 class PaymentBatchProcessor {
-  async process(payments: any[]): Promise<{ successful: number; failed: number; processingTime: number }> {
+  async process(payments: unknown[]): Promise<{ successful: number; failed: number; processingTime: number }> {
     const startTime = Date.now();
     
     // Simulate batch processing
@@ -484,14 +484,14 @@ class PaymentBatchProcessor {
 }
 
 // Mock functions
-async function createStripeCheckoutSession(data: any) {
+async function createStripeCheckoutSession(_data: unknown) {
   return {
     id: 'cs_test_123',
     url: 'https://checkout.stripe.com/pay/cs_test_123',
   };
 }
 
-async function handleStripeWebhook(event: any) {
+async function handleStripeWebhook(_event: unknown) {
   return {
     success: true,
     paymentStatus: PaymentStatus.PAID_ONLINE,
@@ -499,7 +499,7 @@ async function handleStripeWebhook(event: any) {
   };
 }
 
-async function processStripeRefund(data: any) {
+async function processStripeRefund(data: { amount: number }) {
   return {
     id: 're_test_123',
     amount: data.amount,
@@ -507,7 +507,7 @@ async function processStripeRefund(data: any) {
   };
 }
 
-async function createPayPalPayment(data: any) {
+async function createPayPalPayment(_data: unknown) {
   return {
     id: 'PAY-123456789',
     state: 'created',
@@ -519,21 +519,21 @@ async function createPayPalPayment(data: any) {
   };
 }
 
-async function executePayPalPayment(data: any) {
+async function executePayPalPayment(_data: unknown) {
   return {
     state: 'approved',
     transactions: [{ amount: { total: '35.00' } }],
   };
 }
 
-async function handlePayPalIPN(data: any) {
+async function handlePayPalIPN(_data: unknown) {
   return {
     success: true,
     paymentStatus: PaymentStatus.PAID_ONLINE,
   };
 }
 
-async function storePaymentTransaction(data: any) {
+async function storePaymentTransaction(data: Record<string, unknown>) {
   return {
     id: 'pay_123',
     ...data,
@@ -549,7 +549,7 @@ async function storePaymentTransaction(data: any) {
   };
 }
 
-async function updatePaymentStatus(data: any) {
+async function updatePaymentStatus(_data: unknown) {
   return {
     success: true,
     entryStatus: EntryStatus.ACCEPTED,
@@ -564,7 +564,7 @@ async function deleteEntry(entryId: string) {
   return { success: true };
 }
 
-async function sendPaymentConfirmation(data: any) {
+async function sendPaymentConfirmation(_data: unknown) {
   return {
     sent: true,
     messageId: 'msg_123',
@@ -572,7 +572,7 @@ async function sendPaymentConfirmation(data: any) {
   };
 }
 
-async function sendRefundNotification(data: any) {
+async function sendRefundNotification(data: { refundAmount: number; processingTime: string }) {
   return {
     sent: true,
     type: 'refund_notification',
@@ -580,7 +580,7 @@ async function sendRefundNotification(data: any) {
   };
 }
 
-async function triggerPaymentWorkflow(event: any) {
+async function triggerPaymentWorkflow(_event: unknown) {
   return [
     { type: 'payment_confirmation', recipient: 'user@example.com' },
     { type: 'entry_accepted', recipient: 'user@example.com' },
@@ -588,7 +588,7 @@ async function triggerPaymentWorkflow(event: any) {
   ];
 }
 
-async function encryptPaymentData(data: any) {
+async function encryptPaymentData(data: { cardLast4: string; cardBrand: string; billingZip: string }) {
   return {
     cardLast4: 'enc_' + Buffer.from(data.cardLast4).toString('base64'),
     cardBrand: 'enc_' + Buffer.from(data.cardBrand).toString('base64'),
@@ -596,7 +596,7 @@ async function encryptPaymentData(data: any) {
   };
 }
 
-async function decryptPaymentData(data: any) {
+async function decryptPaymentData(data: { cardLast4: string; cardBrand: string; billingZip: string }) {
   return {
     cardLast4: Buffer.from(data.cardLast4.replace('enc_', ''), 'base64').toString(),
     cardBrand: Buffer.from(data.cardBrand.replace('enc_', ''), 'base64').toString(),
@@ -642,7 +642,7 @@ async function getUserPaymentPermissions(userId: string) {
   return permissions;
 }
 
-async function processPaymentWithFallback(data: any) {
+async function processPaymentWithFallback(_data: unknown) {
   return {
     success: false,
     fallbackOptions: ['paypal', 'check'],
@@ -659,11 +659,11 @@ async function getPaymentCircuitBreakerStatus() {
   };
 }
 
-async function recordPaymentFailure(processor: string, error: string) {
+async function recordPaymentFailure(_processor: string, _error: string) {
   // Mock implementation
 }
 
-async function processSplitPayment(data: any) {
+async function processSplitPayment(_data: unknown) {
   return {
     partialSuccess: true,
     successfulPayments: [{ transactionId: 'txn_1', amount: 50.00 }],
@@ -672,7 +672,7 @@ async function processSplitPayment(data: any) {
   };
 }
 
-async function processPayment(data: any) {
+async function processPayment(data: { idempotencyKey?: string }) {
   return {
     success: true,
     transactionId: `txn_${Date.now()}_${Math.random()}`,

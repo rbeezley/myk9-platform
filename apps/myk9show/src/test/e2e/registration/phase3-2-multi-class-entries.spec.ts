@@ -760,7 +760,7 @@ test.describe('Phase 3.2: Multi-Class Entry Registration Testing', () => {
           // Move excess entries to waitlist
           await entryStore.updateStatus(
             entry.id, 
-            'waitlisted' as any, // Note: waitlisted not in original enum, but testing the concept
+            'waitlisted' as const, // Note: waitlisted not in original enum, but testing the concept
             'system',
             `Class capacity exceeded. Position ${confirmedEntries - maxCapacity} on waitlist.`
           );
@@ -777,7 +777,7 @@ test.describe('Phase 3.2: Multi-Class Entry Registration Testing', () => {
       
       // Process waitlist - move first waitlisted entry to confirmed
       const classEntries = entryStore.getEntriesByClass(classId);
-      const activeEntries = classEntries.filter(e => !['withdrawn', 'waitlisted'].includes(e.status as any));
+      const activeEntries = classEntries.filter(e => !['withdrawn', 'waitlisted'].includes(e.status as string));
       const waitlistedEntries = classEntries.filter(e => e.status === 'waitlisted').sort((a, b) => 
         new Date(a.registrationData.submittedAt).getTime() - new Date(b.registrationData.submittedAt).getTime()
       );

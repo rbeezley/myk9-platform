@@ -59,7 +59,7 @@ test.describe('Phase 3.4: Entry Limits and Waitlists', () => {
             maxDogsPerHandler: 2
           }]
         }]
-      } as any;
+      } as unknown;
       
       const testDogs = [
         { id: 'capacity-dog-1', name: 'Max', breed: 'Golden Retriever' },
@@ -67,7 +67,7 @@ test.describe('Phase 3.4: Entry Limits and Waitlists', () => {
         { id: 'capacity-dog-3', name: 'Charlie', breed: 'Labrador' },
         { id: 'capacity-dog-4', name: 'Bella', breed: 'Australian Shepherd' },
         { id: 'capacity-dog-5', name: 'Rocky', breed: 'German Shepherd' }
-      ] as Dog[];
+      ] as unknown as Dog[];
       
       const results = {
         totalAttempts: 0,
@@ -76,7 +76,7 @@ test.describe('Phase 3.4: Entry Limits and Waitlists', () => {
         rejectedEntries: 0,
         capacityEnforced: false,
         waitlistActivated: false,
-        entries: [] as any[]
+        entries: [] as unknown[]
       };
       
       // Clear existing entries
@@ -103,8 +103,8 @@ test.describe('Phase 3.4: Entry Limits and Waitlists', () => {
         // Check entry limits
         const limitCheck = EntryLimitChecker.checkEntryLimits(entryData, {
           show: testShow,
-          trial: testShow.trials[0] as any,
-          class: testShow.trials[0].classes[0] as any,
+          trial: testShow.trials[0] as unknown,
+          class: testShow.trials[0].classes[0] as unknown,
           dog,
           existingEntries: entryStore.entries
         });
@@ -112,7 +112,7 @@ test.describe('Phase 3.4: Entry Limits and Waitlists', () => {
         const stats = EntryLimitChecker.getClassEntryStats(
           'limited-class-001',
           entryStore.entries,
-          testShow.trials[0].classes[0] as any
+          testShow.trials[0].classes[0] as unknown
         );
         
         if (limitCheck.isAllowed) {
@@ -135,7 +135,7 @@ test.describe('Phase 3.4: Entry Limits and Waitlists', () => {
             registrationData: entryData.registrationData
           });
           
-          entryStore.updateStatusLegacy(entryId, 'waitlist' as any, 'system', `Waitlisted - position ${limitCheck.waitlistPosition}`);
+          entryStore.updateStatusLegacy(entryId, 'waitlist' as const, 'system', `Waitlisted - position ${limitCheck.waitlistPosition}`);
           results.waitlistedEntries++;
           results.waitlistActivated = true;
         } else {
@@ -157,7 +157,7 @@ test.describe('Phase 3.4: Entry Limits and Waitlists', () => {
       const finalStats = EntryLimitChecker.getClassEntryStats(
         'limited-class-001',
         entryStore.entries,
-        testShow.trials[0].classes[0] as any
+        testShow.trials[0].classes[0] as unknown
       );
       
       results.capacityEnforced = finalStats.confirmed <= 3; // Should not exceed capacity
@@ -185,20 +185,20 @@ test.describe('Phase 3.4: Entry Limits and Waitlists', () => {
   test('should manage waitlist processing with FIFO promotion', async ({ page }) => {
     const waitlistTest = await page.evaluate(async () => {
       const { EntryLimitChecker } = await import('@/services/entries/EntryLimitChecker');
-      const { OfflineEntryCreator } = await import('@/services/entries/OfflineEntryCreator');
+      const { OfflineEntryCreator: _OfflineEntryCreator } = await import('@/services/entries/OfflineEntryCreator');
       const { useEntryStore } = await import('@/store/entryStore');
       const entryStore = useEntryStore.getState();
-      
+
       // Clear existing entries
       entryStore.clearAllEntries();
-      
+
       // Create test data
       const testClass = {
         id: 'waitlist-class-001',
         name: 'Waitlist Test Class',
         maxEntries: 2, // Very small for easy testing
         allowWaitlist: true
-      } as any;
+      } as unknown;
       
       const testShow = {
         id: 'waitlist-show-001',
@@ -207,14 +207,14 @@ test.describe('Phase 3.4: Entry Limits and Waitlists', () => {
           id: 'waitlist-trial-001',
           classes: [testClass]
         }]
-      } as any;
+      } as unknown;
       
       const results = {
-        phase1_fillCapacity: {} as any,
-        phase2_waitlistEntries: {} as any,
-        phase3_cancellation: {} as any,
-        phase4_promotion: {} as any,
-        fifoOrder: [] as any[]
+        phase1_fillCapacity: {} as Record<string, unknown>,
+        phase2_waitlistEntries: {} as Record<string, unknown>,
+        phase3_cancellation: {} as Record<string, unknown>,
+        phase4_promotion: {} as Record<string, unknown>,
+        fifoOrder: [] as unknown[]
       };
       
       // Phase 1: Fill class to capacity
@@ -272,7 +272,7 @@ test.describe('Phase 3.4: Entry Limits and Waitlists', () => {
           }
         });
         
-        entryStore.updateStatusLegacy(entryId, 'waitlist' as any, 'system', `Waitlisted at ${waitlistTimestamps[i]}`);
+        entryStore.updateStatusLegacy(entryId, 'waitlist' as const, 'system', `Waitlisted at ${waitlistTimestamps[i]}`);
         waitlistEntries.push(entryId);
         
         results.fifoOrder.push({
@@ -387,14 +387,14 @@ test.describe('Phase 3.4: Entry Limits and Waitlists', () => {
             }
           ]
         }]
-      } as any;
+      } as unknown;
       
       const results = {
         entriesCreated: 0,
         showLimitReached: false,
         classLimitsReached: { class001: false, class002: false },
-        finalShowStats: {} as any,
-        perClassStats: {} as any
+        finalShowStats: {} as Record<string, unknown>,
+        perClassStats: {} as Record<string, unknown>
       };
       
       // Create entries across multiple classes to test show limits
@@ -420,9 +420,9 @@ test.describe('Phase 3.4: Entry Limits and Waitlists', () => {
           // Check limits
           const limitCheck = EntryLimitChecker.checkEntryLimits(entryData, {
             show: testShow,
-            trial: testShow.trials[0] as any,
-            class: classData as any,
-            dog: { id: dogId, name: `Dog ${i + 1}` } as any,
+            trial: testShow.trials[0] as unknown,
+            class: classData as unknown,
+            dog: { id: dogId, name: `Dog ${i + 1}` } as unknown,
             existingEntries: entryStore.entries
           });
           
@@ -465,8 +465,8 @@ test.describe('Phase 3.4: Entry Limits and Waitlists', () => {
       };
       
       results.perClassStats = {
-        class001: EntryLimitChecker.getClassEntryStats('show-class-001', entryStore.entries, testShow.trials[0].classes[0] as any),
-        class002: EntryLimitChecker.getClassEntryStats('show-class-002', entryStore.entries, testShow.trials[0].classes[1] as any)
+        class001: EntryLimitChecker.getClassEntryStats('show-class-001', entryStore.entries, testShow.trials[0].classes[0] as unknown),
+        class002: EntryLimitChecker.getClassEntryStats('show-class-002', entryStore.entries, testShow.trials[0].classes[1] as unknown)
       };
       
       return results;
@@ -490,13 +490,13 @@ test.describe('Phase 3.4: Entry Limits and Waitlists', () => {
   test('should handle multiple concurrent class entries with waitlist coordination', async ({ page }) => {
     const concurrentTest = await page.evaluate(async () => {
       const { EntryLimitChecker } = await import('@/services/entries/EntryLimitChecker');
-      const { OfflineEntryCreator } = await import('@/services/entries/OfflineEntryCreator');
+      const { OfflineEntryCreator: _OfflineEntryCreator } = await import('@/services/entries/OfflineEntryCreator');
       const { useEntryStore } = await import('@/store/entryStore');
       const entryStore = useEntryStore.getState();
-      
+
       // Clear existing entries
       entryStore.clearAllEntries();
-      
+
       // Create multiple classes with different capacities
       const testShow = {
         id: 'concurrent-show-001',
@@ -510,14 +510,14 @@ test.describe('Phase 3.4: Entry Limits and Waitlists', () => {
             { id: 'concurrent-class-003', name: 'Large Class', maxEntries: 6, allowWaitlist: false }
           ]
         }]
-      } as any;
+      } as unknown;
       
       const results = {
         totalAttempts: 0,
         successfulEntries: 0,
         waitlistedEntries: 0,
         rejectedEntries: 0,
-        classBreakdown: {} as any,
+        classBreakdown: {} as Record<string, unknown>,
         waitlistCoordination: {
           multipleClassWaitlists: false,
           priorityHandling: false
@@ -555,9 +555,9 @@ test.describe('Phase 3.4: Entry Limits and Waitlists', () => {
           // Check if this would be allowed
           const limitCheck = EntryLimitChecker.checkEntryLimits(entryData, {
             show: testShow,
-            trial: testShow.trials[0] as any,
-            class: testShow.trials[0].classes.find(c => c.id === classId) as any,
-            dog: { id: scenario.dogId, name: scenario.dogId } as any,
+            trial: testShow.trials[0] as unknown,
+            class: testShow.trials[0].classes.find(c => c.id === classId) as unknown,
+            dog: { id: scenario.dogId, name: scenario.dogId } as unknown,
             existingEntries: entryStore.entries
           });
           
@@ -583,7 +583,7 @@ test.describe('Phase 3.4: Entry Limits and Waitlists', () => {
                 registrationData: entryData.registrationData
               });
               
-              entryStore.updateStatusLegacy(entryId, 'waitlist' as any, 'system', 'Waitlisted due to capacity');
+              entryStore.updateStatusLegacy(entryId, 'waitlist' as const, 'system', 'Waitlisted due to capacity');
               results.waitlistedEntries++;
             } else {
               results.rejectedEntries++;
@@ -594,7 +594,7 @@ test.describe('Phase 3.4: Entry Limits and Waitlists', () => {
       
       // Analyze class breakdown
       for (const classData of testShow.trials[0].classes) {
-        const stats = EntryLimitChecker.getClassEntryStats(classData.id, entryStore.entries, classData as any);
+        const stats = EntryLimitChecker.getClassEntryStats(classData.id, entryStore.entries, classData as unknown);
         results.classBreakdown[classData.id] = {
           name: classData.name,
           capacity: classData.maxEntries,
@@ -606,7 +606,7 @@ test.describe('Phase 3.4: Entry Limits and Waitlists', () => {
       }
       
       // Check waitlist coordination
-      const waitlistCounts = Object.values(results.classBreakdown).map((c: any) => c.waitlisted);
+      const waitlistCounts = Object.values(results.classBreakdown).map((c: Record<string, unknown>) => c.waitlisted as number);
       results.waitlistCoordination.multipleClassWaitlists = waitlistCounts.filter(count => count > 0).length > 1;
       
       return results;
@@ -635,9 +635,9 @@ test.describe('Phase 3.4: Entry Limits and Waitlists', () => {
       entryStore.clearAllEntries();
       
       const results = {
-        priorityEntries: [] as any[],
-        regularEntries: [] as any[],
-        promotionOrder: [] as any[],
+        priorityEntries: [] as unknown[],
+        regularEntries: [] as unknown[],
+        promotionOrder: [] as unknown[],
         specialRulesApplied: false
       };
       
@@ -710,7 +710,7 @@ test.describe('Phase 3.4: Entry Limits and Waitlists', () => {
           }
         });
         
-        entryStore.updateStatusLegacy(entryId, 'waitlist' as any, 'system', `Waitlisted - ${scenario.priority}`);
+        entryStore.updateStatusLegacy(entryId, 'waitlist' as const, 'system', `Waitlisted - ${scenario.priority}`);
         
         if (scenario.priority === 'regular') {
           results.regularEntries.push({
@@ -779,18 +779,18 @@ test.describe('Phase 3.4: Entry Limits and Waitlists', () => {
   test('should handle cancellation processing and automatic promotion', async ({ page }) => {
     const cancellationTest = await page.evaluate(async () => {
       const { EntryLimitChecker } = await import('@/services/entries/EntryLimitChecker');
-      const { OfflineEntryCreator } = await import('@/services/entries/OfflineEntryCreator');
+      const { OfflineEntryCreator: _OfflineEntryCreator } = await import('@/services/entries/OfflineEntryCreator');
       const { useEntryStore } = await import('@/store/entryStore');
       const entryStore = useEntryStore.getState();
-      
+
       // Clear existing entries
       entryStore.clearAllEntries();
-      
+
       const results = {
-        initialState: {} as any,
-        afterCancellation: {} as any,
-        afterPromotion: {} as any,
-        promotionDetails: {} as any,
+        initialState: {} as Record<string, unknown>,
+        afterCancellation: {} as Record<string, unknown>,
+        afterPromotion: {} as Record<string, unknown>,
+        promotionDetails: {} as Record<string, unknown>,
         automationWorking: false
       };
       
@@ -845,19 +845,19 @@ test.describe('Phase 3.4: Entry Limits and Waitlists', () => {
           }
         });
         
-        entryStore.updateStatusLegacy(entryId, 'waitlist' as any, 'system', `Waitlisted position ${i + 1}`);
+        entryStore.updateStatusLegacy(entryId, 'waitlist' as const, 'system', `Waitlisted position ${i + 1}`);
         waitlistEntries.push(entryId);
       }
       
-      results.initialState = EntryLimitChecker.getClassEntryStats(testClass.id, entryStore.entries, testClass as any);
+      results.initialState = EntryLimitChecker.getClassEntryStats(testClass.id, entryStore.entries, testClass as unknown);
       
       // Cancel first confirmed entry
       entryStore.updateStatusLegacy(entry1, 'withdrawn', 'system', 'Owner cancellation');
       
-      results.afterCancellation = EntryLimitChecker.getClassEntryStats(testClass.id, entryStore.entries, testClass as any);
+      results.afterCancellation = EntryLimitChecker.getClassEntryStats(testClass.id, entryStore.entries, testClass as unknown);
       
       // Check promotion eligibility
-      const promotionCheck = EntryLimitChecker.checkWaitlistPromotion(testClass.id, entryStore.entries, testClass as any);
+      const promotionCheck = EntryLimitChecker.checkWaitlistPromotion(testClass.id, entryStore.entries, testClass as unknown);
       
       results.promotionDetails = {
         canPromote: promotionCheck.canPromote,
@@ -878,7 +878,7 @@ test.describe('Phase 3.4: Entry Limits and Waitlists', () => {
         }
       }
       
-      results.afterPromotion = EntryLimitChecker.getClassEntryStats(testClass.id, entryStore.entries, testClass as any);
+      results.afterPromotion = EntryLimitChecker.getClassEntryStats(testClass.id, entryStore.entries, testClass as unknown);
       
       return results;
     });
@@ -901,10 +901,10 @@ test.describe('Phase 3.4: Entry Limits and Waitlists', () => {
 
   test('should provide comprehensive entry limits validation summary', async ({ page }) => {
     const summaryTest = await page.evaluate(async () => {
-      const { EntryLimitChecker } = await import('@/services/entries/EntryLimitChecker');
+      const { EntryLimitChecker: _EntryLimitChecker } = await import('@/services/entries/EntryLimitChecker');
       const { useEntryStore } = await import('@/store/entryStore');
       const entryStore = useEntryStore.getState();
-      
+
       // Clear existing entries
       entryStore.clearAllEntries();
       

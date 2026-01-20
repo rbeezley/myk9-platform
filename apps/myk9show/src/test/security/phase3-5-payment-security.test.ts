@@ -496,7 +496,7 @@ describe('Phase 3.5: Payment Security and Compliance', () => {
 });
 
 // Mock implementation functions
-async function tokenizePaymentData(data: any) {
+async function tokenizePaymentData(data: { cardNumber: string; holderName: string }) {
   return {
     token: 'tok_' + Math.random().toString(36).substr(2, 9),
     last4: data.cardNumber.slice(-4),
@@ -505,15 +505,15 @@ async function tokenizePaymentData(data: any) {
   };
 }
 
-async function encryptPaymentReference(data: any) {
-  const encrypted: any = {};
+async function encryptPaymentReference(data: Record<string, string>) {
+  const encrypted: Record<string, string> = {};
   for (const [key, value] of Object.entries(data)) {
     encrypted[key] = 'enc_' + Buffer.from(String(value)).toString('base64');
   }
   return encrypted;
 }
 
-async function encryptWithCurrentKey(data: any) {
+async function encryptWithCurrentKey(data: { sensitiveData: string }) {
   return 'current_key_' + Buffer.from(JSON.stringify(data)).toString('base64');
 }
 
@@ -521,12 +521,12 @@ async function rotateEncryptionKey() {
   // Mock key rotation
 }
 
-async function decryptWithHistoricalKeys(encrypted: string) {
+async function decryptWithHistoricalKeys(encrypted: string): Promise<{ sensitiveData: string }> {
   const data = Buffer.from(encrypted.replace(/^current_key_|^old_key_/, ''), 'base64').toString();
   return JSON.parse(data);
 }
 
-async function auditPaymentOperation(operation: any) {
+async function auditPaymentOperation(_operation: unknown) {
   // Mock audit logging
 }
 
@@ -543,11 +543,11 @@ async function getPaymentAuditLogs(transactionId: string) {
   }];
 }
 
-async function verifyAuditLogIntegrity(log: any) {
+async function verifyAuditLogIntegrity(_log: unknown) {
   return true; // Mock verification
 }
 
-async function storePaymentData(data: any) {
+async function storePaymentData(_data: unknown) {
   // Mock storage
 }
 
@@ -559,11 +559,11 @@ async function runDataRetentionCleanup() {
   };
 }
 
-async function getPaymentData(transactionId: string) {
+async function getPaymentData(_transactionId: string) {
   return null; // Cleaned up
 }
 
-async function getArchivedPaymentData(transactionId: string) {
+async function getArchivedPaymentData(_transactionId: string) {
   return {
     transactionId,
     archived: true,
@@ -571,11 +571,11 @@ async function getArchivedPaymentData(transactionId: string) {
   };
 }
 
-async function recordPaymentAttempt(payment: any) {
+async function recordPaymentAttempt(_payment: unknown) {
   // Mock recording
 }
 
-async function analyzeFraudPatterns(ipAddress: string) {
+async function analyzeFraudPatterns(_ipAddress: string) {
   return {
     riskScore: 0.9,
     flags: ['multiple_users_same_ip'],
@@ -583,7 +583,7 @@ async function analyzeFraudPatterns(ipAddress: string) {
   };
 }
 
-async function checkPaymentVelocity(payment: any) {
+async function checkPaymentVelocity(_payment: unknown) {
   const attemptCount = 8; // Mock count
   return {
     allowed: attemptCount < 5,
@@ -591,18 +591,18 @@ async function checkPaymentVelocity(payment: any) {
   };
 }
 
-async function setShowPaymentLimits(limits: any) {
+async function setShowPaymentLimits(_limits: unknown) {
   // Mock setting limits
 }
 
-async function validatePaymentAmount(payment: any) {
+async function validatePaymentAmount(payment: { amount: number }) {
   return {
     valid: payment.amount <= 100.00,
     reason: payment.amount > 100.00 ? 'amount_exceeds_max_entry_fee' : undefined,
   };
 }
 
-async function validatePaymentGeolocation(payment: any) {
+async function validatePaymentGeolocation(payment: { billingCountry: string; billingState: string | null }) {
   const ipCountry = 'US';
   const ipState = 'CA';
   
@@ -616,7 +616,7 @@ async function validatePaymentGeolocation(payment: any) {
   };
 }
 
-async function getPaymentPermissions(role: string, userId: string) {
+async function getPaymentPermissions(role: string, _userId: string) {
   const basePermissions = {
     canMakePayment: true,
     canViewPayment: (paymentId: string) => paymentId.includes('own') || role !== 'user',
@@ -629,7 +629,7 @@ async function getPaymentPermissions(role: string, userId: string) {
   return basePermissions;
 }
 
-async function checkMFARequirement(operation: any) {
+async function checkMFARequirement(operation: { amount: number }) {
   return {
     required: operation.amount > 250.00,
     methods: ['totp', 'sms'],
@@ -637,7 +637,7 @@ async function checkMFARequirement(operation: any) {
   };
 }
 
-async function validateMFA(userId: string, token: string) {
+async function validateMFA(_userId: string, token: string) {
   return {
     valid: true,
     method: 'totp',
@@ -645,7 +645,7 @@ async function validateMFA(userId: string, token: string) {
   };
 }
 
-async function processRefundWithMFA(refund: any, mfaToken: string) {
+async function processRefundWithMFA(_refund: unknown, _mfaToken: string) {
   return {
     success: true,
     refundId: 'ref_mfa_' + Math.random().toString(36).substr(2, 9),
@@ -653,7 +653,7 @@ async function processRefundWithMFA(refund: any, mfaToken: string) {
   };
 }
 
-async function validatePaymentSession(session: any) {
+async function validatePaymentSession(session: { ipAddress: string }) {
   const ipChanged = session.ipAddress !== '192.168.1.100';
   
   return {
@@ -665,7 +665,7 @@ async function validatePaymentSession(session: any) {
   };
 }
 
-async function maskPaymentDataForDisplay(data: any, userRole: string) {
+async function maskPaymentDataForDisplay(data: { last4: string; transactionId: string; holderName: string; amount: number; billingAddress: { zipCode: string } }, _userRole: string) {
   return {
     last4: '****' + data.last4,
     transactionId: data.transactionId.replace(/^(.{4}).*(.{5})$/, '$1****$2'),
@@ -678,7 +678,7 @@ async function maskPaymentDataForDisplay(data: any, userRole: string) {
   };
 }
 
-async function processGDPRRequest(request: any) {
+async function processGDPRRequest(request: { requestType: string }) {
   if (request.requestType === 'data_export') {
     return {
       success: true,
@@ -698,21 +698,21 @@ async function processGDPRRequest(request: any) {
   }
 }
 
-async function recordPaymentConsent(consent: any) {
+async function recordPaymentConsent(_consent: unknown) {
   return {
     recorded: true,
     consentId: 'consent_' + Math.random().toString(36).substr(2, 9),
   };
 }
 
-async function withdrawPaymentConsent(withdrawal: any) {
+async function withdrawPaymentConsent(_withdrawal: unknown) {
   return {
     success: true,
     updatedConsents: ['payment_processing', 'data_storage'],
   };
 }
 
-async function processPaymentAnomaly(anomaly: any) {
+async function processPaymentAnomaly(anomaly: { type: string }) {
   return {
     alertId: 'alert_' + Math.random().toString(36).substr(2, 9),
     severity: 'high',
@@ -741,7 +741,7 @@ async function getPaymentMonitoringData() {
   };
 }
 
-async function handleSecurityIncident(incident: any) {
+async function handleSecurityIncident(_incident: unknown) {
   return {
     incidentId: 'inc_' + Math.random().toString(36).substr(2, 9),
     responsePlan: {

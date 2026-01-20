@@ -113,7 +113,7 @@ interface PaymentAudit {
   action: string;
   timestamp: Date;
   user: string;
-  details: Record<string, any>;
+  details: Record<string, unknown>;
 }
 
 interface PaymentError {
@@ -121,7 +121,7 @@ interface PaymentError {
   message: string;
   type: 'card_declined' | 'insufficient_funds' | 'network_error' | 'fraud_detected';
   retryable: boolean;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
 }
 
 interface FailureRecovery {
@@ -277,7 +277,7 @@ const mockPaymentService: PaymentService = {
     console.log('Recording payment:', data);
   },
 
-  async getPaymentHistory(filters: PaymentFilters): Promise<PaymentTransaction[]> {
+  async getPaymentHistory(_filters: PaymentFilters): Promise<PaymentTransaction[]> {
     // Mock payment history
     return [
       {
@@ -787,7 +787,7 @@ describe('Phase 3.5: Payment Processing', () => {
     });
 
     it('should not store sensitive card data', async () => {
-      const paymentRecord = {
+      const _paymentRecord = {
         transactionId: 'txn_123',
         amount: 35.00,
         last4: '1111',
@@ -851,19 +851,19 @@ async function validateCashPayment(data: { expectedAmount: number; receivedAmoun
   };
 }
 
-function calculateRegistrationPaymentStatus(registration: any): any {
-  const totalPaid = registration.payments.reduce((sum: number, p: any) => sum + p.amount, 0);
+function calculateRegistrationPaymentStatus(registration: { totalAmount: number; payments: Array<{ amount: number; method: string }> }): { totalPaid: number; remainingBalance: number; isFullyPaid: boolean; paymentMethods: string[] } {
+  const totalPaid = registration.payments.reduce((sum: number, p: { amount: number }) => sum + p.amount, 0);
   return {
     totalPaid,
     remainingBalance: Math.max(0, registration.totalAmount - totalPaid),
     isFullyPaid: totalPaid >= registration.totalAmount,
-    paymentMethods: registration.payments.map((p: any) => p.method),
+    paymentMethods: registration.payments.map((p: { method: string }) => p.method),
   };
 }
 
-async function getPaymentAuditTrail(transactionId: string): Promise<any> {
+async function getPaymentAuditTrail(_transactionId: string): Promise<{ transactionId: string; entries: Array<{ action: string; timestamp: Date; user: string }> }> {
   return {
-    transactionId,
+    transactionId: _transactionId,
     entries: [
       { action: 'payment_initiated', timestamp: new Date(), user: 'user_123' },
       { action: 'payment_processed', timestamp: new Date(), user: 'system' },
@@ -885,14 +885,14 @@ function deriveEntryStatusFromPayment(paymentStatus: PaymentStatus): EntryStatus
   }
 }
 
-function encryptPaymentData(data: any): any {
+function encryptPaymentData(data: { cardNumber: string; cvv: string }): { cardNumber: string; cvv: string } {
   return {
     cardNumber: `enc_${Buffer.from(data.cardNumber).toString('base64')}`,
     cvv: `enc_${Buffer.from(data.cvv).toString('base64')}`,
   };
 }
 
-function validatePCICompliance(config: any): { isCompliant: boolean; violations: string[] } {
+function validatePCICompliance(config: { encryptionEnabled: boolean; tokenizationEnabled: boolean; auditLoggingEnabled: boolean; accessControlEnabled: boolean; regularSecurityScans: boolean }): { isCompliant: boolean; violations: string[] } {
   const violations: string[] = [];
   
   if (!config.encryptionEnabled) violations.push('Encryption not enabled');
@@ -907,9 +907,9 @@ function validatePCICompliance(config: any): { isCompliant: boolean; violations:
   };
 }
 
-async function getStoredPaymentRecord(transactionId: string): Promise<any> {
+async function getStoredPaymentRecord(_transactionId: string): Promise<{ transactionId: string; amount: number; last4: string; brand: string; timestamp: Date; cardNumber?: undefined; cvv?: undefined }> {
   return {
-    transactionId,
+    transactionId: _transactionId,
     amount: 35.00,
     last4: '1111',
     brand: 'visa',
@@ -917,7 +917,7 @@ async function getStoredPaymentRecord(transactionId: string): Promise<any> {
   };
 }
 
-async function updateEntryPaymentStatus(entryId: string, paymentStatus: PaymentStatus): Promise<any> {
+async function updateEntryPaymentStatus(_entryId: string, paymentStatus: PaymentStatus): Promise<{ success: boolean; entryStatus: EntryStatus; notificationSent: boolean }> {
   return {
     success: true,
     entryStatus: deriveEntryStatusFromPayment(paymentStatus),
@@ -925,14 +925,14 @@ async function updateEntryPaymentStatus(entryId: string, paymentStatus: PaymentS
   };
 }
 
-async function getTriggeredNotifications(event: string, referenceId: string): Promise<any[]> {
+async function getTriggeredNotifications(_event: string, _referenceId: string): Promise<Array<{ type: string; recipient: string; sent: boolean }>> {
   return [
     { type: 'payment_confirmation', recipient: 'user@example.com', sent: true },
     { type: 'entry_accepted', recipient: 'user@example.com', sent: true },
   ];
 }
 
-async function getFinancialReport(showId: string): Promise<any> {
+async function getFinancialReport(showId: string): Promise<{ showId: string; totalRevenue: number; paymentMethodBreakdown: Record<string, number>; refundTotal: number; outstandingPayments: number }> {
   return {
     showId,
     totalRevenue: 1250.00,

@@ -32,7 +32,7 @@ export interface ClassTestData {
     element?: string;
     level?: string;
     section?: string;
-    fieldOverrides: Record<string, any>;
+    fieldOverrides: Record<string, unknown>;
   };
   judgeId: string;
 }

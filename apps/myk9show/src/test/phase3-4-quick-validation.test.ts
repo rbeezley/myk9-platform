@@ -45,9 +45,9 @@ describe('Phase 3.4: Quick Validation', () => {
         status: 'waitlist',
         registrationData: { paymentStatus: 'pending' }
       }
-    ] as any[];
+    ] as unknown[];
 
-    const stats = EntryLimitChecker.getClassEntryStats('test-class-001', mockEntries, mockClass as any);
+    const stats = EntryLimitChecker.getClassEntryStats('test-class-001', mockEntries, mockClass as unknown);
 
     expect(stats.confirmed).toBe(2); // confirmed + paid
     expect(stats.waitlisted).toBe(1);
@@ -76,9 +76,9 @@ describe('Phase 3.4: Quick Validation', () => {
         classId: 'test-class-001',
         status: 'paid'
       }
-    ] as any[];
+    ] as unknown[];
 
-    const promotionCheck = EntryLimitChecker.checkWaitlistPromotion('test-class-001', mockEntries, mockClass as any);
+    const promotionCheck = EntryLimitChecker.checkWaitlistPromotion('test-class-001', mockEntries, mockClass as unknown);
 
     expect(promotionCheck.canPromote).toBe(true);
     expect(promotionCheck.spotsAvailable).toBe(1); // 3 capacity - 2 confirmed
@@ -137,7 +137,7 @@ describe('Phase 3.4: Quick Validation', () => {
           status: 'confirmed'
         }
       ]
-    } as any;
+    } as unknown;
 
     // Class is full, should suggest waitlist
     const result = EntryLimitChecker.checkEntryLimits(mockEntryData, mockContext);

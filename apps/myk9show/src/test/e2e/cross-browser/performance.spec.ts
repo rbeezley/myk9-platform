@@ -155,10 +155,11 @@ test.describe('Cross-Browser Performance Tests', () => {
         
         // Check memory usage (simplified check)
         const memoryInfo = await page.evaluate(() => {
-          return (performance as any).memory ? {
-            usedJSHeapSize: (performance as any).memory.usedJSHeapSize,
-            totalJSHeapSize: (performance as any).memory.totalJSHeapSize,
-            jsHeapSizeLimit: (performance as any).memory.jsHeapSizeLimit
+          const perfWithMemory = performance as Performance & { memory?: { usedJSHeapSize: number; totalJSHeapSize: number; jsHeapSizeLimit: number } };
+          return perfWithMemory.memory ? {
+            usedJSHeapSize: perfWithMemory.memory.usedJSHeapSize,
+            totalJSHeapSize: perfWithMemory.memory.totalJSHeapSize,
+            jsHeapSizeLimit: perfWithMemory.memory.jsHeapSizeLimit
           } : null;
         });
         
@@ -255,15 +256,16 @@ test.describe('Cross-Browser Performance Tests', () => {
       const cls = await page.evaluate(() => {
         return new Promise<number>((resolve) => {
           let clsValue = 0;
-          
+
           new PerformanceObserver((entryList) => {
             for (const entry of entryList.getEntries()) {
-              if (!(entry as any).hadRecentInput) {
-                clsValue += (entry as any).value;
+              const layoutShiftEntry = entry as PerformanceEntry & { hadRecentInput?: boolean; value?: number };
+              if (!layoutShiftEntry.hadRecentInput) {
+                clsValue += layoutShiftEntry.value ?? 0;
               }
             }
           }).observe({ entryTypes: ['layout-shift'] });
-          
+
           setTimeout(() => resolve(clsValue), 3000);
         });
       });
@@ -303,7 +305,7 @@ test.describe('Cross-Browser Performance Tests', () => {
       expect(computedStyle.backgroundColor).toBeTruthy();
     });
 
-    test('image loading performance', async ({ page, browserName }) => {
+    test('image loading performance', async ({ page, browserName: _browserName }) => {
       await testSetup.signIn('user');
       await page.goto('/');
       await visualHelper.waitForPageLoad();

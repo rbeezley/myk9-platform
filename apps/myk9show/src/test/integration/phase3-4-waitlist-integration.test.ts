@@ -91,7 +91,7 @@ describe('Phase 3.4: Waitlist Integration', () => {
         entryDeadline: '2024-03-10',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
-      } as Show;
+      } as unknown as Show;
 
       const testDogs: Dog[] = [
         {
@@ -151,11 +151,11 @@ describe('Phase 3.4: Waitlist Integration', () => {
       dogStore.importDogs(testDogs);
 
       const results = {
-        phase1_fillCapacity: [] as any[],
-        phase2_waitlistCreation: [] as any[],
-        phase3_cancellation: null as any,
-        phase4_promotion: null as any,
-        finalStats: null as any
+        phase1_fillCapacity: [] as unknown[],
+        phase2_waitlistCreation: [] as unknown[],
+        phase3_cancellation: null as unknown,
+        phase4_promotion: null as unknown,
+        finalStats: null as unknown
       };
 
       // Phase 1: Fill class to capacity
@@ -215,7 +215,7 @@ describe('Phase 3.4: Waitlist Integration', () => {
       }
 
       // Get current class stats
-      const currentStats = EntryLimitChecker.getClassEntryStats(
+      const _currentStats = EntryLimitChecker.getClassEntryStats(
         'limited-class-001',
         entryStore.entries,
         testShow.trials[0].classes[0]
@@ -325,7 +325,7 @@ describe('Phase 3.4: Waitlist Integration', () => {
         status: 'accepting_entries',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
-      } as Show;
+      } as unknown as Show;
 
       // Create dogs for concurrent testing
       const concurrentDogs: Dog[] = Array.from({ length: 8 }, (_, i) => ({
@@ -429,14 +429,14 @@ describe('Phase 3.4: Waitlist Integration', () => {
         status: 'accepting_entries',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
-      } as Show;
+      } as unknown as Show;
 
       const testDogs: Dog[] = [
         { id: 'secretary-dog-001', name: 'TestDog1', breed: 'Breed1', ownerId: 'owner1' },
         { id: 'secretary-dog-002', name: 'TestDog2', breed: 'Breed2', ownerId: 'owner2' },
         { id: 'secretary-dog-003', name: 'TestDog3', breed: 'Breed3', ownerId: 'owner3' },
         { id: 'secretary-dog-004', name: 'TestDog4', breed: 'Breed4', ownerId: 'owner4' }
-      ] as Dog[];
+      ] as unknown as Dog[];
 
       showStore.importShows([testShow]);
       dogStore.importDogs(testDogs);
@@ -548,14 +548,14 @@ describe('Phase 3.4: Waitlist Integration', () => {
         status: 'accepting_entries',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
-      } as Show;
+      } as unknown as Show;
 
       const priorityDogs: Dog[] = [
         { id: 'regular-dog-001', name: 'RegularDog1', breed: 'Breed1', ownerId: 'regular-owner-1' },
         { id: 'local-dog-001', name: 'LocalDog1', breed: 'Breed2', ownerId: 'local-owner-1' },
         { id: 'sponsor-dog-001', name: 'SponsorDog1', breed: 'Breed3', ownerId: 'sponsor-owner-1' },
         { id: 'regular-dog-002', name: 'RegularDog2', breed: 'Breed4', ownerId: 'regular-owner-2' }
-      ] as Dog[];
+      ] as unknown as Dog[];
 
       showStore.importShows([testShow]);
       dogStore.importDogs(priorityDogs);
@@ -678,7 +678,7 @@ describe('Phase 3.4: Waitlist Integration', () => {
         status: 'accepting_entries',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
-      } as Show;
+      } as unknown as Show;
 
       // Create 50 dogs for performance testing
       const performanceDogs: Dog[] = Array.from({ length: 50 }, (_, i) => ({

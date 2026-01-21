@@ -10,8 +10,23 @@ import { Menu, X, Home as HomeIcon, Inbox, Monitor, Settings as SettingsIcon, Bo
 import { AboutDialog } from '../dialogs/AboutDialog';
 import { AskMyK9Q } from '../chatbot/AskMyK9Q';
 import { PendingScoresWarningDialog } from '../dialogs/PendingScoresWarningDialog';
-import './shared-ui.css';
 import { productVersion } from '../../config/appVersion';
+import { cn } from '../../lib/utils';
+
+/** Reusable menu item styles */
+const menuItemStyles = {
+  base: cn(
+    "flex items-center gap-3 w-full px-6 py-3.5",
+    "bg-transparent border-none text-[var(--foreground)]",
+    "text-[0.9375rem] font-medium cursor-pointer text-left min-h-[48px]",
+    "transition-all duration-200 ease-in-out",
+    "hover:bg-[var(--muted)]"
+  ),
+  active: "bg-[rgba(0,122,255,0.1)] text-[var(--primary)] font-semibold",
+  logout: "text-[var(--error)] mt-auto hover:bg-[rgba(239,68,68,0.1)]",
+  icon: "w-5 h-5 shrink-0",
+  divider: "h-px bg-[var(--border)] mx-6 my-2",
+};
 
 /**
  * HamburgerMenu Component
@@ -124,7 +139,16 @@ export const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
   return (
     <>
       <button
-        className={`menu-button ${className}`}
+        className={cn(
+          "bg-[var(--secondary)] border border-[var(--border)] rounded-xl p-3",
+          "text-[var(--secondary-foreground)] cursor-pointer",
+          "transition-all duration-300 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]",
+          "min-h-[44px] min-w-[44px] flex items-center justify-center shrink-0",
+          "hover:bg-[var(--muted)] hover:-translate-y-px hover:shadow-md",
+          "dark:bg-[var(--muted)] dark:text-[var(--foreground)]",
+          "dark:hover:bg-[var(--secondary)] dark:hover:shadow-lg",
+          className
+        )}
         onClick={handleMenuToggle}
         title="Menu"
       >
@@ -134,97 +158,122 @@ export const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
       {/* Menu Overlay - Rendered at document root using Portal */}
       {isMenuOpen && createPortal(
         <div
-          className="menu-overlay"
+          className={cn(
+            "fixed inset-0 bg-black/30 z-[9999] animate-fade-in",
+            "light:bg-black/20"
+          )}
           onClick={() => setIsMenuOpen(false)}
         >
           <nav
-            className="hamburger-menu"
+            className={cn(
+              "fixed top-0 left-0 w-[280px] h-screen",
+              "bg-[var(--card)] shadow-[4px_0_12px_rgba(0,0,0,0.15)]",
+              "animate-slide-in-left flex flex-col z-[10000]",
+              "dark:shadow-[4px_0_12px_rgba(0,0,0,0.3)]"
+            )}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="menu-header">
-              <div className="menu-header-info">
-                <h3>{showContext?.clubName}</h3>
-                <p className="show-info-detail">{showContext?.showName}</p>
-                <p className="user-info">
-                  Logged in as: <span>{role}</span>
+            <div className="flex items-start justify-between p-6 border-b border-[var(--border)]">
+              <div className="flex-1 min-w-0 overflow-hidden">
+                <h3 className="m-0 mb-1 text-lg font-bold text-[var(--foreground)] truncate">
+                  {showContext?.clubName}
+                </h3>
+                <p className="m-0 mb-2 text-sm text-[var(--token-text-secondary)] font-medium">
+                  {showContext?.showName}
+                </p>
+                <p className="m-0 text-[0.8125rem] text-[var(--muted-foreground)] font-normal">
+                  Logged in as: <span className="text-[var(--primary)] font-medium">{role}</span>
                 </p>
               </div>
-              <button 
-                className="menu-close"
+              <button
+                className={cn(
+                  "flex items-center justify-center w-8 h-8",
+                  "bg-transparent border-none rounded-md",
+                  "text-[var(--muted-foreground)] cursor-pointer",
+                  "transition-all duration-200 ease-in-out",
+                  "hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
+                )}
                 onClick={() => setIsMenuOpen(false)}
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
             
-            <div className="menu-items">
+            <div className="flex-1 py-4 overflow-y-auto overflow-x-hidden [-webkit-overflow-scrolling:touch]">
               {/* Back Navigation (if provided) */}
               {backNavigation && (
                 <>
                   <button
-                    className="menu-item"
+                    className={menuItemStyles.base}
                     onClick={() => handleMenuItemClick(backNavigation.action)}
                   >
-                    <span className="menu-icon">←</span>
+                    <span className={menuItemStyles.icon}>←</span>
                     <span>{backNavigation.label}</span>
                   </button>
-                  <div className="menu-divider"></div>
+                  <div className={menuItemStyles.divider} />
                 </>
               )}
 
               {/* Main Navigation - Event Context */}
               <button
-                className={`menu-item ${currentPage === 'home' ? 'active' : ''}`}
+                className={cn(menuItemStyles.base, currentPage === 'home' && menuItemStyles.active)}
                 onClick={() => handleMenuItemClick(() => navigate('/home'))}
               >
-                <HomeIcon className="menu-icon" />
+                <HomeIcon className={menuItemStyles.icon} />
                 <span>Home</span>
               </button>
 
               <button
-                className={`menu-item ${currentPage === 'show' ? 'active' : ''}`}
+                className={cn(menuItemStyles.base, currentPage === 'show' && menuItemStyles.active)}
                 onClick={() => handleMenuItemClick(() => navigate(`/show/${showContext?.licenseKey}`))}
               >
-                <Building2 className="menu-icon" />
+                <Building2 className={menuItemStyles.icon} />
                 <span>Show Details</span>
               </button>
 
               {/* Show-related */}
               <button
-                className={`menu-item ${currentPage === 'stats' ? 'active' : ''}`}
+                className={cn(menuItemStyles.base, currentPage === 'stats' && menuItemStyles.active)}
                 onClick={() => handleMenuItemClick(() => navigate('/stats'))}
               >
-                <BarChart3 className="menu-icon" />
+                <BarChart3 className={menuItemStyles.icon} />
                 <span>Statistics</span>
               </button>
 
               <button
-                className={`menu-item ${currentPage === 'results' ? 'active' : ''}`}
+                className={cn(menuItemStyles.base, currentPage === 'results' && menuItemStyles.active)}
                 onClick={() => handleMenuItemClick(() => navigate('/results'))}
               >
-                <Trophy className="menu-icon" />
+                <Trophy className={menuItemStyles.icon} />
                 <span>The Podium</span>
               </button>
 
-              <div className="menu-divider"></div>
+              <div className={menuItemStyles.divider} />
 
               {/* Communication */}
               <button
-                className={`menu-item ${currentPage === 'announcements' ? 'active' : ''}`}
+                className={cn(menuItemStyles.base, currentPage === 'announcements' && menuItemStyles.active)}
                 onClick={() => handleMenuItemClick(() => navigate('/announcements'))}
               >
-                <BookOpen className="menu-icon" />
+                <BookOpen className={menuItemStyles.icon} />
                 <span>Announcements</span>
               </button>
 
               <button
-                className="menu-item"
+                className={menuItemStyles.base}
                 onClick={() => handleMenuItemClick(() => togglePanel())}
               >
-                <div className="menu-icon-container">
-                  <Inbox className="menu-icon" />
+                <div className="relative flex items-center justify-center w-5 h-5 shrink-0">
+                  <Inbox className={menuItemStyles.icon} />
                   {unreadCount > 0 && (
-                    <span className="notification-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
+                    <span className={cn(
+                      "absolute -top-1.5 -right-1.5 bg-[var(--destructive)] text-white",
+                      "text-[0.6875rem] font-semibold leading-none",
+                      "min-w-4 h-4 rounded-md flex items-center justify-center px-1",
+                      "shadow-sm border border-[var(--card)]"
+                    )}>
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
                   )}
                 </div>
                 <span>Inbox</span>
@@ -232,75 +281,79 @@ export const HamburgerMenu: React.FC<HamburgerMenuProps> = ({
 
               {/* Tools */}
               <button
-                className="menu-item"
+                className={menuItemStyles.base}
                 onClick={() => handleMenuItemClick(() => setIsAskMyK9QOpen(true))}
               >
-                <MessageSquare className="menu-icon" />
+                <MessageSquare className={menuItemStyles.icon} />
                 <span>AskQ</span>
               </button>
 
               {/* Secretary Tools - Available to all roles (read-only for non-admin) */}
               <button
-                className={`menu-item ${currentPage === 'secretary' ? 'active' : ''}`}
+                className={cn(menuItemStyles.base, currentPage === 'secretary' && menuItemStyles.active)}
                 onClick={() => handleMenuItemClick(() => navigate('/secretary'))}
               >
-                <ClipboardList className="menu-icon" />
+                <ClipboardList className={menuItemStyles.icon} />
                 <span>Secretary Tools</span>
               </button>
 
               {/* Admin Section - Only show for admin users */}
               {role === 'admin' && (
                 <>
-                  <div className="menu-divider"></div>
+                  <div className={menuItemStyles.divider} />
                   <button
-                    className={`menu-item menu-item--desktop-only ${currentPage === 'tv' ? 'active' : ''}`}
+                    className={cn(
+                      menuItemStyles.base,
+                      "hidden lg:flex",
+                      currentPage === 'tv' && menuItemStyles.active
+                    )}
                     onClick={() => handleMenuItemClick(() => navigate(`/tv/${showContext?.licenseKey || 'myK9Q1-d8609f3b-d3fd43aa-6323a604'}`))}
                   >
-                    <Monitor className="menu-icon" />
+                    <Monitor className={menuItemStyles.icon} />
                     <span>TV Display</span>
                   </button>
                 </>
               )}
 
-              <div className="menu-divider"></div>
+              <div className={menuItemStyles.divider} />
 
               {/* Configuration */}
               <button
-                className={`menu-item ${currentPage === 'settings' ? 'active' : ''}`}
+                className={cn(menuItemStyles.base, currentPage === 'settings' && menuItemStyles.active)}
                 onClick={() => handleMenuItemClick(() => navigate('/settings'))}
               >
-                <SettingsIcon className="menu-icon" />
+                <SettingsIcon className={menuItemStyles.icon} />
                 <span>Settings</span>
               </button>
 
               <button
-                className="menu-item"
+                className={menuItemStyles.base}
                 onClick={cycleTheme}
               >
-                <themeDisplay.icon className="menu-icon" />
+                <themeDisplay.icon className={menuItemStyles.icon} />
                 <span>{themeDisplay.label}</span>
               </button>
 
               <button
-                className="menu-item"
+                className={menuItemStyles.base}
                 onClick={() => handleMenuItemClick(() => setIsAboutDialogOpen(true))}
               >
-                <Info className="menu-icon" />
+                <Info className={menuItemStyles.icon} />
                 <span>About</span>
               </button>
 
-              <div className="menu-divider"></div>
+              <div className={menuItemStyles.divider} />
 
               {/* Logout */}
               <button
-                className="menu-item logout"
+                className={cn(menuItemStyles.base, menuItemStyles.logout)}
                 onClick={() => handleMenuItemClick(() => safeLogout())}
               >
                 <span>Logout</span>
               </button>
 
               {/* Version Number */}
-              <div className="menu-version">
+              <div className="text-center px-6 pt-4 pb-2 text-xs text-[var(--muted-foreground)] font-medium opacity-70">
                 v{productVersion}
               </div>
             </div>

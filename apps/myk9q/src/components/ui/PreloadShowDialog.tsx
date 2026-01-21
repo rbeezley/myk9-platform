@@ -18,7 +18,6 @@ import {
   type PreloadProgress,
   type PreloadedShow,
 } from '@/services/preloadService';
-import './shared-ui.css';
 
 interface PreloadShowDialogProps {
   licenseKey: string;

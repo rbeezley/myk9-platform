@@ -16,6 +16,7 @@
  */
 
 import { SyncStatusPopover } from './SyncStatusPopover';
+import { cn } from '../../lib/utils';
 
 interface CompactOfflineIndicatorProps {
   /** Optional additional className */
@@ -26,8 +27,8 @@ interface CompactOfflineIndicatorProps {
  * CompactOfflineIndicator now wraps SyncStatusPopover for click-to-expand behavior.
  * All existing usages automatically get the enhanced sync status popover.
  */
-export function CompactOfflineIndicator({ className = '' }: CompactOfflineIndicatorProps) {
-  return <SyncStatusPopover className={className} />;
+export function CompactOfflineIndicator({ className }: CompactOfflineIndicatorProps) {
+  return <SyncStatusPopover className={cn(className)} />;
 }
 
 export default CompactOfflineIndicator;

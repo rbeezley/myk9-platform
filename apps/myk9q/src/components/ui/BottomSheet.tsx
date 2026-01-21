@@ -1,5 +1,5 @@
 /**
- * BottomSheet Component
+ * BottomSheet Component - Migrated to Tailwind CSS
  *
  * Thumb-friendly modal that slides up from the bottom of the screen.
  * Perfect for mobile actions that need to be easily reachable with one hand.
@@ -16,7 +16,7 @@
 import { useEffect, useState, useRef, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
-import './shared-ui.css';
+import { cn } from '../../lib/utils';
 
 // Create or get the portal root element for bottom sheets
 function getBottomSheetPortalRoot(): HTMLElement {
@@ -73,6 +73,12 @@ export interface BottomSheetProps {
    */
   dragToDismiss?: boolean;
 }
+
+const heightClasses = {
+  auto: 'max-h-[80vh]',
+  half: 'h-[50vh]',
+  full: 'h-[90vh]',
+} as const;
 
 export function BottomSheet({
   isOpen,
@@ -170,10 +176,27 @@ export function BottomSheet({
   if (!isOpen) return null;
 
   const bottomSheetContent = (
-    <div className="bottom-sheet-overlay" onClick={handleBackdropClick}>
+    <div
+      className={cn(
+        'fixed inset-0 z-[var(--token-z-modal)]',
+        'bg-black/50 backdrop-blur-sm',
+        'animate-fade-in'
+      )}
+      onClick={handleBackdropClick}
+    >
       <div
         ref={sheetRef}
-        className={`bottom-sheet bottom-sheet-${height} ${isDragging ? 'bottom-sheet-dragging' : ''}`}
+        className={cn(
+          'absolute bottom-0 left-0 right-0',
+          'bg-[var(--card)]',
+          'rounded-t-2xl',
+          'shadow-[0_-4px_20px_rgba(0,0,0,0.15)]',
+          'overflow-hidden',
+          heightClasses[height],
+          'pb-[env(safe-area-inset-bottom,0)]',
+          isDragging ? '' : 'transition-transform duration-300',
+          'animate-slide-in-bottom'
+        )}
         style={{
           transform: `translateY(${dragOffset}px)`,
         }}
@@ -188,29 +211,36 @@ export function BottomSheet({
       >
         {/* Drag handle */}
         {showDragHandle && (
-          <div className="bottom-sheet-handle">
-            <div className="bottom-sheet-handle-bar" />
+          <div className="flex justify-center py-3">
+            <div className="w-10 h-1 bg-[var(--muted-foreground)]/30 rounded-full" />
           </div>
         )}
 
         {/* Header */}
         {title && (
-          <div className="bottom-sheet-header">
-            <h2 className="bottom-sheet-title">{title}</h2>
+          <div className="flex items-center justify-between px-4 pb-3 border-b border-[var(--border)]">
+            <h2 className="text-lg font-semibold text-[var(--foreground)]">
+              {title}
+            </h2>
             <button
-              className="bottom-sheet-close touch-target-icon"
+              className={cn(
+                'p-2 rounded-full',
+                'bg-transparent border-none cursor-pointer',
+                'text-[var(--muted-foreground)]',
+                'hover:bg-[var(--muted)]',
+                'min-w-[44px] min-h-[44px]',
+                'flex items-center justify-center'
+              )}
               onClick={onClose}
               aria-label="Close"
             >
-              <X size={20}  style={{ width: '20px', height: '20px', flexShrink: 0 }} />
+              <X className="w-5 h-5" />
             </button>
           </div>
         )}
 
         {/* Content */}
-        <div className="bottom-sheet-content">
-          {children}
-        </div>
+        <div className="overflow-y-auto flex-1 p-4">{children}</div>
       </div>
     </div>
   );

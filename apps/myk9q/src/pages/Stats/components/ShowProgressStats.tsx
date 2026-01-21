@@ -21,7 +21,22 @@ import { ensureReplicationManager } from '@/utils/replicationHelper';
 import { loadFavoritesAsSet } from '@/utils/favoritesUtils';
 import type { Class, Entry, Trial } from '@/services/replication';
 import { logger } from '@/utils/logger';
-import './ShowProgressStats.css';
+import { cn } from '@/lib/utils';
+
+/** Tailwind styles for ShowProgressStats */
+const styles = {
+  container: cn(
+    "grid grid-cols-2 gap-3",
+    "pt-4 px-3",
+    "sm:grid-cols-4 sm:pt-5 sm:px-4",
+    "lg:pt-6 lg:px-6"
+  ),
+  cardClickable: "cursor-pointer",
+  iconAnnouncements: "bg-gradient-to-br from-amber-500 to-amber-600",
+  iconFavorites: "bg-gradient-to-br from-pink-500 to-pink-600",
+  iconInProgress: "bg-gradient-to-br from-[var(--status-at-gate)] to-violet-600",
+  iconCompletion: "bg-gradient-to-br from-[var(--status-checked-in)] to-emerald-600",
+};
 
 interface ShowProgressStatsProps {
   trialId?: string;
@@ -192,16 +207,16 @@ export function ShowProgressStats({ trialId }: ShowProgressStatsProps) {
   };
 
   return (
-    <div className="show-progress-stats">
+    <div className={styles.container}>
       {/* Unread Announcements */}
       <div
-        className="stats-card stats-card--clickable"
+        className={cn("stats-card", styles.cardClickable)}
         onClick={() => handleCardClick('announcements')}
         role="button"
         tabIndex={0}
         onKeyDown={(e) => e.key === 'Enter' && handleCardClick('announcements')}
       >
-        <div className="card-icon announcements">
+        <div className={cn("card-icon", styles.iconAnnouncements)}>
           <Bell />
         </div>
         <div className="card-content">
@@ -213,13 +228,13 @@ export function ShowProgressStats({ trialId }: ShowProgressStatsProps) {
 
       {/* Favorites */}
       <div
-        className="stats-card stats-card--clickable"
+        className={cn("stats-card", styles.cardClickable)}
         onClick={() => handleCardClick('favorites')}
         role="button"
         tabIndex={0}
         onKeyDown={(e) => e.key === 'Enter' && handleCardClick('favorites')}
       >
-        <div className="card-icon favorites">
+        <div className={cn("card-icon", styles.iconFavorites)}>
           <Heart />
         </div>
         <div className="card-content">
@@ -231,13 +246,13 @@ export function ShowProgressStats({ trialId }: ShowProgressStatsProps) {
 
       {/* Classes In Progress */}
       <div
-        className={`stats-card ${trialId ? 'stats-card--clickable' : ''}`}
+        className={cn("stats-card", trialId && styles.cardClickable)}
         onClick={() => trialId && handleCardClick('active')}
         role={trialId ? 'button' : undefined}
         tabIndex={trialId ? 0 : undefined}
         onKeyDown={(e) => trialId && e.key === 'Enter' && handleCardClick('active')}
       >
-        <div className="card-icon in-progress">
+        <div className={cn("card-icon", styles.iconInProgress)}>
           <Clock />
         </div>
         <div className="card-content">
@@ -249,13 +264,13 @@ export function ShowProgressStats({ trialId }: ShowProgressStatsProps) {
 
       {/* Completion */}
       <div
-        className={`stats-card ${trialId ? 'stats-card--clickable' : ''}`}
+        className={cn("stats-card", trialId && styles.cardClickable)}
         onClick={() => trialId && handleCardClick('progress')}
         role={trialId ? 'button' : undefined}
         tabIndex={trialId ? 0 : undefined}
         onKeyDown={(e) => trialId && e.key === 'Enter' && handleCardClick('progress')}
       >
-        <div className="card-icon completion">
+        <div className={cn("card-icon", styles.iconCompletion)}>
           <CheckCircle />
         </div>
         <div className="card-content">

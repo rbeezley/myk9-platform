@@ -1,13 +1,14 @@
 /**
- * Collapsible Section Component
+ * CollapsibleSection Component - Migrated to Tailwind CSS
  *
  * Reusable collapsible section with smooth expand/collapse transitions
  * and accessibility support. Respects reduce motion preferences.
  */
 
 import { useState, useRef, useEffect } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { useReduceMotion } from '@/hooks/useReduceMotion';
-import './shared-ui.css';
+import { cn } from '../../lib/utils';
 
 export interface CollapsibleSectionProps {
   /** Section title */
@@ -43,7 +44,7 @@ export function CollapsibleSection({
   description,
   defaultExpanded = false,
   children,
-  className = '',
+  className,
   id,
   badge,
   icon,
@@ -90,13 +91,21 @@ export function CollapsibleSection({
   return (
     <section
       id={id}
-      className={`collapsible-section ${isExpanded ? 'expanded' : 'collapsed'} ${className} ${
-        reduceMotion ? 'reduce-motion' : ''
-      }`}
+      className={cn(
+        'bg-[var(--card)] rounded-xl border border-[var(--border)]',
+        'overflow-hidden',
+        reduceMotion ? '' : 'transition-all duration-300',
+        className
+      )}
       aria-labelledby={`${id}-header`}
     >
       <div
-        className="section-header"
+        className={cn(
+          'flex items-center justify-between',
+          'p-4 cursor-pointer',
+          'hover:bg-[var(--muted)]/30',
+          'transition-colors duration-200'
+        )}
         onClick={toggleExpanded}
         onKeyDown={handleKeyDown}
         role="button"
@@ -105,59 +114,68 @@ export function CollapsibleSection({
         aria-controls={`${id}-content`}
         id={`${id}-header`}
       >
-        <div className="header-content">
-          {icon && <span className="section-icon" aria-hidden="true">{icon}</span>}
-          <div className="header-text">
-            <h2 className="section-title">
+        <div className="flex items-center gap-3">
+          {icon && (
+            <span className="text-[var(--primary)] flex-shrink-0" aria-hidden="true">
+              {icon}
+            </span>
+          )}
+          <div>
+            <h2 className="text-base font-semibold text-[var(--foreground)] flex items-center gap-2">
               {title}
               {badge !== undefined && badge > 0 && (
-                <span className="section-badge" aria-label={`${badge} settings`}>
+                <span
+                  className={cn(
+                    'inline-flex items-center justify-center',
+                    'px-2 py-0.5 rounded-full',
+                    'bg-[var(--primary)] text-white',
+                    'text-xs font-medium'
+                  )}
+                  aria-label={`${badge} settings`}
+                >
                   {badge}
                 </span>
               )}
             </h2>
             {description && (
-              <p className="section-description">{description}</p>
+              <p className="text-sm text-[var(--muted-foreground)] mt-0.5">
+                {description}
+              </p>
             )}
           </div>
         </div>
         <button
-          className="expand-button"
+          className={cn(
+            'p-2 rounded-lg',
+            'bg-transparent border-none cursor-pointer',
+            'text-[var(--muted-foreground)]',
+            'hover:bg-[var(--muted)]',
+            'transition-transform duration-200',
+            isExpanded && 'rotate-180'
+          )}
           aria-label={isExpanded ? `Collapse ${title}` : `Expand ${title}`}
           onClick={(e) => {
             e.stopPropagation();
             toggleExpanded();
           }}
         >
-          <svg
-            className="expand-icon"
-            width="20"
-            height="20"
-            viewBox="0 0 20 20"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-hidden="true"
-          >
-            <path
-              d="M5 7.5L10 12.5L15 7.5"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+          <ChevronDown className="w-5 h-5" />
         </button>
       </div>
 
       <div
         ref={contentRef}
         id={`${id}-content`}
-        className="section-content"
+        className={cn(
+          'overflow-hidden',
+          reduceMotion ? '' : 'transition-all duration-300',
+          isExpanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
+        )}
         role="region"
         aria-labelledby={`${id}-header`}
         aria-hidden={!isExpanded}
       >
-        <div className="section-content-inner">
+        <div className="px-4 pb-4 pt-2 border-t border-[var(--border)]">
           {children}
         </div>
       </div>
@@ -186,15 +204,11 @@ export function CollapsibleSectionGroup({
   children,
   allowMultiple = true,
   defaultExpandedId,
-  className = '',
+  className,
 }: CollapsibleSectionGroupProps) {
   // Props reserved for future group coordination feature
   void allowMultiple;
   void defaultExpandedId;
 
-  return (
-    <div className={`collapsible-section-group ${className}`}>
-      {children}
-    </div>
-  );
+  return <div className={cn('flex flex-col gap-4', className)}>{children}</div>;
 }

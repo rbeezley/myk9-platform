@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import './shared-ui.css';
+import { cn } from '../../lib/utils';
 
 interface AutoLogoutWarningProps {
   /** Seconds remaining until auto-logout */
@@ -54,39 +54,76 @@ export const AutoLogoutWarning: React.FC<AutoLogoutWarningProps> = ({
   };
 
   return (
-    <div className="auto-logout-overlay" onClick={onDismiss}>
-      <div className="auto-logout-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="auto-logout-icon">⏰</div>
+    <div
+      className={cn(
+        'fixed inset-0 z-[9999]',
+        'flex items-center justify-center',
+        'bg-black/50 backdrop-blur-sm',
+        'animate-[fadeIn_0.2s_ease-out]'
+      )}
+      onClick={onDismiss}
+    >
+      <div
+        className={cn(
+          'bg-[var(--card)] rounded-xl',
+          'p-6 m-4 max-w-sm w-full',
+          'shadow-xl border border-[var(--border)]',
+          'text-center',
+          'animate-[slideUp_0.3s_ease-out]'
+        )}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="text-4xl mb-4">⏰</div>
 
-        <h2 className="auto-logout-title">Session Ending Soon</h2>
+        <h2 className="text-xl font-semibold text-[var(--foreground)] mb-2">
+          Session Ending Soon
+        </h2>
 
-        <p className="auto-logout-message">
-          You'll be automatically logged out in <strong>{formatTime(countdown)}</strong> due to inactivity.
+        <p className="text-sm text-[var(--muted-foreground)] mb-4">
+          You'll be automatically logged out in <strong className="text-[var(--foreground)]">{formatTime(countdown)}</strong> due to inactivity.
         </p>
 
-        <div className="auto-logout-countdown">
-          <div className="countdown-circle">
-            <div className="countdown-number">{formatTime(countdown)}</div>
+        <div className="flex justify-center mb-6">
+          <div
+            className={cn(
+              'w-20 h-20 rounded-full',
+              'flex items-center justify-center',
+              'bg-[var(--warning)]/10 border-4 border-[var(--warning)]'
+            )}
+          >
+            <div className="text-2xl font-bold font-mono text-[var(--warning)]">
+              {formatTime(countdown)}
+            </div>
           </div>
         </div>
 
-        <div className="auto-logout-actions">
+        <div className="flex flex-col gap-3">
           <button
-            className="auto-logout-button extend"
+            className={cn(
+              'w-full py-3 px-4 rounded-lg',
+              'bg-[var(--primary)] text-white',
+              'font-semibold',
+              'hover:brightness-110 transition-all'
+            )}
             onClick={onExtend}
           >
             Stay Logged In
           </button>
 
           <button
-            className="auto-logout-button logout"
+            className={cn(
+              'w-full py-3 px-4 rounded-lg',
+              'bg-[var(--muted)] text-[var(--foreground)]',
+              'font-medium',
+              'hover:bg-[var(--muted)]/80 transition-all'
+            )}
             onClick={onLogoutNow}
           >
             Logout Now
           </button>
         </div>
 
-        <p className="auto-logout-hint">
+        <p className="text-xs text-[var(--muted-foreground)] mt-4">
           Any activity will keep you logged in
         </p>
       </div>

@@ -1,12 +1,12 @@
 /**
- * Floating Action Button (FAB)
+ * FloatingActionButton Component - Migrated to Tailwind CSS
  *
  * Material Design-inspired FAB for one-handed mode.
  * Positioned based on hand preference (left/right/auto).
  */
 
 import React from 'react';
-import './shared-ui.css';
+import { cn } from '../../lib/utils';
 
 export interface FloatingActionButtonProps {
   /** Icon to display in the FAB */
@@ -19,6 +19,8 @@ export interface FloatingActionButtonProps {
   className?: string;
   /** Whether to show the FAB (default: true) */
   visible?: boolean;
+  /** Position preference: 'left' | 'right' */
+  position?: 'left' | 'right';
 }
 
 /**
@@ -34,8 +36,9 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
   icon,
   onClick,
   ariaLabel,
-  className = '',
+  className,
   visible = true,
+  position = 'right',
 }) => {
   // Don't render if FAB is hidden
   if (!visible) {
@@ -44,7 +47,22 @@ export const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
 
   return (
     <button
-      className={`floating-action-button ${className}`}
+      className={cn(
+        'fixed bottom-6 z-50',
+        'w-14 h-14',
+        'flex items-center justify-center',
+        'rounded-full',
+        'bg-[var(--primary)] text-white',
+        'shadow-lg',
+        'border-none cursor-pointer',
+        'transition-all duration-300',
+        'hover:-translate-y-1 hover:shadow-xl',
+        'active:scale-95',
+        position === 'left' ? 'left-6' : 'right-6',
+        // Safe area padding for notched devices
+        'pb-[env(safe-area-inset-bottom,0)]',
+        className
+      )}
       onClick={onClick}
       aria-label={ariaLabel}
       type="button"

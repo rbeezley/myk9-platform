@@ -1,5 +1,9 @@
 import React from 'react';
-import './shared-ui.css';
+import { cn } from '../../lib/utils';
+
+/**
+ * Card Component - Migrated to Tailwind CSS
+ */
 
 interface CardProps {
   children: React.ReactNode;
@@ -8,20 +12,52 @@ interface CardProps {
   onClick?: () => void;
 }
 
+// Base card styles
+const baseStyles = [
+  'bg-[var(--card)]',
+  'rounded-[var(--token-radius-lg)]',
+  'border border-[var(--border)]',
+  'p-4',
+  'shadow-[var(--token-shadow-sm)]',
+  'transition-all duration-300',
+].join(' ');
+
+// Variant-specific styles
+const variantStyles = {
+  default: '',
+  clickable: [
+    'cursor-pointer',
+    'hover:-translate-y-0.5 hover:shadow-[var(--token-shadow-lg)]',
+    'active:scale-[0.98] active:transition-transform active:duration-100',
+  ].join(' '),
+  scored: [
+    'border-[var(--status-checked-in)]',
+    'bg-[rgba(52,199,89,0.05)]',
+  ].join(' '),
+  unscored: [
+    'border-[var(--pending-orange)]',
+    'shadow-[0_0_0_2px_var(--pending-orange),var(--pending-glow)]',
+  ].join(' '),
+} as const;
+
 // Haptic feedback is handled globally by useGlobalHaptic hook
 export const Card: React.FC<CardProps> = ({
   children,
-  className = '',
+  className,
   variant = 'default',
-  onClick
+  onClick,
 }) => {
   const isClickable = variant === 'clickable' || !!onClick;
 
   return (
     <div
-      className={`card ${variant} ${isClickable ? 'clickable' : ''} ${className}`}
+      className={cn(
+        baseStyles,
+        variantStyles[variant],
+        isClickable && variant !== 'clickable' && variantStyles.clickable,
+        className
+      )}
       onClick={onClick}
-      style={{ cursor: isClickable ? 'pointer' : 'default' }}
     >
       {children}
     </div>
@@ -33,8 +69,8 @@ interface CardHeaderProps {
   className?: string;
 }
 
-export const CardHeader: React.FC<CardHeaderProps> = ({ children, className = '' }) => (
-  <div className={`card-header ${className}`}>
+export const CardHeader: React.FC<CardHeaderProps> = ({ children, className }) => (
+  <div className={cn('flex items-center justify-between mb-3', className)}>
     {children}
   </div>
 );
@@ -44,8 +80,8 @@ interface CardContentProps {
   className?: string;
 }
 
-export const CardContent: React.FC<CardContentProps> = ({ children, className = '' }) => (
-  <div className={`card-content ${className}`}>
+export const CardContent: React.FC<CardContentProps> = ({ children, className }) => (
+  <div className={cn('', className)}>
     {children}
   </div>
 );
@@ -55,8 +91,8 @@ interface CardActionsProps {
   className?: string;
 }
 
-export const CardActions: React.FC<CardActionsProps> = ({ children, className = '' }) => (
-  <div className={`card-actions ${className}`}>
+export const CardActions: React.FC<CardActionsProps> = ({ children, className }) => (
+  <div className={cn('flex items-center gap-2 mt-4 pt-4 border-t border-[var(--border)]', className)}>
     {children}
   </div>
 );

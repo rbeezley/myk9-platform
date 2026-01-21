@@ -9,7 +9,51 @@
 
 import React from 'react';
 import { haptic } from '@/hooks/useHapticFeedback';
-import './TimerDisplay.css';
+import { cn } from '@/lib/utils';
+
+/** Tailwind styles for TimerDisplay */
+const styles = {
+  card: cn(
+    "relative p-6 mb-4 rounded-2xl",
+    "bg-gradient-to-br from-[#667eea] to-[#764ba2]",
+    "shadow-[0_4px_6px_rgba(0,0,0,0.1)]"
+  ),
+  resetBtn: cn(
+    "absolute top-3 right-3",
+    "w-10 h-10 rounded-full border-none",
+    "bg-white/20 text-white text-xl cursor-pointer",
+    "transition-all duration-200",
+    "hover:enabled:bg-white/30 hover:enabled:rotate-180",
+    "disabled:opacity-30 disabled:cursor-not-allowed"
+  ),
+  countdownRing: "absolute top-3 left-3 block",
+  timerDisplay: cn(
+    "text-5xl font-bold text-white text-center mb-2",
+    "tabular-nums transition-colors duration-300"
+  ),
+  timerWarning: "text-amber-400",
+  timerExpired: "text-red-500 animate-[pulse_1s_infinite]",
+  countdownDisplay: "text-base text-white/90 text-center mb-4",
+  controls: "flex justify-center gap-3",
+  startBtn: cn(
+    "w-[140px] min-w-[140px] max-w-[140px] h-12",
+    "px-6 py-3 rounded-xl border-none",
+    "text-base font-semibold cursor-pointer",
+    "transition-all duration-200",
+    "shadow-[0_2px_4px_rgba(0,0,0,0.1)]",
+    "flex items-center justify-center flex-shrink-0 flex-grow-0",
+    "hover:translate-y-[-2px] hover:shadow-[0_4px_8px_rgba(0,0,0,0.15)]"
+  ),
+  startBtnStart: "bg-white text-[#667eea]",
+  startBtnStop: "bg-red-500 text-white",
+  startBtnResume: "bg-teal-500 text-white",
+  warningBox: cn(
+    "text-center p-3 rounded-lg mb-4",
+    "font-semibold text-sm"
+  ),
+  warningBoxWarning: "bg-amber-400/10 border border-amber-400 text-amber-500",
+  warningBoxExpired: "bg-red-500/10 border border-red-500 text-red-600",
+};
 
 /**
  * Timer warning state
@@ -127,11 +171,11 @@ export function TimerDisplay({
 
   return (
     <>
-      <div className="scoresheet-timer-card">
+      <div className={styles.card}>
         {/* Countdown ring - top left corner */}
         {showProgressRing && maxTimeMs && maxTimeMs > 0 && (
           <svg
-            className="timer-countdown-ring-corner"
+            className={styles.countdownRing}
             width={cornerRingSize}
             height={cornerRingSize}
             viewBox={`0 0 ${cornerRingSize} ${cornerRingSize}`}
@@ -161,7 +205,7 @@ export function TimerDisplay({
 
         {/* Reset button - top right corner */}
         <button
-          className="timer-btn-reset btn-destructive"
+          className={cn(styles.resetBtn, "btn-destructive")}
           onClick={() => { haptic.heavy(); onReset(); }}
           disabled={isRunning}
           title={isRunning ? "Reset disabled while timer is running" : "Reset timer"}
@@ -171,13 +215,17 @@ export function TimerDisplay({
 
         {/* Main timer display */}
         <div
-          className={`timer-display-large ${warningState === 'warning' ? 'warning' : ''} ${warningState === 'expired' ? 'expired' : ''}`}
+          className={cn(
+            styles.timerDisplay,
+            warningState === 'warning' && styles.timerWarning,
+            warningState === 'expired' && styles.timerExpired
+          )}
         >
           {formatTime(time)}
         </div>
 
         {/* Countdown/Max Time display */}
-        <div className="timer-countdown-display">
+        <div className={styles.countdownDisplay}>
           {time > 0 ? (
             <>Remaining: {remainingTime}</>
           ) : (
@@ -186,11 +234,11 @@ export function TimerDisplay({
         </div>
 
         {/* Control buttons */}
-        <div className="timer-controls-flutter">
+        <div className={styles.controls}>
           {isRunning ? (
             // Timer is running - show Stop button (centered)
             <button
-              className="timer-btn-start stop btn-destructive"
+              className={cn(styles.startBtn, styles.startBtnStop, "btn-destructive")}
               onClick={() => { haptic.heavy(); onStop(); }}
             >
               Stop
@@ -198,7 +246,7 @@ export function TimerDisplay({
           ) : time > 0 ? (
             // Timer is stopped with time recorded - show Resume button
             <button
-              className="timer-btn-start resume btn-primary"
+              className={cn(styles.startBtn, styles.startBtnResume, "btn-primary")}
               onClick={() => { haptic.medium(); onStart(); }}
               title="Continue timing"
             >
@@ -207,7 +255,7 @@ export function TimerDisplay({
           ) : (
             // Timer is at zero - show Start button (centered)
             <button
-              className="timer-btn-start start btn-primary"
+              className={cn(styles.startBtn, styles.startBtnStart, "btn-primary")}
               onClick={() => { haptic.heavy(); onStart(); }}
             >
               Start
@@ -218,7 +266,10 @@ export function TimerDisplay({
 
       {/* Timer Warning Message */}
       {warningMessage && (
-        <div className={`timer-warning ${warningState === 'expired' ? 'expired' : 'warning'}`}>
+        <div className={cn(
+          styles.warningBox,
+          warningState === 'expired' ? styles.warningBoxExpired : styles.warningBoxWarning
+        )}>
           {warningMessage}
         </div>
       )}

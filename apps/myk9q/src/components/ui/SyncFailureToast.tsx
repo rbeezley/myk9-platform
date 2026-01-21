@@ -16,7 +16,59 @@ import { useState, useEffect, useCallback } from 'react';
 import { AlertTriangle, RefreshCw, X, CloudOff } from 'lucide-react';
 import { refreshAllTables } from '@/services/replication/initReplication';
 import { logger } from '@/utils/logger';
-import './SyncFailureToast.css';
+import { cn } from '@/lib/utils';
+
+/** Tailwind styles for SyncFailureToast */
+const styles = {
+  container: cn(
+    "fixed z-[9999] pointer-events-none",
+    "bottom-[var(--token-space-xl)] left-1/2 -translate-x-1/2",
+    "max-w-[90%] w-[400px]",
+    "max-[480px]:bottom-[calc(var(--token-space-xl)+env(safe-area-inset-bottom,0px))]",
+    "max-[480px]:left-[var(--token-space-md)] max-[480px]:right-[var(--token-space-md)]",
+    "max-[480px]:translate-x-0 max-[480px]:w-auto max-[480px]:max-w-none"
+  ),
+  toast: cn(
+    "bg-[var(--card)] border border-[var(--border)]",
+    "rounded-[var(--token-space-lg)]",
+    "shadow-[0_4px_20px_rgba(0,0,0,0.15)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.4)]",
+    "p-[var(--token-space-lg)] max-[480px]:p-[var(--token-space-md)]",
+    "flex items-start gap-[var(--token-space-md)]",
+    "pointer-events-auto animate-[slideUp_0.3s_ease-out]"
+  ),
+  toastSyncFailed: "border-l-4 border-l-[var(--token-warning)]",
+  toastQueueOverflow: "border-l-4 border-l-[var(--token-error)]",
+  icon: cn(
+    "flex-shrink-0 flex items-center justify-center",
+    "w-10 h-10 max-[480px]:w-8 max-[480px]:h-8",
+    "rounded-[var(--token-space-md)]",
+    "[&_svg]:max-[480px]:w-[18px] [&_svg]:max-[480px]:h-[18px]"
+  ),
+  iconWarning: "bg-[var(--token-warning-light,rgba(234,179,8,0.1))] text-[var(--token-warning)]",
+  iconError: "bg-[var(--token-error-light,rgba(239,68,68,0.1))] text-[var(--token-error)]",
+  content: "flex-1 min-w-0",
+  message: "m-0 text-[var(--token-font-sm)] text-[var(--foreground)] leading-[1.4]",
+  count: "mt-[var(--token-space-xs)] text-[var(--token-font-xs)] text-[var(--token-text-tertiary)]",
+  actions: "flex items-center gap-[var(--token-space-sm)] flex-shrink-0",
+  btn: cn(
+    "flex items-center justify-center gap-[var(--token-space-xs)]",
+    "px-[var(--token-space-md)] py-[var(--token-space-sm)]",
+    "rounded-[var(--token-space-md)]",
+    "text-[var(--token-font-sm)] font-[var(--token-font-weight-medium)]",
+    "cursor-pointer transition-all duration-150 border-none"
+  ),
+  btnPrimary: cn(
+    "bg-[var(--primary)] text-[var(--primary-foreground)]",
+    "hover:enabled:opacity-90",
+    "disabled:opacity-60 disabled:cursor-not-allowed"
+  ),
+  btnDismiss: cn(
+    "bg-transparent text-[var(--token-text-secondary)]",
+    "p-[var(--token-space-sm)]",
+    "hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
+  ),
+  spinning: "animate-spin",
+};
 
 interface SyncFailure {
   id: string;
@@ -132,37 +184,45 @@ export function SyncFailureToast() {
   // Show only the most recent failure
   const latestFailure = failures[failures.length - 1];
 
+  const isQueueOverflow = latestFailure.type === 'queue-overflow';
+
   return (
-    <div className="sync-failure-toast-container" role="alert" aria-live="polite">
-      <div className={`sync-failure-toast sync-failure-toast--${latestFailure.type}`}>
-        <div className="sync-failure-toast__icon">
-          {latestFailure.type === 'queue-overflow' ? (
+    <div className={styles.container} role="alert" aria-live="polite">
+      <div className={cn(
+        styles.toast,
+        isQueueOverflow ? styles.toastQueueOverflow : styles.toastSyncFailed
+      )}>
+        <div className={cn(
+          styles.icon,
+          isQueueOverflow ? styles.iconError : styles.iconWarning
+        )}>
+          {isQueueOverflow ? (
             <CloudOff size={24} />
           ) : (
             <AlertTriangle size={24} />
           )}
         </div>
 
-        <div className="sync-failure-toast__content">
-          <p className="sync-failure-toast__message">{latestFailure.message}</p>
+        <div className={styles.content}>
+          <p className={styles.message}>{latestFailure.message}</p>
           {failures.length > 1 && (
-            <p className="sync-failure-toast__count">
+            <p className={styles.count}>
               +{failures.length - 1} more
             </p>
           )}
         </div>
 
-        <div className="sync-failure-toast__actions">
+        <div className={styles.actions}>
           <button
-            className="sync-failure-toast__btn sync-failure-toast__btn--primary"
+            className={cn(styles.btn, styles.btnPrimary)}
             onClick={handleRetry}
             disabled={isSyncing}
           >
-            <RefreshCw size={16} className={isSyncing ? 'spinning' : ''} />
+            <RefreshCw size={16} className={isSyncing ? styles.spinning : ''} />
             {isSyncing ? 'Syncing...' : 'Retry'}
           </button>
           <button
-            className="sync-failure-toast__btn sync-failure-toast__btn--dismiss"
+            className={cn(styles.btn, styles.btnDismiss)}
             onClick={() => handleDismiss(latestFailure.id)}
             aria-label="Dismiss"
           >

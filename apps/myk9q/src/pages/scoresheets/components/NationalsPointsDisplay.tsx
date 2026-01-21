@@ -8,7 +8,31 @@
  */
 
 import React from 'react';
-import './NationalsPointsDisplay.css';
+import { cn } from '@/lib/utils';
+
+/** Tailwind styles for NationalsPointsDisplay */
+const styles = {
+  breakdown: cn(
+    "mt-4 p-4",
+    "bg-blue-500/5 border border-blue-500/20 rounded-lg"
+  ),
+  title: cn(
+    "m-0 mb-3 text-base font-semibold",
+    "text-[var(--text-primary)]"
+  ),
+  scoreGrid: "grid grid-cols-2 gap-3 mb-4",
+  scoreItem: "flex flex-col gap-1",
+  itemLabel: "text-[13px] text-[var(--text-secondary)] font-medium",
+  itemValue: "text-xl font-bold",
+  valuePositive: "text-teal-500",
+  valueNegative: "text-red-500",
+  totalRow: cn(
+    "flex justify-between items-center p-3",
+    "bg-blue-500/10 rounded-md border-2 border-blue-500/30"
+  ),
+  totalLabel: "text-base font-semibold text-[var(--text-primary)]",
+  totalValue: "text-2xl font-bold text-blue-500",
+};
 
 /**
  * Props for NationalsPointsDisplay component
@@ -68,29 +92,29 @@ export function NationalsPointsDisplay({
   totalPoints
 }: NationalsPointsDisplayProps): React.ReactElement {
   return (
-    <div className="nationals-breakdown">
-      <h3>Nationals Scoring</h3>
-      <div className="score-grid">
-        <div className="score-item">
-          <span className="item-label">Correct Calls</span>
-          <span className="item-value positive">{alertsCorrect}</span>
+    <div className={styles.breakdown}>
+      <h3 className={styles.title}>Nationals Scoring</h3>
+      <div className={styles.scoreGrid}>
+        <div className={styles.scoreItem}>
+          <span className={styles.itemLabel}>Correct Calls</span>
+          <span className={cn(styles.itemValue, styles.valuePositive)}>{alertsCorrect}</span>
         </div>
-        <div className="score-item">
-          <span className="item-label">Incorrect Calls</span>
-          <span className="item-value negative">{alertsIncorrect}</span>
+        <div className={styles.scoreItem}>
+          <span className={styles.itemLabel}>Incorrect Calls</span>
+          <span className={cn(styles.itemValue, styles.valueNegative)}>{alertsIncorrect}</span>
         </div>
-        <div className="score-item">
-          <span className="item-label">Faults</span>
-          <span className="item-value negative">{faultCount}</span>
+        <div className={styles.scoreItem}>
+          <span className={styles.itemLabel}>Faults</span>
+          <span className={cn(styles.itemValue, styles.valueNegative)}>{faultCount}</span>
         </div>
-        <div className="score-item">
-          <span className="item-label">No Finish Calls</span>
-          <span className="item-value negative">{finishCallErrors}</span>
+        <div className={styles.scoreItem}>
+          <span className={styles.itemLabel}>No Finish Calls</span>
+          <span className={cn(styles.itemValue, styles.valueNegative)}>{finishCallErrors}</span>
         </div>
       </div>
-      <div className="total-points">
-        <span className="total-label">Total Points:</span>
-        <span className="total-value">{totalPoints}</span>
+      <div className={styles.totalRow}>
+        <span className={styles.totalLabel}>Total Points:</span>
+        <span className={styles.totalValue}>{totalPoints}</span>
       </div>
     </div>
   );

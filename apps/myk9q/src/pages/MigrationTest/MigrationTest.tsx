@@ -15,7 +15,146 @@ import {
 import { authenticatePasscode } from '../../services/authService';
 import { PasscodeInput } from '../../components/PasscodeInput/PasscodeInput';
 import { logger } from '@/utils/logger';
-import './MigrationTest.css';
+import { cn } from '@/lib/utils';
+
+/** Tailwind styles for MigrationTest page */
+const styles = {
+  container: cn(
+    "max-w-4xl mx-auto min-h-screen",
+    "px-4 py-6 sm:px-8 sm:py-10",
+    "bg-[var(--background-subtle)]"
+  ),
+  header: "text-center mb-12",
+  headerTitle: cn(
+    "text-3xl sm:text-4xl font-bold",
+    "text-[var(--foreground)] mb-4"
+  ),
+  headerText: "text-lg text-[var(--token-text-tertiary)]",
+  section: cn(
+    "bg-white rounded-2xl shadow-sm",
+    "p-6 sm:p-8 mb-8",
+    "border border-[var(--border)]"
+  ),
+  sectionTitle: cn(
+    "text-2xl font-semibold text-[var(--foreground)]",
+    "mb-6"
+  ),
+  statusGrid: cn(
+    "grid gap-4",
+    "grid-cols-1 sm:grid-cols-[repeat(auto-fit,minmax(250px,1fr))]"
+  ),
+  statusItem: cn(
+    "flex flex-col p-4",
+    "bg-[var(--background-subtle)] rounded-lg",
+    "border-2 border-[var(--border)]",
+    "transition-all duration-300"
+  ),
+  statusItemEnabled: "border-[var(--token-success)] bg-[var(--status-qualified-bg)]",
+  statusItemDisabled: "border-[var(--token-error)] bg-[var(--status-not-qualified-bg)]",
+  statusLabel: cn(
+    "text-sm text-[var(--token-text-tertiary)]",
+    "font-medium mb-2"
+  ),
+  statusValue: "text-base font-semibold text-[var(--foreground)]",
+  flutterUrl: "text-sm text-[var(--primary)] break-all",
+  passcodeContainer: cn(
+    "flex flex-col items-center gap-6",
+    "mb-6 p-4 sm:p-6",
+    "bg-[var(--muted)] rounded-2xl",
+    "border-2 border-[var(--border)]"
+  ),
+  testBtn: cn(
+    "px-6 py-3 text-base font-semibold",
+    "border-none rounded-lg cursor-pointer",
+    "transition-all duration-300",
+    "disabled:opacity-50 disabled:cursor-not-allowed"
+  ),
+  testBtnPrimary: cn(
+    "bg-indigo-500 text-white",
+    "hover:bg-[var(--primary)] hover:-translate-y-px",
+    "hover:shadow-lg hover:shadow-indigo-500/25"
+  ),
+  testBtnSecondary: cn(
+    "bg-[var(--token-success)] text-white",
+    "hover:bg-[var(--token-success-contrast)] hover:-translate-y-px",
+    "hover:shadow-lg hover:shadow-emerald-500/25"
+  ),
+  testBtnClear: cn(
+    "bg-[var(--status-pulled)] text-white",
+    "hover:bg-red-600 hover:-translate-y-px",
+    "hover:shadow-lg hover:shadow-red-500/25"
+  ),
+  quickTestBtns: "flex gap-4 flex-wrap",
+  testInfo: cn(
+    "bg-sky-50 border border-sky-200 rounded-lg p-4",
+    "dark:bg-sky-950/50 dark:border-sky-800"
+  ),
+  testInfoTitle: cn(
+    "text-base font-semibold text-[var(--primary)]",
+    "mb-3"
+  ),
+  testInfoList: cn(
+    "m-0 pl-6 text-[var(--primary)]",
+    "[&_li]:mb-2 [&_li]:text-sm"
+  ),
+  resultsList: "flex flex-col gap-4",
+  resultItem: cn(
+    "p-4 rounded-lg border-2",
+    "transition-all duration-300"
+  ),
+  resultItemSuccess: "bg-[var(--status-qualified-bg)] border-[var(--token-success)]",
+  resultItemFailure: "bg-[var(--status-not-qualified-bg)] border-[var(--token-error)]",
+  resultItemV3: "border-l-[6px] border-l-[var(--primary)]",
+  resultItemLegacy: "border-l-[6px] border-l-[var(--status-conflict)]",
+  resultHeader: cn(
+    "flex flex-col sm:flex-row gap-4",
+    "items-start sm:items-center",
+    "flex-wrap mb-3"
+  ),
+  resultPasscode: cn(
+    "text-xl font-bold font-mono",
+    "text-[var(--foreground)]"
+  ),
+  resultDatabase: cn(
+    "px-3 py-1 rounded text-sm font-semibold"
+  ),
+  resultDbV3: "bg-violet-100 text-[var(--primary)] dark:bg-violet-900/50",
+  resultDbLegacy: "bg-amber-100 text-[var(--token-warning-contrast)] dark:bg-amber-900/50",
+  resultDbUnknown: "bg-[var(--input)] text-[var(--token-text-tertiary)]",
+  resultStatus: cn(
+    "text-sm font-semibold",
+    "sm:ml-auto"
+  ),
+  resultStatusSuccess: "text-[var(--token-success)]",
+  resultStatusFailure: "text-[var(--token-error)]",
+  resultMessage: cn(
+    "text-[var(--muted-foreground)] mb-3",
+    "text-[15px]"
+  ),
+  resultRedirect: cn(
+    "bg-[var(--input)] p-3 rounded text-sm mb-3",
+    "[&_a]:text-[var(--primary)] [&_a]:no-underline [&_a]:font-medium",
+    "[&_a:hover]:underline"
+  ),
+  resultTimestamp: "text-xs text-[var(--token-text-muted)]",
+  navSection: cn(
+    "flex flex-col sm:flex-row justify-center gap-4",
+    "mt-8"
+  ),
+  navBtn: cn(
+    "px-6 py-3 text-base font-semibold",
+    "w-full sm:w-auto",
+    "border-2 border-[var(--border)] rounded-lg",
+    "bg-white text-[var(--token-text-tertiary)]",
+    "cursor-pointer transition-all duration-300",
+    "hover:bg-[var(--muted)] hover:-translate-y-px"
+  ),
+  navBtnPrimary: cn(
+    "bg-indigo-500 text-white border-[var(--primary)]",
+    "hover:bg-[var(--primary)] hover:border-indigo-600",
+    "hover:shadow-lg hover:shadow-indigo-500/25"
+  ),
+};
 
 interface TestResult {
   passcode: string;
@@ -136,41 +275,41 @@ const detectionResult = await detectDatabaseWithValidation(fullPasscode);
   };
 
   return (
-    <div className="migration-test-container">
-      <div className="migration-test-header">
-        <h1>🔄 Migration Test Dashboard</h1>
-        <p>Test dual-database detection during the migration period</p>
+    <div className={styles.container}>
+      <div className={styles.header}>
+        <h1 className={styles.headerTitle}>🔄 Migration Test Dashboard</h1>
+        <p className={styles.headerText}>Test dual-database detection during the migration period</p>
       </div>
 
       {/* Migration Status */}
-      <div className="status-section">
-        <h2>Migration Configuration Status</h2>
-        <div className="status-grid">
-          <div className={`status-item ${migrationStatus.enabled ? 'enabled' : 'disabled'}`}>
-            <span className="status-label">Migration Mode</span>
-            <span className="status-value">{migrationStatus.enabled ? '✅ Enabled' : '❌ Disabled'}</span>
+      <div className={styles.section}>
+        <h2 className={styles.sectionTitle}>Migration Configuration Status</h2>
+        <div className={styles.statusGrid}>
+          <div className={cn(styles.statusItem, migrationStatus.enabled ? styles.statusItemEnabled : styles.statusItemDisabled)}>
+            <span className={styles.statusLabel}>Migration Mode</span>
+            <span className={styles.statusValue}>{migrationStatus.enabled ? '✅ Enabled' : '❌ Disabled'}</span>
           </div>
-          <div className={`status-item ${migrationStatus.v3Configured ? 'enabled' : 'disabled'}`}>
-            <span className="status-label">V3 Database</span>
-            <span className="status-value">{migrationStatus.v3Configured ? '✅ Configured' : '❌ Not Configured'}</span>
+          <div className={cn(styles.statusItem, migrationStatus.v3Configured ? styles.statusItemEnabled : styles.statusItemDisabled)}>
+            <span className={styles.statusLabel}>V3 Database</span>
+            <span className={styles.statusValue}>{migrationStatus.v3Configured ? '✅ Configured' : '❌ Not Configured'}</span>
           </div>
-          <div className={`status-item ${migrationStatus.legacyConfigured ? 'enabled' : 'disabled'}`}>
-            <span className="status-label">Legacy Database</span>
-            <span className="status-value">{migrationStatus.legacyConfigured ? '✅ Configured' : '❌ Not Configured'}</span>
+          <div className={cn(styles.statusItem, migrationStatus.legacyConfigured ? styles.statusItemEnabled : styles.statusItemDisabled)}>
+            <span className={styles.statusLabel}>Legacy Database</span>
+            <span className={styles.statusValue}>{migrationStatus.legacyConfigured ? '✅ Configured' : '❌ Not Configured'}</span>
           </div>
-          <div className="status-item">
-            <span className="status-label">Flutter App URL</span>
-            <span className="status-value flutter-url">{migrationStatus.flutterUrl}</span>
+          <div className={styles.statusItem}>
+            <span className={styles.statusLabel}>Flutter App URL</span>
+            <span className={cn(styles.statusValue, styles.flutterUrl)}>{migrationStatus.flutterUrl}</span>
           </div>
         </div>
       </div>
 
       {/* Test Controls */}
-      <div className="test-section">
-        <h2>Passcode Testing</h2>
+      <div className={styles.section}>
+        <h2 className={styles.sectionTitle}>Passcode Testing</h2>
 
-        <div className="test-controls">
-          <div className="passcode-test-container">
+        <div>
+          <div className={styles.passcodeContainer}>
             <PasscodeInput
               value={testPasscode}
               onChange={setTestPasscode}
@@ -181,24 +320,24 @@ const detectionResult = await detectDatabaseWithValidation(fullPasscode);
             <button
               onClick={() => handleTestPasscode()}
               disabled={isLoading || testPasscode.some(d => d === '')}
-              className="test-button primary"
+              className={cn(styles.testBtn, styles.testBtnPrimary)}
             >
               {isLoading ? 'Testing...' : 'Test Detection'}
             </button>
           </div>
 
-          <div className="quick-test-buttons">
+          <div className={styles.quickTestBtns}>
             <button
               onClick={handleTestV3Direct}
               disabled={isLoading}
-              className="test-button secondary"
+              className={cn(styles.testBtn, styles.testBtnSecondary)}
             >
               Test V3 Direct (aa260)
             </button>
             <button
               onClick={clearResults}
               disabled={testResults.length === 0}
-              className="test-button clear"
+              className={cn(styles.testBtn, styles.testBtnClear)}
             >
               Clear Results
             </button>
@@ -206,9 +345,9 @@ const detectionResult = await detectDatabaseWithValidation(fullPasscode);
         </div>
 
         {/* Test Instructions */}
-        <div className="test-info">
-          <h3>How it works:</h3>
-          <ul>
+        <div className={cn(styles.testInfo, "mt-6")}>
+          <h3 className={styles.testInfoTitle}>How it works:</h3>
+          <ul className={styles.testInfoList}>
             <li>Enter a passcode to test which database it belongs to</li>
             <li>If found in legacy database, it will show redirect URL to Flutter app</li>
             <li>If found in V3 database, it will authenticate normally</li>
@@ -219,34 +358,47 @@ const detectionResult = await detectDatabaseWithValidation(fullPasscode);
 
       {/* Test Results */}
       {testResults.length > 0 && (
-        <div className="results-section">
-          <h2>Test Results</h2>
-          <div className="results-list">
+        <div className={styles.section}>
+          <h2 className={styles.sectionTitle}>Test Results</h2>
+          <div className={styles.resultsList}>
             {testResults.map((result) => (
               <div
                 key={`${result.passcode}-${result.timestamp.getTime()}`}
-                className={`result-item ${result.success ? 'success' : 'failure'} ${result.database}`}
+                className={cn(
+                  styles.resultItem,
+                  result.success ? styles.resultItemSuccess : styles.resultItemFailure,
+                  result.database === 'v3' && styles.resultItemV3,
+                  result.database === 'legacy' && styles.resultItemLegacy
+                )}
               >
-                <div className="result-header">
-                  <span className="result-passcode">{result.passcode}</span>
-                  <span className={`result-database ${result.database}`}>
+                <div className={styles.resultHeader}>
+                  <span className={styles.resultPasscode}>{result.passcode}</span>
+                  <span className={cn(
+                    styles.resultDatabase,
+                    result.database === 'v3' && styles.resultDbV3,
+                    result.database === 'legacy' && styles.resultDbLegacy,
+                    result.database === 'unknown' && styles.resultDbUnknown
+                  )}>
                     {result.database === 'v3' && '🆕 V3 Database'}
                     {result.database === 'legacy' && '🔄 Legacy Database'}
                     {result.database === 'unknown' && '❓ Unknown'}
                   </span>
-                  <span className={`result-status ${result.success ? 'success' : 'failure'}`}>
+                  <span className={cn(
+                    styles.resultStatus,
+                    result.success ? styles.resultStatusSuccess : styles.resultStatusFailure
+                  )}>
                     {result.success ? '✅ Success' : '❌ Failed'}
                   </span>
                 </div>
-                <div className="result-message">{result.message}</div>
+                <div className={styles.resultMessage}>{result.message}</div>
                 {result.redirectUrl && (
-                  <div className="result-redirect">
+                  <div className={styles.resultRedirect}>
                     Redirect URL: <a href={result.redirectUrl} target="_blank" rel="noopener noreferrer">
                       {result.redirectUrl}
                     </a>
                   </div>
                 )}
-                <div className="result-timestamp">
+                <div className={styles.resultTimestamp}>
                   {result.timestamp.toLocaleTimeString()}
                 </div>
               </div>
@@ -256,11 +408,11 @@ const detectionResult = await detectDatabaseWithValidation(fullPasscode);
       )}
 
       {/* Navigation */}
-      <div className="navigation-section">
-        <button onClick={goBack} className="nav-button">
+      <div className={styles.navSection}>
+        <button onClick={goBack} className={styles.navBtn}>
           ← Back to Home
         </button>
-        <button onClick={goToLogin} className="nav-button primary">
+        <button onClick={goToLogin} className={cn(styles.navBtn, styles.navBtnPrimary)}>
           Go to Login →
         </button>
       </div>

@@ -12,6 +12,7 @@ import { DeleteConfirmationModal } from '../../components/announcements/DeleteCo
 import { FilterPanel } from '../../components/ui/FilterPanel';
 import { logger } from '@/utils/logger';
 import { ensureReplicationManager } from '@/utils/replicationHelper';
+import { cn } from '@/lib/utils';
 import {
   Plus,
   Bell,
@@ -28,8 +29,116 @@ import {
   Mail,
   Search
 } from 'lucide-react';
-import './Announcements.css';
 import '../../components/announcements/AnnouncementComponents.css';
+
+/** Tailwind styles for Announcements page */
+const styles = {
+  container: cn(
+    "min-h-screen px-3 pb-8 sm:px-6",
+    "bg-[var(--secondary)] dark:bg-[var(--background)]"
+  ),
+  header: "page-header justify-between relative",
+  headerLeft: "flex items-center gap-2 flex-shrink-0",
+  headerCenter: cn(
+    "absolute left-1/2 -translate-x-1/2",
+    "flex flex-col items-center justify-center gap-1"
+  ),
+  headerTitle: cn(
+    "m-0 text-lg font-semibold tracking-tight leading-none",
+    "text-[var(--foreground)] inline-flex items-center gap-2"
+  ),
+  headerIcon: "w-5 h-5 text-[var(--primary)]",
+  unreadBadge: cn(
+    "bg-[var(--danger)] text-white rounded-full",
+    "px-2 py-1 text-xs font-semibold min-w-6 text-center leading-none"
+  ),
+  headerActions: "flex items-center gap-2",
+  actionBtn: cn(
+    "flex items-center justify-center w-10 h-10",
+    "border-none rounded-lg",
+    "bg-[var(--muted)] text-[var(--token-text-secondary)]",
+    "cursor-pointer transition-all duration-200",
+    "hover:text-[var(--primary)]",
+    "disabled:opacity-50 disabled:cursor-not-allowed",
+    "[&_svg]:w-5 [&_svg]:h-5"
+  ),
+  actionBtnActive: "bg-[var(--primary)] text-white [&_svg]:text-white",
+  actionBtnPrimary: "bg-[var(--primary)] text-white hover:brightness-90",
+  menuContainer: "relative",
+  dropdown: cn(
+    "absolute top-[calc(100%+0.5rem)] right-0",
+    "bg-[var(--card)] border border-[var(--border)]",
+    "rounded-lg shadow-lg z-[1000] overflow-hidden min-w-[200px]"
+  ),
+  dropdownItem: cn(
+    "flex items-center gap-4 w-full px-4 py-3",
+    "bg-transparent border-none text-left cursor-pointer",
+    "text-[var(--foreground)] text-base font-medium",
+    "transition-colors duration-200",
+    "hover:bg-[var(--muted)] disabled:opacity-50 disabled:cursor-not-allowed",
+    "[&_svg]:shrink-0 [&_svg]:text-current"
+  ),
+  dropdownItemActive: "bg-[var(--primary)] text-white",
+  dropdownDivider: "h-px my-1 bg-[var(--border)]",
+  content: "p-4 lg:px-6",
+  errorBanner: cn(
+    "flex items-center gap-4 p-4",
+    "bg-[var(--danger-subtle)] text-[var(--danger)]",
+    "rounded-lg mb-4",
+    "[&_svg]:w-5 [&_svg]:h-5 [&_svg]:shrink-0"
+  ),
+  retryBtn: cn(
+    "ml-auto px-4 py-2",
+    "border border-[var(--danger)] rounded-md",
+    "bg-transparent text-[var(--danger)] text-sm",
+    "cursor-pointer transition-all duration-200",
+    "hover:bg-[var(--danger)] hover:text-white"
+  ),
+  loadingState: cn(
+    "flex flex-col items-center justify-center",
+    "py-12 px-4 gap-4 text-[var(--token-text-secondary)]",
+    "[&_svg]:w-8 [&_svg]:h-8"
+  ),
+  emptyState: cn(
+    "flex flex-col items-center justify-center",
+    "py-12 px-4 gap-4 text-center text-[var(--token-text-secondary)]"
+  ),
+  emptyIcon: "w-12 h-12 text-[var(--text-tertiary)]",
+  emptyTitle: "text-xl font-semibold m-0 text-[var(--foreground)]",
+  emptyText: "text-sm m-0 max-w-xs",
+  clearFiltersBtn: cn(
+    "flex items-center gap-2 px-6 py-3",
+    "border border-[var(--primary)] rounded-lg",
+    "bg-transparent text-[var(--primary)] text-sm font-medium",
+    "cursor-pointer transition-all duration-200 mt-2",
+    "hover:bg-[var(--primary)] hover:text-white"
+  ),
+  list: "flex flex-col gap-4",
+  activeFiltersSummary: cn(
+    "fixed bottom-4 left-4 right-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2",
+    "flex items-center gap-4 px-4 py-3",
+    "bg-[var(--surface)] border border-[var(--border)]",
+    "rounded-2xl sm:rounded-full shadow-lg",
+    "text-sm text-[var(--token-text-secondary)]",
+    "backdrop-blur-sm z-50"
+  ),
+  infoIcon: "w-4 h-4 text-[var(--primary)]",
+  clearAllBtn: cn(
+    "px-3 py-1 border border-[var(--primary)] rounded-full",
+    "bg-transparent text-[var(--primary)] text-xs font-medium",
+    "cursor-pointer transition-all duration-200",
+    "hover:bg-[var(--primary)] hover:text-white"
+  ),
+  createFirstBtn: cn(
+    "flex items-center gap-2 px-6 py-3",
+    "border-none rounded-lg",
+    "bg-[var(--primary)] text-white text-sm font-medium",
+    "cursor-pointer transition-all duration-200 mt-2",
+    "hover:brightness-90",
+    "[&_svg]:w-5 [&_svg]:h-5"
+  ),
+  spinning: "animate-spin",
+};
 
 export const Announcements: React.FC = () => {
   const navigate = useNavigate();
@@ -181,30 +290,30 @@ export const Announcements: React.FC = () => {
   }, [announcements, getFilteredAnnouncements, sortOrder]);
 
   return (
-    <div className="announcements-container">
+    <div className={styles.container}>
       {/* Header with Hamburger Menu, Title, and Actions */}
-      <header className="page-header announcements-header">
-        <div className="header-left">
+      <header className={styles.header}>
+        <div className={styles.headerLeft}>
           <HamburgerMenu currentPage="announcements" />
           <CompactOfflineIndicator />
         </div>
 
-        <div className="header-center">
-          <h1>
-            <Bell className="header-icon" />
+        <div className={styles.headerCenter}>
+          <h1 className={styles.headerTitle}>
+            <Bell className={styles.headerIcon} />
             Announcements
             {unreadCount > 0 && (
-              <span className="unread-badge">{unreadCount}</span>
+              <span className={styles.unreadBadge}>{unreadCount}</span>
             )}
           </h1>
         </div>
 
-        <div className="header-actions">
+        <div className={styles.headerActions}>
           {/* 3-Dot Menu */}
-          <div ref={menuRef} className="menu-container" style={{ position: 'relative' }}>
+          <div ref={menuRef} className={styles.menuContainer}>
             <button
               onClick={() => setShowMenuDropdown(!showMenuDropdown)}
-              className="action-btn menu-btn"
+              className={styles.actionBtn}
               title="More options"
               aria-label="More options"
             >
@@ -213,7 +322,7 @@ export const Announcements: React.FC = () => {
 
             {/* Dropdown Menu */}
             {showMenuDropdown && (
-              <div className="dropdown-menu announcements-menu">
+              <div className={styles.dropdown}>
                 {/* Refresh - Primary action, always first (long press for full reload) */}
                 <button
                   onClick={() => {
@@ -221,16 +330,16 @@ export const Announcements: React.FC = () => {
                     setShowMenuDropdown(false);
                   }}
                   disabled={isRefreshing}
-                  className="dropdown-item"
+                  className={styles.dropdownItem}
                   title="Refresh (long press for full reload)"
                   {...refreshLongPressHandlers}
                 >
-                  <RefreshCw size={18} className={isRefreshing ? 'spinning' : ''} />
+                  <RefreshCw size={18} className={isRefreshing ? styles.spinning : ''} />
                   <span>Refresh</span>
                 </button>
 
                 {/* Divider */}
-                <div className="dropdown-divider" />
+                <div className={styles.dropdownDivider} />
 
                 {/* Search & Sort */}
                 <button
@@ -238,7 +347,7 @@ export const Announcements: React.FC = () => {
                     setShowFilterPanel(true);
                     setShowMenuDropdown(false);
                   }}
-                  className="dropdown-item"
+                  className={styles.dropdownItem}
                 >
                   <Filter size={18} />
                   <span>Search & Sort</span>
@@ -251,7 +360,7 @@ export const Announcements: React.FC = () => {
                       handleMarkAllAsRead();
                       setShowMenuDropdown(false);
                     }}
-                    className="dropdown-item"
+                    className={styles.dropdownItem}
                   >
                     <CheckCircle size={18} />
                     <span>Mark All as Read</span>
@@ -265,7 +374,7 @@ export const Announcements: React.FC = () => {
                       setShowCreateModal(true);
                       setShowMenuDropdown(false);
                     }}
-                    className="dropdown-item"
+                    className={styles.dropdownItem}
                   >
                     <Plus size={18} />
                     <span>Create Announcement</span>
@@ -278,7 +387,7 @@ export const Announcements: React.FC = () => {
                     navigate('/settings');
                     setShowMenuDropdown(false);
                   }}
-                  className="dropdown-item"
+                  className={styles.dropdownItem}
                 >
                   <Settings size={18} />
                   <span>Notification Settings</span>
@@ -309,45 +418,45 @@ export const Announcements: React.FC = () => {
         enabled
         threshold={80}
       >
-      <div className="announcements-content">
+      <div className={styles.content}>
         {error && (
-          <div className="error-banner">
+          <div className={styles.errorBanner}>
             <AlertTriangle />
             <span>Failed to load announcements: {error}</span>
-            <button onClick={handleRefresh} className="retry-btn">
+            <button onClick={handleRefresh} className={styles.retryBtn}>
               Retry
             </button>
           </div>
         )}
 
         {isLoading && announcements.length === 0 ? (
-          <div className="loading-state">
-            <RefreshCw className="spinning" />
+          <div className={styles.loadingState}>
+            <RefreshCw className={styles.spinning} />
             <span>Loading announcements...</span>
           </div>
         ) : filteredAnnouncements.length === 0 ? (
-          <div className="empty-state">
+          <div className={styles.emptyState}>
             {searchTerm || Object.keys(filters).length > 1 ? (
               <>
-                <Search className="empty-icon" />
-                <h3>No announcements found</h3>
-                <p>Try adjusting your search or filters</p>
+                <Search className={styles.emptyIcon} />
+                <h3 className={styles.emptyTitle}>No announcements found</h3>
+                <p className={styles.emptyText}>Try adjusting your search or filters</p>
                 <button onClick={() => {
                   setSearchTerm('');
                   clearFilters();
-                }} className="clear-filters-btn">
+                }} className={styles.clearFiltersBtn}>
                   Clear all filters
                 </button>
               </>
             ) : (
               <>
-                <Bell className="empty-icon" />
-                <h3>No announcements yet</h3>
-                <p>Check back later for updates from event staff</p>
+                <Bell className={styles.emptyIcon} />
+                <h3 className={styles.emptyTitle}>No announcements yet</h3>
+                <p className={styles.emptyText}>Check back later for updates from event staff</p>
                 {canCreateAnnouncements && (
                   <button
                     onClick={() => setShowCreateModal(true)}
-                    className="create-first-btn"
+                    className={styles.createFirstBtn}
                   >
                     <Plus />
                     Create first announcement
@@ -357,7 +466,7 @@ export const Announcements: React.FC = () => {
             )}
           </div>
         ) : (
-          <div className="announcements-list">
+          <div className={styles.list}>
             {filteredAnnouncements.map((announcement) => (
               <AnnouncementCard
                 key={announcement.id}
@@ -379,15 +488,15 @@ export const Announcements: React.FC = () => {
 
       {/* Active Filters Summary */}
       {(searchTerm || Object.keys(filters).some(key => key !== 'searchTerm' && filters[key as keyof typeof filters])) && (
-        <div className="active-filters-summary">
-          <Info className="info-icon" />
+        <div className={styles.activeFiltersSummary}>
+          <Info className={styles.infoIcon} />
           <span>
             Showing {filteredAnnouncements.length} of {announcements.length} announcements
           </span>
           <button onClick={() => {
             setSearchTerm('');
             clearFilters();
-          }} className="clear-all-btn">
+          }} className={styles.clearAllBtn}>
             Clear all
           </button>
         </div>

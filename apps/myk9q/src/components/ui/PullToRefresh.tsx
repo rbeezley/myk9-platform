@@ -7,7 +7,7 @@
 
 import { useState, useRef, useCallback, useEffect, ReactNode } from 'react';
 import { logger } from '@/utils/logger';
-import './shared-ui.css';
+import { cn } from '../../lib/utils';
 
 export interface PullToRefreshProps {
   /** Content to wrap */
@@ -308,14 +308,27 @@ export function PullToRefresh({
   return (
     <div
       ref={containerRef}
-      className={`pull-to-refresh ${className} ${!enabled ? 'ptr-disabled' : ''}`}
+      className={cn(
+        'relative overflow-y-auto overflow-x-hidden',
+        'overscroll-contain',
+        !enabled && 'touch-pan-y',
+        className
+      )}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
       <div
-        className={`pull-to-refresh-indicator ${pullState}`}
+        className={cn(
+          'absolute top-0 left-0 right-0',
+          'flex items-center justify-center',
+          'h-20 -mt-20',
+          'transition-opacity duration-200',
+          pullState === 'ready' && 'text-[var(--primary)]',
+          pullState === 'refreshing' && 'text-[var(--primary)]',
+          pullState === 'complete' && 'text-[var(--success)]'
+        )}
         style={{
           transform: `translateY(${pullDistance}px)`,
           opacity: pullDistance > 0 ? 1 : 0,
@@ -329,7 +342,7 @@ export function PullToRefresh({
       </div>
 
       <div
-        className="pull-to-refresh-content"
+        className="transition-transform duration-200"
         style={{
           transform: `translateY(${pullDistance}px)`,
         }}
@@ -356,11 +369,17 @@ function DefaultRefreshIndicator({
   const rotation = progress * 360;
 
   return (
-    <div className="default-refresh-indicator">
+    <div className="flex flex-col items-center gap-2 text-[var(--muted-foreground)]">
       {state === 'refreshing' ? (
-        <div className="spinner" />
+        <div
+          className={cn(
+            'w-6 h-6 rounded-full',
+            'border-2 border-[var(--muted)] border-t-[var(--primary)]',
+            'animate-spin'
+          )}
+        />
       ) : state === 'complete' ? (
-        <svg className="checkmark" viewBox="0 0 24 24">
+        <svg className="w-6 h-6 text-[var(--success)]" viewBox="0 0 24 24">
           <path
             fill="none"
             stroke="currentColor"
@@ -372,7 +391,7 @@ function DefaultRefreshIndicator({
         </svg>
       ) : (
         <svg
-          className="arrow"
+          className="w-6 h-6 transition-transform duration-100"
           viewBox="0 0 24 24"
           style={{ transform: `rotate(${rotation}deg)` }}
         >
@@ -387,7 +406,7 @@ function DefaultRefreshIndicator({
         </svg>
       )}
 
-      <div className="refresh-text">
+      <div className="text-xs font-medium">
         {state === 'pulling' && 'Pull to refresh'}
         {state === 'ready' && 'Release to refresh'}
         {state === 'refreshing' && 'Refreshing...'}

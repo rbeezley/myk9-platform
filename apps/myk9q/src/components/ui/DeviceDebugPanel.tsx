@@ -9,7 +9,80 @@
 import { useState, useEffect } from 'react';
 import { useDeviceCapabilities, usePerformanceSettings } from '@/hooks/usePerformance';
 import { setPerformanceOverrides, resetDeviceDetection } from '@/utils/deviceDetection';
-import './shared-ui.css';
+import { cn } from '@/lib/utils';
+
+/** Position styles for the debug panel */
+const positionStyles = {
+  'top-left': 'top-4 left-4',
+  'top-right': 'top-4 right-4',
+  'bottom-left': 'bottom-4 left-4',
+  'bottom-right': 'bottom-4 right-4',
+};
+
+/** Tailwind styles for DeviceDebugPanel */
+const styles = {
+  container: "fixed z-[9999]",
+  toggle: cn(
+    "flex items-center gap-2 px-3 py-2 rounded-lg",
+    "bg-gray-900/90 text-white text-xs font-mono",
+    "border border-gray-700 shadow-lg backdrop-blur-sm",
+    "cursor-pointer transition-all duration-150",
+    "hover:bg-gray-800"
+  ),
+  toggleIcon: "text-base",
+  toggleTier: "font-bold",
+  toggleFps: "font-medium",
+  panel: cn(
+    "absolute mt-2 w-80 max-h-[80vh] overflow-y-auto",
+    "bg-gray-900/95 text-white rounded-xl",
+    "border border-gray-700 shadow-2xl backdrop-blur-sm"
+  ),
+  header: cn(
+    "flex items-center justify-between",
+    "px-4 py-3 border-b border-gray-700"
+  ),
+  headerTitle: "text-sm font-bold",
+  closeBtn: cn(
+    "w-6 h-6 flex items-center justify-center rounded",
+    "text-gray-400 hover:text-white hover:bg-gray-700",
+    "transition-colors duration-150"
+  ),
+  section: "px-4 py-3 border-b border-gray-800",
+  sectionTitle: "text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2",
+  tierBadge: cn(
+    "inline-block px-3 py-1 rounded-full",
+    "text-sm font-bold text-white"
+  ),
+  table: "w-full text-xs",
+  tableRow: "border-b border-gray-800/50 last:border-0",
+  tableLabel: "py-1.5 text-gray-400",
+  tableValue: "py-1.5 text-right font-mono",
+  fpsDisplay: "flex items-baseline justify-center gap-1 mb-2",
+  fpsNumber: "text-4xl font-bold font-mono",
+  fpsLabel: "text-gray-400 text-sm",
+  fpsBar: cn(
+    "h-2 rounded-full overflow-hidden",
+    "bg-gray-800"
+  ),
+  fpsFill: "h-full transition-all duration-300 rounded-full",
+  buttons: "flex gap-2 mb-3",
+  btn: cn(
+    "flex-1 px-3 py-2 rounded-lg text-xs font-medium",
+    "transition-colors duration-150"
+  ),
+  btnLow: "bg-red-500/20 text-red-400 hover:bg-red-500/30",
+  btnMedium: "bg-amber-500/20 text-amber-400 hover:bg-amber-500/30",
+  btnHigh: "bg-green-500/20 text-green-400 hover:bg-green-500/30",
+  btnReset: cn(
+    "w-full px-3 py-2 rounded-lg text-xs font-medium",
+    "bg-gray-700 text-gray-300 hover:bg-gray-600",
+    "transition-colors duration-150"
+  ),
+  footer: cn(
+    "px-4 py-2 text-center",
+    "text-[10px] text-gray-500"
+  ),
+};
 
 export interface DeviceDebugPanelProps {
   /** Show panel by default */
@@ -121,134 +194,134 @@ export function DeviceDebugPanel({
   };
 
   return (
-    <div className={`device-debug-panel ${position}`}>
+    <div className={cn(styles.container, positionStyles[position])}>
       {/* Toggle button */}
       <button
-        className="debug-toggle"
+        className={styles.toggle}
         onClick={() => setIsOpen(!isOpen)}
         title="Toggle Device Debug Panel"
       >
-        <span className="debug-icon">🔧</span>
-        <span className="debug-tier" style={{ color: getTierColor(capabilities.tier) }}>
+        <span className={styles.toggleIcon}>🔧</span>
+        <span className={styles.toggleTier} style={{ color: getTierColor(capabilities.tier) }}>
           {capabilities.tier.toUpperCase()}
         </span>
-        <span className="debug-fps" style={{ color: getFPSColor(fps) }}>
+        <span className={styles.toggleFps} style={{ color: getFPSColor(fps) }}>
           {fps}fps
         </span>
       </button>
 
       {/* Panel content */}
       {isOpen && (
-        <div className="debug-panel-content">
-          <div className="debug-header">
-            <h3>Device Debug Panel</h3>
-            <button className="debug-close" onClick={() => setIsOpen(false)}>
+        <div className={styles.panel}>
+          <div className={styles.header}>
+            <h3 className={styles.headerTitle}>Device Debug Panel</h3>
+            <button className={styles.closeBtn} onClick={() => setIsOpen(false)}>
               ✕
             </button>
           </div>
 
-          <div className="debug-section">
-            <h4>Device Tier</h4>
-            <div className="tier-badge" style={{ backgroundColor: getTierColor(capabilities.tier) }}>
+          <div className={styles.section}>
+            <h4 className={styles.sectionTitle}>Device Tier</h4>
+            <div className={styles.tierBadge} style={{ backgroundColor: getTierColor(capabilities.tier) }}>
               {capabilities.tier.toUpperCase()}
             </div>
           </div>
 
-          <div className="debug-section">
-            <h4>Capabilities</h4>
-            <table className="debug-table">
+          <div className={styles.section}>
+            <h4 className={styles.sectionTitle}>Capabilities</h4>
+            <table className={styles.table}>
               <tbody>
-                <tr>
-                  <td>CPU Cores:</td>
-                  <td>{capabilities.cores}</td>
+                <tr className={styles.tableRow}>
+                  <td className={styles.tableLabel}>CPU Cores:</td>
+                  <td className={styles.tableValue}>{capabilities.cores}</td>
                 </tr>
-                <tr>
-                  <td>Memory:</td>
-                  <td>{capabilities.memory}GB</td>
+                <tr className={styles.tableRow}>
+                  <td className={styles.tableLabel}>Memory:</td>
+                  <td className={styles.tableValue}>{capabilities.memory}GB</td>
                 </tr>
-                <tr>
-                  <td>GPU:</td>
-                  <td>{capabilities.gpu}</td>
+                <tr className={styles.tableRow}>
+                  <td className={styles.tableLabel}>GPU:</td>
+                  <td className={styles.tableValue}>{capabilities.gpu}</td>
                 </tr>
-                <tr>
-                  <td>Network:</td>
-                  <td>{capabilities.connection}</td>
+                <tr className={styles.tableRow}>
+                  <td className={styles.tableLabel}>Network:</td>
+                  <td className={styles.tableValue}>{capabilities.connection}</td>
                 </tr>
-                <tr>
-                  <td>Screen:</td>
-                  <td>{capabilities.screen}</td>
+                <tr className={styles.tableRow}>
+                  <td className={styles.tableLabel}>Screen:</td>
+                  <td className={styles.tableValue}>{capabilities.screen}</td>
                 </tr>
-                <tr>
-                  <td>Touch:</td>
-                  <td>{capabilities.touch ? 'Yes' : 'No'}</td>
+                <tr className={styles.tableRow}>
+                  <td className={styles.tableLabel}>Touch:</td>
+                  <td className={styles.tableValue}>{capabilities.touch ? 'Yes' : 'No'}</td>
                 </tr>
-                <tr>
-                  <td>Modern:</td>
-                  <td>{capabilities.modern ? 'Yes' : 'No'}</td>
+                <tr className={styles.tableRow}>
+                  <td className={styles.tableLabel}>Modern:</td>
+                  <td className={styles.tableValue}>{capabilities.modern ? 'Yes' : 'No'}</td>
                 </tr>
-                <tr>
-                  <td>Battery Saving:</td>
-                  <td>{capabilities.batterySaving ? 'Yes' : 'No'}</td>
+                <tr className={styles.tableRow}>
+                  <td className={styles.tableLabel}>Battery Saving:</td>
+                  <td className={styles.tableValue}>{capabilities.batterySaving ? 'Yes' : 'No'}</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
-          <div className="debug-section">
-            <h4>Performance Settings</h4>
-            <table className="debug-table">
+          <div className={styles.section}>
+            <h4 className={styles.sectionTitle}>Performance Settings</h4>
+            <table className={styles.table}>
               <tbody>
-                <tr>
-                  <td>Animations:</td>
-                  <td>{settings.animations ? '✅' : '❌'}</td>
+                <tr className={styles.tableRow}>
+                  <td className={styles.tableLabel}>Animations:</td>
+                  <td className={styles.tableValue}>{settings.animations ? '✅' : '❌'}</td>
                 </tr>
-                <tr>
-                  <td>Blur Effects:</td>
-                  <td>{settings.blurEffects ? '✅' : '❌'}</td>
+                <tr className={styles.tableRow}>
+                  <td className={styles.tableLabel}>Blur Effects:</td>
+                  <td className={styles.tableValue}>{settings.blurEffects ? '✅' : '❌'}</td>
                 </tr>
-                <tr>
-                  <td>Shadows:</td>
-                  <td>{settings.shadows ? '✅' : '❌'}</td>
+                <tr className={styles.tableRow}>
+                  <td className={styles.tableLabel}>Shadows:</td>
+                  <td className={styles.tableValue}>{settings.shadows ? '✅' : '❌'}</td>
                 </tr>
-                <tr>
-                  <td>Virtual Scroll @:</td>
-                  <td>{settings.virtualScrollThreshold} items</td>
+                <tr className={styles.tableRow}>
+                  <td className={styles.tableLabel}>Virtual Scroll @:</td>
+                  <td className={styles.tableValue}>{settings.virtualScrollThreshold} items</td>
                 </tr>
-                <tr>
-                  <td>Prefetch Level:</td>
-                  <td>{(settings.prefetchLevel * 100).toFixed(0)}%</td>
+                <tr className={styles.tableRow}>
+                  <td className={styles.tableLabel}>Prefetch Level:</td>
+                  <td className={styles.tableValue}>{(settings.prefetchLevel * 100).toFixed(0)}%</td>
                 </tr>
-                <tr>
-                  <td>Image Quality:</td>
-                  <td>{(settings.imageQuality * 100).toFixed(0)}%</td>
+                <tr className={styles.tableRow}>
+                  <td className={styles.tableLabel}>Image Quality:</td>
+                  <td className={styles.tableValue}>{(settings.imageQuality * 100).toFixed(0)}%</td>
                 </tr>
-                <tr>
-                  <td>Debounce:</td>
-                  <td>{settings.debounceTime}ms</td>
+                <tr className={styles.tableRow}>
+                  <td className={styles.tableLabel}>Debounce:</td>
+                  <td className={styles.tableValue}>{settings.debounceTime}ms</td>
                 </tr>
-                <tr>
-                  <td>Throttle:</td>
-                  <td>{settings.throttleTime}ms</td>
+                <tr className={styles.tableRow}>
+                  <td className={styles.tableLabel}>Throttle:</td>
+                  <td className={styles.tableValue}>{settings.throttleTime}ms</td>
                 </tr>
-                <tr>
-                  <td>Max Requests:</td>
-                  <td>{settings.maxConcurrentRequests}</td>
+                <tr className={styles.tableRow}>
+                  <td className={styles.tableLabel}>Max Requests:</td>
+                  <td className={styles.tableValue}>{settings.maxConcurrentRequests}</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
-          <div className="debug-section">
-            <h4>FPS Monitor</h4>
-            <div className="fps-display">
-              <span className="fps-number" style={{ color: getFPSColor(fps) }}>
+          <div className={styles.section}>
+            <h4 className={styles.sectionTitle}>FPS Monitor</h4>
+            <div className={styles.fpsDisplay}>
+              <span className={styles.fpsNumber} style={{ color: getFPSColor(fps) }}>
                 {fps}
               </span>
-              <span className="fps-label">fps</span>
+              <span className={styles.fpsLabel}>fps</span>
             </div>
-            <div className="fps-bar">
+            <div className={styles.fpsBar}>
               <div
-                className="fps-fill"
+                className={styles.fpsFill}
                 style={{
                   width: `${(fps / 60) * 100}%`,
                   backgroundColor: getFPSColor(fps),
@@ -257,34 +330,34 @@ export function DeviceDebugPanel({
             </div>
           </div>
 
-          <div className="debug-section">
-            <h4>Override Tier</h4>
-            <div className="debug-buttons">
+          <div className={styles.section}>
+            <h4 className={styles.sectionTitle}>Override Tier</h4>
+            <div className={styles.buttons}>
               <button
-                className="debug-btn debug-btn-low"
+                className={cn(styles.btn, styles.btnLow)}
                 onClick={() => handleOverrideTier('low')}
               >
                 Low
               </button>
               <button
-                className="debug-btn debug-btn-medium"
+                className={cn(styles.btn, styles.btnMedium)}
                 onClick={() => handleOverrideTier('medium')}
               >
                 Medium
               </button>
               <button
-                className="debug-btn debug-btn-high"
+                className={cn(styles.btn, styles.btnHigh)}
                 onClick={() => handleOverrideTier('high')}
               >
                 High
               </button>
             </div>
-            <button className="debug-btn debug-btn-reset" onClick={handleReset}>
+            <button className={styles.btnReset} onClick={handleReset}>
               Reset to Auto
             </button>
           </div>
 
-          <div className="debug-footer">
+          <div className={styles.footer}>
             <small>DevTools Only • Press F12 to inspect</small>
           </div>
         </div>

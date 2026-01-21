@@ -6,7 +6,52 @@
  */
 
 import React, { useRef, useEffect } from 'react';
-import './PasscodeInput.css';
+import { cn } from '@/lib/utils';
+
+/** Tailwind styles for PasscodeInput */
+const styles = {
+  component: "w-full",
+  container: "relative flex flex-col items-center",
+  inputs: cn(
+    "flex justify-center mb-[var(--token-space-xl)]",
+    "gap-[var(--token-space-md)] sm:gap-[var(--token-space-lg)]"
+  ),
+  inputsAllFilled: "[&_.passcode-input]:animate-[successPulse_0.4s_ease-out]",
+  inputWrapper: "relative",
+  input: cn(
+    "w-[50px] h-[50px] sm:w-[60px] sm:h-[60px]",
+    "border-[var(--token-space-xs)] border-[#d1d5db] rounded-[var(--token-space-lg)]",
+    "bg-white text-[var(--foreground)]",
+    "text-xl sm:text-2xl font-semibold text-center",
+    "transition-all duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]",
+    "outline-none shadow-[0_1px_3px_rgba(0,0,0,0.1)]",
+    "focus:border-[var(--primary)] focus:bg-[#fafafa]",
+    "focus:scale-105 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.1)]",
+    "disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-[var(--input)]"
+  ),
+  inputFilled: "border-[var(--token-success)] bg-[var(--status-qualified-bg)]",
+  inputError: cn(
+    "border-[var(--token-error)] bg-[var(--status-not-qualified-bg)]",
+    "animate-[shake_0.5s_cubic-bezier(0.36,0.07,0.19,0.97)]"
+  ),
+  inputDot: cn(
+    "absolute -bottom-[10px] left-1/2 -translate-x-1/2",
+    "w-[7px] h-[7px] rounded-full",
+    "bg-[var(--primary)]",
+    "opacity-0 transition-all duration-300"
+  ),
+  inputDotActive: "opacity-100 scale-[1.2]",
+  resetButton: cn(
+    "bg-white border-[var(--token-space-xs)] border-[var(--border)]",
+    "rounded-full w-9 h-9",
+    "flex items-center justify-center",
+    "text-[var(--muted-foreground)] cursor-pointer",
+    "transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+    "mt-[var(--token-space-lg)]",
+    "hover:bg-[var(--muted)] hover:rotate-90",
+    "active:rotate-90 active:scale-95"
+  ),
+};
 
 interface PasscodeInputProps {
   value: string[];
@@ -114,12 +159,14 @@ export const PasscodeInput: React.FC<PasscodeInputProps> = ({
     inputRefs.current[0]?.focus();
   };
 
+  const allFilled = value.every(d => d !== '');
+
   return (
-    <div className="passcode-input-component">
-      <div className="passcode-input-container">
-        <div className={`passcode-inputs ${value.every(d => d !== '') ? 'all-filled' : ''}`}>
+    <div className={styles.component}>
+      <div className={styles.container}>
+        <div className={cn(styles.inputs, allFilled && styles.inputsAllFilled)}>
           {value.map((digit, index) => (
-            <div key={index} className="input-wrapper">
+            <div key={index} className={styles.inputWrapper}>
               <input
                 ref={(el) => { inputRefs.current[index] = el; }}
                 type="text"
@@ -128,14 +175,19 @@ export const PasscodeInput: React.FC<PasscodeInputProps> = ({
                 onChange={(e) => handleInputChange(index, e.target.value)}
                 onKeyDown={(e) => handleKeyDown(index, e)}
                 onPaste={index === 0 ? handlePaste : undefined}
-                className={`passcode-input ${error ? 'error' : ''} ${digit ? 'filled' : ''}`}
+                className={cn(
+                  "passcode-input",
+                  styles.input,
+                  error && styles.inputError,
+                  digit && styles.inputFilled
+                )}
                 disabled={disabled}
                 inputMode="text"
                 autoComplete="one-time-code"
                 autoCapitalize="characters"
                 aria-label={`Passcode digit ${index + 1}`}
               />
-              <div className="input-dot" />
+              <div className={cn(styles.inputDot, digit && styles.inputDotActive)} />
             </div>
           ))}
         </div>
@@ -145,7 +197,7 @@ export const PasscodeInput: React.FC<PasscodeInputProps> = ({
           <button
             type="button"
             onClick={handleReset}
-            className="reset-button"
+            className={styles.resetButton}
             aria-label="Clear passcode"
           >
             <svg

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Settings, Calendar, Coffee, Clock, Play, CheckCircle, CircleDashed } from 'lucide-react';
 import { StatusBadge } from './StatusBadge';
+import { cn } from '../../lib/utils';
 
 export interface ClassStatusBadgeProps {
   /** Class status: 'none', 'setup', 'briefing', 'break', 'start_time', 'in_progress', 'completed' */
@@ -33,7 +34,7 @@ export const ClassStatusBadge: React.FC<ClassStatusBadgeProps> = ({
   clickable = false,
   onClick,
   iconSize = 16,
-  className = '',
+  className,
   asButton = false
 }) => {
   // Get label based on status (using shorter labels)
@@ -51,7 +52,7 @@ export const ClassStatusBadge: React.FC<ClassStatusBadgeProps> = ({
 
   // Get icon component based on status
   const getIcon = (status: string): React.ReactNode => {
-    const props = { size: iconSize, className: 'status-icon' };
+    const props = { size: iconSize, className: 'flex-shrink-0' };
 
     switch (status) {
       case 'setup': return <Settings {...props} />;
@@ -85,7 +86,7 @@ export const ClassStatusBadge: React.FC<ClassStatusBadgeProps> = ({
       icon={getIcon(status)}
       clickable={clickable}
       onClick={onClick}
-      className={className}
+      className={cn(className)}
       asButton={asButton}
     />
   );

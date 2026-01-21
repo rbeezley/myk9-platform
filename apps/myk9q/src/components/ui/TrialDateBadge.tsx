@@ -1,6 +1,7 @@
 import React from 'react';
 import { Calendar } from 'lucide-react';
 import { formatTrialDate } from '../../utils/dateUtils';
+import { cn } from '../../lib/utils';
 
 interface TrialDateBadgeProps {
   date: string;
@@ -17,7 +18,7 @@ interface TrialDateBadgeProps {
 export const TrialDateBadge: React.FC<TrialDateBadgeProps> = ({
   date,
   trialNumber,
-  className = '',
+  className,
   showIcon = true,
   dateOnly = false
 }) => {
@@ -31,8 +32,15 @@ export const TrialDateBadge: React.FC<TrialDateBadgeProps> = ({
   }
 
   return (
-    <span className={`trial-detail ${className}`.trim()}>
-      {showIcon && <Calendar size={14}  style={{ width: '14px', height: '14px', flexShrink: 0 }} />} {displayText}
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5',
+        'text-sm text-[var(--muted-foreground)]',
+        className
+      )}
+    >
+      {showIcon && <Calendar className="w-3.5 h-3.5 flex-shrink-0" />}
+      {displayText}
     </span>
   );
 };

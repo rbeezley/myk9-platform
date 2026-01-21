@@ -9,7 +9,6 @@
 
 import React from 'react';
 import { X } from 'lucide-react';
-import './AreaInputs.css';
 
 /**
  * Represents a single search area with its time

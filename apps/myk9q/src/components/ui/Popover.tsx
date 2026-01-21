@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
-import './Popover.css';
+import { cn } from '../../lib/utils';
 
 // Create or get the portal root element
 function getPortalRoot(): HTMLElement {
@@ -256,10 +256,29 @@ export function Popover({
   const hasHeader = title || showCloseButton;
   const shouldShowClose = showCloseButton ?? !!title;
 
+  const transformOrigins = {
+    bottom: 'origin-top-left',
+    top: 'origin-bottom-left',
+    left: 'origin-right',
+    right: 'origin-left',
+  } as const;
+
   const popoverContent = (
     <div
       ref={popoverRef}
-      className={`popover popover-${actualPosition} ${className}`}
+      className={cn(
+        'min-w-[200px] max-w-[320px]',
+        'bg-[var(--card)]',
+        'border border-[var(--border)]',
+        'rounded-lg',
+        'shadow-[0_4px_16px_rgba(0,0,0,0.15),0_0_0_1px_rgba(0,0,0,0.05)]',
+        'z-[1] overflow-visible',
+        'animate-[popover-enter_0.15s_ease-out]',
+        'pointer-events-auto',
+        transformOrigins[actualPosition],
+        'max-[480px]:min-w-[180px] max-[480px]:max-w-[calc(100vw-32px)]',
+        className
+      )}
       style={{
         position: 'fixed',
         top: coords.top,
@@ -270,11 +289,33 @@ export function Popover({
       aria-label={title}
     >
       {hasHeader && (
-        <div className="popover-header">
-          {title && <span className="popover-title">{title}</span>}
+        <div
+          className={cn(
+            'flex items-center justify-between gap-2',
+            'px-3 py-2',
+            'bg-[var(--muted)]',
+            'border-b border-[var(--border)]',
+            'rounded-t-lg',
+            'max-[480px]:px-2 max-[480px]:py-1'
+          )}
+        >
+          {title && (
+            <span className="text-[0.8125rem] font-semibold text-[var(--foreground)] leading-tight">
+              {title}
+            </span>
+          )}
           {shouldShowClose && (
             <button
-              className="popover-close"
+              className={cn(
+                'flex items-center justify-center',
+                'w-6 h-6 p-0 -mr-1 -my-0.5',
+                'bg-transparent border-none rounded',
+                'text-[var(--muted-foreground)]',
+                'cursor-pointer transition-all duration-150',
+                'flex-shrink-0',
+                'hover:bg-[var(--accent)] hover:text-[var(--foreground)]',
+                'active:scale-95'
+              )}
               onClick={onClose}
               aria-label="Close"
               type="button"
@@ -284,7 +325,7 @@ export function Popover({
           )}
         </div>
       )}
-      <div className="popover-content">
+      <div className="p-3 overflow-visible max-[480px]:p-2">
         {children}
       </div>
     </div>

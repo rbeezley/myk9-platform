@@ -13,7 +13,7 @@ import React, { useEffect } from 'react';
 import { AlertTriangle, RefreshCw, X, Clock } from 'lucide-react';
 import { useSyncStatusStore, initSyncStatusListeners } from '../../stores/syncStatusStore';
 import { refreshAllTables } from '../../services/replication/initReplication';
-import './shared-ui.css';
+import { cn } from '../../lib/utils';
 
 // Initialize listeners once
 let listenersInitialized = false;
@@ -74,30 +74,55 @@ export const SyncStatusBanner: React.FC<SyncStatusBannerProps> = ({
     return null;
   }
 
+  const bannerStyles = {
+    container: cn(
+      "sticky z-[100]",
+      position === 'top' ? "top-0" : "bottom-0"
+    ),
+    banner: cn(
+      "flex items-center gap-3 px-4 py-2.5",
+      "rounded-lg mx-4 my-2 shadow-md",
+      "transition-all duration-200"
+    ),
+    error: "bg-red-50 border border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-800 dark:text-red-200",
+    warning: "bg-amber-50 border border-amber-200 text-amber-800 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-200",
+    action: cn(
+      "flex items-center gap-1.5 px-3 py-1.5 rounded-md",
+      "text-xs font-medium whitespace-nowrap",
+      "bg-white/80 border border-current/20",
+      "transition-all duration-150 hover:bg-white",
+      "disabled:opacity-50 disabled:cursor-not-allowed"
+    ),
+    dismiss: cn(
+      "p-1 rounded-md transition-colors duration-150",
+      "hover:bg-black/5 dark:hover:bg-white/10"
+    ),
+  };
+
   return (
-    <div className={`sync-status-banner-container ${position}`}>
+    <div className={bannerStyles.container}>
       {/* Sync Failure Banner */}
       {showFailureBanner && (
-        <div className="sync-status-banner sync-status-banner--error" role="alert">
-          <AlertTriangle size={18} className="sync-status-banner__icon" />
-          <div className="sync-status-banner__content">
-            <span className="sync-status-banner__message">
+        <div className={cn(bannerStyles.banner, bannerStyles.error)} role="alert">
+          <AlertTriangle size={18} className="shrink-0" />
+          <div className="flex-1 min-w-0">
+            <span className="font-medium block truncate">
               {lastFailure.message}
             </span>
-            <span className="sync-status-banner__details">
+            <span className="text-xs opacity-80">
               Data may be outdated. Tap retry to sync.
             </span>
           </div>
           <button
-            className="sync-status-banner__action"
+            className={bannerStyles.action}
             onClick={handleRetry}
             disabled={isSyncing}
           >
-            <RefreshCw size={16} className={isSyncing ? 'spinning' : ''} />
+            <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
             {isSyncing ? 'Syncing...' : 'Retry'}
           </button>
           <button
-            className="sync-status-banner__dismiss"
+            className={bannerStyles.dismiss}
             onClick={dismissFailure}
             aria-label="Dismiss"
           >
@@ -108,22 +133,22 @@ export const SyncStatusBanner: React.FC<SyncStatusBannerProps> = ({
 
       {/* Staleness Warning Banner */}
       {showStaleWarning && (
-        <div className="sync-status-banner sync-status-banner--warning" role="alert">
-          <Clock size={18} className="sync-status-banner__icon" />
-          <div className="sync-status-banner__content">
-            <span className="sync-status-banner__message">
+        <div className={cn(bannerStyles.banner, bannerStyles.warning)} role="alert">
+          <Clock size={18} className="shrink-0" />
+          <div className="flex-1 min-w-0">
+            <span className="font-medium block">
               Data may be outdated
             </span>
-            <span className="sync-status-banner__details">
+            <span className="text-xs opacity-80">
               Last synced: {getLastSyncedText()}
             </span>
           </div>
           <button
-            className="sync-status-banner__action"
+            className={bannerStyles.action}
             onClick={handleRetry}
             disabled={isSyncing}
           >
-            <RefreshCw size={16} className={isSyncing ? 'spinning' : ''} />
+            <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
             {isSyncing ? 'Syncing...' : 'Refresh'}
           </button>
         </div>
@@ -131,7 +156,7 @@ export const SyncStatusBanner: React.FC<SyncStatusBannerProps> = ({
 
       {/* Last Synced Indicator (subtle, non-intrusive) */}
       {showLastSynced && !showFailureBanner && !showStaleWarning && (
-        <div className="sync-status-last-synced">
+        <div className="flex items-center gap-1.5 px-4 py-1 text-xs text-[var(--muted-foreground)]">
           <Clock size={12} />
           <span>{hasNeverSynced() ? 'Syncing...' : `Last synced: ${getLastSyncedText()}`}</span>
         </div>
@@ -157,17 +182,18 @@ export const CompactSyncStatus: React.FC = () => {
   const hasError = lastFailure && !failureDismissed;
   const stale = isDataStale();
 
-  const getStatusClass = () => {
-    if (hasError) return 'compact-sync-status--error';
-    if (stale) return 'compact-sync-status--warning';
-    return 'compact-sync-status--ok';
-  };
+  const statusStyles = cn(
+    "flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium",
+    hasError && "text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-900/20",
+    stale && !hasError && "text-amber-600 bg-amber-50 dark:text-amber-400 dark:bg-amber-900/20",
+    !hasError && !stale && "text-[var(--muted-foreground)]"
+  );
 
   const neverSynced = hasNeverSynced();
   const titleText = neverSynced ? 'Initial sync in progress...' : `Last synced: ${getLastSyncedText()}`;
 
   return (
-    <div className={`compact-sync-status ${getStatusClass()}`} title={titleText}>
+    <div className={statusStyles} title={titleText}>
       {hasError ? (
         <AlertTriangle size={14} />
       ) : stale ? (

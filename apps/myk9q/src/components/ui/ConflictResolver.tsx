@@ -17,7 +17,7 @@ import {
   type Conflict,
   type ConflictResolution,
 } from '@/services/conflictResolution';
-import './shared-ui.css';
+import { cn } from '../../lib/utils';
 
 export function ConflictResolver() {
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
@@ -88,11 +88,61 @@ export function ConflictResolver() {
 
   const summary = selectedConflict ? getConflictSummary(selectedConflict) : null;
 
+  const styles = {
+    banner: cn(
+      "fixed top-0 left-0 right-0 z-[1000]",
+      "bg-amber-500 text-white",
+      "px-4 py-3 shadow-lg"
+    ),
+    bannerContent: "flex items-center justify-center gap-2 text-sm font-medium",
+    overlay: cn(
+      "fixed inset-0 z-[1001]",
+      "bg-black/50 backdrop-blur-sm",
+      "flex items-center justify-center p-4",
+      "animate-fade-in"
+    ),
+    dialog: cn(
+      "bg-white dark:bg-[var(--card)] rounded-2xl shadow-2xl",
+      "max-w-md w-full max-h-[90vh] overflow-hidden",
+      "flex flex-col"
+    ),
+    header: cn(
+      "flex items-center justify-between",
+      "px-6 py-4 border-b border-[var(--border)]"
+    ),
+    title: "flex items-center gap-3 text-lg font-semibold text-amber-600",
+    closeBtn: cn(
+      "p-2 rounded-lg text-[var(--muted-foreground)]",
+      "hover:bg-[var(--muted)] transition-colors"
+    ),
+    content: "px-6 py-4 overflow-y-auto flex-1",
+    option: cn(
+      "flex items-center justify-between gap-4",
+      "p-4 rounded-xl border border-[var(--border)]",
+      "hover:border-[var(--primary)] hover:bg-[var(--muted)]/50",
+      "transition-all duration-200 mb-3"
+    ),
+    optionMerge: "border-purple-200 bg-purple-50/50 dark:border-purple-800 dark:bg-purple-900/20",
+    btn: cn(
+      "flex items-center gap-2 px-4 py-2 rounded-lg",
+      "text-sm font-medium transition-all duration-200",
+      "disabled:opacity-50 disabled:cursor-not-allowed"
+    ),
+    btnPrimary: "bg-[var(--primary)] text-white hover:opacity-90",
+    btnSecondary: "bg-[var(--muted)] text-[var(--foreground)] hover:bg-[var(--border)]",
+    btnMerge: "bg-purple-500 text-white hover:bg-purple-600",
+    btnText: "text-[var(--muted-foreground)] hover:text-[var(--foreground)]",
+    footer: cn(
+      "flex items-center justify-between",
+      "px-6 py-4 border-t border-[var(--border)] bg-[var(--muted)]/30"
+    ),
+  };
+
   return (
-    <div className="conflict-resolver">
-      <div className="conflict-banner">
-        <div className="conflict-banner-content">
-          <AlertTriangle size={20} style={{ width: '20px', height: '20px', flexShrink: 0 }} />
+    <div>
+      <div className={styles.banner}>
+        <div className={styles.bannerContent}>
+          <AlertTriangle size={20} className="shrink-0" />
           <span>
             <strong>{conflicts.length}</strong> {conflicts.length === 1 ? 'conflict' : 'conflicts'}{' '}
             need{conflicts.length === 1 ? 's' : ''} resolution
@@ -101,118 +151,126 @@ export function ConflictResolver() {
       </div>
 
       {selectedConflict && summary && (
-        <div className="conflict-dialog-overlay">
-          <div className="conflict-dialog">
-            <div className="conflict-dialog-header">
-              <div className="conflict-dialog-title">
-                <AlertTriangle size={24} style={{ width: '24px', height: '24px', flexShrink: 0 }} />
+        <div className={styles.overlay}>
+          <div className={styles.dialog}>
+            <div className={styles.header}>
+              <div className={styles.title}>
+                <AlertTriangle size={24} className="shrink-0" />
                 {summary.title}
               </div>
-              <button className="conflict-dialog-close" onClick={handleIgnore}>
-                <X size={20} style={{ width: '20px', height: '20px', flexShrink: 0 }} />
+              <button className={styles.closeBtn} onClick={handleIgnore}>
+                <X size={20} />
               </button>
             </div>
 
-            <div className="conflict-dialog-content">
-              <p className="conflict-description">{summary.description}</p>
+            <div className={styles.content}>
+              <p className="text-[var(--muted-foreground)] mb-4">{summary.description}</p>
 
-              <div className="conflict-timestamp">
+              <div className="flex gap-4 text-xs text-[var(--muted-foreground)] mb-6 flex-wrap">
                 <span>Local: {typeof selectedConflict.localTimestamp === 'number' ? new Date(selectedConflict.localTimestamp).toLocaleString() : 'Recently'}</span>
                 <span>Remote: {typeof selectedConflict.remoteTimestamp === 'number' ? new Date(selectedConflict.remoteTimestamp).toLocaleString() : 'Unknown'}</span>
               </div>
 
-              <div className="conflict-options">
+              <div className="space-y-3">
                 {/* Local Version */}
-                <div className="conflict-option">
-                  <div className="conflict-option-header">
+                <div className={styles.option}>
+                  <div className="flex items-center gap-3">
                     <input
                       type="radio"
                       id="conflict-local"
                       name="conflict-choice"
                       value="local"
+                      className="w-4 h-4"
                     />
-                    <label htmlFor="conflict-local">
-                      <strong>Use Your Version</strong>
-                      <span>{summary.localLabel}</span>
+                    <label htmlFor="conflict-local" className="cursor-pointer">
+                      <strong className="block text-sm">Use Your Version</strong>
+                      <span className="text-xs text-[var(--muted-foreground)]">{summary.localLabel}</span>
                     </label>
                   </div>
                   <button
-                    className="conflict-btn conflict-btn-primary"
+                    className={cn(styles.btn, styles.btnPrimary)}
                     onClick={() => handleResolve({ action: 'local' })}
                     disabled={isResolving}
                   >
-                    <Check size={16} style={{ width: '16px', height: '16px', flexShrink: 0 }} />
+                    <Check size={16} />
                     Use Local
                   </button>
                 </div>
 
                 {/* Remote Version */}
-                <div className="conflict-option">
-                  <div className="conflict-option-header">
+                <div className={styles.option}>
+                  <div className="flex items-center gap-3">
                     <input
                       type="radio"
                       id="conflict-remote"
                       name="conflict-choice"
                       value="remote"
+                      className="w-4 h-4"
                     />
-                    <label htmlFor="conflict-remote">
-                      <strong>Use Remote Version</strong>
-                      <span>{summary.remoteLabel}</span>
+                    <label htmlFor="conflict-remote" className="cursor-pointer">
+                      <strong className="block text-sm">Use Remote Version</strong>
+                      <span className="text-xs text-[var(--muted-foreground)]">{summary.remoteLabel}</span>
                     </label>
                   </div>
                   <button
-                    className="conflict-btn conflict-btn-secondary"
+                    className={cn(styles.btn, styles.btnSecondary)}
                     onClick={() => handleResolve({ action: 'remote' })}
                     disabled={isResolving}
                   >
-                    <Check size={16} style={{ width: '16px', height: '16px', flexShrink: 0 }} />
+                    <Check size={16} />
                     Use Remote
                   </button>
                 </div>
 
                 {/* Auto-Merge */}
-                <div className="conflict-option conflict-option-merge">
-                  <div className="conflict-option-header">
-                    <GitMerge size={20} style={{ width: '20px', height: '20px', flexShrink: 0 }} />
-                    <span>
-                      <strong>Try Auto-Merge</strong>
-                      <span className="conflict-option-note">
+                <div className={cn(styles.option, styles.optionMerge)}>
+                  <div className="flex items-center gap-3">
+                    <GitMerge size={20} className="text-purple-500 shrink-0" />
+                    <div>
+                      <strong className="block text-sm">Try Auto-Merge</strong>
+                      <span className="text-xs text-[var(--muted-foreground)]">
                         Combines both versions if possible
                       </span>
-                    </span>
+                    </div>
                   </div>
                   <button
-                    className="conflict-btn conflict-btn-merge"
+                    className={cn(styles.btn, styles.btnMerge)}
                     onClick={handleAutoResolve}
                     disabled={isResolving}
                   >
-                    <GitMerge size={16} style={{ width: '16px', height: '16px', flexShrink: 0 }} />
+                    <GitMerge size={16} />
                     Auto-Merge
                   </button>
                 </div>
               </div>
 
               {/* JSON View for Advanced Users */}
-              <details className="conflict-details">
-                <summary>View Raw Data</summary>
-                <div className="conflict-json">
+              <details className="mt-6 text-sm">
+                <summary className="cursor-pointer text-[var(--muted-foreground)] hover:text-[var(--foreground)] py-2">
+                  View Raw Data
+                </summary>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
                   <div>
-                    <strong>Local:</strong>
-                    <pre>{JSON.stringify(selectedConflict.localData, null, 2)}</pre>
+                    <strong className="block mb-1 text-xs uppercase text-[var(--muted-foreground)]">Local:</strong>
+                    <pre className="p-3 bg-[var(--muted)] rounded-lg text-xs overflow-x-auto max-h-40">
+                      {JSON.stringify(selectedConflict.localData, null, 2)}
+                    </pre>
                   </div>
                   <div>
-                    <strong>Remote:</strong>
-                    <pre>{JSON.stringify(selectedConflict.remoteData, null, 2)}</pre>
+                    <strong className="block mb-1 text-xs uppercase text-[var(--muted-foreground)]">Remote:</strong>
+                    <pre className="p-3 bg-[var(--muted)] rounded-lg text-xs overflow-x-auto max-h-40">
+                      {JSON.stringify(selectedConflict.remoteData, null, 2)}
+                    </pre>
                   </div>
                 </div>
               </details>
             </div>
 
-            <div className="conflict-dialog-footer">
-              <div className="conflict-counter">
+            <div className={styles.footer}>
+              <div className="text-sm text-[var(--muted-foreground)]">
                 Conflict {conflicts.indexOf(selectedConflict) + 1} of {conflicts.length}
               </div>
-              <button className="conflict-btn conflict-btn-text" onClick={handleIgnore}>
+              <button className={cn(styles.btn, styles.btnText)} onClick={handleIgnore}>
                 Skip for Now
               </button>
             </div>

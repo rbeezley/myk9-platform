@@ -13,7 +13,7 @@
  */
 
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import './shared-ui.css';
+import { cn } from '../../lib/utils';
 
 /**
  * Extended HTMLDivElement interface with custom scroll methods
@@ -137,7 +137,7 @@ export function VirtualList<T>({
   // Empty state
   if (!isLoading && items.length === 0 && emptyState) {
     return (
-      <div className={`virtual-list-empty ${className}`}>
+      <div className={cn("flex items-center justify-center p-8", className)}>
         {emptyState}
       </div>
     );
@@ -146,8 +146,8 @@ export function VirtualList<T>({
   // Loading state
   if (isLoading) {
     return (
-      <div className={`virtual-list-loading ${className}`}>
-        <div className="loading-spinner" />
+      <div className={cn("flex items-center justify-center p-8", className)}>
+        <div className="w-8 h-8 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -155,16 +155,16 @@ export function VirtualList<T>({
   return (
     <div
       ref={containerRef}
-      className={`virtual-list ${className}`}
+      className={cn("overflow-y-auto overflow-x-hidden", className)}
       style={{ height: containerHeight }}
       onScroll={handleScroll}
     >
       <div
-        className="virtual-list-spacer"
+        className="relative"
         style={{ height: totalHeight }}
       >
         <div
-          className="virtual-list-content"
+          className="absolute left-0 right-0"
           style={{ transform: `translateY(${offsetY}px)` }}
         >
           {visibleItems.map((item, i) => {
@@ -174,7 +174,7 @@ export function VirtualList<T>({
             return (
               <div
                 key={key}
-                className="virtual-list-item"
+                className="box-border"
                 style={{ height: itemHeight }}
               >
                 {renderItem(item, index)}
@@ -273,7 +273,7 @@ export function VirtualGrid<T>({
   // Empty state
   if (items.length === 0 && emptyState) {
     return (
-      <div className={`virtual-grid-empty ${className}`}>
+      <div className={cn("flex items-center justify-center p-8", className)}>
         {emptyState}
       </div>
     );
@@ -282,19 +282,18 @@ export function VirtualGrid<T>({
   return (
     <div
       ref={containerRef}
-      className={`virtual-grid ${className}`}
+      className={cn("overflow-y-auto overflow-x-hidden", className)}
       style={{ height: containerHeight }}
       onScroll={handleScroll}
     >
       <div
-        className="virtual-grid-spacer"
+        className="relative"
         style={{ height: totalHeight }}
       >
         <div
-          className="virtual-grid-content"
+          className="absolute left-0 right-0 grid"
           style={{
             transform: `translateY(${offsetY}px)`,
-            display: 'grid',
             gridTemplateColumns: `repeat(${columns}, ${itemWidth}px)`,
             gap: `${gap}px`,
           }}
@@ -305,7 +304,7 @@ export function VirtualGrid<T>({
             return (
               <div
                 key={key}
-                className="virtual-grid-item"
+                className="box-border"
                 style={{ height: itemHeight }}
               >
                 {renderItem(item, index)}

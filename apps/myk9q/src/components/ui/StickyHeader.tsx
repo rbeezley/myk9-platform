@@ -1,13 +1,13 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 /**
- * Sticky Header Component
+ * StickyHeader Component - Migrated to Tailwind CSS
  *
  * A header that sticks to the top when scrolling past it.
  * Supports auto-hide on scroll down, show on scroll up.
  */
 
 import { useState, useRef, useEffect, ReactNode } from 'react';
-import './shared-ui.css';
+import { cn } from '../../lib/utils';
 
 export interface StickyHeaderProps {
   /** Header content */
@@ -41,7 +41,7 @@ export function StickyHeader({
   autoHide = false,
   hideThreshold = 50,
   zIndex = 100,
-  className = '',
+  className,
   onStickyChange,
   onVisibilityChange,
 }: StickyHeaderProps) {
@@ -78,7 +78,6 @@ export function StickyHeader({
 
   // Auto-hide on scroll
   useEffect(() => {
-       
     if (!autoHide) {
       setIsVisible(true);
       return;
@@ -126,17 +125,28 @@ export function StickyHeader({
   return (
     <>
       {/* Sentinel element for intersection observer */}
-      {sticky && <div ref={sentinelRef} className="sticky-header-sentinel" />}
+      {sticky && <div ref={sentinelRef} className="h-0 w-full" />}
 
       <div
         ref={headerRef}
-        className={`
-          sticky-header
-          ${sticky ? 'sticky-enabled' : ''}
-          ${isSticky ? 'is-sticky' : ''}
-          ${autoHide && !isVisible ? 'is-hidden' : ''}
-          ${className}
-        `}
+        className={cn(
+          // Base styles
+          'w-full',
+          'bg-[var(--card)]',
+          'border-b border-[var(--border)]',
+          'transition-all duration-300',
+          // Sticky styles
+          sticky && 'sticky top-0',
+          // Sticky active state
+          isSticky && [
+            'backdrop-blur-xl',
+            'bg-[var(--card)]/90',
+            'shadow-[var(--token-shadow-md)]',
+          ],
+          // Hidden state (auto-hide)
+          autoHide && !isVisible && '-translate-y-full opacity-0',
+          className
+        )}
         style={{ zIndex }}
       >
         {children}
@@ -167,12 +177,19 @@ export interface StickySectionHeaderProps {
 export function StickySectionHeader({
   children,
   containerRef: _containerRef,
-  className = '',
+  className,
   zIndex = 10,
 }: StickySectionHeaderProps) {
   return (
     <div
-      className={`sticky-section-header ${className}`}
+      className={cn(
+        'sticky top-0',
+        'bg-[var(--background)]',
+        'py-2 px-4',
+        'border-b border-[var(--border)]',
+        'backdrop-blur-sm',
+        className
+      )}
       style={{ zIndex }}
     >
       {children}

@@ -1,3 +1,9 @@
+/* Tailwind CSS - base, components, utilities */
+@import "tailwindcss";
+
+/* Tailwind component layer utilities (migration helpers) */
+@import './styles/tailwind-utilities.css';
+
 /* Import design tokens first - available everywhere */
 @import './styles/design-tokens.css';
 @import './styles/apple-design-system.css';
@@ -29,7 +35,6 @@
 @import './pages/Stats/Stats.css';
 @import './pages/Settings/Settings.css';
 @import './pages/DogDetails/DogDetails.css';
-@import './pages/Announcements/Announcements.css';
 
 * {
   margin: 0;

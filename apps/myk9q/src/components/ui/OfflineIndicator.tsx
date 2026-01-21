@@ -1,5 +1,5 @@
 /**
- * Offline Indicator Component (Banner Version)
+ * OfflineIndicator Component - Migrated to Tailwind CSS
  *
  * Shows a persistent banner ONLY for failed sync states.
  * Other states (offline, pending, syncing) are handled by the
@@ -14,7 +14,7 @@
 import { useState } from 'react';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { useOfflineStatus } from '@/hooks/useOfflineStatus';
-import './shared-ui.css';
+import { cn } from '../../lib/utils';
 
 /**
  * Format count text (singular/plural)
@@ -49,47 +49,41 @@ export function OfflineIndicator() {
   const showConnectionHint = connection.quality === 'slow' && connection.type;
 
   return (
-    <div className="offline-indicator failed-mode">
-      <div className="offline-indicator-content">
-        <AlertCircle
-          className="offline-icon"
-          size={20}
-          style={{ width: '20px', height: '20px', flexShrink: 0 }}
-        />
-        <div className="offline-text">
-          <strong>Sync Failed</strong>
-          <span className="offline-count">
-            {formatScoreCount(counts.failed)} failed to sync
-            {showConnectionHint && ` - ${connection.type} may be too slow`}
-          </span>
+    <div
+      className={cn(
+        'fixed top-0 left-0 right-0 z-50',
+        'px-4 py-3',
+        'bg-[var(--error-red)] text-white',
+        'shadow-lg'
+      )}
+    >
+      <div className="flex items-center justify-between gap-3 max-w-5xl mx-auto">
+        <div className="flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 flex-shrink-0" />
+          <div className="text-sm">
+            <strong className="font-semibold">Sync Failed</strong>
+            <span className="ml-2 opacity-90">
+              {formatScoreCount(counts.failed)} failed to sync
+              {showConnectionHint && ` - ${connection.type} may be too slow`}
+            </span>
+          </div>
         </div>
         <button
           onClick={handleRetry}
           disabled={isRetrying}
-          className="offline-retry-btn"
+          className={cn(
+            'inline-flex items-center gap-1.5',
+            'px-3 py-1.5 rounded-md',
+            'bg-white/20 border border-white/30',
+            'text-white text-sm font-medium',
+            'cursor-pointer',
+            'transition-all duration-200',
+            'hover:bg-white/30',
+            'disabled:opacity-70 disabled:cursor-not-allowed'
+          )}
           aria-label="Retry failed sync"
-          style={{
-            background: 'rgba(255, 255, 255, 0.2)',
-            border: '1px solid rgba(255, 255, 255, 0.3)',
-            color: 'inherit',
-            cursor: isRetrying ? 'not-allowed' : 'pointer',
-            padding: '6px 12px',
-            borderRadius: '6px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            fontSize: '13px',
-            fontWeight: 500,
-            opacity: isRetrying ? 0.7 : 1,
-            transition: 'all 0.2s',
-          }}
         >
-          <RefreshCw
-            size={14}
-            style={{
-              animation: isRetrying ? 'spin 1s linear infinite' : 'none',
-            }}
-          />
+          <RefreshCw className={cn('w-3.5 h-3.5', isRetrying && 'animate-spin')} />
           {isRetrying ? 'Retrying...' : 'Retry'}
         </button>
       </div>

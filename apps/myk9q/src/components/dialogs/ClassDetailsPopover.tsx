@@ -2,7 +2,27 @@ import React from 'react';
 import { Clock, Eye, Smartphone, User, Users, Activity, ListChecks, Hash } from 'lucide-react';
 import { Popover, type PopoverPosition } from '@/components/ui';
 import { formatSecondsToMMSS } from '@/utils/timeUtils';
-import './ClassDetailsPopover.css';
+import { cn } from '@/lib/utils';
+
+/** Tailwind styles for ClassDetailsPopover */
+const styles = {
+  // Status badge variants
+  statusInProgress: "bg-green-500/15 text-[var(--success)]",
+  statusBriefing: "bg-amber-500/15 text-[var(--warning)]",
+  statusBreak: "bg-blue-500/15 text-[var(--info)]",
+  statusUpcoming: "bg-blue-500/15 text-[var(--info)]",
+  statusCompleted: "bg-slate-400/15 text-[var(--muted-foreground)]",
+  statusOffline: "bg-red-500/15 text-[var(--destructive)]",
+  // Subtle row for less important info
+  rowSubtle: cn(
+    "mt-2 pt-2",
+    "border-t border-dashed border-[var(--border-color,#e2e8f0)]",
+    "opacity-70",
+    "[&_.popover-icon]:opacity-80 [&_.popover-label]:opacity-80"
+  ),
+  // Monospace value
+  valueMono: "font-mono text-[11px] tracking-wider",
+};
 
 // =============================================================================
 // Types
@@ -48,24 +68,24 @@ export interface ClassDetailsPopoverProps {
 
 interface StatusBadgeInfo {
   text: string;
-  className: string;
+  style: string;
 }
 
 function getStatusBadge(status?: string): StatusBadgeInfo | null {
   switch (status) {
     case 'in_progress':
-      return { text: 'IN PROGRESS', className: 'status-in-progress' };
+      return { text: 'IN PROGRESS', style: styles.statusInProgress };
     case 'briefing':
-      return { text: 'BRIEFING', className: 'status-briefing' };
+      return { text: 'BRIEFING', style: styles.statusBriefing };
     case 'break':
-      return { text: 'ON BREAK', className: 'status-break' };
+      return { text: 'ON BREAK', style: styles.statusBreak };
     case 'start_time':
     case 'setup':
-      return { text: 'UPCOMING', className: 'status-upcoming' };
+      return { text: 'UPCOMING', style: styles.statusUpcoming };
     case 'completed':
-      return { text: 'COMPLETED', className: 'status-completed' };
+      return { text: 'COMPLETED', style: styles.statusCompleted };
     case 'offline-scoring':
-      return { text: 'OFFLINE', className: 'status-offline' };
+      return { text: 'OFFLINE', style: styles.statusOffline };
     case 'no-status':
     default:
       return null;
@@ -118,7 +138,6 @@ export const ClassDetailsPopover: React.FC<ClassDetailsPopoverProps> = ({
       onClose={onClose}
       anchorRef={anchorRef}
       title="Class Details"
-      className="class-details-popover"
       position={position}
     >
       {/* Status */}
@@ -126,7 +145,7 @@ export const ClassDetailsPopover: React.FC<ClassDetailsPopoverProps> = ({
         <div className="popover-row">
           <Activity className="popover-icon" size={14} />
           <span className="popover-label">Status:</span>
-          <span className={`popover-badge ${statusBadge.className}`}>
+          <span className={cn("popover-badge", statusBadge.style)}>
             {statusBadge.text}
           </span>
         </div>
@@ -214,10 +233,10 @@ export const ClassDetailsPopover: React.FC<ClassDetailsPopoverProps> = ({
 
       {/* Class ID - subtle, for troubleshooting */}
       {data.classId && (
-        <div className="popover-row popover-row-subtle">
+        <div className={cn("popover-row", styles.rowSubtle)}>
           <Hash className="popover-icon" size={14} />
           <span className="popover-label">Class ID:</span>
-          <span className="popover-value popover-value-mono">{data.classId}</span>
+          <span className={cn("popover-value", styles.valueMono)}>{data.classId}</span>
         </div>
       )}
     </Popover>

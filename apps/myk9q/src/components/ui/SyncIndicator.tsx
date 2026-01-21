@@ -1,6 +1,6 @@
 import React from 'react';
 import { Cloud as _Cloud, CloudOff, RefreshCw, AlertCircle, CheckCircle } from 'lucide-react';
-import './shared-ui.css';
+import { cn } from '../../lib/utils';
 
 export interface SyncIndicatorProps {
   /** Current sync status */
@@ -15,6 +15,13 @@ export interface SyncIndicatorProps {
   compact?: boolean;
 }
 
+const statusStyles = {
+  synced: 'text-[var(--success)]',
+  syncing: 'text-[var(--primary)]',
+  offline: 'text-[var(--warning)]',
+  error: 'text-[var(--error-red)]',
+} as const;
+
 export const SyncIndicator: React.FC<SyncIndicatorProps> = ({
   status,
   pendingCount = 0,
@@ -23,15 +30,16 @@ export const SyncIndicator: React.FC<SyncIndicatorProps> = ({
   compact = false,
 }) => {
   const getIcon = () => {
+    const iconClass = 'w-4 h-4 flex-shrink-0';
     switch (status) {
       case 'synced':
-        return <CheckCircle className="sync-icon" size={16}  style={{ width: '16px', height: '16px', flexShrink: 0 }} />;
+        return <CheckCircle className={iconClass} />;
       case 'syncing':
-        return <RefreshCw className="sync-icon spinning" size={16}  style={{ width: '16px', height: '16px', flexShrink: 0 }} />;
+        return <RefreshCw className={cn(iconClass, 'animate-spin')} />;
       case 'offline':
-        return <CloudOff className="sync-icon" size={16}  style={{ width: '16px', height: '16px', flexShrink: 0 }} />;
+        return <CloudOff className={iconClass} />;
       case 'error':
-        return <AlertCircle className="sync-icon" size={16}  style={{ width: '16px', height: '16px', flexShrink: 0 }} />;
+        return <AlertCircle className={iconClass} />;
     }
   };
 
@@ -48,31 +56,64 @@ export const SyncIndicator: React.FC<SyncIndicatorProps> = ({
     }
   };
 
-  const getClassName = () => {
-    return `sync-indicator sync-indicator-${status} ${compact ? 'compact' : ''}`;
-  };
-
   if (compact) {
     return (
-      <div className={getClassName()} title={getLabel()}>
+      <div
+        className={cn(
+          'relative flex items-center justify-center',
+          'w-8 h-8 rounded-full',
+          statusStyles[status]
+        )}
+        title={getLabel()}
+      >
         {getIcon()}
         {pendingCount > 0 && (
-          <span className="sync-badge">{pendingCount}</span>
+          <span
+            className={cn(
+              'absolute -top-1 -right-1',
+              'min-w-4 h-4 px-1',
+              'bg-[var(--primary)] text-white',
+              'text-[10px] font-bold rounded-full',
+              'flex items-center justify-center'
+            )}
+          >
+            {pendingCount}
+          </span>
         )}
       </div>
     );
   }
 
   return (
-    <div className={getClassName()}>
+    <div
+      className={cn(
+        'flex items-center gap-2',
+        'px-3 py-1.5 rounded-lg',
+        'text-sm',
+        statusStyles[status],
+        status === 'error' && 'bg-[var(--error-red)]/10'
+      )}
+    >
       {getIcon()}
-      <span className="sync-label">{getLabel()}</span>
+      <span className="font-medium">{getLabel()}</span>
       {pendingCount > 0 && (
-        <span className="sync-count">{pendingCount}</span>
+        <span
+          className={cn(
+            'px-1.5 py-0.5 rounded-full',
+            'bg-[var(--muted)] text-xs font-medium'
+          )}
+        >
+          {pendingCount}
+        </span>
       )}
       {status === 'error' && onRetry && (
         <button
-          className="sync-retry-btn"
+          className={cn(
+            'ml-2 px-2 py-1 rounded',
+            'bg-[var(--error-red)]/20 text-[var(--error-red)]',
+            'text-xs font-medium',
+            'hover:bg-[var(--error-red)]/30 transition-colors'
+          )}
           onClick={onRetry}
           title="Retry sync"
         >
@@ -80,7 +121,15 @@ export const SyncIndicator: React.FC<SyncIndicatorProps> = ({
         </button>
       )}
       {status === 'error' && errorMessage && (
-        <div className="sync-error-tooltip">
+        <div
+          className={cn(
+            'absolute top-full left-0 mt-1',
+            'px-2 py-1 rounded',
+            'bg-[var(--card)] border border-[var(--border)]',
+            'text-xs text-[var(--muted-foreground)]',
+            'shadow-lg z-10'
+          )}
+        >
           {errorMessage}
         </div>
       )}
@@ -112,8 +161,15 @@ export const GlobalSyncIndicator: React.FC = () => {
   }
 
   return (
-    <div className="global-sync-indicator">
-      <CloudOff size={14}  style={{ width: '14px', height: '14px', flexShrink: 0 }} />
+    <div
+      className={cn(
+        'flex items-center gap-1.5',
+        'px-2 py-1 rounded',
+        'bg-[var(--warning)]/10 text-[var(--warning)]',
+        'text-xs font-medium'
+      )}
+    >
+      <CloudOff className="w-3.5 h-3.5 flex-shrink-0" />
       <span>Offline Mode</span>
     </div>
   );

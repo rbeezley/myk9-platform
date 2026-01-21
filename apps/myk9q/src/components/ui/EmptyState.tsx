@@ -1,5 +1,12 @@
 import React from 'react';
-import './shared-ui.css';
+import { cn } from '../../lib/utils';
+
+/**
+ * EmptyState Component - Migrated to Tailwind CSS
+ *
+ * Reusable component for displaying empty states
+ * Used when there are no items to display (e.g., no search results, no entries, etc.)
+ */
 
 interface EmptyStateProps {
   icon?: React.ReactNode;
@@ -9,23 +16,36 @@ interface EmptyStateProps {
   className?: string;
 }
 
-/**
- * Reusable component for displaying empty states
- * Used when there are no items to display (e.g., no search results, no entries, etc.)
- */
 export const EmptyState: React.FC<EmptyStateProps> = ({
   icon,
   title,
   message,
   action,
-  className = ''
+  className,
 }) => {
   return (
-    <div className={`empty-state ${className}`.trim()}>
-      {icon && <div className="empty-state-icon">{icon}</div>}
-      <h3 className="empty-state-title">{title}</h3>
-      {message && <p className="empty-state-message">{message}</p>}
-      {action && <div className="empty-state-action">{action}</div>}
+    <div
+      className={cn(
+        'flex flex-col items-center justify-center',
+        'py-12 px-6',
+        'text-center',
+        className
+      )}
+    >
+      {icon && (
+        <div className="mb-4 text-[var(--muted-foreground)] opacity-60 text-5xl">
+          {icon}
+        </div>
+      )}
+      <h3 className="text-lg font-semibold text-[var(--foreground)] mb-2">
+        {title}
+      </h3>
+      {message && (
+        <p className="text-sm text-[var(--muted-foreground)] max-w-xs mb-4">
+          {message}
+        </p>
+      )}
+      {action && <div className="mt-2">{action}</div>}
     </div>
   );
 };

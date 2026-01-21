@@ -7,7 +7,96 @@
 
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { Download, X, Bell } from 'lucide-react';
-import './shared-ui.css';
+import { cn } from '@/lib/utils';
+
+/** Tailwind styles for card mode */
+const cardStyles = {
+  container: cn(
+    "relative p-6 bg-[var(--card)] rounded-2xl",
+    "border border-[var(--border)] shadow-lg",
+    "max-w-sm mx-auto"
+  ),
+  closeBtn: cn(
+    "absolute top-4 right-4 p-2 rounded-lg",
+    "text-[var(--muted-foreground)]",
+    "hover:bg-[var(--muted)] hover:text-[var(--foreground)]",
+    "transition-colors duration-150"
+  ),
+  icon: cn(
+    "flex items-center justify-center w-16 h-16 mx-auto mb-4",
+    "bg-[var(--primary)]/10 rounded-2xl text-[var(--primary)]"
+  ),
+  title: "text-xl font-bold text-[var(--foreground)] text-center mb-2",
+  message: "text-sm text-[var(--muted-foreground)] text-center mb-6",
+  benefits: "space-y-3 mb-6",
+  benefitItem: cn(
+    "flex items-center gap-3 text-sm text-[var(--foreground)]",
+    "p-3 bg-[var(--muted)]/50 rounded-lg"
+  ),
+  benefitIcon: "text-[var(--primary)] shrink-0",
+  actions: "space-y-3",
+  btnPrimary: cn(
+    "w-full flex items-center justify-center gap-2",
+    "px-4 py-3 rounded-xl",
+    "bg-[var(--primary)] text-white font-semibold",
+    "hover:opacity-90 transition-opacity"
+  ),
+  btnSecondary: cn(
+    "w-full flex items-center justify-center gap-2",
+    "px-4 py-3 rounded-xl",
+    "bg-[var(--muted)] text-[var(--muted-foreground)] font-medium",
+    "hover:bg-[var(--border)] transition-colors"
+  ),
+  instructions: "text-xs text-[var(--muted-foreground)] text-center mt-4",
+};
+
+/** Tailwind styles for banner mode */
+const bannerStyles = {
+  container: cn(
+    "flex items-center justify-between gap-4 p-4",
+    "bg-[var(--card)] border border-[var(--border)]",
+    "rounded-xl shadow-md"
+  ),
+  content: "flex items-center gap-3 flex-1 min-w-0",
+  icon: cn(
+    "flex items-center justify-center w-12 h-12 shrink-0",
+    "bg-[var(--primary)]/10 rounded-xl text-[var(--primary)]"
+  ),
+  text: "min-w-0",
+  textTitle: "font-semibold text-[var(--foreground)]",
+  textMessage: "text-sm text-[var(--muted-foreground)] truncate",
+  actions: "flex items-center gap-2 shrink-0",
+  btnPrimary: cn(
+    "px-4 py-2 rounded-lg",
+    "bg-[var(--primary)] text-white font-medium text-sm",
+    "hover:opacity-90 transition-opacity"
+  ),
+  btnSecondary: cn(
+    "p-2 rounded-lg",
+    "text-[var(--muted-foreground)]",
+    "hover:bg-[var(--muted)] hover:text-[var(--foreground)]",
+    "transition-colors duration-150"
+  ),
+};
+
+/** Tailwind styles for iOS instructions */
+const iosStyles = {
+  container: cn(
+    "p-6 bg-[var(--card)] rounded-2xl",
+    "border border-[var(--border)] shadow-sm",
+    "max-w-sm mx-auto text-center"
+  ),
+  icon: "text-4xl mb-4",
+  title: "text-lg font-bold text-[var(--foreground)] mb-3",
+  description: "text-sm text-[var(--muted-foreground)] mb-4",
+  steps: cn(
+    "text-left text-sm text-[var(--foreground)]",
+    "space-y-3 mb-4"
+  ),
+  stepItem: "flex items-start gap-2",
+  shareIcon: "inline-block px-1.5 py-0.5 bg-[var(--muted)] rounded text-xs font-mono",
+  hint: "text-xs text-[var(--muted-foreground)] italic",
+};
 
 export interface InstallPromptProps {
   /**
@@ -99,61 +188,61 @@ export function InstallPrompt({
 
   if (mode === 'card') {
     return (
-      <div className="install-prompt-card">
+      <div className={cardStyles.container}>
         <button
-          className="install-prompt-close"
+          className={cardStyles.closeBtn}
           onClick={handleDismiss}
           aria-label="Dismiss install prompt"
         >
-          <X size={20}  style={{ width: '20px', height: '20px', flexShrink: 0 }} />
+          <X size={20} className="shrink-0" />
         </button>
 
-        <div className="install-prompt-icon">
-          <Download size={48}  style={{ width: '48px', height: '48px', flexShrink: 0 }} />
+        <div className={cardStyles.icon}>
+          <Download size={48} className="shrink-0" />
         </div>
 
-        <h3 className="install-prompt-title">Install myK9Q</h3>
+        <h3 className={cardStyles.title}>Install myK9Q</h3>
 
-        <p className="install-prompt-message">{getMessage()}</p>
+        <p className={cardStyles.message}>{getMessage()}</p>
 
-        <ul className="install-prompt-benefits">
+        <ul className={cardStyles.benefits}>
           {showNotificationBenefit && (
-            <li>
-              <Bell size={16}  style={{ width: '16px', height: '16px', flexShrink: 0 }} />
+            <li className={cardStyles.benefitItem}>
+              <Bell size={16} className={cardStyles.benefitIcon} />
               <span>Get notified when your dogs are up</span>
             </li>
           )}
-          <li>
-            <Download size={16}  style={{ width: '16px', height: '16px', flexShrink: 0 }} />
+          <li className={cardStyles.benefitItem}>
+            <Download size={16} className={cardStyles.benefitIcon} />
             <span>Works offline</span>
           </li>
-          <li>
-            <Download size={16}  style={{ width: '16px', height: '16px', flexShrink: 0 }} />
+          <li className={cardStyles.benefitItem}>
+            <Download size={16} className={cardStyles.benefitIcon} />
             <span>Faster loading</span>
           </li>
-          <li>
-            <Download size={16}  style={{ width: '16px', height: '16px', flexShrink: 0 }} />
+          <li className={cardStyles.benefitItem}>
+            <Download size={16} className={cardStyles.benefitIcon} />
             <span>Home screen access</span>
           </li>
         </ul>
 
-        <div className="install-prompt-actions">
+        <div className={cardStyles.actions}>
           <button
-            className="install-prompt-button primary"
+            className={cardStyles.btnPrimary}
             onClick={handleInstall}
           >
-            <Download size={20}  style={{ width: '20px', height: '20px', flexShrink: 0 }} />
+            <Download size={20} className="shrink-0" />
             Install App
           </button>
           <button
-            className="install-prompt-button secondary"
+            className={cardStyles.btnSecondary}
             onClick={handleDismiss}
           >
             Maybe Later
           </button>
         </div>
 
-        <p className="install-prompt-instructions">
+        <p className={cardStyles.instructions}>
           {getInstallInstructions()}
         </p>
       </div>
@@ -162,30 +251,30 @@ export function InstallPrompt({
 
   // Banner mode (default)
   return (
-    <div className="install-prompt-banner">
-      <div className="install-prompt-banner-content">
-        <div className="install-prompt-banner-icon">
-          <Download size={24}  style={{ width: '24px', height: '24px', flexShrink: 0 }} />
+    <div className={bannerStyles.container}>
+      <div className={bannerStyles.content}>
+        <div className={bannerStyles.icon}>
+          <Download size={24} className="shrink-0" />
         </div>
-        <div className="install-prompt-banner-text">
-          <strong>Install myK9Q</strong>
-          <span>{getMessage()}</span>
+        <div className={bannerStyles.text}>
+          <strong className={bannerStyles.textTitle}>Install myK9Q</strong>
+          <span className={bannerStyles.textMessage}>{getMessage()}</span>
         </div>
       </div>
 
-      <div className="install-prompt-banner-actions">
+      <div className={bannerStyles.actions}>
         <button
-          className="install-prompt-banner-button primary"
+          className={bannerStyles.btnPrimary}
           onClick={handleInstall}
         >
           Install
         </button>
         <button
-          className="install-prompt-banner-button secondary"
+          className={bannerStyles.btnSecondary}
           onClick={handleDismiss}
           aria-label="Dismiss"
         >
-          <X size={18}  style={{ width: '18px', height: '18px', flexShrink: 0 }} />
+          <X size={18} className="shrink-0" />
         </button>
       </div>
     </div>
@@ -211,24 +300,27 @@ export function IOSInstallInstructions() {
   }
 
   return (
-    <div className="ios-install-instructions">
-      <div className="ios-install-icon">📱</div>
-      <h3>Install myK9Q</h3>
-      <p>
+    <div className={iosStyles.container}>
+      <div className={iosStyles.icon}>📱</div>
+      <h3 className={iosStyles.title}>Install myK9Q</h3>
+      <p className={iosStyles.description}>
         To receive notifications when your dogs are up, install this app to your home screen:
       </p>
-      <ol>
-        <li>
-          Tap the <strong>Share</strong> button <span className="ios-share-icon">⎙</span>
+      <ol className={iosStyles.steps}>
+        <li className={iosStyles.stepItem}>
+          <span>1.</span>
+          <span>Tap the <strong>Share</strong> button <span className={iosStyles.shareIcon}>⎙</span></span>
         </li>
-        <li>
-          Scroll down and tap <strong>"Add to Home Screen"</strong>
+        <li className={iosStyles.stepItem}>
+          <span>2.</span>
+          <span>Scroll down and tap <strong>"Add to Home Screen"</strong></span>
         </li>
-        <li>
-          Tap <strong>"Add"</strong> in the top right
+        <li className={iosStyles.stepItem}>
+          <span>3.</span>
+          <span>Tap <strong>"Add"</strong> in the top right</span>
         </li>
       </ol>
-      <p className="ios-install-hint">
+      <p className={iosStyles.hint}>
         The app icon will appear on your home screen like any other app!
       </p>
     </div>

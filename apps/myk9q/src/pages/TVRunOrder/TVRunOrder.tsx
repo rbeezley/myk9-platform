@@ -6,7 +6,91 @@ import { useTVData } from './hooks/useTVData';
 import { useTVResultsData } from './hooks/useTVResultsData';
 import { ClassRunOrder } from './components/ClassRunOrder';
 import { TVResults } from './components/TVResults';
-import './TVRunOrder.css';
+import { cn } from '@/lib/utils';
+
+/** Tailwind styles for TVRunOrder */
+const styles = {
+  container: cn(
+    "flex flex-col h-screen overflow-hidden",
+    "bg-[var(--secondary)] dark:bg-[var(--background)]"
+  ),
+  headerBar: cn(
+    "relative flex-shrink-0 flex items-center gap-4",
+    "px-4 py-2"
+  ),
+  headerBarPodium: cn(
+    "relative justify-start overflow-hidden",
+    "px-4 py-2",
+    "bg-gradient-to-b from-[rgba(20,20,25,0.98)] to-[rgba(15,15,18,0.95)]",
+    "border-b border-[rgba(212,175,55,0.15)]",
+    // Light mode variant
+    "light:bg-gradient-to-b light:from-[rgba(250,248,245,0.98)] light:to-[rgba(245,243,240,0.95)]",
+    "light:border-b-[rgba(153,101,21,0.15)]"
+  ),
+  menu: "flex-shrink-0 pl-2",
+  title: cn(
+    "absolute left-1/2 -translate-x-1/2",
+    "font-sans text-[clamp(24px,3.5vw,32px)] font-semibold",
+    "text-[var(--foreground)] m-0 tracking-tight text-center"
+  ),
+  podiumTitle: cn(
+    "absolute left-1/2 -translate-x-1/2 z-10",
+    "font-serif text-[clamp(28px,4vw,36px)] font-bold",
+    "text-white dark:text-white light:text-[#2D2A26]",
+    "m-0 tracking-wide text-center",
+    "[text-shadow:0_2px_20px_rgba(212,175,55,0.2)]",
+    "before:content-['★'] before:text-[0.5em] before:text-[#d4af37] before:align-middle before:mx-3 before:opacity-80",
+    "after:content-['★'] after:text-[0.5em] after:text-[#d4af37] after:align-middle after:mx-3 after:opacity-80"
+  ),
+  viewToggle: cn(
+    "flex items-center gap-2",
+    "px-3 py-1 rounded",
+    "bg-[var(--color-primary)] text-white",
+    "text-sm font-semibold cursor-pointer",
+    "transition-opacity duration-200",
+    "hover:opacity-90",
+    "ml-auto mr-4"
+  ),
+  grid: cn(
+    "flex-1 grid gap-4 p-4",
+    "grid-cols-1 auto-rows-auto overflow-y-auto",
+    "lg:grid-cols-3 lg:grid-rows-[auto_auto] lg:content-start lg:overflow-hidden"
+  ),
+  empty: cn(
+    "flex-1 flex flex-col items-center justify-center",
+    "p-8 text-center"
+  ),
+  emptyTitle: cn(
+    "text-4xl font-semibold m-0 mb-4",
+    "text-[var(--foreground)]"
+  ),
+  emptyText: "text-2xl text-[var(--muted-foreground)] m-0",
+  error: cn(
+    "flex-1 flex flex-col items-center justify-center",
+    "p-8 text-center"
+  ),
+  errorTitle: cn(
+    "text-4xl font-semibold m-0 mb-4",
+    "text-[var(--destructive)]"
+  ),
+  errorText: "text-xl text-[var(--muted-foreground)] m-0",
+  pagination: cn(
+    "flex-shrink-0 flex items-center justify-center gap-4",
+    "px-4 py-2 bg-transparent"
+  ),
+  paginationBtn: cn(
+    "w-8 h-8 rounded-full flex items-center justify-center",
+    "bg-[var(--muted)] text-[var(--muted-foreground)]",
+    "border border-[var(--border)] cursor-pointer",
+    "transition-all duration-150",
+    "hover:bg-[var(--primary)] hover:text-white hover:border-[var(--primary)]",
+    "active:scale-95"
+  ),
+  paginationInfo: cn(
+    "text-sm font-medium text-[var(--muted-foreground)]",
+    "min-w-[50px] text-center"
+  ),
+};
 
 type ViewMode = 'runorder' | 'results';
 
@@ -122,10 +206,10 @@ export const TVRunOrder: React.FC = () => {
   // Error state
   if (error) {
     return (
-      <div className="tv-runorder-container">
-        <div className="tv-runorder-error">
-          <h1>Error Loading Run Order</h1>
-          <p>{error}</p>
+      <div className={styles.container}>
+        <div className={styles.error}>
+          <h1 className={styles.errorTitle}>Error Loading Run Order</h1>
+          <p className={styles.errorText}>{error}</p>
         </div>
       </div>
     );
@@ -136,30 +220,30 @@ export const TVRunOrder: React.FC = () => {
     // If we have results, show them instead of empty state
     if (completedClasses.length > 0) {
       return (
-        <div className="tv-runorder-container">
-          <div className="tv-runorder-header-bar tv-runorder-header-bar--podium">
-            <div className="tv-runorder-menu">
+        <div className={styles.container}>
+          <div className={cn(styles.headerBar, styles.headerBarPodium)}>
+            <div className={styles.menu}>
               <HamburgerMenu currentPage="tv" />
             </div>
-            <h1 className="tv-runorder-podium-title">The Podium</h1>
+            <h1 className={styles.podiumTitle}>The Podium</h1>
           </div>
           <TVResults classes={visibleResults} />
 
           {/* Page navigation if more than 6 results */}
           {completedClasses.length > 6 && (
-            <div className="tv-runorder-pagination">
+            <div className={styles.pagination}>
               <button
-                className="pagination-nav-btn"
+                className={styles.paginationBtn}
                 onClick={goToPreviousResultsPage}
                 aria-label="Previous page"
               >
                 <ChevronLeft size={18} />
               </button>
-              <span className="pagination-info">
+              <span className={styles.paginationInfo}>
                 {resultsPage + 1} / {resultsTotalPages}
               </span>
               <button
-                className="pagination-nav-btn"
+                className={styles.paginationBtn}
                 onClick={goToNextResultsPage}
                 aria-label="Next page"
               >
@@ -172,15 +256,15 @@ export const TVRunOrder: React.FC = () => {
     }
 
     return (
-      <div className="tv-runorder-container">
-        <div className="tv-runorder-header-bar">
-          <div className="tv-runorder-menu">
+      <div className={styles.container}>
+        <div className={styles.headerBar}>
+          <div className={styles.menu}>
             <HamburgerMenu currentPage="tv" />
           </div>
         </div>
-        <div className="tv-runorder-empty">
-          <h1>No Classes Available</h1>
-          <p>Classes will appear here when they are about to start or in progress.</p>
+        <div className={styles.empty}>
+          <h1 className={styles.emptyTitle}>No Classes Available</h1>
+          <p className={styles.emptyText}>Classes will appear here when they are about to start or in progress.</p>
         </div>
       </div>
     );
@@ -190,24 +274,24 @@ export const TVRunOrder: React.FC = () => {
   const showViewToggle = completedClasses.length > 0;
 
   return (
-    <div className="tv-runorder-container">
+    <div className={styles.container}>
       {/* Header bar with hamburger menu and view toggle */}
-      <div className={`tv-runorder-header-bar ${viewMode === 'results' ? 'tv-runorder-header-bar--podium' : ''}`}>
-        <div className="tv-runorder-menu">
+      <div className={cn(styles.headerBar, viewMode === 'results' && styles.headerBarPodium)}>
+        <div className={styles.menu}>
           <HamburgerMenu currentPage="tv" />
         </div>
 
         {/* Show title based on view mode */}
         {viewMode === 'results' ? (
-          <h1 className="tv-runorder-podium-title">The Podium</h1>
+          <h1 className={styles.podiumTitle}>The Podium</h1>
         ) : (
-          <h1 className="tv-runorder-title">Run Order</h1>
+          <h1 className={styles.title}>Run Order</h1>
         )}
 
         {/* View mode toggle button */}
         {showViewToggle && (
           <button
-            className="tv-runorder-view-toggle"
+            className={styles.viewToggle}
             onClick={toggleViewMode}
             aria-label={viewMode === 'runorder' ? 'Switch to Results' : 'Switch to Run Order'}
           >
@@ -230,7 +314,7 @@ export const TVRunOrder: React.FC = () => {
       {viewMode === 'runorder' ? (
         <>
           {/* 2x2 grid of in-progress classes */}
-          <div className="tv-runorder-grid">
+          <div className={styles.grid}>
             {visibleClasses.map((classInfo) => {
               // Build the lookup key - for combined Novice A & B, use "Novice" without section
               const lookupKey = `${classInfo.trial_date}-${classInfo.trial_number}-${classInfo.element_type}-${classInfo.level}`;
@@ -246,19 +330,19 @@ export const TVRunOrder: React.FC = () => {
 
           {/* Page navigation if more than 6 classes */}
           {inProgressClasses.length > 6 && (
-            <div className="tv-runorder-pagination">
+            <div className={styles.pagination}>
               <button
-                className="pagination-nav-btn"
+                className={styles.paginationBtn}
                 onClick={goToPreviousRunOrderPage}
                 aria-label="Previous page"
               >
                 <ChevronLeft size={18} />
               </button>
-              <span className="pagination-info">
+              <span className={styles.paginationInfo}>
                 {runOrderPage + 1} / {runOrderTotalPages}
               </span>
               <button
-                className="pagination-nav-btn"
+                className={styles.paginationBtn}
                 onClick={goToNextRunOrderPage}
                 aria-label="Next page"
               >
@@ -273,19 +357,19 @@ export const TVRunOrder: React.FC = () => {
 
           {/* Page navigation if more than 6 results */}
           {completedClasses.length > 6 && (
-            <div className="tv-runorder-pagination">
+            <div className={styles.pagination}>
               <button
-                className="pagination-nav-btn"
+                className={styles.paginationBtn}
                 onClick={goToPreviousResultsPage}
                 aria-label="Previous page"
               >
                 <ChevronLeft size={18} />
               </button>
-              <span className="pagination-info">
+              <span className={styles.paginationInfo}>
                 {resultsPage + 1} / {resultsTotalPages}
               </span>
               <button
-                className="pagination-nav-btn"
+                className={styles.paginationBtn}
                 onClick={goToNextResultsPage}
                 aria-label="Next page"
               >

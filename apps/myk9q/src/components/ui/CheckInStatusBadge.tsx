@@ -2,6 +2,7 @@ import React from 'react';
 import { StatusBadge } from './StatusBadge';
 import { getCheckinStatusIcon, getCheckinStatusLabel } from '@/utils/statusIcons';
 import { useHapticFeedback } from '@/hooks/useHapticFeedback';
+import { cn } from '../../lib/utils';
 
 export interface CheckInStatusBadgeProps {
   /** Check-in status: 'none', 'checked-in', 'conflict', 'pulled', 'at-gate', 'come-to-gate' */
@@ -31,14 +32,14 @@ export const CheckInStatusBadge: React.FC<CheckInStatusBadgeProps> = ({
   clickable = false,
   onClick,
   iconSize = 16,
-  className = '',
+  className,
   asButton = false
 }) => {
   const haptic = useHapticFeedback();
 
   // Get label and icon from centralized statusConfig via statusIcons utility
   const label = getCheckinStatusLabel(status);
-  const icon = getCheckinStatusIcon(status, { size: iconSize, className: 'status-icon' });
+  const icon = getCheckinStatusIcon(status, { size: iconSize, className: 'flex-shrink-0' });
 
   const handleClick = (e: React.MouseEvent) => {
     if (onClick) {
@@ -60,7 +61,7 @@ export const CheckInStatusBadge: React.FC<CheckInStatusBadgeProps> = ({
       icon={icon}
       clickable={clickable}
       onClick={handleClick}
-      className={`${className} no-haptic`}
+      className={cn(className)}
       asButton={asButton}
     />
   );

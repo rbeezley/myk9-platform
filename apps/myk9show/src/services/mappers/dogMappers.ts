@@ -58,13 +58,18 @@ export const mapDogInputToUpdate = (input: Partial<DogInput>): DbDogUpdate => {
  * Convert database dog result to Dog type (for backward compatibility)
  */
 export const mapDatabaseToDog = (dbDog: Record<string, unknown>): Dog => {
+  const sex = dbDog.sex as 'male' | 'female' | null;
+  const dateOfBirth = dbDog.date_of_birth as string | null;
+
   return {
     id: dbDog.id as string,
     name: dbDog.name as string,
     callName: (dbDog.call_name as string) || (dbDog.name as string), // Use call_name if available, fallback to name
     breed: dbDog.breed as string,
-    birthDate: dbDog.date_of_birth as string,
-    sex: dbDog.sex as 'male' | 'female',
+    birthDate: dateOfBirth ?? undefined,
+    dateOfBirth: dateOfBirth ?? undefined, // Also set dateOfBirth for backward compatibility
+    sex: sex ?? 'male', // Default to male if not set (required field)
+    gender: sex ? (sex.charAt(0).toUpperCase() + sex.slice(1)) as 'Male' | 'Female' : undefined, // Also set gender for backward compatibility
     color: dbDog.color as string,
     weight: dbDog.weight ? String(dbDog.weight) : undefined,
     height: dbDog.height ? String(dbDog.height) : undefined,

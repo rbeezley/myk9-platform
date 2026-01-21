@@ -76,7 +76,7 @@ export function useExhibitorProfile() {
         .from('exhibitor_profiles')
         .select(`
           *,
-          person:people(
+          person:people!person_id(
             id,
             first_name,
             last_name,

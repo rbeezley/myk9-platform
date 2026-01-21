@@ -19,13 +19,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { exhibitorService, UpdatePersonData, CreateDogData, ExhibitorDog } from '@/services/exhibitorService';
 
@@ -303,12 +296,12 @@ function ProfileDisplay({ person }: { person?: ExhibitorProfilePage['person'] })
           <MapPin className="h-3 w-3" /> Address
         </Label>
         <p>
-          {person.address ? (
+          {person.street_address ? (
             <>
-              {person.address}
+              {person.street_address}
               {person.city && `, ${person.city}`}
               {person.state && `, ${person.state}`}
-              {person.zip && ` ${person.zip}`}
+              {person.zip_code && ` ${person.zip_code}`}
             </>
           ) : (
             'Not provided'
@@ -335,10 +328,10 @@ function ProfileEditForm({
     first_name: person?.first_name || '',
     last_name: person?.last_name || '',
     phone: person?.phone || '',
-    address: person?.address || '',
+    street_address: person?.street_address || '',
     city: person?.city || '',
     state: person?.state || '',
-    zip: person?.zip || '',
+    zip_code: person?.zip_code || '',
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -377,11 +370,11 @@ function ProfileEditForm({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="address">Address</Label>
+          <Label htmlFor="street_address">Address</Label>
           <Input
-            id="address"
-            value={formData.address || ''}
-            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+            id="street_address"
+            value={formData.street_address || ''}
+            onChange={(e) => setFormData({ ...formData, street_address: e.target.value })}
           />
         </div>
         <div className="space-y-2">
@@ -402,11 +395,11 @@ function ProfileEditForm({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="zip">ZIP</Label>
+            <Label htmlFor="zip_code">ZIP</Label>
             <Input
-              id="zip"
-              value={formData.zip || ''}
-              onChange={(e) => setFormData({ ...formData, zip: e.target.value })}
+              id="zip_code"
+              value={formData.zip_code || ''}
+              onChange={(e) => setFormData({ ...formData, zip_code: e.target.value })}
             />
           </div>
         </div>
@@ -568,27 +561,26 @@ function DogFormDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="dog-sex">Sex</Label>
-              <Select
+              <Label htmlFor="dog-sex">Gender</Label>
+              <select
+                id="dog-sex"
                 value={formData.sex || ''}
-                onValueChange={(value) => {
+                onChange={(e) => {
+                  const value = e.target.value;
                   if (value === 'male' || value === 'female') {
                     setFormData({ ...formData, sex: value });
                   } else {
-                    // Remove sex property if value is invalid
+                    // Remove sex property if value is empty
                     const { sex: _removed, ...rest } = formData;
                     setFormData(rest as CreateDogData);
                   }
                 }}
+                className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background text-foreground px-3 py-2 text-sm shadow-sm ring-offset-background focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [color-scheme:light] dark:[color-scheme:dark]"
               >
-                <SelectTrigger id="dog-sex">
-                  <SelectValue placeholder="Select sex" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="male">Male</SelectItem>
-                  <SelectItem value="female">Female</SelectItem>
-                </SelectContent>
-              </Select>
+                <option value="">Select gender</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+              </select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="dog-dob">Date of Birth</Label>
@@ -666,10 +658,10 @@ type ExhibitorProfilePage = {
     last_name: string;
     email: string;
     phone: string | null;
-    address: string | null;
+    street_address: string | null;
     city: string | null;
     state: string | null;
-    zip: string | null;
+    zip_code: string | null;
     country: string | null;
   } | undefined;
 };

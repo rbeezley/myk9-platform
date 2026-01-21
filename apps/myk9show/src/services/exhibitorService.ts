@@ -16,10 +16,10 @@ export interface Person {
   last_name: string;
   email: string;
   phone: string | null;
-  address: string | null;
+  street_address: string | null;
   city: string | null;
   state: string | null;
-  zip: string | null;
+  zip_code: string | null;
   country: string | null;
   auth_user_id: string | null;
   created_at: string;
@@ -67,10 +67,10 @@ export interface UpdatePersonData {
   first_name?: string;
   last_name?: string;
   phone?: string | null;
-  address?: string | null;
+  street_address?: string | null;
   city?: string | null;
   state?: string | null;
-  zip?: string | null;
+  zip_code?: string | null;
   country?: string | null;
 }
 
@@ -109,7 +109,7 @@ export const exhibitorService = {
         .from('exhibitor_profiles')
         .select(`
           *,
-          person:people(*)
+          person:people!person_id(*)
         `)
         .eq('auth_user_id', authUserId)
         .maybeSingle();

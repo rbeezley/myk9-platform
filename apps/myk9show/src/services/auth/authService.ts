@@ -47,11 +47,11 @@ export async function signUp(data: SignUpData): Promise<AuthResult> {
   try {
     const { email, password, firstName, lastName, metadata = {} } = data;
     
-    // Add name information to user metadata  
+    // Add name information to user metadata (snake_case for database trigger)
     const userMetadata = {
       ...metadata,
-      ...(firstName && { firstName }),
-      ...(lastName && { lastName }),
+      ...(firstName && { first_name: firstName }),
+      ...(lastName && { last_name: lastName }),
     };
 
     const result = await supabase.auth.signUp({
@@ -250,11 +250,11 @@ export async function updateProfile(data: UpdateProfileData): Promise<AuthResult
       updateData.email = email;
     }
     
-    // Update metadata
+    // Update metadata (snake_case for database consistency)
     const userMetadata = {
       ...metadata,
-      ...(firstName && { firstName }),
-      ...(lastName && { lastName }),
+      ...(firstName && { first_name: firstName }),
+      ...(lastName && { last_name: lastName }),
     };
     
     if (Object.keys(userMetadata).length > 0) {
@@ -352,10 +352,11 @@ export function isSessionValid(session: Session | null): boolean {
  */
 export function getUserDisplayName(user: User | null): string {
   if (!user) return 'Anonymous';
-  
+
   const metadata = user.user_metadata || {};
-  const firstName = metadata.firstName || '';
-  const lastName = metadata.lastName || '';
+  // Support both snake_case (new) and camelCase (legacy) keys
+  const firstName = metadata.first_name || metadata.firstName || '';
+  const lastName = metadata.last_name || metadata.lastName || '';
   
   if (firstName && lastName) {
     return `${firstName} ${lastName}`;

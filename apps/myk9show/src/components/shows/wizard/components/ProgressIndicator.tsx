@@ -40,7 +40,7 @@ export const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({
         
         {/* Completed progress line */}
         <div 
-          className="absolute left-0 top-8 h-0.5 bg-gradient-to-r from-primary to-secondary rounded-full transition-all duration-500 ease-&lsqb;cubic-bezier(0.25,0.46,0.45,0.94)&rsqb;"
+          className="absolute left-0 top-8 h-0.5 bg-gradient-to-r from-primary to-secondary rounded-full transition-all duration-500 ease-out"
           style={{
             width: `${(Math.max(0, ...completedSteps, currentStep) / (steps.length - 1)) * 100}%`,
             boxShadow: '0 2px 12px rgba(37, 99, 235, 0.3)'

@@ -121,56 +121,44 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
             </Card>
           )}
 
-          {/* Overview Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Trials</p>
-                    <p className="text-3xl font-bold text-blue-600">{trials.length}</p>
-                  </div>
-                  <Calendar className="h-8 w-8 text-blue-600" />
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Classes</p>
-                    <p className="text-3xl font-bold text-green-600">{totalClasses}</p>
-                  </div>
-                  <Trophy className="h-8 w-8 text-green-600" />
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Est. Duration</p>
-                    <p className="text-3xl font-bold text-purple-600">{totalJudgingTime}</p>
-                    <p className="text-xs text-muted-foreground">minutes</p>
-                  </div>
-                  <Timer className="h-8 w-8 text-purple-600" />
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Judges Assigned</p>
-                    <p className="text-3xl font-bold text-orange-600">{actualAssignedJudges}/{totalClasses}</p>
-                  </div>
-                  <Users className="h-8 w-8 text-orange-600" />
-                </div>
-              </CardContent>
-            </Card>
+          {/* Overview Stats - Enhanced with gradients */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Trials Card */}
+            <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 p-6 text-white shadow-lg">
+              <Calendar className="absolute -right-3 -bottom-3 h-20 w-20 text-white/10" />
+              <div className="relative">
+                <p className="text-sm font-medium text-white/80">Trials</p>
+                <p className="text-4xl font-bold mt-1">{trials.length}</p>
+              </div>
+            </div>
+
+            {/* Classes Card */}
+            <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 p-6 text-white shadow-lg">
+              <Trophy className="absolute -right-3 -bottom-3 h-20 w-20 text-white/10" />
+              <div className="relative">
+                <p className="text-sm font-medium text-white/80">Classes</p>
+                <p className="text-4xl font-bold mt-1">{totalClasses}</p>
+              </div>
+            </div>
+
+            {/* Duration Card */}
+            <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 p-6 text-white shadow-lg">
+              <Timer className="absolute -right-3 -bottom-3 h-20 w-20 text-white/10" />
+              <div className="relative">
+                <p className="text-sm font-medium text-white/80">Est. Duration</p>
+                <p className="text-4xl font-bold mt-1">{totalJudgingTime}</p>
+                <p className="text-xs text-white/60">minutes</p>
+              </div>
+            </div>
+
+            {/* Judges Card */}
+            <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 p-6 text-white shadow-lg">
+              <Users className="absolute -right-3 -bottom-3 h-20 w-20 text-white/10" />
+              <div className="relative">
+                <p className="text-sm font-medium text-white/80">Judges Assigned</p>
+                <p className="text-4xl font-bold mt-1">{actualAssignedJudges}<span className="text-2xl text-white/60">/{totalClasses}</span></p>
+              </div>
+            </div>
           </div>
 
           {/* Show Details */}

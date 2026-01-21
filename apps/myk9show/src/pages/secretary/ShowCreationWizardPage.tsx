@@ -1,8 +1,8 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
 import { format } from 'date-fns';
-import { AlertTriangle, ArrowLeft } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -22,7 +22,7 @@ import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useUserStore } from '@/store/userStore';
 import type { Show } from '@/types/show-types';
 import type { ClassData } from '@/components/classes/types/classTypes';
-import ProgressIndicator from '@/components/shows/wizard/components/ProgressIndicator';
+import VerticalProgressIndicator from '@/components/shows/wizard/components/VerticalProgressIndicator';
 import WizardNavigation from '@/components/shows/wizard/components/WizardNavigation';
 import ShowDetailsStep from '@/components/shows/wizard/steps/ShowDetailsStep';
 import TrialConfigurationStep from '@/components/shows/wizard/steps/TrialConfigurationStep';
@@ -42,7 +42,9 @@ const ShowCreationWizardPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  
+  const [validationExpanded, setValidationExpanded] = useState(false);
+  const stepContentRef = useRef<HTMLDivElement>(null);
+
   // Extract edit mode from URL params
   const editMode = (() => {
     const showId = searchParams.get('showId');
@@ -70,7 +72,36 @@ const ShowCreationWizardPage: React.FC = () => {
   const { addTrial: addTrialToStore, trials: existingTrials } = useTrialStore();
   const { addClass, classes: existingClasses } = useClassStoreCompat();
   const { people } = useUserStore();
-  
+
+  // Keyboard navigation handler - Escape to prompt save draft
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isDirty) {
+        e.preventDefault();
+        setShowConfirmDialog(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isDirty]);
+
+  // Focus first input when step changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (stepContentRef.current) {
+        const firstInput = stepContentRef.current.querySelector<HTMLInputElement>(
+          'input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])'
+        );
+        if (firstInput && typeof firstInput.focus === 'function') {
+          firstInput.focus();
+        }
+      }
+    }, 350); // Wait for animation to complete
+
+    return () => clearTimeout(timer);
+  }, [currentStep]);
+
   // Initialize wizard with existing show data in edit mode
   useEffect(() => {
     if (editMode) {
@@ -831,7 +862,7 @@ const ShowCreationWizardPage: React.FC = () => {
           {/* Sidebar - Progress Indicator */}
           <div className="lg:col-span-1">
             <div className="sticky top-28 lg:top-32">
-              <div className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:-translate-y-2">
+              <div className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-lg">
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                 <div className="relative">
                   <h2 className="text-xl font-semibold mb-6 text-foreground group-hover:text-primary transition-colors duration-300">
@@ -841,12 +872,11 @@ const ShowCreationWizardPage: React.FC = () => {
                       : 'Create New Show'
                     }
                   </h2>
-                  <ProgressIndicator
+                  <VerticalProgressIndicator
                     steps={WIZARD_STEPS}
                     currentStep={currentStep}
                     completedSteps={completedSteps}
                     onStepClick={goToStep}
-                    className="space-y-3"
                   />
                 </div>
               </div>
@@ -855,23 +885,51 @@ const ShowCreationWizardPage: React.FC = () => {
 
           {/* Main Content */}
           <div className="lg:col-span-1">
-            <div className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl min-h-[700px] flex flex-col transition-all duration-500 hover:shadow-xl">
+            <div className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl min-h-[700px] flex flex-col transition-all duration-300 hover:shadow-lg">
               <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-              {/* Validation Banner */}
+              {/* Collapsible Validation Banner */}
               {(() => {
                 const validationMessages = getValidationMessages();
-                return validationMessages.length > 0 ? (
-                  <div className="relative px-6 sm:px-8 py-4 bg-gradient-to-r from-amber-50/80 to-amber-100/80 dark:from-amber-900/30 dark:to-amber-800/30 border-b border-amber-200/50 dark:border-amber-700/50 rounded-t-2xl backdrop-blur-sm">
-                    <div className="flex items-start gap-3">
-                      <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-amber-800 dark:text-amber-200 text-sm mb-2">
-                          Please complete the following to continue:
-                        </h4>
-                        <ul className="text-sm text-amber-700 dark:text-amber-300 space-y-1">
+                const messageCount = validationMessages.length;
+
+                if (messageCount === 0) return null;
+
+                return (
+                  <div className="relative border-b border-amber-200/50 dark:border-amber-700/50 rounded-t-2xl overflow-hidden">
+                    {/* Collapsed Header - Always visible */}
+                    <button
+                      onClick={() => setValidationExpanded(!validationExpanded)}
+                      className="w-full px-6 sm:px-8 py-3 bg-gradient-to-r from-amber-50/80 to-amber-100/80 dark:from-amber-900/30 dark:to-amber-800/30 backdrop-blur-sm flex items-center justify-between hover:from-amber-100/80 hover:to-amber-150/80 dark:hover:from-amber-900/40 dark:hover:to-amber-800/40 transition-colors duration-200"
+                    >
+                      <div className="flex items-center gap-3">
+                        <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                        <span className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                          {messageCount} required field{messageCount !== 1 ? 's' : ''} need{messageCount === 1 ? 's' : ''} attention
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-amber-600 dark:text-amber-400">
+                          {validationExpanded ? 'Hide' : 'Show'} details
+                        </span>
+                        {validationExpanded ? (
+                          <ChevronUp className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                        )}
+                      </div>
+                    </button>
+
+                    {/* Expanded Details */}
+                    <div
+                      className={`overflow-hidden transition-all duration-300 ease-out ${
+                        validationExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+                      }`}
+                    >
+                      <div className="px-6 sm:px-8 py-4 bg-gradient-to-r from-amber-50/60 to-amber-100/60 dark:from-amber-900/20 dark:to-amber-800/20">
+                        <ul className="text-sm text-amber-700 dark:text-amber-300 space-y-1.5">
                           {validationMessages.map((message, index) => (
                             <li key={index} className="flex items-start gap-2">
-                              <span className="block w-1 h-1 bg-amber-600 dark:bg-amber-400 rounded-full mt-2 flex-shrink-0"></span>
+                              <span className="block w-1.5 h-1.5 bg-amber-500 dark:bg-amber-400 rounded-full mt-1.5 flex-shrink-0" />
                               <span>{message}</span>
                             </li>
                           ))}
@@ -879,12 +937,18 @@ const ShowCreationWizardPage: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                ) : null;
+                );
               })()}
 
-              {/* Step Content */}
+              {/* Step Content with Transition */}
               <div className="relative flex-1 overflow-auto">
-                <div className="p-6 sm:p-8">
+                <div
+                  ref={stepContentRef}
+                  key={currentStep}
+                  className="p-6 sm:p-8 animate-in fade-in slide-in-from-right-4 duration-300"
+                  role="region"
+                  aria-label={`Step ${currentStep + 1}: ${WIZARD_STEPS[currentStep]?.label}`}
+                >
                   {renderStepContent()}
                 </div>
               </div>

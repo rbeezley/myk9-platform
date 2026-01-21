@@ -6,8 +6,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { Button } from '@/components/ui/button';
-import { Plus, Search } from 'lucide-react';
-import { isAfter } from 'date-fns';
+import { Plus, Search, HelpCircle } from 'lucide-react';
+import { isAfter, subDays } from 'date-fns';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { Label } from '@/components/ui/label';
 import { useWizardStore } from '@/store/wizardStore';
 import { useClubStore } from '@/store/clubStore';
@@ -147,14 +153,25 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
     return !isAfter(new Date(show.entryOpenDate), new Date(show.entryCloseDate));
   };
 
+  // Smart default: Auto-suggest Entry Close Date (3 days before Start Date)
+  useEffect(() => {
+    if (show.startDate && !show.entryCloseDate) {
+      const suggestedCloseDate = subDays(new Date(show.startDate), 3);
+      // Only suggest if it's in the future
+      if (suggestedCloseDate > new Date()) {
+        updateShowData({ entryCloseDate: suggestedCloseDate.toISOString() });
+      }
+    }
+  }, [show.startDate, show.entryCloseDate, updateShowData]);
+
   return (
     <div className={className}>
       <div className="space-y-8">
         {/* Basic Show Information */}
-        <div className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:-translate-y-2">
+        <div className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-lg hover:-translate-y-0.5">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           <div className="relative">
-            <h3 className="text-lg font-semibold mb-4 group-hover:text-primary transition-colors duration-300">Basic Show Information</h3>
+            <h3 className="text-lg font-semibold mb-4 pl-3 border-l-2 border-primary text-primary transition-colors duration-300">Basic Show Information</h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Show Name <span className="text-destructive">*</span></Label>
@@ -229,10 +246,10 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         </div>
 
         {/* Club Information */}
-        <div className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:-translate-y-2">
+        <div className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-lg hover:-translate-y-0.5">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           <div className="relative">
-            <h3 className="text-lg font-semibold mb-4 group-hover:text-primary transition-colors duration-300">Club Information</h3>
+            <h3 className="text-lg font-semibold mb-4 pl-3 border-l-2 border-primary text-primary transition-colors duration-300">Club Information</h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2 col-span-2">
                 <Label>Host Club <span className="text-destructive">*</span></Label>
@@ -297,10 +314,10 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         </div>
 
         {/* Show Officials */}
-        <div className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:-translate-y-2">
+        <div className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-lg hover:-translate-y-0.5">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           <div className="relative">
-            <h3 className="text-lg font-semibold mb-4 group-hover:text-primary transition-colors duration-300">Show Officials</h3>
+            <h3 className="text-lg font-semibold mb-4 pl-3 border-l-2 border-primary text-primary transition-colors duration-300">Show Officials</h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Show Chairman <span className="text-destructive">*</span></Label>
@@ -366,10 +383,10 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         </div>
 
         {/* Entry Information */}
-        <div className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:-translate-y-2">
+        <div className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-lg hover:-translate-y-0.5">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           <div className="relative">
-            <h3 className="text-lg font-semibold mb-4 group-hover:text-primary transition-colors duration-300">Entry Information</h3>
+            <h3 className="text-lg font-semibold mb-4 pl-3 border-l-2 border-primary text-primary transition-colors duration-300">Entry Information</h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Entry Opens <span className="text-destructive">*</span></Label>
@@ -403,7 +420,19 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
               </div>
 
               <div className="space-y-2">
-                <Label>Pre-Entry Fee ($)</Label>
+                <Label className="flex items-center gap-1.5">
+                  Pre-Entry Fee ($)
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs">
+                        <p>Entry fee for registrations submitted before the entry close date. Usually lower than day-of-show fee.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </Label>
                 <Input
                   type="number"
                   min="0"
@@ -415,7 +444,19 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
               </div>
 
               <div className="space-y-2">
-                <Label>Day-of-Show Fee ($)</Label>
+                <Label className="flex items-center gap-1.5">
+                  Day-of-Show Fee ($)
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs">
+                        <p>Entry fee for on-site registrations on the day of the show. Usually higher than pre-entry fee.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </Label>
                 <Input
                   type="number"
                   min="0"

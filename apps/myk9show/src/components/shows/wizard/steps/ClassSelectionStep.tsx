@@ -5,9 +5,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
+import {
   AlertTriangle,
-  FileText
+  FileText,
+  Layers,
+  ArrowLeft
 } from 'lucide-react';
 import { SimpleClassSelector } from '@/components/templates/secretary/SimpleClassSelector';
 import { useWizardStore } from '@/store/wizardStore';
@@ -282,7 +284,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
         <div className="max-w-5xl mx-auto space-y-6 px-4">
           {/* Classes Header */}
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-medium">Classes ({totalClasses})</h3>
+            <h3 className="text-lg font-semibold pl-3 border-l-2 border-primary text-primary">Classes ({totalClasses})</h3>
           </div>
 
           {/* Template Selection Alert for No Templates */}
@@ -299,16 +301,19 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
           )}
 
           {trials.length === 0 ? (
-            <Card>
-              <CardContent className="pt-8 text-center">
-                <h3 className="text-lg font-medium text-muted-foreground mb-2">
+            <div className="relative rounded-2xl border-2 border-dashed border-amber-500/20 bg-gradient-to-br from-amber-500/5 to-transparent p-12 text-center overflow-hidden">
+              <div className="relative">
+                <div className="mx-auto w-16 h-16 rounded-2xl bg-amber-500/10 flex items-center justify-center mb-5 shadow-sm">
+                  <ArrowLeft className="h-8 w-8 text-amber-500" />
+                </div>
+                <h4 className="text-xl font-semibold text-foreground mb-2">
                   No Trials Configured
-                </h3>
-                <p className="text-sm text-muted-foreground">
+                </h4>
+                <p className="text-sm text-muted-foreground max-w-sm mx-auto">
                   Please go back to the Trial Configuration step to add trials before configuring classes.
                 </p>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ) : (
             <Tabs value={currentTrialId} onValueChange={setSelectedTrialId}>
               {/* Trial Tabs */}
@@ -422,16 +427,19 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
                       </CardContent>
                     </Card>
                   ) : activeTemplates.length > 0 ? (
-                    <Card>
-                      <CardContent className="pt-8 text-center">
-                        <h3 className="text-lg font-medium text-muted-foreground mb-2">
+                    <div className="relative rounded-2xl border-2 border-dashed border-primary/20 bg-gradient-to-br from-primary/5 to-transparent p-10 text-center overflow-hidden">
+                      <div className="relative">
+                        <div className="mx-auto w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center mb-4 shadow-sm">
+                          <Layers className="h-7 w-7 text-primary" />
+                        </div>
+                        <h4 className="text-lg font-semibold text-foreground mb-2">
                           Select a Template
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
+                        </h4>
+                        <p className="text-sm text-muted-foreground max-w-sm mx-auto">
                           Choose a template above to begin selecting classes for {trial.name}.
                         </p>
-                      </CardContent>
-                    </Card>
+                      </div>
+                    </div>
                   ) : null}
                 </TabsContent>
               ))}

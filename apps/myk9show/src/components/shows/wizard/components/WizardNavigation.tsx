@@ -68,24 +68,33 @@ export const WizardNavigation: React.FC<WizardNavigationProps> = ({
         </div>
       </div>
 
-      {/* Right side - Next/Create button */}
-      <Button
-        onClick={onNext}
-        disabled={!canGoNext || isLoading}
-        className="gap-2 px-6 py-3 bg-gradient-to-r from-primary to-blue-600 hover:shadow-lg hover:-translate-y-0.5 shadow-md transition-all duration-200"
-      >
-        {isLoading ? (
-          <>
-            <span>Processing...</span>
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-          </>
-        ) : (
-          <>
-            {nextLabel || defaultNextLabel}
-            {!isLastStep && <ArrowRight className="h-4 w-4" />}
-          </>
+      {/* Right side - Next/Create button with ready state indicator */}
+      <div className="relative">
+        {/* Glow effect when step is valid */}
+        {canGoNext && !isLoading && (
+          <div className="absolute inset-0 bg-primary/30 rounded-md blur-md animate-pulse" />
         )}
-      </Button>
+        <Button
+          onClick={onNext}
+          disabled={!canGoNext || isLoading}
+          className={cn(
+            "relative gap-2 px-6 py-3 bg-gradient-to-r from-primary to-blue-600 shadow-md transition-all duration-200",
+            canGoNext && !isLoading && "hover:shadow-lg hover:-translate-y-0.5 shadow-primary/20"
+          )}
+        >
+          {isLoading ? (
+            <>
+              <span>Processing...</span>
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            </>
+          ) : (
+            <>
+              {nextLabel || defaultNextLabel}
+              {!isLastStep && <ArrowRight className="h-4 w-4" />}
+            </>
+          )}
+        </Button>
+      </div>
     </div>
   );
 };

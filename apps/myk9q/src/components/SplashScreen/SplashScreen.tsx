@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { SPLASH_STORAGE_KEY } from './splashUtils';
 import { cn } from '@/lib/utils';
-import './SplashScreen.css'; // Keyframe animations
 
 /** Tailwind styles for SplashScreen */
 const styles = {

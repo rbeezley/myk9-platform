@@ -9,7 +9,71 @@
 
 import { useEffect, useMemo } from 'react';
 import confetti from 'canvas-confetti';
-import './ClassCompletionCelebration.css';
+import { cn } from '@/lib/utils';
+
+/** Tailwind styles for ClassCompletionCelebration */
+const styles = {
+  overlay: cn(
+    "fixed inset-0 z-[var(--token-z-toast)]",
+    "flex items-center justify-center",
+    "bg-black/70",
+    "animate-[celebrationFadeIn_0.3s_ease-in-out]",
+    "motion-reduce:animate-none"
+  ),
+  modal: cn(
+    "bg-[var(--background)] rounded-2xl",
+    "p-[var(--token-space-4xl)]",
+    "w-[90%] max-w-[500px]",
+    "shadow-[0_20px_60px_var(--shadow-medium)]",
+    "animate-[celebrationSlideUp_0.4s_ease-out]",
+    "sm:w-[85%] lg:w-auto",
+    "motion-reduce:animate-none"
+  ),
+  content: "text-center",
+  icon: cn(
+    "text-[4rem] mb-[var(--token-space-xl)]",
+    "animate-[celebrationBounce_1s_ease-in-out_infinite]",
+    "motion-reduce:animate-none"
+  ),
+  title: cn(
+    "text-[2rem] font-bold",
+    "text-[var(--foreground)]",
+    "m-0 mb-[var(--token-space-lg)]"
+  ),
+  message: cn(
+    "text-lg text-[var(--muted-foreground)]",
+    "m-0 mb-[var(--token-space-3xl)]",
+    "[&_strong]:text-[var(--foreground)] [&_strong]:font-semibold"
+  ),
+  stats: cn(
+    "flex flex-wrap gap-[var(--token-space-3xl)]",
+    "justify-center",
+    "mb-[var(--token-space-4xl)]"
+  ),
+  stat: cn(
+    "flex flex-col items-center",
+    "gap-[var(--token-space-md)]"
+  ),
+  statValue: cn(
+    "text-[2.5rem] font-bold leading-none",
+    "text-[var(--primary)]"
+  ),
+  statLabel: cn(
+    "text-sm uppercase tracking-[0.05em]",
+    "text-[var(--muted-foreground)]"
+  ),
+  closeBtn: cn(
+    "bg-[var(--primary)] text-[var(--primary-foreground)]",
+    "border-none rounded-lg",
+    "px-[var(--token-space-4xl)] py-[var(--token-space-lg)]",
+    "text-base font-semibold cursor-pointer",
+    "transition-all duration-200",
+    "hover:bg-[var(--primary-hover)] hover:-translate-y-0.5",
+    "hover:shadow-[0_4px_12px_var(--shadow-light)]",
+    "active:translate-y-0",
+    "motion-reduce:hover:translate-y-0"
+  ),
+};
 
 interface ClassCompletionCelebrationProps {
   isOpen: boolean;
@@ -95,33 +159,33 @@ export function ClassCompletionCelebration({
   if (!isOpen) return null;
 
   return (
-    <div className="celebration-overlay" onClick={onClose}>
-      <div className="celebration-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="celebration-content">
-          <div className="celebration-icon">🎉</div>
-          <h2 className="celebration-title">Congratulations!</h2>
-          <p className="celebration-message">
+    <div className={styles.overlay} onClick={onClose}>
+      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.content}>
+          <div className={styles.icon}>🎉</div>
+          <h2 className={styles.title}>Congratulations!</h2>
+          <p className={styles.message}>
             You've completed <strong>{className}</strong>
           </p>
-          <div className="celebration-stats">
-            <div className="celebration-stat">
-              <div className="celebration-stat-value">{totalDogs}</div>
-              <div className="celebration-stat-label">
+          <div className={styles.stats}>
+            <div className={styles.stat}>
+              <div className={styles.statValue}>{totalDogs}</div>
+              <div className={styles.statLabel}>
                 dog{totalDogs !== 1 ? 's' : ''} scored
               </div>
             </div>
             {duration && (
-              <div className="celebration-stat">
-                <div className="celebration-stat-value">{duration}</div>
-                <div className="celebration-stat-label">total time</div>
+              <div className={styles.stat}>
+                <div className={styles.statValue}>{duration}</div>
+                <div className={styles.statLabel}>total time</div>
               </div>
             )}
-            <div className="celebration-stat">
-              <div className="celebration-stat-value">{passRate}%</div>
-              <div className="celebration-stat-label">pass rate</div>
+            <div className={styles.stat}>
+              <div className={styles.statValue}>{passRate}%</div>
+              <div className={styles.statLabel}>pass rate</div>
             </div>
           </div>
-          <button className="celebration-close-btn" onClick={onClose}>
+          <button className={styles.closeBtn} onClick={onClose}>
             Close
           </button>
         </div>

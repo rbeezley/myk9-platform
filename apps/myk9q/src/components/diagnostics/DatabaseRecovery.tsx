@@ -3,7 +3,98 @@ import { AlertTriangle, RefreshCw, CheckCircle, Loader, WifiOff } from 'lucide-r
 import { runIndexedDBDiagnostics, attemptAutoCleanup } from '@/utils/indexedDBDiagnostics';
 import { stopReplicationManager } from '@/services/replication/ReplicationManager';
 import { logger } from '@/utils/logger';
-import './DatabaseRecovery.css';
+import { cn } from '@/lib/utils';
+
+/** Tailwind styles for DatabaseRecovery */
+const styles = {
+  detecting: cn(
+    "fixed z-[var(--token-z-modal)]",
+    "bottom-[var(--token-space-3xl)] right-[var(--token-space-3xl)]",
+    "flex items-center gap-[var(--token-space-md)]",
+    "bg-[var(--background-secondary)] border border-[var(--border)]",
+    "rounded-[var(--token-radius-md)]",
+    "px-[var(--token-space-xl)] py-[var(--token-space-md)]",
+    "shadow-[0_2px_8px_rgba(0,0,0,0.1)]"
+  ),
+  detectingIcon: cn(
+    "w-4 h-4 text-[var(--primary)]",
+    "animate-spin"
+  ),
+  modal: "fixed inset-0 z-[var(--token-z-toast)]",
+  overlay: "absolute inset-0 bg-black/50",
+  content: cn(
+    "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2",
+    "bg-[var(--background)]",
+    "rounded-[var(--token-radius-lg)]",
+    "shadow-[0_10px_40px_rgba(0,0,0,0.2)]",
+    "w-[90%] max-w-[500px] sm:max-w-[600px]",
+    "max-h-[80vh] overflow-y-auto"
+  ),
+  header: cn(
+    "flex items-center gap-[var(--token-space-lg)]",
+    "p-[var(--token-space-2xl)]",
+    "border-b border-[var(--border)]"
+  ),
+  warningIcon: cn(
+    "w-6 h-6 text-[var(--primary)]",
+    "animate-spin"
+  ),
+  title: cn(
+    "m-0 text-xl font-semibold",
+    "text-[var(--foreground)]"
+  ),
+  body: "p-[var(--token-space-2xl)]",
+  message: cn(
+    "text-[var(--foreground-secondary)]",
+    "mb-[var(--token-space-2xl)] leading-relaxed"
+  ),
+  status: cn(
+    "flex items-center gap-[var(--token-space-md)]",
+    "p-[var(--token-space-lg)]",
+    "bg-[var(--background-secondary)]",
+    "rounded-[var(--token-radius-md)]",
+    "mb-[var(--token-space-2xl)]"
+  ),
+  statusIcon: "w-5 h-5",
+  statusIconSpinning: "text-[var(--primary)] animate-spin",
+  statusIconSuccess: "text-[var(--status-success)]",
+  statusIconError: "text-[var(--status-error)]",
+  actions: "flex gap-[var(--token-space-lg)]",
+  btnPrimary: cn(
+    "flex-1 flex items-center justify-center gap-[var(--token-space-sm)]",
+    "px-[var(--token-space-xl)] py-[var(--token-space-md)]",
+    "rounded-[var(--token-radius-md)]",
+    "font-medium cursor-pointer border-none",
+    "bg-[var(--primary)] text-white",
+    "transition-all duration-200",
+    "hover:bg-[var(--primary-hover)]"
+  ),
+  btnSecondary: cn(
+    "flex-1 flex items-center justify-center gap-[var(--token-space-sm)]",
+    "px-[var(--token-space-xl)] py-[var(--token-space-md)]",
+    "rounded-[var(--token-radius-md)]",
+    "font-medium cursor-pointer",
+    "bg-[var(--background-secondary)] text-[var(--foreground)]",
+    "border border-[var(--border)]",
+    "transition-all duration-200",
+    "hover:bg-[var(--background-tertiary)]"
+  ),
+  btnIcon: "w-4 h-4",
+  manualInstructions: cn(
+    "mt-[var(--token-space-2xl)] p-[var(--token-space-xl)]",
+    "bg-[var(--background-secondary)]",
+    "rounded-[var(--token-radius-md)]"
+  ),
+  manualTitle: cn(
+    "m-0 mb-[var(--token-space-lg)]",
+    "text-lg font-semibold text-[var(--foreground)]"
+  ),
+  manualList: cn(
+    "m-0 pl-[var(--token-space-2xl)]",
+    "text-[var(--foreground-secondary)] leading-[1.8]",
+    "[&_li]:mb-[var(--token-space-sm)]"
+  ),
+};
 
 interface DatabaseRecoveryProps {
   onRecovered?: () => void;
@@ -272,8 +363,8 @@ handleAutoRecovery();
   // Show subtle loading indicator during detection
   if (isDetecting) {
     return (
-      <div className="database-recovery-detecting">
-        <Loader className="detecting-icon" />
+      <div className={styles.detecting}>
+        <Loader className={styles.detectingIcon} />
         <span>Preparing your workspace...</span>
       </div>
     );
@@ -282,41 +373,31 @@ handleAutoRecovery();
   // Show offline warning if database issues detected while offline
   if (isCorrupted && !isOnline) {
     return (
-      <div className="database-recovery-modal">
-        <div className="database-recovery-overlay" />
-        <div className="database-recovery-content">
-          <div className="recovery-header">
-            <WifiOff className="warning-icon" style={{ color: 'var(--destructive)' }} />
-            <h2>Database Issue Detected</h2>
+      <div className={styles.modal}>
+        <div className={styles.overlay} />
+        <div className={styles.content}>
+          <div className={styles.header}>
+            <WifiOff className={cn(styles.warningIcon, "!animate-none")} style={{ color: 'var(--destructive)' }} />
+            <h2 className={styles.title}>Database Issue Detected</h2>
           </div>
 
-          <div className="recovery-body">
-            <p className="recovery-message">
+          <div className={styles.body}>
+            <p className={styles.message}>
               We've detected a database issue, but you're currently offline. To safely recover without losing your data:
             </p>
 
-            <div style={{
-              padding: 'var(--token-space-xl)',
-              background: 'var(--muted)',
-              borderRadius: '0.5rem',
-              marginTop: 'var(--token-space-xl)'
-            }}>
-              <ol style={{ marginLeft: 'var(--token-space-xl)', marginBottom: 0 }}>
-                <li style={{ marginBottom: 'var(--token-space-md)' }}>
+            <div className="p-[var(--token-space-xl)] bg-[var(--muted)] rounded-lg mt-[var(--token-space-xl)]">
+              <ol className="ml-[var(--token-space-xl)] mb-0">
+                <li className="mb-[var(--token-space-md)]">
                   Connect to WiFi or a stable internet connection
                 </li>
-                <li style={{ marginBottom: 0 }}>
+                <li className="mb-0">
                   Return to this page and the recovery will proceed automatically
                 </li>
               </ol>
             </div>
 
-            <p style={{
-              marginTop: 'var(--token-space-xl)',
-              fontSize: '0.875rem',
-              color: 'var(--foreground-secondary)',
-              marginBottom: 0
-            }}>
+            <p className="mt-[var(--token-space-xl)] text-sm text-[var(--foreground-secondary)] mb-0">
               <strong>Your offline work is safe.</strong> We will not clear any data until you're online and can re-sync from the server.
             </p>
           </div>
@@ -326,66 +407,55 @@ handleAutoRecovery();
   }
 
   return (
-    <div className="database-recovery-modal">
-      <div className="database-recovery-overlay" onClick={handleDismiss} />
-      <div className="database-recovery-content">
-        <div className="recovery-header">
-          <RefreshCw className="warning-icon" />
-          <h2>Optimizing Your Experience</h2>
+    <div className={styles.modal}>
+      <div className={styles.overlay} onClick={handleDismiss} />
+      <div className={styles.content}>
+        <div className={styles.header}>
+          <RefreshCw className={styles.warningIcon} />
+          <h2 className={styles.title}>Optimizing Your Experience</h2>
           <button
-            className="close-button"
             onClick={handleDismiss}
             aria-label="Close"
-            style={{
-              marginLeft: 'auto',
-              background: 'transparent',
-              border: 'none',
-              fontSize: '1.5rem',
-              cursor: 'pointer',
-              color: 'var(--foreground-secondary)',
-              padding: '0.25rem',
-              lineHeight: 1,
-            }}
+            className="ml-auto bg-transparent border-none text-2xl cursor-pointer text-[var(--foreground-secondary)] p-1 leading-none"
           >
             ×
           </button>
         </div>
 
-        <div className="recovery-body">
-          <p className="recovery-message">
+        <div className={styles.body}>
+          <p className={styles.message}>
             We're performing a quick optimization to ensure your data loads smoothly. This typically happens when your browser's storage needs a refresh.
           </p>
 
           {recoveryStatus && (
-            <div className="recovery-status">
-              {isRecovering && <Loader className="status-icon spinning" />}
+            <div className={styles.status}>
+              {isRecovering && <Loader className={cn(styles.statusIcon, styles.statusIconSpinning)} />}
               {!isRecovering && recoveryStatus.includes('recovered') &&
-                <CheckCircle className="status-icon success" />}
+                <CheckCircle className={cn(styles.statusIcon, styles.statusIconSuccess)} />}
               {!isRecovering && recoveryStatus.includes('failed') &&
-                <AlertTriangle className="status-icon error" />}
+                <AlertTriangle className={cn(styles.statusIcon, styles.statusIconError)} />}
               <span>{recoveryStatus}</span>
             </div>
           )}
 
           {!isRecovering && !autoRecoveryAttempted && (
-            <div className="recovery-actions">
+            <div className={styles.actions}>
               <button
-                className="btn-primary"
+                className={styles.btnPrimary}
                 onClick={handleAutoRecovery}
               >
-                <RefreshCw className="btn-icon" />
+                <RefreshCw className={styles.btnIcon} />
                 Optimize Now
               </button>
               <button
-                className="btn-secondary"
+                className={styles.btnSecondary}
                 onClick={handleManualRecovery}
               >
                 More Options
               </button>
               <button
-                className="btn-secondary"
+                className={cn(styles.btnSecondary, "mt-2")}
                 onClick={handleDismiss}
-                style={{ marginTop: '0.5rem' }}
               >
                 Not Now
               </button>
@@ -393,16 +463,16 @@ handleAutoRecovery();
           )}
 
           {showManualInstructions && (
-            <div className="manual-instructions">
-              <h3>Additional Options</h3>
+            <div className={styles.manualInstructions}>
+              <h3 className={styles.manualTitle}>Additional Options</h3>
 
               {/* Quick fix button for stuck situations */}
-              <div style={{ padding: '1rem', background: 'var(--background-secondary)', borderRadius: 'var(--token-radius-md)' }}>
-                <p style={{ marginBottom: '1rem' }}>
+              <div className="p-4 bg-[var(--background-secondary)] rounded-[var(--token-radius-md)]">
+                <p className="mb-4">
                   If the automatic optimization didn't complete, you can try a full cache clear:
                 </p>
                 <button
-                  className="btn-primary"
+                  className={cn(styles.btnPrimary, "w-full")}
                   disabled={!isOnline}
                   onClick={async () => {
                     // CRITICAL: Never clear data when offline
@@ -494,12 +564,11 @@ window.location.reload();
                       window.location.reload();
                     }
                   }}
-                  style={{ width: '100%' }}
                 >
-                  <RefreshCw className="btn-icon" />
+                  <RefreshCw className={styles.btnIcon} />
                   {isOnline ? 'Clear All Data & Refresh' : 'Offline - Connect to Clear Data'}
                 </button>
-                <p style={{ marginTop: '0.5rem', marginBottom: 0, fontSize: '0.875rem', color: 'var(--foreground-secondary)' }}>
+                <p className="mt-2 mb-0 text-sm text-[var(--foreground-secondary)]">
                   {isOnline
                     ? 'This will clear all cached data and re-sync from the server. Your offline work will be preserved.'
                     : '⚠️ You must be online to safely clear data without losing your work.'}

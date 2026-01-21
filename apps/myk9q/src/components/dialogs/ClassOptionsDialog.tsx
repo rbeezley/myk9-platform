@@ -17,8 +17,55 @@ import {
   Activity
 } from 'lucide-react';
 import { DialogContainer } from './DialogContainer';
+import { cn } from '@/lib/utils';
 import './shared-dialog.css';
-import './ClassOptionsDialog.css';
+
+/** Tailwind styles for ClassOptionsDialog */
+const styles = {
+  grid: cn(
+    "grid gap-[var(--token-space-lg)]",
+    "sm:grid-cols-2"
+  ),
+  item: cn(
+    "grid grid-cols-[48px_1fr] grid-rows-[auto_auto]",
+    "gap-x-[var(--token-space-lg)] gap-y-[var(--token-space-sm)]",
+    "p-[var(--token-space-xl)]",
+    "bg-white dark:bg-[var(--card)]",
+    "border border-[var(--border)] rounded-[10px]",
+    "cursor-pointer text-left font-inherit",
+    "transition-all duration-300 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]",
+    "hover:-translate-y-0.5 hover:border-[var(--primary)]",
+    "hover:shadow-[0_var(--token-space-sm)_var(--token-space-lg)_rgba(0,0,0,0.15)]",
+    "dark:hover:bg-[var(--border)] dark:hover:shadow-[0_var(--token-space-sm)_var(--token-space-lg)_rgba(0,0,0,0.4)]",
+    "active:-translate-y-[1px] active:transition-[transform] active:duration-100",
+    "motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+  ),
+  icon: cn(
+    "col-start-1 row-start-1",
+    "flex items-center justify-center",
+    "w-12 h-12 rounded-[var(--token-space-lg)]",
+    "text-white shrink-0",
+    "[&_svg]:w-5 [&_svg]:h-5 [&_svg]:stroke-2"
+  ),
+  iconPrimary: "bg-[var(--primary)]",
+  iconAccent: "bg-[var(--status-start-time)]",
+  iconMuted: "bg-[var(--text-gray)] dark:bg-[var(--text-light-gray)]",
+  iconSuccess: "bg-[var(--token-success)]",
+  iconWarning: "bg-[var(--token-warning)]",
+  iconSecondary: "bg-[var(--status-at-gate)]",
+  iconInfo: "bg-[var(--status-in-progress)]",
+  label: cn(
+    "col-start-2 row-start-1",
+    "flex items-center",
+    "font-semibold text-base leading-tight m-0",
+    "text-[var(--foreground)] dark:text-[var(--token-text-white)]"
+  ),
+  description: cn(
+    "col-span-full row-start-2",
+    "text-[var(--token-space-lg)] leading-tight m-0",
+    "text-[var(--muted-foreground)] dark:text-[var(--token-text-muted)]"
+  ),
+};
 
 export interface ClassOptionsData {
   id: number;
@@ -104,74 +151,74 @@ export const ClassOptionsDialog: React.FC<ClassOptionsDialogProps> = ({
       <div className="class-info-header">
         <h3 className="class-title">{classData.class_name}</h3>
       </div>
-      <div className="class-options-grid">
+      <div className={styles.grid}>
         {/* Requirements */}
         {!hideRequirements && onRequirements && (
           <button
-            className="class-option-item"
+            className={styles.item}
             onClick={() => handleOptionClick(onRequirements)}
           >
-            <div className="class-option-icon icon-primary">
+            <div className={cn(styles.icon, styles.iconPrimary)}>
               <ClipboardList size={20} />
             </div>
-            <div className="class-option-label">Requirements</div>
-            <div className="class-option-description">View class rules and requirements</div>
+            <div className={styles.label}>Requirements</div>
+            <div className={styles.description}>View class rules and requirements</div>
           </button>
         )}
 
         {/* Set Max Time */}
         {!hideMaxTime && onSetMaxTime && (
           <button
-            className="class-option-item"
+            className={styles.item}
             onClick={() => handleOptionClick(onSetMaxTime)}
           >
-            <div className="class-option-icon icon-accent">
+            <div className={cn(styles.icon, styles.iconAccent)}>
               <Clock size={20} />
             </div>
-            <div className="class-option-label">Set Max Time</div>
-            <div className="class-option-description">Configure maximum time limits</div>
+            <div className={styles.label}>Set Max Time</div>
+            <div className={styles.description}>Configure maximum time limits</div>
           </button>
         )}
 
         {/* Settings */}
         {!hideSettings && onSettings && (
           <button
-            className="class-option-item"
+            className={styles.item}
             onClick={() => handleOptionClick(onSettings)}
           >
-            <div className="class-option-icon icon-muted">
+            <div className={cn(styles.icon, styles.iconMuted)}>
               <Settings size={20} />
             </div>
-            <div className="class-option-label">Settings</div>
-            <div className="class-option-description">Configure class settings</div>
+            <div className={styles.label}>Settings</div>
+            <div className={styles.description}>Configure class settings</div>
           </button>
         )}
 
         {/* Statistics */}
         {!hideStatistics && onStatistics && (
           <button
-            className="class-option-item"
+            className={styles.item}
             onClick={() => handleOptionClick(onStatistics)}
           >
-            <div className="class-option-icon icon-success">
+            <div className={cn(styles.icon, styles.iconSuccess)}>
               <BarChart3 size={20} />
             </div>
-            <div className="class-option-label">Statistics</div>
-            <div className="class-option-description">View class performance data</div>
+            <div className={styles.label}>Statistics</div>
+            <div className={styles.description}>View class performance data</div>
           </button>
         )}
 
         {/* Status */}
         {!hideStatus && onStatus && (
           <button
-            className="class-option-item"
+            className={styles.item}
             onClick={() => handleOptionClick(onStatus)}
           >
-            <div className="class-option-icon icon-info">
+            <div className={cn(styles.icon, styles.iconInfo)}>
               <Activity size={20} />
             </div>
-            <div className="class-option-label">Status</div>
-            <div className="class-option-description">Update class status</div>
+            <div className={styles.label}>Status</div>
+            <div className={styles.description}>Update class status</div>
           </button>
         )}
 
@@ -180,40 +227,40 @@ export const ClassOptionsDialog: React.FC<ClassOptionsDialogProps> = ({
           <>
             {onPrintCheckIn && (
               <button
-                className="class-option-item"
+                className={styles.item}
                 onClick={() => handleOptionClick(onPrintCheckIn)}
               >
-                <div className="class-option-icon icon-warning">
+                <div className={cn(styles.icon, styles.iconWarning)}>
                   <FileText size={20} />
                 </div>
-                <div className="class-option-label">Check-In Sheet</div>
-                <div className="class-option-description">Print check-in roster</div>
+                <div className={styles.label}>Check-In Sheet</div>
+                <div className={styles.description}>Print check-in roster</div>
               </button>
             )}
 
             {onPrintResults && (
               <button
-                className="class-option-item"
+                className={styles.item}
                 onClick={() => handleOptionClick(onPrintResults)}
               >
-                <div className="class-option-icon icon-secondary">
+                <div className={cn(styles.icon, styles.iconSecondary)}>
                   <Award size={20} />
                 </div>
-                <div className="class-option-label">Results Sheet</div>
-                <div className="class-option-description">Print results report</div>
+                <div className={styles.label}>Results Sheet</div>
+                <div className={styles.description}>Print results report</div>
               </button>
             )}
 
             {onPrintScoresheet && (
               <button
-                className="class-option-item"
+                className={styles.item}
                 onClick={() => handleOptionClick(onPrintScoresheet)}
               >
-                <div className="class-option-icon icon-primary">
+                <div className={cn(styles.icon, styles.iconPrimary)}>
                   <ClipboardList size={20} />
                 </div>
-                <div className="class-option-label">Scoresheet</div>
-                <div className="class-option-description">Print judge scoresheet</div>
+                <div className={styles.label}>Scoresheet</div>
+                <div className={styles.description}>Print judge scoresheet</div>
               </button>
             )}
           </>

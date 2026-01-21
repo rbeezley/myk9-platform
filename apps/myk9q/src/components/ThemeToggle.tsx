@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import './ThemeToggle.css';
+import { cn } from '@/lib/utils';
 
 /**
  * ThemeToggle - Theme accent color selector
@@ -12,6 +12,77 @@ import './ThemeToggle.css';
  *
  * Usage: Add <ThemeToggle /> anywhere in your app (e.g., Settings page)
  */
+
+/** Tailwind styles for ThemeToggle */
+const styles = {
+  container: "w-full max-w-[600px] mx-auto my-[var(--token-space-4xl)]",
+  card: cn(
+    "bg-[var(--card)] border border-[var(--border)] rounded-xl",
+    "p-[var(--token-space-3xl)]",
+    "shadow-[0_2px_8px_var(--shadow-barely)]",
+    "dark:shadow-[0_2px_12px_var(--shadow-medium)]"
+  ),
+  header: cn(
+    "flex items-center justify-between",
+    "mb-[var(--token-space-xl)]"
+  ),
+  title: cn(
+    "text-xl font-semibold m-0",
+    "text-[var(--foreground)]"
+  ),
+  badge: cn(
+    "bg-[var(--muted)] text-[var(--muted-foreground)]",
+    "px-[var(--token-space-lg)] py-[var(--token-space-sm)]",
+    "rounded-md text-xs font-medium uppercase tracking-[0.5px]"
+  ),
+  description: cn(
+    "text-[var(--muted-foreground)] leading-relaxed",
+    "mb-[var(--token-space-3xl)]"
+  ),
+  controls: cn(
+    "flex flex-col gap-[var(--token-space-lg)]",
+    "mb-[var(--token-space-3xl)]",
+    "sm:flex-row"
+  ),
+  option: cn(
+    "flex items-center gap-[var(--token-space-xl)]",
+    "p-[var(--token-space-xl)]",
+    "bg-[var(--background)] border-2 border-[var(--border)] rounded-lg",
+    "cursor-pointer text-left w-full",
+    "transition-all duration-200",
+    "hover:border-[var(--muted-foreground)] hover:-translate-y-0.5",
+    "hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)]",
+    "sm:flex-1 sm:flex-col sm:text-center sm:items-center sm:p-[var(--token-space-3xl)]"
+  ),
+  optionActive: cn(
+    "border-[var(--primary)] bg-[var(--muted)]",
+    "shadow-[0_4px_16px_rgba(0,0,0,0.12)]"
+  ),
+  colorPreview: cn(
+    "w-12 h-12 rounded-lg shrink-0",
+    "shadow-[0_2px_8px_var(--shadow-light)]",
+    "sm:w-16 sm:h-16"
+  ),
+  optionContent: cn(
+    "flex-1 flex flex-col gap-[var(--token-space-sm)]"
+  ),
+  optionLabel: "text-base font-semibold text-[var(--foreground)]",
+  activeIndicator: cn(
+    "text-[var(--primary)] font-semibold text-xl"
+  ),
+  notice: cn(
+    "mt-[var(--token-space-3xl)] p-[var(--token-space-xl)]",
+    "bg-[var(--muted)] border border-[var(--primary)] rounded-lg",
+    "dark:bg-[var(--muted)]"
+  ),
+  noticeTitle: cn(
+    "block text-[var(--primary)]",
+    "mb-[var(--token-space-md)] text-sm font-semibold"
+  ),
+  noticeText: cn(
+    "text-[var(--foreground)] text-sm leading-relaxed m-0"
+  ),
+};
 
 type ThemeColor = 'blue' | 'green' | 'orange' | 'purple';
 
@@ -71,85 +142,85 @@ export function ThemeToggle() {
   };
 
   return (
-    <div className="theme-toggle-container">
-      <div className="theme-toggle-card">
-        <div className="theme-toggle-header">
-          <h3>🎨 Theme Colors</h3>
-          <span className="theme-toggle-badge">Personalize</span>
+    <div className={styles.container}>
+      <div className={styles.card}>
+        <div className={styles.header}>
+          <h3 className={styles.title}>🎨 Theme Colors</h3>
+          <span className={styles.badge}>Personalize</span>
         </div>
 
-        <p className="theme-toggle-description">
+        <p className={styles.description}>
           Choose your favorite accent color to personalize your myK9Q experience.
         </p>
 
-        <div className="theme-toggle-controls">
+        <div className={styles.controls}>
           {/* Blue Theme */}
           <button
-            className={`theme-option ${activeTheme === 'blue' ? 'active' : ''}`}
+            className={cn(styles.option, activeTheme === 'blue' && styles.optionActive)}
             onClick={() => switchTheme('blue')}
           >
-            <div className="theme-color-preview" style={{ background: '#007AFF' }}></div>
-            <div className="theme-option-content">
-              <strong>Original Blue</strong>
+            <div className={styles.colorPreview} style={{ background: '#007AFF' }}></div>
+            <div className={styles.optionContent}>
+              <strong className={styles.optionLabel}>Original Blue</strong>
             </div>
-            {activeTheme === 'blue' && <span className="active-indicator">✓ Active</span>}
+            {activeTheme === 'blue' && <span className={styles.activeIndicator}>✓ Active</span>}
           </button>
 
           {/* Green Theme */}
           <button
-            className={`theme-option ${activeTheme === 'green' ? 'active' : ''}`}
+            className={cn(styles.option, activeTheme === 'green' && styles.optionActive)}
             onClick={() => switchTheme('green')}
           >
-            <div className="theme-color-preview" style={{ background: '#10b981' }}></div>
-            <div className="theme-option-content">
-              <strong>Emerald Green</strong>
+            <div className={styles.colorPreview} style={{ background: '#10b981' }}></div>
+            <div className={styles.optionContent}>
+              <strong className={styles.optionLabel}>Emerald Green</strong>
             </div>
-            {activeTheme === 'green' && <span className="active-indicator">✓ Active</span>}
+            {activeTheme === 'green' && <span className={styles.activeIndicator}>✓ Active</span>}
           </button>
 
           {/* Orange Theme */}
           <button
-            className={`theme-option ${activeTheme === 'orange' ? 'active' : ''}`}
+            className={cn(styles.option, activeTheme === 'orange' && styles.optionActive)}
             onClick={() => switchTheme('orange')}
           >
-            <div className="theme-color-preview" style={{ background: '#f97316' }}></div>
-            <div className="theme-option-content">
-              <strong>Vibrant Orange</strong>
+            <div className={styles.colorPreview} style={{ background: '#f97316' }}></div>
+            <div className={styles.optionContent}>
+              <strong className={styles.optionLabel}>Vibrant Orange</strong>
             </div>
-            {activeTheme === 'orange' && <span className="active-indicator">✓ Active</span>}
+            {activeTheme === 'orange' && <span className={styles.activeIndicator}>✓ Active</span>}
           </button>
 
           {/* Purple Theme */}
           <button
-            className={`theme-option ${activeTheme === 'purple' ? 'active' : ''}`}
+            className={cn(styles.option, activeTheme === 'purple' && styles.optionActive)}
             onClick={() => switchTheme('purple')}
           >
-            <div className="theme-color-preview" style={{ background: '#8b5cf6' }}></div>
-            <div className="theme-option-content">
-              <strong>Rich Purple</strong>
+            <div className={styles.colorPreview} style={{ background: '#8b5cf6' }}></div>
+            <div className={styles.optionContent}>
+              <strong className={styles.optionLabel}>Rich Purple</strong>
             </div>
-            {activeTheme === 'purple' && <span className="active-indicator">✓ Active</span>}
+            {activeTheme === 'purple' && <span className={styles.activeIndicator}>✓ Active</span>}
           </button>
         </div>
 
         {activeTheme === 'green' && (
-          <div className="theme-notice">
-            <strong>🟢 Green Theme Active</strong>
-            <p>Navigate through the app to see all changes. Check buttons, badges, and status colors.</p>
+          <div className={styles.notice}>
+            <strong className={styles.noticeTitle}>🟢 Green Theme Active</strong>
+            <p className={styles.noticeText}>Navigate through the app to see all changes. Check buttons, badges, and status colors.</p>
           </div>
         )}
 
         {activeTheme === 'orange' && (
-          <div className="theme-notice" style={{ background: 'rgba(249, 115, 22, 0.1)', borderColor: '#f97316' }}>
-            <strong>🟠 Orange Theme Active</strong>
-            <p>Navigate through the app to see all changes. Check buttons, badges, and status colors.</p>
+          <div className={styles.notice} style={{ background: 'rgba(249, 115, 22, 0.1)', borderColor: '#f97316' }}>
+            <strong className={styles.noticeTitle}>🟠 Orange Theme Active</strong>
+            <p className={styles.noticeText}>Navigate through the app to see all changes. Check buttons, badges, and status colors.</p>
           </div>
         )}
 
         {activeTheme === 'purple' && (
-          <div className="theme-notice" style={{ background: 'rgba(139, 92, 246, 0.1)', borderColor: '#8b5cf6' }}>
-            <strong>🟣 Purple Theme Active</strong>
-            <p>Navigate through the app to see all changes. Check buttons, badges, and status colors.</p>
+          <div className={styles.notice} style={{ background: 'rgba(139, 92, 246, 0.1)', borderColor: '#8b5cf6' }}>
+            <strong className={styles.noticeTitle}>🟣 Purple Theme Active</strong>
+            <p className={styles.noticeText}>Navigate through the app to see all changes. Check buttons, badges, and status colors.</p>
           </div>
         )}
       </div>

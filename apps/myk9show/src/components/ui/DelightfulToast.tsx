@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { CheckCircle, X, Sparkles, Heart, Trophy, Star } from 'lucide-react';
+import { CheckCircle, X, Sparkles, Heart, Trophy, Star, PartyPopper, PawPrint } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface DelightfulToastProps {
@@ -67,28 +67,28 @@ const DelightfulToast: React.FC<DelightfulToastProps> = ({
         return {
           icon: <Trophy className="w-5 h-5 text-yellow-500" />,
           bgColor: 'bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200',
-          emoji: '🎉',
+          secondaryIcon: <PartyPopper className="w-4 h-4 text-yellow-500" />,
           sparkleColor: 'text-yellow-400'
         };
       case 'achievement':
         return {
           icon: <Star className="w-5 h-5 text-purple-500" />,
           bgColor: 'bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200',
-          emoji: '🏆',
+          secondaryIcon: <Trophy className="w-4 h-4 text-purple-500" />,
           sparkleColor: 'text-purple-400'
         };
       case 'info':
         return {
           icon: <Heart className="w-5 h-5 text-blue-500" />,
           bgColor: 'bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200',
-          emoji: '💙',
+          secondaryIcon: <Heart className="w-4 h-4 text-blue-400" />,
           sparkleColor: 'text-blue-400'
         };
       default: // success
         return {
           icon: <CheckCircle className="w-5 h-5 text-green-500" />,
           bgColor: 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200',
-          emoji: '✅',
+          secondaryIcon: <CheckCircle className="w-4 h-4 text-green-400" />,
           sparkleColor: 'text-green-400'
         };
     }
@@ -120,11 +120,11 @@ const DelightfulToast: React.FC<DelightfulToastProps> = ({
           )}
 
           <div className="flex items-start gap-3">
-            {/* Icon and emoji */}
+            {/* Icon and secondary icon */}
             <div className="flex items-center gap-2 mt-0.5">
               {config.icon}
-              <span className="text-lg animate-bounce" style={{ animationDuration: '1s' }}>
-                {config.emoji}
+              <span className="animate-bounce" style={{ animationDuration: '1s' }}>
+                {config.secondaryIcon}
               </span>
             </div>
 
@@ -164,8 +164,8 @@ const DelightfulToast: React.FC<DelightfulToastProps> = ({
 
           {/* Floating paw prints */}
           {type === 'success' && showSparkles && (
-            <div className="absolute -top-6 -right-2 text-primary/30 text-xs animate-bounce pointer-events-none">
-              🐾
+            <div className="absolute -top-6 -right-2 animate-bounce pointer-events-none">
+              <PawPrint className="h-3 w-3 text-primary/30" />
             </div>
           )}
         </div>

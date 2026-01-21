@@ -59,10 +59,6 @@ if (import.meta.env.DEV) {
   // });
 }
 
-// Performance monitoring component - development only
-const PerformanceStats = React.lazy(() => import('./components/dev/PerformanceStats').then(m => ({ default: m.PerformanceStats })));
-
-
 // Database optimization - removed preloading for better startup performance
 
 const queryClient = new QueryClient();
@@ -187,12 +183,6 @@ function App() {
                     >
                       <div className="min-h-screen transition-colors duration-300 bg-background text-foreground">
                         <AppHeader />
-                        {/* Development performance monitoring */}
-                        {import.meta.env.DEV && (
-                          <Suspense fallback={null}>
-                            <PerformanceStats />
-                          </Suspense>
-                        )}
                         <Routes>
                           {/* Public routes */}
                           <Route path="/" element={<PageTransition><Home /></PageTransition>} />

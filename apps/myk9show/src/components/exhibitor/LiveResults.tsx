@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import { logger } from '@/services/LoggingService';
 import {
-  Trophy, 
-  Medal, 
-  Clock, 
+  Trophy,
+  Medal,
+  Clock,
   CheckCircle,
   XCircle,
   TrendingUp,
   Mail,
   Share2,
   RefreshCw,
-  Filter
+  Filter,
+  PartyPopper
 } from 'lucide-react';
 import { ExhibitorEntry } from '@/types/exhibitor-types';
 import { cn } from '@/lib/utils';
@@ -212,10 +213,10 @@ const LiveResults: React.FC<LiveResultsProps> = ({
                 <div className="font-medium text-blue-800 dark:text-blue-200">
                   Title Progress
                 </div>
-                <div className="text-sm text-blue-600 dark:text-blue-400">
-                  {titleProgress.needsMore > 0 
+                <div className="text-sm text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                  {titleProgress.needsMore > 0
                     ? `${titleProgress.needsMore} more leg${titleProgress.needsMore === 1 ? '' : 's'} needed`
-                    : 'Title completed! 🎉'
+                    : <><span>Title completed!</span> <PartyPopper className="h-4 w-4 text-yellow-500" /></>
                   }
                 </div>
               </div>
@@ -312,8 +313,10 @@ const LiveResults: React.FC<LiveResultsProps> = ({
                 {/* Special celebration for user placements */}
                 {isUser && placement && placement.place <= 3 && (
                   <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                    <div className="text-center text-lg font-bold text-gray-900 dark:text-gray-100">
-                      🎉 Congratulations! 🎉
+                    <div className="text-center text-lg font-bold text-gray-900 dark:text-gray-100 flex items-center justify-center gap-2">
+                      <PartyPopper className="h-5 w-5 text-yellow-500" />
+                      Congratulations!
+                      <PartyPopper className="h-5 w-5 text-yellow-500" />
                     </div>
                   </div>
                 )}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { format, formatDistanceToNow } from 'date-fns';
-import { Calendar, Clock, Dog, Trophy, AlertCircle, Bell, ChevronRight } from 'lucide-react';
+import { Calendar, Clock, Dog, Trophy, AlertCircle, Bell, ChevronRight, CheckCircle, XCircle, MapPin } from 'lucide-react';
 import { 
   ExhibitorDashboardData, 
   ExhibitorClassInfo, 
@@ -635,8 +635,12 @@ const ClassCard: React.FC<ClassCardProps> = ({ classInfo, onClick, showResult = 
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 {results.placement && getPlacementBadge(parseInt(results.placement))}
-                <span className="font-medium">
-                  {results.qualified ? '✅ Qualified' : '❌ NQ'}
+                <span className="font-medium flex items-center gap-1">
+                  {results.qualified ? (
+                    <><CheckCircle className="h-4 w-4 text-green-500" /> Qualified</>
+                  ) : (
+                    <><XCircle className="h-4 w-4 text-red-500" /> NQ</>
+                  )}
                 </span>
               </div>
               <span className="text-sm text-gray-600">{results.time}</span>
@@ -644,16 +648,18 @@ const ClassCard: React.FC<ClassCardProps> = ({ classInfo, onClick, showResult = 
           </div>
         ) : isActive && ringStatus.currentDog ? (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <p className="text-sm font-medium text-blue-700 mb-1">
-              📍 Now: #{ringStatus.currentDog.armband} | You're {entry.runningOrder}th
+            <p className="text-sm font-medium text-blue-700 mb-1 flex items-center gap-1">
+              <MapPin className="h-3 w-3" /> Now: #{ringStatus.currentDog.armband} | You're {entry.runningOrder}th
             </p>
-            <p className="text-sm text-blue-600">
-              ⏰ {estimatedTime || `Est: ${ringStatus.onDeck.find(e => e.armband === entry.armband)?.estimatedMinutes || '?'} minutes`}
+            <p className="text-sm text-blue-600 flex items-center gap-1">
+              <Clock className="h-3 w-3" /> {estimatedTime || `Est: ${ringStatus.onDeck.find(e => e.armband === entry.armband)?.estimatedMinutes || '?'} minutes`}
             </p>
           </div>
         ) : (
           <div className="text-sm text-gray-600">
-            <p>📅 Starts: {format(new Date(showClass.startTime), 'h:mm a')}</p>
+            <p className="flex items-center gap-1">
+              <Calendar className="h-3 w-3" /> Starts: {format(new Date(showClass.startTime), 'h:mm a')}
+            </p>
             <p>Judge: {showClass.judgeName}</p>
           </div>
         )}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Sparkles, Heart, Calendar, PawPrint, X } from 'lucide-react';
+import { Plus, Sparkles, Heart, Calendar, PawPrint, X, Dog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface FABAction {
@@ -149,17 +149,17 @@ const DelightfulFAB: React.FC<DelightfulFABProps> = ({
           </div>
         </Button>
 
-        {/* Cute dog emoji that appears on hover */}
+        {/* Cute dog icon that appears on hover */}
         {isHovered && !isOpen && (
-          <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 text-2xl animate-bounce pointer-events-none">
-            🐕
+          <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 animate-bounce pointer-events-none">
+            <Dog className="h-6 w-6 text-primary" />
           </div>
         )}
 
         {/* Fun paw print trail */}
         {isOpen && (
-          <div className="absolute -bottom-4 -left-4 text-lg opacity-40 animate-bounce pointer-events-none">
-            🐾
+          <div className="absolute -bottom-4 -left-4 opacity-40 animate-bounce pointer-events-none">
+            <PawPrint className="h-4 w-4 text-primary" />
           </div>
         )}
       </div>

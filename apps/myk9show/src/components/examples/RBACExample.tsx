@@ -1,3 +1,4 @@
+import { CheckCircle, XCircle } from 'lucide-react';
 import { PermissionGuard } from '../auth/PermissionGuard';
 import { useRegistrationPermissions } from '../../hooks/useRegistrationPermissions';
 import { useRegistrationContext } from '@/hooks/useRegistrationContext';
@@ -60,10 +61,10 @@ export function RBACExample() {
           <div>
             <strong>Role Flags:</strong>
             <ul className="list-disc list-inside mt-2">
-              <li>Exhibitor: {isExhibitor ? '✅' : '❌'}</li>
-              <li>Secretary: {isSecretary ? '✅' : '❌'}</li>
-              <li>Club Admin: {isClubAdmin ? '✅' : '❌'}</li>
-              <li>Site Admin: {isSiteAdmin ? '✅' : '❌'}</li>
+              <li className="flex items-center gap-1">Exhibitor: {isExhibitor ? <CheckCircle className="h-4 w-4 text-green-500 inline" /> : <XCircle className="h-4 w-4 text-red-500 inline" />}</li>
+              <li className="flex items-center gap-1">Secretary: {isSecretary ? <CheckCircle className="h-4 w-4 text-green-500 inline" /> : <XCircle className="h-4 w-4 text-red-500 inline" />}</li>
+              <li className="flex items-center gap-1">Club Admin: {isClubAdmin ? <CheckCircle className="h-4 w-4 text-green-500 inline" /> : <XCircle className="h-4 w-4 text-red-500 inline" />}</li>
+              <li className="flex items-center gap-1">Site Admin: {isSiteAdmin ? <CheckCircle className="h-4 w-4 text-green-500 inline" /> : <XCircle className="h-4 w-4 text-red-500 inline" />}</li>
             </ul>
           </div>
           <div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowUp } from 'lucide-react';
+import { ArrowUp, Sparkles, Star, PawPrint } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const ScrollToTop: React.FC = () => {
@@ -59,17 +59,17 @@ const ScrollToTop: React.FC = () => {
               {/* Celebration sparkles when clicked */}
               {isClicked && (
                 <>
-                  <div className="absolute -top-2 -right-2 text-yellow-400 animate-pulse text-xs">✨</div>
-                  <div className="absolute -bottom-2 -left-2 text-pink-400 animate-pulse text-xs">✨</div>
-                  <div className="absolute -top-2 -left-2 text-purple-400 animate-pulse text-xs">⭐</div>
+                  <Sparkles className="absolute -top-2 -right-2 h-3 w-3 text-yellow-400 animate-pulse" />
+                  <Sparkles className="absolute -bottom-2 -left-2 h-3 w-3 text-pink-400 animate-pulse" />
+                  <Star className="absolute -top-2 -left-2 h-3 w-3 text-purple-400 animate-pulse" />
                 </>
               )}
             </div>
           </Button>
           
           {/* Floating paw print */}
-          <div className="absolute -top-8 -left-2 text-lg opacity-60 animate-bounce pointer-events-none">
-            🐾
+          <div className="absolute -top-8 -left-2 opacity-60 animate-bounce pointer-events-none">
+            <PawPrint className="h-4 w-4 text-primary" />
           </div>
         </div>
       )}

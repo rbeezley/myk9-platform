@@ -1,4 +1,4 @@
-import { Search, Heart } from 'lucide-react';
+import { Search, Heart, Dog, Trophy, Calendar, Star, Sparkles, PartyPopper } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useState, useRef } from 'react';
 
@@ -33,12 +33,12 @@ export default function Hero() {
             {/* Easter egg confetti */}
             {showEasterEgg && (
               <div className="absolute inset-0 pointer-events-none overflow-hidden z-10">
-                <div className="animate-pulse absolute top-8 left-8 text-yellow-400 text-3xl" style={{ animationDuration: '0.5s' }}>⭐</div>
-                <div className="animate-pulse absolute top-16 right-12 text-pink-400 text-2xl" style={{ animationDelay: '0.2s', animationDuration: '0.5s' }}>💖</div>
-                <div className="animate-pulse absolute bottom-16 left-16 text-purple-400 text-2xl" style={{ animationDelay: '0.4s', animationDuration: '0.5s' }}>🎉</div>
-                <div className="animate-pulse absolute bottom-8 right-20 text-green-400 text-3xl" style={{ animationDelay: '0.6s', animationDuration: '0.5s' }}>🌟</div>
-                <div className="animate-pulse absolute top-24 left-32 text-blue-400 text-xl" style={{ animationDelay: '0.3s', animationDuration: '0.5s' }}>✨</div>
-                <div className="animate-pulse absolute bottom-24 right-32 text-red-400 text-2xl" style={{ animationDelay: '0.7s', animationDuration: '0.5s' }}>🎊</div>
+                <Star className="animate-pulse absolute top-8 left-8 h-8 w-8 text-yellow-400" style={{ animationDuration: '0.5s' }} />
+                <Heart className="animate-pulse absolute top-16 right-12 h-6 w-6 text-pink-400" style={{ animationDelay: '0.2s', animationDuration: '0.5s' }} />
+                <PartyPopper className="animate-pulse absolute bottom-16 left-16 h-6 w-6 text-purple-400" style={{ animationDelay: '0.4s', animationDuration: '0.5s' }} />
+                <Star className="animate-pulse absolute bottom-8 right-20 h-8 w-8 text-green-400" style={{ animationDelay: '0.6s', animationDuration: '0.5s' }} />
+                <Sparkles className="animate-pulse absolute top-24 left-32 h-5 w-5 text-blue-400" style={{ animationDelay: '0.3s', animationDuration: '0.5s' }} />
+                <PartyPopper className="animate-pulse absolute bottom-24 right-32 h-6 w-6 text-red-400" style={{ animationDelay: '0.7s', animationDuration: '0.5s' }} />
               </div>
             )}
             
@@ -46,7 +46,7 @@ export default function Hero() {
               <div 
                 className="transform transition-all duration-500 hover:scale-105 hover:rotate-1 cursor-pointer"
                 onClick={handleLogoClick}
-                title="Triple-click me for a surprise! 🎉"
+                title="Triple-click me for a surprise!"
               >
                 <picture>
                   <source srcSet={dogShowImageWebP} type="image/webp" />
@@ -103,15 +103,15 @@ export default function Hero() {
                   <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-lg shadow-lg z-10 animate-in slide-in-from-top-1 duration-200">
                     <div className="p-3 space-y-2">
                       <div className="flex items-center space-x-2 text-sm text-muted-foreground hover:text-foreground cursor-pointer hover:bg-muted/50 p-2 rounded transition-colors">
-                        <span>🐕</span>
+                        <Dog className="h-4 w-4" />
                         <span>Dog shows near me</span>
                       </div>
                       <div className="flex items-center space-x-2 text-sm text-muted-foreground hover:text-foreground cursor-pointer hover:bg-muted/50 p-2 rounded transition-colors">
-                        <span>🏆</span>
+                        <Trophy className="h-4 w-4" />
                         <span>Championship events</span>
                       </div>
                       <div className="flex items-center space-x-2 text-sm text-muted-foreground hover:text-foreground cursor-pointer hover:bg-muted/50 p-2 rounded transition-colors">
-                        <span>📅</span>
+                        <Calendar className="h-4 w-4" />
                         <span>This weekend's shows</span>
                       </div>
                     </div>

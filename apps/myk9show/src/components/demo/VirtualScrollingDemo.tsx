@@ -12,15 +12,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Zap, 
-  TrendingUp, 
-  Clock, 
-  HardDrive, 
+import {
+  Zap,
+  TrendingUp,
+  Clock,
+  HardDrive,
   Eye,
   Users,
   Heart,
-  Calendar
+  Calendar,
+  Check,
+  X,
+  AlertTriangle
 } from 'lucide-react';
 
 interface MockItem {
@@ -235,9 +238,12 @@ export function VirtualScrollingDemo() {
             <div className="space-y-4">
               <h3 className="font-medium">Traditional List (showing first 100 items)</h3>
               {renderTraditionalList()}
-              <div className="text-sm text-muted-foreground bg-yellow-50 p-3 rounded">
-                ⚠️ Traditional rendering shows only first 100 items to prevent browser freeze.
-                Virtual scrolling can handle all {itemCount.toLocaleString()} items smoothly.
+              <div className="text-sm text-muted-foreground bg-yellow-50 p-3 rounded flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-yellow-600 flex-shrink-0 mt-0.5" />
+                <span>
+                  Traditional rendering shows only first 100 items to prevent browser freeze.
+                  Virtual scrolling can handle all {itemCount.toLocaleString()} items smoothly.
+                </span>
               </div>
             </div>
           )}
@@ -263,7 +269,9 @@ export function VirtualScrollingDemo() {
             <TabsContent value="benefits" className="space-y-4">
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-3">
-                  <h4 className="font-medium text-green-700">✅ Virtual Scrolling</h4>
+                  <h4 className="font-medium text-green-700 flex items-center gap-2">
+                    <Check className="h-4 w-4" /> Virtual Scrolling
+                  </h4>
                   <ul className="space-y-2 text-sm">
                     <li className="flex items-center gap-2">
                       <Zap className="h-4 w-4 text-green-500" />
@@ -285,7 +293,9 @@ export function VirtualScrollingDemo() {
                 </div>
                 
                 <div className="space-y-3">
-                  <h4 className="font-medium text-red-700">❌ Traditional Rendering</h4>
+                  <h4 className="font-medium text-red-700 flex items-center gap-2">
+                    <X className="h-4 w-4" /> Traditional Rendering
+                  </h4>
                   <ul className="space-y-2 text-sm">
                     <li className="flex items-center gap-2">
                       <Clock className="h-4 w-4 text-red-500" />

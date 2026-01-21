@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Sparkles, Heart, Star } from 'lucide-react';
+import { Sparkles, Heart, Star, PartyPopper, Trophy, Dog, PawPrint, Award, Gem } from 'lucide-react';
 
 // Separate component for confetti to keep random positions stable during rerenders
-const ConfettiExplosion: React.FC<{ confetti: string[] }> = ({ confetti }) => {
+const ConfettiExplosion: React.FC<{ confetti: React.ReactNode[] }> = ({ confetti }) => {
   // Pre-compute positions once per mount to avoid Math.random() during render
   const positions = useMemo(() =>
     confetti.map((_, index) => ({
@@ -15,10 +15,10 @@ const ConfettiExplosion: React.FC<{ confetti: string[] }> = ({ confetti }) => {
 
   return (
     <div className="absolute inset-0 pointer-events-none">
-      {confetti.map((emoji, index) => (
+      {confetti.map((icon, index) => (
         <div
           key={index}
-          className="absolute text-3xl animate-bounce"
+          className="absolute animate-bounce"
           style={{
             top: `${positions[index].top}%`,
             left: `${positions[index].left}%`,
@@ -26,7 +26,7 @@ const ConfettiExplosion: React.FC<{ confetti: string[] }> = ({ confetti }) => {
             animationDuration: '2s'
           }}
         >
-          {emoji}
+          {icon}
         </div>
       ))}
     </div>
@@ -68,41 +68,71 @@ const FirstTimeDelight: React.FC<FirstTimeDelightProps> = ({
         return {
           title: `Welcome to the pack, ${userName || 'new friend'}!`,
           message: "You've just joined a community of amazing dog lovers. Let's get started on your show journey!",
-          emoji: '🎉',
+          icon: <PartyPopper className="h-16 w-16 text-white" />,
           bgGradient: 'from-blue-400 to-purple-500',
-          confetti: ['🐕', '🏆', '🎀', '⭐', '💙']
+          confetti: [
+            <Dog key="dog" className="h-8 w-8 text-white" />,
+            <Trophy key="trophy" className="h-8 w-8 text-yellow-300" />,
+            <Award key="award" className="h-8 w-8 text-pink-300" />,
+            <Star key="star" className="h-8 w-8 text-yellow-300" />,
+            <Heart key="heart" className="h-8 w-8 text-blue-300" />
+          ]
         };
       case 'first-show':
         return {
           title: 'Your first show is created!',
           message: "Woof woof! You're officially a show organizer. Time to make some tails wag with excitement!",
-          emoji: '🏆',
+          icon: <Trophy className="h-16 w-16 text-white" />,
           bgGradient: 'from-yellow-400 to-orange-500',
-          confetti: ['🏆', '🥇', '🎖️', '🏅', '⭐']
+          confetti: [
+            <Trophy key="trophy1" className="h-8 w-8 text-yellow-300" />,
+            <Award key="award1" className="h-8 w-8 text-yellow-200" />,
+            <Star key="star1" className="h-8 w-8 text-yellow-300" />,
+            <Award key="award2" className="h-8 w-8 text-orange-300" />,
+            <Star key="star2" className="h-8 w-8 text-white" />
+          ]
         };
       case 'first-entry':
         return {
           title: 'First entry submitted!',
           message: "Your pup is registered and ready to show off! Good luck in the ring!",
-          emoji: '🐕',
+          icon: <Dog className="h-16 w-16 text-white" />,
           bgGradient: 'from-green-400 to-emerald-500',
-          confetti: ['🐕', '🐾', '❤️', '🎀', '✨']
+          confetti: [
+            <Dog key="dog" className="h-8 w-8 text-white" />,
+            <PawPrint key="paw" className="h-8 w-8 text-white" />,
+            <Heart key="heart" className="h-8 w-8 text-red-300" />,
+            <Award key="award" className="h-8 w-8 text-pink-300" />,
+            <Sparkles key="sparkle" className="h-8 w-8 text-yellow-200" />
+          ]
         };
       case 'profile-complete':
         return {
           title: 'Profile looking pawsome!',
           message: "Your profile is complete and looking great. You're ready to explore everything myK9Show has to offer!",
-          emoji: '⭐',
+          icon: <Star className="h-16 w-16 text-white" />,
           bgGradient: 'from-pink-400 to-purple-500',
-          confetti: ['⭐', '✨', '💫', '🌟', '💎']
+          confetti: [
+            <Star key="star1" className="h-8 w-8 text-yellow-300" />,
+            <Sparkles key="sparkle1" className="h-8 w-8 text-white" />,
+            <Star key="star2" className="h-8 w-8 text-pink-200" />,
+            <Sparkles key="sparkle2" className="h-8 w-8 text-yellow-200" />,
+            <Gem key="gem" className="h-8 w-8 text-blue-300" />
+          ]
         };
       default:
         return {
           title: 'Pawsome achievement!',
           message: "You're doing great! Keep up the amazing work with your furry friends.",
-          emoji: '🎉',
+          icon: <PartyPopper className="h-16 w-16 text-white" />,
           bgGradient: 'from-blue-400 to-purple-500',
-          confetti: ['🎉', '🎊', '✨', '🌟', '💫']
+          confetti: [
+            <PartyPopper key="party1" className="h-8 w-8 text-yellow-300" />,
+            <PartyPopper key="party2" className="h-8 w-8 text-pink-300" />,
+            <Sparkles key="sparkle1" className="h-8 w-8 text-white" />,
+            <Star key="star" className="h-8 w-8 text-yellow-200" />,
+            <Sparkles key="sparkle2" className="h-8 w-8 text-pink-200" />
+          ]
         };
     }
   };
@@ -135,9 +165,9 @@ const FirstTimeDelight: React.FC<FirstTimeDelightProps> = ({
           </div>
 
           <div className="text-center text-white">
-            {/* Big celebratory emoji */}
-            <div className="text-6xl mb-4 animate-bounce" style={{ animationDuration: '1.5s' }}>
-              {config.emoji}
+            {/* Big celebratory icon */}
+            <div className="mb-4 animate-bounce flex justify-center" style={{ animationDuration: '1.5s' }}>
+              {config.icon}
             </div>
 
             {/* Title */}
@@ -152,9 +182,9 @@ const FirstTimeDelight: React.FC<FirstTimeDelightProps> = ({
 
             {/* Paw prints decoration */}
             <div className="flex justify-center space-x-4 text-white/60">
-              <span className="animate-pulse">🐾</span>
+              <PawPrint className="w-5 h-5 animate-pulse" />
               <Heart className="w-5 h-5 animate-pulse" style={{ animationDelay: '0.5s' }} />
-              <span className="animate-pulse" style={{ animationDelay: '1s' }}>🐾</span>
+              <PawPrint className="w-5 h-5 animate-pulse" style={{ animationDelay: '1s' }} />
             </div>
           </div>
 

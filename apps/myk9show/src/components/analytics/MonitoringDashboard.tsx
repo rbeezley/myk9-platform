@@ -16,7 +16,9 @@ import {
   RefreshCw,
   Download,
   Users,
-  Zap
+  Zap,
+  CheckCircle2,
+  Siren
 } from 'lucide-react';
 
 import { performanceMetrics } from '@/services/analytics/PerformanceMetricsService';
@@ -200,8 +202,13 @@ export const MonitoringDashboard: React.FC<MonitoringDashboardProps> = ({
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {systemStatus.overall === 'healthy' ? '✅' : 
-               systemStatus.overall === 'warning' ? '⚠️' : '🚨'}
+              {systemStatus.overall === 'healthy' ? (
+                <CheckCircle2 className="h-6 w-6 text-green-500" />
+              ) : systemStatus.overall === 'warning' ? (
+                <AlertTriangle className="h-6 w-6 text-yellow-500" />
+              ) : (
+                <Siren className="h-6 w-6 text-red-500" />
+              )}
             </div>
             <p className="text-xs text-muted-foreground">
               Last updated {lastUpdated.toLocaleTimeString()}

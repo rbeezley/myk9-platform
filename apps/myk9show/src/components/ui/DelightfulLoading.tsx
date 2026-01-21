@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Dog, Trophy, Award, PawPrint, Wand2, Sparkles, Waves } from 'lucide-react';
 
 interface DelightfulLoadingProps {
   message?: string;
@@ -66,15 +67,21 @@ const DelightfulLoading: React.FC<DelightfulLoadingProps> = ({
           {/* Bouncing show cards animation */}
           <div className="flex space-x-4">
             <div className="rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 h-24 w-64 animate-pulse flex items-center justify-center relative overflow-hidden">
-              <div className="text-4xl animate-bounce" style={{ animationDelay: '0s' }}>🏆</div>
+              <div className="animate-bounce" style={{ animationDelay: '0s' }}>
+                <Trophy className="h-10 w-10 text-yellow-500" />
+              </div>
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -skew-x-12 translate-x-full animate-[shimmer_2s_infinite]" />
             </div>
             <div className="rounded-lg bg-gradient-to-br from-secondary/20 to-secondary/10 h-24 w-64 animate-pulse flex items-center justify-center relative overflow-hidden" style={{ animationDelay: '0.3s' }}>
-              <div className="text-4xl animate-bounce" style={{ animationDelay: '0.5s' }}>🐕</div>
+              <div className="animate-bounce" style={{ animationDelay: '0.5s' }}>
+                <Dog className="h-10 w-10 text-primary" />
+              </div>
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -skew-x-12 translate-x-full animate-[shimmer_2s_infinite_0.5s]" />
             </div>
             <div className="rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 h-24 w-64 animate-pulse flex items-center justify-center relative overflow-hidden" style={{ animationDelay: '0.6s' }}>
-              <div className="text-4xl animate-bounce" style={{ animationDelay: '1s' }}>🎀</div>
+              <div className="animate-bounce" style={{ animationDelay: '1s' }}>
+                <Award className="h-10 w-10 text-pink-500" />
+              </div>
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -skew-x-12 translate-x-full animate-[shimmer_2s_infinite_1s]" />
             </div>
           </div>
@@ -86,14 +93,12 @@ const DelightfulLoading: React.FC<DelightfulLoadingProps> = ({
             {/* Paw print trail */}
             <div className="flex space-x-2 mt-2">
               {[0, 1, 2, 3].map((i) => (
-                <span 
+                <PawPrint
                   key={i}
-                  className={`text-lg transition-opacity duration-300 ${
+                  className={`h-4 w-4 transition-opacity duration-300 ${
                     i <= pawStep ? 'opacity-100 text-primary' : 'opacity-30 text-muted-foreground'
                   }`}
-                >
-                  🐾
-                </span>
+                />
               ))}
             </div>
           </div>
@@ -110,12 +115,18 @@ const DelightfulLoading: React.FC<DelightfulLoadingProps> = ({
             {/* Magical spinning wand */}
             <div className="relative">
               <div className="w-16 h-16 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-full flex items-center justify-center animate-spin">
-                <span className="text-2xl">🪄</span>
+                <Wand2 className="h-6 w-6 text-primary" />
               </div>
               {/* Sparkles around the wand */}
-              <div className="absolute -top-2 -right-2 text-yellow-400 animate-pulse">✨</div>
-              <div className="absolute -bottom-2 -left-2 text-pink-400 animate-pulse" style={{ animationDelay: '0.5s' }}>✨</div>
-              <div className="absolute top-0 -left-3 text-purple-400 animate-pulse" style={{ animationDelay: '1s' }}>✨</div>
+              <div className="absolute -top-2 -right-2 animate-pulse">
+                <Sparkles className="h-4 w-4 text-yellow-400" />
+              </div>
+              <div className="absolute -bottom-2 -left-2 animate-pulse" style={{ animationDelay: '0.5s' }}>
+                <Sparkles className="h-4 w-4 text-pink-400" />
+              </div>
+              <div className="absolute top-0 -left-3 animate-pulse" style={{ animationDelay: '1s' }}>
+                <Sparkles className="h-4 w-4 text-purple-400" />
+              </div>
             </div>
             
             <div className="text-center">
@@ -141,10 +152,12 @@ const DelightfulLoading: React.FC<DelightfulLoadingProps> = ({
         {/* Bouncing dog animation */}
         <div className="relative">
           <div className="w-12 h-12 bg-gradient-to-br from-primary/20 to-primary/10 rounded-full flex items-center justify-center animate-bounce">
-            <span className="text-2xl">🐕</span>
+            <Dog className="h-6 w-6 text-primary" />
           </div>
           {/* Tail wagging effect */}
-          <div className="absolute -right-1 top-2 text-sm animate-pulse">🌊</div>
+          <div className="absolute -right-1 top-2 animate-pulse">
+            <Waves className="h-3 w-3 text-primary/60" />
+          </div>
         </div>
         
         <div className="text-sm text-muted-foreground font-medium text-center">
@@ -154,14 +167,12 @@ const DelightfulLoading: React.FC<DelightfulLoadingProps> = ({
         {/* Paw print trail */}
         <div className="flex space-x-1">
           {[0, 1, 2].map((i) => (
-            <span 
+            <PawPrint
               key={i}
-              className={`text-sm transition-all duration-300 ${
+              className={`h-3 w-3 transition-all duration-300 ${
                 i <= pawStep ? 'opacity-100 text-primary scale-110' : 'opacity-30 text-muted-foreground'
               }`}
-            >
-              🐾
-            </span>
+            />
           ))}
         </div>
       </div>

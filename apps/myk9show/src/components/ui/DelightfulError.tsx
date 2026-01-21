@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { AlertTriangle, RefreshCw, Home, Heart } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Home, Heart, Dog, HeartCrack, Droplets, PawPrint } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface DelightfulErrorProps {
@@ -44,9 +44,15 @@ const DelightfulError: React.FC<DelightfulErrorProps> = ({
         <div className="max-w-md w-full text-center">
           {/* Sad but cute dog animation */}
           <div className="relative mb-8">
-            <div className="text-8xl animate-bounce">🐕</div>
-            <div className="absolute -top-2 -right-2 text-2xl animate-pulse">💔</div>
-            <div className="absolute -bottom-2 -left-2 text-xl animate-bounce" style={{ animationDelay: '0.5s' }}>💧</div>
+            <div className="animate-bounce">
+              <Dog className="h-24 w-24 text-primary" />
+            </div>
+            <div className="absolute -top-2 -right-2 animate-pulse">
+              <HeartCrack className="h-6 w-6 text-red-400" />
+            </div>
+            <div className="absolute -bottom-2 -left-2 animate-bounce" style={{ animationDelay: '0.5s' }}>
+              <Droplets className="h-5 w-5 text-blue-400" />
+            </div>
           </div>
           
           <h1 className="text-2xl font-bold text-foreground mb-4">
@@ -83,7 +89,7 @@ const DelightfulError: React.FC<DelightfulErrorProps> = ({
             <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
               <Heart className="w-4 h-4 text-red-500 animate-pulse" />
               <span>We're always working to make myK9Show better for you and your dogs!</span>
-              <span className="text-lg animate-bounce">🐾</span>
+              <PawPrint className="h-4 w-4 text-primary animate-bounce" />
             </div>
           </div>
         </div>
@@ -110,8 +116,12 @@ const DelightfulError: React.FC<DelightfulErrorProps> = ({
     <div className="flex flex-col items-center justify-center p-8 text-center bg-card border border-border rounded-lg">
       {/* Cute error animation */}
       <div className="relative mb-6">
-        <div className="text-4xl animate-bounce">🐕‍🦺</div>
-        <div className="absolute -top-1 -right-1 text-lg animate-pulse">⚠️</div>
+        <div className="animate-bounce">
+          <Dog className="h-10 w-10 text-primary" />
+        </div>
+        <div className="absolute -top-1 -right-1 animate-pulse">
+          <AlertTriangle className="h-4 w-4 text-yellow-500" />
+        </div>
       </div>
       
       <h3 className="text-lg font-semibold text-foreground mb-2">
@@ -145,9 +155,9 @@ const DelightfulError: React.FC<DelightfulErrorProps> = ({
       
       {/* Paw print decoration */}
       <div className="flex gap-2 mt-6 opacity-40">
-        <span className="text-xs animate-pulse">🐾</span>
-        <span className="text-xs animate-pulse" style={{ animationDelay: '0.5s' }}>🐾</span>
-        <span className="text-xs animate-pulse" style={{ animationDelay: '1s' }}>🐾</span>
+        <PawPrint className="h-3 w-3 text-muted-foreground animate-pulse" />
+        <PawPrint className="h-3 w-3 text-muted-foreground animate-pulse" style={{ animationDelay: '0.5s' }} />
+        <PawPrint className="h-3 w-3 text-muted-foreground animate-pulse" style={{ animationDelay: '1s' }} />
       </div>
     </div>
   );

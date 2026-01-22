@@ -8,6 +8,7 @@
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { usePermission } from '@/hooks/usePermission';
+import { cn } from '@/lib/utils';
 import {
   formatAuditEntry,
   type AuditLogFilters,
@@ -16,7 +17,7 @@ import { useAuditLogData } from './hooks/useAuditLogData';
 import { HamburgerMenu, OfflineFallback } from '@/components/ui';
 import { Clock, Filter, X, User, Calendar, Settings } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import './AuditLog.css';
+import { styles, getScopeBadgeStyle } from './auditLogStyles';
 
 const AuditLog: React.FC = () => {
   const { licenseKey } = useParams<{ licenseKey: string }>();
@@ -57,9 +58,9 @@ const AuditLog: React.FC = () => {
   if (!isAdmin()) {
     return (
       <div className="page-container">
-        <div className="audit-log-error">
-          <h2>Access Denied</h2>
-          <p>You need administrator permissions to view the audit log.</p>
+        <div className={styles.error}>
+          <h2 className={styles.errorTitle}>Access Denied</h2>
+          <p className={styles.errorText}>You need administrator permissions to view the audit log.</p>
         </div>
       </div>
     );
@@ -75,47 +76,52 @@ const AuditLog: React.FC = () => {
   }
 
   return (
-    <div className="audit-log page-container">
+    <div className="page-container">
       {/* Header */}
-      <div className="audit-log-header">
-        <div className="header-top">
+      <div className={styles.header}>
+        <div className={styles.headerTop}>
           <HamburgerMenu />
-          <div className="header-info">
-            <div className="header-title">
-              <Clock className="header-icon" />
-              <h1>Audit Log</h1>
+          <div className={styles.headerInfo}>
+            <div className={styles.headerTitle}>
+              <Clock className={styles.headerIcon} />
+              <h1 className={styles.h1}>Audit Log</h1>
             </div>
           </div>
         </div>
-        <p className="header-description">
+        <p className={styles.headerDescription}>
           Track all changes to competition settings including result visibility and self check-in configuration.
         </p>
       </div>
 
       {/* Controls */}
-      <div className="audit-log-controls">
+      <div className={styles.controls}>
         <button
-          className={`filter-toggle-btn ${showFilters ? 'active' : ''}`}
+          className={cn(styles.filterToggleBtn, showFilters && styles.filterToggleBtnActive)}
           onClick={() => setShowFilters(!showFilters)}
         >
-          <Filter className="btn-icon" />
+          <Filter className={styles.btnIcon} />
           <span>Filters</span>
-          {hasActiveFilters && <span className="filter-badge">{Object.keys(filters).length}</span>}
+          {hasActiveFilters && (
+            <span className={cn(styles.filterBadge, showFilters && styles.filterBadgeActive)}>
+              {Object.keys(filters).length}
+            </span>
+          )}
         </button>
 
         {hasActiveFilters && (
-          <button className="clear-filters-btn" onClick={clearFilters}>
-            <X className="btn-icon" />
+          <button className={styles.clearFiltersBtn} onClick={clearFilters}>
+            <X className={styles.btnIcon} />
             Clear Filters
           </button>
         )}
 
-        <div className="limit-control">
-          <label htmlFor="limit-select">Show:</label>
+        <div className={styles.limitControl}>
+          <label htmlFor="limit-select" className={styles.limitLabel}>Show:</label>
           <select
             id="limit-select"
             value={limit}
             onChange={e => setLimit(Number(e.target.value))}
+            className={styles.limitSelect}
           >
             <option value={50}>50 entries</option>
             <option value={100}>100 entries</option>
@@ -127,15 +133,16 @@ const AuditLog: React.FC = () => {
 
       {/* Filter Panel */}
       {showFilters && (
-        <div className="filter-panel">
-          <div className="filter-grid">
+        <div className={styles.filterPanel}>
+          <div className={styles.filterGrid}>
             {/* Scope Filter */}
-            <div className="filter-group">
-              <label htmlFor="scope-filter">Scope</label>
+            <div className={styles.filterGroup}>
+              <label htmlFor="scope-filter" className={styles.filterLabel}>Scope</label>
               <select
                 id="scope-filter"
                 value={filters.scope || ''}
                 onChange={e => handleFilterChange('scope', e.target.value)}
+                className={styles.filterSelect}
               >
                 <option value="">All Scopes</option>
                 <option value="Show Level">Show Level</option>
@@ -145,12 +152,13 @@ const AuditLog: React.FC = () => {
             </div>
 
             {/* Administrator Filter */}
-            <div className="filter-group">
-              <label htmlFor="admin-filter">Administrator</label>
+            <div className={styles.filterGroup}>
+              <label htmlFor="admin-filter" className={styles.filterLabel}>Administrator</label>
               <select
                 id="admin-filter"
                 value={filters.updated_by || ''}
                 onChange={e => handleFilterChange('updated_by', e.target.value)}
+                className={styles.filterSelect}
               >
                 <option value="">All Administrators</option>
                 {administrators.map(admin => (
@@ -162,24 +170,26 @@ const AuditLog: React.FC = () => {
             </div>
 
             {/* Start Date Filter */}
-            <div className="filter-group">
-              <label htmlFor="start-date-filter">From Date</label>
+            <div className={styles.filterGroup}>
+              <label htmlFor="start-date-filter" className={styles.filterLabel}>From Date</label>
               <input
                 type="date"
                 id="start-date-filter"
                 value={filters.startDate || ''}
                 onChange={e => handleFilterChange('startDate', e.target.value)}
+                className={styles.filterDateInput}
               />
             </div>
 
             {/* End Date Filter */}
-            <div className="filter-group">
-              <label htmlFor="end-date-filter">To Date</label>
+            <div className={styles.filterGroup}>
+              <label htmlFor="end-date-filter" className={styles.filterLabel}>To Date</label>
               <input
                 type="date"
                 id="end-date-filter"
                 value={filters.endDate || ''}
                 onChange={e => handleFilterChange('endDate', e.target.value)}
+                className={styles.filterDateInput}
               />
             </div>
           </div>
@@ -188,17 +198,17 @@ const AuditLog: React.FC = () => {
 
       {/* Loading State */}
       {loading && (
-        <div className="audit-log-loading">
-          <div className="spinner"></div>
-          <p>Loading audit log...</p>
+        <div className={styles.loading}>
+          <div className={styles.spinner}></div>
+          <p className={styles.loadingText}>Loading audit log...</p>
         </div>
       )}
 
       {/* Error State */}
       {error && (
-        <div className="audit-log-error">
-          <p>{error}</p>
-          <button onClick={() => refetch()}>Try Again</button>
+        <div className={styles.error}>
+          <p className={styles.errorText}>{error}</p>
+          <button onClick={() => refetch()} className={styles.errorButton}>Try Again</button>
         </div>
       )}
 
@@ -206,39 +216,39 @@ const AuditLog: React.FC = () => {
       {!loading && !error && (
         <>
           {entries.length === 0 ? (
-            <div className="no-entries">
-              <Clock className="no-entries-icon" />
-              <p>No audit log entries found</p>
+            <div className={styles.noEntries}>
+              <Clock className={styles.noEntriesIcon} />
+              <p className={styles.noEntriesText}>No audit log entries found</p>
               {hasActiveFilters && (
-                <button onClick={clearFilters} className="clear-filters-link">
+                <button onClick={clearFilters} className={styles.clearFiltersLink}>
                   Clear filters to see all entries
                 </button>
               )}
             </div>
           ) : (
-            <div className="audit-log-table-container">
-              <table className="audit-log-table">
-                <thead>
+            <div className={styles.tableContainer}>
+              <table className={styles.table}>
+                <thead className={styles.thead}>
                   <tr>
-                    <th className="col-timestamp">
-                      <span className="th-content">
-                        <Calendar className="th-icon" />
+                    <th className={cn(styles.th, styles.colTimestamp)}>
+                      <span className={styles.thContent}>
+                        <Calendar className={styles.thIcon} />
                         When
                       </span>
                     </th>
-                    <th className="col-admin">
-                      <span className="th-content">
-                        <User className="th-icon" />
+                    <th className={cn(styles.th, styles.colAdmin)}>
+                      <span className={styles.thContent}>
+                        <User className={styles.thIcon} />
                         Administrator
                       </span>
                     </th>
-                    <th className="col-scope">
-                      <span className="th-content">
-                        <Settings className="th-icon" />
+                    <th className={cn(styles.th, styles.colScope)}>
+                      <span className={styles.thContent}>
+                        <Settings className={styles.thIcon} />
                         Scope
                       </span>
                     </th>
-                    <th className="col-change">Change</th>
+                    <th className={cn(styles.th, styles.colChange)}>Change</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -247,27 +257,27 @@ const AuditLog: React.FC = () => {
                     const relativeTime = formatDistanceToNow(timestamp, { addSuffix: true });
 
                     return (
-                      <tr key={index}>
-                        <td className="col-timestamp">
-                          <div className="timestamp-cell">
-                            <span className="relative-time">{relativeTime}</span>
-                            <span className="absolute-time">
+                      <tr key={index} className={styles.tr}>
+                        <td className={cn(styles.td, styles.colTimestamp)}>
+                          <div className={styles.timestampCell}>
+                            <span className={styles.relativeTime}>{relativeTime}</span>
+                            <span className={styles.absoluteTime}>
                               {timestamp.toLocaleDateString()} {timestamp.toLocaleTimeString()}
                             </span>
                           </div>
                         </td>
-                        <td className="col-admin">
-                          <span className="admin-name">
-                            {entry.updated_by || <span className="unknown-admin">(Not recorded)</span>}
+                        <td className={cn(styles.td, styles.colAdmin)}>
+                          <span className={styles.adminName}>
+                            {entry.updated_by || <span className={styles.unknownAdmin}>(Not recorded)</span>}
                           </span>
                         </td>
-                        <td className="col-scope">
-                          <span className={`scope-badge scope-${entry.scope.toLowerCase().replace(' ', '-')}`}>
+                        <td className={cn(styles.td, styles.colScope)}>
+                          <span className={getScopeBadgeStyle(entry.scope)}>
                             {entry.scope}
                           </span>
                         </td>
-                        <td className="col-change">
-                          <div className="change-description">
+                        <td className={cn(styles.td, styles.colChange)}>
+                          <div className={styles.changeDescription}>
                             {formatAuditEntry(entry)}
                           </div>
                         </td>
@@ -281,8 +291,8 @@ const AuditLog: React.FC = () => {
 
           {/* Entry Count */}
           {entries.length > 0 && (
-            <div className="audit-log-footer">
-              <p>
+            <div className={styles.footer}>
+              <p className={styles.footerText}>
                 Showing {entries.length} {entries.length === 1 ? 'entry' : 'entries'}
                 {hasActiveFilters && ' (filtered)'}
               </p>

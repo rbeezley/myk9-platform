@@ -7,6 +7,7 @@
 
 import React from 'react';
 import { AlertTriangle, CheckCircle, Database, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { subscriptionCleanup, SubscriptionInfo } from '../../services/subscriptionCleanup';
 import {
   calculateAgeMinutes,
@@ -16,6 +17,7 @@ import {
   isHeapWarning,
   formatLicenseKey
 } from './subscriptionMonitorHelpers';
+import { styles, getSubTypeStyle } from './subscriptionMonitorStyles';
 
 // ============================================================================
 // Types
@@ -57,15 +59,15 @@ interface StatCardProps {
 }
 
 export const StatCard: React.FC<StatCardProps> = ({ label, value, sublabel, warning, icon }) => (
-  <div className="stat-card">
-    <div className="stat-label">
+  <div className={styles.statCard}>
+    <div className={styles.statLabel}>
       {icon}
       {label}
     </div>
-    <div className={`stat-value ${warning ? 'warning' : ''}`}>
+    <div className={cn(styles.statValue, warning && styles.statValueWarning)}>
       {value}
     </div>
-    {sublabel && <div className="stat-sublabel">{sublabel}</div>}
+    {sublabel && <div className={styles.statSublabel}>{sublabel}</div>}
   </div>
 );
 
@@ -79,7 +81,7 @@ interface HealthSummaryProps {
 }
 
 export const HealthSummary: React.FC<HealthSummaryProps> = ({ healthReport, memoryStats }) => (
-  <div className="health-summary">
+  <div className={styles.healthSummary}>
     <StatCard
       label="Active Subscriptions"
       value={healthReport?.activeCount || 0}
@@ -130,11 +132,11 @@ export const LeakAlert: React.FC<LeakAlertProps> = ({ leakCheck }) => {
   if (!leakCheck?.hasLeaks) return null;
 
   return (
-    <div className="leak-alert">
+    <div className={styles.leakAlert}>
       <AlertTriangle size={20} />
-      <div className="leak-details">
-        <strong>Potential Memory Leak Detected</strong>
-        <p>
+      <div className={styles.leakDetails}>
+        <strong className={styles.leakDetailsStrong}>Potential Memory Leak Detected</strong>
+        <p className={styles.leakDetailsP}>
           {leakCheck.count} active subscriptions detected.
           Oldest subscription is {leakCheck.oldestAge} minutes old.
         </p>
@@ -152,13 +154,13 @@ interface TypeBreakdownProps {
 }
 
 export const TypeBreakdown: React.FC<TypeBreakdownProps> = ({ byType }) => (
-  <div className="type-breakdown">
-    <h4>By Type</h4>
-    <div className="type-grid">
+  <div className={styles.typeBreakdown}>
+    <h4 className={styles.typeBreakdownTitle}>By Type</h4>
+    <div className={styles.typeGrid}>
       {Object.entries(byType || {}).map(([type, count]) => (
-        <div key={type} className="type-item">
-          <span className="type-name">{type}</span>
-          <span className="type-count">{count as number}</span>
+        <div key={type} className={styles.typeItem}>
+          <span className={styles.typeName}>{type}</span>
+          <span className={styles.typeCount}>{count as number}</span>
         </div>
       ))}
     </div>
@@ -181,21 +183,21 @@ export const SubscriptionItem: React.FC<SubscriptionItemProps> = ({ sub, now, on
   const displayLicenseKey = formatLicenseKey(sub.licenseKey);
 
   return (
-    <div className={`subscription-item ${isOld ? 'old' : ''}`}>
-      <div className="sub-info">
-        <div className="sub-key">{sub.key}</div>
-        <div className="sub-meta">
-          <span className={`sub-type type-${sub.type}`}>{sub.type}</span>
+    <div className={cn(styles.subscriptionItem, isOld && styles.subscriptionItemOld)}>
+      <div className={styles.subInfo}>
+        <div className={styles.subKey}>{sub.key}</div>
+        <div className={styles.subMeta}>
+          <span className={getSubTypeStyle(sub.type)}>{sub.type}</span>
           {displayLicenseKey && (
-            <span className="sub-license">{displayLicenseKey}</span>
+            <span className={styles.subLicense}>{displayLicenseKey}</span>
           )}
-          <span className={`sub-age ${isOld ? 'warning' : ''}`}>
+          <span className={cn(styles.subAge, isOld && styles.subAgeWarning)}>
             {ageMinutes}m old
           </span>
         </div>
       </div>
       <button
-        className="sub-remove"
+        className={styles.subRemove}
         onClick={onRemove}
         title="Remove subscription"
       >
@@ -220,15 +222,15 @@ export const SubscriptionsList: React.FC<SubscriptionsListProps> = ({
   now,
   onRefresh
 }) => (
-  <div className="subscriptions-list">
-    <h4>Active Subscriptions ({subscriptions.length})</h4>
+  <div className={styles.subscriptionsList}>
+    <h4 className={styles.subscriptionsListTitle}>Active Subscriptions ({subscriptions.length})</h4>
     {subscriptions.length === 0 ? (
-      <div className="empty-state">
-        <CheckCircle size={32} />
-        <p>No active subscriptions</p>
+      <div className={styles.emptyState}>
+        <CheckCircle size={32} className={styles.emptyStateIcon} />
+        <p className={styles.emptyStateText}>No active subscriptions</p>
       </div>
     ) : (
-      <div className="subscription-items">
+      <div className={styles.subscriptionItems}>
         {subscriptions.map(sub => (
           <SubscriptionItem
             key={sub.key}
@@ -259,16 +261,16 @@ export const CleanupHistory: React.FC = () => {
   const history = subscriptionCleanup.getHistory() as CleanupHistoryItem[];
 
   return (
-    <div className="cleanup-history">
-      <h4>Recent Cleanups</h4>
-      <div className="history-items">
+    <div className={styles.cleanupHistory}>
+      <h4 className={styles.cleanupHistoryTitle}>Recent Cleanups</h4>
+      <div className={styles.historyItems}>
         {history.slice(-10).reverse().map((h, i) => (
-          <div key={i} className="history-item">
-            <span className="history-time">
+          <div key={i} className={styles.historyItem}>
+            <span className={styles.historyTime}>
               {h.timestamp.toLocaleTimeString()}
             </span>
-            <span className="history-count">{h.count} subscriptions</span>
-            {h.route && <span className="history-route">{h.route}</span>}
+            <span className={styles.historyCount}>{h.count} subscriptions</span>
+            {h.route && <span className={styles.historyRoute}>{h.route}</span>}
           </div>
         ))}
       </div>

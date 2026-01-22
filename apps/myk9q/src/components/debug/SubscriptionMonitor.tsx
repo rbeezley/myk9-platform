@@ -10,6 +10,7 @@ import { subscriptionCleanup, SubscriptionInfo } from '../../services/subscripti
 import { memoryLeakDetector } from '../../utils/memoryLeakDetector';
 import { Activity, AlertTriangle, RefreshCw, Trash2, X } from 'lucide-react';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { cn } from '@/lib/utils';
 import {
   cleanupAllSubscriptions,
   cleanupStaleSubscriptions,
@@ -21,7 +22,7 @@ import {
   SubscriptionsList,
   CleanupHistory
 } from './subscriptionMonitorComponents';
-import './SubscriptionMonitor.css';
+import { styles } from './subscriptionMonitorStyles';
 
 /** Health report returned by subscriptionCleanup.generateHealthReport() */
 interface HealthReport {
@@ -106,42 +107,42 @@ export const SubscriptionMonitor: React.FC = () => {
   if (!isOpen) {
     return (
       <button
-        className="subscription-monitor-toggle"
+        className={styles.toggle}
         onClick={() => setIsOpen(true)}
         title="Subscription Monitor"
       >
         <Activity size={20} />
         {leakCheck?.hasLeaks && (
-          <span className="leak-indicator">!</span>
+          <span className={styles.leakIndicator}>!</span>
         )}
-        <span className="count-badge">{healthReport?.activeCount || 0}</span>
+        <span className={styles.countBadge}>{healthReport?.activeCount || 0}</span>
       </button>
     );
   }
 
   return (
-    <div className="subscription-monitor-panel">
-      <div className="monitor-header">
-        <div className="header-left">
+    <div className={styles.panel}>
+      <div className={styles.header}>
+        <div className={styles.headerLeft}>
           <Activity size={20} />
-          <h3>Subscription Monitor</h3>
+          <h3 className={styles.headerTitle}>Subscription Monitor</h3>
           {leakCheck?.hasLeaks && (
-            <span className="leak-warning">
+            <span className={styles.leakWarning}>
               <AlertTriangle size={16} />
               LEAK DETECTED
             </span>
           )}
         </div>
-        <div className="header-actions">
+        <div className={styles.headerActions}>
           <button
-            className={`refresh-btn ${autoRefresh ? 'active' : ''}`}
+            className={cn(styles.refreshBtn, autoRefresh && styles.refreshBtnActive)}
             onClick={() => setAutoRefresh(!autoRefresh)}
             title={autoRefresh ? 'Disable auto-refresh' : 'Enable auto-refresh'}
           >
-            <RefreshCw size={16} className={autoRefresh ? 'spinning' : ''} />
+            <RefreshCw size={16} className={autoRefresh ? styles.spinning : ''} />
           </button>
           <button
-            className="action-btn"
+            className={styles.actionBtn}
             onClick={handleCleanupStale}
             title="Cleanup stale subscriptions"
           >
@@ -149,7 +150,7 @@ export const SubscriptionMonitor: React.FC = () => {
             Cleanup Stale
           </button>
           <button
-            className="action-btn danger"
+            className={cn(styles.actionBtn, styles.actionBtnDanger)}
             onClick={handleCleanupAll}
             title="Cleanup all subscriptions"
           >
@@ -157,7 +158,7 @@ export const SubscriptionMonitor: React.FC = () => {
             Cleanup All
           </button>
           <button
-            className="close-btn"
+            className={styles.closeBtn}
             onClick={() => setIsOpen(false)}
           >
             <X size={20} />
@@ -165,7 +166,7 @@ export const SubscriptionMonitor: React.FC = () => {
         </div>
       </div>
 
-      <div className="monitor-content">
+      <div className={styles.content}>
         {/* Health Summary - Extracted Component */}
         <HealthSummary healthReport={healthReport} memoryStats={memoryStats} />
 

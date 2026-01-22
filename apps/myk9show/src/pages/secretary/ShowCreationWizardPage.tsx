@@ -68,10 +68,16 @@ const ShowCreationWizardPage: React.FC = () => {
   } = useWizardStore();
   
   const { addShow, updateShow, shows } = useShowStore();
-  const { clubs } = useClubStore();
+  const { clubs, loadClubs } = useClubStore();
   const { addTrial: addTrialToStore, trials: existingTrials } = useTrialStore();
   const { addClass, classes: existingClasses } = useClassStoreCompat();
-  const { people } = useUserStore();
+  const { people, loadPeople } = useUserStore();
+
+  // Load required data when page mounts
+  useEffect(() => {
+    loadClubs();
+    loadPeople();
+  }, [loadClubs, loadPeople]);
 
   // Keyboard navigation handler - Escape to prompt save draft
   useEffect(() => {

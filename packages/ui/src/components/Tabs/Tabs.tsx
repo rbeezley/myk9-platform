@@ -3,7 +3,7 @@
 import * as React from "react"
 import { Tabs as TabsPrimitive } from "@base-ui/react/tabs"
 
-import { cn } from "@/lib/utils"
+import { cn } from "../../utils/cn"
 
 // Wrapper to maintain Radix API compatibility
 // Base UI: onValueChange(value, eventDetails) -> Radix: onValueChange(value)
@@ -48,7 +48,8 @@ const TabsList = React.forwardRef<
     <TabsPrimitive.List
       ref={ref}
       className={cn(
-        "inline-flex h-10 items-center justify-center rounded-xl bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 p-1 text-muted-foreground shadow-sm",
+        // myK9Q-style tab bar: bottom border indicator design
+        "flex w-full bg-[var(--muted)] border-b border-[var(--border)] rounded-t-xl overflow-hidden",
         className
       )}
       {...styleProps}
@@ -74,7 +75,17 @@ const TabsTrigger = React.forwardRef<
     <TabsPrimitive.Tab
       ref={ref}
       className={cn(
-        "inline-flex items-center justify-center whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium ring-offset-background transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[selected]:bg-gradient-to-r data-[selected]:from-primary/10 data-[selected]:to-primary/5 data-[selected]:text-primary data-[selected]:shadow-sm data-[selected]:border data-[selected]:border-primary/20",
+        // myK9Q-style tab trigger: bottom border indicator, primary color when active
+        "flex-1 flex items-center justify-center gap-1.5",
+        "min-h-[44px] px-4 py-3",
+        "text-sm font-medium text-[var(--muted-foreground)]",
+        "border-b-2 border-transparent",
+        "transition-all duration-200",
+        "hover:text-[var(--foreground)] hover:bg-[var(--muted)]",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2",
+        "disabled:pointer-events-none disabled:opacity-50",
+        // Active state: primary text and bottom border (Base UI uses aria-selected, not data-selected)
+        "aria-selected:bg-[var(--card)] aria-selected:text-[var(--primary)] aria-selected:border-b-[var(--primary)]",
         className
       )}
       {...disabledProps}

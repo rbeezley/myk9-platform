@@ -65,7 +65,7 @@ export default function Hero() {
                 </picture>
                 
                 {/* Glowing effect on hover */}
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-400/10 to-purple-400/10 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <div className="absolute inset-0 bg-primary/10 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
               </div>
             </div>
           </div>
@@ -74,7 +74,7 @@ export default function Hero() {
           <div className="lg:w-1/2 text-center lg:text-left">
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-foreground leading-tight">
               Welcome to
-              <span className="block bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent leading-normal pb-1">
+              <span className="block text-primary leading-normal pb-1">
                 myK9Show
               </span>
             </h1>

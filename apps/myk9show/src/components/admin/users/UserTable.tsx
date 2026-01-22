@@ -350,7 +350,7 @@ export const UserTable: React.FC<UserTableProps> = ({
   // Generate gradient background for avatars
   const getAvatarGradient = (initials: string) => {
     const colors = [
-      'from-blue-500 to-purple-600',
+      'from-primary to-teal-600',
       'from-green-500 to-teal-600',
       'from-orange-500 to-red-600',
       'from-purple-500 to-pink-600',

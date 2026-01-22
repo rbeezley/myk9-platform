@@ -204,8 +204,6 @@ export const EntryCountReconciliation: React.FC<EntryCountReconciliationProps> =
         <Button
           onClick={handleReconcile}
           disabled={isReconciling}
-          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:shadow-lg 
-                     hover:-translate-y-0.5 transition-all duration-200"
         >
           <RefreshCw className={`h-4 w-4 mr-2 ${isReconciling ? 'animate-spin' : ''}`} />
           {isReconciling ? 'Reconciling...' : 'Reconcile Now'}

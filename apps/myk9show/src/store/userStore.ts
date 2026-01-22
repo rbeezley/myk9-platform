@@ -23,6 +23,7 @@ export interface UserInput {
     country?: string;
   };
   dogs?: string[];  // Changed to match User type - dog IDs only
+  roles?: string[]; // User roles (chairman, secretary, admin, etc.)
   emergencyContact?: {
     name: string;
     phone: string;
@@ -123,7 +124,7 @@ export const useUserStore = create<UserStore>()(
             zip_code: userData.address?.zipCode || null,
             // No user_id since this is a directory-only user (not authenticated)
             user_id: null,
-            roles: [], // Empty roles array
+            roles: userData.roles || [],
             // Set audit fields to null for directory-only users (mail-in entries)
             created_by: null,
             updated_by: null
@@ -309,16 +310,8 @@ export const useUserStore = create<UserStore>()(
       },
       setPeople: (people) => set({ users: people, people: people }),
       loadPeople: async (): Promise<void> => {
-        try {
-          set({ isLoading: true, error: null });
-          // TODO: Implement actual data loading from IndexedDB/API
-          // For now, just clear loading state
-          set({ isLoading: false });
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Failed to load users';
-          reportStoreError('loadUsers', 'userStore', error);
-          set({ error: errorMessage, isLoading: false });
-        }
+        // Delegate to loadUsers for backward compatibility
+        return get().loadUsers();
       },
 
       // Dialog and selection state using new terminology

@@ -71,14 +71,14 @@ const ExhibitorDashboard: React.FC<ExhibitorDashboardProps> = ({ show, onRegiste
   return (
     <div className="space-y-6">
       {/* Registration Status Card */}
-      <Card className="group relative overflow-hidden border-0 bg-gradient-to-br from-blue-50/50 via-white to-purple-50/30 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-        <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-blue-500 to-purple-600" />
+      <Card className="group relative overflow-hidden border-0 bg-gradient-to-br from-primary/5 via-white to-primary/10 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+        <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        <div className="absolute left-0 top-0 h-full w-1 bg-primary" />
         <CardHeader className="relative">
           <div className="flex items-center justify-between">
             <div className="space-y-3">
               <CardTitle className="flex items-center gap-3 text-xl font-semibold text-gray-900">
-                <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg text-white shadow-lg">
+                <div className="p-2 bg-primary rounded-lg text-white shadow-lg">
                   <UserPlus className="w-5 h-5" />
                 </div>
                 Registration Status
@@ -91,10 +91,9 @@ const ExhibitorDashboard: React.FC<ExhibitorDashboardProps> = ({ show, onRegiste
               </CardDescription>
             </div>
             {canRegister ? (
-              <Button 
-                onClick={onRegister} 
+              <Button
+                onClick={onRegister}
                 size="lg"
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5 hover:scale-105 font-medium px-6"
               >
                 <UserPlus className="w-4 h-4 mr-2" />
                 Register Now
@@ -318,7 +317,7 @@ const SecretaryDashboard: React.FC<SecretaryDashboardProps> = ({ show: _show, tr
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <div className="text-3xl font-bold text-blue-900">{upcomingTrials}</div>
-                <div className="text-sm font-medium text-blue-600 uppercase tracking-wide">Upcoming</div>
+                <div className="text-sm font-medium text-primary uppercase tracking-wide">Upcoming</div>
               </div>
               <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl text-white shadow-lg group-hover:scale-110 transition-transform duration-300">
                 <Clock className="w-8 h-8" />
@@ -584,8 +583,8 @@ const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
         <Breadcrumb items={breadcrumbItems} showHomeIcon={true} />
         
         {/* Enhanced Header */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-50/50 via-white to-purple-50/30 backdrop-blur-xl border border-gray-200/50 shadow-xl mt-8">
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5" />
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/5 via-white to-primary/10 backdrop-blur-xl border border-gray-200/50 shadow-xl mt-8">
+          <div className="absolute inset-0 bg-primary/5" />
           <div className="relative p-8">
             <div className="flex items-start justify-between">
               <div className="flex-1 space-y-6">
@@ -606,7 +605,7 @@ const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
                 
                 <div className="flex items-center gap-8 text-gray-600">
                   <div className="flex items-center gap-3 bg-white/60 backdrop-blur-sm rounded-lg px-4 py-2 shadow-sm">
-                    <Calendar className="w-5 h-5 text-blue-600" />
+                    <Calendar className="w-5 h-5 text-primary" />
                     <span className="font-medium">
                       {new Date(showData.startDate).toLocaleDateString('en-US', { 
                         weekday: 'short', 
@@ -620,7 +619,7 @@ const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
                     </span>
                   </div>
                   <div className="flex items-center gap-3 bg-white/60 backdrop-blur-sm rounded-lg px-4 py-2 shadow-sm">
-                    <Users className="w-5 h-5 text-purple-600" />
+                    <Users className="w-5 h-5 text-primary" />
                     <span className="font-medium">{showData.clubName}</span>
                   </div>
                   {showData.location && (
@@ -636,10 +635,9 @@ const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
               <div className="flex items-center gap-4 mt-6">
                 {primaryRole === UserRole.EXHIBITOR && onRegisterForShow && (
                   registrationState.canRegister ? (
-                    <Button 
-                      onClick={onRegisterForShow} 
-                      size="lg" 
-                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5 hover:scale-105 px-8 py-3 text-base font-semibold"
+                    <Button
+                      onClick={onRegisterForShow}
+                      size="lg"
                     >
                       <UserPlus className="w-5 h-5 mr-3" />
                       Register for Show
@@ -681,9 +679,9 @@ const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
           (primaryRole === UserRole.SECRETARY || primaryRole === UserRole.CLUB_ADMIN || primaryRole === UserRole.SITE_ADMIN) ? 'grid-cols-3' :
           'grid-cols-2'
         }`}>
-          <TabsTrigger 
-            value="overview" 
-            className="rounded-lg text-base font-semibold py-3 px-6 transition-all duration-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-white/60"
+          <TabsTrigger
+            value="overview"
+            className="rounded-lg text-base font-semibold py-3 px-6 transition-all duration-300 data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg hover:bg-white/60"
           >
             Overview
           </TabsTrigger>
@@ -756,7 +754,7 @@ const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
                   <div className="flex items-center justify-between">
                     <div className="space-y-1">
                       <div className="text-3xl font-bold text-purple-900">{associatedTrials.length * 32}</div>
-                      <div className="text-sm font-medium text-purple-600 uppercase tracking-wide">Est. Entries</div>
+                      <div className="text-sm font-medium text-primary uppercase tracking-wide">Est. Entries</div>
                     </div>
                     <div className="p-3 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl text-white shadow-lg group-hover:scale-110 transition-transform duration-300">
                       <Users className="w-8 h-8" />
@@ -889,7 +887,7 @@ const ShowDetailsEnhanced: React.FC<ShowDetailsEnhancedProps> = ({
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-2 text-gray-700">
-                                  <Clock className="w-4 h-4 text-blue-600" />
+                                  <Clock className="w-4 h-4 text-primary" />
                                   <span className="font-medium">{trial.plannedStartTime}</span>
                                 </div>
                                 <div className="flex items-center gap-2 text-gray-600">

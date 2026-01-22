@@ -8,69 +8,66 @@ export const buttonVariants = cva(
   // Base button styling
   [
     // Layout and spacing
-    'inline-flex items-center justify-center gap-2.5',
+    'inline-flex items-center justify-center gap-2',
     'whitespace-nowrap',
-    'font-semibold',
-    'text-sm leading-tight',
-    'tracking-tight',
+    'font-medium', // 500 weight - matches myK9Q
+    'text-sm',
 
-    // Border radius and shadows
-    'rounded-xl',
-    'shadow-sm',
+    // Border radius - matches myK9Q (0.5rem = 8px)
+    'rounded-lg',
 
-    // Focus states - enhanced for accessibility
+    // Focus states
     'focus-visible:outline-none',
-    'focus-visible:ring-[3px]',
-    'focus-visible:ring-primary/40',
-    'focus-visible:ring-offset-2',
-    'focus-visible:shadow-md',
+    'focus-visible:ring-2',
+    'focus-visible:ring-primary/30',
+    'focus-visible:ring-offset-1',
 
-    // Transitions
-    'transition-all duration-200 ease-apple',
+    // Transitions - matches myK9Q (150ms ease-out)
+    'transition-all duration-150 ease-out',
 
-    // Hover/active micro-interactions - enhanced for visibility
-    'hover:shadow-md hover:scale-[1.03]',
-    'active:scale-[0.95] active:shadow-sm',
+    // Hover: subtle lift effect - matches myK9Q
+    'hover:-translate-y-[1px]',
+    'active:translate-y-0',
 
     // Disabled states
     'disabled:pointer-events-none',
     'disabled:opacity-50',
-    'disabled:scale-100',
-    'disabled:shadow-none',
+    'disabled:translate-y-0',
 
-    // Icon handling - slightly larger icons for better visibility
-    '[&_svg]:pointer-events-none [&_svg]:size-5 [&_svg]:shrink-0',
+    // Icon handling
+    '[&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
   ].join(' '),
   {
     variants: {
       variant: {
-        // Primary gradient button (Apple blue to purple)
+        // Primary button - uses accent color from CSS variables (teal by default)
         default:
-          'bg-gradient-to-r from-[#007AFF] to-[#5856D6] text-white shadow-md hover:from-[#007AFF]/90 hover:to-[#5856D6]/90 hover:shadow-lg',
+          'bg-primary text-primary-foreground hover:opacity-90',
         // Destructive action
         destructive:
-          'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90',
-        // Outline button
+          'bg-destructive text-destructive-foreground hover:opacity-90',
+        // Outline button - matches myK9Q dialog-button-secondary
         outline:
-          'border border-border/40 bg-background/50 backdrop-blur-sm shadow-sm hover:bg-background hover:border-border/60 hover:shadow-md',
-        // Secondary button
+          'border border-border bg-secondary text-secondary-foreground hover:bg-muted',
+        // Secondary button - muted background
         secondary:
-          'bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80',
+          'bg-muted text-muted-foreground hover:bg-muted/80',
         // Ghost button
         ghost:
-          'hover:bg-accent/50 hover:backdrop-blur-sm hover:text-accent-foreground hover:shadow-sm',
+          'hover:bg-muted hover:text-accent-foreground',
         // Link button
-        link: 'text-primary underline-offset-4 hover:underline shadow-none hover:shadow-none hover:scale-100',
+        link: 'text-primary underline-offset-4 hover:underline',
         // Premium/highlight button
         premium:
-          'bg-yellow-500 hover:bg-yellow-600 text-primary-foreground font-bold shadow-sm',
+          'bg-yellow-500 hover:bg-yellow-600 text-primary-foreground font-bold',
       },
       size: {
-        default: 'h-9 px-6 py-2.5',
-        sm: 'h-8 rounded-lg px-4 text-xs',
-        lg: 'h-11 rounded-xl px-8 text-base',
-        icon: 'h-10 w-10 rounded-xl', // Increased from h-9 w-9 for better touch targets
-        'icon-lg': 'h-11 w-11 min-w-[44px] min-h-[44px] rounded-xl', // Accessible 44px touch target
+        // Sizes matching myK9Q spacing tokens
+        default: 'h-10 px-6 py-2', // Comfortable touch target
+        sm: 'h-8 px-4 text-xs', // Compact areas
+        lg: 'h-11 px-8 text-base', // Full touch compliance (44px)
+        icon: 'h-10 w-10', // Square touch target
+        'icon-lg': 'h-11 w-11 min-w-[44px] min-h-[44px]', // Accessible 44px touch target
       },
     },
     defaultVariants: {

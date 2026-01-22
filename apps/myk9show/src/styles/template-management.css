@@ -192,7 +192,7 @@
 
 /* Stats cards enhancements */
 .template-stat-card .stat-number {
-  @apply text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent;
+  @apply text-3xl font-bold text-primary;
 }
 
 /* Responsive improvements */

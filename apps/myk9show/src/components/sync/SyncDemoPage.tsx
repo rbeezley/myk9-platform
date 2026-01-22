@@ -33,7 +33,7 @@ const SyncDemoPage: React.FC = () => {
         <div className="space-y-8 mb-12">
           <div className="text-center space-y-4">
             <div className="flex items-center justify-center gap-3 mb-4">
-              <div className="p-3 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full">
+              <div className="p-3 bg-primary rounded-full">
                 <RefreshCw className="h-8 w-8 text-white" />
               </div>
               <h1 className="text-4xl font-bold tracking-tight">

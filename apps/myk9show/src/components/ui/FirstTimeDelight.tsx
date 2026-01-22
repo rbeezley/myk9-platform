@@ -69,7 +69,7 @@ const FirstTimeDelight: React.FC<FirstTimeDelightProps> = ({
           title: `Welcome to the pack, ${userName || 'new friend'}!`,
           message: "You've just joined a community of amazing dog lovers. Let's get started on your show journey!",
           icon: <PartyPopper className="h-16 w-16 text-white" />,
-          bgGradient: 'from-blue-400 to-purple-500',
+          bgGradient: 'from-primary to-primary',
           confetti: [
             <Dog key="dog" className="h-8 w-8 text-white" />,
             <Trophy key="trophy" className="h-8 w-8 text-yellow-300" />,
@@ -125,7 +125,7 @@ const FirstTimeDelight: React.FC<FirstTimeDelightProps> = ({
           title: 'Pawsome achievement!',
           message: "You're doing great! Keep up the amazing work with your furry friends.",
           icon: <PartyPopper className="h-16 w-16 text-white" />,
-          bgGradient: 'from-blue-400 to-purple-500',
+          bgGradient: 'from-primary to-primary',
           confetti: [
             <PartyPopper key="party1" className="h-8 w-8 text-yellow-300" />,
             <PartyPopper key="party2" className="h-8 w-8 text-pink-300" />,

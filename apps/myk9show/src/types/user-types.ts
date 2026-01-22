@@ -96,4 +96,4 @@ export interface Exhibitor extends User {
   preferredClasses?: string[];
 }
 
-export type UserRole = 'exhibitor' | 'handler' | 'judge' | 'secretary' | 'steward' | 'admin';
+export type UserRole = 'exhibitor' | 'handler' | 'judge' | 'secretary' | 'steward' | 'admin' | 'chairman';

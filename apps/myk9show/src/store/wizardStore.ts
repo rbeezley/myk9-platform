@@ -11,7 +11,7 @@ interface WizardState {
   // Show data
   show: {
     name: string;
-    type: 'AKC' | 'UKC' | 'Other';
+    type: 'AKC' | 'UKC' | 'NASDA' | 'Other';
     startDate: string; // ISO datetime string
     endDate: string; // ISO datetime string
     location: string;

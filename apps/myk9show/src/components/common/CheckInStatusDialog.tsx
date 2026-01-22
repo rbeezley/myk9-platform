@@ -224,7 +224,7 @@ export const CheckInStatusDialog: React.FC<CheckInStatusDialogProps> = ({
             <Button
               onClick={handleUpdateStatus}
               disabled={isUpdating || (selectedStatus === currentStatus && !notes)}
-              className="bg-gradient-to-r from-primary to-[#5856D6] text-primary-foreground"
+              className="bg-primary text-primary-foreground"
             >
               {isUpdating ? (
                 <>
@@ -266,7 +266,7 @@ export const CheckInQuickActions: React.FC<{
       size="sm"
       onClick={() => onUpdateStatus(availableAction.to)}
       className={cn(
-        "bg-gradient-to-r from-primary to-[#5856D6] text-primary-foreground",
+        "bg-primary text-primary-foreground",
         className
       )}
     >

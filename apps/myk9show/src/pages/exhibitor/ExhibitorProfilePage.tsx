@@ -5,12 +5,14 @@
 
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { User, Mail, Phone, MapPin, Dog, Plus, Edit2, Trash2, Crown, Save } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Dog, Plus, Pencil, Trash2, Crown, Save, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Dialog,
   DialogContent,
@@ -21,6 +23,25 @@ import {
 } from '@/components/ui/dialog';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { exhibitorService, UpdatePersonData, CreateDogData, ExhibitorDog } from '@/services/exhibitorService';
+import { getInitials } from '@/lib/utils';
+import { ImageUpload } from '@/components/ui/image-upload';
+import { uploadProfilePhoto, uploadDogPhoto } from '@/services/imageUploadService';
+
+/**
+ * Format phone number for display
+ * Converts 9187067590 to (918) 706-7590
+ */
+function formatPhoneNumber(phone: string | null | undefined): string {
+  if (!phone) return '';
+  const cleaned = phone.replace(/\D/g, '');
+  if (cleaned.length === 10) {
+    return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
+  }
+  if (cleaned.length === 11 && cleaned[0] === '1') {
+    return `+1 (${cleaned.slice(1, 4)}) ${cleaned.slice(4, 7)}-${cleaned.slice(7)}`;
+  }
+  return phone;
+}
 
 export default function ExhibitorProfilePage() {
   const { user } = useAuthContext();
@@ -111,39 +132,61 @@ export default function ExhibitorProfilePage() {
   const person = profile.person;
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <h1 className="text-3xl font-bold mb-6">My Profile</h1>
-
-      {/* Subscription Status */}
-      <Card className="mb-6">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Crown className="h-5 w-5" />
-              Subscription
-            </CardTitle>
-            <Badge variant={profile.subscription_tier === 'free' ? 'secondary' : 'default'}>
-              {profile.subscription_tier.charAt(0).toUpperCase() + profile.subscription_tier.slice(1)}
-            </Badge>
+    <div className="container mx-auto px-4 pt-20 pb-8 max-w-4xl">
+      {/* Profile Header with Avatar */}
+      <Card className="border border-border rounded-2xl shadow-sm mb-6">
+        <CardContent className="pt-6 pb-6">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
+            <ImageUpload
+              currentImage={person?.profile_image}
+              fallback={
+                <span className="text-3xl font-semibold text-muted-foreground">
+                  {getInitials(person?.first_name, person?.last_name)}
+                </span>
+              }
+              size="lg"
+              onUpload={async (file) => {
+                const result = await uploadProfilePhoto(user!.id, file);
+                if (result.success && result.url) {
+                  await updatePersonMutation.mutateAsync({ profile_image: result.url });
+                }
+                return result;
+              }}
+              onRemove={async () => {
+                await updatePersonMutation.mutateAsync({ profile_image: null });
+              }}
+            />
+            <div className="flex-1 text-center sm:text-left">
+              <h1 className="text-2xl sm:text-3xl font-bold mb-1">
+                {person?.first_name} {person?.last_name}
+              </h1>
+              <p className="text-muted-foreground flex items-center justify-center sm:justify-start gap-2 mb-3">
+                <Mail className="h-4 w-4" />
+                {person?.email}
+              </p>
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                {profile.subscription_tier === 'free' ? (
+                  <>
+                    <Badge variant="secondary">Free Member</Badge>
+                    <Button size="sm" className="gap-1.5 h-7">
+                      <Sparkles className="h-3.5 w-3.5" />
+                      Upgrade to Premium
+                    </Button>
+                  </>
+                ) : (
+                  <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0">
+                    <Crown className="h-3 w-3 mr-1" />
+                    Premium Member
+                  </Badge>
+                )}
+              </div>
+            </div>
           </div>
-        </CardHeader>
-        <CardContent>
-          {profile.subscription_tier === 'free' ? (
-            <p className="text-sm text-muted-foreground">
-              Upgrade to Premium for unlimited entries and priority support.
-            </p>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              {profile.subscription_expires_at
-                ? `Renews on ${new Date(profile.subscription_expires_at).toLocaleDateString()}`
-                : 'Active subscription'}
-            </p>
-          )}
         </CardContent>
       </Card>
 
       {/* Personal Information */}
-      <Card className="mb-6">
+      <Card className="mb-6 border border-border rounded-2xl shadow-sm">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
@@ -155,7 +198,7 @@ export default function ExhibitorProfilePage() {
             </div>
             {!isEditingProfile && (
               <Button variant="outline" size="sm" onClick={() => setIsEditingProfile(true)}>
-                <Edit2 className="h-4 w-4 mr-2" />
+                <Pencil className="h-4 w-4 mr-2" />
                 Edit
               </Button>
             )}
@@ -176,7 +219,7 @@ export default function ExhibitorProfilePage() {
       </Card>
 
       {/* Dogs */}
-      <Card>
+      <Card className="border border-border rounded-2xl shadow-sm">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
@@ -231,6 +274,7 @@ export default function ExhibitorProfilePage() {
         open={isDogDialogOpen}
         onOpenChange={setIsDogDialogOpen}
         dog={editingDog}
+        personId={profile.person_id}
         onSave={(data) => {
           if (editingDog) {
             updateDogMutation.mutate({ dogId: editingDog.id, data });
@@ -289,7 +333,7 @@ function ProfileDisplay({ person }: { person?: ExhibitorProfilePage['person'] })
         <Label className="text-muted-foreground text-xs flex items-center gap-1">
           <Phone className="h-3 w-3" /> Phone
         </Label>
-        <p>{person.phone || 'Not provided'}</p>
+        <p>{person.phone ? formatPhoneNumber(person.phone) : <span className="text-muted-foreground italic">Not provided</span>}</p>
       </div>
       <div className="space-y-1">
         <Label className="text-muted-foreground text-xs flex items-center gap-1">
@@ -304,7 +348,7 @@ function ProfileDisplay({ person }: { person?: ExhibitorProfilePage['person'] })
               {person.zip_code && ` ${person.zip_code}`}
             </>
           ) : (
-            'Not provided'
+            <span className="text-muted-foreground italic">Not provided</span>
           )}
         </p>
       </div>
@@ -427,36 +471,43 @@ function DogCard({
   onDelete: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between p-4 border rounded-lg">
+    <div className="flex items-center justify-between p-4 bg-card border border-border rounded-xl shadow-sm hover:shadow-md transition-all">
       <div className="flex items-center gap-4">
-        {dog.image_url ? (
-          <img
-            src={dog.image_url}
-            alt={dog.call_name || dog.name}
-            className="w-12 h-12 rounded-full object-cover"
-          />
-        ) : (
-          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-            <Dog className="h-6 w-6 text-muted-foreground" />
-          </div>
-        )}
+        <Avatar className="w-14 h-14 border border-border">
+          {dog.image_url ? (
+            <AvatarImage src={dog.image_url} alt={dog.call_name || dog.name} />
+          ) : null}
+          <AvatarFallback className="bg-muted">
+            <Dog className="h-7 w-7 text-muted-foreground" />
+          </AvatarFallback>
+        </Avatar>
         <div>
-          <p className="font-medium">{dog.call_name || dog.name}</p>
+          <p className="font-semibold">{dog.call_name || dog.name}</p>
           <p className="text-sm text-muted-foreground">
-            {dog.breed} {dog.sex && `• ${dog.sex}`}
+            {dog.breed} {dog.sex && `• ${dog.sex.charAt(0).toUpperCase() + dog.sex.slice(1)}`}
           </p>
           {dog.akc_number && (
-            <p className="text-xs text-muted-foreground">AKC: {dog.akc_number}</p>
+            <p className="text-xs text-muted-foreground font-mono">AKC: {dog.akc_number}</p>
           )}
         </div>
       </div>
-      <div className="flex gap-2">
-        <Button variant="ghost" size="icon" onClick={onEdit}>
-          <Edit2 className="h-4 w-4" />
-        </Button>
-        <Button variant="ghost" size="icon" onClick={onDelete}>
-          <Trash2 className="h-4 w-4 text-destructive" />
-        </Button>
+      <div className="flex gap-1">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" onClick={onEdit}>
+              <Pencil className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Edit dog</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" onClick={onDelete}>
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Remove dog</TooltipContent>
+        </Tooltip>
       </div>
     </div>
   );
@@ -469,12 +520,14 @@ function DogFormDialog({
   dog,
   onSave,
   isLoading,
+  personId,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   dog: ExhibitorDog | null;
   onSave: (data: CreateDogData) => void;
   isLoading: boolean;
+  personId: string;
 }) {
   const [formData, setFormData] = useState<CreateDogData>({
     name: '',
@@ -485,8 +538,10 @@ function DogFormDialog({
     height: '',
     akc_number: '',
     microchip_number: '',
+    image_url: '',
     spayed_neutered: false,
   });
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   // Reset form when dialog opens/closes or dog changes
   React.useEffect(() => {
@@ -501,6 +556,7 @@ function DogFormDialog({
         height: dog.height || '',
         akc_number: dog.akc_number || '',
         microchip_number: dog.microchip_number || '',
+        image_url: dog.image_url || '',
         spayed_neutered: dog.spayed_neutered,
       });
     } else {
@@ -513,10 +569,26 @@ function DogFormDialog({
         height: '',
         akc_number: '',
         microchip_number: '',
+        image_url: '',
         spayed_neutered: false,
       });
     }
   }, [dog, open]);
+
+  const handlePhotoUpload = async (file: File) => {
+    setIsUploadingPhoto(true);
+    try {
+      const dogId = dog?.id || `new-${Date.now()}`;
+      const result = await uploadDogPhoto(personId, dogId, file);
+      if (result.success && result.url) {
+        const url = result.url;
+        setFormData(prev => ({ ...prev, image_url: url }));
+      }
+      return result;
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -533,6 +605,18 @@ function DogFormDialog({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Dog Photo Upload */}
+          <div className="flex justify-center pb-2">
+            <ImageUpload
+              currentImage={formData.image_url || null}
+              fallback={<Dog className="h-10 w-10 text-muted-foreground" />}
+              size="lg"
+              onUpload={handlePhotoUpload}
+              onRemove={() => setFormData(prev => ({ ...prev, image_url: '' }))}
+              isUploading={isUploadingPhoto}
+            />
+          </div>
+
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="dog-name">Registered Name *</Label>

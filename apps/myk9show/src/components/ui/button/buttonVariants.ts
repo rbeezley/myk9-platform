@@ -1,39 +1,35 @@
 import { cva } from "class-variance-authority";
 
 export const buttonVariants = cva(
-  // Apple-inspired base button styling from design tokens
+  // myK9Q-consistent button styling
   [
     // Layout and spacing
-    'inline-flex items-center justify-center gap-2.5',
+    'inline-flex items-center justify-center gap-2',
     'whitespace-nowrap',
-    'font-semibold', // 590 weight from design tokens
-    'text-sm leading-tight',
-    'tracking-tight', // Apple's preferred spacing
-    
-    // Apple-style border radius and shadows
-    'rounded-xl', // 12px from design tokens
-    'shadow-sm',
-    
-    // Enhanced focus states with Apple styling
+    'font-medium', // 500 weight - matches myK9Q
+    'text-sm',
+
+    // Rounded corners - matches myK9Q (0.5rem = 8px)
+    'rounded-lg',
+
+    // Focus states
     'focus-visible:outline-none',
     'focus-visible:ring-2',
     'focus-visible:ring-primary/30',
     'focus-visible:ring-offset-1',
-    'focus-visible:shadow-md',
-    
-    // Apple's signature animations
-    'transition-all duration-200 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]',
-    
-    // Hover micro-interactions
-    'hover:shadow-md hover:scale-[1.02]',
-    'active:scale-[0.98] active:shadow-sm',
-    
+
+    // Smooth transitions - matches myK9Q
+    'transition-all duration-150 ease-out',
+
+    // Hover: subtle lift effect - matches myK9Q
+    'hover:-translate-y-[1px]',
+    'active:translate-y-0',
+
     // Disabled states
     'disabled:pointer-events-none',
     'disabled:opacity-50',
-    'disabled:scale-100',
-    'disabled:shadow-none',
-    
+    'disabled:translate-y-0',
+
     // Icon handling
     '[&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
   ].join(' '),
@@ -41,25 +37,29 @@ export const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          // Primary accent color button - follows user's selected accent color
-          "bg-primary text-primary-foreground shadow-md hover:bg-primary/90 hover:shadow-lg dark:text-primary-foreground dark:shadow-xl",
+          // Primary button - teal with white text, matches myK9Q
+          "bg-primary text-primary-foreground hover:opacity-90",
         destructive:
-          "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
+          "bg-destructive text-destructive-foreground hover:opacity-90",
         outline:
-          // Apple-style outline button with subtle styling
-          "border border-border/40 bg-background/50 backdrop-blur-sm shadow-sm hover:bg-background hover:border-border/60 hover:shadow-md",
+          // Secondary outline button - matches myK9Q dialog-button-secondary
+          "border border-border bg-secondary text-secondary-foreground hover:bg-muted",
         secondary:
-          "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
-        ghost: "hover:bg-accent/50 hover:backdrop-blur-sm hover:text-accent-foreground hover:shadow-sm",
-        link: "text-primary underline-offset-4 hover:underline",
-        premium: "bg-yellow-500 hover:bg-yellow-600 text-primary-foreground font-bold shadow-sm",
+          // Muted background button - matches myK9Q cancel button style
+          "bg-muted-foreground text-white hover:opacity-90",
+        ghost:
+          "hover:bg-muted hover:text-accent-foreground",
+        link:
+          "text-primary underline-offset-4 hover:underline",
+        premium:
+          "bg-yellow-500 hover:bg-yellow-600 text-primary-foreground font-bold",
       },
       size: {
-        // Touch-friendly sizing (44px minimum recommended)
-        default: "h-10 px-6 py-2.5", // 40px - balanced touch target
-        sm: "h-9 rounded-lg px-4 text-xs", // 36px for compact areas
-        lg: "h-11 rounded-xl px-8 text-base", // 44px - full touch compliance
-        icon: "h-10 w-10 rounded-xl", // 40px square touch target
+        // Sizes matching myK9Q spacing tokens
+        default: "h-10 px-6 py-2", // Comfortable touch target
+        sm: "h-8 px-4 text-xs", // Compact areas
+        lg: "h-11 px-8 text-base", // Full touch compliance (44px)
+        icon: "h-10 w-10", // Square touch target
       },
     },
     defaultVariants: {

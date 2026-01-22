@@ -589,7 +589,7 @@ const MyEntriesPage: React.FC = () => {
             <div className="flex gap-2 flex-shrink-0">
               <Button
                 asChild
-                className="bg-gradient-to-r from-primary to-[#5856D6] text-primary-foreground hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
+                className="bg-primary text-primary-foreground hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
               >
                 <Link to="/shows/browse">
                   <Plus className="h-4 w-4 mr-2" />
@@ -777,7 +777,7 @@ const MyEntriesPage: React.FC = () => {
                   </p>
                   <Button 
                     asChild
-                    className="bg-gradient-to-r from-primary to-[#5856D6] text-primary-foreground hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
+                    className="bg-primary text-primary-foreground hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
                   >
                     <Link to="/shows/browse">Browse All Shows</Link>
                   </Button>

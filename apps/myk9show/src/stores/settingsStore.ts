@@ -185,6 +185,7 @@ export const useSettingsStore = create<SettingsState>()(
 
 /**
  * Apply theme to document
+ * Applies both theme-light/theme-dark classes AND Tailwind's .dark class
  */
 function applyTheme(theme: 'light' | 'dark' | 'auto') {
   const root = document.documentElement;
@@ -192,11 +193,13 @@ function applyTheme(theme: 'light' | 'dark' | 'auto') {
   if (theme === 'auto') {
     // Detect system preference and apply appropriate class
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    root.classList.remove('theme-light', 'theme-dark');
+    root.classList.remove('theme-light', 'theme-dark', 'dark');
     root.classList.add(prefersDark ? 'theme-dark' : 'theme-light');
+    if (prefersDark) root.classList.add('dark'); // Tailwind dark mode
   } else {
-    root.classList.remove('theme-light', 'theme-dark');
+    root.classList.remove('theme-light', 'theme-dark', 'dark');
     root.classList.add(`theme-${theme}`);
+    if (theme === 'dark') root.classList.add('dark'); // Tailwind dark mode
   }
 }
 
@@ -218,8 +221,9 @@ function setupSystemThemeListener() {
     const { settings } = useSettingsStore.getState();
     if (settings.theme === 'auto') {
       const root = document.documentElement;
-      root.classList.remove('theme-light', 'theme-dark');
+      root.classList.remove('theme-light', 'theme-dark', 'dark');
       root.classList.add(e.matches ? 'theme-dark' : 'theme-light');
+      if (e.matches) root.classList.add('dark'); // Tailwind dark mode
     }
   };
 

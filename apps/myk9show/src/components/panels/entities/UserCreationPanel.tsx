@@ -26,6 +26,7 @@ const PERSON_ROLES: { value: UserRole; label: string }[] = [
   { value: 'exhibitor', label: 'Exhibitor' },
   { value: 'handler', label: 'Handler' },
   { value: 'judge', label: 'Judge' },
+  { value: 'chairman', label: 'Chairman' },
   { value: 'secretary', label: 'Secretary' },
   { value: 'steward', label: 'Steward' },
   { value: 'admin', label: 'Administrator' },
@@ -45,14 +46,14 @@ interface PersonCreationPanelProps extends BasePanelProps {
   showActions?: boolean; // Controls whether to show action buttons
 }
 
-export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({ 
-  context, 
+export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
+  context,
   onResult,
   onStateChange,
   showActions = true // Default to showing actions for standalone use
 }) => {
-  const { addUser, people } = useUserStore();
-  
+  const { addUser, updateUser, people } = useUserStore();
+
   const [formData, setFormData] = useState<PersonFormData>({
     firstName: '',
     lastName: '',
@@ -68,6 +69,7 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
+  const [existingPerson, setExistingPerson] = useState<typeof people[0] | null>(null);
   
   // Track previous state to prevent unnecessary updates
   const previousStateRef = useRef<{
@@ -197,39 +199,99 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
   const checkForDuplicates = useCallback(() => {
     const fullName = `${formData.firstName.trim()} ${formData.lastName.trim()}`.toLowerCase();
     const emailLower = formData.email.trim().toLowerCase();
-    
-    const existingPerson = people.find(person => {
+
+    const foundPerson = people.find(person => {
       const existingName = `${person.firstName} ${person.lastName}`.toLowerCase();
       const existingEmail = person.email?.toLowerCase();
-      
+
       return existingName === fullName || existingEmail === emailLower;
     });
 
-    if (existingPerson) {
-      const matchType = `${existingPerson.firstName} ${existingPerson.lastName}`.toLowerCase() === fullName 
+    if (foundPerson) {
+      const matchType = `${foundPerson.firstName} ${foundPerson.lastName}`.toLowerCase() === fullName
         ? 'name' : 'email';
       setDuplicateWarning(
-        `A person with this ${matchType} already exists: ${existingPerson.firstName} ${existingPerson.lastName}`
+        `A person with this ${matchType} already exists: ${foundPerson.firstName} ${foundPerson.lastName}`
       );
+      setExistingPerson(foundPerson);
       return true;
     }
 
     setDuplicateWarning(null);
+    setExistingPerson(null);
     return false;
   }, [formData.firstName, formData.lastName, formData.email, people]);
+
+  // Real-time duplicate check as user types name or email
+  useEffect(() => {
+    // Only check if we have at least first name + last name OR email with 3+ chars
+    const hasName = formData.firstName.trim().length >= 2 && formData.lastName.trim().length >= 2;
+    const hasEmail = formData.email.trim().length >= 5 && formData.email.includes('@');
+
+    if (hasName || hasEmail) {
+      checkForDuplicates();
+    } else {
+      // Clear warning if not enough info
+      setDuplicateWarning(null);
+      setExistingPerson(null);
+    }
+  }, [formData.firstName, formData.lastName, formData.email, checkForDuplicates]);
 
   // Form handlers
   const handleInputChange = (field: keyof PersonFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    
+
     // Clear error for this field
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
-    
-    // Clear duplicate warning when name or email changes
-    if ((field === 'firstName' || field === 'lastName' || field === 'email') && duplicateWarning) {
-      setDuplicateWarning(null);
+    // Note: Duplicate checking is now handled by the real-time useEffect
+  };
+
+  // Use existing person and add the new role
+  const handleUseExistingPerson = async () => {
+    if (!existingPerson || !formData.role) return;
+
+    setIsSubmitting(true);
+
+    try {
+      // Get existing roles and add the new one if not present
+      const currentRoles = existingPerson.roles || [];
+      const newRole = formData.role;
+
+      if (!currentRoles.includes(newRole)) {
+        // Update the person with the new role added
+        const updatedRoles = [...currentRoles, newRole];
+        await updateUser(existingPerson.id, { roles: updatedRoles });
+        logger.debug('✅ Added role to existing person:', 'panels', {
+          person: `${existingPerson.firstName} ${existingPerson.lastName}`,
+          newRole,
+          updatedRoles
+        });
+      } else {
+        logger.debug('ℹ️ Person already has role:', 'panels', {
+          person: `${existingPerson.firstName} ${existingPerson.lastName}`,
+          role: newRole
+        });
+      }
+
+      // Call the selection callback with the existing person
+      if (context.selectionCallback) {
+        context.selectionCallback((existingPerson as unknown) as Record<string, unknown>);
+      }
+
+      // Return success
+      onResult({
+        success: true,
+        action: 'save_and_close',
+        entity: (existingPerson as unknown) as Record<string, unknown>,
+      });
+
+    } catch (error) {
+      logger.error('❌ Failed to update existing person:', 'components', {}, error as Error);
+      setErrors({ submit: 'Failed to update person. Please try again.' });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -500,20 +562,45 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
         </CardContent>
       </Card>
 
-      {/* Duplicate Warning */}
-      {duplicateWarning && (
+      {/* Duplicate Warning with Use Existing Option */}
+      {duplicateWarning && existingPerson && (
         <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 p-4">
           <div className="flex items-start gap-3">
             <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
-            <div>
+            <div className="flex-1">
               <h4 className="font-medium text-amber-800 dark:text-amber-200 text-sm">
-                Possible Duplicate
+                Person Already Exists
               </h4>
               <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
                 {duplicateWarning}
               </p>
-              <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
-                You can still proceed if this is a different person.
+              {existingPerson.roles && existingPerson.roles.length > 0 && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                  Current roles: {existingPerson.roles.join(', ')}
+                </p>
+              )}
+              <div className="flex flex-col sm:flex-row gap-2 mt-3">
+                <Button
+                  size="sm"
+                  onClick={handleUseExistingPerson}
+                  disabled={isSubmitting}
+                  className="bg-amber-600 hover:bg-amber-700 text-white"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Updating...
+                    </>
+                  ) : (
+                    <>Use {existingPerson.firstName} {existingPerson.lastName}</>
+                  )}
+                </Button>
+                <p className="text-xs text-amber-600 dark:text-amber-400 self-center">
+                  This will add the "{formData.role}" role to their profile
+                </p>
+              </div>
+              <p className="text-xs text-amber-500 dark:text-amber-500 mt-2 italic">
+                Or continue filling the form to create a new person anyway.
               </p>
             </div>
           </div>

@@ -35,8 +35,8 @@ const SHOW_TYPES = [
 export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) => {
   logger.debug('ShowDetailsStep component loaded', 'wizard');
   const { show, updateShowData, markStepCompleted } = useWizardStore();
-  const { clubs } = useClubStore();
-  const { people } = useUserStore();
+  const { clubs, loadClubs } = useClubStore();
+  const { people, loadPeople } = useUserStore();
   const panelManager = usePanelManager();
   
   // Search states
@@ -53,10 +53,11 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
     );
   }, [clubs, clubSearchTerm]);
 
-  // Filter people for chairman/secretary
+  // Filter people for chairman/secretary - include all relevant roles
   const filteredPeople = React.useMemo(() => {
-    return people.filter(person => 
-      person.roles?.includes('secretary') || 
+    return people.filter(person =>
+      person.roles?.includes('chairman') ||
+      person.roles?.includes('secretary') ||
       person.roles?.includes('admin') ||
       person.roles?.includes('steward')
     );
@@ -74,6 +75,8 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         selectionCallback: (entity: Record<string, unknown>) => {
           const club = entity as { id: string; name: string };
           updateShowData({ clubId: club.id });
+          // Refresh the clubs list to include the new club in dropdown
+          loadClubs();
           logger.debug('Club created and selected', 'wizard', { clubName: club.name });
         }
       }
@@ -95,6 +98,8 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         selectionCallback: (person) => {
           const chairmanName = `${person.firstName} ${person.lastName}`;
           updateShowData({ chairman: chairmanName });
+          // Refresh the people list to include the new person in dropdown
+          loadPeople();
           logger.debug('Chairman created and selected', 'wizard', { chairmanName });
         }
       }
@@ -116,6 +121,8 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         selectionCallback: (person) => {
           const secretaryName = `${person.firstName} ${person.lastName}`;
           updateShowData({ secretary: secretaryName });
+          // Refresh the people list to include the new person in dropdown
+          loadPeople();
           logger.debug('Secretary created and selected', 'wizard', { secretaryName });
         }
       }
@@ -186,7 +193,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                 <Label>Show Type <span className="text-destructive">*</span></Label>
                 <Select
                   value={show.type || ''}
-                  onValueChange={(value) => updateShowData({ type: value as 'AKC' | 'UKC' | 'Other' })}
+                  onValueChange={(value) => updateShowData({ type: value as 'AKC' | 'UKC' | 'NASDA' | 'Other' })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select show type" />

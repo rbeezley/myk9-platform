@@ -352,7 +352,8 @@ input, textarea, select {
     /* Gray neutrals matching myK9Q */
     --muted: #f6f6f6;
     --muted-foreground: #6b7280;
-    /* NOTE: --primary is set by accent color classes below, default is green/teal */
+    /* Default primary - teal (overridden by accent color classes) */
+    --primary: #14b8a6;
     --primary-foreground: #ffffff;
     --secondary: #F8F7F4;
     --secondary-foreground: #0f172a;
@@ -386,7 +387,8 @@ input, textarea, select {
     --card-secondary-foreground: #ffffff;
     --muted: #26292e;
     --muted-foreground: #9ca3af;
-    /* NOTE: --primary is set by accent color classes below */
+    /* Default primary - teal (overridden by accent color classes) */
+    --primary: #14b8a6;
     --primary-foreground: #ffffff;
     --secondary: #2a2a2a;
     --secondary-foreground: #ffffff;
@@ -420,6 +422,8 @@ input, textarea, select {
    ACCENT COLOR SYSTEM
    User-selectable accent colors that override primary theme colors
    Applied via document.documentElement.classList by settingsStore
+   Classes: accent-green, accent-blue, accent-orange, accent-purple
+   Theme classes: theme-dark, theme-light (or .dark from Tailwind)
    =================================================================== */
 
 /* Green/Teal (Default) - Brand primary color */
@@ -430,7 +434,6 @@ input, textarea, select {
   --primary-foreground: #ffffff;
   --accent-glow: rgba(20, 184, 166, 0.3);
   --ring: #5eead4;
-  /* Tailwind teal palette for consistent theming */
   --accent-50: #f0fdfa;
   --accent-100: #ccfbf1;
   --accent-200: #99f6e4;
@@ -439,12 +442,15 @@ input, textarea, select {
   --accent-700: #0f766e;
 }
 
-:root.accent-green .dark,
-.dark:not(.accent-blue):not(.accent-orange):not(.accent-purple) {
-  --primary: #2dd4bf;
-  --primary-hover: #14b8a6;
-  --primary-foreground: #042f2e;
-  --accent-glow: rgba(45, 212, 191, 0.3);
+/* Green dark mode - support both .dark and .theme-dark */
+:root.accent-green.dark,
+:root.accent-green.theme-dark,
+:root.theme-dark:not(.accent-blue):not(.accent-orange):not(.accent-purple),
+:root.dark:not(.accent-blue):not(.accent-orange):not(.accent-purple) {
+  --primary: #14b8a6;
+  --primary-hover: #0d9488;
+  --primary-foreground: #ffffff;
+  --accent-glow: rgba(20, 184, 166, 0.4);
   --ring: #14b8a6;
 }
 
@@ -463,12 +469,13 @@ input, textarea, select {
   --accent-700: #1d4ed8;
 }
 
+/* Blue dark mode */
 :root.accent-blue.dark,
-.dark.accent-blue {
-  --primary: #60a5fa;
-  --primary-hover: #3b82f6;
-  --primary-foreground: #1e3a8a;
-  --accent-glow: rgba(96, 165, 250, 0.3);
+:root.accent-blue.theme-dark {
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --primary-foreground: #ffffff;
+  --accent-glow: rgba(59, 130, 246, 0.4);
   --ring: #3b82f6;
 }
 
@@ -487,12 +494,13 @@ input, textarea, select {
   --accent-700: #c2410c;
 }
 
+/* Orange dark mode */
 :root.accent-orange.dark,
-.dark.accent-orange {
-  --primary: #fb923c;
-  --primary-hover: #f97316;
-  --primary-foreground: #7c2d12;
-  --accent-glow: rgba(251, 146, 60, 0.3);
+:root.accent-orange.theme-dark {
+  --primary: #f97316;
+  --primary-hover: #ea580c;
+  --primary-foreground: #ffffff;
+  --accent-glow: rgba(249, 115, 22, 0.4);
   --ring: #f97316;
 }
 
@@ -511,11 +519,13 @@ input, textarea, select {
   --accent-700: #6d28d9;
 }
 
+/* Purple dark mode */
 :root.accent-purple.dark,
-.dark.accent-purple {
-  --primary: #a78bfa;
-  --primary-hover: #8b5cf6;
-  --primary-foreground: #3b0764;
-  --accent-glow: rgba(167, 139, 250, 0.3);
+:root.accent-purple.theme-dark {
+  --primary: #8b5cf6;
+  --primary-hover: #7c3aed;
+  --primary-foreground: #ffffff;
+  --accent-glow: rgba(139, 92, 246, 0.4);
   --ring: #8b5cf6;
 }
+

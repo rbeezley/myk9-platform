@@ -723,23 +723,19 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
       <div className="space-y-6">
         <TooltipProvider>
           <Tabs defaultValue="registrations" className="w-full">
-            <TabsList className="flex overflow-x-auto no-scrollbar bg-muted/50 backdrop-blur-sm border-b border-border/50 w-full justify-start rounded-none h-auto p-0 gap-1">
-              <TabsTrigger
-                value="registrations"
-                className="flex-shrink-0 min-h-[44px] px-4 data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none border-b-2 border-transparent"
-              >
-                <FileText className="w-4 h-4 mr-2" />
+            <TabsList className="overflow-x-auto no-scrollbar">
+              <TabsTrigger value="registrations">
+                <FileText className="w-4 h-4" />
                 Registrations
               </TabsTrigger>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <TabsTrigger
                     value="competitions"
-                    className={`flex-shrink-0 min-h-[44px] px-4 data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none border-b-2 border-transparent ${!user.isPremium ? 'opacity-50' : ''}`}
                     disabled={!user.isPremium}
                     onClick={!user.isPremium ? handlePremiumTabClick : undefined}
                   >
-                    <Crown className="w-4 h-4 mr-2" />
+                    <Crown className="w-4 h-4" />
                     Competitions
                   </TabsTrigger>
                 </TooltipTrigger>
@@ -751,11 +747,10 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
                 <TooltipTrigger asChild>
                   <TabsTrigger
                     value="title-progress"
-                    className={`flex-shrink-0 min-h-[44px] px-4 data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none border-b-2 border-transparent ${!user.isPremium ? 'opacity-50' : ''}`}
                     disabled={!user.isPremium}
                     onClick={!user.isPremium ? handlePremiumTabClick : undefined}
                   >
-                    <Crown className="w-4 h-4 mr-2" />
+                    <Crown className="w-4 h-4" />
                     Title Progress
                   </TabsTrigger>
                 </TooltipTrigger>
@@ -767,11 +762,10 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
                 <TooltipTrigger asChild>
                   <TabsTrigger
                     value="health-records"
-                    className={`flex-shrink-0 min-h-[44px] px-4 data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none border-b-2 border-transparent ${!user.isPremium ? 'opacity-50' : ''}`}
                     disabled={!user.isPremium}
                     onClick={!user.isPremium ? handlePremiumTabClick : undefined}
                   >
-                    <Crown className="w-4 h-4 mr-2" />
+                    <Crown className="w-4 h-4" />
                     Health Records
                   </TabsTrigger>
                 </TooltipTrigger>
@@ -783,11 +777,10 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
                 <TooltipTrigger asChild>
                   <TabsTrigger
                     value="training-journal"
-                    className={`flex-shrink-0 min-h-[44px] px-4 data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none border-b-2 border-transparent ${!user.isPremium ? 'opacity-50' : ''}`}
                     disabled={!user.isPremium}
                     onClick={!user.isPremium ? handlePremiumTabClick : undefined}
                   >
-                    <Crown className="w-4 h-4 mr-2" />
+                    <Crown className="w-4 h-4" />
                     Training Journal
                   </TabsTrigger>
                 </TooltipTrigger>
@@ -799,11 +792,10 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
                 <TooltipTrigger asChild>
                   <TabsTrigger
                     value="pedigree"
-                    className={`flex-shrink-0 min-h-[44px] px-4 data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none border-b-2 border-transparent ${!user.isPremium ? 'opacity-50' : ''}`}
                     disabled={!user.isPremium}
                     onClick={!user.isPremium ? handlePremiumTabClick : undefined}
                   >
-                    <Crown className="w-4 h-4 mr-2" />
+                    <Crown className="w-4 h-4" />
                     Pedigree
                   </TabsTrigger>
                 </TooltipTrigger>

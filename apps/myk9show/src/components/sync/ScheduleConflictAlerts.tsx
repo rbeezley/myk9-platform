@@ -290,8 +290,6 @@ export const ScheduleConflictAlerts: React.FC<ScheduleConflictAlertsProps> = ({
         <Button
           onClick={handleRefresh}
           disabled={isRefreshing}
-          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:shadow-lg 
-                     hover:-translate-y-0.5 transition-all duration-200"
         >
           <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
           {isRefreshing ? 'Checking...' : 'Check Conflicts'}

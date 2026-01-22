@@ -21,6 +21,7 @@ export interface Person {
   state: string | null;
   zip_code: string | null;
   country: string | null;
+  profile_image: string | null;
   auth_user_id: string | null;
   created_at: string;
   updated_at: string;
@@ -72,6 +73,7 @@ export interface UpdatePersonData {
   state?: string | null;
   zip_code?: string | null;
   country?: string | null;
+  profile_image?: string | null;
 }
 
 export interface CreateDogData {

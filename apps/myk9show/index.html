@@ -4,9 +4,39 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#14b8a6" />
     <title>myK9Show - Dog Show Management Platform</title>
     <meta name="description" content="A comprehensive solution for managing dog shows, events, registrations, and scoring—all in one place." />
     <link rel="preload" href="/logo.webp" as="image" type="image/webp" />
+    <!-- Blocking theme initialization to prevent FOUC -->
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('myK9Q_settings');
+          var settings = saved ? JSON.parse(saved) : {};
+          // Extract from Zustand persist structure
+          if (settings.state && settings.state.settings) settings = settings.state.settings;
+          else if (settings.settings) settings = settings.settings;
+
+          // Apply theme
+          var theme = settings.theme || 'auto';
+          var isDark = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.classList.add(isDark ? 'theme-dark' : 'theme-light');
+          if (isDark) document.documentElement.classList.add('dark');
+
+          // Apply accent color
+          var accent = settings.accentColor || 'green';
+          document.documentElement.classList.add('accent-' + accent);
+
+          // Update meta theme-color
+          var colors = { green: '#14b8a6', blue: '#3b82f6', orange: '#f97316', purple: '#8b5cf6' };
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute('content', colors[accent] || '#14b8a6');
+        } catch (e) {
+          document.documentElement.classList.add('theme-light', 'accent-green');
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

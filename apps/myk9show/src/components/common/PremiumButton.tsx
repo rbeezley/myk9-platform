@@ -48,14 +48,14 @@ export function PremiumButton({
     
     // Variant styling
     variant === 'primary' && [
-      "bg-gradient-to-r from-primary to-secondary text-primary-foreground border-0",
-      "hover:shadow-xl hover:-translate-y-1 hover:scale-[1.02]",
+      "bg-primary text-primary-foreground border-0",
+      "hover:opacity-90 hover:shadow-lg hover:-translate-y-0.5",
       "active:scale-[0.98] active:translate-y-0"
     ],
     
     variant === 'secondary' && [
-      "bg-gradient-to-r from-secondary/80 to-secondary text-secondary-foreground border-0",
-      "hover:from-secondary hover:to-secondary/90 hover:shadow-lg hover:-translate-y-0.5"
+      "bg-secondary text-secondary-foreground border-0",
+      "hover:bg-secondary/90 hover:shadow-lg hover:-translate-y-0.5"
     ],
     
     variant === 'outline' && [
@@ -122,30 +122,19 @@ export function PremiumButton({
 // Specialized button variants for common use cases
 
 // CTA Button - Call-to-action with enhanced styling
-export interface CTAButtonProps extends Omit<PremiumButtonProps, 'variant'> {
-  gradient?: 'blue-purple' | 'blue-green' | 'purple-pink' | 'orange-red';
-}
+export interface CTAButtonProps extends Omit<PremiumButtonProps, 'variant'> {}
 
-export function CTAButton({ 
-  gradient = 'blue-purple', 
+export function CTAButton({
   size = 'lg',
   className,
-  ...props 
+  ...props
 }: CTAButtonProps) {
-  const gradientClass = {
-    'blue-purple': 'from-blue-500 to-purple-600',
-    'blue-green': 'from-blue-500 to-green-500', 
-    'purple-pink': 'from-purple-500 to-pink-500',
-    'orange-red': 'from-orange-500 to-red-500'
-  }[gradient];
-
   return (
     <PremiumButton
       variant="primary"
       size={size}
       className={cn(
-        `bg-gradient-to-r ${gradientClass}`,
-        "hover:shadow-2xl hover:scale-105 text-white font-semibold",
+        "shadow-lg hover:shadow-xl font-semibold",
         className
       )}
       {...props}

@@ -261,7 +261,7 @@ const JudgeCheckInDashboard: React.FC = () => {
           <div className="flex gap-4">
             <Button
               onClick={() => setViewMode('multi-ring')}
-              className="bg-gradient-to-r from-primary to-[#5856D6] text-primary-foreground"
+              className="bg-primary text-primary-foreground"
             >
               <Users className="h-4 w-4 mr-2" />
               Multi-Ring View

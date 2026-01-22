@@ -127,8 +127,8 @@ export const CheckInManagementOverlay: React.FC<CheckInManagementOverlayProps> =
       <DialogContent className="bg-card/95 backdrop-blur-xl border-0 shadow-2xl rounded-2xl p-0 max-w-4xl w-[95vw] max-h-[90vh] overflow-hidden">
         <DialogHeader className="px-6 pt-6 pb-4 border-b border-border/50">
           <DialogTitle className="text-2xl font-semibold flex items-center gap-3">
-            <div className="p-2.5 bg-gradient-to-r from-[#007AFF]/10 to-[#5856D6]/10 rounded-xl">
-              <Users className="h-6 w-6 text-[#007AFF]" />
+            <div className="p-2.5 bg-primary/10 rounded-xl">
+              <Users className="h-6 w-6 text-primary" />
             </div>
             Manage Check-In Status
           </DialogTitle>
@@ -243,7 +243,7 @@ export const CheckInManagementOverlay: React.FC<CheckInManagementOverlayProps> =
             </p>
             <Button
               onClick={() => onOpenChange(false)}
-              className="bg-gradient-to-r from-[#007AFF] to-[#5856D6] text-white hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 min-w-[100px]"
+              className="min-w-[100px]"
             >
               Done
             </Button>

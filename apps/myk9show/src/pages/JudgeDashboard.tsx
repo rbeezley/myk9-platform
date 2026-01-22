@@ -353,7 +353,7 @@ const JudgeDashboard: React.FC = () => {
                         <Button
                           size="sm"
                           onClick={() => handleStartJudging(judgeClass)}
-                          className="bg-gradient-to-r from-primary to-[#5856D6] text-primary-foreground hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
+                          className="bg-primary text-primary-foreground hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
                         >
                           {judgeClass.status === 'in-progress' ? 'Continue' : 'Start'} Judging
                           <ArrowRight className="h-4 w-4 ml-2" />

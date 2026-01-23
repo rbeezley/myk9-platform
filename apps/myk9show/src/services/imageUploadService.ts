@@ -5,6 +5,7 @@
  */
 
 import { supabase } from './database/supabaseClient';
+import { logger } from './LoggingService';
 
 const BUCKET_NAME = 'images';
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -62,7 +63,7 @@ export async function uploadProfilePhoto(
       });
 
     if (uploadError) {
-      console.error('Upload error:', uploadError);
+      logger.error('Upload error', 'image-upload', { error: uploadError.message });
       return { success: false, error: uploadError.message };
     }
 
@@ -72,7 +73,7 @@ export async function uploadProfilePhoto(
 
     return { success: true, url: publicUrl };
   } catch (error) {
-    console.error('Upload failed:', error);
+    logger.error('Upload failed', 'image-upload', undefined, error as Error);
     return { success: false, error: 'Failed to upload image. Please try again.' };
   }
 }
@@ -101,7 +102,7 @@ export async function uploadDogPhoto(
       });
 
     if (uploadError) {
-      console.error('Upload error:', uploadError);
+      logger.error('Upload error', 'image-upload', { error: uploadError.message });
       return { success: false, error: uploadError.message };
     }
 
@@ -111,7 +112,7 @@ export async function uploadDogPhoto(
 
     return { success: true, url: publicUrl };
   } catch (error) {
-    console.error('Upload failed:', error);
+    logger.error('Upload failed', 'image-upload', undefined, error as Error);
     return { success: false, error: 'Failed to upload image. Please try again.' };
   }
 }
@@ -126,7 +127,7 @@ export async function deleteImage(imageUrl: string): Promise<boolean> {
     const pathMatch = url.pathname.match(/\/storage\/v1\/object\/public\/images\/(.+)/);
 
     if (!pathMatch) {
-      console.warn('Could not extract file path from URL:', imageUrl);
+      logger.warn('Could not extract file path from URL', 'image-upload', { url: imageUrl });
       return false;
     }
 
@@ -136,13 +137,13 @@ export async function deleteImage(imageUrl: string): Promise<boolean> {
       .remove([filePath]);
 
     if (error) {
-      console.error('Delete error:', error);
+      logger.error('Delete error', 'image-upload', { error: error.message });
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error('Delete failed:', error);
+    logger.error('Delete failed', 'image-upload', undefined, error as Error);
     return false;
   }
 }

@@ -26,6 +26,7 @@ import { exhibitorService, UpdatePersonData, CreateDogData, ExhibitorDog } from 
 import { getInitials } from '@/lib/utils';
 import { ImageUpload } from '@/components/ui/image-upload';
 import { uploadProfilePhoto, uploadDogPhoto } from '@/services/imageUploadService';
+import { logger } from '@/services/LoggingService';
 
 /**
  * Format phone number for display
@@ -74,7 +75,7 @@ export default function ExhibitorProfilePage() {
       setIsEditingProfile(false);
     },
     onError: (error) => {
-      console.error('Failed to update person:', error);
+      logger.error('Failed to update person', 'exhibitor-profile', undefined, error as Error);
     },
   });
 
@@ -154,7 +155,7 @@ export default function ExhibitorProfilePage() {
                   try {
                     await updatePersonMutation.mutateAsync({ profile_image: result.url });
                   } catch (error) {
-                    console.error('Failed to save profile image to database:', error);
+                    logger.error('Failed to save profile image to database', 'exhibitor-profile', undefined, error as Error);
                     return { success: false, error: 'Failed to save image. Please try again.' };
                   }
                 }

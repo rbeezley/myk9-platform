@@ -28,6 +28,16 @@ export interface ClubDetailsProps {
   breadcrumbItems: Array<{ label: string; href?: string; }>;
 }
 
+// Utility function to get club initials for logo fallback
+const getClubInitials = (name: string) => {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .map(word => word[0].toUpperCase())
+    .join('')
+    .slice(0, 2);
+};
+
 /**
  * ClubDetails component displays information about a club.
  * This component should be used within the following hierarchy:
@@ -109,18 +119,18 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
     {
       title: "Total Shows",
       value: totalShows.toString(),
-      detail1: `Upcoming: ${upcomingShows}`,
-      detail2: `Completed: ${pastShows}`,
-      progress: totalShows > 0 ? Math.round((pastShows / totalShows) * 100) : 0,
-      type: "shows"
+      detail1: totalShows > 0 ? `Upcoming: ${upcomingShows}` : 'No shows scheduled',
+      detail2: totalShows > 0 ? `Completed: ${pastShows}` : 'Add your first show',
+      type: "shows",
+      tab: "upcoming" as const
     },
     {
       title: "Active Members",
       value: memberCount.toString(),
-      detail1: `Total: ${memberCount}`,
-      detail2: memberCount > 0 ? `In club roster` : `No members yet`,
-      progress: Math.min(Math.round((memberCount / 50) * 100), 100),
-      type: "members"
+      detail1: memberCount > 0 ? `${memberCount} member${memberCount !== 1 ? 's' : ''}` : 'No members yet',
+      detail2: memberCount > 0 ? 'In club roster' : 'Invite members to join',
+      type: "members",
+      tab: "members" as const
     }
   ];
 
@@ -369,19 +379,39 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
         
         {/* Club content layout */}
         <div className="flex flex-col md:flex-row items-center gap-6">
-          <img
-            src={selectedClub.logo}
-            alt={selectedClub.name}
-            className="w-32 h-32 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={handleEditPhoto}
-            title="Click to edit club logo"
-          />
+          {selectedClub.logo ? (
+            <img
+              src={selectedClub.logo}
+              alt={selectedClub.name}
+              className="w-32 h-32 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={handleEditPhoto}
+              title="Click to edit club logo"
+            />
+          ) : (
+            <div
+              className="w-32 h-32 rounded-full bg-primary/10 flex items-center justify-center cursor-pointer hover:bg-primary/20 transition-colors"
+              onClick={handleEditPhoto}
+              title="Click to add club logo"
+            >
+              <span className="text-3xl font-bold text-primary">
+                {getClubInitials(selectedClub.name)}
+              </span>
+            </div>
+          )}
           <div className="text-center md:text-left">
             <h1 className="text-3xl font-bold text-foreground mb-2">{selectedClub.name}</h1>
-            <div className="flex items-center justify-center md:justify-start gap-2 text-muted-foreground mb-4">
-              <Shield className="w-4 h-4" />
-              Club #{selectedClub.clubNumber}
-            </div>
+            {(selectedClub.address?.city || selectedClub.address?.state) && (
+              <div className="flex items-center justify-center md:justify-start gap-2 text-muted-foreground mb-2">
+                <MapPin className="w-4 h-4" />
+                {[selectedClub.address?.city, selectedClub.address?.state].filter(Boolean).join(', ')}
+              </div>
+            )}
+            {selectedClub.clubNumber && (
+              <div className="flex items-center justify-center md:justify-start gap-2 text-muted-foreground mb-4">
+                <Shield className="w-4 h-4" />
+                Club #{selectedClub.clubNumber}
+              </div>
+            )}
             <div className="flex gap-2 flex-wrap justify-center md:justify-start">
               {selectedClub.clubType && (
                 <div className="flex items-center gap-1 px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-medium">
@@ -398,6 +428,35 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
                 </div>
               )}
             </div>
+            {/* Quick contact actions */}
+            {(selectedClub.email || selectedClub.phone) && (
+              <div className="flex gap-2 mt-4 justify-center md:justify-start">
+                {selectedClub.email && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9 px-3"
+                    onClick={() => window.open(`mailto:${selectedClub.email}`, '_self')}
+                    title={`Email: ${selectedClub.email}`}
+                  >
+                    <Mail className="w-4 h-4 mr-2" />
+                    Email
+                  </Button>
+                )}
+                {selectedClub.phone && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9 px-3"
+                    onClick={() => window.open(`tel:${selectedClub.phone}`, '_self')}
+                    title={`Call: ${selectedClub.phone}`}
+                  >
+                    <Phone className="w-4 h-4 mr-2" />
+                    Call
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -406,7 +465,14 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
       <div className="mb-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {stats.map((stat, index) => (
-            <div key={index} className="bg-card border border-border rounded-xl p-6 hover:shadow-lg transition-shadow">
+            <div
+              key={index}
+              className="bg-card border border-border rounded-xl p-6 hover:shadow-lg hover:border-primary/30 transition-all cursor-pointer"
+              onClick={() => setActiveTab(stat.tab)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === 'Enter' && setActiveTab(stat.tab)}
+            >
               <div className="flex items-center justify-between mb-4">
                 <div className={`p-3 rounded-xl ${
                   stat.type === 'shows' ? 'bg-blue-500/10 text-blue-500' : 'bg-green-500/10 text-green-500'
@@ -421,18 +487,9 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
 
               <div className="text-2xl font-bold text-foreground mb-2">{stat.value}</div>
 
-              <div className="flex justify-between text-xs text-muted-foreground mb-3">
+              <div className="flex justify-between text-xs text-muted-foreground">
                 <span>{stat.detail1}</span>
                 <span>{stat.detail2}</span>
-              </div>
-
-              <div className="w-full bg-muted rounded-full h-2">
-                <div
-                  className={`h-2 rounded-full ${
-                    stat.type === 'shows' ? 'bg-blue-500' : 'bg-green-500'
-                  }`}
-                  style={{ width: `${stat.progress}%` }}
-                ></div>
               </div>
             </div>
           ))}
@@ -458,8 +515,8 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
               </TabsTrigger>
             </TabsList>
             
-            {/* Add Show Button - only shown on upcoming shows tab */}
-            {activeTab === 'upcoming' && (
+            {/* Add Show Button - only shown on upcoming shows tab when shows exist */}
+            {activeTab === 'upcoming' && (selectedClub.upcomingShows?.length || 0) > 0 && (
               <Button
                 onClick={handleAddShow}
                 className="mb-3 min-h-[44px]"

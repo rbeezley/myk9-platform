@@ -122,7 +122,7 @@ export function PremiumButton({
 // Specialized button variants for common use cases
 
 // CTA Button - Call-to-action with enhanced styling
-export interface CTAButtonProps extends Omit<PremiumButtonProps, 'variant'> {}
+export type CTAButtonProps = Omit<PremiumButtonProps, 'variant'>;
 
 export function CTAButton({
   size = 'lg',

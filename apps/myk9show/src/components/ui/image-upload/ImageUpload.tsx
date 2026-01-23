@@ -82,7 +82,7 @@ export function ImageUpload({
           setError(result.error || 'Upload failed');
           setPreviewUrl(null);
         }
-      } catch (err) {
+      } catch (_err) {
         setError('Upload failed. Please try again.');
         setPreviewUrl(null);
       } finally {
@@ -235,7 +235,7 @@ export function ImageUploadButton({
         if (!result.success) {
           setError(result.error || 'Upload failed');
         }
-      } catch (err) {
+      } catch (_err) {
         setError('Upload failed. Please try again.');
       } finally {
         setIsUploading(false);

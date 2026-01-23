@@ -81,6 +81,9 @@ export function ImageUpload({
         if (!result.success) {
           setError(result.error || 'Upload failed');
           setPreviewUrl(null);
+        } else {
+          // Clear preview on success so we use currentImage from props
+          setPreviewUrl(null);
         }
       } catch (_err) {
         setError('Upload failed. Please try again.');

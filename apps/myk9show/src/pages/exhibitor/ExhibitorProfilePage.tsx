@@ -73,6 +73,9 @@ export default function ExhibitorProfilePage() {
       queryClient.invalidateQueries({ queryKey: ['exhibitorProfile'] });
       setIsEditingProfile(false);
     },
+    onError: (error) => {
+      console.error('Failed to update person:', error);
+    },
   });
 
   // Create dog mutation
@@ -148,7 +151,12 @@ export default function ExhibitorProfilePage() {
               onUpload={async (file) => {
                 const result = await uploadProfilePhoto(user!.id, file);
                 if (result.success && result.url) {
-                  await updatePersonMutation.mutateAsync({ profile_image: result.url });
+                  try {
+                    await updatePersonMutation.mutateAsync({ profile_image: result.url });
+                  } catch (error) {
+                    console.error('Failed to save profile image to database:', error);
+                    return { success: false, error: 'Failed to save image. Please try again.' };
+                  }
                 }
                 return result;
               }}

@@ -152,9 +152,6 @@ export default function ExhibitorProfilePage() {
                 }
                 return result;
               }}
-              onRemove={async () => {
-                await updatePersonMutation.mutateAsync({ profile_image: null });
-              }}
             />
             <div className="flex-1 text-center sm:text-left">
               <h1 className="text-2xl sm:text-3xl font-bold mb-1">
@@ -274,7 +271,6 @@ export default function ExhibitorProfilePage() {
         open={isDogDialogOpen}
         onOpenChange={setIsDogDialogOpen}
         dog={editingDog}
-        personId={profile.person_id}
         onSave={(data) => {
           if (editingDog) {
             updateDogMutation.mutate({ dogId: editingDog.id, data });
@@ -520,15 +516,14 @@ function DogFormDialog({
   dog,
   onSave,
   isLoading,
-  personId,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   dog: ExhibitorDog | null;
   onSave: (data: CreateDogData) => void;
   isLoading: boolean;
-  personId: string;
 }) {
+  const { user } = useAuthContext();
   const [formData, setFormData] = useState<CreateDogData>({
     name: '',
     call_name: '',
@@ -579,7 +574,7 @@ function DogFormDialog({
     setIsUploadingPhoto(true);
     try {
       const dogId = dog?.id || `new-${Date.now()}`;
-      const result = await uploadDogPhoto(personId, dogId, file);
+      const result = await uploadDogPhoto(user!.id, dogId, file);
       if (result.success && result.url) {
         const url = result.url;
         setFormData(prev => ({ ...prev, image_url: url }));

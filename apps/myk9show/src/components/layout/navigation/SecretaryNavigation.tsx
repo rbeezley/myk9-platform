@@ -2,7 +2,12 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { buildClasses } from '@/utils/designTokens';
 
-const SecretaryNavigation: React.FC = () => {
+interface SecretaryNavigationProps {
+  mobile?: boolean;
+  onNavigate?: (() => void) | undefined;
+}
+
+const SecretaryNavigation: React.FC<SecretaryNavigationProps> = ({ mobile = false, onNavigate }) => {
   const location = useLocation();
 
   // Helper function to check if current path matches menu item
@@ -11,65 +16,73 @@ const SecretaryNavigation: React.FC = () => {
   };
 
   return (
-    <div className="hidden md:flex items-center gap-6">
-      <Link 
-        to="/secretary/dashboard" 
+    <div className={mobile ? "flex flex-col gap-2" : "hidden md:flex items-center gap-6"}>
+      <Link
+        to="/secretary/dashboard"
+        onClick={onNavigate}
         className={`${buildClasses.button.ghost} font-medium transition-colors ${
           isActivePath('/secretary/dashboard') ? 'text-primary' : 'text-foreground/80 hover:text-primary'
         }`}
       >
         Dashboard
       </Link>
-      <Link 
-        to="/browse-shows" 
+      <Link
+        to="/browse-shows"
+        onClick={onNavigate}
         className={`${buildClasses.button.ghost} font-medium transition-colors ${
           isActivePath('/browse-shows') || isActivePath('/shows') ? 'text-primary' : 'text-foreground/80 hover:text-primary'
         }`}
       >
         Shows
       </Link>
-      <Link 
-        to="/users" 
+      <Link
+        to="/users"
+        onClick={onNavigate}
         className={`${buildClasses.button.ghost} font-medium transition-colors ${
           isActivePath('/users') ? 'text-primary' : 'text-foreground/80 hover:text-primary'
         }`}
       >
         Users
       </Link>
-      <Link 
-        to="/dogs" 
+      <Link
+        to="/dogs"
+        onClick={onNavigate}
         className={`${buildClasses.button.ghost} font-medium transition-colors ${
           isActivePath('/dogs') ? 'text-primary' : 'text-foreground/80 hover:text-primary'
         }`}
       >
         Dogs
       </Link>
-      <Link 
-        to="/entries" 
+      <Link
+        to="/entries"
+        onClick={onNavigate}
         className={`${buildClasses.button.ghost} font-medium transition-colors ${
           isActivePath('/entries') ? 'text-primary' : 'text-foreground/80 hover:text-primary'
         }`}
       >
         Entries
       </Link>
-      <Link 
-        to="/clubs" 
+      <Link
+        to="/clubs"
+        onClick={onNavigate}
         className={`${buildClasses.button.ghost} font-medium transition-colors ${
           isActivePath('/clubs') ? 'text-primary' : 'text-foreground/80 hover:text-primary'
         }`}
       >
         Clubs
       </Link>
-      <Link 
-        to="/calendar" 
+      <Link
+        to="/calendar"
+        onClick={onNavigate}
         className={`${buildClasses.button.ghost} font-medium transition-colors ${
           isActivePath('/calendar') ? 'text-primary' : 'text-foreground/80 hover:text-primary'
         }`}
       >
         Calendar
       </Link>
-      <Link 
-        to="/alerts" 
+      <Link
+        to="/alerts"
+        onClick={onNavigate}
         className={`${buildClasses.button.ghost} font-medium transition-colors ${
           isActivePath('/alerts') ? 'text-primary' : 'text-foreground/80 hover:text-primary'
         }`}

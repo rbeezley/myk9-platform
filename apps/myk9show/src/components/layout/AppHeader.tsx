@@ -46,19 +46,24 @@ const AppHeader: React.FC = () => {
   }, []);
 
 
+  // Close mobile menu
+  const closeMobileMenu = () => setMobileMenuOpen(false);
+
   // Render appropriate navigation based on user role
-  const renderRoleBasedNavigation = () => {
+  const renderRoleBasedNavigation = (mobile = false) => {
     if (!user) return null;
+
+    const onNavigate = mobile ? closeMobileMenu : undefined;
 
     // Priority order: Site Admin > Club Admin > Secretary > Judge > Exhibitor
     if (hasRole(UserRole.SITE_ADMIN)) {
-      return <AdminNavigation />;
+      return <AdminNavigation mobile={mobile} onNavigate={onNavigate} />;
     } else if (hasRole(UserRole.CLUB_ADMIN) || hasRole(UserRole.SECRETARY)) {
-      return <SecretaryNavigation />;
+      return <SecretaryNavigation mobile={mobile} onNavigate={onNavigate} />;
     } else if (hasRole(UserRole.JUDGE)) {
-      return <JudgeNavigation />;
+      return <JudgeNavigation mobile={mobile} onNavigate={onNavigate} />;
     } else {
-      return <ExhibitorNavigation />;
+      return <ExhibitorNavigation mobile={mobile} onNavigate={onNavigate} />;
     }
   };
 
@@ -309,9 +314,9 @@ const AppHeader: React.FC = () => {
 
       {/* Mobile Menu Dropdown */}
       {mobileMenuOpen && user && (
-        <div className="md:hidden border-t bg-background/95 backdrop-blur-lg">
-          <div className="px-4 py-3 space-y-2">
-            {renderRoleBasedNavigation()}
+        <div className="md:hidden absolute top-16 left-0 right-0 border-b bg-background shadow-lg z-40">
+          <div className="px-4 py-3">
+            {renderRoleBasedNavigation(true)}
           </div>
         </div>
       )}

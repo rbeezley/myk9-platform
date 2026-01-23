@@ -141,7 +141,6 @@ export function ImageUpload({
         <Avatar
           className={cn(
             sizeClasses[size],
-            'border border-border/50',
             shape === 'square' && 'rounded-lg'
           )}
         >

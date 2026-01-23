@@ -127,20 +127,9 @@ export const ClassGroupedSidebar: React.FC<ClassGroupedSidebarProps> = ({
     return parts.join(' ');
   };
 
-  const renderClassItem = (cls: ClassData, _isSelected: boolean, isCollapsed: boolean) => {
-    if (isCollapsed) {
-      return (
-        <div
-          className="flex items-center justify-center w-12 h-12 mx-auto my-1 rounded-full bg-primary/10 text-primary text-xs font-medium"
-          title={`${formatClassDisplay(cls)} - ${cls.trial}`}
-        >
-          {cls.element ? cls.element.substring(0, 2).toUpperCase() : 'CL'}
-        </div>
-      );
-    }
-
+  const renderClassItem = (cls: ClassData, _isSelected: boolean) => {
     return (
-      <div className="px-3 py-2 rounded-md">
+      <div className="px-3 py-2">
         <div className="font-medium text-sm truncate">
           {formatClassDisplay(cls)}
         </div>
@@ -154,21 +143,6 @@ export const ClassGroupedSidebar: React.FC<ClassGroupedSidebarProps> = ({
     );
   };
 
-  const renderCollapsedClassItem = (cls: ClassData, isSelected: boolean) => {
-    return (
-      <div
-        className={`flex items-center justify-center w-10 h-10 mx-auto my-1 rounded-full text-xs font-medium ${
-          isSelected 
-            ? 'bg-primary text-primary-foreground' 
-            : 'bg-muted text-muted-foreground hover:bg-muted/80'
-        }`}
-        title={`${formatClassDisplay(cls)} - ${cls.trial}`}
-      >
-        {cls.element ? cls.element.substring(0, 1).toUpperCase() : 'C'}
-      </div>
-    );
-  };
-
   return (
     <UnifiedSidebar<ClassData>
       groups={sidebarGroups}
@@ -176,7 +150,6 @@ export const ClassGroupedSidebar: React.FC<ClassGroupedSidebarProps> = ({
       onSelect={onSelect}
       onGroupToggle={handleGroupToggle}
       renderItem={renderClassItem}
-      renderCollapsedItem={renderCollapsedClassItem}
       getItemId={(cls) => cls.id}
       enableSearch={true}
       searchPlaceholder="Search classes..."
@@ -184,7 +157,6 @@ export const ClassGroupedSidebar: React.FC<ClassGroupedSidebarProps> = ({
       searchTerm={searchTerm}
       onSearchChange={onSearchChange}
       title="Classes"
-      enableCollapse={true}
       enableResize={true}
     />
   );

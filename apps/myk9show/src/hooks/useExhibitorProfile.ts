@@ -24,6 +24,7 @@ export interface ExhibitorProfile {
     last_name: string;
     email: string;
     phone: string | null;
+    profile_image: string | null;
   };
 }
 
@@ -81,7 +82,8 @@ export function useExhibitorProfile() {
             first_name,
             last_name,
             email,
-            phone
+            phone,
+            profile_image
           )
         `)
         .eq('auth_user_id', user.id)

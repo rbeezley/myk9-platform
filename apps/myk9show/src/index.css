@@ -347,6 +347,8 @@ input, textarea, select {
     --background-alt: #F8F7F4;
     --card: #FEFDFB;        /* Subtle cream tint */
     --card-foreground: #0a0a0a;
+    --sidebar: #F8F7F4;     /* Match background for seamless look */
+    --sidebar-foreground: #0a0a0a;
     --card-secondary: #F8F7F4;
     --card-secondary-foreground: #0a0a0a;
     /* Gray neutrals matching myK9Q */
@@ -383,6 +385,8 @@ input, textarea, select {
     --background-alt: #26292e;
     --card: #26292e;        /* Elevated card background */
     --card-foreground: #ffffff;
+    --sidebar: #1a1a1e;     /* Match background for seamless look */
+    --sidebar-foreground: #ffffff;
     --card-secondary: #2a2d33;
     --card-secondary-foreground: #ffffff;
     --muted: #26292e;

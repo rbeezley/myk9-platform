@@ -94,20 +94,9 @@ export const TrialSidebar: React.FC<TrialSidebarProps> = ({
     });
   };
 
-  const renderTrialItem = (trial: Trial, _isSelected: boolean, isCollapsed: boolean) => {
-    if (isCollapsed) {
-      return (
-        <div
-          className="flex items-center justify-center w-12 h-12 mx-auto my-1 rounded-full bg-primary/10 text-primary text-xs font-medium"
-          title={`${trial.type || 'Trial'} - ${trial.trialNumber}`}
-        >
-          {(trial.type || 'T').substring(0, 2).toUpperCase()}
-        </div>
-      );
-    }
-
+  const renderTrialItem = (trial: Trial, _isSelected: boolean) => {
     return (
-      <div className="px-3 py-2 rounded-md">
+      <div className="px-3 py-2">
         <div className="font-medium text-sm truncate">
           {trial.type || 'Trial'}
         </div>
@@ -121,21 +110,6 @@ export const TrialSidebar: React.FC<TrialSidebarProps> = ({
     );
   };
 
-  const renderCollapsedTrialItem = (trial: Trial, isSelected: boolean) => {
-    return (
-      <div
-        className={`flex items-center justify-center w-10 h-10 mx-auto my-1 rounded-full text-xs font-medium ${
-          isSelected 
-            ? 'bg-primary text-primary-foreground' 
-            : 'bg-muted text-muted-foreground hover:bg-muted/80'
-        }`}
-        title={`${trial.type || 'Trial'} - ${trial.trialNumber}`}
-      >
-        {(trial.type || 'T').substring(0, 1).toUpperCase()}
-      </div>
-    );
-  };
-
   return (
     <UnifiedSidebar<Trial>
       groups={sidebarGroups}
@@ -143,7 +117,6 @@ export const TrialSidebar: React.FC<TrialSidebarProps> = ({
       onSelect={onSelect}
       onGroupToggle={handleGroupToggle}
       renderItem={renderTrialItem}
-      renderCollapsedItem={renderCollapsedTrialItem}
       getItemId={(trial) => trial.id}
       enableSearch={true}
       searchPlaceholder="Search trials..."
@@ -151,7 +124,6 @@ export const TrialSidebar: React.FC<TrialSidebarProps> = ({
       searchTerm={searchTerm}
       onSearchChange={onSearchChange}
       title="Trials"
-      enableCollapse={true}
       enableResize={true}
     />
   );

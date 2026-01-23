@@ -22,11 +22,11 @@ const SIDEBAR_TOKENS = {
     item: '44px'
   },
   colors: {
-    // Soft gradient container with subtle warmth
-    container: 'bg-gradient-to-b from-slate-50/80 to-white dark:from-slate-900/80 dark:to-slate-950',
+    // Use CSS variable for seamless integration with page background
+    container: 'bg-[var(--sidebar)]',
     border: 'border-slate-200/60 dark:border-slate-800/60',
-    // Header with subtle depth
-    header: 'bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border-b border-slate-200/40 dark:border-slate-800/40',
+    // Header with subtle depth - transparent to inherit sidebar background
+    header: 'bg-transparent border-b border-slate-200/20 dark:border-slate-800/20',
     // Elevated search with glass effect
     search: 'bg-white/90 dark:bg-slate-800/90 border-slate-200/60 dark:border-slate-700/60 backdrop-blur-md',
     item: {
@@ -136,7 +136,7 @@ function UnifiedSidebar<T extends { id: string }>({
   headerIcon: HeaderIcon,
   addButtonText = 'Add',
   addButtonIcon: AddIcon = Plus,
-  enableCollapse = true,
+  enableCollapse = false,
   isCollapsed: controlledIsCollapsed,
   onToggleCollapse,
   enableVirtualization = false,
@@ -415,7 +415,7 @@ function UnifiedSidebar<T extends { id: string }>({
     }
 
     return (
-      <nav className="space-y-0.5">
+      <nav className="space-y-1">
         {flattenedItems.map((item, index) => {
           const isSelected = getItemId(item) === selectedId;
           return (
@@ -423,14 +423,12 @@ function UnifiedSidebar<T extends { id: string }>({
               key={getItemId(item)}
               onClick={() => onSelect(getItemId(item))}
               className={cn(
-                'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm cursor-pointer',
+                'cursor-pointer rounded-lg',
                 SIDEBAR_TOKENS.transitions.default,
                 'animate-in fade-in slide-in-from-left-2 duration-300',
                 isSelected
-                  ? SIDEBAR_TOKENS.colors.item.selected
-                  : SIDEBAR_TOKENS.colors.item.default,
-                // Subtle scale on hover
-                'hover:scale-[1.01] active:scale-[0.99]'
+                  ? 'bg-primary/15 dark:bg-primary/20'
+                  : 'hover:bg-muted/50'
               )}
               style={{ animationDelay: `${Math.min(index * 30, 300)}ms` }}
             >
@@ -451,8 +449,6 @@ function UnifiedSidebar<T extends { id: string }>({
       className={cn(
         'flex h-full flex-col relative z-10',
         SIDEBAR_TOKENS.colors.container,
-        // Soft shadow on right edge
-        'shadow-[4px_0_24px_-12px_rgba(0,0,0,0.08)] dark:shadow-[4px_0_24px_-12px_rgba(0,0,0,0.3)]',
         isResizing && 'select-none',
         SIDEBAR_TOKENS.transitions.slow,
         className
@@ -560,8 +556,7 @@ function UnifiedSidebar<T extends { id: string }>({
       {enableSearch && !isCollapsed && (
         <div className={cn(
           'px-4 py-3 border-b',
-          'bg-gradient-to-b from-slate-50/50 to-transparent dark:from-slate-900/50',
-          'border-slate-200/30 dark:border-slate-800/30',
+          'border-slate-200/20 dark:border-slate-800/20',
           SIDEBAR_TOKENS.transitions.default
         )}>
           <div className={cn(
@@ -658,8 +653,7 @@ function UnifiedSidebar<T extends { id: string }>({
       {/* Footer with subtle separator */}
       {footerContent && (
         <div className={cn(
-          'border-t border-slate-200/40 dark:border-slate-800/40 p-4',
-          'bg-gradient-to-t from-slate-50/50 to-transparent dark:from-slate-900/50'
+          'border-t border-slate-200/20 dark:border-slate-800/20 p-4'
         )}>
           {footerContent}
         </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import ClubSidebar from '@/components/clubs/ClubSidebar';
 import ClubDetails from '@/components/clubs/ClubDetails';
@@ -9,13 +9,12 @@ import { useClubStore } from '@/store/clubStore';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { buildClasses } from '@/utils/designTokens';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { SidebarLayout, SIDEBAR_LAYOUT_CONSTANTS } from '@/components/layout/SidebarLayout';
+import { SidebarLayout } from '@/components/layout/SidebarLayout';
 import { useSidebarLayoutState } from '@/hooks/useSidebarLayoutState';
 import { ClubsPageSkeleton } from '@/components/common/SkeletonLoaders';
 
-// Sidebar width constants matching UnifiedSidebar tokens
-const SIDEBAR_WIDTH_EXPANDED = 320; // 20rem
-const SIDEBAR_WIDTH_COLLAPSED = SIDEBAR_LAYOUT_CONSTANTS.COLLAPSED_WIDTH;
+// Sidebar width constant
+const SIDEBAR_WIDTH = 320; // 20rem
 
 /**
  * ClubsPage is responsible for displaying club details with a sidebar for navigation.
@@ -35,10 +34,8 @@ const ClubsPage: React.FC = () => {
   const isSyncing = useClubStore(state => state.isSyncing);
   const subscribeToChanges = useClubStore(state => state.subscribeToChanges);
 
-  // Sidebar state management using the shared hook
+  // Sidebar state management using the shared hook (mobile only, no collapse)
   const {
-    isCollapsed: sidebarCollapsed,
-    setIsCollapsed: setSidebarCollapsed,
     mobileOpen: sidebarOpen,
     setMobileOpen: setSidebarOpen,
     closeMobile,
@@ -57,13 +54,18 @@ const ClubsPage: React.FC = () => {
     return unsubscribe;
   }, [loadClubs, syncClubs, subscribeToChanges]);
 
-  // Ensure selected club has safe arrays
-  const rawSelectedClub = clubs.find(club => club.id === selectedClubId) || clubs[0] || null;
-  const selectedClub = rawSelectedClub ? {
-    ...rawSelectedClub,
-    upcomingShows: Array.isArray(rawSelectedClub.upcomingShows) ? rawSelectedClub.upcomingShows : [],
-    pastShows: Array.isArray(rawSelectedClub.pastShows) ? rawSelectedClub.pastShows : []
-  } : null;
+  // Memoize selected club to prevent unnecessary re-renders
+  // Only recalculate when clubs array or selectedClubId changes
+  const selectedClub = useMemo(() => {
+    const rawSelectedClub = clubs.find(club => club.id === selectedClubId) || clubs[0] || null;
+    if (!rawSelectedClub) return null;
+
+    return {
+      ...rawSelectedClub,
+      upcomingShows: Array.isArray(rawSelectedClub.upcomingShows) ? rawSelectedClub.upcomingShows : [],
+      pastShows: Array.isArray(rawSelectedClub.pastShows) ? rawSelectedClub.pastShows : []
+    };
+  }, [clubs, selectedClubId]);
 
   // Handle URL parameter changes and sync with store
   useEffect(() => {
@@ -115,9 +117,6 @@ const ClubsPage: React.FC = () => {
     setShowCreateClubPanel(true);
   }
 
-  // Calculate sidebar width based on collapse state
-  const sidebarWidth = sidebarCollapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH_EXPANDED;
-
   // Render the sidebar component
   const sidebarContent = (
     <ClubSidebar
@@ -125,8 +124,6 @@ const ClubsPage: React.FC = () => {
       selectedClubId={selectedClubId}
       onSelectClub={handleSelectClub}
       onAddClub={handleOpenCreatePanel}
-      isCollapsed={sidebarCollapsed}
-      onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
     />
   );
 
@@ -164,9 +161,7 @@ const ClubsPage: React.FC = () => {
     <>
       <SidebarLayout
         sidebar={sidebarContent}
-        sidebarWidth={sidebarWidth}
-        isCollapsible={true}
-        isCollapsed={sidebarCollapsed}
+        sidebarWidth={SIDEBAR_WIDTH}
         mobileMenuLabel="Clubs Menu"
         mobileOpen={sidebarOpen}
         onMobileOpenChange={setSidebarOpen}

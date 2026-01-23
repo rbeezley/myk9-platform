@@ -5,7 +5,6 @@ import { useDogSidebarStore } from '@/store/dogSidebarStore';
 import { useRoleBasedDogs } from '@/hooks/useRoleBasedData';
 import { useRBAC } from '@/hooks/useRBAC';
 import UnifiedSidebar from '@/components/common/UnifiedSidebar';
-import { cn } from '@/lib/utils';
 import { logger } from '@/services/LoggingService';
 
 interface DogWithDetails {
@@ -17,8 +16,6 @@ interface DogWithDetails {
 interface DogSidebarProps {
   selectedDogId: string | null;
   className?: string;
-  isCollapsed?: boolean;
-  toggleCollapsed?: () => void;
   onAdd?: () => void;
   onCloseMobile?: () => void;
 }
@@ -26,8 +23,6 @@ interface DogSidebarProps {
 const DogSidebar: React.FC<DogSidebarProps> = ({
   selectedDogId,
   className,
-  isCollapsed: propIsCollapsed,
-  toggleCollapsed: propToggleCollapsed,
   onAdd,
   onCloseMobile
 }) => {
@@ -56,35 +51,11 @@ const DogSidebar: React.FC<DogSidebarProps> = ({
     startTransition(() => {
       navigate(`/dogs/${dogId}`);
     });
-    
-    // On mobile, auto-collapse the sidebar after selection
-    if (typeof window !== 'undefined' && window.innerWidth < 768 && propToggleCollapsed) {
-      propToggleCollapsed();
-    }
-  }, [navigate, propToggleCollapsed]);
+  }, [navigate]);
 
-  const renderDogItem = (dog: DogWithDetails, isSelected: boolean, isCollapsed: boolean) => {
-    if (isCollapsed) {
-      const initials = dog.callName ? dog.callName.substring(0, 2).toUpperCase() : 'D';
-      return (
-        <div
-          className="flex items-center justify-center w-12 h-12 mx-auto my-1 rounded-full bg-primary/10 text-primary text-xs font-medium"
-          title={dog.callName || 'Dog'}
-        >
-          {initials}
-        </div>
-      );
-    }
-
+  const renderDogItem = (dog: DogWithDetails, _isSelected: boolean) => {
     return (
-      <div
-        className={cn(
-          'px-4 py-3 mx-2 my-1 rounded-xl transition-all duration-300',
-          isSelected
-            ? 'bg-gradient-to-br from-primary/10 to-primary/5 border-l-2 border-primary'
-            : 'hover:bg-muted/50'
-        )}
-      >
+      <div className="px-3 py-2">
         <div className="font-medium text-sm truncate">
           {dog.callName || 'Unnamed Dog'}
         </div>
@@ -100,23 +71,6 @@ const DogSidebar: React.FC<DogSidebarProps> = ({
     );
   };
 
-  const renderCollapsedDogItem = (dog: DogWithDetails, isSelected: boolean) => {
-    const initials = dog.callName ? dog.callName.substring(0, 1).toUpperCase() : 'D';
-    return (
-      <div
-        className={cn(
-          "flex items-center justify-center w-10 h-10 mx-auto my-1 rounded-full text-xs font-medium transition-all duration-300 backdrop-blur-sm shadow-sm",
-          isSelected 
-            ? "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-lg scale-110" 
-            : "bg-gradient-to-br from-muted/80 to-muted/60 text-muted-foreground hover:bg-gradient-to-br hover:from-primary/20 hover:to-primary/10 hover:scale-105"
-        )}
-        title={dog.callName || 'Dog'}
-      >
-        {initials}
-      </div>
-    );
-  };
-
   return (
     <UnifiedSidebar<DogWithDetails>
       items={dogs}
@@ -125,7 +79,6 @@ const DogSidebar: React.FC<DogSidebarProps> = ({
       onAdd={canCreateDogs ? onAdd : undefined}
       onCloseMobile={onCloseMobile}
       renderItem={renderDogItem}
-      renderCollapsedItem={renderCollapsedDogItem}
       getItemId={(dog) => dog.id}
       enableSearch={true}
       searchPlaceholder="Search dogs..."
@@ -136,9 +89,6 @@ const DogSidebar: React.FC<DogSidebarProps> = ({
       subtitle="Manage your dogs and profiles"
       headerIcon={Heart}
       addButtonText={canCreateDogs ? "Add Dog" : undefined}
-      enableCollapse={true}
-      isCollapsed={propIsCollapsed}
-      onToggleCollapse={propToggleCollapsed}
       enableResize={true}
       enableVirtualization={true}
       itemHeight={56}

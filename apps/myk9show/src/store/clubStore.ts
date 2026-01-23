@@ -100,12 +100,15 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
    * This is instant and works offline
    */
   loadClubs: async () => {
-    set({ isLoading: true, error: null });
+    // Only show loading spinner on initial load, not on background refreshes
+    const hasExistingData = get().clubs.length > 0;
+    if (!hasExistingData) {
+      set({ isLoading: true, error: null });
+    }
 
     try {
       const replicatedClubs = await replicatedClubsTable.getAllClubs();
       const clubs = replicatedClubs.map(replicatedToClub);
-
 
       set({
         clubs,

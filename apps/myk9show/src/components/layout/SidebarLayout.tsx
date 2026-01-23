@@ -110,7 +110,8 @@ export const SidebarLayout: React.FC<SidebarLayoutProps> = ({
           'fixed bottom-0 left-0',
           SIDEBAR_LAYOUT_CONSTANTS.HEADER_OFFSET_CLASS,
           SIDEBAR_LAYOUT_CONSTANTS.SIDEBAR_Z_INDEX,
-          'bg-card border-r border-border',
+          'border-r border-border/30',
+          'bg-[var(--sidebar)]',
           'transform transition-all duration-300 ease-in-out',
           // Desktop: always visible
           'md:translate-x-0',

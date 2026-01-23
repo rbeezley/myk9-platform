@@ -124,22 +124,9 @@ export const ShowGroupedSidebar: React.FC<ShowGroupedSidebarProps> = ({
     });
   };
 
-  const renderShowItem = (show: Show, _isSelected: boolean, isCollapsed: boolean) => {
-    // logger.debug('🎨 Rendering show item:', 'shows', { data: show.name, 'selected:', _isSelected, 'collapsed:', isCollapsed });
-    if (isCollapsed) {
-      // Show simplified version when collapsed
-      return (
-        <div
-          className="flex items-center justify-center w-12 h-12 mx-auto my-1 rounded-full bg-primary/10 text-primary text-xs font-medium"
-          title={`${show.name} - ${show.clubName}`}
-        >
-          {show.name.substring(0, 2).toUpperCase()}
-        </div>
-      );
-    }
-
+  const renderShowItem = (show: Show, _isSelected: boolean) => {
     return (
-      <div className="px-3 py-2 rounded-md">
+      <div className="px-3 py-2">
         <div className="font-medium text-sm truncate">
           {show.name}
         </div>
@@ -150,33 +137,16 @@ export const ShowGroupedSidebar: React.FC<ShowGroupedSidebarProps> = ({
     );
   };
 
-  const renderCollapsedShowItem = (show: Show, isSelected: boolean) => {
-    return (
-      <div
-        className={`flex items-center justify-center w-10 h-10 mx-auto my-1 rounded-full text-xs font-medium ${
-          isSelected 
-            ? 'bg-primary text-primary-foreground' 
-            : 'bg-muted text-muted-foreground hover:bg-muted/80'
-        }`}
-        title={`${show.name} - ${show.clubName}`}
-      >
-        {show.name.substring(0, 2).toUpperCase()}
-      </div>
-    );
-  };
-
   return (
     <UnifiedSidebar<Show>
       groups={sidebarGroups}
       selectedId={selectedId}
       onSelect={(id) => {
-        // logger.debug('🔄 ShowGroupedSidebar onSelect called with id:', 'shows', { data: id });
         onSelect(id);
       }}
       onAdd={canCreateShows ? onAdd : undefined}
       onGroupToggle={handleGroupToggle}
       renderItem={renderShowItem}
-      renderCollapsedItem={renderCollapsedShowItem}
       getItemId={(show) => show.id}
       enableSearch={true}
       searchPlaceholder="Search shows..."
@@ -187,7 +157,6 @@ export const ShowGroupedSidebar: React.FC<ShowGroupedSidebarProps> = ({
       subtitle="Browse and manage dog shows"
       headerIcon={Calendar}
       addButtonText={canCreateShows ? "Add Show" : undefined}
-      enableCollapse={true}
       enableResize={true}
       onCloseMobile={onCloseMobile}
     />

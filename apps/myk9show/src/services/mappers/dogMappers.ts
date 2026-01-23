@@ -74,9 +74,10 @@ export const mapDatabaseToDog = (dbDog: Record<string, unknown>): Dog => {
     weight: dbDog.weight ? String(dbDog.weight) : undefined,
     height: dbDog.height ? String(dbDog.height) : undefined,
     ownerId: dbDog.owner_id as string,
-    ownerName: dbDog.owner ? 
+    ownerName: dbDog.owner ?
       `${(dbDog.owner as Record<string, unknown>).first_name} ${(dbDog.owner as Record<string, unknown>).last_name}`.trim() : '',
     microchipNumber: dbDog.microchip_number as string,
+    imageUrl: (dbDog.image_url as string) || undefined,
     registrations: Array.isArray(dbDog.registrations) ? 
       dbDog.registrations.map((reg: Record<string, unknown>) => ({
         id: reg.id as string,
@@ -141,7 +142,7 @@ export const mapDogToDogInput = (dog: Dog): DogInput => {
     ownerId: dog.ownerId,
     ownerName: dog.ownerName,
     microchipNumber: dog.microchipNumber,
-    imageUrl: undefined, // Not currently stored in Dog type
+    imageUrl: dog.imageUrl,
     registrations: dog.registrations?.map(reg => ({
       organization: reg.organization,
       number: reg.registrationNumber,

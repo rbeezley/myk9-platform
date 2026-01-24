@@ -56,3 +56,4 @@ supabase/.temp/
 .claude_settings.json
 nul
 tmpclaude-*-cwd
+.mcp.json

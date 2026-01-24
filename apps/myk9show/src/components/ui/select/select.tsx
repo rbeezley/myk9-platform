@@ -13,14 +13,20 @@ interface SelectProps<T extends string = string> extends Omit<React.ComponentPro
   defaultValue?: T | undefined
 }
 
-function Select<T extends string = string>({ onValueChange, ...props }: SelectProps<T>) {
+function Select<T extends string = string>({ onValueChange, value, defaultValue, ...props }: SelectProps<T>) {
   const handleValueChange = onValueChange
-    ? (value: unknown) => onValueChange((value ?? '') as T)
+    ? (newValue: unknown) => onValueChange((newValue ?? '') as T)
     : undefined
+
+  // Convert empty strings to undefined for Base UI (empty string can cause issues with controlled mode)
+  const normalizedValue = value === '' ? undefined : value
+  const normalizedDefaultValue = defaultValue === '' ? undefined : defaultValue
 
   return (
     <SelectPrimitive.Root
       {...(handleValueChange !== undefined && { onValueChange: handleValueChange })}
+      {...(normalizedValue !== undefined && { value: normalizedValue })}
+      {...(normalizedDefaultValue !== undefined && { defaultValue: normalizedDefaultValue })}
       {...props}
     />
   )
@@ -117,11 +123,12 @@ const SelectContent = React.forwardRef<
   const hasDialogInputBg = classNameStr.includes('dialog-input-bg');
   return (
     <SelectPrimitive.Portal>
-      <SelectPrimitive.Positioner>
+      <SelectPrimitive.Backdrop className="fixed inset-0 z-[9998]" />
+      <SelectPrimitive.Positioner className="z-[9999] pointer-events-auto">
         <SelectPrimitive.Popup
           ref={ref}
           className={cn(
-            "relative z-[100] max-h-[var(--available-height)] min-w-[8rem] overflow-y-auto overflow-x-hidden rounded-md border text-popover-foreground shadow-md bg-popover dark:bg-popover text-popover-foreground data-[open]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[open]:fade-in-0 data-[closed]:zoom-out-95 data-[open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
+            "relative max-h-[var(--available-height)] min-w-[8rem] overflow-y-auto overflow-x-hidden rounded-md border text-popover-foreground shadow-lg bg-popover dark:bg-popover",
             position === "popper" &&
               "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
             className

@@ -1,11 +1,33 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { EditPanelWrapper } from '@/components/panels/edit/EditPanelWrapper';
+import { useEditPanel } from '@/components/panels/edit/useEditPanel';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileText } from 'lucide-react';
 import { getBreedNamesForOrganization, getVarietiesForBreed } from '@/data/breedData';
+
+// Component to sync form data with EditPanelWrapper's internal state
+function FormDataSync<T extends Record<string, unknown>>({ data }: { data: T }) {
+  const { setData } = useEditPanel<T>();
+  useEffect(() => {
+    setData(data);
+  }, [data, setData]);
+  return null;
+}
+
+// Extract organization code from full string (e.g., "AKC" from "AKC (American Kennel Club)")
+function getOrgCode(organization: string): string {
+  if (!organization) return '';
+  // Handle codes at the start like "AKC (American Kennel Club)"
+  const match = organization.match(/^(\w+)\s*\(/);
+  if (match) return match[1];
+  // Handle special cases
+  if (organization === 'Mixed Breed') return 'Other';
+  if (organization === 'Other') return 'Other';
+  return organization;
+}
 
 interface RegistrationFormData extends Record<string, unknown> {
   organization: string;
@@ -70,16 +92,18 @@ export function AddRegistrationPanel({
     }));
   };
 
-  // Get breeds for the selected organization
+  // Get breeds for the selected organization (using org code for lookup)
   const availableBreeds = useMemo(() => {
     if (!formData.organization) return [];
-    return getBreedNamesForOrganization(formData.organization);
+    const orgCode = getOrgCode(formData.organization);
+    return getBreedNamesForOrganization(orgCode);
   }, [formData.organization]);
 
   // Get varieties for the selected breed
   const availableVarieties = useMemo(() => {
     if (!formData.organization || !formData.breed) return [];
-    return getVarietiesForBreed(formData.organization, formData.breed);
+    const orgCode = getOrgCode(formData.organization);
+    return getVarietiesForBreed(orgCode, formData.breed);
   }, [formData.organization, formData.breed]);
 
   // Handle organization change - clear breed and variety
@@ -125,13 +149,14 @@ export function AddRegistrationPanel({
       onClose={onClose}
       title="Add Registration"
       subtitle={dogName ? `Add a new registration for ${dogName}` : 'Add a new registration record'}
-      initialData={formData}
+      initialData={INITIAL_FORM_DATA}
       onSave={handleSave}
       validateData={validateData}
       size="lg"
       saveLabel="Add Registration"
       showUnsavedWarning={true}
     >
+      <FormDataSync data={formData} />
       <div className="p-6 space-y-6">
         <Card>
           <CardHeader>
@@ -154,11 +179,14 @@ export function AddRegistrationPanel({
                   <SelectValue placeholder="Select organization" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="AKC">American Kennel Club (AKC)</SelectItem>
-                  <SelectItem value="UKC">United Kennel Club (UKC)</SelectItem>
-                  <SelectItem value="CKC">Canadian Kennel Club (CKC)</SelectItem>
-                  <SelectItem value="FCI">Fédération Cynologique Internationale (FCI)</SelectItem>
-                  <SelectItem value="KC">The Kennel Club (UK)</SelectItem>
+                  <SelectItem value="AKC (American Kennel Club)">AKC (American Kennel Club)</SelectItem>
+                  <SelectItem value="UKC (United Kennel Club)">UKC (United Kennel Club)</SelectItem>
+                  <SelectItem value="CKC (Canadian Kennel Club)">CKC (Canadian Kennel Club)</SelectItem>
+                  <SelectItem value="FCI (Fédération Cynologique Internationale)">FCI (Fédération Cynologique Internationale)</SelectItem>
+                  <SelectItem value="KC (The Kennel Club UK)">KC (The Kennel Club UK)</SelectItem>
+                  <SelectItem value="ILP (Indefinite Listing Privilege)">ILP (Indefinite Listing Privilege)</SelectItem>
+                  <SelectItem value="PAL (Purebred Alternative Listing)">PAL (Purebred Alternative Listing)</SelectItem>
+                  <SelectItem value="Mixed Breed">Mixed Breed</SelectItem>
                   <SelectItem value="Other">Other</SelectItem>
                 </SelectContent>
               </Select>

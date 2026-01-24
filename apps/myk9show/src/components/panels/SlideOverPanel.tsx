@@ -200,10 +200,6 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
         )}
         ref={panelRef}
         tabIndex={-1}
-        onClick={(e) => {
-          // Prevent clicks within the panel from closing it via backdrop handler
-          e.stopPropagation();
-        }}
       >
         {/* Clean Header - consistent with design system */}
         <div className={cn(

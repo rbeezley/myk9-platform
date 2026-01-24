@@ -25,7 +25,7 @@ const ShowInformationCard: React.FC<ShowInformationCardProps> = ({ showData, han
         <div className="flex items-center gap-3">
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 !rounded-full hover:bg-gray-200 dark:hover:bg-zinc-700 focus:ring-2 focus:ring-primary/60 focus:outline-none cursor-pointer z-10">
+              <Button variant="ghost" size="icon" className="h-8 w-8 !rounded-full hover:bg-gray-200 dark:hover:bg-zinc-700 focus:ring-2 focus:ring-primary/60 focus:outline-none cursor-pointer z-10" aria-label="Show options">
                 <MoreVertical className="w-5 h-5 text-muted-foreground" />
               </Button>
             </PopoverTrigger>

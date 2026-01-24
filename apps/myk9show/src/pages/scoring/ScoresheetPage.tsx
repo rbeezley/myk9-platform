@@ -408,7 +408,7 @@ function renderScoresheet(
   return (
     <div className="container max-w-2xl mx-auto px-4 py-6">
       <div className="flex items-center gap-4 mb-6">
-        <Button variant="ghost" size="icon" onClick={onBack}>
+        <Button variant="ghost" size="icon" onClick={onBack} aria-label="Go back">
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>

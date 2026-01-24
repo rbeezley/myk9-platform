@@ -221,6 +221,7 @@ export function ScoringEntryListPage() {
             size="icon"
             onClick={() => navigate(-1)}
             className="shrink-0"
+            aria-label="Go back"
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -249,6 +250,7 @@ export function ScoringEntryListPage() {
             size="icon"
             onClick={handleRefresh}
             disabled={isLoading}
+            aria-label="Refresh"
           >
             <RefreshCw className={cn('h-4 w-4', isLoading && 'animate-spin')} />
           </Button>

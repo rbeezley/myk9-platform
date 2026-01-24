@@ -499,7 +499,7 @@ function DogCard({
       <div className="flex gap-1">
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" onClick={onEdit}>
+            <Button variant="ghost" size="icon" onClick={onEdit} aria-label="Edit dog">
               <Pencil className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
@@ -507,7 +507,7 @@ function DogCard({
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" onClick={onDelete}>
+            <Button variant="ghost" size="icon" onClick={onDelete} aria-label="Remove dog">
               <Trash2 className="h-4 w-4 text-destructive" />
             </Button>
           </TooltipTrigger>

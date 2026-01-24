@@ -222,6 +222,7 @@ function CartItemRow({ item, dogName, showFullDetails, onRemove }: CartItemRowPr
           size="icon"
           className="h-6 w-6 text-muted-foreground hover:text-destructive"
           onClick={onRemove}
+          aria-label="Remove from cart"
         >
           <Trash2 className="h-3 w-3" />
         </Button>

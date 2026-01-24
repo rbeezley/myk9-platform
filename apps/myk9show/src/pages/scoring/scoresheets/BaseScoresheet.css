@@ -884,12 +884,15 @@
   }
 }
 
-/* Performance Optimizations */
+/* Accessibility: Respect reduced motion preferences */
 @media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms;
-    animation-iteration-count: 1;
-    transition-duration: 0.01ms;
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 100ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

@@ -37,7 +37,7 @@ const TrialItem: React.FC<TrialItemProps> = ({
     <td className="text-right">
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8 !rounded-full hover:bg-gray-100 cursor-pointer">
+          <Button variant="ghost" size="icon" className="h-8 w-8 !rounded-full hover:bg-gray-100 cursor-pointer" aria-label="Trial options">
             <i className="fas fa-ellipsis-v text-gray-600"></i>
           </Button>
         </PopoverTrigger>

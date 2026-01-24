@@ -46,12 +46,13 @@ const ScrollToTop: React.FC = () => {
             onClick={scrollToTop}
             size="icon"
             className={`
-              bg-gradient-to-r from-primary to-secondary text-primary-foreground 
-              shadow-lg hover:shadow-xl transition-all duration-300 
+              bg-gradient-to-r from-primary to-secondary text-primary-foreground
+              shadow-lg hover:shadow-xl transition-all duration-300
               hover:scale-110 hover:-translate-y-1 rounded-full
               ${isClicked ? 'animate-bounce scale-125' : ''}
             `}
             title="Back to top"
+            aria-label="Scroll to top"
           >
             <div className="relative">
               <ArrowUp className={`w-5 h-5 transition-transform duration-300 ${isClicked ? 'scale-110' : ''}`} />

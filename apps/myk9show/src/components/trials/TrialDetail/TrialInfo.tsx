@@ -37,7 +37,7 @@ export const TrialInfo = ({ trial, onEdit, onDelete, onAddPhoto }: TrialInfoProp
         </div>
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8 p-0">
+            <Button variant="ghost" size="icon" className="h-8 w-8 p-0" aria-label="Trial options">
               <MoreVertical className="w-5 h-5" />
             </Button>
           </PopoverTrigger>

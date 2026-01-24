@@ -255,6 +255,7 @@ export function PreferencesDialog({ open, onOpenChange }: PreferencesDialogProps
                 size="icon"
                 onClick={() => onOpenChange(false)}
                 className="h-8 w-8"
+                aria-label="Close"
               >
                 <X className="h-4 w-4" />
               </Button>

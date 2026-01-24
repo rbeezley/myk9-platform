@@ -336,7 +336,7 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
         <div className="absolute top-4 right-4">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-10 w-10 p-0">
+              <Button variant="ghost" size="icon" className="h-10 w-10 p-0" aria-label="Club options">
                 <MoreVertical className="h-5 w-5" />
               </Button>
             </DropdownMenuTrigger>

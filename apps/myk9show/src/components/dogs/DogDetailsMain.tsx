@@ -953,6 +953,12 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
 
             // Save to database if onUpdate prop is available
             if (onUpdate) {
+              logger.debug('updatedDogData from edit panel', 'dogs', {
+                dogId: updatedDog.id,
+                hasRegistrations: !!updatedDogData.registrations,
+                registrationsCount: updatedDogData.registrations?.length || 0,
+                registrations: updatedDogData.registrations,
+              });
               const dogInputData = convertDogToDogInput(updatedDogData);
               logger.debug('Saving dog data to database', 'dogs', { dogId: updatedDog.id, dogInputData });
               const savedDog = await onUpdate(updatedDog.id, dogInputData);

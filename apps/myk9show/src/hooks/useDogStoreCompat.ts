@@ -70,6 +70,14 @@ export const useDogStoreCompat = () => {
   };
 
   const updateDog = async (id: string, updates: Partial<DogInput>): Promise<Dog | null> => {
+    // Debug logging to trace registration data flow
+    logger.debug('updateDog called', 'dogs', {
+      dogId: id,
+      hasRegistrations: !!updates.registrations,
+      registrationsCount: updates.registrations?.length || 0,
+      registrations: updates.registrations,
+    });
+
     const dbUpdates = mapDogInputToUpdate(updates);
     const result = await updateMutation.mutateAsync({ id, updates: dbUpdates });
 
@@ -107,7 +115,7 @@ export const useDogStoreCompat = () => {
               dog_id: id,
               organization: inputReg.organization || 'AKC',
               registered_name: inputReg.registeredName,
-              registration_number: inputReg.number || null,
+              registration_number: inputReg.number || '', // Must be non-null per database constraint
               breed: inputReg.type || null,
               status: inputReg.status || 'pending',
             });

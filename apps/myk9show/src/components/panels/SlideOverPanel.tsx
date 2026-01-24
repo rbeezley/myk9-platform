@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { X, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -281,8 +280,9 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
     </div>
   );
 
-  // Render in portal to avoid z-index issues
-  return createPortal(panelContent, document.body);
+  // Render directly - fixed positioning handles layering, and this allows
+  // Base UI components (Select, etc.) to work properly with their own portals
+  return panelContent;
 };
 
 export default SlideOverPanel;

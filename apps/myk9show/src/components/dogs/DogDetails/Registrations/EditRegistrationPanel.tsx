@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { EditPanelWrapper } from '@/components/panels/edit/EditPanelWrapper';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -68,6 +68,13 @@ function mapToFormData(reg: RegistrationInput | null): RegistrationFormData {
   };
 }
 
+// Internal state combining form data with tracking for reset logic
+interface PanelState {
+  prevOpen: boolean;
+  prevRegistration: RegistrationInput | null;
+  formData: RegistrationFormData;
+}
+
 export function EditRegistrationPanel({
   open,
   onClose,
@@ -75,14 +82,39 @@ export function EditRegistrationPanel({
   registration,
   dogName,
 }: EditRegistrationPanelProps) {
-  const [formData, setFormData] = useState<RegistrationFormData>(INITIAL_FORM_DATA);
+  const [state, setState] = useState<PanelState>({
+    prevOpen: false,
+    prevRegistration: null,
+    formData: INITIAL_FORM_DATA,
+  });
 
-  // Update form data when registration changes
-  useEffect(() => {
-    if (open && registration) {
-      setFormData(mapToFormData(registration));
+  // Update form data when registration changes - track previous values in state (not refs)
+  if (open && registration) {
+    const justOpened = !state.prevOpen;
+    const registrationChanged = registration !== state.prevRegistration;
+    if (justOpened || registrationChanged) {
+      setState({
+        prevOpen: open,
+        prevRegistration: registration,
+        formData: mapToFormData(registration),
+      });
     }
-  }, [open, registration]);
+  } else if (state.prevOpen !== open || state.prevRegistration !== registration) {
+    // Sync tracking state when panel closes or registration becomes null
+    setState(prev => ({
+      ...prev,
+      prevOpen: open,
+      prevRegistration: registration,
+    }));
+  }
+
+  const formData = state.formData;
+  const setFormData = (updater: RegistrationFormData | ((prev: RegistrationFormData) => RegistrationFormData)) => {
+    setState(prev => ({
+      ...prev,
+      formData: typeof updater === 'function' ? updater(prev.formData) : updater,
+    }));
+  };
 
   // Get breeds for the selected organization
   const availableBreeds = useMemo(() => {

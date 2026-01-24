@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { EditPanelWrapper } from '@/components/panels/edit/EditPanelWrapper';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -34,20 +34,41 @@ const INITIAL_FORM_DATA: RegistrationFormData = {
   registrationDate: '',
 };
 
+// Internal state combining form data with tracking for reset logic
+interface PanelState {
+  prevOpen: boolean;
+  formData: RegistrationFormData;
+}
+
 export function AddRegistrationPanel({
   open,
   onClose,
   onSave,
   dogName,
 }: AddRegistrationPanelProps) {
-  const [formData, setFormData] = useState<RegistrationFormData>(INITIAL_FORM_DATA);
+  const [state, setState] = useState<PanelState>({
+    prevOpen: false,
+    formData: INITIAL_FORM_DATA,
+  });
 
-  // Reset form when panel opens
-  useEffect(() => {
-    if (open) {
-      setFormData(INITIAL_FORM_DATA);
-    }
-  }, [open]);
+  // Reset form when panel opens - track previous open in state (not refs)
+  const needsReset = open && !state.prevOpen;
+  const needsSync = state.prevOpen !== open;
+
+  if (needsReset || needsSync) {
+    setState({
+      prevOpen: open,
+      formData: needsReset ? INITIAL_FORM_DATA : state.formData,
+    });
+  }
+
+  const formData = state.formData;
+  const setFormData = (updater: RegistrationFormData | ((prev: RegistrationFormData) => RegistrationFormData)) => {
+    setState(prev => ({
+      ...prev,
+      formData: typeof updater === 'function' ? updater(prev.formData) : updater,
+    }));
+  };
 
   // Get breeds for the selected organization
   const availableBreeds = useMemo(() => {

@@ -1,7 +1,7 @@
-import type { Registration, Dog } from '@/types/dog-types';
-import AddRegistrationDialog from './AddRegistrationDialog';
+import type { Dog } from '@/types/dog-types';
+import AddRegistrationPanel from './AddRegistrationPanel';
 import SectionCard from '@/components/common/SectionCard';
-import EditRegistrationDialog from './EditRegistrationDialog';
+import EditRegistrationPanel from './EditRegistrationPanel';
 
 import ConfirmDeleteRegistrationDialog from './ConfirmDeleteRegistrationDialog';
 import ThreeDotMenu from '@/components/ui/ThreeDotMenu';
@@ -9,8 +9,8 @@ import { Eye, Edit, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { NoDataEmptyState } from '@/components/common/EmptyState';
-import { useState, useEffect } from 'react';
-import { 
+import { useEffect } from 'react';
+import {
   useDogRegistrationManagement
 } from '@/hooks/queries/useRegistrationsDatabase';
 
@@ -23,7 +23,7 @@ import { useRegistrationsStore } from '@/store/registrationsStore';
 
 export default function RegistrationsSection({ dog, autoOpenAddDialog = false }: RegistrationsSectionProps) {
   const dogId = dog?.id || '';
-  
+
   // Use database hooks for data management
   const {
     registrations: dbRegistrations,
@@ -31,37 +31,33 @@ export default function RegistrationsSection({ dog, autoOpenAddDialog = false }:
     error,
     createRegistration,
     isCreating,
+    updateRegistration,
     deleteRegistration,
     refetch
   } = useDogRegistrationManagement(dogId);
-  
+
   // Fallback to dog prop registrations if database not available, or use store
   const storeRegistrations = useRegistrationsStore(state => state.registrations);
   const registrations = dbRegistrations || dog?.registrations || storeRegistrations;
-  
+
   const isAddRegistrationDialogOpen = useRegistrationsStore(state => state.isAddRegistrationDialogOpen);
   const setIsAddRegistrationDialogOpen = useRegistrationsStore(state => state.setIsAddRegistrationDialogOpen);
-  
+
   // Auto-open the add registration dialog if requested
   useEffect(() => {
     if (autoOpenAddDialog) {
       setIsAddRegistrationDialogOpen(true);
     }
   }, [autoOpenAddDialog, setIsAddRegistrationDialogOpen]);
-  
+
   const isEditRegistrationDialogOpen = useRegistrationsStore(state => state.isEditRegistrationDialogOpen);
   const setIsEditRegistrationDialogOpen = useRegistrationsStore(state => state.setIsEditRegistrationDialogOpen);
   const isDeleteRegistrationDialogOpen = useRegistrationsStore(state => state.isDeleteRegistrationDialogOpen);
   const setIsDeleteRegistrationDialogOpen = useRegistrationsStore(state => state.setIsDeleteRegistrationDialogOpen);
-  
+
   const setIsViewRegistrationDialogOpen = useRegistrationsStore(state => state.setIsViewRegistrationDialogOpen);
   const selectedRegistration = useRegistrationsStore(state => state.selectedRegistration);
   const setSelectedRegistration = useRegistrationsStore(state => state.setSelectedRegistration);
-
-  // Local state for new/edit registration form
-  const [newRegistration, setNewRegistration] = useState<Omit<Registration, 'id'>>({
-    organization: '', registeredName: '', breed: '', variety: '', registrationNumber: '', status: 'Active', applicationNumber: '', submissionDate: '', registrationDate: '', certificate: '',
-  });
 
   const handleDeleteRegistration = () => {
     if (selectedRegistration && selectedRegistration.id) {
@@ -88,26 +84,56 @@ export default function RegistrationsSection({ dog, autoOpenAddDialog = false }:
     return `${mm}/${dd}/${yyyy}`;
   }
 
-  const handleAddRegistration = () => {
+  // Handle adding a new registration
+  const handleAddRegistration = async (data: {
+    organization: string;
+    registeredName: string;
+    breed: string;
+    variety: string;
+    registrationNumber: string;
+    status: string;
+    registrationDate: string;
+  }) => {
     // Map to database format and create
     const registrationData = {
-      organization: newRegistration.organization,
-      registered_name: newRegistration.registeredName,
-      breed: newRegistration.breed,
-      variety: newRegistration.variety || null,
-      registration_number: newRegistration.registrationNumber,
-      status: newRegistration.status,
-      application_number: newRegistration.applicationNumber || null,
-      submission_date: newRegistration.submissionDate || null,
-      registration_date: newRegistration.registrationDate || null,
-      certificate: newRegistration.certificate || null,
+      organization: data.organization,
+      registered_name: data.registeredName,
+      breed: data.breed,
+      variety: data.variety || null,
+      registration_number: data.registrationNumber,
+      status: data.status,
+      registration_date: data.registrationDate || null,
     };
 
     createRegistration(registrationData);
     setIsAddRegistrationDialogOpen(false);
-    setNewRegistration({
-      organization: '', registeredName: '', breed: '', variety: '', registrationNumber: '', status: 'Active', applicationNumber: '', submissionDate: '', registrationDate: '', certificate: '',
-    });
+  };
+
+  // Handle updating an existing registration
+  const handleUpdateRegistration = async (data: {
+    id: string;
+    organization: string;
+    registeredName: string;
+    breed: string;
+    variety: string;
+    registrationNumber: string;
+    status: string;
+    registrationDate: string;
+  }) => {
+    // Map to database format and update
+    const registrationData = {
+      organization: data.organization,
+      registered_name: data.registeredName,
+      breed: data.breed,
+      variety: data.variety || null,
+      registration_number: data.registrationNumber,
+      status: data.status,
+      registration_date: data.registrationDate || null,
+    };
+
+    updateRegistration({ id: data.id, updates: registrationData });
+    setIsEditRegistrationDialogOpen(false);
+    setSelectedRegistration(null);
   };
 
 
@@ -172,7 +198,6 @@ export default function RegistrationsSection({ dog, autoOpenAddDialog = false }:
                   label: 'Edit',
                   onClick: () => {
                     setSelectedRegistration(reg);
-                    setNewRegistration({ ...reg });
                     setIsEditRegistrationDialogOpen(true);
                   },
                   icon: <Edit className="w-4 h-4 mr-2" />,
@@ -190,7 +215,6 @@ export default function RegistrationsSection({ dog, autoOpenAddDialog = false }:
             <div className="flex flex-col gap-2">
               <div className="font-semibold text-base mb-0.5">{reg.organization} Registration</div>
               <div className="text-xs text-muted-foreground mb-0.5">{reg.organization === 'AKC' ? 'American Kennel Club' : reg.organization === 'UKC' ? 'United Kennel Club' : reg.organization}</div>
-              {/* DEBUG: Show the status value as a fallback */}
               {typeof reg.status === 'string' && reg.status.trim() !== '' ? (
                 <span className={`inline-flex w-fit px-2 py-0.5 rounded text-xs font-medium mb-1 ${reg.status === 'Active' ? 'bg-green-500/20 text-green-800 dark:text-green-200' : reg.status === 'Pending' || reg.status === 'Under review' ? 'bg-yellow-500/20 text-yellow-800 dark:text-yellow-200' : 'bg-muted text-muted-foreground'}`}>{reg.status}</span>
               ) : (
@@ -235,21 +259,23 @@ export default function RegistrationsSection({ dog, autoOpenAddDialog = false }:
         ))}
       </div>
       )}
-      <AddRegistrationDialog
+      <AddRegistrationPanel
         open={isAddRegistrationDialogOpen}
         onClose={() => setIsAddRegistrationDialogOpen(false)}
-        onAdd={handleAddRegistration}
-        newRegistration={newRegistration}
-        setNewRegistration={setNewRegistration}
+        onSave={handleAddRegistration}
+        dogName={dog?.callName}
       />
-      <EditRegistrationDialog
+      <EditRegistrationPanel
         open={isEditRegistrationDialogOpen}
-        onClose={() => setIsEditRegistrationDialogOpen(false)}
-        onUpdate={() => {}}
-        newRegistration={newRegistration}
-        setNewRegistration={setNewRegistration}
+        onClose={() => {
+          setIsEditRegistrationDialogOpen(false);
+          setSelectedRegistration(null);
+        }}
+        onSave={handleUpdateRegistration}
+        registration={selectedRegistration}
+        dogName={dog?.callName}
       />
-      
+
       <ConfirmDeleteRegistrationDialog
         open={isDeleteRegistrationDialogOpen}
         onClose={() => {

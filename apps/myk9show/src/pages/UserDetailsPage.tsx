@@ -1,4 +1,4 @@
-import { useEffect, startTransition, useState } from 'react';
+import { useCallback, useEffect, useMemo, startTransition, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useUserSidebarStore } from '@/store/userSidebarStore';
 import { useUserStore, PersonInput } from '@/store/userStore';
@@ -32,6 +32,11 @@ function UserDetails(): React.ReactElement {
   // Sidebar state management using the shared hook
   const { mobileOpen, setMobileOpen, closeMobile } = useSidebarLayoutState();
 
+  // Memoize callbacks to prevent UserSidebar re-renders
+  const handleOpenCreatePersonDialog = useCallback(() => {
+    setShowCreatePersonDialog(true);
+  }, []);
+
   // Find the selected person
   const selectedUser = id ? people.find(person => person.id === id) : null;
 
@@ -59,14 +64,14 @@ function UserDetails(): React.ReactElement {
     }
   }, [id, selectedUser, people, navigate, canAccessPerson]);
 
-  // Render the sidebar component
-  const sidebarContent = (
+  // Memoize sidebar content to prevent unnecessary re-renders
+  const sidebarContent = useMemo(() => (
     <UserSidebar
       selectedPersonId={id || null}
-      onAdd={() => setShowCreatePersonDialog(true)}
+      onAdd={handleOpenCreatePersonDialog}
       onCloseMobile={closeMobile}
     />
-  );
+  ), [id, handleOpenCreatePersonDialog, closeMobile]);
 
   // Render main content based on data state
   const renderContent = () => {

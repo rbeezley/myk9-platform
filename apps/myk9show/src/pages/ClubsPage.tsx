@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import ClubSidebar from '@/components/clubs/ClubSidebar';
 import ClubDetails from '@/components/clubs/ClubDetails';
@@ -87,14 +87,18 @@ const ClubsPage: React.FC = () => {
     }
   }, [clubIdFromUrl, clubs, selectedClubId, selectClub, navigate]);
 
-  // Handle club selection from sidebar
-  const handleSelectClub = (clubId: string) => {
+  const [showCreateClubPanel, setShowCreateClubPanel] = useState(false);
+
+  // Memoize callbacks to prevent ClubSidebar re-renders
+  const handleSelectClub = useCallback((clubId: string) => {
     selectClub(clubId);
     navigate(`/clubs/${clubId}`);
     closeMobile(); // Close mobile sidebar after selection
-  };
+  }, [selectClub, navigate, closeMobile]);
 
-  const [showCreateClubPanel, setShowCreateClubPanel] = useState(false);
+  const handleOpenCreatePanel = useCallback(() => {
+    setShowCreateClubPanel(true);
+  }, []);
 
   // Get current user for RBAC role assignment
   const { userWithRoles } = useAuthContext();
@@ -113,19 +117,15 @@ const ClubsPage: React.FC = () => {
     setShowCreateClubPanel(false);
   }
 
-  function handleOpenCreatePanel(): void {
-    setShowCreateClubPanel(true);
-  }
-
-  // Render the sidebar component
-  const sidebarContent = (
+  // Memoize sidebar content to prevent unnecessary re-renders
+  const sidebarContent = useMemo(() => (
     <ClubSidebar
       clubs={clubs}
       selectedClubId={selectedClubId}
       onSelectClub={handleSelectClub}
       onAddClub={handleOpenCreatePanel}
     />
-  );
+  ), [clubs, selectedClubId, handleSelectClub, handleOpenCreatePanel]);
 
   // Render main content based on loading/data state
   const renderContent = () => {

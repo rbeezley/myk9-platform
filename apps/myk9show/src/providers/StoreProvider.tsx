@@ -4,6 +4,9 @@ import { logger } from '@/services/LoggingService';
 import { STORE_CATEGORIES, StoreName, StoreCategory } from '@/store/store-categories';
 import { storeMetricsCollector } from '@/store/compositions/StoreComposition';
 
+// Track initialization to prevent duplicate logs from StrictMode
+let hasLoggedInitialization = false;
+
 interface StoreLoadingState {
   isLoaded: boolean;
   isLoading: boolean;
@@ -212,17 +215,17 @@ export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
 
   // PERFORMANCE OPTIMIZATION: Only load critical stores on app startup
   useEffect(() => {
-    logger.info('StoreProvider initialized - aggressive lazy loading enabled', 'store');
+    // Only log once to prevent StrictMode double-logging
+    if (!hasLoggedInitialization) {
+      hasLoggedInitialization = true;
+      logger.info('StoreProvider initialized - lazy loading enabled', 'store');
+    }
 
     // Load only critical stores immediately (minimal set)
     const loadCriticalStores = async () => {
       const criticalStores = STORE_CATEGORIES.CRITICAL;
       if (criticalStores.length > 0) {
-        logger.debug('Loading critical stores', 'store', { count: criticalStores.length, stores: criticalStores });
         await Promise.all(criticalStores.map(store => loadStore(store)));
-        logger.info('Critical stores loaded', 'store');
-      } else {
-        logger.debug('No critical stores to load - maximum performance mode', 'store');
       }
     };
 

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useMemo, memo } from "react";
 import { Building2 } from 'lucide-react';
 import { useRBAC } from '@/hooks/useRBAC';
 import UnifiedSidebar from '@/components/common/UnifiedSidebar';
@@ -29,13 +29,14 @@ const getClubInitials = (name: string) => {
     .slice(0, 3);
 };
 
-const ClubSidebar: React.FC<ClubSidebarProps> = ({ clubs, selectedClubId, onSelectClub, onAddClub, onCloseMobile }) => {
+const ClubSidebarInner: React.FC<ClubSidebarProps> = ({ clubs, selectedClubId, onSelectClub, onAddClub, onCloseMobile }) => {
   const { hasPermission, isLoading } = useRBAC();
 
   // Check if user can create clubs (admin only) - only check if RBAC is loaded
   const canCreateClubs = !isLoading && hasPermission('club:create');
 
-  const renderClubItem = (club: Club, isSelected: boolean) => (
+  // Memoize renderClubItem to prevent re-renders
+  const renderClubItem = useCallback((club: Club, isSelected: boolean) => (
     <div className="flex items-center gap-3 px-3 py-2 rounded-md">
       {club.logo ? (
         <img
@@ -64,6 +65,24 @@ const ClubSidebar: React.FC<ClubSidebarProps> = ({ clubs, selectedClubId, onSele
         </p>
       </div>
     </div>
+  ), []);
+
+  // Memoize getItemId callback
+  const getItemId = useCallback((club: Club) => club.id, []);
+
+  // Memoize getSearchText callback
+  const getSearchText = useCallback((club: Club) => `${club.name} ${club.email}`, []);
+
+  // Memoize the onAdd prop to ensure stable reference
+  const effectiveOnAdd = useMemo(() =>
+    canCreateClubs ? onAddClub : undefined,
+    [canCreateClubs, onAddClub]
+  );
+
+  // Memoize addButtonText
+  const addButtonText = useMemo(() =>
+    canCreateClubs ? "Add Club" : undefined,
+    [canCreateClubs]
   );
 
   return (
@@ -71,19 +90,22 @@ const ClubSidebar: React.FC<ClubSidebarProps> = ({ clubs, selectedClubId, onSele
       items={clubs}
       selectedId={selectedClubId}
       onSelect={onSelectClub}
-      onAdd={canCreateClubs ? onAddClub : undefined}
+      onAdd={effectiveOnAdd}
       onCloseMobile={onCloseMobile}
       renderItem={renderClubItem}
-      getItemId={(club) => club.id}
+      getItemId={getItemId}
       enableSearch={true}
       searchPlaceholder="Search clubs..."
-      getSearchText={(club) => `${club.name} ${club.email}`}
+      getSearchText={getSearchText}
       title="Clubs"
       subtitle="Browse and manage clubs"
       headerIcon={Building2}
-      addButtonText={canCreateClubs ? "Add Club" : undefined}
+      addButtonText={addButtonText}
     />
   );
 };
+
+// Wrap with React.memo for performance
+const ClubSidebar = memo(ClubSidebarInner);
 
 export default ClubSidebar;

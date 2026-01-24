@@ -1,8 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState, memo } from 'react';
 import { Clock, Archive, Calendar } from 'lucide-react';
 import { useRBAC } from '@/hooks/useRBAC';
 import UnifiedSidebar, { SidebarGroup } from '@/components/common/UnifiedSidebar';
-import { logger } from '@/services/LoggingService';
 
 interface Show {
   id: string;
@@ -22,7 +21,7 @@ interface ShowGroupedSidebarProps {
   onAdd?: (() => void) | undefined;
 }
 
-export const ShowGroupedSidebar: React.FC<ShowGroupedSidebarProps> = ({
+const ShowGroupedSidebarInner: React.FC<ShowGroupedSidebarProps> = ({
   shows,
   selectedId,
   onSelect,
@@ -34,27 +33,11 @@ export const ShowGroupedSidebar: React.FC<ShowGroupedSidebarProps> = ({
   const { hasPermission, isLoading } = useRBAC();
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {
     // Start with upcoming groups expanded by default
-    const defaultExpanded = new Set<string>();
-    // We'll add group IDs as they're created
-    return defaultExpanded;
+    return new Set<string>();
   });
 
   // Check if user can create shows - only check if RBAC is loaded
   const canCreateShows = !isLoading && hasPermission('show:create');
-
-  // Enhanced debug logging
-  logger.debug('ShowGroupedSidebar permissions', 'shows', {
-    isLoading,
-    hasShowCreatePermission: hasPermission('show:create'),
-    canCreateShows,
-    onAddProvided: !!onAdd,
-  });
-
-  // Debug logging
-  // logger.debug('🎪 ShowGroupedSidebar - shows count:', 'shows', { data: shows.length });
-  // logger.debug('🎪 ShowGroupedSidebar - selectedId:', 'shows', { data: selectedId });
-  // logger.debug('🎪 ShowGroupedSidebar - shows data:', 'shows', { data: shows.slice(0, 3) });
-  // logger.debug('🎪 ShowGroupedSidebar - expandedGroups:', 'shows', { data: Array.from(expandedGroups) });
 
   // Create hierarchical groups for club > status structure  
   const sidebarGroups = useMemo((): SidebarGroup<Show>[] => {
@@ -112,7 +95,7 @@ export const ShowGroupedSidebar: React.FC<ShowGroupedSidebarProps> = ({
     return groups;
   }, [shows, expandedGroups]);
 
-  const handleGroupToggle = (groupId: string, isExpanded: boolean) => {
+  const handleGroupToggle = useCallback((groupId: string, isExpanded: boolean) => {
     setExpandedGroups(prev => {
       const newSet = new Set(prev);
       if (isExpanded) {
@@ -122,9 +105,10 @@ export const ShowGroupedSidebar: React.FC<ShowGroupedSidebarProps> = ({
       }
       return newSet;
     });
-  };
+  }, []);
 
-  const renderShowItem = (show: Show, _isSelected: boolean) => {
+  // Memoize renderShowItem to prevent re-renders
+  const renderShowItem = useCallback((show: Show, _isSelected: boolean) => {
     return (
       <div className="px-3 py-2">
         <div className="font-medium text-sm truncate">
@@ -135,30 +119,49 @@ export const ShowGroupedSidebar: React.FC<ShowGroupedSidebarProps> = ({
         </div>
       </div>
     );
-  };
+  }, []);
+
+  // Memoize getItemId callback
+  const getItemId = useCallback((show: Show) => show.id, []);
+
+  // Memoize getSearchText callback
+  const getSearchText = useCallback((show: Show) => `${show.name} ${show.clubName}`, []);
+
+  // Memoize the onAdd prop to ensure stable reference
+  const effectiveOnAdd = useMemo(() =>
+    canCreateShows ? onAdd : undefined,
+    [canCreateShows, onAdd]
+  );
+
+  // Memoize addButtonText
+  const addButtonText = useMemo(() =>
+    canCreateShows ? "Add Show" : undefined,
+    [canCreateShows]
+  );
 
   return (
     <UnifiedSidebar<Show>
       groups={sidebarGroups}
       selectedId={selectedId}
-      onSelect={(id) => {
-        onSelect(id);
-      }}
-      onAdd={canCreateShows ? onAdd : undefined}
+      onSelect={onSelect}
+      onAdd={effectiveOnAdd}
       onGroupToggle={handleGroupToggle}
       renderItem={renderShowItem}
-      getItemId={(show) => show.id}
+      getItemId={getItemId}
       enableSearch={true}
       searchPlaceholder="Search shows..."
-      getSearchText={(show) => `${show.name} ${show.clubName}`}
+      getSearchText={getSearchText}
       searchTerm={searchTerm}
       onSearchChange={onSearchChange}
       title="Shows"
       subtitle="Browse and manage dog shows"
       headerIcon={Calendar}
-      addButtonText={canCreateShows ? "Add Show" : undefined}
+      addButtonText={addButtonText}
       enableResize={true}
       onCloseMobile={onCloseMobile}
     />
   );
 };
+
+// Wrap with React.memo for performance
+export const ShowGroupedSidebar = memo(ShowGroupedSidebarInner);

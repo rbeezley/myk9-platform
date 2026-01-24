@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, startTransition } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, Suspense, startTransition } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import ShowDetailsMain from '@/components/shows/ShowDetailsMain';
@@ -82,6 +82,18 @@ const ShowDetailsPage: React.FC = () => {
 
   // Sidebar state management using the shared hook
   const { mobileOpen, setMobileOpen, closeMobile } = useSidebarLayoutState();
+
+  // Memoize callbacks to prevent ShowGroupedSidebar re-renders
+  const handleShowSelect = useCallback((selectedShowId: string) => {
+    startTransition(() => {
+      navigate(`/shows/${selectedShowId}`);
+    });
+    closeMobile();
+  }, [navigate, closeMobile]);
+
+  const handleOpenWizardDialog = useCallback(() => {
+    setShowWizardDialog(true);
+  }, []);
 
   // Fallback: Find current show from database if scoped data doesn't have it
   const actualCurrentShow = React.useMemo(() => {
@@ -206,23 +218,18 @@ const ShowDetailsPage: React.FC = () => {
     setShowRegistration(false);
   }
 
-  // Render the sidebar component
-  const sidebarContent = (
+  // Memoize sidebar content to prevent unnecessary re-renders
+  const sidebarContent = useMemo(() => (
     <ShowGroupedSidebar
       shows={shows}
       selectedId={showId}
-      onSelect={(id) => {
-        startTransition(() => {
-          navigate(`/shows/${id}`);
-        });
-        closeMobile();
-      }}
+      onSelect={handleShowSelect}
       searchTerm={searchTerm}
       onSearchChange={setSearchTerm}
       onCloseMobile={closeMobile}
-      onAdd={() => setShowWizardDialog(true)}
+      onAdd={handleOpenWizardDialog}
     />
-  );
+  ), [shows, showId, handleShowSelect, searchTerm, closeMobile, handleOpenWizardDialog]);
 
   // Render main content based on loading/data state
   const renderContent = () => {

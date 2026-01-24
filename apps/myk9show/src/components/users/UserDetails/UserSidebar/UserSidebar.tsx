@@ -1,11 +1,10 @@
-import React, { useCallback, startTransition } from 'react';
+import React, { useCallback, useMemo, startTransition, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users } from 'lucide-react';
 import { useUserSidebarStore } from '@/store/userSidebarStore';
 import { useRoleBasedPeople } from '@/hooks/useRoleBasedData';
 import { useRBAC } from '@/hooks/useRBAC';
 import UnifiedSidebar from '@/components/common/UnifiedSidebar';
-import { logger } from '@/services/LoggingService';
 
 interface PersonWithDetails {
   id: string;
@@ -23,7 +22,7 @@ interface PeopleSidebarProps {
   onCloseMobile?: () => void;
 }
 
-const PeopleSidebar: React.FC<PeopleSidebarProps> = ({
+const PeopleSidebarInner: React.FC<PeopleSidebarProps> = ({
   selectedPersonId,
   className,
   onAdd,
@@ -36,13 +35,6 @@ const PeopleSidebar: React.FC<PeopleSidebarProps> = ({
 
   // Check if user can manage users (admin only) - only check if RBAC is loaded
   const canManageUsers = !isLoading && hasPermission('user:manage');
-  
-  // Debug logging
-  logger.debug('👥 UserSidebar - isLoading:', 'users', { isLoading, canManageUsers });
-  logger.debug('👥 UserSidebar - onAdd prop:', 'users', { data: !!onAdd });
-  
-  // Note: Automatic mock data loading removed to respect "Reset Everything" functionality
-  // If you need test data, use the "Load Mock Data" button in development tools
 
   const handlePersonClick = useCallback((personId: string) => {
     startTransition(() => {
@@ -50,8 +42,8 @@ const PeopleSidebar: React.FC<PeopleSidebarProps> = ({
     });
   }, [navigate]);
 
-  const renderPersonItem = (person: PersonWithDetails, _isSelected: boolean) => {
-    // Handle both camelCase and snake_case field names
+  // Memoize renderPersonItem to prevent re-renders
+  const renderPersonItem = useCallback((person: PersonWithDetails, _isSelected: boolean) => {
     const personRecord = person as unknown as Record<string, unknown>;
     const firstName = person.firstName || (personRecord.first_name as string) || '';
     const lastName = person.lastName || (personRecord.last_name as string) || '';
@@ -89,31 +81,49 @@ const PeopleSidebar: React.FC<PeopleSidebarProps> = ({
         )}
       </div>
     );
-  };
+  }, []);
+
+  // Memoize getItemId callback
+  const getItemId = useCallback((person: PersonWithDetails) => person.id, []);
+
+  // Memoize getSearchText callback
+  const getSearchText = useCallback((person: PersonWithDetails) => {
+    const personRecord = person as unknown as Record<string, unknown>;
+    const firstName = person.firstName || (personRecord.first_name as string) || '';
+    const lastName = person.lastName || (personRecord.last_name as string) || '';
+    return `${firstName} ${lastName} ${person.email || ''}`;
+  }, []);
+
+  // Memoize the onAdd prop to ensure stable reference
+  const effectiveOnAdd = useMemo(() =>
+    canManageUsers ? onAdd : undefined,
+    [canManageUsers, onAdd]
+  );
+
+  // Memoize addButtonText
+  const addButtonText = useMemo(() =>
+    canManageUsers ? "Add User" : undefined,
+    [canManageUsers]
+  );
 
   return (
     <UnifiedSidebar<PersonWithDetails>
       items={people}
       selectedId={selectedPersonId}
       onSelect={handlePersonClick}
-      onAdd={canManageUsers ? onAdd : undefined}
+      onAdd={effectiveOnAdd}
       onCloseMobile={onCloseMobile}
       renderItem={renderPersonItem}
-      getItemId={(person) => person.id}
+      getItemId={getItemId}
       enableSearch={true}
       searchPlaceholder="Search people..."
-      getSearchText={(person) => {
-        const personRecord = person as unknown as Record<string, unknown>;
-        const firstName = person.firstName || (personRecord.first_name as string) || '';
-        const lastName = person.lastName || (personRecord.last_name as string) || '';
-        return `${firstName} ${lastName} ${person.email || ''}`;
-      }}
+      getSearchText={getSearchText}
       searchTerm={searchTerm}
       onSearchChange={setSearchTerm}
       title="Users"
       subtitle="Manage people and contacts"
       headerIcon={Users}
-      addButtonText={canManageUsers ? "Add User" : undefined}
+      addButtonText={addButtonText}
       enableResize={true}
       enableVirtualization={true}
       itemHeight={56}
@@ -121,5 +131,8 @@ const PeopleSidebar: React.FC<PeopleSidebarProps> = ({
     />
   );
 };
+
+// Wrap with React.memo for performance
+const PeopleSidebar = memo(PeopleSidebarInner);
 
 export default PeopleSidebar;

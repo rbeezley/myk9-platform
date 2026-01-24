@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useDogSidebarStore } from '@/store/dogSidebarStore';
 import { useUserStore } from '@/store/userStore';
@@ -37,6 +37,11 @@ function DogDetails(): React.ReactElement {
 
   // Sidebar state management using the shared hook
   const { mobileOpen, setMobileOpen, closeMobile } = useSidebarLayoutState();
+
+  // Memoize callbacks to prevent DogSidebar re-renders
+  const handleOpenCreateDogPanel = useCallback(() => {
+    setShowCreateDogPanel(true);
+  }, []);
 
   // Get navigation context from URL parameters
   const fromPersonId = searchParams.get('fromPerson');
@@ -100,14 +105,14 @@ function DogDetails(): React.ReactElement {
     navigate(`/dogs/${newDog.id}`, { replace: true });
   }
 
-  // Render the sidebar component
-  const sidebarContent = (
+  // Memoize sidebar content to prevent unnecessary re-renders
+  const sidebarContent = useMemo(() => (
     <DogSidebar
       selectedDogId={id || null}
-      onAdd={() => setShowCreateDogPanel(true)}
+      onAdd={handleOpenCreateDogPanel}
       onCloseMobile={closeMobile}
     />
-  );
+  ), [id, handleOpenCreateDogPanel, closeMobile]);
 
   // Render main content based on loading/data state
   const renderContent = () => {

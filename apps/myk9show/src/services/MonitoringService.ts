@@ -114,9 +114,10 @@ class PerformanceMonitor {
                 name: entry.name,
                 startTime: entry.startTime,
               });
-              
-              // Only log in development to avoid performance overhead
-              if (import.meta.env.DEV) {
+
+              // Only log significant long tasks (>200ms) in development to reduce noise
+              // Standard threshold is 50ms but that's too verbose during development
+              if (import.meta.env.DEV && entry.duration > 200) {
                 logger.warn(`Long task detected: ${entry.duration}ms`, 'performance', {
                   duration: entry.duration,
                   startTime: entry.startTime,
@@ -213,8 +214,22 @@ class PerformanceMonitor {
     }
     this.metrics.get(name)!.push(metric);
 
-    // Log performance issues
-    if (this.isPerformanceIssue(name, value)) {
+    // Log performance issues - only warn for significant issues in development
+    // In development, skip logging minor performance issues to reduce console noise
+    if (import.meta.env.DEV) {
+      // Only log truly significant issues in development (higher thresholds)
+      const significantThresholds: Record<string, number> = {
+        'webvitals.fid': 200,
+        'webvitals.lcp': 4000,
+        'webvitals.cls': 0.25,
+        'longtask.duration': 200, // Match the long task observer threshold
+      };
+      const threshold = significantThresholds[name];
+      if (threshold && value > threshold) {
+        logger.warn(`Performance issue detected: ${name} = ${value}${unit}`, 'performance', metadata);
+      }
+    } else if (this.isPerformanceIssue(name, value)) {
+      // In production, use standard thresholds
       logger.warn(`Performance issue detected: ${name} = ${value}${unit}`, 'performance', metadata);
     }
 

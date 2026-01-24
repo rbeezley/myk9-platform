@@ -20,6 +20,7 @@ import {
   PawPrint
 } from 'lucide-react';
 import { useUserStore } from '@/store/userStore';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import Breadcrumb from '@/components/common/Breadcrumb';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import ThreeDotMenu from '@/components/common/ThreeDotMenu';
@@ -126,14 +127,41 @@ const TabContentSkeleton = () => (
  */
 function formatDisplayDate(dateStr: string): string {
   if (!dateStr) return '';
-  
+
   if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
     const [year, month, day] = dateStr.split('-');
     return `${parseInt(month, 10)}/${parseInt(day, 10)}/${year}`;
   }
-  
+
   return dateStr;
 }
+
+/**
+ * Displays a value or a clickable "Add" prompt when empty
+ */
+interface EditableValueProps {
+  value: string | undefined | null;
+  onEdit: () => void;
+  suffix?: string;
+  formatFn?: (val: string) => string;
+}
+
+const EditableValue: React.FC<EditableValueProps> = ({ value, onEdit, suffix = '', formatFn }) => {
+  if (value) {
+    const displayValue = formatFn ? formatFn(value) : value;
+    return <span className="text-sm font-medium text-foreground">{displayValue}{suffix}</span>;
+  }
+
+  return (
+    <button
+      onClick={onEdit}
+      className="text-sm font-medium text-primary/70 hover:text-primary
+                 transition-colors cursor-pointer hover:underline"
+    >
+      Add
+    </button>
+  );
+};
 
 interface DogDetailsMainProps {
   dog: Dog;
@@ -147,6 +175,8 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
   const navigate = useNavigate();
   const [autoOpenAddRegistration, setAutoOpenAddRegistration] = useState(false);
   const people = useUserStore(state => state.people);
+  const { getUserRoles } = useAuthContext();
+  const userRole = getUserRoles()[0]; // Get primary role
 
   // Check for addRegistration query parameter on mount
   useEffect(() => {
@@ -304,6 +334,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
       result.registrations = dogData.registrations.map(reg => ({
         organization: reg.organization,
         number: reg.registrationNumber,
+        registeredName: reg.registeredName,
         type: reg.breed || 'Unknown',
         status: reg.status
       }));
@@ -504,29 +535,30 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
                 <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
                   Registered Name
                 </span>
-                <span className="text-sm font-medium text-foreground">
-                  {updatedDog.registrations?.[0]?.registeredName || 'Not specified'}
-                </span>
+                <EditableValue
+                  value={updatedDog.registrations?.[0]?.registeredName}
+                  onEdit={() => setIsEditPanelOpen(true)}
+                />
               </div>
               <div className="flex items-center justify-between py-3" style={{ borderBottom: '0.5px solid rgba(128, 128, 128, 0.2)' }}>
                 <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
                   Sex
                 </span>
-                <span className="text-sm font-medium text-foreground">
-                  {updatedDog.gender
-                    ? updatedDog.gender.charAt(0).toUpperCase() + updatedDog.gender.slice(1)
-                    : 'Not specified'}
-                </span>
+                <EditableValue
+                  value={updatedDog.gender}
+                  onEdit={() => setIsEditPanelOpen(true)}
+                  formatFn={(val) => val.charAt(0).toUpperCase() + val.slice(1)}
+                />
               </div>
               <div className="flex items-center justify-between py-3">
                 <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
                   Date of Birth
                 </span>
-                <span className="text-sm font-medium text-foreground">
-                  {updatedDog.dateOfBirth
-                    ? formatDisplayDate(updatedDog.dateOfBirth)
-                    : 'Not specified'}
-                </span>
+                <EditableValue
+                  value={updatedDog.dateOfBirth}
+                  onEdit={() => setIsEditPanelOpen(true)}
+                  formatFn={formatDisplayDate}
+                />
               </div>
             </div>
           </div>
@@ -554,33 +586,39 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
                 <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
                   Height
                 </span>
-                <span className="text-sm font-medium text-foreground">
-                  {updatedDog.height ? `${updatedDog.height}"` : 'Not specified'}
-                </span>
+                <EditableValue
+                  value={updatedDog.height}
+                  onEdit={() => setIsEditPanelOpen(true)}
+                  suffix='"'
+                />
               </div>
               <div className="flex items-center justify-between py-3" style={{ borderBottom: '0.5px solid rgba(128, 128, 128, 0.2)' }}>
                 <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
                   Weight
                 </span>
-                <span className="text-sm font-medium text-foreground">
-                  {updatedDog.weight ? `${updatedDog.weight} lbs` : 'Not specified'}
-                </span>
+                <EditableValue
+                  value={updatedDog.weight}
+                  onEdit={() => setIsEditPanelOpen(true)}
+                  suffix=" lbs"
+                />
               </div>
               <div className="flex items-center justify-between py-3" style={{ borderBottom: '0.5px solid rgba(128, 128, 128, 0.2)' }}>
                 <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
                   Color
                 </span>
-                <span className="text-sm font-medium text-foreground">
-                  {updatedDog.color || 'Not specified'}
-                </span>
+                <EditableValue
+                  value={updatedDog.color}
+                  onEdit={() => setIsEditPanelOpen(true)}
+                />
               </div>
               <div className="flex items-center justify-between py-3">
                 <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
                   Microchip
                 </span>
-                <span className="text-sm font-medium text-foreground">
-                  {updatedDog.microchip || 'Not specified'}
-                </span>
+                <EditableValue
+                  value={updatedDog.microchip}
+                  onEdit={() => setIsEditPanelOpen(true)}
+                />
               </div>
             </div>
           </div>
@@ -610,13 +648,19 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
               <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
                 Owner Name
               </span>
-              <span 
-                className="text-sm font-medium text-primary dark:text-white hover:text-primary/80 dark:hover:text-white/80 
-                           transition-colors duration-200 hover:underline cursor-pointer"
-                onClick={() => startTransition(() => navigate(`/people/${owner.id}?fromDog=${updatedDog.id}`))}
-              >
-                {owner.name}
-              </span>
+              {owner.id !== 'unknown' ? (
+                <span
+                  className="text-sm font-medium text-primary dark:text-white hover:text-primary/80 dark:hover:text-white/80
+                             transition-colors duration-200 hover:underline cursor-pointer"
+                  onClick={() => startTransition(() => navigate(`/people/${owner.id}?fromDog=${updatedDog.id}`))}
+                >
+                  {owner.name}
+                </span>
+              ) : (
+                <span className="text-sm font-medium text-muted-foreground">
+                  {owner.name}
+                </span>
+              )}
             </div>
             
             <div className="flex items-center justify-between py-3 px-4 bg-gradient-to-br 
@@ -897,21 +941,16 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
           dogId={updatedDog.id}
           dogName={updatedDog.callName || ''}
           initialDogData={updatedDog}
-        onSave={async (updatedDogData) => {
+          userRole={userRole}
+          people={people}
+          onSave={async (updatedDogData) => {
+          // Store previous state for rollback on error
+          const previousDog = { ...updatedDog };
+
           try {
             // Update local state immediately for UI feedback
             setUpdatedDog({ ...updatedDog, ...updatedDogData });
-            
-            // Show celebration
-            setShowCelebration(true);
-            setRecentUpdate(`${updatedDog.callName} updated!`);
-            
-            // Hide celebration after specified duration
-            setTimeout(() => {
-              setShowCelebration(false);
-              setTimeout(() => setRecentUpdate(null), CELEBRATION_FADE_DELAY_MS);
-            }, CELEBRATION_DURATION_MS);
-            
+
             // Save to database if onUpdate prop is available
             if (onUpdate) {
               const dogInputData = convertDogToDogInput(updatedDogData);
@@ -922,14 +961,31 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
                 // Update with the data returned from the database
                 setUpdatedDog(savedDog);
                 logger.debug('Dog data saved successfully', 'dogs', { dogId: savedDog.id });
-              }
-            }
 
-            setIsEditPanelOpen(false);
+                // Show success celebration
+                setShowCelebration(true);
+                setRecentUpdate(`${updatedDog.callName} updated!`);
+                setTimeout(() => {
+                  setShowCelebration(false);
+                  setTimeout(() => setRecentUpdate(null), CELEBRATION_FADE_DELAY_MS);
+                }, CELEBRATION_DURATION_MS);
+
+                toast.success('Changes saved successfully');
+                setIsEditPanelOpen(false);
+              } else {
+                throw new Error('No data returned from update');
+              }
+            } else {
+              // No onUpdate prop - just close panel (local-only mode)
+              setIsEditPanelOpen(false);
+            }
           } catch (error) {
             logger.error('Failed to save dog data', 'dogs', { dogId: updatedDog.id }, error as Error);
-            // TODO: Show error notification to user
-            // For now, still close the panel but the changes might not persist
+            // Revert optimistic update
+            setUpdatedDog(previousDog);
+            // Show error to user
+            toast.error('Failed to save changes. Please try again.');
+            // Keep panel open so user can retry
           }
         }}
         enableAutoSave={false}

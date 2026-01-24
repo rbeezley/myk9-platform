@@ -366,6 +366,7 @@ export type Database = {
           allow_waitlist: boolean | null
           breed_restrictions: string[] | null
           checked_in_count: number | null
+          class_number: string | null
           competition_type: string | null
           created_at: string | null
           deleted_at: string | null
@@ -409,6 +410,7 @@ export type Database = {
           allow_waitlist?: boolean | null
           breed_restrictions?: string[] | null
           checked_in_count?: number | null
+          class_number?: string | null
           competition_type?: string | null
           created_at?: string | null
           deleted_at?: string | null
@@ -452,6 +454,7 @@ export type Database = {
           allow_waitlist?: boolean | null
           breed_restrictions?: string[] | null
           checked_in_count?: number | null
+          class_number?: string | null
           competition_type?: string | null
           created_at?: string | null
           deleted_at?: string | null
@@ -556,33 +559,54 @@ export type Database = {
       }
       dog_registrations: {
         Row: {
+          application_number: string | null
+          breed: string | null
+          certificate: string | null
           created_at: string | null
           dog_id: string
           id: string
           organization: string
+          registered_name: string | null
           registration_date: string | null
           registration_number: string
+          status: string | null
+          submission_date: string | null
           updated_at: string | null
+          variety: string | null
           verified: boolean | null
         }
         Insert: {
+          application_number?: string | null
+          breed?: string | null
+          certificate?: string | null
           created_at?: string | null
           dog_id: string
           id?: string
           organization: string
+          registered_name?: string | null
           registration_date?: string | null
           registration_number: string
+          status?: string | null
+          submission_date?: string | null
           updated_at?: string | null
+          variety?: string | null
           verified?: boolean | null
         }
         Update: {
+          application_number?: string | null
+          breed?: string | null
+          certificate?: string | null
           created_at?: string | null
           dog_id?: string
           id?: string
           organization?: string
+          registered_name?: string | null
           registration_date?: string | null
           registration_number?: string
+          status?: string | null
+          submission_date?: string | null
           updated_at?: string | null
+          variety?: string | null
           verified?: boolean | null
         }
         Relationships: [
@@ -3497,7 +3521,41 @@ export type Database = {
           waitlist_position: number
         }[]
       }
+      get_effective_permissions: {
+        Args: { user_id: string }
+        Returns: {
+          category: string
+          permission_code: string
+          permission_name: string
+          scope_id: string
+          scope_type: string
+          source: string
+        }[]
+      }
       get_license_key: { Args: never; Returns: string }
+      get_user_permissions: {
+        Args: { user_id: string }
+        Returns: {
+          category: string
+          club_id: string
+          permission_code: string
+          permission_name: string
+          role_name: string
+          show_id: string
+        }[]
+      }
+      get_user_roles: {
+        Args: { user_id: string }
+        Returns: {
+          club_id: string
+          expires_at: string
+          granted_at: string
+          role_description: string
+          role_id: string
+          role_name: string
+          show_id: string
+        }[]
+      }
       has_role: {
         Args: { role_name: string; scope_club_id?: string }
         Returns: boolean

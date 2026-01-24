@@ -7,18 +7,25 @@
 
 
 import { cn } from '@/lib/utils';
-import { 
-  LucideIcon, 
-  Database, 
-  Plus, 
-  Search, 
-  X, 
-  AlertTriangle, 
-  RefreshCw, 
-  HelpCircle, 
-  Wrench, 
-  Lock, 
-  Key 
+import {
+  LucideIcon,
+  Database,
+  Plus,
+  Search,
+  X,
+  AlertTriangle,
+  RefreshCw,
+  HelpCircle,
+  Wrench,
+  Lock,
+  Key,
+  // Dog-specific icons
+  PawPrint,
+  FileText,
+  Trophy,
+  Stethoscope,
+  Calendar,
+  Edit3
 } from 'lucide-react';
 import { PremiumButton } from './PremiumButton';
 import { IconContainer } from './IconContainer';
@@ -321,6 +328,159 @@ export function PermissionEmptyState({
         onClick: onRequestAccess,
         icon: Key
       } : undefined}
+      {...props}
+    />
+  );
+}
+
+// =============================================================================
+// Dog-Specific Empty States
+// =============================================================================
+
+// Dogs List Empty State
+export interface DogsEmptyStateProps extends Omit<EmptyStateProps, 'icon' | 'title'> {
+  isOwner?: boolean;
+  onAddDog?: (() => void) | undefined;
+}
+
+export function DogsEmptyState({
+  isOwner = true,
+  onAddDog,
+  ...props
+}: DogsEmptyStateProps) {
+  const title = isOwner ? "No Dogs Yet" : "No Dogs Found";
+  const description = isOwner
+    ? "Add your first dog to start tracking their registrations, health records, and show results."
+    : "There are no dogs to display at this time.";
+
+  return (
+    <EmptyState
+      icon={PawPrint}
+      title={title}
+      description={description}
+      action={isOwner && onAddDog ? {
+        label: 'Add Your First Dog',
+        onClick: onAddDog,
+        icon: Plus
+      } : undefined}
+      {...props}
+    />
+  );
+}
+
+// Registrations Empty State
+export interface RegistrationsEmptyStateProps extends Omit<EmptyStateProps, 'icon' | 'title'> {
+  dogName?: string;
+  onAddRegistration?: () => void;
+}
+
+export function RegistrationsEmptyState({
+  dogName,
+  onAddRegistration,
+  ...props
+}: RegistrationsEmptyStateProps) {
+  const description = dogName
+    ? `${dogName} doesn't have any registrations yet. Add their first registration to track organization memberships and registration numbers.`
+    : "No registrations have been added yet. Add a registration to track organization memberships.";
+
+  return (
+    <EmptyState
+      icon={FileText}
+      title="No Registrations"
+      description={description}
+      action={onAddRegistration ? {
+        label: 'Add Registration',
+        onClick: onAddRegistration,
+        icon: Plus
+      } : undefined}
+      {...props}
+    />
+  );
+}
+
+// Competitions/Shows Empty State
+export interface CompetitionsEmptyStateProps extends Omit<EmptyStateProps, 'icon' | 'title'> {
+  dogName?: string;
+  onBrowseShows?: () => void;
+}
+
+export function CompetitionsEmptyState({
+  dogName,
+  onBrowseShows,
+  ...props
+}: CompetitionsEmptyStateProps) {
+  const description = dogName
+    ? `${dogName} hasn't competed in any shows yet. Enter your first show to start building their competition history.`
+    : "No competition history available. Enter a show to start tracking results.";
+
+  return (
+    <EmptyState
+      icon={Trophy}
+      title="No Competition History"
+      description={description}
+      action={onBrowseShows ? {
+        label: 'Browse Shows',
+        onClick: onBrowseShows,
+        icon: Calendar
+      } : undefined}
+      {...props}
+    />
+  );
+}
+
+// Health Records Empty State
+export interface HealthRecordsEmptyStateProps extends Omit<EmptyStateProps, 'icon' | 'title'> {
+  dogName?: string;
+  onAddRecord?: () => void;
+}
+
+export function HealthRecordsEmptyState({
+  dogName,
+  onAddRecord,
+  ...props
+}: HealthRecordsEmptyStateProps) {
+  const description = dogName
+    ? `Keep ${dogName}'s health records organized. Track vaccinations, vet visits, and health certifications all in one place.`
+    : "No health records have been added. Track vaccinations, vet visits, and certifications here.";
+
+  return (
+    <EmptyState
+      icon={Stethoscope}
+      title="No Health Records"
+      description={description}
+      action={onAddRecord ? {
+        label: 'Add Health Record',
+        onClick: onAddRecord,
+        icon: Plus
+      } : undefined}
+      {...props}
+    />
+  );
+}
+
+// Missing Details Empty State (for inline editing prompts)
+export interface MissingDetailsEmptyStateProps extends Omit<EmptyStateProps, 'icon' | 'title'> {
+  fieldName: string;
+  onEdit?: () => void;
+}
+
+export function MissingDetailsEmptyState({
+  fieldName,
+  onEdit,
+  ...props
+}: MissingDetailsEmptyStateProps) {
+  return (
+    <EmptyState
+      icon={Edit3}
+      title={`${fieldName} Not Set`}
+      description={`Add ${fieldName.toLowerCase()} to complete your dog's profile.`}
+      action={onEdit ? {
+        label: `Add ${fieldName}`,
+        onClick: onEdit,
+        icon: Edit3,
+        variant: 'outline' as const
+      } : undefined}
+      size="sm"
       {...props}
     />
   );

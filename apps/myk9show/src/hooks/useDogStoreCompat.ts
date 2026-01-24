@@ -19,6 +19,9 @@ import {
   mapDatabaseToDog,
   mapDatabaseDogsArray,
 } from '@/services/mappers/dogMappers';
+import { updateRegistration, getRegistrationsByDog, createRegistration } from '@/services/database/queries/registrationQueries';
+import { logger } from '@/services/LoggingService';
+import type { DbDogRegistration } from '@/types/database-mappings';
 
 /**
  * Compatibility hook that provides dogStore-like API using React Query
@@ -66,6 +69,69 @@ export const useDogStoreCompat = () => {
   const updateDog = async (id: string, updates: Partial<DogInput>): Promise<Dog | null> => {
     const dbUpdates = mapDogInputToUpdate(updates);
     const result = await updateMutation.mutateAsync({ id, updates: dbUpdates });
+
+    // Also update or create registrations if provided
+    let registrationsChanged = false;
+    if (updates.registrations && updates.registrations.length > 0) {
+      try {
+        // Get existing registrations for this dog
+        const { data: existingRegs } = await getRegistrationsByDog(id);
+
+        for (const inputReg of updates.registrations) {
+          // Skip if no registered name provided
+          if (!inputReg.registeredName) continue;
+
+          // Find matching registration by organization
+          const existingReg = existingRegs?.find(
+            (er: DbDogRegistration) => er.organization === inputReg.organization
+          );
+
+          if (existingReg) {
+            // Update existing registration
+            await updateRegistration(existingReg.id, {
+              registered_name: inputReg.registeredName,
+              breed: inputReg.type || null,
+              status: inputReg.status || null,
+            });
+            logger.debug('Updated registration', 'dogs', {
+              registrationId: existingReg.id,
+              registeredName: inputReg.registeredName,
+            });
+            registrationsChanged = true;
+          } else {
+            // Create new registration since none exists for this organization
+            const { data: newReg, error: createError } = await createRegistration({
+              dog_id: id,
+              organization: inputReg.organization || 'AKC',
+              registered_name: inputReg.registeredName,
+              registration_number: inputReg.number || null,
+              breed: inputReg.type || null,
+              status: inputReg.status || 'pending',
+            });
+
+            if (createError) {
+              logger.error('Failed to create registration', 'dogs', { dogId: id }, createError as Error);
+            } else {
+              logger.debug('Created new registration', 'dogs', {
+                registrationId: newReg?.id,
+                registeredName: inputReg.registeredName,
+                organization: inputReg.organization || 'AKC',
+              });
+              registrationsChanged = true;
+            }
+          }
+        }
+      } catch (error) {
+        logger.error('Failed to update/create registrations', 'dogs', { dogId: id }, error as Error);
+        // Don't fail the whole update if registration update fails
+      }
+    }
+
+    // Refetch dogs data if registrations changed (since they're stored separately)
+    if (registrationsChanged) {
+      dogsQuery.refetch();
+    }
+
     return result ? mapDatabaseToDog(result) : null;
   };
 

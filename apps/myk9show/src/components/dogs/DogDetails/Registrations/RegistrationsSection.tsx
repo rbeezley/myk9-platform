@@ -94,15 +94,15 @@ export default function RegistrationsSection({ dog, autoOpenAddDialog = false }:
       organization: newRegistration.organization,
       registered_name: newRegistration.registeredName,
       breed: newRegistration.breed,
-      variety: newRegistration.variety,
+      variety: newRegistration.variety || null,
       registration_number: newRegistration.registrationNumber,
       status: newRegistration.status,
-      application_number: newRegistration.applicationNumber,
+      application_number: newRegistration.applicationNumber || null,
       submission_date: newRegistration.submissionDate || null,
       registration_date: newRegistration.registrationDate || null,
       certificate: newRegistration.certificate || null,
     };
-    
+
     createRegistration(registrationData);
     setIsAddRegistrationDialogOpen(false);
     setNewRegistration({

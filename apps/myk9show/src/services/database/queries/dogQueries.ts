@@ -6,10 +6,10 @@ import type {
   DbDogUpdate,
 } from '../../../types/database-mappings';
 
-// Get all dogs with owner information
+// Get all dogs with owner information and registrations
 export const getAllDogs = async () => {
   const startTime = Date.now();
-  
+
   try {
     const { data, error } = await supabase
       .from('dogs')
@@ -21,7 +21,8 @@ export const getAllDogs = async () => {
           last_name,
           email,
           phone
-        )
+        ),
+        registrations:dog_registrations(*)
       `)
       .is('deleted_at', null)
       .order('name', { ascending: true });

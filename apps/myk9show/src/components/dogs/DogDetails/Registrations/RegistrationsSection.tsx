@@ -5,7 +5,7 @@ import EditRegistrationPanel from './EditRegistrationPanel';
 
 import ConfirmDeleteRegistrationDialog from './ConfirmDeleteRegistrationDialog';
 import ThreeDotMenu from '@/components/ui/ThreeDotMenu';
-import { Eye, Edit, Trash2 } from 'lucide-react';
+import { Edit, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { NoDataEmptyState } from '@/components/common/EmptyState';
@@ -55,7 +55,6 @@ export default function RegistrationsSection({ dog, autoOpenAddDialog = false }:
   const isDeleteRegistrationDialogOpen = useRegistrationsStore(state => state.isDeleteRegistrationDialogOpen);
   const setIsDeleteRegistrationDialogOpen = useRegistrationsStore(state => state.setIsDeleteRegistrationDialogOpen);
 
-  const setIsViewRegistrationDialogOpen = useRegistrationsStore(state => state.setIsViewRegistrationDialogOpen);
   const selectedRegistration = useRegistrationsStore(state => state.selectedRegistration);
   const setSelectedRegistration = useRegistrationsStore(state => state.setSelectedRegistration);
 
@@ -188,13 +187,6 @@ export default function RegistrationsSection({ dog, autoOpenAddDialog = false }:
             <div className="absolute top-4 right-4 z-10">
               <ThreeDotMenu
                 items={[{
-                  label: 'View',
-                  onClick: () => {
-                    setSelectedRegistration(reg);
-                    setIsViewRegistrationDialogOpen(true);
-                  },
-                  icon: <Eye className="w-4 h-4 mr-2" />,
-                }, {
                   label: 'Edit',
                   onClick: () => {
                     setSelectedRegistration(reg);

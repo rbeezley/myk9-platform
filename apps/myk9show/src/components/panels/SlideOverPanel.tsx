@@ -192,9 +192,10 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
           sizeClasses[size],
           // Mobile: Full screen on small devices
           'sm:max-w-none sm:w-full sm:rounded-none md:max-w-lg md:rounded-l-xl lg:max-w-2xl xl:max-w-4xl',
-          // Apple's signature animation
-          `transform transition-all ${appleDesign.animation.duration} ${appleDesign.animation.easing}`,
-          open ? 'translate-x-0' : 'translate-x-full',
+          // Animation - remove transform when open to prevent stacking context issues
+          // (transforms create new containing blocks that break Select dropdown positioning)
+          `transition-all ${appleDesign.animation.duration} ${appleDesign.animation.easing}`,
+          open ? '' : 'translate-x-full',
           className
         )}
         ref={panelRef}

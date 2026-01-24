@@ -533,15 +533,6 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
             <div className="space-y-4">
               <div className="flex items-center justify-between py-3" style={{ borderBottom: '0.5px solid rgba(128, 128, 128, 0.2)' }}>
                 <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
-                  Registered Name
-                </span>
-                <EditableValue
-                  value={updatedDog.registrations?.[0]?.registeredName}
-                  onEdit={() => setIsEditPanelOpen(true)}
-                />
-              </div>
-              <div className="flex items-center justify-between py-3" style={{ borderBottom: '0.5px solid rgba(128, 128, 128, 0.2)' }}>
-                <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
                   Sex
                 </span>
                 <EditableValue

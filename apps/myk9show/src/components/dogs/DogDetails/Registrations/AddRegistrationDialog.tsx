@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Dialog, DialogContent, DialogOverlay } from '@/components/ui/dialog';
 import { Input, Label, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui';
 import { Plus, X } from 'lucide-react';
 import type { Registration } from '@/types/dog-types';
+import { getBreedNamesForOrganization, getVarietiesForBreed } from '@/data/breedData';
 
 interface AddRegistrationDialogProps {
   open: boolean;
@@ -20,6 +21,37 @@ const AddRegistrationDialog: React.FC<AddRegistrationDialogProps> = ({
   setNewRegistration,
 }) => {
   const [formErrors, setFormErrors] = React.useState<{ [key: string]: string }>({});
+
+  // Get breeds for the selected organization
+  const availableBreeds = useMemo(() => {
+    if (!newRegistration.organization) return [];
+    return getBreedNamesForOrganization(newRegistration.organization);
+  }, [newRegistration.organization]);
+
+  // Get varieties for the selected breed
+  const availableVarieties = useMemo(() => {
+    if (!newRegistration.organization || !newRegistration.breed) return [];
+    return getVarietiesForBreed(newRegistration.organization, newRegistration.breed);
+  }, [newRegistration.organization, newRegistration.breed]);
+
+  // Handle organization change - clear breed and variety
+  const handleOrganizationChange = (value: string) => {
+    setNewRegistration({
+      ...newRegistration,
+      organization: value,
+      breed: '',
+      variety: ''
+    });
+  };
+
+  // Handle breed change - clear variety if breed changes
+  const handleBreedChange = (value: string) => {
+    setNewRegistration({
+      ...newRegistration,
+      breed: value,
+      variety: ''
+    });
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,17 +85,17 @@ const AddRegistrationDialog: React.FC<AddRegistrationDialogProps> = ({
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogOverlay className="dialog-overlay" />
-      <DialogContent className="dialog-content max-w-2xl">
+      <DialogContent className="dialog-content max-w-2xl max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="dialog-header">
+        <div className="dialog-header flex-shrink-0">
           <h2 className="dialog-title">Add New Registration</h2>
           <p className="dialog-description">
             Create a new registration record for your dog.
           </p>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Form - scrollable area */}
+        <form onSubmit={handleSubmit} className="space-y-6 overflow-y-auto flex-1 pr-2">
           {/* Organization Field */}
           <div className="space-y-2">
             <Label className="dialog-label">
@@ -72,7 +104,7 @@ const AddRegistrationDialog: React.FC<AddRegistrationDialogProps> = ({
             </Label>
             <Select
               value={newRegistration.organization}
-              onValueChange={value => setNewRegistration({ ...newRegistration, organization: value })}
+              onValueChange={handleOrganizationChange}
             >
               <SelectTrigger 
                 className={formErrors.organization ? 'error' : ''}
@@ -117,12 +149,24 @@ const AddRegistrationDialog: React.FC<AddRegistrationDialogProps> = ({
                 Breed
                 <span className="text-red-500">*</span>
               </Label>
-              <Input
-                className={formErrors.breed ? 'error' : ''}
+              <Select
                 value={newRegistration.breed}
-                onChange={e => setNewRegistration({ ...newRegistration, breed: e.target.value })}
-                placeholder="Enter breed"
-              />
+                onValueChange={handleBreedChange}
+                disabled={!newRegistration.organization}
+              >
+                <SelectTrigger
+                  className={formErrors.breed ? 'error' : ''}
+                >
+                  <SelectValue placeholder={newRegistration.organization ? "Select breed" : "Select organization first"} />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  {availableBreeds.map(breed => (
+                    <SelectItem key={breed} value={breed}>
+                      {breed}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               {formErrors.breed && (
                 <div className="error-message">{formErrors.breed}</div>
               )}
@@ -130,11 +174,30 @@ const AddRegistrationDialog: React.FC<AddRegistrationDialogProps> = ({
 
             <div className="space-y-2">
               <Label className="dialog-label">Variety</Label>
-              <Input
-                value={newRegistration.variety}
-                onChange={e => setNewRegistration({ ...newRegistration, variety: e.target.value })}
-                placeholder="Enter variety (optional)"
-              />
+              {availableVarieties.length > 0 ? (
+                <Select
+                  value={newRegistration.variety || ''}
+                  onValueChange={value => setNewRegistration({ ...newRegistration, variety: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select variety" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableVarieties.map(variety => (
+                      <SelectItem key={variety} value={variety}>
+                        {variety}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  value={newRegistration.variety || ''}
+                  onChange={e => setNewRegistration({ ...newRegistration, variety: e.target.value })}
+                  placeholder={newRegistration.breed ? "No varieties for this breed" : "Select breed first"}
+                  disabled={!newRegistration.breed}
+                />
+              )}
             </div>
           </div>
 
@@ -195,7 +258,7 @@ const AddRegistrationDialog: React.FC<AddRegistrationDialogProps> = ({
         </form>
 
         {/* Footer */}
-        <div className="dialog-footer">
+        <div className="dialog-footer flex-shrink-0">
           <button
             type="button"
             onClick={onClose}

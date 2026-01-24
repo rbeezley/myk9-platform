@@ -1,6 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Sparkles, Heart, Calendar, PawPrint, X, Dog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+
+// Pre-computed static styles to avoid re-creating objects on each render
+const SPARKLE_STYLE_DELAY_500 = { animationDelay: '0.5s' } as const;
+const SPARKLE_STYLE_DELAY_1000 = { animationDelay: '1s' } as const;
 
 interface FABAction {
   icon: React.ReactNode;
@@ -36,7 +40,12 @@ const DelightfulFAB: React.FC<DelightfulFABProps> = ({
     return () => clearInterval(interval);
   }, []);
 
-  const actions: FABAction[] = [
+  const toggleOpen = () => {
+    setIsOpen(!isOpen);
+  };
+
+  // Memoize actions to prevent recreating on every render
+  const actions: FABAction[] = useMemo(() => [
     {
       icon: <Calendar className="w-4 h-4" />,
       label: "Create Show",
@@ -64,11 +73,13 @@ const DelightfulFAB: React.FC<DelightfulFABProps> = ({
       },
       color: "bg-pink-500 hover:bg-pink-600"
     }
-  ];
+  ], [onCreateShow, onQuickEntry, onViewCalendar]);
 
-  const toggleOpen = () => {
-    setIsOpen(!isOpen);
-  };
+  // Memoize transition delay styles to avoid creating new objects on each render
+  const actionStyles = useMemo(() =>
+    actions.map((_, index) => ({ transitionDelay: `${index * 50}ms` })),
+    [actions]
+  );
 
   return (
     <div className={`fixed bottom-20 right-6 z-40 ${className}`}>
@@ -84,7 +95,7 @@ const DelightfulFAB: React.FC<DelightfulFABProps> = ({
               flex items-center gap-3 transition-all duration-300 ease-out
               ${isOpen ? 'translate-x-0' : 'translate-x-8'}
             `}
-            style={{ transitionDelay: `${index * 50}ms` }}
+            style={actionStyles[index]}
           >
             {/* Label */}
             <div className="bg-card border border-border rounded-lg px-3 py-2 shadow-lg backdrop-blur-sm">
@@ -98,10 +109,11 @@ const DelightfulFAB: React.FC<DelightfulFABProps> = ({
               size="icon"
               onClick={action.action}
               className={`
-                ${action.color} text-white shadow-lg hover:shadow-xl 
+                ${action.color} text-white shadow-lg hover:shadow-xl
                 transition-all duration-300 hover:scale-110 rounded-full
                 w-12 h-12
               `}
+              aria-label={action.label}
             >
               {action.icon}
             </Button>
@@ -115,8 +127,8 @@ const DelightfulFAB: React.FC<DelightfulFABProps> = ({
         {(showSparkles || isHovered) && (
           <div className="absolute inset-0 pointer-events-none">
             <Sparkles className="absolute -top-2 -right-2 w-4 h-4 text-yellow-400 animate-pulse" />
-            <Sparkles className="absolute -bottom-2 -left-2 w-3 h-3 text-pink-400 animate-pulse" style={{ animationDelay: '0.5s' }} />
-            <Sparkles className="absolute -top-2 -left-2 w-3 h-3 text-purple-400 animate-pulse" style={{ animationDelay: '1s' }} />
+            <Sparkles className="absolute -bottom-2 -left-2 w-3 h-3 text-pink-400 animate-pulse" style={SPARKLE_STYLE_DELAY_500} />
+            <Sparkles className="absolute -top-2 -left-2 w-3 h-3 text-purple-400 animate-pulse" style={SPARKLE_STYLE_DELAY_1000} />
           </div>
         )}
 
@@ -133,12 +145,13 @@ const DelightfulFAB: React.FC<DelightfulFABProps> = ({
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
           className={`
-            bg-gradient-to-r from-primary to-secondary text-primary-foreground 
-            shadow-lg hover:shadow-xl transition-all duration-300 
+            bg-gradient-to-r from-primary to-secondary text-primary-foreground
+            shadow-lg hover:shadow-xl transition-all duration-300
             hover:scale-110 rounded-full w-14 h-14 relative z-10
             ${isOpen ? 'rotate-45' : 'rotate-0'}
           `}
           title={isOpen ? "Close menu" : "Quick actions"}
+          aria-label={isOpen ? "Close menu" : "Quick actions"}
         >
           <div className="relative">
             {isOpen ? (

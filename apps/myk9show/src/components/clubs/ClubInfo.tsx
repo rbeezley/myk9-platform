@@ -11,8 +11,8 @@ const ClubInfo: React.FC<ClubInfoProps> = ({ name, description, founded, locatio
   <div className="mb-6">
     <h2 className="text-2xl font-bold mb-2">{name}</h2>
     <p className="text-gray-700 mb-2">{description}</p>
-    {founded && <div className="text-sm text-muted-foreground mb-1">Founded: {founded}</div>}
-    {location && <div className="text-sm text-muted-foreground">Location: {location}</div>}
+    {founded ? <div className="text-sm text-muted-foreground mb-1">Founded: {founded}</div> : null}
+    {location ? <div className="text-sm text-muted-foreground">Location: {location}</div> : null}
   </div>
 );
 

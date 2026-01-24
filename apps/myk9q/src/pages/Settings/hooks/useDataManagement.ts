@@ -257,24 +257,31 @@ export function useDataManagement(
       // All clear - delete the IndexedDB database and reload
       showToastMessage('Clearing cache and reloading...', 'info');
 
-      // Clear IndexedDB databases
+      // Clear IndexedDB databases in parallel
       const dbNames = ['myK9Q_Replication', 'myK9Q-replication'];
-      for (const dbName of dbNames) {
-        try {
-          const deleteRequest = indexedDB.deleteDatabase(dbName);
-          await new Promise<void>((resolve, reject) => {
-            deleteRequest.onsuccess = () => resolve();
-            deleteRequest.onerror = () => reject(deleteRequest.error);
+      const deletePromises = dbNames.map((dbName) =>
+        new Promise<void>((resolve) => {
+          try {
+            const deleteRequest = indexedDB.deleteDatabase(dbName);
+            deleteRequest.onsuccess = () => {
+              logger.log(`[RefreshAllData] Deleted IndexedDB: ${dbName}`);
+              resolve();
+            };
+            deleteRequest.onerror = () => {
+              logger.warn(`[RefreshAllData] Could not delete ${dbName}:`, deleteRequest.error);
+              resolve(); // Continue anyway
+            };
             deleteRequest.onblocked = () => {
               logger.warn(`[RefreshAllData] Database ${dbName} delete blocked`);
               resolve(); // Continue anyway
             };
-          });
-          logger.log(`[RefreshAllData] Deleted IndexedDB: ${dbName}`);
-        } catch (err) {
-          logger.warn(`[RefreshAllData] Could not delete ${dbName}:`, err);
-        }
-      }
+          } catch (err) {
+            logger.warn(`[RefreshAllData] Could not delete ${dbName}:`, err);
+            resolve(); // Continue anyway
+          }
+        })
+      );
+      await Promise.all(deletePromises);
 
       // Short delay to ensure DB is cleared, then reload
       setTimeout(() => {

@@ -2,6 +2,22 @@ import React, { useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
 
+// Static style objects hoisted outside component to prevent re-creation on each render
+const SIDEBAR_CONTAINER_STYLE = {
+  height: 'calc(100vh - 4rem)',
+  display: 'flex',
+  flexDirection: 'column' as const,
+};
+
+const LIST_CONTAINER_STYLE = {
+  flex: '1 1 auto',
+  position: 'relative' as const,
+  height: 'calc(100vh - 104px)',
+};
+
+const HEADER_STYLE = { flexShrink: 0, height: '56px' } as const;
+const SEARCH_CONTAINER_STYLE = { flexShrink: 0, height: '48px' } as const;
+
 export interface EntitySidebarProps<T> {
   items: T[];
   selectedId: string | null;
@@ -54,14 +70,10 @@ function EntitySidebar<T extends { id: string }>({
         'mt-16', // Add margin to push below header
         className
       )}
-      style={{
-        height: 'calc(100vh - 4rem)', // Adjust height to account for header height (e.g., 4rem)
-        display: 'flex',
-        flexDirection: 'column'
-      }}
+      style={SIDEBAR_CONTAINER_STYLE}
     >
       {/* Header - Fixed Height */}
-      <div className="flex items-center justify-between p-3 border-b border-border" style={{ flexShrink: 0, height: '56px' }}>
+      <div className="flex items-center justify-between p-3 border-b border-border" style={HEADER_STYLE}>
         {!collapsed ? (
           <h3 className="text-sm font-semibold truncate mr-2">{title}</h3>
         ) : (
@@ -90,13 +102,13 @@ function EntitySidebar<T extends { id: string }>({
       </div>
       {/* Search - Fixed Height with Border */}
       {enableSearch && !collapsed && (
-        <div className="px-3 py-2 border-b border-border" style={{ flexShrink: 0, height: '48px' }}>
+        <div className="px-3 py-2 border-b border-border" style={SEARCH_CONTAINER_STYLE}>
           <div className="relative">
             <input
               type="text"
               className="w-full pl-8 pr-2 py-1 rounded bg-muted text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
               placeholder={`Search ${title.toLowerCase()}...`}
-              value={""}
+              value={search}
               onChange={e => setSearch(e.target.value)}
             />
             <Search className="absolute left-2 top-1.5 h-4 w-4 text-muted-foreground" />
@@ -106,15 +118,18 @@ function EntitySidebar<T extends { id: string }>({
       {/* List - takes remaining height */}
       <div
         className={cn('overflow-y-auto flex-1', collapsed && 'px-1')}
-        style={{
-          flex: '1 1 auto',
-          position: 'relative',
-          height: 'calc(100vh - 104px)'
-        }}
+        style={LIST_CONTAINER_STYLE}
       >
         {filteredItems.length > 0 ? (
           filteredItems.map(item => (
-            <div key={item.id} onClick={() => onSelect(item.id)}>
+            <div
+              key={item.id}
+              onClick={() => onSelect(item.id)}
+              onKeyDown={(e) => e.key === 'Enter' && onSelect(item.id)}
+              role="button"
+              tabIndex={0}
+              aria-selected={selectedId === item.id}
+            >
               {renderItem(item, selectedId === item.id, collapsed)}
             </div>
           ))

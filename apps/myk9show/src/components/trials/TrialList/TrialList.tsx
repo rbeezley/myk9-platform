@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Trial } from '../types/trial.types';
@@ -22,10 +23,13 @@ export const TrialList = ({
   searchTerm,
   onSearchChange,
 }: TrialListProps) => {
-  const filteredTrials = trials.filter(
-    (trial) =>
-      trial.showName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      trial.trialNumber.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredTrials = useMemo(() =>
+    trials.filter(
+      (trial) =>
+        trial.showName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        trial.trialNumber.toLowerCase().includes(searchTerm.toLowerCase())
+    ),
+    [trials, searchTerm]
   );
 
   return (
@@ -38,7 +42,7 @@ export const TrialList = ({
             <Input
               type="text"
               placeholder="Search trials..."
-              value={""}
+              value={searchTerm}
               onChange={(e) => onSearchChange(e.target.value)}
               className="flex-1 mr-2"
             />
@@ -48,6 +52,7 @@ export const TrialList = ({
             size="icon"
             className="!rounded-full w-8 h-8"
             onClick={onToggleSidebar}
+            aria-label={isSidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
           >
             <i className={`fas fa-chevron-${isSidebarOpen ? 'left' : 'right'}`}></i>
           </Button>

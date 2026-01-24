@@ -136,21 +136,33 @@ export class SyncOrchestrator {
   /**
    * Load full sync timestamps from persisted metadata
    * Called before first sync to ensure we don't unnecessarily force full syncs
+   * Performance: Loads all metadata in parallel using Promise.all
    */
   private async loadFullSyncTimesFromMetadata(): Promise<void> {
     if (this.fullSyncTimesLoaded) return;
 
     try {
       const tableNames = this.getTableNames();
-      for (const tableName of tableNames) {
+
+      // Load all metadata in parallel instead of sequentially
+      const metadataPromises = tableNames.map(async (tableName) => {
         const table = this.getTable(tableName);
         if (table) {
           const metadata = await table.getSyncMetadata();
-          if (metadata?.lastFullSyncAt) {
-            this.lastFullSyncTimes.set(tableName, metadata.lastFullSyncAt);
-          }
+          return { tableName, metadata };
+        }
+        return null;
+      });
+
+      const results = await Promise.all(metadataPromises);
+
+      // Process results
+      for (const result of results) {
+        if (result?.metadata?.lastFullSyncAt) {
+          this.lastFullSyncTimes.set(result.tableName, result.metadata.lastFullSyncAt);
         }
       }
+
       this.fullSyncTimesLoaded = true;
       logger.log('[SyncOrchestrator] Loaded full sync timestamps from metadata');
     } catch (error) {

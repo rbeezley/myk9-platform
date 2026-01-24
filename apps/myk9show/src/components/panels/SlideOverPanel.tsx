@@ -201,23 +201,7 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
         ref={panelRef}
         tabIndex={-1}
         onClick={(e) => {
-          // Prevent any clicks within the panel from propagating to backdrop
-          e.stopPropagation();
-        }}
-        onMouseDown={(e) => {
-          // Additional prevention for mouse events that might trigger parent dialogs
-          e.stopPropagation();
-        }}
-        onMouseUp={(e) => {
-          // Prevent mouse up events from propagating
-          e.stopPropagation();
-        }}
-        onFocus={(e) => {
-          // Ensure focus stays within the panel
-          e.stopPropagation();
-        }}
-        onPointerDown={(e) => {
-          // Modern pointer events prevention
+          // Prevent clicks within the panel from closing it via backdrop handler
           e.stopPropagation();
         }}
       >
@@ -273,21 +257,7 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
         </div>
 
         {/* Content */}
-        <div 
-          className="flex-1 overflow-auto"
-          onClick={(e) => {
-            // Prevent clicks in content area from propagating
-            e.stopPropagation();
-          }}
-          onMouseDown={(e) => {
-            // Prevent mouse events from propagating
-            e.stopPropagation();
-          }}
-          onPointerDown={(e) => {
-            // Prevent pointer events from propagating
-            e.stopPropagation();
-          }}
-        >
+        <div className="flex-1 overflow-auto">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-2 border-primary border-t-transparent" />

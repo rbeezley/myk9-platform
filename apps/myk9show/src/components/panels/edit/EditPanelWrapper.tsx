@@ -259,8 +259,8 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
             </div>
           )}
           
-          {/* Main content */}
-          <div className="flex-1 overflow-auto animate-in slide-in-from-bottom-1 duration-400 ease-out">
+          {/* Main content - no overflow here, SlideOverPanel handles scrolling */}
+          <div className="flex-1 animate-in slide-in-from-bottom-1 duration-400 ease-out">
             {children}
           </div>
         </div>

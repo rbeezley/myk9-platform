@@ -2,6 +2,7 @@
 // Phase 2.1: Dog Store Integration
 
 import { useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import type { Dog } from '@/types/dog-types';
 import type { DogInput } from '@/store/dogStore';
 import {
@@ -21,6 +22,7 @@ import {
 } from '@/services/mappers/dogMappers';
 import { updateRegistration, getRegistrationsByDog, createRegistration } from '@/services/database/queries/registrationQueries';
 import { logger } from '@/services/LoggingService';
+import { queryKeys } from '@/lib/queryClient';
 import type { DbDogRegistration } from '@/types/database-mappings';
 
 /**
@@ -28,6 +30,7 @@ import type { DbDogRegistration } from '@/types/database-mappings';
  * This allows existing components to work unchanged while using the database
  */
 export const useDogStoreCompat = () => {
+  const queryClient = useQueryClient();
   const dogsQuery = useDogsQuery();
   const createMutation = useCreateDogMutation();
   const updateMutation = useUpdateDogMutation();
@@ -127,8 +130,11 @@ export const useDogStoreCompat = () => {
       }
     }
 
-    // Refetch dogs data if registrations changed (since they're stored separately)
+    // Invalidate and refetch queries if registrations changed
     if (registrationsChanged) {
+      // Invalidate the registrations query for this dog so RegistrationsSection updates
+      queryClient.invalidateQueries({ queryKey: queryKeys.registrationsByDog(id) });
+      // Also refetch dogs data to update the dog details
       dogsQuery.refetch();
     }
 

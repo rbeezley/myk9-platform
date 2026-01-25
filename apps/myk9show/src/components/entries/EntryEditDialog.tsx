@@ -7,13 +7,14 @@
 
 import { useState, useEffect } from 'react';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetBody,
+  SheetFooter,
+  SheetTitle,
+  SheetDescription,
+} from '@myk9/ui';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -216,31 +217,32 @@ export function EntryEditDialog({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent size="md">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
               <Dog className="h-5 w-5" />
               Edit Entry
-            </DialogTitle>
-            <DialogDescription>
+            </SheetTitle>
+            <SheetDescription>
               Modify your entry for {entry.showName}
-            </DialogDescription>
-          </DialogHeader>
+            </SheetDescription>
+          </SheetHeader>
 
-          {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : !canModify ? (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                {modifyReason || 'This entry cannot be modified.'}
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <div className="space-y-6 py-4">
+          <SheetBody>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : !canModify ? (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  {modifyReason || 'This entry cannot be modified.'}
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <div className="space-y-6">
               {error && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
@@ -355,9 +357,10 @@ export function EntryEditDialog({
                 })}
               </div>
             </div>
-          )}
+            )}
+          </SheetBody>
 
-          <DialogFooter>
+          <SheetFooter>
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
@@ -379,9 +382,9 @@ export function EntryEditDialog({
                 )}
               </Button>
             )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       {/* Scratch Confirmation Dialog */}
       <AlertDialog

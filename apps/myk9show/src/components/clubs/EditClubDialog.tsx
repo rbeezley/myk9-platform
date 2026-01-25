@@ -1,5 +1,12 @@
 import React, { useState } from "react";
-import { Dialog, DialogContent, DialogOverlay } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetBody,
+  SheetFooter,
+  SheetTitle,
+} from "@myk9/ui";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -144,19 +151,16 @@ const EditClubDialog: React.FC<EditClubDialogProps> = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogOverlay className="dialog-overlay" />
-      <DialogContent className="dialog-content max-w-4xl w-[90vw] max-h-[92vh] overflow-y-auto" style={{ padding: '32px' }}>
-        <div style={{ padding: '0 0 12px 0' }}>
-          <h2 style={{ margin: '0', fontSize: '1.125rem', fontWeight: '600', color: 'var(--foreground)' }}>
-            {isEditMode ? 'Edit Club' : 'Add New Club'}
-          </h2>
-          <p className="text-sm text-muted-foreground mt-2">
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent size="xl">
+        <SheetHeader>
+          <SheetTitle>{isEditMode ? 'Edit Club' : 'Add New Club'}</SheetTitle>
+          <p className="text-sm text-muted-foreground">
             Fields marked with * are required
           </p>
-        </div>
-        
-        <div className="dialog-body">
+        </SheetHeader>
+
+        <SheetBody>
           {/* Validation Summary */}
           {isValidating && Object.values(errors).some(error => error && error.trim()) && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -445,24 +449,17 @@ const EditClubDialog: React.FC<EditClubDialogProps> = ({
               />
             </div>
           </div>
-        </div>
-        
-        <div className="dialog-footer">
-          <Button 
-            variant="outline" 
-            onClick={handleCancel}
-            className="dialog-button-cancel"
-          >
+        </SheetBody>
+
+        <SheetFooter>
+          <Button variant="outline" onClick={handleCancel}>
             Cancel
           </Button>
-          <Button 
-            onClick={handleSave}
-            className="dialog-button-save"
-          >
+          <Button onClick={handleSave}>
             {isEditMode ? 'Save Changes' : 'Create Club'}
           </Button>
-        </div>
-        
+        </SheetFooter>
+
         {/* Photo Upload Dialog */}
         <ClubPhotoDialog
           open={showPhotoDialog}
@@ -477,8 +474,8 @@ const EditClubDialog: React.FC<EditClubDialogProps> = ({
           onCancel={handlePhotoCancel}
           onSave={handlePhotoSave}
         />
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 };
 

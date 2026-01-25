@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetBody,
+  SheetFooter,
+  SheetTitle,
+} from '@myk9/ui';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
@@ -139,13 +146,14 @@ const PersonEditDialog: React.FC<PersonEditDialogProps> = ({
       : () => {});
 
   return (
-    <Dialog open={open} onOpenChange={(open) => !open && onCancel()}>
-      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? 'Edit User' : 'Edit Profile'}</DialogTitle>
-        </DialogHeader>
+    <Sheet open={open} onOpenChange={(open) => !open && onCancel()}>
+      <SheetContent size="lg">
+        <SheetHeader>
+          <SheetTitle>{isEdit ? 'Edit User' : 'Edit Profile'}</SheetTitle>
+        </SheetHeader>
 
-        <form id={onSubmit ? 'person-edit-form' : undefined} onSubmit={onSubmit} className="flex-1 overflow-y-auto space-y-4 pr-2">
+        <SheetBody>
+          <form id={onSubmit ? 'person-edit-form' : undefined} onSubmit={onSubmit} className="space-y-4">
           {showNameField ? (
             <div className="space-y-2">
               <Label>Full Name <span className="text-destructive">*</span></Label>
@@ -417,18 +425,19 @@ const PersonEditDialog: React.FC<PersonEditDialogProps> = ({
               )}
             </div>
           )}
-        </form>
+          </form>
+        </SheetBody>
 
-        <DialogFooter>
+        <SheetFooter>
           <Button variant="outline" onClick={onCancel}>
             Cancel
           </Button>
           <Button onClick={handleSave}>
             {isEdit ? 'Save Changes' : 'Save'}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 };
 

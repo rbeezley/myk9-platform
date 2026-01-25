@@ -137,6 +137,14 @@ export const myk9Preset: Partial<Config> = {
           from: { transform: 'translateY(100%)' },
           to: { transform: 'translateY(0)' },
         },
+        'sheet-slide-in': {
+          from: { transform: 'translateX(100%)' },
+          to: { transform: 'translateX(0)' },
+        },
+        'sheet-slide-out': {
+          from: { transform: 'translateX(0)' },
+          to: { transform: 'translateX(100%)' },
+        },
         shimmer: {
           '0%': { backgroundPosition: '-200% 0' },
           '100%': { backgroundPosition: '200% 0' },
@@ -149,6 +157,8 @@ export const myk9Preset: Partial<Config> = {
         'fade-out': 'fade-out 0.2s ease-out',
         'slide-in-from-top': 'slide-in-from-top 0.3s ease-out',
         'slide-in-from-bottom': 'slide-in-from-bottom 0.3s ease-out',
+        'sheet-slide-in': 'sheet-slide-in 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+        'sheet-slide-out': 'sheet-slide-out 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
         shimmer: 'shimmer 1.5s infinite',
       },
 

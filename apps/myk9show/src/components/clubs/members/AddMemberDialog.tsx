@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetBody,
+  SheetFooter,
+  SheetTitle,
+} from '@myk9/ui';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -59,68 +66,70 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent size="sm">
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-2">
             <Users className="w-5 h-5" />
             Add Member to {club.name}
-          </DialogTitle>
-        </DialogHeader>
-        
-        <div className="space-y-4 py-4">
-          {availablePeople.length === 0 ? (
-            <div className="text-center py-8">
-              <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-60" />
-              <div className="text-sm text-muted-foreground">
-                No people available to add as members.
-                {people.length === 0 ? (
-                  <span className="block mt-1">Create some people first to add them as members.</span>
-                ) : (
-                  <span className="block mt-1">All existing people are already members.</span>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <Label htmlFor="person-select">Select User</Label>
-              <Select value={selectedPersonId} onValueChange={setSelectedPersonId}>
-                <SelectTrigger id="person-select">
-                  <SelectValue placeholder="Choose a person to add as member" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availablePeople.map((person) => (
-                    <SelectItem key={person.id} value={person.id.toString()}>
-                      <div className="flex flex-col">
-                        <div className="font-medium">
-                          {person.firstName} {person.lastName}
-                        </div>
-                        {person.email && (
-                          <div className="text-xs text-muted-foreground">
-                            {person.email}
-                          </div>
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-        </div>
+          </SheetTitle>
+        </SheetHeader>
 
-        <DialogFooter>
+        <SheetBody>
+          <div className="space-y-4">
+            {availablePeople.length === 0 ? (
+              <div className="text-center py-8">
+                <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-60" />
+                <div className="text-sm text-muted-foreground">
+                  No people available to add as members.
+                  {people.length === 0 ? (
+                    <span className="block mt-1">Create some people first to add them as members.</span>
+                  ) : (
+                    <span className="block mt-1">All existing people are already members.</span>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="person-select">Select User</Label>
+                <Select value={selectedPersonId} onValueChange={setSelectedPersonId}>
+                  <SelectTrigger id="person-select">
+                    <SelectValue placeholder="Choose a person to add as member" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availablePeople.map((person) => (
+                      <SelectItem key={person.id} value={person.id.toString()}>
+                        <div className="flex flex-col">
+                          <div className="font-medium">
+                            {person.firstName} {person.lastName}
+                          </div>
+                          {person.email && (
+                            <div className="text-xs text-muted-foreground">
+                              {person.email}
+                            </div>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+        </SheetBody>
+
+        <SheetFooter>
           <Button variant="outline" onClick={handleCancel} disabled={isLoading}>
             Cancel
           </Button>
-          <Button 
-            onClick={handleAddMember} 
+          <Button
+            onClick={handleAddMember}
             disabled={!selectedPersonId || isLoading || availablePeople.length === 0}
           >
             {isLoading ? 'Adding...' : 'Add Member'}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 };

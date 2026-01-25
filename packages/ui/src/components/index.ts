@@ -4,6 +4,7 @@ export * from './Badge';
 export * from './Card';
 export * from './Dialog';
 export * from './Input';
+export * from './Sheet';
 export * from './Tabs';
 
 // Domain Components

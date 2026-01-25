@@ -9,7 +9,15 @@ import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetBody,
+  SheetFooter,
+  SheetTitle,
+  SheetDescription,
+} from '@myk9/ui';
 
 interface AddTrialDialogProps {
   open: boolean;
@@ -56,14 +64,15 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({ open, onOpenChange, onS
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Add New Trial</DialogTitle>
-          <DialogDescription>Fill in the details for the new trial. Click save when you're done.</DialogDescription>
-        </DialogHeader>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent size="lg">
+        <SheetHeader>
+          <SheetTitle>Add New Trial</SheetTitle>
+          <SheetDescription>Fill in the details for the new trial. Click save when you're done.</SheetDescription>
+        </SheetHeader>
 
-        <div className="space-y-4">
+        <SheetBody>
+          <div className="space-y-4">
           {/* Trial Name - Full Width */}
           <div className="space-y-2">
             <Label>Trial Name <span className="text-destructive">*</span></Label>
@@ -175,28 +184,29 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({ open, onOpenChange, onS
             </div>
           </div>
 
-          {/* Description - Full Width */}
-          <div className="space-y-2">
-            <Label>Description</Label>
-            <Textarea
-              value={formData.description}
-              onChange={(e) => setFormData({...formData, description: e.target.value})}
-              placeholder="Optional notes about this trial"
-              rows={3}
-            />
+            {/* Description - Full Width */}
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea
+                value={formData.description}
+                onChange={(e) => setFormData({...formData, description: e.target.value})}
+                placeholder="Optional notes about this trial"
+                rows={3}
+              />
+            </div>
           </div>
-        </div>
+        </SheetBody>
 
-        <DialogFooter>
+        <SheetFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button onClick={handleSave}>
             Save
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 };
 

@@ -3,7 +3,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TimePicker } from '@/components/ui/time-picker';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetBody,
+  SheetFooter,
+  SheetTitle,
+} from '@myk9/ui';
 import { Button } from '@/components/ui/button';
 import { Clock, UserCheck, ClipboardList, DollarSign } from 'lucide-react';
 import { ClassData } from './types/classTypes';
@@ -102,12 +109,13 @@ const EditClassDialog: React.FC<EditClassDialogProps> = ({
   if (mode === 'simple' || ('judgeId' in formData && !('estimatedJudgingTime' in formData))) {
     const trialClassData = formData as TrialClass;
     return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-6xl">
-          <DialogHeader>
-            <DialogTitle>Edit Class</DialogTitle>
-          </DialogHeader>
-        {/* Row 1: Element, Level, Section - Read Only */}
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent size="2xl">
+          <SheetHeader>
+            <SheetTitle>Edit Class</SheetTitle>
+          </SheetHeader>
+          <SheetBody>
+            {/* Row 1: Element, Level, Section - Read Only */}
         <div className="grid grid-cols-3 gap-4">
           <div className="space-y-3">
             <Label className="text-sm font-medium">Element</Label>
@@ -208,31 +216,32 @@ const EditClassDialog: React.FC<EditClassDialogProps> = ({
           </div>
         </div>
 
-        {/* Row 3: Number of Entries - Left Column, Read Only */}
-        <div className="grid grid-cols-3 gap-4 mt-4">
-          <div className="space-y-3">
-            <Label className="text-sm font-medium">Number of Entries</Label>
-            <Input
-              type="number"
-              value={trialClassData.entries}
-              className="form-input h-10 bg-muted text-muted-foreground"
-              disabled
-              readOnly
-            />
-          </div>
-          <div></div>
-          <div></div>
-        </div>
-          <DialogFooter>
+            {/* Row 3: Number of Entries - Left Column, Read Only */}
+            <div className="grid grid-cols-3 gap-4 mt-4">
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Number of Entries</Label>
+                <Input
+                  type="number"
+                  value={trialClassData.entries}
+                  className="form-input h-10 bg-muted text-muted-foreground"
+                  disabled
+                  readOnly
+                />
+              </div>
+              <div></div>
+              <div></div>
+            </div>
+          </SheetBody>
+          <SheetFooter>
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button onClick={handleSave}>
               Save Changes
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     );
   }
 
@@ -292,15 +301,14 @@ const EditClassDialog: React.FC<EditClassDialogProps> = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[85vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>Edit Class</DialogTitle>
-        </DialogHeader>
-        {/* Scrollable container for content */}
-        <div className="flex-1 overflow-y-auto pr-2">
-        {/* Essential Fields - Always Visible */}
-        <div className="space-y-6">
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent size="2xl">
+        <SheetHeader>
+          <SheetTitle>Edit Class</SheetTitle>
+        </SheetHeader>
+        <SheetBody>
+          {/* Essential Fields - Always Visible */}
+          <div className="space-y-6">
         {/* Element, Level, Section */}
         <div className="grid grid-cols-3 gap-6">
           <div className="space-y-3">
@@ -723,19 +731,19 @@ const EditClassDialog: React.FC<EditClassDialogProps> = ({
               />
             </div>
           </ExpandableSection>
-        </div>
-        </div>
-      </div>
-        <DialogFooter>
+          </div>
+          </div>
+        </SheetBody>
+        <SheetFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button onClick={handleSave}>
             Save Changes
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 };
 

@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetBody,
+  SheetFooter,
+  SheetTitle,
+} from '@myk9/ui';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -278,13 +285,13 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle>Add New Dog</DialogTitle>
-        </DialogHeader>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent size="2xl">
+        <SheetHeader>
+          <SheetTitle>Add New Dog</SheetTitle>
+        </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto pr-2">
+        <SheetBody>
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'basic' | 'registration' | 'optional')}>
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger
@@ -533,9 +540,9 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
               </div>
             </TabsContent>
           </Tabs>
-        </div>
+        </SheetBody>
 
-        <DialogFooter>
+        <SheetFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
@@ -545,7 +552,7 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
           >
             {isCreating || isSaving ? 'Creating...' : 'Create Dog'}
           </Button>
-        </DialogFooter>
+        </SheetFooter>
 
         <AddEditRegistrationDialog
           open={isAddEditRegDialogOpen}
@@ -553,7 +560,7 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
           onSave={handleSaveRegistration}
           initialData={currentRegToEdit}
         />
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 };

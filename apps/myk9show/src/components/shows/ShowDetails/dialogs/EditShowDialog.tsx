@@ -1,5 +1,12 @@
 import React from "react";
-import { Dialog, DialogContent, DialogOverlay } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetBody,
+  SheetFooter,
+  SheetTitle,
+} from "@myk9/ui";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -151,14 +158,13 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({ open, onOpenChange, for
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogOverlay className="dialog-overlay" />
-      <DialogContent className="dialog-content max-w-6xl w-[90vw] max-h-[92vh] overflow-y-auto">
-        <div style={{ padding: '16px 0 8px 0' }}>
-          <h2 style={{ margin: '0', fontSize: '1.125rem', fontWeight: '600', color: 'var(--foreground)' }}>Edit Show</h2>
-        </div>
-        
-        <div className="dialog-body">
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent size="2xl">
+        <SheetHeader>
+          <SheetTitle>Edit Show</SheetTitle>
+        </SheetHeader>
+
+        <SheetBody>
           {/* First Row - Show Name, Show Type, Status */}
           <div className="grid grid-cols-3 gap-4 mb-6">
             <div className="form-field">
@@ -479,25 +485,18 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({ open, onOpenChange, for
               These fees will be used as defaults for each class and can be adjusted per class as needed.
             </p>
           </div>
-        </div>
-        
-        <div className="dialog-footer">
-          <Button 
-            variant="outline" 
-            onClick={handleCancel}
-            className="dialog-button-cancel"
-          >
+        </SheetBody>
+
+        <SheetFooter>
+          <Button variant="outline" onClick={handleCancel}>
             Cancel
           </Button>
-          <Button 
-            onClick={handleSave}
-            className="dialog-button-save"
-          >
+          <Button onClick={handleSave}>
             Save Changes
           </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 };
 

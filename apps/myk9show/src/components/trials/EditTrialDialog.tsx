@@ -9,7 +9,14 @@ import { Calendar as CalendarIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetBody,
+  SheetFooter,
+  SheetTitle,
+} from '@myk9/ui';
 
 interface EditTrialDialogProps {
   open: boolean;
@@ -114,13 +121,14 @@ const EditTrialDialog: React.FC<EditTrialDialogProps> = ({ open, onOpenChange, o
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Edit Trial</DialogTitle>
-        </DialogHeader>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent size="lg">
+        <SheetHeader>
+          <SheetTitle>Edit Trial</SheetTitle>
+        </SheetHeader>
 
-        <div className="space-y-4">
+        <SheetBody>
+          <div className="space-y-4">
           {/* Trial Name - Full Width */}
           <div className="space-y-2">
             <Label>Trial Name <span className="text-destructive">*</span></Label>
@@ -244,28 +252,29 @@ const EditTrialDialog: React.FC<EditTrialDialogProps> = ({ open, onOpenChange, o
             </div>
           </div>
 
-          {/* Description - Full Width */}
-          <div className="space-y-2">
-            <Label>Description</Label>
-            <Textarea
-              value={formData.description}
-              onChange={(e) => setFormData({...formData, description: e.target.value})}
-              placeholder="Optional notes about this trial"
-              rows={3}
-            />
+            {/* Description - Full Width */}
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea
+                value={formData.description}
+                onChange={(e) => setFormData({...formData, description: e.target.value})}
+                placeholder="Optional notes about this trial"
+                rows={3}
+              />
+            </div>
           </div>
-        </div>
+        </SheetBody>
 
-        <DialogFooter>
+        <SheetFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button onClick={handleSave}>
             Save Changes
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 };
 

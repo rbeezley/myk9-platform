@@ -13,7 +13,7 @@ import React, { useState } from 'react';
 import { logger } from '@/services/LoggingService';
 import {
   User as UserIcon,
-  Mail, 
+  Mail,
   MapPin,
   Building2,
   Shield,
@@ -25,12 +25,13 @@ import {
   Key
 } from 'lucide-react';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetBody,
+  SheetFooter,
+  SheetTitle,
+} from '@myk9/ui';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -38,7 +39,6 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 import { User } from '@/types/user-types';
@@ -238,17 +238,17 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-3">
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent size="xl">
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-3">
             <UserIcon className="h-6 w-6" />
             Create New User
-          </DialogTitle>
-        </DialogHeader>
+          </SheetTitle>
+        </SheetHeader>
 
-        <ScrollArea className="max-h-[calc(90vh-160px)]">
-          <div className="space-y-6 p-1">
+        <SheetBody>
+          <div className="space-y-6">
             {/* Error Alert */}
             {errors.general && (
               <Alert variant="destructive">
@@ -565,9 +565,9 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
               </CardContent>
             </Card>
           </div>
-        </ScrollArea>
+        </SheetBody>
 
-        <DialogFooter>
+        <SheetFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
@@ -575,8 +575,8 @@ export const CreateUserDialog: React.FC<CreateUserDialogProps> = ({
             <Save className="h-4 w-4 mr-2" />
             {createUserMutation.isPending ? 'Creating...' : 'Create User'}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 };

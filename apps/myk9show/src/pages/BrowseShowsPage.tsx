@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
 import { cn } from '@/lib/utils';
@@ -59,13 +59,14 @@ import {
   Ticket,
   ChevronDown
 } from 'lucide-react';
-import { ShowCalendar } from '@/components/shows/ShowCalendar';
+import { ShowCalendar } from '@/components/common/LazyComponents';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import '@/styles/apple-show-details.css';
-import { 
-  ShowsPageSkeleton, 
-  TabContentSkeleton
+import {
+  ShowsPageSkeleton,
+  TabContentSkeleton,
+  ShowCalendarSkeleton
 } from '@/components/common/SkeletonLoaders';
 import { EnhancedEmptyState } from '@/components/shows/EnhancedEmptyStates';
 import { EntryStatusBadge } from '@/components/shows/EntryStatusBadge';
@@ -479,10 +480,12 @@ const BrowseShowsPage: React.FC = () => {
       case 'calendar':
         return (
           <div className="mt-4">
-            <ShowCalendar 
-              onShowRegister={(showId) => logger.debug('Register for show', 'shows', { showId })}
-              shows={enhancedShows}
-            />
+            <Suspense fallback={<ShowCalendarSkeleton />}>
+              <ShowCalendar
+                onShowRegister={(showId) => logger.debug('Register for show', 'shows', { showId })}
+                shows={enhancedShows}
+              />
+            </Suspense>
           </div>
         );
       

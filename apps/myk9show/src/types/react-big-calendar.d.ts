@@ -83,4 +83,14 @@ declare module 'react-big-calendar' {
   }
 
   export function momentLocalizer(moment: typeof import('moment')): Localizer;
+
+  export interface DateFnsLocalizerArgs {
+    format: typeof import('date-fns').format;
+    parse: typeof import('date-fns').parse;
+    startOfWeek: typeof import('date-fns').startOfWeek;
+    getDay: typeof import('date-fns').getDay;
+    locales: Record<string, Locale>;
+  }
+
+  export function dateFnsLocalizer(args: DateFnsLocalizerArgs): Localizer;
 }

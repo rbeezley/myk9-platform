@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo, useCallback, startTransition } from 'react';
+import { useState, useEffect, useMemo, useCallback, startTransition, Suspense } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ShowCalendar } from '@/components/shows/ShowCalendar';
+import { ShowCalendar } from '@/components/common/LazyComponents';
 import { CalendarSkeleton } from '@/components/common/CalendarSkeleton';
 import { RegistrationWorkflow } from '@/components/shows/RegistrationWorkflow';
 import { RegistrationProvider } from '@/context/RegistrationContext';
@@ -313,7 +313,9 @@ export default function CalendarPage() {
         {isCalendarLoading ? (
           <CalendarSkeleton />
         ) : (
-          <ShowCalendar onShowRegister={handleRegisterForShow} />
+          <Suspense fallback={<CalendarSkeleton />}>
+            <ShowCalendar onShowRegister={handleRegisterForShow} />
+          </Suspense>
         )}
 
         {/* Registration Dialog */}

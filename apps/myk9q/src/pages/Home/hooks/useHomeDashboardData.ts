@@ -15,7 +15,7 @@ import { useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { logger } from '../../../utils/logger';
 import { subscriptionCleanup } from '../../../services/subscriptionCleanup';
-import { debounce } from 'lodash';
+import { debounce } from '@/utils/debounce';
 import { ensureReplicationManager } from '@/utils/replicationHelper';
 import type { Entry, Trial, Class } from '@/services/replication';
 

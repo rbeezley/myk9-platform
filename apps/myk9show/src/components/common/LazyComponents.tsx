@@ -142,9 +142,10 @@ export function preloadByRole(userRole?: string): void {
   components.forEach((component, index) => {
     setTimeout(() => {
       try {
-        // Trigger the lazy import by accessing the component
-        const comp = component;
-        if (comp && typeof comp === 'function') {
+        // Trigger the lazy import by accessing the component's internal _init
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const comp = component as any;
+        if (comp && comp._init) {
           comp._init?.catch?.(() => {});
         }
       } catch (error) {

@@ -1,6 +1,8 @@
 import { useState, useMemo, useCallback, memo, startTransition } from 'react';
-import { Calendar, momentLocalizer, ViewName, Event } from 'react-big-calendar';
-import moment from 'moment';
+import { Calendar, ViewName, Event } from 'react-big-calendar';
+import { dateFnsLocalizer } from 'react-big-calendar';
+import { format, parse, startOfWeek, getDay } from 'date-fns';
+import { enUS } from 'date-fns/locale';
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card';
 import { Button } from '../../ui/button';
 import { Badge } from '../../ui/badge';
@@ -13,7 +15,14 @@ import { motion } from 'framer-motion';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import '@/styles/calendar-performance.css';
 
-const localizer = momentLocalizer(moment);
+const locales = { 'en-US': enUS };
+const localizer = dateFnsLocalizer({
+  format,
+  parse,
+  startOfWeek,
+  getDay,
+  locales,
+});
 
 interface CalendarEvent {
   id: string;
@@ -203,9 +212,9 @@ function ShowCalendarComponent({ className, height = 600, onShowRegister, shows:
                 <div className="flex items-center gap-2 text-sm">
                   <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                   <span className="text-gray-900 dark:text-gray-100">
-                    {moment(selectedEvent.start).format('MMMM Do, YYYY')}
-                    {selectedEvent.resource.endDate && selectedEvent.end instanceof Date && 
-                      ` - ${moment(selectedEvent.end).format('MMMM Do, YYYY')}`
+                    {format(selectedEvent.start, 'MMMM do, yyyy')}
+                    {selectedEvent.resource.endDate && selectedEvent.end instanceof Date &&
+                      ` - ${format(selectedEvent.end, 'MMMM do, yyyy')}`
                     }
                   </span>
                 </div>

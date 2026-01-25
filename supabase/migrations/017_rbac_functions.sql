@@ -198,8 +198,8 @@ BEGIN
     COALESCE(ur.show_id, ur.club_id) as scope_id,
     ur.granted_by,
     ur.granted_at,
-    NULL::TIMESTAMPTZ as expires_at,  -- Add expires_at column to user_roles if needed
-    TRUE as is_active
+    ur.expires_at,
+    (ur.expires_at IS NULL OR ur.expires_at > NOW()) as is_active
   FROM public.user_roles ur
   JOIN public.roles r ON r.id = ur.role_id
   JOIN public.people pe ON pe.id = ur.user_id

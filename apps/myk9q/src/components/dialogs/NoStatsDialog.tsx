@@ -7,7 +7,74 @@
 
 import React from 'react';
 import { BarChart3, X } from 'lucide-react';
-import './NoEntriesDialog.css'; // Reuse same styling
+import { cn } from '@/lib/utils';
+
+/** Tailwind styles for NoStatsDialog (matching NoEntriesDialog) */
+const styles = {
+  overlay: cn(
+    "fixed inset-0 z-[9999] p-4",
+    "flex items-center justify-center",
+    "bg-black/60",
+    "animate-[noEntriesFadeIn_0.15s_ease-out]"
+  ),
+  overlayLight: "bg-black/40",
+  dialog: cn(
+    "relative w-full max-w-[320px]",
+    "bg-[var(--token-bg-primary,#1a1d23)] rounded-2xl",
+    "border border-[var(--token-border,#3a3f47)]",
+    "p-8 pb-6 text-center",
+    "animate-[noEntriesSlideUp_0.2s_ease-out]"
+  ),
+  dialogLight: cn(
+    "bg-[var(--token-bg-primary,#ffffff)]",
+    "border-[var(--token-border,#e2e8f0)]"
+  ),
+  closeBtn: cn(
+    "absolute top-3 right-3 z-10",
+    "p-2 rounded-md",
+    "bg-transparent border-none cursor-pointer",
+    "text-[var(--token-text-tertiary,#64748b)]",
+    "transition-all duration-150",
+    "flex items-center justify-center",
+    "hover:bg-[var(--token-bg-secondary,#2a2f38)] hover:text-[var(--token-text-secondary,#94a3b8)]",
+    "active:scale-95"
+  ),
+  closeBtnLight: cn(
+    "hover:bg-[var(--token-bg-secondary,#f1f5f9)]",
+    "hover:text-[var(--token-text-primary,#1e293b)]"
+  ),
+  icon: cn(
+    "flex justify-center mb-4",
+    "text-[var(--token-text-tertiary,#64748b)] opacity-70",
+    "[&_svg]:w-10 [&_svg]:h-10"
+  ),
+  title: cn(
+    "text-xl font-semibold tracking-tight text-center",
+    "text-[var(--token-text-primary,#f1f5f9)]",
+    "m-0 mb-2"
+  ),
+  className: cn(
+    "text-[0.9375rem] font-medium leading-relaxed",
+    "text-[var(--primary,#14b8a6)]",
+    "m-0 mb-4",
+    "break-words hyphens-auto"
+  ),
+  message: cn(
+    "text-sm leading-relaxed",
+    "text-[var(--token-text-secondary,#94a3b8)]",
+    "m-0 mb-6"
+  ),
+  actions: "flex justify-center",
+  button: cn(
+    "min-w-[100px] px-6 py-2.5",
+    "text-[0.9375rem] font-medium",
+    "rounded-[10px] border-none cursor-pointer",
+    "bg-[var(--primary,#14b8a6)] text-white",
+    "transition-all duration-150",
+    "hover:bg-[var(--primary-hover,#0d9488)]",
+    "active:scale-[0.98]"
+  ),
+};
 
 interface NoStatsDialogProps {
   isOpen: boolean;
@@ -22,10 +89,16 @@ export const NoStatsDialog: React.FC<NoStatsDialogProps> = ({
 }) => {
   if (!isOpen) return null;
 
+  // Check if light theme
+  const isLight = document.documentElement.classList.contains('theme-light');
+
   return (
-    <div className="no-entries-dialog-overlay" onClick={onClose}>
+    <div
+      className={cn(styles.overlay, isLight && styles.overlayLight)}
+      onClick={onClose}
+    >
       <div
-        className="no-entries-dialog"
+        className={cn(styles.dialog, isLight && styles.dialogLight)}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -34,7 +107,7 @@ export const NoStatsDialog: React.FC<NoStatsDialogProps> = ({
         {/* Close button */}
         <button
           type="button"
-          className="no-entries-dialog-close"
+          className={cn(styles.closeBtn, isLight && styles.closeBtnLight)}
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -46,29 +119,29 @@ export const NoStatsDialog: React.FC<NoStatsDialogProps> = ({
         </button>
 
         {/* Icon */}
-        <div className="no-entries-dialog-icon">
+        <div className={styles.icon}>
           <BarChart3 size={40} />
         </div>
 
         {/* Title */}
-        <h2 id="no-stats-title" className="no-entries-dialog-title">
+        <h2 id="no-stats-title" className={styles.title}>
           No Statistics Available
         </h2>
 
         {/* Class name as subtitle */}
         {className && (
-          <p className="no-entries-dialog-class-name">{className}</p>
+          <p className={styles.className}>{className}</p>
         )}
 
         {/* Message */}
-        <p className="no-entries-dialog-message">
+        <p className={styles.message}>
           This class doesn't have any scored entries yet.
           Statistics will be available once entries have been scored.
         </p>
 
         {/* Single dismiss button */}
-        <div className="no-entries-dialog-actions">
-          <button type="button" className="no-entries-dialog-btn" onClick={onClose}>
+        <div className={styles.actions}>
+          <button type="button" className={styles.button} onClick={onClose}>
             Got It
           </button>
         </div>

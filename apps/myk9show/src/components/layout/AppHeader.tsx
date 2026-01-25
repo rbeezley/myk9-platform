@@ -76,7 +76,7 @@ const AppHeader: React.FC = () => {
           <div className="flex items-center gap-8">
             {/* Logo */}
             <Link to="/" className="flex items-center">
-              <span className="text-xl font-bold text-primary tracking-tight">myK9Show</span>
+              <span className="text-xl font-bold text-primary tracking-tight border-0">myK9Show</span>
             </Link>
             
             {/* Role-Based Navigation */}

@@ -42,7 +42,7 @@ const AdminNavigation: React.FC<AdminNavigationProps> = ({ mobile = false, onNav
           isActivePath('/users') ? 'text-primary' : 'text-foreground/80 hover:text-primary'
         }`}
       >
-        Users
+        People
       </Link>
       <Link
         to="/dogs"

@@ -70,6 +70,13 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
   const [existingPerson, setExistingPerson] = useState<typeof people[0] | null>(null);
+  // Track if form has been submitted - only show errors after first submit attempt
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+
+  // Helper to get visible error (only show after first submit attempt)
+  const getVisibleError = (field: string): string | undefined => {
+    return hasSubmitted ? errors[field] : undefined;
+  };
   
   // Track previous state to prevent unnecessary updates
   const previousStateRef = useRef<{
@@ -296,6 +303,9 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
   };
 
   const handleSubmit = async (action: 'save_close' | 'save_continue') => {
+    // Mark that we've attempted to submit - this enables error display
+    setHasSubmitted(true);
+
     if (!validateForm()) return;
 
     // Check for duplicates (but allow user to proceed)
@@ -344,34 +354,13 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
   };
 
   const handleCancel = () => {
+    setHasSubmitted(false);
     onResult({
       success: false,
       action: 'cancel',
     });
   };
 
-  const isFormValid = React.useMemo(() => {
-    const newErrors: Record<string, string> = {};
-
-    if (!formData.firstName.trim()) newErrors.firstName = 'First name is required';
-    if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required';
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email address';
-    }
-    if (!formData.phone.trim()) newErrors.phone = 'Phone number is required';
-    if (!formData.address.trim()) newErrors.address = 'Address is required';
-    if (!formData.city.trim()) newErrors.city = 'City is required';
-    if (!formData.state.trim()) newErrors.state = 'State is required';
-    if (!formData.zipCode.trim()) {
-      newErrors.zipCode = 'ZIP code is required';
-    } else if (!/^\d{5}(-\d{4})?$/.test(formData.zipCode)) {
-      newErrors.zipCode = 'Please enter a valid ZIP code (12345 or 12345-6789)';
-    }
-
-    return Object.keys(newErrors).length === 0 && !isSubmitting;
-  }, [formData, isSubmitting]);
   const roleLabel = (context.preFilledData?.roleLabel as string) || 'User';
 
   return (
@@ -426,8 +415,8 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
                 placeholder="Enter first name"
                 className={errors.firstName ? 'border-destructive' : ''}
               />
-              {errors.firstName && (
-                <p className="text-sm text-destructive">{errors.firstName}</p>
+              {getVisibleError('firstName') && (
+                <p className="text-sm text-destructive">{getVisibleError('firstName')}</p>
               )}
             </div>
 
@@ -440,8 +429,8 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
                 placeholder="Enter last name"
                 className={errors.lastName ? 'border-destructive' : ''}
               />
-              {errors.lastName && (
-                <p className="text-sm text-destructive">{errors.lastName}</p>
+              {getVisibleError('lastName') && (
+                <p className="text-sm text-destructive">{getVisibleError('lastName')}</p>
               )}
             </div>
           </div>
@@ -465,8 +454,8 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
                 placeholder="Enter email address"
                 className={errors.email ? 'border-destructive' : ''}
               />
-              {errors.email && (
-                <p className="text-sm text-destructive">{errors.email}</p>
+              {getVisibleError('email') && (
+                <p className="text-sm text-destructive">{getVisibleError('email')}</p>
               )}
             </div>
 
@@ -480,8 +469,8 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
                 placeholder="Enter phone number"
                 className={errors.phone ? 'border-destructive' : ''}
               />
-              {errors.phone && (
-                <p className="text-sm text-destructive">{errors.phone}</p>
+              {getVisibleError('phone') && (
+                <p className="text-sm text-destructive">{getVisibleError('phone')}</p>
               )}
             </div>
           </div>
@@ -503,8 +492,8 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
               placeholder="Enter street address"
               className={errors.address ? 'border-destructive' : ''}
             />
-            {errors.address && (
-              <p className="text-sm text-destructive">{errors.address}</p>
+            {getVisibleError('address') && (
+              <p className="text-sm text-destructive">{getVisibleError('address')}</p>
             )}
           </div>
 
@@ -518,8 +507,8 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
                 placeholder="Enter city"
                 className={errors.city ? 'border-destructive' : ''}
               />
-              {errors.city && (
-                <p className="text-sm text-destructive">{errors.city}</p>
+              {getVisibleError('city') && (
+                <p className="text-sm text-destructive">{getVisibleError('city')}</p>
               )}
             </div>
 
@@ -540,8 +529,8 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
                   ))}
                 </SelectContent>
               </Select>
-              {errors.state && (
-                <p className="text-sm text-destructive">{errors.state}</p>
+              {getVisibleError('state') && (
+                <p className="text-sm text-destructive">{getVisibleError('state')}</p>
               )}
             </div>
 
@@ -554,8 +543,8 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
                 placeholder="12345"
                 className={errors.zipCode ? 'border-destructive' : ''}
               />
-              {errors.zipCode && (
-                <p className="text-sm text-destructive">{errors.zipCode}</p>
+              {getVisibleError('zipCode') && (
+                <p className="text-sm text-destructive">{getVisibleError('zipCode')}</p>
               )}
             </div>
           </div>
@@ -630,7 +619,7 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
           </Button>
           <Button
             onClick={() => handleSubmit('save_close')}
-            disabled={!isFormValid}
+            disabled={isSubmitting}
             className="flex-1"
           >
             {isSubmitting ? (

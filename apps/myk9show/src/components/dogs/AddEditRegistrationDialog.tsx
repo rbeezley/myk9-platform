@@ -59,6 +59,8 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [wasOpen, setWasOpen] = useState(open);
   const [lastInitialData, setLastInitialData] = useState(initialData);
+  // Track if form has been submitted - only show errors after first submit attempt
+  const [hasSubmitted, setHasSubmitted] = useState(false);
 
   // Reset state when dialog opens or initialData changes
   if (open && (!wasOpen || initialData !== lastInitialData)) {
@@ -66,9 +68,15 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
     setLastInitialData(initialData);
     setRegistrationData(initialData || INITIAL_REGISTRATION_DATA);
     setValidationErrors({});
+    setHasSubmitted(false);
   } else if (!open && wasOpen) {
     setWasOpen(false);
   }
+
+  // Helper to get visible error (only show after first submit attempt)
+  const getVisibleError = (field: string): string | undefined => {
+    return hasSubmitted ? validationErrors[field] : undefined;
+  };
 
   // Get the organization code for breed lookup
   const orgCode = useMemo(() => {
@@ -141,6 +149,9 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
   };
 
   const handleSubmit = () => {
+    // Mark that we've attempted to submit - this enables error display
+    setHasSubmitted(true);
+
     const errors = validateForm(registrationData);
     if (Object.keys(errors).length > 0) {
       setValidationErrors(errors);
@@ -148,11 +159,6 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
     }
     onSave({ ...registrationData, id: registrationData.id || `reg-${Date.now()}` });
     onOpenChange(false);
-  };
-
-  const isFormValid = (): boolean => {
-    const errors = validateForm(registrationData);
-    return Object.keys(errors).length === 0;
   };
 
   return (
@@ -180,8 +186,8 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
                 ))}
               </SelectContent>
             </Select>
-            {validationErrors.organization && (
-              <p className="text-sm text-destructive">{validationErrors.organization}</p>
+            {getVisibleError('organization') && (
+              <p className="text-sm text-destructive">{getVisibleError('organization')}</p>
             )}
           </div>
 
@@ -192,8 +198,8 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
               onChange={(e) => handleFieldChange('registeredName', e.target.value)}
               placeholder="Full registered name"
             />
-            {validationErrors.registeredName && (
-              <p className="text-sm text-destructive">{validationErrors.registeredName}</p>
+            {getVisibleError('registeredName') && (
+              <p className="text-sm text-destructive">{getVisibleError('registeredName')}</p>
             )}
           </div>
 
@@ -216,8 +222,8 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
                   ))}
                 </SelectContent>
               </Select>
-              {validationErrors.breed && (
-                <p className="text-sm text-destructive">{validationErrors.breed}</p>
+              {getVisibleError('breed') && (
+                <p className="text-sm text-destructive">{getVisibleError('breed')}</p>
               )}
             </div>
 
@@ -258,8 +264,8 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
                 onChange={(e) => handleFieldChange('registrationNumber', e.target.value)}
                 placeholder="Enter registration number"
               />
-              {validationErrors.registrationNumber && (
-                <p className="text-sm text-destructive">{validationErrors.registrationNumber}</p>
+              {getVisibleError('registrationNumber') && (
+                <p className="text-sm text-destructive">{getVisibleError('registrationNumber')}</p>
               )}
             </div>
 
@@ -287,7 +293,7 @@ export const AddEditRegistrationDialog: React.FC<AddEditRegistrationDialogProps>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={!isFormValid()}>
+          <Button onClick={handleSubmit}>
             Save Registration
           </Button>
         </DialogFooter>

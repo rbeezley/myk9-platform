@@ -146,22 +146,18 @@ const DogDetailsView: React.FC<DogDetailsViewProps> = ({ dog }) => {
         <div className="apple-dog-tabs-section">
           <TooltipProvider>
             <Tabs defaultValue="registrations" className="w-full">
-              <TabsList className="grid w-full grid-cols-6 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1">
-                <TabsTrigger 
-                  value="registrations" 
-                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
-                >
+              <TabsList className="bg-muted/50 rounded-xl p-1">
+                <TabsTrigger value="registrations">
                   Registrations
                 </TabsTrigger>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <TabsTrigger 
-                    value="competitions" 
-                    disabled={!user.isPremium} 
+                  <TabsTrigger
+                    value="competitions"
+                    disabled={!user.isPremium}
                     onClick={!user.isPremium ? handlePremiumTabClick : undefined}
-                    className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300 data-[state=disabled]:opacity-50"
                   >
-                    <Crown className="mr-2 h-4 w-4" /> 
+                    <Crown className="h-4 w-4" />
                     Competitions
                   </TabsTrigger>
                 </TooltipTrigger>
@@ -171,13 +167,12 @@ const DogDetailsView: React.FC<DogDetailsViewProps> = ({ dog }) => {
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <TabsTrigger 
-                    value="title-progress" 
-                    disabled={!user.isPremium} 
+                  <TabsTrigger
+                    value="title-progress"
+                    disabled={!user.isPremium}
                     onClick={!user.isPremium ? handlePremiumTabClick : undefined}
-                    className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300 data-[state=disabled]:opacity-50"
                   >
-                    <Crown className="mr-2 h-4 w-4" /> 
+                    <Crown className="h-4 w-4" />
                     Title Progress
                   </TabsTrigger>
                 </TooltipTrigger>
@@ -187,13 +182,12 @@ const DogDetailsView: React.FC<DogDetailsViewProps> = ({ dog }) => {
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <TabsTrigger 
-                    value="health-records" 
-                    disabled={!user.isPremium} 
+                  <TabsTrigger
+                    value="health-records"
+                    disabled={!user.isPremium}
                     onClick={!user.isPremium ? handlePremiumTabClick : undefined}
-                    className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300 data-[state=disabled]:opacity-50"
                   >
-                    <Crown className="mr-2 h-4 w-4" /> 
+                    <Crown className="h-4 w-4" />
                     Health Records
                   </TabsTrigger>
                 </TooltipTrigger>
@@ -203,13 +197,12 @@ const DogDetailsView: React.FC<DogDetailsViewProps> = ({ dog }) => {
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <TabsTrigger 
-                    value="training-journal" 
-                    disabled={!user.isPremium} 
+                  <TabsTrigger
+                    value="training-journal"
+                    disabled={!user.isPremium}
                     onClick={!user.isPremium ? handlePremiumTabClick : undefined}
-                    className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300 data-[state=disabled]:opacity-50"
                   >
-                    <Crown className="mr-2 h-4 w-4" /> 
+                    <Crown className="h-4 w-4" />
                     Training Journal
                   </TabsTrigger>
                 </TooltipTrigger>
@@ -219,13 +212,12 @@ const DogDetailsView: React.FC<DogDetailsViewProps> = ({ dog }) => {
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <TabsTrigger 
-                    value="pedigree" 
-                    disabled={!user.isPremium} 
+                  <TabsTrigger
+                    value="pedigree"
+                    disabled={!user.isPremium}
                     onClick={!user.isPremium ? handlePremiumTabClick : undefined}
-                    className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300 data-[state=disabled]:opacity-50"
                   >
-                    <Crown className="mr-2 h-4 w-4" /> 
+                    <Crown className="h-4 w-4" />
                     Pedigree
                   </TabsTrigger>
                 </TooltipTrigger>

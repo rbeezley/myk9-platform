@@ -308,6 +308,8 @@
   backdrop-filter: blur(20px);
 }
 
+/* Base UI Tabs styling is handled via Tailwind aria-selected: variants in the component */
+
 .apple-dog-tabs-header {
   display: flex;
   align-items: center;

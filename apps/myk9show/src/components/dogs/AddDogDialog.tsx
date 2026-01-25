@@ -74,6 +74,8 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
 
   const [isAddEditRegDialogOpen, setIsAddEditRegDialogOpen] = useState(false);
   const [currentRegToEdit, setCurrentRegToEdit] = useState<Registration | undefined>(undefined);
+  // Track if form has been submitted - only show errors after first submit attempt
+  const [hasSubmitted, setHasSubmitted] = useState(false);
 
   // Initialize owner ID based on role
   useEffect(() => {
@@ -81,13 +83,6 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
       setFormData(prev => ({ ...prev, ownerId: currentUserPersonId }));
     }
   }, [userRole, currentUserPersonId, formData.ownerId]);
-
-  // Clear errors when dialog opens
-  useEffect(() => {
-    if (open) {
-      setValidationErrors({});
-    }
-  }, [open]);
 
   // Reset form when dialog opens
   useEffect(() => {
@@ -100,6 +95,7 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
       setFormData(initialData);
       setActiveTab('basic');
       setValidationErrors({});
+      setHasSubmitted(false); // Reset submit tracking for clean slate
     }
   }, [open, userRole, currentUserPersonId]);
 
@@ -198,6 +194,9 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
 
   // Handle form submission
   const handleSubmit = async () => {
+    // Mark that we've attempted to submit - this enables error display
+    setHasSubmitted(true);
+
     const errors = validateForm(formData);
     if (Object.keys(errors).length > 0) {
       setValidationErrors(errors);
@@ -246,32 +245,35 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
     }
   };
 
-  // Check if form is valid
-  const isFormValid = (): boolean => {
-    const errors = validateForm(formData);
-    return Object.keys(errors).length === 0;
+  // Helper to get visible error (only show after first submit attempt)
+  const getVisibleError = (field: string): string | undefined => {
+    return hasSubmitted ? validationErrors[field] : undefined;
   };
 
-  // Check if tab is valid
-  const isTabValid = (tab: string): boolean => {
+  // Check if tab has errors (only relevant after submission)
+  const getTabStatus = (tab: string): 'valid' | 'invalid' | 'pending' => {
+    if (!hasSubmitted) return 'pending'; // Don't show status until user tries to submit
+
     const errors = validateForm(formData);
     switch (tab) {
       case 'basic':
-        return !errors.callName && !errors.gender && !errors.dateOfBirth && !errors.ownerId;
+        const basicValid = !errors.callName && !errors.gender && !errors.dateOfBirth && !errors.ownerId;
+        return basicValid ? 'valid' : 'invalid';
       case 'registration':
         // If no registrations, the tab is valid (no errors to show)
-        if (formData.registrations.length === 0) return true;
+        if (formData.registrations.length === 0) return 'valid';
         // Check if all registrations are valid
-        return formData.registrations.every((_, index) =>
+        const regValid = formData.registrations.every((_, index) =>
           !errors[`registration-${index}-organization`] &&
           !errors[`registration-${index}-registeredName`] &&
           !errors[`registration-${index}-breed`] &&
           !errors[`registration-${index}-registrationNumber`]
         );
+        return regValid ? 'valid' : 'invalid';
       case 'optional':
-        return true; // Optional fields don't have validation
+        return 'valid'; // Optional fields don't have validation
       default:
-        return true;
+        return 'valid';
     }
   };
 
@@ -287,24 +289,24 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger
                 value="basic"
-                className={`flex items-center gap-2 ${!isTabValid('basic') ? 'text-red-600' : ''}`}
+                className={`flex items-center gap-2 ${getTabStatus('basic') === 'invalid' ? 'text-red-600' : ''}`}
               >
                 Basic Info *
-                {isTabValid('basic') && <CheckCircle className="h-4 w-4 text-green-600" />}
+                {getTabStatus('basic') === 'valid' && <CheckCircle className="h-4 w-4 text-green-600" />}
               </TabsTrigger>
               <TabsTrigger
                 value="registration"
-                className={`flex items-center gap-2 ${!isTabValid('registration') ? 'text-red-600' : ''}`}
+                className={`flex items-center gap-2 ${getTabStatus('registration') === 'invalid' ? 'text-red-600' : ''}`}
               >
                 Registration
-                {isTabValid('registration') && <CheckCircle className="h-4 w-4 text-green-600" />}
+                {getTabStatus('registration') === 'valid' && <CheckCircle className="h-4 w-4 text-green-600" />}
               </TabsTrigger>
               <TabsTrigger
                 value="optional"
-                className={`flex items-center gap-2 ${!isTabValid('optional') ? 'text-red-600' : ''}`}
+                className={`flex items-center gap-2 ${getTabStatus('optional') === 'invalid' ? 'text-red-600' : ''}`}
               >
                 Additional Info
-                {isTabValid('optional') && <CheckCircle className="h-4 w-4 text-green-600" />}
+                {getTabStatus('optional') === 'valid' && <CheckCircle className="h-4 w-4 text-green-600" />}
               </TabsTrigger>
             </TabsList>
 
@@ -329,8 +331,8 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
                     placeholder="Everyday name"
                     className="form-input"
                   />
-                  {validationErrors.callName && (
-                    <p className="text-sm text-destructive">{validationErrors.callName}</p>
+                  {getVisibleError('callName') && (
+                    <p className="text-sm text-destructive">{getVisibleError('callName')}</p>
                   )}
                 </div>
               </div>
@@ -349,8 +351,8 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
                     <SelectItem value="Female">Female</SelectItem>
                   </SelectContent>
                 </Select>
-                {validationErrors.gender && (
-                  <p className="text-sm text-destructive">{validationErrors.gender}</p>
+                {getVisibleError('gender') && (
+                  <p className="text-sm text-destructive">{getVisibleError('gender')}</p>
                 )}
               </div>
 
@@ -362,13 +364,13 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
                   onChange={(e) => handleFieldChange('dateOfBirth', e.target.value)}
                   className="form-input"
                 />
-                {formData.dateOfBirth && !validationErrors.dateOfBirth && (
+                {formData.dateOfBirth && !getVisibleError('dateOfBirth') && (
                   <p className="text-xs text-muted-foreground mt-1">
                     Age: {calculateAge(formData.dateOfBirth)}
                   </p>
                 )}
-                {validationErrors.dateOfBirth && (
-                  <p className="text-sm text-destructive">{validationErrors.dateOfBirth}</p>
+                {getVisibleError('dateOfBirth') && (
+                  <p className="text-sm text-destructive">{getVisibleError('dateOfBirth')}</p>
                 )}
               </div>
 
@@ -407,8 +409,8 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
                       ))}
                     </SelectContent>
                   </Select>
-                  {validationErrors.ownerId && (
-                    <p className="text-sm text-destructive">{validationErrors.ownerId}</p>
+                  {getVisibleError('ownerId') && (
+                    <p className="text-sm text-destructive">{getVisibleError('ownerId')}</p>
                   )}
                 </div>
               )}
@@ -539,7 +541,7 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={isCreating || isSaving || !isFormValid()}
+            disabled={isCreating || isSaving}
           >
             {isCreating || isSaving ? 'Creating...' : 'Create Dog'}
           </Button>

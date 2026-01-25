@@ -114,11 +114,18 @@ export const JudgeCreationPanel: React.FC<JudgeCreationPanelProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
+  // Track if form has been submitted - only show errors after first submit attempt
+  const [hasSubmitted, setHasSubmitted] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     qualifications: true,
     certifications: true,
     availability: false,
   });
+
+  // Helper to get visible error (only show after first submit attempt)
+  const getVisibleError = (field: string): string | undefined => {
+    return hasSubmitted ? errors[field] : undefined;
+  };
 
   // Validation
   const validateForm = useCallback(() => {
@@ -261,6 +268,9 @@ export const JudgeCreationPanel: React.FC<JudgeCreationPanelProps> = ({
   };
 
   const handleSubmit = async (action: 'save_close' | 'save_continue') => {
+    // Mark that we've attempted to submit - this enables error display
+    setHasSubmitted(true);
+
     if (!validateForm()) return;
 
     // Check for duplicates (but allow user to proceed)
@@ -321,13 +331,14 @@ export const JudgeCreationPanel: React.FC<JudgeCreationPanelProps> = ({
   };
 
   const handleCancel = () => {
+    setHasSubmitted(false);
     onResult({
       success: false,
       action: 'cancel',
     });
   };
 
-  const isFormValid = validateForm() && !isSubmitting;
+  // Button is always enabled except during submission
 
   return (
     <div className="p-6 space-y-6 max-w-4xl mx-auto">
@@ -359,8 +370,8 @@ export const JudgeCreationPanel: React.FC<JudgeCreationPanelProps> = ({
                 placeholder="Enter first name"
                 className={errors.firstName ? 'border-destructive' : ''}
               />
-              {errors.firstName && (
-                <p className="text-sm text-destructive">{errors.firstName}</p>
+              {getVisibleError('firstName') && (
+                <p className="text-sm text-destructive">{getVisibleError('firstName')}</p>
               )}
             </div>
 
@@ -373,8 +384,8 @@ export const JudgeCreationPanel: React.FC<JudgeCreationPanelProps> = ({
                 placeholder="Enter last name"
                 className={errors.lastName ? 'border-destructive' : ''}
               />
-              {errors.lastName && (
-                <p className="text-sm text-destructive">{errors.lastName}</p>
+              {getVisibleError('lastName') && (
+                <p className="text-sm text-destructive">{getVisibleError('lastName')}</p>
               )}
             </div>
           </div>
@@ -389,8 +400,8 @@ export const JudgeCreationPanel: React.FC<JudgeCreationPanelProps> = ({
               placeholder="Enter official judge number"
               className={errors.judgeNumber ? 'border-destructive' : ''}
             />
-            {errors.judgeNumber && (
-              <p className="text-sm text-destructive">{errors.judgeNumber}</p>
+            {getVisibleError('judgeNumber') && (
+              <p className="text-sm text-destructive">{getVisibleError('judgeNumber')}</p>
             )}
           </div>
 
@@ -406,8 +417,8 @@ export const JudgeCreationPanel: React.FC<JudgeCreationPanelProps> = ({
                 placeholder="Enter email address"
                 className={errors.email ? 'border-destructive' : ''}
               />
-              {errors.email && (
-                <p className="text-sm text-destructive">{errors.email}</p>
+              {getVisibleError('email') && (
+                <p className="text-sm text-destructive">{getVisibleError('email')}</p>
               )}
             </div>
 
@@ -421,8 +432,8 @@ export const JudgeCreationPanel: React.FC<JudgeCreationPanelProps> = ({
                 placeholder="Enter phone number"
                 className={errors.phone ? 'border-destructive' : ''}
               />
-              {errors.phone && (
-                <p className="text-sm text-destructive">{errors.phone}</p>
+              {getVisibleError('phone') && (
+                <p className="text-sm text-destructive">{getVisibleError('phone')}</p>
               )}
             </div>
           </div>
@@ -503,8 +514,8 @@ export const JudgeCreationPanel: React.FC<JudgeCreationPanelProps> = ({
         </CardHeader>
         {expandedSections.qualifications && (
           <CardContent className="space-y-4">
-            {errors.qualifications && (
-              <p className="text-sm text-destructive">{errors.qualifications}</p>
+            {getVisibleError('qualifications') && (
+              <p className="text-sm text-destructive">{getVisibleError('qualifications')}</p>
             )}
             
             {formData.qualifications.map((qual, index) => (
@@ -669,8 +680,8 @@ export const JudgeCreationPanel: React.FC<JudgeCreationPanelProps> = ({
         </CardHeader>
         {expandedSections.certifications && (
           <CardContent className="space-y-4">
-            {errors.certifications && (
-              <p className="text-sm text-destructive">{errors.certifications}</p>
+            {getVisibleError('certifications') && (
+              <p className="text-sm text-destructive">{getVisibleError('certifications')}</p>
             )}
             
             {formData.certifications.map((cert, index) => (
@@ -922,7 +933,7 @@ export const JudgeCreationPanel: React.FC<JudgeCreationPanelProps> = ({
         </Button>
         <Button
           onClick={() => handleSubmit('save_close')}
-          disabled={!isFormValid}
+          disabled={isSubmitting}
           className="flex-1"
         >
           {isSubmitting ? (

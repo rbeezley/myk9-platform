@@ -103,6 +103,13 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
   const [activeTab, setActiveTab] = useState<'basic' | 'registration' | 'optional'>('basic');
   const [isCreating, setIsCreating] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  // Track if form has been submitted - only show errors after first submit attempt
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+
+  // Helper to get visible error (only show after first submit attempt)
+  const getVisibleError = (field: string): string | undefined => {
+    return hasSubmitted ? validationErrors[field] : undefined;
+  };
 
   // Initialize form with prefilled data
   React.useEffect(() => {
@@ -193,10 +200,13 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
 
   // Handle form submission
   const handleSubmit = async () => {
+    // Mark that we've attempted to submit - this enables error display
+    setHasSubmitted(true);
+
     const errors = validateForm(formData);
     if (Object.keys(errors).length > 0) {
       setValidationErrors(errors);
-      
+
       // Switch to the tab with errors
       if (errors.registeredName || errors.callName || errors.breed || errors.gender || errors.dateOfBirth) {
         setActiveTab('basic');
@@ -267,6 +277,7 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
     setFormData(INITIAL_FORM_DATA);
     setActiveTab('basic');
     setValidationErrors({});
+    setHasSubmitted(false);
     onOpenChange(false);
   };
 
@@ -335,8 +346,8 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
                   onChange={(e) => handleFieldChange('registeredName', e.target.value)}
                   placeholder="Full registered name"
                 />
-                {validationErrors.registeredName && (
-                  <p className="text-sm text-red-600">{validationErrors.registeredName}</p>
+                {getVisibleError('registeredName') && (
+                  <p className="text-sm text-red-600">{getVisibleError('registeredName')}</p>
                 )}
               </div>
 
@@ -348,8 +359,8 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
                   onChange={(e) => handleFieldChange('callName', e.target.value)}
                   placeholder="Everyday name"
                 />
-                {validationErrors.callName && (
-                  <p className="text-sm text-red-600">{validationErrors.callName}</p>
+                {getVisibleError('callName') && (
+                  <p className="text-sm text-red-600">{getVisibleError('callName')}</p>
                 )}
               </div>
             </div>
@@ -371,8 +382,8 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
                   ))}
                 </SelectContent>
               </Select>
-              {validationErrors.breed && (
-                <p className="text-sm text-red-600">{validationErrors.breed}</p>
+              {getVisibleError('breed') && (
+                <p className="text-sm text-red-600">{getVisibleError('breed')}</p>
               )}
             </div>
 
@@ -391,8 +402,8 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
                     <SelectItem value="Female">Female</SelectItem>
                   </SelectContent>
                 </Select>
-                {validationErrors.gender && (
-                  <p className="text-sm text-red-600">{validationErrors.gender}</p>
+                {getVisibleError('gender') && (
+                  <p className="text-sm text-red-600">{getVisibleError('gender')}</p>
                 )}
               </div>
 
@@ -409,8 +420,8 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
                     Age: {calculateAge(formData.dateOfBirth)}
                   </p>
                 )}
-                {validationErrors.dateOfBirth && (
-                  <p className="text-sm text-red-600">{validationErrors.dateOfBirth}</p>
+                {getVisibleError('dateOfBirth') && (
+                  <p className="text-sm text-red-600">{getVisibleError('dateOfBirth')}</p>
                 )}
               </div>
             </div>
@@ -465,8 +476,8 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
                           ))}
                         </SelectContent>
                       </Select>
-                      {validationErrors.registrationOrg && (
-                        <p className="text-sm text-red-600">{validationErrors.registrationOrg}</p>
+                      {getVisibleError('registrationOrg') && (
+                        <p className="text-sm text-red-600">{getVisibleError('registrationOrg')}</p>
                       )}
                     </div>
 
@@ -479,8 +490,8 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
                           onChange={(e) => handleFieldChange('registrationNumber', e.target.value)}
                           placeholder="Enter registration number"
                         />
-                        {validationErrors.registrationNumber && (
-                          <p className="text-sm text-red-600">{validationErrors.registrationNumber}</p>
+                        {getVisibleError('registrationNumber') && (
+                          <p className="text-sm text-red-600">{getVisibleError('registrationNumber')}</p>
                         )}
                       </div>
 
@@ -529,8 +540,8 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
                   type="number"
                   step="0.1"
                 />
-                {validationErrors.height && (
-                  <p className="text-sm text-red-600">{validationErrors.height}</p>
+                {getVisibleError('height') && (
+                  <p className="text-sm text-red-600">{getVisibleError('height')}</p>
                 )}
               </div>
 
@@ -544,8 +555,8 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
                   type="number"
                   step="0.1"
                 />
-                {validationErrors.weight && (
-                  <p className="text-sm text-red-600">{validationErrors.weight}</p>
+                {getVisibleError('weight') && (
+                  <p className="text-sm text-red-600">{getVisibleError('weight')}</p>
                 )}
               </div>
             </div>
@@ -608,7 +619,7 @@ export const CreateDogDialog: React.FC<CreateDogDialogProps> = ({
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={isCreating || !isTabValid('basic') || !isTabValid('registration')}
+              disabled={isCreating}
               className="min-w-[100px]"
             >
               {isCreating ? 'Creating...' : 'Create Dog'}

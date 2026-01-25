@@ -180,6 +180,10 @@ interface FormButtonsProps {
   isSubmitting?: boolean;
   saveLabel?: string;
   cancelLabel?: string;
+  /**
+   * @deprecated Save button should always be enabled for validate-on-submit UX.
+   * Use isSubmitting to disable during submission only.
+   */
   saveDisabled?: boolean;
   className?: string;
 }
@@ -190,7 +194,7 @@ export function FormButtons({
   isSubmitting,
   saveLabel = 'Save',
   cancelLabel = 'Cancel',
-  saveDisabled,
+  saveDisabled: _saveDisabled, // Ignore this prop - button should always be enabled
   className,
 }: FormButtonsProps) {
   return (
@@ -209,7 +213,7 @@ export function FormButtons({
         <button
           type="submit"
           onClick={onSave}
-          disabled={isSubmitting || saveDisabled}
+          disabled={isSubmitting}
           className={`${buildClasses.button.primary} px-4 py-2 text-sm font-medium border-transparent rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors`}
         >
           {isSubmitting ? 'Saving...' : saveLabel}

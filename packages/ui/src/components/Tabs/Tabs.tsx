@@ -48,8 +48,10 @@ const TabsList = React.forwardRef<
     <TabsPrimitive.List
       ref={ref}
       className={cn(
-        // myK9Q-style tab bar: bottom border indicator design
-        "flex w-full bg-[var(--muted)] border-b border-[var(--border)] rounded-t-xl overflow-hidden",
+        // Base layout - horizontal flex row (essential for tabs)
+        "inline-flex w-full items-center gap-1",
+        // Basic appearance - can be overridden by consumer
+        "h-auto rounded-lg bg-muted p-1",
         className
       )}
       {...styleProps}
@@ -75,17 +77,24 @@ const TabsTrigger = React.forwardRef<
     <TabsPrimitive.Tab
       ref={ref}
       className={cn(
-        // myK9Q-style tab trigger: bottom border indicator, primary color when active
-        "flex-1 flex items-center justify-center gap-1.5",
-        "min-h-[44px] px-4 py-3",
-        "text-sm font-medium text-[var(--muted-foreground)]",
-        "border-b-2 border-transparent",
+        // Layout
+        "inline-flex flex-1 items-center justify-center gap-1.5",
+        "min-h-[44px] px-4 py-2",
+        "whitespace-nowrap rounded-md",
+        // Typography
+        "text-sm font-medium",
+        // Default state (inactive)
+        "text-muted-foreground bg-transparent",
+        // Hover state
+        "hover:text-foreground hover:bg-muted/50",
+        // Selected state - Base UI uses aria-selected
+        "aria-selected:bg-background aria-selected:text-primary aria-selected:shadow-sm",
+        // Transitions
         "transition-all duration-200",
-        "hover:text-[var(--foreground)] hover:bg-[var(--muted)]",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2",
+        // Focus state
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        // Disabled state
         "disabled:pointer-events-none disabled:opacity-50",
-        // Active state: primary text and bottom border (Base UI uses aria-selected, not data-selected)
-        "aria-selected:bg-[var(--card)] aria-selected:text-[var(--primary)] aria-selected:border-b-[var(--primary)]",
         className
       )}
       {...disabledProps}

@@ -12,8 +12,8 @@ const SIDEBAR_TOKENS = {
     minWidth: '5rem'
   },
   expanded: {
-    width: '320px',
-    minWidth: '20rem'
+    width: '240px',
+    minWidth: '12.5rem'
   },
   heights: {
     header: '64px',
@@ -148,10 +148,21 @@ function UnifiedSidebar<T extends { id: string }>({
   overscan = 5,
   footerContent
 }: UnifiedSidebarProps<T>) {
+  // Helper to calculate responsive width based on viewport
+  const getResponsiveWidth = useCallback(() => {
+    if (typeof window === 'undefined') return 280;
+    const vw = window.innerWidth;
+    if (vw < 1280) return 240;      // Narrower on smaller screens
+    if (vw < 1536) return 280;      // Medium screens
+    return 320;                      // Wider on large screens
+  }, []);
+
   // Internal state
   const [internalSearchTerm, setInternalSearchTerm] = useState('');
   const [internalIsCollapsed, setInternalIsCollapsed] = useState(false);
-  const [internalWidth, setInternalWidth] = useState(320);
+  const [internalWidth, setInternalWidth] = useState(() =>
+    typeof window !== 'undefined' ? getResponsiveWidth() : 280
+  );
   const [expandedGroups] = useState<Set<string>>(new Set());
   const [isResizing, setIsResizing] = useState(false);
   const [listHeight, setListHeight] = useState(500);
@@ -166,23 +177,28 @@ function UnifiedSidebar<T extends { id: string }>({
   const isCollapsed = controlledIsCollapsed !== undefined ? controlledIsCollapsed : internalIsCollapsed;
   const width = controlledWidth !== undefined ? controlledWidth : internalWidth;
 
-  // Calculate list height on mount and window resize
+  // Calculate list height and responsive width on mount and window resize
   useEffect(() => {
-    const updateHeight = () => {
+    const updateDimensions = () => {
       if (typeof window !== 'undefined') {
         const APP_HEADER_HEIGHT = 64;
         const sidebarHeaderHeight = enableSearch ? 104 : 56;
         setListHeight(window.innerHeight - APP_HEADER_HEIGHT - sidebarHeaderHeight - 32);
+
+        // Update width responsively if not being manually resized and not controlled
+        if (!isResizing && controlledWidth === undefined) {
+          setInternalWidth(getResponsiveWidth());
+        }
       }
     };
 
-    updateHeight();
+    updateDimensions();
     if (typeof window !== 'undefined') {
-      window.addEventListener('resize', updateHeight);
-      return () => window.removeEventListener('resize', updateHeight);
+      window.addEventListener('resize', updateDimensions);
+      return () => window.removeEventListener('resize', updateDimensions);
     }
     return undefined;
-  }, [enableSearch]);
+  }, [enableSearch, isResizing, controlledWidth, getResponsiveWidth]);
 
   // Resize functionality
   const startResizing = useCallback((e: React.MouseEvent) => {
@@ -195,7 +211,7 @@ function UnifiedSidebar<T extends { id: string }>({
     const startWidth = width;
 
     const handleMouseMove = (e: MouseEvent) => {
-      const newWidth = Math.max(280, Math.min(600, startWidth + (e.clientX - startX)));
+      const newWidth = Math.max(200, Math.min(400, startWidth + (e.clientX - startX)));
       setInternalWidth(newWidth);
       onWidthChange?.(newWidth);
     };

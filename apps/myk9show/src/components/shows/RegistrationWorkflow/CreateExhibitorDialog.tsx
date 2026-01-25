@@ -59,6 +59,8 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
   const [activeTab, setActiveTab] = useState<'create' | 'duplicates'>('create');
   const [isCreating, setIsCreating] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Partial<ExhibitorFormData>>({});
+  // Track if form has been submitted - only show errors after first submit attempt
+  const [hasSubmitted, setHasSubmitted] = useState(false);
 
   // Mock people data for duplicate detection (in real app, this would come from a store/API)
   const mockUsers: User[] = [
@@ -195,8 +197,16 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
     }
   };
 
+  // Helper to get visible error (only show after first submit attempt)
+  const getVisibleError = (field: keyof ExhibitorFormData): string | undefined => {
+    return hasSubmitted ? validationErrors[field] : undefined;
+  };
+
   // Handle form submission
   const handleSubmit = async () => {
+    // Mark that we've attempted to submit - this enables error display
+    setHasSubmitted(true);
+
     const errors = validateForm(formData);
     if (Object.keys(errors).length > 0) {
       setValidationErrors(errors);
@@ -237,6 +247,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
     setDuplicates([]);
     setActiveTab('create');
     setValidationErrors({});
+    setHasSubmitted(false);
     onOpenChange(false);
   };
 
@@ -283,8 +294,8 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
                   onChange={(e) => handleFieldChange('firstName', e.target.value)}
                   placeholder="Enter first name"
                 />
-                {validationErrors.firstName && (
-                  <p className="text-sm text-red-600">{validationErrors.firstName}</p>
+                {getVisibleError('firstName') && (
+                  <p className="text-sm text-red-600">{getVisibleError('firstName')}</p>
                 )}
               </div>
 
@@ -296,8 +307,8 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
                   onChange={(e) => handleFieldChange('lastName', e.target.value)}
                   placeholder="Enter last name"
                 />
-                {validationErrors.lastName && (
-                  <p className="text-sm text-red-600">{validationErrors.lastName}</p>
+                {getVisibleError('lastName') && (
+                  <p className="text-sm text-red-600">{getVisibleError('lastName')}</p>
                 )}
               </div>
             </div>
@@ -312,8 +323,8 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
                   onChange={(e) => handleFieldChange('email', e.target.value)}
                   placeholder="Enter email address"
                 />
-                {validationErrors.email && (
-                  <p className="text-sm text-red-600">{validationErrors.email}</p>
+                {getVisibleError('email') && (
+                  <p className="text-sm text-red-600">{getVisibleError('email')}</p>
                 )}
               </div>
 
@@ -325,8 +336,8 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
                   onChange={(e) => handleFieldChange('phone', e.target.value)}
                   placeholder="Enter phone number"
                 />
-                {validationErrors.phone && (
-                  <p className="text-sm text-red-600">{validationErrors.phone}</p>
+                {getVisibleError('phone') && (
+                  <p className="text-sm text-red-600">{getVisibleError('phone')}</p>
                 )}
               </div>
             </div>

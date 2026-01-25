@@ -92,6 +92,8 @@ export const OfflineEntryForm: React.FC<OfflineEntryFormProps> = ({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  // Track if form has been submitted - only show validation error after first submit attempt
+  const [hasSubmitted, setHasSubmitted] = useState(false);
 
   // Store hooks
   const { createEntry, updateEntry, getEntry } = useEntryStoreCompat();
@@ -207,6 +209,9 @@ export const OfflineEntryForm: React.FC<OfflineEntryFormProps> = ({
 
   // Handle form submission
   const handleSave = async () => {
+    // Mark that we've attempted to submit - this enables error display
+    setHasSubmitted(true);
+
     if (!isFormValid) {
       setSaveError('Please fill in all required fields');
       return;
@@ -304,8 +309,8 @@ export const OfflineEntryForm: React.FC<OfflineEntryFormProps> = ({
         </Alert>
       )}
 
-      {/* Error alert */}
-      {saveError && (
+      {/* Error alert - only show after form has been submitted */}
+      {hasSubmitted && saveError && (
         <Alert className="bg-red-50 border-red-200">
           <AlertTriangle className="h-4 w-4 text-red-600" />
           <AlertDescription className="text-red-800">
@@ -511,7 +516,7 @@ export const OfflineEntryForm: React.FC<OfflineEntryFormProps> = ({
           
           <Button
             onClick={handleSave}
-            disabled={!isFormValid || isSaving}
+            disabled={isSaving}
             className="min-w-[120px]"
           >
             {isSaving ? (

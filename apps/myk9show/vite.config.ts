@@ -11,9 +11,8 @@ export default defineConfig({
   plugins: [
     react(),
     saveTemplatesPlugin() as PluginOption,
-    // PWA Configuration - COMPLETELY DISABLED TO PREVENT CONSOLE SPAM
-    // eslint-disable-next-line no-constant-condition
-    ...(false ? [VitePWA({
+    // PWA Configuration - Enabled for asset caching and installability
+    ...(true ? [VitePWA({
       registerType: 'autoUpdate',
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp}'],
@@ -76,6 +75,18 @@ export default defineConfig({
               matchOptions: {
                 ignoreVary: true  // Fix for "Vary: Origin" header issues
               }
+            }
+          },
+          {
+            urlPattern: /^https:\/\/sojmvhhwsjxmfistvzbe\.supabase\.co\/rest\/v1\/.*/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'supabase-api-cache',
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 // 1 hour
+              },
+              networkTimeoutSeconds: 10
             }
           }
         ]

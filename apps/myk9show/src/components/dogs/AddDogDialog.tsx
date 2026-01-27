@@ -263,10 +263,11 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
 
     const errors = validateForm(formData);
     switch (tab) {
-      case 'basic':
+      case 'basic': {
         const basicValid = !errors.callName && !errors.gender && !errors.dateOfBirth && !errors.ownerId;
         return basicValid ? 'valid' : 'invalid';
-      case 'registration':
+      }
+      case 'registration': {
         // If no registrations, the tab is valid (no errors to show)
         if (formData.registrations.length === 0) return 'valid';
         // Check if all registrations are valid
@@ -277,6 +278,7 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
           !errors[`registration-${index}-registrationNumber`]
         );
         return regValid ? 'valid' : 'invalid';
+      }
       case 'optional':
         return 'valid'; // Optional fields don't have validation
       default:

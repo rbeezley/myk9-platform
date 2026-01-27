@@ -12,7 +12,7 @@ export default defineConfig({
     react(),
     saveTemplatesPlugin() as PluginOption,
     // PWA Configuration - Enabled for asset caching and installability
-    ...(true ? [VitePWA({
+    VitePWA({
       registerType: 'autoUpdate',
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp}'],
@@ -122,7 +122,7 @@ export default defineConfig({
           }
         ]
       }
-    })] as PluginOption[] : []),
+    }),
     // Bundle analyzer - generates stats.html
     visualizer({
       filename: 'dist/stats.html',

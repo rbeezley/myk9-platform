@@ -49,6 +49,7 @@ pnpm-debug.log*
 # Claude Code
 .claude/
 supabase/.temp/
+**/supabase/.temp/
 
 # Auto Claude data directory
 .auto-claude/

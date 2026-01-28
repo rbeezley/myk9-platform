@@ -863,7 +863,7 @@ export const UserTable: React.FC<UserTableProps> = ({
               disabled={currentPage === 1}
               className="h-9 w-9 p-0 rounded-xl border border-border/50 bg-background/50 backdrop-blur-sm
                          disabled:opacity-30 disabled:cursor-not-allowed
-                         transition-all duration-300 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]"
+                         transition-all duration-300 ease-apple"
               title="First page"
             >
               <ChevronsLeft className="h-4 w-4" />
@@ -877,7 +877,7 @@ export const UserTable: React.FC<UserTableProps> = ({
               disabled={currentPage === 1}
               className="h-9 w-9 p-0 rounded-xl border border-border/50 bg-background/50 backdrop-blur-sm
                          disabled:opacity-30 disabled:cursor-not-allowed
-                         transition-all duration-300 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]"
+                         transition-all duration-300 ease-apple"
               title="Previous page"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -905,7 +905,7 @@ export const UserTable: React.FC<UserTableProps> = ({
                     variant={isActive ? "default" : "outline"}
                     size="sm"
                     className={`w-9 h-9 p-0 rounded-xl font-[590] transition-all duration-300 
-                               ease-[cubic-bezier(0.25,0.46,0.45,0.94)] ${
+                               ease-apple ${
                       isActive 
                         ? 'bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-md border-0 scale-105' 
                         : 'border border-border/50 bg-background/50 backdrop-blur-sm'
@@ -927,7 +927,7 @@ export const UserTable: React.FC<UserTableProps> = ({
               disabled={currentPage === totalPages}
               className="h-9 w-9 p-0 rounded-xl border border-border/50 bg-background/50 backdrop-blur-sm
                          disabled:opacity-30 disabled:cursor-not-allowed
-                         transition-all duration-300 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]"
+                         transition-all duration-300 ease-apple"
               title="Next page"
             >
               <ChevronRight className="h-4 w-4" />
@@ -941,7 +941,7 @@ export const UserTable: React.FC<UserTableProps> = ({
               disabled={currentPage === totalPages}
               className="h-9 w-9 p-0 rounded-xl border border-border/50 bg-background/50 backdrop-blur-sm
                          disabled:opacity-30 disabled:cursor-not-allowed
-                         transition-all duration-300 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]"
+                         transition-all duration-300 ease-apple"
               title="Last page"
             >
               <ChevronsRight className="h-4 w-4" />

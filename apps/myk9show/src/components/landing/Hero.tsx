@@ -88,7 +88,7 @@ export default function Hero() {
                 <input
                   type="text"
                   placeholder={searchFocused ? "Woof! What show are you looking for?" : "Search for upcoming shows..."}
-                  className="w-full h-11 px-4 py-3 pl-12 rounded-lg border border-border/50 bg-input text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-300 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] hover:border-primary/40 hover:shadow-md"
+                  className="w-full h-11 px-4 py-3 pl-12 rounded-lg border border-border/50 bg-input text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-300 ease-apple hover:border-primary/40 hover:shadow-md"
                   onFocus={() => setSearchFocused(true)}
                   onBlur={() => setSearchFocused(false)}
                 />

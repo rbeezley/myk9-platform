@@ -10,7 +10,7 @@ const appleInput = {
     'bg-input', // Solid input background - consistent with design system
     'border-0', // No border for clean Apple design
     'rounded-xl', // 12px radius from tokens
-    'transition-all duration-200 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]', // Apple easing
+    'transition-all duration-200 ease-apple', // Apple easing
     'transform-gpu', // GPU acceleration for smoother animations
   ],
   // Typography matching Apple design

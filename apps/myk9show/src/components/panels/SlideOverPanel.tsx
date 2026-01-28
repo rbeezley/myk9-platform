@@ -40,7 +40,7 @@ const appleDesign = {
   border: 'border-l border-border', // Subtle left border
   animation: {
     duration: 'duration-300', // Apple's preferred timing
-    easing: 'ease-[cubic-bezier(0.25,0.46,0.45,0.94)]', // Apple's easing
+    easing: 'ease-apple', // Apple's easing
   },
   typography: {
     title: 'text-lg font-semibold tracking-tight', // Apple typography

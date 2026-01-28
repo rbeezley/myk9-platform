@@ -391,7 +391,7 @@ export const AddDogPanel: React.FC<AddDogPanelProps> = ({
             <TabsTrigger 
               value="basic" 
               className={cn(
-                "flex items-center justify-center gap-2 rounded-lg transition-all duration-300 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]",
+                "flex items-center justify-center gap-2 rounded-lg transition-all duration-300 ease-apple",
                 "data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5",
                 "data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]",
                 "hover:bg-muted/20 hover:scale-[1.01] active:scale-[0.98]",
@@ -405,7 +405,7 @@ export const AddDogPanel: React.FC<AddDogPanelProps> = ({
             <TabsTrigger 
               value="registration"
               className={cn(
-                "flex items-center justify-center gap-2 rounded-lg transition-all duration-300 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]",
+                "flex items-center justify-center gap-2 rounded-lg transition-all duration-300 ease-apple",
                 "data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5",
                 "data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]",
                 "hover:bg-muted/20 hover:scale-[1.01] active:scale-[0.98]",
@@ -419,7 +419,7 @@ export const AddDogPanel: React.FC<AddDogPanelProps> = ({
             <TabsTrigger 
               value="optional"
               className={cn(
-                "flex items-center justify-center gap-2 rounded-lg transition-all duration-300 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]",
+                "flex items-center justify-center gap-2 rounded-lg transition-all duration-300 ease-apple",
                 "data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5",
                 "data-[state=active]:text-primary data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]",
                 "hover:bg-muted/20 hover:scale-[1.01] active:scale-[0.98]",
@@ -433,7 +433,7 @@ export const AddDogPanel: React.FC<AddDogPanelProps> = ({
           </TabsList>
 
           {/* Basic Info Tab - Enhanced Apple design */}
-          <TabsContent value="basic" className="space-y-8 mt-8 animate-in slide-in-from-bottom-2 duration-500 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]">
+          <TabsContent value="basic" className="space-y-8 mt-8 animate-in slide-in-from-bottom-2 duration-500 ease-apple">
             <Card className="group relative overflow-hidden bg-gradient-to-br from-card/95 to-card/80 border border-border/30 rounded-2xl backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1">
               <div className="absolute inset-0 bg-gradient-to-br from-primary/3 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
               <CardHeader className="relative">

@@ -76,6 +76,10 @@ export default {
   		animation: {
   			'accordion-down': 'accordion-down 0.2s ease-out',
   			'accordion-up': 'accordion-up 0.2s ease-out'
+  		},
+  		transitionTimingFunction: {
+  			'apple': 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+  			'bounce': 'cubic-bezier(0.34, 1.56, 0.64, 1)'
   		}
   	}
   },

@@ -47,9 +47,9 @@ const SIDEBAR_TOKENS = {
   },
   // Spring-like animation curve for bouncy micro-interactions
   transitions: {
-    default: 'transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)]',
-    fast: 'transition-all duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)]',
-    slow: 'transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]'
+    default: 'transition-all duration-300 ease-bounce',
+    fast: 'transition-all duration-200 ease-bounce',
+    slow: 'transition-all duration-500 ease-bounce'
   }
 } as const;
 

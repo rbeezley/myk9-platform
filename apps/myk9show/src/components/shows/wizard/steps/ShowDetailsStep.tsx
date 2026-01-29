@@ -53,14 +53,18 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
     );
   }, [clubs, clubSearchTerm]);
 
-  // Filter people for chairman/secretary - include all relevant roles
+  // Filter people for chairman/secretary - only show those with relevant roles
   const filteredPeople = React.useMemo(() => {
     return people.filter(person =>
       person.roles?.includes('chairman') ||
       person.roles?.includes('secretary') ||
       person.roles?.includes('admin') ||
       person.roles?.includes('steward')
-    );
+    ).sort((a, b) => {
+      const nameA = `${a.firstName} ${a.lastName}`.toLowerCase();
+      const nameB = `${b.firstName} ${b.lastName}`.toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
   }, [people]);
 
   // Handlers for opening creation panels

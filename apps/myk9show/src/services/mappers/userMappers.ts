@@ -42,6 +42,11 @@ export const mapUserInputToUpdate = (input: Partial<UserInput>): DbUserUpdate =>
     if (input.address.zipCode !== undefined) update.zip_code = input.address.zipCode || null;
   }
 
+  // Handle roles updates
+  if (input.roles !== undefined) {
+    (update as Record<string, unknown>).roles = input.roles;
+  }
+
   return update;
 };
 

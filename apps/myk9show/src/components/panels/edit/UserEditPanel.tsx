@@ -391,7 +391,7 @@ const UserEditForm: React.FC = () => {
                     <div className="space-y-2">
                       <Label className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">User Roles</Label>
                       <div className="flex flex-wrap gap-2">
-                        {(['exhibitor', 'handler', 'judge', 'secretary', 'steward', 'admin'] as const).map((role) => {
+                        {(['exhibitor', 'handler', 'judge', 'secretary', 'chairman', 'steward', 'admin'] as const).map((role) => {
                           const isSelected = data.roles.includes(role);
                           return (
                             <button

@@ -4,16 +4,15 @@
  */
 
 export const STORE_CATEGORIES = {
-  // Tier 1: Critical stores - Load immediately for core functionality (minimal for homepage)
-  CRITICAL: [
-    'navigationStore',  // Essential for navigation only
-    // Removed showStore - upcoming shows can load lazily on homepage
-  ],
+  // Tier 1: Critical stores - Load immediately for core functionality
+  // Empty for fastest initial render - all stores load on-demand
+  CRITICAL: [] as const,
 
-  // Tier 2: Important stores - Load on first access (moved showStore here)
+  // Tier 2: Important stores - Load on first access
   IMPORTANT: [
+    'navigationStore',    // Navigation breadcrumbs (loads when needed)
     'showStore',          // For upcoming shows display
-    'userStore',        // Core user/people management  
+    'userStore',          // Core user/people management
     'dogStore',           // Core dog management
     'clubStore',          // Core club management
     'searchHistoryStore', // Search history tracking

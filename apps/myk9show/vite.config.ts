@@ -133,7 +133,7 @@ export default defineConfig({
     }) as PluginOption
   ],
   optimizeDeps: {
-    exclude: ['lucide-react', 'workbox-window'],
+    exclude: ['workbox-window'], // Removed lucide-react - it breaks production build
     include: [
       'react',
       'react-dom',
@@ -149,7 +149,8 @@ export default defineConfig({
       'sonner',
       'framer-motion',
       '@base-ui/react',
-      'react-day-picker'
+      'react-day-picker',
+      'lucide-react'
     ],
     // Force dependency optimization to prevent chunk errors
     force: true
@@ -163,246 +164,30 @@ export default defineConfig({
     // Enhanced bundle size limits for Core Web Vitals optimization
     chunkSizeWarningLimit: 500, // Reduced from 1000KB for better LCP
     rollupOptions: {
-      // Enhanced tree shaking for better bundle optimization
+      // Tree shaking - less aggressive to prevent breaking icon libraries
       treeshake: {
-        moduleSideEffects: false,
-        propertyReadSideEffects: false,
+        moduleSideEffects: true, // Changed from false - was breaking Lucide icons
+        propertyReadSideEffects: true, // Changed from false
         tryCatchDeoptimization: false,
-        // Additional tree shaking options for performance
         annotations: true,
-        unknownGlobalSideEffects: false,
       },
       output: {
-        // Enhanced manual chunk splitting for optimal caching and loading
+        // Simplified manual chunk splitting - avoid breaking icon libraries
         manualChunks: (id: string) => {
-          // Vendor chunks - more granular splitting to prevent oversized chunks
           if (id.includes('node_modules')) {
-            // React ecosystem - keep small and focused
+            // Large libraries that benefit from separate chunks
             if (id.includes('react-dom')) {
-              return 'react-dom-vendor';
-            }
-            if (id.includes('react') && !id.includes('react-dom') && !id.includes('react-router')) {
-              return 'react-vendor';
-            }
-            if (id.includes('react-router')) {
-              return 'router-vendor';
-            }
-            
-            // UI libraries - split further to avoid large chunks
-            if (id.includes('@base-ui')) {
-              return 'base-ui-vendor';
-            }
-            if (id.includes('@headlessui') || id.includes('framer-motion')) {
-              return 'ui-vendor';
-            }
-            
-            // Chart libraries - heavy, separate chunk for lazy loading
-            if (id.includes('recharts')) {
-              return 'recharts-vendor';
-            }
-            if (id.includes('react-big-calendar') || id.includes('d3')) {
-              return 'calendar-chart-vendor';
-            }
-            
-            // Form and validation libraries
-            if (id.includes('zod')) {
-              return 'validation-vendor';
-            }
-            if (id.includes('react-hook-form') || id.includes('@hookform')) {
-              return 'form-vendor';
-            }
-            
-            // Data management - split by functionality
-            if (id.includes('@tanstack/react-query')) {
-              return 'query-vendor';
-            }
-            if (id.includes('zustand')) {
-              return 'zustand-vendor';
+              return 'vendor-react-dom';
             }
             if (id.includes('@supabase')) {
-              return 'supabase-vendor';
+              return 'vendor-supabase';
             }
-            if (id.includes('dexie')) {
-              return 'dexie-vendor';
+            if (id.includes('recharts') || id.includes('d3')) {
+              return 'vendor-charts';
             }
-            
-            // Date and time utilities
-            if (id.includes('date-fns')) {
-              return 'date-vendor';
-            }
-            
-            // Small utility libraries - group together
-            if (id.includes('uuid') || id.includes('clsx') || id.includes('classnames')) {
-              return 'utils-vendor';
-            }
-            
-            // Security and sanitization
-            if (id.includes('dompurify') || id.includes('sanitize')) {
-              return 'security-vendor';
-            }
-            
-            // File processing - heavy, separate for lazy loading
-            if (id.includes('jszip') || id.includes('xlsx')) {
-              return 'file-processing-vendor';
-            }
-            if (id.includes('pdfmake')) {
-              return 'pdf-vendor';
-            }
-            
-            // Animation and UI effects
-            if (id.includes('lottie') || id.includes('gsap')) {
-              return 'animation-vendor';
-            }
-            
-            // Development/testing libraries - only include in development builds
-            if (process.env.NODE_ENV !== 'production' && (id.includes('testing-library') || id.includes('vitest') || id.includes('@faker-js'))) {
-              return 'dev-vendor';
-            }
-            
-            // Heavy utility libraries that shouldn't be in misc
-            if (id.includes('lodash')) {
-              return 'lodash-vendor';
-            }
-            
-            // Icon libraries
-            if (id.includes('lucide-react') || id.includes('@heroicons') || id.includes('react-icons')) {
-              return 'icons-vendor';
-            }
-            
-            // Toast and notification libraries
-            if (id.includes('sonner') || id.includes('react-hot-toast')) {
-              return 'notification-vendor';
-            }
-            
-            // Remaining libraries - split further to prevent large chunks
-            if (id.includes('moment') || id.includes('dayjs')) {
-              return 'datetime-vendor';
-            }
-            if (id.includes('markdown') || id.includes('remark')) {
-              return 'markdown-vendor';
-            }
-            if (id.includes('prism') || id.includes('highlight')) {
-              return 'syntax-vendor';
-            }
-            if (id.includes('crypto') || id.includes('hash')) {
-              return 'crypto-vendor';
-            }
-            
-            // Split remaining misc libraries into smaller chunks
-            const firstChar = id.split('/node_modules/')[1]?.charAt(0) || 'z';
-            if (firstChar >= 'a' && firstChar <= 'h') {
-              return 'vendor-misc-a-h';
-            } else if (firstChar >= 'i' && firstChar <= 'p') {
-              return 'vendor-misc-i-p';
-            } else {
-              return 'vendor-misc-q-z';
-            }
+            // Let Vite handle everything else automatically
           }
-          
-          // App store chunks - better organization
-          if (id.includes('/store/')) {
-            // Core stores
-            if (id.includes('dogStore') || id.includes('userStore') || id.includes('clubStore')) {
-              return 'core-stores';
-            }
-            // Show management stores
-            if (id.includes('showStore') || id.includes('entryStore') || id.includes('registrationStore') || id.includes('wizardStore')) {
-              return 'show-stores';
-            }
-            // Template and class stores
-            if (id.includes('templateStore') || id.includes('classStore') || id.includes('classCreationStore') || id.includes('classTemplateStore')) {
-              return 'template-stores';
-            }
-            // Admin and system stores
-            if (id.includes('syncStore') || id.includes('performanceStore') || id.includes('navigationStore')) {
-              return 'system-stores';
-            }
-            // Remaining stores
-            return 'misc-stores';
-          }
-          
-          // Page chunks - role-based splitting
-          if (id.includes('/pages/')) {
-            if (id.includes('/admin/')) {
-              return 'admin-pages';
-            }
-            if (id.includes('/secretary/')) {
-              return 'secretary-pages';
-            }
-            if (id.includes('/judge/') || id.includes('Judge')) {
-              return 'judge-pages';
-            }
-            if (id.includes('/exhibitor/') || id.includes('Exhibitor')) {
-              return 'exhibitor-pages';
-            }
-            // Core pages - split further to reduce chunk size
-            if (id.includes('DogDetailsPage') || id.includes('UserDetailsPage') || id.includes('ShowDetailsPage')) {
-              return 'detail-pages';
-            }
-            // Split common pages by functionality
-            if (id.includes('Home') || id.includes('Landing') || id.includes('Auth')) {
-              return 'core-pages';
-            }
-            if (id.includes('Profile') || id.includes('Settings') || id.includes('Account')) {
-              return 'user-pages';  
-            }
-            if (id.includes('Browse') || id.includes('Search') || id.includes('List')) {
-              return 'browse-pages';
-            }
-            return 'misc-pages';
-          }
-          
-          // Component chunks - feature-based with critical path optimization
-          if (id.includes('/components/')) {
-            // Critical home page components - load immediately
-            if (id.includes('landing/Hero') || id.includes('landing/Navigation') || id.includes('landing/FeaturesGrid')) {
-              return 'home-critical';
-            }
-            
-            // Large performance-heavy components - lazy load
-            if (id.includes('LoadTestDashboard') || id.includes('PerformanceDashboard') || id.includes('DataLifecycleManagement')) {
-              return 'performance-components';
-            }
-            
-            // Show creation wizard - heavy, lazy load
-            if (id.includes('ShowCreationWizard') || id.includes('wizard/')) {
-              return 'wizard-components';
-            }
-            
-            // Calendar and scheduling - heavy, lazy load
-            if (id.includes('calendar') || id.includes('Calendar') || id.includes('scheduling')) {
-              return 'calendar-components';
-            }
-            
-            // Registration workflow - heavy, lazy load
-            if (id.includes('registration') || id.includes('Registration') || id.includes('workflow')) {
-              return 'registration-components';
-            }
-            
-            // Charts and analytics - heavy, lazy load
-            if (id.includes('charts') || id.includes('analytics') || id.includes('Analytics')) {
-              return 'analytics-components';
-            }
-            
-            // Template management - heavy, lazy load
-            if (id.includes('template') || id.includes('Template')) {
-              return 'template-components';
-            }
-            
-            // UI components - group common ones
-            if (id.includes('/ui/') || id.includes('shadcn')) {
-              return 'ui-components';
-            }
-          }
-          
-          // Services and utilities
-          if (id.includes('/services/')) {
-            return 'app-services';
-          }
-          
-          if (id.includes('/utils/') || id.includes('/hooks/')) {
-            return 'app-utils';
-          }
+          return undefined; // Let Vite decide
         },
         assetFileNames: (assetInfo) => {
           // Organize assets in subfolders for CDN optimization

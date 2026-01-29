@@ -119,20 +119,40 @@ const ErrorFallback = ({
   );
 };
 
+// Track initialization to prevent duplicate runs in StrictMode
+const initializationState = {
+  errorHandler: false,
+  userData: false,
+  clubData: false,
+};
+
 function App() {
-
-  // Initialize global error handler (removed preloading for better startup performance)
+  // Initialize global error handler - deferred to not block initial render
   React.useEffect(() => {
-    const globalErrorHandler = GlobalErrorHandler.getInstance();
-    globalErrorHandler.initialize();
+    if (initializationState.errorHandler) return;
+    initializationState.errorHandler = true;
 
-    return () => {
-      globalErrorHandler.destroy();
+    // Defer heavy error handler setup to idle time
+    const initErrorHandler = () => {
+      const globalErrorHandler = GlobalErrorHandler.getInstance();
+      globalErrorHandler.initialize();
     };
+
+    // Use requestIdleCallback if available, otherwise setTimeout
+    if ('requestIdleCallback' in window) {
+      const idleId = window.requestIdleCallback(initErrorHandler, { timeout: 2000 });
+      return () => window.cancelIdleCallback(idleId);
+    } else {
+      const timeoutId = setTimeout(initErrorHandler, 100);
+      return () => clearTimeout(timeoutId);
+    }
   }, []);
 
-  // Initialize user data from database
+  // Initialize user data from database - deferred and guarded
   React.useEffect(() => {
+    if (initializationState.userData) return;
+    initializationState.userData = true;
+
     const initializeUserData = async () => {
       try {
         const { useUserStore } = await import('./store/userStore');
@@ -142,12 +162,17 @@ function App() {
         logger.error('Failed to initialize user data:', 'app', {}, error as Error);
       }
     };
-    
-    initializeUserData();
+
+    // Defer to avoid blocking render
+    const timeoutId = setTimeout(initializeUserData, 50);
+    return () => clearTimeout(timeoutId);
   }, []);
 
-  // Initialize club data from database
+  // Initialize club data from database - deferred and guarded
   React.useEffect(() => {
+    if (initializationState.clubData) return;
+    initializationState.clubData = true;
+
     const initializeClubData = async () => {
       try {
         const { useClubStore } = await import('./store/clubStore');
@@ -157,8 +182,10 @@ function App() {
         logger.error('Failed to initialize club data:', 'app', {}, error as Error);
       }
     };
-    
-    initializeClubData();
+
+    // Defer to avoid blocking render
+    const timeoutId = setTimeout(initializeClubData, 100);
+    return () => clearTimeout(timeoutId);
   }, []);
 
   // Store rehydration is now handled by StoreProvider

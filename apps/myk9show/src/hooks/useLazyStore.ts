@@ -24,6 +24,7 @@ export function useLazyStore(storeName: StoreName) {
         logger.error(`Failed to lazy load store ${storeName}:`, 'hooks', {}, error as Error);
       });
     }
+    // loadStore is stable (no dependencies) so we only need storeName and state checks
   }, [isLoaded, isLoading, storeName, loadStore]);
 
   return {
@@ -55,6 +56,7 @@ export function useLazyStores(storeNames: StoreName[]) {
         logger.error('Failed to lazy load feature stores:', 'hooks', {}, error as Error);
       });
     }
+    // loadStore is stable (no dependencies) so we only need storeNames and state checks
   }, [allLoaded, anyLoading, storeNames, loadStore]);
 
   return {

@@ -1,10 +1,13 @@
 // Alert System Initializer Component
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import AlertingService from '../../services/alerts/AlertingService';
 import { AlertToastContainer } from './AlertToast';
 import { useAlertNotifications } from '../../hooks/useAlerts';
 import { logger } from '@/services/LoggingService';
+
+// Track initialization to prevent duplicate runs in StrictMode
+let hasInitializedAlerts = false;
 
 interface AlertInitializerProps {
   children: React.ReactNode;
@@ -21,23 +24,32 @@ export const AlertInitializer: React.FC<AlertInitializerProps> = ({ children }) 
     autoHideDuration: 8000
   });
 
+  // Memoize requestPermission to prevent dependency changes
+  const stableRequestPermission = useCallback(() => requestPermission(), [requestPermission]);
+
   useEffect(() => {
+    // Guard against duplicate initialization in StrictMode
+    if (hasInitializedAlerts) return;
+    hasInitializedAlerts = true;
+
     const initializeAlerts = async () => {
       try {
         const alertingService = AlertingService.getInstance();
         await alertingService.initialize();
-        
-        // Request browser notification permission
-        await requestPermission();
-        
+
+        // Request browser notification permission - defer to avoid blocking
+        setTimeout(() => stableRequestPermission(), 500);
+
         logger.debug('[AlertInitializer] Alert system initialized', 'alerts', {});
       } catch (error) {
         logger.error('[AlertInitializer] Failed to initialize alert system:', 'alerts', {}, error as Error);
       }
     };
 
-    initializeAlerts();
-  }, [requestPermission]);
+    // Defer initialization to not block render
+    const timeoutId = setTimeout(initializeAlerts, 200);
+    return () => clearTimeout(timeoutId);
+  }, [stableRequestPermission]);
 
   const handleAcknowledgeAlert = async (alertId: string) => {
     try {

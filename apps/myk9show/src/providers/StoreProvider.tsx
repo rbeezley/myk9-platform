@@ -94,6 +94,10 @@ export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
 
   const loadingPromises = useRef<Record<StoreName, Promise<void>>>({} as Record<StoreName, Promise<void>>);
 
+  // Use a ref to access current stores state without causing dependency changes
+  const storesRef = useRef(stores);
+  storesRef.current = stores;
+
   const loadStore = useCallback(async (storeName: StoreName): Promise<void> => {
     // Return existing promise if already loading
     const existingPromise = loadingPromises.current[storeName];
@@ -101,8 +105,8 @@ export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
       return existingPromise;
     }
 
-    // Don't load if already loaded
-    if (stores[storeName]?.isLoaded) {
+    // Don't load if already loaded (use ref to avoid dependency)
+    if (storesRef.current[storeName]?.isLoaded) {
       return;
     }
 
@@ -180,7 +184,7 @@ export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
     loadingPromises.current[storeName] = loadingPromise();
     await loadingPromises.current[storeName];
     delete loadingPromises.current[storeName];
-  }, [stores]);
+  }, []); // No dependencies - uses refs for state access
 
   const loadStoresByCategory = async (category: StoreCategory): Promise<void> => {
     const storeNames = STORE_CATEGORIES[category];

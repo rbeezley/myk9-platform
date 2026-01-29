@@ -3,7 +3,6 @@ import Hero from '@/components/landing/Hero';
 import FeaturesSection from '@/components/landing/FeaturesSection';
 import FAQSection from '@/components/landing/FAQSection';
 import DelightfulLoading from '@/components/ui/DelightfulLoading';
-import { useBasicShowData } from '@/hooks/useShowScopedData';
 import features from '@/data/features';
 import upcomingShows from '@/data/upcomingShows';
 import faqs from '@/data/faqs';
@@ -23,12 +22,7 @@ const UpcomingShows = React.lazy(() =>
 
 const Home: React.FC = () => {
   const [showWizardOpen, setShowWizardOpen] = useState(false);
-  
-  // Use scoped data loading for better performance - only loads showStore lazily
-  // This demonstrates lazy loading but we don't use the loading state in the home page
-  useBasicShowData();
-  
-  
+
   // No automatic redirects on home page - let users choose where to go
   
   // Handle wizard query parameter from command palette

@@ -8,36 +8,34 @@ interface CollapsibleTriggerProps extends React.ComponentPropsWithoutRef<typeof 
   asChild?: boolean
 }
 
-const CollapsibleTrigger = React.forwardRef<
-  React.ElementRef<typeof CollapsiblePrimitive.Trigger>,
-  CollapsibleTriggerProps
->(({ className, children, asChild, ...props }, ref) => {
-  if (asChild && React.isValidElement(children)) {
+const CollapsibleTrigger = React.forwardRef<HTMLButtonElement, CollapsibleTriggerProps>(
+  ({ className, children, asChild, ...props }, ref) => {
+    if (asChild && React.isValidElement(children)) {
+      return (
+        <CollapsiblePrimitive.Trigger
+          render={children}
+          className={cn(
+            "flex w-full items-center justify-between py-4 font-medium transition-all hover:underline [&[data-open]>svg]:rotate-180",
+            className
+          )}
+          {...props}
+        />
+      )
+    }
     return (
       <CollapsiblePrimitive.Trigger
         ref={ref}
-        render={children}
         className={cn(
           "flex w-full items-center justify-between py-4 font-medium transition-all hover:underline [&[data-open]>svg]:rotate-180",
           className
         )}
         {...props}
-      />
+      >
+        {children}
+      </CollapsiblePrimitive.Trigger>
     )
   }
-  return (
-    <CollapsiblePrimitive.Trigger
-      ref={ref}
-      className={cn(
-        "flex w-full items-center justify-between py-4 font-medium transition-all hover:underline [&[data-open]>svg]:rotate-180",
-        className
-      )}
-      {...props}
-    >
-      {children}
-    </CollapsiblePrimitive.Trigger>
-  )
-})
+)
 CollapsibleTrigger.displayName = "CollapsibleTrigger"
 
 const CollapsibleContent = React.forwardRef<

@@ -9,21 +9,18 @@ interface PopoverTriggerProps extends React.ComponentPropsWithoutRef<typeof Popo
   asChild?: boolean
 }
 
-const PopoverTrigger = React.forwardRef<
-  React.ElementRef<typeof PopoverPrimitive.Trigger>,
-  PopoverTriggerProps
->(({ asChild, children, ...props }, ref) => {
-  if (asChild && React.isValidElement(children)) {
+const PopoverTrigger = React.forwardRef<HTMLButtonElement, PopoverTriggerProps>(
+  ({ asChild, children, ...props }, ref) => {
+    if (asChild && React.isValidElement(children)) {
+      return <PopoverPrimitive.Trigger render={children} {...props} />
+    }
     return (
-      <PopoverPrimitive.Trigger ref={ref} render={children} {...props} />
+      <PopoverPrimitive.Trigger ref={ref} {...props}>
+        {children}
+      </PopoverPrimitive.Trigger>
     )
   }
-  return (
-    <PopoverPrimitive.Trigger ref={ref} {...props}>
-      {children}
-    </PopoverPrimitive.Trigger>
-  )
-})
+)
 PopoverTrigger.displayName = "PopoverTrigger"
 
 // Base UI Popover doesn't have Anchor - create a no-op for API compatibility

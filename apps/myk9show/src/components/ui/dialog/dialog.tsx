@@ -10,22 +10,19 @@ interface DialogTriggerProps extends React.ComponentPropsWithoutRef<typeof Dialo
   asChild?: boolean
 }
 
-const DialogTrigger = React.forwardRef<
-  React.ElementRef<typeof DialogPrimitive.Trigger>,
-  DialogTriggerProps
->(({ asChild, children, ...props }, ref) => {
-  // Convert asChild pattern to render prop for backwards compatibility
-  if (asChild && React.isValidElement(children)) {
+const DialogTrigger = React.forwardRef<HTMLButtonElement, DialogTriggerProps>(
+  ({ asChild, children, ...props }, ref) => {
+    // Convert asChild pattern to render prop for backwards compatibility
+    if (asChild && React.isValidElement(children)) {
+      return <DialogPrimitive.Trigger render={children} {...props} />
+    }
     return (
-      <DialogPrimitive.Trigger ref={ref} render={children} {...props} />
+      <DialogPrimitive.Trigger ref={ref} {...props}>
+        {children}
+      </DialogPrimitive.Trigger>
     )
   }
-  return (
-    <DialogPrimitive.Trigger ref={ref} {...props}>
-      {children}
-    </DialogPrimitive.Trigger>
-  )
-})
+)
 DialogTrigger.displayName = "DialogTrigger"
 
 const DialogPortal = DialogPrimitive.Portal
@@ -34,21 +31,18 @@ interface DialogCloseProps extends React.ComponentPropsWithoutRef<typeof DialogP
   asChild?: boolean
 }
 
-const DialogClose = React.forwardRef<
-  React.ElementRef<typeof DialogPrimitive.Close>,
-  DialogCloseProps
->(({ asChild, children, ...props }, ref) => {
-  if (asChild && React.isValidElement(children)) {
+const DialogClose = React.forwardRef<HTMLButtonElement, DialogCloseProps>(
+  ({ asChild, children, ...props }, ref) => {
+    if (asChild && React.isValidElement(children)) {
+      return <DialogPrimitive.Close render={children} {...props} />
+    }
     return (
-      <DialogPrimitive.Close ref={ref} render={children} {...props} />
+      <DialogPrimitive.Close ref={ref} {...props}>
+        {children}
+      </DialogPrimitive.Close>
     )
   }
-  return (
-    <DialogPrimitive.Close ref={ref} {...props}>
-      {children}
-    </DialogPrimitive.Close>
-  )
-})
+)
 DialogClose.displayName = "DialogClose"
 
 const DialogOverlay = React.forwardRef<

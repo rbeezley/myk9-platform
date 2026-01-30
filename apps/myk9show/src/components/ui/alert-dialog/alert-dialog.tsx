@@ -10,21 +10,18 @@ interface AlertDialogTriggerProps extends React.ComponentPropsWithoutRef<typeof 
   asChild?: boolean
 }
 
-const AlertDialogTrigger = React.forwardRef<
-  React.ElementRef<typeof AlertDialogPrimitive.Trigger>,
-  AlertDialogTriggerProps
->(({ asChild, children, ...props }, ref) => {
-  if (asChild && React.isValidElement(children)) {
+const AlertDialogTrigger = React.forwardRef<HTMLButtonElement, AlertDialogTriggerProps>(
+  ({ asChild, children, ...props }, ref) => {
+    if (asChild && React.isValidElement(children)) {
+      return <AlertDialogPrimitive.Trigger render={children} {...props} />
+    }
     return (
-      <AlertDialogPrimitive.Trigger ref={ref} render={children} {...props} />
+      <AlertDialogPrimitive.Trigger ref={ref} {...props}>
+        {children}
+      </AlertDialogPrimitive.Trigger>
     )
   }
-  return (
-    <AlertDialogPrimitive.Trigger ref={ref} {...props}>
-      {children}
-    </AlertDialogPrimitive.Trigger>
-  )
-})
+)
 AlertDialogTrigger.displayName = "AlertDialogTrigger"
 
 const AlertDialogPortal = AlertDialogPrimitive.Portal

@@ -24,15 +24,15 @@
     "generate-types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > src/types/database.ts"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.90.1"
+    "@supabase/supabase-js": "^2.93.3"
   },
   "devDependencies": {
     "@myk9/core": "workspace:*",
-    "@types/react": "^19.2.8",
-    "react": "^19.2.3",
+    "@types/react": "^19.2.10",
+    "react": "^19.2.4",
+    "rimraf": "^6.1.2",
     "tsup": "^8.5.1",
-    "typescript": "^5.9.3",
-    "rimraf": "^6.1.2"
+    "typescript": "^5.9.3"
   },
   "peerDependencies": {
     "react": ">=18.0.0"

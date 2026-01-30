@@ -10,21 +10,18 @@ interface DropdownMenuTriggerProps extends React.ComponentPropsWithoutRef<typeof
   asChild?: boolean
 }
 
-const DropdownMenuTrigger = React.forwardRef<
-  React.ElementRef<typeof MenuPrimitive.Trigger>,
-  DropdownMenuTriggerProps
->(({ asChild, children, ...props }, ref) => {
-  if (asChild && React.isValidElement(children)) {
+const DropdownMenuTrigger = React.forwardRef<HTMLButtonElement, DropdownMenuTriggerProps>(
+  ({ asChild, children, ...props }, ref) => {
+    if (asChild && React.isValidElement(children)) {
+      return <MenuPrimitive.Trigger render={children} {...props} />
+    }
     return (
-      <MenuPrimitive.Trigger ref={ref} render={children} {...props} />
+      <MenuPrimitive.Trigger ref={ref} {...props}>
+        {children}
+      </MenuPrimitive.Trigger>
     )
   }
-  return (
-    <MenuPrimitive.Trigger ref={ref} {...props}>
-      {children}
-    </MenuPrimitive.Trigger>
-  )
-})
+)
 DropdownMenuTrigger.displayName = "DropdownMenuTrigger"
 
 const DropdownMenuGroup = MenuPrimitive.Group

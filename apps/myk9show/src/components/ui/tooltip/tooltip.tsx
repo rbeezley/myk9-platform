@@ -10,21 +10,18 @@ interface TooltipTriggerProps extends React.ComponentPropsWithoutRef<typeof Tool
   asChild?: boolean
 }
 
-const TooltipTrigger = React.forwardRef<
-  React.ElementRef<typeof TooltipPrimitive.Trigger>,
-  TooltipTriggerProps
->(({ asChild, children, ...props }, ref) => {
-  if (asChild && React.isValidElement(children)) {
+const TooltipTrigger = React.forwardRef<HTMLButtonElement, TooltipTriggerProps>(
+  ({ asChild, children, ...props }, ref) => {
+    if (asChild && React.isValidElement(children)) {
+      return <TooltipPrimitive.Trigger render={children} {...props} />
+    }
     return (
-      <TooltipPrimitive.Trigger ref={ref} render={children} {...props} />
+      <TooltipPrimitive.Trigger ref={ref} {...props}>
+        {children}
+      </TooltipPrimitive.Trigger>
     )
   }
-  return (
-    <TooltipPrimitive.Trigger ref={ref} {...props}>
-      {children}
-    </TooltipPrimitive.Trigger>
-  )
-})
+)
 TooltipTrigger.displayName = "TooltipTrigger"
 
 interface TooltipContentProps extends React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Popup> {

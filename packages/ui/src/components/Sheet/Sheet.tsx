@@ -10,19 +10,18 @@ interface SheetTriggerProps
   asChild?: boolean;
 }
 
-const SheetTrigger = React.forwardRef<
-  React.ElementRef<typeof DialogPrimitive.Trigger>,
-  SheetTriggerProps
->(({ asChild, children, ...props }, ref) => {
-  if (asChild && React.isValidElement(children)) {
-    return <DialogPrimitive.Trigger ref={ref} render={children} {...props} />;
+const SheetTrigger = React.forwardRef<HTMLButtonElement, SheetTriggerProps>(
+  ({ asChild, children, ...props }, ref) => {
+    if (asChild && React.isValidElement(children)) {
+      return <DialogPrimitive.Trigger render={children} {...props} />;
+    }
+    return (
+      <DialogPrimitive.Trigger ref={ref} {...props}>
+        {children}
+      </DialogPrimitive.Trigger>
+    );
   }
-  return (
-    <DialogPrimitive.Trigger ref={ref} {...props}>
-      {children}
-    </DialogPrimitive.Trigger>
-  );
-});
+);
 SheetTrigger.displayName = 'SheetTrigger';
 
 const SheetPortal = DialogPrimitive.Portal;
@@ -31,19 +30,18 @@ interface SheetCloseProps extends React.ComponentPropsWithoutRef<typeof DialogPr
   asChild?: boolean;
 }
 
-const SheetClose = React.forwardRef<
-  React.ElementRef<typeof DialogPrimitive.Close>,
-  SheetCloseProps
->(({ asChild, children, ...props }, ref) => {
-  if (asChild && React.isValidElement(children)) {
-    return <DialogPrimitive.Close ref={ref} render={children} {...props} />;
+const SheetClose = React.forwardRef<HTMLButtonElement, SheetCloseProps>(
+  ({ asChild, children, ...props }, ref) => {
+    if (asChild && React.isValidElement(children)) {
+      return <DialogPrimitive.Close render={children} {...props} />;
+    }
+    return (
+      <DialogPrimitive.Close ref={ref} {...props}>
+        {children}
+      </DialogPrimitive.Close>
+    );
   }
-  return (
-    <DialogPrimitive.Close ref={ref} {...props}>
-      {children}
-    </DialogPrimitive.Close>
-  );
-});
+);
 SheetClose.displayName = 'SheetClose';
 
 const SheetBackdrop = React.forwardRef<

@@ -25,3 +25,9 @@ dist-ssr
 
 # MCP configuration (contains sensitive tokens)
 .windsurf/mcp.json
+
+# Playwright test results
+test-results/
+!test-results/.gitkeep
+playwright-report/
+playwright/.cache/

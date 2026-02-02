@@ -339,18 +339,18 @@ export class ShowCreationWizardPage {
     await this.page.waitForTimeout(500);  // Wait for popover and data to load
 
     // Wait for club list to appear
-    const clubList = this.page.locator('[class*="hover:bg-muted"], .cursor-pointer');
-    await clubList.first().waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
+    const clubList = this.page.locator('.p-3.hover\\:bg-muted, [class*="hover:bg-muted"].cursor-pointer');
+    await clubList.first().waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
 
     if (clubName) {
       // Search for the club
-      const searchInput = this.page.locator('input[placeholder*="Search"]');
+      const searchInput = this.page.locator('input[placeholder*="Search clubs"]');
       if (await searchInput.isVisible().catch(() => false)) {
         await searchInput.fill(clubName);
         await this.page.waitForTimeout(300);
       }
       // Click the matching club
-      const matchingClub = this.page.locator(`[class*="hover:bg-muted"]:has-text("${clubName}"), .cursor-pointer:has-text("${clubName}")`).first();
+      const matchingClub = this.page.locator(`.p-3.hover\\:bg-muted:has-text("${clubName}")`).first();
       if (await matchingClub.isVisible().catch(() => false)) {
         await matchingClub.click();
         await this.page.waitForTimeout(200);
@@ -358,16 +358,70 @@ export class ShowCreationWizardPage {
       }
     }
 
-    // Just select the first available club
-    const firstClub = this.page.locator('[class*="hover:bg-muted"], .p-3.cursor-pointer').first();
+    // Just select the first available club from the list
+    const firstClub = this.page.locator('.p-3.hover\\:bg-muted.cursor-pointer, .p-3[class*="hover:bg-muted"]').first();
     if (await firstClub.isVisible().catch(() => false)) {
       await firstClub.click();
       await this.page.waitForTimeout(200);
     } else {
-      // Close popover without selecting
+      // No clubs available - close popover and try to create one
       await this.page.keyboard.press('Escape');
       await this.page.waitForTimeout(100);
+
+      // Try to use "Create New Club" button
+      await this.createNewClub();
     }
+  }
+
+  /**
+   * Creates a new club using the panel
+   */
+  private async createNewClub() {
+    const createButton = this.page.locator('button:has-text("Create New Club")');
+    if (!(await createButton.isVisible().catch(() => false))) {
+      return; // Button not found
+    }
+
+    await createButton.click();
+    await this.page.waitForTimeout(1000);
+
+    // Wait for the panel to open - look for the panel content
+    const panel = this.page.locator('[role="dialog"], .fixed.inset-y-0');
+    await panel.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+
+    // Fill in club name - look for the input with placeholder "Enter club name"
+    const clubNameInput = this.page.locator('input[placeholder="Enter club name"]');
+    if (await clubNameInput.isVisible().catch(() => false)) {
+      await clubNameInput.fill(`E2E Test Club ${Date.now()}`);
+    }
+
+    // Fill in required email field if present
+    const emailInput = this.page.locator('input[type="email"]').first();
+    if (await emailInput.isVisible().catch(() => false)) {
+      const existingValue = await emailInput.inputValue();
+      if (!existingValue) {
+        await emailInput.fill(`testclub${Date.now()}@test.myk9.com`);
+      }
+    }
+
+    // Scroll to bottom of panel to find save button
+    const panelContent = this.page.locator('.overflow-y-auto').first();
+    if (await panelContent.isVisible().catch(() => false)) {
+      await panelContent.evaluate(el => el.scrollTop = el.scrollHeight);
+      await this.page.waitForTimeout(300);
+    }
+
+    // Look for save/create button - should be at the bottom
+    const saveButton = this.page.locator('button:has-text("Save Club"), button:has-text("Create Club"), button[type="submit"]:has-text("Save")').first();
+    if (await saveButton.isVisible().catch(() => false)) {
+      await saveButton.scrollIntoViewIfNeeded();
+      await this.page.waitForTimeout(200);
+      await saveButton.click({ force: true });
+      await this.page.waitForTimeout(2000);
+    }
+
+    // Panel should auto-close and select the new club
+    await panel.waitFor({ state: 'hidden', timeout: 10000 }).catch(() => {});
   }
 
   private async selectFromDropdownByPlaceholder(placeholderText: string, value?: string) {
@@ -406,10 +460,55 @@ export class ShowCreationWizardPage {
       await firstOption.click();
       await this.page.waitForTimeout(200);
     } else {
-      // Close the dropdown without selecting - click outside
+      // No options available - close dropdown and try the "Create New" button
       await this.page.keyboard.press('Escape');
       await this.page.waitForTimeout(100);
+
+      // Try to use "Create New" button for chairman/secretary
+      if (placeholderText.includes('chairman')) {
+        await this.createNewOfficial('Chairman');
+      } else if (placeholderText.includes('secretary')) {
+        await this.createNewOfficial('Secretary');
+      }
     }
+  }
+
+  /**
+   * Creates a new official (chairman/secretary) using the panel
+   */
+  private async createNewOfficial(role: 'Chairman' | 'Secretary') {
+    const createButton = this.page.locator(`button:has-text("Create New ${role}")`);
+    if (!(await createButton.isVisible().catch(() => false))) {
+      return; // Button not found
+    }
+
+    await createButton.click();
+    await this.page.waitForTimeout(500);
+
+    // Wait for the panel to open
+    const panel = this.page.locator('[role="dialog"], [class*="panel"], [class*="slide"]');
+    await panel.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+
+    // Fill in basic person details
+    const firstNameInput = panel.locator('input[placeholder*="First"], input[name="firstName"], label:has-text("First Name") + input, label:has-text("First Name") ~ input').first();
+    const lastNameInput = panel.locator('input[placeholder*="Last"], input[name="lastName"], label:has-text("Last Name") + input, label:has-text("Last Name") ~ input').first();
+
+    if (await firstNameInput.isVisible().catch(() => false)) {
+      await firstNameInput.fill(`Test ${role}`);
+    }
+    if (await lastNameInput.isVisible().catch(() => false)) {
+      await lastNameInput.fill(`E2E ${Date.now()}`);
+    }
+
+    // Look for save/create button
+    const saveButton = panel.locator('button:has-text("Save"), button:has-text("Create"), button[type="submit"]').first();
+    if (await saveButton.isVisible().catch(() => false)) {
+      await saveButton.click();
+      await this.page.waitForTimeout(1000);
+    }
+
+    // Panel should auto-close and select the new person
+    await panel.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
   }
 
   // ========== Step 2 Actions ==========

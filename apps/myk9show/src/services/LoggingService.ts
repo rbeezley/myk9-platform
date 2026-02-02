@@ -3,6 +3,31 @@
  * Provides structured logging with multiple transports and environments
  */
 
+// Helper to safely check environment - import.meta.env may not exist in Node.js/test contexts
+const isDev = (): boolean => {
+  try {
+    return typeof import.meta !== 'undefined' && import.meta.env?.DEV === true;
+  } catch {
+    return false;
+  }
+};
+
+const isProd = (): boolean => {
+  try {
+    return typeof import.meta !== 'undefined' && import.meta.env?.PROD === true;
+  } catch {
+    return false;
+  }
+};
+
+const getLogEndpoint = (): string | undefined => {
+  try {
+    return typeof import.meta !== 'undefined' ? import.meta.env?.VITE_LOG_ENDPOINT : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
 export enum LogLevel {
   DEBUG = 0,
   INFO = 1,
@@ -197,21 +222,27 @@ export class LoggingService {
 
   private setupTransports(): void {
     // Console transport for development
-    if (import.meta.env.DEV) {
+    if (isDev()) {
       this.transports.push(new ConsoleTransport());
       this.minLevel = LogLevel.DEBUG;
     }
 
     // Remote transport for production
-    if (import.meta.env.PROD && import.meta.env.VITE_LOG_ENDPOINT) {
-      this.transports.push(new RemoteTransport(import.meta.env.VITE_LOG_ENDPOINT));
+    const logEndpoint = getLogEndpoint();
+    if (isProd() && logEndpoint) {
+      this.transports.push(new RemoteTransport(logEndpoint));
     }
 
-    // Local storage transport for offline capability
-    this.transports.push(new LocalStorageTransport());
+    // Local storage transport for offline capability (only in browser)
+    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+      this.transports.push(new LocalStorageTransport());
+    }
   }
 
   private setupErrorHandlers(): void {
+    // Skip in Node.js/test environments where window is not defined
+    if (typeof window === 'undefined') return;
+
     // Global error handler
     window.addEventListener('error', (event) => {
       this.error('Global Error', 'unhandled-error', {

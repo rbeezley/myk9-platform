@@ -86,11 +86,7 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
       await expect(page.locator('label:has-text("Location")')).toBeVisible();
     });
 
-    // TODO: This test requires clubs and people data to be present in the database
-    // Run the seed script or ensure test data exists before running:
-    // - At least one club must exist for club selection
-    // - At least one person with 'chairman' or 'secretary' role must exist
-    test.fixme('can fill out show details and proceed to next step', async () => {
+    test('can fill out show details and proceed to next step', async () => {
       const showData = generateTestShowData();
 
       // Fill out the form - this is the key user action we're testing
@@ -145,8 +141,7 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
     });
   });
 
-  // TODO: Step 2+ tests require clubs and people data to complete Step 1 form
-  test.describe.skip('Step 2: Trial Configuration', () => {
+  test.describe('Step 2: Trial Configuration', () => {
     test.beforeEach(async () => {
       await loginPage.goto();
       await loginPage.loginAsSecretary();
@@ -199,8 +194,7 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
     });
   });
 
-  // TODO: Step 3+ tests require clubs and people data to complete Step 1 form
-  test.describe.skip('Step 3: Class Selection', () => {
+  test.describe('Step 3: Class Selection', () => {
     test.beforeEach(async () => {
       await loginPage.goto();
       await loginPage.loginAsSecretary();
@@ -244,8 +238,7 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
     });
   });
 
-  // TODO: Step 4 tests require clubs and people data to complete Step 1 form
-  test.describe.skip('Step 4: Review and Create', () => {
+  test.describe('Step 4: Review and Create', () => {
     test.beforeEach(async ({ page }) => {
       await loginPage.goto();
       await loginPage.loginAsSecretary();
@@ -297,8 +290,7 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
     });
   });
 
-  // TODO: Complete workflow requires clubs and people data to complete Step 1 form
-  test.describe.skip('Complete Workflow', () => {
+  test.describe('Complete Workflow', () => {
     test('full trial secretary show creation flow', async ({ page }) => {
       // This is the comprehensive test that exercises the entire workflow
 
@@ -385,8 +377,7 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
       });
     });
 
-    // TODO: Requires form filling to work (needs clubs and people data)
-    test.fixme('wizard step 2 empty state', async ({ page }) => {
+    test('wizard step 2 empty state', async ({ page }) => {
       await loginPage.goto();
       await loginPage.loginAsSecretary();
       await wizardPage.goto();

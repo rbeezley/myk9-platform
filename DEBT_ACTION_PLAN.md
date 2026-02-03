@@ -1,0 +1,613 @@
+# Technical Debt Action Plan
+
+**Project:** myK9 Platform Monorepo
+**Date:** 2026-02-03
+**Status:** Proposed
+
+## Executive Summary
+
+A comprehensive technical debt analysis revealed 30 debt items across the myK9 Platform monorepo:
+
+- **2 Critical** items requiring immediate attention
+- **10 High priority** items blocking development efficiency
+- **14 Medium priority** items affecting maintainability
+- **4 Low priority** items for future consideration
+
+**Total estimated remediation effort:** 175-220 days (spread across 6-9 months)
+
+**Key metrics:**
+- myK9Show: 1,373 files, 401K lines, 5,520 code issues
+- myK9Q: 489 files, 120K lines, 1,888 code issues
+- Test coverage: 11-14% (target: 60-80%)
+- Package tests: 0% (target: 80%)
+
+---
+
+## Critical Priority (Immediate Action Required)
+
+### 1. Enable TypeScript Strict Mode (DEBT-001)
+**Effort:** 2-3 days | **Impact:** Prevent type-related bugs across 401K lines
+
+**Problem:**
+- Strict mode disabled in myK9Show since Base UI migration (Jan 2025)
+- Reduces type safety for entire application
+- Allows null/undefined errors that would be caught at compile time
+
+**Action Plan:**
+1. Enable strict mode incrementally by directory
+2. Fix type errors: utilities → services → components → pages
+3. Add pre-commit hook to prevent new violations
+4. Use `@ts-expect-error` with justification for edge cases
+
+**Target:** Sprint 25
+**ROI:** High - Prevents entire class of bugs
+
+---
+
+### 2. Refactor Extremely Large Files (DEBT-002)
+**Effort:** 5-8 days | **Impact:** Improve maintainability of 281 files
+
+**Problem:**
+- 251 files in myK9Show, 30 in myK9Q exceed 500 lines
+- Worst: `types/supabase.ts` (3,695 lines), `pages/EntryList/EntryList.tsx` (1,071 lines)
+- High-churn files causing frequent merge conflicts
+
+**Action Plan:**
+1. **Phase 1 (Immediate):** Split generated types (`supabase.ts`) by domain
+2. **Phase 2 (Sprint 26):** Extract business logic from page components to hooks
+3. **Phase 3 (Sprint 27):** Break large services into focused services
+
+**Prioritization:**
+- Start with pages and services (highest churn)
+- Generated types can be scripted
+
+**Target:** Q1 2026
+**ROI:** High - Reduces bugs and merge conflicts
+
+---
+
+## High Priority (Sprint 24-27)
+
+### 3. Remove Replication Duplication (DEBT-003) ⭐ QUICK WIN
+**Effort:** 4 hours | **Impact:** Eliminate 50K lines of duplicate code
+
+**Problem:**
+- myK9Show duplicates entire `@myk9/replication` package in services
+- Bug fixes must be applied twice
+- Risk of divergence
+
+**Action Plan:**
+1. Audit differences between package and duplicate (1 hour)
+2. Extract myK9Show-specific logic to package if needed (1 hour)
+3. Delete `apps/myk9show/src/services/replication/` (1 hour)
+4. Update imports to use `@myk9/replication` (1 hour)
+
+**Target:** Sprint 24
+**ROI:** HIGHEST - 4 hours to eliminate 50K lines
+
+---
+
+### 4. Break Up Bloated Stores (DEBT-004)
+**Effort:** 3-5 days | **Impact:** Improve maintainability of state management
+
+**Problem:**
+- `entryStore.ts` (30K lines), `classStore.ts` (27K lines), `trialStore.ts` (25K)
+- Single stores handling CRUD + validation + sync + search + filtering
+- Hard to test, changes affect unrelated features
+
+**Action Plan:**
+Split each store by concern:
+```
+entryStore.ts → entry CRUD (200 lines)
+entryValidation.ts → validation (100 lines)
+entrySearch.ts → search (50 lines)
+entrySync.ts → sync (100 lines)
+entryFilters.ts → filters (100 lines)
+```
+
+**Target:** Sprint 26-27
+**ROI:** High - Frequently modified code
+
+---
+
+### 5. Extract Hooks to Shared Package (DEBT-007) ⭐ QUICK WIN
+**Effort:** 1-2 days | **Impact:** Enable reuse of 184 hooks
+
+**Problem:**
+- 137 hooks in myK9Show, 47 in myK9Q
+- `@myk9/scoring-ui` only exports 4 hooks
+- Massive duplication across apps
+
+**Action Plan:**
+Extract to `@myk9/scoring-ui`:
+- Dialog management: `useDialogState`, `useDialog`
+- Animation: `useScrollAnimation`, `useStaggerAnimation`
+- Forms: `useFormValidation`, `useFormState`
+- Filters: `useFilters`, `useSearch`
+
+**Target:** Sprint 25
+**ROI:** High - Prevents future duplication
+
+---
+
+### 6. Fix Weak Typing (DEBT-005)
+**Effort:** 2 days | **Impact:** Fix 68 instances of `any` type
+
+**Problem:**
+- 68 uses of `any` type reduce type safety
+- No IntelliSense for these areas
+- Refactoring risks
+
+**Action Plan:**
+1. Replace `any` with `unknown` where appropriate
+2. Create proper type definitions for components
+3. Add `no-explicit-any` ESLint rule
+4. Fix remaining instances
+
+**Target:** Sprint 25 (after DEBT-001)
+**ROI:** Medium-High - Depends on strict mode
+
+---
+
+### 7. Unify State Management Strategy (DEBT-006)
+**Effort:** 2 days docs + 3-5 days refactoring | **Impact:** Consistent patterns
+
+**Problem:**
+- Mixed Context (auth, theme, registration) and Zustand (domain data)
+- No clear guidelines on when to use each
+- Same data accessible via different APIs
+
+**Action Plan:**
+1. Document state management guidelines in CLAUDE.md
+2. Reserve Context for rarely-changing global state only
+3. Migrate domain state to Zustand
+4. Create unified state management layer
+
+**Target:** Q1 2026
+**ROI:** Medium - Prevents future confusion
+
+---
+
+### 8. Simplify Service Layer (DEBT-008)
+**Effort:** 1-2 weeks | **Impact:** Reduce from 234 to ~50 services
+
+**Problem:**
+- myK9Show has 234 service files in 33 categories
+- Over-architected, hard to navigate
+- Overlapping responsibilities
+
+**Action Plan:**
+1. Consolidate related services (auth + rbac + security)
+2. Extract truly shared services to packages
+3. Document service responsibilities
+4. Target: 50-75 focused services
+
+**Target:** Q2 2026
+**ROI:** Medium - Improves navigation
+
+---
+
+### 9. Simplify Complex Functions (DEBT-009)
+**Effort:** 5-7 days | **Impact:** Fix 466 complex functions
+
+**Problem:**
+- 466 functions exceed complexity 10 or 50 lines
+- Some have complexity 40+, 250+ lines
+- Hard to test, high bug risk
+
+**Action Plan:**
+1. Extract helper functions for each concern
+2. Use early returns to reduce nesting
+3. Add cyclomatic complexity ESLint rule (max: 10)
+4. Prioritize hooks (most complex)
+
+**Target:** Sprint 27 + Q1 2026
+**ROI:** High - Frequently modified code
+
+---
+
+### 10. Reduce Deep Nesting (DEBT-010)
+**Effort:** 3-5 days | **Impact:** Fix 971 instances
+
+**Problem:**
+- 971 locations with nesting > 4 levels
+- Some reach 9 levels of nesting
+- Poor readability
+
+**Action Plan:**
+1. Use early returns and guard clauses
+2. Extract nested logic to functions
+3. Replace nested conditionals with strategies
+4. Add max-depth ESLint rule (max: 4)
+
+**Target:** Sprint 27 + Q1 2026
+**ROI:** Medium - Readability improvement
+
+---
+
+### 11. Add Package Tests (DEBT-015)
+**Effort:** 2-3 weeks | **Impact:** Enable safe refactoring
+
+**Problem:**
+- 0% test coverage in shared packages
+- Apps: 11-14% coverage (target: 60%)
+- Can't refactor safely
+
+**Action Plan:**
+1. Add unit tests for each package (target: 80%)
+2. Add integration tests for package boundaries
+3. Add cross-app E2E tests
+4. Set up coverage requirements in CI
+
+**Target:** Q1 2026
+**ROI:** High - Enables all other refactoring
+
+---
+
+### 12. Consolidate Notification Services (DEBT-014)
+**Effort:** 3-4 days | **Impact:** Eliminate 30K duplicate code
+
+**Problem:**
+- myK9Q: 3 notification files
+- myK9Show: 6 notification files
+- 30K lines duplicate code
+
+**Action Plan:**
+1. Create `@myk9/notifications` package
+2. Extract common notification logic
+3. Support app customization via plugins
+4. Update both apps to use package
+
+**Target:** Q2 2026
+**ROI:** Medium - Stable code, but duplicated
+
+---
+
+## Medium Priority (Q1-Q2 2026)
+
+### Priority Matrix
+
+| Item | Effort | Impact | When |
+|------|--------|--------|------|
+| DEBT-011: Audit debt markers | 2 days | Medium | Sprint 26 |
+| DEBT-012: Remove console statements | 1 day | Low | Sprint 27 |
+| DEBT-013: Refactor AuthContext | 1 day | Medium | Q2 2026 |
+| DEBT-016: Add package READMEs ⭐ | 2-3 hours | High | Sprint 24 |
+| DEBT-017: Create ADRs | 1 week | Medium | Q2 2026 |
+| DEBT-018: Fix long parameter lists | 2-3 days | Low | Q2 2026 |
+| DEBT-020: Standardize components | 1-2 weeks | Medium | Q2 2026 |
+| DEBT-021: Organize tests | 2-3 days | Medium | Q2 2026 |
+| DEBT-022: Add cross-app E2E | 1-2 weeks | Medium | Q2 2026 |
+| DEBT-024: Standardize service patterns | 3-4 weeks | Medium | Q2 2026 |
+| DEBT-030: Audit .excluded directory ⭐ | 2-3 hours | Medium | Sprint 24 |
+
+---
+
+## Low Priority (Q3 2026 or Later)
+
+### Evaluate Before Implementing
+
+| Item | Effort | Reason for Low Priority |
+|------|--------|------------------------|
+| DEBT-019: Magic numbers | 3-5 days | Most are self-explanatory (0, 1, etc.) |
+| DEBT-023: Add @myk9/ui to myK9Q | 2-3 weeks | myK9Q stable, may not be worth risk |
+| DEBT-025: Service type contracts | 1-2 weeks | Current code works, nice-to-have |
+| DEBT-026: Centralize path aliases | 1 hour | Current approach works fine |
+| DEBT-027: Organize exports | 2-3 hours | Current exports adequate |
+| DEBT-028: Simplify perf monitoring | 1-2 weeks | May be appropriate complexity |
+| DEBT-029: Move examples directory | 1 hour | Not causing issues |
+
+---
+
+## Recommended Roadmap
+
+### Sprint 24 (This Week) - Quick Wins
+**Theme:** Eliminate duplication, improve docs
+**Effort:** 1-2 days
+
+✅ **Quick wins that build momentum:**
+1. DEBT-003: Remove replication duplication (4 hours) - **50K lines eliminated**
+2. DEBT-016: Add package READMEs (2-3 hours) - **Better docs**
+3. DEBT-030: Audit .excluded directory (2-3 hours) - **Code clarity**
+
+**Value:** Eliminate 50K lines, improve documentation, clarify codebase
+
+---
+
+### Sprint 25 (Next 2 Weeks) - Type Safety
+**Theme:** Enable strict mode, fix typing issues
+**Effort:** 7-9 days
+
+✅ **Foundation for quality:**
+1. DEBT-001: Enable TypeScript strict mode (2-3 days) - **CRITICAL**
+2. DEBT-005: Fix weak typing (2 days)
+3. DEBT-007: Extract hooks to package (1-2 days)
+4. DEBT-011: Audit debt markers (2 days)
+
+**Value:** Type safety across codebase, code reuse enabled
+
+---
+
+### Sprint 26-27 (Following Month) - Code Quality
+**Theme:** Refactor large files, simplify complexity
+**Effort:** 14-21 days
+
+✅ **Improve maintainability:**
+1. DEBT-002: Refactor large files - Phase 1-2 (5-8 days) - **CRITICAL**
+2. DEBT-009: Simplify complex functions (5-7 days)
+3. DEBT-010: Reduce deep nesting (3-5 days)
+4. DEBT-012: Remove console statements (1 day)
+
+**Value:** More maintainable codebase, fewer bugs
+
+---
+
+### Q1 2026 (Months 2-3) - Architecture
+**Theme:** State management, testing foundation
+**Effort:** 4-5 weeks
+
+✅ **Architectural improvements:**
+1. DEBT-004: Break up bloated stores (3-5 days)
+2. DEBT-006: Unify state management (5-7 days)
+3. DEBT-015: Add package tests (2-3 weeks) - **Enables refactoring**
+4. DEBT-021: Organize tests (2-3 days)
+
+**Value:** Better architecture, safe refactoring enabled
+
+---
+
+### Q2 2026 (Months 4-6) - Service Layer & Cross-Cutting
+**Theme:** Simplify services, improve patterns
+**Effort:** 4-5 weeks
+
+✅ **Strategic improvements:**
+1. DEBT-008: Simplify service layer (1-2 weeks)
+2. DEBT-013: Refactor AuthContext (1 day)
+3. DEBT-014: Consolidate notifications (3-4 days)
+4. DEBT-017: Create ADRs (1 week)
+5. DEBT-020: Standardize components (1-2 weeks)
+6. DEBT-022: Add cross-app E2E tests (1-2 weeks)
+
+**Value:** Cleaner architecture, better documentation
+
+---
+
+## Success Metrics
+
+### Track Progress Monthly
+
+**Code Quality Metrics:**
+- [ ] TypeScript strict mode: Enabled (currently disabled)
+- [ ] Large files (>500 lines): <10 (currently 281)
+- [ ] Complex functions (complexity >10): <50 (currently 466)
+- [ ] Deep nesting (>4 levels): <100 (currently 971)
+- [ ] `any` types: 0 (currently 68)
+- [ ] Console statements: <10 (currently 192)
+
+**Architecture Metrics:**
+- [ ] Test coverage - Apps: >60% (currently 11-14%)
+- [ ] Test coverage - Packages: >80% (currently 0%)
+- [ ] Service count: <75 (currently 234 in myK9Show)
+- [ ] Shared hooks: >30 (currently 4)
+- [ ] Package READMEs: 6/6 (currently 0/6)
+
+**Debt Metrics:**
+- [ ] Critical items: 0 (currently 2)
+- [ ] High priority items: <5 (currently 10)
+- [ ] Total debt items: <15 (currently 30)
+- [ ] Debt items resolved/sprint: >3
+
+**Velocity Metrics:**
+- [ ] Time to implement new feature: Decreasing
+- [ ] Bug rate: Decreasing
+- [ ] Code review time: Decreasing
+- [ ] Onboarding time: Decreasing
+
+---
+
+## Risk Assessment & Mitigation
+
+### High Risk Items
+
+**1. TypeScript Strict Mode (DEBT-001)**
+- **Risk:** May uncover many type errors requiring fixes
+- **Mitigation:** Enable incrementally by directory, allocate sufficient time
+
+**2. Large File Refactoring (DEBT-002)**
+- **Risk:** Breaking changes to frequently used files
+- **Mitigation:** Comprehensive test coverage first, refactor incrementally
+
+**3. Store Refactoring (DEBT-004)**
+- **Risk:** State management bugs affecting features
+- **Mitigation:** Add tests before refactoring, keep old API compatible
+
+### Medium Risk Items
+
+**4. Service Layer Simplification (DEBT-008)**
+- **Risk:** Unclear service boundaries after consolidation
+- **Mitigation:** Document service responsibilities, create ADRs
+
+**5. Package Testing (DEBT-015)**
+- **Risk:** Tests may reveal bugs in shared packages
+- **Mitigation:** Fix bugs as found, consider it a positive outcome
+
+---
+
+## Resource Allocation
+
+### Recommended Team Allocation
+
+**Sprint 24 (1-2 days):**
+- 1 developer full-time
+
+**Sprint 25 (7-9 days):**
+- 1-2 developers full-time
+- Focus on type safety
+
+**Sprint 26-27 (14-21 days):**
+- 2 developers full-time
+- Focus on code quality
+
+**Q1 2026 (4-5 weeks):**
+- 1 developer dedicated to testing
+- 1 developer on architecture
+
+**Q2 2026 (4-5 weeks):**
+- 1-2 developers part-time
+- Integrate with feature work
+
+### Budget Impact
+
+**Total estimated effort:** 175-220 days
+
+**Recommended allocation:**
+- 20% of sprint capacity ongoing
+- Dedicated sprint every quarter
+- Parallel with feature work where possible
+
+**ROI Timeline:**
+- **Immediate (Sprint 24):** 50K lines eliminated, better docs
+- **1 month (Sprint 25):** Type safety, fewer bugs
+- **2-3 months (Sprint 26-27):** More maintainable code
+- **3-6 months (Q1-Q2):** Better architecture, faster development
+
+---
+
+## Prevention Strategy
+
+### Prevent New Debt
+
+**1. Code Review Checklist:**
+- [ ] No files over 500 lines
+- [ ] No functions over 50 lines or complexity > 10
+- [ ] No `any` types (when strict mode enabled)
+- [ ] No console statements in production
+- [ ] Tests added for new features
+- [ ] Documentation updated
+
+**2. Automated Checks:**
+```json
+{
+  "eslint": {
+    "complexity": ["error", 10],
+    "max-lines-per-function": ["error", 50],
+    "max-params": ["error", 5],
+    "max-depth": ["error", 4],
+    "no-console": "error",
+    "@typescript-eslint/no-explicit-any": "error"
+  }
+}
+```
+
+**3. CI/CD Gates:**
+- TypeScript strict mode check
+- Test coverage thresholds (60% apps, 80% packages)
+- No high-severity linting errors
+- Bundle size limits
+
+**4. Regular Maintenance:**
+- Weekly: Review debt markers, triage new issues
+- Monthly: Run automated analysis, review trends
+- Quarterly: Full architectural review, update strategy
+
+---
+
+## Communication Plan
+
+### Stakeholder Updates
+
+**Weekly (During Active Debt Work):**
+- Progress on current sprint debt items
+- Blockers or issues discovered
+- Metrics improvement
+
+**Monthly:**
+- Debt reduction metrics
+- Impact on development velocity
+- Upcoming debt work planned
+
+**Quarterly:**
+- Comprehensive debt review
+- Trend analysis
+- Strategy adjustments
+- ROI assessment
+
+### Documentation
+
+**Required Documentation:**
+- [x] Technical Debt Register (TECHNICAL_DEBT.md)
+- [x] Action Plan (this document)
+- [ ] Package READMEs (Sprint 24)
+- [ ] Architecture Decision Records (Q2 2026)
+- [ ] State Management Guidelines (Q1 2026)
+- [ ] Service Layer Documentation (Q2 2026)
+
+---
+
+## Decision Points
+
+### Decisions Needed
+
+**1. Sprint 24 Approval**
+- Allocate 1-2 days for quick wins?
+- **Recommendation:** Yes - High ROI
+
+**2. Sprint 25 Type Safety Focus**
+- Allocate 7-9 days for strict mode?
+- **Recommendation:** Yes - Critical for quality
+
+**3. Q1 Testing Investment**
+- Allocate 2-3 weeks for package tests?
+- **Recommendation:** Yes - Enables safe refactoring
+
+**4. myK9Q UI Migration**
+- Migrate myK9Q to @myk9/ui?
+- **Recommendation:** No - Too risky, app is stable
+
+**5. Service Layer Refactoring Scope**
+- Target 50 services or keep current?
+- **Recommendation:** Reduce to 75 (compromise)
+
+---
+
+## Appendix: Quick Reference
+
+### Top 5 Highest ROI Items
+
+1. **DEBT-003:** Remove replication duplication (4 hours → 50K lines)
+2. **DEBT-001:** Enable strict mode (2-3 days → Prevent bug class)
+3. **DEBT-016:** Add package READMEs (2-3 hours → Better usage)
+4. **DEBT-007:** Extract shared hooks (1-2 days → Enable reuse)
+5. **DEBT-002:** Refactor large files (5-8 days → Reduce conflicts)
+
+### Critical Path
+
+```
+Sprint 24: Quick wins (duplication, docs)
+    ↓
+Sprint 25: Type safety (strict mode, typing)
+    ↓
+Sprint 26-27: Code quality (large files, complexity)
+    ↓
+Q1 2026: Architecture (stores, state, testing)
+    ↓
+Q2 2026: Services & cross-cutting (simplification, patterns)
+```
+
+### Contact & Escalation
+
+**For questions about this plan:**
+- Review TECHNICAL_DEBT.md for detailed debt items
+- Check CLAUDE.md for project guidelines
+- Consult development team lead
+
+**For scope changes:**
+- Evaluate impact on timeline
+- Update debt register
+- Communicate to stakeholders
+
+---
+
+**Document Status:** Proposed
+**Next Review:** After Sprint 24 completion
+**Last Updated:** 2026-02-03

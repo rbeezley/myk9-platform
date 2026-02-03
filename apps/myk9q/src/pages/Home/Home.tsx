@@ -10,8 +10,7 @@ import { ensureReplicationManager } from '@/utils/replicationHelper';
 import type { Class } from '@/services/replication';
 import { HamburgerMenu, CompactOfflineIndicator, ArmbandBadge, TrialDateBadge, RefreshIndicator, ErrorState, PullToRefresh, InstallPrompt, TabBar, FilterPanel, FilterTriggerButton } from '../../components/ui';
 import type { Tab, SortOption } from '../../components/ui';
-import { useHapticFeedback } from '@/hooks/useHapticFeedback';
-import { useLongPress } from '@/hooks/useLongPress';
+import { useHapticFeedback, useLongPress } from '@myk9/scoring-ui';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { RefreshCw, Heart, Calendar, Users2, Home as HomeIcon } from 'lucide-react';
@@ -25,9 +24,9 @@ export const Home: React.FC = () => {
   const location = useLocation();
   const { showContext, logout: _logout, role } = useAuth();
   const { hasPermission: _hasPermission } = usePermission();
-  const hapticFeedback = useHapticFeedback();
   const { prefetch } = usePrefetch();
   const { settings } = useSettingsStore();
+  const hapticFeedback = useHapticFeedback(() => settings.hapticFeedback);
 
   // ✨ React Query: Replace useStaleWhileRevalidate with automatic caching
   const {

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useShowStore } from '@/store/showStore';
 import { useRoleBasedDogs, useRoleBasedPeople } from '@/hooks/useRoleBasedData';
 import { globalSearchIndex, createSearchableItem, SearchResult, SearchOptions } from '@/utils/searchIndex';
-import { useDebounce } from './useDebounce';
+import { useDebounce } from '@myk9/scoring-ui';
 import { useSearchAnalytics } from '@/lib/searchCache';
 
 interface UseGlobalSearchOptions {

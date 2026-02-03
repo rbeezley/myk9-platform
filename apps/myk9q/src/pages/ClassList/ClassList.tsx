@@ -9,8 +9,8 @@ import type { Entry } from '@/services/replication';
 import { logger } from '@/utils/logger';
 import { markUnscoredEntriesAsAbsent } from '@/services/entryService';
 import { HamburgerMenu, CompactOfflineIndicator, TrialDateBadge, RefreshIndicator, ErrorState, PullToRefresh, FilterPanel, FilterTriggerButton } from '../../components/ui';
-import { useHapticFeedback } from '@/hooks/useHapticFeedback';
-import { useLongPress } from '@/hooks/useLongPress';
+import { useHapticFeedback, useLongPress } from '@myk9/scoring-ui';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { ArrowLeft, RefreshCw, List } from 'lucide-react';
 // CSS imported in index.css to prevent FOUC
 import { ClassRequirementsDialog } from '../../components/dialogs/ClassRequirementsDialog';
@@ -41,7 +41,8 @@ export const ClassList: React.FC = () => {
   const { showContext, role: _role, logout: _logout } = useAuth();
   const { hasPermission, hasRole } = usePermission();
   const canModifyClassSettings = hasRole(['admin', 'judge']);
-  const hapticFeedback = useHapticFeedback();
+  const { settings } = useSettingsStore();
+  const hapticFeedback = useHapticFeedback(() => settings.hapticFeedback);
   const { prefetch } = usePrefetch();
 
   // Use React Query for data fetching

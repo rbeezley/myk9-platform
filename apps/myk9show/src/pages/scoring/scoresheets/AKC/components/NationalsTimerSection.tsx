@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { formatStopwatchTime } from '../AKCNationalsScoresheetHelpers';
-import { haptic } from '@/hooks/useHapticFeedback';
+import { haptic } from '@myk9/scoring-ui';
 
 interface NationalsTimerSectionProps {
   stopwatchTime: number;

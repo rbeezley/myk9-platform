@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { haptic } from './useHapticFeedback';
+import { haptic } from '@myk9/scoring-ui';
 import { logger } from '@/utils/logger';
 
 /**

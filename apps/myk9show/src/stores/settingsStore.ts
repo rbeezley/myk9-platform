@@ -163,7 +163,7 @@ export const useSettingsStore = create<SettingsState>()(
 
             return true;
           } catch (error) {
-            logger.error('Failed to import settings:', error);
+            logger.error('Failed to import settings:', String(error));
             return false;
           }
         },

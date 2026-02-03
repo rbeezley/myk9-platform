@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { DogCard } from '../../../components/DogCard';
-import { haptic } from '@/hooks/useHapticFeedback';
+import { haptic } from '@myk9/scoring-ui';
 import type { AreaScore } from '../../../services/scoresheets/areaInitialization';
 
 export interface ScoreConfirmationDialogProps {

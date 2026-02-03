@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dog } from '@/types/dog-types';
-import { useDebounce } from '@/hooks/useDebounce';
+import { useDebounce } from '@myk9/scoring-ui';
 import { useRecentSearches } from '@/hooks/useRecentSearches';
 import { SearchSuggestions, RecentSearches } from '@/components/common/RecentSearches';
 import { SearchPerformanceIndicator } from '@/components/common/SearchPerformanceMonitor';

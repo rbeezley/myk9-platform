@@ -5,7 +5,7 @@ import { UserPermissions } from '../../utils/auth';
 import { ClassDetailsPopover } from '@/components/dialogs/ClassDetailsPopover';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { ClassDetailsContent } from '@/components/dialogs/ClassDetailsContent';
-import { useIsTouchDevice } from '@/hooks/useIsTouchDevice';
+import { useIsTouchDevice } from '@myk9/scoring-ui';
 
 interface ClassEntry {
   id: number;

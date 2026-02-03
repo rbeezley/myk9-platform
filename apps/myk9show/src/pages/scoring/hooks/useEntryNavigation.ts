@@ -246,7 +246,7 @@ export function useEntryNavigation(config: EntryNavigationConfig): EntryNavigati
       }
 
     } catch (error) {
-      logger.error('[EntryNavigation] Error loading entries:', error);
+      logger.error('[EntryNavigation] Error loading entries:', String(error));
     } finally {
       setIsLoading(false);
       onLoadingChangeRef.current?.(false);

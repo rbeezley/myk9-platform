@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useDebounce } from './useDebounce';
+import { useDebounce } from '@myk9/scoring-ui';
 import { useRecentSearches } from './useRecentSearches';
 import { useSearchCache, UseSearchOptions, SearchResult } from '@/lib/searchCache';
 import { useSearchAnalytics } from '@/lib/searchCache';

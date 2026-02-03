@@ -4,7 +4,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { logger } from '@/utils/logger';
 import { authenticatePasscode } from '../../services/authService';
 import { detectDatabaseWithValidation, isMigrationModeEnabled, V3ShowData } from '../../services/databaseDetectionService';
-import { useHapticFeedback } from '@/hooks/useHapticFeedback';
+import { useHapticFeedback } from '@myk9/scoring-ui';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { checkRateLimit, recordFailedAttempt, clearRateLimit } from '../../utils/rateLimiter';
 import { TransitionMessage } from '../../components/TransitionMessage/TransitionMessage';
 import { LoadingSplash } from '../../components/SplashScreen/LoadingSplash';
@@ -37,7 +38,8 @@ export const Login: React.FC = () => {
   ];
   const navigate = useNavigate();
   const { login } = useAuth();
-  const hapticFeedback = useHapticFeedback();
+  const { settings } = useSettingsStore();
+  const hapticFeedback = useHapticFeedback(() => settings.hapticFeedback);
 
   // Focus first input on mount
   useEffect(() => {

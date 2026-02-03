@@ -8,7 +8,7 @@
  */
 
 import React from 'react';
-import { haptic } from '@/hooks/useHapticFeedback';
+import { haptic } from '@myk9/scoring-ui';
 import './TimerDisplay.css';
 
 /**

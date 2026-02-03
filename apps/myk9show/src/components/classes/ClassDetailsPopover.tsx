@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { useIsTouchDevice } from '@/hooks/useIsTouchDevice';
+import { useIsTouchDevice } from '@myk9/scoring-ui';
 import { getClassStatusDisplay } from '@myk9/core';
 
 export interface ClassDetailsData {

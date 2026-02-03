@@ -7,7 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { usePermission } from '../../hooks/usePermission';
 import { useStatsData } from './hooks/useStatsData';
 import { useStatsFilterOptions } from './hooks/useStatsFilterOptions';
-import { useLongPress } from '@/hooks/useLongPress';
+import { useLongPress } from '@myk9/scoring-ui';
 import { logger } from '@/utils/logger';
 import type { StatsLevel, StatsFilters } from './types/stats.types';
 import { OfflineFallback } from '@/components/ui';

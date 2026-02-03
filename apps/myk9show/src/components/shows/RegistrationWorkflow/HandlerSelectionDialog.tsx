@@ -16,7 +16,7 @@ import { useShowStore } from '@/store/showStore';
 import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
 import { Dog, User } from '@/types/dog-types';
 import { HandlerInfo } from '@/types/show-registration-types';
-import { useDebounce } from '@/hooks/useDebounce';
+import { useDebounce } from '@myk9/scoring-ui';
 import { logger } from '@/services/LoggingService';
 
 interface HandlerSelectionDialogProps {

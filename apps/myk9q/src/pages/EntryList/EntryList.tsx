@@ -27,7 +27,7 @@ import { Entry } from '../../stores/entryStore';
 import { useEntryListData, useEntryListActions, useEntryListFilters, useDragAndDropEntries } from './hooks';
 import type { TabType } from './hooks';
 import { logger } from '@/utils/logger';
-import { useLongPress } from '@/hooks/useLongPress';
+import { useLongPress } from '@myk9/scoring-ui';
 import {
   EntryListHeader,
   EntryListContent,

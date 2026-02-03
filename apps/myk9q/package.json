@@ -34,6 +34,7 @@
     "@myk9/core": "workspace:*",
     "@myk9/replication": "workspace:*",
     "@myk9/scoring": "workspace:*",
+    "@myk9/scoring-ui": "workspace:*",
     "@myk9/supabase": "workspace:*",
     "@supabase/supabase-js": "^2.93.3",
     "@tanstack/query-sync-storage-persister": "^5.90.22",

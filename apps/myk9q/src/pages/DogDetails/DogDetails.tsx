@@ -6,7 +6,8 @@ import { updateEntryCheckinStatus } from '../../services/entryService';
 import { generateDogResultsSheet } from '../../services/reportService';
 import { Button, HamburgerMenu, CompactOfflineIndicator, ArmbandBadge } from '../../components/ui';
 import { CheckinStatusDialog, CheckinStatus } from '../../components/dialogs/CheckinStatusDialog';
-import { useHapticFeedback } from '@/hooks/useHapticFeedback';
+import { useHapticFeedback } from '@myk9/scoring-ui';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { useDogDetailsData, ClassEntry } from './hooks/useDogDetailsData';
 import { DogStatistics } from './components/DogStatistics';
 import { DogDetailsClassCard } from './components/DogDetailsClassCard';
@@ -28,7 +29,8 @@ export const DogDetails: React.FC = () => {
   const navigate = useNavigate();
   const { showContext, role: _role } = useAuth();
   const { hasPermission: _hasPermission, isExhibitor: _isExhibitor, currentRole } = usePermission();
-  const hapticFeedback = useHapticFeedback();
+  const { settings } = useSettingsStore();
+  const hapticFeedback = useHapticFeedback(() => settings.hapticFeedback);
 
   // Use React Query for data fetching
   const {

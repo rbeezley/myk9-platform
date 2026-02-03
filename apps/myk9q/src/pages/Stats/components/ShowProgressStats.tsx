@@ -13,7 +13,8 @@
 import { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, Heart, Clock, CheckCircle } from 'lucide-react';
-import { useHapticFeedback } from '@/hooks/useHapticFeedback';
+import { useHapticFeedback } from '@myk9/scoring-ui';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { useAnnouncementStore } from '@/stores/announcementStore';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
@@ -138,8 +139,9 @@ async function fetchShowProgressStats(
 
 export function ShowProgressStats({ trialId }: ShowProgressStatsProps) {
   const navigate = useNavigate();
-  const hapticFeedback = useHapticFeedback();
   const { showContext } = useAuth();
+  const { settings } = useSettingsStore();
+  const hapticFeedback = useHapticFeedback(() => settings.hapticFeedback);
   const licenseKey = showContext?.licenseKey;
   const showId = showContext?.showId;
 

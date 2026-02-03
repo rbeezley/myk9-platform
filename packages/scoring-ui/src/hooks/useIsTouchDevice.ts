@@ -8,8 +8,21 @@ import { useState, useEffect } from 'react';
  * 2. Event-based detection that updates on first touch/mouse event
  *
  * This allows us to show appropriate UI:
- * - Touch devices: Bottom sheets, larger tap targets
- * - Mouse devices: Hover popovers, smaller click targets
+ * - Touch devices: Bottom sheets, larger tap targets, touch-optimized controls
+ * - Mouse devices: Hover popovers, smaller click targets, mouse-optimized controls
+ *
+ * @returns boolean - true if touch device, false otherwise
+ *
+ * @example
+ * ```tsx
+ * const isTouchDevice = useIsTouchDevice();
+ *
+ * return (
+ *   <Button size={isTouchDevice ? 'lg' : 'md'}>
+ *     Click me
+ *   </Button>
+ * );
+ * ```
  */
 export function useIsTouchDevice(): boolean {
   const [isTouchDevice, setIsTouchDevice] = useState(() => {
@@ -22,33 +35,39 @@ export function useIsTouchDevice(): boolean {
   });
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
     // Refine detection based on actual user interaction
-    let hasInteracted = false;
+    let resolved = false;
 
     const handleTouchStart = () => {
-      if (!hasInteracted) {
-        hasInteracted = true;
+      if (!resolved) {
+        resolved = true;
         setIsTouchDevice(true);
+        cleanup();
       }
     };
 
     const handleMouseMove = () => {
       // If we see mouse movement before touch, likely a desktop device
       // Note: Some touch devices also fire mouse events, but we check touch first
-      if (!hasInteracted) {
-        hasInteracted = true;
+      if (!resolved) {
+        resolved = true;
         setIsTouchDevice(false);
+        cleanup();
       }
     };
 
-    // Listen for first interaction to refine detection
-    window.addEventListener('touchstart', handleTouchStart, { passive: true, once: true });
-    window.addEventListener('mousemove', handleMouseMove, { passive: true });
-
-    return () => {
+    const cleanup = () => {
       window.removeEventListener('touchstart', handleTouchStart);
       window.removeEventListener('mousemove', handleMouseMove);
     };
+
+    // Listen for first interaction to refine detection
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
+
+    return cleanup;
   }, []);
 
   return isTouchDevice;

@@ -4,11 +4,26 @@
  * Detects long press gestures on touch and mouse devices.
  * Returns event handlers to attach to the target element.
  *
+ * Integrates with haptic feedback (if provided) to give tactile confirmation
+ * when long press is triggered. Haptic feedback is optional and provided via callback.
+ *
  * Usage:
  * ```tsx
+ * // Without haptic feedback
  * const longPressHandlers = useLongPress(() => {
  *   console.log('Long press detected!');
  * }, { delay: 800 });
+ *
+ * // With haptic feedback
+ * import { useHapticFeedback } from '@myk9/scoring-ui';
+ *
+ * const haptic = useHapticFeedback(() => settings.hapticFeedback);
+ * const longPressHandlers = useLongPress(() => {
+ *   console.log('Long press detected!');
+ * }, {
+ *   delay: 800,
+ *   onHaptic: () => haptic.heavy()
+ * });
  *
  * <button {...longPressHandlers} onClick={handleClick}>
  *   Press me
@@ -17,18 +32,19 @@
  */
 
 import { useRef, useCallback } from 'react';
-import { useHapticFeedback } from './useHapticFeedback';
 
-interface UseLongPressOptions {
+export interface UseLongPressOptions {
   /** Delay in ms before long press triggers (default: 800) */
   delay?: number;
   /** Whether long press is enabled (default: true) */
   enabled?: boolean;
   /** Callback when long press starts (visual feedback) */
   onLongPressStart?: () => void;
+  /** Callback for haptic feedback when long press triggers */
+  onHaptic?: () => void;
 }
 
-interface LongPressHandlers {
+export interface LongPressHandlers {
   onMouseDown: (e: React.MouseEvent) => void;
   onMouseUp: (e: React.MouseEvent) => void;
   onMouseLeave: (e: React.MouseEvent) => void;
@@ -40,10 +56,9 @@ export function useLongPress(
   onLongPress: () => void,
   options: UseLongPressOptions = {}
 ): LongPressHandlers {
-  const { delay = 800, enabled = true, onLongPressStart } = options;
+  const { delay = 800, enabled = true, onLongPressStart, onHaptic } = options;
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isLongPressRef = useRef(false);
-  const hapticFeedback = useHapticFeedback();
 
   const start = useCallback(() => {
     if (!enabled) return;
@@ -52,12 +67,17 @@ export function useLongPress(
 
     timerRef.current = setTimeout(() => {
       isLongPressRef.current = true;
-      // Strong haptic feedback to indicate long press triggered
-      hapticFeedback.heavy();
+
+      // Trigger haptic feedback if provided
+      onHaptic?.();
+
+      // Trigger visual feedback callback
       onLongPressStart?.();
+
+      // Trigger main callback
       onLongPress();
     }, delay);
-  }, [enabled, delay, onLongPress, onLongPressStart, hapticFeedback]);
+  }, [enabled, delay, onLongPress, onLongPressStart, onHaptic]);
 
   const cancel = useCallback(() => {
     if (timerRef.current) {

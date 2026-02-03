@@ -16,7 +16,7 @@ import { Entry } from '../../stores/entryStore';
 import { UserPermissions } from '../../utils/auth';
 import { getStatusBorderClass } from './sortableEntryCardUtils';
 import { ResultBadges, StatusBadgeContent } from './SortableEntryCardComponents';
-import { haptic } from '@/hooks/useHapticFeedback';
+import { haptic } from '@myk9/scoring-ui';
 
 // ========================================
 // TYPES

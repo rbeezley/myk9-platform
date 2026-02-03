@@ -365,7 +365,7 @@ if (!currentEntry) {
             try {
               await markInRing(currentEntry.id, false);
 } catch (error) {
-              logger.error('❌ Failed to remove dog from ring:', error);
+              logger.error('❌ Failed to remove dog from ring:', String(error));
             }
           }
 

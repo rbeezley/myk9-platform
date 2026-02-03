@@ -32,6 +32,8 @@ export default tseslint.config(
           caughtErrorsIgnorePattern: '^_',
         },
       ],
+      // Prevent use of 'any' type (Sprint 25: Type Safety)
+      '@typescript-eslint/no-explicit-any': 'error',
     },
   }
 );

@@ -9,7 +9,7 @@ import React, { useCallback } from 'react';
 import { HamburgerMenu, CompactOfflineIndicator, SettingsSearch, useSearchableSettings } from '@/components/ui';
 import { Settings as SettingsIcon, MoreVertical, RefreshCw, AlertCircle } from 'lucide-react';
 import { useSettingsLogic } from './hooks/useSettingsLogic';
-import { useLongPress } from '@/hooks/useLongPress';
+import { useLongPress } from '@myk9/scoring-ui';
 import { logger } from '@/utils/logger';
 
 // Sections

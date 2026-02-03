@@ -21,7 +21,7 @@ import { X, ClipboardCheck } from 'lucide-react';
 import { nationalsScoring } from '../../../services/nationalsScoring';
 import voiceAnnouncementService from '../../../services/voiceAnnouncementService';
 import { parseSmartTime } from '../../../utils/timeInputParsing';
-import { haptic } from '@/hooks/useHapticFeedback';
+import { haptic } from '@myk9/scoring-ui';
 
 // Shared hooks from refactoring
 import { useScoresheetCore, useEntryNavigation } from '../hooks';

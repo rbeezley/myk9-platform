@@ -15,9 +15,8 @@
         "src/*"
       ]
     },
-    /* Temporarily disabled for Base UI migration and pre-existing type issues */
-    /* TODO: Re-enable strict mode incrementally after migration stabilizes */
-    "strict": false,
+    /* Re-enabled 2026-02-03 - Sprint 25: Type Safety Focus */
+    "strict": true,
     "strictNullChecks": true,
     "strictFunctionTypes": true,
     "strictBindCallApply": true,

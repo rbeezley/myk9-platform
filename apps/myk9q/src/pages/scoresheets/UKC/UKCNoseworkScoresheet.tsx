@@ -23,7 +23,7 @@ import { HamburgerMenu, SyncIndicator, ArmbandBadge } from '../../../components/
 import { ResultChoiceChips } from '../../../components/scoring/ResultChoiceChips';
 import { ClipboardCheck, X } from 'lucide-react';
 import { parseSmartTime } from '../../../utils/timeInputParsing';
-import { haptic } from '@/hooks/useHapticFeedback';
+import { haptic } from '@myk9/scoring-ui';
 
 // Shared hooks from refactoring
 import { useScoresheetCore, useEntryNavigation, useStopwatch, useElementTimer } from '../hooks';

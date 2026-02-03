@@ -20,7 +20,7 @@ import {
 import { LazyDogCard } from '../../dogs/LazyDogCard';
 import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
 import { InfiniteScrollTrigger } from '../../common/InfiniteScrollTrigger';
-import { useDebounce } from '../../../hooks/useDebounce';
+import { useDebounce } from '@myk9/scoring-ui';
 import { useDogStore } from '../../../store/dogStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../../lib/utils';

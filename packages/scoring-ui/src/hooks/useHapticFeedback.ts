@@ -3,10 +3,13 @@
  *
  * Provides vibration feedback for mobile devices to enhance touch interactions.
  * Falls back gracefully on devices/browsers that don't support vibration API.
- * Respects user settings for haptic feedback (settings.hapticFeedback).
  *
  * Usage:
  * ```tsx
+ * // With settings check
+ * const haptic = useHapticFeedback(() => settings.hapticFeedback);
+ *
+ * // Without settings check (always enabled if supported)
  * const haptic = useHapticFeedback();
  *
  * <button onClick={() => {
@@ -16,11 +19,9 @@
  * ```
  */
 
-import { useSettingsStore } from '@/stores/settingsStore';
-
 export type HapticPattern = 'light' | 'medium' | 'heavy' | 'success' | 'error' | 'warning';
 
-interface HapticFeedbackAPI {
+export interface HapticFeedbackAPI {
   light: () => void;
   medium: () => void;
   heavy: () => void;
@@ -57,19 +58,16 @@ function isVibrationSupported(): boolean {
 /**
  * Trigger vibration with fallback
  * @param pattern - Vibration pattern in milliseconds
- * @param respectSettings - Whether to check user settings (default: true)
+ * @param isEnabled - Function to check if haptic is enabled (default: always true)
  */
-function vibrate(pattern: number | number[], respectSettings = true): boolean {
+function vibrate(pattern: number | number[], isEnabled: () => boolean = () => true): boolean {
   if (!isVibrationSupported()) {
     return false;
   }
 
-  // Check user settings if requested
-  if (respectSettings) {
-    const { settings } = useSettingsStore.getState();
-    if (!settings.hapticFeedback) {
-      return false; // User has disabled haptic feedback
-    }
+  // Check if enabled
+  if (!isEnabled()) {
+    return false;
   }
 
   try {
@@ -85,57 +83,69 @@ function vibrate(pattern: number | number[], respectSettings = true): boolean {
  *
  * Provides methods for different vibration patterns.
  * Safe to call on all devices - gracefully degrades.
- * Automatically respects user's haptic feedback setting.
+ *
+ * @param isEnabled - Optional function to check if haptic is enabled (e.g., from user settings)
+ *                    If not provided, haptic will be enabled whenever supported.
+ *
+ * @example
+ * ```tsx
+ * // With settings check
+ * const { settings } = useSettingsStore();
+ * const haptic = useHapticFeedback(() => settings.hapticFeedback);
+ *
+ * // Without settings check (always enabled if supported)
+ * const haptic = useHapticFeedback();
+ * ```
  */
-export function useHapticFeedback(): HapticFeedbackAPI {
-  const { settings } = useSettingsStore();
-  const isSupported = isVibrationSupported() && settings.hapticFeedback;
+export function useHapticFeedback(isEnabled?: () => boolean): HapticFeedbackAPI {
+  const enabledCheck = isEnabled || (() => true);
+  const isSupported = isVibrationSupported() && enabledCheck();
 
   return {
     /**
-     * Light haptic - 10ms
+     * Light haptic - 50ms
      * Use for: menu items, status badge taps, filter chips
      */
-    light: () => vibrate(HAPTIC_PATTERNS.light),
+    light: () => vibrate(HAPTIC_PATTERNS.light, enabledCheck),
 
     /**
-     * Medium haptic - 20ms
+     * Medium haptic - 75ms
      * Use for: button presses, card taps, navigation
      */
-    medium: () => vibrate(HAPTIC_PATTERNS.medium),
+    medium: () => vibrate(HAPTIC_PATTERNS.medium, enabledCheck),
 
     /**
-     * Heavy haptic - 30ms
+     * Heavy haptic - 100ms
      * Use for: important actions, confirmations, drag start
      */
-    heavy: () => vibrate(HAPTIC_PATTERNS.heavy),
+    heavy: () => vibrate(HAPTIC_PATTERNS.heavy, enabledCheck),
 
     /**
-     * Success haptic - double pulse
+     * Success haptic - double pulse [50, 80, 50]
      * Use for: score saved, check-in complete, sync success
      */
-    success: () => vibrate(HAPTIC_PATTERNS.success),
+    success: () => vibrate(HAPTIC_PATTERNS.success, enabledCheck),
 
     /**
-     * Error haptic - triple pulse
+     * Error haptic - triple pulse [75, 80, 75, 80, 75]
      * Use for: validation errors, failed sync, conflicts
      */
-    error: () => vibrate(HAPTIC_PATTERNS.error),
+    error: () => vibrate(HAPTIC_PATTERNS.error, enabledCheck),
 
     /**
-     * Warning haptic - pause pulse
+     * Warning haptic - pause pulse [50, 150, 50]
      * Use for: time warnings, max time approaching, conflicts
      */
-    warning: () => vibrate(HAPTIC_PATTERNS.warning),
+    warning: () => vibrate(HAPTIC_PATTERNS.warning, enabledCheck),
 
     /**
      * Custom haptic pattern
      * @param pattern - Single duration or array of [vibrate, pause, vibrate, ...]
      */
-    custom: (pattern: number | number[]) => vibrate(pattern),
+    custom: (pattern: number | number[]) => vibrate(pattern, enabledCheck),
 
     /**
-     * Whether haptic feedback is supported on this device
+     * Whether haptic feedback is supported and enabled
      */
     isSupported,
   };
@@ -143,6 +153,7 @@ export function useHapticFeedback(): HapticFeedbackAPI {
 
 /**
  * Standalone haptic feedback functions (for use outside React components)
+ * Note: These always respect haptic support but not user settings
  */
 export const haptic = {
   light: () => vibrate(HAPTIC_PATTERNS.light),

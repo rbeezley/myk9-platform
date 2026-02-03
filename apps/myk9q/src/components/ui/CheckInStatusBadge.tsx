@@ -1,7 +1,8 @@
 import React from 'react';
 import { StatusBadge } from './StatusBadge';
 import { getCheckinStatusIcon, getCheckinStatusLabel } from '@/utils/statusIcons';
-import { useHapticFeedback } from '@/hooks/useHapticFeedback';
+import { useHapticFeedback } from '@myk9/scoring-ui';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { cn } from '../../lib/utils';
 
 export interface CheckInStatusBadgeProps {
@@ -35,7 +36,8 @@ export const CheckInStatusBadge: React.FC<CheckInStatusBadgeProps> = ({
   className,
   asButton = false
 }) => {
-  const haptic = useHapticFeedback();
+  const { settings } = useSettingsStore();
+  const haptic = useHapticFeedback(() => settings.hapticFeedback);
 
   // Get label and icon from centralized statusConfig via statusIcons utility
   const label = getCheckinStatusLabel(status);

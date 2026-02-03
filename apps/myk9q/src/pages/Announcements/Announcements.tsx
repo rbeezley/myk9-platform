@@ -5,7 +5,7 @@ import { usePermission } from '../../hooks/usePermission';
 import { useAnnouncementStore } from '../../stores/announcementStore';
 import type { Announcement } from '../../stores/announcementStore';
 import { HamburgerMenu, CompactOfflineIndicator, PullToRefresh } from '../../components/ui';
-import { useLongPress } from '@/hooks/useLongPress';
+import { useLongPress } from '@myk9/scoring-ui';
 import { AnnouncementCard } from '../../components/announcements/AnnouncementCard';
 import { CreateAnnouncementModal } from '../../components/announcements/CreateAnnouncementModal';
 import { DeleteConfirmationModal } from '../../components/announcements/DeleteConfirmationModal';

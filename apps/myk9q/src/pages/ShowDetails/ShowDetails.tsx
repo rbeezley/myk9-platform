@@ -14,8 +14,8 @@ import { useEffect, useCallback, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { User } from 'lucide-react';
-import { useHapticFeedback } from '@/hooks/useHapticFeedback';
-import { useLongPress } from '@/hooks/useLongPress';
+import { useHapticFeedback, useLongPress } from '@myk9/scoring-ui';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { logger } from '@/utils/logger';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAnnouncementStore } from '@/stores/announcementStore';
@@ -38,7 +38,8 @@ export function ShowDetails() {
   const { licenseKey: urlLicenseKey } = useParams<{ licenseKey: string }>();
   const navigate = useNavigate();
   const { showContext } = useAuth();
-  const hapticFeedback = useHapticFeedback();
+  const { settings } = useSettingsStore();
+  const hapticFeedback = useHapticFeedback(() => settings.hapticFeedback);
   const [isManualRefreshing, setIsManualRefreshing] = useState(false);
 
   // Use URL param or auth context

@@ -1,7 +1,7 @@
 /**
  * useSwipeGesture Hook
  *
- * Detects swipe gestures on touch devices.
+ * Detects swipe gestures on touch and mouse devices.
  * Useful for actions like:
  * - Swipe left to delete
  * - Swipe right to mark complete
@@ -11,8 +11,8 @@
  * Usage:
  * ```tsx
  * const swipeHandlers = useSwipeGesture({
- *   onSwipeLeft: () => logger.log('Swiped left'),
- *   onSwipeRight: () => logger.log('Swiped right'),
+ *   onSwipeLeft: () => console.log('Swiped left'),
+ *   onSwipeRight: () => console.log('Swiped right'),
  *   threshold: 50, // minimum swipe distance
  * });
  *
@@ -69,7 +69,14 @@ export interface SwipeGestureOptions {
   preventDefault?: boolean;
 }
 
-export function useSwipeGesture(options: SwipeGestureOptions = {}) {
+export interface SwipeGestureHandlers {
+  onTouchStart: (e: TouchEvent) => void;
+  onTouchEnd: (e: TouchEvent) => void;
+  onMouseDown: (e: MouseEvent) => void;
+  onMouseUp: (e: MouseEvent) => void;
+}
+
+export function useSwipeGesture(options: SwipeGestureOptions = {}): SwipeGestureHandlers {
   const {
     onSwipeLeft,
     onSwipeRight,
@@ -237,7 +244,23 @@ export interface SwipeToActionOptions {
   actionThreshold?: number;
 }
 
-export function useSwipeToAction(options: SwipeToActionOptions = {}) {
+export interface SwipeToActionHandlers {
+  onTouchStart: (e: TouchEvent) => void;
+  onTouchMove: (e: TouchEvent) => number | undefined;
+  onTouchEnd: () => number;
+  onMouseDown: (e: MouseEvent) => void;
+  onMouseMove: (e: MouseEvent) => number | undefined;
+  onMouseUp: () => number;
+  onMouseLeave: () => number;
+}
+
+export interface SwipeToActionReturn {
+  handlers: SwipeToActionHandlers;
+  revealThreshold: number;
+  actionThreshold: number;
+}
+
+export function useSwipeToAction(options: SwipeToActionOptions = {}): SwipeToActionReturn {
   const {
     leftAction,
     rightAction,

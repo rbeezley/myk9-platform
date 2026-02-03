@@ -17,7 +17,7 @@ import {
 import { LazyDogCard } from '../../dogs/LazyDogCard';
 import { useLazyLoading } from '../../../hooks/useLazyLoading';
 import { LazyLoadTrigger } from '../../common/LazyLoadTrigger';
-import { useDebounce } from '../../../hooks/useDebounce';
+import { useDebounce } from '@myk9/scoring-ui';
 import { useDogStore } from '../../../store/dogStore';
 import { motion, AnimatePresence } from 'framer-motion';
 

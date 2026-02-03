@@ -29,6 +29,22 @@ export { useElementTimer } from './hooks/useElementTimer';
 export { useEntryListFilters } from './hooks/useEntryListFilters';
 export { useDragAndDropEntries } from './hooks/useDragAndDropEntries';
 
+// Phase 1: Quick Win Hooks (Sprint 25)
+export { useHapticFeedback, haptic, type HapticPattern, type HapticFeedbackAPI } from './hooks/useHapticFeedback';
+export { useDebounce } from './hooks/useDebounce';
+export { useIsTouchDevice } from './hooks/useIsTouchDevice';
+export { useLongPress, type UseLongPressOptions, type LongPressHandlers } from './hooks/useLongPress';
+export {
+  useSwipeGesture,
+  useSwipeToAction,
+  type SwipeDirection,
+  type SwipeGestureOptions,
+  type SwipeGestureHandlers,
+  type SwipeToActionOptions,
+  type SwipeToActionHandlers,
+  type SwipeToActionReturn
+} from './hooks/useSwipeGesture';
+
 // Utils
 export {
   formatMilliseconds,

@@ -10,7 +10,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { mutationQueue } from '@/services/replication/MutationQueueManager';
-import { haptic } from '@/hooks/useHapticFeedback';
+import { haptic } from '@myk9/scoring-ui';
 import { logger } from '@/utils/logger';
 
 export interface QueuedScore {

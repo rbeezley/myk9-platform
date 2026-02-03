@@ -112,7 +112,7 @@ export function useClassCompletion(classId: string | undefined): UseClassComplet
       setShowCelebration(true);
       hasShownCelebrationRef.current = true;
     } catch (error) {
-      logger.error('[useClassCompletion] Error checking class completion:', error);
+      logger.error('[useClassCompletion] Error checking class completion:', String(error));
     }
   }, [classId]);
 

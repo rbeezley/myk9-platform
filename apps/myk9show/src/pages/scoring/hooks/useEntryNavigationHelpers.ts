@@ -86,7 +86,7 @@ async function fetchCurrentClassSettings(classId: number): Promise<CurrentClassS
       timeLimit3: classData.time_limit_area3_seconds ?? undefined,
     };
   } catch (error) {
-    logger.warn('[fetchCurrentClassSettings] Error fetching class data:', error);
+    logger.warn('[fetchCurrentClassSettings] Error fetching class data:', String(error));
     return {};
   }
 }

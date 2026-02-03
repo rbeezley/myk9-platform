@@ -10,8 +10,8 @@
  * **Phase 3 Day 13** - Core table migration
  */
 
-import { ReplicatedTable } from '../ReplicatedTable';
-import type { SyncResult } from '../types';
+import { ReplicatedTable, type SyncResult } from '@myk9/replication';
+import { myk9qReplicationDependencies } from '../myk9qDependencies';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/utils/logger';
 
@@ -63,7 +63,7 @@ export interface Show {
 
 export class ReplicatedShowsTable extends ReplicatedTable<Show> {
   constructor() {
-    super('shows'); // TTL managed by feature flags
+    super('shows', undefined, myk9qReplicationDependencies); // TTL managed by feature flags
   }
 
   /**

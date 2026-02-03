@@ -12,9 +12,9 @@
  */
 
 import { supabase } from '@/lib/supabase';
-import type { PendingMutation, SyncResult } from './types';
+import type { PendingMutation, SyncResult } from '@myk9/replication';
+import { REPLICATION_STORES } from '@myk9/replication';
 import { logger } from '@/utils/logger';
-import { REPLICATION_STORES } from './DatabaseManager';
 import type { IDBPDatabase } from 'idb';
 import {
   withTimeout,

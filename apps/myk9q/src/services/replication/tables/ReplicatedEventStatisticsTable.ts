@@ -9,7 +9,8 @@
  * **Phase 4 Day 19** - Nationals Tables (Dormant)
  */
 
-import { ReplicatedTable } from '../ReplicatedTable';
+import { ReplicatedTable, type SyncResult } from '@myk9/replication';
+import { myk9qReplicationDependencies } from '../myk9qDependencies';
 import { supabase } from '../../../lib/supabase';
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { logger } from '@/utils/logger';
@@ -49,7 +50,7 @@ export class ReplicatedEventStatisticsTable extends ReplicatedTable<EventStatist
   private static dormantLoggedOnce = false;
 
   constructor() {
-    super('event_statistics');
+    super('event_statistics', undefined, myk9qReplicationDependencies);
   }
 
   /**
@@ -208,7 +209,7 @@ export class ReplicatedEventStatisticsTable extends ReplicatedTable<EventStatist
    * The sync returns success with 0 rows to prevent error spam.
    * When the table is created, remove the early return check.
    */
-  async sync(_licenseKey: string): Promise<import('../types').SyncResult> {
+  async sync(_licenseKey: string): Promise<SyncResult> {
     const startTime = Date.now();
 
     // DORMANT TABLE CHECK: event_statistics doesn't exist in database yet

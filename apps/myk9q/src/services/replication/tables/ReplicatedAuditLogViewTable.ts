@@ -10,10 +10,10 @@
  * **Phase 4 Day 20** - Audit Log View (Cached Materialized View)
  */
 
-import { ReplicatedTable } from '../ReplicatedTable';
+import { ReplicatedTable, type SyncResult } from '@myk9/replication';
+import { myk9qReplicationDependencies } from '../myk9qDependencies';
 import { supabase } from '../../../lib/supabase';
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
-import type { SyncResult } from '../types';
 import { logger } from '@/utils/logger';
 
 /**
@@ -54,7 +54,7 @@ export interface AuditLog extends AuditLogRow {
  */
 export class ReplicatedAuditLogViewTable extends ReplicatedTable<AuditLog> {
   constructor() {
-    super('view_audit_log');
+    super('view_audit_log', undefined, myk9qReplicationDependencies);
   }
 
   /**

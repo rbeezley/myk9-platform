@@ -12,8 +12,7 @@
  */
 
 import { supabase } from '@/lib/supabase';
-import type { ReplicatedTable } from './ReplicatedTable';
-import type { SyncMetadata, SyncResult, SyncProgress } from './types';
+import type { ReplicatedTable, SyncMetadata, SyncResult, SyncProgress } from '@myk9/replication';
 import { logger } from '@/utils/logger';
 import { withTimeout, TIMEOUT_PRESETS } from '@/utils/networkUtils';
 

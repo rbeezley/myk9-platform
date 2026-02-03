@@ -12,8 +12,7 @@
  */
 
 import { SyncEngine, type SyncOptions } from './SyncEngine';
-import type { ReplicatedTable } from './ReplicatedTable';
-import type { SyncResult } from './types';
+import type { ReplicatedTable, SyncResult } from '@myk9/replication';
 import { logger } from '@/utils/logger';
 import { getReplicationMonitor } from './ReplicationMonitor';
 

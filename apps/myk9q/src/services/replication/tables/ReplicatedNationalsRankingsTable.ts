@@ -11,7 +11,8 @@
  * **Phase 4 Day 19** - Nationals Tables (Dormant)
  */
 
-import { ReplicatedTable } from '../ReplicatedTable';
+import { ReplicatedTable, type SyncResult } from '@myk9/replication';
+import { myk9qReplicationDependencies } from '../myk9qDependencies';
 import { supabase } from '../../../lib/supabase';
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
@@ -42,7 +43,7 @@ export interface NationalsRankings {
  */
 export class ReplicatedNationalsRankingsTable extends ReplicatedTable<NationalsRankings> {
   constructor() {
-    super('nationals_rankings');
+    super('nationals_rankings', undefined, myk9qReplicationDependencies);
   }
 
   /**
@@ -199,7 +200,7 @@ export class ReplicatedNationalsRankingsTable extends ReplicatedTable<NationalsR
    * DORMANT: Schema mismatch - DB uses mobile_app_lic_key, different columns
    * Skip sync to prevent error spam. Activate when schema is aligned.
    */
-  async sync(_licenseKey: string): Promise<import('../types').SyncResult> {
+  async sync(_licenseKey: string): Promise<SyncResult> {
     const startTime = Date.now();
 
     return {

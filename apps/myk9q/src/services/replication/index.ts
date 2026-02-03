@@ -7,8 +7,8 @@
  * **Phase 2 Complete** - Core sync infrastructure ready
  */
 
-// Core infrastructure
-export { ReplicatedTable, REPLICATION_STORES } from './ReplicatedTable';
+// Core infrastructure (from @myk9/replication package)
+export { ReplicatedTable, REPLICATION_STORES } from '@myk9/replication';
 export { SyncEngine } from './SyncEngine';
 export type { SyncOptions, SyncEngineConfig } from './SyncEngine';
 // Conflict resolution
@@ -27,7 +27,7 @@ export {
 export type { ReplicationManagerConfig } from './ReplicationManager';
 export { PrefetchManager } from './PrefetchManager';
 
-// Type definitions
+// Type definitions (from @myk9/replication package)
 export type {
   ReplicatedRow,
   SyncMetadata,
@@ -39,7 +39,7 @@ export type {
   ConflictStrategy,
   TableFilter,
   QueryOptions,
-} from './types';
+} from '@myk9/replication';
 
 // Concrete table implementations
 export { replicatedEntriesTable } from './tables/ReplicatedEntriesTable';

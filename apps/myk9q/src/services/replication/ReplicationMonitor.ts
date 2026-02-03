@@ -10,7 +10,7 @@
  */
 
 import { logger } from '@/utils/logger';
-import type { SyncResult, PendingMutation } from './types';
+import type { SyncResult, PendingMutation } from '@myk9/replication';
 import { DB_NAME, DB_VERSION } from './replicationConstants';
 
 export interface ReplicationHealthMetrics {

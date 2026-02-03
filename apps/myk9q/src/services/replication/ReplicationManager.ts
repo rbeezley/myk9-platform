@@ -15,13 +15,11 @@
  * **Phase 2 Day 10** - Orchestration and coordination
  */
 
-import { SyncEngine } from './SyncEngine';
+import { SyncEngine, type SyncOptions } from './SyncEngine';
 import { PrefetchManager } from './PrefetchManager';
 import { ConnectionManager, type ConnectionManagerConfig } from './ConnectionManager';
 import { SyncOrchestrator, type SyncOrchestratorConfig, type CacheStatsResult } from './SyncOrchestrator';
-import type { ReplicatedTable } from './ReplicatedTable';
-import type { SyncResult, PerformanceReport } from './types';
-import type { SyncOptions } from './SyncEngine';
+import type { ReplicatedTable, SyncResult, PerformanceReport } from '@myk9/replication';
 import type { ReplicatedTableName } from '@/config/featureFlags';
 import { logger } from '@/utils/logger';
 

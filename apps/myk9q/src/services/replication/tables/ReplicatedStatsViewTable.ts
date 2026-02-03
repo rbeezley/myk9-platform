@@ -10,10 +10,10 @@
  * **Phase 4 Day 18** - Statistics Views (Cached Materialized View)
  */
 
-import { ReplicatedTable } from '../ReplicatedTable';
+import { ReplicatedTable, type SyncResult } from '@myk9/replication';
+import { myk9qReplicationDependencies } from '../myk9qDependencies';
 import { supabase } from '../../../lib/supabase';
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
-import type { SyncResult } from '../types';
 import { logger } from '@/utils/logger';
 
 /**
@@ -70,7 +70,7 @@ export interface StatsView {
  */
 export class ReplicatedStatsViewTable extends ReplicatedTable<StatsView> {
   constructor() {
-    super('view_stats_summary');
+    super('view_stats_summary', undefined, myk9qReplicationDependencies);
   }
 
   /**

@@ -13,7 +13,7 @@
 import { create } from 'zustand';
 import { openDB } from 'idb';
 import { DB_NAME, DB_VERSION } from '@/services/replication/replicationConstants';
-import { REPLICATION_STORES } from '@/services/replication/DatabaseManager';
+import { REPLICATION_STORES } from '@myk9/replication';
 import { logger } from '@/utils/logger';
 
 export interface SyncStatusState {

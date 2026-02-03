@@ -5,10 +5,10 @@
  * Schema follows database table `push_subscriptions` from migration 017.
  */
 
-import { ReplicatedTable } from '../ReplicatedTable';
+import { ReplicatedTable, type SyncResult } from '@myk9/replication';
+import { myk9qReplicationDependencies } from '../myk9qDependencies';
 import { supabase } from '../../../lib/supabase';
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
-import type { SyncResult } from '../types';
 
 /**
  * Notification preferences structure
@@ -47,7 +47,7 @@ export interface PushSubscription {
  */
 export class ReplicatedPushSubscriptionsTable extends ReplicatedTable<PushSubscription> {
   constructor() {
-    super('push_subscriptions');
+    super('push_subscriptions', undefined, myk9qReplicationDependencies);
   }
 
   /**

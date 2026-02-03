@@ -6,10 +6,10 @@
  * Schema follows database table `announcement_reads` from migration 007.
  */
 
-import { ReplicatedTable } from '../ReplicatedTable';
+import { ReplicatedTable, type SyncResult } from '@myk9/replication';
+import { myk9qReplicationDependencies } from '../myk9qDependencies';
 import { supabase } from '../../../lib/supabase';
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
-import type { SyncResult } from '../types';
 
 /**
  * Database schema (snake_case) - matches `announcement_reads` table
@@ -29,7 +29,7 @@ export interface AnnouncementRead {
  */
 export class ReplicatedAnnouncementReadsTable extends ReplicatedTable<AnnouncementRead> {
   constructor() {
-    super('announcement_reads');
+    super('announcement_reads', undefined, myk9qReplicationDependencies);
   }
 
   /**

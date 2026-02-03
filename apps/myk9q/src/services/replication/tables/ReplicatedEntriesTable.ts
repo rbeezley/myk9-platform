@@ -12,8 +12,8 @@
  * - Tests TTL expiration and cache invalidation
  */
 
-import { ReplicatedTable } from '../ReplicatedTable';
-import type { SyncResult } from '../types';
+import { ReplicatedTable, type SyncResult } from '@myk9/replication';
+import { myk9qReplicationDependencies } from '../myk9qDependencies';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/utils/logger';
 
@@ -65,7 +65,7 @@ interface RawEntryWithJoins extends Entry {
 export class ReplicatedEntriesTable extends ReplicatedTable<Entry> {
   constructor() {
     // Use default TTL from feature flags (30 min for entries)
-    super('entries');
+    super('entries', undefined, myk9qReplicationDependencies);
   }
 
   /**

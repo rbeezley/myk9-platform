@@ -9,10 +9,10 @@
  * It stores sensitive configuration that should be treated carefully.
  */
 
-import { ReplicatedTable } from '../ReplicatedTable';
+import { ReplicatedTable, type SyncResult } from '@myk9/replication';
+import { myk9qReplicationDependencies } from '../myk9qDependencies';
 import { supabase } from '../../../lib/supabase';
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
-import type { SyncResult } from '../types';
 
 /**
  * Database schema (snake_case) - matches `push_notification_config` table
@@ -34,7 +34,7 @@ export interface PushNotificationConfig {
  */
 export class ReplicatedPushNotificationConfigTable extends ReplicatedTable<PushNotificationConfig> {
   constructor() {
-    super('push_notification_config');
+    super('push_notification_config', undefined, myk9qReplicationDependencies);
   }
 
   /**

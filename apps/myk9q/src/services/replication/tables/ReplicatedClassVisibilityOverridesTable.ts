@@ -11,8 +11,8 @@
  * **Phase 3 Day 15** - Visibility config tables
  */
 
-import { ReplicatedTable } from '../ReplicatedTable';
-import type { SyncResult } from '../types';
+import { ReplicatedTable, type SyncResult } from '@myk9/replication';
+import { myk9qReplicationDependencies } from '../myk9qDependencies';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/utils/logger';
 
@@ -56,7 +56,7 @@ interface RawOverrideWithJoins extends Omit<ClassVisibilityOverrides, 'license_k
 
 export class ReplicatedClassVisibilityOverridesTable extends ReplicatedTable<ClassVisibilityOverrides> {
   constructor() {
-    super('class_result_visibility_overrides'); // TTL managed by feature flags
+    super('class_result_visibility_overrides', undefined, myk9qReplicationDependencies); // TTL managed by feature flags
   }
 
   /**

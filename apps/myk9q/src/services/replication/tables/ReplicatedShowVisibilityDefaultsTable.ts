@@ -11,8 +11,8 @@
  * **Phase 3 Day 15** - Visibility config tables
  */
 
-import { ReplicatedTable } from '../ReplicatedTable';
-import type { SyncResult } from '../types';
+import { ReplicatedTable, type SyncResult } from '@myk9/replication';
+import { myk9qReplicationDependencies } from '../myk9qDependencies';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/utils/logger';
 
@@ -41,7 +41,7 @@ export interface ShowVisibilityDefaults {
 
 export class ReplicatedShowVisibilityDefaultsTable extends ReplicatedTable<ShowVisibilityDefaults> {
   constructor() {
-    super('show_result_visibility_defaults'); // TTL managed by feature flags
+    super('show_result_visibility_defaults', undefined, myk9qReplicationDependencies); // TTL managed by feature flags
   }
 
   /**

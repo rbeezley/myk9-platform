@@ -15,10 +15,9 @@
  * **Phase 2 Day 6-7** - Core sync infrastructure
  */
 
-import type { ReplicatedTable } from './ReplicatedTable';
-import type { SyncMetadata, SyncResult, SyncProgress } from './types';
+import type { ReplicatedTable, SyncMetadata, SyncResult, SyncProgress } from '@myk9/replication';
+import { REPLICATION_STORES } from '@myk9/replication';
 import { logger } from '@/utils/logger';
-import { REPLICATION_STORES } from './ReplicatedTable';
 import { openDB, type IDBPDatabase } from 'idb';
 import { MutationManager, type MutationManagerConfig } from './MutationManager';
 import { SyncExecutor, type SyncExecutorOptions } from './SyncExecutor';

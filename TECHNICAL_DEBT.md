@@ -1,7 +1,7 @@
 # Technical Debt Register
 
 **Project:** myK9 Platform Monorepo
-**Last Updated:** 2026-02-04
+**Last Updated:** 2026-02-05
 **Maintained By:** Development Team
 
 ## Summary
@@ -17,12 +17,17 @@
 | Item | Status | Impact |
 |------|--------|--------|
 | DEBT-011 | ✅ Complete | Audited: 143 TODOs (not 265), 0 BUG/HACK/FIXME |
-| DEBT-002 | 🔄 In Progress | BrowseShowsPage.tsx 1,296→562 lines (57% reduction) |
-| DEBT-002 | 🔄 In Progress | EntryManagementPage.tsx 1,428→435 lines (70% reduction) |
-| DEBT-002 | 🔄 In Progress | MyEntriesPage.tsx 1,027→351 lines (66% reduction) |
-| DEBT-002 | 🔄 In Progress | AdminDashboard.tsx 1,050→142 lines (86% reduction) |
-| DEBT-002 | 🔄 In Progress | ShowCreationWizardPage.tsx 1,006→466 lines (54% reduction) |
-| DEBT-002 | 🔄 In Progress | SecretaryDashboard.tsx 926→164 lines (82% reduction) |
+| DEBT-002 | ✅ Complete | BrowseShowsPage.tsx 1,296→562 lines (57% reduction) |
+| DEBT-002 | ✅ Complete | EntryManagementPage.tsx 1,428→435 lines (70% reduction) |
+| DEBT-002 | ✅ Complete | MyEntriesPage.tsx 1,027→351 lines (66% reduction) |
+| DEBT-002 | ✅ Complete | AdminDashboard.tsx 1,050→142 lines (86% reduction) |
+| DEBT-002 | ✅ Complete | ShowCreationWizardPage.tsx 1,006→466 lines (54% reduction) |
+| DEBT-002 | ✅ Complete | SecretaryDashboard.tsx 926→164 lines (82% reduction) |
+| DEBT-002 | ✅ Complete | DayOfOperationsPage.tsx 875→160 lines (82% reduction) |
+| DEBT-002 | ✅ Complete | ExhibitorProfilePage.tsx 755→214 lines (72% reduction) |
+| DEBT-002 | ✅ Complete | JudgeWorkflowManager.ts 1,048→extracted modules |
+| DEBT-002 | ✅ Complete | ScoreValidatorService.ts 1,049→extracted modules |
+| DEBT-002 | ✅ Complete | performance-types.ts 1,046→80 lines barrel + 5 domain files |
 
 ### Sprint 25 Progress (2026-02-04)
 | Item | Status | Impact |
@@ -82,11 +87,6 @@
 - Files: Multiple large files across both apps
 - Worst offenders (myK9Show) - remaining:
   - `types/supabase.ts` (3,695 lines) - auto-generated
-  - `types/performance-types.ts` (1,046 lines)
-  - `services/scoring/JudgeWorkflowManager.ts` (1,048 lines)
-  - `services/scoring/ScoreValidatorService.ts` (1,049 lines)
-  - `pages/secretary/DayOfOperationsPage.tsx` (875 lines)
-  - `pages/ExhibitorProfilePage.tsx` (755 lines)
 - Refactored (myK9Show):
   - ✅ `pages/BrowseShowsPage.tsx` (1,296 → 562 lines)
   - ✅ `pages/MyEntriesPage.tsx` (1,027 → 351 lines)
@@ -94,6 +94,11 @@
   - ✅ `pages/admin/AdminDashboard.tsx` (1,050 → 142 lines)
   - ✅ `pages/secretary/ShowCreationWizardPage.tsx` (1,006 → 466 lines)
   - ✅ `pages/SecretaryDashboard.tsx` (926 → 164 lines)
+  - ✅ `pages/secretary/DayOfOperationsPage.tsx` (875 → 160 lines)
+  - ✅ `pages/ExhibitorProfilePage.tsx` (755 → 214 lines)
+  - ✅ `services/scoring/JudgeWorkflowManager.ts` (1,048 → extracted modules)
+  - ✅ `services/scoring/ScoreValidatorService.ts` (1,049 → extracted modules)
+  - ✅ `types/performance-types.ts` (1,046 → 80 lines barrel + 5 domain files)
 - Worst offenders (myK9Q):
   - `pages/EntryList/EntryList.tsx` (1,071 lines)
   - `pages/ClassList/ClassList.tsx` (1,033 lines)
@@ -163,8 +168,27 @@ Critical because large files are high-churn areas blocking feature development a
   - Extracted: `StatisticsCards.tsx`, `TrialManagementTabs.tsx`
   - Extracted: `QuickActionsSection.tsx`, `RecentActivitySection.tsx`
 
+**Progress (Sprint 26 cont.):**
+- ✅ **DayOfOperationsPage.tsx**: 875 → 160 lines (82% reduction)
+  - Extracted: `types.ts`, `useDayOfOperationsData.ts`
+  - Extracted: `ClassAvailabilityTable.tsx`, `MoveUpEntriesTable.tsx`, `ScratchEntriesTable.tsx`
+  - Extracted: `DayOfEntryDialog.tsx`, `ScratchDialog.tsx`, `MoveUpDialog.tsx`
+- ✅ **ExhibitorProfilePage.tsx**: 755 → 214 lines (72% reduction)
+  - Extracted: `types.ts`, `useExhibitorProfileData.ts`, `utils.ts`
+  - Extracted: `ProfileHeader.tsx`, `ProfileDisplayView.tsx`, `ProfileEditForm.tsx`
+  - Extracted: `DogCard.tsx`, `DogFormDialog.tsx`, `DeleteDogDialog.tsx`
+- ✅ **JudgeWorkflowManager.ts**: 1,048 → extracted modules
+  - Extracted: `judge-workflow-types.ts`, `entryAssignmentStrategies.ts`
+  - Extracted: `workflowTemplates.ts`, `judgeWorkflowPersistence.ts`
+- ✅ **ScoreValidatorService.ts**: 1,049 → extracted modules
+  - Extracted: `validationRules.ts`, `formatValidators.ts`
+- ✅ **performance-types.ts**: 1,046 → 80 lines barrel + 5 domain files
+  - Split into: `performance-sync-types.ts`, `performance-delta-types.ts`
+  - Split into: `performance-compression-types.ts`, `performance-metrics-types.ts`
+  - Split into: `performance-batch-types.ts`, `performance-settings-types.ts`
+
 **Notes:**
-- Prioritize files in `pages/` and `services/scoring/` first (highest churn)
+- Only `types/supabase.ts` (auto-generated) remains as a large file
 - Consider automated splitting for generated types
 
 ---

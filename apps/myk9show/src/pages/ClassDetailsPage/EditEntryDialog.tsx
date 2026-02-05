@@ -11,7 +11,7 @@ import type { ShowEntry } from './types';
 interface Dog {
   id: string;
   name: string;
-  callName?: string;
+  callName?: string | undefined;
 }
 
 interface EditEntryDialogProps {

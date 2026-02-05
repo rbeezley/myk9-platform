@@ -103,3 +103,14 @@ export {
   normalizeSearchTerm,
   createDebouncedSearch,
 } from './utils/search';
+
+// Device detection utilities
+export {
+  detectDeviceCapabilities,
+  getDeviceTier,
+  resetDeviceDetection,
+  type DeviceTier,
+  type ConnectionSpeed,
+  type ScreenSize,
+  type DeviceCapabilities,
+} from './utils/deviceDetection';

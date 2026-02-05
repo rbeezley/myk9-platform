@@ -45,6 +45,29 @@ export {
   type SwipeToActionReturn
 } from './hooks/useSwipeGesture';
 
+// Phase 3: Extracted Hooks (Sprint 25)
+export { useDialogState, type DialogState } from './hooks/useDialogState';
+export {
+  useNotificationPermissions,
+  type NotificationPermissionStatus,
+  type UseNotificationPermissionsOptions,
+  type UseNotificationPermissionsReturn,
+} from './hooks/useNotificationPermissions';
+export {
+  useAnimationSettings,
+  useAnimationProps,
+  useAnimationDuration,
+  useCanAnimate,
+  useSpringConfig,
+  useThrottledRaf,
+  usePrefersReducedMotion,
+  useAnimationClasses,
+  createAnimationSettingsProvider,
+  type AnimationConfig,
+  type AnimationSettingsInput,
+  type AnimationSettingsProvider,
+} from './hooks/useAnimationSettings';
+
 // Utils
 export {
   formatMilliseconds,

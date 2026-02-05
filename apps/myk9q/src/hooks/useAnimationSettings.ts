@@ -1,199 +1,67 @@
 /**
- * Animation Settings Hook
+ * Animation Settings Hooks - myK9Q-specific wrappers
  *
- * Provides animation configuration based on device capabilities,
- * user settings, and current performance metrics.
+ * These wrappers integrate the shared hooks from @myk9/scoring-ui
+ * with the myK9Q settings store.
+ *
+ * @deprecated For new code, import from '@myk9/scoring-ui' and use
+ * createAnimationSettingsProvider() with your settings store.
  */
 
-import { useState, useEffect, useMemo } from 'react';
-import { getDeviceTier } from '@/utils/deviceDetection';
+import { useMemo } from 'react';
+import {
+  useAnimationSettings as useBaseAnimationSettings,
+  useAnimationProps as useBaseAnimationProps,
+  useAnimationDuration as useBaseAnimationDuration,
+  useCanAnimate as useBaseCanAnimate,
+  useSpringConfig as useBaseSpringConfig,
+  useThrottledRaf as useBaseThrottledRaf,
+  usePrefersReducedMotion,
+  useAnimationClasses as useBaseAnimationClasses,
+  createAnimationSettingsProvider,
+  type AnimationConfig,
+  type AnimationSettingsProvider,
+} from '@myk9/scoring-ui';
 import { useSettingsStore } from '@/stores/settingsStore';
 
-export interface AnimationConfig {
-  /** Enable all animations */
-  enabled: boolean;
+// Re-export types and non-store-dependent hooks
+export { type AnimationConfig, usePrefersReducedMotion };
 
-  /** Reduce animation complexity */
-  reduced: boolean;
+// Create provider that reads from myK9Q settings store
+function useMyK9QProvider(): AnimationSettingsProvider {
+  const settings = useSettingsStore((state) => state.settings);
 
-  /** Animation duration multiplier (0.5 = 2x faster, 2 = 2x slower) */
-  durationMultiplier: number;
-
-  /** Enable GPU acceleration */
-  gpuAcceleration: boolean;
-
-  /** Enable blur effects */
-  blur: boolean;
-
-  /** Enable shadow effects */
-  shadows: boolean;
-
-  /** Enable transform animations */
-  transforms: boolean;
-
-  /** Enable opacity animations */
-  opacity: boolean;
-
-  /** Enable motion path animations */
-  motionPath: boolean;
-
-  /** Preferred easing function */
-  easing: string;
-
-  /** Target frame rate */
-  targetFps: number;
+  return useMemo(() => createAnimationSettingsProvider(
+    () => ({
+      enableAnimations: settings.enableAnimations,
+      enableBlur: settings.enableBlur,
+      enableShadows: settings.enableShadows,
+    }),
+    'myK9Q_settings'
+  ), [settings.enableAnimations, settings.enableBlur, settings.enableShadows]);
 }
 
 /**
- * Get animation configuration based on device and settings
+ * Get animation configuration based on device and myK9Q settings
  */
 export function useAnimationSettings(): AnimationConfig {
-  const settings = useSettingsStore((state) => state.settings);
-  const [deviceTier, setDeviceTier] = useState<'low' | 'medium' | 'high'>('medium');
-  const [currentFps, setCurrentFps] = useState(60);
-
-  useEffect(() => {
-    // Detect device tier
-    getDeviceTier().then(setDeviceTier);
-
-    // Measure FPS only for first 2 seconds, then stop (battery optimization)
-    // This gets an initial performance baseline without continuous CPU/GPU wake
-    let rafId: number;
-    let lastTime = performance.now();
-    let frameCount = 0;
-    const startTime = performance.now();
-    const MEASUREMENT_DURATION = 2000; // Only measure for 2 seconds
-
-    const measureFps = (currentTime: number) => {
-      frameCount++;
-
-      if (currentTime >= lastTime + 1000) {
-        const fps = Math.round((frameCount * 1000) / (currentTime - lastTime));
-        setCurrentFps(fps);
-        frameCount = 0;
-        lastTime = currentTime;
-      }
-
-      // Stop measuring after 2 seconds to save battery
-      if (currentTime - startTime < MEASUREMENT_DURATION) {
-        rafId = requestAnimationFrame(measureFps);
-      }
-    };
-
-    rafId = requestAnimationFrame(measureFps);
-
-    return () => cancelAnimationFrame(rafId);
-  }, []);
-
-  const config = useMemo((): AnimationConfig => {
-    // Start with user's explicit settings
-    let enabled = settings.enableAnimations;
-    let blur = settings.enableBlur;
-    let shadows = settings.enableShadows;
-
-    // If settings are null, use auto-detection
-    if (enabled === null) {
-      enabled = deviceTier !== 'low';
-    }
-
-    if (blur === null) {
-      blur = deviceTier === 'high';
-    }
-
-    if (shadows === null) {
-      shadows = deviceTier === 'high';
-    }
-
-    // Check reduce motion preference (OS setting only)
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-    if (reducedMotion) {
-      enabled = false;
-    }
-
-    // Adjust for low FPS
-    const performanceMode = currentFps < 30 ? 'low' : deviceTier;
-
-    // Build configuration
-    const config: AnimationConfig = {
-      enabled,
-      reduced: reducedMotion || performanceMode === 'low',
-      durationMultiplier: 1,
-      gpuAcceleration: true,
-      blur,
-      shadows,
-      transforms: enabled,
-      opacity: enabled,
-      motionPath: enabled && performanceMode !== 'low',
-      easing: 'cubic-bezier(0.4, 0.0, 0.2, 1)', // Material Design standard easing
-      targetFps: 60,
-    };
-
-    // Adjust for device tier
-    if (performanceMode === 'low') {
-      config.durationMultiplier = 0.5; // Faster animations
-      config.gpuAcceleration = true; // Force GPU for better performance
-      config.blur = false;
-      config.shadows = false;
-      config.motionPath = false;
-      config.targetFps = 30;
-      config.easing = 'ease-out'; // Simpler easing
-    } else if (performanceMode === 'medium') {
-      config.durationMultiplier = 0.75;
-      config.targetFps = 45;
-      config.motionPath = false;
-    }
-
-    // If reduced motion, use only essential animations
-    if (config.reduced) {
-      config.durationMultiplier = 0.3; // Very fast
-      config.transforms = false;
-      config.motionPath = false;
-      config.easing = 'linear'; // No easing for reduced motion
-    }
-
-    return config;
-  }, [settings, deviceTier, currentFps]);
-
-  return config;
+  const provider = useMyK9QProvider();
+  return useBaseAnimationSettings(provider);
 }
 
 /**
  * Get CSS animation properties based on configuration
  */
 export function useAnimationProps(config: AnimationConfig) {
-  return useMemo(() => {
-    if (!config.enabled) {
-      return {
-        transition: 'none',
-        animation: 'none',
-      };
-    }
-
-    const duration = `${300 * config.durationMultiplier}ms`;
-    const easing = config.easing;
-
-    return {
-      transitionDuration: duration,
-      transitionTimingFunction: easing,
-      willChange: config.gpuAcceleration ? 'transform, opacity' : 'auto',
-    };
-  }, [config]);
+  return useBaseAnimationProps(config);
 }
 
 /**
  * Get recommended animation duration
  */
-export function useAnimationDuration(
-  baseDuration: number = 300
-): number {
-  const config = useAnimationSettings();
-
-  if (!config.enabled) {
-    return 0;
-  }
-
-  return Math.round(baseDuration * config.durationMultiplier);
+export function useAnimationDuration(baseDuration: number = 300): number {
+  const provider = useMyK9QProvider();
+  return useBaseAnimationDuration(baseDuration, provider);
 }
 
 /**
@@ -202,56 +70,16 @@ export function useAnimationDuration(
 export function useCanAnimate(
   animationType: 'transform' | 'opacity' | 'blur' | 'shadow' | 'motionPath'
 ): boolean {
-  const config = useAnimationSettings();
-
-  if (!config.enabled) {
-    return false;
-  }
-
-  switch (animationType) {
-    case 'transform':
-      return config.transforms;
-    case 'opacity':
-      return config.opacity;
-    case 'blur':
-      return config.blur;
-    case 'shadow':
-      return config.shadows;
-    case 'motionPath':
-      return config.motionPath;
-    default:
-      return false;
-  }
+  const provider = useMyK9QProvider();
+  return useBaseCanAnimate(animationType, provider);
 }
 
 /**
  * Spring animation config based on device capabilities
  */
 export function useSpringConfig() {
-  const config = useAnimationSettings();
-
-  return useMemo(() => {
-    if (!config.enabled || config.reduced) {
-      return {
-        tension: 300,
-        friction: 30,
-        duration: 0,
-      };
-    }
-
-    // Adjust spring physics for device tier
-    if (config.targetFps <= 30) {
-      return {
-        tension: 200,
-        friction: 25,
-      };
-    }
-
-    return {
-      tension: 170,
-      friction: 26,
-    };
-  }, [config]);
+  const provider = useMyK9QProvider();
+  return useBaseSpringConfig(provider);
 }
 
 /**
@@ -261,97 +89,14 @@ export function useThrottledRaf(
   callback: (time: number) => void,
   enabled: boolean = true
 ): void {
-  const config = useAnimationSettings();
-
-  useEffect(() => {
-    if (!enabled || !config.enabled) {
-      return;
-    }
-
-    let rafId: number;
-    let lastTime = 0;
-    const interval = 1000 / config.targetFps;
-
-    const animate = (currentTime: number) => {
-      rafId = requestAnimationFrame(animate);
-
-      const delta = currentTime - lastTime;
-
-      if (delta >= interval) {
-        lastTime = currentTime - (delta % interval);
-        callback(currentTime);
-      }
-    };
-
-    rafId = requestAnimationFrame(animate);
-
-    return () => {
-      cancelAnimationFrame(rafId);
-    };
-  }, [callback, enabled, config]);
-}
-
-/**
- * Prefers reduced motion media query hook
- */
-export function usePrefersReducedMotion(): boolean {
-  const [prefersReduced, setPrefersReduced] = useState(
-    () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  );
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-
-    const handleChange = (e: MediaQueryListEvent) => {
-      setPrefersReduced(e.matches);
-    };
-
-    // Modern browsers
-    if (mediaQuery.addEventListener) {
-      mediaQuery.addEventListener('change', handleChange);
-      return () => mediaQuery.removeEventListener('change', handleChange);
-    }
-    // Legacy browsers
-    else if (mediaQuery.addListener) {
-      mediaQuery.addListener(handleChange);
-      return () => mediaQuery.removeListener(handleChange);
-    }
-
-    return () => {};
-  }, []);
-
-  return prefersReduced;
+  const provider = useMyK9QProvider();
+  return useBaseThrottledRaf(callback, enabled, provider);
 }
 
 /**
  * Get CSS class names for animation configuration
  */
 export function useAnimationClasses(): string {
-  const config = useAnimationSettings();
-
-  return useMemo(() => {
-    const classes: string[] = [];
-
-    if (!config.enabled) {
-      classes.push('no-animations');
-    }
-
-    if (config.reduced) {
-      classes.push('reduce-animations');
-    }
-
-    if (config.gpuAcceleration) {
-      classes.push('gpu-accelerated');
-    }
-
-    if (!config.blur) {
-      classes.push('no-blur');
-    }
-
-    if (!config.shadows) {
-      classes.push('no-shadows');
-    }
-
-    return classes.join(' ');
-  }, [config]);
+  const provider = useMyK9QProvider();
+  return useBaseAnimationClasses(provider);
 }

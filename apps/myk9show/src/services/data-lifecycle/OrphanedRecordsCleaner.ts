@@ -1,11 +1,10 @@
 /**
  * Orphaned Records Cleaner
- * 
+ *
  * Identifies and removes orphaned records that no longer have valid
  * relationships, helping maintain data integrity and reduce storage.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { logger } from '@/services/LoggingService';
 import { useDogStore } from '@/store/dogStore';
 import { useUserStore } from '@/store/userStore';
@@ -67,7 +66,7 @@ const DEFAULT_OPTIONS: CleanupOptions = {
 
 export class OrphanedRecordsCleaner {
   private options: CleanupOptions;
-  private backupData: Map<string, any[]> = new Map();
+  private backupData: Map<string, OrphanedRecord[]> = new Map();
   
   constructor(options: Partial<CleanupOptions> = {}) {
     this.options = { ...DEFAULT_OPTIONS, ...options };
@@ -231,7 +230,7 @@ export class OrphanedRecordsCleaner {
     // Check if registrations have a dogId field
     registrationStore.registrations.forEach(registration => {
       // Note: You may need to adjust this based on your actual registration structure
-      const dogId = (registration as any).dogId;
+      const dogId = (registration as { dogId?: string }).dogId;
       if (dogId && !dogIds.has(dogId)) {
         orphans.push({
           type: 'registration',
@@ -314,8 +313,8 @@ export class OrphanedRecordsCleaner {
       if (dogs.length > 1) {
         // Keep the newest, mark others as orphans (use dateOfBirth as fallback)
         const sorted = dogs.sort((a, b) => {
-          const dateA = new Date((a as any).createdAt || a.dateOfBirth || 0).getTime();
-          const dateB = new Date((b as any).createdAt || b.dateOfBirth || 0).getTime();
+          const dateA = new Date((a as { createdAt?: string }).createdAt || a.dateOfBirth || 0).getTime();
+          const dateB = new Date((b as { createdAt?: string }).createdAt || b.dateOfBirth || 0).getTime();
           return dateB - dateA;
         });
         
@@ -431,7 +430,7 @@ export class OrphanedRecordsCleaner {
   /**
    * Estimate the size of a record in bytes
    */
-  private estimateRecordSize(record: any): number {
+  private estimateRecordSize(record: unknown): number {
     try {
       return JSON.stringify(record).length;
     } catch {

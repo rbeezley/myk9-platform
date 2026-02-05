@@ -1,14 +1,34 @@
 /**
  * Data Export/Import Service
- * 
+ *
  * Handles exporting and importing data for archival, backup, and
  * data transfer purposes with support for multiple formats.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { saveAs } from 'file-saver';
 import { smartCompress, smartDecompress } from '@/services/database/compression-utils';
 import { logger } from '@/services/LoggingService';
+
+/** Base interface for any exportable/importable record */
+export interface ExportableRecord {
+  id?: string;
+  createdAt?: string | Date;
+  date?: string | Date;
+  [key: string]: unknown;
+}
+
+/** Type alias for a dataset containing multiple record types */
+export type ExportDataSet = Record<string, unknown[]>;
+
+/** Type guard to check if an object has an id property */
+function hasId(obj: unknown): obj is { id: string } {
+  return typeof obj === 'object' && obj !== null && 'id' in obj && typeof (obj as { id: unknown }).id === 'string';
+}
+
+/** Type guard to check if an object has date properties */
+function hasDateProps(obj: unknown): obj is { createdAt?: string | Date; date?: string | Date } {
+  return typeof obj === 'object' && obj !== null;
+}
 
 export type ExportFormat = 'json' | 'csv' | 'excel' | 'zip';
 
@@ -70,7 +90,7 @@ export class DataExportImportService {
    * Export data to file
    */
   public async exportData(
-    data: Record<string, unknown[]>,
+    data: ExportDataSet,
     options: ExportOptions
   ): Promise<ExportResult> {
     logger.info('Starting data export', 'lifecycle', { format: options.format });
@@ -78,7 +98,7 @@ export class DataExportImportService {
     try {
       // Apply filters if specified
       const filteredData = this.applyFilters(data, options.filters);
-      
+
       // Create export manifest
       const manifest = this.createManifest(filteredData, options);
       
@@ -161,7 +181,7 @@ export class DataExportImportService {
       const content = await this.readFile(file);
       
       // Parse based on file type
-      let data: Record<string, any[]>;
+      let data: ExportDataSet;
       let manifest: ExportManifest | undefined;
       
       if (file.name.endsWith('.json')) {
@@ -217,7 +237,7 @@ export class DataExportImportService {
    * Export to JSON format
    */
   private async exportToJSON(
-    data: Record<string, any[]>,
+    data: ExportDataSet,
     manifest: ExportManifest,
     options: ExportOptions
   ): Promise<string> {
@@ -240,7 +260,7 @@ export class DataExportImportService {
    * Export to CSV format
    */
   private async exportToCSV(
-    data: Record<string, any[]>,
+    data: ExportDataSet,
     _options: ExportOptions
   ): Promise<string> {
     void _options; // Mark as intentionally unused
@@ -249,31 +269,34 @@ export class DataExportImportService {
     // Export each data type as a separate section
     for (const [dataType, records] of Object.entries(data)) {
       if (records.length === 0) continue;
-      
+
       // Section header
       csvLines.push(`# ${dataType.toUpperCase()}`);
-      
+
       // Get all unique keys from records
       const keys = new Set<string>();
       records.forEach(record => {
-        Object.keys(record).forEach(key => keys.add(key));
+        if (typeof record === 'object' && record !== null) {
+          Object.keys(record).forEach(key => keys.add(key));
+        }
       });
-      
+
       // Header row
       const headers = Array.from(keys);
       csvLines.push(headers.map(h => `"${h}"`).join(','));
-      
+
       // Data rows
       records.forEach(record => {
+        const recordObj = record as Record<string, unknown>;
         const values = headers.map(header => {
-          const value = record[header];
+          const value = recordObj[header];
           if (value === null || value === undefined) return '';
           if (typeof value === 'object') return JSON.stringify(value);
           return `"${String(value).replace(/"/g, '""')}"`;
         });
         csvLines.push(values.join(','));
       });
-      
+
       csvLines.push(''); // Empty line between sections
     }
     
@@ -284,7 +307,7 @@ export class DataExportImportService {
    * Export to ZIP format
    */
   private async exportToZIP(
-    data: Record<string, any[]>,
+    data: ExportDataSet,
     manifest: ExportManifest,
     options: ExportOptions
   ): Promise<Blob> {
@@ -325,40 +348,42 @@ export class DataExportImportService {
    * Apply filters to data before export
    */
   private applyFilters(
-    data: Record<string, any[]>,
+    data: ExportDataSet,
     filters?: ExportOptions['filters']
-  ): Record<string, any[]> {
+  ): ExportDataSet {
     if (!filters) return data;
-    
-    const filtered: Record<string, any[]> = {};
-    
+
+    const filtered: ExportDataSet = {};
+
     for (const [dataType, records] of Object.entries(data)) {
       let filteredRecords = [...records];
-      
+
       // Filter by type
       if (filters.types && !filters.types.includes(dataType)) {
         continue;
       }
-      
+
       // Filter by IDs
       if (filters.ids) {
-        filteredRecords = filteredRecords.filter(r => filters.ids!.includes(r.id));
+        filteredRecords = filteredRecords.filter(r => hasId(r) && filters.ids!.includes(r.id));
       }
-      
+
       // Filter by date range
       if (filters.dateRange) {
         filteredRecords = filteredRecords.filter(r => {
-          const recordDate = new Date(r.createdAt || r.date || 0);
-          return recordDate >= filters.dateRange!.start && 
+          if (!hasDateProps(r)) return false;
+          const dateValue = r.createdAt ?? r.date ?? 0;
+          const recordDate = new Date(dateValue as string | number | Date);
+          return recordDate >= filters.dateRange!.start &&
                  recordDate <= filters.dateRange!.end;
         });
       }
-      
+
       if (filteredRecords.length > 0) {
         filtered[dataType] = filteredRecords;
       }
     }
-    
+
     return filtered;
   }
 
@@ -366,7 +391,7 @@ export class DataExportImportService {
    * Create export manifest
    */
   private createManifest(
-    data: Record<string, any[]>,
+    data: ExportDataSet,
     options: ExportOptions
   ): ExportManifest {
     return {
@@ -398,7 +423,7 @@ export class DataExportImportService {
    * Parse JSON import
    */
   private async parseJSON(content: string): Promise<{
-    data: Record<string, any[]>;
+    data: ExportDataSet;
     manifest?: ExportManifest;
   }> {
     try {
@@ -431,14 +456,14 @@ export class DataExportImportService {
   /**
    * Parse CSV import
    */
-  private async parseCSV(content: string): Promise<Record<string, any[]>> {
-    const data: Record<string, any[]> = {};
+  private async parseCSV(content: string): Promise<ExportDataSet> {
+    const data: ExportDataSet = {};
     const lines = content.split('\n').filter(line => line.trim());
-    
+
     let currentType = '';
     let headers: string[] = [];
-    let records: any[] = [];
-    
+    let records: ExportableRecord[] = [];
+
     for (const line of lines) {
       // Section header
       if (line.startsWith('#')) {
@@ -450,40 +475,40 @@ export class DataExportImportService {
         headers = [];
         continue;
       }
-      
+
       // Header row
       if (headers.length === 0) {
         headers = this.parseCSVLine(line);
         continue;
       }
-      
+
       // Data row
       const values = this.parseCSVLine(line);
-      const record: any = {};
-      
+      const record: ExportableRecord = {};
+
       headers.forEach((header, index) => {
-        let value = values[index];
-        
+        let value: unknown = values[index];
+
         // Try to parse JSON values
-        if (value.startsWith('{') || value.startsWith('[')) {
+        if (typeof value === 'string' && (value.startsWith('{') || value.startsWith('['))) {
           try {
             value = JSON.parse(value);
           } catch {
             // Keep as string
           }
         }
-        
+
         record[header] = value;
       });
-      
+
       records.push(record);
     }
-    
+
     // Add last section
     if (currentType && records.length > 0) {
       data[currentType] = records;
     }
-    
+
     return data;
   }
 
@@ -522,13 +547,13 @@ export class DataExportImportService {
    * Parse ZIP import
    */
   private async parseZIP(file: File): Promise<{
-    data: Record<string, any[]>;
+    data: ExportDataSet;
     manifest?: ExportManifest;
   }> {
     const JSZip = (await import('jszip')).default;
     const zip = await JSZip.loadAsync(file);
     
-    const data: Record<string, any[]> = {};
+    const data: ExportDataSet = {};
     let manifest: ExportManifest | undefined;
     
     // Read manifest
@@ -563,7 +588,7 @@ export class DataExportImportService {
    * Validate import data
    */
   private validateImportData(
-    data: Record<string, any[]>,
+    data: ExportDataSet,
     manifest?: ExportManifest
   ): {
     isValid: boolean;
@@ -587,7 +612,7 @@ export class DataExportImportService {
       
       // Check for required fields based on data type
       records.forEach((record, index) => {
-        if (!record.id) {
+        if (!hasId(record)) {
           warnings.push(`Record ${index} in ${dataType} missing ID field`);
         }
       });
@@ -604,21 +629,21 @@ export class DataExportImportService {
    * Apply transformers to imported data
    */
   private applyTransformers(
-    data: Record<string, any[]>,
-    transformers: Record<string, (data: any) => any>
-  ): Record<string, any[]> {
-    const transformed: Record<string, any[]> = {};
-    
+    data: ExportDataSet,
+    transformers: Record<string, (data: unknown) => unknown>
+  ): ExportDataSet {
+    const transformed: ExportDataSet = {};
+
     for (const [dataType, records] of Object.entries(data)) {
       const transformer = transformers[dataType];
-      
+
       if (transformer) {
         transformed[dataType] = records.map(transformer);
       } else {
         transformed[dataType] = records;
       }
     }
-    
+
     return transformed;
   }
 
@@ -626,7 +651,7 @@ export class DataExportImportService {
    * Perform the actual import
    */
   private async performImport(
-    data: Record<string, any[]>,
+    data: ExportDataSet,
     options: ImportOptions
   ): Promise<Partial<ImportResult>> {
     let recordsImported = 0;

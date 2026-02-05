@@ -1,12 +1,22 @@
 /**
  * Data Archive Service
- * 
+ *
  * Manages automatic archiving of completed shows and historical data
  * to reduce active memory footprint and improve performance.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { logger } from '@/services/LoggingService';
+
+/** Result from a show that can be archived */
+export interface ArchivableResult {
+  id?: string;
+  dogId: string;
+  handlerId: string;
+  className?: string;
+  placement: number;
+  score?: number;
+  [key: string]: unknown;
+}
 import { Show } from '@/types/show-types';
 import { Dog } from '@/types/dog-types';
 import { User } from '@/types/user-types';
@@ -125,7 +135,7 @@ export class DataArchiveService {
     entries: Entry[],
     dogs: Dog[],
     people: User[],
-    results: any[]
+    results: ArchivableResult[]
   ): Promise<ArchivedShow> {
     logger.info('Archiving show', 'archive', { showName: show.name, showId: show.id });
 
@@ -189,7 +199,7 @@ export class DataArchiveService {
     entries: Entry[];
     dogs: Dog[];
     people: User[];
-    results: any[];
+    results: ArchivableResult[];
   } | null> {
     const archived = this.archiveIndex.get(showId);
     if (!archived) {
@@ -234,7 +244,7 @@ export class DataArchiveService {
     entries: Entry[],
     dogs: Dog[],
     people: User[],
-    results: any[]
+    results: ArchivableResult[]
   ): ShowSummary {
     // Calculate statistics
     const breedCounts = new Map<string, number>();

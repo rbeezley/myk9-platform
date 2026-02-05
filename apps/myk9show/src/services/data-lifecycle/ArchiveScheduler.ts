@@ -1,16 +1,15 @@
 /**
  * Archive Scheduler
- * 
+ *
  * Automatically archives completed shows based on configured policies
  * and maintains optimal performance by moving historical data out of
  * active memory.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { DataArchiveService, getArchiveService } from './DataArchiveService';
+import { DataArchiveService, getArchiveService, ArchivableResult } from './DataArchiveService';
 import { logger } from '@/services/LoggingService';
 import { useShowStore } from '@/store/showStore';
-import { useEntryStore } from '@/store/entryStore';
+import { useEntryStore, type SyncableShowEntry } from '@/store/entryStore';
 import { useDogStore } from '@/store/dogStore';
 import { useUserStore } from '@/store/userStore';
 import { Show } from '@/types/show-types';
@@ -158,7 +157,7 @@ export class ArchiveScheduler {
       const people = userStore.people.filter(p => peopleIds.has(p.id));
       
       // TODO: Get actual results when results store is implemented
-      const results: any[] = [];
+      const results: ArchivableResult[] = [];
       
       // Archive the show
       await this.archiveService.archiveShow(
@@ -184,7 +183,7 @@ export class ArchiveScheduler {
   /**
    * Remove archived data from active stores
    */
-  private async removeArchivedData(show: Show, entries: any[]): Promise<void> {
+  private async removeArchivedData(show: Show, entries: SyncableShowEntry[]): Promise<void> {
     logger.debug('Removing archived data from active stores', 'archive', { showName: show.name });
     
     // Remove show

@@ -181,7 +181,7 @@ export default function RegistrationsSection({ dog, autoOpenAddDialog = false }:
         />
       ) : (
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any -- Schema mismatch: DB returns snake_case, domain uses camelCase */}
         {registrations.map((reg: any, idx: number) => (
           <SectionCard key={reg.id || idx} className="min-h-[170px] justify-between">
             <div className="absolute top-4 right-4 z-10">

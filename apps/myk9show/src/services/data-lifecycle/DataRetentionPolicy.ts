@@ -1,14 +1,35 @@
 /**
  * Data Retention Policy Manager
- * 
+ *
  * Defines and enforces data retention policies for different types
  * of data in the system, ensuring compliance and optimal performance.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable no-case-declarations */
 
 import { logger } from '@/services/LoggingService';
+
+/** Base interface for any entity that can have retention policies applied */
+export interface RetainableEntity {
+  id: string;
+  createdAt?: string | Date;
+  status?: string;
+  [key: string]: unknown;
+}
+
+/** Parameters that can be passed to retention actions */
+export interface RetentionActionParams {
+  afterDays?: number;
+  compress?: boolean;
+  keepSummary?: boolean;
+  fieldsToAnonymize?: string[];
+  keepNonIdentifying?: boolean;
+  format?: string;
+  includeMetadata?: boolean;
+  algorithm?: string;
+  level?: number;
+  [key: string]: unknown;
+}
 
 export interface RetentionPolicy {
   /** Unique identifier for the policy */
@@ -44,7 +65,7 @@ export interface RetentionRule {
   /** Action to take when condition is met */
   action: RetentionAction;
   /** Additional parameters for the action */
-  actionParams?: Record<string, any>;
+  actionParams?: RetentionActionParams;
 }
 
 export interface RetentionCondition {
@@ -54,7 +75,7 @@ export interface RetentionCondition {
   /** For status-based: target status */
   status?: string;
   /** For custom: function that returns boolean */
-  customCheck?: (item: any) => boolean;
+  customCheck?: (item: RetainableEntity) => boolean;
 }
 
 export type RetentionAction = 
@@ -214,13 +235,11 @@ export class DataRetentionPolicyManager {
       .sort((a, b) => b.priority - a.priority);
   }
 
-  /**
-   * Execute retention policies for a specific data type
-   */
-  public async executePolicies(
+  /** Handler function type for retention actions */
+  public async executePolicies<T extends RetainableEntity>(
     dataType: DataType,
-    items: any[],
-    actionHandlers: Record<RetentionAction, (item: any, params?: any) => Promise<void>>
+    items: T[],
+    actionHandlers: Record<RetentionAction, (item: T, params?: RetentionActionParams) => Promise<void>>
   ): Promise<RetentionExecutionResult[]> {
     const policies = this.getPoliciesForDataType(dataType);
     const results: RetentionExecutionResult[] = [];
@@ -237,10 +256,10 @@ export class DataRetentionPolicyManager {
   /**
    * Execute a single retention policy
    */
-  private async executePolicy(
+  private async executePolicy<T extends RetainableEntity>(
     policy: RetentionPolicy,
-    items: any[],
-    actionHandlers: Record<RetentionAction, (item: any, params?: any) => Promise<void>>
+    items: T[],
+    actionHandlers: Record<RetentionAction, (item: T, params?: RetentionActionParams) => Promise<void>>
   ): Promise<RetentionExecutionResult> {
     logger.info('Executing retention policy', 'lifecycle', { policyName: policy.name });
     
@@ -285,7 +304,7 @@ export class DataRetentionPolicyManager {
   /**
    * Evaluate if an item meets a retention condition
    */
-  private evaluateCondition(condition: RetentionCondition, item: any): boolean {
+  private evaluateCondition(condition: RetentionCondition, item: RetainableEntity): boolean {
     switch (condition.type) {
       case 'age':
         if (!condition.ageDays || !item.createdAt) return false;
@@ -321,7 +340,7 @@ export class DataRetentionPolicyManager {
     executionStats: {
       totalExecutions: number;
       totalItemsProcessed: number;
-      actionBreakdown: Record<RetentionAction, number>;
+      actionBreakdown: Partial<Record<RetentionAction, number>>;
       errorRate: number;
     };
     policySummary: Array<{
@@ -337,7 +356,7 @@ export class DataRetentionPolicyManager {
     
     // Aggregate execution stats
     let totalItemsProcessed = 0;
-    const actionBreakdown: Record<RetentionAction, number> = {} as any;
+    const actionBreakdown: Partial<Record<RetentionAction, number>> = {};
     let totalErrors = 0;
     
     this.executionHistory.forEach(exec => {

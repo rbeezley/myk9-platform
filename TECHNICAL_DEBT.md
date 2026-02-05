@@ -19,6 +19,8 @@
 | DEBT-011 | ✅ Complete | Audited: 143 TODOs (not 265), 0 BUG/HACK/FIXME |
 | DEBT-002 | 🔄 In Progress | BrowseShowsPage.tsx 1,296→562 lines (57% reduction) |
 | DEBT-002 | 🔄 In Progress | EntryManagementPage.tsx 1,428→435 lines (70% reduction) |
+| DEBT-002 | 🔄 In Progress | MyEntriesPage.tsx 1,027→351 lines (66% reduction) |
+| DEBT-002 | 🔄 In Progress | AdminDashboard.tsx 1,050→142 lines (86% reduction) |
 
 ### Sprint 25 Progress (2026-02-04)
 | Item | Status | Impact |
@@ -131,6 +133,15 @@ Critical because large files are high-churn areas blocking feature development a
   - Extracted: `EntryStatsCards.tsx`, `EntryFiltersCard.tsx`, `EntryListCard.tsx`
   - Extracted: `ArmbandDialog.tsx`, `AutoArmbandDialog.tsx`, `BulkCheckInDialog.tsx`
   - Extracted: `entryManagementUtils.ts`, `entry-management-types.ts`
+- ✅ **MyEntriesPage.tsx**: 1,027 → 351 lines (66% reduction)
+  - Extracted: `useMyEntriesData.ts`, `useMyEntriesFilters.ts`
+  - Extracted: `MyEntriesStatsCards.tsx`, `MyEntryCard.tsx`
+  - Extracted: `myEntriesUtils.tsx`, `my-entries-types.ts`
+- ✅ **AdminDashboard.tsx**: 1,050 → 142 lines (86% reduction)
+  - Extracted: `useAdminDashboardData.ts`, `useSystemHealthMetrics.ts`
+  - Extracted: `StatsCard.tsx`, `SystemHealthSection.tsx`
+  - Extracted: `PlatformAdministrationSection.tsx`, `PlatformStatisticsSection.tsx`
+  - Extracted: `admin-dashboard-types.ts`
 
 **Notes:**
 - Prioritize files in `pages/` and `services/scoring/` first (highest churn)

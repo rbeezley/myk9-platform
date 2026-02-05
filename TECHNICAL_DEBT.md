@@ -17,6 +17,8 @@
 | Item | Status | Impact |
 |------|--------|--------|
 | DEBT-011 | ✅ Complete | Audited: 143 TODOs (not 265), 0 BUG/HACK/FIXME |
+| DEBT-002 | 🔄 In Progress | BrowseShowsPage.tsx 1,296→562 lines (57% reduction) |
+| DEBT-002 | 🔄 In Progress | EntryManagementPage.tsx 1,428→435 lines (70% reduction) |
 
 ### Sprint 25 Progress (2026-02-04)
 | Item | Status | Impact |
@@ -113,11 +115,22 @@ Critical because large files are high-churn areas blocking feature development a
 **Dependencies:**
 - Related: DEBT-003 (Complex Functions), DEBT-007 (Deep Nesting)
 
-**Status:** Open
+**Status:** In Progress
 
-**Assignee:** Unassigned
+**Assignee:** Development Team
 
 **Target Resolution:** Q1 2026
+
+**Progress (Sprint 26):**
+- ✅ **BrowseShowsPage.tsx**: 1,296 → 562 lines (57% reduction)
+  - Extracted: `useBrowseShowsData.ts`, `useBrowseShowsFilters.ts`
+  - Extracted: `ShowsGridView.tsx`, `ShowsListView.tsx`
+  - Extracted: `browseShowsUtils.ts`
+- ✅ **EntryManagementPage.tsx**: 1,428 → 435 lines (70% reduction)
+  - Extracted: `useEntryManagementData.ts`, `useEntryManagementFilters.ts`, `useEntryManagementActions.ts`
+  - Extracted: `EntryStatsCards.tsx`, `EntryFiltersCard.tsx`, `EntryListCard.tsx`
+  - Extracted: `ArmbandDialog.tsx`, `AutoArmbandDialog.tsx`, `BulkCheckInDialog.tsx`
+  - Extracted: `entryManagementUtils.ts`, `entry-management-types.ts`
 
 **Notes:**
 - Prioritize files in `pages/` and `services/scoring/` first (highest churn)

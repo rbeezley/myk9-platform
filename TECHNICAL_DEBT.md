@@ -21,6 +21,8 @@
 | DEBT-002 | 🔄 In Progress | EntryManagementPage.tsx 1,428→435 lines (70% reduction) |
 | DEBT-002 | 🔄 In Progress | MyEntriesPage.tsx 1,027→351 lines (66% reduction) |
 | DEBT-002 | 🔄 In Progress | AdminDashboard.tsx 1,050→142 lines (86% reduction) |
+| DEBT-002 | 🔄 In Progress | ShowCreationWizardPage.tsx 1,006→466 lines (54% reduction) |
+| DEBT-002 | 🔄 In Progress | SecretaryDashboard.tsx 926→164 lines (82% reduction) |
 
 ### Sprint 25 Progress (2026-02-04)
 | Item | Status | Impact |
@@ -78,13 +80,20 @@
 
 **Location:**
 - Files: Multiple large files across both apps
-- Worst offenders (myK9Show):
-  - `types/supabase.ts` (3,695 lines)
+- Worst offenders (myK9Show) - remaining:
+  - `types/supabase.ts` (3,695 lines) - auto-generated
   - `types/performance-types.ts` (1,046 lines)
-  - `pages/BrowseShowsPage.tsx` (1,296 lines)
-  - `pages/MyEntriesPage.tsx` (1,028 lines)
   - `services/scoring/JudgeWorkflowManager.ts` (1,048 lines)
   - `services/scoring/ScoreValidatorService.ts` (1,049 lines)
+  - `pages/secretary/DayOfOperationsPage.tsx` (875 lines)
+  - `pages/ExhibitorProfilePage.tsx` (755 lines)
+- Refactored (myK9Show):
+  - ✅ `pages/BrowseShowsPage.tsx` (1,296 → 562 lines)
+  - ✅ `pages/MyEntriesPage.tsx` (1,027 → 351 lines)
+  - ✅ `pages/secretary/EntryManagementPage.tsx` (1,428 → 435 lines)
+  - ✅ `pages/admin/AdminDashboard.tsx` (1,050 → 142 lines)
+  - ✅ `pages/secretary/ShowCreationWizardPage.tsx` (1,006 → 466 lines)
+  - ✅ `pages/SecretaryDashboard.tsx` (926 → 164 lines)
 - Worst offenders (myK9Q):
   - `pages/EntryList/EntryList.tsx` (1,071 lines)
   - `pages/ClassList/ClassList.tsx` (1,033 lines)
@@ -142,6 +151,17 @@ Critical because large files are high-churn areas blocking feature development a
   - Extracted: `StatsCard.tsx`, `SystemHealthSection.tsx`
   - Extracted: `PlatformAdministrationSection.tsx`, `PlatformStatisticsSection.tsx`
   - Extracted: `admin-dashboard-types.ts`
+- ✅ **ShowCreationWizardPage.tsx**: 1,006 → 466 lines (54% reduction)
+  - Extracted: `show-creation-wizard-types.ts` (type definitions)
+  - Extracted: `showCreationWizardValidation.ts` (step validation logic)
+  - Extracted: `showCreationWizardTransformers.ts` (data transformation utilities)
+  - Extracted: `useShowCreationWizardActions.ts` (save/create handlers)
+- ✅ **SecretaryDashboard.tsx**: 926 → 164 lines (82% reduction)
+  - Extracted: `secretary-dashboard-types.ts` (type definitions)
+  - Extracted: `useSecretaryDashboardData.ts` (data hooks)
+  - Extracted: `secretaryDashboardUtils.tsx` (utility functions)
+  - Extracted: `StatisticsCards.tsx`, `TrialManagementTabs.tsx`
+  - Extracted: `QuickActionsSection.tsx`, `RecentActivitySection.tsx`
 
 **Notes:**
 - Prioritize files in `pages/` and `services/scoring/` first (highest churn)

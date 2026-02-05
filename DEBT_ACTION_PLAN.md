@@ -45,7 +45,7 @@ A comprehensive technical debt analysis revealed 30 debt items across the myK9 P
 
 ---
 
-### 2. Refactor Extremely Large Files (DEBT-002)
+### 2. Refactor Extremely Large Files (DEBT-002) 🔄 IN PROGRESS
 **Effort:** 5-8 days | **Impact:** Improve maintainability of 281 files
 
 **Problem:**
@@ -55,8 +55,23 @@ A comprehensive technical debt analysis revealed 30 debt items across the myK9 P
 
 **Action Plan:**
 1. **Phase 1 (Immediate):** Split generated types (`supabase.ts`) by domain
-2. **Phase 2 (Sprint 26):** Extract business logic from page components to hooks
+2. **Phase 2 (Sprint 26):** Extract business logic from page components to hooks ✅ IN PROGRESS
 3. **Phase 3 (Sprint 27):** Break large services into focused services
+
+**Sprint 26 Progress (2026-02-04):**
+| File | Before | After | Reduction |
+|------|--------|-------|-----------|
+| BrowseShowsPage.tsx | 1,296 | 562 | 57% |
+| EntryManagementPage.tsx | 1,428 | 435 | 70% |
+| MyEntriesPage.tsx | 1,027 | 351 | 66% |
+| AdminDashboard.tsx | 1,050 | 142 | 86% |
+| ClassEntriesTable.tsx | (refactored) | | |
+| ShowCreationWizardPage.tsx | 1,006 | 466 | 54% |
+| SecretaryDashboard.tsx | 926 | 164 | 82% |
+
+**Remaining Large Files (myK9Show):**
+- `DayOfOperationsPage.tsx` (875 lines)
+- `ExhibitorProfilePage.tsx` (755 lines)
 
 **Prioritization:**
 - Start with pages and services (highest churn)
@@ -343,12 +358,20 @@ myK9Q hooks now re-export from package for backward compatibility.
 
 ---
 
-### Sprint 26-27 (Following Month) - Code Quality
+### Sprint 26-27 (Following Month) - Code Quality 🔄 IN PROGRESS
 **Theme:** Refactor large files, simplify complexity
 **Effort:** 14-21 days
+**Status:** Sprint 26 actively in progress
 
-✅ **Improve maintainability:**
-1. DEBT-002: Refactor large files - Phase 1-2 (5-8 days) - **CRITICAL**
+🔄 **Improve maintainability:**
+1. DEBT-002: Refactor large files - Phase 2 (5-8 days) - **IN PROGRESS**
+   - ✅ BrowseShowsPage.tsx: 1,296 → 562 lines (57% reduction)
+   - ✅ EntryManagementPage.tsx: 1,428 → 435 lines (70% reduction)
+   - ✅ MyEntriesPage.tsx: 1,027 → 351 lines (66% reduction)
+   - ✅ AdminDashboard.tsx: 1,050 → 142 lines (86% reduction)
+   - ✅ ShowCreationWizardPage.tsx: 1,006 → 466 lines (54% reduction)
+   - ✅ SecretaryDashboard.tsx: 926 → 164 lines (82% reduction)
+   - 🔲 DayOfOperationsPage.tsx (875 lines)
 2. DEBT-009: Simplify complex functions (5-7 days)
 3. DEBT-010: Reduce deep nesting (3-5 days)
 4. DEBT-012: Remove console statements (1 day)
@@ -393,7 +416,7 @@ myK9Q hooks now re-export from package for backward compatibility.
 
 **Code Quality Metrics:**
 - [x] TypeScript strict mode: Enabled ✅ (143 files excluded for gradual migration)
-- [ ] Large files (>500 lines): <10 (currently 281)
+- [ ] Large files (>500 lines): <10 (currently 281, 6 refactored in Sprint 26)
 - [ ] Complex functions (complexity >10): <50 (currently 466)
 - [ ] Deep nesting (>4 levels): <100 (currently 971)
 - [x] `any` types: ~5 remaining ✅ (down from 52, remaining are schema mismatches)
@@ -624,13 +647,19 @@ Q2 2026: Services & cross-cutting (simplification, patterns)
 ---
 
 **Document Status:** Active
-**Next Review:** After Sprint 25 completion
+**Next Review:** After Sprint 26 completion
 **Last Updated:** 2026-02-04
 
 ## Change Log
 
 | Date | Change |
 |------|--------|
+| 2026-02-04 | **Sprint 26 Progress** - DEBT-002: 6 large files refactored (avg 65% reduction) |
+| 2026-02-04 | DEBT-002: ShowCreationWizardPage.tsx 1,006→466 lines (54% reduction) |
+| 2026-02-04 | DEBT-002: AdminDashboard.tsx 1,050→142 lines (86% reduction) |
+| 2026-02-04 | DEBT-002: MyEntriesPage.tsx 1,027→351 lines (66% reduction) |
+| 2026-02-04 | DEBT-002: EntryManagementPage.tsx 1,428→435 lines (70% reduction) |
+| 2026-02-04 | DEBT-002: BrowseShowsPage.tsx 1,296→562 lines (57% reduction) |
 | 2026-02-04 | **Sprint 25 Complete** - DEBT-005, DEBT-007 completed; 160 TODOs categorized |
 | 2026-02-04 | DEBT-007 completed - 10 hooks extracted to @myk9/scoring-ui, device detection to @myk9/core |
 | 2026-02-04 | DEBT-005 completed - 36+ `any` types fixed, 5 remaining are documented schema mismatches |

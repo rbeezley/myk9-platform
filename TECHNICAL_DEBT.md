@@ -1,17 +1,28 @@
 # Technical Debt Register
 
 **Project:** myK9 Platform Monorepo
-**Last Updated:** 2026-02-05 (Sprint 26)
+**Last Updated:** 2026-02-06 (Sprint 27)
 **Maintained By:** Development Team
 
 ## Summary
 
-- **Total Debt Items:** 24 (6 resolved in Sprint 25, 5 in Sprint 26)
+- **Total Debt Items:** 30 (14 resolved, 16 open)
 - **Critical:** 0 (was 2 - DEBT-001, DEBT-002 complete)
-- **High:** 4 (was 10 - DEBT-003, DEBT-005, DEBT-007, DEBT-009, DEBT-010, DEBT-011 addressed)
-- **Medium:** 13 (DEBT-012 resolved)
-- **Low:** 4
+- **High:** 4 open (DEBT-004, DEBT-006, DEBT-008, DEBT-015)
+- **Medium:** 8 open (DEBT-013, DEBT-014, DEBT-017, DEBT-018, DEBT-020, DEBT-021, DEBT-022, DEBT-024)
+- **Low:** 4 open (DEBT-019, DEBT-023, DEBT-025, DEBT-028)
+- **Resolved:** 14 (DEBT-001, 002, 003, 005, 007, 009, 010, 011, 012, 016, 026, 027, 029, 030)
 - **Estimated Total Effort:** 115-145 days (revised)
+
+### Sprint 27 Progress (2026-02-06)
+| Item | Status | Impact |
+|------|--------|--------|
+| DEBT-003 | ✅ Resolved | No real duplication found — architecture is correct |
+| DEBT-012 | ✅ Complete | Console statements far fewer than expected (11 not 192) |
+| DEBT-026 | ✅ Complete | Path aliases normalized, stale tsconfig entries removed |
+| DEBT-027 | ✅ Complete | Barrel file already organized; added missing sub-directory barrels |
+| DEBT-029 | ✅ Complete | Example components moved to docs/examples/ |
+| DEBT-030 | ✅ Complete | .excluded/ verified fully deleted |
 
 ### Sprint 26 Progress (2026-02-06)
 | Item | Status | Impact |
@@ -275,7 +286,7 @@ High because these are high-churn files that slow down all development work.
 **Location:**
 - `hooks/useIntelligentPreloading.ts` (5 instances)
 - `utils/enhancedLazyLoading.ts` (7 instances)
-- `services/.excluded/types.ts` (multiple instances)
+- ~~`services/.excluded/types.ts` (multiple instances)~~ — deleted (DEBT-030)
 
 **Description:**
 68 instances of `any` type in myK9Show reduce type safety. Examples include component props, promises, and data types.
@@ -1364,97 +1375,39 @@ Low because current code works, but would improve testability.
 
 ---
 
-### DEBT-026: Inconsistent Path Aliases
+### ~~DEBT-026: Inconsistent Path Aliases~~ ✅ COMPLETE
 
 **Category:** Developer Experience
 
-**Severity:** Low
+**Severity:** ~~Low~~ Resolved
 
 **Created:** 2026-02-03
 
-**Location:**
-- myK9Q: ~604 imports using `@/` alias
-- myK9Show: ~5,253 imports using `@/` alias
-- Both defined in local `tsconfig.app.json`
+**Status:** ✅ **COMPLETE** (2026-02-06)
 
-**Description:**
-Path aliases defined separately in each app but with same pattern. Could be centralized.
-
-**Impact:**
-- **Business Impact:** Minimal
-- **Technical Impact:** Slight duplication in config
-- **Risk:** Aliases could diverge
-
-**Root Cause:**
-Each app configured independently.
-
-**Proposed Solution:**
-1. Define shared path alias config in root tsconfig.json
-2. Extend in app-specific configs
-3. Consider additional aliases for packages
-
-**Effort Estimate:** 1 hour
-
-**Priority Justification:**
-Low because current approach works fine.
-
-**Dependencies:**
-- None
-
-**Status:** Open
-
-**Assignee:** Unassigned
-
-**Target Resolution:** Q3 2026
+**Resolution:**
+- Normalized myk9q path alias from `./src/*` to `src/*` (consistent with myk9show)
+- Removed stale `src/examples/**/*` and `src/examples/field-level-sync-example.ts` entries from myk9show tsconfig exclude list
+- Investigation confirmed centralization to root tsconfig is not beneficial — path aliases are correctly scoped to apps (packages use `package.json` exports, not path aliases), and myk9show's duplication across tsconfig.json/tsconfig.app.json is intentional (IDE resolution vs Vite compilation)
+- All 14 typecheck tasks pass
 
 ---
 
-### DEBT-027: Package Export Organization
+### ~~DEBT-027: Package Export Organization~~ ✅ COMPLETE
 
 **Category:** Architecture
 
-**Severity:** Low
+**Severity:** ~~Low~~ Resolved
 
 **Created:** 2026-02-03
 
-**Location:**
-- `packages/core/src/index.ts` (50+ top-level exports)
+**Status:** ✅ **COMPLETE** (2026-02-06)
 
-**Description:**
-@myk9/core exports 50+ items at top level without categorization. Makes it unclear what's available and what should be used.
-
-**Impact:**
-- **Business Impact:** Minimal
-- **Technical Impact:** Harder to discover available utilities
-- **Risk:** May import wrong utility
-
-**Root Cause:**
-Utilities added without export organization.
-
-**Proposed Solution:**
-1. Organize exports into categories:
-   ```typescript
-   export * as utils from './utils';
-   export * as hooks from './hooks';
-   export * as types from './types';
-   export * as constants from './constants';
-   ```
-2. Maintain backward compatibility with top-level exports
-3. Update documentation
-
-**Effort Estimate:** 2-3 hours
-
-**Priority Justification:**
-Low because current exports work fine.
-
-**Dependencies:**
-- None
-
-**Status:** Open
-
-**Assignee:** Unassigned
-
-**Target Resolution:** Q3 2026
+**Resolution:**
+- Investigation found the barrel file (index.ts) already has 9 labeled category sections with clear comments — the "no categorization" claim was inaccurate
+- Added missing barrel files for `utils/index.ts` and `types/index.ts` subdirectories (constants/ already had one)
+- Namespaced exports (`export * as utils`) rejected as it would be a breaking change for all consumers
+- 75 exports across 9 categories: Logger, Network, Entity Types, Class Status, Time Formatting, Date Formatting, Error Handling, Search/Filter, Device Detection
 
 ---
 
@@ -1507,126 +1460,56 @@ Low because monitoring works and doesn't cause issues.
 
 ---
 
-### DEBT-029: Examples Directory in Production App
+### ~~DEBT-029: Examples Directory in Production App~~ ✅ COMPLETE
 
 **Category:** Code Organization
 
-**Severity:** Low
+**Severity:** ~~Low~~ Resolved
 
 **Created:** 2026-02-03
 
-**Location:**
-- `apps/myk9show/src/examples/` directory
+**Status:** ✅ **COMPLETE** (2026-02-06)
 
-**Description:**
-Production app includes examples directory with usage examples. These should be in docs or separate examples package.
-
-**Files:**
-- `BatchProcessorUsage.ts` (558 lines)
-- `compression-usage.ts`
-- `DifferentialSyncExample.ts`
-- `field-level-sync-example.ts`
-
-**Impact:**
-- **Business Impact:** Minimal (examples not imported in prod)
-- **Technical Impact:** Increases bundle size if accidentally imported
-- **Risk:** Low
-
-**Root Cause:**
-Examples created for documentation purposes but left in app.
-
-**Proposed Solution:**
-1. Move examples to `docs/examples/` directory
-2. Or create `examples/` monorepo package
-3. Ensure not included in production bundle
-
-**Effort Estimate:** 1 hour
-
-**Priority Justification:**
-Low because examples not causing issues.
-
-**Dependencies:**
-- None
-
-**Status:** Open
-
-**Assignee:** Unassigned
-
-**Target Resolution:** Q3 2026
+**Resolution:**
+- Original `src/examples/` directory (4 files: BatchProcessorUsage.ts, compression-usage.ts, DifferentialSyncExample.ts, field-level-sync-example.ts) was already deleted in a prior session
+- Remaining `src/components/examples/` (CommandPaletteExample.tsx, RBACExample.tsx) moved to `docs/examples/` as reference code
+- No example files remain in production app source
 
 ---
 
-### DEBT-030: Excluded Services Directory
+### ~~DEBT-030: Excluded Services Directory~~ ✅ COMPLETE
 
 **Category:** Code Organization
 
-**Severity:** Medium
+**Severity:** ~~Medium~~ Resolved
 
 **Created:** 2026-02-03
 
-**Location:**
-- `apps/myk9show/src/services/.excluded/` directory
+**Status:** ✅ **COMPLETE** (2026-02-04)
 
-**Description:**
-Services directory contains `.excluded/` subdirectory with conflict resolution code. Unclear why excluded and whether it's used.
-
-**Files:**
-- `conflict/ConflictResolver.ts`
-- Other excluded services
-
-**Impact:**
-- **Business Impact:** Unclear if functionality is available
-- **Technical Impact:** Dead code or misplaced code
-- **Risk:** May contain important code that's not being used
-
-**Root Cause:**
-Code excluded during refactoring but not removed.
-
-**Proposed Solution:**
-1. Audit `.excluded/` directory
-2. If code is used, move to proper location
-3. If code is unused, delete it
-4. Document decision
-
-**Effort Estimate:** 2-3 hours
-
-**Priority Justification:**
-Medium because excluded code should be clarified.
-
-**Dependencies:**
-- Related: DEBT-003 (Replication Duplication)
-
-**Status:** Open
-
-**Assignee:** Unassigned
-
-**Target Resolution:** Sprint 26
-
-**Notes:**
-- Start with audit to understand purpose
-- ConflictResolver may be duplicate of package code
+**Resolution:**
+- `.excluded/` directory fully deleted — no files remain
+- No dangling imports or references to the directory anywhere in the codebase
+- Related DEBT-003 investigation confirmed the excluded code was unused dead code from early refactoring
 
 ---
 
 ## Debt Trends
 
 ### By Category
-- Code Quality: 6 items (DEBT-009, 010, 012, 018, 019, 029) - *4 resolved: DEBT-001, 002, 005, 011*
-- Architecture: 8 items (DEBT-004, 006, 008, 013, 014, 020, 024, 025, 028) - *4 resolved: DEBT-003, 007, 023, 030*
-- Test: 4 items (DEBT-015, 021, 022)
-- Documentation: 1 item (DEBT-017) - *1 resolved: DEBT-016*
-- Dependency: 0 items
-- Performance: 0 items
-- Security: 0 items
-- Infrastructure: 0 items
-- Code Organization: 1 item (DEBT-029) - *1 resolved: DEBT-030*
-- Developer Experience: 2 items (DEBT-026, 027)
+- Code Quality: 2 open (DEBT-018, 019) - *6 resolved: DEBT-001, 002, 005, 009, 010, 011*
+- Architecture: 7 open (DEBT-004, 006, 008, 013, 014, 020, 024) - *5 resolved: DEBT-003, 007, 025, 027, 028*
+- Test: 3 open (DEBT-015, 021, 022)
+- Documentation: 1 open (DEBT-017) - *1 resolved: DEBT-016*
+- Code Organization: 0 open - *2 resolved: DEBT-029, 030*
+- Developer Experience: 0 open - *2 resolved: DEBT-026, 012*
+- Low/Deferred: 3 open (DEBT-019, 023, 028)
 
 ### By Severity
 - Critical: 0 items *(DEBT-001, DEBT-002 resolved)*
-- High: 4 items (bloated stores, state fragmentation, service complexity, insufficient testing) *(DEBT-003, DEBT-009, DEBT-010 resolved)*
-- Medium: 13 items (console statements, over-engineered auth, notification duplication, ADRs, long parameters, inconsistent components, test organization, cross-app E2E, service patterns)
-- Low: 4 items (magic numbers, no @myk9/ui in myK9Q, service contracts, path aliases, export organization, performance monitoring, examples directory)
+- High: 4 open (DEBT-004, 006, 008, 015) *(DEBT-003, 005, 007, 009, 010 resolved)*
+- Medium: 8 open (DEBT-013, 014, 017, 018, 020, 021, 022, 024) *(DEBT-011, 012, 016, 030 resolved)*
+- Low: 4 open (DEBT-019, 023, 025, 028) *(DEBT-026, 027, 029 resolved)*
 
 ### By Estimated Effort
 - Quick wins (<1 day): 7 items
@@ -1686,7 +1569,7 @@ Medium because excluded code should be clarified.
 
 1. ✅ **DEBT-003:** Resolved — no real duplication (architecture is correct, see item notes)
 2. ✅ **DEBT-012:** Console statements audited and cleaned — far fewer than expected (11 in myK9Show, not 192)
-3. 🔲 **DEBT-030:** Audit .excluded directory (2-3 hours) — `.excluded/` already deleted, verify clean
+3. ✅ **DEBT-030:** Verified `.excluded/` directory fully deleted, no dangling references
 
 **Estimated effort:** 1-2 days
 **Impact:** Production-ready logging, codebase cleanup

@@ -63,7 +63,6 @@
     "src/hooks/useConflictResolution.ts",
     "src/hooks/useOptimisticUpdates.ts",
     "src/services/realtime/**/*",
-    "src/examples/field-level-sync-example.ts",
     "src/services/scoring/OfflineScoringService.ts",
     "src/components/scoring/JudgeSyncDashboard.tsx",
     "src/components/scoring/OfflineScoringModeIndicator.tsx",
@@ -183,7 +182,6 @@
     "src/services/sync/**/*",
     "src/store/offlineScoringStore.ts",
     "src/services/entries/OfflineEntryCreator.ts",
-    "src/examples/**/*",
     "src/components/scoring/RealtimeScoringInterface.tsx"
   ]
 }

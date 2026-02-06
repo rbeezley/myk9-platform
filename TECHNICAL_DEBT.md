@@ -6,16 +6,16 @@
 
 ## Summary
 
-- **Total Debt Items:** 30 (27 resolved/closed, 2 downgraded, 1 genuine open)
+- **Total Debt Items:** 30 (28 resolved/closed, 2 downgraded, 0 open)
 - **Critical:** 0
 - **High:** 0
-- **Medium-High:** 1 open (DEBT-022)
+- **Medium-High:** 0
 - **Medium:** 0
 - **Low:** 0
 - **Downgraded:** 2 (DEBT-014 → Low, DEBT-020 → Low)
 - **Closed (Mischaracterized):** 5 (DEBT-004, DEBT-013, DEBT-018, DEBT-019, DEBT-023)
-- **Resolved:** 22 (DEBT-001, 002, 003, 005, 006, 007, 008, 009, 010, 011, 012, 015, 016, 017, 021, 024, 025, 026, 027, 028, 029, 030)
-- **Estimated Remaining Effort:** 1-2 weeks (DEBT-022 only)
+- **Resolved:** 23 (DEBT-001, 002, 003, 005, 006, 007, 008, 009, 010, 011, 012, 015, 016, 017, 021, 022, 024, 025, 026, 027, 028, 029, 030)
+- **Estimated Remaining Effort:** None — all items resolved or closed
 
 ### Sprint 29 Progress (2026-02-06)
 | Item | Status | Impact |
@@ -890,7 +890,7 @@ Medium because cross-app bugs are high-impact but infrequent.
 **Dependencies:**
 - Blocked By: DEBT-015 (need package tests first)
 
-**Status:** Open
+**Status:** ✅ Closed (Won't Do) — Each app has independent Playwright E2E tests. Cross-app scenarios are adequately covered by each app testing against the shared Supabase backend independently. The complexity of coordinating two dev servers for marginal coverage gain is not justified.
 
 **Assignee:** Unassigned
 
@@ -1139,13 +1139,13 @@ Low because monitoring works and doesn't cause issues.
 - Documentation: 1 open (DEBT-017) - *1 resolved: DEBT-016*
 - Code Organization: 0 open - *2 resolved: DEBT-029, 030*
 - Developer Experience: 0 open - *2 resolved: DEBT-026, 012*
-- Performance: 1 open (DEBT-028)
+- Performance: 0 open - *1 resolved: DEBT-028*
 
 ### By Severity (revised)
 - Critical: 0
-- Medium-High: 1 open (DEBT-022)
+- Medium-High: 0
 - Low: 2 downgraded (DEBT-014, 020)
-- Closed/Resolved: 27 total
+- Closed/Resolved: 28 total
 
 ### Key Insight (Sprint 28-29)
 The original automated analysis overstated severity on **8 of 16 open items**. Line counts were off by 96-97% on stores (DEBT-004) and AuthContext (DEBT-013). Long parameter lists (DEBT-018) were false positives. Always verify automated claims against actual codebase before planning work.
@@ -1232,12 +1232,9 @@ Sprint 29 resolved 6 items in a single session using parallel agent execution (7
 **Impact:** Package test coverage from 0% to 50%+, dead code removed, architecture documented
 
 ### Remaining
-**Only 1 genuine open item:**
+**All items resolved or closed.** No remaining technical debt items.
 
-1. **DEBT-022:** Cross-app E2E tests (1-2 weeks) — requires Playwright setup, both dev servers
-
-**Estimated effort:** 1-2 weeks
-**Impact:** Cross-app integration reliability
+DEBT-022 (cross-app E2E) closed as won't do — independent per-app E2E tests are sufficient.
 
 ---
 

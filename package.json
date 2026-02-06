@@ -12,10 +12,12 @@
     "typecheck": "turbo typecheck",
     "lint": "turbo lint",
     "test": "turbo test",
+    "test:packages": "turbo test --filter=@myk9/core --filter=@myk9/replication --filter=@myk9/scoring --filter=@myk9/scoring-ui --filter=@myk9/supabase --filter=@myk9/ui",
     "clean": "turbo clean && rm -rf node_modules"
   },
   "devDependencies": {
-    "turbo": "^2.8.0"
+    "turbo": "^2.8.0",
+    "vitest": "^4.0.18"
   },
   "packageManager": "pnpm@9.15.9",
   "engines": {

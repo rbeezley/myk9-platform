@@ -20,6 +20,7 @@
     "build": "tsup src/index.ts --format esm --dts",
     "dev": "tsup src/index.ts --format esm --dts --watch",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "clean": "rimraf dist",
     "generate-types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > src/types/database.ts"
   },
@@ -28,11 +29,18 @@
   },
   "devDependencies": {
     "@myk9/core": "workspace:*",
+    "@myk9/test-utils": "workspace:*",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.10",
+    "@types/react-dom": "^19.2.3",
+    "jsdom": "^27.4.0",
     "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "rimraf": "^6.1.2",
     "tsup": "^8.5.1",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
   },
   "peerDependencies": {
     "react": ">=18.0.0"

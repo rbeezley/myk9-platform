@@ -7,14 +7,11 @@ import { offlineScoringService } from '../scoring/OfflineScoringService';
 import { scoreSyncProcessor } from '../sync/scoreSyncProcessor';
 import { debounce, throttle } from '@/utils/performance';
 import { generateId } from '@/utils/idUtils';
-import { realtimePerformanceMonitor } from '../performance/realtimePerformanceMonitor';
-import { uiPerformanceManager } from '../performance/uiPerformanceManager';
-import { 
-  optimizedChannelSubscribe, 
+import {
+  optimizedChannelSubscribe,
   setupOptimizedPresence,
   setupOptimizedListeners
 } from '../../utils/realtimeOptimization';
-import { performanceMonitor } from '../performance/PerformanceMonitor';
 import { eventEmitter } from '../sync/eventEmitter';
 // import type { SyncEventMap } from '../sync/types';
 
@@ -66,9 +63,6 @@ export class RealtimeScoringService {
     // Register the score sync processor with the shared sync queue
     syncQueue.registerProcessor(scoreSyncProcessor);
 
-    // Start performance monitoring
-    realtimePerformanceMonitor.startMonitoring();
-
     this.initialize();
   }
 
@@ -88,8 +82,6 @@ export class RealtimeScoringService {
   }
 
   private async setupChannels() {
-    const timerId = performanceMonitor.startTimer('realtime-channel-setup');
-    
     try {
       // Use optimized channel subscription with performance monitoring
       this.channel = await optimizedChannelSubscribe(
@@ -175,113 +167,79 @@ export class RealtimeScoringService {
         })
         .subscribe();
 
-      performanceMonitor.endTimer(timerId, { 
-        success: true,
-        channelsSetup: 2,
-        optimizationEnabled: this.isOptimizationEnabled
-      });
-
     } catch (error) {
       logger.error('Failed to setup realtime channels', 'realtime', {}, error as Error);
-      performanceMonitor.endTimer(timerId, { 
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
       this.scheduleReconnect();
     }
   }
 
-  // Score Update Handling with Performance Optimization
+  // Score Update Handling
   private handleScoreUpdate = throttle(
     async (...args: unknown[]) => {
-      const timerId = performanceMonitor.startTimer('score-update-handling');
-      
-      try {
-        const payload = args[0] as RealtimePostgresChangesPayload<BaseScore>;
-        const { eventType, new: newScore, old: oldScore } = payload as RealtimeScorePayload;
-        
-        // Use batched updates for better UI performance
-        uiPerformanceManager.batchRealtimeUpdate(() => {
-          // Emit real-time update event for performance monitoring
-          eventEmitter.emit('realtime:ui-update', {
-            type: 'score-update',
-            timestamp: Date.now(),
-            data: newScore || oldScore
+      const payload = args[0] as RealtimePostgresChangesPayload<BaseScore>;
+      const { eventType, new: newScore, old: oldScore } = payload as RealtimeScorePayload;
+
+      // Emit real-time update event
+      eventEmitter.emit('realtime:ui-update', {
+        type: 'score-update',
+        timestamp: Date.now(),
+        data: newScore || oldScore
+      });
+
+      // Update local cache based on event type
+      if (eventType === 'INSERT' || eventType === 'UPDATE') {
+        if (newScore) {
+          offlineScoringService.cacheScore(newScore as BaseScore).catch(err => {
+            logger.error('Failed to cache realtime score', 'realtime', {}, err as Error);
           });
 
-          // Update local cache based on event type
-          if (eventType === 'INSERT' || eventType === 'UPDATE') {
-            if (newScore) {
-              // Cache the score from realtime event
-              offlineScoringService.cacheScore(newScore as BaseScore).catch(err => {
-                logger.error('Failed to cache realtime score', 'realtime', {}, err as Error);
-              });
-
-              // If this score was in our sync queue, remove it (it's now synced)
-              const pendingScores = offlineScoringService.getPendingScores();
-              const matchingPending = pendingScores.find(
-                s => s.entryId === newScore.entryId && s.classId === newScore.classId
-              );
-              if (matchingPending && matchingPending.id) {
-                // Update local with server data
-                offlineScoringService.updateCacheWithServerData(
-                  matchingPending.id,
-                  newScore as BaseScore
-                ).catch(err => {
-                  logger.error('Failed to update cache with server data', 'realtime', {}, err as Error);
-                });
-              }
-            }
-          } else if (eventType === 'DELETE' && oldScore) {
-            // Remove deleted score from local cache
-            if (oldScore.id) {
-              offlineScoringService.removeScore(oldScore.id as string).catch(err => {
-                logger.error('Failed to remove score from cache', 'realtime', {}, err as Error);
-              });
-            }
-          }
-
-          // Check for conflicts if this is an update
-          if (eventType === 'UPDATE' && newScore && oldScore) {
-            this.detectScoringConflict(newScore, oldScore).then(conflict => {
-              if (conflict) {
-                this.handleScoringConflict(conflict);
-                return;
-              }
+          const pendingScores = offlineScoringService.getPendingScores();
+          const matchingPending = pendingScores.find(
+            s => s.entryId === newScore.entryId && s.classId === newScore.classId
+          );
+          if (matchingPending && matchingPending.id) {
+            offlineScoringService.updateCacheWithServerData(
+              matchingPending.id,
+              newScore as BaseScore
+            ).catch(err => {
+              logger.error('Failed to update cache with server data', 'realtime', {}, err as Error);
             });
           }
-
-          // Calculate new placements
-          if (newScore?.classId) {
-            // Broadcast placement updates - simplified without placement calculator
-            this.broadcastPlacementUpdate({
-              classId: newScore.classId,
-              entryId: newScore.entryId,
-              newPlacement: 1, // Placeholder placement
-              timestamp: new Date()
-            });
-          }
-
-          // Notify subscribers
-          this.notifySubscribers('score-update', {
-            eventType,
-            score: newScore || oldScore,
-            timestamp: new Date()
+        }
+      } else if (eventType === 'DELETE' && oldScore) {
+        if (oldScore.id) {
+          offlineScoringService.removeScore(oldScore.id as string).catch(err => {
+            logger.error('Failed to remove score from cache', 'realtime', {}, err as Error);
           });
-        });
-
-        performanceMonitor.endTimer(timerId, { 
-          success: true,
-          eventType,
-          scoreId: (newScore || oldScore)?.id
-        });
-      } catch (error) {
-        performanceMonitor.endTimer(timerId, { 
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown error'
-        });
-        throw error;
+        }
       }
+
+      // Check for conflicts if this is an update
+      if (eventType === 'UPDATE' && newScore && oldScore) {
+        this.detectScoringConflict(newScore, oldScore).then(conflict => {
+          if (conflict) {
+            this.handleScoringConflict(conflict);
+            return;
+          }
+        });
+      }
+
+      // Calculate new placements
+      if (newScore?.classId) {
+        this.broadcastPlacementUpdate({
+          classId: newScore.classId,
+          entryId: newScore.entryId,
+          newPlacement: 1,
+          timestamp: new Date()
+        });
+      }
+
+      // Notify subscribers
+      this.notifySubscribers('score-update', {
+        eventType,
+        score: newScore || oldScore,
+        timestamp: new Date()
+      });
     },
     this.config.throttleMs
   );
@@ -426,48 +384,30 @@ export class RealtimeScoringService {
     status: 'active' | 'idle' | 'offline' = 'active'
   ): Promise<void> {
     if (!this.channel) return;
-    
-    const timerId = performanceMonitor.startTimer('judge-presence-update');
-    
-    try {
-      // Setup optimized presence tracking if not already done
-      if (!this.presenceCleanup) {
-        this.presenceCleanup = setupOptimizedPresence(
-          this.channel,
-          {
-            judge_id: judgeId,
-            judge_name: judgeName,
-            class_id: classId,
-            last_activity: new Date().toISOString(),
-            status
-          },
-          {
-            heartbeatInterval: 30000, // 30 seconds
-            adaptiveHeartbeat: true
-          }
-        );
-      } else {
-        // Update existing presence
-        await this.channel.track({
+
+    if (!this.presenceCleanup) {
+      this.presenceCleanup = setupOptimizedPresence(
+        this.channel,
+        {
           judge_id: judgeId,
           judge_name: judgeName,
           class_id: classId,
           last_activity: new Date().toISOString(),
           status
-        });
-      }
-
-      performanceMonitor.endTimer(timerId, { 
-        success: true,
-        judgeId,
+        },
+        {
+          heartbeatInterval: 30000,
+          adaptiveHeartbeat: true
+        }
+      );
+    } else {
+      await this.channel.track({
+        judge_id: judgeId,
+        judge_name: judgeName,
+        class_id: classId,
+        last_activity: new Date().toISOString(),
         status
       });
-    } catch (error) {
-      performanceMonitor.endTimer(timerId, { 
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-      throw error;
     }
   }
 
@@ -711,86 +651,37 @@ export class RealtimeScoringService {
     }
   }
 
-  // Cleanup with Performance Optimization
   async disconnect() {
-    const timerId = performanceMonitor.startTimer('realtime-disconnect');
-    
-    try {
-      if (this.reconnectTimer) {
-        clearTimeout(this.reconnectTimer);
-      }
-      
-      // Cleanup optimized components
-      if (this.presenceCleanup) {
-        this.presenceCleanup();
-        this.presenceCleanup = null;
-      }
-      
-      if (this.listenersCleanup) {
-        this.listenersCleanup();
-        this.listenersCleanup = null;
-      }
-      
-      if (this.channel) {
-        await this.channel.unsubscribe();
-      }
-      
-      if (this.presenceChannel) {
-        await this.presenceChannel.unsubscribe();
-      }
-      
-      this.subscriptions.clear();
-      this.presenceStates.clear();
-      this.messageQueue = [];
-      this.isConnected = false;
-      
-      // Stop performance monitoring
-      realtimePerformanceMonitor.stopMonitoring();
-
-      performanceMonitor.endTimer(timerId, { success: true });
-    } catch (error) {
-      performanceMonitor.endTimer(timerId, { 
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-      throw error;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
     }
+
+    if (this.presenceCleanup) {
+      this.presenceCleanup();
+      this.presenceCleanup = null;
+    }
+
+    if (this.listenersCleanup) {
+      this.listenersCleanup();
+      this.listenersCleanup = null;
+    }
+
+    if (this.channel) {
+      await this.channel.unsubscribe();
+    }
+
+    if (this.presenceChannel) {
+      await this.presenceChannel.unsubscribe();
+    }
+
+    this.subscriptions.clear();
+    this.presenceStates.clear();
+    this.messageQueue = [];
+    this.isConnected = false;
   }
 
-  // Performance Configuration Methods
-  
-  /**
-   * Enable or disable performance optimizations
-   */
   setOptimizationEnabled(enabled: boolean): void {
     this.isOptimizationEnabled = enabled;
-    
-    if (enabled) {
-      realtimePerformanceMonitor.startMonitoring();
-    } else {
-      realtimePerformanceMonitor.stopMonitoring();
-    }
-  }
-
-  /**
-   * Get current performance metrics
-   */
-  getPerformanceMetrics() {
-    return realtimePerformanceMonitor.getMetrics();
-  }
-
-  /**
-   * Get performance summary
-   */
-  getPerformanceSummary() {
-    return realtimePerformanceMonitor.getPerformanceSummary();
-  }
-
-  /**
-   * Force performance optimization
-   */
-  forceOptimization(): void {
-    realtimePerformanceMonitor.forceOptimization();
   }
 
   // Helper methods for direct Supabase operations

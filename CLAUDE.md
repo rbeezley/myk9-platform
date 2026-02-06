@@ -145,6 +145,50 @@ const { sensors, handleDragStart, handleDragEnd } = useDragAndDropEntries({
 });
 ```
 
+## State Management
+
+### When to Use What
+
+| Tool | Use For | Examples |
+|------|---------|---------|
+| **Zustand** | Client/UI state shared across components | Modals, filters, selections, domain stores |
+| **React Query** | Server state, async data fetching | Lists, detail views, search results |
+| **React Context** | Cross-cutting concerns (rarely changes) | Auth/RBAC, theme, app-wide config |
+| **@myk9/replication** | Persistent data that must work offline | Show data, class entries, scores (myK9Q) |
+| **Local `useState`** | Ephemeral, component-scoped state | Form inputs, timers, dialog open/close |
+
+### Zustand Store Conventions
+
+- **Location:** `src/store/` (myK9Show) or `src/stores/` (myK9Q)
+- **Naming:** `use<Domain>Store` (e.g., `useShowStore`, `useScoringStore`)
+- **Actions as async:** Return `Promise` for operations that touch the database
+- **Optimistic updates:** Update Zustand state immediately, let replication sync in background
+- **myK9Q stores** use `devtools` + `persist` middleware (Zustand handles persistence)
+- **myK9Show stores** are plain Zustand (persistence handled by `@myk9/replication`)
+- **Shared stores** (`@myk9/scoring`) expose a factory + default instance:
+  ```typescript
+  export function createScoringStore(enableDevtools = false) { /* ... */ }
+  export const useScoringStore = createScoringStore();
+  ```
+
+### React Query Conventions (myK9Show)
+
+- **Query keys:** Use factories from `src/lib/queryClient.ts` (`queryKeys.dogs`, `queryKeys.dog(id)`)
+- **Cache strategies:** Apply predefined configs — `cacheStrategies.static` (30min), `.moderate` (5min), `.dynamic` (1min), `.realtime` (30s)
+- **Mutations:** Optimistic cache update in `onSuccess`, then invalidate related queries
+- **Query hooks:** Located in `src/hooks/queries/`
+
+### Context Providers (myK9Show)
+
+4 providers — `AuthContext` (auth + RBAC), `EnhancedThemeContext`, `RegistrationContext`, `ThemeContext`. Context is for global, rarely-changing state only. Don't add new contexts for domain data — use Zustand.
+
+### Anti-Patterns
+
+- Don't bypass `@myk9/replication` with direct Supabase calls in myK9Q (breaks offline)
+- Don't use `useState` for server data that should be cached (use React Query)
+- Don't add new Context providers for domain data (use Zustand stores)
+- Don't duplicate stores across apps — extract to a shared package
+
 ## Migration Status
 
 See [docs/MIGRATION-PLAN.md](docs/MIGRATION-PLAN.md) for detailed implementation plan.

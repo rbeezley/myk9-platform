@@ -6,13 +6,136 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { monitoring } from '../services/MonitoringService';
 import { logger } from '@/services/LoggingService';
-import {
-  performanceOptimizer,
-  PaginationOptions,
-  PaginatedResult,
-  VirtualizedResult,
-  PerformanceMetrics
-} from '@/services/performance/PerformanceOptimizer';
+
+export interface PaginationOptions {
+  page: number;
+  pageSize: number;
+  sortBy?: string;
+  sortDirection?: 'asc' | 'desc';
+  filters?: Record<string, unknown>;
+}
+
+export interface PaginatedResult<T> {
+  data: T[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    totalPages: number;
+    totalItems: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+}
+
+export interface VirtualizedResult<T> {
+  visibleItems: T[];
+  startIndex: number;
+  endIndex: number;
+  totalHeight: number;
+  scrollTop: number;
+}
+
+export interface PerformanceMetrics {
+  renderTime: number;
+  memoryUsage: number;
+  cacheHitRate: number;
+  queryTime: number;
+  totalRecords: number;
+  timestamp: number;
+}
+
+function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return path.split('.').reduce((current: any, key: string) => current?.[key], obj);
+}
+
+function paginateData<T>(
+  data: T[],
+  options: PaginationOptions
+): PaginatedResult<T> {
+  const { page, pageSize, sortBy, sortDirection = 'asc', filters = {} } = options;
+
+  let filteredData = data;
+  if (Object.keys(filters).length > 0) {
+    filteredData = data.filter(item => {
+      return Object.entries(filters).every(([key, value]) => {
+        if (value === null || value === undefined || value === '') return true;
+        const itemValue = getNestedValue(item as Record<string, unknown>, key);
+        if (typeof value === 'string' && typeof itemValue === 'string') {
+          return itemValue.toLowerCase().includes(value.toLowerCase());
+        }
+        return itemValue === value;
+      });
+    });
+  }
+
+  if (sortBy) {
+    filteredData = [...filteredData].sort((a, b) => {
+      const aValue = getNestedValue(a as Record<string, unknown>, sortBy);
+      const bValue = getNestedValue(b as Record<string, unknown>, sortBy);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if ((aValue as any) < (bValue as any)) return sortDirection === 'asc' ? -1 : 1;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if ((aValue as any) > (bValue as any)) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }
+
+  const totalItems = filteredData.length;
+  const totalPages = Math.ceil(totalItems / pageSize);
+  const startIndex = (page - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalItems);
+
+  return {
+    data: filteredData.slice(startIndex, endIndex),
+    pagination: {
+      page,
+      pageSize,
+      totalPages,
+      totalItems,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1
+    }
+  };
+}
+
+function createDebouncedSearch<T>(
+  searchFn: (query: string) => Promise<T[]>,
+  delay: number = 300
+): (query: string) => Promise<T[]> {
+  let timeoutId: NodeJS.Timeout | null = null;
+  return (query: string): Promise<T[]> => {
+    return new Promise((resolve, reject) => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(async () => {
+        try {
+          resolve(await searchFn(query));
+        } catch (error) {
+          reject(error);
+        }
+      }, delay);
+    });
+  };
+}
+
+function calculateVirtualizedItems<T>(
+  data: T[],
+  scrollTop: number,
+  config: { itemHeight: number; containerHeight: number; overscan: number }
+): VirtualizedResult<T> {
+  const { itemHeight, containerHeight, overscan } = config;
+  const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - overscan);
+  const visibleCount = Math.ceil(containerHeight / itemHeight);
+  const endIndex = Math.min(data.length - 1, startIndex + visibleCount + overscan * 2);
+
+  return {
+    visibleItems: data.slice(startIndex, endIndex + 1),
+    startIndex,
+    endIndex,
+    totalHeight: data.length * itemHeight,
+    scrollTop: startIndex * itemHeight
+  };
+}
 
 interface LayoutShift extends PerformanceEntry {
   value: number;
@@ -535,7 +658,7 @@ export function usePagination<T>(options: UsePaginationOptions) {
     // Use requestAnimationFrame to avoid blocking UI
     const timeoutId = setTimeout(() => {
       try {
-        const paginatedResult = performanceOptimizer.paginateData(data, paginationOptions);
+        const paginatedResult = paginateData(data, paginationOptions);
         setResult(paginatedResult as PaginatedResult<T>);
       } catch (error) {
         logger.error('Pagination error:', 'hooks', {}, error as Error);
@@ -554,7 +677,7 @@ export function usePagination<T>(options: UsePaginationOptions) {
 
     const interval = setInterval(() => {
       if (data.length > 0) {
-        const paginatedResult = performanceOptimizer.paginateData(data, paginationOptions);
+        const paginatedResult = paginateData(data, paginationOptions);
         setResult(paginatedResult as PaginatedResult<T>);
       }
     }, refreshInterval);
@@ -620,7 +743,7 @@ export function useDebouncedSearch<T>(
   const [error, setError] = useState<string | null>(null);
 
   const debouncedSearch = useMemo(() => {
-    return performanceOptimizer.createDebouncedSearch(searchFunction, debounceMs);
+    return createDebouncedSearch(searchFunction, debounceMs);
   }, [searchFunction, debounceMs]);
 
   useEffect(() => {
@@ -699,7 +822,7 @@ export function useAdvancedVirtualization<T>(options: {
       return;
     }
 
-    const virtualizedResult = performanceOptimizer.calculateVirtualizedItems(
+    const virtualizedResult = calculateVirtualizedItems(
       data,
       scrollTop,
       { itemHeight, containerHeight, overscan }
@@ -791,7 +914,7 @@ export function useChunkedProcessing<T, R>() {
  * Hook for performance metrics monitoring
  */
 export function usePerformanceMetrics() {
-  const [metrics, setMetrics] = useState<PerformanceMetrics[]>([]);
+  const [metrics] = useState<PerformanceMetrics[]>([]);
   const [summary, setSummary] = useState({
     avgRenderTime: 0,
     avgMemoryUsage: 0,
@@ -799,21 +922,7 @@ export function usePerformanceMetrics() {
     totalOperations: 0
   });
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const currentMetrics = performanceOptimizer.getMetrics();
-      const currentSummary = performanceOptimizer.getPerformanceSummary();
-      
-      setMetrics(currentMetrics.slice(-50)); // Keep last 50 metrics
-      setSummary(currentSummary);
-    }, 2000); // Update every 2 seconds
-
-    return () => clearInterval(interval);
-  }, []);
-
   const reset = useCallback(() => {
-    performanceOptimizer.reset();
-    setMetrics([]);
     setSummary({
       avgRenderTime: 0,
       avgMemoryUsage: 0,

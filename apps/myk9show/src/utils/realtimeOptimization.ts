@@ -6,7 +6,6 @@
  */
 
 import { RealtimeChannel } from '@supabase/supabase-js';
-import { performanceMonitor } from '../services/performance/PerformanceMonitor';
 import { eventEmitter } from '../services/sync/eventEmitter';
 import { logger } from '@/services/LoggingService';
 
@@ -121,24 +120,7 @@ class MessageBatcher {
     const batch = this.batches.get(channel);
     if (!batch || batch.messages.length === 0) return;
 
-    const timerId = performanceMonitor.startTimer('message-batch-processing', {
-      channel,
-      messageCount: batch.messages.length
-    });
-
-    try {
-      processFn(batch.messages);
-      
-      performanceMonitor.endTimer(timerId, { 
-        success: true,
-        processedCount: batch.messages.length
-      });
-    } catch (error) {
-      performanceMonitor.endTimer(timerId, { 
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
+    processFn(batch.messages);
 
     // Clear batch
     batch.messages = [];
@@ -177,37 +159,25 @@ class MessageCompressor {
     return MessageCompressor.instance;
   }
 
-  compressMessage(channel: string, message: RealtimeMessage): { 
-    compressed: RealtimeMessage; 
-    originalSize: number; 
-    compressedSize: number; 
-    ratio: number; 
+  compressMessage(channel: string, message: RealtimeMessage): {
+    compressed: RealtimeMessage;
+    originalSize: number;
+    compressedSize: number;
+    ratio: number;
   } {
-    const timerId = performanceMonitor.startTimer('message-compression', { channel });
-
     try {
       const originalData = JSON.stringify(message);
       const originalSize = new Blob([originalData]).size;
 
-      // Simple compression strategy (in real implementation, use actual compression)
       let compressedData = message;
       let compressionRatio = 0;
 
-      // Apply compression based on message type and size
-      if (originalSize > 1024) { // Only compress messages > 1KB
+      if (originalSize > 1024) {
         compressedData = this.applyCompression(message);
         const compressedSize = new Blob([JSON.stringify(compressedData)]).size;
         compressionRatio = 1 - (compressedSize / originalSize);
-        
-        // Update stats
         this.updateCompressionStats(channel, originalSize, compressedSize, compressionRatio);
       }
-
-      performanceMonitor.endTimer(timerId, { 
-        success: true,
-        originalSize,
-        compressionRatio
-      });
 
       return {
         compressed: compressedData,
@@ -215,13 +185,7 @@ class MessageCompressor {
         compressedSize: new Blob([JSON.stringify(compressedData)]).size,
         ratio: compressionRatio
       };
-    } catch (error) {
-      performanceMonitor.endTimer(timerId, { 
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-
-      // Return original message if compression fails
+    } catch {
       const originalSize = new Blob([JSON.stringify(message)]).size;
       return {
         compressed: message,
@@ -543,45 +507,23 @@ export async function optimizedChannelSubscribe(
     batchMessages?: boolean;
   } = {}
 ): Promise<RealtimeChannel> {
-  const timerId = performanceMonitor.startTimer('optimized-channel-subscribe', {
-    channelName,
-    options
-  });
-
-  try {
-    // Try to get from pool first
-    if (options.usePool !== false) {
-      const pooledChannel = connectionPool.getConnection(channelName);
-      if (pooledChannel) {
-        performanceMonitor.endTimer(timerId, { 
-          success: true, 
-          source: 'pool' 
-        });
-        return pooledChannel;
-      }
+  // Try to get from pool first
+  if (options.usePool !== false) {
+    const pooledChannel = connectionPool.getConnection(channelName);
+    if (pooledChannel) {
+      return pooledChannel;
     }
-
-    // Create new channel
-    const channel = createChannelFn();
-
-    // Add to pool
-    if (options.usePool !== false) {
-      connectionPool.addConnection(channelName, channel);
-    }
-
-    performanceMonitor.endTimer(timerId, { 
-      success: true, 
-      source: 'new' 
-    });
-
-    return channel;
-  } catch (error) {
-    performanceMonitor.endTimer(timerId, { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
-    });
-    throw error;
   }
+
+  // Create new channel
+  const channel = createChannelFn();
+
+  // Add to pool
+  if (options.usePool !== false) {
+    connectionPool.addConnection(channelName, channel);
+  }
+
+  return channel;
 }
 
 /**
@@ -597,62 +539,38 @@ export function optimizedMessageSend(
     priority?: 'high' | 'normal' | 'low';
   } = {}
 ): void {
-  const timerId = performanceMonitor.startTimer('optimized-message-send', {
-    event,
-    options
-  });
+  let optimizedPayload = payload;
 
-  try {
-    let optimizedPayload = payload;
-
-    // Apply compression if enabled
-    if (options.enableCompression) {
-      const compressed = messageCompressor.compressMessage(channel.topic, payload);
-      optimizedPayload = compressed.compressed;
-    }
-
-    // Send immediately for high priority or if batching disabled
-    if (options.priority === 'high' || !options.batchMessages) {
-      channel.send({
-        type: 'broadcast',
-        event,
-        payload: optimizedPayload
-      });
-
-      performanceMonitor.endTimer(timerId, { 
-        success: true, 
-        method: 'immediate' 
-      });
-      return;
-    }
-
-    // Add to batch for normal/low priority
-    messageBatcher.addMessage(
-      channel.topic,
-      { event, payload: optimizedPayload },
-      (messages) => {
-        // Send batched messages
-        messages.forEach(msg => {
-          channel.send({
-            type: 'broadcast',
-            event: String(msg.event),
-            payload: msg.payload
-          });
-        });
-      }
-    );
-
-    performanceMonitor.endTimer(timerId, { 
-      success: true, 
-      method: 'batched' 
-    });
-  } catch (error) {
-    performanceMonitor.endTimer(timerId, { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
-    });
-    throw error;
+  // Apply compression if enabled
+  if (options.enableCompression) {
+    const compressed = messageCompressor.compressMessage(channel.topic, payload);
+    optimizedPayload = compressed.compressed;
   }
+
+  // Send immediately for high priority or if batching disabled
+  if (options.priority === 'high' || !options.batchMessages) {
+    channel.send({
+      type: 'broadcast',
+      event,
+      payload: optimizedPayload
+    });
+    return;
+  }
+
+  // Add to batch for normal/low priority
+  messageBatcher.addMessage(
+    channel.topic,
+    { event, payload: optimizedPayload },
+    (messages) => {
+      messages.forEach(msg => {
+        channel.send({
+          type: 'broadcast',
+          event: String(msg.event),
+          payload: msg.payload
+        });
+      });
+    }
+  );
 }
 
 /**

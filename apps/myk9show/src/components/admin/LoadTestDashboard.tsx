@@ -19,47 +19,33 @@ import {
   Square,
   Trash2,
   BarChart3,
-  HardDrive,
   Timer,
-  Database,
   TrendingUp,
   AlertTriangle,
-  CheckCircle,
   RefreshCw
 } from 'lucide-react';
 
 import { getLoadTestService, type LoadTestConfig, type LoadTestResults } from '@/services/testing/LoadTestService';
-import { getDataEvictionService, type EvictionResult } from '@/services/performance/DataEvictionService';
 import { getRumService } from '@/services/performance/RealUserMonitoring';
 
 export function LoadTestDashboard() {
   const [isRunning, setIsRunning] = useState(false);
   const [currentTest, setCurrentTest] = useState<string | null>(null);
   const [results, setResults] = useState<(LoadTestResults & { scenario: string })[]>([]);
-  const [evictionResults, setEvictionResults] = useState<EvictionResult | null>(null);
   const [keepTestData, setKeepTestData] = useState(false);
   const [memoryStats, setMemoryStats] = useState<{
-    currentMemory?: number;
-    accessLogSize?: number;
-    thresholdExceeded?: boolean;
-    config?: {
-      memoryThresholdMB?: number;
-      inactivityThresholdHours?: number;
-    };
     session?: {
       totalTime: number;
     };
   } | null>(null);
 
   const loadTestService = getLoadTestService();
-  const evictionService = getDataEvictionService();
   const rumService = getRumService();
 
   const updateMemoryStats = useCallback(() => {
-    const stats = evictionService.getEvictionStats();
     const session = rumService.getSessionData();
-    setMemoryStats({ ...stats, session });
-  }, [evictionService, rumService]);
+    setMemoryStats({ session });
+  }, [rumService]);
 
   useEffect(() => {
     updateMemoryStats();
@@ -129,19 +115,8 @@ export function LoadTestDashboard() {
     }
   };
 
-  const runDataEviction = async () => {
-    try {
-      const result = await evictionService.forceEviction();
-      setEvictionResults(result);
-      updateMemoryStats();
-    } catch (error) {
-      logger.error('Eviction failed:', 'admin', {}, error as Error);
-    }
-  };
-
   const clearResults = () => {
     setResults([]);
-    setEvictionResults(null);
   };
 
   const manualCleanup = async () => {
@@ -178,42 +153,8 @@ export function LoadTestDashboard() {
             </Button>
           </div>
 
-      {/* Memory Status Overview */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardContent className="flex items-center p-6">
-            <HardDrive className="h-8 w-8 text-blue-600 mr-3" />
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Memory Usage</p>
-              <p className="text-2xl font-bold">{memoryStats?.currentMemory?.toFixed(1) || '0'} MB</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="flex items-center p-6">
-            <Activity className="h-8 w-8 text-green-600 mr-3" />
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Access Tracking</p>
-              <p className="text-2xl font-bold">{memoryStats?.accessLogSize || 0}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="flex items-center p-6">
-            <AlertTriangle className={`h-8 w-8 mr-3 ${
-              memoryStats?.thresholdExceeded ? 'text-red-600' : 'text-green-600'
-            }`} />
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Memory Status</p>
-              <Badge variant={memoryStats?.thresholdExceeded ? 'destructive' : 'secondary'}>
-                {memoryStats?.thresholdExceeded ? 'High' : 'Normal'}
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
-
+      {/* Session Overview */}
+      <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardContent className="flex items-center p-6">
             <Timer className="h-8 w-8 text-purple-600 mr-3" />
@@ -228,20 +169,14 @@ export function LoadTestDashboard() {
       </div>
 
       <Tabs defaultValue="load-tests" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1">
-          <TabsTrigger 
+        <TabsList className="grid w-full grid-cols-2 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1">
+          <TabsTrigger
             value="load-tests"
             className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
           >
             Load Testing
           </TabsTrigger>
-          <TabsTrigger 
-            value="memory-management"
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
-          >
-            Memory Management
-          </TabsTrigger>
-          <TabsTrigger 
+          <TabsTrigger
             value="results"
             className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
           >
@@ -354,84 +289,6 @@ export function LoadTestDashboard() {
                   </Card>
                 ))}
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="memory-management" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Database className="h-5 w-5" />
-                Data Eviction Control
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Memory Threshold</label>
-                  <div className="text-2xl font-bold">
-                    {memoryStats?.config?.memoryThresholdMB || 100} MB
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Eviction starts when memory exceeds this limit
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Inactivity Threshold</label>
-                  <div className="text-2xl font-bold">
-                    {memoryStats?.config?.inactivityThresholdHours || 24}h
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Data not accessed for this duration is eligible for eviction
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                <Button onClick={runDataEviction} className="flex-1">
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Run Data Eviction
-                </Button>
-              </div>
-
-              {evictionResults && (
-                <Card className="p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <CheckCircle className="h-5 w-5 text-green-600" />
-                    <h4 className="font-medium">Eviction Results</h4>
-                  </div>
-                  <div className="grid gap-2 md:grid-cols-3">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Items Evicted</p>
-                      <p className="text-lg font-bold">{evictionResults.itemsEvicted}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Memory Freed</p>
-                      <p className="text-lg font-bold">{evictionResults.memoryFreedMB.toFixed(1)} MB</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Status</p>
-                      <Badge variant={evictionResults.success ? 'secondary' : 'destructive'}>
-                        {evictionResults.success ? 'Success' : 'Failed'}
-                      </Badge>
-                    </div>
-                  </div>
-                  {Object.keys(evictionResults.categories).length > 0 && (
-                    <div className="mt-3">
-                      <p className="text-sm text-muted-foreground mb-2">Categories:</p>
-                      <div className="space-y-1">
-                        {Object.entries(evictionResults.categories).map(([category, count]) => (
-                          <div key={category} className="flex justify-between text-sm">
-                            <span className="capitalize">{category}</span>
-                            <span className="font-medium">{count}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </Card>
-              )}
             </CardContent>
           </Card>
         </TabsContent>

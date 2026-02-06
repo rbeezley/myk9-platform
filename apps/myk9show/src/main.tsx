@@ -9,9 +9,6 @@ import { QueryProvider } from './providers/QueryProvider';
 import { logger } from '@/services/LoggingService';
 import { initializeSettings } from './stores/settingsStore';
 
-// Performance Optimization Imports (DISABLED FOR DEBUGGING)
-// import { initializePerformanceOptimization } from './services/performance/PerformanceIntegrator';
-
 // Initialize settings (applies accent color, theme, etc. from localStorage)
 initializeSettings();
 
@@ -26,13 +23,7 @@ if (import.meta.env.DEV && 'serviceWorker' in navigator) {
   });
 }
 
-// Initialize performance optimization as early as possible (DISABLED FOR DEBUGGING)
-logger.debug('🚀 Starting myK9Show (performance optimization disabled for debugging)...', 'app', {});
-// Temporarily disabled to fix 404 loading issue
-// initializePerformanceOptimization().catch(error => {
-//   logger.error('Performance optimization failed:', 'app', {}, error as Error);
-//   // Continue with app initialization even if performance optimization fails
-// });
+logger.debug('Starting myK9Show...', 'app', {});
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

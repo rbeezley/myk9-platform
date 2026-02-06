@@ -20,6 +20,7 @@
     "build": "tsup src/index.ts --format esm --dts",
     "dev": "tsup src/index.ts --format esm --dts --watch",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "clean": "rimraf dist"
   },
   "dependencies": {
@@ -28,9 +29,12 @@
   "devDependencies": {
     "@myk9/core": "workspace:*",
     "@myk9/supabase": "workspace:*",
+    "@myk9/test-utils": "workspace:*",
+    "fake-indexeddb": "^6.2.5",
+    "rimraf": "^6.1.2",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
-    "rimraf": "^6.1.2"
+    "vitest": "^4.0.18"
   },
   "peerDependencies": {
     "@supabase/supabase-js": ">=2.0.0"

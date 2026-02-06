@@ -9,11 +9,8 @@
 import { logger } from '@/services/LoggingService';
 import { errorMonitor } from '../../lib/errorMonitoring';
 import { BackoffCalculator } from '../../lib/connectionRecovery';
-import { syncPerformanceOptimizer } from '../performance/syncPerformanceOptimizer';
-import { performanceMonitor } from '../performance/PerformanceMonitor';
 import { eventEmitter } from './eventEmitter';
-import type { SyncQueueItem, SyncOperation } from '../../types/sync-types';
-import { SyncPriority, SyncStatus } from '../../types/performance-types';
+import type { SyncQueueItem } from '../../types/sync-types';
 import type { SyncProcessor, SyncProcessorResult } from './types/processor';
 
 export interface SyncQueueConfig {
@@ -81,10 +78,6 @@ export class SyncQueue {
 
     this.metrics = this.initializeMetrics();
     this.loadFromStorage();
-    
-    // Start performance optimization
-    syncPerformanceOptimizer.startOptimization();
-    
     this.startProcessing();
   }
 
@@ -163,90 +156,7 @@ export class SyncQueue {
    * Get next batch of items to process with performance optimization
    */
   async dequeueBatch(): Promise<SyncQueueItem[]> {
-    const timerId = performanceMonitor.startTimer('sync-queue-dequeue-batch');
-    
-    try {
-      if (this.queue.length === 0) {
-        performanceMonitor.endTimer(timerId, { success: true, batchSize: 0 });
-        return [];
-      }
-
-      // Get items that are not currently being processed
-      const availableItems = this.queue.filter(
-        item => item.status === 'pending' && !this.processingItems.has(item.id)
-      );
-
-      if (availableItems.length === 0) {
-        performanceMonitor.endTimer(timerId, { success: true, batchSize: 0, reason: 'no-available-items' });
-        return [];
-      }
-
-      // Convert SyncQueueItem[] to SyncOperation[] for optimization
-      const operations: SyncOperation[] = availableItems.map(item => ({
-        id: item.id,
-        entityType: item.entityType,
-        entityId: item.entityId,
-        operation: item.actionType,
-        data: item.data,
-        timestamp: item.timestamp.getTime(),
-        clientId: item.userId,
-        version: 1, // Default version
-      }));
-
-      // Apply performance optimization to the queue
-      // Convert sync-types operations to performance-types format
-      const performanceOperations = operations.map(op => ({
-        id: op.id,
-        entityType: op.entityType,
-        entityId: op.entityId,
-        action: op.operation as 'create' | 'update' | 'delete',
-        data: op.data,
-        priority: SyncPriority.NORMAL,
-        status: SyncStatus.PENDING,
-        timestamp: new Date(op.timestamp)
-      }));
-      
-      const optimizedOperations = await syncPerformanceOptimizer.optimizeSyncQueue(performanceOperations);
-      
-      // Convert back to SyncQueueItem[]
-      const optimizedItems = optimizedOperations.map(op => 
-        availableItems.find(item => item.id === op.id)!
-      ).filter(Boolean);
-
-      // Get batch with optimized ordering
-      const batch = optimizedItems.slice(0, this.config.batchSize);
-
-      // Mark as processing
-      batch.forEach(item => {
-        item.status = 'processing';
-        this.processingItems.add(item.id);
-      });
-
-      // Emit sync operation started events
-      batch.forEach(item => {
-        eventEmitter.emit('sync:operation-started', {
-          operation: item,
-          timestamp: Date.now()
-        });
-      });
-
-      performanceMonitor.endTimer(timerId, { 
-        success: true, 
-        batchSize: batch.length,
-        availableItems: availableItems.length,
-        optimized: true
-      });
-
-      return batch;
-    } catch (error) {
-      performanceMonitor.endTimer(timerId, { 
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-      
-      // Fallback to original logic
-      return this.dequeueBatchFallback();
-    }
+    return this.dequeueBatchFallback();
   }
 
   /**
@@ -295,60 +205,42 @@ export class SyncQueue {
    * Mark item as completed and remove from queue
    */
   markCompleted(itemId: string): void {
-    const timerId = performanceMonitor.startTimer('sync-queue-mark-completed');
-    
-    try {
-      const index = this.queue.findIndex(item => item.id === itemId);
-      if (index === -1) {
-        performanceMonitor.endTimer(timerId, { success: false, reason: 'item-not-found' });
-        return;
-      }
+    const index = this.queue.findIndex(item => item.id === itemId);
+    if (index === -1) return;
 
-      const item = this.queue[index];
-      item.status = 'completed';
-      item.processedAt = new Date();
+    const item = this.queue[index];
+    item.status = 'completed';
+    item.processedAt = new Date();
 
-      // Update metrics
-      this.metrics.itemsProcessed++;
-      const processingTime = Date.now() - item.timestamp.getTime();
-      this.metrics.averageProcessingTime = 
-        (this.metrics.averageProcessingTime + processingTime) / 2;
-      this.metrics.lastProcessedAt = new Date();
+    // Update metrics
+    this.metrics.itemsProcessed++;
+    const processingTime = Date.now() - item.timestamp.getTime();
+    this.metrics.averageProcessingTime =
+      (this.metrics.averageProcessingTime + processingTime) / 2;
+    this.metrics.lastProcessedAt = new Date();
 
-      // Remove from processing set and queue
-      this.processingItems.delete(itemId);
-      this.queue.splice(index, 1);
+    // Remove from processing set and queue
+    this.processingItems.delete(itemId);
+    this.queue.splice(index, 1);
 
-      // Clear retry timer if exists
-      const retryTimer = this.retryTimers.get(itemId);
-      if (retryTimer) {
-        clearTimeout(retryTimer);
-        this.retryTimers.delete(itemId);
-      }
+    // Clear retry timer if exists
+    const retryTimer = this.retryTimers.get(itemId);
+    if (retryTimer) {
+      clearTimeout(retryTimer);
+      this.retryTimers.delete(itemId);
+    }
 
-      // Emit completion event
-      eventEmitter.emit('sync:operation-completed', {
-        operation: item,
-        processingTime,
-        timestamp: Date.now()
-      });
+    // Emit completion event
+    eventEmitter.emit('sync:operation-completed', {
+      operation: item,
+      processingTime,
+      timestamp: Date.now()
+    });
 
-      logger.debug('Sync item completed', 'sync', { itemId });
-      
-      if (this.config.persistenceEnabled) {
-        this.saveToStorage();
-      }
+    logger.debug('Sync item completed', 'sync', { itemId });
 
-      performanceMonitor.endTimer(timerId, { 
-        success: true,
-        processingTime
-      });
-    } catch (error) {
-      performanceMonitor.endTimer(timerId, { 
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-      throw error;
+    if (this.config.persistenceEnabled) {
+      this.saveToStorage();
     }
   }
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, Play, Coffee, CheckCircle, Settings, Calendar, Circle, WifiOff, AlertTriangle, UserX } from 'lucide-react';
+import { logger } from '@/utils/logger';
 import { DialogContainer } from './DialogContainer';
 import './shared-dialog.css';
 import './ClassStatusDialog.css';
@@ -169,7 +170,7 @@ export const ClassStatusDialog: React.FC<ClassStatusDialogProps> = ({
       onStatusChange('completed');
       onClose();
     } catch (error) {
-      console.error('Failed to mark entries as absent:', error);
+      logger.error('Failed to mark entries as absent:', error);
     } finally {
       setIsMarkingAbsent(false);
       setShowAbsentConfirmation(false);

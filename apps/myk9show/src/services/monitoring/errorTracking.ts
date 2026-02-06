@@ -37,7 +37,7 @@ class ErrorTracker {
       import.meta.env.VITE_SENTRY_DSN;
 
     if (!shouldTrack) {
-      console.info('📊 Error tracking disabled');
+      logger.info('Error tracking disabled');
       return;
     }
 

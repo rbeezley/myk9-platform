@@ -21,6 +21,7 @@ import {
   conflictManager,
   type ConflictEvent
 } from '@myk9/replication';
+import { logger } from '@myk9/core';
 
 /**
  * Main analytics service class providing comprehensive sync monitoring capabilities
@@ -175,7 +176,7 @@ export class SyncAnalyticsService {
   public emit(eventType: string, data: unknown): void {
     // This is a placeholder for event emission functionality
     // In a real implementation, this would use EventEmitter or similar
-    console.debug(`Analytics event: ${eventType}`, data);
+    logger.debug(`Analytics event: ${eventType}`, data);
   }
 
   /**

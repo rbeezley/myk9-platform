@@ -9,6 +9,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { supabase } from '../../../lib/supabase';
+import { logger } from '@/utils/logger';
 import type {
   ScheduleRole,
   Volunteer,
@@ -232,7 +233,7 @@ export function useScheduleBoard() {
                 setSyncingCount(c => c - 1);
               })
               .catch(err => {
-                console.error('[useScheduleBoard] Migration failed:', err);
+                logger.error('[useScheduleBoard] Migration failed:', err);
                 isMigrating.current = false;
                 setSyncingCount(c => c - 1);
               });
@@ -244,7 +245,7 @@ export function useScheduleBoard() {
 
         isInitialized.current = true;
       } catch (error) {
-        console.error('[useScheduleBoard] Failed to load from Supabase, using localStorage:', error);
+        logger.error('[useScheduleBoard] Failed to load from Supabase, using localStorage:', error);
 
         // Fall back to localStorage
         try {
@@ -259,7 +260,7 @@ export function useScheduleBoard() {
             setRoles(getDefaultRoles());
           }
         } catch (localError) {
-          console.error('[useScheduleBoard] localStorage fallback failed:', localError);
+          logger.error('[useScheduleBoard] localStorage fallback failed:', localError);
           setRoles(getDefaultRoles());
         }
 
@@ -286,7 +287,7 @@ export function useScheduleBoard() {
       };
       localStorage.setItem(storageKey, JSON.stringify(state));
     } catch (error) {
-      console.error('[useScheduleBoard] Failed to save to localStorage:', error);
+      logger.error('[useScheduleBoard] Failed to save to localStorage:', error);
     }
   }, [roles, volunteers, classAssignments, generalAssignments, storageKey]);
 
@@ -307,7 +308,7 @@ export function useScheduleBoard() {
           .single();
 
         if (showError || !showData) {
-          console.error('[useScheduleBoard] Failed to find show:', showError);
+          logger.error('[useScheduleBoard] Failed to find show:', showError);
           setClasses([]);
           return;
         }
@@ -366,7 +367,7 @@ export function useScheduleBoard() {
 
         setClasses(classesWithCounts);
       } catch (error) {
-        console.error('[useScheduleBoard] Failed to fetch classes:', error);
+        logger.error('[useScheduleBoard] Failed to fetch classes:', error);
         setClasses([]);
       }
     }
@@ -402,7 +403,7 @@ export function useScheduleBoard() {
 
         if (error) throw error;
       } catch (error) {
-        console.error('[useScheduleBoard] Failed to add volunteer to Supabase:', error);
+        logger.error('[useScheduleBoard] Failed to add volunteer to Supabase:', error);
         // Keep the optimistic update - localStorage backup ensures persistence
       }
     });
@@ -435,7 +436,7 @@ export function useScheduleBoard() {
 
         if (error) throw error;
       } catch (error) {
-        console.error('[useScheduleBoard] Failed to update volunteer in Supabase:', error);
+        logger.error('[useScheduleBoard] Failed to update volunteer in Supabase:', error);
       }
     });
   }, [licenseKey, withSyncTracking]);
@@ -469,7 +470,7 @@ export function useScheduleBoard() {
 
         if (error) throw error;
       } catch (error) {
-        console.error('[useScheduleBoard] Failed to delete volunteer from Supabase:', error);
+        logger.error('[useScheduleBoard] Failed to delete volunteer from Supabase:', error);
       }
     });
   }, [licenseKey, withSyncTracking]);
@@ -515,7 +516,7 @@ export function useScheduleBoard() {
 
         if (error && !error.message.includes('duplicate')) throw error;
       } catch (error) {
-        console.error('[useScheduleBoard] Failed to assign to class in Supabase:', error);
+        logger.error('[useScheduleBoard] Failed to assign to class in Supabase:', error);
       }
     });
   }, [licenseKey, withSyncTracking]);
@@ -549,7 +550,7 @@ export function useScheduleBoard() {
 
         if (error) throw error;
       } catch (error) {
-        console.error('[useScheduleBoard] Failed to remove class assignment from Supabase:', error);
+        logger.error('[useScheduleBoard] Failed to remove class assignment from Supabase:', error);
       }
     });
   }, [licenseKey, withSyncTracking]);
@@ -593,7 +594,7 @@ export function useScheduleBoard() {
 
         if (error && !error.message.includes('duplicate')) throw error;
       } catch (error) {
-        console.error('[useScheduleBoard] Failed to assign to general duty in Supabase:', error);
+        logger.error('[useScheduleBoard] Failed to assign to general duty in Supabase:', error);
       }
     });
   }, [licenseKey, withSyncTracking]);
@@ -626,7 +627,7 @@ export function useScheduleBoard() {
 
         if (error) throw error;
       } catch (error) {
-        console.error('[useScheduleBoard] Failed to remove general assignment from Supabase:', error);
+        logger.error('[useScheduleBoard] Failed to remove general assignment from Supabase:', error);
       }
     });
   }, [licenseKey, withSyncTracking]);
@@ -662,7 +663,7 @@ export function useScheduleBoard() {
           if (error) throw error;
         }
       } catch (error) {
-        console.error('[useScheduleBoard] Failed to update roles in Supabase:', error);
+        logger.error('[useScheduleBoard] Failed to update roles in Supabase:', error);
         // Revert on failure
         setRoles(oldRoles);
       }
@@ -721,7 +722,7 @@ async function migrateToSupabase(
         sort_order: index,
       }))
     );
-    if (rolesError) console.error('[migrateToSupabase] Roles error:', rolesError);
+    if (rolesError) logger.error('[migrateToSupabase] Roles error:', rolesError);
   }
 
   // Insert volunteers
@@ -738,7 +739,7 @@ async function migrateToSupabase(
         notes: v.notes || null,
       }))
     );
-    if (volunteersError) console.error('[migrateToSupabase] Volunteers error:', volunteersError);
+    if (volunteersError) logger.error('[migrateToSupabase] Volunteers error:', volunteersError);
   }
 
   // Insert class assignments (one row per volunteer)
@@ -756,7 +757,7 @@ async function migrateToSupabase(
     const { error: classError } = await supabase
       .from('volunteer_class_assignments')
       .insert(classAssignmentRows);
-    if (classError) console.error('[migrateToSupabase] Class assignments error:', classError);
+    if (classError) logger.error('[migrateToSupabase] Class assignments error:', classError);
   }
 
   // Insert general assignments (one row per volunteer)
@@ -775,6 +776,6 @@ async function migrateToSupabase(
     const { error: generalError } = await supabase
       .from('volunteer_general_assignments')
       .insert(generalAssignmentRows);
-    if (generalError) console.error('[migrateToSupabase] General assignments error:', generalError);
+    if (generalError) logger.error('[migrateToSupabase] General assignments error:', generalError);
   }
 }

@@ -3,6 +3,7 @@ import { SettingsSection } from '../components/SettingsSection';
 import { SettingsRow } from '../components/SettingsRow';
 import { SettingsToggle } from '../components/SettingsToggle';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { logger } from '@/utils/logger';
 import { Bell, Mic, AlertCircle, CheckCircle, Send, Info, Volume2 } from 'lucide-react';
 import type { BrowserCompatibility } from '../components/PushNotificationSettings';
 import { useAuth } from '@/contexts/AuthContext';
@@ -94,7 +95,7 @@ export const NotificationSettings: React.FC<NotificationSettingsProps> = ({
             // Reset after 3 seconds
             setTimeout(() => setTestSent(false), 3000);
         } catch (error) {
-            console.error('[NotificationSettings] Failed to send test notification:', error);
+            logger.error('[NotificationSettings] Failed to send test notification:', error);
         }
     };
 

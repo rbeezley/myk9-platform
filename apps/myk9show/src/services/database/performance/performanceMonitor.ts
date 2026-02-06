@@ -168,12 +168,7 @@ class PerformanceMonitor {
       logger.debug('Performance metric would be sent:', 'database', { data: _metric.operation });
     }
     
-    // Example:
-    // fetch('/api/metrics', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(_metric),
-    // }).catch(console.error);
+    // TODO: Implement remote metrics reporting if needed
   }
 
   // Export metrics for analysis

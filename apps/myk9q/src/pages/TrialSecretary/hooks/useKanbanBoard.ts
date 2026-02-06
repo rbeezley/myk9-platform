@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
+import { logger } from '@/utils/logger';
 import type { KanbanTask, KanbanState, KanbanStatus } from '../types';
 
 const STORAGE_KEY_PREFIX = 'myK9Q-kanban-';
@@ -31,7 +32,7 @@ export function useKanbanBoard() {
         setTasks(state.tasks || []);
       }
     } catch (error) {
-      console.error('[useKanbanBoard] Failed to load from localStorage:', error);
+      logger.error('[useKanbanBoard] Failed to load from localStorage:', error);
     }
     // Mark as loaded after attempting to load (even if nothing was stored)
     setIsLoaded(true);
@@ -50,7 +51,7 @@ export function useKanbanBoard() {
       };
       localStorage.setItem(storageKey, JSON.stringify(state));
     } catch (error) {
-      console.error('[useKanbanBoard] Failed to save to localStorage:', error);
+      logger.error('[useKanbanBoard] Failed to save to localStorage:', error);
     }
   }, [tasks, storageKey, isLoaded]);
 

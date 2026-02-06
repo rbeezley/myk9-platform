@@ -1,33 +1,23 @@
 # Technical Debt Register
 
 **Project:** myK9 Platform Monorepo
-**Last Updated:** 2026-02-05
+**Last Updated:** 2026-02-05 (Sprint 26)
 **Maintained By:** Development Team
 
 ## Summary
 
-- **Total Debt Items:** 24 (6 resolved in Sprint 25, 1 in Sprint 26)
-- **Critical:** 0 (was 2 - DEBT-001 complete)
+- **Total Debt Items:** 24 (6 resolved in Sprint 25, 2 in Sprint 26)
+- **Critical:** 0 (was 2 - DEBT-001, DEBT-002 complete)
 - **High:** 6 (was 10 - DEBT-005, DEBT-007, DEBT-011 addressed)
 - **Medium:** 14
 - **Low:** 4
-- **Estimated Total Effort:** 145-180 days (revised)
+- **Estimated Total Effort:** 130-165 days (revised)
 
-### Sprint 26 Progress (2026-02-04)
+### Sprint 26 Progress (2026-02-05)
 | Item | Status | Impact |
 |------|--------|--------|
 | DEBT-011 | ✅ Complete | Audited: 143 TODOs (not 265), 0 BUG/HACK/FIXME |
-| DEBT-002 | ✅ Complete | BrowseShowsPage.tsx 1,296→562 lines (57% reduction) |
-| DEBT-002 | ✅ Complete | EntryManagementPage.tsx 1,428→435 lines (70% reduction) |
-| DEBT-002 | ✅ Complete | MyEntriesPage.tsx 1,027→351 lines (66% reduction) |
-| DEBT-002 | ✅ Complete | AdminDashboard.tsx 1,050→142 lines (86% reduction) |
-| DEBT-002 | ✅ Complete | ShowCreationWizardPage.tsx 1,006→466 lines (54% reduction) |
-| DEBT-002 | ✅ Complete | SecretaryDashboard.tsx 926→164 lines (82% reduction) |
-| DEBT-002 | ✅ Complete | DayOfOperationsPage.tsx 875→160 lines (82% reduction) |
-| DEBT-002 | ✅ Complete | ExhibitorProfilePage.tsx 755→214 lines (72% reduction) |
-| DEBT-002 | ✅ Complete | JudgeWorkflowManager.ts 1,048→extracted modules |
-| DEBT-002 | ✅ Complete | ScoreValidatorService.ts 1,049→extracted modules |
-| DEBT-002 | ✅ Complete | performance-types.ts 1,046→80 lines barrel + 5 domain files |
+| DEBT-002 | ✅ Complete | 11 worst offenders refactored (54-86% line reductions) |
 
 ### Sprint 25 Progress (2026-02-04)
 | Item | Status | Impact |
@@ -75,11 +65,11 @@
 
 ---
 
-### DEBT-002: Extremely Large Files (251 in myK9Show, 30 in myK9Q)
+### ~~DEBT-002: Extremely Large Files (251 in myK9Show, 30 in myK9Q)~~ ✅ COMPLETE
 
 **Category:** Code Quality
 
-**Severity:** Critical
+**Severity:** ~~Critical~~ Resolved
 
 **Created:** 2026-02-03
 
@@ -131,7 +121,7 @@ Critical because large files are high-churn areas blocking feature development a
 **Dependencies:**
 - Related: DEBT-003 (Complex Functions), DEBT-007 (Deep Nesting)
 
-**Status:** In Progress
+**Status:** ✅ Complete (Sprint 26)
 
 **Assignee:** Development Team
 
@@ -187,9 +177,8 @@ Critical because large files are high-churn areas blocking feature development a
   - Split into: `performance-compression-types.ts`, `performance-metrics-types.ts`
   - Split into: `performance-batch-types.ts`, `performance-settings-types.ts`
 
-**Notes:**
-- Only `types/supabase.ts` (auto-generated) remains as a large file
-- Consider automated splitting for generated types
+**Resolution:**
+All worst-offender files refactored. Only `types/supabase.ts` (3,695 lines, auto-generated) remains — accepted as-is since it's machine-generated and not manually maintained.
 
 ---
 
@@ -1659,7 +1648,7 @@ Medium because excluded code should be clarified.
 ## Debt Trends
 
 ### By Category
-- Code Quality: 7 items (DEBT-002, 009, 010, 012, 018, 019, 029) - *3 resolved: DEBT-001, 005, 011*
+- Code Quality: 6 items (DEBT-009, 010, 012, 018, 019, 029) - *4 resolved: DEBT-001, 002, 005, 011*
 - Architecture: 8 items (DEBT-004, 006, 008, 013, 014, 020, 024, 025, 028) - *3 resolved: DEBT-003, 007, 030*
 - Test: 4 items (DEBT-015, 021, 022)
 - Documentation: 1 item (DEBT-017) - *1 resolved: DEBT-016*
@@ -1671,7 +1660,7 @@ Medium because excluded code should be clarified.
 - Developer Experience: 2 items (DEBT-026, 027)
 
 ### By Severity
-- Critical: 1 item (large files - DEBT-002)
+- Critical: 0 items *(DEBT-002 resolved)*
 - High: 6 items (bloated stores, state fragmentation, service complexity, complex functions, deep nesting, insufficient testing)
 - Medium: 13 items (console statements, over-engineered auth, notification duplication, ADRs, long parameters, inconsistent components, test organization, cross-app E2E, service patterns)
 - Low: 4 items (magic numbers, no @myk9/ui in myK9Q, service contracts, path aliases, export organization, performance monitoring, examples directory)
@@ -1685,7 +1674,7 @@ Medium because excluded code should be clarified.
 
 ### Aging
 - Items created: 2026-02-03
-- Last sprint work: 2026-02-04 (DEBT-011 audited and closed)
+- Last sprint work: 2026-02-05 (DEBT-002 marked complete, DEBT-011 audited and closed)
 
 ---
 
@@ -1722,11 +1711,11 @@ Medium because excluded code should be clarified.
 **Focus: Code quality audit and cleanup**
 
 1. ✅ **DEBT-011:** Audit technical debt markers (2 days) - **143 TODOs found, 0 BUG/HACK/FIXME**
-2. 🔲 **DEBT-002:** Refactor large files (5-8 days)
+2. ✅ **DEBT-002:** Refactor large files - **11 worst offenders refactored, 54-86% reductions**
 3. 🔲 **DEBT-009:** Simplify complex functions (5-7 days)
 4. 🔲 **DEBT-010:** Reduce deep nesting (3-5 days)
 
-**Estimated effort:** 13-22 days remaining
+**Estimated effort:** 8-12 days remaining
 **Impact:** Improve code maintainability
 
 ### Sprint 27 (Next)

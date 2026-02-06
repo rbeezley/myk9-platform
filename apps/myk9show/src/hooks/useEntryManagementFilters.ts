@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 
@@ -51,7 +51,6 @@ export function useEntryManagementFilters({
   const [paymentFilter, setPaymentFilter] = useState('all');
   const [selectedTab, setSelectedTab] = useState('all');
   const [selectedEntries, setSelectedEntries] = useState<Set<string>>(new Set());
-  const [filteredEntries, setFilteredEntries] = useState<EntryManagementEntry[]>([]);
 
   // Calculate tab counts
   const tabCounts = useMemo(() => ({
@@ -65,8 +64,8 @@ export function useEntryManagementFilters({
     ).length,
   }), [entries]);
 
-  // Apply filters
-  const applyFilters = useCallback(() => {
+  // Derive filtered entries from current filter state
+  const filteredEntries = useMemo(() => {
     let filtered = entries;
 
     // Apply tab filters
@@ -106,13 +105,8 @@ export function useEntryManagementFilters({
       );
     }
 
-    setFilteredEntries(filtered);
+    return filtered;
   }, [entries, selectedTab, searchTerm, statusFilter, paymentFilter]);
-
-  // Apply filters when dependencies change
-  useEffect(() => {
-    applyFilters();
-  }, [applyFilters]);
 
   // Selection handlers
   const handleSelectEntry = useCallback((entryId: string, checked: boolean) => {

@@ -4,7 +4,7 @@
  * @module MyEntriesPage/hooks
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { MyEntry, EntryStats, EntryTabFilter } from './my-entries-types';
 
@@ -24,12 +24,8 @@ interface UseMyEntriesFiltersReturn {
  */
 export function useMyEntriesFilters({ entries }: UseMyEntriesFiltersProps): UseMyEntriesFiltersReturn {
   const [selectedTab, setSelectedTab] = useState<EntryTabFilter>('all');
-  const [filteredEntries, setFilteredEntries] = useState<MyEntry[]>([]);
-
-  /**
-   * Applies tab filter and sorts entries
-   */
-  const applyTabFilter = useCallback(() => {
+  // Derive filtered and sorted entries from current tab and entries
+  const filteredEntries = useMemo(() => {
     let filtered = [...entries];
 
     switch (selectedTab) {
@@ -61,13 +57,8 @@ export function useMyEntriesFilters({ entries }: UseMyEntriesFiltersProps): UseM
     // Sort by show date (ascending)
     filtered.sort((a, b) => a.showDate.getTime() - b.showDate.getTime());
 
-    setFilteredEntries(filtered);
+    return filtered;
   }, [entries, selectedTab]);
-
-  // Apply filter when entries or tab changes
-  useEffect(() => {
-    applyTabFilter();
-  }, [applyTabFilter]);
 
   /**
    * Computed statistics for entries

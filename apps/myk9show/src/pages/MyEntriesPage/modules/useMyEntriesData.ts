@@ -178,7 +178,7 @@ export function useMyEntriesData(): UseMyEntriesDataReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id, user?.email, transformEntry]);
+  }, [user?.id, transformEntry]);
 
   /**
    * Handles real-time entry updates

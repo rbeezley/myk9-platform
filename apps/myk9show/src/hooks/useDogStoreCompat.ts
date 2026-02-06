@@ -20,10 +20,10 @@ import {
   mapDatabaseToDog,
   mapDatabaseDogsArray,
 } from '@/services/mappers/dogMappers';
-import { updateRegistration, getRegistrationsByDog, createRegistration } from '@/services/database/queries/registrationQueries';
 import { logger } from '@/services/LoggingService';
 import { queryKeys } from '@/lib/queryClient';
-import type { DbDogRegistration } from '@/types/database-mappings';
+import { aggregateQueryErrors, aggregateLoadingStates } from '@/hooks/storeCompatUtils';
+import { syncDogRegistrations } from '@/hooks/dogStoreCompatHelpers';
 
 /**
  * Compatibility hook that provides dogStore-like API using React Query
@@ -43,24 +43,20 @@ export const useDogStoreCompat = () => {
     return mapDatabaseDogsArray(dogsQuery.data);
   }, [dogsQuery.data]);
 
-  // Aggregate loading states
-  const isLoading = dogsQuery.isLoading || 
-    createMutation.isPending || 
-    updateMutation.isPending || 
-    deleteMutation.isPending;
+  // Aggregate loading and error states
+  const isLoading = aggregateLoadingStates(
+    dogsQuery.isLoading,
+    createMutation.isPending,
+    updateMutation.isPending,
+    deleteMutation.isPending,
+  );
 
-  // Aggregate error states (prioritize by recency)
-  const error = useMemo(() => {
-    const errors = [
-      dogsQuery.error,
-      createMutation.error,
-      updateMutation.error,
-      deleteMutation.error,
-    ].filter(Boolean);
-    
-    if (errors.length === 0) return null;
-    return errors[0]?.message || 'An error occurred';
-  }, [dogsQuery.error, createMutation.error, updateMutation.error, deleteMutation.error]);
+  const error = useMemo(() => aggregateQueryErrors(
+    dogsQuery.error,
+    createMutation.error,
+    updateMutation.error,
+    deleteMutation.error,
+  ), [dogsQuery.error, createMutation.error, updateMutation.error, deleteMutation.error]);
 
   // dogStore-compatible API
   const addDog = async (dogData: DogInput): Promise<Dog> => {
@@ -70,7 +66,6 @@ export const useDogStoreCompat = () => {
   };
 
   const updateDog = async (id: string, updates: Partial<DogInput>): Promise<Dog | null> => {
-    // Debug logging to trace registration data flow
     logger.debug('updateDog called', 'dogs', {
       dogId: id,
       hasRegistrations: !!updates.registrations,
@@ -81,69 +76,17 @@ export const useDogStoreCompat = () => {
     const dbUpdates = mapDogInputToUpdate(updates);
     const result = await updateMutation.mutateAsync({ id, updates: dbUpdates });
 
-    // Also update or create registrations if provided
-    let registrationsChanged = false;
+    // Sync registrations if provided
     if (updates.registrations && updates.registrations.length > 0) {
       try {
-        // Get existing registrations for this dog
-        const { data: existingRegs } = await getRegistrationsByDog(id);
-
-        for (const inputReg of updates.registrations) {
-          // Skip if no registered name provided
-          if (!inputReg.registeredName) continue;
-
-          // Find matching registration by organization
-          const existingReg = existingRegs?.find(
-            (er: DbDogRegistration) => er.organization === inputReg.organization
-          );
-
-          if (existingReg) {
-            // Update existing registration
-            await updateRegistration(existingReg.id, {
-              registered_name: inputReg.registeredName,
-              breed: inputReg.type || null,
-              status: inputReg.status || null,
-            });
-            logger.debug('Updated registration', 'dogs', {
-              registrationId: existingReg.id,
-              registeredName: inputReg.registeredName,
-            });
-            registrationsChanged = true;
-          } else {
-            // Create new registration since none exists for this organization
-            const { data: newReg, error: createError } = await createRegistration({
-              dog_id: id,
-              organization: inputReg.organization || 'AKC',
-              registered_name: inputReg.registeredName,
-              registration_number: inputReg.number || '', // Must be non-null per database constraint
-              breed: inputReg.type || null,
-              status: inputReg.status || 'pending',
-            });
-
-            if (createError) {
-              logger.error('Failed to create registration', 'dogs', { dogId: id }, createError as Error);
-            } else {
-              logger.debug('Created new registration', 'dogs', {
-                registrationId: newReg?.id,
-                registeredName: inputReg.registeredName,
-                organization: inputReg.organization || 'AKC',
-              });
-              registrationsChanged = true;
-            }
-          }
+        const changed = await syncDogRegistrations(id, updates.registrations);
+        if (changed) {
+          queryClient.invalidateQueries({ queryKey: queryKeys.registrationsByDog(id) });
+          dogsQuery.refetch();
         }
-      } catch (error) {
-        logger.error('Failed to update/create registrations', 'dogs', { dogId: id }, error as Error);
-        // Don't fail the whole update if registration update fails
+      } catch (err) {
+        logger.error('Failed to update/create registrations', 'dogs', { dogId: id }, err as Error);
       }
-    }
-
-    // Invalidate and refetch queries if registrations changed
-    if (registrationsChanged) {
-      // Invalidate the registrations query for this dog so RegistrationsSection updates
-      queryClient.invalidateQueries({ queryKey: queryKeys.registrationsByDog(id) });
-      // Also refetch dogs data to update the dog details
-      dogsQuery.refetch();
     }
 
     return result ? mapDatabaseToDog(result) : null;
@@ -176,7 +119,7 @@ export const useDogStoreCompat = () => {
     dogs,
     isLoading,
     error,
-    
+
     // Operations (compatible with dogStore API)
     addDog,
     updateDog,
@@ -184,21 +127,21 @@ export const useDogStoreCompat = () => {
     getDogById,
     getDogsByOwner,
     getSyncStatus,
-    
+
     // Additional React Query benefits
     refetch,
     isStale: dogsQuery.isStale,
     isFetching: dogsQuery.isFetching,
-    
+
     // Statistics
     statistics: statisticsQuery.data,
     isLoadingStatistics: statisticsQuery.isLoading,
-    
+
     // Individual mutation states for fine-grained control
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
     isDeleting: deleteMutation.isPending,
-    
+
     // Legacy compatibility flags
     _usingDatabase: true,
     _reactQueryIntegrated: true,
@@ -210,7 +153,7 @@ export const useDogStoreCompat = () => {
  */
 export const useDogWithQuery = (id: string, enabled = true) => {
   const dogQuery = useDogQuery(id, enabled);
-  
+
   const dog = useMemo(() => {
     if (!dogQuery.data) return null;
     return mapDatabaseToDog(dogQuery.data);
@@ -230,7 +173,7 @@ export const useDogWithQuery = (id: string, enabled = true) => {
  */
 export const useOwnerDogsWithQuery = (ownerId: string, enabled = true) => {
   const ownerDogsQuery = useDogsByOwnerQuery(ownerId, enabled);
-  
+
   const dogs = useMemo(() => {
     if (!ownerDogsQuery.data) return [];
     return mapDatabaseDogsArray(ownerDogsQuery.data);

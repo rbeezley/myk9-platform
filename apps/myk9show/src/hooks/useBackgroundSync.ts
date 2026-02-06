@@ -3,6 +3,14 @@ import { backgroundSyncService } from '@/services/sync/backgroundSyncService';
 import { SyncMetrics, NetworkState, SyncEvent } from '@/types/sync-types';
 import { logger } from '@/services/LoggingService';
 import { ensureError } from '@myk9/core';
+import {
+  buildNetworkState,
+  mapNetworkQuality,
+  calculateSyncMetrics,
+  createSyncCompletionEvent,
+  createSyncErrorEvent,
+  calculateSyncHealthStatus,
+} from '@/hooks/backgroundSyncHelpers';
 
 export interface BackgroundSyncState {
   isOnline: boolean;
@@ -43,28 +51,14 @@ export function useBackgroundSync() {
     try {
       const stats = backgroundSyncService.getSyncStatistics();
       const networkStatus = backgroundSyncService.getNetworkStatus();
-      
-      // Convert to our NetworkState format
-      const networkState: NetworkState = {
-        isOnline: networkStatus.online,
-        quality: networkStatus.quality === 'excellent' ? 'excellent' : 
-                 networkStatus.quality === 'good' ? 'good' : 'slow',
-        lastChecked: new Date(),
-        bandwidth: networkStatus.downlink
-      };
-      
+      const networkState = buildNetworkState(networkStatus.online, networkStatus.quality, networkStatus.downlink);
+      const metricsWithDate = calculateSyncMetrics(stats);
+
       setSyncState(prev => ({
         ...prev,
         queueSize: stats.pendingTasks,
-        metrics: {
-          syncSuccessRate: stats.totalTasks > 0 ? stats.completedTasks / stats.totalTasks : 1,
-          averageSyncTime: stats.averageDuration,
-          conflictRate: 0, // TODO: Add conflict tracking
-          offlineUsageTime: 0, // TODO: Calculate from network monitoring
-          queueSize: stats.pendingTasks,
-          lastSyncAt: stats.lastSyncAttempt > 0 ? new Date(stats.lastSyncAttempt) : undefined
-        },
-        lastSyncAt: stats.lastSyncAttempt > 0 ? new Date(stats.lastSyncAttempt) : undefined,
+        metrics: metricsWithDate,
+        lastSyncAt: metricsWithDate.lastSyncAt,
         networkState,
         isOnline: networkState.isOnline
       }));
@@ -77,40 +71,25 @@ export function useBackgroundSync() {
   const handleSyncEvent = useCallback((event: SyncEvent) => {
     switch (event.type) {
       case 'sync-started':
-        setSyncState(prev => ({ 
-          ...prev, 
-          isSyncing: true, 
-          error: undefined 
-        }));
+        setSyncState(prev => ({ ...prev, isSyncing: true, error: undefined }));
         break;
 
       case 'sync-completed':
-        setSyncState(prev => ({ 
-          ...prev, 
-          isSyncing: false,
-          lastSyncAt: new Date(),
-          error: undefined
-        }));
+        setSyncState(prev => ({ ...prev, isSyncing: false, lastSyncAt: new Date(), error: undefined }));
         updateSyncState();
         break;
 
       case 'sync-failed':
-        setSyncState(prev => ({ 
-          ...prev, 
+        setSyncState(prev => ({
+          ...prev,
           isSyncing: false,
           error: (event.details?.error as string) || 'Sync failed'
         }));
         updateSyncState();
         break;
 
-
       case 'conflict-detected':
-        // Conflict detected - increment conflict count
-        updateSyncState();
-        break;
-
       case 'conflict-resolved':
-        // Conflict resolved - update metrics
         updateSyncState();
         break;
     }
@@ -139,8 +118,6 @@ export function useBackgroundSync() {
 
   // Get sync status for specific entity
   const getEntitySyncStatus = useCallback((entityType: string, entityId: string): 'synced' | 'pending' | 'error' | 'conflict' => {
-    // This would check the sync service for entity-specific status
-    // For now, return a simple check based on entity type and ID
     // TODO: Implement proper entity-specific sync status checking
     logger.debug(`Checking sync status for ${entityType}:${entityId}`, 'useBackgroundSync', { entityType, entityId });
     return 'synced';
@@ -155,56 +132,26 @@ export function useBackgroundSync() {
   useEffect(() => {
     let mounted = true;
 
-    // Initialize background sync service
     const initializeSync = async () => {
       try {
-        // Background sync service initializes automatically
-        if (mounted) {
-          await updateSyncState();
-        }
+        if (mounted) await updateSyncState();
       } catch (error) {
         logger.error('Failed to initialize sync service:', 'hooks', {}, ensureError(error));
         if (mounted) {
-          setSyncState(prev => ({
-            ...prev,
-            error: 'Failed to initialize sync service'
-          }));
+          setSyncState(prev => ({ ...prev, error: 'Failed to initialize sync service' }));
         }
       }
     };
 
     initializeSync();
 
-    // Set up background sync event listeners
+    // Sync event listeners
     backgroundSyncService.onSyncComplete((result) => {
-      if (mounted) {
-        const syncEvent: SyncEvent = {
-          type: result.success ? 'sync-completed' : 'sync-failed',
-          timestamp: result.timestamp,
-          entityType: 'sync-task',
-          entityId: result.taskId,
-          details: {
-            success: result.success,
-            attempts: result.attempts,
-            duration: result.duration,
-            error: result.error
-          }
-        };
-        handleSyncEvent(syncEvent);
-      }
+      if (mounted) handleSyncEvent(createSyncCompletionEvent(result));
     });
 
     backgroundSyncService.onSyncError((error, task) => {
-      if (mounted) {
-        const syncEvent: SyncEvent = {
-          type: 'sync-failed',
-          timestamp: new Date(),
-          entityType: task.entity,
-          entityId: task.entityId,
-          details: { error: error.message }
-        };
-        handleSyncEvent(syncEvent);
-      }
+      if (mounted) handleSyncEvent(createSyncErrorEvent(error, task));
     });
 
     backgroundSyncService.onNetworkChange((networkStatus) => {
@@ -215,32 +162,27 @@ export function useBackgroundSync() {
           networkState: {
             ...prev.networkState,
             isOnline: networkStatus.online,
-            quality: networkStatus.quality === 'excellent' ? 'excellent' : 
-                     networkStatus.quality === 'good' ? 'good' : 'slow'
+            quality: mapNetworkQuality(networkStatus.quality),
           }
         }));
       }
     });
 
-    // Update state periodically
+    // Periodic state refresh
     const interval = setInterval(() => {
-      if (mounted) {
-        updateSyncState();
-      }
-    }, 30000); // Every 30 seconds
+      if (mounted) updateSyncState();
+    }, 30000);
 
     // Network status listeners
     const handleOnline = () => {
-      if (mounted) {
-        setSyncState(prev => ({ ...prev, isOnline: true }));
-        updateSyncState();
-      }
+      if (!mounted) return;
+      setSyncState(prev => ({ ...prev, isOnline: true }));
+      updateSyncState();
     };
 
     const handleOffline = () => {
-      if (mounted) {
-        setSyncState(prev => ({ ...prev, isOnline: false }));
-      }
+      if (!mounted) return;
+      setSyncState(prev => ({ ...prev, isOnline: false }));
     };
 
     window.addEventListener('online', handleOnline);
@@ -249,8 +191,6 @@ export function useBackgroundSync() {
     return () => {
       mounted = false;
       clearInterval(interval);
-      
-      // Background sync service handles its own cleanup
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
@@ -259,20 +199,17 @@ export function useBackgroundSync() {
   return {
     // State
     ...syncState,
-    
+
     // Actions
     forceSyncNow,
     clearError,
     getEntitySyncStatus,
     hasPendingChanges,
-    
+
     // Computed values
-    syncHealthStatus: syncState.metrics.syncSuccessRate > 0.9 ? 'good' : 
-                     syncState.metrics.syncSuccessRate > 0.7 ? 'warning' : 'error',
-    
+    syncHealthStatus: calculateSyncHealthStatus(syncState.metrics.syncSuccessRate),
     isInitializing: !syncState.lastSyncAt && !syncState.error,
-    
-    estimatedSyncTime: syncState.queueSize > 0 ? 
+    estimatedSyncTime: syncState.queueSize > 0 ?
                        Math.ceil(syncState.queueSize * (syncState.metrics.averageSyncTime / 1000)) : 0
   };
 }

@@ -1,18 +1,34 @@
 # Technical Debt Register
 
 **Project:** myK9 Platform Monorepo
-**Last Updated:** 2026-02-06 (Sprint 27)
+**Last Updated:** 2026-02-06 (Sprint 28)
 **Maintained By:** Development Team
 
 ## Summary
 
-- **Total Debt Items:** 30 (14 resolved, 16 open)
-- **Critical:** 0 (was 2 - DEBT-001, DEBT-002 complete)
-- **High:** 4 open (DEBT-004, DEBT-006, DEBT-008, DEBT-015)
-- **Medium:** 8 open (DEBT-013, DEBT-014, DEBT-017, DEBT-018, DEBT-020, DEBT-021, DEBT-022, DEBT-024)
-- **Low:** 4 open (DEBT-019, DEBT-023, DEBT-025, DEBT-028)
-- **Resolved:** 14 (DEBT-001, 002, 003, 005, 007, 009, 010, 011, 012, 016, 026, 027, 029, 030)
-- **Estimated Total Effort:** 115-145 days (revised)
+- **Total Debt Items:** 30 (20 resolved/closed, 3 downgraded, 7 genuine open)
+- **Critical:** 0
+- **High:** 1 open (DEBT-015)
+- **Medium-High:** 2 open (DEBT-022, DEBT-025)
+- **Medium:** 3 open (DEBT-024, DEBT-028, DEBT-021)
+- **Low:** 1 open (DEBT-017)
+- **Downgraded:** 3 (DEBT-006 → Medium/Doc-only, DEBT-014 → Low, DEBT-020 → Low)
+- **Closed (Mischaracterized):** 5 (DEBT-004, DEBT-013, DEBT-018, DEBT-019, DEBT-023)
+- **Resolved:** 15 (DEBT-001, 002, 003, 005, 007, 008, 009, 010, 011, 012, 016, 026, 027, 029, 030)
+- **Estimated Remaining Effort:** 30-45 days
+
+### Sprint 28 Progress (2026-02-06)
+| Item | Status | Impact |
+|------|--------|--------|
+| DEBT-004 | ✅ Closed | Stores are 741-873 lines, not 25-30K — not bloated |
+| DEBT-013 | ✅ Closed | AuthContext is 552 lines, not 16.7K — well-designed |
+| DEBT-018 | ✅ Closed | Worst offenders use options objects — false positive |
+| DEBT-019 | ✅ Closed | Mostly benign literals (0, 1, 100) — not actionable |
+| DEBT-023 | ✅ Closed | Intentional design decision (myK9Q uses Semantic CSS) |
+| DEBT-006 | ⬇️ Downgraded | Medium — needs docs, not refactoring |
+| DEBT-014 | ⬇️ Downgraded | Low — different architectures, not duplicates |
+| DEBT-020 | ⬇️ Downgraded | Low — @myk9/ui IS consistent; app components are domain-specific |
+| DEBT-008 | ✅ Complete | 13 dead files (~6,500 lines) purged; 209 active services confirmed |
 
 ### Sprint 27 Progress (2026-02-06)
 | Item | Status | Impact |
@@ -216,278 +232,114 @@ Investigation revealed the original assessment was incorrect:
 
 ---
 
-### DEBT-004: Bloated Zustand Stores (27-30K lines per store)
+### ~~DEBT-004: Bloated Zustand Stores~~ ✅ CLOSED (Mischaracterized)
 
 **Category:** Architecture
 
-**Severity:** High
+**Severity:** ~~High~~ Closed
 
 **Created:** 2026-02-03
 
-**Location:**
-- `apps/myk9show/src/store/classStore.ts` (27K lines)
-- `apps/myk9show/src/store/entryStore.ts` (30K lines)
-- `apps/myk9show/src/store/trialStore.ts` (25K lines)
-- `apps/myk9show/src/store/searchHistoryStore.ts` (28K lines)
+**Status:** ✅ **CLOSED** (2026-02-06)
 
-**Description:**
-Large Zustand stores handle too many concerns (CRUD + validation + sync + search + filtering + sorting). Single stores contain 25-30K lines of code with hundreds of methods.
+**Resolution:**
+Sprint 28 verification found the register claims were off by **97%**:
+- `entryStore.ts`: claimed 30K, **actual 873 lines** (63 exports)
+- `searchHistoryStore.ts`: claimed 28K, **actual 855 lines** (70 exports)
+- `classStore.ts`: claimed 27K, **actual 801 lines** (50 exports)
+- `trialStore.ts`: claimed 25K, **actual 741 lines** (50 exports)
 
-**Impact:**
-- **Business Impact:** Slows feature development, hard to onboard developers
-- **Technical Impact:** Hard to test, changes affect unrelated features, poor reusability
-- **Risk:** State updates in one area cause bugs in unrelated areas
-
-**Root Cause:**
-Progressive feature addition without refactoring. All related functionality added to single store.
-
-**Proposed Solution:**
-Split each large store into focused stores:
-
-```typescript
-// Before: classStore.ts (27K lines)
-// After:
-classStore.ts           (200 lines: basic CRUD)
-classValidation.ts      (100 lines: validation logic)
-classSearch.ts          (50 lines: search functionality)
-classSync.ts            (100 lines: sync concerns)
-classFilters.ts         (100 lines: filtering/sorting)
-```
-
-**Effort Estimate:** 3-5 days
-
-**Priority Justification:**
-High because these are high-churn files that slow down all development work.
-
-**Dependencies:**
-- Blocks: Feature development in entry/class management
-- Related: DEBT-006 (State Management Fragmentation)
-
-**Status:** Open
-
-**Assignee:** Unassigned
-
-**Target Resolution:** Q1 2026
-
-**Notes:**
-- Start with entryStore (30K) as it's most frequently modified
-- Use feature-slice pattern for new structure
+35 total stores averaging ~350 lines each. The stores handle multiple concerns (CRUD, sync, search) but at 800 lines this is reasonable for domain-critical stores. No refactoring needed.
 
 ---
 
-### DEBT-005: Weak TypeScript Typing (68 instances of `any`)
+### ~~DEBT-005: Weak TypeScript Typing (68 instances of `any`)~~ ✅ COMPLETE
 
 **Category:** Code Quality
 
-**Severity:** High
+**Severity:** ~~High~~ Resolved
 
 **Created:** 2026-02-03
 
-**Location:**
-- `hooks/useIntelligentPreloading.ts` (5 instances)
-- `utils/enhancedLazyLoading.ts` (7 instances)
-- ~~`services/.excluded/types.ts` (multiple instances)~~ — deleted (DEBT-030)
+**Status:** ✅ **COMPLETE** (Sprint 25)
 
-**Description:**
-68 instances of `any` type in myK9Show reduce type safety. Examples include component props, promises, and data types.
-
-**Impact:**
-- **Business Impact:** Increased runtime errors, harder debugging
-- **Technical Impact:** No IntelliSense, refactoring risks, type checking disabled
-- **Risk:** Runtime type errors in production
-
-**Root Cause:**
-- Lack of type definitions for third-party libraries
-- Complex generic types avoided for simplicity
-- Strict mode disabled (see DEBT-001)
-
-**Proposed Solution:**
-1. Replace `any` with `unknown` where type truly unknown
-2. Create proper type definitions for component types
-3. Use generic constraints for component props
-4. Add `no-explicit-any` ESLint rule
-
-**Effort Estimate:** 2 days
-
-**Priority Justification:**
-High because it compounds with strict mode being disabled (DEBT-001).
-
-**Dependencies:**
-- Blocked By: DEBT-001 (Enable strict mode first)
-
-**Status:** Open
-
-**Assignee:** Unassigned
-
-**Target Resolution:** Sprint 25
+**Resolution:** 36+ `any` types fixed, 5 schema mismatches remaining.
 
 ---
 
-### DEBT-006: State Management Fragmentation
+### DEBT-006: State Management Fragmentation ⬇️ DOWNGRADED
 
 **Category:** Architecture
 
-**Severity:** High
+**Severity:** ~~High~~ Medium (documentation-only)
 
 **Created:** 2026-02-03
 
 **Location:**
-- `apps/myk9show/src/context/` (5 context providers)
-- `apps/myk9show/src/store/` (28 Zustand stores)
-- Mixed usage patterns throughout application
+- `apps/myk9show/src/context/` (4 context providers, 1,172 total lines)
+- `apps/myk9show/src/store/` (35 Zustand stores, 12,140 total lines)
 
-**Description:**
-myK9Show uses both React Context (for auth/theme/registration) and Zustand (for domain data) with no clear pattern for when to use each. This creates confusion and inconsistent patterns.
+**Sprint 28 Verification (2026-02-06):**
+The register overstated the problem. Actual findings:
+- **4 context providers** (not 5): AuthContext (552 lines), EnhancedThemeContext (237), RegistrationContext (194), ThemeContext (41)
+- **35 stores** (not 28): averaging ~350 lines each
+- Context/Store separation is **mostly sound**: Context for auth/theme (global, rarely-changing), Zustand for domain data
+- **Minor issues**: EnhancedThemeContext duplicates ThemeContext; RegistrationContext/showRegistrationStore have blurry boundaries
+- AuthContext is 552 lines (not 16.7K) and well-designed
 
-**Context files:**
-- `AuthContext.tsx` (16.7K) - Authentication, permissions, session
-- `EnhancedThemeContext.tsx` (6.9K)
-- `RegistrationContext.tsx` (5.9K)
-- `ThemeContext.tsx` (1.1K)
+**Remaining Action:** Document state management guidelines in CLAUDE.md (when to use Context vs Store). No code refactoring needed.
 
-**Impact:**
-- **Business Impact:** Inconsistent patterns confuse developers, slow onboarding
-- **Technical Impact:** Same data accessible via two different APIs, unclear ownership
-- **Risk:** State synchronization bugs between Context and stores
+**Effort Estimate:** 2-3 hours (documentation only)
 
-**Root Cause:**
-Organic growth without architectural decision on state management strategy.
-
-**Proposed Solution:**
-1. Document state management guidelines in CLAUDE.md
-2. Migrate Context providers to Zustand stores where appropriate
-3. Reserve Context only for truly global, rarely-changing state (auth, theme)
-4. Create unified state management abstraction layer
-
-**Effort Estimate:** 2 days (documentation) + 3-5 days (refactoring)
-
-**Priority Justification:**
-High because it affects every new feature and confuses team members.
-
-**Dependencies:**
-- Related: DEBT-004 (Bloated Stores)
-
-**Status:** Open
-
-**Assignee:** Unassigned
-
-**Target Resolution:** Q1 2026
-
-**Notes:**
-- Start with documentation to prevent new inconsistencies
-- Migrate incrementally
-
----
-
-### DEBT-007: Underutilized Shared Packages (184 duplicate hooks)
-
-**Category:** Architecture
-
-**Severity:** High
-
-**Created:** 2026-02-03
-
-**Location:**
-- `apps/myk9show/src/hooks/` (137 custom hooks)
-- `apps/myk9q/src/hooks/` (47 custom hooks)
-- `packages/scoring-ui/src/hooks/` (only 4 hooks)
-
-**Description:**
-184 custom hooks exist across both apps with significant duplication, while `@myk9/scoring-ui` package only exports 4 hooks. Hooks like animation, dialogs, forms, filters are duplicated across apps.
-
-**Duplicated patterns:**
-- Animation: `useAnimationSettings`, `useScrollAnimation`, `useStaggerAnimation`
-- Dialogs: `useDialogState`, `useDialog`
-- Forms: `useFormValidation`, `useFormState`
-- Filters: `useFilters`, `useSearch`
-- Performance: `useDebounce`, `useThrottle`
-
-**Impact:**
-- **Business Impact:** Bug fixes must be applied multiple times, inconsistent UX
-- **Technical Impact:** ~80K lines of duplicate code across apps
-- **Risk:** Behavior divergence between apps, testing burden
-
-**Root Cause:**
-Shared hooks package created late in migration. Legacy hooks never consolidated.
-
-**Proposed Solution:**
-1. Extract common hooks to `@myk9/scoring-ui`:
-   - Dialog management hooks
-   - Animation hooks
-   - Form hooks
-   - Filter/search composition hooks
-2. Update app imports to use shared hooks
-3. Delete duplicate implementations
-
-**Effort Estimate:** 1-2 days
-
-**Priority Justification:**
-High because it enables code reuse and prevents future duplication.
-
-**Dependencies:**
-- Related: DEBT-009 (Inconsistent Component Patterns)
-
-**Status:** Open
-
-**Assignee:** Unassigned
-
-**Target Resolution:** Sprint 25
-
-**Notes:**
-- Start with dialog and animation hooks (most duplicated)
-- Consider creating additional hook packages
-
----
-
-### DEBT-008: Service Layer Complexity (234 services in myK9Show)
-
-**Category:** Architecture
-
-**Severity:** High
-
-**Created:** 2026-02-03
-
-**Location:**
-- `apps/myk9show/src/services/` (234 files in 33 subdirectories)
-
-**Description:**
-myK9Show has 234 service files organized into 33 categories, creating a complex service layer that's hard to navigate and understand. Many services have overlapping responsibilities.
-
-**Service categories:**
-alerts, analytics, auth, collaboration, competition, compression, data-boundaries, data-lifecycle, data-scoping, database, deployment, entries, error, mappers, monitoring, notifications (3+ files), offline, offline-checkin, optimistic, payment, performance, preferences, rbac, realtime, replication, scoresheets, scoring, security, sync, templates, testing, workers
-
-**Impact:**
-- **Business Impact:** Hard to find where logic lives, slows feature development
-- **Technical Impact:** Unclear dependencies, testing difficulty, service orchestration unclear
-- **Risk:** Over-architected, maintenance burden
-
-**Root Cause:**
-Premature optimization and over-engineering. Creating service layer before patterns emerged naturally.
-
-**Proposed Solution:**
-1. Consolidate related services (auth + rbac + security → authorization)
-2. Extract truly shared services to packages
-3. Move service orchestration to application layer
-4. Document service responsibilities clearly
-5. Target: Reduce from 234 to ~50 focused services
-
-**Effort Estimate:** 1-2 weeks
-
-**Priority Justification:**
-High because it affects every feature and makes codebase hard to navigate.
-
-**Dependencies:**
-- Related: DEBT-003 (Replication Duplication), DEBT-014 (Notification Services)
-
-**Status:** Open
-
-**Assignee:** Unassigned
+**Status:** Downgraded — doc-only fix
 
 **Target Resolution:** Q2 2026
 
-**Notes:**
-- Consider domain-driven design approach
-- Start by consolidating authentication-related services
+---
+
+### ~~DEBT-007: Underutilized Shared Packages~~ ✅ COMPLETE
+
+**Category:** Architecture
+
+**Severity:** ~~High~~ Resolved
+
+**Created:** 2026-02-03
+
+**Status:** ✅ **COMPLETE** (Sprint 25)
+
+**Resolution:** 19 hooks now exported (was 4).
+
+---
+
+### DEBT-008: Service Layer Dead Code — COMPLETE ✅
+
+**Category:** Architecture
+
+**Severity:** ~~High~~ Resolved
+
+**Created:** 2026-02-03 | **Resolved:** 2026-02-06 (Sprint 28)
+
+**What was found:**
+Initial agent-based analysis claimed ~100 unused files (47%), but manual grep verification revealed only **13 dead service files + 2 orphaned test files (~6,500 lines)**. The automated search missed imports through barrel files, hook layers, factory patterns, and compat layers.
+
+**Files deleted (4 batches, typecheck verified after each):**
+- `services/data-boundaries/` — AutoCleanup.ts, ShowIsolation.ts (entire dir removed)
+- `services/database/performance/performanceMonitor.ts` (dir removed)
+- `services/database/utils/retryWrapper.ts` (dir removed)
+- `services/database/test-indexeddb.ts`
+- `services/ApiBatchingService.ts`, `services/DataPrefetchService.ts`
+- `services/auth/authService.ts` + orphaned test
+- `services/sync/conflictResolutionStrategies.ts`, `dataVersioningService.ts`, `tombstoneService.ts`
+- `services/performance/performanceIntegrationCoordinator.ts`
+- `services/compression/CompressionIntegration.ts` + orphaned test
+
+**Verification:** Full typecheck, build (8/8), and lint (8/8) passed clean. Remaining ~209 service files are actively used and well-organized by domain.
+
+**Key lesson:** Agent-based dead code analysis is unreliable for codebases with deep import chains. Always verify with direct `grep` for filename/classname.
+
+**Status:** Complete
+
+**Assignee:** Development Team
 
 ---
 
@@ -677,113 +529,43 @@ Audit revealed the original "192 statements" count was overstated. Actual findin
 
 ---
 
-### DEBT-013: Over-engineered AuthContext (16.7K lines)
+### ~~DEBT-013: Over-engineered AuthContext~~ ✅ CLOSED (Mischaracterized)
 
 **Category:** Architecture
 
-**Severity:** Medium
+**Severity:** ~~Medium~~ Closed
 
 **Created:** 2026-02-03
 
-**Location:**
-- `apps/myk9show/src/context/AuthContext.tsx` (16.7K lines)
+**Status:** ✅ **CLOSED** (2026-02-06)
 
-**Description:**
-AuthContext handles too many concerns in a single file: authentication, permission checking, session management, role management, caching, and derived state.
+**Resolution:**
+Sprint 28 verification found the register was off by **30x**:
+- **Claimed:** 16.7K lines
+- **Actual:** 552 lines with 8 exports, used by 66 files
 
-**Responsibilities:**
-- Lines 1-100: Auth provider setup
-- Lines 100-300: User permission checking
-- Lines 300-500: Session management
-- Lines 500-700: Role management
-- Lines 700-900: Caching logic
-- Lines 900+: Derived state
-
-**Impact:**
-- **Business Impact:** Difficult to modify auth behavior, slows auth-related features
-- **Technical Impact:** Hard to test, performance concerns (large context), reusability issues
-- **Risk:** Changes to one auth concern affect all others
-
-**Root Cause:**
-Progressive feature addition to single context file.
-
-**Proposed Solution:**
-Split into focused modules:
-```
-AuthContext.tsx         (Auth provider only - 100 lines)
-→ @myk9/core/hooks/useAuth
-→ @myk9/core/hooks/usePermissions
-→ sessionStore.ts       (Zustand for session)
-→ roleStore.ts          (Zustand for roles)
-```
-
-**Effort Estimate:** 1 day
-
-**Priority Justification:**
-Medium because auth is stable but should be refactored for maintainability.
-
-**Dependencies:**
-- Related: DEBT-006 (State Management Fragmentation)
-
-**Status:** Open
-
-**Assignee:** Unassigned
-
-**Target Resolution:** Q2 2026
+The file is well-designed with proper separation: auth logic delegated to `useAuth()` hook, RBAC to `rbacService`, types in `auth-types.ts` (430 lines), utilities in `authUtils.ts` (24 lines). This is solid architecture, not over-engineering.
 
 ---
 
-### DEBT-014: Duplicate Notification Services
+### DEBT-014: Duplicate Notification Services ⬇️ DOWNGRADED
 
 **Category:** Architecture
 
-**Severity:** Medium
+**Severity:** ~~Medium~~ Low
 
 **Created:** 2026-02-03
 
-**Location:**
-- myK9Q: 3 notification files
-  - `services/notificationService.ts`
-  - `services/notificationServiceHelpers.ts`
-  - `components/notifications/`
-- myK9Show: 6 notification files
-  - `notificationIntegration.ts`
-  - `notificationService.ts`
-  - `notificationServiceHelpers.ts`
-  - `notificationSoundService.ts`
-  - `pushNotificationService.ts`
-  - `voiceAnnouncementService.ts`
+**Sprint 28 Verification (2026-02-06):**
+The "~30K duplicate code" claim is **inaccurate**. These are fundamentally different systems:
+- **myK9Q** (2,288 lines): Client-side PWA push notifications with queue management, haptic feedback, voice, quiet hours
+- **myK9Show** (2,706 lines): WebSocket real-time notifications for audit trails, templates, multi-channel delivery
 
-**Description:**
-Both apps implement notification services independently with ~30K lines of duplicate code.
+~200-300 lines of superficial overlap is expected. Merging would be inappropriate given different architectures and use cases.
 
-**Impact:**
-- **Business Impact:** Inconsistent notification behavior between apps
-- **Technical Impact:** Bug fixes must be applied twice, 30K lines duplicate code
-- **Risk:** Notification bugs affect both apps differently
+**Status:** Downgraded — no action needed
 
-**Root Cause:**
-Apps developed separately before monorepo consolidation.
-
-**Proposed Solution:**
-1. Create `@myk9/notifications` shared package
-2. Extract common notification logic
-3. Support app-specific customization via plugins
-4. Update both apps to use shared package
-
-**Effort Estimate:** 3-4 days
-
-**Priority Justification:**
-Medium because notifications are stable but cause duplication.
-
-**Dependencies:**
-- Related: DEBT-008 (Service Layer Complexity)
-
-**Status:** Open
-
-**Assignee:** Unassigned
-
-**Target Resolution:** Q2 2026
+**Target Resolution:** Deferred (acceptable architectural difference)
 
 ---
 
@@ -955,169 +737,58 @@ Medium because it prevents future architectural debt.
 
 ---
 
-### DEBT-018: Long Parameter Lists (181 in myK9Show)
+### ~~DEBT-018: Long Parameter Lists~~ ✅ CLOSED (False Positive)
 
 **Category:** Code Quality
 
-**Severity:** Medium
+**Severity:** ~~Medium~~ Closed
 
 **Created:** 2026-02-03
 
-**Location:**
-- 181 functions with >5 parameters
-- Worst offenders:
-  - `hooks/useConflictResolution.ts:108` (17 parameters)
-  - `lib/export.ts:147` (13 parameters)
-  - `lib/export.ts:105` (12 parameters)
+**Status:** ✅ **CLOSED** (2026-02-06)
 
-**Description:**
-181 functions have more than 5 parameters, making them hard to call and maintain. Some have up to 17 parameters.
+**Resolution:**
+Sprint 28 verification found the claimed worst offenders don't exist:
+- `useConflictResolution.ts:108` — actually takes **1 parameter** (options object)
+- `lib/export.ts:147` — actually takes **3 parameters**
+- `lib/export.ts:105` — actually takes **3 parameters**
 
-**Impact:**
-- **Business Impact:** Hard to use functions correctly, increased bug rate
-- **Technical Impact:** Poor API design, hard to remember parameter order
-- **Risk:** Parameter ordering bugs
-
-**Root Cause:**
-Functions accumulating parameters over time without refactoring to options objects.
-
-**Proposed Solution:**
-1. Refactor to options object pattern:
-```typescript
-// Before
-function foo(a, b, c, d, e, f, g) { }
-
-// After
-function foo(options: {
-  a: string;
-  b: number;
-  c: boolean;
-  d: string;
-  e: number;
-  f: string;
-  g: boolean;
-}) { }
-```
-2. Group related parameters into domain objects
-3. Add ESLint rule for max-params (5)
-
-**Effort Estimate:** 2-3 days
-
-**Priority Justification:**
-Medium because it affects code quality but not critically.
-
-**Dependencies:**
-- None
-
-**Status:** Open
-
-**Assignee:** Unassigned
-
-**Target Resolution:** Q2 2026
+Code already uses proper options object patterns. The claim of "181 functions with >5 parameters" appears to be a false positive from the original automated analysis.
 
 ---
 
-### DEBT-019: Magic Numbers (3,126 in myK9Show)
+### ~~DEBT-019: Magic Numbers~~ ✅ CLOSED (Not Actionable)
 
 **Category:** Code Quality
 
-**Severity:** Low
+**Severity:** ~~Low~~ Closed
 
 **Created:** 2026-02-03
 
-**Location:**
-- 3,126 hardcoded numeric values
-- Examples:
-  - `App.tsx:143` - timeout: 2000
-  - `config/performance-budget.ts` - multiple magic numbers
+**Status:** ✅ **CLOSED** (2026-02-06)
 
-**Description:**
-3,126 hardcoded numbers without named constants, making intent unclear.
-
-**Impact:**
-- **Business Impact:** Hard to adjust values, unclear why specific numbers chosen
-- **Technical Impact:** Duplication of magic numbers, maintainability issues
-- **Risk:** Changing one instance doesn't update duplicates
-
-**Root Cause:**
-Lack of constant extraction discipline.
-
-**Proposed Solution:**
-1. Extract commonly used numbers to constants
-2. Group related constants in config files
-3. Add descriptive names explaining why value chosen
-4. Focus on: timeouts, thresholds, limits, sizes
-
-**Effort Estimate:** 3-5 days
-
-**Priority Justification:**
-Low because most magic numbers are self-explanatory (0, 1, 100, etc.).
-
-**Dependencies:**
-- None
-
-**Status:** Open
-
-**Assignee:** Unassigned
-
-**Target Resolution:** Q3 2026
-
-**Notes:**
-- Prioritize non-obvious numbers (timeouts, thresholds)
-- Many magic numbers (0, 1, 2) are acceptable
+**Resolution:**
+Sprint 28 verification confirmed this is not actionable. The 3,126 count includes every numeric literal (0, 1, 2, 100, array indices, `padStart(2, '0')`, etc.). The register itself noted "most magic numbers are self-explanatory." Spot checks found key files use proper constants and interfaces for meaningful numbers. No maintenance burden.
 
 ---
 
-### DEBT-020: Inconsistent Component Patterns
+### DEBT-020: Inconsistent Component Patterns ⬇️ DOWNGRADED
 
 **Category:** Architecture
 
-**Severity:** Medium
+**Severity:** ~~Medium~~ Low
 
 **Created:** 2026-02-03
 
-**Location:**
-- myK9Q: 122 prop interfaces
-- myK9Show: 606 prop interfaces
-- No shared component patterns in `@myk9/ui`
+**Sprint 28 Verification (2026-02-06):**
+The claim of "no shared component patterns" is inaccurate:
+- `@myk9/ui` has **16 consistent prop interfaces** following Base UI/shadcn conventions
+- The 734 interfaces in app-specific components are for **domain-specific** components (ShowCard, RegistrationForm, ScoreEntry) — these SHOULD be app-specific
+- The real architecture is correct: shared UI in @myk9/ui, domain components in apps
 
-**Description:**
-728 prop interfaces across apps with inconsistent patterns. Common components like dialogs, forms, and lists implemented differently in each app.
+**Status:** Downgraded — current architecture is sound
 
-**Examples:**
-- Dialog components: Different prop patterns for open/close
-- Form components: Different validation patterns
-- List components: Different sorting/filtering patterns
-
-**Impact:**
-- **Business Impact:** Inconsistent UX between apps
-- **Technical Impact:** Can't share components, 100K+ lines duplicate component code
-- **Risk:** Bug fixes must be applied to each app separately
-
-**Root Cause:**
-Apps developed separately, component library created late.
-
-**Proposed Solution:**
-1. Extract common patterns to `@myk9/ui`:
-   - BaseDialog, FormDialog, ConfirmDialog
-   - BaseForm, FormField
-   - BaseList, FilterableList
-2. Create component composition guidelines
-3. Update apps to use shared components
-
-**Effort Estimate:** 1-2 weeks
-
-**Priority Justification:**
-Medium because it enables component reuse and consistent UX.
-
-**Dependencies:**
-- Related: DEBT-007 (Underutilized Shared Packages)
-
-**Status:** Open
-
-**Assignee:** Unassigned
-
-**Target Resolution:** Q2 2026
+**Target Resolution:** Deferred
 
 ---
 
@@ -1173,7 +844,7 @@ Medium because it affects test maintainability.
 
 **Category:** Test
 
-**Severity:** Medium
+**Severity:** ~~Medium~~ Medium-High (upgraded Sprint 28)
 
 **Created:** 2026-02-03
 
@@ -1221,51 +892,18 @@ Medium because cross-app bugs are high-impact but infrequent.
 
 ---
 
-### DEBT-023: No Dependency Between Apps
+### ~~DEBT-023: No Dependency Between Apps~~ ✅ CLOSED (Intentional Design)
 
 **Category:** Architecture
 
-**Severity:** Low
+**Severity:** ~~Low~~ Closed
 
 **Created:** 2026-02-03
 
-**Location:**
-- `apps/myk9show/` uses `@myk9/ui`
-- `apps/myk9q/` does NOT use `@myk9/ui`
+**Status:** ✅ **CLOSED** (2026-02-06)
 
-**Description:**
-myK9Q doesn't use `@myk9/ui` package, missing opportunities for component reuse. Uses only semantic CSS.
-
-**Impact:**
-- **Business Impact:** Inconsistent UI between apps
-- **Technical Impact:** Can't share UI components
-- **Risk:** UI divergence
-
-**Root Cause:**
-myK9Q is production legacy code maintained separately. Team hesitant to change working production code.
-
-**Proposed Solution:**
-1. Evaluate cost/benefit of migration
-2. Consider: myK9Q is stable, migration may introduce bugs
-3. Alternative: Extract myK9Q components to `@myk9/ui` for use in myK9Show
-
-**Effort Estimate:** 2-3 weeks (if migrating)
-
-**Priority Justification:**
-Low because myK9Q is stable and working. May not be worth risk.
-
-**Dependencies:**
-- None
-
-**Status:** Open
-
-**Assignee:** Unassigned
-
-**Target Resolution:** TBD (evaluate first)
-
-**Notes:**
-- Consider "don't fix what isn't broken"
-- May be acceptable debt
+**Resolution:**
+This is an **intentional architectural decision** documented in CLAUDE.md: "UI library (myK9Q) — Semantic CSS. Keep existing production code unchanged." myK9Q is a stable production app; migrating to @myk9/ui would be high-risk with no clear benefit. myK9Q already uses @myk9/core, @myk9/replication, @myk9/scoring, @myk9/scoring-ui, and @myk9/supabase.
 
 ---
 
@@ -1331,7 +969,7 @@ Medium because it affects future service development.
 
 **Category:** Architecture
 
-**Severity:** Low
+**Severity:** ~~Low~~ Medium-High (upgraded Sprint 28)
 
 **Created:** 2026-02-03
 
@@ -1496,31 +1134,30 @@ Low because monitoring works and doesn't cause issues.
 
 ## Debt Trends
 
-### By Category
-- Code Quality: 2 open (DEBT-018, 019) - *6 resolved: DEBT-001, 002, 005, 009, 010, 011*
-- Architecture: 7 open (DEBT-004, 006, 008, 013, 014, 020, 024) - *5 resolved: DEBT-003, 007, 025, 027, 028*
+### By Category (after Sprint 28 verification)
+- Code Quality: 0 open - *8 resolved/closed: DEBT-001, 002, 005, 009, 010, 011, 018, 019*
+- Architecture: 2 genuine open (DEBT-024, 025) + 3 downgraded (006, 014, 020) - *7 resolved/closed: DEBT-003, 004, 007, 008, 013, 023, 027*
 - Test: 3 open (DEBT-015, 021, 022)
 - Documentation: 1 open (DEBT-017) - *1 resolved: DEBT-016*
 - Code Organization: 0 open - *2 resolved: DEBT-029, 030*
 - Developer Experience: 0 open - *2 resolved: DEBT-026, 012*
-- Low/Deferred: 3 open (DEBT-019, 023, 028)
+- Performance: 1 open (DEBT-028)
 
-### By Severity
-- Critical: 0 items *(DEBT-001, DEBT-002 resolved)*
-- High: 4 open (DEBT-004, 006, 008, 015) *(DEBT-003, 005, 007, 009, 010 resolved)*
-- Medium: 8 open (DEBT-013, 014, 017, 018, 020, 021, 022, 024) *(DEBT-011, 012, 016, 030 resolved)*
-- Low: 4 open (DEBT-019, 023, 025, 028) *(DEBT-026, 027, 029 resolved)*
+### By Severity (revised)
+- Critical: 0
+- High: 1 open (DEBT-015)
+- Medium-High: 2 open (DEBT-022, DEBT-025)
+- Medium: 3 open (DEBT-024, DEBT-028, DEBT-021)
+- Low: 1 open (DEBT-017) + 3 downgraded (DEBT-006, 014, 020)
+- Closed/Resolved: 20 total
 
-### By Estimated Effort
-- Quick wins (<1 day): 7 items
-- Short (1-3 days): 9 items
-- Medium (3-7 days): 8 items
-- Large (1-2 weeks): 4 items
-- Very Large (2-3 weeks): 2 items
+### Key Insight (Sprint 28)
+The original automated analysis overstated severity on **8 of 16 open items**. Line counts were off by 96-97% on stores (DEBT-004) and AuthContext (DEBT-013). Long parameter lists (DEBT-018) were false positives. Always verify automated claims against actual codebase before planning work.
 
 ### Aging
 - Items created: 2026-02-03
-- Last sprint work: 2026-02-06 (DEBT-003 resolved, DEBT-009/010 mostly complete via helper extraction)
+- Sprint 28 audit: 2026-02-06 (5 closed, 3 downgraded, 8 reprioritized)
+- Sprint 28 execution: 2026-02-06 (DEBT-008 complete — 13 dead files purged)
 
 ---
 
@@ -1574,27 +1211,35 @@ Low because monitoring works and doesn't cause issues.
 **Estimated effort:** 1-2 days
 **Impact:** Production-ready logging, codebase cleanup
 
-### Q1 2026 (2-3 months)
-**Focus: Architecture improvements**
+### Sprint 28-29 (Immediate)
+**Focus: Dead code cleanup — highest ROI, zero risk**
 
-1. ✅ **DEBT-004:** Break up bloated stores (3-5 days)
-2. ✅ **DEBT-006:** Unify state management (5-7 days)
-3. ✅ **DEBT-015:** Add package tests (2-3 weeks)
+1. ~~**DEBT-008:** Purge unused service files~~ ✅ Complete — 13 files (~6,500 lines) deleted
+2. **DEBT-006:** Document state management guidelines in CLAUDE.md (2-3 hours)
+
+**Estimated effort:** 2-3 hours remaining
+**Impact:** Dead code removed, improve codebase navigability
+
+### Q1 2026 (remaining)
+**Focus: Testing foundation**
+
+1. **DEBT-015:** Add package tests for @myk9/core, @myk9/replication, @myk9/scoring (2-3 weeks)
+2. **DEBT-021:** Standardize test organization (2-3 days)
+
+**Estimated effort:** 3-4 weeks
+**Impact:** Safe refactoring, regression detection for shared packages
+
+### Q2 2026
+**Focus: Service contracts and cross-app testing**
+
+1. **DEBT-025:** Define service interfaces/contracts (1 week)
+2. **DEBT-022:** Add cross-app E2E tests (1-2 weeks)
+3. **DEBT-024:** Standardize service patterns (1 week)
+4. **DEBT-028:** Simplify performance monitoring (3-5 days)
+5. **DEBT-017:** Formalize ADR process (2-3 hours)
 
 **Estimated effort:** 4-5 weeks
-**Impact:** Better architecture, test coverage
-
-### Q2 2026 (4-6 months)
-**Focus: Service layer and cross-cutting concerns**
-
-1. ✅ **DEBT-008:** Simplify service layer (1-2 weeks)
-2. ✅ **DEBT-013:** Refactor AuthContext (1 day)
-3. ✅ **DEBT-014:** Consolidate notification services (3-4 days)
-4. ✅ **DEBT-017:** Create ADRs (1 week)
-5. ✅ **DEBT-020:** Standardize component patterns (1-2 weeks)
-
-**Estimated effort:** 4-5 weeks
-**Impact:** Cleaner architecture, better documentation
+**Impact:** Better testability, cross-app reliability
 
 ---
 

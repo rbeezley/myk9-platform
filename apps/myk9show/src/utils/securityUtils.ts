@@ -83,7 +83,7 @@ export const SecurityUtils = {
   },
 
   isSecureContext: (): boolean => {
-    return window.isSecureContext || window.location.protocol === 'https:';
+    return window.isSecureContext || window.location.protocol === 'https:' || window.location.hostname === 'localhost';
   },
 
   detectBot: (): boolean => {

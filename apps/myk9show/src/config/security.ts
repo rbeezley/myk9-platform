@@ -142,12 +142,15 @@ export function isSecureContext(): boolean {
 }
 
 /**
- * Generate a secure random token
+ * Generate a secure random token.
+ * Requires a secure context (HTTPS or localhost).
  */
 export function generateSecureToken(length: number = 32): string {
   if (!isSecureContext()) {
-    // Fallback for non-secure contexts
-    return Math.random().toString(36).substring(2, length + 2);
+    throw new Error(
+      'generateSecureToken requires a secure context (HTTPS or localhost). ' +
+      'Ensure the app is served over HTTPS in production.'
+    );
   }
 
   const array = new Uint8Array(length);
@@ -156,12 +159,15 @@ export function generateSecureToken(length: number = 32): string {
 }
 
 /**
- * Hash a value using Web Crypto API
+ * Hash a value using Web Crypto API (SHA-256).
+ * Requires a secure context (HTTPS or localhost).
  */
 export async function secureHash(data: string): Promise<string> {
   if (!isSecureContext()) {
-    // Fallback for non-secure contexts - not cryptographically secure
-    return btoa(data);
+    throw new Error(
+      'secureHash requires a secure context (HTTPS or localhost). ' +
+      'Ensure the app is served over HTTPS in production.'
+    );
   }
 
   const encoder = new TextEncoder();

@@ -18,21 +18,38 @@ const stripe = new Stripe(stripeSecret, {
   },
 });
 
-// CORS response helper
-function corsResponse(body: string | object | null, status = 200) {
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': '*',
-  };
+// CORS configuration - restrict to known app domains
+const ALLOWED_ORIGINS = [
+  'https://myk9show.com',
+  'https://www.myk9show.com',
+  'https://app.myk9show.com',
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://127.0.0.1:5173',
+];
 
+function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
+  const origin = requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin)
+    ? requestOrigin
+    : ALLOWED_ORIGINS[0];
+  return {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  };
+}
+
+// CORS response helper
+let _corsHeaders: Record<string, string> = getCorsHeaders(null);
+
+function corsResponse(body: string | object | null, status = 200) {
   if (status === 204) {
-    return new Response(null, { status, headers });
+    return new Response(null, { status, headers: _corsHeaders });
   }
 
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...headers, 'Content-Type': 'application/json' },
+    headers: { ..._corsHeaders, 'Content-Type': 'application/json' },
   });
 }
 
@@ -61,6 +78,8 @@ interface EntryCheckoutRequest {
 type CheckoutRequest = SubscriptionCheckoutRequest | PaymentCheckoutRequest | EntryCheckoutRequest;
 
 Deno.serve(async (req) => {
+  _corsHeaders = getCorsHeaders(req.headers.get('origin'));
+
   try {
     if (req.method === 'OPTIONS') {
       return corsResponse({}, 204);

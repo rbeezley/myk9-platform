@@ -7,6 +7,27 @@ const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+// CORS configuration - restrict to known app domains
+const ALLOWED_ORIGINS = [
+  'https://myk9show.com',
+  'https://www.myk9show.com',
+  'https://app.myk9show.com',
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://127.0.0.1:5173',
+];
+
+function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
+  const origin = requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin)
+    ? requestOrigin
+    : ALLOWED_ORIGINS[0];
+  return {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  };
+}
+
 // Email sender configuration
 const FROM_EMAIL = 'myK9Show <noreply@myk9show.com>';
 
@@ -68,40 +89,50 @@ interface WaitlistOfferData {
 type EmailData = EntryConfirmationData | PaymentReceiptData | WelcomeEmailData | WaitlistOfferData;
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+
   // Handle CORS
   if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 204,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      },
-    });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   if (req.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405 });
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  // Authenticate: only internal services with service role key can send emails
+  const authHeader = req.headers.get('Authorization');
+  const token = authHeader?.replace('Bearer ', '');
+  if (token !== Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')) {
+    console.error('send-email: Unauthorized request');
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 
   try {
+    // Helper to return JSON with CORS headers
+    const jsonResponse = (body: object, status = 200) =>
+      new Response(JSON.stringify(body), {
+        status,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+
     // Check for API key
     if (!resendApiKey) {
       console.error('RESEND_API_KEY not configured');
-      return Response.json(
-        { error: 'Email service not configured' },
-        { status: 503 }
-      );
+      return jsonResponse({ error: 'Email service not configured' }, 503);
     }
 
     const data: EmailData = await req.json();
 
     // Validate required fields
     if (!data.to || !data.type) {
-      return Response.json(
-        { error: 'Missing required fields: to, type' },
-        { status: 400 }
-      );
+      return jsonResponse({ error: 'Missing required fields: to, type' }, 400);
     }
 
     // Generate email content based on type
@@ -130,9 +161,8 @@ Deno.serve(async (req) => {
         break;
 
       default:
-        return Response.json(
-          { error: `Unknown email type: ${(data as EmailData).type}` },
-          { status: 400 }
+        return jsonResponse(
+          { error: `Unknown email type: ${(data as EmailData).type}` }, 400
         );
     }
 
@@ -154,10 +184,7 @@ Deno.serve(async (req) => {
     if (!response.ok) {
       const error = await response.json();
       console.error('Resend API error:', error);
-      return Response.json(
-        { error: 'Failed to send email', details: error },
-        { status: 500 }
-      );
+      return jsonResponse({ error: 'Failed to send email', details: error }, 500);
     }
 
     const result = await response.json();
@@ -176,11 +203,11 @@ Deno.serve(async (req) => {
       console.log('Could not log email (table may not exist):', err.message);
     });
 
-    return Response.json({ success: true, id: result.id });
+    return jsonResponse({ success: true, id: result.id });
   } catch (error: unknown) {
     console.error('Error sending email:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return Response.json({ error: errorMessage }, { status: 500 });
+    return jsonResponse({ error: errorMessage }, 500);
   }
 });
 

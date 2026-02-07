@@ -20,6 +20,27 @@ const cronSecret = Deno.env.get('CRON_SECRET');
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+// CORS configuration - restrict to known app domains
+const ALLOWED_ORIGINS = [
+  'https://myk9show.com',
+  'https://www.myk9show.com',
+  'https://app.myk9show.com',
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://127.0.0.1:5173',
+];
+
+function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
+  const origin = requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin)
+    ? requestOrigin
+    : ALLOWED_ORIGINS[0];
+  return {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  };
+}
+
 // Offer expiration time (24 hours)
 const OFFER_EXPIRATION_HOURS = 24;
 
@@ -59,29 +80,30 @@ interface ExhibitorInfo {
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+
   // Verify cron secret for security
   const authHeader = req.headers.get('Authorization');
   const providedSecret = authHeader?.replace('Bearer ', '');
 
   if (cronSecret && providedSecret !== cronSecret) {
     console.error('Unauthorized cron request');
-    return new Response('Unauthorized', { status: 401 });
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 
   // Handle CORS
   if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 204,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      },
-    });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   if (req.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405 });
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 
   console.log(`[${new Date().toISOString()}] Running waitlist expiration cron`);
@@ -162,15 +184,20 @@ Deno.serve(async (req) => {
       `[${new Date().toISOString()}] Cron complete: ${results.expiredOffers} expired, ${results.newOffers} new offers`
     );
 
-    return Response.json({
+    return new Response(JSON.stringify({
       success: true,
       timestamp: new Date().toISOString(),
       results,
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
     console.error('Cron job error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return Response.json({ success: false, error: errorMessage }, { status: 500 });
+    return new Response(JSON.stringify({ success: false, error: errorMessage }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });
 

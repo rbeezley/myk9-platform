@@ -11,16 +11,33 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-e2e-test',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+// CORS configuration - restrict to known app domains
+const ALLOWED_ORIGINS = [
+  'https://myk9q.com',
+  'https://www.myk9q.com',
+  'https://app.myk9q.com',
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://127.0.0.1:5173',
+]
+
+function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
+  const origin = requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin)
+    ? requestOrigin
+    : ALLOWED_ORIGINS[0]
+  return {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-e2e-test',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  }
 }
 
 // Secret key for E2E tests - must match CI workflow
 const E2E_TEST_KEY = 'myK9Q-e2e-test-2024'
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req.headers.get('origin'))
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })

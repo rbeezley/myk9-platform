@@ -562,4 +562,470 @@ describe('AnnouncementService', () => {
       ).rejects.toThrow();
     });
   });
+
+  describe('markMultipleAsRead', () => {
+    test('should mark multiple announcements as read', async () => {
+      const mockFrom = vi.fn().mockReturnThis();
+      const mockUpsert = vi.fn().mockResolvedValue({ error: null });
+
+      vi.mocked(supabase.from).mockReturnValue({
+        upsert: mockUpsert
+      } as any);
+
+      await AnnouncementService.markMultipleAsRead([1, 2, 3], mockLicenseKey, 'user-123');
+
+      expect(mockUpsert).toHaveBeenCalledWith([
+        { announcement_id: 1, user_identifier: 'user-123', license_key: mockLicenseKey },
+        { announcement_id: 2, user_identifier: 'user-123', license_key: mockLicenseKey },
+        { announcement_id: 3, user_identifier: 'user-123', license_key: mockLicenseKey },
+      ]);
+    });
+
+    test('should handle empty array', async () => {
+      const mockFrom = vi.fn().mockReturnThis();
+      const mockUpsert = vi.fn().mockResolvedValue({ error: null });
+
+      vi.mocked(supabase.from).mockReturnValue({
+        upsert: mockUpsert
+      } as any);
+
+      await AnnouncementService.markMultipleAsRead([], mockLicenseKey, 'user-123');
+
+      expect(mockUpsert).toHaveBeenCalledWith([]);
+    });
+
+    test('should throw error on database failure', async () => {
+      const mockFrom = vi.fn().mockReturnThis();
+      const mockUpsert = vi.fn().mockResolvedValue({
+        error: { message: 'Database error' }
+      });
+
+      vi.mocked(supabase.from).mockReturnValue({
+        upsert: mockUpsert
+      } as any);
+
+      await expect(
+        AnnouncementService.markMultipleAsRead([1, 2], mockLicenseKey, 'user-123')
+      ).rejects.toThrow();
+    });
+  });
+
+  describe('getReadStatus', () => {
+    test('should get read status for all announcements', async () => {
+      const { replicatedAnnouncementReadsTable } = await import('./replication');
+      const mockReads = [
+        { announcement_id: '1', user_identifier: 'user-123', license_key: mockLicenseKey },
+        { announcement_id: '2', user_identifier: 'user-123', license_key: mockLicenseKey },
+      ];
+      vi.mocked(replicatedAnnouncementReadsTable.getByUser).mockResolvedValueOnce(mockReads as any);
+
+      const result = await AnnouncementService.getReadStatus(mockLicenseKey, 'user-123');
+
+      expect(result.has(1)).toBe(true);
+      expect(result.has(2)).toBe(true);
+      expect(result.has(3)).toBe(false);
+    });
+
+    test('should filter by license key', async () => {
+      const { replicatedAnnouncementReadsTable } = await import('./replication');
+      const mockReads = [
+        { announcement_id: '1', user_identifier: 'user-123', license_key: mockLicenseKey },
+        { announcement_id: '2', user_identifier: 'user-123', license_key: 'other-license' },
+      ];
+      vi.mocked(replicatedAnnouncementReadsTable.getByUser).mockResolvedValueOnce(mockReads as any);
+
+      const result = await AnnouncementService.getReadStatus(mockLicenseKey, 'user-123');
+
+      expect(result.has(1)).toBe(true);
+      expect(result.has(2)).toBe(false); // Filtered out by license key
+    });
+
+    test('should filter by specific announcement IDs', async () => {
+      const { replicatedAnnouncementReadsTable } = await import('./replication');
+      const mockReads = [
+        { announcement_id: '1', user_identifier: 'user-123', license_key: mockLicenseKey },
+        { announcement_id: '2', user_identifier: 'user-123', license_key: mockLicenseKey },
+        { announcement_id: '3', user_identifier: 'user-123', license_key: mockLicenseKey },
+      ];
+      vi.mocked(replicatedAnnouncementReadsTable.getByUser).mockResolvedValueOnce(mockReads as any);
+
+      const result = await AnnouncementService.getReadStatus(mockLicenseKey, 'user-123', [1, 3]);
+
+      expect(result.has(1)).toBe(true);
+      expect(result.has(2)).toBe(false); // Filtered out by announcement IDs
+      expect(result.has(3)).toBe(true);
+    });
+
+    test('should return empty set when no reads found', async () => {
+      const { replicatedAnnouncementReadsTable } = await import('./replication');
+      vi.mocked(replicatedAnnouncementReadsTable.getByUser).mockResolvedValueOnce([]);
+
+      const result = await AnnouncementService.getReadStatus(mockLicenseKey, 'user-123');
+
+      expect(result.size).toBe(0);
+    });
+  });
+
+  describe('getUnreadCount', () => {
+    test('should calculate unread count correctly', async () => {
+      const { replicatedAnnouncementReadsTable } = await import('./replication');
+      const activeAnnouncements = [
+        { ...mockAnnouncements[0], id: '1' },
+        { ...mockAnnouncements[1], id: '2' },
+        { id: '3', license_key: mockLicenseKey, is_active: true } as any,
+      ];
+      vi.mocked(replicatedAnnouncementsTable.getActive).mockResolvedValueOnce(activeAnnouncements);
+
+      const mockReads = [
+        { announcement_id: '1', user_identifier: 'user-123', license_key: mockLicenseKey },
+      ];
+      vi.mocked(replicatedAnnouncementReadsTable.getByUser).mockResolvedValueOnce(mockReads as any);
+
+      const count = await AnnouncementService.getUnreadCount(mockLicenseKey, 'user-123');
+
+      expect(count).toBe(2); // 3 total - 1 read = 2 unread
+    });
+
+    test('should return 0 when no announcements', async () => {
+      vi.mocked(replicatedAnnouncementsTable.getActive).mockResolvedValueOnce([]);
+
+      const count = await AnnouncementService.getUnreadCount(mockLicenseKey, 'user-123');
+
+      expect(count).toBe(0);
+    });
+
+    test('should filter by license key', async () => {
+      const { replicatedAnnouncementReadsTable } = await import('./replication');
+      const activeAnnouncementsWithDifferentKeys = [
+        { id: '1', license_key: mockLicenseKey, is_active: true } as any,
+        { id: '2', license_key: 'other-license', is_active: true } as any,
+      ];
+      vi.mocked(replicatedAnnouncementsTable.getActive).mockResolvedValueOnce(activeAnnouncementsWithDifferentKeys);
+      vi.mocked(replicatedAnnouncementReadsTable.getByUser).mockResolvedValueOnce([]);
+
+      const count = await AnnouncementService.getUnreadCount(mockLicenseKey, 'user-123');
+
+      expect(count).toBe(1); // Only one matches license key
+    });
+  });
+
+  describe('getAnnouncementsWithReadStatus', () => {
+    test('should combine announcements with read status', async () => {
+      const { replicatedAnnouncementReadsTable } = await import('./replication');
+      const futureDate = new Date(Date.now() + 86400000).toISOString();
+      vi.mocked(replicatedAnnouncementsTable.getAll).mockResolvedValueOnce([
+        { ...mockAnnouncements[0], id: '1', expires_at: null },
+        { ...mockAnnouncements[1], id: '2', expires_at: futureDate },
+      ] as any);
+
+      const mockReads = [
+        { announcement_id: '1', user_identifier: 'user-123', license_key: mockLicenseKey },
+      ];
+      vi.mocked(replicatedAnnouncementReadsTable.getByUser).mockResolvedValueOnce(mockReads as any);
+
+      const result = await AnnouncementService.getAnnouncementsWithReadStatus(
+        mockLicenseKey,
+        'user-123'
+      );
+
+      expect(result.data).toHaveLength(2);
+      expect(result.data[0].is_read).toBe(true);
+      expect(result.data[1].is_read).toBe(false);
+    });
+
+    test('should handle empty announcements', async () => {
+      // Mock both cache AND Supabase fallback
+      vi.mocked(replicatedAnnouncementsTable.getAll).mockResolvedValueOnce([]);
+
+      // Set up Supabase mock chain for fallback
+      const mockSelect = vi.fn().mockReturnThis();
+      const mockEq = vi.fn().mockReturnThis();
+      const mockOr = vi.fn().mockReturnThis();
+      const mockOrder = vi.fn().mockResolvedValue({
+        data: [],
+        error: null,
+        count: 0
+      });
+
+      vi.mocked(supabase.from).mockReturnValue({
+        select: mockSelect,
+        eq: mockEq,
+        or: mockOr,
+        order: mockOrder
+      } as any);
+
+      const result = await AnnouncementService.getAnnouncementsWithReadStatus(
+        mockLicenseKey,
+        'user-123'
+      );
+
+      expect(result.data).toHaveLength(0);
+      expect(result.count).toBe(0);
+    });
+  });
+
+  describe('getRecentUrgentAnnouncements', () => {
+    test('should get urgent announcements', async () => {
+      const urgentAnnouncements = [
+        { ...mockAnnouncements[0], id: '1', priority: 'urgent' },
+        { ...mockAnnouncements[1], id: '2', priority: 'urgent' },
+      ];
+      vi.mocked(replicatedAnnouncementsTable.getByPriority).mockResolvedValueOnce(urgentAnnouncements as any);
+
+      const result = await AnnouncementService.getRecentUrgentAnnouncements(mockLicenseKey);
+
+      expect(replicatedAnnouncementsTable.getByPriority).toHaveBeenCalledWith('urgent');
+      expect(result).toHaveLength(2);
+    });
+
+    test('should filter by timestamp', async () => {
+      const recentTime = '2025-01-01T09:30:00Z';
+      const urgentAnnouncements = [
+        { id: '1', created_at: '2025-01-01T10:00:00Z', license_key: mockLicenseKey, is_active: true, priority: 'urgent' } as any,
+        { id: '2', created_at: '2025-01-01T09:00:00Z', license_key: mockLicenseKey, is_active: true, priority: 'urgent' } as any,
+      ];
+      vi.mocked(replicatedAnnouncementsTable.getByPriority).mockResolvedValueOnce(urgentAnnouncements);
+
+      const result = await AnnouncementService.getRecentUrgentAnnouncements(
+        mockLicenseKey,
+        recentTime
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe(1); // Only the one after timestamp
+    });
+
+    test('should filter by license key', async () => {
+      const urgentAnnouncements = [
+        { id: '1', license_key: mockLicenseKey, is_active: true, priority: 'urgent' } as any,
+        { id: '2', license_key: 'other-license', is_active: true, priority: 'urgent' } as any,
+      ];
+      vi.mocked(replicatedAnnouncementsTable.getByPriority).mockResolvedValueOnce(urgentAnnouncements);
+
+      const result = await AnnouncementService.getRecentUrgentAnnouncements(mockLicenseKey);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].license_key).toBe(mockLicenseKey);
+    });
+
+    test('should limit to 10 results', async () => {
+      const urgentAnnouncements = Array.from({ length: 15 }, (_, i) => ({
+        id: `${i + 1}`,
+        license_key: mockLicenseKey,
+        is_active: true,
+        priority: 'urgent',
+        created_at: new Date().toISOString(),
+      }));
+      vi.mocked(replicatedAnnouncementsTable.getByPriority).mockResolvedValueOnce(urgentAnnouncements as any);
+
+      const result = await AnnouncementService.getRecentUrgentAnnouncements(mockLicenseKey);
+
+      expect(result).toHaveLength(10);
+    });
+
+    test('should sort by created_at descending', async () => {
+      const urgentAnnouncements = [
+        { id: '1', created_at: '2025-01-01T00:00:00Z', license_key: mockLicenseKey, is_active: true } as any,
+        { id: '2', created_at: '2025-01-03T00:00:00Z', license_key: mockLicenseKey, is_active: true } as any,
+        { id: '3', created_at: '2025-01-02T00:00:00Z', license_key: mockLicenseKey, is_active: true } as any,
+      ];
+      vi.mocked(replicatedAnnouncementsTable.getByPriority).mockResolvedValueOnce(urgentAnnouncements);
+
+      const result = await AnnouncementService.getRecentUrgentAnnouncements(mockLicenseKey);
+
+      expect(result[0].id).toBe(2); // Newest first
+      expect(result[1].id).toBe(3);
+      expect(result[2].id).toBe(1);
+    });
+  });
+
+  describe('canManageAnnouncements', () => {
+    test('should return true for admin', () => {
+      expect(AnnouncementService.canManageAnnouncements('admin')).toBe(true);
+    });
+
+    test('should return true for judge', () => {
+      expect(AnnouncementService.canManageAnnouncements('judge')).toBe(true);
+    });
+
+    test('should return true for steward', () => {
+      expect(AnnouncementService.canManageAnnouncements('steward')).toBe(true);
+    });
+
+    test('should return false for exhibitor', () => {
+      expect(AnnouncementService.canManageAnnouncements('exhibitor')).toBe(false);
+    });
+
+    test('should return false for unknown role', () => {
+      expect(AnnouncementService.canManageAnnouncements('unknown')).toBe(false);
+    });
+  });
+
+  describe('canEditAnnouncement', () => {
+    test('should return false for exhibitor', () => {
+      expect(AnnouncementService.canEditAnnouncement('exhibitor', 'admin')).toBe(false);
+    });
+
+    test('should return true for admin editing any announcement', () => {
+      expect(AnnouncementService.canEditAnnouncement('admin', 'judge')).toBe(true);
+      expect(AnnouncementService.canEditAnnouncement('admin', 'steward')).toBe(true);
+      expect(AnnouncementService.canEditAnnouncement('admin', 'admin')).toBe(true);
+    });
+
+    test('should return true for matching roles', () => {
+      expect(AnnouncementService.canEditAnnouncement('judge', 'judge')).toBe(true);
+      expect(AnnouncementService.canEditAnnouncement('steward', 'steward')).toBe(true);
+    });
+
+    test('should return false for non-matching roles', () => {
+      expect(AnnouncementService.canEditAnnouncement('judge', 'admin')).toBe(false);
+      expect(AnnouncementService.canEditAnnouncement('steward', 'judge')).toBe(false);
+    });
+  });
+
+  describe('generateUserIdentifier', () => {
+    let mockSessionStorage: Storage;
+
+    beforeEach(() => {
+      mockSessionStorage = {
+        getItem: vi.fn(),
+        setItem: vi.fn(),
+        removeItem: vi.fn(),
+        clear: vi.fn(),
+        length: 0,
+        key: vi.fn(),
+      };
+      Object.defineProperty(global, 'sessionStorage', {
+        value: mockSessionStorage,
+        writable: true,
+      });
+    });
+
+    test('should generate new identifier when none exists', () => {
+      vi.mocked(sessionStorage.getItem).mockReturnValue(null);
+
+      const id = AnnouncementService.generateUserIdentifier();
+
+      expect(id).toMatch(/^session_\d+_[a-z0-9]+$/);
+      expect(sessionStorage.setItem).toHaveBeenCalledWith('user_session_id', id);
+    });
+
+    test('should return existing identifier', () => {
+      const existingId = 'session_123_abc';
+      vi.mocked(sessionStorage.getItem).mockReturnValue(existingId);
+
+      const id = AnnouncementService.generateUserIdentifier();
+
+      expect(id).toBe(existingId);
+      expect(sessionStorage.setItem).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('isExpired', () => {
+    test('should return false when expires_at is undefined', () => {
+      const announcement = { ...mockAnnouncements[0], expires_at: undefined };
+      expect(AnnouncementService.isExpired(announcement)).toBe(false);
+    });
+
+    test('should return false when expires_at is in the future', () => {
+      const futureDate = new Date(Date.now() + 86400000).toISOString();
+      const announcement = { ...mockAnnouncements[0], expires_at: futureDate };
+      expect(AnnouncementService.isExpired(announcement)).toBe(false);
+    });
+
+    test('should return true when expires_at is in the past', () => {
+      const pastDate = new Date(Date.now() - 86400000).toISOString();
+      const announcement = { ...mockAnnouncements[0], expires_at: pastDate };
+      expect(AnnouncementService.isExpired(announcement)).toBe(true);
+    });
+  });
+
+  describe('formatTimeAgo', () => {
+    test('should return "Just now" for recent timestamps', () => {
+      const now = new Date().toISOString();
+      expect(AnnouncementService.formatTimeAgo(now)).toBe('Just now');
+    });
+
+    test('should return minutes ago', () => {
+      const time = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      expect(AnnouncementService.formatTimeAgo(time)).toBe('5 minutes ago');
+    });
+
+    test('should return singular minute', () => {
+      const time = new Date(Date.now() - 1 * 60 * 1000).toISOString();
+      expect(AnnouncementService.formatTimeAgo(time)).toBe('1 minute ago');
+    });
+
+    test('should return hours ago', () => {
+      const time = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+      expect(AnnouncementService.formatTimeAgo(time)).toBe('3 hours ago');
+    });
+
+    test('should return singular hour', () => {
+      const time = new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString();
+      expect(AnnouncementService.formatTimeAgo(time)).toBe('1 hour ago');
+    });
+
+    test('should return days ago', () => {
+      const time = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString();
+      expect(AnnouncementService.formatTimeAgo(time)).toBe('5 days ago');
+    });
+
+    test('should return singular day', () => {
+      const time = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString();
+      expect(AnnouncementService.formatTimeAgo(time)).toBe('1 day ago');
+    });
+
+    test('should return formatted date for older timestamps', () => {
+      const time = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString();
+      const result = AnnouncementService.formatTimeAgo(time);
+      expect(result).toMatch(/\d{1,2}\/\d{1,2}\/\d{4}/); // US date format
+    });
+  });
+
+  describe('getPriorityBadgeInfo', () => {
+    test('should return urgent badge info', () => {
+      const info = AnnouncementService.getPriorityBadgeInfo('urgent');
+      expect(info.label).toBe('URGENT');
+      expect(info.color).toBe('bg-red-500 text-white');
+      expect(info.icon).toBe('🚨');
+    });
+
+    test('should return high badge info', () => {
+      const info = AnnouncementService.getPriorityBadgeInfo('high');
+      expect(info.label).toBe('HIGH');
+      expect(info.color).toBe('bg-yellow-500 text-black');
+      expect(info.icon).toBe('⚠️');
+    });
+
+    test('should return normal badge info', () => {
+      const info = AnnouncementService.getPriorityBadgeInfo('normal');
+      expect(info.label).toBe('NORMAL');
+      expect(info.color).toBe('bg-gray-500 text-white');
+      expect(info.icon).toBe('📢');
+    });
+  });
+
+  describe('getRoleBadgeInfo', () => {
+    test('should return admin badge info', () => {
+      const info = AnnouncementService.getRoleBadgeInfo('admin');
+      expect(info.label).toBe('ADMIN');
+      expect(info.color).toBe('bg-purple-600 text-white');
+      expect(info.icon).toBe('👑');
+    });
+
+    test('should return judge badge info', () => {
+      const info = AnnouncementService.getRoleBadgeInfo('judge');
+      expect(info.label).toBe('JUDGE');
+      expect(info.color).toBe('bg-blue-600 text-white');
+      expect(info.icon).toBe('⚖️');
+    });
+
+    test('should return steward badge info', () => {
+      const info = AnnouncementService.getRoleBadgeInfo('steward');
+      expect(info.label).toBe('STEWARD');
+      expect(info.color).toBe('bg-green-600 text-white');
+      expect(info.icon).toBe('📋');
+    });
+  });
 });

@@ -193,7 +193,7 @@ export function safeGet<K extends PropertyKey>(
   key: K
 ): unknown | undefined {
   if (!isObject(obj)) return undefined;
-  return obj[key];
+  return (obj as Record<PropertyKey, unknown>)[key];
 }
 
 /**

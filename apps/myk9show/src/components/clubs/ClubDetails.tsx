@@ -21,6 +21,8 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { ClubAdminService } from '@/services/clubAdminService';
 import { ScopeType } from '@/types/auth-types';
 import { logger } from '@/services/LoggingService';
+import { notifications } from '@/lib/notifications';
+import { getErrorMessage } from '@myk9/core';
 
 
 export interface ClubDetailsProps {
@@ -194,7 +196,9 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
       logger.error('Club deletion failed', 'clubs', { clubId: selectedClub.id }, error as Error);
       // Still close the dialog even on error so user isn't stuck
       setShowDeleteDialog(false);
-      // TODO: Show error toast to user
+      notifications.error('Failed to delete club', {
+        description: getErrorMessage(error),
+      });
     } finally {
       setIsDeleting(false);
     }
@@ -229,7 +233,9 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
     } catch (error) {
       logger.error('Failed to save club', 'clubs', { clubId: selectedClub?.id }, error as Error);
       // Keep the panel open so user can try again
-      // TODO: Show error message in panel
+      notifications.error('Failed to save club', {
+        description: getErrorMessage(error),
+      });
     }
   };
 

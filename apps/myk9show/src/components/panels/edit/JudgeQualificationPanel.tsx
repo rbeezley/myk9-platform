@@ -11,6 +11,8 @@ import { useRBAC } from '@/hooks/useRBAC';
 import type { JudgeQualification } from '@/types/user-types';
 import { cn } from '@/lib/utils';
 import { logger } from '@/services/LoggingService';
+import { notifications } from '@/lib/notifications';
+import { getErrorMessage } from '@myk9/core';
 
 interface JudgeQualificationPanelProps {
   open: boolean;
@@ -139,7 +141,9 @@ export const JudgeQualificationPanel: React.FC<JudgeQualificationPanelProps> = (
       onClose();
     } catch (error) {
       logger.error('Failed to save qualifications:', 'components', {}, error as Error);
-      // TODO: Show error toast
+      notifications.error('Failed to save qualifications', {
+        description: getErrorMessage(error),
+      });
     } finally {
       setIsLoading(false);
     }

@@ -1,17 +1,48 @@
 import { logger } from '@/services/LoggingService';
+import { isObject } from '@myk9/core';
 
 /**
  * Sync Optimization Service
- * 
+ *
  * Essential sync payload optimization for Phase 4 production readiness.
  * Reduces data transfer and sync times through smart payload management.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-export interface SyncPayload {
+/**
+ * Base interface for syncable entities
+ */
+export interface SyncableEntity {
+  id: string | number;
+  _lastModified?: number;
+  _version?: number;
+  updatedAt?: string | number;
+}
+
+/**
+ * Differential sync changes
+ */
+export interface DifferentialChanges<T extends SyncableEntity = SyncableEntity> {
+  added: T[];
+  modified: Array<{ id: string | number; changes: Partial<T> }>;
+  deleted: Array<string | number>;
+}
+
+/**
+ * Compressed data container
+ */
+export interface CompressedData {
+  compressed: true;
+  originalSize: number;
+  data: string;
+}
+
+/**
+ * Generic sync payload
+ */
+export interface SyncPayload<T = unknown> {
   type: 'full' | 'incremental';
   timestamp: number;
-  data: any;
+  data: T | CompressedData;
   checksum?: string;
   compressed: boolean;
 }
@@ -33,36 +64,39 @@ export class SyncOptimizationService {
     batchSize: 100
   };
 
-  private lastSyncSnapshots: Map<string, any> = new Map();
+  private lastSyncSnapshots: Map<string, SyncableEntity[]> = new Map();
 
   /**
    * Optimize sync payload for transmission
    */
-  async optimizePayload(type: string, data: any[]): Promise<SyncPayload[]> {
-    const payloads: SyncPayload[] = [];
-    
+  async optimizePayload<T extends SyncableEntity>(
+    type: string,
+    data: T[]
+  ): Promise<Array<SyncPayload<T | DifferentialChanges<T>>>> {
+    const payloads: Array<SyncPayload<T | DifferentialChanges<T>>> = [];
+
     // Determine if we can use differential sync
-    const canUseDifferential = this.config.enableDifferentialSync && 
+    const canUseDifferential = this.config.enableDifferentialSync &&
                               this.lastSyncSnapshots.has(type);
 
     if (canUseDifferential) {
       // Create differential payload
       const differential = this.createDifferentialPayload(type, data);
       if (differential.added.length > 0 || differential.modified.length > 0 || differential.deleted.length > 0) {
-        payloads.push(await this.createSyncPayload('incremental', differential));
+        payloads.push(await this.createSyncPayload<DifferentialChanges<T>>('incremental', differential));
       }
     } else {
       // Create full payload, possibly batched
       const batches = this.batchData(data, this.config.batchSize);
-      
+
       for (const batch of batches) {
-        const payload = await this.createSyncPayload('full', batch);
+        const payload = await this.createSyncPayload<T[]>('full', batch);
         payloads.push(payload);
       }
     }
 
     // Update snapshot for next sync
-    this.lastSyncSnapshots.set(type, this.createSnapshot(data));
+    this.lastSyncSnapshots.set(type, data);
 
     return payloads;
   }
@@ -70,14 +104,17 @@ export class SyncOptimizationService {
   /**
    * Create differential payload by comparing with last sync
    */
-  private createDifferentialPayload(type: string, currentData: any[]) {
+  private createDifferentialPayload<T extends SyncableEntity>(
+    type: string,
+    currentData: T[]
+  ): DifferentialChanges<T> {
     const lastSnapshot = this.lastSyncSnapshots.get(type) || [];
-    const lastMap = new Map(lastSnapshot.map((item: any) => [item.id, item]));
-    
-    const changes = {
-      added: [] as any[],
-      modified: [] as any[],
-      deleted: [] as string[]
+    const lastMap = new Map(lastSnapshot.map(item => [item.id, item]));
+
+    const changes: DifferentialChanges<T> = {
+      added: [],
+      modified: [],
+      deleted: []
     };
 
     // Find added and modified items
@@ -88,14 +125,14 @@ export class SyncOptimizationService {
       } else if (this.hasChanged(item, lastItem)) {
         changes.modified.push({
           id: item.id,
-          changes: this.extractChanges(item, lastItem)
+          changes: this.extractChanges(item, lastItem) as Partial<T>
         });
       }
     });
 
     // Find deleted items
     const currentIds = new Set(currentData.map(item => item.id));
-    lastSnapshot.forEach((item: any) => {
+    lastSnapshot.forEach(item => {
       if (!currentIds.has(item.id)) {
         changes.deleted.push(item.id);
       }
@@ -107,10 +144,10 @@ export class SyncOptimizationService {
   /**
    * Check if item has changed since last sync
    */
-  private hasChanged(current: any, previous: any): boolean {
+  private hasChanged(current: SyncableEntity, previous: SyncableEntity): boolean {
     // Simple implementation - compare key fields
-    const keyFields = ['_lastModified', 'updatedAt', '_version'];
-    
+    const keyFields: Array<keyof SyncableEntity> = ['_lastModified', 'updatedAt', '_version'];
+
     for (const field of keyFields) {
       if (current[field] !== previous[field]) {
         return true;
@@ -124,35 +161,32 @@ export class SyncOptimizationService {
   /**
    * Extract specific changes between items
    */
-  private extractChanges(current: any, previous: any): any {
-    const changes: any = {};
-    
-    for (const key in current) {
-      if (current[key] !== previous[key]) {
+  private extractChanges<T extends SyncableEntity>(
+    current: T,
+    previous: SyncableEntity
+  ): Partial<T> {
+    const changes: Partial<T> = {};
+
+    // Type-safe iteration over keys
+    (Object.keys(current) as Array<keyof T>).forEach(key => {
+      if (isObject(previous) && key in previous) {
+        const prevValue = (previous as Record<string, unknown>)[key as string];
+        if (current[key] !== prevValue) {
+          changes[key] = current[key];
+        }
+      } else {
         changes[key] = current[key];
       }
-    }
-    
-    return changes;
-  }
+    });
 
-  /**
-   * Create snapshot of data for differential comparison
-   */
-  private createSnapshot(data: any[]): any[] {
-    return data.map(item => ({
-      id: item.id,
-      _lastModified: item._lastModified || Date.now(),
-      _version: item._version || 1,
-      updatedAt: item.updatedAt
-    }));
+    return changes;
   }
 
   /**
    * Batch data into smaller chunks
    */
-  private batchData(data: any[], batchSize: number): any[][] {
-    const batches: any[][] = [];
+  private batchData<T>(data: T[], batchSize: number): T[][] {
+    const batches: T[][] = [];
     for (let i = 0; i < data.length; i += batchSize) {
       batches.push(data.slice(i, i + batchSize));
     }
@@ -162,22 +196,26 @@ export class SyncOptimizationService {
   /**
    * Create optimized sync payload
    */
-  private async createSyncPayload(type: 'full' | 'incremental', data: any): Promise<SyncPayload> {
+  private async createSyncPayload<T>(
+    type: 'full' | 'incremental',
+    data: T
+  ): Promise<SyncPayload<T>> {
     const dataStr = JSON.stringify(data);
     const size = new Blob([dataStr]).size;
-    
-    let finalData = data;
+
+    let finalData: T | CompressedData = data;
     let compressed = false;
 
     // Compress if data exceeds threshold
     if (this.config.enableCompression && size > this.config.compressionThreshold) {
       try {
         // Simple compression simulation (in real implementation, use actual compression)
-        finalData = {
+        const compressedData: CompressedData = {
           compressed: true,
           originalSize: size,
           data: dataStr // Would be compressed data
         };
+        finalData = compressedData;
         compressed = true;
       } catch (error) {
         logger.warn('Compression failed, sending uncompressed:', 'sync', {}, error as Error);

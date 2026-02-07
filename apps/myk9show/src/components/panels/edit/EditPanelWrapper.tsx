@@ -5,6 +5,8 @@ import { Save, X, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EditPanelContext, EditPanelContextValue } from './useEditPanel';
 import { logger } from '@/services/LoggingService';
+import { notifications } from '@/lib/notifications';
+import { getErrorMessage } from '@myk9/core';
 
 export interface EditPanelWrapperProps<T = Record<string, unknown>> {
   // Panel configuration
@@ -147,7 +149,9 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
       onClose();
     } catch (error) {
       logger.error('Save failed:', 'components', {}, error as Error);
-      // TODO: Show error toast
+      notifications.error('Failed to save changes', {
+        description: getErrorMessage(error),
+      });
     } finally {
       setIsLoading(false);
     }

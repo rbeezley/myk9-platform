@@ -94,6 +94,27 @@ export {
   getErrorMessage,
 } from './utils/errors';
 
+// Type guard utilities
+export {
+  isDefined,
+  assertDefined,
+  isObject,
+  hasProperty,
+  isString,
+  isNumber,
+  isBoolean,
+  isArray,
+  isArrayOf,
+  isFunction,
+  isDate,
+  isPromise,
+  isNullish,
+  hasRequiredProperties,
+  safeGet,
+  assert,
+  assertNever,
+} from './utils/typeGuards';
+
 // Search and filter utilities
 export {
   matchesSearch,

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { AlertTriangle } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
+import { notifications } from '@/lib/notifications';
+import { getErrorMessage } from '@myk9/core';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -737,7 +739,9 @@ export const ShowCreationWizard: React.FC<ShowCreationWizardProps> = ({
       // Final step handled by ReviewStep buttons
     } catch (error) {
       logger.error('Error in wizard navigation', 'wizard', {}, error as Error);
-      // TODO: Show error message to user
+      notifications.error('Error navigating wizard', {
+        description: getErrorMessage(error),
+      });
     } finally {
       setIsLoading(false);
     }
@@ -751,7 +755,9 @@ export const ShowCreationWizard: React.FC<ShowCreationWizardProps> = ({
       logger.debug('Draft saved successfully', 'wizard');
     } catch (error) {
       logger.error('Error saving draft', 'wizard', {}, error as Error);
-      // TODO: Show error message
+      notifications.error('Failed to save draft', {
+        description: getErrorMessage(error),
+      });
     } finally {
       setIsLoading(false);
     }

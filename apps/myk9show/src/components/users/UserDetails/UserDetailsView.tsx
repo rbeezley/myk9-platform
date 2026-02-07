@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
+import { notifications } from '@/lib/notifications';
+import { getErrorMessage } from '@myk9/core';
 import ProfilePhotoDialog from '@/components/users/ProfilePhotoDialog';
 import { useUserStore } from '@/store/userStore';
 import { useUpdateUserMutation, useDeleteUserMutation } from '@/hooks/queries/useUsersQuery';
@@ -133,7 +135,9 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
       logger.info('User deleted successfully', 'users', { userId: person.id });
     } catch (error) {
       logger.error('Failed to delete user', 'users', { userId: person.id }, error as Error);
-      // TODO: Show error notification to user
+      notifications.error('Failed to delete user', {
+        description: getErrorMessage(error),
+      });
     }
   };
 
@@ -187,7 +191,9 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
       logger.info('User data saved successfully', 'users', { userId: person.id });
     } catch (error) {
       logger.error('Failed to save user data', 'users', { userId: person.id }, error as Error);
-      // TODO: Show error notification to user
+      notifications.error('Failed to save user data', {
+        description: getErrorMessage(error),
+      });
     }
   };
   

@@ -9,6 +9,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useClassTemplateStore } from '@/store/classTemplateStore';
 import { GeneratedClass } from '@/types/class-template-types';
 import { logger } from '@/services/LoggingService';
+import { notifications } from '@/lib/notifications';
+import { getErrorMessage } from '@myk9/core';
 
 interface ClassTemplateManagerProps {
   trialId: string;
@@ -54,7 +56,9 @@ export const ClassTemplateManager: React.FC<ClassTemplateManagerProps> = ({
         setPreviewClasses([]);
       } catch (error) {
         logger.error('Failed to create classes from preset:', 'classes', {}, error as Error);
-        // TODO: Add proper error handling/notification
+        notifications.error('Failed to create classes from preset', {
+          description: getErrorMessage(error),
+        });
       }
     }
   };

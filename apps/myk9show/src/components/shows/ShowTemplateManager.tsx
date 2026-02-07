@@ -13,6 +13,8 @@ import { useShowTemplateStore } from '@/store/showTemplateStore';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import type { Organization, ShowType } from '@/types/show-template-types';
 import { logger } from '@/services/LoggingService';
+import { notifications } from '@/lib/notifications';
+import { getErrorMessage } from '@myk9/core';
 
 interface ShowTemplateManagerProps {
   trialId: string;
@@ -94,7 +96,9 @@ export const ShowTemplateManager: React.FC<ShowTemplateManagerProps> = ({
         setPreviewClasses([]);
       } catch (error) {
         logger.error('Failed to create classes from template:', 'shows', {}, error as Error);
-        // TODO: Add proper error handling/notification
+        notifications.error('Failed to create classes from template', {
+          description: getErrorMessage(error),
+        });
       }
     }
   };

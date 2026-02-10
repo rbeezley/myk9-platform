@@ -173,12 +173,12 @@ export const testCleanup = {
     memoryLeakDetection.reset();
     
     // Clear localStorage
-    if (typeof localStorage !== 'undefined') {
+    if (typeof localStorage !== 'undefined' && typeof localStorage.clear === 'function') {
       localStorage.clear();
     }
-    
+
     // Clear sessionStorage
-    if (typeof sessionStorage !== 'undefined') {
+    if (typeof sessionStorage !== 'undefined' && typeof sessionStorage.clear === 'function') {
       sessionStorage.clear();
     }
   },

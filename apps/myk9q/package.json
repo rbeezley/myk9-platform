@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "test": "vitest",
+    "test": "vitest --run",
     "test:coverage": "vitest --coverage",
     "test:offline-first": "vitest run --coverage useOptimisticScoring EntryList offline-first-pattern-consistency",
     "setup": "node scripts/setup-dev.cjs",

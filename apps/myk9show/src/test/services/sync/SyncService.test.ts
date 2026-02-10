@@ -1,373 +1,312 @@
-// Comprehensive tests for SyncService core functionality
+// Comprehensive tests for SyncService (MockSyncService) core functionality
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { SyncService } from '@/services/sync/SyncService';
-
-// Mock dependencies
-vi.mock('@/services/sync/SyncQueue', () => ({
-  SyncQueue: {
-    getInstance: vi.fn().mockReturnValue({
-      add: vi.fn().mockResolvedValue('queue-id-123'),
-      getPending: vi.fn().mockReturnValue([]),
-      markProcessing: vi.fn().mockResolvedValue(undefined),
-      markCompleted: vi.fn().mockResolvedValue(undefined),
-      markFailed: vi.fn().mockResolvedValue(undefined),
-      getStats: vi.fn().mockReturnValue({
-        total: 0,
-        pending: 0,
-        processing: 0,
-        failed: 0,
-        completed: 0,
-        successRate: 100
-      }),
-      cleanup: vi.fn().mockResolvedValue(undefined)
-    })
-  }
-}));
-
-vi.mock('@/services/database/connection', () => ({
-  db: {
-    instance: {
-      syncMetadata: {
-        add: vi.fn().mockResolvedValue('metadata-id'),
-        where: vi.fn().mockReturnValue({
-          equals: vi.fn().mockReturnValue({
-            first: vi.fn().mockResolvedValue(null)
-          })
-        })
-      }
-    }
-  }
-}));
+import { SyncService, MockSyncService, syncService } from '@/services/sync/syncService';
+import type { MockSyncQueueItem } from '@/services/sync/syncService';
 
 describe('SyncService', () => {
-  let syncService: SyncService;
+  let service: MockSyncService;
 
   beforeEach(() => {
-    syncService = new SyncService();
+    service = new SyncService();
     vi.clearAllMocks();
-    
-    // Mock network status
-    Object.defineProperty(navigator, 'onLine', {
-      value: true,
-      configurable: true
-    });
+    // Suppress console.debug from deprecated stubs
+    vi.spyOn(console, 'debug').mockImplementation(() => {});
   });
 
-  afterEach(async () => {
-    await syncService.cleanup();
+  afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  describe('Initialization', () => {
-    it('should initialize successfully', async () => {
-      await expect(syncService.initialize()).resolves.not.toThrow();
+  describe('Instantiation', () => {
+    it('should create a new instance', () => {
+      const instance = new SyncService();
+      expect(instance).toBeInstanceOf(MockSyncService);
     });
 
-    it('should setup network event listeners during initialization', async () => {
-      const addEventListenerSpy = vi.spyOn(window, 'addEventListener');
-      await syncService.initialize();
-      
-      expect(addEventListenerSpy).toHaveBeenCalledWith('online', expect.any(Function));
-      expect(addEventListenerSpy).toHaveBeenCalledWith('offline', expect.any(Function));
+    it('should export a singleton syncService instance', () => {
+      expect(syncService).toBeInstanceOf(MockSyncService);
     });
 
-    it('should detect initial network status', async () => {
-      await syncService.initialize();
-      const networkStatus = syncService.getNetworkStatus();
-      
-      expect(networkStatus).toHaveProperty('isOnline');
-      expect(networkStatus).toHaveProperty('quality');
-      expect(networkStatus).toHaveProperty('lastChecked');
+    it('should export SyncService as alias for MockSyncService', () => {
+      expect(SyncService).toBe(MockSyncService);
     });
   });
 
-  describe('Queue Operations', () => {
-    beforeEach(async () => {
-      await syncService.initialize();
+  describe('addToQueue', () => {
+    it('should add an item and return a queue id string', async () => {
+      const item: MockSyncQueueItem = {
+        entityType: 'club',
+        entityId: 'club-123',
+        operation: 'create',
+        data: { name: 'Test Club' },
+        priority: 'medium',
+      };
+
+      const queueId = await service.addToQueue(item);
+
+      expect(queueId).toBeDefined();
+      expect(typeof queueId).toBe('string');
+      expect(queueId).toMatch(/^mock-queue-/);
     });
 
-    it('should add items to sync queue', async () => {
-      const actionId = await syncService.addToQueue({
+    it('should return unique ids for different calls', async () => {
+      const item: MockSyncQueueItem = {
         entityType: 'club',
-        actionType: 'create',
-        entityId: 'club-123',
-        data: { name: 'Test Club' }
+        entityId: 'club-1',
+        operation: 'create',
+        data: {},
+        priority: 'low',
+      };
+
+      const id1 = await service.addToQueue(item);
+      // Small delay to ensure Date.now() differs
+      await new Promise((r) => setTimeout(r, 2));
+      const id2 = await service.addToQueue(item);
+
+      expect(id1).not.toBe(id2);
+    });
+
+    it('should handle create operations', async () => {
+      const queueId = await service.addToQueue({
+        entityType: 'dog',
+        entityId: 'dog-1',
+        operation: 'create',
+        data: { name: 'Rex' },
+        priority: 'medium',
       });
 
-      expect(actionId).toBeDefined();
-      expect(typeof actionId).toBe('string');
+      expect(queueId).toBeDefined();
+    });
+
+    it('should handle update operations', async () => {
+      const queueId = await service.addToQueue({
+        entityType: 'dog',
+        entityId: 'dog-1',
+        operation: 'update',
+        data: { name: 'Rex Updated' },
+        priority: 'medium',
+      });
+
+      expect(queueId).toBeDefined();
+    });
+
+    it('should handle delete operations', async () => {
+      const queueId = await service.addToQueue({
+        entityType: 'entry',
+        entityId: 'entry-1',
+        operation: 'delete',
+        data: {},
+        priority: 'high',
+      });
+
+      expect(queueId).toBeDefined();
     });
 
     it('should handle different entity types', async () => {
       const entityTypes = ['club', 'person', 'dog', 'show', 'entry'];
-      
+
       for (const entityType of entityTypes) {
-        const actionId = await syncService.addToQueue({
+        const queueId = await service.addToQueue({
           entityType,
-          actionType: 'create',
           entityId: `${entityType}-123`,
-          data: {}
+          operation: 'create',
+          data: {},
+          priority: 'medium',
         });
-        
-        expect(actionId).toBeDefined();
+
+        expect(queueId).toBeDefined();
+        expect(typeof queueId).toBe('string');
       }
     });
 
-    it('should handle different action types', async () => {
-      const actionTypes = ['create', 'update', 'delete'];
-      
-      for (const actionType of actionTypes) {
-        const actionId = await syncService.addToQueue({
+    it('should handle all priority levels', async () => {
+      const priorities: MockSyncQueueItem['priority'][] = ['low', 'medium', 'high', 'critical'];
+
+      for (const priority of priorities) {
+        const queueId = await service.addToQueue({
           entityType: 'club',
-          actionType,
-          entityId: 'club-123',
-          data: {}
+          entityId: 'club-1',
+          operation: 'create',
+          data: {},
+          priority,
         });
-        
-        expect(actionId).toBeDefined();
+
+        expect(queueId).toBeDefined();
       }
     });
-  });
 
-  describe('Network Status Management', () => {
-    beforeEach(async () => {
-      await syncService.initialize();
-    });
-
-    it('should detect online status', () => {
-      Object.defineProperty(navigator, 'onLine', {
-        value: true,
-        configurable: true
+    it('should handle items with complex data payloads', async () => {
+      const queueId = await service.addToQueue({
+        entityType: 'show',
+        entityId: 'show-1',
+        operation: 'update',
+        data: {
+          name: 'Big Show',
+          dates: { start: '2026-03-01', end: '2026-03-03' },
+          entries: [1, 2, 3],
+          nested: { deep: { value: true } },
+        },
+        priority: 'high',
       });
 
-      const status = syncService.getNetworkStatus();
-      expect(status.isOnline).toBe(true);
+      expect(queueId).toBeDefined();
     });
 
-    it('should detect offline status', () => {
-      Object.defineProperty(navigator, 'onLine', {
-        value: false,
-        configurable: true
-      });
-
-      const status = syncService.getNetworkStatus();
-      expect(status.isOnline).toBe(false);
-    });
-
-    it('should handle network quality assessment', () => {
-      const status = syncService.getNetworkStatus();
-      expect(['poor', 'good', 'excellent']).toContain(status.quality);
-    });
-
-    it('should update last checked timestamp', () => {
-      const before = Date.now();
-      const status = syncService.getNetworkStatus();
-      const after = Date.now();
-      
-      const lastChecked = status.lastChecked.getTime();
-      expect(lastChecked).toBeGreaterThanOrEqual(before - 1000);
-      expect(lastChecked).toBeLessThanOrEqual(after + 1000);
-    });
-  });
-
-  describe('Statistics and Monitoring', () => {
-    beforeEach(async () => {
-      await syncService.initialize();
-    });
-
-    it('should provide sync statistics', async () => {
-      const stats = await syncService.getStatistics();
-      
-      expect(stats).toHaveProperty('totalSyncs');
-      expect(stats).toHaveProperty('successfulSyncs');
-      expect(stats).toHaveProperty('failedSyncs');
-      expect(stats).toHaveProperty('totalConflicts');
-      expect(stats).toHaveProperty('lastFullSync');
-      expect(stats).toHaveProperty('averageSyncDuration');
-      
-      expect(typeof stats.totalSyncs).toBe('number');
-      expect(typeof stats.successfulSyncs).toBe('number');
-      expect(typeof stats.failedSyncs).toBe('number');
-      expect(typeof stats.totalConflicts).toBe('number');
-      expect(typeof stats.averageSyncDuration).toBe('number');
-    });
-
-    it('should calculate success rate correctly', async () => {
-      const stats = await syncService.getStatistics();
-      
-      if (stats.totalSyncs > 0) {
-        // Calculate expected rate for validation
-        const expectedRate = (stats.successfulSyncs / stats.totalSyncs) * 100;
-        const actualRate = (stats.successfulSyncs / (stats.successfulSyncs + stats.failedSyncs)) * 100;
-        expect(expectedRate).toBeGreaterThanOrEqual(0);
-        expect(actualRate).toBeGreaterThanOrEqual(0);
-        expect(actualRate).toBeLessThanOrEqual(100);
-      }
-    });
-  });
-
-  describe('Event System', () => {
-    beforeEach(async () => {
-      await syncService.initialize();
-    });
-
-    it('should support event listeners', () => {
-      const mockCallback = vi.fn();
-      
-      syncService.on('sync:start', mockCallback);
-      syncService.on('sync:complete', mockCallback);
-      syncService.on('sync:error', mockCallback);
-      
-      // Verify listeners were added (implementation dependent)
-      expect(mockCallback).not.toHaveBeenCalled();
-    });
-
-    it('should support removing event listeners', () => {
-      const mockCallback = vi.fn();
-      
-      syncService.on('sync:start', mockCallback);
-      syncService.off('sync:start', mockCallback);
-      
-      // Verify listener was removed (implementation dependent)
-      expect(mockCallback).not.toHaveBeenCalled();
-    });
-
-    it('should handle multiple listeners for same event', () => {
-      const callback1 = vi.fn();
-      const callback2 = vi.fn();
-      
-      syncService.on('sync:start', callback1);
-      syncService.on('sync:start', callback2);
-      
-      // Both should be registered
-      expect(callback1).not.toHaveBeenCalled();
-      expect(callback2).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('Error Handling', () => {
-    beforeEach(async () => {
-      await syncService.initialize();
-    });
-
-    it('should handle network errors gracefully', async () => {
-      // Mock network error
-      Object.defineProperty(navigator, 'onLine', {
-        value: false,
-        configurable: true
-      });
-
-      await expect(syncService.addToQueue({
+    it('should log a deprecation debug message', async () => {
+      await service.addToQueue({
         entityType: 'club',
-        actionType: 'create',
-        entityId: 'club-123',
-        data: {}
-      })).resolves.toBeDefined();
+        entityId: 'club-1',
+        operation: 'create',
+        data: {},
+        priority: 'low',
+      });
+
+      expect(console.debug).toHaveBeenCalledWith(
+        expect.stringContaining('[DEPRECATED]'),
+        'club'
+      );
     });
 
-    it('should handle invalid sync actions', async () => {
-      const invalidAction = {
-        entityType: 'invalid',
-        actionType: 'invalid',
-        entityId: '',
-        data: null
-      };
-
-      await expect(syncService.addToQueue(invalidAction as never))
-        .resolves.toBeDefined();
-    });
-
-    it('should handle cleanup errors gracefully', async () => {
-      // Force an error condition and ensure cleanup doesn't throw
-      await expect(syncService.cleanup()).resolves.not.toThrow();
-    });
-  });
-
-  describe('Performance and Memory Management', () => {
-    beforeEach(async () => {
-      await syncService.initialize();
-    });
-
-    it('should handle large number of sync actions efficiently', async () => {
+    it('should handle large batches of items efficiently', async () => {
       const startTime = performance.now();
-      
-      // Add many sync actions
+
       const promises = [];
       for (let i = 0; i < 100; i++) {
-        promises.push(syncService.addToQueue({
-          entityType: 'club',
-          actionType: 'create',
-          entityId: `club-${i}`,
-          data: { name: `Club ${i}` }
-        }));
+        promises.push(
+          service.addToQueue({
+            entityType: 'club',
+            entityId: `club-${i}`,
+            operation: 'create',
+            data: { name: `Club ${i}` },
+            priority: 'medium',
+          })
+        );
       }
-      
-      await Promise.all(promises);
+
+      const results = await Promise.all(promises);
       const endTime = performance.now();
-      
+
+      expect(results).toHaveLength(100);
+      results.forEach((id) => {
+        expect(typeof id).toBe('string');
+      });
       // Should complete in reasonable time
       expect(endTime - startTime).toBeLessThan(1000);
     });
+  });
 
-    it('should cleanup resources properly', async () => {
-      await syncService.cleanup();
-      
-      // After cleanup, service should still be in valid state
-      expect(() => syncService.getNetworkStatus()).not.toThrow();
+  describe('getQueueStatus', () => {
+    it('should return queue status object', async () => {
+      const status = await service.getQueueStatus();
+
+      expect(status).toEqual({
+        pending: 0,
+        processing: 0,
+        failed: 0,
+        completed: 0,
+      });
+    });
+
+    it('should return numeric values for all status fields', async () => {
+      const status = await service.getQueueStatus();
+
+      expect(typeof status.pending).toBe('number');
+      expect(typeof status.processing).toBe('number');
+      expect(typeof status.failed).toBe('number');
+      expect(typeof status.completed).toBe('number');
+    });
+
+    it('should return zeros since this is a no-op stub', async () => {
+      // Add some items first (they won't actually be queued)
+      await service.addToQueue({
+        entityType: 'club',
+        entityId: 'club-1',
+        operation: 'create',
+        data: {},
+        priority: 'medium',
+      });
+
+      const status = await service.getQueueStatus();
+
+      expect(status.pending).toBe(0);
+      expect(status.processing).toBe(0);
+      expect(status.failed).toBe(0);
+      expect(status.completed).toBe(0);
     });
   });
 
-  describe('Offline/Online Transitions', () => {
-    beforeEach(async () => {
-      await syncService.initialize();
+  describe('processQueue', () => {
+    it('should resolve without error', async () => {
+      await expect(service.processQueue()).resolves.not.toThrow();
     });
 
-    it('should handle offline to online transition', () => {
-      // Start offline
-      Object.defineProperty(navigator, 'onLine', {
-        value: false,
-        configurable: true
-      });
-      
-      let status = syncService.getNetworkStatus();
-      expect(status.isOnline).toBe(false);
-      
-      // Go online
-      Object.defineProperty(navigator, 'onLine', {
-        value: true,
-        configurable: true
-      });
-      
-      // Simulate online event
-      const onlineEvent = new Event('online');
-      window.dispatchEvent(onlineEvent);
-      
-      status = syncService.getNetworkStatus();
-      expect(status.isOnline).toBe(true);
+    it('should return void', async () => {
+      const result = await service.processQueue();
+      expect(result).toBeUndefined();
     });
 
-    it('should handle online to offline transition', () => {
-      // Start online
-      Object.defineProperty(navigator, 'onLine', {
-        value: true,
-        configurable: true
+    it('should log a deprecation debug message', async () => {
+      await service.processQueue();
+
+      expect(console.debug).toHaveBeenCalledWith(
+        expect.stringContaining('[DEPRECATED]')
+      );
+    });
+  });
+
+  describe('clearQueue', () => {
+    it('should resolve without error', async () => {
+      await expect(service.clearQueue()).resolves.not.toThrow();
+    });
+
+    it('should return void', async () => {
+      const result = await service.clearQueue();
+      expect(result).toBeUndefined();
+    });
+
+    it('should log a deprecation debug message', async () => {
+      await service.clearQueue();
+
+      expect(console.debug).toHaveBeenCalledWith(
+        expect.stringContaining('[DEPRECATED]')
+      );
+    });
+  });
+
+  describe('End-to-end workflow', () => {
+    it('should support full queue lifecycle: add, process, check status, clear', async () => {
+      // Add item to queue
+      const queueId = await service.addToQueue({
+        entityType: 'entry',
+        entityId: 'entry-42',
+        operation: 'create',
+        data: { dogId: 'dog-1', classId: 'class-1' },
+        priority: 'high',
       });
-      
-      let status = syncService.getNetworkStatus();
-      expect(status.isOnline).toBe(true);
-      
-      // Go offline
-      Object.defineProperty(navigator, 'onLine', {
-        value: false,
-        configurable: true
-      });
-      
-      // Simulate offline event
-      const offlineEvent = new Event('offline');
-      window.dispatchEvent(offlineEvent);
-      
-      status = syncService.getNetworkStatus();
-      expect(status.isOnline).toBe(false);
+      expect(queueId).toBeDefined();
+
+      // Process queue
+      await expect(service.processQueue()).resolves.not.toThrow();
+
+      // Check status
+      const status = await service.getQueueStatus();
+      expect(status).toBeDefined();
+      expect(status.pending).toBe(0);
+
+      // Clear queue
+      await expect(service.clearQueue()).resolves.not.toThrow();
+    });
+
+    it('should handle repeated process and clear calls gracefully', async () => {
+      await service.processQueue();
+      await service.processQueue();
+      await service.clearQueue();
+      await service.clearQueue();
+      await service.processQueue();
+
+      // Should not throw
+      const status = await service.getQueueStatus();
+      expect(status).toBeDefined();
     });
   });
 });

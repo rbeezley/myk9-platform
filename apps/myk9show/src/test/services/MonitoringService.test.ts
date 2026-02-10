@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { MonitoringService } from '@/services/MonitoringService';
 
 // Mock the logger
 vi.mock('@/services/LoggingService', () => ({
@@ -15,7 +14,13 @@ vi.mock('@/services/LoggingService', () => ({
 
 // Mock window APIs
 const mockPerformanceObserver = vi.fn();
-const mockMutationObserver = vi.fn();
+const mockMutationObserverObserve = vi.fn();
+const mockMutationObserverDisconnect = vi.fn();
+const mockMutationObserver = vi.fn().mockImplementation(function (this: Record<string, unknown>) {
+  this.observe = mockMutationObserverObserve;
+  this.disconnect = mockMutationObserverDisconnect;
+  this.takeRecords = vi.fn().mockReturnValue([]);
+});
 const mockAddEventListener = vi.fn();
 const mockFetch = vi.fn().mockResolvedValue({ ok: true });
 
@@ -38,26 +43,28 @@ const mockSentry = {
   captureException: vi.fn()
 };
 
-Object.assign(global, {
-  window: {
-    addEventListener: mockAddEventListener,
-    location: { href: 'https://example.com' },
-    navigator: { userAgent: 'test-agent' },
-    gtag: mockGtag,
-    mixpanel: mockMixpanel,
-    DD_RUM: mockDDRUM,
-    Sentry: mockSentry,
-    PerformanceObserver: mockPerformanceObserver,
-    MutationObserver: mockMutationObserver
-  },
-  fetch: mockFetch,
-  performance: mockPerformance,
-  document: {
-    title: 'Test Page',
-    referrer: 'https://referrer.com',
-    body: {}
-  }
+// Ensure document.body exists before MonitoringService tries to observe it
+if (!document.body) {
+  document.body = document.createElement('body');
+}
+
+// Set mocks on the real jsdom window object so that checks like
+// `'PerformanceObserver' in window` and `window.gtag` work correctly.
+Object.assign(window, {
+  addEventListener: mockAddEventListener,
+  location: { href: 'https://example.com' },
+  gtag: mockGtag,
+  mixpanel: mockMixpanel,
+  DD_RUM: mockDDRUM,
+  Sentry: mockSentry,
+  PerformanceObserver: mockPerformanceObserver,
+  MutationObserver: mockMutationObserver
 });
+
+// Stub global fetch so that the source code's bare `fetch()` calls use our mock
+vi.stubGlobal('fetch', mockFetch);
+vi.stubGlobal('performance', mockPerformance);
+vi.stubGlobal('MutationObserver', mockMutationObserver);
 
 // Mock import.meta
 vi.mock('import.meta', () => ({
@@ -67,12 +74,37 @@ vi.mock('import.meta', () => ({
   }
 }));
 
+// Import MonitoringService AFTER all mocks are set up
+import { MonitoringService } from '@/services/MonitoringService';
+
 describe('MonitoringService', () => {
   let monitoring: MonitoringService;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
+    // Restore mock implementations after clearAllMocks resets them
+    mockMutationObserver.mockImplementation(function (this: Record<string, unknown>) {
+      this.observe = mockMutationObserverObserve;
+      this.disconnect = mockMutationObserverDisconnect;
+      this.takeRecords = vi.fn().mockReturnValue([]);
+    });
+    mockPerformanceObserver.mockImplementation(function (this: Record<string, unknown>, _callback: unknown) {
+      this.observe = vi.fn();
+      this.disconnect = vi.fn();
+    });
+    mockFetch.mockResolvedValue({ ok: true });
+
+    // Restore external service mocks on window
+    (window as unknown as Record<string, unknown>).gtag = mockGtag;
+    (window as unknown as Record<string, unknown>).mixpanel = mockMixpanel;
+    (window as unknown as Record<string, unknown>).DD_RUM = mockDDRUM;
+    (window as unknown as Record<string, unknown>).Sentry = mockSentry;
+
+    // Ensure import.meta.env has the analytics endpoint
+    import.meta.env.VITE_ANALYTICS_ENDPOINT = 'https://analytics.example.com';
+    import.meta.env.VITE_DATADOG_CLIENT_TOKEN = 'test-token';
+
     // Reset singleton
     (MonitoringService as unknown as { instance: MonitoringService }).instance = undefined as unknown as MonitoringService;
     monitoring = MonitoringService.getInstance();
@@ -226,17 +258,21 @@ describe('MonitoringService', () => {
     it('should track user events', () => {
       const event = 'button_click';
       const properties = { buttonId: 'submit', page: 'home' };
-      
+
+      const eventsBefore = monitoring.getUserEvents().length;
       monitoring.trackUserEvent(event, properties);
-      
+
       const events = monitoring.getUserEvents();
-      expect(events).toHaveLength(1);
-      expect(events[0]).toMatchObject({
+      expect(events).toHaveLength(eventsBefore + 1);
+
+      const trackedEvent = events.find(e => e.event === event);
+      expect(trackedEvent).toBeDefined();
+      expect(trackedEvent).toMatchObject({
         event,
         properties: expect.objectContaining(properties)
       });
-      expect(events[0].sessionId).toBeDefined();
-      expect(events[0].timestamp).toBeTypeOf('number');
+      expect(trackedEvent!.sessionId).toBeDefined();
+      expect(trackedEvent!.timestamp).toBeTypeOf('number');
     });
 
     it('should track feature usage', () => {

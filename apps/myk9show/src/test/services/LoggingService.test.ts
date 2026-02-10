@@ -94,12 +94,13 @@ describe('LoggingService', () => {
     });
 
     it('should respect default minimum level', () => {
-      // In production mode, default should be INFO
+      // In dev mode (vitest sets import.meta.env.DEV = true), default is DEBUG
+      // so debug messages should be logged
       const consoleSpy = vi.spyOn(console, 'debug');
-      
+
       logger.debug('Debug message', 'test');
-      
-      expect(consoleSpy).not.toHaveBeenCalled();
+
+      expect(consoleSpy).toHaveBeenCalled();
     });
   });
 
@@ -370,6 +371,22 @@ describe('LoggingService', () => {
 });
 
 describe('LogTransport Implementations', () => {
+  let logger: LoggingService;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockLocalStorage.getItem.mockReturnValue(null);
+    mockFetch.mockResolvedValue({ ok: true });
+
+    // Reset singleton
+    (LoggingService as unknown as { instance: LoggingService }).instance = undefined as unknown as LoggingService;
+    logger = LoggingService.getInstance();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   describe('ConsoleTransport', () => {
     beforeEach(() => {
       vi.clearAllMocks();
@@ -458,17 +475,46 @@ describe('LogTransport Implementations', () => {
   });
 
   describe('RemoteTransport', () => {
+    let savedDEV: boolean;
+    let savedPROD: boolean;
+    let savedEndpoint: string | undefined;
+
     beforeEach(() => {
       vi.clearAllMocks();
       mockFetch.mockResolvedValue({ ok: true });
+
+      // Save original env values
+      savedDEV = import.meta.env.DEV;
+      savedPROD = import.meta.env.PROD;
+      savedEndpoint = import.meta.env.VITE_LOG_ENDPOINT;
+
+      // Set production environment with log endpoint so RemoteTransport is created
+      import.meta.env.DEV = false;
+      import.meta.env.PROD = true;
+      import.meta.env.VITE_LOG_ENDPOINT = 'https://api.example.com/logs';
+
+      // Reset singleton so it picks up the new env
+      (LoggingService as unknown as { instance: LoggingService }).instance = undefined as unknown as LoggingService;
+      logger = LoggingService.getInstance();
+    });
+
+    afterEach(() => {
+      // Restore original env values
+      import.meta.env.DEV = savedDEV;
+      import.meta.env.PROD = savedPROD;
+      if (savedEndpoint === undefined) {
+        delete import.meta.env.VITE_LOG_ENDPOINT;
+      } else {
+        import.meta.env.VITE_LOG_ENDPOINT = savedEndpoint;
+      }
     });
 
     it('should send logs to remote endpoint', async () => {
       logger.error('Critical error', 'test'); // Error level triggers immediate flush
-      
+
       // Wait for async operations
       await new Promise(resolve => setTimeout(resolve, 100));
-      
+
       expect(mockFetch).toHaveBeenCalledWith(
         'https://api.example.com/logs',
         expect.objectContaining({
@@ -482,12 +528,12 @@ describe('LogTransport Implementations', () => {
     it('should handle remote endpoint failures', async () => {
       mockFetch.mockRejectedValue(new Error('Network error'));
       const consoleSpy = vi.spyOn(console, 'error');
-      
+
       logger.error('Critical error', 'test');
-      
+
       // Wait for async operations
       await new Promise(resolve => setTimeout(resolve, 100));
-      
+
       expect(consoleSpy).toHaveBeenCalledWith(
         'Failed to send logs to remote endpoint:',
         expect.any(Error)
@@ -497,8 +543,20 @@ describe('LogTransport Implementations', () => {
 });
 
 describe('Integration Tests', () => {
+  let logger: LoggingService;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    mockLocalStorage.getItem.mockReturnValue(null);
+    mockFetch.mockResolvedValue({ ok: true });
+
+    // Reset singleton
+    (LoggingService as unknown as { instance: LoggingService }).instance = undefined as unknown as LoggingService;
+    logger = LoggingService.getInstance();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('should work with multiple transports simultaneously', () => {

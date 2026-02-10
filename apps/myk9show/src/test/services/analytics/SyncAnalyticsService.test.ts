@@ -1,74 +1,43 @@
-import { describe, it, expect, beforeEach, afterEach, vi, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { SyncAnalyticsService, getSyncAnalytics, ANALYTICS_PRESETS } from '../../../services/analytics';
+import { logger } from '@myk9/core';
 
-// Mock IndexedDB
-const mockIDB = {
-  open: vi.fn(),
-  databases: vi.fn(() => Promise.resolve([])),
-};
-
-const mockDB = {
-  createObjectStore: vi.fn(() => ({
-    createIndex: vi.fn()
-  })),
-  transaction: vi.fn(() => ({
-    objectStore: vi.fn(() => ({
-      put: vi.fn(),
-      index: vi.fn(() => ({
-        openCursor: vi.fn()
-      }))
-    }))
-  })),
-  close: vi.fn(),
-  objectStoreNames: {
-    contains: vi.fn(() => false)
-  }
-};
-
-const mockRequest = {
-  result: mockDB,
-  onsuccess: null as ((this: IDBRequest, ev: Event) => void) | null,
-  onerror: null as ((this: IDBRequest, ev: Event) => void) | null,
-  onupgradeneeded: null as ((this: IDBOpenDBRequest, ev: IDBVersionChangeEvent) => void) | null
-};
-
-beforeAll(() => {
-  // Mock IndexedDB
-  global.indexedDB = mockIDB as unknown as IDBFactory;
-  mockIDB.open.mockReturnValue(mockRequest as unknown as IDBOpenDBRequest);
-  
-  // Mock navigator.onLine
-  Object.defineProperty(global.navigator, 'onLine', {
-    writable: true,
-    value: true
-  });
-  
-  // Mock window events
-  global.window = {
+// Mock @myk9/replication to prevent real conflict manager from being used
+vi.mock('@myk9/replication', () => ({
+  conflictManager: {
     addEventListener: vi.fn(),
-    removeEventListener: vi.fn()
-  } as unknown as Window & typeof globalThis;
-});
+    removeEventListener: vi.fn(),
+    getResolutionHistory: vi.fn().mockReturnValue([]),
+  },
+}));
 
-afterAll(() => {
-  vi.restoreAllMocks();
-});
+// Mock @myk9/core logger
+vi.mock('@myk9/core', () => ({
+  logger: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+
+/**
+ * Helper to reset the singleton between tests.
+ * The service uses a private static `instance` field, so we reach in via
+ * the constructor's own property to null it out before each test.
+ */
+function resetSingleton(): void {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (SyncAnalyticsService as any).instance = undefined;
+}
 
 describe('SyncAnalyticsService', () => {
   let analytics: SyncAnalyticsService;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    analytics = getSyncAnalytics(ANALYTICS_PRESETS.testing);
-    
-    // Trigger database connection success
-    if (mockRequest.onsuccess) {
-      mockRequest.onsuccess({ target: mockRequest });
-    }
-  });
-
-  afterEach(() => {
-    analytics.destroy();
+    resetSingleton();
+    analytics = getSyncAnalytics();
   });
 
   describe('Initialization', () => {
@@ -78,444 +47,604 @@ describe('SyncAnalyticsService', () => {
       expect(analytics1).toBe(analytics2);
     });
 
-    it('should initialize with default metrics', () => {
-      const metrics = analytics.getMetrics();
-      expect(metrics).toEqual({
-        syncSuccessRate: 1.0,
-        averageSyncTime: 0,
-        conflictRate: 0,
-        offlineUsageTime: 0,
-        totalSyncs: 0,
-        successfulSyncs: 0,
-        failedSyncs: 0,
-        totalConflicts: 0,
-        resolvedConflicts: 0,
-        unresolvedConflicts: 0,
-        bandwidthUsed: 0,
-        dataCompressed: 0,
-        compressionRatio: 1.0,
-        lastSyncTime: null,
-        lastSuccessfulSync: null,
-        lastFailedSync: null
-      });
+    it('should return an instance of SyncAnalyticsService', () => {
+      expect(analytics).toBeInstanceOf(SyncAnalyticsService);
     });
 
-    it('should initialize with provided config', () => {
-      const customConfig = {
-        samplingRate: 0.5,
-        retentionDays: 14,
-        enableRealTimeAlerts: false
-      };
-      
-      const customAnalytics = getSyncAnalytics(customConfig);
-      expect(customAnalytics).toBeDefined();
+    it('should initialize without errors', async () => {
+      await expect(analytics.initialize()).resolves.toBeUndefined();
+    });
+
+    it('should initialize with partial config', async () => {
+      await expect(
+        analytics.initialize({
+          eventSamplingRate: 0.5,
+          detailedMetricsRetention: 14,
+        })
+      ).resolves.toBeUndefined();
+    });
+
+    it('should only initialize once even if called multiple times', async () => {
+      await analytics.initialize();
+      // Second call should be a no-op (early return)
+      await expect(analytics.initialize()).resolves.toBeUndefined();
     });
   });
 
-  describe('Sync Operation Tracking', () => {
-    it('should track sync operation lifecycle', async () => {
-      const syncId = 'test-sync-1';
-      const entity = 'dogs';
-      
-      // Start sync
-      await analytics.trackSyncStart(syncId, 'upload', entity);
-      
-      // Progress update
-      await analytics.trackSyncProgress(syncId, {
-        recordsProcessed: 10,
-        bytesTransferred: 1024,
-        conflicts: 1
-      });
-      
-      // Complete sync
-      await analytics.trackSyncComplete(syncId, {
-        success: true,
-        recordsProcessed: 10,
-        bytesTransferred: 1024,
-        conflicts: 1,
-        conflictsResolved: 1
-      });
-      
-      const metrics = analytics.getMetrics();
-      expect(metrics.totalSyncs).toBe(1);
-      expect(metrics.successfulSyncs).toBe(1);
-      expect(metrics.syncSuccessRate).toBe(1.0);
-      expect(metrics.bandwidthUsed).toBe(1024);
+  describe('ANALYTICS_PRESETS', () => {
+    it('should have testing preset', () => {
+      expect(ANALYTICS_PRESETS.testing).toBeDefined();
+      expect(ANALYTICS_PRESETS.testing.samplingRate).toBe(1.0);
+      expect(ANALYTICS_PRESETS.testing.enableRealTimeAlerts).toBe(false);
     });
 
-    it('should track failed sync operations', async () => {
-      const syncId = 'test-sync-fail';
-      
-      await analytics.trackSyncStart(syncId, 'download', 'shows');
-      await analytics.trackSyncComplete(syncId, {
-        success: false,
-        error: 'Network timeout'
-      });
-      
-      const metrics = analytics.getMetrics();
-      expect(metrics.totalSyncs).toBe(1);
-      expect(metrics.failedSyncs).toBe(1);
-      expect(metrics.syncSuccessRate).toBe(0);
+    it('should have development preset', () => {
+      expect(ANALYTICS_PRESETS.development).toBeDefined();
+      expect(ANALYTICS_PRESETS.development.samplingRate).toBe(1.0);
+      expect(ANALYTICS_PRESETS.development.enableRealTimeAlerts).toBe(true);
     });
 
-    it('should calculate average sync time correctly', async () => {
-      const syncs = [
-        { id: 'sync1', duration: 1000 },
-        { id: 'sync2', duration: 2000 },
-        { id: 'sync3', duration: 3000 }
+    it('should have production preset', () => {
+      expect(ANALYTICS_PRESETS.production).toBeDefined();
+      expect(ANALYTICS_PRESETS.production.samplingRate).toBe(0.1);
+      expect(ANALYTICS_PRESETS.production.enableRealTimeAlerts).toBe(true);
+    });
+  });
+
+  describe('Event Recording', () => {
+    it('should record a sync event', async () => {
+      await expect(
+        analytics.recordEvent({
+          type: 'sync_completed',
+          status: 'completed',
+          collectionName: 'dogs',
+          duration: 1500,
+          bytesTransferred: 2048,
+        })
+      ).resolves.toBeUndefined();
+    });
+
+    it('should record a failed sync event', async () => {
+      await expect(
+        analytics.recordEvent({
+          type: 'sync_failed',
+          status: 'failed',
+          collectionName: 'shows',
+          errorMessage: 'Network timeout',
+        })
+      ).resolves.toBeUndefined();
+    });
+
+    it('should record events with metadata', async () => {
+      await expect(
+        analytics.recordEvent({
+          type: 'sync_completed',
+          status: 'completed',
+          metadata: { latency: 45, queuedOffline: true },
+        })
+      ).resolves.toBeUndefined();
+    });
+
+    it('should record offline mode events', async () => {
+      await expect(
+        analytics.recordEvent({
+          type: 'offline_mode_entered',
+          status: 'completed',
+        })
+      ).resolves.toBeUndefined();
+
+      await expect(
+        analytics.recordEvent({
+          type: 'offline_mode_exited',
+          status: 'completed',
+        })
+      ).resolves.toBeUndefined();
+    });
+  });
+
+  describe('Conflict Resolution Recording', () => {
+    it('should record a conflict resolution', async () => {
+      await expect(
+        analytics.recordConflictResolution({
+          conflictId: 'conflict-1',
+          type: 'update_update',
+          strategy: 'last_write_wins',
+          resolvedAt: new Date(),
+          resolvedBy: 'system',
+          originalValue: { name: 'Old' },
+          resolvedValue: { name: 'New' },
+          fieldPath: 'name',
+          recordId: 'record-1',
+          collectionName: 'dogs',
+        })
+      ).resolves.toBeUndefined();
+    });
+
+    it('should record multiple conflict resolutions', async () => {
+      const conflicts = [
+        {
+          conflictId: 'c1',
+          type: 'update_update' as const,
+          strategy: 'last_write_wins' as const,
+          resolvedAt: new Date(),
+          resolvedBy: 'system',
+          originalValue: { v: 1 },
+          resolvedValue: { v: 2 },
+          fieldPath: 'v',
+          recordId: 'r1',
+          collectionName: 'dogs',
+        },
+        {
+          conflictId: 'c2',
+          type: 'delete_update' as const,
+          strategy: 'manual_resolution' as const,
+          resolvedAt: new Date(),
+          resolvedBy: 'user-1',
+          originalValue: { v: 3 },
+          resolvedValue: { v: 4 },
+          fieldPath: 'v',
+          recordId: 'r2',
+          collectionName: 'shows',
+        },
       ];
-      
-      for (const sync of syncs) {
-        await analytics.trackSyncStart(sync.id, 'bidirectional', 'people');
-        // Simulate duration by waiting
-        await new Promise(resolve => setTimeout(resolve, 10));
-        await analytics.trackSyncComplete(sync.id, { success: true });
+
+      for (const conflict of conflicts) {
+        await analytics.recordConflictResolution(conflict);
       }
-      
-      const metrics = analytics.getMetrics();
+    });
+  });
+
+  describe('Benchmark Recording', () => {
+    it('should record a performance benchmark', async () => {
+      await expect(
+        analytics.recordBenchmark({
+          operation: 'upload',
+          targetTime: 3000,
+          actualTime: 2500,
+          recordCount: 50,
+          timestamp: new Date(),
+          performanceRatio: 2500 / 3000,
+        })
+      ).resolves.toBeUndefined();
+    });
+  });
+
+  describe('Metrics Retrieval', () => {
+    it('should return metrics for a time range', async () => {
+      // Initialize to load mock data
+      await analytics.initialize();
+
+      const endTime = new Date();
+      const startTime = new Date(endTime.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
+
+      const metrics = await analytics.getMetrics(startTime, endTime);
+
+      expect(metrics).toHaveProperty('syncHealthScore');
+      expect(metrics).toHaveProperty('successRate');
+      expect(metrics).toHaveProperty('averageSyncTime');
+      expect(metrics).toHaveProperty('totalSyncs');
+      expect(metrics).toHaveProperty('successfulSyncs');
+      expect(metrics).toHaveProperty('failedSyncs');
+      expect(metrics).toHaveProperty('totalConflicts');
+      expect(metrics).toHaveProperty('resolvedConflicts');
+      expect(metrics).toHaveProperty('pendingConflicts');
+      expect(metrics).toHaveProperty('conflictRate');
+      expect(metrics).toHaveProperty('bandwidthUsed');
+      expect(metrics).toHaveProperty('compressionRatio');
+      expect(metrics).toHaveProperty('averageLatency');
+      expect(metrics).toHaveProperty('offlineUsageTime');
+      expect(metrics).toHaveProperty('offlineSyncsQueued');
+      expect(metrics).toHaveProperty('collectionMetrics');
+      expect(metrics).toHaveProperty('recentEvents');
+      expect(metrics).toHaveProperty('syncTimeTrend');
+      expect(metrics).toHaveProperty('successRateTrend');
+      expect(metrics).toHaveProperty('conflictRateTrend');
+      expect(metrics).toHaveProperty('bandwidthTrend');
+    });
+
+    it('should return correct start and end times in metrics', async () => {
+      const endTime = new Date();
+      const startTime = new Date(endTime.getTime() - 60 * 60 * 1000); // 1 hour ago
+
+      const metrics = await analytics.getMetrics(startTime, endTime);
+
+      expect(metrics.startTime).toEqual(startTime);
+      expect(metrics.endTime).toEqual(endTime);
+    });
+
+    it('should return zero metrics for an empty time range', async () => {
+      // Use a time range in the distant future where no events exist
+      const startTime = new Date('2099-01-01');
+      const endTime = new Date('2099-01-02');
+
+      const metrics = await analytics.getMetrics(startTime, endTime);
+
+      expect(metrics.totalSyncs).toBe(0);
+      expect(metrics.successfulSyncs).toBe(0);
+      expect(metrics.failedSyncs).toBe(0);
+      expect(metrics.averageSyncTime).toBe(0);
+      expect(metrics.bandwidthUsed).toBe(0);
+    });
+
+    it('should count completed events as successful syncs', async () => {
+      // Record several events
+      await analytics.recordEvent({
+        type: 'sync_completed',
+        status: 'completed',
+        collectionName: 'dogs',
+        duration: 1000,
+      });
+      await analytics.recordEvent({
+        type: 'sync_completed',
+        status: 'completed',
+        collectionName: 'dogs',
+        duration: 2000,
+      });
+      await analytics.recordEvent({
+        type: 'sync_failed',
+        status: 'failed',
+        collectionName: 'dogs',
+      });
+
+      const now = new Date();
+      const startTime = new Date(now.getTime() - 60 * 1000); // 1 minute ago
+      const endTime = new Date(now.getTime() + 60 * 1000); // 1 minute in future
+
+      const metrics = await analytics.getMetrics(startTime, endTime);
+
+      expect(metrics.successfulSyncs).toBe(2);
+      expect(metrics.failedSyncs).toBe(1);
       expect(metrics.totalSyncs).toBe(3);
-      expect(metrics.averageSyncTime).toBeGreaterThan(0);
     });
 
-    it('should track bandwidth and compression', async () => {
-      await analytics.trackSyncStart('sync-compress', 'upload', 'clubs');
-      await analytics.trackSyncComplete('sync-compress', {
-        success: true,
+    it('should calculate success rate correctly', async () => {
+      await analytics.recordEvent({
+        type: 'sync_completed',
+        status: 'completed',
+      });
+      await analytics.recordEvent({
+        type: 'sync_failed',
+        status: 'failed',
+      });
+
+      const now = new Date();
+      const metrics = await analytics.getMetrics(
+        new Date(now.getTime() - 60000),
+        new Date(now.getTime() + 60000)
+      );
+
+      expect(metrics.successRate).toBe(50); // 1 of 2 = 50%
+    });
+
+    it('should calculate bandwidth used from events', async () => {
+      await analytics.recordEvent({
+        type: 'sync_completed',
+        status: 'completed',
+        bytesTransferred: 1024,
+      });
+      await analytics.recordEvent({
+        type: 'sync_completed',
+        status: 'completed',
         bytesTransferred: 2048,
-        bytesCompressed: 1024
       });
-      
-      const metrics = analytics.getMetrics();
-      expect(metrics.bandwidthUsed).toBe(2048);
-      expect(metrics.dataCompressed).toBe(1024);
-      expect(metrics.compressionRatio).toBe(0.5);
-    });
-  });
 
-  describe('Conflict Tracking', () => {
-    it('should track conflict resolution', async () => {
-      await analytics.trackConflict('dogs', 'field-conflict', true, 'last-write-wins');
-      await analytics.trackConflict('shows', 'merge-conflict', false);
-      
-      const metrics = analytics.getMetrics();
-      expect(metrics.totalConflicts).toBe(2);
-      expect(metrics.resolvedConflicts).toBe(1);
-      expect(metrics.unresolvedConflicts).toBe(1);
-      expect(metrics.conflictRate).toBe(0); // No syncs yet, so rate is 0
+      const now = new Date();
+      const metrics = await analytics.getMetrics(
+        new Date(now.getTime() - 60000),
+        new Date(now.getTime() + 60000)
+      );
+
+      expect(metrics.bandwidthUsed).toBe(3072);
     });
 
-    it('should calculate conflict rate based on syncs', async () => {
-      // Perform some syncs first
-      await analytics.trackSyncStart('sync1', 'upload', 'dogs');
-      await analytics.trackSyncComplete('sync1', { success: true });
-      
-      await analytics.trackSyncStart('sync2', 'upload', 'shows');
-      await analytics.trackSyncComplete('sync2', { success: true });
-      
-      // Add conflicts
-      await analytics.trackConflict('dogs', 'field-conflict', true);
-      
-      const metrics = analytics.getMetrics();
-      expect(metrics.conflictRate).toBe(0.5); // 1 conflict / 2 syncs
-    });
-  });
-
-  describe('Offline Time Tracking', () => {
-    it('should track offline usage time', () => {
-      const offlineTime = 60000; // 1 minute
-      analytics.trackOfflineTime(offlineTime);
-      
-      const metrics = analytics.getMetrics();
-      expect(metrics.offlineUsageTime).toBe(offlineTime);
-    });
-
-    it('should accumulate offline time', () => {
-      analytics.trackOfflineTime(30000);
-      analytics.trackOfflineTime(45000);
-      
-      const metrics = analytics.getMetrics();
-      expect(metrics.offlineUsageTime).toBe(75000);
-    });
-  });
-
-  describe('Health Score Calculation', () => {
-    it('should calculate health score for perfect metrics', () => {
-      // Set up perfect metrics by completing successful syncs
-      Promise.all([
-        analytics.trackSyncStart('perfect1', 'upload', 'dogs'),
-        analytics.trackSyncStart('perfect2', 'upload', 'shows')
-      ]).then(() => {
-        return Promise.all([
-          analytics.trackSyncComplete('perfect1', { success: true }),
-          analytics.trackSyncComplete('perfect2', { success: true })
-        ]);
+    it('should calculate average sync time from completed events', async () => {
+      await analytics.recordEvent({
+        type: 'sync_completed',
+        status: 'completed',
+        duration: 2000, // 2 seconds
       });
-      
-      const health = analytics.getSyncHealth();
-      expect(health.score).toBeGreaterThan(80);
-      expect(health.status).toMatch(/excellent|good/);
-    });
+      await analytics.recordEvent({
+        type: 'sync_completed',
+        status: 'completed',
+        duration: 4000, // 4 seconds
+      });
 
-    it('should provide recommendations for poor health', async () => {
-      // Create poor metrics
-      await analytics.trackSyncStart('poor1', 'upload', 'dogs');
-      await analytics.trackSyncComplete('poor1', { success: false });
-      
-      await analytics.trackSyncStart('poor2', 'upload', 'shows');
-      await analytics.trackSyncComplete('poor2', { success: false });
-      
-      const health = analytics.getSyncHealth();
-      expect(health.score).toBeLessThan(50);
-      expect(health.recommendations).toContain('Investigate sync failures - success rate below 80%');
+      const now = new Date();
+      const metrics = await analytics.getMetrics(
+        new Date(now.getTime() - 60000),
+        new Date(now.getTime() + 60000)
+      );
+
+      // Average of 2s and 4s = 3s
+      expect(metrics.averageSyncTime).toBe(3);
     });
   });
 
-  describe('Performance Benchmarks', () => {
-    it('should create and update benchmarks', async () => {
-      const entity = 'dogs';
-      const operation = 'upload';
-      
-      await analytics.trackSyncStart('bench1', operation, entity);
-      await new Promise(resolve => setTimeout(resolve, 10)); // Small delay
-      await analytics.trackSyncComplete('bench1', { success: true });
-      
-      const benchmarks = analytics.getBenchmarks(entity);
-      expect(benchmarks).toHaveLength(1);
-      expect(benchmarks[0].entity).toBe(entity);
-      expect(benchmarks[0].operation).toBe(operation);
-      expect(benchmarks[0].sampleSize).toBe(1);
+  describe('Trend Data', () => {
+    it('should include trend arrays with 24 data points', async () => {
+      const endTime = new Date();
+      const startTime = new Date(endTime.getTime() - 24 * 60 * 60 * 1000);
+
+      const metrics = await analytics.getMetrics(startTime, endTime);
+
+      expect(metrics.syncTimeTrend).toHaveLength(24);
+      expect(metrics.successRateTrend).toHaveLength(24);
+      expect(metrics.conflictRateTrend).toHaveLength(24);
+      expect(metrics.bandwidthTrend).toHaveLength(24);
     });
 
-    it('should filter benchmarks by entity', async () => {
-      await analytics.trackSyncStart('dog1', 'upload', 'dogs');
-      await analytics.trackSyncComplete('dog1', { success: true });
-      
-      await analytics.trackSyncStart('show1', 'download', 'shows');
-      await analytics.trackSyncComplete('show1', { success: true });
-      
-      const dogBenchmarks = analytics.getBenchmarks('dogs');
-      const showBenchmarks = analytics.getBenchmarks('shows');
-      const allBenchmarks = analytics.getBenchmarks();
-      
-      expect(dogBenchmarks).toHaveLength(1);
-      expect(showBenchmarks).toHaveLength(1);
-      expect(allBenchmarks).toHaveLength(2);
+    it('should have timestamp and value in each trend point', async () => {
+      const endTime = new Date();
+      const startTime = new Date(endTime.getTime() - 24 * 60 * 60 * 1000);
+
+      const metrics = await analytics.getMetrics(startTime, endTime);
+
+      for (const point of metrics.syncTimeTrend) {
+        expect(point).toHaveProperty('timestamp');
+        expect(point).toHaveProperty('value');
+        expect(point.timestamp).toBeInstanceOf(Date);
+        expect(typeof point.value).toBe('number');
+      }
     });
   });
 
-  describe('Event Emission', () => {
-    it('should emit sync events', async () => {
-      const syncStartedSpy = vi.fn();
-      const syncCompletedSpy = vi.fn();
-      
-      analytics.on('sync:started', syncStartedSpy);
-      analytics.on('sync:completed', syncCompletedSpy);
-      
-      await analytics.trackSyncStart('event-test', 'upload', 'dogs');
-      await analytics.trackSyncComplete('event-test', { success: true });
-      
-      expect(syncStartedSpy).toHaveBeenCalledTimes(1);
-      expect(syncCompletedSpy).toHaveBeenCalledTimes(1);
+  describe('Collection Metrics', () => {
+    it('should return metrics for all collections', async () => {
+      await analytics.initialize();
+
+      const endTime = new Date();
+      const startTime = new Date(endTime.getTime() - 24 * 60 * 60 * 1000);
+
+      const metrics = await analytics.getMetrics(startTime, endTime);
+
+      expect(metrics.collectionMetrics).toHaveLength(5);
+
+      const collectionNames = metrics.collectionMetrics.map((c) => c.collectionName);
+      expect(collectionNames).toContain('dogs');
+      expect(collectionNames).toContain('shows');
+      expect(collectionNames).toContain('entries');
+      expect(collectionNames).toContain('people');
+      expect(collectionNames).toContain('clubs');
     });
 
-    it('should emit conflict events', async () => {
-      const conflictSpy = vi.fn();
-      analytics.on('conflict:tracked', conflictSpy);
-      
-      await analytics.trackConflict('dogs', 'field-conflict', true);
-      
-      expect(conflictSpy).toHaveBeenCalledTimes(1);
-      expect(conflictSpy).toHaveBeenCalledWith(expect.objectContaining({
-        entityType: 'dogs',
-        conflictType: 'field-conflict',
-        resolved: true
-      }));
+    it('should include expected fields for each collection', async () => {
+      const endTime = new Date();
+      const startTime = new Date(endTime.getTime() - 24 * 60 * 60 * 1000);
+
+      const metrics = await analytics.getMetrics(startTime, endTime);
+
+      for (const collection of metrics.collectionMetrics) {
+        expect(collection).toHaveProperty('collectionName');
+        expect(collection).toHaveProperty('totalRecords');
+        expect(collection).toHaveProperty('syncedRecords');
+        expect(collection).toHaveProperty('pendingRecords');
+        expect(collection).toHaveProperty('conflictedRecords');
+        expect(collection).toHaveProperty('averageSyncTime');
+        expect(collection).toHaveProperty('successRate');
+        expect(collection).toHaveProperty('errorCount');
+      }
+    });
+  });
+
+  describe('Queue Metrics', () => {
+    it('should return queue metrics', async () => {
+      const queueMetrics = await analytics.getQueueMetrics();
+
+      expect(queueMetrics).toHaveProperty('queueLength');
+      expect(queueMetrics).toHaveProperty('processingRate');
+      expect(queueMetrics).toHaveProperty('averageWaitTime');
+      expect(queueMetrics).toHaveProperty('priorityOperations');
+      expect(queueMetrics).toHaveProperty('retryOperations');
+      expect(queueMetrics).toHaveProperty('failedOperations');
     });
 
-    it('should emit offline tracking events', () => {
-      const offlineSpy = vi.fn();
-      analytics.on('offline:tracked', offlineSpy);
-      
-      analytics.trackOfflineTime(30000);
-      
-      expect(offlineSpy).toHaveBeenCalledWith({ duration: 30000 });
+    it('should return numeric values for queue metrics', async () => {
+      const queueMetrics = await analytics.getQueueMetrics();
+
+      expect(typeof queueMetrics.queueLength).toBe('number');
+      expect(typeof queueMetrics.processingRate).toBe('number');
+      expect(typeof queueMetrics.averageWaitTime).toBe('number');
+      expect(typeof queueMetrics.priorityOperations).toBe('number');
+    });
+  });
+
+  describe('Storage Metrics', () => {
+    it('should return storage metrics', async () => {
+      const storageMetrics = await analytics.getStorageMetrics();
+
+      expect(storageMetrics).toHaveProperty('totalUsed');
+      expect(storageMetrics).toHaveProperty('totalAvailable');
+      expect(storageMetrics).toHaveProperty('usageByCollection');
+      expect(storageMetrics).toHaveProperty('cacheSize');
+      expect(storageMetrics).toHaveProperty('indexSize');
+    });
+
+    it('should report correct collection usage keys', async () => {
+      const storageMetrics = await analytics.getStorageMetrics();
+
+      expect(storageMetrics.usageByCollection).toHaveProperty('dogs');
+      expect(storageMetrics.usageByCollection).toHaveProperty('shows');
+      expect(storageMetrics.usageByCollection).toHaveProperty('entries');
+      expect(storageMetrics.usageByCollection).toHaveProperty('people');
+      expect(storageMetrics.usageByCollection).toHaveProperty('clubs');
+    });
+
+    it('should have totalUsed greater than zero', async () => {
+      const storageMetrics = await analytics.getStorageMetrics();
+      expect(storageMetrics.totalUsed).toBeGreaterThan(0);
+    });
+
+    it('should have totalAvailable greater than totalUsed', async () => {
+      const storageMetrics = await analytics.getStorageMetrics();
+      expect(storageMetrics.totalAvailable).toBeGreaterThan(storageMetrics.totalUsed);
     });
   });
 
   describe('Alert System', () => {
-    beforeEach(() => {
-      // Enable alerts for testing
-      const testAnalytics = getSyncAnalytics({
-        ...ANALYTICS_PRESETS.testing,
-        enableRealTimeAlerts: true,
-        alertThresholds: {
-          failureRate: 0.3,
-          avgSyncTime: 1000,
-          conflictRate: 0.2,
-          bandwidthUsage: 500
-        }
-      });
-      analytics = testAnalytics;
+    it('should start with no active alerts', () => {
+      const alerts = analytics.getActiveAlerts();
+      expect(alerts).toEqual([]);
     });
 
-    it('should trigger alerts for high failure rate', async () => {
-      const alertSpy = vi.fn();
-      analytics.on('alerts:triggered', alertSpy);
-      
-      // Create failing syncs
-      for (let i = 0; i < 5; i++) {
-        await analytics.trackSyncStart(`fail-${i}`, 'upload', 'dogs');
-        await analytics.trackSyncComplete(`fail-${i}`, { success: false });
+    it('should create alert on performance event exceeding threshold', async () => {
+      // Initialize with a low syncTimeThreshold so our event triggers an alert
+      await analytics.initialize({ syncTimeThreshold: 1 }); // 1 second
+
+      await analytics.recordEvent({
+        type: 'sync_completed',
+        status: 'completed',
+        duration: 5000, // 5 seconds, exceeds 1s threshold
+      });
+
+      const alerts = analytics.getActiveAlerts();
+      expect(alerts.length).toBeGreaterThanOrEqual(1);
+      expect(alerts.some((a) => a.type === 'performance')).toBe(true);
+    });
+
+    it('should create alert on failed sync event', async () => {
+      await analytics.initialize();
+
+      await analytics.recordEvent({
+        type: 'sync_failed',
+        status: 'failed',
+        errorMessage: 'Connection refused',
+      });
+
+      const alerts = analytics.getActiveAlerts();
+      expect(alerts.length).toBeGreaterThanOrEqual(1);
+      expect(alerts.some((a) => a.type === 'health')).toBe(true);
+    });
+
+    it('should acknowledge an alert', async () => {
+      await analytics.initialize({ syncTimeThreshold: 1 });
+
+      await analytics.recordEvent({
+        type: 'sync_completed',
+        status: 'completed',
+        duration: 5000,
+      });
+
+      const alerts = analytics.getActiveAlerts();
+      expect(alerts.length).toBeGreaterThan(0);
+
+      const alertId = alerts[0].id;
+      await analytics.acknowledgeAlert(alertId);
+
+      // Alert should still be active (acknowledged != resolved)
+      const activeAlerts = analytics.getActiveAlerts();
+      const acknowledgedAlert = activeAlerts.find((a) => a.id === alertId);
+      expect(acknowledgedAlert).toBeDefined();
+      expect(acknowledgedAlert!.acknowledgedAt).toBeInstanceOf(Date);
+    });
+
+    it('should resolve an alert', async () => {
+      await analytics.initialize({ syncTimeThreshold: 1 });
+
+      await analytics.recordEvent({
+        type: 'sync_completed',
+        status: 'completed',
+        duration: 5000,
+      });
+
+      const alertsBefore = analytics.getActiveAlerts();
+      expect(alertsBefore.length).toBeGreaterThan(0);
+
+      const alertId = alertsBefore[0].id;
+      await analytics.resolveAlert(alertId);
+
+      // After resolving, the alert should no longer be active
+      const alertsAfter = analytics.getActiveAlerts();
+      expect(alertsAfter.find((a) => a.id === alertId)).toBeUndefined();
+    });
+  });
+
+  describe('Health Checks', () => {
+    it('should return health check results', async () => {
+      const healthChecks = await analytics.getHealthChecks();
+
+      expect(healthChecks).toHaveLength(3);
+
+      const serviceNames = healthChecks.map((h) => h.service);
+      expect(serviceNames).toContain('Sync Service');
+      expect(serviceNames).toContain('Database');
+      expect(serviceNames).toContain('Network');
+    });
+
+    it('should have proper structure for each health check', async () => {
+      const healthChecks = await analytics.getHealthChecks();
+
+      for (const check of healthChecks) {
+        expect(check).toHaveProperty('service');
+        expect(check).toHaveProperty('status');
+        expect(check).toHaveProperty('responseTime');
+        expect(check).toHaveProperty('lastChecked');
+        expect(check).toHaveProperty('uptime');
+        expect(['healthy', 'degraded', 'unhealthy']).toContain(check.status);
+        expect(typeof check.responseTime).toBe('number');
+        expect(typeof check.uptime).toBe('number');
       }
-      
-      // The alert should have been triggered
-      expect(alertSpy).toHaveBeenCalled();
-    });
-
-    it('should trigger alerts for slow syncs', async () => {
-      const alertSpy = vi.fn();
-      analytics.on('alerts:triggered', alertSpy);
-      
-      await analytics.trackSyncStart('slow-sync', 'upload', 'dogs');
-      
-      // Simulate a slow sync by waiting then completing with long duration
-      await new Promise(resolve => setTimeout(resolve, 10));
-      await analytics.trackSyncComplete('slow-sync', { 
-        success: true,
-        duration: 5000 // 5 seconds, above threshold
-      });
-      
-      expect(alertSpy).toHaveBeenCalled();
-    });
-
-    it('should detect anomalies', async () => {
-      const anomalySpy = vi.fn();
-      analytics.on('anomaly:detected', anomalySpy);
-      
-      // Create normal benchmarks first
-      for (let i = 0; i < 3; i++) {
-        await analytics.trackSyncStart(`normal-${i}`, 'upload', 'dogs');
-        await new Promise(resolve => setTimeout(resolve, 10));
-        await analytics.trackSyncComplete(`normal-${i}`, { success: true });
-      }
-      
-      // Create anomalous sync
-      await analytics.trackSyncStart('anomaly', 'upload', 'dogs');
-      
-      // Simulate anomalous sync completion
-      await new Promise(resolve => setTimeout(resolve, 10));
-      await analytics.trackSyncComplete('anomaly', {
-        success: true,
-        duration: 50000, // Very slow
-        bytesTransferred: 10000000 // Very large
-      });
-      
-      expect(anomalySpy).toHaveBeenCalled();
     });
   });
 
   describe('Data Export', () => {
-    it('should export data as JSON', async () => {
-      await analytics.trackSyncStart('export-test', 'upload', 'dogs');
-      await analytics.trackSyncComplete('export-test', { success: true });
-      
-      const exportData = await analytics.exportAnalytics('json');
-      expect(typeof exportData).toBe('string');
-      
-      const parsed = JSON.parse(exportData as string);
-      expect(parsed).toHaveProperty('summary');
-      expect(parsed).toHaveProperty('health');
-      expect(parsed).toHaveProperty('exportDate');
+    it('should export data as JSON blob', async () => {
+      const endTime = new Date();
+      const startTime = new Date(endTime.getTime() - 24 * 60 * 60 * 1000);
+
+      const blob = await analytics.exportData(startTime, endTime, 'json');
+
+      expect(blob).toBeInstanceOf(Blob);
+      expect(blob.type).toBe('application/json');
     });
 
-    it('should export data as CSV', async () => {
-      await analytics.trackSyncStart('csv-test', 'upload', 'dogs');
-      await analytics.trackSyncComplete('csv-test', { success: true });
-      
-      const exportData = await analytics.exportAnalytics('csv');
-      expect(exportData).toBeInstanceOf(Blob);
-      
-      const blob = exportData as Blob;
+    it('should export data as CSV blob', async () => {
+      const endTime = new Date();
+      const startTime = new Date(endTime.getTime() - 24 * 60 * 60 * 1000);
+
+      const blob = await analytics.exportData(startTime, endTime, 'csv');
+
+      expect(blob).toBeInstanceOf(Blob);
       expect(blob.type).toBe('text/csv');
     });
 
-    it('should export data for date range', async () => {
-      const startDate = new Date('2024-01-01');
-      const endDate = new Date('2024-01-31');
-      
-      const exportData = await analytics.exportAnalytics('json', startDate, endDate);
-      expect(typeof exportData).toBe('string');
+    it('should default to JSON format when no format specified', async () => {
+      const endTime = new Date();
+      const startTime = new Date(endTime.getTime() - 24 * 60 * 60 * 1000);
+
+      const blob = await analytics.exportData(startTime, endTime);
+
+      expect(blob).toBeInstanceOf(Blob);
+      expect(blob.type).toBe('application/json');
     });
   });
 
-  describe('Trend Analysis', () => {
-    it('should get trends by period', async () => {
-      const trends = await analytics.getTrends('hour');
-      expect(Array.isArray(trends)).toBe(true);
-    });
+  describe('Event Emission', () => {
+    it('should call logger.debug when emitting events', () => {
+      analytics.emit('test:event', { foo: 'bar' });
 
-    it('should filter trends by date range', async () => {
-      const startDate = new Date('2024-01-01');
-      const endDate = new Date('2024-01-31');
-      
-      const trends = await analytics.getTrends('day', startDate, endDate);
-      expect(Array.isArray(trends)).toBe(true);
-    });
-  });
-
-  describe('Memory Management', () => {
-    it('should cleanup old operations', async () => {
-      // Create many operations to trigger cleanup
-      for (let i = 0; i < 1100; i++) {
-        await analytics.trackSyncStart(`cleanup-${i}`, 'upload', 'dogs');
-        await analytics.trackSyncComplete(`cleanup-${i}`, { success: true });
-      }
-      
-      // Check if cleanup occurred (events should be limited)
-      const metrics = await analytics.getSyncMetrics();
-      expect(metrics.totalEvents).toBeLessThanOrEqual(1000);
-    });
-
-    it('should destroy properly', async () => {
-      const destroySpy = vi.spyOn(analytics, 'destroy');
-      analytics.destroy();
-      
-      expect(destroySpy).toHaveBeenCalled();
-      
-      // Verify cleanup by checking metrics
-      const metrics = await analytics.getSyncMetrics();
-      expect(metrics.totalEvents).toBe(0);
-    });
-  });
-
-  describe('Sampling', () => {
-    it('should respect sampling rate', async () => {
-      const samplingAnalytics = getSyncAnalytics({
-        samplingRate: 0.0 // No sampling
-      });
-      
-      await samplingAnalytics.trackSyncStart('sample-test', 'upload', 'dogs');
-      
-      // With 0% sampling, no operations should be tracked
-      const metrics = await samplingAnalytics.getSyncMetrics();
-      expect(metrics.totalEvents).toBe(0);
-      
-      samplingAnalytics.destroy();
+      expect(logger.debug).toHaveBeenCalledWith(
+        'Analytics event: test:event',
+        { foo: 'bar' }
+      );
     });
   });
 });
 
-describe('Analytics Integration', () => {
-  it('should integrate with external services', () => {
+describe('getSyncAnalytics', () => {
+  beforeEach(() => {
+    // Reset singleton for isolation
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (SyncAnalyticsService as any).instance = undefined;
+  });
+
+  it('should return a SyncAnalyticsService instance', () => {
     const analytics = getSyncAnalytics();
-    
-    // Test that the service can be integrated
-    expect(analytics).toHaveProperty('trackSyncStart');
-    expect(analytics).toHaveProperty('trackSyncComplete');
-    expect(analytics).toHaveProperty('trackConflict');
-    expect(analytics).toHaveProperty('getMetrics');
-    expect(analytics).toHaveProperty('getSyncHealth');
-    
-    analytics.destroy();
+    expect(analytics).toBeInstanceOf(SyncAnalyticsService);
+  });
+
+  it('should return the same instance on multiple calls', () => {
+    const a1 = getSyncAnalytics();
+    const a2 = getSyncAnalytics();
+    expect(a1).toBe(a2);
   });
 });

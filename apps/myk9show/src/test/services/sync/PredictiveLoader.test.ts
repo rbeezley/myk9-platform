@@ -1,84 +1,124 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { PredictiveLoader } from '@/services/sync/PredictiveLoader';
+import { logger } from '@/services/LoggingService';
 
-// Mock the stores
+// Mock the LoggingService logger
+vi.mock('@/services/LoggingService', () => ({
+  logger: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    fatal: vi.fn(),
+  }
+}));
+
+// Mock the Zustand stores with getState() API
 vi.mock('@/store/dogStore', () => ({
-  dogStore: {
-    getDogs: vi.fn().mockReturnValue([
-      {
-        id: 'dog-1',
-        name: 'Rex',
-        breed: 'Golden Retriever',
-        sex: 'male',
-        ownerId: 'person-1',
-        dateOfBirth: '2022-01-15',
-        isActive: true
-      },
-      {
-        id: 'dog-2',
-        name: 'Bella',
-        breed: 'Labrador',
-        sex: 'female',
-        ownerId: 'person-2',
-        dateOfBirth: '2021-06-10',
-        isActive: true
-      }
-    ]),
-    getDogById: vi.fn((id) => ({
-      id,
-      name: 'Test Dog',
-      breed: 'Test Breed',
-      sex: 'male',
-      ownerId: 'person-1'
-    }))
+  useDogStore: {
+    getState: vi.fn().mockReturnValue({
+      dogs: [
+        {
+          id: 'dog-1',
+          name: 'Rex',
+          breed: 'Golden Retriever',
+          sex: 'male',
+          ownerId: 'person-1',
+          dateOfBirth: '2022-01-15',
+          isActive: true
+        },
+        {
+          id: 'dog-2',
+          name: 'Bella',
+          breed: 'Labrador',
+          sex: 'female',
+          ownerId: 'person-2',
+          dateOfBirth: '2021-06-10',
+          isActive: true
+        }
+      ],
+      getDogById: vi.fn((id: string) => {
+        const dogs: Record<string, unknown> = {
+          'dog-1': {
+            id: 'dog-1',
+            name: 'Rex',
+            breed: 'Golden Retriever',
+            sex: 'male',
+            ownerId: 'person-1',
+            dateOfBirth: '2022-01-15',
+            isActive: true
+          },
+          'dog-2': {
+            id: 'dog-2',
+            name: 'Bella',
+            breed: 'Labrador',
+            sex: 'female',
+            ownerId: 'person-2',
+            dateOfBirth: '2021-06-10',
+            isActive: true
+          }
+        };
+        return dogs[id] || null;
+      })
+    })
   }
 }));
 
 vi.mock('@/store/userStore', () => ({
-  userStore: {
-    getPeople: vi.fn().mockReturnValue([]),
-    getPersonById: vi.fn((id) => ({
-      id,
-      firstName: 'Test',
-      lastName: 'User',
-      city: 'Test City'
-    }))
+  useUserStore: {
+    getState: vi.fn().mockReturnValue({
+      people: [
+        {
+          id: 'person-1',
+          firstName: 'Test',
+          lastName: 'User',
+          city: 'Test City'
+        },
+        {
+          id: 'person-2',
+          firstName: 'Other',
+          lastName: 'Person',
+          city: 'Other City'
+        }
+      ],
+      users: []
+    })
   }
 }));
 
 vi.mock('@/store/showStore', () => ({
-  showStore: {
-    getShows: vi.fn().mockReturnValue([
-      {
-        id: 'show-1',
-        name: 'Test Show 1',
-        date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        showType: 'All Breed',
-        location: { city: 'Test City', state: 'TS' }
-      },
-      {
-        id: 'show-2',
-        name: 'Test Show 2',
-        date: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
-        showType: 'Specialty',
-        location: { city: 'Other City', state: 'OT' }
-      }
-    ]),
-    getShowById: vi.fn((id) => ({
-      id,
-      name: 'Test Show',
-      date: new Date().toISOString()
-    }))
+  useShowStore: {
+    getState: vi.fn().mockReturnValue({
+      shows: [
+        {
+          id: 'show-1',
+          name: 'Test Show 1',
+          startDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          type: 'All Breed',
+          location: 'Test City, TS'
+        },
+        {
+          id: 'show-2',
+          name: 'Test Show 2',
+          startDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
+          type: 'Specialty',
+          location: 'Other City, OT'
+        }
+      ]
+    })
   }
 }));
 
 vi.mock('@/store/clubStore', () => ({
-  clubStore: {
-    getClubs: vi.fn().mockReturnValue([]),
-    getClubById: vi.fn((id) => ({
-      id,
-      name: 'Test Club'
-    }))
+  useClubStore: {
+    getState: vi.fn().mockReturnValue({
+      clubs: [
+        {
+          id: 'club-1',
+          name: 'Test Club'
+        }
+      ]
+    })
   }
 }));
 
@@ -154,11 +194,14 @@ describe('PredictiveLoader', () => {
 
   describe('Likely View Preloading', () => {
     it('should preload likely next views', () => {
-      // Set up a navigation pattern
+      // Track navigation pattern enough times to build confidence above 0.3 threshold
+      // confidence = min(0.95, frequency * 0.1), so 4 times = 0.4 confidence > 0.3
       loader.trackNavigationPattern('/shows', '/dogs', 2000);
       loader.trackNavigationPattern('/shows', '/dogs', 1500);
+      loader.trackNavigationPattern('/shows', '/dogs', 1800);
+      loader.trackNavigationPattern('/shows', '/dogs', 1600);
 
-      // This should trigger preloading
+      // This should trigger preloading (confidence = 0.4 > 0.3 threshold)
       loader.preloadLikelyViews('/shows');
 
       const analytics = loader.getAnalytics();
@@ -166,7 +209,7 @@ describe('PredictiveLoader', () => {
     });
 
     it('should only preload high-confidence patterns', () => {
-      // Create a low-confidence pattern
+      // Create a low-confidence pattern (frequency=1 => confidence=0.1, below 0.3 threshold)
       loader.trackNavigationPattern('/rare', '/destination', 1000);
 
       loader.preloadLikelyViews('/rare');
@@ -291,13 +334,14 @@ describe('PredictiveLoader', () => {
 
   describe('Preload Queue Processing', () => {
     it('should process preload queue', async () => {
-      loader.trackNavigationPattern('/shows', '/dogs', 2000);
+      // Build enough confidence (4 times => 0.4 > 0.3 threshold)
+      for (let i = 0; i < 4; i++) {
+        loader.trackNavigationPattern('/shows', '/dogs', 2000);
+      }
       loader.preloadLikelyViews('/shows');
 
-      // Advance time to trigger processing
-      vi.advanceTimersByTime(1100);
-
-      await vi.runAllTimersAsync();
+      // Advance time to trigger one processing cycle, not runAllTimersAsync (which causes infinite loop with setInterval)
+      await vi.advanceTimersByTimeAsync(1100);
 
       // Should have processed some tasks
       const analytics = loader.getAnalytics();
@@ -305,13 +349,13 @@ describe('PredictiveLoader', () => {
     });
 
     it('should retry failed tasks', async () => {
-      // This would test retry logic, but since we're mocking stores,
-      // tasks should generally succeed
-      loader.trackNavigationPattern('/test', '/test2', 1000);
+      // Build enough confidence
+      for (let i = 0; i < 4; i++) {
+        loader.trackNavigationPattern('/test', '/test2', 1000);
+      }
       loader.preloadLikelyViews('/test');
 
-      vi.advanceTimersByTime(1100);
-      await vi.runAllTimersAsync();
+      await vi.advanceTimersByTimeAsync(1100);
 
       const analytics = loader.getAnalytics();
       expect(analytics.preloadQueue.total).toBeGreaterThanOrEqual(0);
@@ -425,7 +469,7 @@ describe('PredictiveLoader', () => {
         }]
       ]);
 
-      mockLocalStorage.getItem.mockImplementation((key) => {
+      mockLocalStorage.getItem.mockImplementation((key: string) => {
         if (key === 'myk9show-nav-patterns') return mockNavPatterns;
         return null;
       });
@@ -441,14 +485,16 @@ describe('PredictiveLoader', () => {
       });
 
       expect(() => new PredictiveLoader()).not.toThrow();
-      expect(consoleWarnSpy).toHaveBeenCalled();
+      // The source catches errors and calls logger.warn (not console.warn)
+      expect(logger.warn).toHaveBeenCalled();
     });
 
     it('should handle JSON parse errors', () => {
       mockLocalStorage.getItem.mockReturnValue('invalid json');
 
       expect(() => new PredictiveLoader()).not.toThrow();
-      expect(consoleWarnSpy).toHaveBeenCalled();
+      // The source catches JSON parse errors and calls logger.warn
+      expect(logger.warn).toHaveBeenCalled();
     });
   });
 
@@ -493,8 +539,8 @@ describe('PredictiveLoader', () => {
       loader.trackRelationshipAccess('person', 'person-1', 'dog', ['dog-1']);
       loader.trackRelationshipAccess('dog', 'dog-1', 'show', ['show-1']);
 
-      vi.advanceTimersByTime(1100);
-      await vi.runAllTimersAsync();
+      // Use advanceTimersByTimeAsync instead of runAllTimersAsync to avoid infinite loop from setInterval
+      await vi.advanceTimersByTimeAsync(1100);
 
       // Should have attempted to preload different entity types
       const analytics = loader.getAnalytics();

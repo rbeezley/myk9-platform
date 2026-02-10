@@ -23,7 +23,7 @@
     "quality:full": "npm run typecheck:strict && npm run lint && npm run test",
     "monitor:type-safety": "node scripts/monitor-type-safety.js",
     "preview": "vite preview",
-    "test": "cross-env NODE_OPTIONS=--max-old-space-size=4096 vitest",
+    "test": "cross-env NODE_OPTIONS=--max-old-space-size=4096 vitest --run",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
     "test:e2e": "playwright test && node scripts/auto-cleanup-after-test.js",

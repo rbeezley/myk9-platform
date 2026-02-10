@@ -395,11 +395,20 @@ describe('UserBehaviorLearning', () => {
     });
 
     it('should calculate average session duration', () => {
-      behaviorLearning.trackNavigation('/shows', '/dogs', 5000);
-      behaviorLearning.endSession();
+      vi.useFakeTimers();
 
-      const analytics = behaviorLearning.getAnalytics();
+      // Create a fresh instance with fake timers so startTime is controlled
+      const timedBehaviorLearning = new UserBehaviorLearning();
+      timedBehaviorLearning.trackNavigation('/shows', '/dogs', 5000);
+
+      // Advance time so endTime - startTime > 0
+      vi.advanceTimersByTime(10000);
+      timedBehaviorLearning.endSession();
+
+      const analytics = timedBehaviorLearning.getAnalytics();
       expect(analytics.averageSessionDuration).toBeGreaterThan(0);
+
+      vi.useRealTimers();
     });
   });
 
@@ -456,26 +465,26 @@ describe('UserBehaviorLearning', () => {
 
   describe('Real-time Pattern Analysis', () => {
     it('should detect navigation patterns in real-time', () => {
-      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-      
+      const consoleSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+
       behaviorLearning.trackNavigation('/shows', '/dogs', 2000);
       behaviorLearning.trackNavigation('/dogs', '/people', 1500);
 
-      // Should log pattern detection
+      // Should log pattern detection via logger.debug (which uses console.debug)
       expect(consoleSpy).toHaveBeenCalled();
-      
+
       consoleSpy.mockRestore();
     });
 
     it('should detect entity access patterns in real-time', () => {
-      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-      
+      const consoleSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+
       behaviorLearning.trackEntityAccess('person', 'person-1', '/people');
       behaviorLearning.trackEntityAccess('dog', 'dog-1', '/dogs');
 
-      // Should log entity pattern detection
+      // Should log entity pattern detection via logger.debug (which uses console.debug)
       expect(consoleSpy).toHaveBeenCalled();
-      
+
       consoleSpy.mockRestore();
     });
   });

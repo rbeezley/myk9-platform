@@ -345,6 +345,7 @@ describe('Phase 3.5: Payment Processing', () => {
 
   describe('Credit Card Processing', () => {
     it('should successfully process valid credit card payment', async () => {
+      const futureYear = (new Date().getFullYear() % 100) + 3;
       const paymentData: PaymentData = {
         amount: 75.00,
         method: 'credit_card',
@@ -352,7 +353,7 @@ describe('Phase 3.5: Payment Processing', () => {
         cardData: {
           number: '4111111111111111',
           expiryMonth: 12,
-          expiryYear: 25,
+          expiryYear: futureYear,
           cvv: '123',
           holderName: 'John Doe',
           billingAddress: {
@@ -373,10 +374,12 @@ describe('Phase 3.5: Payment Processing', () => {
     });
 
     it('should validate credit card data with comprehensive checks', async () => {
+      // Use a future expiry year to ensure the card is not expired
+      const futureYear = (new Date().getFullYear() % 100) + 3;
       const cardData: CreditCardData = {
         number: '4111111111111111',
         expiryMonth: 12,
-        expiryYear: 25,
+        expiryYear: futureYear,
         cvv: '123',
         holderName: 'John Doe',
         billingAddress: {

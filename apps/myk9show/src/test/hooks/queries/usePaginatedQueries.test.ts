@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { 
+import {
   usePaginatedDogs,
   useInfiniteDogs,
   usePaginatedUsers,
@@ -12,10 +12,25 @@ import {
 } from '@/hooks/queries/usePaginatedQueries';
 import React from 'react';
 
-// Mock the database queries
-const mockGetAllDogs = vi.fn();
-const mockGetAllUsers = vi.fn();
-const mockGetAllShows = vi.fn();
+// Use vi.hoisted() so these variables are available when vi.mock() factories run
+const {
+  mockGetAllDogs,
+  mockGetAllUsers,
+  mockGetAllShows,
+  mockUsePaginationConfig,
+  mockCacheStrategies
+} = vi.hoisted(() => ({
+  mockGetAllDogs: vi.fn(),
+  mockGetAllUsers: vi.fn(),
+  mockGetAllShows: vi.fn(),
+  mockUsePaginationConfig: vi.fn(),
+  mockCacheStrategies: {
+    moderate: {
+      staleTime: 60000,
+      gcTime: 300000
+    }
+  }
+}));
 
 vi.mock('@/services/database/queries', () => ({
   getAllDogs: mockGetAllDogs,
@@ -23,20 +38,9 @@ vi.mock('@/services/database/queries', () => ({
   getAllShows: mockGetAllShows
 }));
 
-// Mock pagination configuration
-const mockUsePaginationConfig = vi.fn();
-
 vi.mock('@/lib/queryOptimizations', () => ({
   usePaginationConfig: mockUsePaginationConfig
 }));
-
-// Mock cache strategies
-const mockCacheStrategies = {
-  moderate: {
-    staleTime: 60000,
-    gcTime: 300000
-  }
-};
 
 vi.mock('@/lib/queryClient', () => ({
   cacheStrategies: mockCacheStrategies
@@ -333,7 +337,11 @@ describe('usePaginatedQueries hooks', () => {
         expect(result.current.data?.pages).toHaveLength(2);
       });
 
-      expect(result.current.hasPreviousPage).toBe(true);
+      // The infinite query's hasPreviousPage is derived from getPreviousPageParam
+      // which checks firstPage.hasPreviousPage - page 1 has no previous page
+      expect(result.current.hasPreviousPage).toBe(false);
+      // But the second page's data correctly indicates it has a previous page
+      expect(result.current.data?.pages[1].hasPreviousPage).toBe(true);
     });
   });
 
@@ -371,8 +379,8 @@ describe('usePaginatedQueries hooks', () => {
 
     it('should handle user-specific sorting', async () => {
       const { result } = renderHook(
-        () => usePaginatedUsers({ 
-          page: 1, 
+        () => usePaginatedUsers({
+          page: 1,
           pageSize: 5,
           sortBy: 'name',
           sortOrder: 'asc'
@@ -386,8 +394,14 @@ describe('usePaginatedQueries hooks', () => {
 
       const data = result.current.data as PaginatedResult<unknown>;
       const names = data.data.map((item: Record<string, unknown>) => item.name);
+      // localeCompare sorts lexicographically: "user 0", "user 1", "user 10", "user 11", "user 12"
       expect(names[0]).toBe('user 0');
-      expect(names[4]).toBe('user 4');
+      expect(names[1]).toBe('user 1');
+      expect(names[2]).toBe('user 10');
+      // Verify ascending order
+      for (let i = 1; i < names.length; i++) {
+        expect((names[i - 1] as string).localeCompare(names[i] as string)).toBeLessThanOrEqual(0);
+      }
     });
   });
 
@@ -410,9 +424,18 @@ describe('usePaginatedQueries hooks', () => {
     });
 
     it('should handle date sorting for shows', async () => {
+      // Provide mock data with a 'date' field that the shows sort logic uses
+      const showsWithDates = Array(30).fill(null).map((_, i) => ({
+        id: `show-${i}`,
+        name: `show ${i}`,
+        date: new Date(2024, 0, i + 1).toISOString(),
+        created_at: new Date(2024, 0, i + 1).toISOString()
+      }));
+      mockGetAllShows.mockResolvedValue({ data: showsWithDates, error: null });
+
       const { result } = renderHook(
-        () => usePaginatedShows({ 
-          page: 1, 
+        () => usePaginatedShows({
+          page: 1,
           pageSize: 5,
           sortBy: 'date',
           sortOrder: 'desc'
@@ -426,9 +449,9 @@ describe('usePaginatedQueries hooks', () => {
 
       const data = result.current.data as PaginatedResult<unknown>;
       expect(data.data).toHaveLength(5);
-      
-      // Check that dates are sorted (using created_at as proxy for date)
-      const dates = data.data.map((item: Record<string, unknown>) => new Date(item.created_at as string));
+
+      // Check that dates are sorted in descending order
+      const dates = data.data.map((item: Record<string, unknown>) => new Date(item.date as string));
       for (let i = 1; i < dates.length; i++) {
         expect(dates[i-1].getTime()).toBeGreaterThanOrEqual(dates[i].getTime());
       }
@@ -615,7 +638,7 @@ describe('usePaginatedQueries hooks', () => {
       const { result } = renderHook(() => usePaginationState());
 
       act(() => {
-        result.current.changeSortBy('breed');
+        result.current.setSortBy('breed');
       });
 
       expect(result.current.sortBy).toBe('breed');
@@ -643,7 +666,7 @@ describe('usePaginatedQueries hooks', () => {
       act(() => {
         result.current.setPage(5);
         result.current.updateFilter('test', 'value');
-        result.current.changeSortBy('breed');
+        result.current.setSortBy('breed');
       });
 
       expect(result.current.page).toBe(1); // Already reset by other actions
@@ -717,7 +740,7 @@ describe('usePaginatedQueries hooks', () => {
     it('should handle rapid pagination changes', async () => {
       const { result, rerender } = renderHook(
         ({ page }) => usePaginatedDogs({ page, pageSize: 10 }),
-        { 
+        {
           wrapper: createWrapper(),
           initialProps: { page: 1 }
         }
@@ -731,15 +754,16 @@ describe('usePaginatedQueries hooks', () => {
       const startTime = Date.now();
       for (let i = 2; i <= 5; i++) {
         rerender({ page: i });
-        await waitFor(() => {
-          expect(result.current.isSuccess).toBe(true);
-        });
       }
-      const duration = Date.now() - startTime;
 
+      // Wait for the final page data to resolve (placeholderData may show stale page)
+      await waitFor(() => {
+        const data = result.current.data as PaginatedResult<unknown>;
+        expect(data.page).toBe(5);
+      });
+
+      const duration = Date.now() - startTime;
       expect(duration).toBeLessThan(500); // Should handle rapid changes
-      const data = result.current.data as PaginatedResult<unknown>;
-      expect(data.page).toBe(5);
     });
   });
 

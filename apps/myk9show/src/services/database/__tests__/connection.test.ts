@@ -67,8 +67,8 @@ describe('DatabaseService', () => {
     
     it('should delete record', async () => {
       await db.create('dogs', testData);
-      await db.delete('dogs', testData.id);
-      
+      await db.deleteRecord('dogs', testData.id);
+
       const result = await db.read('dogs', testData.id);
       expect(result).toBeNull();
     });

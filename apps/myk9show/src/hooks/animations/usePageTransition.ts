@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { logger } from '@/services/LoggingService';
 
 /**
  * Configuration options for page transitions.
@@ -55,7 +54,11 @@ export function usePageTransition(config: Partial<PageTransitionConfig> = {}) {
   const [isVisible, setIsVisible] = useState(true);
   const [_previousLocation, setPreviousLocation] = useState(location);
 
-  const finalConfig = useMemo(() => ({ ...defaultConfig, ...config }), [config]);
+  const finalConfig = useMemo(
+    () => ({ ...defaultConfig, ...config }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [config.duration, config.easing, config.type, config.direction]
+  );
 
   // Handle location changes using render-time sync pattern
   const locationPath = location.pathname;
@@ -187,17 +190,23 @@ export function usePageTransition(config: Partial<PageTransitionConfig> = {}) {
  */
 export function useProgrammaticTransition() {
   const [isAnimating, setIsAnimating] = useState(false);
+  const activeAnimationsRef = useRef(0);
 
   const animateTransition = useCallback(async (
-    config: PageTransitionConfig = defaultConfig
+    config: Partial<PageTransitionConfig> = {}
   ) => {
+    const finalConfig = { ...defaultConfig, ...config };
+    activeAnimationsRef.current += 1;
     setIsAnimating(true);
 
     return new Promise<void>((resolve) => {
       setTimeout(() => {
-        setIsAnimating(false);
+        activeAnimationsRef.current -= 1;
+        if (activeAnimationsRef.current === 0) {
+          setIsAnimating(false);
+        }
         resolve();
-      }, config.duration);
+      }, finalConfig.duration);
     });
   }, []);
 
@@ -237,25 +246,24 @@ export function useProgrammaticTransition() {
  * ```
  */
 export function useTransitionPrefetch() {
-  const [prefetchedRoutes, setPrefetchedRoutes] = useState<Set<string>>(new Set());
+  const [routes, setRoutes] = useState<Set<string>>(new Set());
 
   const prefetchRoute = useCallback((route: string) => {
-    if (!prefetchedRoutes.has(route)) {
-      // In a real implementation, this would prefetch the route data
-      setPrefetchedRoutes(prev => new Set([...prev, route]));
-      
-      // Simulate prefetching
-      logger.debug(`Prefetching route: ${route}`, 'hooks', {});
-    }
-  }, [prefetchedRoutes]);
+    setRoutes(prev => {
+      if (prev.has(route)) return prev;
+      // Log prefetch activity
+      console.log(`Prefetching route: ${route}`);
+      return new Set([...prev, route]);
+    });
+  }, []);
 
   const isPrefetched = useCallback((route: string) => {
-    return prefetchedRoutes.has(route);
-  }, [prefetchedRoutes]);
+    return routes.has(route);
+  }, [routes]);
 
   return {
     prefetchRoute,
     isPrefetched,
-    prefetchedRoutes: Array.from(prefetchedRoutes),
+    prefetchedRoutes: Array.from(routes),
   };
 }

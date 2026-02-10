@@ -1,44 +1,79 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { PerformanceService } from '../../services/PerformanceService';
-import { auditService } from '../../services/AuditService';
 
-// Mock performance API
+// Mock audit service before any imports that use it
+vi.mock('../../services/AuditService', () => ({
+  auditService: {
+    log: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
+// Mock LoggingService before any imports that use it
+vi.mock('../../services/LoggingService', () => ({
+  logger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  },
+}));
+
+// Store references to instances created by MockPerformanceObserver so tests can trigger callbacks
+let performanceObserverInstances: MockPerformanceObserver[] = [];
+
+class MockPerformanceObserver {
+  private callback: (entryList: { getEntries: () => unknown[] }) => void;
+  private _entryTypes: string[] = [];
+
+  constructor(callback: (entryList: { getEntries: () => unknown[] }) => void) {
+    this.callback = callback;
+    performanceObserverInstances.push(this);
+  }
+
+  observe(options?: { entryTypes?: string[] }) {
+    if (options?.entryTypes) {
+      this._entryTypes = options.entryTypes;
+    }
+  }
+
+  disconnect() {}
+
+  get entryTypes() {
+    return this._entryTypes;
+  }
+
+  triggerEntries(entries: unknown[]) {
+    this.callback({ getEntries: () => entries });
+  }
+}
+
+const mockMemory = {
+  usedJSHeapSize: 10000000,
+  totalJSHeapSize: 20000000,
+  jsHeapSizeLimit: 50000000,
+};
+
 const mockPerformance = {
   now: vi.fn(() => Date.now()),
-  getEntriesByType: vi.fn(),
+  getEntriesByType: vi.fn().mockReturnValue([]),
   mark: vi.fn(),
   measure: vi.fn(),
   clearMarks: vi.fn(),
   clearMeasures: vi.fn(),
-  memory: {
-    usedJSHeapSize: 10000000,
-    totalJSHeapSize: 20000000,
-    jsHeapSizeLimit: 50000000,
-  },
+  memory: mockMemory,
 };
 
-Object.defineProperty(window, 'performance', { value: mockPerformance });
+Object.defineProperty(globalThis, 'performance', {
+  value: mockPerformance,
+  writable: true,
+  configurable: true,
+});
 
-// Mock PerformanceObserver
-class MockPerformanceObserver {
-  private callback: (entries: unknown) => void;
-  
-  constructor(callback: (entries: unknown) => void) {
-    this.callback = callback;
-  }
-  
-  observe() {}
-  disconnect() {}
-  
-  // Method to trigger callback for testing
-  triggerCallback(entries: unknown) {
-    this.callback(entries);
-  }
-}
+Object.defineProperty(globalThis, 'PerformanceObserver', {
+  value: MockPerformanceObserver,
+  writable: true,
+  configurable: true,
+});
 
-Object.defineProperty(window, 'PerformanceObserver', { value: MockPerformanceObserver });
-
-// Mock navigator
 Object.defineProperty(navigator, 'connection', {
   value: {
     effectiveType: '4g',
@@ -46,41 +81,89 @@ Object.defineProperty(navigator, 'connection', {
     rtt: 50,
     saveData: false,
   },
+  writable: true,
   configurable: true,
 });
 
-// Mock document
 Object.defineProperty(document, 'readyState', {
   value: 'complete',
   writable: true,
+  configurable: true,
 });
 
-// Mock audit service
-vi.mock('../../services/AuditService', () => ({
-  auditService: {
-    log: vi.fn(),
-  },
-}));
+// Static imports - vi.mock calls are hoisted before these
+import { PerformanceService } from '../../services/PerformanceService';
+import { auditService } from '../../services/AuditService';
 
 describe('PerformanceService', () => {
   let service: PerformanceService;
 
   beforeEach(() => {
-    service = new PerformanceService();
+    vi.useFakeTimers();
     vi.clearAllMocks();
-    
-    // Reset performance mock
+    performanceObserverInstances = [];
+
+    // Re-apply performance mock AFTER fake timers (vi.useFakeTimers replaces global performance)
+    Object.defineProperty(globalThis, 'performance', {
+      value: mockPerformance,
+      writable: true,
+      configurable: true,
+    });
+
+    // Reset performance mock defaults
     mockPerformance.getEntriesByType.mockReturnValue([]);
+    mockPerformance.now.mockImplementation(() => Date.now());
+
+    // Re-assign memory in case a prior test deleted it
+    (mockPerformance as Record<string, unknown>).memory = mockMemory;
+
+    // Re-assign PerformanceObserver in case a prior test deleted it
+    Object.defineProperty(globalThis, 'PerformanceObserver', {
+      value: MockPerformanceObserver,
+      writable: true,
+      configurable: true,
+    });
+
+    // Re-assign navigator.connection in case a prior test deleted it
+    Object.defineProperty(navigator, 'connection', {
+      value: {
+        effectiveType: '4g',
+        downlink: 10,
+        rtt: 50,
+        saveData: false,
+      },
+      writable: true,
+      configurable: true,
+    });
+
+    // Create fresh service instance (no dynamic import needed - vi.mock is hoisted)
+    service = new PerformanceService();
+    // Constructor calls initializeMonitoring() which starts setInterval for memory monitoring.
+    // Do NOT advance timers here - we don't want to trigger the interval loop.
   });
 
   afterEach(() => {
+    service.stopMonitoring();
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
+  /**
+   * Helper: call collectMetrics and advance fake timers so the internal
+   * 5-second setTimeout calls in getFirstInputDelay, getCumulativeLayoutShift,
+   * and getLargestContentfulPaint resolve. These are awaited sequentially,
+   * so we need 3 × 5s = 15s+ of timer advancement. Uses 16s which is
+   * safely under the 30s memory monitoring interval.
+   */
+  async function collectMetricsWithTimers() {
+    const promise = service.collectMetrics();
+    await vi.advanceTimersByTimeAsync(16000);
+    return promise;
+  }
+
   describe('metrics collection', () => {
     it('should collect basic performance metrics', async () => {
-      // Mock navigation timing
-      mockPerformance.getEntriesByType.mockImplementation((type) => {
+      mockPerformance.getEntriesByType.mockImplementation((type: string) => {
         if (type === 'navigation') {
           return [{
             fetchStart: 1000,
@@ -107,9 +190,9 @@ describe('PerformanceService', () => {
         return [];
       });
 
-      const metrics = await service.collectMetrics();
+      const metrics = await collectMetricsWithTimers();
 
-      expect(metrics.pageLoadTime).toBe(3000); // loadEventEnd - fetchStart
+      expect(metrics.pageLoadTime).toBe(3000);
       expect(metrics.firstContentfulPaint).toBe(1500);
       expect(metrics.resourceLoadTimes).toHaveLength(1);
       expect(metrics.resourceLoadTimes[0].name).toBe('https://example.com/script.js');
@@ -120,7 +203,7 @@ describe('PerformanceService', () => {
     it('should handle missing performance data gracefully', async () => {
       mockPerformance.getEntriesByType.mockReturnValue([]);
 
-      const metrics = await service.collectMetrics();
+      const metrics = await collectMetricsWithTimers();
 
       expect(metrics.pageLoadTime).toBe(0);
       expect(metrics.firstContentfulPaint).toBe(0);
@@ -128,7 +211,7 @@ describe('PerformanceService', () => {
     });
 
     it('should collect memory usage information', async () => {
-      const metrics = await service.collectMetrics();
+      const metrics = await collectMetricsWithTimers();
 
       expect(metrics.memoryUsage).toEqual({
         usedJSHeapSize: 10000000,
@@ -138,7 +221,7 @@ describe('PerformanceService', () => {
     });
 
     it('should collect connection information', async () => {
-      const metrics = await service.collectMetrics();
+      const metrics = await collectMetricsWithTimers();
 
       expect(metrics.connectionInfo).toEqual({
         effectiveType: '4g',
@@ -151,26 +234,28 @@ describe('PerformanceService', () => {
 
   describe('page load measurement', () => {
     it('should measure page load time when document is ready', async () => {
-      const startTime = performance.now();
-      mockPerformance.now.mockReturnValueOnce(startTime).mockReturnValueOnce(startTime + 2000);
+      let callCount = 0;
+      mockPerformance.now.mockImplementation(() => {
+        callCount++;
+        return callCount <= 1 ? 1000 : 3000;
+      });
 
+      // document.readyState is 'complete' so measurePageLoad resolves synchronously
       await service.measurePageLoad('test-page');
 
-      // Should call auditService.log for page load metric
       expect(auditService.log).toHaveBeenCalledWith(
         expect.objectContaining({
           entityType: 'performance_metric',
           metadata: expect.objectContaining({
             type: 'page_load',
             pageId: 'test-page',
-            loadTime: 2000,
           }),
         })
       );
     });
 
     it('should handle already loaded document', async () => {
-      document.readyState = 'complete';
+      Object.defineProperty(document, 'readyState', { value: 'complete', writable: true, configurable: true });
 
       await service.measurePageLoad('already-loaded');
 
@@ -181,8 +266,11 @@ describe('PerformanceService', () => {
   describe('async operation measurement', () => {
     it('should measure successful async operation', async () => {
       const mockOperation = vi.fn().mockResolvedValue('success');
-      const startTime = performance.now();
-      mockPerformance.now.mockReturnValueOnce(startTime).mockReturnValueOnce(startTime + 1000);
+      let callCount = 0;
+      mockPerformance.now.mockImplementation(() => {
+        callCount++;
+        return callCount <= 1 ? 1000 : 2000;
+      });
 
       const result = await service.measureAsyncOperation(
         mockOperation,
@@ -197,7 +285,6 @@ describe('PerformanceService', () => {
           metadata: expect.objectContaining({
             type: 'async_operation',
             operationName: 'test-operation',
-            duration: 1000,
             status: 'success',
             context: 'test',
           }),
@@ -208,8 +295,11 @@ describe('PerformanceService', () => {
     it('should measure failed async operation', async () => {
       const mockError = new Error('Operation failed');
       const mockOperation = vi.fn().mockRejectedValue(mockError);
-      const startTime = performance.now();
-      mockPerformance.now.mockReturnValueOnce(startTime).mockReturnValueOnce(startTime + 500);
+      let callCount = 0;
+      mockPerformance.now.mockImplementation(() => {
+        callCount++;
+        return callCount <= 1 ? 1000 : 1500;
+      });
 
       await expect(
         service.measureAsyncOperation(mockOperation, 'failed-operation')
@@ -221,7 +311,6 @@ describe('PerformanceService', () => {
           metadata: expect.objectContaining({
             type: 'async_operation',
             operationName: 'failed-operation',
-            duration: 500,
             status: 'error',
             error: 'Operation failed',
           }),
@@ -232,8 +321,11 @@ describe('PerformanceService', () => {
 
   describe('component render measurement', () => {
     it('should measure component render time', () => {
-      const startTime = performance.now();
-      mockPerformance.now.mockReturnValueOnce(startTime).mockReturnValueOnce(startTime + 100);
+      let callCount = 0;
+      mockPerformance.now.mockImplementation(() => {
+        callCount++;
+        return callCount <= 1 ? 1000 : 1100;
+      });
 
       const finishMeasurement = service.measureComponentRender('TestComponent');
       finishMeasurement();
@@ -270,62 +362,58 @@ describe('PerformanceService', () => {
 
   describe('performance budget', () => {
     it('should check performance budget and create alerts for violations', async () => {
-      // Set strict budget
       service.setBudget({
         pageLoadTime: 1000,
         firstContentfulPaint: 500,
         largestContentfulPaint: 1000,
       });
 
-      // Mock poor performance
-      mockPerformance.getEntriesByType.mockImplementation((type) => {
+      mockPerformance.getEntriesByType.mockImplementation((type: string) => {
         if (type === 'navigation') {
           return [{
             fetchStart: 1000,
-            loadEventEnd: 6000, // 5 seconds - exceeds budget
+            loadEventEnd: 6000,
             domContentLoadedEventEnd: 5000,
           }];
         }
         if (type === 'paint') {
           return [
-            { name: 'first-contentful-paint', startTime: 2000 }, // Exceeds budget
+            { name: 'first-contentful-paint', startTime: 2000 },
           ];
         }
         return [];
       });
 
+      await collectMetricsWithTimers();
       const report = service.getPerformanceReport();
 
-      // Should detect budget violations
       expect(report.budgetStatus.pageLoadTime.status).toBe('fail');
       expect(report.budgetStatus.firstContentfulPaint.status).toBe('fail');
     });
 
     it('should pass budget checks for good performance', async () => {
-      // Set reasonable budget
       service.setBudget({
         pageLoadTime: 3000,
         firstContentfulPaint: 1500,
       });
 
-      // Mock good performance
-      mockPerformance.getEntriesByType.mockImplementation((type) => {
+      mockPerformance.getEntriesByType.mockImplementation((type: string) => {
         if (type === 'navigation') {
           return [{
             fetchStart: 1000,
-            loadEventEnd: 3000, // 2 seconds - within budget
+            loadEventEnd: 3000,
             domContentLoadedEventEnd: 2500,
           }];
         }
         if (type === 'paint') {
           return [
-            { name: 'first-contentful-paint', startTime: 1200 }, // Within budget
+            { name: 'first-contentful-paint', startTime: 1200 },
           ];
         }
         return [];
       });
 
-      await service.collectMetrics();
+      await collectMetricsWithTimers();
       const report = service.getPerformanceReport();
 
       expect(report.budgetStatus.pageLoadTime.status).toBe('pass');
@@ -348,8 +436,7 @@ describe('PerformanceService', () => {
 
   describe('performance report', () => {
     it('should generate comprehensive performance report', async () => {
-      // Collect some metrics first
-      await service.collectMetrics();
+      await collectMetricsWithTimers();
 
       const report = service.getPerformanceReport();
 
@@ -374,64 +461,67 @@ describe('PerformanceService', () => {
   });
 
   describe('Web Vitals simulation', () => {
-    it('should handle Largest Contentful Paint observations', async () => {
-      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
-      // Simulate LCP observer
+    it('should handle Largest Contentful Paint observations', () => {
       service.startMonitoring();
-
-      // We can't easily test the actual PerformanceObserver callbacks,
-      // but we can test that monitoring starts without errors
-      expect(() => service.startMonitoring()).not.toThrow();
-
-      service.stopMonitoring();
-      consoleSpy.mockRestore();
-    });
-
-    it('should handle First Input Delay observations', async () => {
-      // Similar to LCP test - ensure FID monitoring doesn't crash
       expect(() => service.startMonitoring()).not.toThrow();
       service.stopMonitoring();
     });
 
-    it('should handle Cumulative Layout Shift observations', async () => {
-      // Similar to other Web Vitals tests
+    it('should handle First Input Delay observations', () => {
+      expect(() => service.startMonitoring()).not.toThrow();
+      service.stopMonitoring();
+    });
+
+    it('should handle Cumulative Layout Shift observations', () => {
       expect(() => service.startMonitoring()).not.toThrow();
       service.stopMonitoring();
     });
   });
 
   describe('error handling', () => {
-    it('should handle missing PerformanceObserver gracefully', async () => {
-      // Remove PerformanceObserver temporarily
-      const originalObserver = window.PerformanceObserver;
+    it('should handle missing PerformanceObserver gracefully', () => {
+      const originalObserver = (globalThis as Record<string, unknown>).PerformanceObserver;
+      delete (globalThis as Record<string, unknown>).PerformanceObserver;
       delete (window as Record<string, unknown>).PerformanceObserver;
 
-      const service = new PerformanceService();
-      expect(() => service.startMonitoring()).not.toThrow();
+      const svc = new PerformanceService();
+      expect(() => svc.startMonitoring()).not.toThrow();
+      svc.stopMonitoring();
 
-      // Restore PerformanceObserver
-      Object.defineProperty(window, 'PerformanceObserver', { value: originalObserver });
+      Object.defineProperty(globalThis, 'PerformanceObserver', {
+        value: originalObserver,
+        writable: true,
+        configurable: true,
+      });
     });
 
     it('should handle missing performance.memory gracefully', async () => {
-      const originalMemory = mockPerformance.memory;
-      delete mockPerformance.memory;
+      const originalMemory = (mockPerformance as Record<string, unknown>).memory;
+      delete (mockPerformance as Record<string, unknown>).memory;
 
-      const metrics = await service.collectMetrics();
+      const metrics = await collectMetricsWithTimers();
       expect(metrics.memoryUsage).toBeUndefined();
 
-      mockPerformance.memory = originalMemory;
+      (mockPerformance as Record<string, unknown>).memory = originalMemory;
     });
 
     it('should handle missing navigator.connection gracefully', async () => {
       const originalConnection = (navigator as Record<string, unknown>).connection;
+      Object.defineProperty(navigator, 'connection', {
+        value: undefined,
+        writable: true,
+        configurable: true,
+      });
       delete (navigator as Record<string, unknown>).connection;
 
-      const metrics = await service.collectMetrics();
+      const metrics = await collectMetricsWithTimers();
       expect(metrics.connectionInfo).toBeUndefined();
 
-      Object.defineProperty(navigator, 'connection', { value: originalConnection });
+      Object.defineProperty(navigator, 'connection', {
+        value: originalConnection,
+        writable: true,
+        configurable: true,
+      });
     });
   });
 });

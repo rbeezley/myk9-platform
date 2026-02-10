@@ -11,13 +11,19 @@ const mockLocation = {
   key: 'default'
 };
 
+const { mockUseLocation } = vi.hoisted(() => {
+  return { mockUseLocation: vi.fn() };
+});
+
 vi.mock('react-router-dom', () => ({
-  useLocation: vi.fn(() => mockLocation)
+  useLocation: mockUseLocation
 }));
 
 describe('usePageTransition', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Reset useLocation to return default location before each test
+    mockUseLocation.mockReturnValue(mockLocation);
     vi.useFakeTimers();
   });
 
@@ -57,66 +63,57 @@ describe('usePageTransition', () => {
   });
 
   describe('Location change handling', () => {
-    it('should trigger transition on location change', async () => {
-      const { useLocation } = await import('react-router-dom');
-      const mockUseLocation = useLocation as ReturnType<typeof vi.fn>;
-      
+    it('should trigger transition on location change', () => {
       const { result, rerender } = renderHook(() => usePageTransition());
-      
+
       expect(result.current.isTransitioning).toBe(false);
       expect(result.current.isVisible).toBe(true);
-      
+
       // Change location
       mockUseLocation.mockReturnValue({
         ...mockLocation,
         pathname: '/about'
       });
-      
+
       rerender();
-      
+
       expect(result.current.isTransitioning).toBe(true);
       expect(result.current.isVisible).toBe(false);
     });
 
-    it('should complete transition after duration', async () => {
-      const { useLocation } = await import('react-router-dom');
-      const mockUseLocation = useLocation as ReturnType<typeof vi.fn>;
-      
+    it('should complete transition after duration', () => {
       const { result, rerender } = renderHook(() => usePageTransition({ duration: 300 }));
-      
+
       // Change location
       mockUseLocation.mockReturnValue({
         ...mockLocation,
         pathname: '/about'
       });
-      
+
       rerender();
-      
+
       expect(result.current.isTransitioning).toBe(true);
-      
+
       // Fast-forward time
       act(() => {
         vi.advanceTimersByTime(300);
       });
-      
+
       expect(result.current.isTransitioning).toBe(false);
       expect(result.current.isVisible).toBe(true);
     });
 
-    it('should not trigger transition for same pathname', async () => {
-      const { useLocation } = await import('react-router-dom');
-      const mockUseLocation = useLocation as ReturnType<typeof vi.fn>;
-      
+    it('should not trigger transition for same pathname', () => {
       const { result, rerender } = renderHook(() => usePageTransition());
-      
+
       // Change only search params, keep same pathname
       mockUseLocation.mockReturnValue({
         ...mockLocation,
         search: '?tab=settings'
       });
-      
+
       rerender();
-      
+
       expect(result.current.isTransitioning).toBe(false);
       expect(result.current.isVisible).toBe(true);
     });
@@ -133,54 +130,51 @@ describe('usePageTransition', () => {
       });
     });
 
-    it('should return fade transition styles', async () => {
-      const { useLocation } = await import('react-router-dom');
-      const mockUseLocation = useLocation as ReturnType<typeof vi.fn>;
-      
+    it('should return fade transition styles', () => {
       const { result, rerender } = renderHook(() => usePageTransition({ type: 'fade' }));
-      
+
       // Trigger transition
       mockUseLocation.mockReturnValue({
         ...mockLocation,
         pathname: '/about'
       });
-      
+
       rerender();
-      
+
       const styles = result.current.getTransitionStyles();
-      
+
       expect(styles).toMatchObject({
         transition: expect.any(String),
         opacity: 0,
       });
     });
 
-    it('should return slide transition styles for all directions', async () => {
-      const { useLocation } = await import('react-router-dom');
-      const mockUseLocation = useLocation as ReturnType<typeof vi.fn>;
-      
+    it('should return slide transition styles for all directions', () => {
       const directions: Array<'left' | 'right' | 'up' | 'down'> = ['left', 'right', 'up', 'down'];
-      
+
       for (const direction of directions) {
-        const { result, rerender } = renderHook(() => 
+        // Reset mock to default before each iteration
+        mockUseLocation.mockReturnValue(mockLocation);
+
+        const { result, rerender } = renderHook(() =>
           usePageTransition({ type: 'slide', direction })
         );
-        
+
         // Trigger transition
         mockUseLocation.mockReturnValue({
           ...mockLocation,
           pathname: `/test-${direction}`
         });
-        
+
         rerender();
-        
+
         const styles = result.current.getTransitionStyles();
-        
+
         expect(styles).toMatchObject({
           transition: expect.any(String),
           transform: expect.stringMatching(/translate/),
         });
-        
+
         // Check specific transforms
         if (direction === 'left') {
           expect(styles.transform).toBe('translateX(-100%)');
@@ -194,22 +188,19 @@ describe('usePageTransition', () => {
       }
     });
 
-    it('should return scale transition styles', async () => {
-      const { useLocation } = await import('react-router-dom');
-      const mockUseLocation = useLocation as ReturnType<typeof vi.fn>;
-      
+    it('should return scale transition styles', () => {
       const { result, rerender } = renderHook(() => usePageTransition({ type: 'scale' }));
-      
+
       // Trigger transition
       mockUseLocation.mockReturnValue({
         ...mockLocation,
         pathname: '/about'
       });
-      
+
       rerender();
-      
+
       const styles = result.current.getTransitionStyles();
-      
+
       expect(styles).toMatchObject({
         transition: expect.any(String),
         transform: 'scale(0.95)',
@@ -217,22 +208,19 @@ describe('usePageTransition', () => {
       });
     });
 
-    it('should return flip transition styles', async () => {
-      const { useLocation } = await import('react-router-dom');
-      const mockUseLocation = useLocation as ReturnType<typeof vi.fn>;
-      
+    it('should return flip transition styles', () => {
       const { result, rerender } = renderHook(() => usePageTransition({ type: 'flip' }));
-      
+
       // Trigger transition
       mockUseLocation.mockReturnValue({
         ...mockLocation,
         pathname: '/about'
       });
-      
+
       rerender();
-      
+
       const styles = result.current.getTransitionStyles();
-      
+
       expect(styles).toMatchObject({
         transition: expect.any(String),
         transform: 'rotateY(90deg)',
@@ -240,22 +228,19 @@ describe('usePageTransition', () => {
       });
     });
 
-    it('should default to right direction for slide transitions', async () => {
-      const { useLocation } = await import('react-router-dom');
-      const mockUseLocation = useLocation as ReturnType<typeof vi.fn>;
-      
+    it('should default to right direction for slide transitions', () => {
       const { result, rerender } = renderHook(() => usePageTransition({ type: 'slide' }));
-      
+
       // Trigger transition
       mockUseLocation.mockReturnValue({
         ...mockLocation,
         pathname: '/about'
       });
-      
+
       rerender();
-      
+
       const styles = result.current.getTransitionStyles();
-      
+
       expect(styles.transform).toBe('translateX(100%)');
     });
   });
@@ -275,25 +260,22 @@ describe('usePageTransition', () => {
   });
 
   describe('Memory cleanup', () => {
-    it('should cleanup timer on unmount', async () => {
-      const { useLocation } = await import('react-router-dom');
-      const mockUseLocation = useLocation as ReturnType<typeof vi.fn>;
-      
+    it('should cleanup timer on unmount', () => {
       const { result, rerender, unmount } = renderHook(() => usePageTransition());
-      
+
       // Change location to trigger transition
       mockUseLocation.mockReturnValue({
         ...mockLocation,
         pathname: '/about'
       });
-      
+
       rerender();
-      
+
       expect(result.current.isTransitioning).toBe(true);
-      
+
       // Unmount before timer completes
       unmount();
-      
+
       // Timer should be cleaned up (no error should occur)
       act(() => {
         vi.advanceTimersByTime(1000);
@@ -335,72 +317,74 @@ describe('useProgrammaticTransition', () => {
 
   it('should trigger animation and resolve after duration', async () => {
     const { result } = renderHook(() => useProgrammaticTransition());
-    
-    const animationPromise = act(async () => {
-      return result.current.animateTransition({ duration: 500, type: 'fade', easing: 'ease' });
-    });
-    
-    expect(result.current.isAnimating).toBe(true);
-    
-    // Fast-forward time
+
+    let animationPromise: Promise<void>;
     act(() => {
+      animationPromise = result.current.animateTransition({ duration: 500, type: 'fade', easing: 'ease' });
+    });
+
+    expect(result.current.isAnimating).toBe(true);
+
+    // Fast-forward time
+    await act(async () => {
       vi.advanceTimersByTime(500);
     });
-    
-    await animationPromise;
-    
+
+    await animationPromise!;
+
     expect(result.current.isAnimating).toBe(false);
   });
 
   it('should use default config when no config provided', async () => {
     const { result } = renderHook(() => useProgrammaticTransition());
-    
-    const animationPromise = act(async () => {
-      return result.current.animateTransition();
-    });
-    
-    expect(result.current.isAnimating).toBe(true);
-    
-    // Fast-forward with default duration (300ms)
+
+    let animationPromise: Promise<void>;
     act(() => {
+      animationPromise = result.current.animateTransition();
+    });
+
+    expect(result.current.isAnimating).toBe(true);
+
+    // Fast-forward with default duration (300ms)
+    await act(async () => {
       vi.advanceTimersByTime(300);
     });
-    
-    await animationPromise;
-    
+
+    await animationPromise!;
+
     expect(result.current.isAnimating).toBe(false);
   });
 
   it('should handle multiple concurrent animations', async () => {
     const { result } = renderHook(() => useProgrammaticTransition());
-    
-    const animation1 = act(async () => {
-      return result.current.animateTransition({ duration: 200, type: 'fade', easing: 'ease' });
-    });
-    
-    const animation2 = act(async () => {
-      return result.current.animateTransition({ duration: 400, type: 'slide', easing: 'ease' });
-    });
-    
-    expect(result.current.isAnimating).toBe(true);
-    
-    // Complete first animation
+
+    let animation1: Promise<void>;
+    let animation2: Promise<void>;
+
     act(() => {
+      animation1 = result.current.animateTransition({ duration: 200, type: 'fade', easing: 'ease' });
+      animation2 = result.current.animateTransition({ duration: 400, type: 'slide', easing: 'ease' });
+    });
+
+    expect(result.current.isAnimating).toBe(true);
+
+    // Complete first animation
+    await act(async () => {
       vi.advanceTimersByTime(200);
     });
-    
-    await animation1;
-    
+
+    await animation1!;
+
     // Should still be animating due to second animation
     expect(result.current.isAnimating).toBe(true);
-    
+
     // Complete second animation
-    act(() => {
+    await act(async () => {
       vi.advanceTimersByTime(200);
     });
-    
-    await animation2;
-    
+
+    await animation2!;
+
     expect(result.current.isAnimating).toBe(false);
   });
 });

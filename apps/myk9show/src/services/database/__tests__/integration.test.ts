@@ -1,5 +1,5 @@
 // Integration tests for Phase 2 store migrations
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import FDBFactory from 'fake-indexeddb/lib/FDBFactory';
 import FDBKeyRange from 'fake-indexeddb/lib/FDBKeyRange';
 
@@ -41,6 +41,65 @@ Object.defineProperty(import.meta, 'env', {
   }
 });
 
+// Mock the replication module so clubStore and showStore can be imported
+vi.mock('@/services/replication', () => ({
+  replicatedClubsTable: {
+    getAllClubs: vi.fn().mockResolvedValue([]),
+    createClub: vi.fn().mockResolvedValue({}),
+    updateClub: vi.fn().mockResolvedValue({}),
+    deleteClubLocal: vi.fn().mockResolvedValue(undefined),
+    sync: vi.fn().mockResolvedValue({ success: true }),
+    subscribe: vi.fn().mockReturnValue(() => {}),
+  },
+  replicatedShowsTable: {
+    getAllShows: vi.fn().mockResolvedValue([]),
+    createShow: vi.fn().mockResolvedValue({}),
+    updateShow: vi.fn().mockResolvedValue({}),
+    delete: vi.fn().mockResolvedValue(undefined),
+    subscribe: vi.fn().mockReturnValue(() => {}),
+  },
+}));
+
+// Mock config/dataSource used by showStore
+vi.mock('@/config/dataSource', () => ({
+  shouldUseMockData: vi.fn().mockReturnValue(false),
+}));
+
+// Mock mockData used by showStore
+vi.mock('@/mockData/mockShows', () => ({
+  mockShows: [],
+}));
+
+// Mock cascadingDelete
+vi.mock('@/utils/cascadingDelete', () => ({
+  performCascadingDelete: vi.fn().mockReturnValue({ deletedTrials: 0, deletedClasses: 0 }),
+  previewCascadingDelete: vi.fn().mockReturnValue(null),
+}));
+
+// Mock authHelpers
+vi.mock('@/utils/authHelpers', () => ({
+  getLastModifiedBy: vi.fn().mockReturnValue('test-user'),
+  getCurrentUserUUID: vi.fn().mockReturnValue('test-uuid'),
+}));
+
+// Mock standardizedErrorHandler
+vi.mock('@/utils/standardizedErrorHandler', () => ({
+  reportStoreError: vi.fn(),
+  reportWarning: vi.fn(),
+  reportInfo: vi.fn(),
+  reportDebug: vi.fn(),
+}));
+
+// Mock the logger
+vi.mock('@/services/LoggingService', () => ({
+  logger: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  }
+}));
+
 describe('Phase 2 Store Integration', () => {
   beforeEach(() => {
     localStorageMock.clear();
@@ -68,7 +127,7 @@ describe('Phase 2 Store Integration', () => {
     it('should create appropriate storage based on feature flags', async () => {
       const { getOptimalStorage } = await import('../storage-adapter');
       const storage = getOptimalStorage('test');
-      
+
       expect(storage).toBeDefined();
       expect(storage.getItem).toBeDefined();
       expect(storage.setItem).toBeDefined();
@@ -103,12 +162,12 @@ describe('Phase 2 Store Integration', () => {
     it('should handle storage operations without errors', async () => {
       const { getOptimalStorage } = await import('../storage-adapter');
       const storage = getOptimalStorage('test');
-      
+
       // Test storage operations
       await storage.setItem('test-key', 'test-value');
       const value = await storage.getItem('test-key');
       expect(value).toBe('test-value');
-      
+
       await storage.removeItem('test-key');
       const removedValue = await storage.getItem('test-key');
       expect(removedValue).toBeNull();
@@ -117,13 +176,13 @@ describe('Phase 2 Store Integration', () => {
     it('should handle JSON serialization correctly', async () => {
       const { getOptimalStorage } = await import('../storage-adapter');
       const storage = getOptimalStorage('test');
-      
+
       const testData = {
         id: '1',
         name: 'Test',
         nested: { value: 42 }
       };
-      
+
       await storage.setItem('json-test', JSON.stringify(testData));
       const retrieved = await storage.getItem('json-test');
       expect(JSON.parse(retrieved!)).toEqual(testData);
@@ -135,9 +194,9 @@ describe('Phase 2 Store Integration', () => {
       // Feature flag is set to false in setup
       const { getOptimalStorage } = await import('../storage-adapter');
       const storage = getOptimalStorage('test');
-      
+
       await storage.setItem('flag-test', 'localStorage-mode');
-      
+
       // Should be stored in localStorage
       expect(localStorageMock.getItem('flag-test')).toBe('localStorage-mode');
     });
@@ -149,11 +208,11 @@ describe('Phase 2 Migration Readiness', () => {
     // Test that all imports work without throwing
     const stores = await Promise.all([
       import('@/store/userStore'),
-      import('@/store/clubStore'), 
+      import('@/store/clubStore'),
       import('@/store/dogStore'),
       import('@/store/showStore')
     ]);
-    
+
     expect(stores).toHaveLength(4);
     stores.forEach(store => {
       expect(store).toBeDefined();
@@ -166,7 +225,7 @@ describe('Phase 2 Migration Readiness', () => {
       import('../storage-adapter'),
       import('../connection')
     ]);
-    
+
     expect(migration.StorageMigration).toBeDefined();
     expect(migration.createMigrationService).toBeDefined();
     expect(adapter.getOptimalStorage).toBeDefined();

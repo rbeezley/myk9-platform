@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { usePredictiveSync, useEntityTracking, useSearchTracking } from '@/hooks/usePredictiveSync';
+import { predictivePrefetcher as _prefetcher } from '@/services/sync/PredictivePrefetcher';
+import { userBehaviorLearning as _behavior } from '@/services/analytics/UserBehaviorLearning';
+
+const predictivePrefetcherMock = vi.mocked(_prefetcher);
+const userBehaviorLearningMock = vi.mocked(_behavior);
 
 // Mock react-router-dom
 const mockLocation = { pathname: '/test' };
@@ -80,19 +85,32 @@ describe('usePredictiveSync', () => {
     });
 
     it('should track navigation changes', async () => {
-      const { predictivePrefetcher } = await import('@/services/sync/PredictivePrefetcher');
-      const { userBehaviorLearning } = await import('@/services/analytics/UserBehaviorLearning');
-      
-      renderHook(() => usePredictiveSync());
+      // The hook tracks navigation when pathname changes between renders.
+      // previousRoute is set via queueMicrotask on each render. On the next render
+      // with a different pathname, the hook detects the change and calls tracking.
+      //
+      // We need to flush microtasks between renders to allow previousRoute to update.
 
-      // Simulate route change
+      // Start at '/test'
+      const { rerender } = renderHook(() => usePredictiveSync());
+
+      // Flush the queueMicrotask that sets previousRoute = '/test'
+      // by yielding to the microtask queue
+      await new Promise(resolve => queueMicrotask(resolve));
+
+      // Re-render to pick up the new previousRoute state
       act(() => {
-        mockLocation.pathname = '/dogs';
+        rerender();
       });
 
-      // Should eventually track navigation (after useEffect)
-      expect(predictivePrefetcher.trackNavigation).toHaveBeenCalled();
-      expect(userBehaviorLearning.trackNavigation).toHaveBeenCalled();
+      // Change pathname and re-render - this should trigger navigation tracking
+      mockLocation.pathname = '/dogs';
+      act(() => {
+        rerender();
+      });
+
+      expect(predictivePrefetcherMock.trackNavigation).toHaveBeenCalled();
+      expect(userBehaviorLearningMock.trackNavigation).toHaveBeenCalled();
     });
   });
 

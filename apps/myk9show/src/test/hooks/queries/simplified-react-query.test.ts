@@ -109,7 +109,9 @@ describe('React Query Integration Tests', () => {
         { wrapper: createWrapper() }
       );
 
-      expect(result.current.isIdle).toBe(true);
+      // In React Query v5, isIdle was removed. Disabled queries have fetchStatus 'idle'
+      expect(result.current.fetchStatus).toBe('idle');
+      expect(result.current.isPending).toBe(true);
       expect(mockQueryFn).not.toHaveBeenCalled();
     });
 
@@ -117,26 +119,32 @@ describe('React Query Integration Tests', () => {
       const mockData = { id: '1', name: 'Cached Data' };
       const mockQueryFn = vi.fn().mockResolvedValue(mockData);
 
+      // Share the same wrapper (and thus QueryClient) between both hooks.
+      // Use staleTime to prevent background refetch when second subscriber mounts.
+      const wrapper = createWrapper();
+
       // First query
       const { result: result1 } = renderHook(
         () => useQuery({
           queryKey: ['cache-test'],
-          queryFn: mockQueryFn
+          queryFn: mockQueryFn,
+          staleTime: 60000 // Keep fresh for 60s to test caching
         }),
-        { wrapper: createWrapper() }
+        { wrapper }
       );
 
       await waitFor(() => {
         expect(result1.current.isSuccess).toBe(true);
       });
 
-      // Second query with same key should use cache
+      // Second query with same key should use cache from the shared QueryClient
       const { result: result2 } = renderHook(
         () => useQuery({
           queryKey: ['cache-test'],
-          queryFn: mockQueryFn
+          queryFn: mockQueryFn,
+          staleTime: 60000
         }),
-        { wrapper: createWrapper() }
+        { wrapper }
       );
 
       await waitFor(() => {
@@ -339,23 +347,26 @@ describe('React Query Integration Tests', () => {
       const mockData = { id: '1', name: 'Load Test' };
       const mockQueryFn = vi.fn().mockResolvedValue(mockData);
 
-      const createLoadQuery = () => 
+      // Share a single wrapper/QueryClient for all queries
+      const wrapper = createWrapper();
+
+      const createLoadQuery = (index: number) =>
         renderHook(
           () => useQuery({
-            queryKey: [`load-${Math.random()}`], // Unique key for each query
+            queryKey: [`load-${index}`],
             queryFn: mockQueryFn
           }),
-          { wrapper: createWrapper() }
+          { wrapper }
         );
 
       const startTime = Date.now();
-      
+
       // Create multiple queries simultaneously
-      const queries = Array(10).fill(null).map(() => createLoadQuery());
+      const queries = Array(10).fill(null).map((_, i) => createLoadQuery(i));
 
       // Wait for all to complete
       await Promise.all(
-        queries.map(({ result }) => 
+        queries.map(({ result }) =>
           waitFor(() => expect(result.current.isSuccess).toBe(true))
         )
       );

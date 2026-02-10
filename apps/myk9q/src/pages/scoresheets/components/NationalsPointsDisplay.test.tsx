@@ -1,5 +1,8 @@
 /**
  * Tests for NationalsPointsDisplay Component
+ *
+ * Component uses Tailwind utility classes (via cn() helper).
+ * Tests use text-based queries and DOM structure rather than CSS class selectors.
  */
 
 import { render, screen } from '@testing-library/react';
@@ -32,12 +35,11 @@ describe('NationalsPointsDisplay', () => {
     });
 
     it('should render zero values by default', () => {
-      const { container } = render(<NationalsPointsDisplay {...defaultProps} />);
+      render(<NationalsPointsDisplay {...defaultProps} />);
 
-      const values = container.querySelectorAll('.item-value');
-      values.forEach(value => {
-        expect(value.textContent).toBe('0');
-      });
+      // All four score values + total value should show 0
+      const zeros = screen.getAllByText('0');
+      expect(zeros.length).toBeGreaterThanOrEqual(5);
     });
   });
 
@@ -45,29 +47,29 @@ describe('NationalsPointsDisplay', () => {
     it('should display correct calls count', () => {
       render(<NationalsPointsDisplay {...defaultProps} alertsCorrect={3} />);
 
-      const correctCallsItem = screen.getByText('Correct Calls').closest('.score-item');
-      expect(correctCallsItem?.querySelector('.item-value')).toHaveTextContent('3');
+      const label = screen.getByText('Correct Calls');
+      expect(label.parentElement).toHaveTextContent('3');
     });
 
     it('should display incorrect calls count', () => {
       render(<NationalsPointsDisplay {...defaultProps} alertsIncorrect={2} />);
 
-      const incorrectCallsItem = screen.getByText('Incorrect Calls').closest('.score-item');
-      expect(incorrectCallsItem?.querySelector('.item-value')).toHaveTextContent('2');
+      const label = screen.getByText('Incorrect Calls');
+      expect(label.parentElement).toHaveTextContent('2');
     });
 
     it('should display faults count', () => {
       render(<NationalsPointsDisplay {...defaultProps} faultCount={1} />);
 
-      const faultsItem = screen.getByText('Faults').closest('.score-item');
-      expect(faultsItem?.querySelector('.item-value')).toHaveTextContent('1');
+      const label = screen.getByText('Faults');
+      expect(label.parentElement).toHaveTextContent('1');
     });
 
     it('should display finish call errors count', () => {
       render(<NationalsPointsDisplay {...defaultProps} finishCallErrors={1} />);
 
-      const finishCallItem = screen.getByText('No Finish Calls').closest('.score-item');
-      expect(finishCallItem?.querySelector('.item-value')).toHaveTextContent('1');
+      const label = screen.getByText('No Finish Calls');
+      expect(label.parentElement).toHaveTextContent('1');
     });
 
     it('should display total points', () => {
@@ -78,54 +80,57 @@ describe('NationalsPointsDisplay', () => {
   });
 
   describe('CSS classes', () => {
-    it('should apply positive class to correct calls', () => {
-      const { container } = render(<NationalsPointsDisplay {...defaultProps} alertsCorrect={3} />);
+    it('should apply positive color class to correct calls value', () => {
+      render(<NationalsPointsDisplay {...defaultProps} alertsCorrect={3} />);
 
-      const correctCallsItem = screen.getByText('Correct Calls').closest('.score-item');
-      const value = correctCallsItem?.querySelector('.item-value');
-      expect(value).toHaveClass('positive');
+      const label = screen.getByText('Correct Calls');
+      const valueEl = label.parentElement!.querySelector('span:last-child');
+      expect(valueEl).toHaveClass('text-teal-500');
     });
 
-    it('should apply negative class to incorrect calls', () => {
-      const { container } = render(<NationalsPointsDisplay {...defaultProps} alertsIncorrect={2} />);
+    it('should apply negative color class to incorrect calls value', () => {
+      render(<NationalsPointsDisplay {...defaultProps} alertsIncorrect={2} />);
 
-      const incorrectCallsItem = screen.getByText('Incorrect Calls').closest('.score-item');
-      const value = incorrectCallsItem?.querySelector('.item-value');
-      expect(value).toHaveClass('negative');
+      const label = screen.getByText('Incorrect Calls');
+      const valueEl = label.parentElement!.querySelector('span:last-child');
+      expect(valueEl).toHaveClass('text-red-500');
     });
 
-    it('should apply negative class to faults', () => {
-      const { container } = render(<NationalsPointsDisplay {...defaultProps} faultCount={1} />);
+    it('should apply negative color class to faults value', () => {
+      render(<NationalsPointsDisplay {...defaultProps} faultCount={1} />);
 
-      const faultsItem = screen.getByText('Faults').closest('.score-item');
-      const value = faultsItem?.querySelector('.item-value');
-      expect(value).toHaveClass('negative');
+      const label = screen.getByText('Faults');
+      const valueEl = label.parentElement!.querySelector('span:last-child');
+      expect(valueEl).toHaveClass('text-red-500');
     });
 
-    it('should apply negative class to finish call errors', () => {
-      const { container } = render(<NationalsPointsDisplay {...defaultProps} finishCallErrors={1} />);
+    it('should apply negative color class to finish call errors value', () => {
+      render(<NationalsPointsDisplay {...defaultProps} finishCallErrors={1} />);
 
-      const finishCallItem = screen.getByText('No Finish Calls').closest('.score-item');
-      const value = finishCallItem?.querySelector('.item-value');
-      expect(value).toHaveClass('negative');
+      const label = screen.getByText('No Finish Calls');
+      const valueEl = label.parentElement!.querySelector('span:last-child');
+      expect(valueEl).toHaveClass('text-red-500');
     });
 
-    it('should have nationals-breakdown container class', () => {
+    it('should have a container with rounded styling', () => {
       const { container } = render(<NationalsPointsDisplay {...defaultProps} />);
 
-      expect(container.querySelector('.nationals-breakdown')).toBeInTheDocument();
+      const breakdown = container.firstElementChild;
+      expect(breakdown).toHaveClass('rounded-lg');
     });
 
-    it('should have score-grid class', () => {
+    it('should have a grid layout for scores', () => {
       const { container } = render(<NationalsPointsDisplay {...defaultProps} />);
 
-      expect(container.querySelector('.score-grid')).toBeInTheDocument();
+      const grid = container.querySelector('.grid');
+      expect(grid).toBeInTheDocument();
     });
 
-    it('should have total-points container', () => {
-      const { container } = render(<NationalsPointsDisplay {...defaultProps} />);
+    it('should have total points section with rounded styling', () => {
+      render(<NationalsPointsDisplay {...defaultProps} />);
 
-      expect(container.querySelector('.total-points')).toBeInTheDocument();
+      const totalRow = screen.getByText('Total Points:').parentElement;
+      expect(totalRow).toHaveClass('rounded-md');
     });
   });
 
@@ -141,8 +146,8 @@ describe('NationalsPointsDisplay', () => {
         />
       );
 
-      expect(screen.getByText('Correct Calls').closest('.score-item')?.querySelector('.item-value')).toHaveTextContent('4');
-      expect(screen.getByText('Total Points:').closest('.total-points')?.querySelector('.total-value')).toHaveTextContent('40');
+      expect(screen.getByText('Correct Calls').parentElement).toHaveTextContent('4');
+      expect(screen.getByText('40')).toBeInTheDocument();
     });
 
     it('should display mixed score with penalties', () => {
@@ -156,10 +161,10 @@ describe('NationalsPointsDisplay', () => {
         />
       );
 
-      expect(screen.getByText('Correct Calls').closest('.score-item')?.querySelector('.item-value')).toHaveTextContent('3');
-      expect(screen.getByText('Incorrect Calls').closest('.score-item')?.querySelector('.item-value')).toHaveTextContent('1');
-      expect(screen.getByText('Faults').closest('.score-item')?.querySelector('.item-value')).toHaveTextContent('2');
-      expect(screen.getByText('Total Points:').closest('.total-points')?.querySelector('.total-value')).toHaveTextContent('15');
+      expect(screen.getByText('Correct Calls').parentElement).toHaveTextContent('3');
+      expect(screen.getByText('Incorrect Calls').parentElement).toHaveTextContent('1');
+      expect(screen.getByText('Faults').parentElement).toHaveTextContent('2');
+      expect(screen.getByText('15')).toBeInTheDocument();
     });
 
     it('should display negative total points', () => {
@@ -201,7 +206,8 @@ describe('NationalsPointsDisplay', () => {
         />
       );
 
-      expect(screen.getByText('Total Points:').closest('.total-points')?.querySelector('.total-value')).toHaveTextContent('0');
+      const totalLabel = screen.getByText('Total Points:');
+      expect(totalLabel.parentElement).toHaveTextContent('0');
     });
 
     it('should handle all penalties present', () => {
@@ -215,10 +221,10 @@ describe('NationalsPointsDisplay', () => {
         />
       );
 
-      expect(screen.getByText('Correct Calls').closest('.score-item')?.querySelector('.item-value')).toHaveTextContent('2');
-      expect(screen.getByText('Incorrect Calls').closest('.score-item')?.querySelector('.item-value')).toHaveTextContent('1');
-      expect(screen.getByText('Faults').closest('.score-item')?.querySelector('.item-value')).toHaveTextContent('1');
-      expect(screen.getByText('No Finish Calls').closest('.score-item')?.querySelector('.item-value')).toHaveTextContent('1');
+      expect(screen.getByText('Correct Calls').parentElement).toHaveTextContent('2');
+      expect(screen.getByText('Incorrect Calls').parentElement).toHaveTextContent('1');
+      expect(screen.getByText('Faults').parentElement).toHaveTextContent('1');
+      expect(screen.getByText('No Finish Calls').parentElement).toHaveTextContent('1');
       expect(screen.getByText('5')).toBeInTheDocument();
     });
   });
@@ -227,23 +233,25 @@ describe('NationalsPointsDisplay', () => {
     it('should have 4 score items in grid', () => {
       const { container } = render(<NationalsPointsDisplay {...defaultProps} />);
 
-      const scoreItems = container.querySelectorAll('.score-grid .score-item');
-      expect(scoreItems.length).toBe(4);
+      const grid = container.querySelector('.grid');
+      expect(grid?.children.length).toBe(4);
     });
 
     it('should render score items in correct order', () => {
       const { container } = render(<NationalsPointsDisplay {...defaultProps} />);
 
-      const labels = Array.from(container.querySelectorAll('.score-grid .item-label')).map(el => el.textContent);
+      const grid = container.querySelector('.grid');
+      const labels = Array.from(grid!.querySelectorAll('span:first-child')).map(el => el.textContent);
       expect(labels).toEqual(['Correct Calls', 'Incorrect Calls', 'Faults', 'No Finish Calls']);
     });
 
     it('should have total points as separate element outside grid', () => {
-      const { container } = render(<NationalsPointsDisplay {...defaultProps} />);
+      render(<NationalsPointsDisplay {...defaultProps} />);
 
-      const totalPoints = container.querySelector('.total-points');
-      expect(totalPoints).toBeInTheDocument();
-      expect(totalPoints?.parentElement?.classList.contains('score-grid')).toBe(false);
+      const totalLabel = screen.getByText('Total Points:');
+      const totalRow = totalLabel.parentElement!;
+      expect(totalRow.classList.contains('grid')).toBe(false);
+      expect(totalRow.parentElement?.classList.contains('grid')).toBeFalsy();
     });
   });
 });

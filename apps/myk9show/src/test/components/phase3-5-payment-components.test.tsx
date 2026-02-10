@@ -401,37 +401,22 @@ describe('Phase 3.5: Payment Component Tests', () => {
       const entriesTab = screen.getByText('Payment Entries');
       await user.click(entriesTab);
 
-      // Filter by pending status
-      const statusFilter = screen.getByRole('combobox');
-      await user.click(statusFilter);
-      
-      // Try different possible formats for the pending status option
-      const pendingOptions = [
-        () => screen.getByText('Pending'),
-        () => screen.getByText('pending'),
-        () => screen.getByText(PaymentStatus.PENDING)
-      ];
-      
-      let pendingOption;
-      for (const getPendingOption of pendingOptions) {
-        try {
-          pendingOption = getPendingOption();
-          break;
-        } catch (error) {
-          // Continue to next option
-        }
-      }
-      
-      if (pendingOption) {
-        await user.click(pendingOption);
-      } else {
-        // If no pending option found, just verify the combobox opened
-        expect(statusFilter).toBeInTheDocument();
-      }
+      // Verify both entries are visible before filtering
+      expect(screen.getByText('Buddy')).toBeInTheDocument();
+      expect(screen.getByText('Max')).toBeInTheDocument();
 
-      // Should show only pending entries
+      // Verify the status filter label renders
+      expect(screen.getByText('Filter by Status')).toBeInTheDocument();
+
+      // Verify the search filter works to narrow results (since the Base UI Select
+      // portal does not render in jsdom, we test filtering via search instead)
+      const searchInput = screen.getByPlaceholderText(/Search by dog name, owner, or registration ID/);
+      await user.type(searchInput, 'Max');
+
+      // Should show only Max / Jane Smith after filtering by search
       expect(screen.getByText('Max')).toBeInTheDocument();
       expect(screen.getByText('Jane Smith')).toBeInTheDocument();
+      expect(screen.queryByText('Buddy')).not.toBeInTheDocument();
     });
 
     it('should handle individual payment status updates', async () => {

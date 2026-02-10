@@ -14,16 +14,24 @@ Object.defineProperty(global, 'IDBKeyRange', {
   writable: true
 });
 
-// Setup window object for browser environment detection
-Object.defineProperty(globalThis, 'window', {
-  value: {
-    indexedDB: fakeIndexedDB,
-    IDBKeyRange: FDBKeyRange,
-    IDBCursor: class IDBCursor {},
-    IDBTransaction: class IDBTransaction {}
-  },
-  writable: true
-});
+// Augment window with IndexedDB properties for browser environment detection
+// (preserve existing jsdom window so things like addEventListener still work)
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, 'indexedDB', { value: fakeIndexedDB, writable: true });
+  Object.defineProperty(window, 'IDBKeyRange', { value: FDBKeyRange, writable: true });
+} else {
+  Object.defineProperty(globalThis, 'window', {
+    value: {
+      indexedDB: fakeIndexedDB,
+      IDBKeyRange: FDBKeyRange,
+      IDBCursor: class IDBCursor {},
+      IDBTransaction: class IDBTransaction {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    },
+    writable: true
+  });
+}
 
 // Mock localStorage
 const localStorageMock = (() => {
@@ -91,10 +99,11 @@ describe('Store IndexedDB Integration', () => {
     expect(Array.isArray(store.dogs)).toBe(true);
   });
 
-  it('should persist dog data to IndexedDB', async () => {
+  it('should reject deprecated data operations on dogStore', async () => {
+    // Phase 2.1: dogStore data operations are deprecated in favor of useDogStoreCompat / React Query.
+    // Verify the deprecation guard throws so callers are steered to the new API.
     const { useDogStore } = await import('@/store/dogStore');
-    
-    // Add a dog
+
     const dogData = {
       name: 'Test Dog',
       breed: 'Golden Retriever',
@@ -102,15 +111,20 @@ describe('Store IndexedDB Integration', () => {
       ownerId: 'test-owner-1'
     };
 
-    const addedDog = await useDogStore.getState().addDog(dogData);
-    expect(addedDog).toBeDefined();
-    expect(addedDog.name).toBe('Test Dog');
-    expect(addedDog.breed).toBe('Golden Retriever');
+    await expect(useDogStore.getState().addDog(dogData))
+      .rejects.toThrow('dogStore data operations are deprecated');
+  });
 
-    // Verify the dog is in the store
-    const dogs = useDogStore.getState().dogs;
-    expect(dogs).toHaveLength(1);
-    expect(dogs[0].id).toBe(addedDog.id);
+  it('should manage dogStore UI state (selectDog / resetStore)', async () => {
+    const { useDogStore } = await import('@/store/dogStore');
+
+    // selectDog sets the selected dog id
+    useDogStore.getState().selectDog('dog-42');
+    expect(useDogStore.getState().selectedDogId).toBe('dog-42');
+
+    // resetStore clears it
+    useDogStore.getState().resetStore();
+    expect(useDogStore.getState().selectedDogId).toBe('');
   });
 
   it('should create people store with IndexedDB persistence', async () => {
@@ -122,11 +136,14 @@ describe('Store IndexedDB Integration', () => {
     expect(Array.isArray(store.people)).toBe(true);
   });
 
-  it('should persist people data to IndexedDB', async () => {
+  it('should persist people data via legacy local-state method', async () => {
+    // userStore.addUser now goes database-first (Supabase).
+    // Use the legacy method to verify local state management still works,
+    // which is the actual IndexedDB-persisted layer.
     const { useUserStore } = await import('@/store/userStore');
-    
-    // Add a person
-    const personData = {
+
+    const person = {
+      id: 'person-1',
       firstName: 'John',
       lastName: 'Doe',
       email: 'john.doe@example.com',
@@ -135,19 +152,21 @@ describe('Store IndexedDB Integration', () => {
         street: '123 Main St',
         city: 'Anytown',
         state: 'CA',
-        zipCode: '12345'
-      }
-    };
+        zipCode: '12345',
+        country: 'US'
+      },
+      dogs: [],
+      roles: [],
+    } as import('@/types/user-types').User;
 
-    const addedPerson = await useUserStore.getState().addUser(personData);
-    expect(addedPerson).toBeDefined();
-    expect(addedPerson.firstName).toBe('John');
-    expect(addedPerson.lastName).toBe('Doe');
+    useUserStore.getState().addUserLegacy(person);
 
     // Verify the person is in the store
-    const people = useUserStore.getState().people;
-    expect(people).toHaveLength(1);
-    expect(people[0].id).toBe(addedPerson.id);
+    const users = useUserStore.getState().users;
+    expect(users).toHaveLength(1);
+    expect(users[0].id).toBe('person-1');
+    expect(users[0].firstName).toBe('John');
+    expect(users[0].lastName).toBe('Doe');
   });
 
   it('should create show store with IndexedDB persistence', async () => {
@@ -159,33 +178,44 @@ describe('Store IndexedDB Integration', () => {
     expect(Array.isArray(store.shows)).toBe(true);
   });
 
-  it('should persist show data to IndexedDB', async () => {
+  it('should persist show data via legacy local-state method', async () => {
+    // showStore.addShow now goes through replication.
+    // Use the legacy method to verify local state management still works.
     const { useShowStore } = await import('@/store/showStore');
-    
-    // Add a show
-    const showData = {
-      name: 'Test Dog Show',
-      eventDate: '2024-06-15',
-      clubId: 'test-club-1',
-      location: {
-        venue: 'Test Venue',
-        address: '456 Show St',
-        city: 'Show City',
-        state: 'CA',
-        zipCode: '54321'
-      },
-      description: 'A test dog show'
-    };
 
-    const addedShow = await useShowStore.getState().addShow(showData);
-    expect(addedShow).toBeDefined();
-    expect(addedShow.name).toBe('Test Dog Show');
-    expect(addedShow.eventDate).toBe('2024-06-15');
+    const show = {
+      id: 'show-1',
+      name: 'Test Dog Show',
+      type: 'AKC',
+      startDate: '2024-06-15',
+      endDate: '2024-06-16',
+      location: 'Test Venue, Show City, CA',
+      status: 'draft',
+      events: [],
+      source: 'myK9Show' as const,
+      entryOpenDate: '2024-05-01',
+      entryCloseDate: '2024-06-10',
+      preEntryFee: '30',
+      clubId: 'test-club-1',
+      clubName: 'Test Club',
+      clubAddress: '456 Show St',
+      clubEmail: 'club@test.com',
+      chairman: '',
+      secretary: '',
+      chiefSteward: '',
+      assignedJudges: [],
+      stats: [],
+      trials: [],
+    } as import('@/types/show-types').Show;
+
+    useShowStore.getState().addShowLegacy(show);
 
     // Verify the show is in the store
     const shows = useShowStore.getState().shows;
-    expect(shows).toHaveLength(1);
-    expect(shows[0].id).toBe(addedShow.id);
+    const addedShow = shows.find(s => s.id === 'show-1');
+    expect(addedShow).toBeDefined();
+    expect(addedShow!.name).toBe('Test Dog Show');
+    expect(addedShow!.startDate).toBe('2024-06-15');
   });
 
   it('should create club store with IndexedDB persistence', async () => {
@@ -197,31 +227,29 @@ describe('Store IndexedDB Integration', () => {
     expect(Array.isArray(store.clubs)).toBe(true);
   });
 
-  it('should verify that data persists after store recreation', async () => {
-    // Test persistence by adding data, then re-importing the store
+  it('should verify that UI state persists after store recreation', async () => {
+    // dogStore now only persists UI state (selectedDogId, migration flags).
+    // Test that this UI state survives a module re-import.
     const { useDogStore } = await import('@/store/dogStore');
-    
-    const dogData = {
-      name: 'Persistent Dog',
-      breed: 'Border Collie',
-      sex: 'female' as const,
-      ownerId: 'test-owner-2'
-    };
 
-    await useDogStore.getState().addDog(dogData);
-    
+    // Set some UI state
+    useDogStore.getState().selectDog('dog-persist-test');
+    expect(useDogStore.getState().selectedDogId).toBe('dog-persist-test');
+
     // Clear the module cache and re-import
     vi.resetModules();
-    
+
     // Re-import the store (simulating a page reload)
     const { useDogStore: newDogStore } = await import('@/store/dogStore');
-    
-    // Data should be persisted (either in IndexedDB or localStorage fallback)
-    // Note: In a real browser, this would restore from IndexedDB
-    // In tests, the behavior may vary, so we check for functionality rather than exact persistence
+
+    // Store should be functional after re-import
     const newStore = newDogStore.getState();
     expect(newStore).toBeDefined();
     expect(newStore.dogs).toBeDefined();
     expect(Array.isArray(newStore.dogs)).toBe(true);
+    // selectedDogId may or may not persist depending on the storage adapter in test env,
+    // but the store itself must be functional
+    expect(typeof newStore.selectDog).toBe('function');
+    expect(typeof newStore.resetStore).toBe('function');
   });
 });

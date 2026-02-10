@@ -1,6 +1,6 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 // Loading Spinner Component
@@ -279,37 +279,38 @@ describe('Loading States', () => {
 
     it('should show data after loading completes', async () => {
       render(<DataLoader delay={100} />);
-      
+
       expect(screen.getByTestId('loading-spinner')).toBeInTheDocument();
-      
-      // Fast forward time
-      vi.advanceTimersByTime(100);
-      
-      await waitFor(() => {
-        expect(screen.getByTestId('data-content')).toBeInTheDocument();
-        expect(screen.getByText('Item 1')).toBeInTheDocument();
-        expect(screen.getByText('Item 2')).toBeInTheDocument();
-        expect(screen.getByText('Item 3')).toBeInTheDocument();
+
+      // Use async version to flush microtasks (Promise resolution) after timer fires
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(100);
       });
-      
+
+      expect(screen.getByTestId('data-content')).toBeInTheDocument();
+      expect(screen.getByText('Item 1')).toBeInTheDocument();
+      expect(screen.getByText('Item 2')).toBeInTheDocument();
+      expect(screen.getByText('Item 3')).toBeInTheDocument();
       expect(screen.queryByTestId('loading-spinner')).not.toBeInTheDocument();
     });
 
     it('should handle different loading delays', async () => {
       render(<DataLoader delay={500} />);
-      
+
       expect(screen.getByTestId('loading-spinner')).toBeInTheDocument();
-      
-      // Fast forward less than delay
-      vi.advanceTimersByTime(200);
-      expect(screen.getByTestId('loading-spinner')).toBeInTheDocument();
-      
-      // Fast forward to complete delay
-      vi.advanceTimersByTime(300);
-      
-      await waitFor(() => {
-        expect(screen.getByTestId('data-content')).toBeInTheDocument();
+
+      // Fast forward less than delay - spinner should still be visible
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(200);
       });
+      expect(screen.getByTestId('loading-spinner')).toBeInTheDocument();
+
+      // Fast forward to complete delay
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(300);
+      });
+
+      expect(screen.getByTestId('data-content')).toBeInTheDocument();
     });
   });
 
@@ -324,24 +325,24 @@ describe('Loading States', () => {
 
     it('should show progressive loading steps', async () => {
       render(<ProgressiveLoader />);
-      
+
       expect(screen.getByText('Loading user...')).toBeInTheDocument();
-      
-      vi.advanceTimersByTime(800);
-      await waitFor(() => {
-        expect(screen.getByText('Loading preferences...')).toBeInTheDocument();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(800);
       });
-      
-      vi.advanceTimersByTime(800);
-      await waitFor(() => {
-        expect(screen.getByText('Loading data...')).toBeInTheDocument();
+      expect(screen.getByText('Loading preferences...')).toBeInTheDocument();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(800);
       });
-      
-      vi.advanceTimersByTime(800);
-      await waitFor(() => {
-        expect(screen.getByTestId('complete')).toBeInTheDocument();
-        expect(screen.getByText('Loading complete!')).toBeInTheDocument();
+      expect(screen.getByText('Loading data...')).toBeInTheDocument();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(800);
       });
+      expect(screen.getByTestId('complete')).toBeInTheDocument();
+      expect(screen.getByText('Loading complete!')).toBeInTheDocument();
     });
 
     it('should show progress bar', () => {
@@ -352,19 +353,19 @@ describe('Loading States', () => {
 
     it('should update progress bar width', async () => {
       render(<ProgressiveLoader />);
-      
+
       const getProgressWidth = () => {
         const progressBar = screen.getByTestId('progressive-loader').querySelector('.bg-blue-600');
         return progressBar?.getAttribute('style');
       };
-      
+
       // Initial state should be 25% (step 1 of 4)
       expect(getProgressWidth()).toContain('25%');
-      
-      vi.advanceTimersByTime(800);
-      await waitFor(() => {
-        expect(getProgressWidth()).toContain('50%');
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(800);
       });
+      expect(getProgressWidth()).toContain('50%');
     });
   });
 
@@ -422,7 +423,7 @@ describe('Loading States', () => {
 
     it('should provide appropriate ARIA attributes for loading states', () => {
       const ComponentWithAria = ({ loading }: { loading: boolean }) => (
-        <div aria-busy={loading} aria-live="polite">
+        <div role="status" aria-busy={loading} aria-live="polite">
           {loading ? <LoadingSpinner /> : <div>Content loaded</div>}
         </div>
       );

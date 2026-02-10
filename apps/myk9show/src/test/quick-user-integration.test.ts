@@ -1,13 +1,55 @@
 // Quick verification test for User Store Integration
 // Phase 2.2: User Store Integration - Basic validation
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import type { UserInput } from '@/types/user-types';
+
+// Mock Supabase client to avoid env var validation errors
+vi.mock('@/services/database/supabaseClient', () => ({
+  supabase: {
+    from: vi.fn().mockReturnValue({
+      select: vi.fn().mockReturnThis(),
+      insert: vi.fn().mockReturnThis(),
+      update: vi.fn().mockReturnThis(),
+      delete: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      neq: vi.fn().mockReturnThis(),
+      is: vi.fn().mockReturnThis(),
+      not: vi.fn().mockReturnThis(),
+      or: vi.fn().mockReturnThis(),
+      contains: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnThis(),
+      single: vi.fn().mockReturnThis(),
+    }),
+    rpc: vi.fn(),
+  },
+  logQuery: vi.fn(),
+  createDatabaseError: vi.fn((error: unknown) => error instanceof Error ? error : new Error(String(error))),
+  DatabaseError: class DatabaseError extends Error {},
+}));
+
+// Mock the logger
+vi.mock('@/services/LoggingService', () => ({
+  logger: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  }
+}));
+
+// Mock the database queryClient invalidation
+vi.mock('@/services/database/queryClient', () => ({
+  invalidateQueries: {
+    all: vi.fn(),
+    lists: vi.fn(),
+  },
+}));
 
 // Test imports to ensure no compilation errors
 describe('User Integration - Import Validation', () => {
   it('should import all user database hooks without errors', async () => {
-    const { 
+    const {
       useUsersQuery,
       useUserQuery,
       useUsersSearchQuery,
@@ -16,7 +58,7 @@ describe('User Integration - Import Validation', () => {
       useDeleteUserMutation,
       useUserManagement
     } = await import('@/hooks/queries/useUsersDatabase');
-    
+
     expect(useUsersQuery).toBeDefined();
     expect(useUserQuery).toBeDefined();
     expect(useUsersSearchQuery).toBeDefined();
@@ -27,14 +69,14 @@ describe('User Integration - Import Validation', () => {
   });
 
   it('should import user mappers without errors', async () => {
-    const { 
+    const {
       mapUserInputToInsert,
       mapUserInputToUpdate,
       mapDatabaseToUser,
       mapDatabaseUsersArray,
       mapUserToUserInput
     } = await import('@/services/mappers/userMappers');
-    
+
     expect(mapUserInputToInsert).toBeDefined();
     expect(mapUserInputToUpdate).toBeDefined();
     expect(mapDatabaseToUser).toBeDefined();
@@ -43,14 +85,14 @@ describe('User Integration - Import Validation', () => {
   });
 
   it('should import user store compatibility layer without errors', async () => {
-    const { 
+    const {
       useUserStoreCompat,
       useUserWithQuery,
       useUserSearchWithQuery,
       useUsersWithDogCountsCompat,
       useUsersByRoleWithQuery
     } = await import('@/hooks/useUserStoreCompat');
-    
+
     expect(useUserStoreCompat).toBeDefined();
     expect(useUserWithQuery).toBeDefined();
     expect(useUserSearchWithQuery).toBeDefined();
@@ -59,7 +101,7 @@ describe('User Integration - Import Validation', () => {
   });
 
   it('should import user database queries without errors', async () => {
-    const { 
+    const {
       getAllUsers,
       getUserById,
       createUser,
@@ -71,7 +113,7 @@ describe('User Integration - Import Validation', () => {
       getUsersStatistics,
       checkEmailExists
     } = await import('@/services/database/queries/userQueries');
-    
+
     expect(getAllUsers).toBeDefined();
     expect(getUserById).toBeDefined();
     expect(createUser).toBeDefined();
@@ -89,7 +131,7 @@ describe('User Integration - Import Validation', () => {
 describe('User Integration - Type Mapping Validation', () => {
   it('should map UserInput to DbUserInsert correctly', async () => {
     const { mapUserInputToInsert } = await import('@/services/mappers/userMappers');
-    
+
     const testInput: UserInput = {
       firstName: 'Test',
       lastName: 'User',
@@ -104,7 +146,7 @@ describe('User Integration - Type Mapping Validation', () => {
     };
 
     const result = mapUserInputToInsert(testInput);
-    
+
     expect(result.first_name).toBe('Test');
     expect(result.last_name).toBe('User');
     expect(result.email).toBe('test@example.com');
@@ -117,7 +159,7 @@ describe('User Integration - Type Mapping Validation', () => {
 
   it('should map database user to User type correctly', async () => {
     const { mapDatabaseToUser } = await import('@/services/mappers/userMappers');
-    
+
     const dbUser = {
       id: 'test-id',
       first_name: 'Test',
@@ -135,7 +177,7 @@ describe('User Integration - Type Mapping Validation', () => {
     };
 
     const result = mapDatabaseToUser(dbUser);
-    
+
     expect(result.id).toBe('test-id');
     expect(result.firstName).toBe('Test');
     expect(result.lastName).toBe('User');
@@ -157,10 +199,10 @@ describe('User Integration - Compatibility API Validation', () => {
   it('should maintain backward compatible API structure', async () => {
     // This test verifies the API structure without actually running the hooks
     const { useUserStoreCompat } = await import('@/hooks/useUserStoreCompat');
-    
+
     // Verify the hook exists and is a function
     expect(typeof useUserStoreCompat).toBe('function');
-    
+
     // Test passes if imports work and types are correct
     expect(true).toBe(true);
   });

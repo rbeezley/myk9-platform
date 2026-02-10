@@ -1,5 +1,8 @@
 /**
  * Tests for TimerDisplay Component
+ *
+ * Component uses Tailwind utility classes (via cn() helper).
+ * Tests use text/role-based queries rather than old CSS class selectors.
  */
 
 import { render, screen, fireEvent } from '@testing-library/react';
@@ -132,21 +135,25 @@ describe('TimerDisplay', () => {
   });
 
   describe('Warning states', () => {
-    it('should apply warning class when warningState is warning', () => {
-      const { container } = render(<TimerDisplay {...defaultProps} warningState="warning" time={1000} />);
-      expect(container.querySelector('.timer-display-large.warning')).toBeInTheDocument();
+    it('should apply warning color when warningState is warning', () => {
+      render(<TimerDisplay {...defaultProps} warningState="warning" time={1000} />);
+      // Timer display text gets amber color for warning
+      const timerText = screen.getByText('0:01.00');
+      expect(timerText).toHaveClass('text-amber-400');
     });
 
-    it('should apply expired class when warningState is expired', () => {
-      const { container } = render(<TimerDisplay {...defaultProps} warningState="expired" time={1000} />);
-      expect(container.querySelector('.timer-display-large.expired')).toBeInTheDocument();
+    it('should apply expired color when warningState is expired', () => {
+      render(<TimerDisplay {...defaultProps} warningState="expired" time={1000} />);
+      // Timer display text gets red color for expired
+      const timerText = screen.getByText('0:01.00');
+      expect(timerText).toHaveClass('text-red-500');
     });
 
-    it('should not apply warning classes when state is normal', () => {
-      const { container } = render(<TimerDisplay {...defaultProps} warningState="normal" time={1000} />);
-      const display = container.querySelector('.timer-display-large');
-      expect(display).not.toHaveClass('warning');
-      expect(display).not.toHaveClass('expired');
+    it('should not apply warning colors when state is normal', () => {
+      render(<TimerDisplay {...defaultProps} warningState="normal" time={1000} />);
+      const timerText = screen.getByText('0:01.00');
+      expect(timerText).not.toHaveClass('text-amber-400');
+      expect(timerText).not.toHaveClass('text-red-500');
     });
 
     it('should display warning message when provided', () => {
@@ -160,40 +167,49 @@ describe('TimerDisplay', () => {
     });
 
     it('should not display warning when message is not provided', () => {
-      const { container} = render(<TimerDisplay {...defaultProps} />);
-      expect(container.querySelector('.timer-warning')).not.toBeInTheDocument();
+      render(<TimerDisplay {...defaultProps} />);
+      // No warning message text should be present
+      expect(screen.queryByText('30 seconds remaining')).not.toBeInTheDocument();
+      expect(screen.queryByText('Time Expired')).not.toBeInTheDocument();
     });
 
-    it('should apply expired class to warning message when state is expired', () => {
-      const { container } = render(<TimerDisplay {...defaultProps} warningMessage="Time Expired" warningState="expired" />);
-      expect(container.querySelector('.timer-warning.expired')).toBeInTheDocument();
+    it('should apply expired styling to warning message when state is expired', () => {
+      render(<TimerDisplay {...defaultProps} warningMessage="Time Expired" warningState="expired" />);
+      const warningEl = screen.getByText('Time Expired');
+      expect(warningEl).toHaveClass('text-red-600');
     });
   });
 
   describe('CSS classes', () => {
-    it('should have scoresheet-timer-card class', () => {
+    it('should have gradient card container', () => {
       const { container } = render(<TimerDisplay {...defaultProps} />);
-      expect(container.querySelector('.scoresheet-timer-card')).toBeInTheDocument();
+      // The card uses a gradient background
+      const card = container.querySelector('.rounded-2xl');
+      expect(card).toBeInTheDocument();
     });
 
-    it('should have timer-controls-flutter class', () => {
+    it('should have flex controls container', () => {
       const { container } = render(<TimerDisplay {...defaultProps} />);
-      expect(container.querySelector('.timer-controls-flutter')).toBeInTheDocument();
+      const controls = container.querySelector('.flex.justify-center');
+      expect(controls).toBeInTheDocument();
     });
 
-    it('should apply stop class to Stop button', () => {
-      const { container } = render(<TimerDisplay {...defaultProps} isRunning={true} time={1000} />);
-      expect(container.querySelector('.timer-btn-start.stop')).toBeInTheDocument();
+    it('should apply destructive style to Stop button', () => {
+      render(<TimerDisplay {...defaultProps} isRunning={true} time={1000} />);
+      const stopBtn = screen.getByRole('button', { name: 'Stop' });
+      expect(stopBtn).toHaveClass('bg-red-500');
     });
 
-    it('should apply resume class to Resume button', () => {
-      const { container } = render(<TimerDisplay {...defaultProps} time={45000} isRunning={false} />);
-      expect(container.querySelector('.timer-btn-start.resume')).toBeInTheDocument();
+    it('should apply primary style to Resume button', () => {
+      render(<TimerDisplay {...defaultProps} time={45000} isRunning={false} />);
+      const resumeBtn = screen.getByRole('button', { name: 'Resume' });
+      expect(resumeBtn).toHaveClass('bg-teal-500');
     });
 
-    it('should apply start class to Start button', () => {
-      const { container } = render(<TimerDisplay {...defaultProps} />);
-      expect(container.querySelector('.timer-btn-start.start')).toBeInTheDocument();
+    it('should apply primary style to Start button', () => {
+      render(<TimerDisplay {...defaultProps} />);
+      const startBtn = screen.getByRole('button', { name: 'Start' });
+      expect(startBtn).toHaveClass('bg-white');
     });
   });
 

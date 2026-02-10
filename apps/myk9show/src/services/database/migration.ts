@@ -301,7 +301,7 @@ export class StorageMigration {
   private async rollback(localStorageKey: string): Promise<void> {
     logger.info('Rolling back migration', 'migration', { key: localStorageKey });
     // Find the most recent backup
-    const backupKeys = Object.keys(localStorage)
+    const backupKeys = this.getLocalStorageKeys()
       .filter(key => key.startsWith(`${localStorageKey}-backup-`))
       .sort()
       .reverse();
@@ -315,6 +315,22 @@ export class StorageMigration {
     }
   }
   
+  /**
+   * Get all localStorage keys using the standard Storage API.
+   * Uses localStorage.key(i) instead of Object.keys(localStorage) for
+   * reliable cross-environment compatibility.
+   */
+  private getLocalStorageKeys(): string[] {
+    const keys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key !== null) {
+        keys.push(key);
+      }
+    }
+    return keys;
+  }
+
   // Utility methods
   async getMigrationStatus(storeName: string): Promise<{
     completed: boolean;
@@ -333,7 +349,7 @@ export class StorageMigration {
   }
   
   async listBackups(localStorageKey: string): Promise<string[]> {
-    return Object.keys(localStorage)
+    return this.getLocalStorageKeys()
       .filter(key => key.startsWith(`${localStorageKey}-backup-`))
       .sort()
       .reverse();

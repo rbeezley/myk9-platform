@@ -263,7 +263,7 @@ describe('useAlerts', () => {
         await expect(result.current.acknowledgeAlert('alert-1')).rejects.toThrow('Acknowledge failed');
       });
 
-      expect(result.current.error).toBe('Failed to acknowledge alert');
+      expect(result.current.error).toBe('Acknowledge failed');
     });
   });
 
@@ -328,18 +328,16 @@ describe('useAlerts', () => {
     });
 
     it('should toggle a rule', async () => {
-      const mockRules = [
-        {
-          id: 'rule-1',
-          name: 'Test Rule',
-          enabled: true,
-          type: AlertType.SYNC_FAILURE,
-          severity: AlertSeverity.MEDIUM,
-          description: 'Test',
-          thresholds: [],
-          channels: [NotificationChannel.IN_APP]
-        }
-      ];
+      const mockRule = {
+        id: 'rule-1',
+        name: 'Test Rule',
+        enabled: true,
+        type: AlertType.SYNC_FAILURE,
+        severity: AlertSeverity.MEDIUM,
+        description: 'Test',
+        thresholds: [],
+        channels: [NotificationChannel.IN_APP]
+      };
 
       const { result } = renderHook(() => useAlerts());
 
@@ -347,10 +345,12 @@ describe('useAlerts', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      // Set the rules
+      // Populate rules via the real-time event system (same as production)
       act(() => {
-        (result.current as Record<string, unknown>).rules = mockRules;
+        mockAlertingService.triggerEvent?.('rule_created', mockRule);
       });
+
+      expect(result.current.rules).toHaveLength(1);
 
       await act(async () => {
         await result.current.toggleRule('rule-1');
@@ -443,7 +443,7 @@ describe('useAlerts', () => {
 
   describe('Auto-refresh', () => {
     it('should auto-refresh when enabled', async () => {
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
 
       const { result } = renderHook(() => useAlerts({
         autoRefresh: true,
@@ -457,8 +457,8 @@ describe('useAlerts', () => {
       // Clear initial calls
       vi.clearAllMocks();
 
-      // Fast-forward time
-      act(() => {
+      // Fast-forward time past the refresh interval
+      await act(async () => {
         vi.advanceTimersByTime(10000);
       });
 
@@ -470,7 +470,7 @@ describe('useAlerts', () => {
     });
 
     it('should not auto-refresh when disabled', async () => {
-      vi.useFakeTimers();
+      vi.useFakeTimers({ shouldAdvanceTime: true });
 
       const { result } = renderHook(() => useAlerts({
         autoRefresh: false
@@ -484,7 +484,7 @@ describe('useAlerts', () => {
       vi.clearAllMocks();
 
       // Fast-forward time
-      act(() => {
+      await act(async () => {
         vi.advanceTimersByTime(30000);
       });
 

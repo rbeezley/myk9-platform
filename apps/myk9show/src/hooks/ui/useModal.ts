@@ -230,11 +230,14 @@ export function useConfirmationModal() {
   }, []);
 
   const handleConfirm = useCallback(async () => {
-    if (config.onConfirm) {
-      await config.onConfirm();
+    try {
+      if (config.onConfirm) {
+        await config.onConfirm();
+      }
+    } finally {
+      setIsOpen(false);
+      setConfig({});
     }
-    setIsOpen(false);
-    setConfig({});
   }, [config]);
 
   const handleCancel = useCallback(() => {

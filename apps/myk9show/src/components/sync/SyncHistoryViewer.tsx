@@ -55,74 +55,77 @@ interface SyncHistoryViewerProps {
   onExportHistory?: () => void;
 }
 
-// Mock data for demonstration
-const mockSyncHistory: SyncLogEntry[] = [
-  {
-    id: 'sync-1',
-    entityType: 'club',
-    entityId: 'club-1',
-    entityName: 'Golden Retriever Club',
-    actionType: 'update',
-    status: 'synced',
-    timestamp: new Date(Date.now() - 1000 * 60 * 5),
-    userId: 'user-1',
-    userName: 'John Doe',
-    syncDuration: 1200,
-    dataSize: 2048
-  },
-  {
-    id: 'sync-2',
-    entityType: 'dog',
-    entityId: 'dog-1',
-    entityName: 'Buddy',
-    actionType: 'create',
-    status: 'error',
-    timestamp: new Date(Date.now() - 1000 * 60 * 15),
-    userId: 'user-2',
-    userName: 'Jane Smith',
-    errorMessage: 'Network timeout during sync',
-    retryCount: 3,
-    dataSize: 4096
-  },
-  {
-    id: 'sync-3',
-    entityType: 'person',
-    entityId: 'person-1',
-    entityName: 'Alice Johnson',
-    actionType: 'update',
-    status: 'conflict',
-    timestamp: new Date(Date.now() - 1000 * 60 * 30),
-    userId: 'user-3',
-    userName: 'Bob Wilson',
-    dataSize: 1536
-  },
-  {
-    id: 'sync-4',
-    entityType: 'show',
-    entityId: 'show-1',
-    entityName: 'Spring Dog Show 2024',
-    actionType: 'create',
-    status: 'pending',
-    timestamp: new Date(Date.now() - 1000 * 60 * 45),
-    userId: 'user-1',
-    userName: 'John Doe',
-    retryCount: 1,
-    dataSize: 8192
-  },
-  {
-    id: 'sync-5',
-    entityType: 'entry',
-    entityId: 'entry-1',
-    entityName: 'Buddy - Novice Class',
-    actionType: 'delete',
-    status: 'synced',
-    timestamp: new Date(Date.now() - 1000 * 60 * 60),
-    userId: 'user-2',
-    userName: 'Jane Smith',
-    syncDuration: 800,
-    dataSize: 512
-  }
-];
+// Mock data for demonstration - computed at render time so timestamps are relative to current time
+function createMockSyncHistory(): SyncLogEntry[] {
+  const now = Date.now();
+  return [
+    {
+      id: 'sync-1',
+      entityType: 'club',
+      entityId: 'club-1',
+      entityName: 'Golden Retriever Club',
+      actionType: 'update',
+      status: 'synced',
+      timestamp: new Date(now - 1000 * 60 * 5),
+      userId: 'user-1',
+      userName: 'John Doe',
+      syncDuration: 1200,
+      dataSize: 2048
+    },
+    {
+      id: 'sync-2',
+      entityType: 'dog',
+      entityId: 'dog-1',
+      entityName: 'Buddy',
+      actionType: 'create',
+      status: 'error',
+      timestamp: new Date(now - 1000 * 60 * 15),
+      userId: 'user-2',
+      userName: 'Jane Smith',
+      errorMessage: 'Network timeout during sync',
+      retryCount: 3,
+      dataSize: 4096
+    },
+    {
+      id: 'sync-3',
+      entityType: 'person',
+      entityId: 'person-1',
+      entityName: 'Alice Johnson',
+      actionType: 'update',
+      status: 'conflict',
+      timestamp: new Date(now - 1000 * 60 * 30),
+      userId: 'user-3',
+      userName: 'Bob Wilson',
+      dataSize: 1536
+    },
+    {
+      id: 'sync-4',
+      entityType: 'show',
+      entityId: 'show-1',
+      entityName: 'Spring Dog Show 2024',
+      actionType: 'create',
+      status: 'pending',
+      timestamp: new Date(now - 1000 * 60 * 45),
+      userId: 'user-1',
+      userName: 'John Doe',
+      retryCount: 1,
+      dataSize: 8192
+    },
+    {
+      id: 'sync-5',
+      entityType: 'entry',
+      entityId: 'entry-1',
+      entityName: 'Buddy - Novice Class',
+      actionType: 'delete',
+      status: 'synced',
+      timestamp: new Date(now - 1000 * 60 * 60),
+      userId: 'user-2',
+      userName: 'Jane Smith',
+      syncDuration: 800,
+      dataSize: 512
+    }
+  ];
+}
 
 export function SyncHistoryViewer({
   open,
@@ -131,7 +134,7 @@ export function SyncHistoryViewer({
   onClearHistory,
   onExportHistory
 }: SyncHistoryViewerProps) {
-  const [syncHistory] = React.useState<SyncLogEntry[]>(mockSyncHistory);
+  const [syncHistory] = React.useState<SyncLogEntry[]>(createMockSyncHistory);
   const [searchTerm, setSearchTerm] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState<string>('all');
   const [entityTypeFilter, setEntityTypeFilter] = React.useState<string>('all');
@@ -393,11 +396,12 @@ export function SyncHistoryViewer({
                     <div className="mt-3 p-3 bg-error-red/5 border border-error-red/20 rounded-md">
                       <div className="text-sm text-error-red font-medium">Error:</div>
                       <div className="text-sm text-error-red/80">{entry.errorMessage}</div>
-                      {entry.retryCount && (
-                        <div className="text-xs text-muted-foreground mt-1">
-                          Retries: {entry.retryCount}
-                        </div>
-                      )}
+                    </div>
+                  )}
+
+                  {entry.retryCount != null && entry.retryCount > 0 && (
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Retries: {entry.retryCount}
                     </div>
                   )}
 

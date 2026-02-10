@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { SyncHistoryViewer } from '@/components/sync/SyncHistoryViewer';
 
 // Mock the UI components
@@ -125,18 +125,21 @@ describe('SyncHistoryViewer', () => {
 
   it('should display sync statistics', () => {
     render(<SyncHistoryViewer {...defaultProps} />);
-    
-    // Should show statistics overview
+
+    // Should show statistics overview labels (use CSS class selectors for the stats section)
     expect(screen.getByText('Total')).toBeInTheDocument();
-    expect(screen.getByText('Synced')).toBeInTheDocument();
-    expect(screen.getByText('Pending')).toBeInTheDocument();
+    // 'Synced', 'Pending' etc. appear multiple times (in stats, badges, and select items)
+    // so we use getAllByText and verify at least one is present
+    expect(screen.getAllByText('Synced').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Pending').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Errors')).toBeInTheDocument();
     expect(screen.getByText('Conflicts')).toBeInTheDocument();
-    
+
     // Should show count numbers (from mock data)
     expect(screen.getByText('5')).toBeInTheDocument(); // Total
     expect(screen.getByText('2')).toBeInTheDocument(); // Synced
-    expect(screen.getByText('1')).toBeInTheDocument(); // Pending, Errors, Conflicts each
+    // '1' appears multiple times (Pending=1, Errors=1, Conflicts=1)
+    expect(screen.getAllByText('1').length).toBe(3);
   });
 
   it('should render action buttons when callbacks provided', () => {
@@ -183,38 +186,39 @@ describe('SyncHistoryViewer', () => {
     expect(screen.getAllByTestId('select')).toHaveLength(2); // Status and Entity Type filters
   });
 
-  it('should filter entries by search term', async () => {
+  it('should filter entries by search term', () => {
     render(<SyncHistoryViewer {...defaultProps} />);
-    
+
     const searchInput = screen.getByPlaceholderText('Search entities or users...');
-    
+
     // Initially should show all entries (from mock data)
     expect(screen.getByText('Golden Retriever Club')).toBeInTheDocument();
-    expect(screen.getByText('Buddy')).toBeInTheDocument();
-    
-    // Search for specific entity
+    expect(screen.getAllByText('Buddy').length).toBeGreaterThanOrEqual(1);
+
+    // Search for specific entity - filtering is synchronous via useMemo
     fireEvent.change(searchInput, { target: { value: 'Buddy' } });
-    
-    await waitFor(() => {
-      expect(screen.getByText('Buddy')).toBeInTheDocument();
-      // Golden Retriever Club should still be visible in this simple mock
-    });
+
+    // Should show Buddy entries and hide non-matching entries
+    expect(screen.getAllByText('Buddy').length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('Golden Retriever Club')).not.toBeInTheDocument();
   });
 
   it('should display sync entries with status indicators', () => {
     render(<SyncHistoryViewer {...defaultProps} />);
-    
+
     // Should show different entity types
     expect(screen.getByText('Golden Retriever Club')).toBeInTheDocument();
-    expect(screen.getByText('Buddy')).toBeInTheDocument();
+    // 'Buddy' appears in both sync-2 and sync-5 ("Buddy - Novice Class")
+    expect(screen.getAllByText(/Buddy/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Alice Johnson')).toBeInTheDocument();
     expect(screen.getByText('Spring Dog Show 2024')).toBeInTheDocument();
-    
-    // Should show different status badges
-    expect(screen.getByText('Synced')).toBeInTheDocument();
-    expect(screen.getByText('Error')).toBeInTheDocument();
-    expect(screen.getByText('Conflict')).toBeInTheDocument();
-    expect(screen.getByText('Pending')).toBeInTheDocument();
+
+    // Should show different status badges (some appear multiple times due to
+    // stats labels, badges, and select items - use getAllByText)
+    expect(screen.getAllByText('Synced').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Error').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Conflict').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('Pending').length).toBeGreaterThanOrEqual(1);
   });
 
   it('should display relative timestamps', () => {
@@ -248,11 +252,11 @@ describe('SyncHistoryViewer', () => {
 
   it('should display action icons for different operation types', () => {
     render(<SyncHistoryViewer {...defaultProps} />);
-    
-    // Should show different action indicators
-    expect(screen.getByText('＋')).toBeInTheDocument(); // Create
-    expect(screen.getByText('✎')).toBeInTheDocument(); // Update
-    expect(screen.getByText('×')).toBeInTheDocument(); // Delete
+
+    // Should show different action indicators (some may appear multiple times)
+    expect(screen.getAllByText('＋').length).toBeGreaterThanOrEqual(1); // Create (sync-2, sync-4)
+    expect(screen.getAllByText('✎').length).toBeGreaterThanOrEqual(1); // Update (sync-1, sync-3)
+    expect(screen.getAllByText('×').length).toBeGreaterThanOrEqual(1); // Delete (sync-5)
   });
 
   it('should show performance metrics when available', () => {

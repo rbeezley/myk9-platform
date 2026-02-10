@@ -295,6 +295,8 @@ export class PerformanceService {
   }
 
   private monitorResourceLoading(): void {
+    if (!('PerformanceObserver' in window)) return;
+
     const observer = new PerformanceObserver((entryList) => {
       entryList.getEntries().forEach(entry => {
         if (entry.entryType === 'resource') {

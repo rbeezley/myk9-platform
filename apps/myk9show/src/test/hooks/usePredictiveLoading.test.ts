@@ -1,60 +1,61 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { 
-  usePredictiveLoading, 
-  useRoutePreloading, 
+import {
+  usePredictiveLoading,
+  useRoutePreloading,
   useShowEntryPredictions,
-  useRelationshipPreloading 
+  useRelationshipPreloading
 } from '@/hooks/usePredictiveLoading';
 
-// Mock react-router-dom
-const mockLocation = { pathname: '/test' };
+// Use vi.hoisted() so these variables are available when vi.mock() factories run
+const { mockLocation, mockPredictiveLoader } = vi.hoisted(() => ({
+  mockLocation: { pathname: '/test' },
+  mockPredictiveLoader: {
+    trackNavigationPattern: vi.fn(),
+    preloadLikelyViews: vi.fn(),
+    trackRelationshipAccess: vi.fn(),
+    generateShowEntryPredictions: vi.fn().mockReturnValue([
+      {
+        showId: 'show-1',
+        showName: 'Test Show',
+        dogId: 'dog-1',
+        dogName: 'Test Dog',
+        classes: ['Open Dogs'],
+        confidence: 0.8,
+        reasoning: ['Test reasoning'],
+        estimatedEntryDate: new Date()
+      }
+    ]),
+    getShowEntryPredictions: vi.fn().mockReturnValue([
+      {
+        showId: 'show-1',
+        showName: 'Test Show',
+        dogId: 'dog-1',
+        dogName: 'Test Dog',
+        confidence: 0.8
+      }
+    ]),
+    getAnalytics: vi.fn().mockReturnValue({
+      navigationPatterns: 5,
+      relationshipHints: 3,
+      showEntryPredictions: 2,
+      preloadQueue: {
+        total: 10,
+        pending: 2,
+        loading: 1,
+        completed: 6,
+        failed: 1
+      },
+      successRate: 0.8,
+      avgConfidence: 0.7
+    }),
+    resetPredictiveData: vi.fn()
+  }
+}));
+
 vi.mock('react-router-dom', () => ({
   useLocation: () => mockLocation
 }));
-
-// Mock the PredictiveLoader service
-const mockPredictiveLoader = {
-  trackNavigationPattern: vi.fn(),
-  preloadLikelyViews: vi.fn(),
-  trackRelationshipAccess: vi.fn(),
-  generateShowEntryPredictions: vi.fn().mockReturnValue([
-    {
-      showId: 'show-1',
-      showName: 'Test Show',
-      dogId: 'dog-1',
-      dogName: 'Test Dog',
-      classes: ['Open Dogs'],
-      confidence: 0.8,
-      reasoning: ['Test reasoning'],
-      estimatedEntryDate: new Date()
-    }
-  ]),
-  getShowEntryPredictions: vi.fn().mockReturnValue([
-    {
-      showId: 'show-1',
-      showName: 'Test Show',
-      dogId: 'dog-1',
-      dogName: 'Test Dog',
-      confidence: 0.8
-    }
-  ]),
-  getAnalytics: vi.fn().mockReturnValue({
-    navigationPatterns: 5,
-    relationshipHints: 3,
-    showEntryPredictions: 2,
-    preloadQueue: {
-      total: 10,
-      pending: 2,
-      loading: 1,
-      completed: 6,
-      failed: 1
-    },
-    successRate: 0.8,
-    avgConfidence: 0.7
-  }),
-  resetPredictiveData: vi.fn()
-};
 
 vi.mock('@/services/sync/PredictiveLoader', () => ({
   predictiveLoader: mockPredictiveLoader
@@ -90,16 +91,33 @@ describe('usePredictiveLoading', () => {
     });
 
     it('should track navigation changes', () => {
-      renderHook(() => usePredictiveLoading());
+      // The navigation tracking useEffect needs previousRoute set from a prior render.
+      // The hook uses queueMicrotask for state updates. We collect the microtask
+      // callbacks and flush them manually between renders, avoiding infinite loops
+      // caused by routeStartTime changing on every effect run.
+      const originalQueueMicrotask = globalThis.queueMicrotask;
+      const pendingMicrotasks: Array<() => void> = [];
+      globalThis.queueMicrotask = (fn: () => void) => { pendingMicrotasks.push(fn); };
 
-      // Simulate route change
-      act(() => {
+      try {
+        const { rerender } = renderHook(() => usePredictiveLoading());
+
+        // Flush the microtasks from initial render (setPreviousRoute, setRouteStartTime)
+        act(() => {
+          const tasks = pendingMicrotasks.splice(0);
+          tasks.forEach(fn => fn());
+        });
+
+        // Change location and re-render - previousRoute should now be '/test'
         mockLocation.pathname = '/dogs';
-      });
+        rerender();
 
-      // Should eventually track navigation (after useEffect)
-      expect(mockPredictiveLoader.trackNavigationPattern).toHaveBeenCalled();
-      expect(mockPredictiveLoader.preloadLikelyViews).toHaveBeenCalled();
+        // trackNavigationPattern is called synchronously in the effect before queueMicrotask
+        expect(mockPredictiveLoader.trackNavigationPattern).toHaveBeenCalled();
+        expect(mockPredictiveLoader.preloadLikelyViews).toHaveBeenCalled();
+      } finally {
+        globalThis.queueMicrotask = originalQueueMicrotask;
+      }
     });
 
     it('should not track when navigation disabled', () => {

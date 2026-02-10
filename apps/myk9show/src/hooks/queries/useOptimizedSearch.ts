@@ -30,7 +30,8 @@ export const useOptimizedDogSearch = (searchTerm: string, options?: {
   page?: number;
   pageSize?: number;
 }) => {
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const initialTerm = searchTerm.length >= SEARCH_CONFIG.minSearchLength ? searchTerm : '';
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(initialTerm);
   const shouldDeduplicateSearch = useSearchDeduplication();
   const paginationConfig = usePaginationConfig();
 
@@ -53,7 +54,7 @@ export const useOptimizedDogSearch = (searchTerm: string, options?: {
   }
 
   const page = options?.page ?? 1;
-  const pageSize = options?.pageSize ?? paginationConfig.search.pageSize;
+  const pageSize = options?.pageSize ?? paginationConfig.dogs.pageSize;
 
   return useQuery({
     queryKey: [
@@ -101,7 +102,8 @@ export const useOptimizedUserSearch = (searchTerm: string, options?: {
   pageSize?: number;
   role?: string;
 }) => {
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const initialTerm = searchTerm.length >= SEARCH_CONFIG.minSearchLength ? searchTerm : '';
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(initialTerm);
   const shouldDeduplicateSearch = useSearchDeduplication();
   const paginationConfig = usePaginationConfig();
 
@@ -123,7 +125,7 @@ export const useOptimizedUserSearch = (searchTerm: string, options?: {
   }
 
   const page = options?.page ?? 1;
-  const pageSize = options?.pageSize ?? paginationConfig.search.pageSize;
+  const pageSize = options?.pageSize ?? paginationConfig.users.pageSize;
 
   return useQuery({
     queryKey: [
@@ -170,7 +172,8 @@ export const useOptimizedShowSearch = (searchTerm: string, options?: {
   dateRange?: { start: string; end: string };
   status?: string;
 }) => {
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const initialTerm = searchTerm.length >= SEARCH_CONFIG.minSearchLength ? searchTerm : '';
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(initialTerm);
   const shouldDeduplicateSearch = useSearchDeduplication();
   const paginationConfig = usePaginationConfig();
 
@@ -238,7 +241,8 @@ export const useGlobalSearch = (searchTerm: string, options?: {
   enabled?: boolean;
   entities?: ('dogs' | 'users' | 'shows' | 'clubs')[];
 }) => {
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const initialTerm = searchTerm.length >= SEARCH_CONFIG.minSearchLength ? searchTerm : '';
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(initialTerm);
   const shouldDeduplicateSearch = useSearchDeduplication();
 
   const debouncedUpdate = useDebounce((term: string) => {
@@ -353,7 +357,8 @@ export const useGlobalSearch = (searchTerm: string, options?: {
 
 // Search suggestions with intelligent caching
 export const useSearchSuggestions = (searchTerm: string, entityType: 'dogs' | 'users' | 'shows') => {
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const initialTerm = searchTerm.length >= 1 ? searchTerm : '';
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(initialTerm);
 
   const debouncedUpdate = useDebounce((term: string) => {
     setDebouncedSearchTerm(term);

@@ -85,7 +85,7 @@ describe('DualTimerDisplay', () => {
 
     const startButton = screen.getByRole('button', { name: /start/i });
     expect(startButton).toBeInTheDocument();
-    expect(startButton).toHaveClass('bg-green-600');
+    expect(startButton).toHaveClass('bg-teal-600');
   });
 
   it('should render stop button when timer is running', () => {
@@ -121,12 +121,16 @@ describe('DualTimerDisplay', () => {
   });
 
   it('should call reset function when reset button clicked', () => {
+    // Reset is only enabled when searchTime > 0 or timer is running
+    const stoppedWithTimeState = { ...mockTimerState, searchTime: 5000, searchTimeDisplay: '00:05.00' };
+    mockUseCountdownTimer.mockReturnValue(stoppedWithTimeState);
+
     render(<DualTimerDisplay {...defaultProps} />);
 
     const resetButton = screen.getByRole('button', { name: /reset/i });
     fireEvent.click(resetButton);
 
-    expect(mockTimerState.reset).toHaveBeenCalledTimes(1);
+    expect(stoppedWithTimeState.reset).toHaveBeenCalledTimes(1);
   });
 
   it('should show warning state styling when timer is in warning', () => {
@@ -158,7 +162,7 @@ describe('DualTimerDisplay', () => {
 
     // Check that countdown display has expired styling
     const countdownDisplay = screen.getByText('00:00');
-    expect(countdownDisplay).toHaveClass('text-red-500');
+    expect(countdownDisplay).toHaveClass('text-red-400');
   });
 
   it('should display elapsed time correctly', () => {
@@ -220,9 +224,9 @@ describe('DualTimerDisplay', () => {
 
     const startButton = screen.getByRole('button', { name: /start/i });
 
-    // Simulate touch events
-    fireEvent.touchStart(startButton);
-    fireEvent.touchEnd(startButton);
+    // Touch interactions trigger click events on buttons in browsers;
+    // fireEvent.click accurately simulates the end result of a tap
+    fireEvent.click(startButton);
 
     await waitFor(() => {
       expect(mockTimerState.start).toHaveBeenCalledTimes(1);

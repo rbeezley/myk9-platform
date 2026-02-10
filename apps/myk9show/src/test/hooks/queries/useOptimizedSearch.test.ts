@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { 
+import {
   useOptimizedDogSearch,
   useOptimizedUserSearch,
   useOptimizedShowSearch,
@@ -11,19 +11,38 @@ import {
 } from '@/hooks/queries/useOptimizedSearch';
 import React from 'react';
 
+// Declare mock functions via vi.hoisted so they are available in vi.mock factories
+const {
+  mockSearchDogs,
+  mockSearchUsers,
+  mockSearchShows,
+  mockSearchClubs,
+  mockUseDebounce,
+  mockUseSearchDeduplication,
+  mockUsePaginationConfig,
+} = vi.hoisted(() => ({
+  mockSearchDogs: vi.fn(),
+  mockSearchUsers: vi.fn(),
+  mockSearchShows: vi.fn(),
+  mockSearchClubs: vi.fn(),
+  mockUseDebounce: vi.fn(),
+  mockUseSearchDeduplication: vi.fn(),
+  mockUsePaginationConfig: vi.fn(),
+}));
+
 // Mock the search functions
 vi.mock('@/services/database/queries', () => ({
-  searchDogs: vi.fn(),
-  searchUsers: vi.fn(),
-  searchShows: vi.fn(),
-  searchClubs: vi.fn()
+  searchDogs: mockSearchDogs,
+  searchUsers: mockSearchUsers,
+  searchShows: mockSearchShows,
+  searchClubs: mockSearchClubs,
 }));
 
 // Mock the optimization utilities
 vi.mock('@/lib/queryOptimizations', () => ({
-  useDebounce: vi.fn(),
-  useSearchDeduplication: vi.fn(),
-  usePaginationConfig: vi.fn()
+  useDebounce: mockUseDebounce,
+  useSearchDeduplication: mockUseSearchDeduplication,
+  usePaginationConfig: mockUsePaginationConfig,
 }));
 
 // Mock query client and cache strategies
@@ -53,43 +72,39 @@ describe('useOptimizedSearch hooks', () => {
       },
     });
 
-    return ({ children }: { children: React.ReactNode }) => 
+    return ({ children }: { children: React.ReactNode }) =>
       React.createElement(QueryClientProvider, { client: queryClient }, children);
   };
 
-  beforeEach(async () => {
+  beforeEach(() => {
     vi.clearAllMocks();
-    
-    // Get the mocked functions
-    const { searchDogs, searchUsers, searchShows, searchClubs } = await import('@/services/database/queries');
-    const { useDebounce, useSearchDeduplication, usePaginationConfig } = await import('@/lib/queryOptimizations');
-    
-    // Setup default mock returns
-    (useDebounce as ReturnType<typeof vi.fn>).mockImplementation((fn) => fn);
-    (useSearchDeduplication as ReturnType<typeof vi.fn>).mockReturnValue(() => true);
-    (usePaginationConfig as ReturnType<typeof vi.fn>).mockReturnValue({
+
+    // Setup default mock returns - useDebounce passes through immediately (no delay)
+    mockUseDebounce.mockImplementation((fn: (...args: unknown[]) => void) => fn);
+    mockUseSearchDeduplication.mockReturnValue(() => true);
+    mockUsePaginationConfig.mockReturnValue({
       search: { pageSize: 20 },
       dogs: { pageSize: 25 },
       users: { pageSize: 30 },
       shows: { pageSize: 15 }
     });
-    
+
     // Default successful responses
-    (searchDogs as ReturnType<typeof vi.fn>).mockResolvedValue({ 
-      data: [{ id: '1', name: 'Test Dog', breed: 'Labrador' }], 
-      error: null 
+    mockSearchDogs.mockResolvedValue({
+      data: [{ id: '1', name: 'Test Dog', breed: 'Labrador' }],
+      error: null
     });
-    (searchUsers as ReturnType<typeof vi.fn>).mockResolvedValue({ 
-      data: [{ id: '1', first_name: 'John', last_name: 'Doe' }], 
-      error: null 
+    mockSearchUsers.mockResolvedValue({
+      data: [{ id: '1', first_name: 'John', last_name: 'Doe' }],
+      error: null
     });
-    (searchShows as ReturnType<typeof vi.fn>).mockResolvedValue({ 
-      data: [{ id: '1', name: 'Test Show', location: 'Test Location' }], 
-      error: null 
+    mockSearchShows.mockResolvedValue({
+      data: [{ id: '1', name: 'Test Show', location: 'Test Location' }],
+      error: null
     });
-    (searchClubs as ReturnType<typeof vi.fn>).mockResolvedValue({ 
-      data: [{ id: '1', name: 'Test Club' }], 
-      error: null 
+    mockSearchClubs.mockResolvedValue({
+      data: [{ id: '1', name: 'Test Club' }],
+      error: null
     });
   });
 
@@ -118,13 +133,14 @@ describe('useOptimizedSearch hooks', () => {
       });
     });
 
-    it('should not search when term is too short', async () => {
+    it('should not search when term is too short', () => {
       const { result } = renderHook(
         () => useOptimizedDogSearch('a'), // Only 1 character
         { wrapper: createWrapper() }
       );
 
-      expect(result.current.isIdle).toBe(true);
+      // React Query v5: disabled queries have fetchStatus 'idle' and status 'pending'
+      expect(result.current.fetchStatus).toBe('idle');
       expect(mockSearchDogs).not.toHaveBeenCalled();
     });
 
@@ -146,13 +162,13 @@ describe('useOptimizedSearch hooks', () => {
 
     it('should validate response time performance', async () => {
       let resolveTime = 0;
-      mockSearchDogs.mockImplementation(() => 
+      mockSearchDogs.mockImplementation(() =>
         new Promise((resolve) => {
           setTimeout(() => {
             resolveTime = Date.now();
-            resolve({ 
-              data: [{ id: '1', name: 'Fast Dog' }], 
-              error: null 
+            resolve({
+              data: [{ id: '1', name: 'Fast Dog' }],
+              error: null
             });
           }, 50);
         })
@@ -202,13 +218,14 @@ describe('useOptimizedSearch hooks', () => {
       expect(result.current.data?.total).toBe(0);
     });
 
-    it('should respect enabled option', async () => {
+    it('should respect enabled option', () => {
       const { result } = renderHook(
         () => useOptimizedDogSearch('test', { enabled: false }),
         { wrapper: createWrapper() }
       );
 
-      expect(result.current.isIdle).toBe(true);
+      // React Query v5: disabled queries have fetchStatus 'idle'
+      expect(result.current.fetchStatus).toBe('idle');
       expect(mockSearchDogs).not.toHaveBeenCalled();
     });
   });
@@ -275,7 +292,7 @@ describe('useOptimizedSearch hooks', () => {
 
     it('should support date range filtering', async () => {
       const dateRange = { start: '2024-01-01', end: '2024-12-31' };
-      
+
       const { result } = renderHook(
         () => useOptimizedShowSearch('show', { dateRange }),
         { wrapper: createWrapper() }
@@ -369,16 +386,16 @@ describe('useOptimizedSearch hooks', () => {
 
     it('should validate parallel search performance', async () => {
       // Mock searches with different delays
-      mockSearchDogs.mockImplementation(() => 
+      mockSearchDogs.mockImplementation(() =>
         new Promise(resolve => setTimeout(() => resolve({ data: [], error: null }), 100))
       );
-      mockSearchUsers.mockImplementation(() => 
+      mockSearchUsers.mockImplementation(() =>
         new Promise(resolve => setTimeout(() => resolve({ data: [], error: null }), 50))
       );
-      mockSearchShows.mockImplementation(() => 
+      mockSearchShows.mockImplementation(() =>
         new Promise(resolve => setTimeout(() => resolve({ data: [], error: null }), 75))
       );
-      mockSearchClubs.mockImplementation(() => 
+      mockSearchClubs.mockImplementation(() =>
         new Promise(resolve => setTimeout(() => resolve({ data: [], error: null }), 25))
       );
 
@@ -397,23 +414,18 @@ describe('useOptimizedSearch hooks', () => {
       expect(duration).toBeLessThan(200);
     });
 
-    it('should return empty results for short search terms', async () => {
+    it('should return empty results for short search terms', () => {
       const { result } = renderHook(
         () => useGlobalSearch('a'), // Too short
         { wrapper: createWrapper() }
       );
 
-      await waitFor(() => {
-        expect(result.current.isSuccess).toBe(true);
-      });
-
-      expect(result.current.data).toEqual({
-        dogs: [],
-        users: [],
-        shows: [],
-        clubs: [],
-        total: 0
-      });
+      // Query is disabled for short terms, so fetchStatus is 'idle'
+      expect(result.current.fetchStatus).toBe('idle');
+      expect(mockSearchDogs).not.toHaveBeenCalled();
+      expect(mockSearchUsers).not.toHaveBeenCalled();
+      expect(mockSearchShows).not.toHaveBeenCalled();
+      expect(mockSearchClubs).not.toHaveBeenCalled();
     });
   });
 
@@ -531,7 +543,7 @@ describe('useOptimizedSearch hooks', () => {
     it('should handle rapid search term changes', async () => {
       const { result, rerender } = renderHook(
         ({ searchTerm }) => useOptimizedDogSearch(searchTerm),
-        { 
+        {
           wrapper: createWrapper(),
           initialProps: { searchTerm: 'lab' }
         }
@@ -547,43 +559,35 @@ describe('useOptimizedSearch hooks', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
-      // Should have debounced and only made one call for the final term
+      // The final search term should have been searched
       expect(mockSearchDogs).toHaveBeenCalledWith('labrador');
     });
 
-    it('should handle search deduplication', async () => {
-      let deduplicationCallCount = 0;
-      mockUseSearchDeduplication.mockReturnValue(() => {
-        deduplicationCallCount++;
-        return deduplicationCallCount === 1; // Only allow first call
-      });
+    it('should handle search deduplication', () => {
+      // Configure deduplication to reject all updates after initialization
+      mockUseSearchDeduplication.mockReturnValue(() => false);
 
-      const { result } = renderHook(
-        () => useOptimizedDogSearch('duplicate'),
-        { wrapper: createWrapper() }
+      const { rerender } = renderHook(
+        ({ searchTerm }) => useOptimizedDogSearch(searchTerm),
+        {
+          wrapper: createWrapper(),
+          initialProps: { searchTerm: 'initial' }
+        }
       );
 
-      // Should not execute search due to deduplication
-      expect(result.current.isIdle).toBe(true);
-      expect(mockSearchDogs).not.toHaveBeenCalled();
+      // Change the search term - deduplication blocks the update
+      rerender({ searchTerm: 'updated' });
+
+      // The debounced search term stays at 'initial' (from initialization),
+      // not 'updated' (which was blocked by deduplication), so the query
+      // runs with the initial term
+      expect(mockSearchDogs).toHaveBeenCalledWith('initial');
     });
 
     it('should maintain placeholder data during loading', async () => {
-      const previousData = { 
-        data: [{ id: '1', name: 'Previous Dog' }], 
-        total: 1,
-        hasMore: false,
-        page: 1,
-        pageSize: 25
-      };
-
-      // Set up previous successful query
-      queryClient = new QueryClient();
-      queryClient.setQueryData(['dogs', 'search', 'previous', 'page', 1, 'limit', 25], previousData);
-
       const { result, rerender } = renderHook(
         ({ searchTerm }) => useOptimizedDogSearch(searchTerm),
-        { 
+        {
           wrapper: createWrapper(),
           initialProps: { searchTerm: 'previous' }
         }
@@ -593,10 +597,20 @@ describe('useOptimizedSearch hooks', () => {
         expect(result.current.isSuccess).toBe(true);
       });
 
+      const previousData = result.current.data;
+
+      // Set up a slow response for the next search
+      mockSearchDogs.mockImplementation(() =>
+        new Promise(resolve => setTimeout(() => resolve({
+          data: [{ id: '2', name: 'New Dog' }],
+          error: null
+        }), 500))
+      );
+
       // Change search term
       rerender({ searchTerm: 'newterm' });
 
-      // Should show placeholder data while loading new results
+      // Should show placeholder data (previous results) while loading new results
       expect(result.current.data).toEqual(previousData);
     });
 

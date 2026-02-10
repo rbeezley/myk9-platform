@@ -112,7 +112,7 @@ describe('IndexedDB Integration Verification', () => {
   it('should import database schema without errors', async () => {
     const schema = await import('../schema');
     expect(schema.DATABASE_NAME).toBe('myK9ShowDB');
-    expect(schema.DATABASE_VERSION).toBe(2); // Updated version in schema
+    expect(schema.DATABASE_VERSION).toBe(4); // Updated version in schema
     expect(schema.STORES).toBeDefined();
     expect(schema.generateDexieSchema).toBeDefined();
   });

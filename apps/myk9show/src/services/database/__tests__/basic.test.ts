@@ -13,7 +13,7 @@ describe('Phase 1 Infrastructure', () => {
     const schema = await import('../schema');
     expect(schema).toBeDefined();
     expect(schema.DATABASE_NAME).toBe('myK9ShowDB');
-    expect(schema.DATABASE_VERSION).toBe(2);
+    expect(schema.DATABASE_VERSION).toBe(4);
   });
   
   it('should generate Dexie schema', async () => {

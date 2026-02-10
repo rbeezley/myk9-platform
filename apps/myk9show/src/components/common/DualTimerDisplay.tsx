@@ -145,6 +145,7 @@ export function DualTimerDisplay({
           size={isLarge ? "lg" : "default"}
           onClick={timer.isRunning ? timer.stop : timer.start}
           disabled={disabled || timer.isExpired}
+          aria-label={timer.isRunning ? 'Pause' : 'Resume'}
           className={cn(
             'min-w-[44px] h-[44px] border-gray-600 text-gray-300 hover:text-white',
             isLarge && 'min-w-[60px] h-[60px]',
@@ -203,6 +204,7 @@ export function DualTimerDisplay({
           size={isLarge ? "lg" : "default"}
           onClick={timer.reset}
           disabled={disabled || (timer.searchTime === 0 && !timer.isRunning)}
+          aria-label="Reset"
           className={cn(
             'min-w-[44px] h-[44px] border-gray-600 text-gray-300 hover:text-white',
             isLarge && 'min-w-[60px] h-[60px]'

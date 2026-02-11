@@ -47,8 +47,9 @@ pnpm-debug.log*
 .cache/
 
 # Claude Code
-.claude/
-!.claude/skills/
+**/.claude/*
+!**/.claude/skills/
+!**/.claude/commands/
 supabase/.temp/
 **/supabase/.temp/
 

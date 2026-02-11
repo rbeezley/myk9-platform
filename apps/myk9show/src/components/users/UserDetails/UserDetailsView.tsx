@@ -18,7 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useRBAC } from '@/hooks/useRBAC';
-import { useEnhancedAuth } from '@/hooks/useEnhancedAuth';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { useRoleBasedPeople } from '@/hooks/useRoleBasedData';
 import { getInitials } from '@/lib/utils';
 import type { JudgeQualification } from '@/types/judge-types';
@@ -31,7 +31,7 @@ interface UserDetailsViewProps {
 
 const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   const navigate = useNavigate();
-  const { user: currentUser } = useEnhancedAuth();
+  const { user: currentUser } = useAuthContext();
   const { hasPermission } = useRBAC();
   useUserStore();
   const updateUserMutation = useUpdateUserMutation();

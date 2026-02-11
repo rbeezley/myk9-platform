@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useEnhancedAuth } from './useEnhancedAuth';
+import { useAuthContext } from './useAuthContext';
 import { rbacService } from '@/services/rbac/RBACService';
 import {
   // UserPermissionsResponse, // Not used
@@ -23,7 +23,7 @@ import {
  * Main RBAC hook for permission checking and role management
  */
 export function useRBAC(options: UseRBACOptions = {}): RBACContextValue {
-  const { user } = useEnhancedAuth();
+  const { user } = useAuthContext();
   const {
     refreshInterval = 5 * 60 * 1000, // 5 minutes
     cacheTimeout = 5 * 60 * 1000, // 5 minutes
@@ -246,7 +246,7 @@ export function usePermission(
   isLoading: boolean;
   checkPermission: () => Promise<boolean>;
 } {
-  const { user } = useEnhancedAuth();
+  const { user } = useAuthContext();
   const [hasPermission, setHasPermission] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -363,7 +363,7 @@ export function useScopedPermissions(
  * while adding database-driven functionality
  */
 export function useRoleBasedPermissions() {
-  const { user } = useEnhancedAuth();
+  const { user } = useAuthContext();
   const rbac = useRBAC();
 
   // Maintain backward compatibility with existing auth context

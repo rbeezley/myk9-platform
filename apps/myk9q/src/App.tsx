@@ -10,7 +10,6 @@ import { ScoresheetErrorBoundary } from './components/ScoresheetErrorBoundary';
 import { PageLoader, ScoresheetLoader } from './components/LoadingSpinner';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 // UI components moved to MainLayout
-import { useOneHandedMode } from './hooks/useOneHandedMode';
 import { useAutoLogout } from './hooks/useAutoLogout';
 import { usePushNotificationAutoSwitch } from './hooks/usePushNotificationAutoSwitch';
 import { useOfflineQueueProcessor } from './hooks/useOfflineQueueProcessor';
@@ -227,7 +226,6 @@ function AppWithAuth() {
   const { showContext } = useAuth();
 
   // Apply one-handed mode globally
-  useOneHandedMode();
 
   // Apply global haptic feedback for all button clicks
   useGlobalHaptic();

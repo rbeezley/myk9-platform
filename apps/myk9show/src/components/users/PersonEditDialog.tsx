@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Plus, X, Award } from 'lucide-react';
-import { useEnhancedAuth } from '@/hooks/useEnhancedAuth';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { useRBAC } from '@/hooks/useRBAC';
 import type { JudgeQualification } from '@/types/judge-types';
 
@@ -56,7 +56,7 @@ const PersonEditDialog: React.FC<PersonEditDialogProps> = ({
   showNameField = false,
   userId,
 }) => {
-  const { user: currentUser } = useEnhancedAuth();
+  const { user: currentUser } = useAuthContext();
   const { hasPermission } = useRBAC();
 
   const [showQualifications, setShowQualifications] = useState(false);

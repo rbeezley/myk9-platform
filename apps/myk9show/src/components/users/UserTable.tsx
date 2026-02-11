@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
 import { User } from '@/types/dog-types';
-import { useEnhancedAuth } from '@/hooks/useEnhancedAuth';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { useRBAC } from '@/hooks/useRBAC';
 import ThreeDotMenu from '../common/ThreeDotMenu';
 
@@ -20,7 +20,7 @@ const PersonRow: React.FC<{
   onDelete: (person: User) => void;
   onManageQualifications?: (person: User) => void;
 }> = React.memo(({ person, onView, onEdit, onDelete, onManageQualifications }) => {
-  const { user: currentUser } = useEnhancedAuth();
+  const { user: currentUser } = useAuthContext();
   const { hasPermission } = useRBAC();
   
   // Check if current user can manage this person's judge qualifications

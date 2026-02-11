@@ -11,8 +11,8 @@ vi.mock('@/hooks/useRBAC', () => ({
   })
 }));
 
-vi.mock('@/hooks/useEnhancedAuth', () => ({
-  useEnhancedAuth: () => ({
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => ({
     user: { id: 'current-user-id' }
   })
 }));

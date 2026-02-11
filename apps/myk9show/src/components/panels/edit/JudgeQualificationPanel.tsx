@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Plus, X, Award, Save } from 'lucide-react';
-import { useEnhancedAuth } from '@/hooks/useEnhancedAuth';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { useRBAC } from '@/hooks/useRBAC';
 import type { JudgeQualification } from '@/types/user-types';
 import { cn } from '@/lib/utils';
@@ -48,7 +48,7 @@ export const JudgeQualificationPanel: React.FC<JudgeQualificationPanelProps> = (
   initialQualifications = [],
   onSave
 }) => {
-  const { user: currentUser } = useEnhancedAuth();
+  const { user: currentUser } = useAuthContext();
   const { hasPermission } = useRBAC();
   
   // Local state for qualifications

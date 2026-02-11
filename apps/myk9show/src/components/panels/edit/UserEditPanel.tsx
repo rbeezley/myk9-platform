@@ -12,7 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { User, MapPin, Phone, Award, Settings, Camera } from 'lucide-react';
 import ProfilePhotoDialog from '@/components/users/ProfilePhotoDialog';
-import { useEnhancedAuth } from '@/hooks/useEnhancedAuth';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { useRBAC } from '@/hooks/useRBAC';
 import type { User as UserType, UserRole, JudgeQualification } from '@/types/user-types';
 import { cn } from '@/lib/utils';
@@ -179,7 +179,7 @@ const formDataToUser = (formData: UserFormData): Partial<UserType> => ({
 // Form content component
 const UserEditForm: React.FC = () => {
   const { data, updateData, errors } = useEditPanel<UserFormData>();
-  const { user: currentUser } = useEnhancedAuth();
+  const { user: currentUser } = useAuthContext();
   const { hasPermission } = useRBAC();
   
   // Judge qualifications panel state

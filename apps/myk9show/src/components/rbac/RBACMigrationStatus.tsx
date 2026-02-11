@@ -18,7 +18,20 @@ import {
   RefreshCw,
   Info
 } from 'lucide-react';
-import { useMigratedAuth, useEnhancedAuth } from '@/hooks/useEnhancedAuth';
+import { useAuthContext } from '@/hooks/useAuthContext';
+
+function useMigratedAuth() {
+  const context = useAuthContext();
+  const isMigrated = context.dbRoles.length > 0;
+  return {
+    isMigrated,
+    isLoading: context.rbacLoading,
+    error: context.rbacError,
+    migrationStatus: context.rbacError ? 'error' : (isMigrated ? 'completed' : 'pending') as 'pending' | 'in_progress' | 'completed' | 'failed' | 'error',
+    useDatabase: isMigrated,
+    isLegacy: !isMigrated
+  };
+}
 
 interface RBACMigrationStatusProps {
   className?: string;
@@ -30,7 +43,7 @@ export const RBACMigrationStatus: React.FC<RBACMigrationStatusProps> = ({
   showDetails = false
 }) => {
   const { migrationStatus, useDatabase, isLegacy } = useMigratedAuth();
-  const { dbRoles, rbacError, refreshPermissions } = useEnhancedAuth();
+  const { dbRoles, rbacError, refreshPermissions } = useAuthContext();
 
   const getStatusInfo = () => {
     switch (migrationStatus) {

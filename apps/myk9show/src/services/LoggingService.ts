@@ -28,6 +28,14 @@ const getLogEndpoint = (): string | undefined => {
   }
 };
 
+const getAnonKey = (): string | undefined => {
+  try {
+    return typeof import.meta !== 'undefined' ? import.meta.env?.VITE_SUPABASE_ANON_KEY : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
 export enum LogLevel {
   DEBUG = 0,
   INFO = 1,
@@ -101,9 +109,11 @@ class RemoteTransport implements LogTransport {
   private flushInterval: number;
   private maxBufferSize = 100;
   private endpoint: string;
+  private apiKey?: string;
 
-  constructor(endpoint: string, flushIntervalMs = 30000) {
+  constructor(endpoint: string, apiKey?: string, flushIntervalMs = 30000) {
     this.endpoint = endpoint;
+    if (apiKey) this.apiKey = apiKey;
     this.flushInterval = window.setInterval(() => {
       this.flush();
     }, flushIntervalMs);
@@ -124,11 +134,17 @@ class RemoteTransport implements LogTransport {
     this.buffer = [];
 
     try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (this.apiKey) {
+        headers['apikey'] = this.apiKey;
+        headers['Authorization'] = `Bearer ${this.apiKey}`;
+      }
+
       await fetch(this.endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           entries,
           source: 'frontend',
@@ -230,7 +246,7 @@ export class LoggingService {
     // Remote transport for production
     const logEndpoint = getLogEndpoint();
     if (isProd() && logEndpoint) {
-      this.transports.push(new RemoteTransport(logEndpoint));
+      this.transports.push(new RemoteTransport(logEndpoint, getAnonKey()));
     }
 
     // Local storage transport for offline capability (only in browser)

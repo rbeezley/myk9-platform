@@ -4,12 +4,6 @@ Items to address in future sessions.
 
 ---
 
-## Configure Production Logging Endpoint - 2026-01-12 07:53
-
-- **Configure RemoteTransport for production logging** - Set up external logging endpoint for production environment. **Problem:** LoggingService has RemoteTransport built in but it's not configured - logs only go to localStorage currently, meaning no centralized visibility into production errors/issues. **Files:** `apps/myk9show/src/services/LoggingService.ts:72-129` (RemoteTransport class), `.env.production` (needs `VITE_LOG_ENDPOINT`). **Solution:** Options include: (1) Supabase Edge Function to receive logs, (2) Third-party service like Sentry/LogRocket/DataDog, or (3) Custom endpoint. Need to decide on approach and configure `VITE_LOG_ENDPOINT` environment variable.
-
----
-
 ## Fix Type/Schema Mismatches (29 files with @ts-nocheck) - 2026-02-11 15:14
 
 - **Fix RBAC system type errors** - 3 RBAC service files have @ts-nocheck due to database migration mismatch. **Problem:** After RBAC database migration, TypeScript types no longer match the actual DB schema, blocking type safety for permission checking, role management, and audit logging. **Files:** `apps/myk9show/src/services/rbac/PermissionChecker.ts:3,167`, `apps/myk9show/src/services/rbac/RoleManager.ts:3`, `apps/myk9show/src/services/rbac/AuditLogger.ts:3`. **Solution:** Update Supabase generated types or adjust mapper logic to match current DB schema.

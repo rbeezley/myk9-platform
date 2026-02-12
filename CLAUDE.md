@@ -226,6 +226,15 @@ Always run typecheck (`pnpm typecheck`) and lint (`pnpm lint`) before committing
 
 When refactoring files into modules, verify all imports/exports are correct and no unused imports remain before considering the task complete.
 
+### Post-Refactoring Checklist
+
+After any file refactoring or extraction, run this checklist before reporting completion:
+
+1. `pnpm typecheck` passes with zero errors
+2. No stale imports reference the old file (search for `from.*old-filename` across `src/`)
+3. No unused imports or variables remain in modified files
+4. All extracted modules have proper TypeScript types (no `any`)
+
 ## Testing
 
 When test runners hang or appear stuck for more than 30 seconds, stop and report the issue rather than retrying in a loop. Known issue: test suite has pre-existing timeout/hanging problems.

@@ -12,12 +12,39 @@ This skill should be used when the user wants to commit changes, push to GitHub,
 
 ### Step 1: Quality Checks
 
-Run both in parallel. If either fails, STOP and fix errors before proceeding.
+Run both in parallel. If either fails, fix errors and re-run. Maximum 5 fix iterations — if still failing after 5 attempts, stop and report what's unresolved.
 
 ```bash
 pnpm typecheck
 pnpm lint
 ```
+
+### Step 1b: Run Related Tests
+
+Identify test files related to the modified source files:
+- For `src/components/Foo.tsx` → look for `Foo.test.tsx`, `Foo.test.ts`
+- For `src/services/Bar.ts` → look for `Bar.test.ts`
+- For `src/hooks/useBaz.ts` → look for `useBaz.test.ts`
+
+If related test files exist, run them:
+
+```bash
+# myK9Show tests
+cd apps/myk9show && pnpm vitest run <test-file> --reporter=verbose
+
+# myK9Q tests
+cd apps/myk9q && pnpm vitest run <test-file> --reporter=verbose
+```
+
+If tests fail:
+1. Read the failure output carefully
+2. Fix the root cause (not just symptoms)
+3. Re-run the failing tests
+4. Maximum 5 fix iterations — stop and report if still failing
+
+If no related test files exist, skip this step (don't create tests during a commit).
+
+**Known flaky tests to ignore:** PresenceService.test.ts, PerformanceService.test.ts (see MEMORY.md for details).
 
 ### Step 2: Review Changes
 
@@ -87,6 +114,9 @@ Report the commit hash and confirm push succeeded.
 
 - NEVER skip quality checks
 - NEVER commit if checks fail — fix first
+- Maximum 5 fix iterations per check (typecheck, lint, tests) — if still failing, stop and report
 - ALWAYS push after committing (per project convention)
 - Use HEREDOC for commit messages
 - Include `Co-Authored-By` trailer for AI-assisted commits
+- Do NOT create new test files during a commit — only run existing ones
+- Ignore known flaky tests (see MEMORY.md pre-existing failures list)

@@ -10,19 +10,19 @@ Items to address in future sessions.
 
 ---
 
-## Fix Type/Schema Mismatches (28 files with @ts-nocheck) - 2026-02-11 15:14
+## Fix Type/Schema Mismatches (29 files with @ts-nocheck) - 2026-02-11 15:14
 
 - **Fix RBAC system type errors** - 3 RBAC service files have @ts-nocheck due to database migration mismatch. **Problem:** After RBAC database migration, TypeScript types no longer match the actual DB schema, blocking type safety for permission checking, role management, and audit logging. **Files:** `apps/myk9show/src/services/rbac/PermissionChecker.ts:3,167`, `apps/myk9show/src/services/rbac/RoleManager.ts:3`, `apps/myk9show/src/services/rbac/AuditLogger.ts:3`. **Solution:** Update Supabase generated types or adjust mapper logic to match current DB schema.
 
 - **Fix mapper type mismatches** - 7 mapper files have @ts-nocheck due to DB schema drift. **Problem:** Mapper files expect columns/tables that don't exist or have different shapes than what's in the database (show_registration, judge tables, health tables, templates, class columns, dog_registrations, exhibitor fields). **Files:** `apps/myk9show/src/services/mappers/showManagementMappers.ts:3,14`, `apps/myk9show/src/services/mappers/judgeMappers.ts:3`, `apps/myk9show/src/services/mappers/healthMappers.ts:3`, `apps/myk9show/src/services/mappers/templateMappers.ts:3`, `apps/myk9show/src/services/mappers/classMappers.ts:3`, `apps/myk9show/src/services/mappers/registrationMappers.ts:3`, `apps/myk9show/src/services/exhibitorService.ts:3`. **Solution:** Regenerate Supabase types, then fix each mapper to match actual schema. Health tables may need migration first.
 
-- **Fix Zustand/service generic type inference** - 5 files broken after Zustand upgrade. **Problem:** Generic type inference changed after Zustand version upgrade, causing type errors in stores and services that use generics. **Files:** `apps/myk9show/src/store/showRegistrationStore.ts:3`, `apps/myk9show/src/store/enhanced/showScopedDogStore.ts:16`, `apps/myk9show/src/services/testing/LoadTestService.ts:3`, `apps/myk9show/src/services/optimistic/OptimisticUIService.ts:3`, `apps/myk9show/src/services/database/batchOperations.ts:3`. **Solution:** Update generic type parameters to match new Zustand API signatures.
+- **Fix Zustand/service generic type inference** - 4 files with @ts-nocheck broken after Zustand upgrade. **Problem:** Generic type inference changed after Zustand version upgrade, causing type errors in stores and services that use generics. **Files:** `apps/myk9show/src/store/showRegistrationStore.ts:3`, `apps/myk9show/src/services/testing/LoadTestService.ts:3`, `apps/myk9show/src/services/optimistic/OptimisticUIService.ts:3`, `apps/myk9show/src/services/database/batchOperations.ts:3`. **Solution:** Update generic type parameters to match new Zustand API signatures. Note: `showScopedDogStore.ts` is a placeholder with a TODO, not @ts-nocheck.
 
 - **Fix entry management query types** - 5 entry/scratch/moveup files need secretaryEntryQueries and dayOfOperationsQueries types fixed. **Problem:** Query return types don't match what components expect, blocking type checking for core secretary workflows. **Files:** `apps/myk9show/src/hooks/useEntryManagementActions.ts:3`, `apps/myk9show/src/hooks/useEntryManagementData.ts:3`, `apps/myk9show/src/pages/secretary/EntryManagementPage.tsx:3`, `apps/myk9show/src/components/entries/MoveUpRequestsTab.tsx:3`, `apps/myk9show/src/components/entries/ScratchManagementTab.tsx:3`. **Solution:** Fix secretaryEntryQueries and dayOfOperationsQueries return types to match actual DB responses.
 
-- **Fix waitlist management query types** - 3 waitlist files need waitlistQueries types fixed. **Problem:** Waitlist query types don't match component expectations. **Files:** `apps/myk9show/src/pages/secretary/WaitlistManagementPage/useWaitlistManagementData.ts:3`, `apps/myk9show/src/pages/secretary/WaitlistManagementPage/ShowClassSelection.tsx:3`, `apps/myk9show/src/pages/secretary/WaitlistManagementPage/ClassStatsCards.tsx:3`.
+- **Fix waitlist management query types** - 5 waitlist files need types fixed. **Problem:** Waitlist query types don't match component expectations. **Files:** `apps/myk9show/src/pages/secretary/WaitlistManagementPage/useWaitlistManagementData.ts:3`, `apps/myk9show/src/pages/secretary/WaitlistManagementPage/ShowClassSelection.tsx:3`, `apps/myk9show/src/pages/secretary/WaitlistManagementPage/ClassStatsCards.tsx:3`, `apps/myk9show/src/pages/secretary/WaitlistManagementPage/WaitlistActionDialog.tsx`, `apps/myk9show/src/pages/secretary/WaitlistManagementPage/WaitlistTable.tsx`.
 
-- **Fix remaining type issues** - armbandUtils missing import, templateIntegrationExample types. **Problem:** Minor type issues in utility files. **Files:** `apps/myk9show/src/lib/armbandUtils.ts:5`, `apps/myk9show/src/services/templates/templateIntegrationExample.ts:3`.
+- **Fix remaining TODO items** - armbandUtils has a TODO for missing import. **Problem:** Minor TODO in utility file (not @ts-nocheck). **Files:** `apps/myk9show/src/lib/armbandUtils.ts:5`.
 
 ---
 
@@ -117,3 +117,25 @@ Use `/refactor <file-path>` for each file. Work through sequentially via `/sprin
 - **Remove event_statistics table guard** - Guard blocks nationals feature. **Problem:** Temporary guard prevents event_statistics operations until migration runs; blocks nationals scoring feature. Medium priority. **Files:** `apps/myk9q/src/services/replication/tables/ReplicatedEventStatisticsTable.ts:217`. **Solution:** Run event_statistics migration, then remove the guard.
 
 - **Implement analytics integration** - Performance monitoring has no external analytics. **Problem:** Performance data is collected but not sent anywhere useful. Low priority - nice-to-have. **Files:** `apps/myk9q/src/utils/performanceMonitoring.ts:323`. **Solution:** Integrate with Google Analytics, Sentry, or similar.
+
+---
+
+## Gate Debug Utilities Behind Dev-Only (2 files) - 2026-02-12
+
+- **Gate or relocate debug utilities** - 87 console statements in debug utilities ship to production. **Problem:** `entryDebug.ts` and `testDatabaseConnections.ts` contain extensive console logging intended for development use but included in production bundle. **Files:** `apps/myk9q/src/utils/entryDebug.ts`, `apps/myk9q/src/utils/testDatabaseConnections.ts`. **Solution:** Gate behind `import.meta.env.DEV` check, move to `scripts/`, or tree-shake via dead code elimination.
+
+---
+
+## Refactor Additional Large Files (32 files, 790-1210 lines) - 2026-02-12
+
+Priority files not yet tracked in the refactoring backlog. See `docs/AUDIT-REPORT.md` section 4 for the full list.
+
+- **Refactor EntryList.tsx (1,070 lines)** - myK9Q production page component. **Problem:** Entry list rendering, filtering, sorting, and actions all in one file. NOTE: myK9Q is production — extra care needed. **Files:** `apps/myk9q/src/pages/EntryList/EntryList.tsx`. **Solution:** Extract filter bar, entry cards, and action handlers.
+
+- **Refactor MaxTimeDialog.tsx (806 lines)** - myK9Q production dialog. **Problem:** Timer UI, configuration, and submission logic coupled in one file. NOTE: myK9Q is production. **Files:** `apps/myk9q/src/components/dialogs/MaxTimeDialog.tsx`. **Solution:** Extract timer display, configuration panel, and submission logic.
+
+- **Refactor ask-myk9q Edge Function (1,210 lines)** - Supabase Edge Function. **Problem:** Prompt construction, rule lookups, and response formatting all in one file. **Files:** `apps/myk9q/supabase/functions/ask-myk9q/index.ts`. **Solution:** Extract prompt builder, rule lookup, and response formatter modules.
+
+- **Refactor statsDataHelpers.ts (947 lines)** - myK9Q data helpers. **Problem:** Multiple unrelated stat calculations in one file. **Files:** `apps/myk9q/src/pages/Stats/hooks/statsDataHelpers.ts`. **Solution:** Split by stat category (event stats, dog stats, title tracking).
+
+- **Refactor useClassListData.ts (790 lines)** - myK9Q production hook. **Problem:** Data fetching, caching, and derived state in one hook. **Files:** `apps/myk9q/src/pages/ClassList/hooks/useClassListData.ts`. **Solution:** Split into data fetching hook and derived state hook.

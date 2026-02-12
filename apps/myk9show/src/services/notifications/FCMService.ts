@@ -349,7 +349,7 @@ export class FCMService {
       } });
     } catch (error) {
       // Don't report tracking errors to avoid noise
-      console.debug('Failed to track notification event:', error);
+      logger.debug('Failed to track notification event', 'notifications', {}, error as Error);
     }
   }
 

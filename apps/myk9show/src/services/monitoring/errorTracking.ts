@@ -74,7 +74,7 @@ class ErrorTracker {
       });
 
       this.isInitialized = true;
-      console.info('📊 Error tracking initialized');
+      logger.info('Error tracking initialized', 'services');
 
       // Process queued errors
       this.processErrorQueue();
@@ -242,7 +242,7 @@ class ErrorTracker {
   private processErrorQueue() {
     if (this.errorQueue.length === 0) return;
 
-    console.info(`Processing ${this.errorQueue.length} queued errors`);
+    logger.info(`Processing ${this.errorQueue.length} queued errors`, 'services');
     
     this.errorQueue.forEach(report => {
       this.sendToErrorService(report);

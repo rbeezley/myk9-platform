@@ -23,9 +23,9 @@ export interface MockSyncQueueItem {
  * @deprecated Use @myk9/replication ReplicatedTable instead
  */
 export class MockSyncService {
-  async addToQueue(item: MockSyncQueueItem): Promise<string> {
+  async addToQueue(_item: MockSyncQueueItem): Promise<string> {
     // No-op stub - stores now use replicated tables directly
-    console.debug('[DEPRECATED] Mock sync service addToQueue - use @myk9/replication', item.entityType);
+    // No-op: deprecated in favor of @myk9/replication
     return `mock-queue-${Date.now()}`;
   }
 
@@ -40,12 +40,12 @@ export class MockSyncService {
 
   async processQueue(): Promise<void> {
     // No-op stub
-    console.debug('[DEPRECATED] Mock sync service processQueue - use @myk9/replication');
+    // No-op: deprecated in favor of @myk9/replication
   }
 
   async clearQueue(): Promise<void> {
     // No-op stub
-    console.debug('[DEPRECATED] Mock sync service clearQueue - use @myk9/replication');
+    // No-op: deprecated in favor of @myk9/replication
   }
 }
 

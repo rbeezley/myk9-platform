@@ -60,7 +60,7 @@ const RoleListPage: React.FC = () => {
 
   const filteredRoles = roles.filter(role =>
     role.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    role.display_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (role.display_name || role.name).toLowerCase().includes(searchTerm.toLowerCase()) ||
     (role.description || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -151,7 +151,7 @@ const RoleListPage: React.FC = () => {
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <CardTitle className="text-lg">{role.display_name}</CardTitle>
+                  <CardTitle className="text-lg">{role.display_name || role.name}</CardTitle>
                   <CardDescription className="mt-1">
                     <code className="text-xs bg-muted px-1 py-0.5 rounded">
                       {role.name}
@@ -193,7 +193,7 @@ const RoleListPage: React.FC = () => {
                       {!role.is_system && (
                         <DropdownMenuItem 
                           className="text-destructive focus:text-destructive"
-                          onClick={() => handleDeleteRole(role.id, role.display_name)}
+                          onClick={() => handleDeleteRole(role.id, role.display_name || role.name)}
                         >
                           <Trash2 className="h-4 w-4 mr-2" />
                           Delete Role
@@ -248,10 +248,8 @@ const RoleListPage: React.FC = () => {
 
                 {/* Metadata */}
                 <div className="text-xs text-muted-foreground space-y-1">
-                  <div>Created: {new Date(role.created_at).toLocaleDateString()}</div>
-                  {role.updated_at && role.updated_at !== role.created_at && (
-                    <div>Updated: {new Date(role.updated_at).toLocaleDateString()}</div>
-                  )}
+                  <div>Created: {role.created_at ? new Date(role.created_at).toLocaleDateString() : 'N/A'}</div>
+                  {/* Note: roles table has no updated_at column */}
                 </div>
               </div>
             </CardContent>

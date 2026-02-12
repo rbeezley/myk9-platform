@@ -49,32 +49,38 @@ export const PermissionGrid: React.FC<PermissionGridProps> = ({
   const [resourceFilter, setResourceFilter] = useState<string>('all');
   const [expandedResources, setExpandedResources] = useState<Set<string>>(new Set(['show', 'entry']));
 
+  // Helper to get resource from permission (from code or resource field)
+  const getResource = (p: Permission) => p.resource || p.code?.split(':')[0] || 'other';
+  const getAction = (p: Permission) => p.action || p.code?.split(':')[1] || '';
+  const getDisplayName = (p: Permission) => p.display_name || p.name;
+
   // Get unique resources for filter
   const resources = useMemo(() => {
-    const uniqueResources = [...new Set(permissions.map(p => p.resource))].sort();
+    const uniqueResources = [...new Set(permissions.map(p => getResource(p)))].sort();
     return uniqueResources;
   }, [permissions]);
 
   // Filter and group permissions
   const filteredPermissions = useMemo(() => {
     return permissions.filter(permission => {
-      const matchesSearch = searchTerm === '' || 
+      const matchesSearch = searchTerm === '' ||
         permission.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        permission.display_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        permission.resource.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesResource = resourceFilter === 'all' || permission.resource === resourceFilter;
-      
+        getDisplayName(permission).toLowerCase().includes(searchTerm.toLowerCase()) ||
+        getResource(permission).toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchesResource = resourceFilter === 'all' || getResource(permission) === resourceFilter;
+
       return matchesSearch && matchesResource;
     });
   }, [permissions, searchTerm, resourceFilter]);
 
   const permissionsByResource = useMemo(() => {
     const grouped = filteredPermissions.reduce((acc, permission) => {
-      if (!acc[permission.resource]) {
-        acc[permission.resource] = [];
+      const resource = getResource(permission);
+      if (!acc[resource]) {
+        acc[resource] = [];
       }
-      acc[permission.resource].push(permission);
+      acc[resource].push(permission);
       return acc;
     }, {} as Record<string, Permission[]>);
 
@@ -82,14 +88,14 @@ export const PermissionGrid: React.FC<PermissionGridProps> = ({
     Object.keys(grouped).forEach(resource => {
       grouped[resource].sort((a, b) => {
         const actionOrder = ['read', 'create', 'update', 'delete', 'manage', 'admin'];
-        const aIndex = actionOrder.indexOf(a.action);
-        const bIndex = actionOrder.indexOf(b.action);
-        
+        const aIndex = actionOrder.indexOf(getAction(a));
+        const bIndex = actionOrder.indexOf(getAction(b));
+
         if (aIndex !== -1 && bIndex !== -1) {
           return aIndex - bIndex;
         }
-        
-        return a.action.localeCompare(b.action);
+
+        return getAction(a).localeCompare(getAction(b));
       });
     });
 
@@ -263,7 +269,7 @@ export const PermissionGrid: React.FC<PermissionGridProps> = ({
                           >
                             <div className="pr-4">
                               <div className="font-medium text-sm">
-                                {permission.display_name}
+                                {getDisplayName(permission)}
                               </div>
                               <code className="text-xs bg-muted px-1 py-0.5 rounded">
                                 {permission.name}
@@ -297,7 +303,7 @@ export const PermissionGrid: React.FC<PermissionGridProps> = ({
                                       onCheckedChange={(checked) => 
                                         onPermissionChange(permission.id, !!checked)
                                       }
-                                      disabled={role.is_system && roles.length > 1}
+                                      disabled={(role.is_system ?? false) && roles.length > 1}
                                     />
                                   )}
                                 </div>

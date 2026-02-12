@@ -164,12 +164,12 @@ const CreateRolePage: React.FC = () => {
   const dummyRole: Role = {
     id: 'new',
     name: formData.name || 'new_role',
-    display_name: formData.displayName || 'New Role',
     description: formData.description,
     is_system: false,
-    is_active: true,
+    permissions: null,
     created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
+    display_name: formData.displayName || 'New Role',
+    is_active: true,
   };
 
   return (

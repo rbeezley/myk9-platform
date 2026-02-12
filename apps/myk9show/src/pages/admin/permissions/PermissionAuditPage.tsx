@@ -91,24 +91,23 @@ const PermissionAuditPage: React.FC = () => {
 
   // Filter audit logs
   const filteredLogs = auditLogs.filter(log => {
-    const matchesSearch = searchTerm === '' || 
-      (log.actor_email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (log.target_role_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (log.target_permission_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (log.target_user_email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.action_type.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = searchTerm === '' ||
+      (log.action || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (log.target_type || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (log.target_id || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (log.user_id || '').toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesAction = actionFilter === 'all' || log.action_type === actionFilter;
+    const matchesAction = actionFilter === 'all' || log.action === actionFilter;
     
     return matchesSearch && matchesAction;
   });
 
   // Get unique action types for filter
-  const actionTypes = [...new Set(auditLogs.map(log => log.action_type))].sort();
+  const actionTypes = [...new Set(auditLogs.map(log => log.action))].sort();
 
   // Group logs by date
   const logsByDate = filteredLogs.reduce((acc, log) => {
-    const date = new Date(log.created_at).toDateString();
+    const date = new Date(log.created_at || 0).toDateString();
     if (!acc[date]) {
       acc[date] = [];
     }
@@ -267,7 +266,7 @@ const PermissionAuditPage: React.FC = () => {
                 Role Changes
               </p>
               <p className="text-2xl font-bold mt-2 group-hover:text-primary transition-colors duration-300">
-                {auditLogs.filter(log => log.action_type.includes('role')).length}
+                {auditLogs.filter(log => log.action.includes('role')).length}
               </p>
             </div>
             <div className="p-2 bg-gradient-to-br from-green-500/20 to-green-500/10 rounded-xl 
@@ -289,7 +288,7 @@ const PermissionAuditPage: React.FC = () => {
                 Permission Changes
               </p>
               <p className="text-2xl font-bold mt-2 group-hover:text-primary transition-colors duration-300">
-                {auditLogs.filter(log => log.action_type.includes('permission')).length}
+                {auditLogs.filter(log => log.action.includes('permission')).length}
               </p>
             </div>
             <div className="p-2 bg-gradient-to-br from-purple-500/20 to-purple-500/10 rounded-xl 
@@ -311,7 +310,7 @@ const PermissionAuditPage: React.FC = () => {
                 Unique Users
               </p>
               <p className="text-2xl font-bold mt-2 group-hover:text-primary transition-colors duration-300">
-                {new Set(auditLogs.map(log => log.actor_id)).size}
+                {new Set(auditLogs.map(log => log.user_id)).size}
               </p>
             </div>
             <div className="p-2 bg-gradient-to-br from-orange-500/20 to-orange-500/10 rounded-xl 
@@ -409,50 +408,40 @@ const PermissionAuditPage: React.FC = () => {
                       </TableHeader>
                       <TableBody>
                         {logs
-                          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                          .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
                           .map((log) => (
                             <TableRow key={log.id}>
                               <TableCell>
                                 <div className="flex items-center gap-2">
-                                  {getActionIcon(log.action_type)}
-                                  {getActionBadge(log.action_type)}
+                                  {getActionIcon(log.action)}
+                                  {getActionBadge(log.action)}
                                 </div>
                               </TableCell>
                               <TableCell>
                                 <div>
                                   <div className="font-medium">
-                                    {log.actor_email || 'System'}
+                                    {log.user_id ? 'User' : 'System'}
                                   </div>
-                                  {log.actor_id && (
+                                  {log.user_id && (
                                     <div className="text-xs text-muted-foreground font-mono">
-                                      {log.actor_id}
+                                      {log.user_id}
                                     </div>
                                   )}
                                 </div>
                               </TableCell>
                               <TableCell>
                                 <div className="space-y-1">
-                                  {log.target_role_name && (
+                                  {log.target_id && log.target_type && (
                                     <div className="text-sm">
-                                      Role: <span className="font-medium">{log.target_role_name}</span>
-                                    </div>
-                                  )}
-                                  {log.target_permission_name && (
-                                    <div className="text-sm">
-                                      Permission: <span className="font-medium">{log.target_permission_name}</span>
-                                    </div>
-                                  )}
-                                  {log.target_user_email && (
-                                    <div className="text-sm">
-                                      User: <span className="font-medium">{log.target_user_email}</span>
+                                      {log.target_type}: <span className="font-medium font-mono text-xs">{log.target_id}</span>
                                     </div>
                                   )}
                                 </div>
                               </TableCell>
                               <TableCell>
-                                {log.details && typeof log.details === 'object' && (
+                                {log.new_value && typeof log.new_value === 'object' && (
                                   <div className="text-xs">
-                                    {Object.entries(log.details).map(([key, value]) => (
+                                    {Object.entries(log.new_value).map(([key, value]) => (
                                       <div key={key}>
                                         <span className="text-muted-foreground">{key}:</span> {String(value)}
                                       </div>
@@ -462,10 +451,10 @@ const PermissionAuditPage: React.FC = () => {
                               </TableCell>
                               <TableCell>
                                 <div className="text-sm">
-                                  {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
+                                  {log.created_at ? formatDistanceToNow(new Date(log.created_at), { addSuffix: true }) : 'N/A'}
                                 </div>
                                 <div className="text-xs text-muted-foreground">
-                                  {new Date(log.created_at).toLocaleTimeString()}
+                                  {log.created_at ? new Date(log.created_at).toLocaleTimeString() : ''}
                                 </div>
                               </TableCell>
                             </TableRow>

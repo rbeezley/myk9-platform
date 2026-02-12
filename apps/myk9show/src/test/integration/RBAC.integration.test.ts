@@ -169,9 +169,9 @@ describe.skipIf(skipIntegration)('RBAC Integration Tests', () => {
       // Get role with permissions
       const roleWithPermissions = await rbacService.getRoleWithPermissions(testRoleId);
       
-      expect(roleWithPermissions.permissions).toBeDefined();
-      expect(roleWithPermissions.permissions.length).toBeGreaterThan(0);
-      expect(roleWithPermissions.permissions[0].name).toBe('test:permission');
+      expect(roleWithPermissions.permissionList).toBeDefined();
+      expect(roleWithPermissions.permissionList.length).toBeGreaterThan(0);
+      expect(roleWithPermissions.permissionList[0].name).toBe('test:permission');
       
       // Update role permissions
       await rbacService.updateRolePermissions(testRoleId, [testPermissionId]);

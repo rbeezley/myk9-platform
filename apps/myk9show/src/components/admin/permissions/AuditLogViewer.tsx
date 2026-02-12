@@ -121,10 +121,10 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
           enhancedEntries.push({
             id: rbacEntry.id,
             timestamp: new Date(rbacEntry.created_at!),
-            userId: rbacEntry.actor_id || undefined,
-            action: mapRbacActionToAuditAction(rbacEntry.action_type),
-            entityType: 'rbac_permission',
-            entityId: rbacEntry.target_role_id || rbacEntry.target_permission_id || rbacEntry.target_user_id || 'unknown',
+            userId: rbacEntry.user_id || undefined,
+            action: mapRbacActionToAuditAction(rbacEntry.action),
+            entityType: rbacEntry.target_type || 'rbac_permission',
+            entityId: rbacEntry.target_id || 'unknown',
             rbacDetails: rbacEntry
           });
         }
@@ -474,12 +474,9 @@ export const AuditLogViewer: React.FC<AuditLogViewerProps> = ({
                         <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm">
                           <div className="font-medium text-blue-800">RBAC Details:</div>
                           <div className="text-blue-700">
-                            Action: {entry.rbacDetails.action_type}
-                            {entry.rbacDetails.target_role_id && (
-                              <span> • Role: {entry.rbacDetails.target_role_id}</span>
-                            )}
-                            {entry.rbacDetails.target_permission_id && (
-                              <span> • Permission: {entry.rbacDetails.target_permission_id}</span>
+                            Action: {entry.rbacDetails.action}
+                            {entry.rbacDetails.target_id && (
+                              <span> • {entry.rbacDetails.target_type || 'Target'}: {entry.rbacDetails.target_id}</span>
                             )}
                           </div>
                         </div>

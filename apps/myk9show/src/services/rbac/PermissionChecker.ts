@@ -1,10 +1,12 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck
-// TODO: Fix type errors after RBAC database migration (missing RPC functions: user_has_permission, get_user_permissions, get_user_roles, get_effective_permissions)
 /**
  * Permission Checker
  *
  * Handles permission checking with caching for RBAC.
+ * Uses Supabase RPC functions for permission resolution.
+ *
+ * Note: RPC calls use `any` casts because the generated Supabase types
+ * may not include all RPC functions (e.g. user_has_permission from migration 017).
+ * The actual function signatures are validated at runtime by the database.
  */
 
 import { supabase } from '@/lib/supabase';
@@ -15,6 +17,45 @@ import {
   UserPermissionsResponse,
   PermissionError,
 } from '@/types/rbac-types';
+
+// RPC return types matching actual database function signatures
+interface DbUserRole {
+  role_id: string;
+  role_name: string;
+  role_description: string;
+  club_id: string | null;
+  show_id: string | null;
+  granted_at: string;
+  expires_at: string | null;
+}
+
+interface DbUserPermission {
+  category: string;
+  club_id: string | null;
+  permission_code: string;
+  permission_name: string;
+  role_name: string;
+  show_id: string | null;
+}
+
+interface DbEffectivePermission {
+  category: string;
+  permission_code: string;
+  permission_name: string;
+  scope_id: string | null;
+  scope_type: string;
+  source: string;
+}
+
+/**
+ * Helper to call RPC functions that may not be in generated Supabase types.
+ * The generated types don't always include all RPC functions (e.g. those from migration 017).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function rpc(name: string, params: Record<string, unknown>): Promise<{ data: any; error: any }> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (supabase as any).rpc(name, params);
+}
 
 export class PermissionChecker {
   private permissionCache = new Map<string, { hasPermission: boolean; expiresAt: number }>();
@@ -36,11 +77,12 @@ export class PermissionChecker {
         return cached.hasPermission;
       }
 
-      const { data, error } = await supabase.rpc('user_has_permission', {
+      // user_has_permission may not be in generated types but exists in DB (migration 017)
+      const { data, error } = await rpc('user_has_permission', {
         user_id: userId,
         permission_name: permission,
-        scope_type: scope?.type || undefined,
-        scope_id: scope?.id || undefined
+        scope_type: scope?.type ?? null,
+        scope_id: scope?.id ?? null,
       });
 
       if (error) {
@@ -52,13 +94,15 @@ export class PermissionChecker {
         );
       }
 
+      const hasPermission = (data as boolean) || false;
+
       // Cache the result
       this.permissionCache.set(cacheKey, {
-        hasPermission: data || false,
-        expiresAt: Date.now() + this.cacheTimeout
+        hasPermission,
+        expiresAt: Date.now() + this.cacheTimeout,
       });
 
-      return data || false;
+      return hasPermission;
     } catch (error) {
       logger.error('Permission check failed:', 'rbac', {}, error as Error);
       return false;
@@ -70,78 +114,94 @@ export class PermissionChecker {
    */
   async getUserPermissions(
     userId: string,
-    scope?: { type: string; id: string }
+    _scope?: { type: string; id: string }
   ): Promise<UserPermissionsResponse> {
     try {
-      // Get detailed permissions
-      const { data: permissions, error: permError } = await supabase.rpc('get_user_permissions', {
+      // Get detailed permissions via RPC
+      const { data: permissions, error: permError } = await rpc('get_user_permissions', {
         user_id: userId,
-        filter_scope_type: scope?.type,
-        filter_scope_id: scope?.id
       });
 
       if (permError) {
         throw new Error(`Failed to get user permissions: ${permError.message}`);
       }
 
-      // Get user roles
-      const { data: roles, error: rolesError } = await supabase.rpc('get_user_roles', {
-        user_id: userId
+      // Get user roles via RPC
+      const { data: roles, error: rolesError } = await rpc('get_user_roles', {
+        user_id: userId,
       });
 
       if (rolesError) {
         throw new Error(`Failed to get user roles: ${rolesError.message}`);
       }
 
-      // Get effective permissions (with inheritance)
-      const { data: effectivePermissions, error: effectiveError } = await supabase.rpc('get_effective_permissions', {
+      // Get effective permissions via RPC
+      const { data: effectivePermissions, error: effectiveError } = await rpc('get_effective_permissions', {
         user_id: userId,
-        filter_scope_type: scope?.type || undefined,
-        filter_scope_id: scope?.id || undefined
       });
 
       if (effectiveError) {
         throw new Error(`Failed to get effective permissions: ${effectiveError.message}`);
       }
 
-      // Fetch additional user details for roles
-      const roleIds = roles?.map((r: { role_id: string }) => r.role_id) || [];
-      const { data: roleDetails } = await supabase
-        .from('roles')
-        .select('*')
-        .in('id', roleIds);
+      // Map RPC role results to UserRoleWithDetails
+      const typedRoles = (roles ?? []) as DbUserRole[];
+      const rolesWithDetails: UserRoleWithDetails[] = typedRoles.map((userRole) => {
+        const scopeType = userRole.club_id ? 'club' : userRole.show_id ? 'show' : 'global';
+        const scopeId = userRole.club_id || userRole.show_id || null;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const rolesWithDetails: UserRoleWithDetails[] = ((roles || []) as any[]).map((userRole) => ({
-        id: `${userId}-${userRole.role_id}`,
-        user_id: userId,
-        role_id: userRole.role_id,
-        scope_type: userRole.scope_type,
-        scope_id: userRole.scope_id,
-        assigned_by: userRole.assigned_at,
-        assigned_at: userRole.assigned_at,
-        expires_at: userRole.expires_at,
-        is_active: userRole.is_active,
-        user_email: '',
-        assigned_by_email: '',
-        role: roleDetails?.find(r => r.id === userRole.role_id) || {
-          id: userRole.role_id,
-          name: userRole.role_name,
-          display_name: userRole.role_display_name,
-          description: '',
+        return {
+          id: `${userId}-${userRole.role_id}`,
+          user_id: userId,
+          role_id: userRole.role_id,
+          club_id: userRole.club_id,
+          show_id: userRole.show_id,
+          granted_by: null,
+          granted_at: userRole.granted_at,
+          expires_at: userRole.expires_at,
+          scope_type: scopeType,
+          scope_id: scopeId,
           is_active: true,
-          is_system: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          created_by: null,
-          permissions: []
-        }
-      })) as UserRoleWithDetails[];
+          user_email: '',
+          assigned_by_email: '',
+          role: {
+            id: userRole.role_id,
+            name: userRole.role_name,
+            description: userRole.role_description,
+            is_system: null,
+            permissions: null,
+            created_at: null,
+            display_name: userRole.role_name,
+            is_active: true,
+          },
+        };
+      });
+
+      // Map effective permissions
+      const typedEffective = (effectivePermissions ?? []) as DbEffectivePermission[];
+
+      // Map user permissions to PermissionWithRole format
+      const typedPermissions = (permissions ?? []) as DbUserPermission[];
+      const mappedPermissions = typedPermissions.map((p) => {
+        const scopeType = p.club_id ? 'club' : p.show_id ? 'show' : 'global';
+        const scopeId = p.club_id || p.show_id || null;
+        return {
+          permission_id: '',
+          permission_code: p.permission_code,
+          permission_name: p.permission_name,
+          description: null,
+          category: p.category,
+          role_id: '',
+          role_name: p.role_name,
+          scope_type: scopeType,
+          scope_id: scopeId,
+        };
+      });
 
       return {
-        permissions: permissions || [],
+        permissions: mappedPermissions,
         roles: rolesWithDetails,
-        effectivePermissions: effectivePermissions?.map((ep: { permission_name: string }) => ep.permission_name) || []
+        effectivePermissions: typedEffective.map((ep) => ep.permission_code || ep.permission_name),
       };
     } catch (error) {
       logger.error('Failed to get user permissions:', 'rbac', {}, error as Error);
@@ -164,8 +224,13 @@ export class PermissionChecker {
         return hasBasePermission;
       }
 
-      // TODO: Check for organization-specific overrides when DB function exists
-      return hasBasePermission;
+      // Check for organization-scoped permission
+      const hasScopedPermission = await this.checkPermission(userId, permission, {
+        type: 'club',
+        id: organizationId,
+      });
+
+      return hasBasePermission || hasScopedPermission;
     } catch (error) {
       logger.error('Permission check with organization failed:', 'rbac', {}, error as Error);
       return false;
@@ -210,22 +275,25 @@ export class PermissionChecker {
       const directPermissionIds = rolePermissions.map(rp => rp.permission_id);
       const directPermissions = allPermissions.filter(p => directPermissionIds.includes(p.id));
 
-      // Calculate implied permissions
+      // Calculate implied permissions from :manage
       const impliedPermissions: Permission[] = [];
       directPermissions.forEach(permission => {
-        if (permission.action === 'manage') {
+        const code = permission.code || '';
+        if (code.endsWith(':manage')) {
+          const resource = code.split(':')[0];
           const baseActions = ['create', 'read', 'update', 'delete'];
           baseActions.forEach(action => {
             impliedPermissions.push({
-              id: `implied-${permission.resource}-${action}`,
-              name: `${permission.resource}:${action}`,
-              display_name: `${permission.resource.charAt(0).toUpperCase() + permission.resource.slice(1)} ${action.charAt(0).toUpperCase() + action.slice(1)}`,
-              description: `Implied by ${permission.display_name}`,
-              resource: permission.resource,
-              action: action,
-              is_system: permission.is_system,
+              id: `implied-${resource}-${action}`,
+              code: `${resource}:${action}`,
+              name: `${resource.charAt(0).toUpperCase() + resource.slice(1)} ${action.charAt(0).toUpperCase() + action.slice(1)}`,
+              description: `Implied by ${permission.name}`,
+              category: permission.category,
               created_at: permission.created_at,
-              updated_at: permission.updated_at
+              display_name: `${resource.charAt(0).toUpperCase() + resource.slice(1)} ${action.charAt(0).toUpperCase() + action.slice(1)}`,
+              resource: resource,
+              action: action,
+              is_system: permission.is_system ?? false,
             });
           });
         }
@@ -234,7 +302,7 @@ export class PermissionChecker {
       return {
         direct: directPermissions,
         inherited: [],
-        implied: impliedPermissions
+        implied: impliedPermissions,
       };
     } catch (error) {
       logger.error('Failed to get permission inheritance tree:', 'rbac', {}, error as Error);

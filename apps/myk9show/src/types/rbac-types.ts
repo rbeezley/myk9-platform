@@ -4,54 +4,55 @@
  * Created: December 2024
  */
 
-// Database table types
+// Database table types — match actual Supabase schema
 export interface Role {
   id: string;
   name: string;
-  display_name: string;
-  description?: string;
-  is_system: boolean;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-  created_by?: string;
-  updated_by?: string;
+  description: string | null;
+  is_system: boolean | null;
+  permissions: string[] | null;  // DB column: string array
+  created_at: string | null;
+  // Virtual fields (not in DB, computed by app)
+  display_name?: string;
+  is_active?: boolean;
   permission_count?: number;
   user_count?: number;
 }
 
 export interface Permission {
   id: string;
-  name: string;
-  display_name: string;
-  description?: string;
-  resource: string;
-  action: string;
-  is_system: boolean;
-  created_at: string;
-  updated_at?: string;
-  created_by?: string;
-  updated_by?: string;
+  code: string;         // DB column: unique permission code (e.g. "show:manage")
+  name: string;         // DB column: human-readable name
+  description: string | null;
+  category: string | null;
+  created_at: string | null;
+  // Virtual fields (computed from code)
+  display_name?: string;
+  resource?: string;
+  action?: string;
+  is_system?: boolean;
 }
 
 export interface RolePermission {
   id: string;
   role_id: string;
   permission_id: string;
-  granted_by?: string;
-  granted_at: string;
+  created_at: string | null;
 }
 
 export interface UserRole {
   id: string;
   user_id: string;
   role_id: string;
-  scope_type?: string | null;
+  club_id: string | null;
+  show_id: string | null;
+  granted_by: string | null;
+  granted_at: string | null;
+  expires_at: string | null;
+  // Virtual fields (computed by app or RPC)
+  scope_type?: string;
   scope_id?: string | null;
-  assigned_by?: string;
-  assigned_at: string;
-  expires_at?: string | null;
-  is_active: boolean;
+  is_active?: boolean;
   user_email?: string;
   role?: Role;
   assigned_by_email?: string;
@@ -59,44 +60,42 @@ export interface UserRole {
 
 export interface PermissionAuditLog {
   id: string;
-  action_type: string;
-  actor_id?: string;
-  actor_email?: string;
-  target_role_id?: string;
-  target_role_name?: string;
-  target_permission_id?: string;
-  target_permission_name?: string;
-  target_user_id?: string;
-  target_user_email?: string;
-  scope_type?: string;
-  scope_id?: string;
-  details?: Record<string, unknown>;
-  created_at: string;
+  action: string;
+  user_id: string | null;
+  target_id: string | null;
+  target_type: string | null;
+  old_value: Record<string, unknown> | null;
+  new_value: Record<string, unknown> | null;
+  ip_address: string | null;
+  user_agent: string | null;
+  created_at: string | null;
 }
 
 // Extended types with joins
 export interface RoleWithPermissions extends Role {
-  permissions: Permission[];
+  permissionList: Permission[];
 }
 
 export interface UserRoleWithDetails extends UserRole {
   role: Role;
-  assigned_by_user?: {
+  granted_by_user?: {
     id: string;
     email: string;
     name?: string;
   };
 }
 
+// Matches the return type of get_user_permissions RPC
 export interface PermissionWithRole {
+  permission_id: string;
+  permission_code: string;
   permission_name: string;
-  permission_display_name: string;
-  resource: string;
-  action: string;
+  description: string | null;
+  category: string | null;
+  role_id: string;
   role_name: string;
-  role_display_name: string;
-  scope_type?: string;
-  scope_id?: string;
+  scope_type: string;
+  scope_id: string | null;
 }
 
 // Service types
@@ -207,26 +206,9 @@ export interface AuditLogFilter {
 }
 
 export interface AuditLogEntry extends PermissionAuditLog {
-  actor?: {
-    id: string;
-    email: string;
-    name?: string;
-  };
-  target_user?: {
-    id: string;
-    email: string;
-    name?: string;
-  };
-  target_role?: {
-    id: string;
-    name: string;
-    display_name: string;
-  };
-  target_permission?: {
-    id: string;
-    name: string;
-    display_name: string;
-  };
+  // Enriched fields (not in DB, added by app)
+  actor_email?: string;
+  target_display?: string;
 }
 
 // Enum types

@@ -1,10 +1,14 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck
-// TODO: Fix type errors after RBAC database migration (missing RPC functions, Role type mismatch)
 /**
  * Role Manager
  *
  * Handles role CRUD operations and role assignments.
+ * Uses direct table operations (no RPC functions for role management).
+ *
+ * DB tables used:
+ *   roles: id, name, description, is_system, permissions (string[]), created_at
+ *   user_roles: id, user_id, role_id, club_id, show_id, granted_by, granted_at, expires_at
+ *   role_permissions: id, role_id, permission_id, created_at
+ *   permissions: id, code, name, description, category, created_at
  */
 
 import { supabase } from '@/lib/supabase';
@@ -13,6 +17,7 @@ import {
   Role,
   Permission,
   UserRole,
+  RoleWithPermissions,
   AssignRoleRequest,
   RevokeRoleRequest,
   CreateRoleRequest,
@@ -34,35 +39,62 @@ export class RoleManager {
    */
   async assignRole(request: AssignRoleRequest): Promise<string> {
     try {
+      let roleId = request.roleId;
       let roleName = request.roleName;
-      if (!roleName && request.roleId) {
-        const role = await this.getRole(request.roleId);
+
+      if (!roleId && roleName) {
+        const { data: role, error: roleError } = await supabase
+          .from('roles')
+          .select('id')
+          .eq('name', roleName)
+          .single();
+
+        if (roleError || !role) {
+          throw new RoleError(
+            `Role not found: ${roleName}`,
+            roleName,
+            request.userId
+          );
+        }
+        roleId = role.id;
+      } else if (roleId && !roleName) {
+        const role = await this.getRole(roleId);
         roleName = role.name;
       }
 
-      if (!roleName) {
+      if (!roleId || !roleName) {
         throw new Error('Either roleName or roleId must be provided');
       }
 
-      const { data, error } = await supabase.rpc('assign_user_role', {
-        target_user_id: request.userId,
-        role_name: roleName,
-        scope_type: request.scopeType || undefined,
-        scope_id: request.scopeId || undefined,
-        expires_at: request.expiresAt || undefined,
-        assigned_by_user_id: (await supabase.auth.getUser()).data.user?.id || undefined
-      });
+      // Map scope to club_id/show_id (DB uses separate FK columns, not generic scope)
+      const clubId = request.scopeType === 'club' ? (request.scopeId ?? null) : null;
+      const showId = request.scopeType === 'show' ? (request.scopeId ?? null) : null;
+      const currentUser = (await supabase.auth.getUser()).data.user;
+
+      const { data, error } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: request.userId,
+          role_id: roleId,
+          club_id: clubId,
+          show_id: showId,
+          granted_by: currentUser?.id ?? null,
+          granted_at: new Date().toISOString(),
+          expires_at: request.expiresAt ?? null,
+        })
+        .select('id')
+        .single();
 
       if (error) {
         throw new RoleError(
           `Failed to assign role: ${error.message}`,
-          roleName || 'unknown',
+          roleName,
           request.userId
         );
       }
 
       this.clearUserCache(request.userId);
-      return data;
+      return data.id;
     } catch (error) {
       logger.error('Role assignment failed', 'rbac', { userId: request.userId, roleName: request.roleName }, error as Error);
       throw error;
@@ -74,13 +106,34 @@ export class RoleManager {
    */
   async revokeRole(request: RevokeRoleRequest): Promise<boolean> {
     try {
-      const { data, error } = await supabase.rpc('revoke_user_role', {
-        target_user_id: request.userId,
-        role_name: request.roleName,
-        scope_type: request.scopeType || undefined,
-        scope_id: request.scopeId || undefined,
-        revoked_by_user_id: (await supabase.auth.getUser()).data.user?.id || undefined
-      });
+      const { data: role, error: roleError } = await supabase
+        .from('roles')
+        .select('id')
+        .eq('name', request.roleName)
+        .single();
+
+      if (roleError || !role) {
+        throw new RoleError(
+          `Role not found: ${request.roleName}`,
+          request.roleName,
+          request.userId
+        );
+      }
+
+      let query = supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', request.userId)
+        .eq('role_id', role.id);
+
+      // Apply scope filter using actual DB columns
+      if (request.scopeType === 'club' && request.scopeId) {
+        query = query.eq('club_id', request.scopeId);
+      } else if (request.scopeType === 'show' && request.scopeId) {
+        query = query.eq('show_id', request.scopeId);
+      }
+
+      const { error } = await query;
 
       if (error) {
         throw new RoleError(
@@ -91,7 +144,7 @@ export class RoleManager {
       }
 
       this.clearUserCache(request.userId);
-      return data || false;
+      return true;
     } catch (error) {
       logger.error('Role revocation failed', 'rbac', { userId: request.userId, roleName: request.roleName }, error as Error);
       throw error;
@@ -103,14 +156,14 @@ export class RoleManager {
    */
   async createRole(request: CreateRoleRequest): Promise<Role> {
     try {
+      // DB roles table: name, description, is_system, permissions (string[]), created_at
+      // CreateRoleRequest.displayName has no DB column — UI-only concept
       const { data: roleData, error: roleError } = await supabase
         .from('roles')
         .insert({
           name: request.name,
-          display_name: request.displayName,
-          description: request.description,
+          description: request.description ?? null,
           is_system: false,
-          created_by: (await supabase.auth.getUser()).data.user?.id
         })
         .select()
         .single();
@@ -119,19 +172,17 @@ export class RoleManager {
         throw new Error(`Failed to create role: ${roleError.message}`);
       }
 
-      // Assign permissions to the role
+      // Assign permissions to the role (by permission code, e.g. "show:manage")
       if (request.permissions.length > 0) {
         const { data: permissions } = await supabase
           .from('permissions')
-          .select('id, name')
-          .in('name', request.permissions);
+          .select('id, code')
+          .in('code', request.permissions);
 
         if (permissions && permissions.length > 0) {
-          const user = (await supabase.auth.getUser()).data.user;
           const rolePermissions = permissions.map(p => ({
             role_id: roleData.id,
             permission_id: p.id,
-            granted_by: user?.id
           }));
 
           await supabase
@@ -141,11 +192,12 @@ export class RoleManager {
       }
 
       await this.auditLogger.logAuditEvent(ActionType.ROLE_CREATED, {
-        target_role_id: roleData.id,
-        details: {
+        targetId: roleData.id,
+        targetType: 'role',
+        newValue: {
           role_name: request.name,
-          permissions_count: request.permissions.length
-        }
+          permissions_count: request.permissions.length,
+        },
       });
 
       return roleData as Role;
@@ -160,30 +212,34 @@ export class RoleManager {
    */
   async updateRole(roleId: string, request: UpdateRoleRequest): Promise<Role> {
     try {
-      const updateData: Partial<Role> = {
-        updated_by: (await supabase.auth.getUser()).data.user?.id,
-        updated_at: new Date().toISOString()
-      };
+      // DB roles table only has: name, description, is_system, permissions, created_at
+      // UpdateRoleRequest.displayName has no DB column
+      const updateData: Record<string, unknown> = {};
 
-      if (request.displayName !== undefined) {
-        updateData.display_name = request.displayName;
-      }
       if (request.description !== undefined) {
         updateData.description = request.description;
       }
 
-      const { data: roleData, error: roleError } = await supabase
-        .from('roles')
-        .update(updateData)
-        .eq('id', roleId)
-        .select()
-        .single();
+      let roleData;
 
-      if (roleError) {
-        throw new Error(`Failed to update role: ${roleError.message}`);
+      if (Object.keys(updateData).length > 0) {
+        const { data, error } = await supabase
+          .from('roles')
+          .update(updateData)
+          .eq('id', roleId)
+          .select()
+          .single();
+
+        if (error) {
+          throw new Error(`Failed to update role: ${error.message}`);
+        }
+        roleData = data;
+      } else {
+        // No column changes, just fetch current data
+        roleData = await this.getRole(roleId);
       }
 
-      // Update permissions if provided
+      // Update permissions if provided (by permission code)
       if (request.permissions !== undefined) {
         await supabase
           .from('role_permissions')
@@ -193,15 +249,13 @@ export class RoleManager {
         if (request.permissions.length > 0) {
           const { data: permissions } = await supabase
             .from('permissions')
-            .select('id, name')
-            .in('name', request.permissions);
+            .select('id, code')
+            .in('code', request.permissions);
 
           if (permissions && permissions.length > 0) {
-            const user = (await supabase.auth.getUser()).data.user;
             const rolePermissions = permissions.map(p => ({
               role_id: roleId,
               permission_id: p.id,
-              granted_by: user?.id
             }));
 
             await supabase
@@ -212,8 +266,9 @@ export class RoleManager {
       }
 
       await this.auditLogger.logAuditEvent(ActionType.ROLE_UPDATED, {
-        target_role_id: roleId,
-        details: request as Record<string, unknown>
+        targetId: roleId,
+        targetType: 'role',
+        newValue: request as unknown as Record<string, unknown>,
       });
 
       this.clearAllCache();
@@ -240,7 +295,8 @@ export class RoleManager {
       }
 
       await this.auditLogger.logAuditEvent(ActionType.ROLE_DELETED, {
-        target_role_id: roleId
+        targetId: roleId,
+        targetType: 'role',
       });
 
       this.clearAllCache();
@@ -258,7 +314,6 @@ export class RoleManager {
     const { data, error } = await supabase
       .from('roles')
       .select('*')
-      .eq('is_active', true)
       .order('name');
 
     if (error) {
@@ -275,7 +330,7 @@ export class RoleManager {
     const { data, error } = await supabase
       .from('permissions')
       .select('*')
-      .order('resource, action');
+      .order('code');
 
     if (error) {
       throw new Error(`Failed to get permissions: ${error.message}`);
@@ -304,7 +359,7 @@ export class RoleManager {
   /**
    * Get role with its permissions
    */
-  async getRoleWithPermissions(roleId: string): Promise<Role & { permissions: Permission[] }> {
+  async getRoleWithPermissions(roleId: string): Promise<RoleWithPermissions> {
     const { data, error } = await supabase
       .from('roles')
       .select(`
@@ -320,11 +375,13 @@ export class RoleManager {
       throw new Error(`Failed to get role: ${error.message}`);
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rolePerms = (data as any).role_permissions as Array<{ permissions: Permission }> | undefined;
+
     return {
-      ...data,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      permissions: (data.role_permissions || []).map((rp: any) => rp.permissions).filter(Boolean) as Permission[]
-    } as Role & { permissions: Permission[] };
+      ...(data as Role),
+      permissionList: (rolePerms || []).map(rp => rp.permissions).filter(Boolean),
+    };
   }
 
   /**
@@ -337,14 +394,11 @@ export class RoleManager {
         permission_id,
         permissions!inner (
           id,
+          code,
           name,
-          display_name,
           description,
-          resource,
-          action,
-          is_system,
-          created_at,
-          updated_at
+          category,
+          created_at
         )
       `)
       .eq('role_id', roleId);
@@ -356,7 +410,9 @@ export class RoleManager {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (data || []).map((item: any) => ({
       permission_id: item.permission_id || '',
-      permission: Array.isArray(item.permissions) ? item.permissions[0] as unknown as Permission : item.permissions as unknown as Permission
+      permission: (Array.isArray(item.permissions)
+        ? item.permissions[0]
+        : item.permissions) as unknown as Permission,
     }));
   }
 
@@ -371,12 +427,10 @@ export class RoleManager {
         .eq('role_id', roleId);
 
       if (permissionIds.length > 0) {
-        const user = (await supabase.auth.getUser()).data.user;
+        // role_permissions table: role_id, permission_id (created_at is auto)
         const rolePermissions = permissionIds.map(permissionId => ({
           role_id: roleId,
           permission_id: permissionId,
-          granted_by: user?.id || null,
-          granted_at: new Date().toISOString()
         }));
 
         await supabase
@@ -399,10 +453,9 @@ export class RoleManager {
       .from('user_roles')
       .select(`
         *,
-        role:roles(*),
-        assigned_by_user:assigned_by(email)
+        role:roles(*)
       `)
-      .order('assigned_at', { ascending: false });
+      .order('granted_at', { ascending: false });
 
     if (error) {
       throw new Error(`Failed to get user roles: ${error.message}`);
@@ -412,7 +465,7 @@ export class RoleManager {
     return (data || []).map((item: any) => ({
       ...item,
       user_email: 'Unknown User',
-      assigned_by_email: 'System'
+      assigned_by_email: 'System',
     })) as UserRole[];
   }
 
@@ -421,23 +474,25 @@ export class RoleManager {
    */
   async revokeUserRole(userRoleId: string): Promise<void> {
     try {
+      // Get user_id before deletion for cache clearing
+      const { data: userRole } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('id', userRoleId)
+        .single();
+
+      // DB user_roles has no is_active column — delete the row
       const { error } = await supabase
         .from('user_roles')
-        .update({ is_active: false })
+        .delete()
         .eq('id', userRoleId);
 
       if (error) {
         throw new Error(`Failed to revoke user role: ${error.message}`);
       }
 
-      const userRole = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('id', userRoleId)
-        .single();
-
-      if (userRole.data) {
-        this.clearUserCache(userRole.data.user_id || '');
+      if (userRole) {
+        this.clearUserCache(userRole.user_id);
       }
     } catch (error) {
       logger.error('Failed to revoke user role', 'rbac', { userRoleId }, error as Error);
@@ -466,9 +521,8 @@ export class RoleManager {
       const userRoles = roleData.map(role => ({
         user_id: userId,
         role_id: role.id,
-        is_active: true,
-        created_at: new Date().toISOString(),
-        assigned_by: userId
+        granted_by: userId,
+        granted_at: new Date().toISOString(),
       }));
 
       const { error: insertError } = await supabase
@@ -482,8 +536,9 @@ export class RoleManager {
       this.clearUserCache(userId);
 
       await this.auditLogger.logAuditEvent(ActionType.ROLE_ASSIGNED, {
-        target_user_id: userId,
-        details: { migrated_roles: roles }
+        targetId: userId,
+        targetType: 'user',
+        newValue: { migrated_roles: roles },
       });
     } catch (error) {
       logger.error('User role migration failed', 'rbac', { userId, roles }, error as Error);
@@ -509,16 +564,16 @@ export class RoleManager {
         throw new Error(`Failed to check migration status: ${error.message}`);
       }
 
-      const isMigrated = data && data.length > 0;
+      const isMigrated = data !== null && data.length > 0;
       return {
         isMigrated,
-        needsMigration: !isMigrated
+        needsMigration: !isMigrated,
       };
     } catch (error) {
       logger.error('Migration check failed', 'rbac', { userId }, error as Error);
       return {
         isMigrated: false,
-        needsMigration: false
+        needsMigration: false,
       };
     }
   }

@@ -63,7 +63,7 @@ const RoleEditPage: React.FC = () => {
         id: `${roleId}-${rp.permission_id}-${index}`,
         role_id: roleId,
         permission_id: rp.permission_id,
-        granted_at: new Date().toISOString()
+        created_at: new Date().toISOString()
       }));
       setRolePermissions(transformedRolePerms);
     } catch (err) {
@@ -86,11 +86,10 @@ const RoleEditPage: React.FC = () => {
       // Add permission if not already present
       if (!rolePermissions.find(rp => rp.permission_id === permissionId)) {
         const newRolePermission: RolePermission = {
-          id: `temp-${Date.now()}`, // Temporary ID
+          id: `temp-${Date.now()}`,
           role_id: roleId!,
           permission_id: permissionId,
-          granted_by: '', // Will be set by backend
-          granted_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
         };
         setRolePermissions(prev => [...prev, newRolePermission]);
       }
@@ -179,10 +178,10 @@ const RoleEditPage: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
               <Shield className="h-8 w-8 text-primary" />
-              {role.display_name}
+              {role.display_name || role.name}
             </h1>
             <p className="text-muted-foreground mt-1">
-              Manage permissions for the {role.display_name} role
+              Manage permissions for the {role.display_name || role.name} role
             </p>
           </div>
         </div>
@@ -247,7 +246,7 @@ const RoleEditPage: React.FC = () => {
             </div>
             <div>
               <label className="text-sm font-medium text-muted-foreground">Display Name</label>
-              <p className="text-sm p-2 mt-1">{role.display_name}</p>
+              <p className="text-sm p-2 mt-1">{role.display_name || role.name}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-muted-foreground">Type</label>
@@ -420,7 +419,7 @@ const RoleEditPage: React.FC = () => {
                     <span className="text-sm">Last Modified:</span>
                   </div>
                   <p className="text-xs text-muted-foreground ml-6">
-                    {new Date(role.updated_at || role.created_at).toLocaleString()}
+                    {new Date(role.created_at || '').toLocaleString()}
                   </p>
                 </div>
               </CardContent>

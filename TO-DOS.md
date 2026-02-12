@@ -6,7 +6,6 @@ Items to address in future sessions.
 
 ## Fix Type/Schema Mismatches (29 files with @ts-nocheck) - 2026-02-11 15:14
 
-- **Fix RBAC system type errors** - 3 RBAC service files have @ts-nocheck due to database migration mismatch. **Problem:** After RBAC database migration, TypeScript types no longer match the actual DB schema, blocking type safety for permission checking, role management, and audit logging. **Files:** `apps/myk9show/src/services/rbac/PermissionChecker.ts:3,167`, `apps/myk9show/src/services/rbac/RoleManager.ts:3`, `apps/myk9show/src/services/rbac/AuditLogger.ts:3`. **Solution:** Update Supabase generated types or adjust mapper logic to match current DB schema.
 
 - **Fix mapper type mismatches** - 7 mapper files have @ts-nocheck due to DB schema drift. **Problem:** Mapper files expect columns/tables that don't exist or have different shapes than what's in the database (show_registration, judge tables, health tables, templates, class columns, dog_registrations, exhibitor fields). **Files:** `apps/myk9show/src/services/mappers/showManagementMappers.ts:3,14`, `apps/myk9show/src/services/mappers/judgeMappers.ts:3`, `apps/myk9show/src/services/mappers/healthMappers.ts:3`, `apps/myk9show/src/services/mappers/templateMappers.ts:3`, `apps/myk9show/src/services/mappers/classMappers.ts:3`, `apps/myk9show/src/services/mappers/registrationMappers.ts:3`, `apps/myk9show/src/services/exhibitorService.ts:3`. **Solution:** Regenerate Supabase types, then fix each mapper to match actual schema. Health tables may need migration first.
 

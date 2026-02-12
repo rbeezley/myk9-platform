@@ -71,16 +71,18 @@ export const PermissionInheritanceView: React.FC<PermissionInheritanceViewProps>
 
     // Process direct permissions
     userPermissions.permissions.forEach((perm: PermissionWithRole) => {
+      const [resource, action] = (perm.permission_code || '').split(':');
       const permission: Permission = {
-        id: `${perm.resource}-${perm.action}`,
+        id: perm.permission_id,
+        code: perm.permission_code,
         name: perm.permission_name,
-        display_name: perm.permission_display_name,
-        description: '',
-        resource: perm.resource,
-        action: perm.action,
+        display_name: perm.permission_name,
+        description: perm.description,
+        category: perm.category,
+        resource,
+        action,
         is_system: true,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
       };
       
       const node: PermissionNode = {
@@ -97,18 +99,22 @@ export const PermissionInheritanceView: React.FC<PermissionInheritanceViewProps>
     userPermissions.roles.forEach((userRole) => {
       if (!userRole.role) return;
 
+      const rolePermission: Permission = {
+        id: `role-${userRole.role.id}`,
+        code: `role:${userRole.role.name}`,
+        name: userRole.role.name,
+        description: userRole.role.description || '',
+        category: 'role',
+        created_at: userRole.role.created_at,
+        resource: 'role',
+        action: 'assume',
+        is_system: userRole.role.is_system ?? false,
+      };
+      if (userRole.role.display_name) {
+        rolePermission.display_name = userRole.role.display_name;
+      }
       const roleNode: PermissionNode = {
-        permission: {
-          id: `role-${userRole.role.id}`,
-          name: userRole.role.name,
-          display_name: userRole.role.display_name,
-          description: userRole.role.description || '',
-          resource: 'role',
-          action: 'assume',
-          is_system: userRole.role.is_system || false,
-          created_at: userRole.role.created_at,
-          updated_at: userRole.role.updated_at
-        },
+        permission: rolePermission,
         source: 'role',
         sourceRole: userRole.role,
         level: 0,

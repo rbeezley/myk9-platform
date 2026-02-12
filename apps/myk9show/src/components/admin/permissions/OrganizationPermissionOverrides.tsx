@@ -167,12 +167,16 @@ export const OrganizationPermissionOverrides: React.FC<OrganizationPermissionOve
     setPendingChanges(new Map());
   };
 
+  const getResource = (p: Permission) => p.resource || p.code?.split(':')[0] || 'other';
+  const getDisplayName = (p: Permission) => p.display_name || p.name;
+
   const getPermissionsByResource = () => {
     const grouped = permissions.reduce((acc, permission) => {
-      if (!acc[permission.resource]) {
-        acc[permission.resource] = [];
+      const resource = getResource(permission);
+      if (!acc[resource]) {
+        acc[resource] = [];
       }
-      acc[permission.resource].push(permission);
+      acc[resource].push(permission);
       return acc;
     }, {} as Record<string, Permission[]>);
 
@@ -328,7 +332,7 @@ export const OrganizationPermissionOverrides: React.FC<OrganizationPermissionOve
                             <div className="flex items-center gap-3">
                               {getOverrideIcon(effectiveState)}
                               <div>
-                                <div className="font-medium text-sm">{permission.display_name}</div>
+                                <div className="font-medium text-sm">{getDisplayName(permission)}</div>
                                 <div className="text-xs text-muted-foreground font-mono">
                                   {permission.name}
                                 </div>

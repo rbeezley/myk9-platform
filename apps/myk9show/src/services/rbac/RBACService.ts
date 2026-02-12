@@ -10,6 +10,7 @@ import {
   Role,
   Permission,
   UserRole,
+  RoleWithPermissions,
   AssignRoleRequest,
   RevokeRoleRequest,
   CreateRoleRequest,
@@ -133,7 +134,7 @@ export class RBACService {
     return this.roleManager.getRole(roleId);
   }
 
-  async getRoleWithPermissions(roleId: string): Promise<Role & { permissions: Permission[] }> {
+  async getRoleWithPermissions(roleId: string): Promise<RoleWithPermissions> {
     return this.roleManager.getRoleWithPermissions(roleId);
   }
 
@@ -255,12 +256,13 @@ export class RBACService {
     this.clearAllCache();
 
     await this.auditLogger.logAuditEvent(ActionType.PERMISSION_OVERRIDE_CREATED, {
-      target_role_id: roleId,
-      target_permission_id: permissionId,
-      details: {
+      targetId: roleId,
+      targetType: 'role',
+      newValue: {
+        permission_id: permissionId,
         organization_id: organizationId,
-        override_type: overrideType
-      }
+        override_type: overrideType,
+      },
     });
   }
 
@@ -278,9 +280,12 @@ export class RBACService {
     this.clearAllCache();
 
     await this.auditLogger.logAuditEvent(ActionType.PERMISSION_OVERRIDE_REMOVED, {
-      target_role_id: roleId,
-      target_permission_id: permissionId,
-      details: { organization_id: organizationId }
+      targetId: roleId,
+      targetType: 'role',
+      newValue: {
+        permission_id: permissionId,
+        organization_id: organizationId,
+      },
     });
   }
 
@@ -304,16 +309,20 @@ export class RBACService {
       const allPermissions = await this.getAllPermissions();
 
       const coverageByResource: Record<string, number> = {};
+      // Derive resource from permission code (e.g. "show:manage" → "show")
+      const getResource = (p: Permission) => p.resource || p.code?.split(':')[0] || 'unknown';
+
       const resourceGroups = allPermissions.reduce((acc, perm) => {
-        if (!acc[perm.resource]) acc[perm.resource] = [];
-        acc[perm.resource].push(perm);
+        const resource = getResource(perm);
+        if (!acc[resource]) acc[resource] = [];
+        acc[resource].push(perm);
         return acc;
       }, {} as Record<string, Permission[]>);
 
       Object.keys(resourceGroups).forEach(resource => {
         const resourcePermissions = resourceGroups[resource];
-        const grantedCount = inheritanceTree.direct.filter(p => p.resource === resource).length +
-          inheritanceTree.implied.filter(p => p.resource === resource).length;
+        const grantedCount = inheritanceTree.direct.filter(p => getResource(p) === resource).length +
+          inheritanceTree.implied.filter(p => getResource(p) === resource).length;
         coverageByResource[resource] = Math.round((grantedCount / resourcePermissions.length) * 100);
       });
 

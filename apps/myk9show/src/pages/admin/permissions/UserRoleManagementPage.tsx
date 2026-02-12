@@ -323,7 +323,7 @@ const UserRoleManagementPage: React.FC = () => {
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          {new Date(userRole.assigned_at).toLocaleDateString()}
+                          {new Date(userRole.granted_at || '').toLocaleDateString()}
                         </div>
                         <div className="text-xs text-muted-foreground">
                           by {userRole.assigned_by_email || 'System'}

@@ -1,10 +1,9 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck
-// TODO: Fix type errors after RBAC database migration (permission_audit_log table schema mismatch)
 /**
  * Audit Logger
  *
  * Handles audit logging for RBAC operations.
+ * Maps to permission_audit_log table columns:
+ *   action, user_id, target_id, target_type, old_value, new_value, ip_address, user_agent
  */
 
 import { supabase } from '@/lib/supabase';
@@ -16,14 +15,12 @@ export class AuditLogger {
    * Log an audit event
    */
   async logAuditEvent(
-    actionType: ActionType,
+    action: ActionType,
     details: {
-      target_role_id?: string;
-      target_permission_id?: string;
-      target_user_id?: string;
-      scope_type?: string;
-      scope_id?: string;
-      details?: Record<string, unknown>;
+      targetId?: string;
+      targetType?: string;
+      oldValue?: Record<string, unknown>;
+      newValue?: Record<string, unknown>;
     }
   ): Promise<void> {
     try {
@@ -32,14 +29,14 @@ export class AuditLogger {
       await supabase
         .from('permission_audit_log')
         .insert({
-          action_type: actionType,
-          actor_id: user?.id || null,
-          target_role_id: details.target_role_id || null,
-          target_permission_id: details.target_permission_id || null,
-          target_user_id: details.target_user_id || null,
-          scope_type: details.scope_type || null,
-          scope_id: details.scope_id || null,
-          details: details.details ? JSON.stringify(details.details) as string : null
+          action: action as string,
+          user_id: user?.id ?? null,
+          target_id: details.targetId ?? null,
+          target_type: details.targetType ?? null,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          old_value: (details.oldValue ?? null) as any,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          new_value: (details.newValue ?? null) as any,
         });
     } catch (error) {
       logger.error('Failed to log audit event:', 'rbac', {}, error as Error);
@@ -72,10 +69,7 @@ export class AuditLogger {
       throw new Error(`Failed to get audit logs: ${error.message}`);
     }
 
-    return (data || []).map(item => ({
-      ...item,
-      details: typeof item.details === 'object' ? item.details as Record<string, unknown> : {}
-    })) as AuditLogEntry[];
+    return (data || []) as AuditLogEntry[];
   }
 
   /**
@@ -88,7 +82,7 @@ export class AuditLogger {
         .select('*', { count: 'exact' })
         .order('created_at', { ascending: false });
 
-      // Apply filters
+      // Apply filters (map service-layer names to actual DB columns)
       if (filters.startDate) {
         query = query.gte('created_at', filters.startDate.toISOString());
       }
@@ -96,16 +90,19 @@ export class AuditLogger {
         query = query.lte('created_at', filters.endDate.toISOString());
       }
       if (filters.userId) {
-        query = query.eq('actor_id', filters.userId);
+        query = query.eq('user_id', filters.userId);
       }
       if (filters.actionType) {
-        query = query.eq('action_type', filters.actionType);
+        query = query.eq('action', filters.actionType);
       }
       if (filters.targetRoleId) {
-        query = query.eq('target_role_id', filters.targetRoleId);
+        query = query.eq('target_id', filters.targetRoleId).eq('target_type', 'role');
       }
       if (filters.targetUserId) {
-        query = query.eq('target_user_id', filters.targetUserId);
+        query = query.eq('target_id', filters.targetUserId).eq('target_type', 'user');
+      }
+      if (filters.entityType) {
+        query = query.eq('target_type', filters.entityType);
       }
 
       // Pagination
@@ -122,19 +119,8 @@ export class AuditLogger {
       }
 
       return {
-        entries: (data || []).map((row: Record<string, unknown>): AuditLogEntry => ({
-          id: row.id as string,
-          action_type: row.action_type as string,
-          actor_id: row.actor_id as string,
-          target_user_id: row.target_user_id as string,
-          target_role_id: row.target_role_id as string,
-          target_permission_id: row.target_permission_id as string,
-          scope_type: row.scope_type as string,
-          scope_id: row.scope_id as string,
-          details: typeof row.details === 'string' ? JSON.parse(row.details) : row.details || {},
-          created_at: row.created_at as string
-        })),
-        totalCount: count || 0
+        entries: (data || []) as AuditLogEntry[],
+        totalCount: count || 0,
       };
     } catch (error) {
       logger.error('Failed to get audit log:', 'rbac', {}, error as Error);

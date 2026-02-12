@@ -40,20 +40,26 @@ export const RolePermissionsEditor: React.FC<RolePermissionsEditorProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedResources, setExpandedResources] = useState<Set<string>>(new Set(['show', 'entry', 'dog']));
 
+  // Helper to get resource/action from permission (from code or field)
+  const getResource = (p: Permission) => p.resource || p.code?.split(':')[0] || 'other';
+  const getAction = (p: Permission) => p.action || p.code?.split(':')[1] || '';
+  const getDisplayName = (p: Permission) => p.display_name || p.name;
+
   // Group permissions by resource
   const permissionsByResource = useMemo(() => {
     const filtered = permissions.filter(permission =>
       permission.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      permission.display_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      getDisplayName(permission).toLowerCase().includes(searchTerm.toLowerCase()) ||
       permission.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      permission.resource.toLowerCase().includes(searchTerm.toLowerCase())
+      getResource(permission).toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     const grouped = filtered.reduce((acc, permission) => {
-      if (!acc[permission.resource]) {
-        acc[permission.resource] = [];
+      const resource = getResource(permission);
+      if (!acc[resource]) {
+        acc[resource] = [];
       }
-      acc[permission.resource].push(permission);
+      acc[resource].push(permission);
       return acc;
     }, {} as Record<string, Permission[]>);
 
@@ -62,14 +68,14 @@ export const RolePermissionsEditor: React.FC<RolePermissionsEditorProps> = ({
       grouped[resource].sort((a, b) => {
         // Sort by action priority
         const actionOrder = ['read', 'create', 'update', 'delete', 'manage', 'admin'];
-        const aIndex = actionOrder.indexOf(a.action);
-        const bIndex = actionOrder.indexOf(b.action);
-        
+        const aIndex = actionOrder.indexOf(getAction(a));
+        const bIndex = actionOrder.indexOf(getAction(b));
+
         if (aIndex !== -1 && bIndex !== -1) {
           return aIndex - bIndex;
         }
-        
-        return a.action.localeCompare(b.action);
+
+        return getAction(a).localeCompare(getAction(b));
       });
     });
 
@@ -98,14 +104,14 @@ export const RolePermissionsEditor: React.FC<RolePermissionsEditorProps> = ({
 
   const isPermissionInherited = (permission: Permission) => {
     // Check if this permission is inherited from a higher-level permission
-    const resource = permission.resource;
-    const action = permission.action;
+    const resource = getResource(permission);
+    const action = getAction(permission);
     
     // Look for higher-level permissions that would grant this one
     for (const [parentAction, childActions] of Object.entries(inheritanceRules)) {
       if (childActions.includes(action)) {
-        const parentPermission = permissions.find(p => 
-          p.resource === resource && p.action === parentAction
+        const parentPermission = permissions.find(p =>
+          getResource(p) === resource && getAction(p) === parentAction
         );
         if (parentPermission && grantedPermissionIds.includes(parentPermission.id)) {
           return true;
@@ -292,7 +298,7 @@ export const RolePermissionsEditor: React.FC<RolePermissionsEditorProps> = ({
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 mb-1">
                                     <span className="font-medium text-sm">
-                                      {permission.display_name}
+                                      {getDisplayName(permission)}
                                     </span>
                                     {isInherited && (
                                       <Badge variant="secondary" className="text-xs">

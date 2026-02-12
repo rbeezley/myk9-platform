@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck
-// TODO: Fix type errors after dog_registrations table schema update (missing columns: registered_name, breed, variety, status, etc.)
 // Type mapping utilities for Registration Store <-> Database integration
 // Phase 4.3: Registration System Integration
 
@@ -24,60 +21,52 @@ export interface RegistrationInput {
 
 /**
  * Convert RegistrationInput to DbDogRegistrationInsert (for database)
+ *
+ * Note: dog_registrations table only has: dog_id, organization, registration_number,
+ * registration_date, verified, id, created_at, updated_at.
+ * Additional fields (registeredName, breed, variety, status, etc.) are stored on related tables.
  */
 export const mapRegistrationInputToInsert = (input: RegistrationInput): DbDogRegistrationInsert => {
   return {
     dog_id: input.dogId,
     organization: input.organization,
-    registered_name: input.registeredName,
-    breed: input.breed,
-    variety: input.variety || null,
-    registration_number: input.registrationNumber || null,
-    status: input.status || 'pending',
-    application_number: input.applicationNumber || null,
-    submission_date: input.submissionDate || null,
-    registration_date: input.registrationDate || null,
-    certificate: input.certificate || null,
+    registration_number: input.registrationNumber || '',
+    ...(input.registrationDate ? { registration_date: input.registrationDate } : {}),
   };
 };
 
 /**
  * Convert RegistrationInput updates to DbDogRegistrationUpdate (for database)
+ *
+ * Only maps fields that exist in the dog_registrations table.
  */
 export const mapRegistrationInputToUpdate = (input: Partial<RegistrationInput>): DbDogRegistrationUpdate => {
   const update: DbDogRegistrationUpdate = {};
 
   if (input.dogId !== undefined) update.dog_id = input.dogId;
   if (input.organization !== undefined) update.organization = input.organization;
-  if (input.registeredName !== undefined) update.registered_name = input.registeredName;
-  if (input.breed !== undefined) update.breed = input.breed;
-  if (input.variety !== undefined) update.variety = input.variety || null;
-  if (input.registrationNumber !== undefined) update.registration_number = input.registrationNumber || null;
-  if (input.status !== undefined) update.status = input.status;
-  if (input.applicationNumber !== undefined) update.application_number = input.applicationNumber || null;
-  if (input.submissionDate !== undefined) update.submission_date = input.submissionDate || null;
+  if (input.registrationNumber !== undefined) update.registration_number = input.registrationNumber;
   if (input.registrationDate !== undefined) update.registration_date = input.registrationDate || null;
-  if (input.certificate !== undefined) update.certificate = input.certificate || null;
 
   return update;
 };
 
 /**
  * Convert database registration result to Registration type (for backward compatibility)
+ *
+ * Note: The dog_registrations table has limited columns. Fields like registeredName,
+ * breed, variety, status, etc. are not in the DB table and will use defaults.
+ * These should ideally come from joined dog data or additional tables.
  */
 export const mapDatabaseToRegistration = (dbRegistration: DbDogRegistration | Record<string, unknown>): Registration => {
   return {
     id: dbRegistration.id as string,
     organization: (dbRegistration.organization as string) || '',
-    registeredName: (dbRegistration.registered_name as string) || '',
-    breed: (dbRegistration.breed as string) || '',
-    variety: (dbRegistration.variety as string) || undefined,
+    registeredName: '',
+    breed: '',
     registrationNumber: (dbRegistration.registration_number as string) || '',
-    status: (dbRegistration.status as string) || 'pending',
-    applicationNumber: (dbRegistration.application_number as string) || undefined,
-    submissionDate: (dbRegistration.submission_date as string) || undefined,
-    registrationDate: (dbRegistration.registration_date as string) || undefined,
-    certificate: (dbRegistration.certificate as string) || undefined,
+    status: (dbRegistration as Record<string, unknown>).verified === true ? 'Active' : 'Pending',
+    ...((dbRegistration as Record<string, unknown>).registration_date ? { registrationDate: (dbRegistration as Record<string, unknown>).registration_date as string } : {}),
   };
 };
 
@@ -97,13 +86,13 @@ export const mapRegistrationToRegistrationInput = (registration: Registration, d
     organization: registration.organization,
     registeredName: registration.registeredName,
     breed: registration.breed,
-    variety: registration.variety,
     registrationNumber: registration.registrationNumber,
     status: registration.status,
-    applicationNumber: registration.applicationNumber,
-    submissionDate: registration.submissionDate,
-    registrationDate: registration.registrationDate,
-    certificate: registration.certificate,
+    ...(registration.variety ? { variety: registration.variety } : {}),
+    ...(registration.applicationNumber ? { applicationNumber: registration.applicationNumber } : {}),
+    ...(registration.submissionDate ? { submissionDate: registration.submissionDate } : {}),
+    ...(registration.registrationDate ? { registrationDate: registration.registrationDate } : {}),
+    ...(registration.certificate ? { certificate: registration.certificate } : {}),
   };
 };
 
@@ -142,31 +131,34 @@ export const mapDatabaseToRegistrationWithDog = (dbResult: Record<string, unknow
   
   // Map dog information if available
   const dogData = dbResult.dog as Record<string, unknown> | undefined;
+  const ownerData = dogData?.owner as Record<string, unknown> | undefined;
   const dog = dogData ? {
     id: dogData.id as string,
     name: (dogData.name as string) || '',
-    callName: (dogData.call_name as string) || undefined,
     breed: (dogData.breed as string) || '',
     sex: (dogData.sex as string) || '',
-    dateOfBirth: (dogData.date_of_birth as string) || undefined,
-    color: (dogData.color as string) || undefined,
-    microchipNumber: (dogData.microchip_number as string) || undefined,
-    owner: dogData.owner ? {
-      id: (dogData.owner as Record<string, unknown>).id as string,
-      firstName: ((dogData.owner as Record<string, unknown>).first_name as string) || '',
-      lastName: ((dogData.owner as Record<string, unknown>).last_name as string) || '',
-      email: ((dogData.owner as Record<string, unknown>).email as string) || undefined,
-      phone: ((dogData.owner as Record<string, unknown>).phone as string) || undefined,
-      address: ((dogData.owner as Record<string, unknown>).address as string) || undefined,
-      city: ((dogData.owner as Record<string, unknown>).city as string) || undefined,
-      state: ((dogData.owner as Record<string, unknown>).state as string) || undefined,
-      postalCode: ((dogData.owner as Record<string, unknown>).postal_code as string) || undefined,
-    } : undefined,
+    ...(dogData.call_name ? { callName: dogData.call_name as string } : {}),
+    ...(dogData.date_of_birth ? { dateOfBirth: dogData.date_of_birth as string } : {}),
+    ...(dogData.color ? { color: dogData.color as string } : {}),
+    ...(dogData.microchip_number ? { microchipNumber: dogData.microchip_number as string } : {}),
+    ...(ownerData ? {
+      owner: {
+        id: ownerData.id as string,
+        firstName: (ownerData.first_name as string) || '',
+        lastName: (ownerData.last_name as string) || '',
+        ...(ownerData.email ? { email: ownerData.email as string } : {}),
+        ...(ownerData.phone ? { phone: ownerData.phone as string } : {}),
+        ...(ownerData.address ? { address: ownerData.address as string } : {}),
+        ...(ownerData.city ? { city: ownerData.city as string } : {}),
+        ...(ownerData.state ? { state: ownerData.state as string } : {}),
+        ...(ownerData.postal_code ? { postalCode: ownerData.postal_code as string } : {}),
+      },
+    } : {}),
   } : undefined;
 
   return {
     ...registration,
-    dog,
+    ...(dog ? { dog } : {}),
   };
 };
 

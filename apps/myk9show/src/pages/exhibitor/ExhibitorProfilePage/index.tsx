@@ -105,7 +105,7 @@ export default function ExhibitorProfilePage() {
       {/* Profile Header with Avatar */}
       <ProfileHeader
         person={person}
-        subscriptionTier={profile.subscription_tier}
+        subscriptionTier={profile.subscription_tier || 'free'}
         userId={user!.id}
         onUpdateProfileImage={async (url) => {
           await updatePersonAsync({ profile_image: url });

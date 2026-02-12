@@ -1,11 +1,15 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck
-// TODO: Fix type errors after judge tables schema update (judge_assignments, judge_certifications column mismatches)
 /**
  * Judge Management Data Mappers
  *
  * Transform between database format and application format with validation,
  * organization/discipline configuration, and import/export functionality.
+ *
+ * DB Schema Notes:
+ * - No judge_qualifications table exists; qualifications map to judge_certifications
+ * - judge_assignments columns: class_id, confirmed_at, created_at, fee, id, invited_at,
+ *   notes, person_id, show_id, status, trial_id, updated_at
+ * - judge_certifications columns: certification_date, certification_number, created_at,
+ *   expiration_date, id, is_active, level, organization, person_id, sport, updated_at
  */
 
 import {
@@ -27,124 +31,106 @@ import {
   ASSIGNMENT_TYPES,
   ASSIGNMENT_STATUSES
 } from '../../types/judge-management';
-import {
-  DbJudgeQualification,
+import type {
   DbJudgeAssignment,
   DbJudgeCertification
 } from '../../types/database-mappings';
 
 // Database to Application Mappers
-export const mapDbJudgeQualificationToApp = (dbQualification: DbJudgeQualification): JudgeQualification => {
+
+/**
+ * Map judge_certifications row to JudgeQualification app type.
+ * There is no separate judge_qualifications table; certifications serve dual purpose.
+ */
+export const mapDbJudgeQualificationToApp = (dbCert: DbJudgeCertification): JudgeQualification => {
   return {
-    id: dbQualification.id,
-    person_id: dbQualification.person_id || '',
-    organization: dbQualification.organization,
-    qualification_level: dbQualification.qualification_level,
-    disciplines: dbQualification.disciplines || [],
-    date_obtained: dbQualification.date_obtained,
-    expiration_date: dbQualification.expiration_date || undefined,
-    approval_number: dbQualification.approval_number || undefined,
-    approved_by: dbQualification.approved_by || undefined,
-    is_active: dbQualification.is_active ?? true,
-    suspension_date: dbQualification.suspension_date || undefined,
-    suspension_reason: dbQualification.suspension_reason || undefined,
-    notes: dbQualification.notes || undefined,
-    created_at: dbQualification.created_at || new Date().toISOString(),
-    updated_at: dbQualification.updated_at || new Date().toISOString()
+    id: dbCert.id,
+    person_id: dbCert.person_id,
+    organization: dbCert.organization,
+    qualification_level: dbCert.level || '',
+    disciplines: dbCert.sport ? [dbCert.sport] : [],
+    date_obtained: dbCert.certification_date || '',
+    ...(dbCert.expiration_date ? { expiration_date: dbCert.expiration_date } : {}),
+    ...(dbCert.certification_number ? { approval_number: dbCert.certification_number } : {}),
+    is_active: dbCert.is_active ?? true,
+    created_at: dbCert.created_at || new Date().toISOString(),
+    updated_at: dbCert.updated_at || new Date().toISOString()
   };
 };
 
 export const mapDbJudgeAssignmentToApp = (dbAssignment: DbJudgeAssignment): JudgeAssignment => {
   return {
     id: dbAssignment.id,
-    judge_id: dbAssignment.judge_id || '',
-    show_id: dbAssignment.show_id || undefined,
-    assignment_type: dbAssignment.assignment_type,
-    assignment_date: dbAssignment.assignment_date,
-    assigned_classes: dbAssignment.assigned_classes || undefined,
-    assigned_rings: dbAssignment.assigned_rings || undefined,
-    assignment_status: dbAssignment.assignment_status || 'Requested',
-    confirmed_at: dbAssignment.confirmed_at || undefined,
-    confirmed_by: dbAssignment.confirmed_by || undefined,
-    compensation_amount: dbAssignment.compensation_amount ? Number(dbAssignment.compensation_amount) : undefined,
-    travel_provided: dbAssignment.travel_provided ?? false,
-    expenses_covered: dbAssignment.expenses_covered ?? false,
-    special_requirements: dbAssignment.special_requirements || undefined,
-    notes: dbAssignment.notes || undefined,
+    judge_id: dbAssignment.person_id,
+    assignment_type: 'Regular Class',
+    assignment_date: dbAssignment.created_at || new Date().toISOString(),
+    ...(dbAssignment.show_id ? { show_id: dbAssignment.show_id } : {}),
+    ...(dbAssignment.class_id ? { assigned_classes: [dbAssignment.class_id] } : {}),
+    ...(dbAssignment.status ? { assignment_status: dbAssignment.status } : {}),
+    ...(dbAssignment.confirmed_at ? { confirmed_at: dbAssignment.confirmed_at } : {}),
+    ...(dbAssignment.fee != null ? { compensation_amount: dbAssignment.fee } : {}),
+    ...(dbAssignment.notes ? { notes: dbAssignment.notes } : {}),
     created_at: dbAssignment.created_at || new Date().toISOString(),
     updated_at: dbAssignment.updated_at || new Date().toISOString()
   };
 };
 
-export const mapDbJudgeCertificationToApp = (dbCertification: DbJudgeCertification): JudgeCertification => {
+export const mapDbJudgeCertificationToApp = (dbCert: DbJudgeCertification): JudgeCertification => {
   return {
-    id: dbCertification.id,
-    person_id: dbCertification.person_id || '',
-    certification_name: dbCertification.certification_name,
-    issuing_body: dbCertification.issuing_body,
-    certification_number: dbCertification.certification_number || undefined,
-    date_obtained: dbCertification.date_obtained,
-    expiration_date: dbCertification.expiration_date || undefined,
-    renewal_required: dbCertification.renewal_required ?? false,
-    next_renewal_date: dbCertification.next_renewal_date || undefined,
-    continuing_education_hours: dbCertification.continuing_education_hours ?? 0,
-    is_active: dbCertification.is_active ?? true,
-    notes: dbCertification.notes || undefined,
-    created_at: dbCertification.created_at || new Date().toISOString(),
-    updated_at: dbCertification.updated_at || new Date().toISOString()
+    id: dbCert.id,
+    person_id: dbCert.person_id,
+    certification_name: [dbCert.sport, dbCert.level].filter(Boolean).join(' ') || 'Unknown',
+    issuing_body: dbCert.organization,
+    ...(dbCert.certification_number ? { certification_number: dbCert.certification_number } : {}),
+    date_obtained: dbCert.certification_date || '',
+    ...(dbCert.expiration_date ? { expiration_date: dbCert.expiration_date } : {}),
+    renewal_required: false,
+    continuing_education_hours: 0,
+    is_active: dbCert.is_active ?? true,
+    created_at: dbCert.created_at || new Date().toISOString(),
+    updated_at: dbCert.updated_at || new Date().toISOString()
   };
 };
 
 // Application to Database Mappers
-export const mapAppJudgeQualificationToDb = (qualification: CreateJudgeQualificationData): Omit<DbJudgeQualification, 'id' | 'created_at' | 'updated_at'> => {
+
+export const mapAppJudgeQualificationToDb = (qualification: CreateJudgeQualificationData): Omit<DbJudgeCertification, 'id' | 'created_at' | 'updated_at'> => {
   return {
     person_id: qualification.person_id,
     organization: qualification.organization,
-    qualification_level: qualification.qualification_level,
-    disciplines: qualification.disciplines,
-    date_obtained: qualification.date_obtained,
+    level: qualification.qualification_level || null,
+    sport: qualification.disciplines[0] || 'General',
+    certification_date: qualification.date_obtained || null,
     expiration_date: qualification.expiration_date || null,
-    approval_number: qualification.approval_number || null,
-    approved_by: qualification.approved_by || null,
+    certification_number: qualification.approval_number || null,
     is_active: qualification.is_active ?? true,
-    suspension_date: null,
-    suspension_reason: null,
-    notes: qualification.notes || null
   };
 };
 
 export const mapAppJudgeAssignmentToDb = (assignment: CreateJudgeAssignmentData): Omit<DbJudgeAssignment, 'id' | 'created_at' | 'updated_at'> => {
   return {
-    judge_id: assignment.judge_id,
+    person_id: assignment.judge_id,
     show_id: assignment.show_id || null,
-    assignment_type: assignment.assignment_type,
-    assignment_date: assignment.assignment_date,
-    assigned_classes: assignment.assigned_classes || null,
-    assigned_rings: assignment.assigned_rings || null,
-    assignment_status: assignment.assignment_status || 'Requested',
+    class_id: assignment.assigned_classes?.[0] || null,
+    trial_id: null,
+    status: assignment.assignment_status || 'Requested',
+    fee: assignment.compensation_amount || null,
     confirmed_at: null,
-    confirmed_by: null,
-    compensation_amount: assignment.compensation_amount || null,
-    travel_provided: assignment.travel_provided ?? false,
-    expenses_covered: assignment.expenses_covered ?? false,
-    special_requirements: assignment.special_requirements || null,
-    notes: assignment.notes || null
+    invited_at: null,
+    notes: assignment.notes || null,
   };
 };
 
 export const mapAppJudgeCertificationToDb = (certification: CreateJudgeCertificationData): Omit<DbJudgeCertification, 'id' | 'created_at' | 'updated_at'> => {
   return {
     person_id: certification.person_id,
-    certification_name: certification.certification_name,
-    issuing_body: certification.issuing_body,
+    organization: certification.issuing_body,
+    sport: certification.certification_name || 'General',
+    level: null,
     certification_number: certification.certification_number || null,
-    date_obtained: certification.date_obtained,
+    certification_date: certification.date_obtained || null,
     expiration_date: certification.expiration_date || null,
-    renewal_required: certification.renewal_required ?? false,
-    next_renewal_date: certification.next_renewal_date || null,
-    continuing_education_hours: certification.continuing_education_hours ?? 0,
     is_active: certification.is_active ?? true,
-    notes: certification.notes || null
   };
 };
 
@@ -388,15 +374,14 @@ export const importJudgeQualificationData = (importData: ImportJudgeQualificatio
   const invalid: Array<{ data: ImportJudgeQualificationData; errors: string[] }> = [];
 
   importData.forEach(item => {
-    // Convert import format to create format
     const createData: CreateJudgeQualificationData = {
-      person_id: item.judge_identifier, // This would need person lookup in real implementation
+      person_id: item.judge_identifier,
       organization: item.organization,
       qualification_level: item.qualification_level,
       disciplines: item.disciplines,
       date_obtained: item.date_obtained,
-      expiration_date: item.expiration_date,
-      approval_number: item.approval_number
+      ...(item.expiration_date ? { expiration_date: item.expiration_date } : {}),
+      ...(item.approval_number ? { approval_number: item.approval_number } : {}),
     };
 
     const validation = validateJudgeQualification(createData);
@@ -418,14 +403,13 @@ export const importJudgeAssignmentData = (importData: ImportJudgeAssignmentData[
   const invalid: Array<{ data: ImportJudgeAssignmentData; errors: string[] }> = [];
 
   importData.forEach(item => {
-    // Convert import format to create format
     const createData: CreateJudgeAssignmentData = {
-      judge_id: item.judge_identifier, // This would need person lookup in real implementation
-      show_id: item.show_identifier, // This would need show lookup in real implementation
+      judge_id: item.judge_identifier,
       assignment_type: item.assignment_type,
       assignment_date: item.assignment_date,
-      assigned_classes: item.assigned_classes,
-      compensation_amount: item.compensation_amount
+      ...(item.show_identifier ? { show_id: item.show_identifier } : {}),
+      ...(item.assigned_classes ? { assigned_classes: item.assigned_classes } : {}),
+      ...(item.compensation_amount != null ? { compensation_amount: item.compensation_amount } : {}),
     };
 
     const validation = validateJudgeAssignment(createData);
@@ -447,14 +431,13 @@ export const importJudgeCertificationData = (importData: ImportJudgeCertificatio
   const invalid: Array<{ data: ImportJudgeCertificationData; errors: string[] }> = [];
 
   importData.forEach(item => {
-    // Convert import format to create format
     const createData: CreateJudgeCertificationData = {
-      person_id: item.judge_identifier, // This would need person lookup in real implementation
+      person_id: item.judge_identifier,
       certification_name: item.certification_name,
       issuing_body: item.issuing_body,
-      certification_number: item.certification_number,
       date_obtained: item.date_obtained,
-      expiration_date: item.expiration_date
+      ...(item.certification_number ? { certification_number: item.certification_number } : {}),
+      ...(item.expiration_date ? { expiration_date: item.expiration_date } : {}),
     };
 
     const validation = validateJudgeCertification(createData);
@@ -481,7 +464,7 @@ export const exportJudgeData = (
     certifications,
     export_date: new Date().toISOString(),
     exported_by: exportedBy,
-    filters_applied: filtersApplied
+    ...(filtersApplied ? { filters_applied: filtersApplied } : {}),
   };
 };
 
@@ -504,42 +487,42 @@ export const formatDateRange = (startDate: string, endDate?: string): string => 
 export const getQualificationStatus = (qualification: JudgeQualification): 'Active' | 'Suspended' | 'Expired' | 'Expiring Soon' => {
   if (qualification.suspension_date) return 'Suspended';
   if (!qualification.is_active) return 'Suspended';
-  
+
   if (qualification.expiration_date) {
     const expirationDate = new Date(qualification.expiration_date);
     const now = new Date();
     const thirtyDaysFromNow = new Date();
     thirtyDaysFromNow.setDate(now.getDate() + 30);
-    
+
     if (expirationDate < now) return 'Expired';
     if (expirationDate <= thirtyDaysFromNow) return 'Expiring Soon';
   }
-  
+
   return 'Active';
 };
 
 export const getCertificationStatus = (certification: JudgeCertification): 'Active' | 'Expired' | 'Expiring Soon' | 'Renewal Due' => {
   if (!certification.is_active) return 'Expired';
-  
+
   if (certification.expiration_date) {
     const expirationDate = new Date(certification.expiration_date);
     const now = new Date();
     const thirtyDaysFromNow = new Date();
     thirtyDaysFromNow.setDate(now.getDate() + 30);
-    
+
     if (expirationDate < now) return 'Expired';
     if (expirationDate <= thirtyDaysFromNow) return 'Expiring Soon';
   }
-  
+
   if (certification.renewal_required && certification.next_renewal_date) {
     const renewalDate = new Date(certification.next_renewal_date);
     const now = new Date();
     const thirtyDaysFromNow = new Date();
     thirtyDaysFromNow.setDate(now.getDate() + 30);
-    
+
     if (renewalDate <= thirtyDaysFromNow) return 'Renewal Due';
   }
-  
+
   return 'Active';
 };
 
@@ -553,6 +536,6 @@ export const getAssignmentStatusColor = (status: string): string => {
     'Cancelled': '#f87171', // red
     'Declined': '#f87171' // red
   };
-  
+
   return colors[status] || '#6b7280';
 };

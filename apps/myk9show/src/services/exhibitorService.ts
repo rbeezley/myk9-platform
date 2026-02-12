@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck
-// TODO: Fix type mismatches - subscription_tier, Person fields, sex type restrictions
 /**
  * Service for exhibitor profile and dog management
  * Provides operations for authenticated exhibitors to manage their profile and dogs
@@ -9,12 +6,12 @@
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
 
-// Types
+// Types (widened to match actual Supabase DB schema)
 export interface Person {
   id: string;
   first_name: string;
   last_name: string;
-  email: string;
+  email: string | null;
   phone: string | null;
   street_address: string | null;
   city: string | null;
@@ -23,8 +20,8 @@ export interface Person {
   country: string | null;
   profile_image: string | null;
   auth_user_id: string | null;
-  created_at: string;
-  updated_at: string;
+  created_at: string | null;
+  updated_at: string | null;
 }
 
 export interface ExhibitorProfile {
@@ -32,11 +29,11 @@ export interface ExhibitorProfile {
   person_id: string;
   auth_user_id: string;
   default_handler_id: string | null;
-  subscription_tier: 'free' | 'premium' | 'pro';
+  subscription_tier: string | null;
   subscription_expires_at: string | null;
   stripe_customer_id: string | null;
-  created_at: string;
-  updated_at: string;
+  created_at: string | null;
+  updated_at: string | null;
   person?: Person;
 }
 
@@ -45,7 +42,7 @@ export interface ExhibitorDog {
   name: string;
   call_name: string | null;
   breed: string;
-  sex: 'male' | 'female' | null;
+  sex: string | null;
   date_of_birth: string | null;
   color: string | null;
   height: string | null;
@@ -56,12 +53,12 @@ export interface ExhibitorDog {
   other_registry_number: string | null;
   microchip_number: string | null;
   image_url: string | null;
-  spayed_neutered: boolean;
-  deceased: boolean;
-  owner_id: string;
+  spayed_neutered: boolean | null;
+  deceased: boolean | null;
+  owner_id: string | null;
   co_owner_id: string | null;
-  created_at: string;
-  updated_at: string;
+  created_at: string | null;
+  updated_at: string | null;
 }
 
 export interface UpdatePersonData {

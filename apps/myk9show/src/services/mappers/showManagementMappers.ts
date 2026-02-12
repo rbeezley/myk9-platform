@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck
 // TODO: Fix type errors after show_registration table schema update (DbShowRegistration type mismatch)
 /**
  * Show Management Data Mappers
@@ -552,19 +550,18 @@ export const showManagementUtils = {
 */
 
 import { ShowRegistration, Armband, CreateShowRegistrationData, CreateArmbandData } from '../../types/show-management';
-import { DbShowRegistration, DbArmband } from '../../types/database-mappings';
+import { DbArmband } from '../../types/database-mappings';
 
 // Temporary stub exports to prevent import errors
+// Note: No show_registrations table exists yet - using Record<string, unknown> as placeholder
 export const showRegistrationMappers = {
-  fromDatabase: (dbRegistration: DbShowRegistration): ShowRegistration => dbRegistration as unknown as ShowRegistration,
-  toDatabase: (data: CreateShowRegistrationData): Partial<DbShowRegistration> => data as unknown as Partial<DbShowRegistration>,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  validate: (data: CreateShowRegistrationData): string[] => []
+  fromDatabase: (dbRegistration: Record<string, unknown>): ShowRegistration => dbRegistration as unknown as ShowRegistration,
+  toDatabase: (data: CreateShowRegistrationData): Record<string, unknown> => data as unknown as Record<string, unknown>,
+  validate: (_data: CreateShowRegistrationData): string[] => []
 };
 
 export const armbandMappers = {
   fromDatabase: (dbArmband: DbArmband): Armband => dbArmband as unknown as Armband,
   toDatabase: (data: CreateArmbandData): Partial<DbArmband> => data as unknown as Partial<DbArmband>,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  validate: (data: CreateArmbandData): string[] => []
+  validate: (_data: CreateArmbandData): string[] => []
 };

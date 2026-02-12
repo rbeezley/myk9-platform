@@ -61,14 +61,14 @@ export function DogFormDialog({
         name: dog.name,
         call_name: dog.call_name || '',
         breed: dog.breed,
-        ...(dog.sex && { sex: dog.sex }),
+        ...(dog.sex === 'male' || dog.sex === 'female' ? { sex: dog.sex } : {}),
         date_of_birth: dog.date_of_birth || '',
         color: dog.color || '',
         height: dog.height || '',
         akc_number: dog.akc_number || '',
         microchip_number: dog.microchip_number || '',
         image_url: dog.image_url || '',
-        spayed_neutered: dog.spayed_neutered,
+        spayed_neutered: dog.spayed_neutered ?? false,
       });
     } else {
       setFormData(initialFormData);

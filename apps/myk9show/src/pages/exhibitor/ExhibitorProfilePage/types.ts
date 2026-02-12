@@ -6,7 +6,7 @@ export interface PersonData {
   id: string;
   first_name: string;
   last_name: string;
-  email: string;
+  email: string | null;
   phone: string | null;
   street_address: string | null;
   city: string | null;

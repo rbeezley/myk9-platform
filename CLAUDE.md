@@ -2,6 +2,10 @@
 
 Project guidance for Claude Code when working with the myK9 Platform monorepo.
 
+## Project Overview
+
+This is a TypeScript monorepo. Always use TypeScript (not JavaScript). When fixing types, verify property names match the actual schema/interface definitions — do not guess.
+
 ## Development Principles
 
 1. **Best practices by default** - Follow established patterns, conventions, and standards
@@ -209,6 +213,26 @@ See [docs/MIGRATION-PLAN.md](docs/MIGRATION-PLAN.md) for detailed implementation
 |-----|------------|-----------|
 | myK9Q | 1901 tests (99.7% passing) | Playwright |
 | myK9Show | Vitest suite | Playwright |
+
+## Git Workflow
+
+After every commit, always push to GitHub unless explicitly told not to. Never leave commits unpushed without asking.
+
+## Quality Checks
+
+Always run typecheck (`pnpm typecheck`) and lint (`pnpm lint`) before committing. If errors are found, fix them before proceeding with the commit.
+
+## Refactoring Guidelines
+
+When refactoring files into modules, verify all imports/exports are correct and no unused imports remain before considering the task complete.
+
+## Testing
+
+When test runners hang or appear stuck for more than 30 seconds, stop and report the issue rather than retrying in a loop. Known issue: test suite has pre-existing timeout/hanging problems.
+
+## Workflow
+
+Update plan/tracking documents (TO-DOS.md, sprint docs, debt register) after completing each task or sprint item. Keep them in sync with actual progress.
 
 ## Related Projects
 

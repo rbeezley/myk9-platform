@@ -74,6 +74,42 @@ Items to address in future sessions.
 
 ---
 
+## Refactor Oversized Components (15 files, 800+ lines) - 2026-02-12
+
+Use `/refactor <file-path>` for each file. Work through sequentially via `/sprint-next`.
+
+- **Refactor DataLifecycleManagement.tsx (1,052 lines)** - Admin component managing archive, cleanup, and export. **Problem:** Multiple distinct concerns (orphan records, archive scheduling, data export/import) crammed into one file. **Files:** `apps/myk9show/src/components/admin/DataLifecycleManagement.tsx`. **Solution:** Extract each lifecycle operation into its own component + shared types.
+
+- **Refactor DogDetailsMain.tsx (1,047 lines)** - Multi-tab dog profile with health, titles, competitions. **Problem:** Single file handles all dog detail tabs, making it hard to maintain individual features. **Files:** `apps/myk9show/src/components/dogs/DogDetailsMain.tsx`. **Solution:** Extract tab contents into separate components, keep DogDetailsMain as tab shell.
+
+- **Refactor ShowCreationWizard.tsx (990 lines)** - Multi-step show creation form. **Problem:** All wizard steps, validation, and state management in one file. **Files:** `apps/myk9show/src/components/shows/wizard/ShowCreationWizard.tsx`. **Solution:** Extract each step into its own component, extract validation logic into hooks.
+
+- **Refactor UserTable.tsx (953 lines)** - Admin user management table with bulk actions. **Problem:** Table rendering, filtering, sorting, bulk operations, and row actions all in one file. **Files:** `apps/myk9show/src/components/admin/users/UserTable.tsx`. **Solution:** Extract column definitions, filter bar, bulk actions bar, and row actions menu.
+
+- **Refactor JudgeCreationPanel.tsx (950 lines)** - Judge creation form with qualifications. **Problem:** Complex form with multiple sections crammed into one component. **Files:** `apps/myk9show/src/components/panels/entities/JudgeCreationPanel.tsx`. **Solution:** Extract form sections (personal info, qualifications, availability) into sub-components.
+
+- **Refactor ShowDetailsEnhanced.tsx (940 lines)** - Show details page with multiple sections. **Problem:** All show detail sections (info, classes, entries, statistics) in one monolithic component. **Files:** `apps/myk9show/src/components/shows/ShowDetails/ShowDetailsEnhanced.tsx`. **Solution:** Extract each section into its own component under ShowDetails/.
+
+- **Refactor ClassResultsTable.tsx (934 lines)** - Results display table with scoring. **Problem:** Table rendering, result calculations, export, and formatting all coupled. **Files:** `apps/myk9show/src/components/classes/ClassResultsTable.tsx`. **Solution:** Extract column definitions, result formatters, and export logic.
+
+- **Refactor SyncMonitoringDashboard.tsx (878 lines)** - Sync status monitoring dashboard. **Problem:** Multiple monitoring panels (connection, queue, conflicts, history) in one file. **Files:** `apps/myk9show/src/components/sync/SyncMonitoringDashboard.tsx`. **Solution:** Extract each monitoring panel into its own component.
+
+- **Refactor OfflineDataManager.tsx (872 lines)** - Offline data management interface. **Problem:** Data caching, sync controls, and storage management all in one component. **Files:** `apps/myk9show/src/components/offline/OfflineDataManager.tsx`. **Solution:** Extract cache manager, sync controls, and storage display panels.
+
+- **Refactor ClubDetails.tsx (863 lines)** - Club details page with member management. **Problem:** Club info, member list, show history, and settings all in one file. **Files:** `apps/myk9show/src/components/clubs/ClubDetails.tsx`. **Solution:** Extract each section into sub-components.
+
+- **Refactor AddDogPanel.tsx (839 lines)** - Dog registration form panel. **Problem:** Large form with breed search, registration validation, and multi-step flow in one file. **Files:** `apps/myk9show/src/components/panels/edit/AddDogPanel.tsx`. **Solution:** Extract form sections and breed search into sub-components.
+
+- **Refactor PaymentStep.tsx (827 lines)** - Registration payment workflow step. **Problem:** Payment method selection, validation, confirmation, and error handling all coupled. **Files:** `apps/myk9show/src/components/shows/RegistrationWorkflow/PaymentStep.tsx`. **Solution:** Extract payment method selector, summary display, and confirmation UI.
+
+- **Refactor OfflineCheckInInterface.tsx (826 lines)** - Offline check-in UI for shows. **Problem:** Check-in list, search, scanning, and conflict resolution in one component. **Files:** `apps/myk9show/src/components/offline-checkin/OfflineCheckInInterface.tsx`. **Solution:** Extract search bar, check-in list, scan handler, and conflict dialog.
+
+- **Refactor ClassList.tsx (1,033 lines)** - myK9Q class list page. **Problem:** Class cards, filtering, sorting, and batch operations in one file. NOTE: myK9Q is production — extra care needed with testing. **Files:** `apps/myk9q/src/pages/ClassList/ClassList.tsx`. **Solution:** Extract filter bar, class card list, and batch operation UI.
+
+- **Refactor AskMyK9Q.tsx (1,036 lines)** - myK9Q chatbot component. **Problem:** Chat UI, message handling, rule lookups, and response formatting all coupled. NOTE: myK9Q is production — extra care needed with testing. **Files:** `apps/myk9q/src/components/chatbot/AskMyK9Q.tsx`. **Solution:** Extract message list, input area, rule lookup panel, and response renderer.
+
+---
+
 ## Address myk9q Deferred Items (3 items) - 2026-02-11 15:14
 
 - **Implement full AKC FastCAT height-based formula** - Simplified formula works but isn't fully accurate. **Problem:** Current handicap calculation uses simplified formula instead of official AKC height-based formula. Low priority - works for now. **Files:** `apps/myk9q/src/constants/fastcatConstants.ts:33`.

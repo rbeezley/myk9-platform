@@ -65,7 +65,13 @@ supabase db push
 supabase migration list
 ```
 
-**MCP Server:** Configured globally in `~/.claude/settings.json` for database queries.
+**MCP Server:** Supabase MCP is configured in two places (either works):
+- **Global (stdio):** `~/.claude/settings.json` → runs `npx @supabase/mcp-server-supabase@latest` with project ref and access token
+- **Project (HTTP):** `.mcp.json` → connects to `https://mcp.supabase.com/mcp` (requires `enabledMcpjsonServers: ["supabase"]` in local settings)
+
+Available MCP tools: `mcp__supabase__execute_sql`, `mcp__supabase__list_tables`, `mcp__supabase__apply_migration`, `mcp__supabase__list_migrations`, `mcp__supabase__get_logs`, `mcp__supabase__get_advisors`
+
+If MCP stops loading: run `claude mcp list` to check status. If disconnected, restart Claude Code — the npx server sometimes fails to start on first attempt.
 
 ## Monorepo Structure
 

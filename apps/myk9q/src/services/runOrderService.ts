@@ -138,6 +138,72 @@ return reorderedEntries;
   }
 }
 
+export type RunOrderScope = 'all' | 'A' | 'B';
+export type RenumberMode = 'preserve' | 'renumber';
+
+/**
+ * Apply run order preset with scope support for A/B sections.
+ * When scope is 'all', delegates to standard applyRunOrderPreset.
+ * When scope is 'A' or 'B', only reorders that section's entries.
+ */
+export async function applyRunOrderPresetScoped(
+  entries: Entry[],
+  preset: RunOrderPreset,
+  scope: RunOrderScope,
+  renumberMode: RenumberMode
+): Promise<Entry[]> {
+  // Scope 'all' → use existing behavior
+  if (scope === 'all') {
+    return applyRunOrderPreset(entries, preset);
+  }
+
+  try {
+    const otherSection = scope === 'A' ? 'B' : 'A';
+    const scopedEntries = entries.filter(e => e.section === scope);
+    const otherEntries = entries.filter(e => e.section === otherSection);
+    const remainingEntries = entries.filter(e => e.section !== scope && e.section !== otherSection);
+
+    // Calculate new order for the scoped section only
+    const reorderedScoped = calculateRunOrder(scopedEntries, preset);
+
+    let finalEntries: Entry[];
+
+    if (renumberMode === 'preserve') {
+      // Keep other section's exhibitorOrder, only update scoped section
+      // Scoped entries get new order values, other entries stay unchanged
+      const maxOtherOrder = Math.max(0, ...otherEntries.map(e => e.exhibitorOrder || 0));
+      const reindexedScoped = reorderedScoped.map((entry, index) => ({
+        ...entry,
+        exhibitorOrder: maxOtherOrder + index + 1
+      }));
+      finalEntries = [...otherEntries, ...reindexedScoped, ...remainingEntries];
+    } else {
+      // Renumber all: scoped section first (1, 2, 3...), then other section continues
+      const reindexedScoped = reorderedScoped.map((entry, index) => ({
+        ...entry,
+        exhibitorOrder: index + 1
+      }));
+      const reindexedOther = otherEntries
+        .sort((a, b) => (a.exhibitorOrder || 0) - (b.exhibitorOrder || 0))
+        .map((entry, index) => ({
+          ...entry,
+          exhibitorOrder: reindexedScoped.length + index + 1
+        }));
+      const reindexedRemaining = remainingEntries.map((entry, index) => ({
+        ...entry,
+        exhibitorOrder: reindexedScoped.length + reindexedOther.length + index + 1
+      }));
+      finalEntries = [...reindexedScoped, ...reindexedOther, ...reindexedRemaining];
+    }
+
+    await updateExhibitorOrder(finalEntries);
+    return finalEntries;
+  } catch (error) {
+    logger.error('❌ Error applying scoped run order preset:', error);
+    throw error;
+  }
+}
+
 /**
  * Get human-readable description of preset
  */

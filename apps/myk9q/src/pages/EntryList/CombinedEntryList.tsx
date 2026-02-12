@@ -8,7 +8,8 @@ import { CheckinStatusDialog } from '../../components/dialogs/CheckinStatusDialo
 import { RunOrderDialog, RunOrderPreset } from '../../components/dialogs/RunOrderDialog';
 import { Clock, CheckCircle, ArrowUpDown, Trophy, RefreshCw } from 'lucide-react';
 import { Entry } from '../../stores/entryStore';
-import { applyRunOrderPreset } from '../../services/runOrderService';
+import { applyRunOrderPresetScoped } from '../../services/runOrderService';
+import type { RunOrderScope, RenumberMode } from '../../services/runOrderService';
 import { generateCheckInSheet, generateResultsSheet, generateScoresheetReport, ReportClassInfo, ScoresheetClassInfo } from '../../services/reportService';
 import { supabase } from '../../lib/supabase';
 import { getScoresheetRoute } from '../../services/scoresheetRouter';
@@ -352,9 +353,15 @@ export const CombinedEntryList: React.FC = () => {
   }, []);
 
   // Run order handlers
-  const handleApplyRunOrder = useCallback(async (preset: RunOrderPreset) => {
+  const handleApplyRunOrder = useCallback(async (
+    preset: RunOrderPreset,
+    scope?: RunOrderScope,
+    renumberMode?: RenumberMode
+  ) => {
     try {
-      const reorderedEntries = await applyRunOrderPreset(localEntries, preset);
+      const reorderedEntries = await applyRunOrderPresetScoped(
+        localEntries, preset, scope || 'all', renumberMode || 'renumber'
+      );
       setLocalEntries(reorderedEntries);
       setRunOrderDialogOpen(false);
       setShowSuccessMessage(true);
@@ -589,6 +596,8 @@ export const CombinedEntryList: React.FC = () => {
         onRefresh={() => refresh(true)}
         showSectionsBadge={true}
         actionsMenu={{
+          showRunOrder: hasPermission('canChangeRunOrder'),
+          onRunOrderClick: () => setRunOrderDialogOpen(true),
           printOptions: [
             { label: 'Check-In Sheet (A & B)', onClick: handlePrintCheckIn, icon: 'checkin' },
             { label: 'Results - Section A', onClick: handlePrintResultsSectionA, icon: 'results', disabled: completedEntries.filter(e => e.section === 'A').length === 0 },

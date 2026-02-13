@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck
-// TODO: Fix Zustand generic type inference issues after dependency upgrade
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { getOptimalStorage } from '@/services/database/storage-adapter';

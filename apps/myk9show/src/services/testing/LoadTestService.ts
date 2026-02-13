@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck
-// TODO: Fix generic type inference issues after dependency upgrade
 /**
  * Load Testing Service
  *
@@ -16,7 +13,6 @@ import type { Show } from '@/types/show-types';
 import { useDogStore } from '@/store/dogStore';
 import { useUserStore } from '@/store/userStore';
 import { useShowStore } from '@/store/showStore';
-import { getRumService } from '@/services/performance/RealUserMonitoring';
 import { logger } from '@/services/LoggingService';
 
 export interface LoadTestConfig {
@@ -50,7 +46,6 @@ export interface LoadTestResults {
 }
 
 export class LoadTestService {
-  private rumService = getRumService();
 
   /**
    * Run comprehensive load test with specified data volumes

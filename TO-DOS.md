@@ -4,11 +4,7 @@ Items to address in future sessions.
 
 ---
 
-## Fix Type/Schema Mismatches (29 files with @ts-nocheck) - 2026-02-11 15:14
-
-
-
-- **Fix Zustand/service generic type inference** - 4 files with @ts-nocheck broken after Zustand upgrade. **Problem:** Generic type inference changed after Zustand version upgrade, causing type errors in stores and services that use generics. **Files:** `apps/myk9show/src/store/showRegistrationStore.ts:3`, `apps/myk9show/src/services/testing/LoadTestService.ts:3`, `apps/myk9show/src/services/optimistic/OptimisticUIService.ts:3`, `apps/myk9show/src/services/database/batchOperations.ts:3`. **Solution:** Update generic type parameters to match new Zustand API signatures. Note: `showScopedDogStore.ts` is a placeholder with a TODO, not @ts-nocheck.
+## Fix Type/Schema Mismatches (25 files with @ts-nocheck) - 2026-02-11 15:14
 
 - **Fix entry management query types** - 5 entry/scratch/moveup files need secretaryEntryQueries and dayOfOperationsQueries types fixed. **Problem:** Query return types don't match what components expect, blocking type checking for core secretary workflows. **Files:** `apps/myk9show/src/hooks/useEntryManagementActions.ts:3`, `apps/myk9show/src/hooks/useEntryManagementData.ts:3`, `apps/myk9show/src/pages/secretary/EntryManagementPage.tsx:3`, `apps/myk9show/src/components/entries/MoveUpRequestsTab.tsx:3`, `apps/myk9show/src/components/entries/ScratchManagementTab.tsx:3`. **Solution:** Fix secretaryEntryQueries and dayOfOperationsQueries return types to match actual DB responses.
 

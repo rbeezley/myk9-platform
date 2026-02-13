@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck
-// TODO: Fix generic type inference issues after dependency upgrade
 import { EventEmitter } from 'events';
 import { logger } from '@/services/LoggingService';
 import {
@@ -469,7 +466,7 @@ export class OptimisticUIService extends EventEmitter {
     // Soft delete strategy
     this.registerRollbackStrategy('soft_delete', {
       name: 'soft_delete',
-      rollback: async (snapshot, operation) => {
+      rollback: async (_snapshot, operation) => {
         const store = this.getStoreForEntityType(operation.entityType);
         if (store && 'update' in store && typeof store.update === 'function') {
           await store.update(operation.entityId, { deleted: false });
@@ -480,7 +477,7 @@ export class OptimisticUIService extends EventEmitter {
     // Queue for later strategy
     this.registerRollbackStrategy('queue', {
       name: 'queue',
-      rollback: async (snapshot, operation) => {
+      rollback: async (_snapshot, operation) => {
         this.operationQueue.push(operation);
         this.emit('operationQueued', { operationId: operation.id });
       }

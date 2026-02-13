@@ -163,7 +163,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
           qualification_level: qual.level || 'Regular',
           disciplines: qual.disciplines || qual.showTypes || [],
           date_obtained: qual.certificationDate || (qual.dateObtained ? new Date(qual.dateObtained as unknown as string).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]),
-          expiration_date: qual.expirationDate ? new Date(qual.expirationDate as unknown as string).toISOString().split('T')[0] : undefined,
+          ...(qual.expirationDate ? { expiration_date: new Date(qual.expirationDate as unknown as string).toISOString().split('T')[0] } : {}),
           is_active: qual.status === 'Active',
         })
       ));

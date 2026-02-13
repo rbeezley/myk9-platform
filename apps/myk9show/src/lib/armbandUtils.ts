@@ -1,14 +1,7 @@
 import { ArmbandAssignment, ArmbandRange, useArmbandStore } from '@/store/armbandStore';
 import { ClassSelectionData } from '@/types/show-registration-types';
-import { Show } from '@/types/show-types';
+import type { Show, Trial } from '@/types/show-types';
 import { logger } from '@/services/LoggingService';
-// import { Trial } from '@/types/trial-types'; // TODO: Create trial types
-interface Trial {
-  id: string;
-  name: string;
-  trialDate: string;
-  trialNumber?: string;
-}
 
 export interface ArmbandAssignmentOptions {
   showId: string;
@@ -258,10 +251,10 @@ function groupClassesByDay(
     let dayNumber = 1;
     if (trials && selection.trialId) {
       const trial = trials.find(t => t.id === selection.trialId);
-      if (trial && trial.trialDate) {
+      if (trial && trial.date) {
         // Calculate day number based on trial date
         // This is a simplified version - you might want to use actual date comparison
-        dayNumber = new Date(trial.trialDate).getDay() || 1;
+        dayNumber = new Date(trial.date).getDay() || 1;
       }
     }
     

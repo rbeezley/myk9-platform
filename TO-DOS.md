@@ -4,12 +4,6 @@ Items to address in future sessions.
 
 ---
 
-## Fix Type/Schema Mismatches - 2026-02-11 15:14
-
-- **Fix remaining TODO items** - armbandUtils has a TODO for missing import. **Problem:** Minor TODO in utility file (not @ts-nocheck). **Files:** `apps/myk9show/src/lib/armbandUtils.ts:5`.
-
----
-
 ## Replace Hardcoded Auth Values (8 locations) - 2026-02-11 15:14
 
 - **Replace hardcoded judge/user identifiers with auth context** - 8 files use placeholder strings like 'current-judge', 'current-user', 'admin@example.com' instead of actual authenticated user. **Problem:** Security placeholders block proper auth integration; hardcoded values mean scoring, sync, and admin features don't track the actual user. **Files:** `apps/myk9show/src/hooks/useRealtimeScoring.ts:265`, `apps/myk9show/src/components/scoring/MultiAreaScoresheet.tsx:178`, `apps/myk9show/src/components/scoring/ScentWorkScoresheet.tsx:101`, `apps/myk9show/src/components/sync/ConflictResolutionDialog.tsx:352`, `apps/myk9show/src/components/dogs/DogDetails/DogDetailsView.tsx:359`, `apps/myk9show/src/hooks/useFieldLevelSync.ts:75-76`, `apps/myk9show/src/components/secretary/BulkResultEntry.tsx:481,487`, `apps/myk9show/src/components/shows/ShowDetails/ShowStatistics/index.tsx:28`. **Solution:** Import and use `useAuthContext()` hook to get current user/judge identity. ShowStatistics also needs RBAC check implementation.

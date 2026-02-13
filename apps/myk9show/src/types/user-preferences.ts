@@ -6,19 +6,22 @@
  */
 
 
-// TODO: Add user_preferences table to database schema
+// Matches actual user_preferences table in Supabase
 export type UserPreferencesRow = {
   id: string;
-  user_id: string;
-  preferences: Record<string, unknown>;
-  created_at: string;
-  updated_at: string;
+  app: string;
+  user_id: string | null;
+  auth_user_id: string | null;
+  license_key: string | null;
+  preferences: Record<string, unknown> | null;
+  created_at: string | null;
+  updated_at: string | null;
 };
 
 export type UserPreferencesInsert = Omit<UserPreferencesRow, 'id' | 'created_at' | 'updated_at'> & {
   id?: string;
-  created_at?: string;
-  updated_at?: string;
+  created_at?: string | null;
+  updated_at?: string | null;
 };
 
 export type UserPreferencesUpdate = Partial<UserPreferencesInsert>;

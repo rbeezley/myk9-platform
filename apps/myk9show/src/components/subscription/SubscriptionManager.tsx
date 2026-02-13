@@ -1,24 +1,22 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck
-// TODO: stripe_user_subscriptions table needs to be created in database
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import {
-  CreditCard, 
-  Calendar, 
-  Star, 
-  Settings, 
-  Download, 
+  CreditCard,
+  Calendar,
+  Star,
+  Settings,
+  Download,
   AlertCircle,
   Crown,
   Zap
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
+import { logger } from '@/services/LoggingService';
 
 interface Subscription {
   id: string;
@@ -58,8 +56,8 @@ export function SubscriptionManager() {
       
       // Fetch subscription from Supabase
       const { data: subData, error: subError } = await supabase
-        .from('stripe_user_subscriptions')
-        .select('subscription_id, subscription_status, price_id, current_period_start, current_period_end, cancel_at_period_end, customer_id')
+        .from('stripe_subscriptions')
+        .select('stripe_subscription_id, status, stripe_price_id, current_period_start, current_period_end, cancel_at_period_end, customer_id')
         .eq('customer_id', user?.id || '')
         .single();
 
@@ -69,20 +67,20 @@ export function SubscriptionManager() {
 
       if (subData) {
         setSubscription({
-          id: subData.subscription_id || '',
-          status: subData.subscription_status === 'active' ? 'active' : 
-                  subData.subscription_status === 'canceled' ? 'canceled' : 
-                  subData.subscription_status === 'past_due' ? 'past_due' : 'unpaid',
+          id: subData.stripe_subscription_id || '',
+          status: subData.status === 'active' ? 'active' :
+                  subData.status === 'canceled' ? 'canceled' :
+                  subData.status === 'past_due' ? 'past_due' : 'unpaid',
           planName: 'Plan', // Not available in view
           planType: 'basic', // Default value
           amount: 0, // Not available in view
           currency: 'usd',
           interval: 'month' as const,
-          currentPeriodStart: new Date((subData.current_period_start || 0) * 1000),
-          currentPeriodEnd: new Date((subData.current_period_end || 0) * 1000),
+          currentPeriodStart: new Date(subData.current_period_start || new Date().toISOString()),
+          currentPeriodEnd: new Date(subData.current_period_end || new Date().toISOString()),
           cancelAtPeriodEnd: subData.cancel_at_period_end || false,
           stripeCustomerId: subData.customer_id || '',
-          stripeSubscriptionId: subData.subscription_id || ''
+          stripeSubscriptionId: subData.stripe_subscription_id || ''
         });
 
         // Fetch invoices
@@ -97,9 +95,9 @@ export function SubscriptionManager() {
 
         setInvoices(invoiceData?.map(inv => ({
           id: inv.id.toString(),
-          amount: inv.amount_total,
-          currency: inv.currency,
-          status: inv.payment_status,
+          amount: inv.amount_cents,
+          currency: inv.currency || 'usd',
+          status: inv.status || 'unknown',
           created: new Date(inv.created_at || ''),
           invoiceUrl: '#', // Not available in orders
           invoicePdf: '#' // Not available in orders

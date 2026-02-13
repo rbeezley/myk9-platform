@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Search, AlertCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -42,6 +42,13 @@ interface HandlerOption {
   } | undefined;
 }
 
+/** Pure permission check — no component state dependencies */
+function checkHandlerPermissions(person: User, showData: unknown): boolean {
+  if (!showData) return true;
+  const result = validateHandlerEligibility(person, showData as Show);
+  return result.eligibility.canHandleAtShow;
+}
+
 export const HandlerSelectionDialog: React.FC<HandlerSelectionDialogProps> = ({
   open,
   onOpenChange,
@@ -75,6 +82,21 @@ export const HandlerSelectionDialog: React.FC<HandlerSelectionDialogProps> = ({
     }).filter(Boolean) as { dog: Dog; owner: User | undefined }[];
   }, [selectedDogs, dogs, people]);
   
+  // Conflict checker depends on current handler assignments
+  const checkHandlerConflicts = useCallback((handlerId: string, targetShowId: string): HandlerOption['conflictInfo'] => {
+    const conflicts = checkConflictsLib(handlerId, targetShowId, '', [], handlerAssignments);
+    if (conflicts.length === 0) {
+      return { hasConflict: false };
+    }
+    const errorConflicts = conflicts.filter(c => c.severity === 'error');
+    const descriptions = conflicts.map(c => c.description);
+    return {
+      hasConflict: errorConflicts.length > 0,
+      conflictingClasses: conflicts.flatMap(c => c.affectedClassIds || []),
+      message: descriptions.join('; '),
+    };
+  }, [handlerAssignments]);
+
   // Get available handlers with validation
   const availableHandlers = useMemo((): HandlerOption[] => {
     if (!show) return [];
@@ -128,7 +150,7 @@ export const HandlerSelectionDialog: React.FC<HandlerSelectionDialogProps> = ({
     }
     
     return handlers;
-  }, [dogsWithOwners, people, show, canAssignHandlers, isSecretary, isClubAdmin, isSiteAdmin, debouncedSearchQuery]);
+  }, [dogsWithOwners, people, show, canAssignHandlers, isSecretary, isClubAdmin, isSiteAdmin, debouncedSearchQuery, checkHandlerConflicts]);
   
   // Initialize default handlers (dog owners)
   useEffect(() => {
@@ -148,28 +170,6 @@ export const HandlerSelectionDialog: React.FC<HandlerSelectionDialogProps> = ({
       setHandlerAssignments(defaultAssignments);
     }
   }, [dogsWithOwners, initialAssignments]);
-  
-  const checkHandlerPermissions = (person: User, showData: unknown): boolean => {
-    if (!showData) return true;
-    const result = validateHandlerEligibility(person, showData as Show);
-    return result.eligibility.canHandleAtShow;
-  };
-
-  const checkHandlerConflicts = (handlerId: string, _showId: string): HandlerOption['conflictInfo'] => {
-    // Use the handler validation library to check for conflicts
-    // across all dogs the handler is currently assigned to
-    const conflicts = checkConflictsLib(handlerId, _showId, '', [], handlerAssignments);
-    if (conflicts.length === 0) {
-      return { hasConflict: false };
-    }
-    const errorConflicts = conflicts.filter(c => c.severity === 'error');
-    const descriptions = conflicts.map(c => c.description);
-    return {
-      hasConflict: errorConflicts.length > 0,
-      conflictingClasses: conflicts.flatMap(c => c.affectedClassIds || []),
-      message: descriptions.join('; '),
-    };
-  };
   
   const validateAssignments = (): boolean => {
     const errors: Record<string, string> = {};

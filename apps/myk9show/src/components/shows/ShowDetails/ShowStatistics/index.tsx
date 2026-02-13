@@ -1,4 +1,5 @@
 import React from "react";
+import { useAuthContext } from '@/hooks/useAuthContext';
 import StatCard from "./StatCard";
 
 export interface Stat {
@@ -24,12 +25,15 @@ interface ShowStatisticsProps {
  * ShowStatistics component to display statistics for a show
  * Should be used inside EntityCardContainer within EntityPageLayout
  */
+const REVENUE_KEYWORDS = ['revenue', 'income', 'earnings', 'financial', 'payment', 'fee', 'cost', 'profit'];
+
 const ShowStatistics: React.FC<ShowStatisticsProps> = ({ stats }) => {
-  // TODO: Implement RBAC - Currently showing all stats to all users
-  // When user roles are implemented:
-  // - Revenue stats should only be visible to admins and show secretaries
-  // - Other sensitive stats should be filtered based on user role
-  const filteredStats = stats;
+  const { hasPermission } = useAuthContext();
+  const canViewRevenue = hasPermission('manage_shows');
+
+  const filteredStats = canViewRevenue
+    ? stats
+    : stats.filter(stat => !REVENUE_KEYWORDS.some(kw => stat.title.toLowerCase().includes(kw)));
   return (
     <div>
       <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">Show Statistics</h2>

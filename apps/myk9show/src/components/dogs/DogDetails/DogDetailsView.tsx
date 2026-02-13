@@ -20,6 +20,7 @@ import type { Dog, Owner } from '@/types/dog-types';
 import DogBasicInfoCard from '@/components/dogs/common/DogBasicInfoCard';
 import '@/styles/apple-dog-details.css';
 import { logger } from '@/services/LoggingService';
+import { useAuthContext } from '@/hooks/useAuthContext';
 
 // TEMP: Mock user object for demo/testing premium gating
 const user = { isPremium: true };
@@ -29,6 +30,7 @@ interface DogDetailsViewProps {
 }
 
 const DogDetailsView: React.FC<DogDetailsViewProps> = ({ dog }) => {
+  const { user: authUser } = useAuthContext();
   const [searchParams] = useSearchParams();
   const [autoOpenAddRegistration, setAutoOpenAddRegistration] = useState(false);
   const people = useUserStore(state => state.people);
@@ -356,7 +358,7 @@ const DogDetailsView: React.FC<DogDetailsViewProps> = ({ dog }) => {
             onClose={() => setIsDeleteDialogOpen(false)}
             onDelete={() => {
               const now = new Date().toISOString();
-              const currentUser = 'admin@example.com'; // TODO: Replace with actual user
+              const currentUser = authUser?.email || 'unknown';
               setUpdatedDog({ ...updatedDog, deletedAt: now, deletedBy: currentUser });
               setIsDeleteDialogOpen(false);
             }}

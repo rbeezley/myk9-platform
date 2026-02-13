@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { RealtimeScoringService } from '@/services/realtime/RealtimeScoringService';
 import { Score, ScoreUpdate, JudgePresence, PlacementUpdate, ScoringConflict } from '@/types/scoring-types';
 import { logger } from '@/services/LoggingService';
+import { useAuthContext } from '@/hooks/useAuthContext';
 
 interface UseRealtimeScoringOptions {
   classId?: string;
@@ -52,6 +53,8 @@ export function useRealtimeScoring(options: UseRealtimeScoringOptions = {}): Use
     autoSubscribe = true,
     enablePresence = true
   } = options;
+
+  const { user } = useAuthContext();
 
   // State
   const [isConnected, setIsConnected] = useState(false);
@@ -261,8 +264,7 @@ export function useRealtimeScoring(options: UseRealtimeScoringOptions = {}): Use
   const updatePresence = useCallback(async (status: 'active' | 'idle' | 'offline') => {
     if (!serviceRef.current || !classId) return;
     
-    // Get current user info (this would come from auth context)
-    const currentUser = { id: 'current-judge', name: 'Current Judge' }; // TODO: Get from auth
+    const currentUser = { id: user?.id || 'unknown', name: user?.email || 'Unknown Judge' };
     
     return serviceRef.current.updateJudgePresence(
       currentUser.id,
@@ -270,7 +272,7 @@ export function useRealtimeScoring(options: UseRealtimeScoringOptions = {}): Use
       classId,
       status
     );
-  }, [classId]);
+  }, [classId, user]);
 
   const subscribeToClass = useCallback(async () => {
     if (!serviceRef.current) return;

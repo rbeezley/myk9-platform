@@ -29,6 +29,7 @@ interface EntryDebugWindow extends Window {
  * This function can be called from browser console: window.debugMarkInRing(entryId, true/false)
  */
 export async function debugMarkInRing(entryId: number, inRing: boolean = true): Promise<void> {
+  if (!import.meta.env.DEV) return;
   console.log(`🧪 Debug: Manually updating entry ${entryId} is_in_ring to:`, inRing);
 
   try {
@@ -62,6 +63,7 @@ export async function debugMarkInRing(entryId: number, inRing: boolean = true): 
  * Test Supabase connection and real-time setup
  */
 export async function testSupabaseConnection(): Promise<void> {
+  if (!import.meta.env.DEV) return;
   console.log('🧪 Testing Supabase connection and real-time setup...');
 
   try {
@@ -108,6 +110,7 @@ export async function testSupabaseConnection(): Promise<void> {
  * Test real-time events by making a harmless database change
  */
 export async function testRealTimeEvents(classId: number): Promise<void> {
+  if (!import.meta.env.DEV) return;
   console.log('🧪 Testing real-time events for class:', classId);
 
   try {
@@ -146,6 +149,7 @@ export async function testRealTimeEvents(classId: number): Promise<void> {
  * Test unfiltered real-time subscription to see if the issue is with our filter
  */
 export async function testUnfilteredRealTime(): Promise<void> {
+  if (!import.meta.env.DEV) return;
   console.log('🧪 Testing UNFILTERED real-time subscription...');
 
   const testSub = supabase
@@ -178,6 +182,7 @@ export async function testUnfilteredRealTime(): Promise<void> {
  * Debug function to monitor database changes and find what's setting in_ring to false
  */
 export async function debugMonitorEntry(entryId: number): Promise<void> {
+  if (!import.meta.env.DEV) return;
   console.log(`🥰 MONITORING ENTRY ${entryId} FOR DATABASE CHANGES...`);
 
   // First, get current state
@@ -253,6 +258,7 @@ export async function debugMonitorEntry(entryId: number): Promise<void> {
  * STOPWATCH ISSUE DEBUGGING - Track exactly when in_ring gets set to false
  */
 export function debugStopwatchIssue(entryId: number): void {
+  if (!import.meta.env.DEV) return;
   console.log(`🚨 DEBUGGING STOPWATCH ISSUE FOR ENTRY ${entryId} 🚨`);
   console.log('📋 SETUP INSTRUCTIONS:');
   console.log('1. Open your entry list page (Tab 2)');
@@ -281,6 +287,7 @@ export async function debugTestCheckinUpdate(
   entryId: number,
   status: 'no-status' | 'checked-in' | 'conflict' | 'pulled' | 'at-gate'
 ): Promise<unknown> {
+  if (!import.meta.env.DEV) return undefined;
   console.log('🧪 Testing check-in update for entry:', entryId, 'to status:', status);
 
   try {
@@ -297,6 +304,7 @@ export async function debugTestCheckinUpdate(
  * Simple test to verify Supabase real-time is working
  */
 export async function testSupabaseRealTime(): Promise<() => void> {
+  if (!import.meta.env.DEV) return () => {};
   console.log('🧪 Testing basic Supabase real-time functionality...');
 
   // Create a simple subscription to the entries table

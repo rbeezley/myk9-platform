@@ -53,6 +53,7 @@ console.log(`   📝 Note: Legacy database may have different table structure`);
 
 // Main test function
 export async function testDatabaseConnections() {
+  if (!import.meta.env.DEV) return false;
 console.log('🔧 DATABASE CONNECTION TEST');
 // Get environment variables
   const newUrl = import.meta.env.VITE_SUPABASE_URL;

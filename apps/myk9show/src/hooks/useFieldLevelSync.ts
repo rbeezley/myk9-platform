@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { fieldLevelSync } from '../services/sync/FieldLevelSyncService';
 import { logger } from '@/services/LoggingService';
+import { useAuthContext } from '@/hooks/useAuthContext';
 
 interface UseFieldLevelSyncOptions {
   entityType: string;
@@ -46,6 +47,8 @@ interface UseFieldLevelSyncReturn {
 export function useFieldLevelSync(
   options: UseFieldLevelSyncOptions
 ): UseFieldLevelSyncReturn {
+  const { user } = useAuthContext();
+
   const [syncState, setSyncState] = useState<FieldSyncState>({
     isSyncing: false,
     lastSyncTime: null,
@@ -72,8 +75,8 @@ export function useFieldLevelSync(
       oldValue: _oldValue,
       newValue,
       timestamp: Date.now(),
-      userId: 'current-user', // TODO: Get from auth context
-      deviceId: 'current-device' // TODO: Get from device context
+      userId: user?.id || 'unknown',
+      deviceId: 'current-device'
     });
 
     // Track in local state
@@ -85,7 +88,7 @@ export function useFieldLevelSync(
         pendingChanges: newPendingChanges
       };
     });
-  }, [config.entityType, config.entityId]);
+  }, [config.entityType, config.entityId, user]);
 
   // Sync changed fields
   const syncChangedFields = useCallback(async (entity: Record<string, unknown>) => {
@@ -216,6 +219,8 @@ export function useFieldChangeTracker(
   entityType: string,
   entityId: string
 ) {
+  const { user } = useAuthContext();
+
   const trackChange = useCallback((
     fieldName: string,
     oldValue: unknown,
@@ -228,10 +233,10 @@ export function useFieldChangeTracker(
       oldValue,
       newValue,
       timestamp: Date.now(),
-      userId: 'current-user',
+      userId: user?.id || 'unknown',
       deviceId: 'current-device'
     });
-  }, [entityType, entityId]);
+  }, [entityType, entityId, user]);
 
   const trackFieldAccess = useCallback((
     fieldName: string,

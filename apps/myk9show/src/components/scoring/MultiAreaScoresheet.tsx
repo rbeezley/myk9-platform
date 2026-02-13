@@ -8,6 +8,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { ChevronLeft, Clock, User, Dog, Award, MapPin, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuthContext } from '@/hooks/useAuthContext';
 
 // UI Components
 import { Button } from '@/components/ui/button';
@@ -62,6 +63,8 @@ export function MultiAreaScoresheet({
   onNavigateBack,
   className
 }: MultiAreaScoresheetProps) {
+  const { user } = useAuthContext();
+
   // Extract configuration
   const { classConfig, displayInfo } = entry;
   const areaTimeLimits = getAreaTimeLimits(classConfig.element, classConfig.level);
@@ -175,7 +178,7 @@ export function MultiAreaScoresheet({
         searchTime: areaTimes[index] || area.searchTime
       })),
       totalFaults,
-      recordedBy: 'current-judge', // TODO: Get from auth context
+      recordedBy: user?.id || 'unknown',
       recordedAt: new Date()
     };
 
@@ -187,7 +190,7 @@ export function MultiAreaScoresheet({
     }
 
     return result;
-  }, [entry, areaResults, areaStatuses, areaTimes, totalElapsedTime, isComplete, hasFailed]);
+  }, [entry, areaResults, areaStatuses, areaTimes, totalElapsedTime, isComplete, hasFailed, user]);
   
   // Validation
   const isResultComplete = validateMultiAreaScentWorkResult(overallResult);

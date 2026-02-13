@@ -4,12 +4,6 @@ Items to address in future sessions.
 
 ---
 
-## Replace Hardcoded Auth Values (8 locations) - 2026-02-11 15:14
-
-- **Replace hardcoded judge/user identifiers with auth context** - 8 files use placeholder strings like 'current-judge', 'current-user', 'admin@example.com' instead of actual authenticated user. **Problem:** Security placeholders block proper auth integration; hardcoded values mean scoring, sync, and admin features don't track the actual user. **Files:** `apps/myk9show/src/hooks/useRealtimeScoring.ts:265`, `apps/myk9show/src/components/scoring/MultiAreaScoresheet.tsx:178`, `apps/myk9show/src/components/scoring/ScentWorkScoresheet.tsx:101`, `apps/myk9show/src/components/sync/ConflictResolutionDialog.tsx:352`, `apps/myk9show/src/components/dogs/DogDetails/DogDetailsView.tsx:359`, `apps/myk9show/src/hooks/useFieldLevelSync.ts:75-76`, `apps/myk9show/src/components/secretary/BulkResultEntry.tsx:481,487`, `apps/myk9show/src/components/shows/ShowDetails/ShowStatistics/index.tsx:28`. **Solution:** Import and use `useAuthContext()` hook to get current user/judge identity. ShowStatistics also needs RBAC check implementation.
-
----
-
 ## Complete Database Integration (15 items) - 2026-02-11 15:14
 
 - **Create missing database tables** - 4 features blocked on missing Supabase tables. **Problem:** user_preferences, stripe_user_subscriptions, and payment tables don't exist yet, blocking preferences, subscription management, and payment features. **Files:** `apps/myk9show/src/types/user-preferences.ts:9`, `apps/myk9show/src/components/subscription/SubscriptionManager.tsx:3`, `apps/myk9show/src/services/payment/PaymentService.ts:3`, `apps/myk9show/src/services/preferences/userPreferencesService.ts:3`. **Solution:** Create Supabase migrations for user_preferences, stripe_user_subscriptions, and payment tables.
@@ -95,12 +89,6 @@ Use `/refactor <file-path>` for each file. Work through sequentially via `/sprin
 - **Remove event_statistics table guard** - Guard blocks nationals feature. **Problem:** Temporary guard prevents event_statistics operations until migration runs; blocks nationals scoring feature. Medium priority. **Files:** `apps/myk9q/src/services/replication/tables/ReplicatedEventStatisticsTable.ts:217`. **Solution:** Run event_statistics migration, then remove the guard.
 
 - **Implement analytics integration** - Performance monitoring has no external analytics. **Problem:** Performance data is collected but not sent anywhere useful. Low priority - nice-to-have. **Files:** `apps/myk9q/src/utils/performanceMonitoring.ts:323`. **Solution:** Integrate with Google Analytics, Sentry, or similar.
-
----
-
-## Gate Debug Utilities Behind Dev-Only (2 files) - 2026-02-12
-
-- **Gate or relocate debug utilities** - 87 console statements in debug utilities ship to production. **Problem:** `entryDebug.ts` and `testDatabaseConnections.ts` contain extensive console logging intended for development use but included in production bundle. **Files:** `apps/myk9q/src/utils/entryDebug.ts`, `apps/myk9q/src/utils/testDatabaseConnections.ts`. **Solution:** Gate behind `import.meta.env.DEV` check, move to `scripts/`, or tree-shake via dead code elimination.
 
 ---
 

@@ -32,6 +32,7 @@ import { ConflictComparison } from './ConflictComparison';
 import { ConflictResolutionWizard } from './ConflictResolutionWizard';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import type { BaseConflictResolution, BaseConflict } from '@/types/conflict-types';
 import type { Conflict } from '@/types/conflict-types';
 
@@ -137,6 +138,8 @@ export function ConflictResolutionDialog({
   onDismiss,
   conflictResolver,
 }: ConflictResolutionDialogProps) {
+  const { user } = useAuthContext();
+
   // Handle both prop patterns
   const dialogOpen = open ?? isOpen ?? false;
   const handleOpenChange = (newOpen: boolean) => {
@@ -349,7 +352,7 @@ export function ConflictResolutionDialog({
         strategy: selectedStrategy,
         resolvedData: customResolution || 
           (selectedStrategy === 'local' ? conflict.localData : conflict.remoteData),
-        resolvedBy: 'current-user', // TODO: Get from auth context
+        resolvedBy: user?.id || 'unknown',
         resolvedAt: new Date(),
         metadata: {
           mode,

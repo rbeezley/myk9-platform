@@ -9,6 +9,7 @@
 import { useState, useCallback } from 'react';
 import { Clock, User, Dog, Award } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import '@/styles/apple-show-details.css';
 
 // UI Components
@@ -73,6 +74,8 @@ export function ScentWorkScoresheet({
   className
 }: ScentWorkScoresheetProps) {
 
+  const { user } = useAuthContext();
+
   // Extract class configuration and time limits - handle mock data
   const classConfig = entry.classConfig || { 
     element: 'Interior' as 'Container' | 'Interior' | 'Exterior' | 'Buried', 
@@ -98,7 +101,7 @@ export function ScentWorkScoresheet({
     searchTime: 0,
     maxTimeAllowed: maxTimeMs,
     faults: 0,
-    recordedBy: 'current-judge', // TODO: Get from auth context
+    recordedBy: user?.id || 'unknown',
     recordedAt: new Date()
   }) as Partial<ScentWorkResult>);
 

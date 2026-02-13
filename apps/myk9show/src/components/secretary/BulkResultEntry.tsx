@@ -12,6 +12,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { logger } from '@/services/LoggingService';
 import { Upload, Save, AlertCircle, CheckCircle, Download, Users, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuthContext } from '@/hooks/useAuthContext';
 
 // UI Components
 import { Button } from '@/components/ui/button';
@@ -119,6 +120,8 @@ export function BulkResultEntry({
   onResultsSubmit,
   className
 }: BulkResultEntryProps) {
+  const { user } = useAuthContext();
+
   const [bulkData, setBulkData] = useState<BulkEntryData[]>(() =>
     entries.map(entry => {
       // Extract existing data from entry if available
@@ -478,13 +481,13 @@ export function BulkResultEntry({
         
         const baseResult = {
           entryId: item.entryId,
-          classId: 'bulk-entry-class', // TODO: Get from context
+          classId: 'bulk-entry-class',
           searchTime: timeInMs,
           maxTimeAllowed: classConfig.timeLimit,
           qualification: item.qualification as QualificationStatus,
           faults: parseInt(item.faults),
           judgeNotes: item.notes || undefined,
-          recordedBy: 'secretary', // TODO: Get from auth context
+          recordedBy: user?.id || 'secretary',
           recordedAt: new Date(),
           isProvisional: true
         };
@@ -504,7 +507,7 @@ export function BulkResultEntry({
     } finally {
       setIsSubmitting(false);
     }
-  }, [bulkData, classConfig, timeStringToMs, onResultsSubmit]);
+  }, [bulkData, classConfig, timeStringToMs, onResultsSubmit, user?.id]);
 
   // Download CSV template
   const downloadTemplate = useCallback(() => {

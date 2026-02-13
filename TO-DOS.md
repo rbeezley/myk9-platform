@@ -46,15 +46,9 @@ Items to address in future sessions.
 
 ---
 
-## Refactor Oversized Components (12 files, 800+ lines) - 2026-02-12
+## Refactor Oversized Components (9 files, 800+ lines) - 2026-02-12
 
 Use `/refactor <file-path>` for each file. Work through sequentially via `/sprint-next`.
-
-- **Refactor ShowCreationWizard.tsx (990 lines)** - Multi-step show creation form. **Problem:** All wizard steps, validation, and state management in one file. **Files:** `apps/myk9show/src/components/shows/wizard/ShowCreationWizard.tsx`. **Solution:** Extract each step into its own component, extract validation logic into hooks.
-
-- **Refactor UserTable.tsx (953 lines)** - Admin user management table with bulk actions. **Problem:** Table rendering, filtering, sorting, bulk operations, and row actions all in one file. **Files:** `apps/myk9show/src/components/admin/users/UserTable.tsx`. **Solution:** Extract column definitions, filter bar, bulk actions bar, and row actions menu.
-
-- **Refactor JudgeCreationPanel.tsx (950 lines)** - Judge creation form with qualifications. **Problem:** Complex form with multiple sections crammed into one component. **Files:** `apps/myk9show/src/components/panels/entities/JudgeCreationPanel.tsx`. **Solution:** Extract form sections (personal info, qualifications, availability) into sub-components.
 
 - **Refactor ShowDetailsEnhanced.tsx (940 lines)** - Show details page with multiple sections. **Problem:** All show detail sections (info, classes, entries, statistics) in one monolithic component. **Files:** `apps/myk9show/src/components/shows/ShowDetails/ShowDetailsEnhanced.tsx`. **Solution:** Extract each section into its own component under ShowDetails/.
 

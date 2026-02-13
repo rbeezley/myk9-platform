@@ -10,7 +10,7 @@ import { useOptimisticScoring } from '../../../hooks/useOptimisticScoring';
 import { SyncIndicator } from '../../../components/ui';
 import { ClipboardCheck } from 'lucide-react';
 import { ensureReplicationManager } from '../../../utils/replicationHelper';
-import { FASTCAT_COURSE } from '../../../constants/fastcatConstants';
+import { calculateFastCatMph, calculateFastCatPoints } from '../../../constants/fastcatConstants';
 import type { Entry as ReplicatedEntry } from '../../../services/replication/tables/ReplicatedEntriesTable';
 import type { Class } from '../../../services/replication/tables/ReplicatedClassesTable';
 import type { Entry } from '../../../stores/entryStore';
@@ -61,9 +61,6 @@ export const AKCFastCatScoresheet: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
 
-  // FastCat course length from constants
-  const COURSE_LENGTH = FASTCAT_COURSE.LENGTH_YARDS;
-
   // Helper function - defined before useMemo
   const parseTimeToSeconds = (timeString: string): number => {
     if (!timeString) return 0;
@@ -91,15 +88,15 @@ export const AKCFastCatScoresheet: React.FC = () => {
       return { mph: 0, points: 0 };
     }
 
-    // Calculate MPH: (Distance in yards * SECONDS_PER_HOUR) / (Time in seconds * YARDS_PER_MILE)
-    const calculatedMph = (COURSE_LENGTH * FASTCAT_COURSE.SECONDS_PER_HOUR) / (timeInSeconds * FASTCAT_COURSE.YARDS_PER_MILE);
-    const roundedMph = Math.round(calculatedMph * 100) / 100; // Round to 2 decimal places
+    // Calculate MPH and points using AKC height-based handicap formula
+    const calculatedMph = calculateFastCatMph(timeInSeconds);
+    const roundedMph = Math.round(calculatedMph * 100) / 100;
 
-    // Calculate points based on speed (simplified formula - see constants for full AKC formula notes)
-    const basePoints = Math.round(calculatedMph * FASTCAT_COURSE.POINTS_MULTIPLIER);
+    // Height-based handicap: falls back to 1.0 (tall) when height unavailable
+    const basePoints = calculateFastCatPoints(timeInSeconds);
 
     return { mph: roundedMph, points: basePoints };
-  }, [runTime, currentEntry, COURSE_LENGTH]);
+  }, [runTime, currentEntry]);
 
   const loadEntries = async () => {
     if (!classId || !showContext?.licenseKey) return;

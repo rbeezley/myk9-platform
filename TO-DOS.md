@@ -84,8 +84,6 @@ Use `/refactor <file-path>` for each file. Work through sequentially via `/sprin
 
 ## Address myk9q Deferred Items (3 items) - 2026-02-11 15:14
 
-- **Implement full AKC FastCAT height-based formula** - Simplified formula works but isn't fully accurate. **Problem:** Current handicap calculation uses simplified formula instead of official AKC height-based formula. Low priority - works for now. **Files:** `apps/myk9q/src/constants/fastcatConstants.ts:33`.
-
 - **Remove event_statistics table guard** - Guard blocks nationals feature. **Problem:** Temporary guard prevents event_statistics operations until migration runs; blocks nationals scoring feature. Medium priority. **Files:** `apps/myk9q/src/services/replication/tables/ReplicatedEventStatisticsTable.ts:217`. **Solution:** Run event_statistics migration, then remove the guard.
 
 - **Implement analytics integration** - Performance monitoring has no external analytics. **Problem:** Performance data is collected but not sent anywhere useful. Low priority - nice-to-have. **Files:** `apps/myk9q/src/utils/performanceMonitoring.ts:323`. **Solution:** Integrate with Google Analytics, Sentry, or similar.

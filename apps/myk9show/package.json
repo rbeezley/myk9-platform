@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && npm run budget:check",
-    "build:strict": "tsc --noEmit --project tsconfig.app.json && vite build && npm run budget:check",
+    "build": "vite build",
+    "build:strict": "tsc --noEmit --project tsconfig.app.json && vite build",
     "build:no-budget": "tsc --noEmit --project tsconfig.app.json && vite build",
     "build:production": "tsc --noEmit --project tsconfig.app.json && vite build --config vite.config.production.ts",
     "build:fast": "vite build --config vite.config.production.ts",

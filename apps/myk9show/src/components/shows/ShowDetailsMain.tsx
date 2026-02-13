@@ -158,7 +158,7 @@ const ShowDetailsMain: React.FC<ShowDetailsMainProps> = ({
         {/* Show Creation Wizard */}
         <ShowCreationWizard
           open={showWizard}
-          onOpenChange={(open) => {
+          onOpenChange={(open: boolean) => {
             setShowWizard(open);
             if (!open) {
               setWizardEditMode(undefined);
@@ -506,7 +506,7 @@ const ShowDetailsMain: React.FC<ShowDetailsMainProps> = ({
       {/* Show Creation Wizard */}
       <ShowCreationWizard
         open={showWizard}
-        onOpenChange={(open) => {
+        onOpenChange={(open: boolean) => {
           setShowWizard(open);
           if (!open) {
             setWizardEditMode(undefined);

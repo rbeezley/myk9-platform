@@ -1,5 +1,5 @@
 // Wizard Components
-export { default as ShowCreationWizard } from './ShowCreationWizard';
+export { ShowCreationWizard } from './ShowCreationWizard';
 
 // Wizard Steps
 export { default as ShowDetailsStep } from './steps/ShowDetailsStep';

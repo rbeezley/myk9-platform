@@ -46,15 +46,9 @@ Items to address in future sessions.
 
 ---
 
-## Refactor Oversized Components (9 files, 800+ lines) - 2026-02-12
+## Refactor Oversized Components (6 files, 800+ lines) - 2026-02-12
 
 Use `/refactor <file-path>` for each file. Work through sequentially via `/sprint-next`.
-
-- **Refactor ShowDetailsEnhanced.tsx (940 lines)** - Show details page with multiple sections. **Problem:** All show detail sections (info, classes, entries, statistics) in one monolithic component. **Files:** `apps/myk9show/src/components/shows/ShowDetails/ShowDetailsEnhanced.tsx`. **Solution:** Extract each section into its own component under ShowDetails/.
-
-- **Refactor ClassResultsTable.tsx (934 lines)** - Results display table with scoring. **Problem:** Table rendering, result calculations, export, and formatting all coupled. **Files:** `apps/myk9show/src/components/classes/ClassResultsTable.tsx`. **Solution:** Extract column definitions, result formatters, and export logic.
-
-- **Refactor OfflineDataManager.tsx (872 lines)** - Offline data management interface. **Problem:** Data caching, sync controls, and storage management all in one component. **Files:** `apps/myk9show/src/components/offline/OfflineDataManager.tsx`. **Solution:** Extract cache manager, sync controls, and storage display panels.
 
 - **Refactor ClubDetails.tsx (863 lines)** - Club details page with member management. **Problem:** Club info, member list, show history, and settings all in one file. **Files:** `apps/myk9show/src/components/clubs/ClubDetails.tsx`. **Solution:** Extract each section into sub-components.
 

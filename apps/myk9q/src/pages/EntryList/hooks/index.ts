@@ -20,3 +20,7 @@ export { useDragAndDropEntries } from './useDragAndDropEntries';
 export { useEntryNavigation, parseOrganizationData } from './useEntryNavigation';
 
 export { useResetScore } from './useResetScore';
+
+export { useEntryListHandlers } from './useEntryListHandlers';
+
+export { useEntryListEffects } from './useEntryListEffects';

@@ -4,8 +4,6 @@ Items to address in future sessions.
 
 ---
 
----
-
 ## Complete Incomplete Features (45+ items) - 2026-02-11 15:14
 
 - **Complete secretary tools** - Copy/export, save logic, and column configuration missing. **Problem:** Secretary workflow tools partially implemented. **Files:** `apps/myk9show/src/pages/secretary/ClassCreationPage.tsx:162,171`, `apps/myk9show/src/pages/admin/TemplateEditorPageMinimal.tsx:68`, `apps/myk9show/src/components/secretary/ResultsGrid.tsx:75-76`.
@@ -34,8 +32,6 @@ Items to address in future sessions.
 
 ---
 
----
-
 ## Address myk9q Deferred Items (3 items) - 2026-02-11 15:14
 
 - **Remove event_statistics table guard** - Guard blocks nationals feature. **Problem:** Temporary guard prevents event_statistics operations until migration runs; blocks nationals scoring feature. Medium priority. **Files:** `apps/myk9q/src/services/replication/tables/ReplicatedEventStatisticsTable.ts:217`. **Solution:** Run event_statistics migration, then remove the guard.
@@ -47,13 +43,3 @@ Items to address in future sessions.
 ## Refactor Additional Large Files (32 files, 790-1210 lines) - 2026-02-12
 
 Priority files not yet tracked in the refactoring backlog. See `docs/AUDIT-REPORT.md` section 4 for the full list.
-
-- **Refactor EntryList.tsx (1,070 lines)** - myK9Q production page component. **Problem:** Entry list rendering, filtering, sorting, and actions all in one file. NOTE: myK9Q is production — extra care needed. **Files:** `apps/myk9q/src/pages/EntryList/EntryList.tsx`. **Solution:** Extract filter bar, entry cards, and action handlers.
-
-- **Refactor MaxTimeDialog.tsx (806 lines)** - myK9Q production dialog. **Problem:** Timer UI, configuration, and submission logic coupled in one file. NOTE: myK9Q is production. **Files:** `apps/myk9q/src/components/dialogs/MaxTimeDialog.tsx`. **Solution:** Extract timer display, configuration panel, and submission logic.
-
-- **Refactor ask-myk9q Edge Function (1,210 lines)** - Supabase Edge Function. **Problem:** Prompt construction, rule lookups, and response formatting all in one file. **Files:** `apps/myk9q/supabase/functions/ask-myk9q/index.ts`. **Solution:** Extract prompt builder, rule lookup, and response formatter modules.
-
-- **Refactor statsDataHelpers.ts (947 lines)** - myK9Q data helpers. **Problem:** Multiple unrelated stat calculations in one file. **Files:** `apps/myk9q/src/pages/Stats/hooks/statsDataHelpers.ts`. **Solution:** Split by stat category (event stats, dog stats, title tracking).
-
-- **Refactor useClassListData.ts (790 lines)** - myK9Q production hook. **Problem:** Data fetching, caching, and derived state in one hook. **Files:** `apps/myk9q/src/pages/ClassList/hooks/useClassListData.ts`. **Solution:** Split into data fetching hook and derived state hook.

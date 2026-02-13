@@ -25,3 +25,6 @@ export type { FloatingDoneButtonProps } from './FloatingDoneButton';
 
 export { ResetMenuPopup } from './ResetMenuPopup';
 export type { ResetMenuPopupProps } from './ResetMenuPopup';
+
+export { EntryListDialogs } from './EntryListDialogs';
+export type { EntryListDialogsProps } from './EntryListDialogs';

@@ -15,7 +15,6 @@ import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { PERMISSIONS } from '@/types/auth-types';
 import ShowDetailsEnhancedApple from './ShowDetails/ShowDetailsEnhancedApple';
 import '@/styles/apple-show-details.css';
-import { logger } from '@/services/LoggingService';
 
 interface ShowDetailsMainProps {
   showData: Show;
@@ -146,12 +145,10 @@ const ShowDetailsMain: React.FC<ShowDetailsMainProps> = ({
           onDeleteShow={onDeleteShow}
           onRegisterForShow={onRegisterForShow}
           onManageEntries={() => {
-            // TODO: Implement manage entries functionality
-            logger.debug('Manage entries clicked', 'shows', {});
+            navigate('/secretary/entries', { state: { showId: showData.id } });
           }}
           onViewResults={() => {
-            // TODO: Implement view results functionality
-            logger.debug('View results clicked', 'shows', {});
+            navigate('/results/dashboard', { state: { showId: showData.id } });
           }}
         />
         

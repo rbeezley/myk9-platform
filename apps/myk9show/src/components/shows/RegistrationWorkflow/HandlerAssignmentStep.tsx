@@ -9,7 +9,6 @@ import { useDogStore } from '@/store/dogStore';
 import { useUserStore } from '@/store/userStore';
 import { ClassSelectionData, HandlerInfo } from '@/types/show-registration-types';
 import { HandlerSelectionDialog } from './HandlerSelectionDialog';
-import { logger } from '@/services/LoggingService';
 
 interface HandlerAssignmentStepProps {
   selectedDogs: string[];
@@ -29,7 +28,8 @@ export const HandlerAssignmentStep: React.FC<HandlerAssignmentStepProps> = ({
   const { dogs = [] } = useDogStore();
   const { people = [] } = useUserStore();
   const [showHandlerDialog, setShowHandlerDialog] = useState(false);
-  
+  const [editingDogId, setEditingDogId] = useState<string | null>(null);
+
   // Get dogs with their information
   const dogsWithInfo = useMemo(() => {
     return selectedDogs.map(dogId => {
@@ -68,9 +68,7 @@ export const HandlerAssignmentStep: React.FC<HandlerAssignmentStepProps> = ({
   }, [selectedDogs.length, handlerAssignments]);
   
   const handleSingleDogEdit = (dogId: string) => {
-    // For individual dog edits, we could show a smaller dialog
-    // For now, just show the full dialog with that dog pre-selected
-    logger.debug('Single dog edit for:', 'shows', { data: dogId }); // TODO: implement specific dog editing
+    setEditingDogId(dogId);
     setShowHandlerDialog(true);
   };
   
@@ -216,11 +214,24 @@ export const HandlerAssignmentStep: React.FC<HandlerAssignmentStepProps> = ({
       {/* Handler Selection Dialog */}
       <HandlerSelectionDialog
         open={showHandlerDialog}
-        onOpenChange={setShowHandlerDialog}
-        selectedDogs={selectedDogs}
+        onOpenChange={(open) => {
+          setShowHandlerDialog(open);
+          if (!open) setEditingDogId(null);
+        }}
+        selectedDogs={editingDogId ? [editingDogId] : selectedDogs}
         showId={showId}
-        onHandlerAssignment={onHandlerAssignmentChange}
-        initialAssignments={handlerAssignments}
+        onHandlerAssignment={(assignments) => {
+          if (editingDogId) {
+            // Merge single-dog assignment into full assignments
+            onHandlerAssignmentChange({ ...handlerAssignments, ...assignments });
+          } else {
+            onHandlerAssignmentChange(assignments);
+          }
+        }}
+        initialAssignments={editingDogId
+          ? (handlerAssignments[editingDogId] ? { [editingDogId]: handlerAssignments[editingDogId] } : {})
+          : handlerAssignments
+        }
       />
     </div>
   );

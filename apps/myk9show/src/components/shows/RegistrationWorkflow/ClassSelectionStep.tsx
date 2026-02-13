@@ -22,6 +22,7 @@ import { useClassAvailability, type ClassAvailability } from '@/hooks/useClassAv
 import { useCartStore, useCartItems, type CartItemWithDetails } from '@/stores/cartStore';
 import { useEntryEligibility } from '@/hooks/useEntryEligibility';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { joinWaitlist } from '@/services/database/queries/waitlistQueries';
 import { toast } from 'sonner';
 import '@/styles/apple-registration-workflow.css';
 
@@ -64,6 +65,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
 
   const [activeTab, setActiveTab] = useState(selectedDogs[0] || '');
   const [isAddingToCart, setIsAddingToCart] = useState<string | null>(null);
+  const [joiningWaitlist, setJoiningWaitlist] = useState<string | null>(null);
 
   // Cart store
   const cartItems = useCartItems();
@@ -584,11 +586,27 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                             variant="outline"
                                             size="sm"
                                             className="h-7 text-xs"
-                                            onClick={() => {
-                                              // TODO: Implement waitlist join functionality
+                                            disabled={joiningWaitlist === `${dogId}-${classData.id}`}
+                                            onClick={async () => {
+                                              if (!user?.id) {
+                                                toast.error('You must be logged in to join a waitlist');
+                                                return;
+                                              }
+                                              const key = `${dogId}-${classData.id}`;
+                                              setJoiningWaitlist(key);
+                                              try {
+                                                const { error, position } = await joinWaitlist(classData.id, dogId, user.id);
+                                                if (error) {
+                                                  toast.error('Failed to join waitlist', { description: error.message });
+                                                } else {
+                                                  toast.success(`Added to waitlist (position #${position})`);
+                                                }
+                                              } finally {
+                                                setJoiningWaitlist(null);
+                                              }
                                             }}
                                           >
-                                            Join Waitlist
+                                            {joiningWaitlist === `${dogId}-${classData.id}` ? 'Joining...' : 'Join Waitlist'}
                                           </Button>
                                         </div>
                                       )}

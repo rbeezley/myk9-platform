@@ -17,7 +17,8 @@ import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
 import { Dog, User } from '@/types/dog-types';
 import { HandlerInfo } from '@/types/show-registration-types';
 import { useDebounce } from '@myk9/scoring-ui';
-import { logger } from '@/services/LoggingService';
+import { validateHandlerEligibility, checkHandlerConflicts as checkConflictsLib } from '@/lib/handlerValidation';
+import type { Show } from '@/types/show-types';
 
 interface HandlerSelectionDialogProps {
   open: boolean;
@@ -148,19 +149,25 @@ export const HandlerSelectionDialog: React.FC<HandlerSelectionDialogProps> = ({
     }
   }, [dogsWithOwners, initialAssignments]);
   
-  const checkHandlerPermissions = (person: User, show: unknown): boolean => {
-    // TODO: Implement actual permission checking based on show rules
-    // For now, return true for all registered users
-    logger.debug('Checking permissions for:', 'shows', { personName: person.name, show });
-    return true;
+  const checkHandlerPermissions = (person: User, showData: unknown): boolean => {
+    if (!showData) return true;
+    const result = validateHandlerEligibility(person, showData as Show);
+    return result.eligibility.canHandleAtShow;
   };
-  
-  const checkHandlerConflicts = (handlerId: string, showId: string): HandlerOption['conflictInfo'] => {
-    // TODO: Implement actual conflict checking
-    // Check if handler is already handling dogs in conflicting time slots
-    logger.debug('Checking conflicts for handler:', 'shows', { handlerId, showId });
+
+  const checkHandlerConflicts = (handlerId: string, _showId: string): HandlerOption['conflictInfo'] => {
+    // Use the handler validation library to check for conflicts
+    // across all dogs the handler is currently assigned to
+    const conflicts = checkConflictsLib(handlerId, _showId, '', [], handlerAssignments);
+    if (conflicts.length === 0) {
+      return { hasConflict: false };
+    }
+    const errorConflicts = conflicts.filter(c => c.severity === 'error');
+    const descriptions = conflicts.map(c => c.description);
     return {
-      hasConflict: false
+      hasConflict: errorConflicts.length > 0,
+      conflictingClasses: conflicts.flatMap(c => c.affectedClassIds || []),
+      message: descriptions.join('; '),
     };
   };
   
@@ -200,8 +207,7 @@ export const HandlerSelectionDialog: React.FC<HandlerSelectionDialogProps> = ({
       
       // Clear validation error for this dog
       setValidationErrors(prev => {
-        const { [dogId]: removed, ...rest } = prev;
-        logger.debug('Removed validation error for dog:', 'shows', { dogId, removedError: removed });
+        const { [dogId]: _removed, ...rest } = prev;
         return rest;
       });
     }

@@ -383,6 +383,84 @@ export const getWaitlistPosition = async (waitlistEntryId: string) => {
 };
 
 /**
+ * Join the waitlist for a class (exhibitor-facing)
+ * Calculates the next position and inserts a new waitlist entry.
+ */
+export const joinWaitlist = async (
+  classId: string,
+  dogId: string,
+  exhibitorId: string,
+  handlerId?: string | null
+) => {
+  const startTime = Date.now();
+
+  try {
+    // Get current max position for this class
+    const { data: existing, error: posError } = await supabase
+      .from('waitlist_entries')
+      .select('position')
+      .eq('class_id', classId)
+      .order('position', { ascending: false })
+      .limit(1);
+
+    if (posError) {
+      throw createDatabaseError(posError, 'waitlist_entries', 'join_waitlist_position');
+    }
+
+    const nextPosition = existing && existing.length > 0 ? existing[0].position + 1 : 1;
+
+    const { data, error } = await supabase
+      .from('waitlist_entries')
+      .insert({
+        class_id: classId,
+        dog_id: dogId,
+        exhibitor_id: exhibitorId,
+        handler_id: handlerId || null,
+        position: nextPosition,
+        status: 'waiting',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .select(`
+        id,
+        class_id,
+        dog_id,
+        exhibitor_id,
+        handler_id,
+        position,
+        status,
+        created_at,
+        dog:dog_id (
+          id,
+          name,
+          call_name
+        ),
+        class:class_id (
+          id,
+          name,
+          class_number,
+          max_entries
+        )
+      `)
+      .single();
+
+    const duration = Date.now() - startTime;
+    logQuery('waitlist_entries', 'join_waitlist', duration, error?.message);
+
+    if (error) {
+      throw createDatabaseError(error, 'waitlist_entries', 'join_waitlist');
+    }
+
+    return { data, error: null, position: nextPosition };
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    const dbError = createDatabaseError(error, 'waitlist_entries', 'join_waitlist');
+    logQuery('waitlist_entries', 'join_waitlist', duration, dbError.message);
+    return { data: null, error: dbError, position: null };
+  }
+};
+
+/**
  * Accept a waitlist offer - creates an entry and removes from waitlist
  */
 export const acceptWaitlistOffer = async (waitlistEntryId: string) => {

@@ -332,14 +332,14 @@ export const searchClubs = async (searchTerm: string) => {
   }
 };
 
-// Get clubs with show counts (TODO: Add show relationship when schema supports it)
+// Get clubs with show counts via shows.club_id FK
 export const getClubsWithShowCounts = async () => {
   const startTime = Date.now();
 
   try {
     const { data, error } = await supabase
       .from('clubs')
-      .select('*')
+      .select('*, shows(count)')
       .is('deleted_at', null)
       .order('name', { ascending: true });
 
@@ -350,11 +350,17 @@ export const getClubsWithShowCounts = async () => {
       throw createDatabaseError(error, 'club', 'select_with_show_counts');
     }
 
-    // Transform data to include show count (placeholder until schema supports relationship)
-    const dataWithCounts = data?.map(club => ({
-      ...club,
-      show_count: 0, // TODO: Add actual count when shows table has club_id foreign key
-    })) || [];
+    const dataWithCounts = data?.map(club => {
+      // Supabase returns aggregates as [{count: N}] on the relation key
+      const showsAgg = (club as unknown as Record<string, unknown>).shows as Array<{ count: number }> | undefined;
+      // Remove the nested shows aggregate, preserve the typed club fields
+      const cleanClub = { ...club };
+      delete (cleanClub as Record<string, unknown>).shows;
+      return {
+        ...cleanClub,
+        show_count: showsAgg?.[0]?.count ?? 0,
+      };
+    }) || [];
 
     return { data: dataWithCounts, error: null };
   } catch (error) {

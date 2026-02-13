@@ -341,8 +341,8 @@ export class FCMService {
     payload: unknown
   ): Promise<void> {
     try {
-      // TODO: Implement proper notification_event table integration
-      logger.debug('📊 Event logged (mock)', 'notifications', { data: { 
+      // Notification events are tracked via logger; a dedicated table can be added if analytics require it
+      logger.debug('Notification event tracked', 'notifications', { data: {
         user_id: this.userId,
         event_type: event,
         payload: typeof payload === 'object' ? payload : { data: payload }

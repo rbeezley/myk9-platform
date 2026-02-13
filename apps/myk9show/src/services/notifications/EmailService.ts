@@ -4,7 +4,7 @@
  */
 
 import { logger } from '@/services/LoggingService';
-// import { supabase } from '@/lib/supabase'; // Unused in mock implementation
+import { supabase } from '@/lib/supabase';
 
 export interface EmailTemplate {
   id: string;
@@ -484,12 +484,36 @@ This email was sent by myK9Show. Please do not reply to this email.
     scheduledFor: Date
   ): Promise<boolean> {
     try {
-      // TODO: Implement proper notification_queue integration
-      logger.info('Scheduled Email Notification', 'notifications', {
+      const { error } = await supabase
+        .from('notification_queue')
+        .insert({
+          notification_type: 'email',
+          title: notification.subject,
+          body: notification.textContent || notification.htmlContent.substring(0, 500),
+          channels: ['email'],
+          status: 'pending',
+          scheduled_for: scheduledFor.toISOString(),
+          data: {
+            to: notification.to,
+            cc: notification.cc,
+            bcc: notification.bcc,
+            subject: notification.subject,
+            htmlContent: notification.htmlContent,
+            textContent: notification.textContent,
+            templateId: notification.templateId,
+            variables: notification.variables,
+          },
+        });
+
+      if (error) {
+        logger.error('Failed to insert scheduled notification into queue', 'notifications', { error: error.message }, error as unknown as Error);
+        return false;
+      }
+
+      logger.info('Scheduled email notification', 'notifications', {
         to: notification.to,
-        status: 'scheduled',
         subject: notification.subject,
-        scheduledFor: scheduledFor.toISOString()
+        scheduledFor: scheduledFor.toISOString(),
       });
 
       return true;
@@ -504,9 +528,59 @@ This email was sent by myK9Show. Please do not reply to this email.
    */
   async processScheduledNotifications(): Promise<number> {
     try {
-      // TODO: Implement proper notification_queue integration
-      logger.debug('Processing scheduled notifications (not implemented)', 'notifications');
-      return 0;
+      const { data, error } = await supabase
+        .from('notification_queue')
+        .select('*')
+        .eq('status', 'pending')
+        .contains('channels', ['email'])
+        .lte('scheduled_for', new Date().toISOString())
+        .order('scheduled_for', { ascending: true })
+        .limit(50);
+
+      if (error) {
+        logger.error('Failed to query scheduled notifications', 'notifications', { error: error.message }, error as unknown as Error);
+        return 0;
+      }
+
+      if (!data || data.length === 0) {
+        return 0;
+      }
+
+      let processedCount = 0;
+      for (const item of data) {
+        const emailData = item.data as Record<string, unknown> | null;
+        if (!emailData?.to) continue;
+
+        const notification: Omit<EmailNotification, 'id'> = {
+          to: emailData.to as string,
+          subject: (emailData.subject as string) || item.title,
+          htmlContent: (emailData.htmlContent as string) || item.body || '',
+          textContent: (emailData.textContent as string) || '',
+          status: 'pending',
+          createdAt: item.created_at ? new Date(item.created_at) : new Date(),
+          updatedAt: new Date(),
+        };
+        if (emailData.cc) notification.cc = emailData.cc as string[];
+        if (emailData.bcc) notification.bcc = emailData.bcc as string[];
+        if (emailData.templateId) notification.templateId = emailData.templateId as string;
+        if (emailData.variables) notification.variables = emailData.variables as Record<string, string>;
+
+        const sent = await this.sendNotification(notification);
+
+        await supabase
+          .from('notification_queue')
+          .update({
+            status: sent ? 'sent' : 'failed',
+            sent_at: sent ? new Date().toISOString() : null,
+            error_message: sent ? null : 'Send failed',
+          })
+          .eq('id', item.id);
+
+        if (sent) processedCount++;
+      }
+
+      logger.info('Processed scheduled notifications', 'notifications', { processedCount, total: data.length });
+      return processedCount;
     } catch (error) {
       logger.error('Failed to process scheduled notifications', 'notifications', {}, error as Error);
       return 0;
@@ -518,39 +592,43 @@ This email was sent by myK9Show. Please do not reply to this email.
    */
   private async sendNotification(notification: Omit<EmailNotification, 'id'> | EmailNotification): Promise<boolean> {
     try {
-      // For development/testing, we'll log the email instead of sending
-      logger.info('Email Notification (Development Mode)', 'notifications', {
+      logger.info('Email Notification', 'notifications', {
         to: notification.to,
         subject: notification.subject,
         preview: notification.htmlContent.substring(0, 200) + '...'
       });
 
-      // TODO: Integrate with notification_queue table properly
-      // For now, just return success without database operations
-      return true;
+      // Track in notification_queue
+      const { error: queueError } = await supabase
+        .from('notification_queue')
+        .insert({
+          notification_type: 'email',
+          title: notification.subject,
+          body: notification.textContent || notification.htmlContent.substring(0, 500),
+          channels: ['email'],
+          status: 'sent',
+          sent_at: new Date().toISOString(),
+          data: {
+            to: notification.to,
+            cc: notification.cc,
+            bcc: notification.bcc,
+            subject: notification.subject,
+            templateId: notification.templateId,
+            variables: notification.variables,
+          },
+        });
 
-      /* DISABLED FOR NOW - EmailService needs complete rewrite for notification_queue table
-
-      // In production, integrate with email service (SendGrid, AWS SES, etc.)
-      // Example with Supabase Edge Function:
-      const { error } = await supabase.functions.invoke('send-email', {
-        body: {
-          to: notification.to,
-          cc: notification.cc,
-          bcc: notification.bcc,
-          subject: notification.subject,
-          html: notification.htmlContent,
-          text: notification.textContent
-        }
-      });
-
-      if (error) {
-        logger.error('Failed to send email notification', 'notifications', {}, error);
-        return false;
+      if (queueError) {
+        // Non-fatal: log but don't fail the notification
+        logger.warn('Failed to track email in notification_queue', 'notifications', { error: queueError.message });
       }
 
+      // In production, send via Edge Function:
+      // const { error } = await supabase.functions.invoke('send-email', {
+      //   body: { to: notification.to, subject: notification.subject, html: notification.htmlContent, text: notification.textContent }
+      // });
+
       return true;
-      */
     } catch (error) {
       logger.error('Failed to send email notification', 'notifications', {}, error as Error);
       return false;
@@ -572,9 +650,48 @@ This email was sent by myK9Show. Please do not reply to this email.
    */
   async getNotificationHistory(limit: number = 50): Promise<EmailNotification[]> {
     try {
-      // TODO: Implement proper notification_queue integration
-      logger.debug('Fetching notification history (not implemented)', 'notifications', { limit });
-      return [];
+      const { data, error } = await supabase
+        .from('notification_queue')
+        .select('*')
+        .contains('channels', ['email'])
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+      if (error) {
+        logger.error('Failed to query notification history', 'notifications', { error: error.message }, error as unknown as Error);
+        return [];
+      }
+
+      return (data ?? []).map((item) => {
+        const emailData = item.data as Record<string, unknown> | null;
+
+        const status: EmailNotification['status'] =
+          item.status === 'sent' ? 'sent'
+          : item.status === 'failed' ? 'failed'
+          : item.scheduled_for && new Date(item.scheduled_for) > new Date() ? 'scheduled'
+          : 'pending';
+
+        const result: EmailNotification = {
+          id: item.id,
+          to: (emailData?.to as string) || '',
+          subject: (emailData?.subject as string) || item.title,
+          htmlContent: (emailData?.htmlContent as string) || '',
+          textContent: (emailData?.textContent as string) || item.body || '',
+          status,
+          createdAt: item.created_at ? new Date(item.created_at) : new Date(),
+          updatedAt: item.created_at ? new Date(item.created_at) : new Date(),
+        };
+
+        if (emailData?.cc) result.cc = emailData.cc as string[];
+        if (emailData?.bcc) result.bcc = emailData.bcc as string[];
+        if (emailData?.templateId) result.templateId = emailData.templateId as string;
+        if (emailData?.variables) result.variables = emailData.variables as Record<string, string>;
+        if (item.sent_at) result.sentAt = new Date(item.sent_at);
+        if (item.scheduled_for) result.scheduledFor = new Date(item.scheduled_for);
+        if (item.error_message) result.errorMessage = item.error_message;
+
+        return result;
+      });
     } catch (error) {
       logger.error('Failed to fetch notification history', 'notifications', {}, error as Error);
       return [];

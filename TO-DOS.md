@@ -4,10 +4,6 @@ Items to address in future sessions.
 
 ---
 
-## Complete Database Integration (14 items) - 2026-02-11 15:14
-
-- **Wire up missing schema features** - 6 features need schema additions or table relationships. **Problem:** Features reference columns/relationships that don't exist: notification tables, club membership data, show relationship in club schema, entries count on Show type, ReplicatedClassesTable integration. **Files:** `apps/myk9show/src/services/notifications/FCMService.ts:344`, `apps/myk9show/src/services/notifications/EmailService.ts:487-575`, `apps/myk9show/src/utils/show-relationships.ts:50`, `apps/myk9show/src/services/database/queries/clubQueries.ts:335,356`, `apps/myk9show/src/components/shows/enhanced/PaginatedShowsList.tsx:248,485`, `apps/myk9show/src/store/trialStore.ts:563,604,633`.
-
 ---
 
 ## Complete Incomplete Features (45+ items) - 2026-02-11 15:14

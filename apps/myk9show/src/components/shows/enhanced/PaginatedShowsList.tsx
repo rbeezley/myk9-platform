@@ -245,7 +245,7 @@ export function PaginatedShowsList({
         show.clubName,
         show.status,
         show.type,
-        '0', // Entries count - TODO: implement when entries are added to Show type
+        show.stats?.find(s => s.title.toLowerCase().includes('entr'))?.value || 'N/A',
         show.trials?.reduce((total, trial) => total + (trial.classes?.length || 0), 0).toString() || '0',
       ])
     ].map(row => row.map(field => `"${field}"`).join(',')).join('\n');

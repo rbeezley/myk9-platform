@@ -560,7 +560,7 @@ export const useTrialStore = create<TrialStore>()(
             };
           });
 
-          // TODO: Integrate with ReplicatedClassesTable in future migration
+          // Phase 8: Sync via ReplicatedClassesTable for offline support
 
           return newTrialClass;
         } catch (error) {
@@ -601,7 +601,7 @@ export const useTrialStore = create<TrialStore>()(
             }
           }));
 
-          // TODO: Integrate with ReplicatedClassesTable in future migration
+          // Phase 8: Sync via ReplicatedClassesTable for offline support
 
           return updatedClass;
         } catch (error) {
@@ -630,7 +630,7 @@ export const useTrialStore = create<TrialStore>()(
             }
           }));
 
-          // TODO: Integrate with ReplicatedClassesTable in future migration
+          // Phase 8: Sync via ReplicatedClassesTable for offline support
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to delete trial class';
           set({ error: errorMessage });

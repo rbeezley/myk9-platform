@@ -1,6 +1,6 @@
 import { Show } from '@/types/show-types';
 import { SyncableShowEntry } from '@/store/entryStore';
-import { UserWithRoles } from '@/types/auth-types';
+import { UserWithRoles, RoleScope, ScopeType } from '@/types/auth-types';
 
 /**
  * Show relationship utilities for the unified shows interface
@@ -37,23 +37,33 @@ export function getUserEntries(
 export function getUserManagedShows(
   userId: string,
   shows: Show[],
-  userRoles: string[] = []
+  userRoles: string[] = [],
+  scopes: RoleScope[] = []
 ): Show[] {
   if (!userId) return [];
+
+  // Build a set of club IDs where the user has club_admin scope
+  const adminClubIds = new Set(
+    scopes
+      .filter(s => s.scopeType === ScopeType.CLUB && s.roleId === 'club_admin')
+      .map(s => s.scopeId)
+  );
+
+  // If user has global club_admin (no specific scope), they admin all clubs
+  const hasGlobalClubAdmin = userRoles.includes('club_admin') && adminClubIds.size === 0;
 
   return shows.filter(show => {
     // Direct secretary assignment
     if (show.secretary === userId) return true;
-    
-    // Club admin for the show's club
-    if (show.clubId && userRoles.includes('club_admin')) {
-      // TODO: When club membership data is available, check if user is admin of show.clubId
-      return show.clubId === userId; // Temporary: assuming clubId could match userId
+
+    // Club admin for the show's club (scoped or global)
+    if (show.clubId && (hasGlobalClubAdmin || adminClubIds.has(show.clubId))) {
+      return true;
     }
-    
+
     // Show chairman
     if (show.chairman === userId) return true;
-    
+
     return false;
   });
 }
@@ -149,9 +159,10 @@ export function getUserShowRelationships(
 
   const userId = user.id;
   const userRoles = user.roles || [];
+  const scopes = user.scopes || [];
 
   const userEntries = getUserEntries(userId, shows, entries);
-  const managedShows = getUserManagedShows(userId, shows, userRoles);
+  const managedShows = getUserManagedShows(userId, shows, userRoles, scopes);
   const judgeAssignments = getUserJudgeAssignments(userId, shows);
   const adminShows = getAdminManagedShows(shows, userRoles);
 

@@ -1,8 +1,9 @@
 /**
- * Nationals Scoring Service (Stub)
+ * Nationals Scoring Service
  *
- * This is a placeholder stub. The actual implementation exists in myk9q.
- * TODO: Move to a shared package when nationals features are needed.
+ * Provides shared types and a default no-op implementation for nationals scoring.
+ * The full implementation lives in myk9q; this provides the type contract
+ * so both apps can reference the same types.
  */
 
 export type ElementType = 'CONTAINER' | 'BURIED' | 'INTERIOR' | 'EXTERIOR' | 'HD_CHALLENGE';
@@ -55,8 +56,14 @@ export interface NationalsRanking {
   mobile_app_lic_key: string;
 }
 
-// Stub service - no-op implementations
-export const nationalsScoring = {
+export interface NationalsScoringInterface {
+  calculatePoints(score: Partial<NationalsScore>): number;
+  submitScore(score: NationalsScore): Promise<void>;
+  getRankings(): Promise<NationalsRanking[]>;
+}
+
+// No-op default implementation
+export const nationalsScoring: NationalsScoringInterface = {
   calculatePoints: (_score: Partial<NationalsScore>): number => 0,
   submitScore: async (_score: NationalsScore): Promise<void> => {},
   getRankings: async (): Promise<NationalsRanking[]> => [],

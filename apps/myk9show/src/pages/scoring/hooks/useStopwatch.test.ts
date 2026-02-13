@@ -4,15 +4,22 @@
 
 import { renderHook, act } from '@testing-library/react';
 import { useStopwatch } from './useStopwatch';
-import voiceAnnouncementService from '../../../services/voiceAnnouncementService';
+import { voiceAnnouncementService } from '@myk9/core';
 
 // Mock voice announcement service
-vi.mock('../../../services/voiceAnnouncementService', () => ({
-  default: {
-    announceTimeRemaining: vi.fn(),
-    setScoringActive: vi.fn()
-  }
-}));
+vi.mock('@myk9/core', async () => {
+  const actual = await vi.importActual('@myk9/core');
+  return {
+    ...actual,
+    voiceAnnouncementService: {
+      announceTimeRemaining: vi.fn(),
+      setScoringActive: vi.fn(),
+    },
+    notificationSoundService: {
+      playTimerWarningChime: vi.fn(),
+    },
+  };
+});
 
 describe('useStopwatch', () => {
   beforeEach(() => {

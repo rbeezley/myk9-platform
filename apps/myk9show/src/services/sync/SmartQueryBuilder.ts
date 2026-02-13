@@ -1,3 +1,10 @@
+import { supabase } from '@/lib/supabase';
+import { logger } from '@/services/LoggingService';
+import type { Database } from '@/types/supabase';
+
+/** Valid Supabase table names derived from the Database schema */
+type TableName = keyof Database['public']['Tables'];
+
 export interface User {
   id: string;
   role: string;
@@ -25,7 +32,7 @@ export interface BaseQuery {
 }
 
 export class SmartQueryBuilder {
-  
+
   /**
    * Build a query for an entity based on sync scope and user context
    */
@@ -47,10 +54,114 @@ export class SmartQueryBuilder {
   }
 
   /**
+   * Execute a BaseQuery against Supabase and return the resulting rows.
+   * Translates the abstract query descriptor into actual Supabase PostgREST calls.
+   */
+  async executeQuery(query: BaseQuery): Promise<Record<string, unknown>[]> {
+    if (query.limit === 0) {
+      return [];
+    }
+
+    try {
+      // Start building the Supabase query
+      // Cast to TableName since buildQuery produces known table names
+      let supabaseQuery = supabase
+        .from(query.from as TableName)
+        .select(query.select);
+
+      // Apply filters — only use simple, single-table operators that PostgREST supports.
+      // Filters referencing joined tables (e.g. "entries.userId") are skipped at the
+      // PostgREST level and would need to be handled via RPC or views in the future.
+      for (const filter of query.filters) {
+        // Skip relationship-based filters (contain dots) — these cannot be
+        // expressed as simple PostgREST filters on the base table.
+        if (filter.field.includes('.')) {
+          logger.debug(
+            `Skipping relationship filter: ${filter.field} ${filter.operator}`,
+            'sync',
+            {}
+          );
+          continue;
+        }
+
+        switch (filter.operator) {
+          case 'eq':
+            supabaseQuery = supabaseQuery.eq(filter.field, filter.value as string);
+            break;
+          case 'neq':
+            supabaseQuery = supabaseQuery.neq(filter.field, filter.value as string);
+            break;
+          case 'gt':
+            supabaseQuery = supabaseQuery.gt(
+              filter.field,
+              filter.value instanceof Date ? filter.value.toISOString() : (filter.value as string)
+            );
+            break;
+          case 'gte':
+            supabaseQuery = supabaseQuery.gte(
+              filter.field,
+              filter.value instanceof Date ? filter.value.toISOString() : (filter.value as string)
+            );
+            break;
+          case 'lt':
+            supabaseQuery = supabaseQuery.lt(
+              filter.field,
+              filter.value instanceof Date ? filter.value.toISOString() : (filter.value as string)
+            );
+            break;
+          case 'lte':
+            supabaseQuery = supabaseQuery.lte(
+              filter.field,
+              filter.value instanceof Date ? filter.value.toISOString() : (filter.value as string)
+            );
+            break;
+          case 'contains':
+            supabaseQuery = supabaseQuery.contains(filter.field, filter.value as Record<string, unknown>);
+            break;
+          case 'in':
+            supabaseQuery = supabaseQuery.in(filter.field, filter.value as string[]);
+            break;
+          default:
+            logger.warn(`Unsupported filter operator: ${filter.operator}`, 'sync');
+        }
+      }
+
+      // Apply ordering
+      if (query.orderBy) {
+        const parts = query.orderBy.split(',').map(p => p.trim());
+        for (const part of parts) {
+          const tokens = part.split(/\s+/);
+          const column = tokens[0];
+          const ascending = !(tokens[1]?.toUpperCase() === 'DESC');
+          supabaseQuery = supabaseQuery.order(column, { ascending });
+        }
+      }
+
+      // Apply limit
+      supabaseQuery = supabaseQuery.limit(query.limit);
+
+      const { data, error } = await supabaseQuery;
+
+      if (error) {
+        throw new Error(`Supabase query on '${query.from}' failed: ${error.message}`);
+      }
+
+      return (data ?? []) as Record<string, unknown>[];
+    } catch (error) {
+      logger.error(
+        `Failed to execute query on '${query.from}':`,
+        'sync',
+        {},
+        error as Error
+      );
+      throw error;
+    }
+  }
+
+  /**
    * Build query for shows based on scope
    */
   private buildShowQuery(config: QueryConfig, user: User): BaseQuery {
-    // TODO: Replace with actual Supabase query when integrated
     const baseQuery: BaseQuery = {
       from: 'shows',
       select: '*',

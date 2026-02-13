@@ -3,10 +3,7 @@
  *
  * Replicated table for `event_statistics` - statistics for national events and competitions.
  *
- * This table is currently DORMANT (not actively used in production) but infrastructure
- * is ready for future nationals events.
- *
- * **Phase 4 Day 19** - Nationals Tables (Dormant)
+ * **Phase 4 Day 19** - Nationals Tables
  */
 
 import { ReplicatedTable, type SyncResult } from '@myk9/replication';
@@ -46,9 +43,6 @@ export interface EventStatistics {
  * Server-authoritative (no client writes).
  */
 export class ReplicatedEventStatisticsTable extends ReplicatedTable<EventStatistics> {
-  // Track if dormant message has been logged this session (avoid log spam)
-  private static dormantLoggedOnce = false;
-
   constructor() {
     super('event_statistics', undefined, myk9qReplicationDependencies);
   }
@@ -204,33 +198,10 @@ export class ReplicatedEventStatisticsTable extends ReplicatedTable<EventStatist
 
   /**
    * Sync method - full sync for event statistics
-   *
-   * NOTE: This table is DORMANT - it doesn't exist in the database yet.
-   * The sync returns success with 0 rows to prevent error spam.
-   * When the table is created, remove the early return check.
    */
-  async sync(_licenseKey: string): Promise<SyncResult> {
+  async sync(licenseKey: string): Promise<SyncResult> {
     const startTime = Date.now();
 
-    // DORMANT TABLE CHECK: event_statistics doesn't exist in database yet
-    // Return success with 0 rows to prevent error spam during sync
-    // TODO: Remove this check when event_statistics migration is created
-    if (!ReplicatedEventStatisticsTable.dormantLoggedOnce) {
-       
-      logger.log('[ReplicatedEventStatisticsTable] ⏸️ Skipping sync - table is dormant (not yet in database)');
-      ReplicatedEventStatisticsTable.dormantLoggedOnce = true;
-    }
-    return {
-      tableName: this.tableName,
-      success: true,
-      operation: 'incremental-sync', // Using valid operation type for dormant skip
-      rowsAffected: 0,
-      conflictsResolved: 0,
-      duration: Date.now() - startTime,
-    };
-
-    // Original sync code (activate when table exists):
-    /*
     try {
       const data = await this.fetchFromSupabase(licenseKey);
 
@@ -255,7 +226,7 @@ export class ReplicatedEventStatisticsTable extends ReplicatedTable<EventStatist
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error('[ReplicatedEventStatisticsTable] ❌ Sync failed:', errorMessage);
+      logger.error('[ReplicatedEventStatisticsTable] Sync failed:', errorMessage);
 
       return {
         tableName: this.tableName,
@@ -267,7 +238,6 @@ export class ReplicatedEventStatisticsTable extends ReplicatedTable<EventStatist
         error: errorMessage,
       };
     }
-    */
   }
 
   /**
@@ -277,13 +247,14 @@ export class ReplicatedEventStatisticsTable extends ReplicatedTable<EventStatist
     return remote; // Server wins (always)
   }
 
-  // NOTE: clearTable() method removed while table is dormant.
-  // Re-add when activating this table:
-  // private async clearTable(): Promise<void> {
-  //   const all = await this.getAll();
-  //   const ids = all.map(item => item.id);
-  //   if (ids.length > 0) await this.batchDelete(ids);
-  // }
+  /**
+   * Clear all local event statistics data
+   */
+  private async clearTable(): Promise<void> {
+    const all = await this.getAll();
+    const ids = all.map(item => item.id);
+    if (ids.length > 0) await this.batchDelete(ids);
+  }
 }
 
 /**

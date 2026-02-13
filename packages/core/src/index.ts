@@ -135,3 +135,25 @@ export {
   type ScreenSize,
   type DeviceCapabilities,
 } from './utils/deviceDetection';
+
+// Notification sound service (no-op stub — apps can provide real implementations)
+export {
+  notificationSoundService,
+  type NotificationSoundServiceInterface,
+} from './services/notificationSoundService';
+
+// Voice announcement service (no-op stub — apps can provide real implementations)
+export {
+  default as voiceAnnouncementService,
+  type VoiceAnnouncementServiceInterface,
+} from './services/voiceAnnouncementService';
+
+// Nationals scoring service (types + no-op stub)
+export {
+  nationalsScoring,
+  type ElementType,
+  type CompetitionDay,
+  type NationalsScore,
+  type NationalsRanking,
+  type NationalsScoringInterface,
+} from './services/nationalsScoring';

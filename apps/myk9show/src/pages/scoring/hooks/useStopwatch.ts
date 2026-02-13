@@ -13,8 +13,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
-import voiceAnnouncementService from '../../../services/voiceAnnouncementService';
-import { notificationSoundService } from '../../../services/notificationSoundService';
+import { voiceAnnouncementService, notificationSoundService } from '@myk9/core';
 
 export interface UseStopwatchOptions {
   /** Maximum time in "MM:SS" format (e.g., "3:00", "4:00") */

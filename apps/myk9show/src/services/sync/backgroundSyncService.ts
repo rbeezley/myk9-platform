@@ -7,6 +7,11 @@
 
 import { logger } from '@/services/LoggingService';
 import { ensureError } from '@myk9/core';
+import { supabase } from '@/lib/supabase';
+import type { Database } from '@/types/supabase';
+
+/** Valid Supabase table names derived from the Database schema */
+type TableName = keyof Database['public']['Tables'] & string;
 
 export interface BackgroundSyncOptions {
   maxRetries: number;
@@ -313,12 +318,10 @@ export class BackgroundSyncService {
 
   private async executeSyncTask(task: SyncTask): Promise<SyncResult> {
     const startTime = Date.now();
-    
+
     try {
-      // This is where you would implement the actual sync logic
-      // For now, we'll simulate the sync operation
-      await this.simulateSyncOperation(task);
-      
+      await this.executeSyncAgainstSupabase(task);
+
       return {
         taskId: task.id,
         success: true,
@@ -326,7 +329,7 @@ export class BackgroundSyncService {
         duration: Date.now() - startTime,
         timestamp: new Date()
       };
-      
+
     } catch (error) {
       return {
         taskId: task.id,
@@ -339,56 +342,95 @@ export class BackgroundSyncService {
     }
   }
 
-  private async simulateSyncOperation(task: SyncTask): Promise<void> {
-    // Real implementation for form submissions and data sync
-    const baseUrl = process.env.VITE_API_URL || '/api';
-    const endpoint = this.getEndpointForTask(task);
-    
-    const response = await fetch(`${baseUrl}${endpoint}`, {
-      method: this.getMethodForTask(task),
-      headers: {
-        'Content-Type': 'application/json',
-        // Add auth headers here if needed
-      },
-      body: task.data ? JSON.stringify(task.data) : null,
-      signal: AbortSignal.timeout(this.options.networkTimeout)
-    });
+  /**
+   * Execute a sync task against Supabase using the appropriate CRUD operation.
+   */
+  private async executeSyncAgainstSupabase(task: SyncTask): Promise<void> {
+    const tableName = this.getTableName(task.entity);
 
-    if (!response.ok) {
-      if (response.status === 409) {
-        // Conflict - handle specially
-        const conflictData = await response.json();
-        throw new Error(`CONFLICT:${JSON.stringify(conflictData)}`);
-      }
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    // Update local data with server response if needed
-    const result = await response.json();
-    if (result && task.type === 'create' && result.id) {
-      // Store server-generated ID for future updates
-      await this.updateLocalEntity(task.entity, task.entityId, { serverId: result.id });
-    }
-  }
-
-  private getEndpointForTask(task: SyncTask): string {
-    switch (task.entity) {
-      case 'dog': return `/dogs${task.type === 'create' ? '' : `/${task.entityId}`}`;
-      case 'person': return `/people${task.type === 'create' ? '' : `/${task.entityId}`}`;
-      case 'show': return `/shows${task.type === 'create' ? '' : `/${task.entityId}`}`;
-      case 'entry': return `/entries${task.type === 'create' ? '' : `/${task.entityId}`}`;
-      case 'club': return `/clubs${task.type === 'create' ? '' : `/${task.entityId}`}`;
-      default: return `/${task.entity}${task.type === 'create' ? '' : `/${task.entityId}`}`;
-    }
-  }
-
-  private getMethodForTask(task: SyncTask): string {
     switch (task.type) {
-      case 'create': return 'POST';
-      case 'update': return 'PUT';
-      case 'delete': return 'DELETE';
-      default: return 'POST';
+      case 'create': {
+        const { error } = await supabase
+          .from(tableName)
+          .insert(task.data ?? {});
+
+        if (error) {
+          if (error.code === '23505') {
+            // Unique constraint violation — row already exists, treat as update
+            throw new Error(`CONFLICT:${JSON.stringify({ code: error.code, message: error.message })}`);
+          }
+          throw new Error(`Supabase insert on '${tableName}' failed: ${error.message}`);
+        }
+
+        // Notify local stores about the created entity
+        await this.updateLocalEntity(task.entity, task.entityId, { _syncStatus: 'synced' });
+        break;
+      }
+
+      case 'update': {
+        if (!task.data || Object.keys(task.data).length === 0) {
+          throw new Error(`No data provided for update on '${tableName}'`);
+        }
+
+        const { error } = await supabase
+          .from(tableName)
+          .update(task.data)
+          .eq('id', task.entityId);
+
+        if (error) {
+          if (error.code === 'PGRST116') {
+            // No rows matched — possible concurrent delete or version conflict
+            throw new Error(`CONFLICT:${JSON.stringify({ code: error.code, message: error.message })}`);
+          }
+          throw new Error(`Supabase update on '${tableName}' failed: ${error.message}`);
+        }
+
+        await this.updateLocalEntity(task.entity, task.entityId, { _syncStatus: 'synced' });
+        break;
+      }
+
+      case 'delete': {
+        const { error } = await supabase
+          .from(tableName)
+          .delete()
+          .eq('id', task.entityId);
+
+        if (error) {
+          throw new Error(`Supabase delete on '${tableName}' failed: ${error.message}`);
+        }
+        break;
+      }
+
+      default:
+        throw new Error(`Unknown sync task type: ${task.type}`);
     }
+  }
+
+  /**
+   * Map entity names (which may be singular) to Supabase table names (which are plural).
+   */
+  private getTableName(entity: string): TableName {
+    const entityToTable: Record<string, TableName> = {
+      dog: 'dogs',
+      dogs: 'dogs',
+      person: 'people',
+      people: 'people',
+      show: 'shows',
+      shows: 'shows',
+      entry: 'entries',
+      entries: 'entries',
+      club: 'clubs',
+      clubs: 'clubs',
+      class: 'classes',
+      classes: 'classes',
+      trial: 'trials',
+      trials: 'trials',
+    };
+    const mapped = entityToTable[entity];
+    if (!mapped) {
+      throw new Error(`Unknown entity type for Supabase mapping: '${entity}'`);
+    }
+    return mapped;
   }
 
   private async updateLocalEntity(entity: string, entityId: string, updates: Record<string, unknown>): Promise<void> {

@@ -45,6 +45,8 @@ export class InitialSyncOrchestrator {
    * Perform initial sync for a new user
    */
   async performInitialSync(userId: string, role: UserRole): Promise<void> {
+    this.currentUserId = userId;
+
     try {
       // Check storage availability
       const storageInfo = await this.storageEstimator.checkQuota();
@@ -228,23 +230,54 @@ export class InitialSyncOrchestrator {
   }
 
   /**
-   * Execute a single sync step
+   * Execute a single sync step — fetches data from Supabase and stores it locally
    */
   private async syncEntityStep(step: SyncStep): Promise<void> {
-    // TODO: Implement actual sync logic with Supabase
-    // For now, simulate the sync process
-    
     logger.debug(`Syncing ${step.entity} with scope ${step.scope}, limit ${step.limit}`, 'sync', {});
-    
-    // Simulate network delay based on entity size
-    const delay = Math.max(100, step.estimatedSizeMB * 100); // 100ms per MB
-    await new Promise(resolve => setTimeout(resolve, delay));
-    
-    // This will be replaced with actual Supabase queries:
-    // const query = this.queryBuilder.buildQuery(step.entity, step, { id: _userId });
-    // const data = await query;
-    // await this.storeLocalData(step.entity, data);
+
+    // Build the abstract query descriptor for this entity/scope
+    const baseQuery = this.queryBuilder.buildQuery(
+      step.entity,
+      { scope: step.scope, limit: step.limit },
+      { id: this.currentUserId ?? 'unknown', role: 'sync' }
+    );
+
+    // Optimize the query to select only essential fields for initial load
+    const optimizedQuery = this.queryBuilder.optimizeQuery(baseQuery, step.entity);
+
+    // Execute the query against Supabase
+    const rows = await this.queryBuilder.executeQuery(optimizedQuery);
+
+    if (rows.length === 0) {
+      logger.debug(`No data returned for ${step.entity} (${step.scope})`, 'sync', {});
+      return;
+    }
+
+    // Store fetched rows in the local Dexie database
+    await this.storeLocalData(step.entity, rows);
+
+    logger.debug(
+      `Stored ${rows.length} ${step.entity} records locally`,
+      'sync',
+      { data: { entity: step.entity, count: rows.length } }
+    );
   }
+
+  /**
+   * Store fetched remote data into the local Dexie database
+   */
+  private async storeLocalData(entity: string, rows: Record<string, unknown>[]): Promise<void> {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { db } = require('@/services/database/connection');
+
+    const table = db.instance.table(entity);
+
+    // Use bulkPut so existing records are updated and new ones are inserted
+    await table.bulkPut(rows);
+  }
+
+  /** User ID used for building scoped queries (set during performInitialSync) */
+  private currentUserId: string | null = null;
 
   /**
    * Add progress callback

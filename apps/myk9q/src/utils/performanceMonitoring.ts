@@ -1,6 +1,12 @@
 /**
  * Production Performance Monitoring
  * Tracks Core Web Vitals and custom metrics
+ *
+ * Analytics reporting uses a pluggable reporter pattern:
+ * - In development: logs metrics to the console via the logger
+ * - In production: sends batched metrics via navigator.sendBeacon() if
+ *   VITE_ANALYTICS_ENDPOINT is configured, otherwise uses a no-op reporter
+ * - Custom reporters can be registered via performanceMonitor.setReporter()
  */
 
 import { logger } from './logger';
@@ -13,6 +19,94 @@ interface PerformanceMetric {
 }
 
 /**
+ * Pluggable analytics reporter interface.
+ *
+ * Implement this to send performance metrics to any analytics backend
+ * (e.g., Google Analytics, Datadog, a custom API, Supabase, etc.).
+ */
+export interface AnalyticsReporter {
+  /** Called for each recorded metric */
+  report(metric: PerformanceMetric): void;
+  /** Called on page unload to flush any buffered data */
+  flush?(): void;
+}
+
+/**
+ * No-op reporter -- silently discards metrics.
+ * Used when no analytics endpoint is configured in production.
+ */
+export const noopReporter: AnalyticsReporter = {
+  report() {},
+};
+
+/**
+ * Console reporter -- logs metrics via the app logger.
+ * Default reporter in development builds.
+ */
+export const consoleReporter: AnalyticsReporter = {
+  report(metric: PerformanceMetric) {
+    const label = metric.rating === 'poor' ? 'POOR' : metric.rating === 'needs-improvement' ? 'WARN' : 'OK';
+    logger.debug(`[analytics] ${metric.name} = ${metric.value.toFixed(2)} [${label}]`);
+  },
+};
+
+/**
+ * Beacon reporter -- batches metrics and sends them via navigator.sendBeacon()
+ * on flush (page unload) or when the batch reaches a configurable size.
+ *
+ * Uses sendBeacon so the request is non-blocking and survives page navigation.
+ *
+ * @param endpoint  The URL to POST metrics to
+ * @param batchSize Number of metrics to accumulate before auto-flushing (default 10)
+ */
+export function createBeaconReporter(endpoint: string, batchSize = 10): AnalyticsReporter {
+  let buffer: PerformanceMetric[] = [];
+
+  function send() {
+    if (buffer.length === 0) return;
+
+    const payload = JSON.stringify({
+      metrics: buffer,
+      url: typeof window !== 'undefined' ? window.location.href : '',
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+      sentAt: Date.now(),
+    });
+
+    buffer = [];
+
+    // navigator.sendBeacon is non-blocking and works during page unload
+    if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+      const blob = new Blob([payload], { type: 'application/json' });
+      const sent = navigator.sendBeacon(endpoint, blob);
+      if (!sent) {
+        logger.warn('[analytics] sendBeacon failed, falling back to fetch');
+        // Fallback: fire-and-forget fetch
+        fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: payload,
+          keepalive: true,
+        }).catch(() => {
+          // Silently ignore -- this is best-effort analytics
+        });
+      }
+    }
+  }
+
+  return {
+    report(metric: PerformanceMetric) {
+      buffer.push(metric);
+      if (buffer.length >= batchSize) {
+        send();
+      }
+    },
+    flush() {
+      send();
+    },
+  };
+}
+
+/**
  * Layout Shift entry for CLS measurement
  * @see https://developer.mozilla.org/en-US/docs/Web/API/LayoutShift
  */
@@ -21,13 +115,69 @@ interface LayoutShiftEntry extends PerformanceEntry {
   value: number;
 }
 
+/**
+ * Resolve the default reporter based on the environment:
+ * - DEV mode: consoleReporter (visible in devtools)
+ * - PROD with VITE_ANALYTICS_ENDPOINT: beaconReporter pointed at the endpoint
+ * - PROD without endpoint: noopReporter (zero overhead)
+ */
+function resolveDefaultReporter(): AnalyticsReporter {
+  if (import.meta.env.DEV) {
+    return consoleReporter;
+  }
+
+  const endpoint = import.meta.env.VITE_ANALYTICS_ENDPOINT;
+  if (endpoint && typeof endpoint === 'string' && endpoint.length > 0) {
+    return createBeaconReporter(endpoint);
+  }
+
+  return noopReporter;
+}
+
 class PerformanceMonitor {
   private metrics: PerformanceMetric[] = [];
   private isEnabled: boolean;
+  private reporter: AnalyticsReporter;
 
   constructor() {
     // Only enable in production or when explicitly enabled
     this.isEnabled = !import.meta.env.DEV || import.meta.env.VITE_ENABLE_PERF_MONITORING === 'true';
+    this.reporter = resolveDefaultReporter();
+
+    // Flush buffered metrics on page unload so nothing is lost
+    if (typeof window !== 'undefined') {
+      window.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') {
+          this.reporter.flush?.();
+        }
+      });
+    }
+  }
+
+  /**
+   * Replace the analytics reporter at runtime.
+   *
+   * Use this to plug in a custom reporter (e.g., one that forwards to
+   * MetricsApiService / Supabase, Google Analytics, Datadog, etc.).
+   *
+   * @example
+   * ```ts
+   * performanceMonitor.setReporter({
+   *   report(metric) { gtag('event', 'web_vitals', { metric_name: metric.name, value: metric.value }); },
+   * });
+   * ```
+   */
+  setReporter(reporter: AnalyticsReporter) {
+    // Flush any pending data from the previous reporter before switching
+    this.reporter.flush?.();
+    this.reporter = reporter;
+  }
+
+  /**
+   * Get the currently active reporter (useful for testing)
+   */
+  getReporter(): AnalyticsReporter {
+    return this.reporter;
   }
 
   /**
@@ -319,9 +469,13 @@ class PerformanceMonitor {
     this.sendToAnalytics(metric);
   }
 
-  private sendToAnalytics(_metric: PerformanceMetric) {
-    // TODO: Implement analytics integration (Google Analytics, etc.)
-    // Example: gtag('event', 'web_vitals', { metric_name: metric.name, value: metric.value });
+  private sendToAnalytics(metric: PerformanceMetric) {
+    try {
+      this.reporter.report(metric);
+    } catch (error) {
+      // Analytics should never break the app -- log and continue
+      logger.error('[analytics] Reporter error:', error);
+    }
   }
 }
 

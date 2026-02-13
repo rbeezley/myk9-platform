@@ -1,4 +1,6 @@
 import { useEffect, useCallback, useRef } from 'react';
+import type { RealtimeChannel } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 import { useShowStore } from '@/store/showStore';
 import { useEntryStore } from '@/store/entryStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -77,21 +79,52 @@ export const useRealTimeUpdates = () => {
     }
   }, [user, shows, loadShows, loadEntries]);
 
-  // Set up real-time listeners (placeholder for actual implementation)
+  // Set up real-time listeners via Supabase Realtime channels
   useEffect(() => {
-    // TODO: Set up WebSocket or Server-Sent Events for real-time updates
-    // This would integrate with Supabase real-time subscriptions
-    
-    // For now, we'll simulate periodic updates for development
-    const updateInterval = setInterval(() => {
-      // Simulate checking for updates
-      // In production, this would be replaced with actual real-time listeners
-    }, 30000); // Check every 30 seconds
+    const channels: RealtimeChannel[] = [];
+
+    // Subscribe to shows table changes
+    const showsChannel = supabase
+      .channel('realtime-shows')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'shows' },
+        (payload) => {
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            handleShowUpdate(payload.new as Show);
+          } else {
+            // For DELETE or other events, do a full batch reload
+            handleBatchUpdate();
+          }
+        }
+      )
+      .subscribe();
+    channels.push(showsChannel);
+
+    // Subscribe to entries table changes
+    const entriesChannel = supabase
+      .channel('realtime-entries')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'entries' },
+        (payload) => {
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            handleEntryUpdate(payload.new as Record<string, unknown>);
+          } else {
+            // For DELETE or other events, do a full batch reload
+            handleBatchUpdate();
+          }
+        }
+      )
+      .subscribe();
+    channels.push(entriesChannel);
 
     return () => {
-      clearInterval(updateInterval);
+      channels.forEach((channel) => {
+        supabase.removeChannel(channel);
+      });
     };
-  }, [handleBatchUpdate]);
+  }, [handleShowUpdate, handleEntryUpdate, handleBatchUpdate]);
 
   // Performance monitoring and cleanup
   useEffect(() => {
@@ -119,18 +152,27 @@ export const useShowRealTimeUpdates = (showId: string) => {
   useEffect(() => {
     if (!showId) return;
 
-    // TODO: Set up specific show subscription
-    // This would connect to Supabase real-time for the specific show
-    
-    // Placeholder for development
-    const subscription = {
-      unsubscribe: () => {
-        // Cleanup subscription
-      }
-    };
+    // Subscribe to changes for this specific show
+    const channel = supabase
+      .channel(`realtime-show-${showId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'shows',
+          filter: `id=eq.${showId}`,
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            handleShowUpdate(payload.new as Show);
+          }
+        }
+      )
+      .subscribe();
 
     return () => {
-      subscription.unsubscribe();
+      supabase.removeChannel(channel);
     };
   }, [showId, handleShowUpdate]);
 };
@@ -145,18 +187,27 @@ export const useEntryRealTimeUpdates = (showId: string) => {
   useEffect(() => {
     if (!showId) return;
 
-    // TODO: Set up specific entry subscription for the show
-    // This would connect to Supabase real-time for entries in the show
-    
-    // Placeholder for development
-    const subscription = {
-      unsubscribe: () => {
-        // Cleanup subscription
-      }
-    };
+    // Subscribe to entry changes for this specific show
+    const channel = supabase
+      .channel(`realtime-entries-${showId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'entries',
+          filter: `show_id=eq.${showId}`,
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            handleEntryUpdate(payload.new as Record<string, unknown>);
+          }
+        }
+      )
+      .subscribe();
 
     return () => {
-      subscription.unsubscribe();
+      supabase.removeChannel(channel);
     };
   }, [showId, handleEntryUpdate]);
 };

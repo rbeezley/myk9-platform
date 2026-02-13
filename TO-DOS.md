@@ -46,15 +46,9 @@ Items to address in future sessions.
 
 ---
 
-## Refactor Oversized Components (6 files, 800+ lines) - 2026-02-12
+## Refactor Oversized Components (3 files, 800+ lines) - 2026-02-12
 
 Use `/refactor <file-path>` for each file. Work through sequentially via `/sprint-next`.
-
-- **Refactor ClubDetails.tsx (863 lines)** - Club details page with member management. **Problem:** Club info, member list, show history, and settings all in one file. **Files:** `apps/myk9show/src/components/clubs/ClubDetails.tsx`. **Solution:** Extract each section into sub-components.
-
-- **Refactor AddDogPanel.tsx (839 lines)** - Dog registration form panel. **Problem:** Large form with breed search, registration validation, and multi-step flow in one file. **Files:** `apps/myk9show/src/components/panels/edit/AddDogPanel.tsx`. **Solution:** Extract form sections and breed search into sub-components.
-
-- **Refactor PaymentStep.tsx (827 lines)** - Registration payment workflow step. **Problem:** Payment method selection, validation, confirmation, and error handling all coupled. **Files:** `apps/myk9show/src/components/shows/RegistrationWorkflow/PaymentStep.tsx`. **Solution:** Extract payment method selector, summary display, and confirmation UI.
 
 - **Refactor OfflineCheckInInterface.tsx (826 lines)** - Offline check-in UI for shows. **Problem:** Check-in list, search, scanning, and conflict resolution in one component. **Files:** `apps/myk9show/src/components/offline-checkin/OfflineCheckInInterface.tsx`. **Solution:** Extract search bar, check-in list, scan handler, and conflict dialog.
 

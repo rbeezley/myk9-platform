@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import ClubSidebar from '@/components/clubs/ClubSidebar';
-import ClubDetails from '@/components/clubs/ClubDetails';
+import { ClubDetails } from '@/components/clubs/ClubDetails';
 import { PanelProvider, PanelStack } from '@/components/panels';
 import { ClubEditPanel } from '@/components/panels/edit/ClubEditPanel';
 import { Club } from '@/types/club-types';

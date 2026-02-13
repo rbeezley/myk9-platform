@@ -7,24 +7,17 @@ import { supabase } from '../../lib/supabase';
 import { ensureReplicationManager } from '@/utils/replicationHelper';
 import type { Entry } from '@/services/replication';
 import { logger } from '@/utils/logger';
-import { markUnscoredEntriesAsAbsent } from '@/services/entryService';
-import { HamburgerMenu, CompactOfflineIndicator, TrialDateBadge, RefreshIndicator, ErrorState, PullToRefresh, FilterPanel, FilterTriggerButton } from '../../components/ui';
+import { ErrorState, PullToRefresh } from '../../components/ui';
 import { useHapticFeedback, useLongPress } from '@myk9/scoring-ui';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { ArrowLeft, RefreshCw, List } from 'lucide-react';
 // CSS imported in index.css to prevent FOUC
-import { ClassRequirementsDialog } from '../../components/dialogs/ClassRequirementsDialog';
-import { MaxTimeDialog } from '../../components/dialogs/MaxTimeDialog';
-import { ClassStatusDialog } from '../../components/dialogs/ClassStatusDialog';
-import { ClassSettingsDialog } from '../../components/dialogs/ClassSettingsDialog';
-import { NoEntriesDialog } from '../../components/dialogs/NoEntriesDialog';
-import { NoStatsDialog } from '../../components/dialogs/NoStatsDialog';
-import { ClassOptionsDialog } from '../../components/dialogs/ClassOptionsDialog';
 import { getClassDisplayStatus } from '../../utils/statusUtils';
 import { getLevelSortOrder } from '../../lib/utils';
-import { parseOrganizationData, hasRuleDefinedMaxTimes } from '../../utils/organizationUtils';
-import { ClassCard } from './ClassCard';
 import { ClassFilters } from './ClassFilters';
+import { ClassListHeader } from './ClassListHeader';
+import { ClassCardGrid } from './ClassCardGrid';
+import { ClassListDialogs } from './ClassListDialogs';
 import { useClassListData, ClassEntry, TrialInfo } from './hooks/useClassListData';
 import { useClassDialogs } from './hooks/useClassDialogs';
 import { useClassStatus, type StatusDependencies } from './hooks/useClassStatus';
@@ -425,99 +418,6 @@ export const ClassList: React.FC = () => {
     ));
   }, [classes, hapticFeedback, toggleFavoriteHook]);
 
-  const getStatusColor = useCallback((status: ClassEntry['class_status'], classEntry?: ClassEntry) => {
-    // PRIORITY 1: Offline scoring status should always use its own color
-    // This must be checked BEFORE smart detection to prevent override
-    if (status === 'offline-scoring') {
-      return 'offline-scoring';
-    }
-
-    // Check is_scoring_finalized first for consistent coloring
-    if (classEntry) {
-      const displayStatus = getClassDisplayStatus(classEntry);
-      if (displayStatus === 'completed') return 'completed';
-      if (displayStatus === 'in-progress') return 'in-progress';
-    }
-
-    switch (status) {
-      case 'no-status': return 'no-status';
-      case 'setup': return 'setup';
-      case 'briefing': return 'briefing';
-      case 'break': return 'break';
-      case 'start_time': return 'start-time';
-      case 'in_progress': return 'in-progress';
-      case 'completed': return 'completed';
-      default:
-        // Note: offline-scoring is handled at the top of the function
-        // Intelligent color based on actual class progress
-        if (classEntry) {
-          const isCompleted = classEntry.completed_count === classEntry.entry_count && classEntry.entry_count > 0;
-          const hasDogsInRing = classEntry.dogs.some(dog => dog.in_ring);
-
-          if (isCompleted) return 'completed';
-          if (hasDogsInRing) return 'in-progress';
-          if (classEntry.completed_count > 0) return 'in-progress';
-          return 'no-status';
-        }
-        return 'no-status';
-    }
-  }, []);
-
-  // Helper function to format status with time in a structured way
-  const getFormattedStatus = useCallback((classEntry: ClassEntry) => {
-    // PRIORITY 1: Offline scoring status should always show as-is (user explicitly set it)
-    // This must be checked BEFORE smart detection to prevent override
-    if (classEntry.class_status === 'offline-scoring') {
-      return { label: 'Offline Scoring', time: null };
-    }
-
-    // Check is_scoring_finalized first, then fall back to class_status
-    const displayStatus = getClassDisplayStatus(classEntry);
-
-    // If detected as completed via is_scoring_finalized or entry counts, show Completed
-    if (displayStatus === 'completed') {
-      return { label: 'Completed', time: null };
-    }
-
-    // If detected as in-progress via scoring activity (dogs scored or in ring), show In Progress
-    if (displayStatus === 'in-progress') {
-      return { label: 'In Progress', time: null };
-    }
-
-    const status = classEntry.class_status;
-    const result = (() => {
-      switch (status) {
-        case 'briefing':
-          return {
-            label: 'Briefing',
-            time: classEntry.briefing_time ?? null
-          };
-        case 'break':
-          return {
-            label: 'Break Until',
-            time: classEntry.break_until ?? null
-          };
-        case 'start_time':
-          return {
-            label: 'Start Time',
-            time: classEntry.start_time ?? null
-          };
-        case 'setup':
-          return { label: 'Setup', time: null };
-        case 'in_progress':
-          return { label: 'In Progress', time: null };
-        case 'completed':
-          return { label: 'Completed', time: null };
-        case 'no-status':
-          return { label: 'No Status', time: null };
-        default:
-          // Note: offline-scoring is handled at the top of the function
-          return { label: 'No Status', time: null };
-      }
-    })();
-
-    return result;
-  }, []);
 
   // Helper function to group sectioned A/B classes into combined entries
   // UKC Nosework: all levels; AKC: only Novice
@@ -703,62 +603,18 @@ export const ClassList: React.FC = () => {
 
   return (
     <div className={`class-list-container ${isLoaded ? 'loaded' : ''}`} data-loaded={isLoaded}>
-      {/* Enhanced Header with Trial Info */}
-      <header className="page-header class-list-header">
-        <HamburgerMenu
-          currentPage="entries"
-          backNavigation={{
-            label: "Back to Home",
-            action: () => navigate('/home')
-          }}
-        />
-        <CompactOfflineIndicator />
+      <ClassListHeader
+        trialInfo={trialInfo}
+        isRefreshing={isRefreshing}
+        isManualRefreshing={isManualRefreshing}
+        searchTerm={searchTerm}
+        sortOrder={sortOrder}
+        onNavigateHome={() => navigate('/home')}
+        onOpenFilterPanel={() => setIsFilterPanelOpen(true)}
+        onRefresh={handleRefresh}
+        refreshLongPressHandlers={refreshLongPressHandlers}
+      />
 
-        <div className="trial-info">
-          <h1>
-            <List className="title-icon" />
-            {trialInfo.trial_name}
-          </h1>
-          <div className="trial-subtitle">
-            <div className="trial-info-row">
-              <div className="trial-details-group">
-                <TrialDateBadge
-                  date={trialInfo.trial_date}
-                  trialNumber={trialInfo.trial_number}
-                  dateOnly={true}
-                />
-                <span className="trial-detail">
-                  Trial {trialInfo.trial_number}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="header-buttons">
-          {/* Background refresh indicator */}
-          {(isRefreshing || isManualRefreshing) && <RefreshIndicator isRefreshing={isRefreshing || isManualRefreshing} />}
-
-          {/* Filter button */}
-          <FilterTriggerButton
-            onClick={() => setIsFilterPanelOpen(true)}
-            hasActiveFilters={searchTerm.length > 0 || sortOrder !== 'class_order'}
-          />
-
-          <button
-            className="icon-button"
-            onClick={handleRefresh}
-            disabled={isRefreshing || isManualRefreshing}
-            aria-label="Refresh (long press for full reload)"
-            title="Refresh (long press for full reload)"
-            {...refreshLongPressHandlers}
-          >
-            <RefreshCw className={`h-5 w-5 ${(isRefreshing || isManualRefreshing) ? 'rotating' : ''}`} />
-          </button>
-        </div>
-      </header>
-
-      {/* Tab Bar for filtering classes */}
       <ClassFilters
         combinedFilter={combinedFilter}
         setCombinedFilter={setCombinedFilter}
@@ -766,268 +622,75 @@ export const ClassList: React.FC = () => {
         hapticFeedback={hapticFeedback}
       />
 
-      {/* Pull to Refresh Wrapper - wraps only scrollable content */}
       <PullToRefresh
         onRefresh={handleRefresh}
         enabled
         threshold={80}
       >
-
-      {/* Scrollable Content Area - only the grid scrolls */}
-      <div className="class-list-scrollable">
-        {/* Enhanced Classes List Section */}
-        <div className={`grid-responsive ${isLoaded ? 'stagger-children' : ''}`}>
-          {filteredClasses.map((classEntry) => (
-            <ClassCard
-              key={classEntry.id}
-              classEntry={classEntry}
-              hasPermission={hasPermission}
-              toggleFavorite={toggleFavorite}
-              handleViewEntries={handleViewEntries}
-              setActivePopup={setActivePopup}
-              setSelectedClassForStatus={setSelectedClassForStatus}
-              setStatusDialogOpen={setStatusDialogOpen}
-              activePopup={activePopup}
-              getStatusColor={getStatusColor}
-              getFormattedStatus={getFormattedStatus}
-              onMenuClick={(classId) => {
-                setActivePopup(classId);
-              }}
-              onPrefetch={() => handleClassPrefetch(classEntry.id)}
-              justToggledClassId={justToggledClassId}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Class Options Dialog - Shared reusable component */}
-      {(() => {
-        const selectedClass = activePopup !== null ? classes.find(c => c.id === activePopup) : null;
-        const orgData = parseOrganizationData(showContext?.org || '');
-        return (
-          <ClassOptionsDialog
-            isOpen={activePopup !== null}
-            onClose={() => setActivePopup(null)}
-            classData={selectedClass ? {
-              id: selectedClass.id,
-              element: selectedClass.element,
-              level: selectedClass.level,
-              class_name: selectedClass.class_name,
-              entry_count: selectedClass.entry_count,
-              completed_count: selectedClass.completed_count,
-              class_status: selectedClass.class_status
-            } : null}
-            onRequirements={() => {
-              if (selectedClass) {
-                setSelectedClassForRequirements(selectedClass);
-                setRequirementsDialogOpen(true);
-              }
-              return false;
-            }}
-            onSetMaxTime={() => {
-              if (selectedClass) {
-                setSelectedClassForMaxTime(selectedClass);
-                setMaxTimeDialogOpen(true);
-                setShowMaxTimeWarning(false);
-              }
-              return false;
-            }}
-            onSettings={() => {
-              if (selectedClass) {
-                setSelectedClassForSettings(selectedClass);
-                setSettingsDialogOpen(true);
-              }
-              return false;
-            }}
-            onStatistics={() => {
-              if (trialId && selectedClass) {
-                if (selectedClass.completed_count === 0) {
-                  setNoStatsClassName(selectedClass.class_name);
-                  setNoStatsDialogOpen(true);
-                  return false; // Don't close dialog
-                }
-                navigate(`/stats/trial/${trialId}?classId=${selectedClass.id}`);
-              }
-            }}
-            onStatus={() => {
-              if (selectedClass) {
-                setSelectedClassForStatus(selectedClass);
-                setStatusDialogOpen(true);
-              }
-              return false;
-            }}
-            onPrintCheckIn={() => {
-              if (selectedClass) {
-                handleGenerateCheckIn(selectedClass.id);
-              }
-            }}
-            onPrintResults={() => {
-              if (selectedClass) {
-                handleGenerateResults(selectedClass.id);
-              }
-            }}
-            onPrintScoresheet={() => {
-              if (selectedClass) {
-                handleGenerateScoresheet(selectedClass.id);
-              }
-            }}
-            hideMaxTime={hasRuleDefinedMaxTimes(orgData) || !canModifyClassSettings}
-            hideSettings={!canModifyClassSettings}
-          />
-        );
-      })()}
-
-      {/* Class Requirements Dialog */}
-      <ClassRequirementsDialog
-        isOpen={requirementsDialogOpen}
-        onClose={() => {
-          setRequirementsDialogOpen(false);
-          setSelectedClassForRequirements(null);
-        }}
-        onSetMaxTime={hasRuleDefinedMaxTimes(parseOrganizationData(showContext?.org || '')) || !canModifyClassSettings ? undefined : () => {
-          // Close requirements dialog and open max time dialog with same class
-          setRequirementsDialogOpen(false);
-          setSelectedClassForMaxTime(selectedClassForRequirements);
-          setMaxTimeDialogOpen(true);
-          setShowMaxTimeWarning(false); // No warning for manual access
-        }}
-        classData={selectedClassForRequirements || {
-          id: 0,
-          element: '',
-          level: '',
-          class_name: '',
-          entry_count: 0
-        }}
-      />
-
-      {/* Max Time Dialog */}
-      <MaxTimeDialog
-        isOpen={maxTimeDialogOpen}
-        showWarning={showMaxTimeWarning}
-        onClose={() => {
-          setMaxTimeDialogOpen(false);
-          setSelectedClassForMaxTime(null);
-          setShowMaxTimeWarning(false);
-        }}
-        classData={selectedClassForMaxTime || {
-          id: 0,
-          element: '',
-          level: '',
-          class_name: ''
-        }}
-        onTimeUpdate={() => {
-          // Refresh class data after time update
-          refetch();
-        }}
-      />
-
+        <ClassCardGrid
+          filteredClasses={filteredClasses}
+          isLoaded={isLoaded}
+          hasPermission={hasPermission}
+          toggleFavorite={toggleFavorite}
+          handleViewEntries={handleViewEntries}
+          setActivePopup={setActivePopup}
+          setSelectedClassForStatus={setSelectedClassForStatus}
+          setStatusDialogOpen={setStatusDialogOpen}
+          activePopup={activePopup}
+          handleClassPrefetch={handleClassPrefetch}
+          justToggledClassId={justToggledClassId}
+        />
       </PullToRefresh>
 
-      {/* Class Status Dialog */}
-      <ClassStatusDialog
-        isOpen={statusDialogOpen}
-        onClose={() => {
-          setStatusDialogOpen(false);
-          setSelectedClassForStatus(null);
-        }}
-        onStatusChange={(status: string, timeValue?: string) => {
-          if (selectedClassForStatus) {
-            const typedStatus = status as ClassEntry['class_status'];
-            if (timeValue) {
-              handleClassStatusChangeWithTime(selectedClassForStatus.id, typedStatus, timeValue);
-            } else {
-              handleClassStatusChange(selectedClassForStatus.id, typedStatus);
-            }
-          }
-        }}
-        classData={selectedClassForStatus ? {
-          id: selectedClassForStatus.id,
-          element: selectedClassForStatus.element,
-          level: selectedClassForStatus.level,
-          class_name: selectedClassForStatus.class_name,
-          class_status: selectedClassForStatus.class_status,
-          entry_count: selectedClassForStatus.entry_count,
-          scored_count: selectedClassForStatus.completed_count,
-          briefing_time: selectedClassForStatus.briefing_time,
-          break_until_time: selectedClassForStatus.break_until,
-          start_time: selectedClassForStatus.start_time
-        } : {
-          id: 0,
-          element: '',
-          level: '',
-          class_name: '',
-          class_status: '',
-          entry_count: 0,
-          scored_count: 0,
-          briefing_time: undefined,
-          break_until_time: undefined,
-          start_time: undefined
-        }}
-        currentStatus={selectedClassForStatus?.class_status || ''}
-        onMarkAbsent={selectedClassForStatus ? async () => {
-          // Get all class IDs to mark (including paired class for combined A & B)
-          const classIds = selectedClassForStatus.pairedClassId
-            ? [selectedClassForStatus.id, selectedClassForStatus.pairedClassId]
-            : [selectedClassForStatus.id];
-
-          await markUnscoredEntriesAsAbsent(classIds);
-          // Refresh to show updated counts
-          await refetch();
-        } : undefined}
-      />
-
-      {/* Class Settings Dialog */}
-      <ClassSettingsDialog
-        isOpen={settingsDialogOpen}
-        onClose={() => {
-          setSettingsDialogOpen(false);
-          setSelectedClassForSettings(null);
-        }}
-        classData={selectedClassForSettings || {
-          id: 0,
-          element: '',
-          level: '',
-          class_name: '',
-          self_checkin_enabled: true
-        }}
-        onSettingsUpdate={() => {
-          // Refresh class data after settings update
-          refetch();
-        }}
-      />
-
-      {/* No Entries Dialog - shown when clicking a class with 0 entries */}
-      <NoEntriesDialog
-        isOpen={noEntriesDialogOpen}
-        onClose={() => {
-          setNoEntriesDialogOpen(false);
-          setNoEntriesClassName(undefined);
-        }}
-        className={noEntriesClassName}
-      />
-
-      {/* No Stats Dialog - shown when clicking Statistics for a class with no scored entries */}
-      <NoStatsDialog
-        isOpen={noStatsDialogOpen}
-        onClose={() => {
-          setNoStatsDialogOpen(false);
-          setNoStatsClassName(undefined);
-        }}
-        className={noStatsClassName}
-      />
-
-      {/* Filter Panel Slide-out */}
-      <FilterPanel
-        isOpen={isFilterPanelOpen}
-        onClose={() => setIsFilterPanelOpen(false)}
+      <ClassListDialogs
+        trialId={trialId}
+        organization={showContext?.org || ''}
+        canModifyClassSettings={canModifyClassSettings}
+        navigate={(path) => navigate(path)}
+        activePopup={activePopup}
+        classes={classes}
+        setActivePopup={setActivePopup}
+        handleGenerateCheckIn={handleGenerateCheckIn}
+        handleGenerateResults={handleGenerateResults}
+        handleGenerateScoresheet={handleGenerateScoresheet}
+        requirementsDialogOpen={requirementsDialogOpen}
+        selectedClassForRequirements={selectedClassForRequirements}
+        setRequirementsDialogOpen={setRequirementsDialogOpen}
+        setSelectedClassForRequirements={setSelectedClassForRequirements}
+        maxTimeDialogOpen={maxTimeDialogOpen}
+        showMaxTimeWarning={showMaxTimeWarning}
+        selectedClassForMaxTime={selectedClassForMaxTime}
+        setMaxTimeDialogOpen={setMaxTimeDialogOpen}
+        setSelectedClassForMaxTime={setSelectedClassForMaxTime}
+        setShowMaxTimeWarning={setShowMaxTimeWarning}
+        statusDialogOpen={statusDialogOpen}
+        selectedClassForStatus={selectedClassForStatus}
+        setStatusDialogOpen={setStatusDialogOpen}
+        setSelectedClassForStatus={setSelectedClassForStatus}
+        handleClassStatusChange={handleClassStatusChange}
+        handleClassStatusChangeWithTime={handleClassStatusChangeWithTime}
+        settingsDialogOpen={settingsDialogOpen}
+        selectedClassForSettings={selectedClassForSettings}
+        setSettingsDialogOpen={setSettingsDialogOpen}
+        setSelectedClassForSettings={setSelectedClassForSettings}
+        noEntriesDialogOpen={noEntriesDialogOpen}
+        noEntriesClassName={noEntriesClassName}
+        setNoEntriesDialogOpen={setNoEntriesDialogOpen}
+        setNoEntriesClassName={setNoEntriesClassName}
+        noStatsDialogOpen={noStatsDialogOpen}
+        noStatsClassName={noStatsClassName}
+        setNoStatsDialogOpen={setNoStatsDialogOpen}
+        setNoStatsClassName={setNoStatsClassName}
+        isFilterPanelOpen={isFilterPanelOpen}
+        setIsFilterPanelOpen={setIsFilterPanelOpen}
         searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        searchPlaceholder="Search classes..."
+        setSearchTerm={setSearchTerm}
         sortOptions={sortOptions}
         sortOrder={sortOrder}
-        onSortChange={(order) => setSortOrder(order as typeof sortOrder)}
-        resultsLabel={`${filteredClasses.length} of ${groupedClasses.length} classes`}
-        title="Search & Sort Classes"
+        setSortOrder={setSortOrder}
+        filteredClassCount={filteredClasses.length}
+        totalClassCount={groupedClasses.length}
+        refetch={refetch}
       />
     </div>
   );

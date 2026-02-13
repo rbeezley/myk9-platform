@@ -34,16 +34,6 @@ Items to address in future sessions.
 
 ---
 
-## Refactor Oversized Components (3 files, 800+ lines) - 2026-02-12
-
-Use `/refactor <file-path>` for each file. Work through sequentially via `/sprint-next`.
-
-- **Refactor OfflineCheckInInterface.tsx (826 lines)** - Offline check-in UI for shows. **Problem:** Check-in list, search, scanning, and conflict resolution in one component. **Files:** `apps/myk9show/src/components/offline-checkin/OfflineCheckInInterface.tsx`. **Solution:** Extract search bar, check-in list, scan handler, and conflict dialog.
-
-- **Refactor ClassList.tsx (1,033 lines)** - myK9Q class list page. **Problem:** Class cards, filtering, sorting, and batch operations in one file. NOTE: myK9Q is production — extra care needed with testing. **Files:** `apps/myk9q/src/pages/ClassList/ClassList.tsx`. **Solution:** Extract filter bar, class card list, and batch operation UI.
-
-- **Refactor AskMyK9Q.tsx (1,036 lines)** - myK9Q chatbot component. **Problem:** Chat UI, message handling, rule lookups, and response formatting all coupled. NOTE: myK9Q is production — extra care needed with testing. **Files:** `apps/myk9q/src/components/chatbot/AskMyK9Q.tsx`. **Solution:** Extract message list, input area, rule lookup panel, and response renderer.
-
 ---
 
 ## Address myk9q Deferred Items (3 items) - 2026-02-11 15:14

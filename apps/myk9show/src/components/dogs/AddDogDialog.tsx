@@ -223,7 +223,6 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
         height: formData.height ? parseFloat(formData.height) : undefined,
         ownerId: formData.ownerId,
         microchipNumber: formData.microchip || undefined,
-        // TODO: Handle registrations in separate table/process
         registrations: formData.registrations?.map(reg => ({
           organization: reg.organization,
           number: reg.registrationNumber,

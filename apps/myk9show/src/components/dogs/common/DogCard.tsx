@@ -13,6 +13,7 @@ interface DogCardProps {
   owners?: Owner[];
   onEdit?: () => void;
   onDelete?: () => void;
+  onSavePhoto?: (imageDataUrl: string) => void;
   className?: string;
 }
 
@@ -38,6 +39,7 @@ const DogCard: React.FC<DogCardProps> = ({
   owners = [],
   onEdit,
   onDelete,
+  onSavePhoto,
   className,
 }) => {
   const [photoDialogOpen, setPhotoDialogOpen] = React.useState(false);
@@ -81,7 +83,9 @@ const DogCard: React.FC<DogCardProps> = ({
     setIsDragging(false);
   };
   const handleSavePhoto = () => {
-    // TODO: Implement save logic (call parent or API)
+    if (previewImage && onSavePhoto) {
+      onSavePhoto(previewImage);
+    }
     setPhotoDialogOpen(false);
     setPreviewImage(null);
     setIsDragging(false);

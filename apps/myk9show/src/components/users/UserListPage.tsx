@@ -165,6 +165,29 @@ const [formData, setFormData] = useState<UserFormData>({
         onOpenChange={setIsViewDetailsDialogOpen}
         person={selectedUser}
         onClose={() => { setIsViewDetailsDialogOpen(false); setSelectedPerson(null); }}
+        onEdit={(person: User) => {
+          setFormData({
+            id: String(person.id),
+            firstName: person.firstName,
+            lastName: person.lastName,
+            email: person.email || '',
+            phone: person.phone || '',
+            streetAddress: person.streetAddress || '',
+            city: person.city || '',
+            state: person.state || '',
+            zipCode: person.zipCode || '',
+            ...(person.profileImage !== undefined && { profileImage: person.profileImage }),
+            selectedDogIds: person.dogs || [],
+            dogs: person.dogs?.map(dogId => dogs.find(dog => dog.id === dogId)).filter((dog): dog is Dog => dog !== undefined) || [],
+            judgeQualifications: person.judgeQualifications || []
+          });
+          setIsEditPersonDialogOpen(true);
+          setSelectedPerson(person);
+        }}
+        onDelete={(person: User) => {
+          setSelectedPerson(person);
+          setIsDeleteDialogOpen(true);
+        }}
       />
       <JudgeQualificationPanel
         open={isQualificationsPanelOpen}
@@ -176,10 +199,32 @@ const [formData, setFormData] = useState<UserFormData>({
         userName={selectedUserForQualifications ? `${selectedUserForQualifications.firstName} ${selectedUserForQualifications.lastName}` : ''}
         initialQualifications={(selectedUserForQualifications?.judgeQualifications as JudgeQualification[]) || []}
         onSave={async (qualifications: JudgeQualification[]) => {
-          // TODO: Save qualifications to backend
-          logger.debug('Saving qualifications for user:', 'users', { data: selectedUserForQualifications?.id, qualifications });
-          
-          // For now, just close the panel
+          if (!selectedUserForQualifications) return;
+          try {
+            const { judgeQualificationQueries } = await import('@/services/database/queries/judgeQueries');
+            const existing = await judgeQualificationQueries.getByJudgeId(selectedUserForQualifications.id);
+
+            // Delete all existing qualifications
+            await Promise.all(existing.map(q => judgeQualificationQueries.delete(q.id)));
+
+            // Create new qualifications from the updated array
+            await Promise.all(qualifications.map(qual =>
+              judgeQualificationQueries.create({
+                person_id: selectedUserForQualifications.id,
+                organization: qual.organization,
+                qualification_level: qual.level || 'Regular',
+                disciplines: qual.disciplines || qual.showTypes || [],
+                date_obtained: qual.certificationDate || (qual.dateObtained ? new Date(qual.dateObtained as unknown as string).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]),
+                expiration_date: qual.expirationDate ? new Date(qual.expirationDate as unknown as string).toISOString().split('T')[0] : undefined,
+                is_active: qual.status === 'Active',
+              })
+            ));
+
+            logger.info('Qualifications saved for user', 'users', { userId: selectedUserForQualifications.id, count: qualifications.length });
+          } catch (error) {
+            logger.error('Failed to save qualifications:', 'users', {}, error as Error);
+          }
+
           setIsQualificationsPanelOpen(false);
           setSelectedUserForQualifications(null);
         }}

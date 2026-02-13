@@ -12,9 +12,11 @@ interface PersonDetailsDialogProps {
   onOpenChange: (open: boolean) => void;
   person: User | null;
   onClose: () => void;
+  onEdit?: (person: User) => void;
+  onDelete?: (person: User) => void;
 }
 
-const PersonDetailsDialog: React.FC<PersonDetailsDialogProps> = ({ open, onOpenChange, person, onClose }) => {
+const PersonDetailsDialog: React.FC<PersonDetailsDialogProps> = ({ open, onOpenChange, person, onClose, onEdit, onDelete }) => {
   if (!person) return null;
 
   return (
@@ -24,9 +26,8 @@ const PersonDetailsDialog: React.FC<PersonDetailsDialogProps> = ({ open, onOpenC
           <DialogTitle className="text-xl flex items-center justify-between">
             <span>{person.firstName} {person.lastName}</span>
             <ThreeDotMenu
-              onView={() => {}}
-              onEdit={() => {/* TODO: Trigger edit dialog if available */}}
-              onDelete={() => {/* TODO: Trigger delete dialog if available */}}
+              onEdit={onEdit ? () => { onClose(); onEdit(person); } : undefined}
+              onDelete={onDelete ? () => { onClose(); onDelete(person); } : undefined}
             />
           </DialogTitle>
         </DialogHeader>

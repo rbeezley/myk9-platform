@@ -8,8 +8,6 @@ Items to address in future sessions.
 
 ## Complete Incomplete Features (45+ items) - 2026-02-11 15:14
 
-- **Complete user & dog management CRUD** - Delete, save, and edit operations missing across 8 files. **Problem:** User/dog management UIs exist but backend operations (delete user, save dog, save qualifications, etc.) aren't wired up. **Files:** `apps/myk9show/src/store/userStore.ts:229`, `apps/myk9show/src/components/admin/users/UserTable.tsx:286`, `apps/myk9show/src/components/dogs/common/DogCard.tsx:84`, `apps/myk9show/src/components/dogs/AddDogDialog.tsx:226`, `apps/myk9show/src/components/users/UserListPage.tsx:179`, `apps/myk9show/src/components/users/UserDetails/UserDetailsView.tsx:152`, `apps/myk9show/src/components/users/PersonDetailsDialog.tsx:28,29`, `apps/myk9show/src/hooks/useUsers.ts:5,14,19,24`.
-
 - **Complete secretary tools** - Copy/export, save logic, and column configuration missing. **Problem:** Secretary workflow tools partially implemented. **Files:** `apps/myk9show/src/pages/secretary/ClassCreationPage.tsx:162,171`, `apps/myk9show/src/pages/admin/TemplateEditorPageMinimal.tsx:68`, `apps/myk9show/src/components/secretary/ResultsGrid.tsx:75-76`.
 
 - **Complete data lifecycle operations** - Restoration, archiving, and import logic missing. **Problem:** Data lifecycle services have shell implementations without actual business logic. **Files:** `apps/myk9show/src/services/data-lifecycle/OrphanedRecordsCleaner.ts:491`, `apps/myk9show/src/services/data-lifecycle/ArchiveScheduler.ts:159,217`, `apps/myk9show/src/services/data-lifecycle/DataExportImport.ts:662`.

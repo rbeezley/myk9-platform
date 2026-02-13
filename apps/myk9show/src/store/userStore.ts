@@ -226,8 +226,15 @@ export const useUserStore = create<UserStore>()(
             return;
           }
           
-          // TODO: Implement database delete like add/update when deleteUser query is available
-          // For now, just remove from local state
+          // Soft delete from database
+          const { deleteUser: deleteUserFromDb } = await import('@/services/database/queries/userQueries');
+          const { error: dbError } = await deleteUserFromDb(id);
+
+          if (dbError) {
+            throw new Error(dbError.message || 'Failed to delete user from database');
+          }
+
+          // Remove from local state after successful DB delete
           set((state) => ({
             users: state.users.filter(u => u.id !== id),
             people: state.people.filter(u => u.id !== id),

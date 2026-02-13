@@ -142,15 +142,39 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   };
 
   const handleQualificationsSave = async (qualifications: JudgeQualification[]) => {
-    // Update local state
+    // Update local state for immediate UI feedback
     setFormData(prev => ({
       ...prev,
       judgeQualifications: qualifications
     }));
-    // Judge qualifications now managed through UserEditPanel
-    
-    // TODO: Save to backend
-    logger.debug('Saving qualifications', 'users', { userId: person.id, qualificationsCount: qualifications.length });
+
+    try {
+      const { judgeQualificationQueries } = await import('@/services/database/queries/judgeQueries');
+      const existing = await judgeQualificationQueries.getByJudgeId(person.id);
+
+      // Delete all existing qualifications
+      await Promise.all(existing.map(q => judgeQualificationQueries.delete(q.id)));
+
+      // Create new qualifications from the updated array
+      await Promise.all(qualifications.map(qual =>
+        judgeQualificationQueries.create({
+          person_id: person.id,
+          organization: qual.organization,
+          qualification_level: qual.level || 'Regular',
+          disciplines: qual.disciplines || qual.showTypes || [],
+          date_obtained: qual.certificationDate || (qual.dateObtained ? new Date(qual.dateObtained as unknown as string).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]),
+          expiration_date: qual.expirationDate ? new Date(qual.expirationDate as unknown as string).toISOString().split('T')[0] : undefined,
+          is_active: qual.status === 'Active',
+        })
+      ));
+
+      logger.info('Qualifications saved successfully', 'users', { userId: person.id, count: qualifications.length });
+    } catch (error) {
+      logger.error('Failed to save qualifications', 'users', { userId: person.id }, error as Error);
+      notifications.error('Failed to save qualifications', {
+        description: getErrorMessage(error),
+      });
+    }
   };
   
   const handleUserEditSave = async (userData: Partial<UserType>) => {

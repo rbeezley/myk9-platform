@@ -46,13 +46,9 @@ Items to address in future sessions.
 
 ---
 
-## Refactor Oversized Components (15 files, 800+ lines) - 2026-02-12
+## Refactor Oversized Components (12 files, 800+ lines) - 2026-02-12
 
 Use `/refactor <file-path>` for each file. Work through sequentially via `/sprint-next`.
-
-- **Refactor DataLifecycleManagement.tsx (1,052 lines)** - Admin component managing archive, cleanup, and export. **Problem:** Multiple distinct concerns (orphan records, archive scheduling, data export/import) crammed into one file. **Files:** `apps/myk9show/src/components/admin/DataLifecycleManagement.tsx`. **Solution:** Extract each lifecycle operation into its own component + shared types.
-
-- **Refactor DogDetailsMain.tsx (1,047 lines)** - Multi-tab dog profile with health, titles, competitions. **Problem:** Single file handles all dog detail tabs, making it hard to maintain individual features. **Files:** `apps/myk9show/src/components/dogs/DogDetailsMain.tsx`. **Solution:** Extract tab contents into separate components, keep DogDetailsMain as tab shell.
 
 - **Refactor ShowCreationWizard.tsx (990 lines)** - Multi-step show creation form. **Problem:** All wizard steps, validation, and state management in one file. **Files:** `apps/myk9show/src/components/shows/wizard/ShowCreationWizard.tsx`. **Solution:** Extract each step into its own component, extract validation logic into hooks.
 
@@ -63,8 +59,6 @@ Use `/refactor <file-path>` for each file. Work through sequentially via `/sprin
 - **Refactor ShowDetailsEnhanced.tsx (940 lines)** - Show details page with multiple sections. **Problem:** All show detail sections (info, classes, entries, statistics) in one monolithic component. **Files:** `apps/myk9show/src/components/shows/ShowDetails/ShowDetailsEnhanced.tsx`. **Solution:** Extract each section into its own component under ShowDetails/.
 
 - **Refactor ClassResultsTable.tsx (934 lines)** - Results display table with scoring. **Problem:** Table rendering, result calculations, export, and formatting all coupled. **Files:** `apps/myk9show/src/components/classes/ClassResultsTable.tsx`. **Solution:** Extract column definitions, result formatters, and export logic.
-
-- **Refactor SyncMonitoringDashboard.tsx (878 lines)** - Sync status monitoring dashboard. **Problem:** Multiple monitoring panels (connection, queue, conflicts, history) in one file. **Files:** `apps/myk9show/src/components/sync/SyncMonitoringDashboard.tsx`. **Solution:** Extract each monitoring panel into its own component.
 
 - **Refactor OfflineDataManager.tsx (872 lines)** - Offline data management interface. **Problem:** Data caching, sync controls, and storage management all in one component. **Files:** `apps/myk9show/src/components/offline/OfflineDataManager.tsx`. **Solution:** Extract cache manager, sync controls, and storage display panels.
 

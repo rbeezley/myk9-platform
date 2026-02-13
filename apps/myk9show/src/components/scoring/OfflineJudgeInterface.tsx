@@ -29,6 +29,10 @@ import {
   useSyncStatus
 } from '@/store/offlineScoringStore';
 
+// Data fetching
+import { useEntriesByClassQuery } from '@/hooks/queries/useEntriesDatabase';
+import { mapDbEntryToUnifiedEntry, type DbEntryWithDog } from '@/services/mappers/scoringMappers';
+
 // UI Components
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -37,18 +41,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress';
 
 // Icons
-import { 
-  Clock, 
-  Wifi, 
-  WifiOff, 
-  RefreshCw, 
+import {
+  Clock,
+  Wifi,
+  WifiOff,
+  RefreshCw,
   AlertTriangle,
   CheckCircle,
   ArrowRight
 } from 'lucide-react';
 
 // Types
-import type { 
+import type {
   ScoringFormat,
   BaseScore,
   ValidationResult
@@ -136,7 +140,14 @@ export function OfflineJudgeInterface({
   const [currentView, setCurrentView] = useState<JudgeView>('authentication');
   const [selectedFormat, setSelectedFormat] = useState<ScoringFormat>(propFormat || 'scent_work');
   const [isLoading, setIsLoading] = useState(false);
-  const [entries, setEntries] = useState<Array<UnifiedEntryData>>([]);
+
+  // Fetch entries from Supabase
+  const { data: rawEntries } = useEntriesByClassQuery(activeClassId || '', !!activeClassId);
+
+  const entries = useMemo<UnifiedEntryData[]>(() => {
+    if (!rawEntries) return [];
+    return (rawEntries as unknown as DbEntryWithDog[]).map(mapDbEntryToUnifiedEntry);
+  }, [rawEntries]);
 
   // Authentication state
   const [authForm, setAuthForm] = useState({
@@ -159,26 +170,6 @@ export function OfflineJudgeInterface({
       setCurrentView('authentication');
     }
   }, [currentJudgeId, credentials, session]);
-
-  // Load mock entries for development
-  useEffect(() => {
-    if (activeClassId && selectedFormat) {
-      // TODO: Replace with actual data loading
-      const mockEntries: UnifiedEntryData[] = Array.from({ length: 12 }, (_, i) => ({
-        id: `entry-${i + 1}`,
-        classId: activeClassId,
-        armband: String(i + 1).padStart(3, '0'),
-        handler: `Handler ${i + 1}`,
-        dog: `Dog ${i + 1}`,
-        status: 'Pending' as const,
-        dogId: `dog-${i + 1}`,
-        handlerId: `handler-${i + 1}`,
-        updatedAt: new Date().toISOString(),
-        isProvisional: true
-      }));
-      setEntries(mockEntries);
-    }
-  }, [activeClassId, selectedFormat]);
 
   // ========================================================================
   // Authentication Handlers

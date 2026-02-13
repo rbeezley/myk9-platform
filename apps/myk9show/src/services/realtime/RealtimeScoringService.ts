@@ -290,12 +290,23 @@ export class RealtimeScoringService {
     return null;
   }
 
-  // Conflict Handling
+  // Conflict Handling — last-write-wins with UI notification
   private async handleScoringConflict(conflict: ScoringConflict) {
-    // Notify UI about conflict
+    // Notify UI so the judge can review the conflict
     this.notifySubscribers('scoring-conflict', conflict);
-    
-    // TODO: Implement conflict resolution when conflict resolver is properly set up
+
+    // Auto-resolve with last-write-wins: the newest score takes precedence.
+    // The server-side row already reflects the latest write, so we just
+    // mark the conflict as resolved and let the UI refresh from the DB.
+    conflict.resolved = true;
+
+    logger.info('Scoring conflict auto-resolved (last-write-wins)', 'realtime', {
+      conflictId: conflict.id,
+      entryId: conflict.entryId,
+      conflictType: conflict.conflictType,
+    });
+
+    this.notifySubscribers('conflict-resolved', conflict);
   }
 
   // Presence Management
@@ -362,14 +373,28 @@ export class RealtimeScoringService {
 
   // Public Methods
 
-  async subscribeToClass(): Promise<void> {
-    if (!this.channel) {
+  async subscribeToClass(classId?: string): Promise<void> {
+    if (!this.channel || classId) {
+      // Supabase realtime channels don't support dynamic filter changes.
+      // Tear down the existing channel and recreate with the new filter.
+      if (this.channel) {
+        await this.channel.unsubscribe();
+        this.channel = null;
+      }
+      if (this.presenceChannel) {
+        await this.presenceChannel.unsubscribe();
+        this.presenceChannel = null;
+      }
+      if (this.presenceCleanup) {
+        this.presenceCleanup();
+        this.presenceCleanup = null;
+      }
+      if (this.listenersCleanup) {
+        this.listenersCleanup();
+        this.listenersCleanup = null;
+      }
       await this.setupChannels();
     }
-    
-    // TODO: Update channel subscription filter when needed
-    // Supabase realtime doesn't support dynamic filter updates
-    // Would need to recreate channel with new filter
   }
 
   async unsubscribeFromClass(classId: string): Promise<void> {

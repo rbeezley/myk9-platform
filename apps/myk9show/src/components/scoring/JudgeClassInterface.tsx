@@ -6,7 +6,7 @@
  * from entry selection to result submission.
  */
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
 import { cn } from '@/lib/utils';
@@ -21,15 +21,26 @@ import { SyncStatusIndicator } from '@/components/sync/SyncStatusIndicator';
 import { ResultEntryNavigation, type EntryWithResult } from './ResultEntryNavigation';
 import { ScentWorkScoresheet } from './ScentWorkScoresheet';
 
+// Data fetching
+import { useEntriesByClassQuery } from '@/hooks/queries/useEntriesDatabase';
+import { useClassQuery } from '@/hooks/queries/useClassesDatabase';
+import { useUpdateEntryMutation } from '@/hooks/queries/useEntriesDatabase';
+
+// Mappers
+import {
+  mapDbClassToScentWorkConfig,
+  mapDbEntryToScentWorkEntry,
+  extractScentWorkResult,
+  mapScentWorkResultToDbUpdate,
+  type DbEntryWithDog,
+  type DbClassForScoring,
+} from '@/services/mappers/scoringMappers';
+
 // Types and utilities
-import type { 
+import type {
   ScentWorkResult
 } from '@/types/scent-work-types';
 import type { ValidationResult } from '@/types/scoring-types';
-import { getTimeLimit } from '@/types/scent-work-types';
-
-// Mock data for development - replace with actual data fetching
-import { generateMockScentWorkEntries } from '@/utils/mockScentWorkData';
 
 export interface JudgeClassInterfaceProps {
   classId?: string; // Now optional, will use URL params if not provided
@@ -63,78 +74,62 @@ export function JudgeClassInterface({
   // Current view state
   const [currentView, setCurrentView] = useState<JudgeView>('navigation');
   const [currentEntryId, setCurrentEntryId] = useState<string | null>(entryId || null);
-  
-  // Data state
-  const [entries, setEntries] = useState<EntryWithResult[]>([]);
-  
-  // Initialize results from localStorage for development persistence through hot reloads
-  const [results, setResults] = useState<Map<string, ScentWorkResult>>(() => {
-    if (typeof window !== 'undefined' && activeClassId) {
-      const stored = localStorage.getItem(`judge-results-${activeClassId}`);
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          const resultsMap = new Map(Object.entries(parsed));
-          logger.debug('Loaded results from localStorage', 'scoring', { resultsCount: resultsMap.size });
-          return resultsMap;
-        } catch (e) {
-          logger.warn('Failed to parse stored results', 'scoring', {}, e as Error);
-        }
-      }
-    }
-    logger.debug('No stored results found, starting with empty Map', 'scoring');
-    return new Map();
-  });
-  
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  
-  // Class information - would come from API
-  const [classInfo, setClassInfo] = useState({
-    element: 'Container' as const,
-    level: 'Novice' as const,
-    judge: 'Judge Name',
-    totalEntries: 0,
-    maxTime: 120000
-  });
 
-  // Load class data on mount
-  useEffect(() => {
-    const loadClassData = async () => {
-      setIsLoading(true);
-      setError(null);
-      
-      try {
-        // TODO: Replace with actual API calls
-        const mockEntries = generateMockScentWorkEntries(activeClassId || 'default-class', {
-          element: classInfo.element,
-          level: classInfo.level,
-          count: 12 // Generate 12 mock entries
-        });
-        
-        // Convert to EntryWithResult format
-        const entriesWithResults: EntryWithResult[] = mockEntries.map(entry => ({
-          ...entry,
-          navigationStatus: 'pending' as const,
-          isCurrentEntry: false
-        }));
-        
-        setEntries(entriesWithResults);
-        setClassInfo(prev => ({
-          ...prev,
-          totalEntries: mockEntries.length,
-          maxTime: getTimeLimit(classInfo.element, classInfo.level)
-        }));
-        
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load class data');
-      } finally {
-        setIsLoading(false);
-      }
+  // Fetch entries and class data from Supabase
+  const {
+    data: rawEntries,
+    isLoading: entriesLoading,
+    error: entriesError,
+  } = useEntriesByClassQuery(activeClassId || '', !!activeClassId);
+
+  const {
+    data: rawClassData,
+    isLoading: classLoading,
+    error: classError,
+  } = useClassQuery(activeClassId || '', !!activeClassId);
+
+  const updateEntryMutation = useUpdateEntryMutation();
+
+  const isLoading = entriesLoading || classLoading;
+  const error = entriesError?.message || classError?.message || null;
+
+  // Derive class config from DB class record
+  const classConfig = useMemo(() => {
+    if (!rawClassData) return null;
+    return mapDbClassToScentWorkConfig(rawClassData as unknown as DbClassForScoring);
+  }, [rawClassData]);
+
+  const classInfo = useMemo(() => {
+    const config = classConfig;
+    return {
+      element: config?.element ?? ('Container' as const),
+      level: config?.level ?? ('Novice' as const),
+      judge: (rawClassData as Record<string, unknown>)?.judge_name as string || 'Judge',
+      totalEntries: rawEntries?.length ?? 0,
+      maxTime: config?.timeLimit ?? 120000,
     };
+  }, [classConfig, rawClassData, rawEntries]);
 
-    loadClassData();
-  }, [activeClassId, classInfo.element, classInfo.level]);
+  // Map DB entries to ScentWorkEntry format and extract existing results
+  const { entries, results } = useMemo(() => {
+    if (!rawEntries || !classConfig) return { entries: [] as EntryWithResult[], results: new Map<string, ScentWorkResult>() };
+
+    const resultsMap = new Map<string, ScentWorkResult>();
+    const mapped: EntryWithResult[] = (rawEntries as unknown as DbEntryWithDog[]).map(dbEntry => {
+      const scentEntry = mapDbEntryToScentWorkEntry(dbEntry, classConfig);
+      const result = extractScentWorkResult(dbEntry, classConfig.timeLimit);
+      if (result) {
+        resultsMap.set(scentEntry.id, result);
+      }
+      return {
+        ...scentEntry,
+        navigationStatus: 'pending' as const,
+        isCurrentEntry: false,
+      };
+    });
+
+    return { entries: mapped, results: resultsMap };
+  }, [rawEntries, classConfig]);
 
   // Calculate placements for qualified entries
   const calculatePlacements = useCallback((resultsMap: Map<string, ScentWorkResult>) => {
@@ -242,37 +237,26 @@ export function JudgeClassInterface({
   // Result management
   const handleSaveResult = useCallback(async (result: ScentWorkResult): Promise<ValidationResult> => {
     try {
-      // TODO: Replace with actual API call
       logger.debug('Saving result for entry', 'scoring', { entryId: result.entryId });
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Update local state and persist to localStorage
-      setResults(prev => {
-        const newResults = new Map(prev).set(result.entryId, result);
-        
-        // Persist to localStorage for development hot reload survival
-        if (typeof window !== 'undefined' && activeClassId) {
-          const resultsObj = Object.fromEntries(newResults);
-          localStorage.setItem(`judge-results-${activeClassId}`, JSON.stringify(resultsObj));
-          logger.debug('Results persisted to localStorage', 'scoring', { resultsCount: Object.keys(resultsObj).length });
-        }
-        
-        return newResults;
+
+      // Persist to database via mutation
+      const dbUpdate = mapScentWorkResultToDbUpdate(result);
+      await updateEntryMutation.mutateAsync({
+        id: result.entryId,
+        updates: dbUpdate as Record<string, unknown>,
       });
-      
-      // Always go back to navigation after saving so judge can select next entry
+
+      // Navigate back after successful save
       setTimeout(() => {
         handleBackToNavigation();
       }, 1000);
-      
+
       return {
         isValid: true,
         errors: [],
         warnings: []
       };
-      
+
     } catch (err) {
       logger.error('Failed to save result', 'scoring', { entryId: result.entryId }, err as Error);
       return {
@@ -281,7 +265,7 @@ export function JudgeClassInterface({
         warnings: []
       };
     }
-  }, [handleBackToNavigation, activeClassId]);
+  }, [handleBackToNavigation, updateEntryMutation]);
 
   const handleCancelScoresheet = useCallback(() => {
     handleBackToNavigation();
@@ -397,7 +381,8 @@ export function JudgeClassInterface({
               element: classInfo.element,
               level: classInfo.level,
               judge: classInfo.judge,
-              totalEntries: classInfo.totalEntries
+              totalEntries: classInfo.totalEntries,
+              classNumber: (rawClassData as Record<string, unknown>)?.class_number as string || undefined,
             }}
             onSelectEntry={handleSelectEntry}
             onStartJudging={handleStartJudging}

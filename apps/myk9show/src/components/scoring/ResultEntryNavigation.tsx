@@ -6,13 +6,16 @@
  * and progress tracking.
  */
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { Clock, AlertCircle, User, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import '@/styles/apple-show-details.css';
 
 // UI Components
 import { Button } from '@/components/ui/button';
+
+// Data operations
+import { useUpdateEntryMutation } from '@/hooks/queries/useEntriesDatabase';
 
 // Types
 import type { ScentWorkEntry, ScentWorkResult } from '@/types/scent-work-types';
@@ -43,6 +46,7 @@ export interface ResultEntryNavigationProps {
     level: string;
     judge: string;
     totalEntries: number;
+    classNumber?: string | undefined;
   };
   onSelectEntry: (entryId: string) => void;
   onStartJudging?: (() => void) | undefined;
@@ -71,17 +75,19 @@ export function ResultEntryNavigation({
   const [checkInDialogOpen, setCheckInDialogOpen] = useState(false);
   const [checkInManagementOpen, setCheckInManagementOpen] = useState(false);
   const [selectedEntryForCheckIn, setSelectedEntryForCheckIn] = useState<EntryWithResult | null>(null);
-  
+
+  const updateEntryMutation = useUpdateEntryMutation();
+
   // Check if user can manage check-in status
   const canManageCheckIn = hasRole(UserRole.JUDGE) || hasRole(UserRole.SECRETARY) || hasRole(UserRole.GATE_STEWARD) || hasRole(UserRole.SITE_ADMIN);
-  
+
   // Calculate progress statistics
   const progressStats = useMemo(() => {
     const total = entries.length;
     const completed = entries.filter(e => e.navigationStatus === 'completed').length;
     const inProgress = entries.filter(e => e.navigationStatus === 'in-progress').length;
     const pending = entries.filter(e => e.navigationStatus === 'pending').length;
-    
+
     return {
       total,
       completed,
@@ -91,38 +97,32 @@ export function ResultEntryNavigation({
     };
   }, [entries]);
 
+  const updateCheckInStatus = useCallback(async (entryId: string, status: CheckInStatus) => {
+    logger.debug(`Updating check-in status for entry ${entryId} to ${status}`, 'scoring', {});
+    await updateEntryMutation.mutateAsync({
+      id: entryId,
+      updates: { result_status: status } as Record<string, unknown>,
+    });
+  }, [updateEntryMutation]);
 
   const handleCheckInStatusUpdate = async (status: CheckInStatus) => {
     if (!selectedEntryForCheckIn) return;
-    
+
     try {
-      // TODO: Replace with actual API call to update check-in status
-      logger.debug(`Updating check-in status for entry ${selectedEntryForCheckIn.id} to ${status}`, 'scoring', {});
-      
-      // For now, we'll just simulate the update
-      // In a real implementation, this would update the backend and trigger a re-fetch
-      // The entries prop would be updated by the parent component
-      
+      await updateCheckInStatus(selectedEntryForCheckIn.id, status);
       setCheckInDialogOpen(false);
       setSelectedEntryForCheckIn(null);
     } catch (error) {
       logger.error('Failed to update check-in status:', 'scoring', {}, error as Error);
-      // Handle error (show toast, etc.)
     }
   };
 
   const handleBulkCheckInStatusUpdate = async (entryId: string, status: CheckInStatus) => {
     try {
-      // TODO: Replace with actual API call to update check-in status
-      logger.debug(`Updating check-in status for entry ${entryId} to ${status}`, 'scoring', {});
-      
-      // For now, we'll just simulate the update
-      // In a real implementation, this would update the backend and trigger a re-fetch
-      // The entries prop would be updated by the parent component
-      
+      await updateCheckInStatus(entryId, status);
     } catch (error) {
       logger.error('Failed to update check-in status:', 'scoring', {}, error as Error);
-      throw error; // Re-throw to show error in overlay
+      throw error;
     }
   };
 
@@ -425,7 +425,7 @@ export function ResultEntryNavigation({
             dogName: selectedEntryForCheckIn.displayInfo.dogName,
             handlerName: selectedEntryForCheckIn.displayInfo.handlerName,
             className: `${classInfo.element} ${classInfo.level}`,
-            classNumber: '1' // TODO: Get actual class number from class data
+            classNumber: classInfo.classNumber || '1'
           }}
         />
       )}

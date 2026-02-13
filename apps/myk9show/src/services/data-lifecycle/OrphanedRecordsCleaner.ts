@@ -8,9 +8,11 @@
 import { logger } from '@/services/LoggingService';
 import { useDogStore } from '@/store/dogStore';
 import { useUserStore } from '@/store/userStore';
-import { useEntryStore } from '@/store/entryStore';
+import { useEntryStore, type SyncableShowEntry } from '@/store/entryStore';
 import { useShowStore } from '@/store/showStore';
 import { useRegistrationsStore } from '@/store/registrationsStore';
+import type { Dog, Registration } from '@/types/dog-types';
+import type { User } from '@/types/user-types';
 
 export interface OrphanedRecord {
   type: string;
@@ -18,6 +20,12 @@ export interface OrphanedRecord {
   reason: string;
   relatedIds: string[];
   sizeSaved?: number;
+}
+
+/** Extended orphan record that includes the full record data for backup/restore */
+export interface OrphanedRecordWithData extends OrphanedRecord {
+  /** The full record data, stored during backup for later restoration */
+  recordData?: unknown;
 }
 
 export interface CleanupReport {
@@ -409,21 +417,54 @@ export class OrphanedRecordsCleaner {
   }
 
   /**
-   * Create backup of records before deletion
+   * Create backup of records before deletion.
+   * Stores full record data so records can be restored later.
    */
   private async createBackup(orphans: OrphanedRecord[]): Promise<void> {
     const timestamp = new Date().toISOString();
     const backupKey = `orphan-backup-${timestamp}`;
-    
-    // Store the orphaned records
-    this.backupData.set(backupKey, orphans);
-    
+
+    // Enrich orphans with full record data for restoration
+    const orphansWithData: OrphanedRecordWithData[] = orphans.map(orphan => ({
+      ...orphan,
+      recordData: this.getFullRecordData(orphan),
+    }));
+
+    // Store the orphaned records with data
+    this.backupData.set(backupKey, orphansWithData);
+
     // Also save to localStorage for persistence
     try {
-      localStorage.setItem(backupKey, JSON.stringify(orphans));
-      logger.info('Backup created', 'data-lifecycle', { backupKey });
+      localStorage.setItem(backupKey, JSON.stringify(orphansWithData));
+      logger.info('Backup created', 'data-lifecycle', { backupKey, recordCount: orphansWithData.length });
     } catch (error) {
       logger.error('Failed to create backup', 'data-lifecycle', {}, error as Error);
+    }
+  }
+
+  /**
+   * Look up the full record data for an orphan from its current store
+   */
+  private getFullRecordData(orphan: OrphanedRecord): unknown {
+    switch (orphan.type) {
+      case 'dog': {
+        const dogStore = useDogStore.getState();
+        return dogStore.dogs.find(d => d.id === orphan.id) ?? null;
+      }
+      case 'entry': {
+        const entryStore = useEntryStore.getState();
+        return entryStore.entries.find(e => e.id === orphan.id) ?? null;
+      }
+      case 'person': {
+        const userStore = useUserStore.getState();
+        return userStore.people.find(p => p.id === orphan.id) ?? null;
+      }
+      case 'registration': {
+        const registrationStore = useRegistrationsStore.getState();
+        return registrationStore.registrations.find(r => r.id === orphan.id) ?? null;
+      }
+      default:
+        return null;
     }
   }
 
@@ -479,22 +520,87 @@ export class OrphanedRecordsCleaner {
    */
   public async restoreFromBackup(backupKey: string): Promise<boolean> {
     try {
-      const backupData = localStorage.getItem(backupKey);
-      if (!backupData) {
+      const rawData = localStorage.getItem(backupKey);
+      if (!rawData) {
         logger.error('Backup not found', 'data-lifecycle', { backupKey });
         return false;
       }
 
-      const orphans: OrphanedRecord[] = JSON.parse(backupData);
+      const orphans: OrphanedRecordWithData[] = JSON.parse(rawData);
       logger.info('Restoring records from backup', 'data-lifecycle', { backupKey, recordCount: orphans.length });
 
-      // TODO: Implement actual restoration logic
-      // This would require storing the full record data in the backup
+      let restoredCount = 0;
+      let failedCount = 0;
 
-      return true;
+      for (const orphan of orphans) {
+        if (!orphan.recordData) {
+          logger.warn('Skipping orphan without record data', 'data-lifecycle', { type: orphan.type, id: orphan.id });
+          failedCount++;
+          continue;
+        }
+
+        try {
+          this.restoreRecord(orphan);
+          restoredCount++;
+        } catch (error) {
+          logger.error('Failed to restore record', 'data-lifecycle', { type: orphan.type, id: orphan.id }, error as Error);
+          failedCount++;
+        }
+      }
+
+      logger.info('Backup restoration complete', 'data-lifecycle', { backupKey, restoredCount, failedCount });
+
+      // Remove used backup from localStorage
+      if (failedCount === 0) {
+        localStorage.removeItem(backupKey);
+        this.backupData.delete(backupKey);
+      }
+
+      return failedCount === 0;
     } catch (error) {
       logger.error('Failed to restore backup', 'data-lifecycle', { backupKey }, error as Error);
       return false;
+    }
+  }
+
+  /**
+   * Restore a single record back into its store
+   */
+  private restoreRecord(orphan: OrphanedRecordWithData): void {
+    const { type, id, recordData } = orphan;
+
+    switch (type) {
+      case 'dog': {
+        const dogStore = useDogStore.getState();
+        // Only restore if the dog doesn't already exist (avoid duplicates)
+        if (!dogStore.dogs.some(d => d.id === id)) {
+          dogStore.setDogs([...dogStore.dogs, recordData as Dog]);
+        }
+        break;
+      }
+      case 'entry': {
+        const entryStore = useEntryStore.getState();
+        if (!entryStore.entries.some(e => e.id === id)) {
+          entryStore.setEntries([...entryStore.entries, recordData as SyncableShowEntry]);
+        }
+        break;
+      }
+      case 'person': {
+        const userStore = useUserStore.getState();
+        if (!userStore.people.some(p => p.id === id)) {
+          userStore.setUsers([...userStore.people, recordData as User]);
+        }
+        break;
+      }
+      case 'registration': {
+        const registrationStore = useRegistrationsStore.getState();
+        if (!registrationStore.registrations.some(r => r.id === id)) {
+          registrationStore.setRegistrations([...registrationStore.registrations, recordData as Registration]);
+        }
+        break;
+      }
+      default:
+        logger.warn('Unknown record type for restoration', 'data-lifecycle', { type, id });
     }
   }
 }

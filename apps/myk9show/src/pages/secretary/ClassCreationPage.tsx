@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { logger } from '@/services/LoggingService';
+import { toast } from 'sonner';
 import {
   ArrowLeft,
   ArrowRight,
@@ -159,8 +160,35 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
   };
 
   const handleBatchCopy = () => {
-    // TODO: Implement copy functionality
-    logger.debug('Copy classes functionality to be implemented', 'pages', {});
+    const selected = selectedClasses.filter(item => item.selected);
+    if (selected.length === 0) return;
+
+    const copyData = selected.map(item => {
+      const cls = item.classDefinition;
+      const values: Record<string, unknown> = {};
+      if (selectedTemplate) {
+        selectedTemplate.fieldSpecifications.forEach(field => {
+          const override = fieldOverrides[field.fieldName];
+          if (override !== undefined) {
+            values[field.fieldName] = override;
+          }
+        });
+      }
+      return {
+        className: cls.className,
+        element: cls.element,
+        level: cls.level,
+        section: cls.section,
+        classNumber: cls.classNumber,
+        fieldOverrides: values,
+      };
+    });
+
+    navigator.clipboard.writeText(JSON.stringify(copyData, null, 2)).then(() => {
+      toast.success(`Copied ${selected.length} class settings to clipboard`);
+    }).catch(() => {
+      toast.error('Failed to copy to clipboard');
+    });
   };
 
   const handleBatchDelete = () => {
@@ -168,8 +196,48 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
   };
 
   const handleExportSelection = () => {
-    // TODO: Implement export functionality
-    logger.debug('Export selection functionality to be implemented', 'pages', {});
+    const selected = selectedClasses.filter(item => item.selected);
+    if (selected.length === 0) return;
+
+    const exportData = {
+      exportedAt: new Date().toISOString(),
+      templateName: selectedTemplate?.templateName,
+      organization: selectedTemplate?.organization,
+      showType: selectedTemplate?.showType,
+      trialId: effectiveTrialId,
+      classes: selected.map(item => {
+        const cls = item.classDefinition;
+        const values: Record<string, unknown> = {};
+        if (selectedTemplate) {
+          selectedTemplate.fieldSpecifications.forEach(field => {
+            const override = fieldOverrides[field.fieldName];
+            if (override !== undefined) {
+              values[field.fieldName] = override;
+            }
+          });
+        }
+        return {
+          className: cls.className,
+          element: cls.element,
+          level: cls.level,
+          section: cls.section,
+          classNumber: cls.classNumber,
+          displayOrder: cls.displayOrder,
+          fieldOverrides: values,
+        };
+      }),
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `class-selection-${effectiveTrialId || 'export'}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${selected.length} classes`);
   };
 
   const getStepProgress = () => {

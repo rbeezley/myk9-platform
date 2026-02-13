@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { FileText, Printer, Download, Settings, ChevronDown } from 'lucide-react';
 import { logger } from '@/services/LoggingService';
 import {
@@ -17,11 +17,12 @@ import { Input } from '../ui/input';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible';
 import { Badge } from '../ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-import { 
-  offlineReportService, 
-  ReportOptions, 
-  ReportType 
+import {
+  offlineReportService,
+  ReportOptions,
+  ReportType
 } from '../../services/offline/OfflineReportService';
+import { useShowStore } from '@/store/showStore';
 
 interface ReportGenerationDialogProps {
   trigger?: React.ReactNode;
@@ -44,6 +45,9 @@ export const ReportGenerationDialog: React.FC<ReportGenerationDialogProps> = ({
   });
   const [isGenerating, setIsGenerating] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  const show = useShowStore(state => state.getShowById(showId));
+  const assignedJudges = useMemo(() => show?.assignedJudges ?? [], [show]);
 
   const availableReports = offlineReportService.getAvailableReports();
 
@@ -276,9 +280,16 @@ export const ReportGenerationDialog: React.FC<ReportGenerationDialogProps> = ({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="">All judges</SelectItem>
-                        {/* TODO: Populate with actual judges from the show */}
-                        <SelectItem value="judge1">Judge 1</SelectItem>
-                        <SelectItem value="judge2">Judge 2</SelectItem>
+                        {assignedJudges.map((judge) => (
+                          <SelectItem key={judge.judgeId} value={judge.judgeId}>
+                            {judge.judgeName}
+                          </SelectItem>
+                        ))}
+                        {assignedJudges.length === 0 && (
+                          <SelectItem value="" disabled>
+                            No judges assigned to this show
+                          </SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -286,13 +297,14 @@ export const ReportGenerationDialog: React.FC<ReportGenerationDialogProps> = ({
 
                 {/* Class Filter */}
                 <div className="space-y-2">
-                  <Label>Filter by classes (optional)</Label>
+                  <Label htmlFor="classFilter">Filter by classes (optional)</Label>
                   <div className="text-sm text-muted-foreground mb-2">
-                    Leave empty to include all classes
+                    Leave empty to include all classes. Enter class names or IDs separated by commas.
                   </div>
-                  {/* TODO: Add class selection component */}
                   <Input
-                    placeholder="Class IDs (comma separated)"
+                    id="classFilter"
+                    placeholder="e.g., Novice A, Open B, or class IDs"
+                    value={reportOptions.classIds?.join(', ') || ''}
                     onChange={(e) => {
                       const classIds = e.target.value
                         .split(',')
@@ -301,7 +313,6 @@ export const ReportGenerationDialog: React.FC<ReportGenerationDialogProps> = ({
                       if (classIds.length > 0) {
                         setReportOptions(prev => ({ ...prev, classIds }));
                       } else {
-                        // Remove classIds property when empty
                         setReportOptions(prev => {
                           const { classIds: _, ...rest } = prev;
                           return rest as ReportOptions;
@@ -309,6 +320,33 @@ export const ReportGenerationDialog: React.FC<ReportGenerationDialogProps> = ({
                       }
                     }}
                   />
+                  {reportOptions.classIds && reportOptions.classIds.length > 0 && (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {reportOptions.classIds.map((id, index) => (
+                        <Badge key={index} variant="secondary" className="text-xs gap-1">
+                          {id}
+                          <button
+                            type="button"
+                            className="ml-1 hover:text-destructive"
+                            onClick={() => {
+                              const newClassIds = reportOptions.classIds!.filter((_, i) => i !== index);
+                              if (newClassIds.length > 0) {
+                                setReportOptions(prev => ({ ...prev, classIds: newClassIds }));
+                              } else {
+                                setReportOptions(prev => {
+                                  const { classIds: _, ...rest } = prev;
+                                  return rest as ReportOptions;
+                                });
+                              }
+                            }}
+                            aria-label={`Remove ${id}`}
+                          >
+                            &times;
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </CollapsibleContent>

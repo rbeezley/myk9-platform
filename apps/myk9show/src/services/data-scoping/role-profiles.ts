@@ -308,10 +308,8 @@ export function getDataScopeForRole(role: string): DataScope {
  * Check if a user role has access to specific data
  */
 export function hasDataAccess(role: string, dataType: string, operation: 'read' | 'write' | 'delete'): boolean {
-  const _scope = getDataScopeForRole(role); // TODO: Use scope for access control
-  void _scope; // Mark as intentionally unused for now
-  
-  // Basic access control matrix
+  const scope = getDataScopeForRole(role);
+
   const accessMatrix: Record<string, Record<string, string[]>> = {
     admin: {
       all: ['read', 'write', 'delete'],
@@ -332,22 +330,28 @@ export function hasDataAccess(role: string, dataType: string, operation: 'read' 
       judging: ['read', 'write'],
     },
     exhibitor: {
-      dogs: ['read', 'write'], // own dogs only
-      registrations: ['read', 'write'], // own entries only
-      people: ['read'], // own profile only
-      shows: ['read'], // public info only
-      classes: ['read'], // public info only
+      dogs: ['read', 'write'],
+      registrations: ['read', 'write'],
+      people: ['read'],
+      shows: ['read'],
+      classes: ['read'],
     },
   };
 
   const roleAccess = accessMatrix[role.toLowerCase()];
   if (!roleAccess) return false;
 
-  // Check specific data type access
   if (roleAccess[dataType]?.includes(operation)) return true;
-  
-  // Check if admin has all access
   if (roleAccess.all?.includes(operation)) return true;
+
+  if (operation === 'read') {
+    const filter = scope.dataFilters[dataType as keyof typeof scope.dataFilters];
+    if (filter) return true;
+
+    const allStores = [...scope.criticalStores, ...scope.lazyStores];
+    const storeNameVariants = [`${dataType}Store`, dataType];
+    if (allStores.some(store => storeNameVariants.includes(store))) return true;
+  }
 
   return false;
 }

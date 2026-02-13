@@ -321,8 +321,55 @@ export const useArmbandStore = create<ArmbandState>()(
         };
       },
       
-      resolveConflict: (_conflictId, _resolution) => {
-        // TODO: Implement conflict resolution strategies
+      resolveConflict: (conflictId, resolution) => {
+        const conflict = get().conflicts.find((_, index) => `conflict_${index}` === conflictId || get().conflicts.indexOf(_) === parseInt(conflictId));
+        if (!conflict) return;
+
+        const conflictingAssignments = get().assignments.filter(
+          a => a.armbandNumber === conflict.armbandNumber && conflict.dogIds.includes(a.dogId)
+        );
+
+        switch (resolution.action) {
+          case 'reassign': {
+            if (!resolution.newArmbandNumber || !resolution.targetDogId) return;
+            const targetAssignment = conflictingAssignments.find(a => a.dogId === resolution.targetDogId);
+            if (targetAssignment) {
+              get().updateAssignment(targetAssignment.id, {
+                armbandNumber: resolution.newArmbandNumber,
+                isManualOverride: true,
+              });
+            }
+            break;
+          }
+          case 'swap': {
+            if (!resolution.targetDogId || conflictingAssignments.length < 2) return;
+            const [first, second] = conflictingAssignments;
+            const targetIsFirst = first.dogId === resolution.targetDogId;
+            const primary = targetIsFirst ? first : second;
+            const other = targetIsFirst ? second : first;
+            if (!primary || !other) return;
+            const tempNumber = primary.armbandNumber;
+            get().updateAssignment(primary.id, {
+              armbandNumber: other.armbandNumber,
+              isManualOverride: true,
+            });
+            get().updateAssignment(other.id, {
+              armbandNumber: tempNumber,
+              isManualOverride: true,
+            });
+            break;
+          }
+          case 'override': {
+            if (!resolution.targetDogId) return;
+            const otherAssignments = conflictingAssignments.filter(a => a.dogId !== resolution.targetDogId);
+            otherAssignments.forEach(a => get().unassignArmband(a.id));
+            break;
+          }
+        }
+
+        set((state) => ({
+          conflicts: state.conflicts.filter(c => c.armbandNumber !== conflict.armbandNumber),
+        }));
       },
       
       getAssignmentsByShow: (showId) => {

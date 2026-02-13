@@ -116,11 +116,35 @@ export function useBackgroundSync() {
     setSyncState(prev => ({ ...prev, error: undefined }));
   }, []);
 
-  // Get sync status for specific entity
   const getEntitySyncStatus = useCallback((entityType: string, entityId: string): 'synced' | 'pending' | 'error' | 'conflict' => {
-    // TODO: Implement proper entity-specific sync status checking
-    logger.debug(`Checking sync status for ${entityType}:${entityId}`, 'useBackgroundSync', { entityType, entityId });
-    return 'synced';
+    const pendingTasks = backgroundSyncService.getPendingSyncTasks();
+    const entityTasks = pendingTasks.filter(
+      task => task.entity === entityType && task.entityId === entityId
+    );
+
+    if (entityTasks.length === 0) {
+      return 'synced';
+    }
+
+    const results = backgroundSyncService.getSyncResults();
+    const entityResults = results.filter(r => {
+      const matchingTask = entityTasks.find(t => t.id === r.taskId);
+      return !!matchingTask;
+    });
+
+    const hasConflict = entityResults.some(
+      r => !r.success && r.error?.startsWith('CONFLICT:')
+    );
+    if (hasConflict) {
+      return 'conflict';
+    }
+
+    const hasError = entityResults.some(r => !r.success);
+    if (hasError) {
+      return 'error';
+    }
+
+    return 'pending';
   }, []);
 
   // Check if there are pending changes

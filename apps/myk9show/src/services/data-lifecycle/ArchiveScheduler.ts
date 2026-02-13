@@ -8,6 +8,7 @@
 
 import { DataArchiveService, getArchiveService, ArchivableResult } from './DataArchiveService';
 import { logger } from '@/services/LoggingService';
+import { notifications } from '@/lib/notifications';
 import { useShowStore } from '@/store/showStore';
 import { useEntryStore, type SyncableShowEntry } from '@/store/entryStore';
 import { useDogStore } from '@/store/dogStore';
@@ -156,8 +157,30 @@ export class ArchiveScheduler {
       );
       const people = userStore.people.filter(p => peopleIds.has(p.id));
       
-      // TODO: Get actual results when results store is implemented
-      const results: ArchivableResult[] = [];
+      // Build archivable results from entries that have competition data
+      const results: ArchivableResult[] = showEntries
+        .filter(entry => entry.competitionData)
+        .map(entry => {
+          const dog = dogStore.dogs.find(d => d.id === entry.dogId);
+          const handler = people.find(p => p.id === dog?.ownerId);
+          const parsedScore = entry.competitionData?.score ? parseFloat(entry.competitionData.score) : null;
+
+          const archivableResult: ArchivableResult = {
+            id: entry.id,
+            dogId: entry.dogId,
+            handlerId: handler?.id ?? '',
+            className: entry.classId,
+            placement: parseInt(entry.competitionData?.placement ?? '0', 10) || 0,
+            qualified: entry.competitionData?.qualified,
+            time: entry.competitionData?.time,
+          };
+
+          if (parsedScore !== null) {
+            archivableResult.score = parsedScore;
+          }
+
+          return archivableResult;
+        });
       
       // Archive the show
       await this.archiveService.archiveShow(
@@ -207,15 +230,16 @@ export class ArchiveScheduler {
    * Notify user of archive completion
    */
   private notifyArchiveComplete(shows: Show[]): void {
-    // This would integrate with your notification system
     const message = shows.length === 1
       ? `Show "${shows[0].name}" has been archived`
       : `${shows.length} shows have been archived`;
-    
+
     logger.info('Archive notification', 'archive', { message });
-    
-    // TODO: Integrate with actual notification system
-    // For now, we'll just log it
+
+    notifications.info(message, {
+      description: 'Archived shows can be restored from the Data Management settings.',
+      duration: 6000,
+    });
   }
 
   /**

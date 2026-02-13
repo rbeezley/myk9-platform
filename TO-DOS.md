@@ -4,18 +4,6 @@ Items to address in future sessions.
 
 ---
 
-## Complete Incomplete Features (45+ items) - 2026-02-11 15:14
-
-- **Complete secretary tools** - Copy/export, save logic, and column configuration missing. **Problem:** Secretary workflow tools partially implemented. **Files:** `apps/myk9show/src/pages/secretary/ClassCreationPage.tsx:162,171`, `apps/myk9show/src/pages/admin/TemplateEditorPageMinimal.tsx:68`, `apps/myk9show/src/components/secretary/ResultsGrid.tsx:75-76`.
-
-- **Complete data lifecycle operations** - Restoration, archiving, and import logic missing. **Problem:** Data lifecycle services have shell implementations without actual business logic. **Files:** `apps/myk9show/src/services/data-lifecycle/OrphanedRecordsCleaner.ts:491`, `apps/myk9show/src/services/data-lifecycle/ArchiveScheduler.ts:159,217`, `apps/myk9show/src/services/data-lifecycle/DataExportImport.ts:662`.
-
-- **Complete exhibitor features** - Email/share results and cart expiry handling missing. **Problem:** Exhibitor-facing features partially implemented. **Files:** `apps/myk9show/src/components/exhibitor/LiveResults.tsx:344,354`, `apps/myk9show/src/components/cart/CartPreviewPanel.tsx:51`.
-
-- **Complete dialog/form implementations** - 5 dialog components missing form state management, multi-select, and confirmation flows. **Problem:** Form dialogs render but don't handle state changes or submissions. **Files:** `apps/myk9show/src/components/dogs/DogDetails/TitleTracking/EditTitleDialog.tsx:13,21,25`, `apps/myk9show/src/components/dogs/DogDetails/Competitions/EditCompetitionDialog.tsx:13,21,25`, `apps/myk9show/src/components/templates/DynamicClassForm.tsx:302`, `apps/myk9show/src/components/panels/edit/JudgeQualificationPanel.tsx:155`, `apps/myk9show/src/components/offline/ReportGenerationDialog.tsx:279,293`.
-
-- **Complete miscellaneous feature gaps** - 10 files with various missing features (conflict resolution, pagination, filtering, success handling, etc.). **Problem:** Scattered incomplete implementations across stores, hooks, and components. **Files:** `apps/myk9show/src/store/armbandStore.ts:325`, `apps/myk9show/src/hooks/useEnhancedSearch.ts:235`, `apps/myk9show/src/hooks/useUserPreferences.ts:160`, `apps/myk9show/src/hooks/useBackgroundSync.ts:121`, `apps/myk9show/src/components/clubs/ClubDetails.tsx:321`, `apps/myk9show/src/components/shows/wizard/ShowCreationWizard.tsx:754`, `apps/myk9show/src/components/users/enhanced/VirtualUserList.tsx:352`, `apps/myk9show/src/components/common/UserFriendlyErrors.tsx:429`, `apps/myk9show/src/services/data-scoping/role-profiles.ts:311`, `apps/myk9show/src/pages/TrialDetailsPage.tsx:138,139`.
-
 ---
 
 ## Implement Realtime & Sync Infrastructure (6 items) - 2026-02-11 15:14

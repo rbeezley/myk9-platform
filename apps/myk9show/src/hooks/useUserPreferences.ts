@@ -155,12 +155,44 @@ export function useUserPreferences(userId: string | null): UseUserPreferencesRet
 
     try {
       setError(null);
-      
-      // For now, force sync to get latest state
-      // TODO: Implement proper conflict resolution
-      const synced = await userPreferencesService.forceSync(userId);
-      setPreferences(synced);
-      
+
+      switch (resolution) {
+        case 'remote': {
+          const remotePrefs = await userPreferencesService.forceSync(userId);
+          setPreferences(remotePrefs);
+          break;
+        }
+        case 'local': {
+          if (preferences) {
+            const updated = await userPreferencesService.updatePreferences(userId, {
+              theme: preferences.theme,
+              competition: preferences.competition,
+              notifications: preferences.notifications,
+              data: preferences.data,
+              privacy: preferences.privacy,
+            });
+            setPreferences(updated);
+          }
+          break;
+        }
+        case 'merge': {
+          const remotePrefs = await userPreferencesService.forceSync(userId);
+          if (preferences) {
+            const merged = await userPreferencesService.updatePreferences(userId, {
+              theme: { ...remotePrefs.theme, ...preferences.theme },
+              competition: { ...remotePrefs.competition, ...preferences.competition },
+              notifications: { ...remotePrefs.notifications, ...preferences.notifications },
+              data: { ...remotePrefs.data, ...preferences.data },
+              privacy: { ...remotePrefs.privacy, ...preferences.privacy },
+            });
+            setPreferences(merged);
+          } else {
+            setPreferences(remotePrefs);
+          }
+          break;
+        }
+      }
+
       reportInfo('useUserPreferences', 'Conflicts resolved', { resolution });
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to resolve conflicts';
@@ -168,7 +200,7 @@ export function useUserPreferences(userId: string | null): UseUserPreferencesRet
       reportStoreError('resolveConflicts', 'userPreferences', err);
       throw err;
     }
-  }, [userId]);
+  }, [userId, preferences]);
 
   /**
    * Force sync with server

@@ -6,15 +6,16 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ArrowLeft, Save, FileText, Settings, Eye } from 'lucide-react';
 import { useTemplateStore } from '@/store/templateStore';
-import { ClassTemplate, Organization, ShowType } from '@/types/template.types';
+import { ClassTemplate, Organization, ShowType, TemplateStatus, TemplateType } from '@/types/template.types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { logger } from '@/services/LoggingService';
+import { toast } from 'sonner';
 
 const TemplateEditorPageMinimal: React.FC = () => {
   const { templateId } = useParams<{ templateId: string }>();
   const location = useLocation();
   const navigate = useNavigate();
-  const { getTemplate } = useTemplateStore();
+  const { getTemplate, createTemplate, updateTemplate } = useTemplateStore();
   
   const isNew = location.pathname.endsWith('/new');
   
@@ -64,9 +65,42 @@ const TemplateEditorPageMinimal: React.FC = () => {
 
 
   const handleSave = async () => {
-    logger.debug('Saving template:', 'admin', { data: template });
-    // TODO: Add save logic
-    setHasChanges(false);
+    try {
+      if (isNew) {
+        const newTemplate = createTemplate({
+          templateName: template.templateName || 'Untitled Template',
+          organization: template.organization || Organization.AKC,
+          showType: template.showType || ShowType.SCENT_WORK,
+          version: template.version || '1.0.0',
+          description: template.description,
+          status: TemplateStatus.DRAFT,
+          type: TemplateType.CUSTOM,
+          isActive: template.isActive ?? true,
+          isOfficial: false,
+          isCustom: true,
+          fieldConfigurations: template.fieldConfigurations || [],
+          fieldSpecifications: template.fieldSpecifications || [],
+          classDefinitions: template.classDefinitions || [],
+          validationRules: template.validationRules || [],
+          defaults: template.defaults || { entryFees: { preEntry: 25, dayOfShow: 30 } },
+        });
+        toast.success(`Template "${newTemplate.templateName}" created`);
+        navigate(`/admin/templates/${newTemplate.id}`);
+      } else if (templateId) {
+        const { id: _id, createdAt: _ca, createdBy: _cb, ...updates } = template;
+        const success = updateTemplate(templateId, updates);
+        if (success) {
+          toast.success('Template saved');
+        } else {
+          toast.error('Failed to save template');
+          return;
+        }
+      }
+      setHasChanges(false);
+    } catch (error) {
+      logger.error('Failed to save template:', 'admin', {}, error as Error);
+      toast.error('An error occurred while saving');
+    }
   };
 
   return (

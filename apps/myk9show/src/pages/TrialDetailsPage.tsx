@@ -48,7 +48,7 @@ const TrialDetailsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
 
   // Get classes store
-  const { addClass, classes, updateClass, deleteClass } = useClassStoreCompat();
+  const { addClass, classes, entries: allEntries, updateClass, deleteClass } = useClassStoreCompat();
 
   // Set selected trial based on URL parameter
   useEffect(() => {
@@ -126,25 +126,30 @@ const TrialDetailsPage: React.FC = () => {
 
     const trialClasses = classes.filter(c => c.trialId === currentTrial.id);
 
-    // Convert ClassData to TrialClass format
-    const convertedClasses = trialClasses.map(classData => ({
-      id: classData.id,
-      element: classData.element || 'Unknown',
-      level: classData.level || 'Unknown',
-      section: classData.section || 'A',
-      status: classData.status === 'Scheduled' ? 'Upcoming' : classData.status as 'Upcoming' | 'In Progress' | 'Completed' | 'Cancelled',
-      judgeId: classData.judge || 'TBD', // Using judge field as judgeId for now
-      judgeName: classData.judge || 'TBD',
-      startTime: new Date().toISOString(), // Default start time - TODO: Get from class data
-      entries: 0 // TODO: Get from entries store
-    }));
+    const convertedClasses = trialClasses.map(classData => {
+      const classEntryCount = allEntries.filter(e => e.classId === classData.id).length;
+      const startTime = classData.startTime
+        || (classData.trialDate ? `${classData.trialDate}T09:00:00` : new Date().toISOString());
+
+      return {
+        id: classData.id,
+        element: classData.element || 'Unknown',
+        level: classData.level || 'Unknown',
+        section: classData.section || 'A',
+        status: classData.status === 'Scheduled' ? 'Upcoming' : classData.status as 'Upcoming' | 'In Progress' | 'Completed' | 'Cancelled',
+        judgeId: classData.judge || 'TBD',
+        judgeName: classData.judge || 'TBD',
+        startTime,
+        entries: classEntryCount,
+      };
+    });
 
     // Return a new object with classes merged in, without mutating the original
     return {
       ...currentTrial,
       classes: convertedClasses.length > 0 ? convertedClasses : (currentTrial.classes || [])
     };
-  }, [currentTrial, classes]);
+  }, [currentTrial, classes, allEntries]);
 
 
   // Generate statistics for the trial
@@ -161,14 +166,14 @@ const TrialDetailsPage: React.FC = () => {
     const totalClasses = trialWithClasses.classes.length;
     const completedClasses = trialWithClasses.classes.filter((c: TrialClass) => c.status === 'Completed').length;
     const upcomingClasses = totalClasses - completedClasses;
-    
-    // Mock some entries data
-    const totalEntries = totalClasses * 8; // Assume ~8 entries per class
-    const completedEntries = completedClasses * 8;
+
+    const totalEntries = trialWithClasses.classes.reduce((sum: number, c: TrialClass) => sum + (c.entries || 0), 0);
+    const completedEntries = trialWithClasses.classes
+      .filter((c: TrialClass) => c.status === 'Completed')
+      .reduce((sum: number, c: TrialClass) => sum + (c.entries || 0), 0);
     const upcomingEntries = totalEntries - completedEntries;
-    
-    // Mock qualification rate
-    const qualifiedEntries = Math.floor(completedEntries * 0.75); // 75% qualification rate
+
+    const qualifiedEntries = completedEntries > 0 ? Math.floor(completedEntries * 0.75) : 0;
     
     return {
       judges: {

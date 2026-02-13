@@ -10,13 +10,20 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { logger } from '@/services/LoggingService';
-import { Edit2, Trash2, Eye, Search, SortAsc, SortDesc, Filter } from 'lucide-react';
+import { Edit2, Trash2, Eye, Search, SortAsc, SortDesc, Filter, Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // UI Components
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Table, 
   TableBody, 
@@ -72,8 +79,8 @@ interface FilterState {
 export function ResultsGrid({
   entries,
   results,
-  // classConfig, // TODO: Use for column configuration
-  // onResultUpdate, // TODO: Implement inline editing
+  classConfig,
+  onResultUpdate,
   onResultDelete,
   className
 }: ResultsGridProps) {
@@ -85,6 +92,14 @@ export function ResultsGrid({
   });
   const [selectedResult, setSelectedResult] = useState<ScentWorkResult | MultiAreaScentWorkResult | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+  const [editValues, setEditValues] = useState<{ qualification: QualificationStatus; faults: number; judgeNotes: string }>({
+    qualification: 'Qualified',
+    faults: 0,
+    judgeNotes: '',
+  });
+
+  const isMultiArea = classConfig.multiArea === true;
 
   // Combine entries with results for display
   const gridData = useMemo(() => {
@@ -186,6 +201,46 @@ export function ResultsGrid({
     setShowDetailsDialog(true);
   }, []);
 
+  // Start inline editing for a result
+  const handleStartEdit = useCallback((entryId: string, result: ScentWorkResult | MultiAreaScentWorkResult | undefined) => {
+    setEditingEntryId(entryId);
+    if (result) {
+      setEditValues({
+        qualification: result.qualification,
+        faults: 'totalFaults' in result ? result.totalFaults : result.faults,
+        judgeNotes: result.judgeNotes || '',
+      });
+    } else {
+      setEditValues({ qualification: 'Qualified', faults: 0, judgeNotes: '' });
+    }
+  }, []);
+
+  // Save inline edit
+  const handleSaveEdit = useCallback(async (entryId: string, existingResult: ScentWorkResult | MultiAreaScentWorkResult | undefined) => {
+    if (!existingResult) return;
+
+    const updated = {
+      ...existingResult,
+      qualification: editValues.qualification,
+      judgeNotes: editValues.judgeNotes || undefined,
+      ...('totalFaults' in existingResult
+        ? { totalFaults: editValues.faults }
+        : { faults: editValues.faults }),
+    };
+
+    try {
+      await onResultUpdate(entryId, updated);
+      setEditingEntryId(null);
+    } catch (error) {
+      logger.error('Failed to update result:', 'secretary', {}, error as Error);
+    }
+  }, [editValues, onResultUpdate]);
+
+  // Cancel inline edit
+  const handleCancelEdit = useCallback(() => {
+    setEditingEntryId(null);
+  }, []);
+
   // Render sort icon
   const renderSortIcon = (field: SortField) => {
     if (sortField !== field) return null;
@@ -281,7 +336,7 @@ export function ResultsGrid({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead 
+              <TableHead
                 className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
                 onClick={() => handleSort('armband')}
               >
@@ -290,7 +345,7 @@ export function ResultsGrid({
                   {renderSortIcon('armband')}
                 </div>
               </TableHead>
-              <TableHead 
+              <TableHead
                 className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
                 onClick={() => handleSort('dogName')}
               >
@@ -299,16 +354,21 @@ export function ResultsGrid({
                   {renderSortIcon('dogName')}
                 </div>
               </TableHead>
-              <TableHead 
+              {isMultiArea && classConfig.areaLimits && classConfig.areaLimits.map((_, idx) => (
+                <TableHead key={`area-${idx}`}>
+                  Area {idx + 1}
+                </TableHead>
+              ))}
+              <TableHead
                 className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
                 onClick={() => handleSort('searchTime')}
               >
                 <div className="flex items-center space-x-1">
-                  <span>Time</span>
+                  <span>{isMultiArea ? 'Total Time' : 'Time'}</span>
                   {renderSortIcon('searchTime')}
                 </div>
               </TableHead>
-              <TableHead 
+              <TableHead
                 className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
                 onClick={() => handleSort('qualification')}
               >
@@ -317,7 +377,7 @@ export function ResultsGrid({
                   {renderSortIcon('qualification')}
                 </div>
               </TableHead>
-              <TableHead 
+              <TableHead
                 className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
                 onClick={() => handleSort('placement')}
               >
@@ -331,87 +391,166 @@ export function ResultsGrid({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredAndSortedData.map(({ entry, result, hasResult }) => (
-              <TableRow key={entry.id} className={cn(
-                'hover:bg-gray-50 dark:hover:bg-gray-800',
-                !hasResult && 'opacity-60'
-              )}>
-                <TableCell className="font-medium">
-                  #{entry.displayInfo.armband}
-                </TableCell>
-                <TableCell>
-                  <div>
-                    <div className="font-medium">{entry.displayInfo.dogName}</div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">
-                      {entry.displayInfo.dogBreed}
+            {filteredAndSortedData.map(({ entry, result, hasResult }) => {
+              const isEditing = editingEntryId === entry.id;
+
+              return (
+                <TableRow key={entry.id} className={cn(
+                  'hover:bg-gray-50 dark:hover:bg-gray-800',
+                  !hasResult && 'opacity-60',
+                  isEditing && 'bg-blue-50 dark:bg-blue-900/20'
+                )}>
+                  <TableCell className="font-medium">
+                    #{entry.displayInfo.armband}
+                  </TableCell>
+                  <TableCell>
+                    <div>
+                      <div className="font-medium">{entry.displayInfo.dogName}</div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        {entry.displayInfo.dogBreed}
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        {entry.displayInfo.handlerName}
+                      </div>
                     </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">
-                      {entry.displayInfo.handlerName}
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  {result ? (
-                    <span className="font-mono">
-                      {msToDisplay(
-                        'totalSearchTime' in result ? result.totalSearchTime : result.searchTime,
-                        'hundredths'
+                  </TableCell>
+                  {isMultiArea && classConfig.areaLimits && classConfig.areaLimits.map((_, idx) => {
+                    const areaResult = result && 'areaResults' in result
+                      ? result.areaResults.find(a => a.areaNumber === idx + 1)
+                      : undefined;
+                    return (
+                      <TableCell key={`area-${idx}`}>
+                        {areaResult ? (
+                          <div>
+                            <span className="font-mono text-sm">
+                              {msToDisplay(areaResult.searchTime, 'hundredths')}
+                            </span>
+                            <div className="text-xs text-gray-500">
+                              F: {areaResult.faults}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">--</span>
+                        )}
+                      </TableCell>
+                    );
+                  })}
+                  <TableCell>
+                    {result ? (
+                      <span className="font-mono">
+                        {msToDisplay(
+                          'totalSearchTime' in result ? result.totalSearchTime : result.searchTime,
+                          'hundredths'
+                        )}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">--:--</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {isEditing ? (
+                      <Select
+                        value={editValues.qualification}
+                        onValueChange={(val) => setEditValues(prev => ({ ...prev, qualification: val as QualificationStatus }))}
+                      >
+                        <SelectTrigger className="w-36 h-8">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Qualified">Qualified</SelectItem>
+                          <SelectItem value="Not Qualified">Not Qualified</SelectItem>
+                          <SelectItem value="Absent">Absent</SelectItem>
+                          <SelectItem value="Excused">Excused</SelectItem>
+                          <SelectItem value="Withdrawn">Withdrawn</SelectItem>
+                          <SelectItem value="Eliminated">Eliminated</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      renderQualificationBadge(result?.qualification)
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {renderPlacementBadge(result?.placementCalculated)}
+                  </TableCell>
+                  <TableCell>
+                    {isEditing ? (
+                      <Input
+                        type="number"
+                        min={0}
+                        value={editValues.faults}
+                        onChange={(e) => setEditValues(prev => ({ ...prev, faults: parseInt(e.target.value) || 0 }))}
+                        className="w-16 h-8"
+                      />
+                    ) : result ? (
+                      'totalFaults' in result ? result.totalFaults : result.faults
+                    ) : (
+                      '--'
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end space-x-1">
+                      {isEditing ? (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleSaveEdit(entry.id, result)}
+                            className="h-8 w-8 p-0 text-green-600 hover:text-green-700"
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleCancelEdit}
+                            className="h-8 w-8 p-0 text-gray-600 hover:text-gray-700"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          {result && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleViewDetails(result)}
+                              className="h-8 w-8 p-0"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {result && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleStartEdit(entry.id, result)}
+                              className="h-8 w-8 p-0"
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {result && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDelete(entry.id)}
+                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </>
                       )}
-                    </span>
-                  ) : (
-                    <span className="text-gray-400">--:--</span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  {renderQualificationBadge(result?.qualification)}
-                </TableCell>
-                <TableCell>
-                  {renderPlacementBadge(result?.placementCalculated)}
-                </TableCell>
-                <TableCell>
-                  {result ? (
-                    'totalFaults' in result ? result.totalFaults : result.faults
-                  ) : (
-                    '--'
-                  )}
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex items-center justify-end space-x-1">
-                    {result && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleViewDetails(result)}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0"
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                    {result && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(entry.id)}
-                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-            
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+
             {filteredAndSortedData.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                <TableCell colSpan={isMultiArea ? 7 + (classConfig.areaLimits?.length || 0) : 7} className="text-center py-8 text-gray-500">
                   No results found matching your filters
                 </TableCell>
               </TableRow>

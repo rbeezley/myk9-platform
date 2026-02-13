@@ -347,15 +347,76 @@ export function CompactVirtualPeopleList(props: VirtualPeopleListProps) {
 export function VirtualExhibitorsList(props: VirtualPeopleListProps) {
   const people = useUserStore(state => state.people);
   const dogs = useDogStore(state => state.dogs);
-  
-  // Filter to only show people who have dogs - for now just using all people
-  // TODO: Implement proper filtering when VirtualPeopleList supports custom data
-  void people; // Mark as used
-  void dogs; // Mark as used
+
+  const dogOwnerIds = React.useMemo(() => {
+    return new Set(dogs.map(dog => dog.ownerId).filter(Boolean));
+  }, [dogs]);
+
+  const exhibitors = React.useMemo(() => {
+    return people.filter(person => dogOwnerIds.has(person.id));
+  }, [people, dogOwnerIds]);
+
+  const renderExhibitorItem = (person: User, _index: number, style: React.CSSProperties) => {
+    const personDogs = dogs.filter(dog => dog.ownerId === person.id);
+
+    return (
+      <div
+        style={style}
+        className="flex items-center justify-between px-4 py-3 border-b hover:bg-muted/50"
+      >
+        <div className="flex items-center gap-4 flex-1 min-w-0">
+          <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center flex-shrink-0">
+            <Users className="h-6 w-6 text-muted-foreground" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="font-medium truncate">
+                {person.firstName} {person.lastName}
+              </h3>
+              <Badge className="text-xs bg-blue-100 text-blue-800">
+                {personDogs.length} dog{personDogs.length !== 1 ? 's' : ''}
+              </Badge>
+            </div>
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              {person.email && (
+                <div className="flex items-center gap-1">
+                  <Mail className="h-3 w-3" />
+                  <span className="truncate max-w-48">{person.email}</span>
+                </div>
+              )}
+              {person.phone && (
+                <div className="flex items-center gap-1">
+                  <Phone className="h-3 w-3" />
+                  <span>{person.phone}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <Button variant="ghost" size="sm" onClick={() => props.onViewPerson?.(person)}>
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => props.onEditPerson?.(person)}>
+            <Edit className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <VirtualPeopleList
-      {...props}
+    <VirtualScrollList
+      items={exhibitors}
+      itemHeight={90}
+      containerHeight={props.containerHeight || 600}
+      renderItem={renderExhibitorItem}
+      getItemKey={(person) => person.id}
+      title="Exhibitors"
+      icon={Users}
+      searchPlaceholder="Search exhibitors by name, email, or phone..."
+      emptyMessage="No exhibitors found"
+      overscan={8}
     />
   );
 }

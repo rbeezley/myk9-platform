@@ -26,7 +26,8 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DatePicker } from '@/components/ui/date-picker';
-import { AlertCircle, Save, RefreshCw } from 'lucide-react';
+import { AlertCircle, Save, RefreshCw, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { msToDisplay, parseTimeInput } from '@/lib/timeUtils';
 import DynamicSearchTimeLimits from './DynamicSearchTimeLimits';
 
@@ -298,16 +299,59 @@ export const DynamicClassForm: React.FC<DynamicClassFormProps> = ({
           );
         }
           
-        case FieldDataType.MULTI_SELECT:
-          // TODO: Implement multi-select component
+        case FieldDataType.MULTI_SELECT: {
+          const multiSelectOptions = field.overrideOptions || field.options || [];
+          const selectedValues = Array.isArray(value) ? value as string[] : [];
+
+          const toggleOption = (optionValue: string) => {
+            if (disabled) return;
+            const newValues = selectedValues.includes(optionValue)
+              ? selectedValues.filter(v => v !== optionValue)
+              : [...selectedValues, optionValue];
+            handleFieldChange(field.fieldName, newValues);
+          };
+
           return (
-            <Input
-              {...commonProps}
-              value={Array.isArray(value) ? value.join(', ') : String(value || '')}
-              onChange={(e) => handleFieldChange(field.fieldName, e.target.value.split(',').map(v => v.trim()))}
-              placeholder="Enter comma-separated values"
-            />
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-2 min-h-[36px] rounded-md border p-2">
+                {multiSelectOptions.length > 0 ? (
+                  multiSelectOptions.map((option, index) => {
+                    const optionValue = typeof option === 'string' ? option : option.value;
+                    const optionLabel = typeof option === 'string' ? option : option.label;
+                    const isSelected = selectedValues.includes(optionValue);
+                    return (
+                      <button
+                        key={index}
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => toggleOption(optionValue)}
+                        className={cn(
+                          "px-2.5 py-1 text-xs font-medium rounded-full border transition-colors",
+                          isSelected
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-background hover:bg-muted border-border text-foreground",
+                          disabled && "opacity-50 cursor-not-allowed"
+                        )}
+                      >
+                        {optionLabel}
+                        {isSelected && <X className="inline-block ml-1 h-3 w-3" />}
+                      </button>
+                    );
+                  })
+                ) : (
+                  <span className="text-xs text-muted-foreground py-1">
+                    No options configured for this field
+                  </span>
+                )}
+              </div>
+              {selectedValues.length > 0 && (
+                <div className="text-xs text-muted-foreground">
+                  {selectedValues.length} selected
+                </div>
+              )}
+            </div>
           );
+        }
           
         default:
           return (

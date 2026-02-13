@@ -5,7 +5,17 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Plus, X, Award, Save } from 'lucide-react';
+import { Plus, X, Award, Save, AlertTriangle } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '@/components/ui/alert-dialog/alert-dialog';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useRBAC } from '@/hooks/useRBAC';
 import type { JudgeQualification } from '@/types/user-types';
@@ -55,6 +65,7 @@ export const JudgeQualificationPanel: React.FC<JudgeQualificationPanelProps> = (
   const [qualifications, setQualifications] = useState<JudgeQualification[]>(initialQualifications);
   const [isLoading, setIsLoading] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [showDiscardDialog, setShowDiscardDialog] = useState(false);
 
   // Check if current user can edit judge qualifications
   const canEditQualifications = useCallback(() => {
@@ -152,10 +163,16 @@ export const JudgeQualificationPanel: React.FC<JudgeQualificationPanelProps> = (
   // Handle close with unsaved changes
   const handleClose = () => {
     if (hasChanges) {
-      // TODO: Show confirmation dialog
-      const shouldClose = window.confirm('You have unsaved changes. Are you sure you want to close?');
-      if (!shouldClose) return;
+      setShowDiscardDialog(true);
+      return;
     }
+    onClose();
+  };
+
+  const handleConfirmDiscard = () => {
+    setShowDiscardDialog(false);
+    setQualifications(initialQualifications);
+    setHasChanges(false);
     onClose();
   };
 
@@ -281,6 +298,28 @@ export const JudgeQualificationPanel: React.FC<JudgeQualificationPanelProps> = (
           </div>
         </div>
       </div>
+
+      <AlertDialog open={showDiscardDialog} onOpenChange={setShowDiscardDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Unsaved Changes
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes to judge qualifications. Are you sure you want to close? Your changes will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowDiscardDialog(false)}>
+              Keep Editing
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDiscard}>
+              Discard Changes
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SlideOverPanel>
   );
 };

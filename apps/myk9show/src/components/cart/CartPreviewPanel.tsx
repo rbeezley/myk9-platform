@@ -14,6 +14,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 import { useCartStore, useCartItems, useCartTotal, type CartItemWithDetails } from '@/stores/cartStore';
 import { useCartExpirationTimer } from '@/hooks/useCartExpirationTimer';
 import { useDogStore } from '@/store/dogStore';
@@ -40,6 +41,8 @@ export function CartPreviewPanel({
   const getTotalEntryFees = useCartStore((state) => state.getTotalEntryFees);
   const getPlatformFee = useCartStore((state) => state.getPlatformFee);
 
+  const abandonCart = useCartStore((state) => state.abandonCart);
+
   const {
     timeRemainingFormatted,
     showWarning,
@@ -48,7 +51,11 @@ export function CartPreviewPanel({
     percentRemaining,
   } = useCartExpirationTimer({
     onExpired: () => {
-      // TODO: Trigger a modal or redirect when cart expires
+      abandonCart();
+      toast.error('Your cart has expired', {
+        description: 'The items in your cart have been released. Please add them again to continue.',
+        duration: 8000,
+      });
     },
   });
 

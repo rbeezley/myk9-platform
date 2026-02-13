@@ -3,7 +3,6 @@ import { useDebounce } from '@myk9/scoring-ui';
 import { useRecentSearches } from './useRecentSearches';
 import { useSearchCache, UseSearchOptions, SearchResult } from '@/lib/searchCache';
 import { useSearchAnalytics } from '@/lib/searchCache';
-import { logger } from '@/services/LoggingService';
 
 export interface EnhancedSearchOptions extends UseSearchOptions {
   enableRecentSearches?: boolean;
@@ -68,6 +67,8 @@ export function useEnhancedSearch<T = unknown>(
   const [query, setQuery] = useState(options.query || '');
   const [filters, setFilters] = useState(options.filters || {});
   const [responseTime, setResponseTime] = useState(0);
+  const [page, setPage] = useState(0);
+  const pageSize = options.limit || 50;
 
   // Debounced query
   const debouncedQuery = useDebounce(query, debounceMs);
@@ -180,6 +181,7 @@ export function useEnhancedSearch<T = unknown>(
   // Search actions
   const search = useCallback((newQuery: string, additionalFilters?: Record<string, unknown>) => {
     setQuery(newQuery);
+    setPage(0);
     if (additionalFilters) {
       setFilters(prev => ({ ...prev, ...additionalFilters }));
     }
@@ -188,6 +190,7 @@ export function useEnhancedSearch<T = unknown>(
   const clearSearch = useCallback(() => {
     setQuery('');
     setFilters({});
+    setPage(0);
   }, []);
 
   const selectSuggestion = useCallback((suggestion: string) => {
@@ -195,9 +198,12 @@ export function useEnhancedSearch<T = unknown>(
   }, []);
 
   const loadMore = useCallback(() => {
-    // Implementation for pagination would go here
-    logger.debug('Load more not implemented yet', 'hooks', {});
-  }, []);
+    const totalCount = searchQuery.data?.totalCount ?? 0;
+    const loadedCount = (page + 1) * pageSize;
+    if (loadedCount < totalCount) {
+      setPage(prev => prev + 1);
+    }
+  }, [searchQuery.data?.totalCount, page, pageSize]);
 
   const invalidateCache = useCallback(() => {
     invalidateSearches(context);
@@ -232,7 +238,7 @@ export function useEnhancedSearch<T = unknown>(
     results: searchQuery.data ?? null,
     items: searchQuery.data?.items ?? [],
     totalCount: searchQuery.data?.totalCount ?? 0,
-    hasMore: false, // TODO: Implement pagination
+    hasMore: (searchQuery.data?.totalCount ?? 0) > (page + 1) * pageSize,
 
     // Performance
     responseTime,

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { logger } from '@/services/LoggingService';
+import { toast } from 'sonner';
 import {
   Trophy,
   Medal,
@@ -29,6 +30,14 @@ interface PlacementInfo {
   bgColor: string;
   icon: React.ReactNode;
 }
+
+const formatSearchTime = (ms: number): string => {
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  const hundredths = Math.floor((ms % 1000) / 10);
+  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${hundredths.toString().padStart(2, '0')}`;
+};
 
 const LiveResults: React.FC<LiveResultsProps> = ({
   entries,
@@ -111,15 +120,6 @@ const LiveResults: React.FC<LiveResultsProps> = ({
     }
   };
 
-  // Format search time
-  const formatSearchTime = (ms: number): string => {
-    const totalSeconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    const hundredths = Math.floor((ms % 1000) / 10);
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${hundredths.toString().padStart(2, '0')}`;
-  };
-
   // Check if user has qualified for title
   const checkTitleProgress = () => {
     const qualifiedEntries = userEntries.filter(e => e.result?.qualified);
@@ -132,6 +132,56 @@ const LiveResults: React.FC<LiveResultsProps> = ({
 
   const titleProgress = checkTitleProgress();
   const hasResults = entries.some(e => e.result);
+
+  const buildResultsSummary = useCallback(() => {
+    const className = entries[0]?.className || 'Results';
+    const lines = [`${className} - Preliminary Results\n`];
+
+    for (const entry of sortedEntries) {
+      if (!entry.result) continue;
+      const qualified = entry.result.qualified !== false ? 'Q' : 'NQ';
+      const placement = entry.result.placement ? `#${entry.result.placement} ` : '';
+      const time = entry.result.searchTime ? ` ${formatSearchTime(entry.result.searchTime)}` : '';
+      const isUser = userEntries.some(ue => ue.id === entry.id);
+      const marker = isUser ? ' *' : '';
+      lines.push(`${placement}${entry.armband} ${entry.dog?.callName || entry.dogCallName} (${qualified}${time})${marker}`);
+    }
+
+    return lines.join('\n');
+  }, [entries, sortedEntries, userEntries]);
+
+  const handleEmailResults = useCallback(() => {
+    const className = entries[0]?.className || 'Results';
+    const body = buildResultsSummary();
+    const subject = encodeURIComponent(`${className} - Preliminary Results`);
+    const encodedBody = encodeURIComponent(body);
+    window.open(`mailto:?subject=${subject}&body=${encodedBody}`, '_self');
+    logger.debug('Email results', 'components', {});
+  }, [entries, buildResultsSummary]);
+
+  const handleShareResults = useCallback(async () => {
+    const text = buildResultsSummary();
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: entries[0]?.className || 'Results',
+          text,
+        });
+        return;
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') return;
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success('Results copied to clipboard');
+    } catch {
+      toast.error('Unable to share results');
+    }
+    logger.debug('Share results', 'components', {});
+  }, [entries, buildResultsSummary]);
 
   return (
     <div className="max-w-lg mx-auto p-4 pb-20">
@@ -340,20 +390,14 @@ const LiveResults: React.FC<LiveResultsProps> = ({
       {hasResults && (
         <div className="mt-6 space-y-3">
           <button
-            onClick={() => {
-              // TODO: Implement email results
-              logger.debug('Email results', 'components', {});
-            }}
+            onClick={handleEmailResults}
             className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
           >
             <Mail className="w-5 h-5" />
             Email Results
           </button>
           <button
-            onClick={() => {
-              // TODO: Implement share functionality
-              logger.debug('Share results', 'components', {});
-            }}
+            onClick={handleShareResults}
             className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
           >
             <Share2 className="w-5 h-5" />

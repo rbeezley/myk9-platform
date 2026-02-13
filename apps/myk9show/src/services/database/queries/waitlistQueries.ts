@@ -42,7 +42,7 @@ export interface ClassWithWaitlistCount {
   trial: {
     id: string;
     name: string | null;
-    trial_date: string | null;
+    date: string | null;
   } | null;
   accepted_count: number;
   waitlist_count: number;
@@ -209,18 +209,18 @@ export const getClassesWithWaitlistCounts = async (showId: string) => {
     }
 
     // Get classes with counts
-    // Note: class_number column exists but Supabase types need regeneration
     const { data: classes, error: classError } = await supabase
       .from('classes')
       .select(`
         id,
         name,
+        class_number,
         max_entries,
         trial_id,
         trial:trial_id (
           id,
           name,
-          trial_date
+          date
         )
       `)
       .in('trial_id', trialIds)

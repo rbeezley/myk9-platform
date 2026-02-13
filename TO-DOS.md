@@ -4,9 +4,7 @@ Items to address in future sessions.
 
 ---
 
-## Fix Type/Schema Mismatches (20 files with @ts-nocheck) - 2026-02-11 15:14
-
-- **Fix waitlist management query types** - 5 waitlist files need types fixed. **Problem:** Waitlist query types don't match component expectations. **Files:** `apps/myk9show/src/pages/secretary/WaitlistManagementPage/useWaitlistManagementData.ts:3`, `apps/myk9show/src/pages/secretary/WaitlistManagementPage/ShowClassSelection.tsx:3`, `apps/myk9show/src/pages/secretary/WaitlistManagementPage/ClassStatsCards.tsx:3`, `apps/myk9show/src/pages/secretary/WaitlistManagementPage/WaitlistActionDialog.tsx`, `apps/myk9show/src/pages/secretary/WaitlistManagementPage/WaitlistTable.tsx`.
+## Fix Type/Schema Mismatches - 2026-02-11 15:14
 
 - **Fix remaining TODO items** - armbandUtils has a TODO for missing import. **Problem:** Minor TODO in utility file (not @ts-nocheck). **Files:** `apps/myk9show/src/lib/armbandUtils.ts:5`.
 

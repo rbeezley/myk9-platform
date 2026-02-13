@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck
 /**
  * Waitlist Table component for WaitlistManagementPage
  */
@@ -29,7 +27,7 @@ const WaitlistEntryRow: React.FC<WaitlistEntryRowProps> = ({
 }) => {
   const hasAvailableSpots =
     selectedClass &&
-    (!selectedClass.entry_limit || selectedClass.accepted_count < selectedClass.entry_limit);
+    (!selectedClass.max_entries || selectedClass.accepted_count < selectedClass.max_entries);
 
   return (
     <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
@@ -44,17 +42,16 @@ const WaitlistEntryRow: React.FC<WaitlistEntryRowProps> = ({
           <div className="flex items-center gap-2">
             <Dog className="h-4 w-4 text-muted-foreground" />
             <span className="font-medium">
-              {entry.entry?.dog?.name || 'Unknown Dog'}
+              {entry.dog?.name || 'Unknown Dog'}
             </span>
-            {entry.entry?.dog?.call_name && (
+            {entry.dog?.call_name && (
               <span className="text-muted-foreground">
-                ({entry.entry.dog.call_name})
+                ({entry.dog.call_name})
               </span>
             )}
           </div>
           <div className="text-sm text-muted-foreground flex items-center gap-4">
-            <span>Handler: {entry.entry?.handler || 'Not specified'}</span>
-            {entry.jump_height && <span>Jump Height: {entry.jump_height}</span>}
+            <span>Position: #{entry.position}</span>
           </div>
           <div className="text-xs text-muted-foreground mt-1">
             Added: {formatDateTime(entry.created_at)}

@@ -17,7 +17,8 @@ export function formatDate(dateStr: string | null): string {
 /**
  * Format datetime string for display
  */
-export function formatDateTime(dateStr: string): string {
+export function formatDateTime(dateStr: string | null): string {
+  if (!dateStr) return 'Unknown';
   return new Date(dateStr).toLocaleString('en-US', {
     month: 'short',
     day: 'numeric',

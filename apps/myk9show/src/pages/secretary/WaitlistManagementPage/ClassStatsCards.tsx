@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck
-// TODO: Refactor to use correct types once waitlistQueries.ts is updated to match schema
 /**
  * Class Statistics Cards component for WaitlistManagementPage
  */
@@ -15,12 +12,12 @@ interface ClassStatsCardsProps {
 }
 
 export const ClassStatsCards: React.FC<ClassStatsCardsProps> = ({ selectedClass }) => {
-  const availableSpots = selectedClass.entry_limit
-    ? Math.max(0, selectedClass.entry_limit - selectedClass.accepted_count)
+  const availableSpots = selectedClass.max_entries
+    ? Math.max(0, selectedClass.max_entries - selectedClass.accepted_count)
     : null;
 
-  const percentFull = selectedClass.entry_limit
-    ? Math.round((selectedClass.accepted_count / selectedClass.entry_limit) * 100)
+  const percentFull = selectedClass.max_entries
+    ? Math.round((selectedClass.accepted_count / selectedClass.max_entries) * 100)
     : null;
 
   return (
@@ -32,7 +29,7 @@ export const ClassStatsCards: React.FC<ClassStatsCardsProps> = ({ selectedClass 
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
-            {selectedClass.entry_limit || '∞'}
+            {selectedClass.max_entries || '∞'}
           </div>
           <p className="text-xs text-muted-foreground">Maximum entries</p>
         </CardContent>

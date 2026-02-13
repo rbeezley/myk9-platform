@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck
-// TODO: Refactor to use correct types once waitlistQueries.ts is updated to match schema
 /**
  * Show and Class Selection component for WaitlistManagementPage
  */

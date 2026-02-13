@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck
 /**
  * Action Confirmation Dialog for WaitlistManagementPage
  */
@@ -60,14 +58,14 @@ export const WaitlistActionDialog: React.FC<WaitlistActionDialogProps> = ({
             {actionDialog.action === 'offer' ? (
               <>
                 Are you sure you want to offer a spot to{' '}
-                <strong>{actionDialog.entry?.entry?.dog?.name}</strong> in{' '}
+                <strong>{actionDialog.entry?.dog?.name}</strong> in{' '}
                 <strong>{selectedClass?.name}</strong>? This will move them from the waitlist
                 to accepted entries. The exhibitor will be notified.
               </>
             ) : (
               <>
                 Are you sure you want to remove{' '}
-                <strong>{actionDialog.entry?.entry?.dog?.name}</strong> from the waitlist for{' '}
+                <strong>{actionDialog.entry?.dog?.name}</strong> from the waitlist for{' '}
                 <strong>{selectedClass?.name}</strong>? This action cannot be undone.
               </>
             )}

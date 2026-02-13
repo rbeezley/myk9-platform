@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck
-// TODO: Refactor to use correct types once waitlistQueries.ts is updated to match schema
 /**
  * Data management hook for WaitlistManagementPage
  * Handles state, data loading, and actions
@@ -153,10 +150,10 @@ export function useWaitlistManagementData() {
         logger.error('Error offering waitlist spot:', 'secretary', {}, error as Error);
       } else {
         // Send notification to exhibitor
-        if (data?.entry?.created_by) {
+        if (data?.exhibitor_id) {
           notificationService.publish({
-            type: NotificationType.WAITLIST_OFFER,
-            channel: `user:${data.entry.created_by}`,
+            type: NotificationType.ENTRY_CHANGE,
+            channel: `user:${data.exhibitor_id}`,
             sender: {
               id: user?.id || 'secretary',
               name: user?.email || 'Secretary',
@@ -166,7 +163,7 @@ export function useWaitlistManagementData() {
               type: 'waitlist_spot_offered',
               classEntryId: actionDialog.entry.id,
               className: actionDialog.entry.class?.name,
-              dogName: actionDialog.entry.entry?.dog?.name,
+              dogName: actionDialog.entry.dog?.name,
               offeredAt: new Date().toISOString(),
             },
           });
@@ -234,9 +231,8 @@ export function useWaitlistManagementData() {
     const search = searchTerm.toLowerCase();
     return waitlistEntries.filter(
       (entry) =>
-        entry.entry?.dog?.name?.toLowerCase().includes(search) ||
-        entry.entry?.dog?.call_name?.toLowerCase().includes(search) ||
-        entry.entry?.handler?.toLowerCase().includes(search)
+        entry.dog?.name?.toLowerCase().includes(search) ||
+        entry.dog?.call_name?.toLowerCase().includes(search)
     );
   }, [waitlistEntries, searchTerm]);
 

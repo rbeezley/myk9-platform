@@ -88,6 +88,7 @@ export const getClassesWithCapacity = async (showId: string) => {
       .select(`
         id,
         name,
+        class_number,
         max_entries,
         trial_id
       `)
@@ -715,17 +716,22 @@ export const searchDogs = async (searchTerm: string) => {
 
 export interface ScratchRequest {
   id: string;
-  class_id: string;
-  trial_id: string;
-  entry_status: string;
-  entry_fee: number;
-  scratched_at: string | null;
-  scratch_reason: string | null;
-  refund_status: 'pending' | 'eligible' | 'processed' | 'denied' | 'not_applicable';
-  refund_amount: number | null;
+  class_id: string | null;
+  trial_id: string | null;
+  entry_status: string | null;
+  entry_fee: number | null;
+  created_at: string | null;
+  special_requests: string | null;
   handler: string | null;
   armband: string | null;
   payment_status: string | null;
+  updated_at: string | null;
+  // Fields that may exist after scratch processing
+  scratched_at?: string | null;
+  scratch_reason?: string | null;
+  refund_status?: 'pending' | 'eligible' | 'processed' | 'denied' | 'not_applicable' | null;
+  refund_amount?: number | null;
+  stripe_payment_intent_id?: string | null;
   dog: {
     id: string;
     name: string;
@@ -902,7 +908,7 @@ export const getPendingScratchRequests = async (showId: string) => {
  * Approve a scratch request
  * Note: Refund processing should be handled separately via payment service
  */
-export const approveScratchRequest = async (entryId: string) => {
+export const approveScratchRequest = async (entryId: string, _processRefund?: boolean, _refundAmount?: number) => {
   const startTime = Date.now();
 
   try {

@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck
-// TODO: Remove ts-nocheck once secretaryEntryQueries.ts types match schema
 import { useState, useCallback } from 'react';
 import { logger } from '@/services/LoggingService';
 import { auditService } from '@/services/AuditService';
@@ -312,7 +309,11 @@ export function useEntryManagementActions({
             ...e,
             classes: e.classes.map(c =>
               c.id === classEntry.id
-                ? { ...c, checkInStatus: classEntry.checkInStatus, checkInTime: classEntry.checkInTime }
+                ? {
+                    ...c,
+                    ...(classEntry.checkInStatus != null ? { checkInStatus: classEntry.checkInStatus } : {}),
+                    ...(classEntry.checkInTime != null ? { checkInTime: classEntry.checkInTime } : {}),
+                  }
                 : c
             )
           };
@@ -402,30 +403,26 @@ export function useEntryManagementActions({
       ];
 
       const rows = data.map((entry) => {
-        const dog = entry.dog as { name?: string; call_name?: string; breed?: string; registration_number?: string } | null;
-        const owner = entry.owner as { first_name?: string; last_name?: string; email?: string; phone?: string } | null;
-        const classes = (entry.class_entry || [])
-          .map((ce) => {
-            const cls = ce.class as { name?: string; class_number?: string } | null;
-            return `${cls?.name || 'Unknown'}${ce.jump_height ? ` (${ce.jump_height})` : ''}`;
-          })
-          .join('; ');
+        const dog = entry.dog as { id?: string; name?: string; call_name?: string; breed?: string } | null;
+        const cls = entry.class as { name?: string; class_number?: string } | null;
+        const jumpHeight = (entry as Record<string, unknown>).jump_height as string | null;
+        const className = cls?.name ? `${cls.name}${jumpHeight ? ` (${jumpHeight})` : ''}` : '';
 
         return [
-          entry.armband_number || '',
+          entry.armband || '',
           dog?.name || '',
           dog?.call_name || '',
           dog?.breed || '',
-          dog?.registration_number || '',
-          owner?.first_name || '',
-          owner?.last_name || '',
-          owner?.email || '',
-          owner?.phone || '',
+          '', // registration_number not available in export query
+          '', // owner first name - not in query
+          '', // owner last name - not in query
+          '', // owner email - not in query
+          '', // owner phone - not in query
           entry.handler || '',
           entry.entry_status || '',
           entry.payment_status || '',
-          entry.total_fees?.toString() || '0',
-          classes,
+          entry.entry_fee?.toString() || '0',
+          className,
           entry.special_requests || '',
         ];
       });

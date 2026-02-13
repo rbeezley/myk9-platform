@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck
-// TODO: Remove ts-nocheck once secretaryEntryQueries.ts types match schema
 import { useState, useCallback, useEffect } from 'react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { logger } from '@/services/LoggingService';
@@ -92,37 +89,33 @@ export function useEntryManagementData(): UseEntryManagementDataReturn {
       }
 
       // Transform database entries to UI format
+      // SecretaryEntry is a flat row (one per class entry), not a grouped structure
       const transformedEntries: EntryManagementEntry[] = (data || []).map((entry: SecretaryEntry) => ({
         id: entry.id,
         registrationId: entry.id,
-        entryNumber: entry.armband_number || entry.id.slice(0, 8).toUpperCase(),
-        showId: entry.show_id,
+        entryNumber: entry.armband || entry.id.slice(0, 8).toUpperCase(),
+        showId: entry.show_id || '',
         dogName: entry.dog?.name || 'Unknown Dog',
-        ownerName: entry.owner
-          ? `${entry.owner.first_name || ''} ${entry.owner.last_name || ''}`.trim() || 'Unknown'
-          : 'Unknown',
-        ownerEmail: entry.owner?.email || '',
-        handlerName: entry.handler || entry.owner
-          ? `${entry.owner?.first_name || ''} ${entry.owner?.last_name || ''}`.trim()
-          : 'Not specified',
-        classes: (entry.class_entries || []).map((ce) => ({
-          id: ce.id,
-          name: ce.class?.name || 'Unknown Class',
-          number: ce.class?.class_number || '',
-          fee: ce.entry_fee || 0,
-          jumpHeight: ce.jump_height || undefined,
-          status: mapClassEntryStatus(ce.status),
-          checkInStatus: ce.check_in_status as CheckInStatus | undefined,
-          checkInTime: ce.check_in_time ? new Date(ce.check_in_time) : undefined,
-        })),
-        totalFee: entry.total_fees || 0,
-        paidAmount: entry.payment_status === 'paid' ? (entry.total_fees || 0) : 0,
+        ownerName: entry.handler || 'Unknown',
+        ownerEmail: '',
+        handlerName: entry.handler || 'Not specified',
+        classes: entry.class ? [{
+          id: entry.class.id,
+          name: entry.class.name || 'Unknown Class',
+          number: entry.class.class_number || '',
+          fee: entry.entry_fee || 0,
+          ...(entry.jump_height ? { jumpHeight: entry.jump_height } : {}),
+          status: mapClassEntryStatus(entry.entry_status),
+          checkInStatus: (entry.is_in_ring ? 'checked-in' : 'none') as CheckInStatus,
+        }] : [],
+        totalFee: entry.entry_fee || 0,
+        paidAmount: entry.payment_status === 'paid' ? (entry.entry_fee || 0) : 0,
         entryStatus: mapEntryStatus(entry.entry_status),
         paymentStatus: mapPaymentStatus(entry.payment_status),
-        submittedAt: entry.submitted_at ? new Date(entry.submitted_at) : new Date(entry.created_at),
-        lastUpdated: new Date(entry.updated_at),
-        notes: entry.special_requests || undefined,
-        armbandNumber: entry.armband_number || undefined,
+        submittedAt: entry.submitted_at ? new Date(entry.submitted_at) : new Date(entry.created_at || Date.now()),
+        lastUpdated: new Date(entry.updated_at || Date.now()),
+        ...(entry.special_requests ? { notes: entry.special_requests } : {}),
+        ...(entry.armband ? { armbandNumber: entry.armband } : {}),
       }));
 
       setEntries(transformedEntries);

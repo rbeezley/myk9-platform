@@ -4,9 +4,7 @@ Items to address in future sessions.
 
 ---
 
-## Fix Type/Schema Mismatches (25 files with @ts-nocheck) - 2026-02-11 15:14
-
-- **Fix entry management query types** - 5 entry/scratch/moveup files need secretaryEntryQueries and dayOfOperationsQueries types fixed. **Problem:** Query return types don't match what components expect, blocking type checking for core secretary workflows. **Files:** `apps/myk9show/src/hooks/useEntryManagementActions.ts:3`, `apps/myk9show/src/hooks/useEntryManagementData.ts:3`, `apps/myk9show/src/pages/secretary/EntryManagementPage.tsx:3`, `apps/myk9show/src/components/entries/MoveUpRequestsTab.tsx:3`, `apps/myk9show/src/components/entries/ScratchManagementTab.tsx:3`. **Solution:** Fix secretaryEntryQueries and dayOfOperationsQueries return types to match actual DB responses.
+## Fix Type/Schema Mismatches (20 files with @ts-nocheck) - 2026-02-11 15:14
 
 - **Fix waitlist management query types** - 5 waitlist files need types fixed. **Problem:** Waitlist query types don't match component expectations. **Files:** `apps/myk9show/src/pages/secretary/WaitlistManagementPage/useWaitlistManagementData.ts:3`, `apps/myk9show/src/pages/secretary/WaitlistManagementPage/ShowClassSelection.tsx:3`, `apps/myk9show/src/pages/secretary/WaitlistManagementPage/ClassStatsCards.tsx:3`, `apps/myk9show/src/pages/secretary/WaitlistManagementPage/WaitlistActionDialog.tsx`, `apps/myk9show/src/pages/secretary/WaitlistManagementPage/WaitlistTable.tsx`.
 

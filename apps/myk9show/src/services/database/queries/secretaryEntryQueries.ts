@@ -209,12 +209,13 @@ export const bulkUpdateEntryStatus = async (entryIds: string[], status: string) 
  */
 export const updateCheckInStatus = async (
   entryId: string,
-  isInRing: boolean,
+  status: string,
   notes?: string
 ) => {
   const startTime = Date.now();
 
   try {
+    const isInRing = status === 'checked-in' || status === 'at-gate';
     const updateData: Record<string, unknown> = {
       is_in_ring: isInRing,
       updated_at: new Date().toISOString(),

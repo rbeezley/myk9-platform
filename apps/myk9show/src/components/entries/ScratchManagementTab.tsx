@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck
-// TODO: Fix type mismatches with dayOfOperationsQueries results
 /**
  * Scratch Management Tab
  *
@@ -244,14 +241,14 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
   };
 
   // Filter requests by search term
-  const filterRequests = (requests: ScratchRequest[]) => {
-    if (!searchTerm) return requests;
+  const filterRequests = (items: ScratchRequest[]) => {
+    if (!searchTerm) return items;
     const search = searchTerm.toLowerCase();
-    return requests.filter(
+    return items.filter(
       (request) =>
-        request.entry?.dog?.name?.toLowerCase().includes(search) ||
-        request.entry?.dog?.call_name?.toLowerCase().includes(search) ||
-        request.entry?.handler?.toLowerCase().includes(search) ||
+        request.dog?.name?.toLowerCase().includes(search) ||
+        request.dog?.call_name?.toLowerCase().includes(search) ||
+        request.handler?.toLowerCase().includes(search) ||
         request.class?.name?.toLowerCase().includes(search)
     );
   };
@@ -372,23 +369,23 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="font-medium">
-                              {request.entry?.dog?.name || 'Unknown Dog'}
+                              {request.dog?.name || 'Unknown Dog'}
                             </span>
-                            {request.entry?.dog?.call_name && (
+                            {request.dog?.call_name && (
                               <span className="text-muted-foreground">
-                                ({request.entry.dog.call_name})
+                                ({request.dog.call_name})
                               </span>
                             )}
-                            {request.entry?.armband_number && (
-                              <Badge variant="outline">#{request.entry.armband_number}</Badge>
+                            {request.armband && (
+                              <Badge variant="outline">#{request.armband}</Badge>
                             )}
                           </div>
                           <div className="text-sm text-muted-foreground">
-                            Handler: {request.entry?.handler || 'Not specified'}
+                            Handler: {request.handler || 'Not specified'}
                           </div>
-                          {request.scratch_reason && (
+                          {request.special_requests && (
                             <div className="text-sm text-muted-foreground italic">
-                              Reason: {request.scratch_reason}
+                              Reason: {request.special_requests}
                             </div>
                           )}
                         </div>
@@ -465,10 +462,10 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="font-medium">
-                              {scratch.entry?.dog?.name || 'Unknown Dog'}
+                              {scratch.dog?.name || 'Unknown Dog'}
                             </span>
-                            {scratch.entry?.armband_number && (
-                              <Badge variant="outline">#{scratch.entry.armband_number}</Badge>
+                            {scratch.armband && (
+                              <Badge variant="outline">#{scratch.armband}</Badge>
                             )}
                           </div>
                           <div className="text-sm text-muted-foreground">
@@ -485,7 +482,7 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
 
                       <div className="flex items-center gap-6">
                         <div className="text-center">
-                          {getRefundStatusBadge(scratch.refund_status)}
+                          {getRefundStatusBadge(scratch.refund_status ?? null)}
                           {scratch.refund_amount && scratch.refund_status === 'processed' && (
                             <div className="text-sm text-green-600 mt-1">
                               {formatCurrency(scratch.refund_amount)}
@@ -494,10 +491,10 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
                         </div>
 
                         <div className="text-sm text-muted-foreground">
-                          Scratched: {formatDate(scratch.scratched_at)}
+                          Scratched: {formatDate(scratch.scratched_at ?? scratch.updated_at)}
                         </div>
 
-                        {scratch.refund_status === 'eligible' && scratch.entry?.stripe_payment_intent_id && (
+                        {scratch.refund_status === 'eligible' && scratch.stripe_payment_intent_id && (
                           <Button
                             size="sm"
                             variant="outline"
@@ -523,7 +520,7 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
           <DialogHeader>
             <DialogTitle>Approve Scratch Request</DialogTitle>
             <DialogDescription>
-              Approve the scratch request for {selectedRequest?.entry?.dog?.name} in{' '}
+              Approve the scratch request for {selectedRequest?.dog?.name} in{' '}
               {selectedRequest?.class?.name}.
             </DialogDescription>
           </DialogHeader>
@@ -587,7 +584,7 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
           <DialogHeader>
             <DialogTitle>Deny Scratch Request</DialogTitle>
             <DialogDescription>
-              Deny the scratch request for {selectedRequest?.entry?.dog?.name}.
+              Deny the scratch request for {selectedRequest?.dog?.name}.
               The exhibitor will be notified.
             </DialogDescription>
           </DialogHeader>
@@ -640,7 +637,7 @@ export const ScratchManagementTab: React.FC<ScratchManagementTabProps> = ({
             <Alert>
               <CreditCard className="h-4 w-4" />
               <AlertDescription>
-                <strong>{selectedRequest?.entry?.dog?.name}</strong> - {selectedRequest?.class?.name}
+                <strong>{selectedRequest?.dog?.name}</strong> - {selectedRequest?.class?.name}
                 <br />
                 Original payment: {formatCurrency(selectedRequest?.entry_fee || 0)}
               </AlertDescription>

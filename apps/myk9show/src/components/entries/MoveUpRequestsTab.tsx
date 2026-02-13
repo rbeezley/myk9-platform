@@ -1,6 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck
-// TODO: Fix type mismatches with dayOfOperationsQueries results
 /**
  * Move-Up Requests Tab
  *
@@ -54,35 +51,25 @@ import {
 
 interface MoveUpRequest {
   id: string;
-  class_id: string;
-  trial_id: string;
-  status: string;
+  class_id: string | null;
+  trial_id: string | null;
+  entry_status: string | null;
   jump_height: string | null;
-  check_in_notes: string | null;
-  created_at: string;
-  updated_at: string;
-  move_up_target_class_id: string | null;
-  entry: {
+  special_requests: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  handler: string | null;
+  armband: string | null;
+  dog: {
     id: string;
-    handler: string | null;
-    armband_number: string | null;
-    dog: {
-      id: string;
-      name: string;
-      call_name: string | null;
-    } | null;
+    name: string;
+    call_name: string | null;
   } | null;
   class: {
     id: string;
     name: string;
     class_number: string | null;
     trial_id: string;
-  } | null;
-  targetClass: {
-    id: string;
-    name: string;
-    class_number: string | null;
-    entry_limit: number | null;
   } | null;
 }
 
@@ -223,10 +210,7 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({
   const openApproveDialog = (request: MoveUpRequest) => {
     setSelectedRequest(request);
     setDialogAction('approve');
-    // Pre-select target class if specified
-    if (request.targetClass?.id) {
-      setTargetClassId(request.targetClass.id);
-    }
+    setTargetClassId('');
   };
 
   const openDenyDialog = (request: MoveUpRequest) => {
@@ -247,9 +231,9 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({
     if (!searchTerm) return true;
     const search = searchTerm.toLowerCase();
     return (
-      request.entry?.dog?.name?.toLowerCase().includes(search) ||
-      request.entry?.dog?.call_name?.toLowerCase().includes(search) ||
-      request.entry?.handler?.toLowerCase().includes(search) ||
+      request.dog?.name?.toLowerCase().includes(search) ||
+      request.dog?.call_name?.toLowerCase().includes(search) ||
+      request.handler?.toLowerCase().includes(search) ||
       request.class?.name?.toLowerCase().includes(search)
     );
   });
@@ -348,19 +332,19 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="font-medium">
-                          {request.entry?.dog?.name || 'Unknown Dog'}
+                          {request.dog?.name || 'Unknown Dog'}
                         </span>
-                        {request.entry?.dog?.call_name && (
+                        {request.dog?.call_name && (
                           <span className="text-muted-foreground">
-                            ({request.entry.dog.call_name})
+                            ({request.dog.call_name})
                           </span>
                         )}
-                        {request.entry?.armband_number && (
-                          <Badge variant="outline">#{request.entry.armband_number}</Badge>
+                        {request.armband && (
+                          <Badge variant="outline">#{request.armband}</Badge>
                         )}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        Handler: {request.entry?.handler || 'Not specified'}
+                        Handler: {request.handler || 'Not specified'}
                       </div>
                     </div>
                   </div>
@@ -385,15 +369,7 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({
                       <div className="flex items-center gap-1">
                         <Trophy className="h-4 w-4 text-muted-foreground" />
                         <span className="font-medium">
-                          {request.targetClass ? (
-                            <>
-                              {request.targetClass.class_number &&
-                                `#${request.targetClass.class_number} `}
-                              {request.targetClass.name}
-                            </>
-                          ) : (
-                            <span className="text-muted-foreground italic">Not specified</span>
-                          )}
+                          <span className="text-muted-foreground italic">Select below</span>
                         </span>
                       </div>
                     </div>
@@ -401,7 +377,7 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({
                     {/* Request Time */}
                     <div className="text-sm text-muted-foreground flex items-center gap-1">
                       <Clock className="h-4 w-4" />
-                      {formatDate(request.created_at)}
+                      {request.created_at ? formatDate(request.created_at) : 'N/A'}
                     </div>
 
                     {/* Actions */}
@@ -437,7 +413,7 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({
           <DialogHeader>
             <DialogTitle>Approve Move-Up Request</DialogTitle>
             <DialogDescription>
-              Move {selectedRequest?.entry?.dog?.name} from{' '}
+              Move {selectedRequest?.dog?.name} from{' '}
               {selectedRequest?.class?.name} to the selected class.
             </DialogDescription>
           </DialogHeader>
@@ -480,7 +456,7 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({
                         <strong>{targetClass.name}</strong> has{' '}
                         <strong>{targetClass.available_spots}</strong> spots available
                         ({targetClass.accepted_count}/
-                        {targetClass.entry_limit || '∞'} filled)
+                        {targetClass.max_entries || '∞'} filled)
                       </>
                     );
                   })()}
@@ -516,7 +492,7 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({
           <DialogHeader>
             <DialogTitle>Deny Move-Up Request</DialogTitle>
             <DialogDescription>
-              Deny the move-up request for {selectedRequest?.entry?.dog?.name}.
+              Deny the move-up request for {selectedRequest?.dog?.name}.
               The exhibitor will be notified.
             </DialogDescription>
           </DialogHeader>

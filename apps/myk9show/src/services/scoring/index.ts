@@ -20,7 +20,7 @@ import { logger } from '@/services/LoggingService';
 // Service Types
 export type {
   OfflineScoringServiceConfig
-} from './OfflineScoringService';
+} from './offline-scoring-types';
 
 export type {
   PlacementCalculatorConfig

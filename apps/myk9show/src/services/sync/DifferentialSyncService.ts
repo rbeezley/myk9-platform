@@ -4,9 +4,8 @@ import { diff as deepDiff } from 'deep-object-diff';
 import { isEqual, cloneDeep, get, set, unset } from 'lodash';
 import { logger } from '@/services/LoggingService';
 import {
-  DeltaPayload, 
-  DeltaOperation, 
-  DeltaAlgorithm,
+  DeltaPayload,
+  DeltaOperation,
   DeltaCompressionType,
   DeltaValidationResult,
   ConflictResolutionStrategy
@@ -14,89 +13,27 @@ import {
 import { SyncableEntity } from '../../types/sync-types';
 import { eventEmitter } from './eventEmitter';
 
-// Extended interfaces for conflict resolution
-interface ConflictableEntity extends SyncableEntity {
-  _conflict?: boolean;
-  local?: SyncableEntity;
-  remote?: SyncableEntity;
-  base?: SyncableEntity;
-}
+import type {
+  ConflictableEntity,
+  ExtendedPatchOperation,
+  DeltaCalculationOptions,
+  DeltaApplicationOptions,
+  ChecksumCache,
+  DeltaPerformanceMetrics,
+  JsonPatchOperation,
+} from './differential-sync-types';
 
-interface ExtendedPatchOperation {
-  op: jsonpatch.Operation['op'];
-  path: string;
-  value?: unknown;
-  from?: string;
-}
-
-interface DeltaCalculationOptions {
-  algorithm?: DeltaAlgorithm;
-  compressionType?: DeltaCompressionType;
-  includeChecksum?: boolean;
-  maxDeltaSize?: number;
-  conflictStrategy?: ConflictResolutionStrategy;
-}
-
-interface DeltaApplicationOptions {
-  validateChecksum?: boolean;
-  rollbackOnError?: boolean;
-  trackPerformance?: boolean;
-}
-
-interface ChecksumCache {
-  [key: string]: {
-    checksum: string;
-    timestamp: number;
-    data: Record<string, unknown>;
-  };
-}
-
-interface DeltaPerformanceMetrics {
-  operation: string;
-  timestamp: number;
-  duration: number;
-  operationCount: number;
-  algorithm?: string;
-  compressionType?: string;
-  deltaSize?: number;
-  success: boolean;
-}
-
-interface JsonPatchOperationBase {
-  op: string;
-  path: string;
-}
-
-interface JsonPatchAdd extends JsonPatchOperationBase {
-  op: 'add';
-  value: unknown;
-}
-
-interface JsonPatchRemove extends JsonPatchOperationBase {
-  op: 'remove';
-}
-
-interface JsonPatchReplace extends JsonPatchOperationBase {
-  op: 'replace';
-  value: unknown;
-}
-
-interface JsonPatchMove extends JsonPatchOperationBase {
-  op: 'move';
-  from: string;
-}
-
-interface JsonPatchCopy extends JsonPatchOperationBase {
-  op: 'copy';
-  from: string;
-}
-
-interface JsonPatchTest extends JsonPatchOperationBase {
-  op: 'test';
-  value: unknown;
-}
-
-type JsonPatchOperation = JsonPatchAdd | JsonPatchRemove | JsonPatchReplace | JsonPatchMove | JsonPatchCopy | JsonPatchTest;
+import {
+  generateDeltaId,
+  mapJsonPatchOp,
+  mapToJsonPatchOp,
+  arrayBuffersEqual,
+  arrayBufferToBase64,
+  base64ToArrayBuffer,
+  simpleHash,
+  normalizeForChecksum,
+  isSyncableEntity,
+} from './differential-sync-utils';
 
 
 export class DifferentialSyncService {
@@ -126,7 +63,7 @@ export class DifferentialSyncService {
     options: DeltaCalculationOptions = {}
   ): Promise<DeltaPayload> {
     const startTime = performance.now();
-    
+
     try {
       const {
         algorithm = 'json-patch',
@@ -169,7 +106,7 @@ export class DifferentialSyncService {
 
       // Create delta payload
       let deltaPayload: DeltaPayload = {
-        id: this.generateDeltaId(),
+        id: generateDeltaId(),
         entityType: this.getEntityType(original),
         entityId: this.getEntityId(original),
         operations,
@@ -295,11 +232,11 @@ export class DifferentialSyncService {
       return result;
     } catch (error) {
       logger.error('Error applying delta:', 'sync', {}, error as Error);
-      
+
       if (rollbackOnError && rollbackState) {
         return rollbackState;
       }
-      
+
       throw error;
     }
   }
@@ -309,9 +246,9 @@ export class DifferentialSyncService {
    */
   private calculateJsonPatchDelta<T extends SyncableEntity>(original: T, modified: T): DeltaOperation[] {
     const patches = jsonpatch.compare(original as Record<string, unknown>, modified as Record<string, unknown>) as JsonPatchOperation[];
-    
+
     return patches.map(patch => ({
-      type: this.mapJsonPatchOp(patch.op),
+      type: mapJsonPatchOp(patch.op),
       path: patch.path,
       value: 'value' in patch ? patch.value : undefined,
       oldValue: undefined, // JSON patch doesn't provide old values
@@ -325,22 +262,22 @@ export class DifferentialSyncService {
   private applyJsonPatchDelta<T extends SyncableEntity>(target: T, operations: DeltaOperation[]): T {
     const patches = operations.map(op => {
       const patchOp: ExtendedPatchOperation = {
-        op: this.mapToJsonPatchOp(op.type) as jsonpatch.Operation['op'],
+        op: mapToJsonPatchOp(op.type) as jsonpatch.Operation['op'],
         path: op.path
       };
-      
+
       if (op.value !== undefined) {
         patchOp.value = op.value;
       }
-      
+
       if (op.from) {
         patchOp.from = op.from;
       }
-      
+
       return patchOp;
-    }).filter(patch => 
-      patch.op === 'remove' || 
-      'value' in patch || 
+    }).filter(patch =>
+      patch.op === 'remove' ||
+      'value' in patch ||
       (patch.op === 'move' || patch.op === 'copy') && 'from' in patch
     ) as jsonpatch.Operation[];
 
@@ -365,12 +302,12 @@ export class DifferentialSyncService {
       const originalChunk = originalBuffer.slice(offset, offset + chunkSize);
       const modifiedChunk = modifiedBuffer.slice(offset, offset + chunkSize);
 
-      if (!this.arrayBuffersEqual(originalChunk, modifiedChunk)) {
+      if (!arrayBuffersEqual(originalChunk, modifiedChunk)) {
         operations.push({
           type: 'replace',
           path: `/binary/${offset}`,
-          value: this.arrayBufferToBase64(modifiedChunk),
-          oldValue: this.arrayBufferToBase64(originalChunk),
+          value: arrayBufferToBase64(modifiedChunk),
+          oldValue: arrayBufferToBase64(originalChunk),
           metadata: {
             offset,
             length: chunkSize
@@ -394,9 +331,9 @@ export class DifferentialSyncService {
 
     for (const op of operations) {
       if (op.type === 'replace' && op.metadata?.offset !== undefined) {
-        const newData = this.base64ToArrayBuffer(op.value as string);
+        const newData = base64ToArrayBuffer(op.value as string);
         const offset = op.metadata.offset as number;
-        
+
         // Expand buffer if needed
         if (offset + newData.length > targetBuffer.length) {
           const expandedBuffer = new Uint8Array(offset + newData.length);
@@ -516,7 +453,7 @@ export class DifferentialSyncService {
     return {
       ...delta,
       operations: [], // Clear original operations
-      compressedData: this.arrayBufferToBase64(compressed),
+      compressedData: arrayBufferToBase64(compressed),
       compressionType,
       compressionRatio: compressed.length / dataToCompress.length
     };
@@ -530,7 +467,7 @@ export class DifferentialSyncService {
       return delta;
     }
 
-    const compressed = this.base64ToArrayBuffer(delta.compressedData);
+    const compressed = base64ToArrayBuffer(delta.compressedData);
     const decompressed = await new Promise<Uint8Array>((resolve, reject) => {
       decompress(compressed, (err, data) => {
         if (err) reject(err);
@@ -539,7 +476,7 @@ export class DifferentialSyncService {
     });
 
     const operations = JSON.parse(new TextDecoder().decode(decompressed));
-    
+
     return {
       ...delta,
       operations,
@@ -551,64 +488,23 @@ export class DifferentialSyncService {
    * Calculate checksum for an object using Web Crypto API or fallback
    */
   private async calculateChecksum(data: unknown): Promise<string> {
-    const normalized = this.normalizeForChecksum(data);
+    const normalized = normalizeForChecksum(data);
     const dataString = JSON.stringify(normalized);
-    
+
     // Check if we're in a browser environment with Web Crypto API
     if (typeof crypto !== 'undefined' && crypto.subtle) {
       const encoder = new TextEncoder();
       const dataBuffer = encoder.encode(dataString);
-      
+
       const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
       const hashArray = Array.from(new Uint8Array(hashBuffer));
       const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-      
+
       return hashHex;
     } else {
       // Fallback for Node.js/test environment - simple hash
-      return this.simpleHash(dataString);
+      return simpleHash(dataString);
     }
-  }
-
-  /**
-   * Simple hash function for environments without Web Crypto API
-   */
-  private simpleHash(str: string): string {
-    let hash = 0;
-    if (str.length === 0) return hash.toString(16).padStart(64, '0');
-    
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32-bit integer
-    }
-    
-    // Convert to hex and pad to simulate SHA-256 length
-    const hexHash = Math.abs(hash).toString(16);
-    return hexHash.padStart(64, '0').substring(0, 64);
-  }
-
-  /**
-   * Normalize object for consistent checksum calculation
-   */
-  private normalizeForChecksum(data: unknown): unknown {
-    if (Array.isArray(data)) {
-      return data.map(item => this.normalizeForChecksum(item));
-    }
-    
-    if (data && typeof data === 'object') {
-      const sorted: Record<string, unknown> = {};
-      const dataRecord = data as Record<string, unknown>;
-      Object.keys(dataRecord).sort().forEach(key => {
-        // Skip metadata fields
-        if (!['_syncVersion', '_lastSync', '_localOnly'].includes(key)) {
-          sorted[key] = this.normalizeForChecksum(dataRecord[key]);
-        }
-      });
-      return sorted;
-    }
-    
-    return data;
   }
 
   /**
@@ -668,10 +564,10 @@ export class DifferentialSyncService {
     switch (strategy) {
       case 'last-write-wins':
         return remote;
-      
+
       case 'first-write-wins':
         return local;
-      
+
       case 'manual':
         // Return conflict markers for manual resolution
         return {
@@ -681,11 +577,11 @@ export class DifferentialSyncService {
           remote,
           base
         } as ConflictableEntity;
-      
+
       case 'merge':
         // Attempt automatic merge
         return this.attemptAutoMerge(local, remote, base);
-      
+
       default:
         return remote;
     }
@@ -701,7 +597,7 @@ export class DifferentialSyncService {
     // Check for conflicting paths
     const localPaths = new Set(localDelta.map(op => op.path));
     const remotePaths = new Set(remoteDelta.map(op => op.path));
-    
+
     const conflicts = Array.from(localPaths).filter(path => remotePaths.has(path));
 
     if (conflicts.length === 0) {
@@ -714,7 +610,7 @@ export class DifferentialSyncService {
 
     // Has conflicts, mark them
     let result = cloneDeep(base);
-    
+
     // Apply non-conflicting changes
     for (const op of [...localDelta, ...remoteDelta]) {
       if (!conflicts.includes(op.path)) {
@@ -726,7 +622,7 @@ export class DifferentialSyncService {
     for (const path of conflicts) {
       const localOp = localDelta.find(op => op.path === path);
       const remoteOp = remoteDelta.find(op => op.path === path);
-      
+
       set(result, `${path}_conflict`, {
         local: localOp?.value,
         remote: remoteOp?.value,
@@ -735,13 +631,6 @@ export class DifferentialSyncService {
     }
 
     return result;
-  }
-
-  /**
-   * Helper methods
-   */
-  private generateDeltaId(): string {
-    return `delta_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
   private getEntityType(entity: SyncableEntity): string {
@@ -761,7 +650,7 @@ export class DifferentialSyncService {
 
   private createEmptyDelta(entity?: SyncableEntity): DeltaPayload {
     return {
-      id: this.generateDeltaId(),
+      id: generateDeltaId(),
       entityType: entity ? this.getEntityType(entity) : 'unknown',
       entityId: entity ? this.getEntityId(entity) : 'unknown',
       operations: [],
@@ -776,11 +665,11 @@ export class DifferentialSyncService {
     modifiedChecksum?: string
   ): DeltaPayload {
     // Try to extract entity info if data is a SyncableEntity
-    const entityType = this.isSyncableEntity(data) ? this.getEntityType(data) : 'unknown';
-    const entityId = this.isSyncableEntity(data) ? this.getEntityId(data) : 'unknown';
-    
+    const entityType = isSyncableEntity(data) ? this.getEntityType(data) : 'unknown';
+    const entityId = isSyncableEntity(data) ? this.getEntityId(data) : 'unknown';
+
     return {
-      id: this.generateDeltaId(),
+      id: generateDeltaId(),
       entityType,
       entityId,
       operations: [{
@@ -796,28 +685,6 @@ export class DifferentialSyncService {
         fullReplacement: true
       }
     };
-  }
-
-  private mapJsonPatchOp(op: string): DeltaOperation['type'] {
-    switch (op) {
-      case 'add': return 'add';
-      case 'remove': return 'remove';
-      case 'replace': return 'replace';
-      case 'move': return 'move';
-      case 'copy': return 'copy';
-      default: return 'replace';
-    }
-  }
-
-  private mapToJsonPatchOp(type: DeltaOperation['type']): string {
-    switch (type) {
-      case 'add': return 'add';
-      case 'remove': return 'remove';
-      case 'replace': return 'replace';
-      case 'move': return 'move';
-      case 'copy': return 'copy';
-      default: return 'replace';
-    }
   }
 
   /**
@@ -865,7 +732,7 @@ export class DifferentialSyncService {
       deltaSize: metrics.deltaSize as number,
       success: metrics.success !== false
     };
-    
+
     this.performanceMetrics.set(key, performanceEntry);
 
     // Emit performance event
@@ -900,7 +767,7 @@ export class DifferentialSyncService {
 
     const durations = relevantMetrics.map(m => m.duration || 0);
     const avgDuration = durations.reduce((a, b) => a + b, 0) / durations.length;
-    
+
     return {
       operation,
       count: relevantMetrics.length,
@@ -917,45 +784,6 @@ export class DifferentialSyncService {
   clearCache(): void {
     this.checksumCache = {};
     this.performanceMetrics.clear();
-  }
-
-  /**
-   * Helper methods for browser-compatible array buffer operations
-   */
-  private arrayBuffersEqual(buf1: Uint8Array, buf2: Uint8Array): boolean {
-    if (buf1.length !== buf2.length) return false;
-    for (let i = 0; i < buf1.length; i++) {
-      if (buf1[i] !== buf2[i]) return false;
-    }
-    return true;
-  }
-
-  private arrayBufferToBase64(buffer: Uint8Array): string {
-    const bytes = Array.from(buffer);
-    const binary = bytes.map(byte => String.fromCharCode(byte)).join('');
-    return btoa(binary);
-  }
-
-  private base64ToArrayBuffer(base64: string): Uint8Array {
-    const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i);
-    }
-    return bytes;
-  }
-
-  /**
-   * Type guard to check if data is a SyncableEntity
-   */
-  private isSyncableEntity(data: unknown): data is SyncableEntity {
-    return (
-      typeof data === 'object' &&
-      data !== null &&
-      'id' in data &&
-      'createdAt' in data &&
-      'updatedAt' in data
-    );
   }
 }
 

@@ -34,22 +34,18 @@ import { syncService } from '@/services/sync/syncService';
 import { getOptimalStorage } from '@/services/database/storage-adapter';
 import type { StateStorage } from 'zustand/middleware';
 import { generateId } from '@/utils/idUtils';
+import type { OfflineScoringServiceConfig } from './offline-scoring-types';
+import { DEFAULT_CONFIG } from './offline-scoring-types';
+import {
+  serializeScore,
+  deserializeScore,
+  serializeMultiJudgeScore,
+  deserializeMultiJudgeScore,
+  serializeSession,
+  deserializeSession
+} from './offline-scoring-serialization';
 
-export interface OfflineScoringServiceConfig {
-  autoSaveInterval: number;    // Auto-save frequency in ms
-  enableRealTimeSync: boolean; // Sync when online
-  enablePlacementUpdates: boolean; // Real-time placement calculation
-  conflictResolutionStrategy: ConflictResolution['strategy'];
-  maxCacheSize: number;       // Maximum cached scores
-}
-
-const DEFAULT_CONFIG: OfflineScoringServiceConfig = {
-  autoSaveInterval: 30000,    // 30 seconds
-  enableRealTimeSync: true,
-  enablePlacementUpdates: true,
-  conflictResolutionStrategy: 'manual_override',
-  maxCacheSize: 1000
-};
+export type { OfflineScoringServiceConfig } from './offline-scoring-types';
 
 /**
  * Main offline scoring service class
@@ -101,7 +97,7 @@ export class OfflineScoringService extends EventEmitter {
       const scores = JSON.parse(storedScores);
       
       Object.entries(scores).forEach(([id, score]) => {
-        this.scoreCache.set(id, this.deserializeScore(score));
+        this.scoreCache.set(id, deserializeScore(score));
       });
 
       // Load multi-judge scores
@@ -109,7 +105,7 @@ export class OfflineScoringService extends EventEmitter {
       const multiScores = JSON.parse(storedMultiScores);
       
       Object.entries(multiScores).forEach(([id, score]) => {
-        this.multiJudgeScores.set(id, this.deserializeMultiJudgeScore(score));
+        this.multiJudgeScores.set(id, deserializeMultiJudgeScore(score));
       });
 
       // Load sync queue
@@ -121,7 +117,7 @@ export class OfflineScoringService extends EventEmitter {
       const sessions = JSON.parse(storedSessions);
       
       Object.entries(sessions).forEach(([id, session]) => {
-        this.activeSessions.set(id, this.deserializeSession(session));
+        this.activeSessions.set(id, deserializeSession(session));
       });
 
       logger.debug('Loaded persisted scoring data', 'scoring', { scoresCount: this.scoreCache.size, queuedItems: this.syncQueue.length });
@@ -553,7 +549,7 @@ export class OfflineScoringService extends EventEmitter {
       entityType: 'entry',
       entityId: this.getScoreKey(score.entryId, score.classId, score.judgeId),
       operation: 'update',
-      data: this.serializeScore(score),
+      data: serializeScore(score),
       priority: 'medium',
       timestamp: new Date(),
       attempts: 0,
@@ -598,7 +594,7 @@ export class OfflineScoringService extends EventEmitter {
       entityType: 'entry',
       entityId: session.id,
       operation: 'update',
-      data: this.serializeSession(session),
+      data: serializeSession(session),
       priority: 'medium',
       timestamp: new Date(),
       attempts: 0,
@@ -620,7 +616,7 @@ export class OfflineScoringService extends EventEmitter {
       const scores = Object.fromEntries(
         Array.from(this.scoreCache.entries()).map(([key, score]) => [
           key,
-          this.serializeScore(score)
+          serializeScore(score)
         ])
       );
       await this.storage.setItem('offline_scores', JSON.stringify(scores));
@@ -629,7 +625,7 @@ export class OfflineScoringService extends EventEmitter {
       const multiScores = Object.fromEntries(
         Array.from(this.multiJudgeScores.entries()).map(([key, score]) => [
           key,
-          this.serializeMultiJudgeScore(score)
+          serializeMultiJudgeScore(score)
         ])
       );
       await this.storage.setItem('multi_judge_scores', JSON.stringify(multiScores));
@@ -650,79 +646,10 @@ export class OfflineScoringService extends EventEmitter {
     const sessions = Object.fromEntries(
       Array.from(this.activeSessions.entries()).map(([key, session]) => [
         key,
-        this.serializeSession(session)
+        serializeSession(session)
       ])
     );
     await this.storage.setItem('scoring_sessions', JSON.stringify(sessions));
-  }
-
-  // ========================================================================
-  // Serialization Helpers
-  // ========================================================================
-
-  private serializeScore(score: BaseScore): Record<string, unknown> {
-    return {
-      ...score,
-      timestamp: score.timestamp.toISOString(),
-      recordedAt: score.recordedAt.toISOString(),
-      lastModified: score.lastModified.toISOString()
-    };
-  }
-
-  private deserializeScore(data: unknown): BaseScore {
-    const scoreData = data as Record<string, unknown>;
-    return {
-      ...scoreData,
-      timestamp: new Date(scoreData.timestamp as string),
-      recordedAt: new Date(scoreData.recordedAt as string),
-      lastModified: new Date(scoreData.lastModified as string)
-    } as BaseScore;
-  }
-
-  private serializeMultiJudgeScore(score: MultiJudgeScore): Record<string, unknown> {
-    return {
-      ...score,
-      judgeScores: Object.fromEntries(score.judgeScores),
-      lastUpdated: score.lastUpdated.toISOString(),
-      conflictResolution: score.conflictResolution ? {
-        ...score.conflictResolution,
-        resolvedAt: score.conflictResolution.resolvedAt.toISOString()
-      } : undefined
-    };
-  }
-
-  private deserializeMultiJudgeScore(data: unknown): MultiJudgeScore {
-    const multiData = data as Record<string, unknown>;
-    return {
-      ...multiData,
-      judgeScores: new Map(Object.entries(multiData.judgeScores || {} as Record<string, BaseScore>)),
-      lastUpdated: new Date(multiData.lastUpdated as string),
-      conflictResolution: multiData.conflictResolution ? {
-        ...(multiData.conflictResolution as ConflictResolution),
-        resolvedAt: new Date((multiData.conflictResolution as ConflictResolution).resolvedAt)
-      } : undefined
-    } as MultiJudgeScore;
-  }
-
-  private serializeSession(session: ScoringSession): Record<string, unknown> {
-    return {
-      ...session,
-      startTime: session.startTime.toISOString(),
-      endTime: session.endTime?.toISOString(),
-      lastSyncAt: session.lastSyncAt?.toISOString(),
-      pendingSync: session.pendingSync.map(score => this.serializeScore(score))
-    };
-  }
-
-  private deserializeSession(data: unknown): ScoringSession {
-    const sessionData = data as Record<string, unknown>;
-    return {
-      ...sessionData,
-      startTime: new Date(sessionData.startTime as string),
-      endTime: sessionData.endTime ? new Date(sessionData.endTime as string) : undefined,
-      lastSyncAt: sessionData.lastSyncAt ? new Date(sessionData.lastSyncAt as string) : undefined,
-      pendingSync: ((sessionData.pendingSync || []) as unknown[]).map((score) => this.deserializeScore(score))
-    } as ScoringSession;
   }
 
   // ========================================================================

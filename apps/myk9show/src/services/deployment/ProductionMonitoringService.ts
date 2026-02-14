@@ -1,199 +1,60 @@
 /**
  * Production Monitoring Service
- * 
+ *
  * Comprehensive production monitoring with error tracking, performance monitoring,
  * user analytics, and real-time alerting for production deployments.
  */
 
+import { logger } from '@/services/LoggingService';
 import {
   MonitoringConfig,
-  NotificationChannel,
   MetricType,
-  Severity
 } from '../../types/deployment-types';
 
-// === Error Tracking ===
+import type {
+  ErrorReport,
+  ErrorContext,
+  Breadcrumb,
+  PerformanceMetric,
+  WebVitalsReport,
+  UserEvent,
+  LocationInfo,
+  UserSession,
+  AlertRule,
+  AlertCondition,
+  Alert
+} from './production-monitoring-types';
 
-export interface ErrorReport {
-  id: string;
-  message: string;
-  stack: string;
-  timestamp: Date;
-  level: 'error' | 'warning' | 'info' | 'debug';
-  context: ErrorContext;
-  fingerprint: string;
-  count: number;
-  firstSeen: Date;
-  lastSeen: Date;
-  resolved: boolean;
-  tags: Record<string, string>;
-}
+import {
+  generateId,
+  generateErrorFingerprint,
+  getDeviceInfo,
+  getMetricUnit,
+  parseUTMParameters,
+} from './production-monitoring-helpers';
 
-export interface ErrorContext {
-  userId?: string;
-  sessionId: string;
-  userAgent: string;
-  url: string;
-  component?: string;
-  action?: string;
-  additionalData?: Record<string, unknown>;
-  breadcrumbs: Breadcrumb[];
-}
+// Re-export all types so existing consumers can still import from this file
+export type {
+  ErrorReport,
+  ErrorContext,
+  Breadcrumb,
+  PerformanceMetric,
+  WebVitalsReport,
+  UserEvent,
+  DeviceInfo,
+  LocationInfo,
+  UserSession,
+  AlertRule,
+  AlertCondition,
+  Alert
+} from './production-monitoring-types';
 
-export interface Breadcrumb {
-  timestamp: Date;
-  type: 'navigation' | 'click' | 'error' | 'api' | 'console';
-  message: string;
-  data?: Record<string, unknown>;
-}
-
-// === Performance Monitoring ===
-
-export interface PerformanceMetric {
-  id: string;
-  name: string;
-  type: MetricType;
-  value: number;
-  unit: string;
-  timestamp: Date;
-  tags: Record<string, string>;
-  source: 'browser' | 'server' | 'synthetic';
-}
-
-export interface WebVitalsReport {
-  sessionId: string;
-  url: string;
-  timestamp: Date;
-  metrics: {
-    fcp: number; // First Contentful Paint
-    lcp: number; // Largest Contentful Paint
-    fid: number; // First Input Delay
-    cls: number; // Cumulative Layout Shift
-    ttfb: number; // Time to First Byte
-  };
-  deviceInfo: {
-    type: 'mobile' | 'desktop' | 'tablet';
-    connection: string;
-    memory?: number;
-  };
-}
-
-export interface TransactionTrace {
-  id: string;
-  name: string;
-  startTime: Date;
-  duration: number;
-  status: 'success' | 'error' | 'timeout';
-  spans: TraceSpan[];
-  tags: Record<string, string>;
-  context: Record<string, unknown>;
-}
-
-export interface TraceSpan {
-  id: string;
-  parentId?: string;
-  operation: string;
-  startTime: Date;
-  duration: number;
-  tags: Record<string, string>;
-  logs: SpanLog[];
-}
-
-export interface SpanLog {
-  timestamp: Date;
-  level: string;
-  message: string;
-  fields: Record<string, unknown>;
-}
-
-// === User Analytics ===
-
-export interface UserEvent {
-  id: string;
-  event: string;
-  userId?: string;
-  sessionId: string;
-  timestamp: Date;
-  properties: Record<string, unknown>;
-  deviceInfo: DeviceInfo;
-  location?: LocationInfo;
-}
-
-export interface DeviceInfo {
-  type: 'mobile' | 'desktop' | 'tablet';
-  os: string;
-  browser: string;
-  version: string;
-  screen: {
-    width: number;
-    height: number;
-  };
-}
-
-export interface LocationInfo {
-  country: string;
-  region: string;
-  city: string;
-  timezone: string;
-  coordinates?: {
-    lat: number;
-    lng: number;
-  };
-}
-
-export interface UserSession {
-  id: string;
-  userId?: string;
-  startTime: Date;
-  endTime?: Date;
-  duration?: number;
-  pageViews: number;
-  events: number;
-  deviceInfo: DeviceInfo;
-  referrer?: string;
-  utm: {
-    source?: string;
-    medium?: string;
-    campaign?: string;
-  };
-}
-
-// === Alert Management ===
-
-export interface AlertRule {
-  id: string;
-  name: string;
-  description: string;
-  metric: string;
-  condition: AlertCondition;
-  threshold: number;
-  severity: Severity;
-  enabled: boolean;
-  channels: NotificationChannel[];
-  cooldown: number; // minutes
-  lastTriggered?: Date;
-}
-
-export interface AlertCondition {
-  operator: 'gt' | 'lt' | 'eq' | 'ne' | 'gte' | 'lte';
-  timeWindow: number; // minutes
-  aggregation: 'avg' | 'sum' | 'min' | 'max' | 'count';
-}
-
-export interface Alert {
-  id: string;
-  ruleId: string;
-  triggered: Date;
-  resolved?: Date;
-  severity: Severity;
-  message: string;
-  value: number;
-  threshold: number;
-  context: Record<string, unknown>;
-  acknowledged: boolean;
-  acknowledgedBy?: string;
-  acknowledgedAt?: Date;
-}
+// Re-export types that aren't used in this file but were previously accessible
+export type {
+  TransactionTrace,
+  TraceSpan,
+  SpanLog
+} from './production-monitoring-types';
 
 /**
  * Main Production Monitoring Service
@@ -234,16 +95,16 @@ export class ProductionMonitoringService {
     try {
       // Initialize error tracking
       await this.initializeErrorTracking();
-      
+
       // Initialize performance monitoring
       await this.initializePerformanceMonitoring();
-      
+
       // Initialize user analytics
       await this.initializeUserAnalytics();
-      
+
       // Start monitoring loops
       this.startMonitoringLoops();
-      
+
       this.isInitialized = true;
       logger.info('Production monitoring initialized successfully', 'monitoring');
 
@@ -259,12 +120,12 @@ export class ProductionMonitoringService {
    * Report an error to the monitoring system
    */
   public reportError(error: Error, context?: Partial<ErrorContext>): string {
-    const errorId = this.generateId('error');
-    const fingerprint = this.generateErrorFingerprint(error);
-    
+    const errorId = generateId('error');
+    const fingerprint = generateErrorFingerprint(error);
+
     // Check if this error has been seen before
     const existingError = this.errors.find(e => e.fingerprint === fingerprint);
-    
+
     if (existingError) {
       existingError.count++;
       existingError.lastSeen = new Date();
@@ -293,10 +154,10 @@ export class ProductionMonitoringService {
     };
 
     this.errors.push(errorReport);
-    
+
     // Send to external error tracking service
     this.sendToErrorTrackingService(errorReport);
-    
+
     // Check for alert thresholds
     this.checkErrorAlerts(errorReport);
 
@@ -324,11 +185,11 @@ export class ProductionMonitoringService {
    */
   public recordMetric(name: string, value: number, type: MetricType = 'gauge', tags: Record<string, string> = {}): void {
     const metric: PerformanceMetric = {
-      id: this.generateId('metric'),
+      id: generateId('metric'),
       name,
       type,
       value,
-      unit: this.getMetricUnit(name),
+      unit: getMetricUnit(name),
       timestamp: new Date(),
       tags: {
         ...tags,
@@ -338,10 +199,10 @@ export class ProductionMonitoringService {
     };
 
     this.performanceMetrics.push(metric);
-    
+
     // Send to performance monitoring service
     this.sendToPerformanceService(metric);
-    
+
     // Check for performance alerts
     this.checkPerformanceAlerts(metric);
   }
@@ -372,11 +233,11 @@ export class ProductionMonitoringService {
    */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public startTrace(name: string, tags: Record<string, string> = {}): string {
-    const traceId = this.generateId('trace');
-    
+    const traceId = generateId('trace');
+
     // In a real implementation, this would start a distributed trace
     logger.debug('Started trace', 'monitoring', { name, traceId });
-    
+
     return traceId;
   }
 
@@ -395,7 +256,7 @@ export class ProductionMonitoringService {
    */
   public trackEvent(event: string, properties: Record<string, unknown> = {}, userId?: string): void {
     const userEvent: UserEvent = {
-      id: this.generateId('event'),
+      id: generateId('event'),
       event,
       userId,
       sessionId: this.getCurrentSessionId(),
@@ -405,15 +266,15 @@ export class ProductionMonitoringService {
         page_url: window.location.href,
         page_title: document.title
       },
-      deviceInfo: this.getDeviceInfo(),
+      deviceInfo: getDeviceInfo(),
       location: this.getLocationInfo()
     };
 
     this.userEvents.push(userEvent);
-    
+
     // Send to analytics service
     this.sendToAnalyticsService(userEvent);
-    
+
     // Update session event count
     this.updateSessionEventCount(userEvent.sessionId);
   }
@@ -455,7 +316,7 @@ export class ProductionMonitoringService {
    * Create an alert rule
    */
   public createAlertRule(rule: Omit<AlertRule, 'id'>): string {
-    const ruleId = this.generateId('alert_rule');
+    const ruleId = generateId('alert_rule');
     const alertRule: AlertRule = {
       ...rule,
       id: ruleId
@@ -478,7 +339,7 @@ export class ProductionMonitoringService {
     }
 
     const alert: Alert = {
-      id: this.generateId('alert'),
+      id: generateId('alert'),
       ruleId: rule.id,
       triggered: new Date(),
       severity: rule.severity,
@@ -594,7 +455,7 @@ export class ProductionMonitoringService {
   private async initializeErrorTracking(): Promise<void> {
     // Initialize error tracking provider (Sentry, Bugsnag, etc.)
     logger.debug('Initializing error tracking', 'monitoring');
-    
+
     // Set up global error handlers
     window.addEventListener('error', (event) => {
       this.reportError(new Error(event.message), {
@@ -614,7 +475,7 @@ export class ProductionMonitoringService {
   private async initializePerformanceMonitoring(): Promise<void> {
     // Initialize performance monitoring provider
     logger.debug('Initializing performance monitoring', 'monitoring');
-    
+
     // Monitor Web Vitals if enabled
     if (this.config.performanceMonitoring?.enableWebVitals) {
       this.setupWebVitalsMonitoring();
@@ -624,10 +485,10 @@ export class ProductionMonitoringService {
   private async initializeUserAnalytics(): Promise<void> {
     // Initialize analytics provider (Mixpanel, Amplitude, etc.)
     logger.debug('Initializing user analytics', 'monitoring');
-    
+
     // Start a new session
     this.startUserSession();
-    
+
     // Track page views if enabled
     if (this.config.userAnalytics?.trackPageViews) {
       this.trackPageView();
@@ -688,21 +549,11 @@ export class ProductionMonitoringService {
     ];
   }
 
-  private generateId(prefix: string): string {
-    return `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  }
-
-  private generateErrorFingerprint(error: Error): string {
-    // Create a fingerprint based on error message and stack trace
-    const content = `${error.name}:${error.message}:${error.stack?.split('\n')[1] || ''}`;
-    return btoa(content).substr(0, 16);
-  }
-
   private getCurrentSessionId(): string {
     // Get or create session ID from sessionStorage
     let sessionId = sessionStorage.getItem('monitoring_session_id');
     if (!sessionId) {
-      sessionId = this.generateId('session');
+      sessionId = generateId('session');
       sessionStorage.setItem('monitoring_session_id', sessionId);
     }
     return sessionId;
@@ -715,7 +566,7 @@ export class ProductionMonitoringService {
 
   private startUserSession(): void {
     const sessionId = this.getCurrentSessionId();
-    
+
     // Check if session already exists
     if (this.sessions.find(s => s.id === sessionId)) {
       return;
@@ -726,71 +577,17 @@ export class ProductionMonitoringService {
       startTime: new Date(),
       pageViews: 0,
       events: 0,
-      deviceInfo: this.getDeviceInfo(),
+      deviceInfo: getDeviceInfo(),
       referrer: document.referrer,
-      utm: this.parseUTMParameters()
+      utm: parseUTMParameters()
     };
 
     this.sessions.push(session);
   }
 
-  private getDeviceInfo(): DeviceInfo {
-    return {
-      type: this.detectDeviceType(),
-      os: this.detectOS(),
-      browser: this.detectBrowser(),
-      version: this.detectBrowserVersion(),
-      screen: {
-        width: window.screen.width,
-        height: window.screen.height
-      }
-    };
-  }
-
   private getLocationInfo(): LocationInfo | undefined {
     // In a real implementation, this would use IP geolocation
     return undefined;
-  }
-
-  private detectDeviceType(): 'mobile' | 'desktop' | 'tablet' {
-    const userAgent = navigator.userAgent;
-    if (/Mobile|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent)) {
-      return /iPad/i.test(userAgent) ? 'tablet' : 'mobile';
-    }
-    return 'desktop';
-  }
-
-  private detectOS(): string {
-    const userAgent = navigator.userAgent;
-    if (/Windows NT/i.test(userAgent)) return 'Windows';
-    if (/Mac OS X/i.test(userAgent)) return 'macOS';
-    if (/Linux/i.test(userAgent)) return 'Linux';
-    if (/Android/i.test(userAgent)) return 'Android';
-    if (/iPhone|iPad|iPod/i.test(userAgent)) return 'iOS';
-    return 'Unknown';
-  }
-
-  private detectBrowser(): string {
-    const userAgent = navigator.userAgent;
-    if (/Chrome/i.test(userAgent)) return 'Chrome';
-    if (/Firefox/i.test(userAgent)) return 'Firefox';
-    if (/Safari/i.test(userAgent)) return 'Safari';
-    if (/Edge/i.test(userAgent)) return 'Edge';
-    return 'Unknown';
-  }
-
-  private detectBrowserVersion(): string {
-    // Simplified browser version detection
-    return '1.0.0';
-  }
-
-  private parseUTMParameters(): { source?: string; medium?: string; campaign?: string } {
-    const urlParams = new URLSearchParams(window.location.search);
-    return {
-      source: urlParams.get('utm_source') || undefined,
-      medium: urlParams.get('utm_medium') || undefined,
-      campaign: urlParams.get('utm_campaign') || undefined
-    };
   }
 
   // Placeholder implementations for external service integrations
@@ -814,7 +611,7 @@ export class ProductionMonitoringService {
 
   // Data aggregation methods
   private getErrorSummary(startTime: Date, endTime: Date) {
-    const recentErrors = this.errors.filter(e => 
+    const recentErrors = this.errors.filter(e =>
       e.timestamp >= startTime && e.timestamp <= endTime
     );
 
@@ -830,7 +627,7 @@ export class ProductionMonitoringService {
   }
 
   private getPerformanceSummary(startTime: Date, endTime: Date) {
-    const recentMetrics = this.performanceMetrics.filter(m => 
+    const recentMetrics = this.performanceMetrics.filter(m =>
       m.timestamp >= startTime && m.timestamp <= endTime
     );
 
@@ -848,11 +645,11 @@ export class ProductionMonitoringService {
   }
 
   private getUserSummary(startTime: Date, endTime: Date) {
-    const recentSessions = this.sessions.filter(s => 
+    const recentSessions = this.sessions.filter(s =>
       s.startTime >= startTime && s.startTime <= endTime
     );
 
-    const recentEvents = this.userEvents.filter(e => 
+    const recentEvents = this.userEvents.filter(e =>
       e.timestamp >= startTime && e.timestamp <= endTime
     );
 
@@ -865,7 +662,7 @@ export class ProductionMonitoringService {
   }
 
   private getAlertSummary(startTime: Date, endTime: Date) {
-    const recentAlerts = this.alerts.filter(a => 
+    const recentAlerts = this.alerts.filter(a =>
       a.triggered >= startTime && a.triggered <= endTime
     );
 
@@ -919,13 +716,6 @@ export class ProductionMonitoringService {
     };
   }
 
-  private getMetricUnit(name: string): string {
-    if (name.includes('time') || name.includes('duration')) return 'ms';
-    if (name.includes('size') || name.includes('bytes')) return 'bytes';
-    if (name.includes('rate') || name.includes('percentage')) return '%';
-    return 'count';
-  }
-
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private checkErrorAlerts(error: ErrorReport): void {
     // Check if error rate exceeds thresholds
@@ -958,12 +748,12 @@ export class ProductionMonitoringService {
   private collectSystemMetrics(): void {
     // Collect browser performance metrics
     if ('memory' in performance) {
-      const memory = (performance as Performance & { 
-        memory?: { 
-          usedJSHeapSize: number; 
-          totalJSHeapSize: number; 
-          jsHeapSizeLimit: number; 
-        } 
+      const memory = (performance as Performance & {
+        memory?: {
+          usedJSHeapSize: number;
+          totalJSHeapSize: number;
+          jsHeapSizeLimit: number;
+        }
       }).memory;
       if (memory) {
         this.recordMetric('memory.used', memory.usedJSHeapSize, 'gauge');
@@ -974,7 +764,7 @@ export class ProductionMonitoringService {
 
   private cleanupOldData(): void {
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours
-    
+
     this.errors = this.errors.filter(e => e.timestamp > cutoff);
     this.performanceMetrics = this.performanceMetrics.filter(m => m.timestamp > cutoff);
     this.userEvents = this.userEvents.filter(e => e.timestamp > cutoff);
@@ -984,7 +774,7 @@ export class ProductionMonitoringService {
     // Evaluate alert conditions (simplified implementation)
     for (const rule of this.alertRules) {
       if (!rule.enabled) continue;
-      
+
       // This would contain complex metric aggregation logic
       const mockValue = Math.random() * 100;
       if (this.evaluateAlertCondition(rule.condition, mockValue, rule.threshold)) {

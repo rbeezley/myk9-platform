@@ -76,7 +76,7 @@ export type {
   AlertRule,
   AlertCondition,
   Alert
-} from './ProductionMonitoringService';
+} from './production-monitoring-types';
 
 // CDN Types
 export type {

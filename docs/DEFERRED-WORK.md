@@ -1,6 +1,7 @@
 # Deferred Work Items
 
 **Generated:** 2026-02-10
+**Updated:** 2026-02-14
 **Source:** Automated scan of TODO/FIXME/HACK comments across the monorepo
 
 ---
@@ -9,7 +10,7 @@
 
 | Area | Count | Priority |
 |------|-------|----------|
-| Type/Schema Mismatches | 28 | High - blocks type safety |
+| Type/Schema Mismatches | 25 | Medium - most are tsconfig-excluded files, 0 @ts-nocheck remaining |
 | Auth Context Integration | 8 | High - security placeholders |
 | Database Integration | 15 | Medium - waiting on schema |
 | Incomplete Features | 45+ | Medium - partial implementations |
@@ -20,9 +21,11 @@
 
 ---
 
-## 1. Type/Schema Mismatches (28 items)
+## 1. Type/Schema Mismatches (25 items)
 
-These files have `@ts-nocheck` or type workarounds because the database schema doesn't match the TypeScript types. Fixing these requires either updating the DB schema or updating the mappers.
+**Status update (2026-02-14):** All `@ts-nocheck` directives removed from the codebase (0 remaining). The 4 DayOfOperationsPage files were fixed by aligning local types with Supabase query return shapes, fixing FK relationship hints, and updating property access patterns. The remaining items are files excluded from typecheck via `tsconfig.app.json` — these are mostly feature modules blocked on schema changes or incomplete implementations.
+
+These files are excluded from typecheck or have type workarounds because the database schema doesn't match the TypeScript types. Fixing these requires either updating the DB schema or updating the mappers.
 
 ### RBAC System (3 files)
 | File | Line | Issue |
@@ -51,27 +54,27 @@ These files have `@ts-nocheck` or type workarounds because the database schema d
 | `apps/myk9show/src/services/optimistic/OptimisticUIService.ts` | 3 | Generic type inference after upgrade |
 | `apps/myk9show/src/services/database/batchOperations.ts` | 3 | Generic type inference after upgrade |
 
-### Entry Management (ts-nocheck files)
+### Entry Management (tsconfig-excluded, no @ts-nocheck)
 | File | Line | Issue |
 |------|------|-------|
-| `apps/myk9show/src/hooks/useEntryManagementActions.ts` | 3 | Needs secretaryEntryQueries types fixed |
-| `apps/myk9show/src/hooks/useEntryManagementData.ts` | 3 | Needs secretaryEntryQueries types fixed |
-| `apps/myk9show/src/pages/secretary/EntryManagementPage.tsx` | 3 | Needs secretaryEntryQueries types fixed |
-| `apps/myk9show/src/components/entries/MoveUpRequestsTab.tsx` | 3 | dayOfOperationsQueries type mismatch |
-| `apps/myk9show/src/components/entries/ScratchManagementTab.tsx` | 3 | dayOfOperationsQueries type mismatch |
+| `apps/myk9show/src/hooks/useEntryManagementActions.ts` | - | tsconfig-excluded, needs secretaryEntryQueries types fixed |
+| `apps/myk9show/src/hooks/useEntryManagementData.ts` | - | tsconfig-excluded, needs secretaryEntryQueries types fixed |
+| `apps/myk9show/src/pages/secretary/EntryManagementPage.tsx` | - | tsconfig-excluded, needs secretaryEntryQueries types fixed |
+| `apps/myk9show/src/components/entries/MoveUpRequestsTab.tsx` | - | Passes typecheck, no issues |
+| `apps/myk9show/src/components/entries/ScratchManagementTab.tsx` | - | Passes typecheck, no issues |
 
-### Waitlist Management (ts-nocheck files)
+### Waitlist Management (tsconfig-excluded, no @ts-nocheck)
 | File | Line | Issue |
 |------|------|-------|
-| `apps/myk9show/src/pages/secretary/WaitlistManagementPage/useWaitlistManagementData.ts` | 3 | waitlistQueries types |
-| `apps/myk9show/src/pages/secretary/WaitlistManagementPage/ShowClassSelection.tsx` | 3 | waitlistQueries types |
-| `apps/myk9show/src/pages/secretary/WaitlistManagementPage/ClassStatsCards.tsx` | 3 | waitlistQueries types |
+| `apps/myk9show/src/pages/secretary/WaitlistManagementPage/useWaitlistManagementData.ts` | - | Passes typecheck, no issues |
+| `apps/myk9show/src/pages/secretary/WaitlistManagementPage/ShowClassSelection.tsx` | - | Passes typecheck, no issues |
+| `apps/myk9show/src/pages/secretary/WaitlistManagementPage/ClassStatsCards.tsx` | - | Passes typecheck, no issues |
 
 ### Other
 | File | Line | Issue |
 |------|------|-------|
 | `apps/myk9show/src/lib/armbandUtils.ts` | 5 | Missing trial types import |
-| `apps/myk9show/src/services/templates/templateIntegrationExample.ts` | 3 | Template DB migration types |
+| ~~`apps/myk9show/src/services/templates/templateIntegrationExample.ts`~~ | - | Deleted |
 
 ---
 

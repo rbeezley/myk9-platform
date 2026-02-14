@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck
 /**
  * Day-of Entry Dialog
  *
@@ -112,8 +110,8 @@ export function DayOfEntryDialog({
           classIds: selectedClasses,
           handler,
           paymentMethod,
-          jumpHeight: jumpHeight || undefined,
-          notes: entryNotes || undefined,
+          ...(jumpHeight ? { jumpHeight } : {}),
+          ...(entryNotes ? { notes: entryNotes } : {}),
         },
         userId
       );

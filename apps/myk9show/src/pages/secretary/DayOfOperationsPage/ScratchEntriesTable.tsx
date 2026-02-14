@@ -52,16 +52,16 @@ export function ScratchEntriesTable({ entries, onScratch }: ScratchEntriesTableP
             ) : (
               entries.map((entry) => (
                 <TableRow key={entry.id}>
-                  <TableCell className="font-mono">{entry.entry?.armband_number || '-'}</TableCell>
+                  <TableCell className="font-mono">{entry.armband || '-'}</TableCell>
                   <TableCell>
-                    <div className="font-medium">{entry.entry?.dog?.name}</div>
-                    {entry.entry?.dog?.call_name && (
+                    <div className="font-medium">{entry.dog?.name}</div>
+                    {entry.dog?.call_name && (
                       <div className="text-sm text-muted-foreground">
-                        "{entry.entry.dog.call_name}"
+                        "{entry.dog.call_name}"
                       </div>
                     )}
                   </TableCell>
-                  <TableCell>{entry.entry?.handler || '-'}</TableCell>
+                  <TableCell>{entry.handler || '-'}</TableCell>
                   <TableCell>
                     {entry.class?.class_number && (
                       <span className="text-muted-foreground mr-1">#{entry.class.class_number}</span>
@@ -70,9 +70,9 @@ export function ScratchEntriesTable({ entries, onScratch }: ScratchEntriesTableP
                   </TableCell>
                   <TableCell>
                     <Badge
-                      variant={entry.check_in_status === 'checked_in' ? 'default' : 'outline'}
+                      variant={entry.entry_status === 'checked_in' ? 'default' : 'outline'}
                     >
-                      {entry.check_in_status || 'pending'}
+                      {entry.entry_status || 'pending'}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">

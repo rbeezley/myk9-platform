@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck
 /**
  * Move-Up Dialog
  *
@@ -103,10 +101,10 @@ export function MoveUpDialog({
           <div className="space-y-4">
             <div className="bg-muted p-4 rounded-md space-y-2">
               <div>
-                <span className="font-medium">Dog:</span> {entry.entry?.dog?.name}
+                <span className="font-medium">Dog:</span> {entry.dog?.name}
               </div>
               <div>
-                <span className="font-medium">Armband:</span> {entry.entry?.armband_number || '-'}
+                <span className="font-medium">Armband:</span> {entry.armband || '-'}
               </div>
               <div>
                 <span className="font-medium">Current Class:</span> {entry.class?.name}

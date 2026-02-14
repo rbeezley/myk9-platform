@@ -11,25 +11,23 @@ export interface Show {
 
 export interface ScratchableEntry {
   id: string;
-  class_id: string;
-  status: string;
-  check_in_status: string | null;
+  class_id: string | null;
+  trial_id: string | null;
+  entry_status: string | null;
   jump_height: string | null;
-  run_order: number | null;
-  entry: {
+  run_order?: number | null;
+  handler: string | null;
+  armband: string | null;
+  dog: {
     id: string;
-    handler: string | null;
-    armband_number: string | null;
-    dog: {
-      id: string;
-      name: string;
-      call_name: string | null;
-    } | null;
+    name: string;
+    call_name: string | null;
   } | null;
   class: {
     id: string;
     name: string;
     class_number: string | null;
+    trial_id?: string;
   } | null;
 }
 

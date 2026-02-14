@@ -243,7 +243,7 @@ export const searchDogs = async (searchTerm: string) => {
         name,
         call_name,
         breed,
-        owner:owner_id (
+        owner:people!owner_id (
           id,
           first_name,
           last_name

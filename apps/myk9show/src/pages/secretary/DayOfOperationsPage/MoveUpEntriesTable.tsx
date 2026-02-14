@@ -52,16 +52,16 @@ export function MoveUpEntriesTable({ entries, onMoveUp }: MoveUpEntriesTableProp
             ) : (
               entries.map((entry) => (
                 <TableRow key={entry.id}>
-                  <TableCell className="font-mono">{entry.entry?.armband_number || '-'}</TableCell>
+                  <TableCell className="font-mono">{entry.armband || '-'}</TableCell>
                   <TableCell>
-                    <div className="font-medium">{entry.entry?.dog?.name}</div>
-                    {entry.entry?.dog?.call_name && (
+                    <div className="font-medium">{entry.dog?.name}</div>
+                    {entry.dog?.call_name && (
                       <div className="text-sm text-muted-foreground">
-                        "{entry.entry.dog.call_name}"
+                        "{entry.dog.call_name}"
                       </div>
                     )}
                   </TableCell>
-                  <TableCell>{entry.entry?.handler || '-'}</TableCell>
+                  <TableCell>{entry.handler || '-'}</TableCell>
                   <TableCell>
                     {entry.class?.class_number && (
                       <span className="text-muted-foreground mr-1">#{entry.class.class_number}</span>
@@ -69,8 +69,8 @@ export function MoveUpEntriesTable({ entries, onMoveUp }: MoveUpEntriesTableProp
                     {entry.class?.name}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={entry.status === 'checked_in' ? 'default' : 'outline'}>
-                      {entry.status}
+                    <Badge variant={entry.entry_status === 'checked_in' ? 'default' : 'outline'}>
+                      {entry.entry_status}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">

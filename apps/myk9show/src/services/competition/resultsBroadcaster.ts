@@ -1,7 +1,7 @@
 /**
  * Results Broadcaster Service
  * Phase 6.2: Live Competition Features
- * 
+ *
  * Real-time broadcasting service for competition results, providing immediate
  * updates on scores, placements, and awards as they happen.
  */
@@ -9,127 +9,32 @@
 import { subscriptionManager } from '../realtime/subscriptionManager';
 import { errorMonitor } from '../../lib/errorMonitoring';
 import { logger } from '@/services/LoggingService';
-import type { Priority } from '../../types/realtime-types';
+import type {
+  ScoreResult,
+  PlacementResult,
+  AwardResult,
+  ResultsNotification,
+  ResultsMetrics,
+  ResultsBroadcasterConfig,
+  RealtimeEventPayload,
+} from './results-broadcaster-types';
+import {
+  getOrdinalSuffix,
+  getPlacementTitle,
+  initializeMetrics,
+  mapScoreEventToResult,
+  mapPlacementEventToResult,
+  mapAwardEventToResult,
+} from './results-broadcaster-helpers';
 
-export interface ScoreResult {
-  id: string;
-  entryId: string;
-  dogId: string;
-  dogName: string;
-  ownerName: string;
-  armband: string;
-  classId: string;
-  className: string;
-  showId: string;
-  judgeId: string;
-  judgeName: string;
-  score: {
-    points: number;
-    time: number;
-    faults: number;
-    totalScore: number;
-    qualifying: boolean;
-    qualified: boolean;
-  };
-  placement?: {
-    position: number;
-    total: number;
-    qualified: boolean;
-    title?: string | undefined; // "1st Place", "Winner", etc.
-  } | undefined;
-  status: 'preliminary' | 'official' | 'final';
-  timestamp: Date;
-  submittedAt: Date;
-  notes?: string | undefined;
-  videoUrl?: string | undefined;
-  [key: string]: unknown; // Index signature for broadcast compatibility
-}
-
-export interface PlacementResult {
-  classId: string;
-  className: string;
-  showId: string;
-  judgeId: string;
-  judgeName: string;
-  placements: Array<{
-    position: number;
-    entryId: string;
-    dogId: string;
-    dogName: string;
-    ownerName: string;
-    armband: string;
-    finalScore: number;
-    qualified: boolean;
-    award?: string | undefined;
-    specialAward?: string | undefined;
-  }>;
-  totalEntries: number;
-  qualifyingEntries: number;
-  calculatedAt: Date;
-  isComplete: boolean;
-  isOfficial: boolean;
-  [key: string]: unknown; // Index signature for broadcast compatibility
-}
-
-export interface AwardResult {
-  id: string;
-  type: 'placement' | 'special' | 'qualification' | 'championship';
-  title: string;
-  description: string;
-  recipient: {
-    entryId: string;
-    dogId: string;
-    dogName: string;
-    ownerName: string;
-    armband: string;
-  };
-  classId?: string | undefined;
-  className?: string | undefined;
-  showId: string;
-  value?: number | undefined; // Championship points, etc.
-  criteria: string;
-  awardedAt: Date;
-  awardedBy: string;
-  certificate?: {
-    templateId: string;
-    generatedUrl?: string | undefined;
-  } | undefined;
-}
-
-export interface ResultsNotification {
-  id: string;
-  type: 'score-posted' | 'placement-updated' | 'award-announced' | 'results-finalized';
-  priority: Priority;
-  title: string;
-  message: string;
-  targetAudience: 'all' | 'exhibitors' | 'class-participants' | 'specific';
-  targetIds?: string[] | undefined; // Entry IDs or User IDs
-  data: ScoreResult | PlacementResult | AwardResult;
-  showId: string;
-  classId?: string | undefined;
-  timestamp: Date;
-  expiresAt?: Date | undefined;
-  displayDuration?: number | undefined; // seconds to display on screen
-  [key: string]: unknown; // Index signature for broadcast compatibility
-}
-
-export interface ResultsMetrics {
-  showId: string;
-  scoresPosted: number;
-  placementsCalculated: number;
-  awardsAnnounced: number;
-  notificationsSent: number;
-  averageScorePostingTime: number; // ms from submission to broadcast
-  peakResultsRate: number; // results per minute
-  lastActivity: Date;
-  judgeActivity: Map<string, {
-    judgeId: string;
-    judgeName: string;
-    scoresSubmitted: number;
-    averageSubmissionTime: number;
-    lastActivity: Date;
-  }>;
-}
+// Re-export all types for backward compatibility
+export type {
+  ScoreResult,
+  PlacementResult,
+  AwardResult,
+  ResultsNotification,
+  ResultsMetrics,
+} from './results-broadcaster-types';
 
 /**
  * Service for broadcasting competition results in real-time
@@ -154,7 +59,7 @@ export class ResultsBroadcaster {
   private notificationListeners = new Set<(notification: ResultsNotification) => void>();
 
   // Configuration
-  private config = {
+  private config: ResultsBroadcasterConfig = {
     batchResultsMs: 2000, // 2 seconds batching for placement calculations
     scoreDelayMs: 500, // Delay before broadcasting scores
     autoCalculatePlacements: true,
@@ -170,7 +75,7 @@ export class ResultsBroadcaster {
   constructor(showId: string) {
     this.showId = showId;
     this.channelName = `results-${showId}`;
-    this.metrics = this.initializeMetrics();
+    this.metrics = initializeMetrics(showId);
   }
 
   /**
@@ -290,46 +195,10 @@ export class ResultsBroadcaster {
   /**
    * Handle score database updates
    */
-  private handleScoreUpdate(event: { payload?: { new?: Record<string, unknown> }; data?: Record<string, unknown> }): void {
+  private handleScoreUpdate(event: RealtimeEventPayload): void {
     try {
-      const scoreData = event.payload?.new || event.data;
-      if (!scoreData) return;
-
-      const scoreResult: ScoreResult = {
-        id: String(scoreData.id || ''),
-        entryId: String(scoreData.entry_id || ''),
-        dogId: String(scoreData.dog_id || ''),
-        dogName: String(scoreData.dog_name || 'Unknown'),
-        ownerName: String(scoreData.owner_name || 'Unknown'),
-        armband: String(scoreData.armband || ''),
-        classId: String(scoreData.class_id || ''),
-        className: String(scoreData.class_name || 'Unknown Class'),
-        showId: String(scoreData.show_id || ''),
-        judgeId: String(scoreData.judge_id || ''),
-        judgeName: String(scoreData.judge_name || 'Unknown Judge'),
-        score: {
-          points: Number(scoreData.points) || 0,
-          time: Number(scoreData.time) || 0,
-          faults: Number(scoreData.faults) || 0,
-          totalScore: Number(scoreData.total_score || scoreData.points) || 0,
-          qualifying: Boolean(scoreData.qualifying_score),
-          qualified: Boolean(scoreData.qualified),
-        },
-        placement: scoreData.placement ? {
-          position: Number(scoreData.placement),
-          total: Number(scoreData.total_entries) || 0,
-          qualified: Boolean(scoreData.qualified),
-          title: this.getPlacementTitle(Number(scoreData.placement)),
-        } : undefined,
-        status: (scoreData.status === 'official' || scoreData.status === 'final' || scoreData.status === 'preliminary') 
-          ? scoreData.status : 'preliminary',
-        timestamp: new Date(),
-        submittedAt: scoreData.updated_at || scoreData.created_at 
-          ? new Date(String(scoreData.updated_at || scoreData.created_at)) 
-          : new Date(),
-        notes: scoreData.notes ? String(scoreData.notes) : undefined,
-        videoUrl: scoreData.video_url ? String(scoreData.video_url) : undefined,
-      };
+      const scoreResult = mapScoreEventToResult(event);
+      if (!scoreResult) return;
 
       // Store the score
       this.recentScores.set(scoreResult.id, scoreResult);
@@ -351,26 +220,10 @@ export class ResultsBroadcaster {
   /**
    * Handle placement database updates
    */
-  private handlePlacementUpdate(event: { payload?: { new?: Record<string, unknown> }; data?: Record<string, unknown> }): void {
+  private handlePlacementUpdate(event: RealtimeEventPayload): void {
     try {
-      const placementData = event.payload?.new || event.data;
-      if (!placementData) return;
-
-      const placementResult: PlacementResult = {
-        classId: String(placementData.class_id || ''),
-        className: String(placementData.class_name || 'Unknown Class'),
-        showId: String(placementData.show_id || ''),
-        judgeId: String(placementData.judge_id || ''),
-        judgeName: String(placementData.judge_name || 'Unknown Judge'),
-        placements: this.parsePlacementData(Array.isArray(placementData.placements) ? placementData.placements : []),
-        totalEntries: Number(placementData.total_entries) || 0,
-        qualifyingEntries: Number(placementData.qualifying_entries) || 0,
-        calculatedAt: placementData.calculated_at || placementData.updated_at
-          ? new Date(String(placementData.calculated_at || placementData.updated_at))
-          : new Date(),
-        isComplete: Boolean(placementData.is_complete),
-        isOfficial: Boolean(placementData.is_official),
-      };
+      const placementResult = mapPlacementEventToResult(event);
+      if (!placementResult) return;
 
       // Store the placement
       this.placementResults.set(placementResult.classId, placementResult);
@@ -390,39 +243,10 @@ export class ResultsBroadcaster {
   /**
    * Handle award database updates
    */
-  private handleAwardUpdate(event: { payload?: { new?: Record<string, unknown> }; data?: Record<string, unknown> }): void {
+  private handleAwardUpdate(event: RealtimeEventPayload): void {
     try {
-      const awardData = event.payload?.new || event.data;
-      if (!awardData) return;
-
-      const awardResult: AwardResult = {
-        id: String(awardData.id || ''),
-        type: (awardData.type === 'placement' || awardData.type === 'special' || 
-               awardData.type === 'qualification' || awardData.type === 'championship') 
-               ? awardData.type : 'placement',
-        title: String(awardData.title || 'Award'),
-        description: String(awardData.description || ''),
-        recipient: {
-          entryId: String(awardData.entry_id || ''),
-          dogId: String(awardData.dog_id || ''),
-          dogName: String(awardData.dog_name || 'Unknown'),
-          ownerName: String(awardData.owner_name || 'Unknown'),
-          armband: String(awardData.armband || ''),
-        },
-        classId: awardData.class_id ? String(awardData.class_id) : undefined,
-        className: awardData.class_name ? String(awardData.class_name) : undefined,
-        showId: String(awardData.show_id || ''),
-        value: awardData.value ? Number(awardData.value) : undefined,
-        criteria: String(awardData.criteria || ''),
-        awardedAt: awardData.awarded_at || awardData.created_at
-          ? new Date(String(awardData.awarded_at || awardData.created_at))
-          : new Date(),
-        awardedBy: String(awardData.awarded_by || 'system'),
-        certificate: awardData.certificate_template_id ? {
-          templateId: String(awardData.certificate_template_id),
-          generatedUrl: awardData.certificate_url ? String(awardData.certificate_url) : undefined,
-        } : undefined,
-      };
+      const awardResult = mapAwardEventToResult(event);
+      if (!awardResult) return;
 
       // Store the award
       this.awardResults.set(awardResult.id, awardResult);
@@ -444,7 +268,6 @@ export class ResultsBroadcaster {
    */
   private processScoreResult(result: ScoreResult): void {
     try {
-      // Create score notification
       const notification: ResultsNotification = {
         id: `score-${result.id}-${Date.now()}`,
         type: 'score-posted',
@@ -492,7 +315,6 @@ export class ResultsBroadcaster {
    */
   private processPlacementResult(result: PlacementResult): void {
     try {
-      // Create placement notification
       const notification: ResultsNotification = {
         id: `placement-${result.classId}-${Date.now()}`,
         type: 'placement-updated',
@@ -516,7 +338,7 @@ export class ResultsBroadcaster {
           id: `placement-${placement.entryId}-${Date.now()}`,
           type: 'placement-updated',
           priority: 'high',
-          title: `${placement.position}${this.getOrdinalSuffix(placement.position)} Place`,
+          title: `${placement.position}${getOrdinalSuffix(placement.position)} Place`,
           message: `${placement.armband} - ${placement.dogName}`,
           targetAudience: 'specific',
           targetIds: [placement.entryId],
@@ -555,7 +377,6 @@ export class ResultsBroadcaster {
    */
   private processAwardResult(result: AwardResult): void {
     try {
-      // Create award notification
       const notification: ResultsNotification = {
         id: `award-${result.id}-${Date.now()}`,
         type: 'award-announced',
@@ -597,7 +418,7 @@ export class ResultsBroadcaster {
    */
   private queueNotification(notification: ResultsNotification): void {
     this.pendingNotifications.set(notification.id, notification);
-    
+
     // Process immediately if high priority
     if (notification.priority === 'critical') {
       this.processNotification(notification);
@@ -665,12 +486,10 @@ export class ResultsBroadcaster {
    * Schedule class placement calculation
    */
   private scheduleClassPlacementCalculation(classId: string): void {
-    // Clear existing timer for this class
     if (this.batchTimer) {
       clearTimeout(this.batchTimer);
     }
 
-    // Schedule calculation
     this.batchTimer = setTimeout(() => {
       this.calculateClassPlacements(classId);
     }, this.config.batchResultsMs);
@@ -696,7 +515,7 @@ export class ResultsBroadcaster {
         armband: score.armband,
         finalScore: score.score.totalScore,
         qualified: score.score.qualified,
-        award: index < 3 ? this.getPlacementTitle(index + 1) : undefined,
+        award: index < 3 ? getPlacementTitle(index + 1) : undefined,
       }));
 
       const placementResult: PlacementResult = {
@@ -821,45 +640,6 @@ export class ResultsBroadcaster {
     return { ...this.metrics };
   }
 
-  /**
-   * Utility methods
-   */
-  private parsePlacementData(placementsData: unknown[]): PlacementResult['placements'] {
-    return placementsData
-      .filter((p): p is Record<string, unknown> => typeof p === 'object' && p !== null)
-      .map(p => ({
-        position: Number(p.position) || 0,
-        entryId: String(p.entry_id || ''),
-        dogId: String(p.dog_id || ''),
-        dogName: String(p.dog_name || 'Unknown'),
-        ownerName: String(p.owner_name || 'Unknown'),
-        armband: String(p.armband || ''),
-        finalScore: Number(p.final_score) || 0,
-        qualified: Boolean(p.qualified),
-        award: p.award ? String(p.award) : undefined,
-        specialAward: p.special_award ? String(p.special_award) : undefined,
-      }));
-  }
-
-  private getPlacementTitle(position: number): string {
-    switch (position) {
-      case 1: return '1st Place';
-      case 2: return '2nd Place';
-      case 3: return '3rd Place';
-      case 4: return '4th Place';
-      default: return `${position}${this.getOrdinalSuffix(position)} Place`;
-    }
-  }
-
-  private getOrdinalSuffix(num: number): string {
-    const j = num % 10;
-    const k = num % 100;
-    if (j === 1 && k !== 11) return 'st';
-    if (j === 2 && k !== 12) return 'nd';
-    if (j === 3 && k !== 13) return 'rd';
-    return 'th';
-  }
-
   private updateScoreMetrics(result: ScoreResult): void {
     this.metrics.scoresPosted++;
     this.metrics.lastActivity = new Date();
@@ -880,20 +660,6 @@ export class ResultsBroadcaster {
     judgeMetrics.lastActivity = new Date();
   }
 
-  private initializeMetrics(): ResultsMetrics {
-    return {
-      showId: this.showId,
-      scoresPosted: 0,
-      placementsCalculated: 0,
-      awardsAnnounced: 0,
-      notificationsSent: 0,
-      averageScorePostingTime: 0,
-      peakResultsRate: 0,
-      lastActivity: new Date(),
-      judgeActivity: new Map(),
-    };
-  }
-
   /**
    * Check if service is active
    */
@@ -904,7 +670,7 @@ export class ResultsBroadcaster {
   /**
    * Update configuration
    */
-  updateConfig(updates: Partial<typeof this.config>): void {
+  updateConfig(updates: Partial<ResultsBroadcasterConfig>): void {
     this.config = { ...this.config, ...updates };
   }
 }

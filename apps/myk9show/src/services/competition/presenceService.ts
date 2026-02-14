@@ -1,7 +1,7 @@
 /**
  * Presence Service
  * Phase 6.2: Live Competition Features
- * 
+ *
  * User presence tracking service for live competitions, showing who's online,
  * their activity status, and their current focus/location within the application.
  */
@@ -11,93 +11,27 @@ import { errorMonitor } from '../../lib/errorMonitoring';
 import { logger } from '../../services/LoggingService';
 import type { PresenceTrackingData } from '../../types/realtime-types';
 
-export interface UserPresence {
-  userId: string;
-  userName: string;
-  displayName: string;
-  role: 'judge' | 'secretary' | 'steward' | 'exhibitor' | 'admin' | 'observer';
-  status: 'active' | 'idle' | 'away' | 'busy' | 'offline';
-  lastSeen: Date;
-  joinedAt: Date;
-  location: {
-    page: string;
-    section?: string | undefined;
-    classId?: string | undefined;
-    entryId?: string | undefined;
-    showId: string;
-  };
-  activity: {
-    type: 'viewing' | 'editing' | 'scoring' | 'judging' | 'checking-in' | 'managing' | 'idle';
-    description: string;
-    startedAt: Date;
-    details?: Record<string, unknown> | undefined;
-  };
-  device: {
-    type: 'desktop' | 'tablet' | 'mobile';
-    os: string;
-    browser: string;
-    screen?: {
-      width: number;
-      height: number;
-    } | undefined;
-  };
-  preferences: {
-    showPresence: boolean;
-    showActivity: boolean;
-    notificationLevel: 'all' | 'mentions' | 'none';
-  };
-  avatar?: string | undefined;
-  badgeColor?: string | undefined;
-}
+// Import types from extracted module
+import type {
+  UserPresence,
+  PresenceGroup,
+  ActivityIndicator,
+  PresenceAnalytics,
+} from './presence-service-types';
 
-export interface PresenceGroup {
-  id: string;
-  name: string;
-  type: 'class' | 'ring' | 'check-in' | 'scoring' | 'general';
-  description: string;
-  userCount: number;
-  users: UserPresence[];
-  showId: string;
-  classId?: string | undefined;
-  metadata?: Record<string, unknown> | undefined;
-}
+// Import utility functions from extracted module
+import {
+  getRoleBadgeColor,
+  getActivityIntensity,
+  detectDeviceType,
+  detectOS,
+  detectBrowser,
+  getScreenSize,
+  initializeAnalytics,
+} from './presence-service-utils';
 
-export interface ActivityIndicator {
-  userId: string;
-  type: 'typing' | 'scoring' | 'reviewing' | 'navigating' | 'idle';
-  context: string;
-  intensity: 'low' | 'medium' | 'high';
-  startedAt: Date;
-  expiresAt: Date;
-  metadata?: {
-    targetElement?: string | undefined;
-    progress?: number | undefined;
-    estimatedCompletion?: Date | undefined;
-  } | undefined;
-  [key: string]: unknown; // Index signature for broadcast compatibility
-}
-
-export interface PresenceAnalytics {
-  showId: string;
-  totalUsers: number;
-  activeUsers: number;
-  usersByRole: Record<string, number>;
-  usersByStatus: Record<string, number>;
-  usersByDevice: Record<string, number>;
-  peakConcurrentUsers: number;
-  averageSessionDuration: number; // minutes
-  popularPages: Array<{
-    page: string;
-    userCount: number;
-    averageTimeSpent: number;
-  }>;
-  activityHeatmap: Array<{
-    hour: number;
-    userCount: number;
-    activityLevel: 'low' | 'medium' | 'high';
-  }>;
-  lastUpdated: Date;
-}
+// Re-export types for backward compatibility
+export type { UserPresence, PresenceGroup, ActivityIndicator, PresenceAnalytics } from './presence-service-types';
 
 /**
  * Service for tracking and managing user presence in live competitions
@@ -140,7 +74,7 @@ export class PresenceService {
 
   constructor(showId: string) {
     this.showId = showId;
-    this.analytics = this.initializeAnalytics();
+    this.analytics = initializeAnalytics(showId);
   }
 
   /**
@@ -254,7 +188,7 @@ export class PresenceService {
       // Process each presence
       presences.forEach(presence => {
         activeUserIds.add(presence.user_id);
-        
+
         const existingUser = this.userPresences.get(presence.user_id);
         const isNewUser = !existingUser;
 
@@ -286,7 +220,7 @@ export class PresenceService {
             showActivity: true,
             notificationLevel: 'all',
           },
-          badgeColor: this.getRoleBadgeColor(presence.role),
+          badgeColor: getRoleBadgeColor(presence.role),
         };
 
         this.userPresences.set(presence.user_id, userPresence);
@@ -316,7 +250,7 @@ export class PresenceService {
       for (const userId of currentUserIds) {
         if (!activeUserIds.has(userId)) {
           this.userPresences.delete(userId);
-          
+
           this.userLeftListeners.forEach(listener => {
             try {
               listener(userId);
@@ -432,7 +366,7 @@ export class PresenceService {
         userId: this.currentUser.userId,
         type,
         context,
-        intensity: this.getActivityIntensity(type),
+        intensity: getActivityIntensity(type),
         startedAt: new Date(),
         expiresAt: new Date(Date.now() + this.config.activityIndicatorTimeoutMs),
         metadata,
@@ -549,8 +483,8 @@ export class PresenceService {
    */
   getUsersByLocation(page: string, section?: string): UserPresence[] {
     return Array.from(this.userPresences.values())
-      .filter(user => 
-        user.location.page === page && 
+      .filter(user =>
+        user.location.page === page &&
         (!section || user.location.section === section)
       );
   }
@@ -636,7 +570,7 @@ export class PresenceService {
    */
   private async initializeCurrentUser(userData: Partial<UserPresence>): Promise<void> {
     const now = new Date();
-    
+
     this.currentUser = {
       userId: userData.userId || 'unknown',
       userName: userData.userName || 'Unknown User',
@@ -657,10 +591,10 @@ export class PresenceService {
         ...userData.activity,
       },
       device: {
-        type: this.detectDeviceType(),
-        os: this.detectOS(),
-        browser: this.detectBrowser(),
-        screen: this.getScreenSize(),
+        type: detectDeviceType(),
+        os: detectOS(),
+        browser: detectBrowser(),
+        screen: getScreenSize(),
         ...userData.device,
       },
       preferences: {
@@ -670,7 +604,7 @@ export class PresenceService {
         ...userData.preferences,
       },
       avatar: userData.avatar,
-      badgeColor: this.getRoleBadgeColor(userData.role || 'observer'),
+      badgeColor: getRoleBadgeColor(userData.role || 'observer'),
     };
   }
 
@@ -691,7 +625,7 @@ export class PresenceService {
     this.heartbeatTimer = setInterval(() => {
       if (this.currentUser) {
         this.currentUser.lastSeen = new Date();
-        
+
         subscriptionManager.trackPresence(
           `presence-${this.showId}`,
           this.convertToPresenceTrackingData(this.currentUser)
@@ -717,10 +651,10 @@ export class PresenceService {
 
   private updateUserStatuses(): void {
     const now = new Date();
-    
+
     this.userPresences.forEach(user => {
       const timeSinceLastSeen = now.getTime() - user.lastSeen.getTime();
-      
+
       if (timeSinceLastSeen > this.config.offlineTimeoutMs) {
         user.status = 'offline';
       } else if (timeSinceLastSeen > this.config.awayTimeoutMs) {
@@ -733,7 +667,7 @@ export class PresenceService {
 
   private cleanupExpiredIndicators(): void {
     const now = new Date();
-    
+
     for (const [userId, indicator] of this.activityIndicators) {
       if (indicator.expiresAt < now) {
         this.activityIndicators.delete(userId);
@@ -761,20 +695,20 @@ export class PresenceService {
 
   private getGroupUsers(group: PresenceGroup): UserPresence[] {
     const allUsers = Array.from(this.userPresences.values());
-    
+
     switch (group.type) {
       case 'class':
         return allUsers.filter(user => user.location.classId === group.classId);
       case 'ring':
-        return allUsers.filter(user => 
+        return allUsers.filter(user =>
           user.location.page === 'ring' || user.activity.type === 'scoring'
         );
       case 'check-in':
-        return allUsers.filter(user => 
+        return allUsers.filter(user =>
           user.location.page === 'check-in' || user.activity.type === 'checking-in'
         );
       case 'scoring':
-        return allUsers.filter(user => 
+        return allUsers.filter(user =>
           user.activity.type === 'scoring' || user.activity.type === 'judging'
         );
       default:
@@ -784,117 +718,34 @@ export class PresenceService {
 
   private updateAnalytics(): void {
     const users = Array.from(this.userPresences.values());
-    
+
     this.analytics.totalUsers = users.length;
     this.analytics.activeUsers = users.filter(u => u.status === 'active').length;
-    
+
     // Update peak concurrent users
     if (this.analytics.activeUsers > this.analytics.peakConcurrentUsers) {
       this.analytics.peakConcurrentUsers = this.analytics.activeUsers;
     }
-    
+
     // Count by role
     this.analytics.usersByRole = {};
     users.forEach(user => {
       this.analytics.usersByRole[user.role] = (this.analytics.usersByRole[user.role] || 0) + 1;
     });
-    
+
     // Count by status
     this.analytics.usersByStatus = {};
     users.forEach(user => {
       this.analytics.usersByStatus[user.status] = (this.analytics.usersByStatus[user.status] || 0) + 1;
     });
-    
+
     // Count by device
     this.analytics.usersByDevice = {};
     users.forEach(user => {
       this.analytics.usersByDevice[user.device.type] = (this.analytics.usersByDevice[user.device.type] || 0) + 1;
     });
-    
+
     this.analytics.lastUpdated = new Date();
-  }
-
-  private getRoleBadgeColor(role: UserPresence['role']): string {
-    const roleColors = {
-      judge: '#dc2626', // red
-      secretary: '#2563eb', // blue
-      steward: '#059669', // green
-      exhibitor: '#7c3aed', // purple
-      admin: '#ea580c', // orange
-      observer: '#6b7280', // gray
-    };
-    
-    return roleColors[role] || roleColors.observer;
-  }
-
-  private getActivityIntensity(type: ActivityIndicator['type']): ActivityIndicator['intensity'] {
-    switch (type) {
-      case 'typing':
-      case 'scoring':
-        return 'high';
-      case 'reviewing':
-      case 'navigating':
-        return 'medium';
-      default:
-        return 'low';
-    }
-  }
-
-  private detectDeviceType(): UserPresence['device']['type'] {
-    if (typeof window === 'undefined') return 'desktop';
-    
-    const width = window.innerWidth;
-    if (width < 768) return 'mobile';
-    if (width < 1024) return 'tablet';
-    return 'desktop';
-  }
-
-  private detectOS(): string {
-    if (typeof navigator === 'undefined') return 'unknown';
-    
-    const userAgent = navigator.userAgent.toLowerCase();
-    if (userAgent.includes('windows')) return 'Windows';
-    if (userAgent.includes('mac')) return 'macOS';
-    if (userAgent.includes('linux')) return 'Linux';
-    if (userAgent.includes('android')) return 'Android';
-    if (userAgent.includes('iphone') || userAgent.includes('ipad')) return 'iOS';
-    return 'Unknown';
-  }
-
-  private detectBrowser(): string {
-    if (typeof navigator === 'undefined') return 'unknown';
-    
-    const userAgent = navigator.userAgent.toLowerCase();
-    if (userAgent.includes('chrome')) return 'Chrome';
-    if (userAgent.includes('firefox')) return 'Firefox';
-    if (userAgent.includes('safari')) return 'Safari';
-    if (userAgent.includes('edge')) return 'Edge';
-    return 'Unknown';
-  }
-
-  private getScreenSize(): UserPresence['device']['screen'] {
-    if (typeof window === 'undefined') return undefined;
-    
-    return {
-      width: window.screen.width,
-      height: window.screen.height,
-    };
-  }
-
-  private initializeAnalytics(): PresenceAnalytics {
-    return {
-      showId: this.showId,
-      totalUsers: 0,
-      activeUsers: 0,
-      usersByRole: {},
-      usersByStatus: {},
-      usersByDevice: {},
-      peakConcurrentUsers: 0,
-      averageSessionDuration: 0,
-      popularPages: [],
-      activityHeatmap: [],
-      lastUpdated: new Date(),
-    };
   }
 
   /**

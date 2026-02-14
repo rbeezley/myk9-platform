@@ -1,7 +1,7 @@
 /**
  * Offline Manager
  * Phase 6.3: Sync & Offline Systems
- * 
+ *
  * Comprehensive offline-first architecture with robust data management,
  * automatic sync scheduling, and intelligent offline mode detection.
  */
@@ -10,70 +10,20 @@ import { logger } from '@/services/LoggingService';
 import { syncQueue } from './SyncQueue';
 import { conflictResolver } from './conflictResolver';
 import { errorMonitor } from '../../lib/errorMonitoring';
-import type { NetworkQuality, SyncEvent, SyncQueueItem } from '../../types/sync-types';
+import type { SyncEvent, SyncQueueItem } from '../../types/sync-types';
 
-export interface OfflineManagerConfig {
-  // Offline detection
-  pingUrl: string;
-  pingInterval: number;
-  pingTimeout: number;
-  offlineThreshold: number; // consecutive failed pings to go offline
-  
-  // Storage management
-  maxOfflineStorage: number; // bytes
-  storageWarningThreshold: number; // 0-1, percentage of max storage
-  enableStorageCompression: boolean;
-  
-  // Sync scheduling
-  enableAutoSync: boolean;
-  syncInterval: number; // ms, when online
-  offlineSyncRetryInterval: number; // ms, when offline
-  batchSyncSize: number;
-  
-  // Data management
-  enableDataPrioritization: boolean;
-  criticalDataTypes: string[];
-  maxOfflineOperations: number;
-  enableDraftMode: boolean;
-}
+// Import from extracted modules
+import type { OfflineManagerConfig, OfflineState, OfflineMetrics } from './offline-manager-types';
+import {
+  DEFAULT_OFFLINE_CONFIG,
+  createInitialOfflineState,
+  createInitialOfflineMetrics,
+  isConflictError,
+  buildStorageEstimate,
+} from './offline-manager-helpers';
 
-export interface OfflineState {
-  isOnline: boolean;
-  networkQuality: NetworkQuality;
-  lastOnlineTime: Date | null;
-  offlineDuration: number; // ms
-  pendingSyncOperations: number;
-  storageUsed: number; // bytes
-  storageAvailable: number; // bytes
-  syncInProgress: boolean;
-  lastSyncTime: Date | null;
-  lastSyncSuccess: boolean;
-}
-
-export interface OfflineMetrics {
-  totalOfflineTime: number;
-  offlineSessionCount: number;
-  operationsQueuedOffline: number;
-  operationsSyncedOnReconnect: number;
-  averageOfflineSessionDuration: number;
-  syncSuccessRate: number;
-  dataSyncedMB: number;
-  conflictsDetected: number;
-  conflictsResolved: number;
-}
-
-export interface StorageEstimate {
-  used: number;
-  available: number;
-  quota: number;
-  percentage: number;
-  breakdown: {
-    databases: number;
-    localStorage: number;
-    indexedDB: number;
-    webSQL: number;
-  };
-}
+// Re-export types for backward compatibility
+export type { OfflineManagerConfig, OfflineState, OfflineMetrics, StorageEstimate } from './offline-manager-types';
 
 /**
  * Comprehensive Offline-First Manager
@@ -83,12 +33,12 @@ export class OfflineManager {
   private state: OfflineState;
   private metrics: OfflineMetrics;
   private eventListeners = new Map<string, Set<(event: SyncEvent) => void>>();
-  
+
   // Timers and monitoring
   private pingTimer: NodeJS.Timeout | null = null;
   private syncTimer: NodeJS.Timeout | null = null;
   private storageMonitorTimer: NodeJS.Timeout | null = null;
-  
+
   // State tracking
   private consecutiveFailedPings = 0;
   private offlineStartTime: Date | null = null;
@@ -96,69 +46,12 @@ export class OfflineManager {
   private draftOperations = new Map<string, Record<string, unknown>>();
 
   constructor(customConfig?: Partial<OfflineManagerConfig>) {
-    this.config = {
-      pingUrl: '/api/health',
-      pingInterval: 30000, // 30 seconds
-      pingTimeout: 5000, // 5 seconds
-      offlineThreshold: 3, // 3 failed pings
-      
-      maxOfflineStorage: 50 * 1024 * 1024, // 50MB
-      storageWarningThreshold: 0.8, // 80%
-      enableStorageCompression: true,
-      
-      enableAutoSync: true,
-      syncInterval: 10000, // 10 seconds when online
-      offlineSyncRetryInterval: 60000, // 1 minute when offline
-      batchSyncSize: 20,
-      
-      enableDataPrioritization: true,
-      criticalDataTypes: ['entry', 'checkin', 'score'],
-      maxOfflineOperations: 1000,
-      enableDraftMode: true,
-      
-      ...customConfig,
-    };
+    this.config = { ...DEFAULT_OFFLINE_CONFIG, ...customConfig };
+    this.state = createInitialOfflineState();
+    this.metrics = createInitialOfflineMetrics();
 
-    this.state = this.initializeState();
-    this.metrics = this.initializeMetrics();
-    
     this.setupEventListeners();
     this.startMonitoring();
-  }
-
-  /**
-   * Initialize offline state
-   */
-  private initializeState(): OfflineState {
-    return {
-      isOnline: navigator.onLine,
-      networkQuality: 'good',
-      lastOnlineTime: navigator.onLine ? new Date() : null,
-      offlineDuration: 0,
-      pendingSyncOperations: 0,
-      storageUsed: 0,
-      storageAvailable: 0,
-      syncInProgress: false,
-      lastSyncTime: null,
-      lastSyncSuccess: false,
-    };
-  }
-
-  /**
-   * Initialize metrics
-   */
-  private initializeMetrics(): OfflineMetrics {
-    return {
-      totalOfflineTime: 0,
-      offlineSessionCount: 0,
-      operationsQueuedOffline: 0,
-      operationsSyncedOnReconnect: 0,
-      averageOfflineSessionDuration: 0,
-      syncSuccessRate: 0,
-      dataSyncedMB: 0,
-      conflictsDetected: 0,
-      conflictsResolved: 0,
-    };
   }
 
   /**
@@ -167,17 +60,10 @@ export class OfflineManager {
   private setupEventListeners(): void {
     if (typeof window === 'undefined') return;
 
-    // Browser online/offline events
     window.addEventListener('online', this.handleOnline.bind(this));
     window.addEventListener('offline', this.handleOffline.bind(this));
-    
-    // Visibility change for sync optimization
     document.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
-    
-    // Storage events
     window.addEventListener('storage', this.handleStorageChange.bind(this));
-    
-    // Before unload - save pending operations
     window.addEventListener('beforeunload', this.handleBeforeUnload.bind(this));
   }
 
@@ -187,7 +73,7 @@ export class OfflineManager {
   private startMonitoring(): void {
     this.startNetworkMonitoring();
     this.startStorageMonitoring();
-    
+
     if (this.config.enableAutoSync) {
       this.startAutoSync();
     }
@@ -214,7 +100,7 @@ export class OfflineManager {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.config.pingTimeout);
-      
+
       const response = await fetch(this.config.pingUrl, {
         method: 'HEAD',
         signal: controller.signal,
@@ -223,10 +109,9 @@ export class OfflineManager {
           'Cache-Control': 'no-cache',
         },
       });
-      
+
       clearTimeout(timeoutId);
       return response.ok;
-      
     } catch (error) {
       logger.warn('Connectivity check failed', 'offline', { error });
       return false;
@@ -238,19 +123,17 @@ export class OfflineManager {
    */
   private updateNetworkState(isOnline: boolean): void {
     const wasOnline = this.state.isOnline;
-    
+
     if (isOnline) {
       this.consecutiveFailedPings = 0;
-      
+
       if (!wasOnline) {
-        // Just came online
         this.handleConnectionRestored();
       }
     } else {
       this.consecutiveFailedPings++;
-      
+
       if (wasOnline && this.consecutiveFailedPings >= this.config.offlineThreshold) {
-        // Just went offline
         this.handleConnectionLost();
       }
     }
@@ -261,28 +144,21 @@ export class OfflineManager {
    */
   private async handleConnectionRestored(): Promise<void> {
     logger.info('Connection restored', 'offline');
-    
-    // Update state
+
     this.state.isOnline = true;
     this.state.lastOnlineTime = new Date();
-    
-    // Calculate offline duration
+
     if (this.offlineStartTime) {
       const offlineDuration = Date.now() - this.offlineStartTime.getTime();
       this.state.offlineDuration = 0;
       this.metrics.totalOfflineTime += offlineDuration;
-      this.metrics.averageOfflineSessionDuration = 
+      this.metrics.averageOfflineSessionDuration =
         this.metrics.totalOfflineTime / this.metrics.offlineSessionCount;
       this.offlineStartTime = null;
     }
 
-    // Emit event
-    this.emitEvent({
-      type: 'connection-restored',
-      timestamp: new Date(),
-    });
+    this.emitEvent({ type: 'connection-restored', timestamp: new Date() });
 
-    // Start sync process
     if (this.config.enableAutoSync) {
       await this.syncPendingOperations();
     }
@@ -293,19 +169,12 @@ export class OfflineManager {
    */
   private handleConnectionLost(): void {
     logger.info('Connection lost', 'offline');
-    
-    // Update state
+
     this.state.isOnline = false;
     this.offlineStartTime = new Date();
     this.metrics.offlineSessionCount++;
 
-    // Emit event
-    this.emitEvent({
-      type: 'connection-lost',
-      timestamp: new Date(),
-    });
-
-    // Pause non-critical sync operations
+    this.emitEvent({ type: 'connection-lost', timestamp: new Date() });
     this.pauseSync();
   }
 
@@ -334,7 +203,6 @@ export class OfflineManager {
    */
   private handleVisibilityChange(): void {
     if (document.visibilityState === 'visible') {
-      // App became active - check connectivity and sync
       this.checkConnectivity().then(isOnline => {
         this.updateNetworkState(isOnline);
         if (isOnline && this.hasPendingOperations()) {
@@ -370,7 +238,6 @@ export class OfflineManager {
       this.updateStorageEstimate();
     }, 60000); // Check every minute
 
-    // Initial check
     this.updateStorageEstimate();
   }
 
@@ -379,43 +246,11 @@ export class OfflineManager {
    */
   private async updateStorageEstimate(): Promise<void> {
     try {
-      let storageEstimate: StorageEstimate;
-
-      if ('storage' in navigator && 'estimate' in navigator.storage) {
-        const estimate = await navigator.storage.estimate();
-        
-        storageEstimate = {
-          used: estimate.usage || 0,
-          available: (estimate.quota || 0) - (estimate.usage || 0),
-          quota: estimate.quota || 0,
-          percentage: estimate.quota ? (estimate.usage || 0) / estimate.quota : 0,
-          breakdown: {
-            databases: 0, // Would need more detailed analysis
-            localStorage: this.getLocalStorageSize(),
-            indexedDB: 0, // Would need to enumerate databases
-            webSQL: 0, // Deprecated
-          },
-        };
-      } else {
-        // Fallback estimation
-        storageEstimate = {
-          used: this.getLocalStorageSize(),
-          available: this.config.maxOfflineStorage - this.getLocalStorageSize(),
-          quota: this.config.maxOfflineStorage,
-          percentage: this.getLocalStorageSize() / this.config.maxOfflineStorage,
-          breakdown: {
-            databases: 0,
-            localStorage: this.getLocalStorageSize(),
-            indexedDB: 0,
-            webSQL: 0,
-          },
-        };
-      }
+      const storageEstimate = await buildStorageEstimate(this.config.maxOfflineStorage);
 
       this.state.storageUsed = storageEstimate.used;
       this.state.storageAvailable = storageEstimate.available;
 
-      // Check for storage warnings
       if (storageEstimate.percentage > this.config.storageWarningThreshold) {
         this.emitEvent({
           type: 'storage-warning',
@@ -423,26 +258,8 @@ export class OfflineManager {
           details: { storageEstimate },
         });
       }
-
     } catch (error) {
       logger.error('Failed to estimate storage', 'offline', {}, error as Error);
-    }
-  }
-
-  /**
-   * Get localStorage size estimate
-   */
-  private getLocalStorageSize(): number {
-    try {
-      let total = 0;
-      for (const key in localStorage) {
-        if (Object.prototype.hasOwnProperty.call(localStorage, key)) {
-          total += localStorage[key].length + key.length;
-        }
-      }
-      return total * 2; // Rough estimate (UTF-16)
-    } catch {
-      return 0;
     }
   }
 
@@ -454,8 +271,8 @@ export class OfflineManager {
       clearInterval(this.syncTimer);
     }
 
-    const interval = this.state.isOnline 
-      ? this.config.syncInterval 
+    const interval = this.state.isOnline
+      ? this.config.syncInterval
       : this.config.offlineSyncRetryInterval;
 
     this.syncTimer = setInterval(() => {
@@ -500,7 +317,6 @@ export class OfflineManager {
     this.metrics.operationsQueuedOffline++;
     this.state.pendingSyncOperations = syncQueue.size();
 
-    // Store pending operation for persistence
     this.pendingOperations.set(operationId, {
       entityType,
       actionType,
@@ -533,7 +349,7 @@ export class OfflineManager {
     }
 
     const draftId = `draft-${entityType}-${entityId}-${Date.now()}`;
-    
+
     this.draftOperations.set(draftId, {
       entityType,
       entityId,
@@ -543,7 +359,6 @@ export class OfflineManager {
     });
 
     this.saveDrafts();
-    
     logger.debug('Created draft', 'offline', { draftId });
     return draftId;
   }
@@ -559,7 +374,7 @@ export class OfflineManager {
 
     draft.data = data;
     draft.lastModified = Date.now();
-    
+
     this.draftOperations.set(draftId, draft);
     this.saveDrafts();
   }
@@ -575,13 +390,12 @@ export class OfflineManager {
 
     const operationId = this.queueOperation(
       draft.entityType as 'club' | 'person' | 'dog' | 'show' | 'trial' | 'class' | 'entry' | 'trial_class',
-      'create', // Drafts are typically new entities
+      'create',
       draft.entityId as string,
       draft.data as Record<string, unknown>,
-      7 // High priority for promoted drafts
+      7
     );
 
-    // Remove draft
     this.draftOperations.delete(draftId);
     this.saveDrafts();
 
@@ -603,7 +417,7 @@ export class OfflineManager {
     }
 
     this.state.syncInProgress = true;
-    
+
     this.emitEvent({
       type: 'sync-started',
       timestamp: new Date(),
@@ -612,18 +426,16 @@ export class OfflineManager {
 
     try {
       const batch = pendingItems.slice(0, this.config.batchSyncSize);
-      
+
       for (const item of batch) {
         try {
           await this.syncSingleOperation(item);
           syncQueue.markCompleted(item.id);
           this.metrics.operationsSyncedOnReconnect++;
-          
         } catch (error) {
           syncQueue.markFailed(item.id, error as Error);
-          
-          // Check for conflicts
-          if (this.isConflictError(error as Error)) {
+
+          if (isConflictError(error as Error)) {
             await this.handleSyncConflict(item);
           }
         }
@@ -636,15 +448,14 @@ export class OfflineManager {
       this.emitEvent({
         type: 'sync-completed',
         timestamp: new Date(),
-        details: { 
+        details: {
           syncedItems: batch.length,
           remainingItems: syncQueue.size(),
         },
       });
-
     } catch (error) {
       this.state.lastSyncSuccess = false;
-      
+
       this.emitEvent({
         type: 'sync-failed',
         timestamp: new Date(),
@@ -652,12 +463,11 @@ export class OfflineManager {
       });
 
       errorMonitor.captureError(error as Error, {
-        additionalData: { 
+        additionalData: {
           pendingOperations: pendingItems.length,
           isOnline: this.state.isOnline,
-        }
+        },
       });
-
     } finally {
       this.state.syncInProgress = false;
     }
@@ -667,13 +477,15 @@ export class OfflineManager {
    * Sync single operation using registered processors
    */
   private async syncSingleOperation(item: SyncQueueItem): Promise<void> {
-    logger.debug('Syncing operation', 'offline', { itemId: item.id, entityType: item.entityType, actionType: item.actionType });
+    logger.debug('Syncing operation', 'offline', {
+      itemId: item.id,
+      entityType: item.entityType,
+      actionType: item.actionType,
+    });
 
-    // Get the processor for this entity type from SyncQueue
     const processor = syncQueue.getProcessor(item.entityType);
 
     if (processor) {
-      // Use the registered processor
       const result = await processor.processItem(item);
 
       if (!result.success) {
@@ -683,22 +495,13 @@ export class OfflineManager {
         throw result.error || new Error('Sync operation failed');
       }
 
-      // Success - processor has already updated local cache
       return;
     }
 
-    // No processor registered - fall back to stub behavior
-    logger.warn('No processor registered for entity type', 'offline', { entityType: item.entityType });
+    logger.warn('No processor registered for entity type', 'offline', {
+      entityType: item.entityType,
+    });
     await new Promise(resolve => setTimeout(resolve, 100));
-  }
-
-  /**
-   * Check if error is a conflict error
-   */
-  private isConflictError(error: Error): boolean {
-    return error.message.includes('conflict') || 
-           error.message.includes('version') ||
-           error.message.includes('concurrent');
   }
 
   /**
@@ -706,10 +509,9 @@ export class OfflineManager {
    */
   private async handleSyncConflict(item: SyncQueueItem): Promise<void> {
     this.metrics.conflictsDetected++;
-    
-    // Would fetch current remote data for conflict resolution
+
     const remoteData = {}; // Placeholder
-    
+
     const conflict = conflictResolver.detectConflict(
       item.entityType as string,
       item.entityId,
@@ -719,11 +521,11 @@ export class OfflineManager {
 
     if (conflict) {
       logger.info('Conflict detected, queuing for resolution', 'offline', { itemId: item.id });
-      
+
       this.emitEvent({
         type: 'conflict-detected',
         timestamp: new Date(),
-        details: { 
+        details: {
           conflictId: conflict.id,
           entityType: item.entityType,
           entityId: item.entityId,
@@ -736,7 +538,6 @@ export class OfflineManager {
    * Get current user ID
    */
   private getCurrentUserId(): string {
-    // Would get from auth context
     return 'current-user-id';
   }
 
@@ -797,9 +598,9 @@ export class OfflineManager {
     if (!this.eventListeners.has(eventType)) {
       this.eventListeners.set(eventType, new Set());
     }
-    
+
     this.eventListeners.get(eventType)!.add(listener);
-    
+
     return () => {
       this.eventListeners.get(eventType)?.delete(listener);
     };
@@ -840,7 +641,7 @@ export class OfflineManager {
     if (!this.state.isOnline) {
       throw new Error('Cannot sync while offline');
     }
-    
+
     await this.syncPendingOperations();
   }
 
@@ -851,13 +652,11 @@ export class OfflineManager {
     syncQueue.clear();
     this.pendingOperations.clear();
     this.draftOperations.clear();
-    
-    // Clear localStorage
+
     localStorage.removeItem('myK9Show_pending_operations');
     localStorage.removeItem('myK9Show_drafts');
-    
+
     this.state.pendingSyncOperations = 0;
-    
     logger.info('All offline data cleared', 'offline');
   }
 
@@ -873,12 +672,11 @@ export class OfflineManager {
    */
   updateConfig(updates: Partial<OfflineManagerConfig>): void {
     this.config = { ...this.config, ...updates };
-    
-    // Restart monitoring if intervals changed
+
     if (updates.pingInterval) {
       this.startNetworkMonitoring();
     }
-    
+
     if (updates.syncInterval && this.config.enableAutoSync) {
       this.startAutoSync();
     }
@@ -888,29 +686,25 @@ export class OfflineManager {
    * Cleanup and destroy manager
    */
   destroy(): void {
-    // Clear timers
     if (this.pingTimer) {
       clearInterval(this.pingTimer);
       this.pingTimer = null;
     }
-    
+
     if (this.syncTimer) {
       clearInterval(this.syncTimer);
       this.syncTimer = null;
     }
-    
+
     if (this.storageMonitorTimer) {
       clearInterval(this.storageMonitorTimer);
       this.storageMonitorTimer = null;
     }
 
-    // Save final state
     this.savePendingOperations();
     this.saveDrafts();
-    
-    // Clear event listeners
     this.eventListeners.clear();
-    
+
     logger.info('Offline manager destroyed', 'offline');
   }
 }

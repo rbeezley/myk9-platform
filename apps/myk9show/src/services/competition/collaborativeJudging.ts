@@ -1,7 +1,7 @@
 /**
  * Collaborative Judging Service
  * Phase 6.2: Live Competition Features
- * 
+ *
  * Multi-judge coordination service for competitions with multiple judges,
  * providing real-time scoring synchronization and conflict resolution.
  */
@@ -13,119 +13,35 @@ import type {
   PresenceTrackingData
 } from '../../types/realtime-types';
 
-export interface JudgeSession {
-  sessionId: string;
-  judgeId: string;
-  judgeName: string;
-  classId: string;
-  className: string;
-  showId: string;
-  role: 'primary' | 'secondary' | 'trainee' | 'observer';
-  status: 'active' | 'paused' | 'disconnected' | 'completed';
-  startedAt: Date;
-  lastActivity: Date;
-  scoreCount: number;
-  averageScoreTime: number;
-  conflictCount: number;
-  permissions: {
-    canScore: boolean;
-    canModifyResults: boolean;
-    canFinalizeResults: boolean;
-    canViewOtherScores: boolean;
-  };
-}
+// Re-export all types for backward compatibility
+export type {
+  JudgeSession,
+  CollaborativeScore,
+  ScoringConflict,
+  JudgeActivity,
+  CollaborationMetrics,
+  CollaborativeJudgingConfig,
+} from './collaborative-judging-types';
 
-export interface CollaborativeScore {
-  id: string;
-  entryId: string;
-  dogId: string;
-  armband: string;
-  sessionId: string;
-  judgeId: string;
-  judgeName: string;
-  scoreData: {
-    points: number;
-    time: number;
-    faults: number;
-    notes?: string | undefined;
-  };
-  isTemporary: boolean;
-  isPreliminary: boolean;
-  submittedAt: Date;
-  lastModified: Date;
-  version: number;
-  conflictStatus?: 'none' | 'detected' | 'resolved' | undefined;
-  otherJudgeScores?: Array<{
-    judgeId: string;
-    judgeName: string;
-    score: number;
-    difference: number;
-  }> | undefined;
-}
+import type {
+  JudgeSession,
+  CollaborativeScore,
+  ScoringConflict,
+  JudgeActivity,
+  CollaborationMetrics,
+  CollaborativeJudgingConfig,
+} from './collaborative-judging-types';
 
-export interface ScoringConflict {
-  id: string;
-  entryId: string;
-  dogId: string;
-  armband: string;
-  classId: string;
-  conflictType: 'score-difference' | 'timing-conflict' | 'simultaneous-update' | 'eligibility-dispute';
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  judges: Array<{
-    judgeId: string;
-    judgeName: string;
-    score: CollaborativeScore;
-    position: string; // position/opinion on the conflict
-  }>;
-  primaryJudge?: string | undefined; // Who has final say
-  detectedAt: Date;
-  resolvedAt?: Date | undefined;
-  resolvedBy?: string | undefined;
-  resolution?: {
-    method: 'primary-judge-decision' | 'consensus' | 'average' | 'manual-override';
-    finalScore: CollaborativeScore;
-    notes: string;
-  } | undefined;
-  status: 'open' | 'under-review' | 'resolved' | 'escalated';
-  discussionNotes: Array<{
-    judgeId: string;
-    judgeName: string;
-    note: string;
-    timestamp: Date;
-  }>;
-  [key: string]: unknown; // Index signature for broadcast compatibility
-}
-
-export interface JudgeActivity {
-  judgeId: string;
-  activity: 'scoring' | 'reviewing' | 'discussing' | 'idle';
-  currentEntry?: string | undefined;
-  targetEntry?: string | undefined; // Entry they're about to score
-  activityStarted: Date;
-  lastUpdate: Date;
-  typing?: boolean | undefined;
-  focusedElement?: string | undefined;
-  [key: string]: unknown; // Index signature for broadcast compatibility
-}
-
-export interface CollaborationMetrics {
-  showId: string;
-  classId: string;
-  activeSessions: number;
-  totalScores: number;
-  consensusRate: number; // Percentage of scores with no conflicts
-  averageScoreDiscrepancy: number;
-  conflictsDetected: number;
-  conflictsResolved: number;
-  averageResolutionTime: number; // minutes
-  judgeProductivity: Map<string, {
-    judgeId: string;
-    scoresSubmitted: number;
-    averageScoreTime: number;
-    conflictRate: number;
-  }>;
-  lastUpdated: Date;
-}
+import {
+  mapToJudgeSession,
+  mapToCollaborativeScore,
+  mapPresenceToJudgeActivity,
+  getSeverityLevel,
+  determinePrimaryJudge,
+  computeOtherJudgeScores,
+  detectScoreDiscrepancies,
+  initializeMetrics,
+} from './collaborative-judging-utils';
 
 /**
  * Service for managing multi-judge collaborative scoring
@@ -151,13 +67,13 @@ export class CollaborativeJudging {
   private activityListeners = new Set<(activity: JudgeActivity) => void>();
 
   // Configuration
-  private config = {
-    scoreDiscrepancyThreshold: 5.0, // Points difference to trigger conflict
-    simultaneousScoreTimeoutMs: 30000, // 30 seconds
+  private config: CollaborativeJudgingConfig = {
+    scoreDiscrepancyThreshold: 5.0,
+    simultaneousScoreTimeoutMs: 30000,
     autoResolveConflicts: false,
     enableRealTimeDiscussion: true,
-    scoringSessionTimeoutMs: 5 * 60 * 1000, // 5 minutes
-    maxConflictDiscussionLength: 10, // Maximum discussion entries
+    scoringSessionTimeoutMs: 5 * 60 * 1000,
+    maxConflictDiscussionLength: 10,
   };
 
   // Timers and intervals
@@ -168,7 +84,7 @@ export class CollaborativeJudging {
     this.showId = showId;
     this.classId = classId;
     this.channelName = `collaborative-judging-${showId}-${classId}`;
-    this.metrics = this.initializeMetrics();
+    this.metrics = initializeMetrics(showId, classId);
   }
 
   /**
@@ -183,7 +99,6 @@ export class CollaborativeJudging {
     try {
       logger.debug('Starting collaborative judging', 'judging', { classId: this.classId });
 
-      // Subscribe to scoring sessions
       const sessionsSubscriptionId = await subscriptionManager.subscribe(
         `judging-sessions-${this.classId}`,
         {
@@ -196,10 +111,8 @@ export class CollaborativeJudging {
         },
         this.handleSessionUpdate.bind(this)
       );
-
       this.subscriptions.set('sessions', sessionsSubscriptionId);
 
-      // Subscribe to collaborative scores
       const scoresSubscriptionId = await subscriptionManager.subscribe(
         `collaborative-scores-${this.classId}`,
         {
@@ -207,26 +120,20 @@ export class CollaborativeJudging {
           filter: `class_id=eq.${this.classId}`,
           events: ['INSERT', 'UPDATE'],
           priority: 'critical',
-          batchUpdates: false, // Real-time for scoring
+          batchUpdates: false,
           enableBroadcast: true,
         },
         this.handleScoreUpdate.bind(this)
       );
-
       this.subscriptions.set('scores', scoresSubscriptionId);
 
-      // Subscribe to presence for judge activity
       const presenceSubscriptionId = await subscriptionManager.subscribeToPresence(
         this.channelName,
         this.handlePresenceChange.bind(this)
       );
-
       this.subscriptions.set('presence', presenceSubscriptionId);
 
-      // Start activity monitoring
       this.startActivityMonitoring();
-
-      // Start session cleanup
       this.startSessionCleanup();
 
       this.isActive = true;
@@ -249,15 +156,12 @@ export class CollaborativeJudging {
     try {
       logger.debug('Stopping collaborative judging', 'judging');
 
-      // Resolve any open conflicts
       await this.resolveOpenConflicts();
 
-      // Unsubscribe from all updates
       for (const [, subscriptionId] of this.subscriptions) {
         await subscriptionManager.unsubscribe(subscriptionId);
       }
 
-      // Clear timers
       if (this.activityTimer) {
         clearTimeout(this.activityTimer);
       }
@@ -265,7 +169,6 @@ export class CollaborativeJudging {
         clearTimeout(this.sessionCleanupTimer);
       }
 
-      // Clear data
       this.judgeSessions.clear();
       this.collaborativeScores.clear();
       this.activeConflicts.clear();
@@ -296,33 +199,10 @@ export class CollaborativeJudging {
       const sessionData = event.payload?.new || event.data;
       if (!sessionData) return;
 
-      const data = sessionData as Record<string, unknown>;
-      const session: JudgeSession = {
-        sessionId: data.session_id as string,
-        judgeId: data.judge_id as string,
-        judgeName: (data.judge_name as string) || 'Unknown Judge',
-        classId: data.class_id as string,
-        className: (data.class_name as string) || 'Unknown Class',
-        showId: data.show_id as string,
-        role: (data.role as JudgeSession['role']) || 'primary',
-        status: (data.status as JudgeSession['status']) || 'active',
-        startedAt: new Date(data.started_at as string),
-        lastActivity: new Date((data.last_activity as string) || (data.updated_at as string)),
-        scoreCount: (data.score_count as number) || 0,
-        averageScoreTime: (data.average_score_time as number) || 0,
-        conflictCount: (data.conflict_count as number) || 0,
-        permissions: {
-          canScore: (data.can_score as boolean) !== false,
-          canModifyResults: (data.can_modify_results as boolean) || false,
-          canFinalizeResults: (data.can_finalize_results as boolean) || false,
-          canViewOtherScores: (data.can_view_other_scores as boolean) !== false,
-        },
-      };
+      const session = mapToJudgeSession(sessionData as Record<string, unknown>);
 
-      // Store session
       this.judgeSessions.set(session.judgeId, session);
 
-      // Trigger listeners
       this.sessionListeners.forEach(listener => {
         try {
           listener(session);
@@ -331,7 +211,6 @@ export class CollaborativeJudging {
         }
       });
 
-      // Update metrics
       this.updateSessionMetrics();
 
       logger.debug('Judge session updated', 'judging', { judgeName: session.judgeName, status: session.status });
@@ -357,46 +236,28 @@ export class CollaborativeJudging {
       const scoreData = event.payload?.new || event.data;
       if (!scoreData) return;
 
-      const data = scoreData as Record<string, unknown>;
-      const score: CollaborativeScore = {
-        id: data.id as string,
-        entryId: data.entry_id as string,
-        dogId: data.dog_id as string,
-        armband: (data.armband as string) || '',
-        sessionId: data.session_id as string,
-        judgeId: data.judge_id as string,
-        judgeName: (data.judge_name as string) || 'Unknown Judge',
-        scoreData: {
-          points: (data.points as number) || 0,
-          time: (data.time as number) || 0,
-          faults: (data.faults as number) || 0,
-          notes: data.notes as string,
-        },
-        isTemporary: (data.is_temporary as boolean) || false,
-        isPreliminary: (data.is_preliminary as boolean) !== false,
-        submittedAt: new Date((data.submitted_at as string) || (data.created_at as string)),
-        lastModified: new Date(data.updated_at as string),
-        version: (data.version as number) || 1,
-        conflictStatus: (data.conflict_status as CollaborativeScore['conflictStatus']) || 'none',
-      };
+      const score = mapToCollaborativeScore(scoreData as Record<string, unknown>);
 
       // Store score
       const entryScores = this.collaborativeScores.get(score.entryId) || [];
       const existingIndex = entryScores.findIndex(s => s.judgeId === score.judgeId);
-      
+
       if (existingIndex >= 0) {
         entryScores[existingIndex] = score;
       } else {
         entryScores.push(score);
       }
-      
+
       this.collaborativeScores.set(score.entryId, entryScores);
 
       // Check for conflicts
       this.detectScoringConflicts(score.entryId);
 
       // Add comparison data
-      score.otherJudgeScores = this.getOtherJudgeScores(score);
+      score.otherJudgeScores = computeOtherJudgeScores(
+        score,
+        this.collaborativeScores.get(score.entryId) || []
+      );
 
       // Trigger listeners
       this.scoreListeners.forEach(listener => {
@@ -407,7 +268,6 @@ export class CollaborativeJudging {
         }
       });
 
-      // Update metrics
       this.updateScoreMetrics();
 
       logger.debug('Collaborative score', 'judging', { armband: score.armband, judgeName: score.judgeName, points: score.scoreData.points });
@@ -426,13 +286,7 @@ export class CollaborativeJudging {
     try {
       presences.forEach(presence => {
         if (presence.role === 'judge') {
-          const activity: JudgeActivity = {
-            judgeId: presence.user_id,
-            activity: 'idle',
-            activityStarted: new Date(),
-            lastUpdate: new Date(presence.last_seen),
-          };
-
+          const activity = mapPresenceToJudgeActivity(presence);
           this.judgeActivities.set(presence.user_id, activity);
         }
       });
@@ -454,27 +308,12 @@ export class CollaborativeJudging {
       const entryScores = this.collaborativeScores.get(entryId) || [];
       if (entryScores.length < 2) return;
 
-      // Calculate score differences
-      const scoreComparisons: Array<{
-        judge1: CollaborativeScore;
-        judge2: CollaborativeScore;
-        difference: number;
-      }> = [];
+      const discrepancies = detectScoreDiscrepancies(
+        entryScores,
+        this.config.scoreDiscrepancyThreshold
+      );
 
-      for (let i = 0; i < entryScores.length; i++) {
-        for (let j = i + 1; j < entryScores.length; j++) {
-          const score1 = entryScores[i];
-          const score2 = entryScores[j];
-          const difference = Math.abs(score1.scoreData.points - score2.scoreData.points);
-
-          if (difference > this.config.scoreDiscrepancyThreshold) {
-            scoreComparisons.push({ judge1: score1, judge2: score2, difference });
-          }
-        }
-      }
-
-      // Create conflicts for significant differences
-      scoreComparisons.forEach(comparison => {
+      discrepancies.forEach(comparison => {
         this.createScoringConflict(entryId, comparison);
       });
 
@@ -494,7 +333,7 @@ export class CollaborativeJudging {
   ): void {
     try {
       const conflictId = `conflict-${entryId}-${Date.now()}`;
-      
+
       const conflict: ScoringConflict = {
         id: conflictId,
         entryId,
@@ -502,7 +341,7 @@ export class CollaborativeJudging {
         armband: comparison.judge1.armband,
         classId: this.classId,
         conflictType: 'score-difference',
-        severity: this.getSeverityLevel(comparison.difference),
+        severity: getSeverityLevel(comparison.difference),
         judges: [
           {
             judgeId: comparison.judge1.judgeId,
@@ -517,7 +356,7 @@ export class CollaborativeJudging {
             position: `Score: ${comparison.judge2.scoreData.points}`,
           },
         ],
-        primaryJudge: this.determinePrimaryJudge(),
+        primaryJudge: determinePrimaryJudge(this.judgeSessions),
         detectedAt: new Date(),
         status: 'open',
         discussionNotes: [],
@@ -525,10 +364,8 @@ export class CollaborativeJudging {
 
       this.activeConflicts.set(conflictId, conflict);
 
-      // Broadcast conflict
       this.broadcastConflict(conflict);
 
-      // Trigger listeners
       this.conflictListeners.forEach(listener => {
         try {
           listener(conflict);
@@ -537,7 +374,6 @@ export class CollaborativeJudging {
         }
       });
 
-      // Update metrics
       this.metrics.conflictsDetected++;
 
       logger.warn('Scoring conflict detected', 'judging', { armband: conflict.armband, pointDifference: comparison.difference });
@@ -568,10 +404,8 @@ export class CollaborativeJudging {
       conflict.resolution = resolution;
       conflict.status = 'resolved';
 
-      // Broadcast resolution
       await this.broadcastConflictResolution(conflict);
 
-      // Update metrics
       this.metrics.conflictsResolved++;
       const resolutionTime = (conflict.resolvedAt.getTime() - conflict.detectedAt.getTime()) / (1000 * 60);
       this.metrics.averageResolutionTime =
@@ -615,12 +449,10 @@ export class CollaborativeJudging {
 
       conflict.discussionNotes.push(discussionNote);
 
-      // Limit discussion length
       if (conflict.discussionNotes.length > this.config.maxConflictDiscussionLength) {
         conflict.discussionNotes.shift();
       }
 
-      // Broadcast discussion update
       await this.broadcastConflictDiscussion(conflictId, discussionNote);
 
       logger.debug('Conflict discussion added', 'judging', { conflictId, judgeName: judge.judgeName });
@@ -648,13 +480,13 @@ export class CollaborativeJudging {
   ): Promise<void> {
     try {
       const existingActivity = this.judgeActivities.get(judgeId);
-      
+
       const judgeActivity: JudgeActivity = {
         judgeId,
         activity,
         currentEntry: metadata?.currentEntry,
         targetEntry: metadata?.targetEntry,
-        activityStarted: existingActivity?.activity === activity ? 
+        activityStarted: existingActivity?.activity === activity ?
           existingActivity.activityStarted : new Date(),
         lastUpdate: new Date(),
         typing: metadata?.typing,
@@ -663,10 +495,8 @@ export class CollaborativeJudging {
 
       this.judgeActivities.set(judgeId, judgeActivity);
 
-      // Broadcast activity update
       await this.broadcastJudgeActivity(judgeActivity);
 
-      // Trigger listeners
       this.activityListeners.forEach(listener => {
         try {
           listener(judgeActivity);
@@ -682,18 +512,14 @@ export class CollaborativeJudging {
     }
   }
 
-  /**
-   * Broadcasting methods
-   */
+  // --- Broadcasting methods ---
+
   private async broadcastConflict(conflict: ScoringConflict): Promise<void> {
     try {
       await subscriptionManager.broadcast(this.channelName, {
         type: 'scoring-conflict',
         payload: conflict,
-        metadata: {
-          priority: 'critical',
-          timestamp: Date.now(),
-        },
+        metadata: { priority: 'critical', timestamp: Date.now() },
       });
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -707,10 +533,7 @@ export class CollaborativeJudging {
       await subscriptionManager.broadcast(this.channelName, {
         type: 'conflict-resolved',
         payload: conflict,
-        metadata: {
-          priority: 'high',
-          timestamp: Date.now(),
-        },
+        metadata: { priority: 'high', timestamp: Date.now() },
       });
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -727,10 +550,7 @@ export class CollaborativeJudging {
       await subscriptionManager.broadcast(this.channelName, {
         type: 'conflict-discussion',
         payload: { conflictId, discussionNote },
-        metadata: {
-          priority: 'medium',
-          timestamp: Date.now(),
-        },
+        metadata: { priority: 'medium', timestamp: Date.now() },
       });
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -744,10 +564,7 @@ export class CollaborativeJudging {
       await subscriptionManager.broadcast(this.channelName, {
         type: 'judge-activity',
         payload: activity,
-        metadata: {
-          priority: 'low',
-          timestamp: Date.now(),
-        },
+        metadata: { priority: 'low', timestamp: Date.now() },
       });
     } catch (error) {
       errorMonitor.captureError(error as Error, {
@@ -756,9 +573,8 @@ export class CollaborativeJudging {
     }
   }
 
-  /**
-   * Event listener management
-   */
+  // --- Event listener management ---
+
   onSessionUpdate(listener: (session: JudgeSession) => void): () => void {
     this.sessionListeners.add(listener);
     return () => this.sessionListeners.delete(listener);
@@ -779,9 +595,8 @@ export class CollaborativeJudging {
     return () => this.activityListeners.delete(listener);
   }
 
-  /**
-   * Data access methods
-   */
+  // --- Data access methods ---
+
   getJudgeSessions(): JudgeSession[] {
     return Array.from(this.judgeSessions.values());
   }
@@ -803,35 +618,7 @@ export class CollaborativeJudging {
     return { ...this.metrics };
   }
 
-  /**
-   * Utility methods
-   */
-  private getOtherJudgeScores(score: CollaborativeScore): CollaborativeScore['otherJudgeScores'] {
-    const entryScores = this.collaborativeScores.get(score.entryId) || [];
-    return entryScores
-      .filter(s => s.judgeId !== score.judgeId)
-      .map(s => ({
-        judgeId: s.judgeId,
-        judgeName: s.judgeName,
-        score: s.scoreData.points,
-        difference: Math.abs(s.scoreData.points - score.scoreData.points),
-      }));
-  }
-
-  private getSeverityLevel(difference: number): ScoringConflict['severity'] {
-    if (difference >= 15) return 'critical';
-    if (difference >= 10) return 'high';
-    if (difference >= 7) return 'medium';
-    return 'low';
-  }
-
-  private determinePrimaryJudge(): string {
-    // Find the primary judge (highest role)
-    const primaryJudge = Array.from(this.judgeSessions.values())
-      .find(session => session.role === 'primary');
-    
-    return primaryJudge?.judgeId || Array.from(this.judgeSessions.keys())[0] || '';
-  }
+  // --- Internal utility methods ---
 
   private async resolveOpenConflicts(): Promise<void> {
     const openConflicts = Array.from(this.activeConflicts.values())
@@ -840,7 +627,7 @@ export class CollaborativeJudging {
     for (const conflict of openConflicts) {
       if (this.config.autoResolveConflicts && conflict.primaryJudge) {
         const primaryScore = conflict.judges.find(j => j.judgeId === conflict.primaryJudge)?.score;
-        
+
         if (primaryScore) {
           await this.resolveConflict(conflict.id, {
             method: 'primary-judge-decision',
@@ -855,22 +642,22 @@ export class CollaborativeJudging {
   private startActivityMonitoring(): void {
     this.activityTimer = setInterval(() => {
       this.updateActivityStatus();
-    }, 5000); // Update every 5 seconds
+    }, 5000);
   }
 
   private startSessionCleanup(): void {
     this.sessionCleanupTimer = setInterval(() => {
       this.cleanupInactiveSessions();
-    }, 60000); // Clean up every minute
+    }, 60000);
   }
 
   private updateActivityStatus(): void {
     const now = new Date();
-    
+
     this.judgeActivities.forEach(activity => {
       const timeSinceUpdate = now.getTime() - activity.lastUpdate.getTime();
-      
-      if (timeSinceUpdate > 30000) { // 30 seconds
+
+      if (timeSinceUpdate > 30000) {
         activity.activity = 'idle';
         activity.typing = false;
       }
@@ -879,7 +666,7 @@ export class CollaborativeJudging {
 
   private cleanupInactiveSessions(): void {
     const cutoff = new Date(Date.now() - this.config.scoringSessionTimeoutMs);
-    
+
     this.judgeSessions.forEach((session) => {
       if (session.lastActivity < cutoff && session.status === 'active') {
         session.status = 'disconnected';
@@ -898,22 +685,6 @@ export class CollaborativeJudging {
     this.metrics.lastUpdated = new Date();
   }
 
-  private initializeMetrics(): CollaborationMetrics {
-    return {
-      showId: this.showId,
-      classId: this.classId,
-      activeSessions: 0,
-      totalScores: 0,
-      consensusRate: 100,
-      averageScoreDiscrepancy: 0,
-      conflictsDetected: 0,
-      conflictsResolved: 0,
-      averageResolutionTime: 0,
-      judgeProductivity: new Map(),
-      lastUpdated: new Date(),
-    };
-  }
-
   /**
    * Check if service is active
    */
@@ -924,7 +695,7 @@ export class CollaborativeJudging {
   /**
    * Update configuration
    */
-  updateConfig(updates: Partial<typeof this.config>): void {
+  updateConfig(updates: Partial<CollaborativeJudgingConfig>): void {
     this.config = { ...this.config, ...updates };
   }
 }

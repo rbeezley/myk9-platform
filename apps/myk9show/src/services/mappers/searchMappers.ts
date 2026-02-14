@@ -43,22 +43,28 @@ export const searchHistoryMappers = {
       return null;
     };
 
-    return {
+    const result: SearchHistory = {
       id: dbSearchHistory.id as string,
       user_id: dbSearchHistory.user_id as string,
       search_term: dbSearchHistory.search_term as string,
       search_type: dbSearchHistory.search_type as string,
-      search_context: dbSearchHistory.search_context as string || undefined,
-      results_count: dbSearchHistory.results_count as number || undefined,
-      results_found: dbSearchHistory.results_found as boolean || undefined,
-      search_filters: parseJSON(dbSearchHistory.search_filters) || undefined,
-      search_sort: parseJSON(dbSearchHistory.search_sort) || undefined,
-      search_duration_ms: dbSearchHistory.search_duration_ms as number || undefined,
-      clicked_result_id: dbSearchHistory.clicked_result_id as string || undefined,
-      clicked_result_position: dbSearchHistory.clicked_result_position as number || undefined,
-      session_id: dbSearchHistory.session_id as string || undefined,
-      created_at: dbSearchHistory.created_at as string
+      created_at: dbSearchHistory.created_at as string,
     };
+
+    // Use conditional assignment to satisfy exactOptionalPropertyTypes
+    if (dbSearchHistory.search_context) result.search_context = dbSearchHistory.search_context as string;
+    if (dbSearchHistory.results_count) result.results_count = dbSearchHistory.results_count as number;
+    if (dbSearchHistory.results_found) result.results_found = dbSearchHistory.results_found as boolean;
+    const filters = parseJSON(dbSearchHistory.search_filters);
+    if (filters) result.search_filters = filters;
+    const sort = parseJSON(dbSearchHistory.search_sort);
+    if (sort) result.search_sort = sort;
+    if (dbSearchHistory.search_duration_ms) result.search_duration_ms = dbSearchHistory.search_duration_ms as number;
+    if (dbSearchHistory.clicked_result_id) result.clicked_result_id = dbSearchHistory.clicked_result_id as string;
+    if (dbSearchHistory.clicked_result_position) result.clicked_result_position = dbSearchHistory.clicked_result_position as number;
+    if (dbSearchHistory.session_id) result.session_id = dbSearchHistory.session_id as string;
+
+    return result;
   },
 
   // Map app search history to database format
@@ -128,18 +134,22 @@ export const searchHistoryMappers = {
     userId: string, 
     results: SearchResponse
   ): CreateSearchHistoryData {
-    return {
+    // Build object conditionally to satisfy exactOptionalPropertyTypes
+    const data: CreateSearchHistoryData = {
       user_id: userId,
       search_term: searchRequest.query,
       search_type: searchRequest.type,
-      search_context: searchRequest.context,
       results_count: results.total_count,
       results_found: results.total_count > 0,
-      search_filters: searchRequest.filters,
-      search_sort: searchRequest.sort,
       search_duration_ms: results.search_time_ms,
-      session_id: searchRequest.session_id
     };
+
+    if (searchRequest.context) data.search_context = searchRequest.context;
+    if (searchRequest.filters) data.search_filters = searchRequest.filters;
+    if (searchRequest.sort) data.search_sort = searchRequest.sort;
+    if (searchRequest.session_id) data.session_id = searchRequest.session_id;
+
+    return data;
   }
 };
 
@@ -147,23 +157,27 @@ export const searchHistoryMappers = {
 export const searchAnalyticsMappers = {
   // Map database search analytics to app format
   fromDatabase(dbSearchAnalytics: Record<string, unknown>): SearchAnalytics {
-    return {
+    // Build object conditionally to satisfy exactOptionalPropertyTypes
+    const result: SearchAnalytics = {
       id: dbSearchAnalytics.id as string,
       search_term: dbSearchAnalytics.search_term as string,
       search_type: dbSearchAnalytics.search_type as string,
-      frequency: dbSearchAnalytics.frequency as number || undefined,
-      success_rate: dbSearchAnalytics.success_rate as number || undefined,
-      avg_results_count: dbSearchAnalytics.avg_results_count as number || undefined,
-      avg_click_position: dbSearchAnalytics.avg_click_position as number || undefined,
-      avg_search_duration_ms: dbSearchAnalytics.avg_search_duration_ms as number || undefined,
-      total_searches: dbSearchAnalytics.total_searches as number || undefined,
-      successful_searches: dbSearchAnalytics.successful_searches as number || undefined,
-      first_searched_at: dbSearchAnalytics.first_searched_at as string || undefined,
-      last_searched_at: dbSearchAnalytics.last_searched_at as string || undefined,
-      last_aggregated_at: dbSearchAnalytics.last_aggregated_at as string || undefined,
       created_at: dbSearchAnalytics.created_at as string,
-      updated_at: dbSearchAnalytics.updated_at as string
+      updated_at: dbSearchAnalytics.updated_at as string,
     };
+
+    if (dbSearchAnalytics.frequency) result.frequency = dbSearchAnalytics.frequency as number;
+    if (dbSearchAnalytics.success_rate) result.success_rate = dbSearchAnalytics.success_rate as number;
+    if (dbSearchAnalytics.avg_results_count) result.avg_results_count = dbSearchAnalytics.avg_results_count as number;
+    if (dbSearchAnalytics.avg_click_position) result.avg_click_position = dbSearchAnalytics.avg_click_position as number;
+    if (dbSearchAnalytics.avg_search_duration_ms) result.avg_search_duration_ms = dbSearchAnalytics.avg_search_duration_ms as number;
+    if (dbSearchAnalytics.total_searches) result.total_searches = dbSearchAnalytics.total_searches as number;
+    if (dbSearchAnalytics.successful_searches) result.successful_searches = dbSearchAnalytics.successful_searches as number;
+    if (dbSearchAnalytics.first_searched_at) result.first_searched_at = dbSearchAnalytics.first_searched_at as string;
+    if (dbSearchAnalytics.last_searched_at) result.last_searched_at = dbSearchAnalytics.last_searched_at as string;
+    if (dbSearchAnalytics.last_aggregated_at) result.last_aggregated_at = dbSearchAnalytics.last_aggregated_at as string;
+
+    return result;
   },
 
   // Map app search analytics to database format
@@ -496,13 +510,17 @@ export const analyticsMappers = {
     successRate: number,
     context?: string
   ): SearchSuggestion {
-    return {
+    // Build conditionally to satisfy exactOptionalPropertyTypes
+    const suggestion: SearchSuggestion = {
       suggestion: term,
       type,
       frequency,
       success_rate: successRate,
-      context
     };
+
+    if (context) suggestion.context = context;
+
+    return suggestion;
   },
 
   // Transform popular search

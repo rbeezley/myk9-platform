@@ -8,6 +8,7 @@
 import { useState, useCallback } from 'react';
 import { Clock, Zap, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import '@/styles/apple-show-details.css';
 
 // UI Components
@@ -43,10 +44,12 @@ export function AgilityScoresheet({
   validationErrors,
   className
 }: AgilityScoresheetProps) {
+  const { user } = useAuthContext();
+
   const [score, setScore] = useState<Partial<AgilityScore>>({
     entryId: entry.id,
     classId: entry.classId || 'agility-class',
-    judgeId: 'current-judge',
+    judgeId: user?.id || 'unknown',
     format: 'agility',
     courseTime: 0,
     jumpFaults: 0,
@@ -55,7 +58,7 @@ export function AgilityScoresheet({
     totalFaults: 0,
     qualification: 'Qualified',
     excusedEliminated: false,
-    recordedBy: 'current-judge',
+    recordedBy: user?.id || 'unknown',
     recordedAt: new Date(),
     timestamp: new Date(),
     version: 1,

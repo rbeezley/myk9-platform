@@ -8,6 +8,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { Navigation, Clock, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuthContext } from '@/hooks/useAuthContext';
 
 // UI Components
 import { Button } from '@/components/ui/button';
@@ -41,10 +42,12 @@ export function RallyScoresheet({
   validationErrors,
   className
 }: RallyScoresheetProps) {
+  const { user } = useAuthContext();
+
   const [score, setScore] = useState<Partial<RallyScore>>({
     entryId: entry.id,
     classId: entry.classId || 'rally-class',
-    judgeId: 'current-judge',
+    judgeId: user?.id || 'unknown',
     format: 'rally',
     courseTime: 0,
     maxCourseTime: 300000, // 5 minutes default
@@ -57,7 +60,7 @@ export function RallyScoresheet({
     isQualifying: true,
     timeFault: false,
     qualification: 'Qualified',
-    recordedBy: 'current-judge',
+    recordedBy: user?.id || 'unknown',
     recordedAt: new Date(),
     timestamp: new Date(),
     version: 1,

@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { logger } from '@/services/LoggingService';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import {
   GitBranch, 
   Clock, 
@@ -76,6 +77,7 @@ interface RoleApprovalWorkflowProps {
 export const RoleApprovalWorkflow: React.FC<RoleApprovalWorkflowProps> = ({
   onRequestUpdate
 }) => {
+  const { user } = useAuthContext();
   const [approvalRequests, setApprovalRequests] = useState<ApprovalRequest[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<ApprovalRequest | null>(null);
   const [actionComment, setActionComment] = useState('');
@@ -210,14 +212,14 @@ export const RoleApprovalWorkflow: React.FC<RoleApprovalWorkflowProps> = ({
           ? {
               ...req,
               status: approved ? 'approved' : 'rejected',
-              [approved ? 'approvedBy' : 'rejectedBy']: 'current-user',
+              [approved ? 'approvedBy' : 'rejectedBy']: user?.id || 'unknown',
               [approved ? 'approvedAt' : 'rejectedAt']: new Date().toISOString(),
               comments: [
                 ...req.comments,
                 {
                   id: `comment-${Date.now()}`,
-                  userId: 'current-user',
-                  userEmail: 'current@user.com',
+                  userId: user?.id || 'unknown',
+                  userEmail: user?.email || 'unknown',
                   comment: actionComment || (approved ? 'Approved' : 'Rejected'),
                   createdAt: new Date().toISOString(),
                   type: approved ? 'approval' : 'rejection'
@@ -260,8 +262,8 @@ export const RoleApprovalWorkflow: React.FC<RoleApprovalWorkflowProps> = ({
                 ...req.comments,
                 {
                   id: `comment-${Date.now()}`,
-                  userId: 'current-user',
-                  userEmail: 'current@user.com',
+                  userId: user?.id || 'unknown',
+                  userEmail: user?.email || 'unknown',
                   comment: actionComment || 'Request escalated for additional review',
                   createdAt: new Date().toISOString(),
                   type: 'escalation'

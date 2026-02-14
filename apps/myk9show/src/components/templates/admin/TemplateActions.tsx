@@ -18,8 +18,10 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Download, Upload, MoreHorizontal, RefreshCw } from 'lucide-react';
 import { TemplateImportExport, ClassTemplate } from '@/types/template.types';
+import { useAuthContext } from '@/hooks/useAuthContext';
 
 export const TemplateActions: React.FC = () => {
+  const { user } = useAuthContext();
   const { templates, importTemplate, initializeDefaultTemplates } = useTemplateStore();
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
@@ -29,7 +31,7 @@ export const TemplateActions: React.FC = () => {
     const exportData = {
       templates: templates.filter(t => !t.isOfficial), // Only export custom templates
       exportedAt: new Date(),
-      exportedBy: 'current-user',
+      exportedBy: user?.id || 'unknown',
       version: '1.0'
     };
 

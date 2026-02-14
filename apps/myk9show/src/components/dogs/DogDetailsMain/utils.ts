@@ -6,9 +6,6 @@ export const CELEBRATION_FADE_DELAY_MS = 1000;
 export const MAX_FILE_SIZE_MB = 5;
 export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
-// TEMP: Mock user object for demo/testing premium gating
-export const user = { isPremium: true };
-
 /**
  * Formats a date string from storage format (YYYY-MM-DD) to display format (M/D/YYYY)
  */

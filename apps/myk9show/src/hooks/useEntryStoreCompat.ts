@@ -2,6 +2,7 @@
 // Entry Store Integration - React Query Implementation
 
 import { useMemo } from 'react';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import type { ShowEntry, ShowEntryInput, RegistrationData, CompetitionData, EntryStatus, SyncableShowEntry } from '@/store/entryStore';
 import {
   useEntriesQuery,
@@ -29,6 +30,7 @@ import {
  * This allows existing components to work unchanged while using the database
  */
 export const useEntryStoreCompat = () => {
+  const { user } = useAuthContext();
   const entriesQuery = useEntriesQuery();
   const createMutation = useCreateEntryMutation();
   const updateMutation = useUpdateEntryMutation();
@@ -96,7 +98,7 @@ export const useEntryStoreCompat = () => {
       ...entry,
       _version: 1,
       _lastModified: new Date(),
-      _lastModifiedBy: 'current-user',
+      _lastModifiedBy: user?.id || 'unknown',
       _syncStatus: 'synced',
       _localOnly: false,
     };
@@ -113,7 +115,7 @@ export const useEntryStoreCompat = () => {
       ...entry,
       _version: 1,
       _lastModified: new Date(),
-      _lastModifiedBy: 'current-user',
+      _lastModifiedBy: user?.id || 'unknown',
       _syncStatus: 'synced',
       _localOnly: false,
     };
@@ -134,7 +136,7 @@ export const useEntryStoreCompat = () => {
       ...entry,
       _version: 1,
       _lastModified: new Date(),
-      _lastModifiedBy: 'current-user',
+      _lastModifiedBy: user?.id || 'unknown',
       _syncStatus: 'synced',
       _localOnly: false,
     };
@@ -198,7 +200,7 @@ export const useEntryStoreCompat = () => {
       ...entry,
       _version: 1,
       _lastModified: new Date(),
-      _lastModifiedBy: updates.recordedBy || 'current-user',
+      _lastModifiedBy: updates.recordedBy || user?.id || 'unknown',
       _syncStatus: 'synced',
       _localOnly: false,
     };
@@ -214,7 +216,7 @@ export const useEntryStoreCompat = () => {
         ...entry,
         _version: 1,
         _lastModified: new Date(),
-        _lastModifiedBy: 'current-user',
+        _lastModifiedBy: user?.id || 'unknown',
         _syncStatus: 'synced',
         _localOnly: false,
       };

@@ -28,6 +28,7 @@ import {
 } from '@/types/sync-types';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { useAuthContext } from '@/hooks/useAuthContext';
 
 // Local types that match ConflictResolutionDialog expectations
 type LocalResolutionStrategy = 'local' | 'remote' | 'merge' | 'custom';
@@ -116,6 +117,7 @@ export const ConflictResolutionManager: React.FC<ConflictResolutionManagerProps>
   onRefreshConflicts,
   className,
 }) => {
+  const { user } = useAuthContext();
   const [selectedConflict, setSelectedConflict] = useState<Conflict | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [filterPriority, setFilterPriority] = useState<string>('all');
@@ -610,7 +612,7 @@ export const ConflictResolutionManager: React.FC<ConflictResolutionManagerProps>
               conflictId: selectedConflict.id,
               strategy: strategy as ResolutionStrategy,
               resolvedEntity: mergedData || selectedConflict.localData,
-              resolvedBy: 'current-user',
+              resolvedBy: user?.id || 'unknown',
               resolvedAt: new Date(),
               automatic: false,
               resolutionNotes: `Legacy resolution: ${strategy}`,

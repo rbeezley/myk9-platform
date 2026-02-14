@@ -7,7 +7,7 @@ import RegistrationsSection from '@/components/dogs/DogDetails/Registrations/Reg
 import { PremiumGate } from '@/components/common/PremiumGate';
 import { mockPedigreeData } from '@/data/mockPedigreeData';
 import { TabContentSkeleton } from './Skeletons';
-import { user } from './utils';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import type { DogDetailsTabsProps } from './types';
 
 // Lazy load heavy components
@@ -23,8 +23,13 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
   ancestors,
   onSetAncestors,
 }) => {
+  const { user } = useAuthContext();
+  // Premium gating: currently all authenticated users have access.
+  // Replace with subscription check when premium tier is implemented.
+  const isPremium = !!user;
+
   const handlePremiumTabClick = (e: React.MouseEvent) => {
-    if (!user.isPremium) {
+    if (!isPremium) {
       e.preventDefault();
       logger.debug('Premium feature clicked', 'dogs');
     }
@@ -43,8 +48,8 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
               <TooltipTrigger asChild>
                 <TabsTrigger
                   value="competitions"
-                  disabled={!user.isPremium}
-                  onClick={!user.isPremium ? handlePremiumTabClick : undefined}
+                  disabled={!isPremium}
+                  onClick={!isPremium ? handlePremiumTabClick : undefined}
                 >
                   <Crown className="w-4 h-4" />
                   Competitions
@@ -58,8 +63,8 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
               <TooltipTrigger asChild>
                 <TabsTrigger
                   value="title-progress"
-                  disabled={!user.isPremium}
-                  onClick={!user.isPremium ? handlePremiumTabClick : undefined}
+                  disabled={!isPremium}
+                  onClick={!isPremium ? handlePremiumTabClick : undefined}
                 >
                   <Crown className="w-4 h-4" />
                   Title Progress
@@ -73,8 +78,8 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
               <TooltipTrigger asChild>
                 <TabsTrigger
                   value="health-records"
-                  disabled={!user.isPremium}
-                  onClick={!user.isPremium ? handlePremiumTabClick : undefined}
+                  disabled={!isPremium}
+                  onClick={!isPremium ? handlePremiumTabClick : undefined}
                 >
                   <Crown className="w-4 h-4" />
                   Health Records
@@ -88,8 +93,8 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
               <TooltipTrigger asChild>
                 <TabsTrigger
                   value="training-journal"
-                  disabled={!user.isPremium}
-                  onClick={!user.isPremium ? handlePremiumTabClick : undefined}
+                  disabled={!isPremium}
+                  onClick={!isPremium ? handlePremiumTabClick : undefined}
                 >
                   <Crown className="w-4 h-4" />
                   Training Journal
@@ -103,8 +108,8 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
               <TooltipTrigger asChild>
                 <TabsTrigger
                   value="pedigree"
-                  disabled={!user.isPremium}
-                  onClick={!user.isPremium ? handlePremiumTabClick : undefined}
+                  disabled={!isPremium}
+                  onClick={!isPremium ? handlePremiumTabClick : undefined}
                 >
                   <Crown className="w-4 h-4" />
                   Pedigree
@@ -122,7 +127,7 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
           </TabsContent>
 
           <TabsContent value="competitions" className="pt-6">
-            {user.isPremium ? (
+            {isPremium ? (
               <Suspense fallback={<TabContentSkeleton />}>
                 <CompetitionsTabs />
               </Suspense>
@@ -136,7 +141,7 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
           </TabsContent>
 
           <TabsContent value="title-progress" className="pt-6">
-            {user.isPremium ? (
+            {isPremium ? (
               <Suspense fallback={<TabContentSkeleton />}>
                 <TitleProgressSection initialTitleProgressList={[]} />
               </Suspense>
@@ -150,9 +155,9 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
           </TabsContent>
 
           <TabsContent value="health-records" className="pt-6">
-            {user.isPremium ? (
+            {isPremium ? (
               <Suspense fallback={<TabContentSkeleton />}>
-                <HealthRecordsSection user={user} />
+                <HealthRecordsSection user={{ isPremium }} />
               </Suspense>
             ) : (
               <PremiumGate
@@ -164,7 +169,7 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
           </TabsContent>
 
           <TabsContent value="training-journal" className="pt-6">
-            {user.isPremium ? (
+            {isPremium ? (
               <Suspense fallback={<TabContentSkeleton />}>
                 <TrainingSection />
               </Suspense>
@@ -178,7 +183,7 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
           </TabsContent>
 
           <TabsContent value="pedigree" className="pt-6">
-            {user.isPremium ? (
+            {isPremium ? (
               <Suspense fallback={<TabContentSkeleton />}>
                 <PedigreeSection
                   header={<h2 className="text-lg font-semibold flex items-center">Pedigree</h2>}

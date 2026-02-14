@@ -22,15 +22,15 @@ import '@/styles/apple-dog-details.css';
 import { logger } from '@/services/LoggingService';
 import { useAuthContext } from '@/hooks/useAuthContext';
 
-// TEMP: Mock user object for demo/testing premium gating
-const user = { isPremium: true };
-
 interface DogDetailsViewProps {
   dog: Dog;
 }
 
 const DogDetailsView: React.FC<DogDetailsViewProps> = ({ dog }) => {
   const { user: authUser } = useAuthContext();
+  // Premium gating: currently all authenticated users have access.
+  // Replace with subscription check when premium tier is implemented.
+  const isPremium = !!authUser;
   const [searchParams] = useSearchParams();
   const [autoOpenAddRegistration, setAutoOpenAddRegistration] = useState(false);
   const people = useUserStore(state => state.people);
@@ -126,7 +126,7 @@ const DogDetailsView: React.FC<DogDetailsViewProps> = ({ dog }) => {
   // for registrations in the RegistrationsSection component
 
   const handlePremiumTabClick = (e: React.MouseEvent) => {
-    if (!user.isPremium) {
+    if (!isPremium) {
       e.preventDefault();
       logger.debug('Premium feature clicked', 'dogs', {});
     }
@@ -156,8 +156,8 @@ const DogDetailsView: React.FC<DogDetailsViewProps> = ({ dog }) => {
                 <TooltipTrigger asChild>
                   <TabsTrigger
                     value="competitions"
-                    disabled={!user.isPremium}
-                    onClick={!user.isPremium ? handlePremiumTabClick : undefined}
+                    disabled={!isPremium}
+                    onClick={!isPremium ? handlePremiumTabClick : undefined}
                   >
                     <Crown className="h-4 w-4" />
                     Competitions
@@ -171,8 +171,8 @@ const DogDetailsView: React.FC<DogDetailsViewProps> = ({ dog }) => {
                 <TooltipTrigger asChild>
                   <TabsTrigger
                     value="title-progress"
-                    disabled={!user.isPremium}
-                    onClick={!user.isPremium ? handlePremiumTabClick : undefined}
+                    disabled={!isPremium}
+                    onClick={!isPremium ? handlePremiumTabClick : undefined}
                   >
                     <Crown className="h-4 w-4" />
                     Title Progress
@@ -186,8 +186,8 @@ const DogDetailsView: React.FC<DogDetailsViewProps> = ({ dog }) => {
                 <TooltipTrigger asChild>
                   <TabsTrigger
                     value="health-records"
-                    disabled={!user.isPremium}
-                    onClick={!user.isPremium ? handlePremiumTabClick : undefined}
+                    disabled={!isPremium}
+                    onClick={!isPremium ? handlePremiumTabClick : undefined}
                   >
                     <Crown className="h-4 w-4" />
                     Health Records
@@ -201,8 +201,8 @@ const DogDetailsView: React.FC<DogDetailsViewProps> = ({ dog }) => {
                 <TooltipTrigger asChild>
                   <TabsTrigger
                     value="training-journal"
-                    disabled={!user.isPremium}
-                    onClick={!user.isPremium ? handlePremiumTabClick : undefined}
+                    disabled={!isPremium}
+                    onClick={!isPremium ? handlePremiumTabClick : undefined}
                   >
                     <Crown className="h-4 w-4" />
                     Training Journal
@@ -216,8 +216,8 @@ const DogDetailsView: React.FC<DogDetailsViewProps> = ({ dog }) => {
                 <TooltipTrigger asChild>
                   <TabsTrigger
                     value="pedigree"
-                    disabled={!user.isPremium}
-                    onClick={!user.isPremium ? handlePremiumTabClick : undefined}
+                    disabled={!isPremium}
+                    onClick={!isPremium ? handlePremiumTabClick : undefined}
                   >
                     <Crown className="h-4 w-4" />
                     Pedigree
@@ -235,7 +235,7 @@ const DogDetailsView: React.FC<DogDetailsViewProps> = ({ dog }) => {
               </TabsContent>
 
               <TabsContent value="competitions" className="apple-dog-tab-content">
-                {user.isPremium ? (
+                {isPremium ? (
                   <CompetitionsTabs />
                 ) : (
                   <div className="apple-premium-gate">
@@ -254,7 +254,7 @@ const DogDetailsView: React.FC<DogDetailsViewProps> = ({ dog }) => {
               </TabsContent>
 
               <TabsContent value="title-progress" className="apple-dog-tab-content">
-                {user.isPremium ? (
+                {isPremium ? (
                   <TitleProgressSection initialTitleProgressList={[]} />
                 ) : (
                   <div className="apple-premium-gate">
@@ -273,8 +273,8 @@ const DogDetailsView: React.FC<DogDetailsViewProps> = ({ dog }) => {
               </TabsContent>
 
               <TabsContent value="health-records" className="apple-dog-tab-content">
-                {user.isPremium ? (
-                  <HealthRecordsSection user={user} />
+                {isPremium ? (
+                  <HealthRecordsSection user={{ isPremium }} />
                 ) : (
                   <div className="apple-premium-gate">
                     <div className="apple-premium-icon">
@@ -292,7 +292,7 @@ const DogDetailsView: React.FC<DogDetailsViewProps> = ({ dog }) => {
               </TabsContent>
 
               <TabsContent value="training-journal" className="apple-dog-tab-content">
-                {user.isPremium ? (
+                {isPremium ? (
                   <TrainingSection />
                 ) : (
                   <div className="apple-premium-gate">
@@ -311,7 +311,7 @@ const DogDetailsView: React.FC<DogDetailsViewProps> = ({ dog }) => {
               </TabsContent>
 
               <TabsContent value="pedigree" className="apple-dog-tab-content">
-                {user.isPremium ? (
+                {isPremium ? (
                   <PedigreeSection
                     header={<h2 className="text-lg font-semibold flex items-center">Pedigree</h2>}
                     pedigree={ancestors}

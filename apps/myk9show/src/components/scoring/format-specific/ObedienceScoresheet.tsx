@@ -8,6 +8,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { Award, Minus, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuthContext } from '@/hooks/useAuthContext';
 
 // UI Components
 import { Button } from '@/components/ui/button';
@@ -52,10 +53,12 @@ export function ObedienceScoresheet({
   validationErrors,
   className
 }: ObedienceScoresheetProps) {
+  const { user } = useAuthContext();
+
   const [score, setScore] = useState<Partial<ObedienceScore>>({
     entryId: entry.id,
     classId: entry.classId || 'obedience-class',
-    judgeId: 'current-judge',
+    judgeId: user?.id || 'unknown',
     format: 'obedience',
     exercises: DEFAULT_EXERCISES.map(ex => ({
       ...ex,
@@ -67,7 +70,7 @@ export function ObedienceScoresheet({
     qualifyingScore: 170,
     isQualifying: true,
     qualification: 'Qualified',
-    recordedBy: 'current-judge',
+    recordedBy: user?.id || 'unknown',
     recordedAt: new Date(),
     timestamp: new Date(),
     version: 1,

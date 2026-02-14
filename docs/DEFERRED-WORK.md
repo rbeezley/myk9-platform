@@ -1,7 +1,7 @@
 # Deferred Work Items
 
 **Generated:** 2026-02-10
-**Updated:** 2026-02-14
+**Updated:** 2026-02-14 (auth context integration completed for all components/hooks)
 **Source:** Automated scan of TODO/FIXME/HACK comments across the monorepo
 
 ---
@@ -11,7 +11,7 @@
 | Area | Count | Priority |
 |------|-------|----------|
 | Type/Schema Mismatches | 25 | Medium - most are tsconfig-excluded files, 0 @ts-nocheck remaining |
-| Auth Context Integration | 8 | High - security placeholders |
+| Auth Context Integration | 4 (stores) | Medium - stores need architectural change |
 | Database Integration | 15 | Medium - waiting on schema |
 | Incomplete Features | 45+ | Medium - partial implementations |
 | Realtime/Sync | 6 | Medium - infrastructure |
@@ -78,20 +78,25 @@ These files are excluded from typecheck or have type workarounds because the dat
 
 ---
 
-## 2. Auth Context Integration (8 items)
+## 2. Auth Context Integration (4 remaining — stores only)
 
-Hardcoded user/judge values that need to be replaced with actual auth context.
+**Status update (2026-02-14):** All component/hook hardcoded values fixed. The original 8 items were already resolved in a prior pass. A broader scan found 10 additional files with `'current-user'`, `'current-judge'`, or mock `isPremium` — all now fixed via `useAuthContext()`. Premium gating mock replaced with RBAC-based auth check (authenticated = access granted; replace with subscription check when premium tier is implemented).
 
-| File | Line | Current Value | Needed |
-|------|------|---------------|--------|
-| `apps/myk9show/src/hooks/useRealtimeScoring.ts` | 265 | `'current-judge'` | Get from auth context |
-| `apps/myk9show/src/components/scoring/MultiAreaScoresheet.tsx` | 178 | `'current-judge'` | Get from auth context |
-| `apps/myk9show/src/components/scoring/ScentWorkScoresheet.tsx` | 101 | `'current-judge'` | Get from auth context |
-| `apps/myk9show/src/components/sync/ConflictResolutionDialog.tsx` | 352 | `'current-user'` | Get from auth context |
-| `apps/myk9show/src/components/dogs/DogDetails/DogDetailsView.tsx` | 359 | `'admin@example.com'` | Get from auth context |
-| `apps/myk9show/src/hooks/useFieldLevelSync.ts` | 75-76 | Hardcoded | Get from auth context |
-| `apps/myk9show/src/components/secretary/BulkResultEntry.tsx` | 481, 487 | Missing | Get from context |
-| `apps/myk9show/src/components/shows/ShowDetails/ShowStatistics/index.tsx` | 28 | No RBAC check | Implement RBAC filtering |
+**Fixed files (this pass):**
+- `AgilityScoresheet.tsx`, `RallyScoresheet.tsx`, `ObedienceScoresheet.tsx` — `'current-judge'` → `user?.id`
+- `RoleApprovalWorkflow.tsx` — `'current-user'` and `'current@user.com'` → auth context
+- `ConflictResolutionManager.tsx`, `TemplateActions.tsx` — `'current-user'` → `user?.id`
+- `useEntryStoreCompat.ts` — 5 instances of `'current-user'` → `user?.id`
+- `DogDetailsView.tsx`, `DogDetailsTabs.tsx`, `DogDetailsMain/utils.ts` — mock `isPremium: true` → `!!user` from auth
+
+**Remaining (Zustand stores — can't use React hooks, need userId passed as action params):**
+
+| File | Issue |
+|------|-------|
+| `apps/myk9show/src/store/templateStore.ts` | `'current-user'` in store actions |
+| `apps/myk9show/src/store/trialStore.ts` | `'current-user'` in store actions |
+| `apps/myk9show/src/store/entryStore.ts` | `'current-user'` in store actions |
+| `apps/myk9show/src/store/classCreationStore.ts` | `'current-user'` in store actions |
 
 ---
 

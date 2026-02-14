@@ -1,11 +1,14 @@
 /**
  * Sync Analytics Service
- * 
+ *
  * Comprehensive analytics service for monitoring sync operations, tracking performance metrics,
  * and providing real-time insights into sync health and behavior patterns.
+ *
+ * Pure helper functions live in `./sync-analytics-helpers.ts`.
+ * Type aliases live in `./sync-analytics-types.ts`.
  */
 
-import {
+import type {
   SyncEvent,
   SyncMetrics,
   CollectionSyncMetrics,
@@ -22,6 +25,20 @@ import {
   type ConflictEvent
 } from '@myk9/replication';
 import { logger } from '@myk9/core';
+import {
+  calculateHealthScore,
+  generateTrendData,
+  calculateAverageLatency,
+  calculateOfflineUsage,
+  calculateOfflineQueuedSyncs,
+  convertMetricsToCSV,
+  generateAnalyticsId,
+  generateMockAnalyticsData,
+} from './sync-analytics-helpers';
+
+// Re-export types for backward compatibility
+export type { DetailedSyncMetrics, SyncHealthScore, SyncTrend } from './sync-analytics-types';
+export type { PerformanceBenchmark } from '../../types/analytics-types';
 
 /**
  * Main analytics service class providing comprehensive sync monitoring capabilities
@@ -143,7 +160,7 @@ export class SyncAnalyticsService {
 
     const fullEvent: SyncEvent = {
       ...event,
-      id: this.generateId(),
+      id: generateAnalyticsId(),
       timestamp: new Date()
     };
 
@@ -226,18 +243,16 @@ export class SyncAnalyticsService {
     const compressionRatio = 0.7; // 70% compression
 
     // Calculate health score based on multiple factors
-    const syncHealthScore = this.calculateHealthScore({
-      successRate,
-      averageSyncTime,
-      conflictRate,
-      totalSyncs
-    });
+    const syncHealthScore = calculateHealthScore(
+      { successRate, averageSyncTime, conflictRate, totalSyncs },
+      this.config
+    );
 
     // Generate collection metrics
     const collectionMetrics = await this.getCollectionMetrics(startTime, endTime);
 
     // Generate trend data
-    const trendData = this.generateTrendData(filteredEvents, startTime, endTime);
+    const trendData = generateTrendData(filteredEvents, startTime, endTime);
 
     return {
       startTime,
@@ -254,9 +269,9 @@ export class SyncAnalyticsService {
       conflictRate,
       bandwidthUsed,
       compressionRatio,
-      averageLatency: this.calculateAverageLatency(filteredEvents),
-      offlineUsageTime: this.calculateOfflineUsage(filteredEvents),
-      offlineSyncsQueued: this.calculateOfflineQueuedSyncs(filteredEvents),
+      averageLatency: calculateAverageLatency(filteredEvents),
+      offlineUsageTime: calculateOfflineUsage(filteredEvents),
+      offlineSyncsQueued: calculateOfflineQueuedSyncs(filteredEvents),
       collectionMetrics,
       recentEvents: filteredEvents.slice(-50), // Last 50 events
       syncTimeTrend: trendData.syncTimeTrend,
@@ -389,41 +404,9 @@ export class SyncAnalyticsService {
       });
     } else {
       // CSV export implementation
-      const csv = this.convertToCSV(metrics);
+      const csv = convertMetricsToCSV(metrics);
       return new Blob([csv], { type: 'text/csv' });
     }
-  }
-
-  /**
-   * Calculate health score based on multiple factors
-   */
-  private calculateHealthScore(factors: {
-    successRate: number;
-    averageSyncTime: number;
-    conflictRate: number;
-    totalSyncs: number;
-  }): number {
-    const { successRate, averageSyncTime, conflictRate, totalSyncs } = factors;
-
-    // Weight different factors
-    const successWeight = 0.4;
-    const performanceWeight = 0.3;
-    const conflictWeight = 0.2;
-    const volumeWeight = 0.1;
-
-    // Calculate component scores (0-100)
-    const successScore = successRate;
-    const performanceScore = Math.max(0, 100 - (averageSyncTime / this.config.targetSyncTime) * 100);
-    const conflictScore = Math.max(0, 100 - (conflictRate / this.config.targetConflictRate) * 100);
-    const volumeScore = Math.min(100, (totalSyncs / 100) * 100); // Normalize to 100 syncs
-
-    const healthScore =
-      (successScore * successWeight) +
-      (performanceScore * performanceWeight) +
-      (conflictScore * conflictWeight) +
-      (volumeScore * volumeWeight);
-
-    return Math.round(Math.max(0, Math.min(100, healthScore)));
   }
 
   /**
@@ -480,143 +463,6 @@ export class SyncAnalyticsService {
   }
 
   /**
-   * Generate trend data for charts
-   */
-  private generateTrendData(events: SyncEvent[], startTime: Date, endTime: Date) {
-    const timeRange = endTime.getTime() - startTime.getTime();
-    const bucketSize = timeRange / 24; // 24 data points
-    const buckets: Array<{
-      time: Date;
-      events: SyncEvent[];
-    }> = [];
-
-    // Create time buckets
-    for (let i = 0; i < 24; i++) {
-      const bucketStart = new Date(startTime.getTime() + (i * bucketSize));
-      const bucketEnd = new Date(startTime.getTime() + ((i + 1) * bucketSize));
-      const bucketEvents = events.filter(
-        e => e.timestamp >= bucketStart && e.timestamp < bucketEnd
-      );
-
-      buckets.push({
-        time: bucketStart,
-        events: bucketEvents
-      });
-    }
-
-    // Calculate trend metrics for each bucket
-    const syncTimeTrend = buckets.map(bucket => {
-      const syncTimes = bucket.events
-        .filter(e => e.duration && e.status === 'completed')
-        .map(e => e.duration! / 1000);
-
-      const avgTime = syncTimes.length > 0
-        ? syncTimes.reduce((a, b) => a + b, 0) / syncTimes.length
-        : 0;
-
-      return {
-        timestamp: bucket.time,
-        value: avgTime
-      };
-    });
-
-    const successRateTrend = buckets.map(bucket => {
-      const total = bucket.events.filter(e =>
-        e.status === 'completed' || e.status === 'failed'
-      ).length;
-      const successful = bucket.events.filter(e =>
-        e.status === 'completed'
-      ).length;
-
-      const rate = total > 0 ? (successful / total) * 100 : 100;
-
-      return {
-        timestamp: bucket.time,
-        value: rate
-      };
-    });
-
-    const conflictRateTrend = buckets.map(bucket => {
-      const syncEvents = bucket.events.filter(e =>
-        e.status === 'completed' || e.status === 'failed'
-      );
-      const conflicts = bucket.events.filter(e =>
-        e.type === 'conflict_detected'
-      );
-
-      const rate = syncEvents.length > 0 ? (conflicts.length / syncEvents.length) * 100 : 0;
-
-      return {
-        timestamp: bucket.time,
-        value: rate
-      };
-    });
-
-    const bandwidthTrend = buckets.map(bucket => {
-      const totalBytes = bucket.events.reduce(
-        (sum, e) => sum + (e.bytesTransferred || 0), 0
-      );
-
-      return {
-        timestamp: bucket.time,
-        value: totalBytes / 1024 / 1024 // Convert to MB
-      };
-    });
-
-    return {
-      syncTimeTrend,
-      successRateTrend,
-      conflictRateTrend,
-      bandwidthTrend
-    };
-  }
-
-  /**
-   * Calculate average latency from events
-   */
-  private calculateAverageLatency(events: SyncEvent[]): number {
-    const latencyEvents = events.filter(e => e.metadata?.latency);
-    if (latencyEvents.length === 0) return 0;
-
-    const totalLatency = latencyEvents.reduce(
-      (sum, e) => {
-        const latency = e.metadata?.latency;
-        return sum + (typeof latency === 'number' ? latency : 0);
-      }, 0
-    );
-
-    return totalLatency / latencyEvents.length;
-  }
-
-  /**
-   * Calculate offline usage time
-   */
-  private calculateOfflineUsage(events: SyncEvent[]): number {
-    const offlineEvents = events.filter(e => e.type === 'offline_mode_entered');
-    const onlineEvents = events.filter(e => e.type === 'offline_mode_exited');
-
-    let totalOfflineTime = 0;
-
-    for (let i = 0; i < offlineEvents.length; i++) {
-      const offlineStart = offlineEvents[i].timestamp;
-      const onlineRestore = onlineEvents.find(e => e.timestamp > offlineStart);
-
-      if (onlineRestore) {
-        totalOfflineTime += onlineRestore.timestamp.getTime() - offlineStart.getTime();
-      }
-    }
-
-    return totalOfflineTime / (1000 * 60); // Convert to minutes
-  }
-
-  /**
-   * Calculate offline queued syncs
-   */
-  private calculateOfflineQueuedSyncs(events: SyncEvent[]): number {
-    return events.filter(e => e.metadata?.queuedOffline).length;
-  }
-
-  /**
    * Check for alert conditions
    */
   private async checkAlerts(event: SyncEvent): Promise<void> {
@@ -655,47 +501,13 @@ export class SyncAnalyticsService {
     metadata?: Record<string, unknown>;
   }): Promise<void> {
     const alert: SyncAlert = {
-      id: this.generateId(),
+      id: generateAnalyticsId(),
       ...alertData,
       triggeredAt: new Date()
     };
 
     this.alerts.push(alert);
     await this.persistAlert(alert);
-  }
-
-  /**
-   * Convert metrics to CSV format
-   */
-  private convertToCSV(metrics: SyncMetrics): string {
-    const headers = [
-      'Metric',
-      'Value',
-      'Unit',
-      'Timestamp'
-    ];
-
-    const rows = [
-      ['Sync Health Score', metrics.syncHealthScore.toString(), '%', metrics.endTime.toISOString()],
-      ['Success Rate', metrics.successRate.toString(), '%', metrics.endTime.toISOString()],
-      ['Average Sync Time', metrics.averageSyncTime.toString(), 'seconds', metrics.endTime.toISOString()],
-      ['Total Syncs', metrics.totalSyncs.toString(), 'count', metrics.endTime.toISOString()],
-      ['Failed Syncs', metrics.failedSyncs.toString(), 'count', metrics.endTime.toISOString()],
-      ['Conflict Rate', metrics.conflictRate.toString(), '%', metrics.endTime.toISOString()],
-      ['Bandwidth Used', (metrics.bandwidthUsed / 1024 / 1024).toFixed(2), 'MB', metrics.endTime.toISOString()],
-      ['Offline Usage', metrics.offlineUsageTime.toString(), 'minutes', metrics.endTime.toISOString()]
-    ];
-
-    return [headers, ...rows]
-      .map(row => row.map(cell => `"${cell}"`).join(','))
-      .join('\n');
-  }
-
-  /**
-   * Generate unique ID
-   */
-  private generateId(): string {
-    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
 
   /**
@@ -733,54 +545,9 @@ export class SyncAnalyticsService {
   private async loadPersistedData(): Promise<void> {
     // In real implementation, this would load from IndexedDB
     // For now, generate some mock data for demo purposes
-    this.generateMockData();
-  }
-
-  /**
-   * Generate mock data for demonstration
-   */
-  private generateMockData(): void {
-    const now = new Date();
-
-    // Generate mock events for the last 24 hours
-    for (let i = 0; i < 100; i++) {
-      const timestamp = new Date(now.getTime() - Math.random() * 24 * 60 * 60 * 1000);
-      const collections = ['dogs', 'shows', 'entries', 'people', 'clubs'];
-
-      this.events.push({
-        id: this.generateId(),
-        type: Math.random() > 0.1 ? 'sync_completed' : 'sync_failed',
-        timestamp,
-        duration: Math.random() * 5000 + 1000, // 1-6 seconds
-        status: Math.random() > 0.1 ? 'completed' : 'failed',
-        collectionName: collections[Math.floor(Math.random() * collections.length)],
-        recordCount: Math.floor(Math.random() * 50) + 1,
-        bytesTransferred: Math.floor(Math.random() * 1024 * 1024) + 1024,
-        errorMessage: Math.random() > 0.9 ? 'Network timeout' : undefined,
-        metadata: {
-          latency: Math.random() * 100 + 10
-        }
-      });
-    }
-
-    // Generate mock conflict resolutions
-    for (let i = 0; i < 10; i++) {
-      const timestamp = new Date(now.getTime() - Math.random() * 24 * 60 * 60 * 1000);
-      const collections = ['dogs', 'shows', 'entries', 'people', 'clubs'];
-
-      this.conflicts.push({
-        conflictId: this.generateId(),
-        type: 'update_update',
-        strategy: 'last_write_wins',
-        resolvedAt: timestamp,
-        resolvedBy: 'system',
-        originalValue: { name: 'Old Value' },
-        resolvedValue: { name: 'New Value' },
-        fieldPath: 'name',
-        recordId: this.generateId(),
-        collectionName: collections[Math.floor(Math.random() * collections.length)]
-      });
-    }
+    const mockData = generateMockAnalyticsData();
+    this.events.push(...mockData.events);
+    this.conflicts.push(...mockData.conflicts);
   }
 
   /**
@@ -818,14 +585,6 @@ export class SyncAnalyticsService {
     );
   }
 }
-
-// Additional exports for external use
-export type { PerformanceBenchmark } from '../../types/analytics-types';
-
-// Type aliases for commonly used types
-export type DetailedSyncMetrics = SyncMetrics;
-export type SyncHealthScore = number;
-export type SyncTrend = Array<{ timestamp: Date; value: number }>;
 
 // Utility function for getting analytics instance
 export function getSyncAnalytics(): SyncAnalyticsService {

@@ -4,16 +4,9 @@ Items to address in future sessions.
 
 ---
 
-## Refactor Large myK9Show Files (16 files, 790-975 lines) - 2026-02-13
+## Refactor Large myK9Show Files (11 files, 793-975 lines) - 2026-02-13
 
-16 of 32 files resolved (6 myK9Q + 10 myK9Show services). 16 remain in myK9Show. See `docs/AUDIT-REPORT.md` section 4 for context.
-
-**Services (5 files):**
-- `services/database/queries/entryQueries.ts` (861)
-- `services/alerts/AlertingService.ts` (857)
-- `services/deployment/DeploymentManager.ts` (850)
-- `services/analytics/SyncAnalyticsService.ts` (832)
-- `services/realtime/connectionManager.ts` (790)
+21 of 32 files resolved (6 myK9Q + 15 myK9Show services). 11 remain in myK9Show. See `docs/AUDIT-REPORT.md` section 4 for context.
 
 **Hooks (2 files):**
 - `hooks/useLiveCompetition.ts` (975)

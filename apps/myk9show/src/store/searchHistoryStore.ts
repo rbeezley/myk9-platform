@@ -1,171 +1,22 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { getOptimalStorage } from '@/services/database/storage-adapter';
+import { levenshteinDistance, DEFAULT_MAX_HISTORY, DEFAULT_MAX_SUGGESTIONS } from './search-history-store-helpers';
+import type {
+  SearchHistoryItem,
+  SearchSuggestion,
+  SearchBookmark,
+  SearchFrequency,
+  SearchHistoryStore,
+} from './search-history-store-types';
 
-export interface SearchHistoryItem {
-  id: string;
-  query: string;
-  searchType: 'dogs' | 'people' | 'shows' | 'classes' | 'trials' | 'clubs' | 'templates' | 'global';
-  timestamp: Date;
-  userId: string;
-  resultCount?: number | undefined;
-  selectedResultId?: string | undefined;
-  filters?: Record<string, unknown> | undefined;
-  context?: {
-    page: string;
-    section?: string | undefined;
-    previousQuery?: string | undefined;
-  } | undefined;
-}
-
-export interface SearchSuggestion {
-  id: string;
-  query: string;
-  searchType: SearchHistoryItem['searchType'];
-  frequency: number;
-  lastUsed: Date;
-  averageResultCount: number;
-  popularFilters: Record<string, unknown>;
-  isBookmarked: boolean;
-}
-
-export interface SearchBookmark {
-  id: string;
-  title: string;
-  query: string;
-  searchType: SearchHistoryItem['searchType'];
-  filters: Record<string, unknown>;
-  userId: string;
-  createdAt: Date;
-  lastUsed?: Date | undefined;
-  useCount: number;
-  tags: string[];
-  notes?: string | undefined;
-}
-
-export interface SearchFrequency {
-  query: string;
-  searchType: SearchHistoryItem['searchType'];
-  count: number;
-  firstSeen: Date;
-  lastSeen: Date;
-  averageResultCount: number;
-  successRate: number;
-}
-
-interface SearchHistoryStore {
-  // State
-  history: SearchHistoryItem[];
-  suggestions: SearchSuggestion[];
-  bookmarks: SearchBookmark[];
-  maxHistoryItems: number;
-  maxSuggestions: number;
-  isEnabled: boolean;
-  
-  // History Management
-  addToHistory: (
-    query: string,
-    searchType: SearchHistoryItem['searchType'],
-    userId: string,
-    resultCount?: number,
-    filters?: Record<string, unknown>,
-    context?: SearchHistoryItem['context']
-  ) => void;
-  
-  updateHistoryItem: (id: string, updates: Partial<SearchHistoryItem>) => void;
-  removeFromHistory: (id: string) => void;
-  clearHistory: (userId?: string) => void;
-  clearHistoryByType: (searchType: SearchHistoryItem['searchType'], userId?: string) => void;
-  
-  // Query Operations
-  getRecentSearches: (userId: string, limit?: number, searchType?: SearchHistoryItem['searchType']) => SearchHistoryItem[];
-  getPopularSearches: (userId: string, limit?: number, searchType?: SearchHistoryItem['searchType']) => SearchFrequency[];
-  getSearchesByContext: (userId: string, page: string, section?: string) => SearchHistoryItem[];
-  
-  // Suggestion Management
-  generateSuggestions: (userId: string, searchType?: SearchHistoryItem['searchType']) => SearchSuggestion[];
-  getSuggestions: (
-    userId: string,
-    partialQuery?: string,
-    searchType?: SearchHistoryItem['searchType'],
-    limit?: number
-  ) => SearchSuggestion[];
-  
-  updateSuggestionFrequency: (query: string, searchType: SearchHistoryItem['searchType']) => void;
-  
-  // Bookmark Management
-  createBookmark: (
-    title: string,
-    query: string,
-    searchType: SearchHistoryItem['searchType'],
-    filters: Record<string, unknown>,
-    userId: string,
-    tags?: string[],
-    notes?: string
-  ) => string;
-  
-  updateBookmark: (id: string, updates: Partial<SearchBookmark>) => boolean;
-  deleteBookmark: (id: string) => boolean;
-  getBookmarks: (userId: string, searchType?: SearchHistoryItem['searchType']) => SearchBookmark[];
-  getBookmarksByTag: (userId: string, tag: string) => SearchBookmark[];
-  executeBookmark: (id: string) => SearchBookmark | null;
-  
-  // Search Analysis
-  getSearchPatterns: (userId: string) => {
-    mostSearchedType: string;
-    averageQueriesPerDay: number;
-    peakSearchHours: number[];
-    commonQueryPrefixes: string[];
-    searchTypeDistribution: Record<string, number>;
-  };
-  
-  getQueryFrequency: (userId: string, days?: number) => SearchFrequency[];
-  getRelatedQueries: (query: string, userId: string, limit?: number) => string[];
-  
-  // Smart Features
-  getSmartSuggestions: (
-    userId: string,
-    currentQuery: string,
-    searchType: SearchHistoryItem['searchType'],
-    context?: { page: string; section?: string }
-  ) => {
-    completions: string[];
-    corrections: string[];
-    relatedQueries: string[];
-    bookmarkedQueries: SearchBookmark[];
-  };
-  
-  predictNextQuery: (userId: string, currentQuery: string) => string[];
-  getContextualSuggestions: (userId: string, page: string, section?: string) => SearchSuggestion[];
-  
-  // Data Management
-  cleanupOldHistory: (retentionDays: number) => number;
-  compressHistory: () => number;
-  exportHistory: (userId: string, format: 'json' | 'csv') => string;
-  importHistory: (data: string, format: 'json' | 'csv', userId: string) => number;
-  
-  // Configuration
-  setMaxHistoryItems: (max: number) => void;
-  setMaxSuggestions: (max: number) => void;
-  setEnabled: (enabled: boolean) => void;
-  
-  // Privacy and GDPR
-  anonymizeUserData: (userId: string) => number;
-  deleteUserData: (userId: string) => number;
-  
-  // Utilities
-  searchInHistory: (userId: string, searchTerm: string) => SearchHistoryItem[];
-  getHistoryStatistics: (userId?: string) => {
-    totalSearches: number;
-    uniqueQueries: number;
-    averageQueryLength: number;
-    mostActiveDay: string;
-    searchFrequencyByType: Record<string, number>;
-  };
-}
-
-const DEFAULT_MAX_HISTORY = 1000;
-const DEFAULT_MAX_SUGGESTIONS = 50;
+// Re-export all types for backward compatibility
+export type {
+  SearchHistoryItem,
+  SearchSuggestion,
+  SearchBookmark,
+  SearchFrequency,
+} from './search-history-store-types';
 
 export const useSearchHistoryStore = create<SearchHistoryStore>()(
   persist(
@@ -217,18 +68,18 @@ export const useSearchHistoryStore = create<SearchHistoryStore>()(
 
         set(state => {
           const newHistory = [historyItem, ...state.history];
-          
+
           // Limit history size per user
           const userHistory = newHistory.filter(item => item.userId === userId);
           if (userHistory.length > state.maxHistoryItems) {
             const itemsToRemove = userHistory.slice(state.maxHistoryItems);
             return {
-              history: newHistory.filter(item => 
+              history: newHistory.filter(item =>
                 item.userId !== userId || !itemsToRemove.includes(item)
               )
             };
           }
-          
+
           return { history: newHistory };
         });
 
@@ -262,7 +113,7 @@ export const useSearchHistoryStore = create<SearchHistoryStore>()(
 
       clearHistoryByType: (searchType, userId) => {
         set(state => ({
-          history: state.history.filter(item => 
+          history: state.history.filter(item =>
             item.searchType !== searchType || (userId && item.userId !== userId)
           )
         }));
@@ -271,8 +122,8 @@ export const useSearchHistoryStore = create<SearchHistoryStore>()(
       // Query Operations
       getRecentSearches: (userId, limit = 10, searchType) => {
         return get().history
-          .filter(item => 
-            item.userId === userId && 
+          .filter(item =>
+            item.userId === userId &&
             (!searchType || item.searchType === searchType)
           )
           .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
@@ -305,7 +156,7 @@ export const useSearchHistoryStore = create<SearchHistoryStore>()(
           freq.count++;
           freq.lastSeen = item.timestamp > freq.lastSeen ? item.timestamp : freq.lastSeen;
           freq.firstSeen = item.timestamp < freq.firstSeen ? item.timestamp : freq.firstSeen;
-          
+
           if (item.resultCount !== undefined) {
             freq.averageResultCount = (freq.averageResultCount * (freq.count - 1) + item.resultCount) / freq.count;
             freq.successRate = item.resultCount > 0 ? freq.successRate + 1 : freq.successRate;
@@ -333,7 +184,7 @@ export const useSearchHistoryStore = create<SearchHistoryStore>()(
       // Suggestion Management
       generateSuggestions: (userId, searchType) => {
         const popularQueries = get().getPopularSearches(userId, 20, searchType);
-        
+
         const suggestions: SearchSuggestion[] = popularQueries.map(freq => ({
           id: `suggestion-${freq.query}-${freq.searchType}`,
           query: freq.query,
@@ -342,8 +193,8 @@ export const useSearchHistoryStore = create<SearchHistoryStore>()(
           lastUsed: freq.lastSeen,
           averageResultCount: freq.averageResultCount,
           popularFilters: {}, // Would be calculated from actual filter usage
-          isBookmarked: get().bookmarks.some(bookmark => 
-            bookmark.query === freq.query && 
+          isBookmarked: get().bookmarks.some(bookmark =>
+            bookmark.query === freq.query &&
             bookmark.searchType === freq.searchType &&
             bookmark.userId === userId
           )
@@ -395,7 +246,7 @@ export const useSearchHistoryStore = create<SearchHistoryStore>()(
       // Bookmark Management
       createBookmark: (title, query, searchType, filters, userId, tags = [], notes) => {
         const bookmarkId = `bookmark-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-        
+
         const bookmark: SearchBookmark = {
           id: bookmarkId,
           title,
@@ -478,7 +329,7 @@ export const useSearchHistoryStore = create<SearchHistoryStore>()(
       // Search Analysis
       getSearchPatterns: (userId) => {
         const userHistory = get().history.filter(item => item.userId === userId);
-        
+
         const typeCount: Record<string, number> = {};
         const hourCount: Record<number, number> = {};
         const queryPrefixes: Record<string, number> = {};
@@ -486,11 +337,11 @@ export const useSearchHistoryStore = create<SearchHistoryStore>()(
         userHistory.forEach(item => {
           // Search type distribution
           typeCount[item.searchType] = (typeCount[item.searchType] || 0) + 1;
-          
+
           // Peak hours
           const hour = item.timestamp.getHours();
           hourCount[hour] = (hourCount[hour] || 0) + 1;
-          
+
           // Query prefixes (first 3 characters)
           const prefix = item.query.substring(0, 3).toLowerCase();
           if (prefix.length === 3) {
@@ -513,7 +364,7 @@ export const useSearchHistoryStore = create<SearchHistoryStore>()(
         );
 
         // Calculate average queries per day
-        const days = new Set(userHistory.map(item => 
+        const days = new Set(userHistory.map(item =>
           item.timestamp.toISOString().split('T')[0]
         )).size;
         const averageQueriesPerDay = days > 0 ? userHistory.length / days : 0;
@@ -538,10 +389,10 @@ export const useSearchHistoryStore = create<SearchHistoryStore>()(
 
       getRelatedQueries: (query, userId, limit = 5) => {
         const userHistory = get().history.filter(item => item.userId === userId);
-        
+
         // Find queries that were searched close in time to the given query
         const relatedQueries = new Set<string>();
-        
+
         userHistory.forEach(item => {
           if (item.query === query) {
             // Look for queries within 10 minutes before/after
@@ -550,7 +401,7 @@ export const useSearchHistoryStore = create<SearchHistoryStore>()(
               other.query !== query &&
               Math.abs(other.timestamp.getTime() - item.timestamp.getTime()) < timeWindow
             );
-            
+
             nearbyQueries.forEach(nearby => relatedQueries.add(nearby.query));
           }
         });
@@ -561,7 +412,7 @@ export const useSearchHistoryStore = create<SearchHistoryStore>()(
       // Smart Features
       getSmartSuggestions: (userId, currentQuery, searchType) => {
         const lowerQuery = currentQuery.toLowerCase();
-        
+
         // Query completions
         const completions = get().getSuggestions(userId, currentQuery, searchType, 5)
           .map(s => s.query);
@@ -582,7 +433,7 @@ export const useSearchHistoryStore = create<SearchHistoryStore>()(
 
         // Bookmarked queries
         const bookmarkedQueries = get().getBookmarks(userId, searchType)
-          .filter(bookmark => 
+          .filter(bookmark =>
             bookmark.query.toLowerCase().includes(lowerQuery) ||
             bookmark.title.toLowerCase().includes(lowerQuery)
           )
@@ -598,10 +449,10 @@ export const useSearchHistoryStore = create<SearchHistoryStore>()(
 
       predictNextQuery: (userId, currentQuery) => {
         const userHistory = get().history.filter(item => item.userId === userId);
-        
+
         // Find what users typically search after this query
         const nextQueries: Record<string, number> = {};
-        
+
         for (let i = 0; i < userHistory.length - 1; i++) {
           if (userHistory[i].query === currentQuery) {
             const nextQuery = userHistory[i + 1].query;
@@ -617,7 +468,7 @@ export const useSearchHistoryStore = create<SearchHistoryStore>()(
 
       getContextualSuggestions: (userId, page, section) => {
         const contextualHistory = get().getSearchesByContext(userId, page, section);
-        
+
         if (contextualHistory.length === 0) {
           return get().suggestions.slice(0, 5);
         }
@@ -660,11 +511,11 @@ export const useSearchHistoryStore = create<SearchHistoryStore>()(
       compressHistory: () => {
         // Remove duplicate queries (keep most recent)
         const uniqueQueries = new Map<string, SearchHistoryItem>();
-        
+
         get().history.forEach(item => {
           const key = `${item.userId}-${item.query}-${item.searchType}`;
           const existing = uniqueQueries.get(key);
-          
+
           if (!existing || item.timestamp > existing.timestamp) {
             uniqueQueries.set(key, item);
           }
@@ -680,7 +531,7 @@ export const useSearchHistoryStore = create<SearchHistoryStore>()(
 
       exportHistory: (userId, format) => {
         const userHistory = get().history.filter(item => item.userId === userId);
-        
+
         if (format === 'json') {
           return JSON.stringify(userHistory, null, 2);
         } else {
@@ -713,7 +564,7 @@ export const useSearchHistoryStore = create<SearchHistoryStore>()(
       // Privacy and GDPR
       anonymizeUserData: (userId) => {
         const affectedItems = get().history.filter(item => item.userId === userId);
-        
+
         set(state => ({
           history: state.history.map(item =>
             item.userId === userId
@@ -741,7 +592,7 @@ export const useSearchHistoryStore = create<SearchHistoryStore>()(
       // Utilities
       searchInHistory: (userId, searchTerm) => {
         const lowerSearchTerm = searchTerm.toLowerCase();
-        
+
         return get().history.filter(item =>
           item.userId === userId &&
           item.query.toLowerCase().includes(lowerSearchTerm)
@@ -833,24 +684,3 @@ export const useSearchHistoryStore = create<SearchHistoryStore>()(
     }
   )
 );
-
-// Helper function to calculate Levenshtein distance for typo detection
-function levenshteinDistance(str1: string, str2: string): number {
-  const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
-
-  for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
-  for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
-
-  for (let j = 1; j <= str2.length; j++) {
-    for (let i = 1; i <= str1.length; i++) {
-      const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
-      matrix[j][i] = Math.min(
-        matrix[j][i - 1] + 1, // deletion
-        matrix[j - 1][i] + 1, // insertion
-        matrix[j - 1][i - 1] + indicator // substitution
-      );
-    }
-  }
-
-  return matrix[str2.length][str1.length];
-}

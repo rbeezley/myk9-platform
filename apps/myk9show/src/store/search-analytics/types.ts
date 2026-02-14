@@ -1,3 +1,10 @@
+/**
+ * Type definitions for the search analytics store.
+ *
+ * Contains all interfaces for search queries, results, sessions,
+ * analytics reporting, and the composite store type built from slices.
+ */
+
 export interface SearchQuery {
   id: string;
   query: string;

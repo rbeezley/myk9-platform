@@ -1,239 +1,30 @@
 import { create } from 'zustand';
-import { replicatedEntriesTable, type ReplicatedEntry } from '@/services/replication';
+import { replicatedEntriesTable } from '@/services/replication';
+import { generateEntryId, mergeEntryData, entryToReplicated } from './entry-store-helpers';
+import type {
+  EntryStatus,
+  EntryStoreState,
+  CompetitionData,
+  RegistrationData,
+  ShowEntry,
+  ShowEntryInput,
+  SyncableShowEntry,
+} from './entry-store-types';
 
-// Entry lifecycle states
-export type EntryStatus = 
-  | 'draft'           // User building entry
-  | 'submitted'       // Entry submitted, awaiting payment
-  | 'paid'           // Payment confirmed
-  | 'confirmed'      // Entry accepted by show
-  | 'scheduled'      // Running order created
-  | 'competing'      // Currently in ring
-  | 'completed'      // Results recorded
-  | 'withdrawn'      // Entry withdrawn
-  | 'scratched';     // Scratched day of show
+// Re-export all types for backward compatibility
+export type {
+  EntryStatus,
+  StatusHistoryEntry,
+  RegistrationData,
+  CompetitionData,
+  SyncableShowEntry,
+  ShowEntryInput,
+  ShowEntry,
+  EntryStoreState,
+} from './entry-store-types';
 
-export interface StatusHistoryEntry {
-  status: EntryStatus;
-  timestamp: string; // ISO string for persistence
-  userId: string;
-  reason?: string | undefined;
-}
-
-export interface RegistrationData {
-  submittedAt: string; // ISO string
-  handler: string;
-  handlerId?: string | undefined;
-  entryFee: number;
-  paymentStatus: 'pending' | 'paid' | 'refunded';
-  specialRequests?: string | undefined;
-  armband?: string | undefined;
-  runOrder?: number | undefined;
-  // Additional registration fields
-  jumpHeight?: string | undefined;
-  preferredJudge?: string | undefined;
-  moveUpRequested?: boolean | undefined;
-}
-
-export interface CompetitionData {
-  startTime?: string | undefined; // ISO string
-  endTime?: string | undefined; // ISO string
-  score?: string | undefined;
-  time?: string | undefined;
-  placement?: string | undefined;
-  qualified?: boolean | undefined;
-  qualification?: string | undefined; // The specific qualification status (Qualified, Not Qualified, Absent, Excused, etc.)
-  qualificationReason?: string | undefined; // Reason for NQ, Excused, or Withdrawn
-  faults?: number | undefined; // Added to support fault tracking
-  judgeNotes?: string | undefined;
-  recordedBy: string; // Judge/steward who recorded result
-  recordedAt: string; // ISO string
-}
-
-// Extend ShowEntry with sync metadata
-export interface SyncableShowEntry extends ShowEntry {
-  _version: number;
-  _lastModified: Date;
-  _lastModifiedBy: string;
-  _syncStatus: 'synced' | 'pending' | 'error' | 'conflict';
-  _localOnly?: boolean | undefined;
-}
-
-// Input types for creating/updating entries
-export interface ShowEntryInput {
-  showId: string;
-  classId: string;
-  dogId: string;
-  registrationData: RegistrationData;
-  competitionData?: CompetitionData | undefined;
-}
-
-export interface ShowEntry {
-  // Identity
-  id: string;
-  showId: string;
-  classId: string;
-  dogId: string;
-
-  // Current state
-  status: EntryStatus;
-
-  // Registration phase data
-  registrationData: RegistrationData;
-
-  // Competition phase data (only populated when status >= 'competing')
-  competitionData?: CompetitionData | undefined;
-
-  // Audit trail
-  statusHistory: StatusHistoryEntry[];
-
-  // Metadata
-  createdAt: string; // ISO string
-  updatedAt: string; // ISO string
-}
-
-export interface EntryStoreState {
-  entries: SyncableShowEntry[];
-  isLoading: boolean;
-  error: string | null;
-
-  // Subscription management
-  _unsubscribe: (() => void) | null;
-  initializeSubscription: () => void;
-  cleanup: () => void;
-  
-  // Local-First Entry Actions
-  createEntry: (entryData: ShowEntryInput) => Promise<SyncableShowEntry>;
-  updateEntry: (entryId: string, updates: Partial<ShowEntryInput>) => Promise<SyncableShowEntry | null>;
-  deleteEntry: (entryId: string) => Promise<void>;
-  updateRegistration: (entryId: string, updates: Partial<RegistrationData>) => Promise<SyncableShowEntry | null>;
-  updateStatus: (entryId: string, status: EntryStatus, userId: string, reason?: string) => Promise<SyncableShowEntry | null>;
-  
-  // Competition phase methods
-  recordResult: (entryId: string, result: CompetitionData) => Promise<SyncableShowEntry | null>;
-  updateResult: (entryId: string, updates: Partial<CompetitionData>) => Promise<SyncableShowEntry | null>;
-  
-  // Bulk operations
-  createMultipleEntries: (entries: ShowEntryInput[]) => Promise<SyncableShowEntry[]>;
-  updateEntriesStatus: (entryIds: string[], status: EntryStatus, userId: string, reason?: string) => Promise<void>;
-  
-  // Query methods
-  getEntry: (entryId: string) => SyncableShowEntry | undefined;
-  getEntriesByClass: (classId: string) => SyncableShowEntry[];
-  getEntriesByShow: (showId: string) => SyncableShowEntry[];
-  getEntriesByStatus: (status: EntryStatus) => SyncableShowEntry[];
-  getEntriesByDog: (dogId: string) => SyncableShowEntry[];
-  getCompetitionResults: (classId: string) => SyncableShowEntry[];
-  getRegistrations: (showId: string) => SyncableShowEntry[];
-  
-  // Data Management
-  setEntries: (entries: SyncableShowEntry[]) => void;
-  loadEntries: () => Promise<void>;
-  
-  // Sync Status
-  getSyncStatus: (id: string) => 'synced' | 'pending' | 'error' | 'conflict';
-  
-  // Legacy methods for compatibility
-  createEntryLegacy: (data: Omit<ShowEntry, 'id' | 'status' | 'statusHistory' | 'createdAt' | 'updatedAt'>) => string;
-  updateRegistrationLegacy: (entryId: string, updates: Partial<RegistrationData>) => void;
-  updateStatusLegacy: (entryId: string, status: EntryStatus, userId: string, reason?: string) => void;
-  deleteEntryLegacy: (entryId: string) => void;
-  recordResultLegacy: (entryId: string, result: CompetitionData) => void;
-  updateResultLegacy: (entryId: string, updates: Partial<CompetitionData>) => void;
-  
-  // Statistics
-  getStatsForShow: (showId: string) => {
-    totalEntries: number;
-    byStatus: Record<EntryStatus, number>;
-    totalRevenue: number;
-    completionRate: number;
-  };
-  
-  // Data management
-  clearAllEntries: () => void;
-  importEntries: (entries: SyncableShowEntry[]) => void;
-}
-
-const generateEntryId = () => `entry-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-/**
- * Convert ReplicatedEntry from replicated table to SyncableShowEntry for store
- */
-function replicatedToEntry(replicated: ReplicatedEntry): SyncableShowEntry {
-  return {
-    id: replicated.id,
-    showId: replicated.showId || '',
-    classId: replicated.classId || '',
-    dogId: replicated.dogId || '',
-    status: (replicated.entryStatus as EntryStatus) || 'draft',
-    registrationData: {
-      submittedAt: replicated.submittedAt || new Date().toISOString(),
-      handler: replicated.handler || '',
-      handlerId: replicated.handlerId,
-      entryFee: replicated.entryFee || 0,
-      paymentStatus: (replicated.paymentStatus as 'pending' | 'paid' | 'refunded') || 'pending',
-      specialRequests: replicated.specialRequests,
-      armband: replicated.armband,
-      runOrder: replicated.runOrder,
-      jumpHeight: replicated.jumpHeight,
-      preferredJudge: replicated.preferredJudge,
-      moveUpRequested: replicated.moveUpRequested,
-    },
-    statusHistory: [],
-    createdAt: replicated.submittedAt || new Date().toISOString(),
-    updatedAt: replicated._lastModified?.toISOString() || new Date().toISOString(),
-    _version: replicated._version || 1,
-    _lastModified: replicated._lastModified || new Date(),
-    _lastModifiedBy: replicated._lastModifiedBy || 'system',
-    _syncStatus: replicated._syncStatus || 'synced',
-    _localOnly: replicated._localOnly,
-  };
-}
-
-/**
- * Merge ReplicatedEntry with existing SyncableShowEntry, preserving local-only fields
- */
-function mergeEntryData(replicated: ReplicatedEntry, existing: SyncableShowEntry | undefined): SyncableShowEntry {
-  const base = replicatedToEntry(replicated);
-  if (!existing) return base;
-
-  // Preserve local-only fields that aren't in the replicated table
-  return {
-    ...base,
-    statusHistory: existing.statusHistory || base.statusHistory,
-    competitionData: existing.competitionData,
-  };
-}
-
-/**
- * Convert SyncableShowEntry to ReplicatedEntry for storage
- */
-function entryToReplicated(entry: SyncableShowEntry): ReplicatedEntry {
-  return {
-    id: entry.id,
-    showId: entry.showId,
-    classId: entry.classId,
-    dogId: entry.dogId,
-    handlerId: entry.registrationData.handlerId,
-    armband: entry.registrationData.armband,
-    handler: entry.registrationData.handler,
-    status: entry.status,
-    entryStatus: entry.status,
-    jumpHeight: entry.registrationData.jumpHeight,
-    entryFee: entry.registrationData.entryFee,
-    paymentStatus: entry.registrationData.paymentStatus,
-    runOrder: entry.registrationData.runOrder,
-    moveUpRequested: entry.registrationData.moveUpRequested,
-    preferredJudge: entry.registrationData.preferredJudge,
-    specialRequests: entry.registrationData.specialRequests,
-    submittedAt: entry.registrationData.submittedAt,
-    _version: entry._version,
-    _lastModified: entry._lastModified,
-    _lastModifiedBy: entry._lastModifiedBy,
-    _syncStatus: entry._syncStatus,
-    _localOnly: entry._localOnly,
-  };
-}
+// Re-export helpers that may be used externally
+export { generateEntryId, replicatedToEntry, mergeEntryData, entryToReplicated } from './entry-store-helpers';
 
 export const useEntryStore = create<EntryStoreState>()(
     (set, get): EntryStoreState => ({
@@ -242,7 +33,7 @@ export const useEntryStore = create<EntryStoreState>()(
       entries: [],
       isLoading: false,
       error: null,
-      
+
       // Subscription management methods
       initializeSubscription: () => {
         const unsubscribe = replicatedEntriesTable.subscribe((entries) => {
@@ -312,7 +103,7 @@ export const useEntryStore = create<EntryStoreState>()(
           throw error;
         }
       },
-      
+
       updateEntry: async (entryId: string, updates: Partial<ShowEntryInput>): Promise<SyncableShowEntry | null> => {
         try {
           set({ isLoading: true, error: null });
@@ -413,7 +204,7 @@ export const useEntryStore = create<EntryStoreState>()(
           throw error;
         }
       },
-      
+
       updateStatus: async (entryId: string, status: EntryStatus, userId: string, reason?: string): Promise<SyncableShowEntry | null> => {
         try {
           const currentEntry = get().entries.find(e => e.id === entryId);
@@ -533,7 +324,7 @@ export const useEntryStore = create<EntryStoreState>()(
           throw error;
         }
       },
-      
+
       // Bulk operations
       createMultipleEntries: async (entriesData: ShowEntryInput[]): Promise<SyncableShowEntry[]> => {
         try {
@@ -582,7 +373,7 @@ export const useEntryStore = create<EntryStoreState>()(
           throw error;
         }
       },
-      
+
       updateEntriesStatus: async (entryIds: string[], status: EntryStatus, userId: string, reason?: string): Promise<void> => {
         try {
           set({ isLoading: true, error: null });
@@ -624,43 +415,43 @@ export const useEntryStore = create<EntryStoreState>()(
           throw error;
         }
       },
-      
+
       // Query methods
       getEntry: (entryId) => {
         return get().entries.find((entry) => entry.id === entryId);
       },
-      
+
       getEntriesByClass: (classId) => {
         return get().entries.filter((entry) => entry.classId === classId);
       },
-      
+
       getEntriesByShow: (showId) => {
         return get().entries.filter((entry) => entry.showId === showId);
       },
-      
+
       getEntriesByStatus: (status) => {
         return get().entries.filter((entry) => entry.status === status);
       },
-      
+
       getEntriesByDog: (dogId) => {
         return get().entries.filter((entry) => entry.dogId === dogId);
       },
-      
+
       getCompetitionResults: (classId) => {
         return get().entries.filter(
           (entry) => entry.classId === classId && entry.competitionData
         );
       },
-      
+
       getRegistrations: (showId) => {
         return get().entries.filter(
           (entry) => entry.showId === showId && ['submitted', 'paid', 'confirmed'].includes(entry.status)
         );
       },
-      
+
       // Data Management
       setEntries: (entries) => set({ entries }),
-      
+
       loadEntries: async (): Promise<void> => {
         try {
           set({ isLoading: true, error: null });
@@ -681,30 +472,30 @@ export const useEntryStore = create<EntryStoreState>()(
           set({ error: errorMessage, isLoading: false });
         }
       },
-      
+
       // Sync Status
       getSyncStatus: (id: string): 'synced' | 'pending' | 'error' | 'conflict' => {
         const entry = get().entries.find(e => e.id === id);
         return entry?._syncStatus || 'synced';
       },
-      
+
       // Statistics
       getStatsForShow: (showId) => {
         const showEntries = get().entries.filter((entry) => entry.showId === showId);
-        
+
         const byStatus = showEntries.reduce((acc, entry) => {
           acc[entry.status] = (acc[entry.status] || 0) + 1;
           return acc;
         }, {} as Record<EntryStatus, number>);
-        
+
         const totalRevenue = showEntries
           .filter((entry) => entry.registrationData.paymentStatus === 'paid')
           .reduce((sum, entry) => sum + entry.registrationData.entryFee, 0);
-        
+
         const completedEntries = showEntries.filter((entry) => entry.status === 'completed').length;
         const totalPaidEntries = showEntries.filter((entry) => entry.registrationData.paymentStatus === 'paid').length;
         const completionRate = totalPaidEntries > 0 ? (completedEntries / totalPaidEntries) * 100 : 0;
-        
+
         return {
           totalEntries: showEntries.length,
           byStatus,
@@ -712,12 +503,12 @@ export const useEntryStore = create<EntryStoreState>()(
           completionRate
         };
       },
-      
+
       // Legacy methods for compatibility
       createEntryLegacy: (data: Omit<ShowEntry, 'id' | 'status' | 'statusHistory' | 'createdAt' | 'updatedAt'>) => {
         const id = generateEntryId();
         const now = new Date().toISOString();
-        
+
         const newEntry: SyncableShowEntry = {
           ...data,
           id,
@@ -737,17 +528,17 @@ export const useEntryStore = create<EntryStoreState>()(
           _syncStatus: 'synced',
           _localOnly: false
         };
-        
+
         set((state) => ({
           entries: [...state.entries, newEntry]
         }));
-        
+
         return id;
       },
-      
+
       updateRegistrationLegacy: (entryId, updates) => {
         const now = new Date().toISOString();
-        
+
         set((state) => ({
           entries: state.entries.map((entry) => {
             if (entry.id === entryId) {
@@ -765,10 +556,10 @@ export const useEntryStore = create<EntryStoreState>()(
           })
         }));
       },
-      
+
       updateStatusLegacy: (entryId, status, userId, reason) => {
         const now = new Date().toISOString();
-        
+
         set((state) => ({
           entries: state.entries.map((entry) => {
             if (entry.id === entryId) {
@@ -795,16 +586,16 @@ export const useEntryStore = create<EntryStoreState>()(
           })
         }));
       },
-      
+
       deleteEntryLegacy: (entryId) => {
         set((state) => ({
           entries: state.entries.filter((entry) => entry.id !== entryId)
         }));
       },
-      
+
       recordResultLegacy: (entryId, result) => {
         const now = new Date().toISOString();
-        
+
         set((state) => ({
           entries: state.entries.map((entry) => {
             if (entry.id === entryId) {
@@ -835,16 +626,16 @@ export const useEntryStore = create<EntryStoreState>()(
           })
         }));
       },
-      
+
       updateResultLegacy: (entryId, updates) => {
         const now = new Date().toISOString();
-        
+
         set((state) => ({
           entries: state.entries.map((entry) => {
             if (entry.id === entryId) {
               return {
                 ...entry,
-                competitionData: entry.competitionData 
+                competitionData: entry.competitionData
                   ? { ...entry.competitionData, ...updates }
                   : { ...updates, recordedAt: now, recordedBy: updates.recordedBy || 'Secretary' },
                 updatedAt: now,
@@ -858,12 +649,12 @@ export const useEntryStore = create<EntryStoreState>()(
           })
         }));
       },
-      
+
       // Data management
       clearAllEntries: () => {
         set({ entries: [] });
       },
-      
+
       importEntries: (entries) => {
         set({ entries });
       }

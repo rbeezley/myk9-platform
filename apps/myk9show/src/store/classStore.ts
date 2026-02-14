@@ -1,299 +1,42 @@
 import { create } from 'zustand';
-import { ClassData, EntryData } from '@/components/classes/types/classTypes';
-import { GeneratedClass } from '@/types/class-template-types';
 import { replicatedClassesTable, replicatedEntriesTable, type ReplicatedClass, type ReplicatedEntry } from '@/services/replication';
 import { getLastModifiedBy } from '@/utils/authHelpers';
 import { reportDebug } from '@/utils/standardizedErrorHandler';
+import {
+  shouldUseMockClasses,
+  replicatedToClass,
+  mergeClassData,
+  mergeEntryData,
+  mockClasses,
+  mockEntries,
+} from './class-store-helpers';
+import type {
+  ClassInput,
+  ClassStoreState,
+  EntryInput,
+  SyncableClassData,
+  SyncableEntryData,
+} from './class-store-types';
 
-// Extend ClassData and EntryData with sync metadata
-export interface SyncableClassData extends ClassData {
-  _version: number;
-  _lastModified: Date;
-  _lastModifiedBy: string;
-  _syncStatus: 'synced' | 'pending' | 'error' | 'conflict';
-  _localOnly?: boolean | undefined;
-}
+// Re-export all types for backward compatibility
+export type {
+  SyncableClassData,
+  SyncableEntryData,
+  ClassInput,
+  EntryInput,
+  ClassStoreState,
+} from './class-store-types';
 
-export interface SyncableEntryData extends EntryData {
-  _version: number;
-  _lastModified: Date;
-  _lastModifiedBy: string;
-  _syncStatus: 'synced' | 'pending' | 'error' | 'conflict';
-  _localOnly?: boolean | undefined;
-}
-
-// Input types for creating/updating classes
-export interface ClassInput {
-  trialId: string;
-  trial: string;
-  trialDate: string;
-  trialNumber: string;
-  classOrder: string;
-  status: 'Scheduled' | 'In Progress' | 'Completed' | 'Cancelled' | 'Upcoming';
-  judge: string;
-  className?: string | undefined;
-  classNumber?: string | undefined;
-  element?: string | undefined;
-  level?: string | undefined;
-  section?: string | undefined;
-  entryFee?: number | undefined;
-  maxEntries?: number | undefined;
-  requiresJumpHeight?: boolean | undefined;
-  customFields?: Record<string, string> | undefined;
-  // Scent work specific fields
-  hidesUsed?: string | undefined;
-  distractionsUsed?: string | undefined;
-  itemsUsed?: string | undefined;
-  timeLimit1?: string | undefined;
-  timeLimit2?: string | undefined;
-  timeLimit3?: string | undefined;
-  photoUrl?: string | undefined;
-  templateId?: string | undefined;
-  endTime?: string | undefined;
-}
-
-export interface EntryInput {
-  armband: string;
-  handler: string;
-  dog: string;
-  status: string;
-  score?: string;
-  time?: string;
-  placement?: string;
-  classId: string;
-}
-
-interface ClassStoreState {
-  classes: SyncableClassData[];
-  entries: SyncableEntryData[];
-  selectedClassId: string | null;
-  isLoading: boolean;
-  error: string | null;
-  
-  // Local-First Class Actions
-  addClass: (classData: ClassInput) => Promise<SyncableClassData>;
-  updateClass: (id: string, updates: Partial<ClassInput>) => Promise<SyncableClassData | null>;
-  deleteClass: (id: string) => Promise<void>;
-  getClassById: (id: string) => SyncableClassData | null;
-  getClassesByTrialId: (trialId: string) => SyncableClassData[];
-  
-  // Local-First Entry Actions
-  addEntry: (entryData: EntryInput) => Promise<SyncableEntryData>;
-  updateEntry: (id: string, updates: Partial<EntryInput>) => Promise<SyncableEntryData | null>;
-  deleteEntry: (id: string) => Promise<void>;
-  getEntryById: (id: string) => SyncableEntryData | null;
-  getEntriesByClass: (classId: string) => SyncableEntryData[];
-  
-  // Data Management
-  setClasses: (classes: SyncableClassData[]) => void;
-  setEntries: (entries: SyncableEntryData[]) => void;
-  loadClasses: () => Promise<void>;
-  
-  // Sync Status
-  getSyncStatus: (id: string) => 'synced' | 'pending' | 'error' | 'conflict';
-  
-  // Selection
-  setSelectedClassId: (id: string) => void;
-  
-  // Template methods
-  addClassesFromTemplate: (trialId: string, generatedClasses: GeneratedClass[]) => SyncableClassData[];
-  
-  // Legacy methods for compatibility
-  addClassLegacy: (data: ClassData) => void;
-  updateClassLegacy: (id: string, data: Partial<ClassData>) => void;
-  deleteClassLegacy: (id: string) => void;
-  addEntryLegacy: (data: EntryData) => void;
-  updateEntryLegacy: (id: string, data: Partial<EntryData>) => void;
-  deleteEntryLegacy: (id: string) => void;
-
-  // Subscription Management (for replicated table sync)
-  _unsubscribeClasses: (() => void) | null;
-  _unsubscribeEntries: (() => void) | null;
-  initializeSubscription: () => void;
-  cleanup: () => void;
-}
-
-// Import global mock data configuration
-import { shouldUseMockData } from '@/config/dataSource';
-
-const shouldUseMockClasses = () => {
-  return shouldUseMockData('USE_MOCK_SHOWS'); // Classes are part of shows
-};
-
-/**
- * Convert ReplicatedClass (database schema) to SyncableClassData (app schema)
- */
-function replicatedToClass(replicated: ReplicatedClass): SyncableClassData {
-  return {
-    id: replicated.id,
-    trialId: replicated.trialId || '',
-    trial: '', // Local-only: derived
-    trialDate: '', // Local-only: derived
-    trialNumber: '', // Local-only
-    classOrder: '', // Local-only
-    status: 'Scheduled',
-    judge: '', // Local-only
-    className: replicated.name,
-    element: '', // Local-only
-    level: replicated.level || '',
-    section: '', // Local-only
-    entryFee: replicated.entryFee || 25,
-    maxEntries: replicated.maxEntries || 40,
-    // Sync metadata
-    _version: replicated._version || 1,
-    _lastModified: replicated._lastModified || new Date(),
-    _lastModifiedBy: replicated._lastModifiedBy || '',
-    _syncStatus: replicated._syncStatus || 'synced',
-    _localOnly: replicated._localOnly || false,
-  };
-}
-
-/**
- * Merge replicated class with existing local data
- */
-function mergeClassData(replicated: ReplicatedClass, existing: SyncableClassData | undefined): SyncableClassData {
-  const base = replicatedToClass(replicated);
-  if (!existing) return base;
-
-  return {
-    ...base,
-    // Preserve local-only fields
-    trial: existing.trial || '',
-    trialDate: existing.trialDate || '',
-    trialNumber: existing.trialNumber || '',
-    classOrder: existing.classOrder || '',
-    status: existing.status || 'Scheduled',
-    judge: existing.judge || '',
-    element: existing.element || '',
-    section: existing.section || '',
-    hidesUsed: existing.hidesUsed || '',
-    distractionsUsed: existing.distractionsUsed || '',
-    itemsUsed: existing.itemsUsed || '',
-    timeLimit1: existing.timeLimit1 || '',
-    timeLimit2: existing.timeLimit2 || '',
-    timeLimit3: existing.timeLimit3 || '',
-    photoUrl: existing.photoUrl || '',
-  };
-}
-
-/**
- * Convert ReplicatedEntry (database schema) to SyncableEntryData (app schema)
- */
-function replicatedToEntry(replicated: ReplicatedEntry): SyncableEntryData {
-  return {
-    id: replicated.id,
-    armband: replicated.armband || '',
-    handler: replicated.handler || '',
-    dog: '', // Local-only: need to lookup
-    status: (replicated.status || 'Pending') as SyncableEntryData['status'],
-    score: '', // Local-only
-    time: '', // Local-only
-    placement: '', // Local-only
-    classId: replicated.classId || '',
-    // Sync metadata
-    _version: replicated._version || 1,
-    _lastModified: replicated._lastModified || new Date(),
-    _lastModifiedBy: replicated._lastModifiedBy || '',
-    _syncStatus: replicated._syncStatus || 'synced',
-    _localOnly: replicated._localOnly || false,
-  };
-}
-
-/**
- * Merge replicated entry with existing local data
- */
-function mergeEntryData(replicated: ReplicatedEntry, existing: SyncableEntryData | undefined): SyncableEntryData {
-  const base = replicatedToEntry(replicated);
-  if (!existing) return base;
-
-  return {
-    ...base,
-    dog: existing.dog || '',
-    score: existing.score || '',
-    time: existing.time || '',
-    placement: existing.placement || '',
-  };
-}
-
-// Mock data with sync metadata
-const mockClasses: SyncableClassData[] = [
-  {
-    id: '1',
-    trialId: '1',
-    trial: "Scent Work Interior Search",
-    trialDate: "2025-07-20",
-    trialNumber: "T-2025-001",
-    classOrder: "2",
-    status: "Scheduled",
-    judge: "Sarah Johnson",
-    element: "Interior",
-    level: "Advanced",
-    section: "A",
-    hidesUsed: "2",
-    distractionsUsed: "2",
-    itemsUsed: "Furniture, Cabinets",
-    timeLimit1: "3:00",
-    timeLimit2: "",
-    timeLimit3: "",
-    photoUrl: "",
-    className: "Interior Advanced",
-    entryFee: 30,
-    // Sync metadata
-    _version: 1,
-    _lastModified: new Date('2025-01-01T00:00:00Z'),
-    _lastModifiedBy: 'system',
-    _syncStatus: 'synced',
-    _localOnly: false
-  },
-  {
-    id: '2',
-    trialId: '1',
-    trial: "Scent Work Interior Search",
-    trialDate: "2025-07-20",
-    trialNumber: "T-2025-001",
-    classOrder: "1",
-    status: "Scheduled",
-    judge: "Sarah Johnson",
-    element: "Interior",
-    level: "Novice",
-    section: "A",
-    hidesUsed: "1",
-    distractionsUsed: "0",
-    itemsUsed: "Furniture",
-    timeLimit1: "4:00",
-    timeLimit2: "",
-    timeLimit3: "",
-    photoUrl: "",
-    className: "Interior Novice",
-    entryFee: 25,
-    // Sync metadata
-    _version: 1,
-    _lastModified: new Date('2025-01-01T00:00:00Z'),
-    _lastModifiedBy: 'system',
-    _syncStatus: 'synced',
-    _localOnly: false
-  }
-];
-
-const mockEntries: SyncableEntryData[] = [
-  {
-    id: '1',
-    armband: "A101",
-    handler: "John Smith",
-    dog: "Max",
-    status: "Qualified",
-    score: "95.5",
-    time: "2:15",
-    placement: "1st",
-    classId: "1",
-    // Sync metadata
-    _version: 1,
-    _lastModified: new Date('2025-01-01T00:00:00Z'),
-    _lastModifiedBy: 'system',
-    _syncStatus: 'synced',
-    _localOnly: false
-  }
-];
+// Re-export helpers that may be used externally
+export {
+  shouldUseMockClasses,
+  replicatedToClass,
+  mergeClassData,
+  replicatedToEntry,
+  mergeEntryData,
+  mockClasses,
+  mockEntries,
+} from './class-store-helpers';
 
 export const useClassStore = create<ClassStoreState>()(
   (set, get): ClassStoreState => ({
@@ -349,7 +92,7 @@ export const useClassStore = create<ClassStoreState>()(
         throw error;
       }
     },
-      
+
       updateClass: async (id: string, updates: Partial<ClassInput>): Promise<SyncableClassData | null> => {
         try {
           set({ isLoading: true, error: null });
@@ -399,7 +142,7 @@ export const useClassStore = create<ClassStoreState>()(
           throw error;
         }
       },
-      
+
       deleteClass: async (id: string): Promise<void> => {
         try {
           set({ isLoading: true, error: null });
@@ -427,15 +170,15 @@ export const useClassStore = create<ClassStoreState>()(
           throw error;
         }
       },
-      
+
       getClassById: (id: string): SyncableClassData | null => {
         return get().classes.find(c => c.id === id) || null;
       },
-      
+
       getClassesByTrialId: (trialId: string): SyncableClassData[] => {
         return get().classes.filter(c => c.trialId === trialId);
       },
-      
+
       // Local-First Entry Implementation
       addEntry: async (entryData: EntryInput): Promise<SyncableEntryData> => {
         try {
@@ -562,19 +305,19 @@ export const useClassStore = create<ClassStoreState>()(
           throw error;
         }
       },
-      
+
       getEntryById: (id: string): SyncableEntryData | null => {
         return get().entries.find(e => e.id === id) || null;
       },
-      
+
       getEntriesByClass: (classId: string): SyncableEntryData[] => {
         return get().entries.filter(e => e.classId === classId);
       },
-      
+
       // Data Management
       setClasses: (classes) => set({ classes }),
       setEntries: (entries) => set({ entries }),
-      
+
       loadClasses: async (): Promise<void> => {
         try {
           set({ isLoading: true, error: null });
@@ -612,21 +355,21 @@ export const useClassStore = create<ClassStoreState>()(
           set({ error: errorMessage, isLoading: false });
         }
       },
-      
+
       // Sync Status
       getSyncStatus: (id: string): 'synced' | 'pending' | 'error' | 'conflict' => {
         const cls = get().classes.find(c => c.id === id);
         if (cls) return cls._syncStatus || 'synced';
-        
+
         const entry = get().entries.find(e => e.id === id);
         return entry?._syncStatus || 'synced';
       },
-      
+
       // Selection
       setSelectedClassId: (id) => set({ selectedClassId: id }),
-      
+
       // Legacy methods for compatibility
-      addClassLegacy: (data) => set((state) => ({ 
+      addClassLegacy: (data) => set((state) => ({
         classes: [...state.classes, {
           ...data,
           _version: 1,
@@ -634,9 +377,9 @@ export const useClassStore = create<ClassStoreState>()(
           _lastModifiedBy: 'legacy-system',
           _syncStatus: 'synced' as const,
           _localOnly: false
-        } as SyncableClassData] 
+        } as SyncableClassData]
       })),
-      
+
       updateClassLegacy: (id, data) =>
         set((state) => ({
           classes: state.classes.map((cls) => {
@@ -653,14 +396,14 @@ export const useClassStore = create<ClassStoreState>()(
             return cls;
           }),
         })),
-        
+
       deleteClassLegacy: (id) =>
         set((state) => ({
           classes: state.classes.filter((cls) => cls.id !== id),
           entries: state.entries.filter((entry) => entry.classId !== id),
         })),
-        
-      addEntryLegacy: (data) => set((state) => ({ 
+
+      addEntryLegacy: (data) => set((state) => ({
         entries: [...state.entries, {
           ...data,
           _version: 1,
@@ -668,9 +411,9 @@ export const useClassStore = create<ClassStoreState>()(
           _lastModifiedBy: 'legacy-system',
           _syncStatus: 'synced' as const,
           _localOnly: false
-        } as SyncableEntryData] 
+        } as SyncableEntryData]
       })),
-      
+
       updateEntryLegacy: (id, data) =>
         set((state) => ({
           entries: state.entries.map((entry) => {
@@ -687,12 +430,12 @@ export const useClassStore = create<ClassStoreState>()(
             return entry;
           }),
         })),
-        
+
       deleteEntryLegacy: (id) =>
         set((state) => ({
           entries: state.entries.filter((entry) => entry.id !== id),
         })),
-  
+
   // Template methods
       addClassesFromTemplate: (trialId, generatedClasses) => {
         const newClasses: SyncableClassData[] = generatedClasses.map((genClass, index) => {

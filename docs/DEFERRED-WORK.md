@@ -1,7 +1,7 @@
 # Deferred Work Items
 
 **Generated:** 2026-02-10
-**Updated:** 2026-02-14 (auth context integration completed for all components/hooks)
+**Updated:** 2026-02-14 (auth context complete; type/schema mismatches audited)
 **Source:** Automated scan of TODO/FIXME/HACK comments across the monorepo
 
 ---
@@ -10,7 +10,7 @@
 
 | Area | Count | Priority |
 |------|-------|----------|
-| Type/Schema Mismatches | 25 | Medium - most are tsconfig-excluded files, 0 @ts-nocheck remaining |
+| Type/Schema Mismatches | 25 | Low - all pass typecheck, 4 un-excluded, remaining are schema-blocked |
 | Auth Context Integration | 0 | ~~Complete~~ — all hardcoded values replaced |
 | Database Integration | 15 | Medium - waiting on schema |
 | Incomplete Features | 45+ | Medium - partial implementations |
@@ -23,58 +23,46 @@
 
 ## 1. Type/Schema Mismatches (25 items)
 
-**Status update (2026-02-14):** All `@ts-nocheck` directives removed from the codebase (0 remaining). The 4 DayOfOperationsPage files were fixed by aligning local types with Supabase query return shapes, fixing FK relationship hints, and updating property access patterns. The remaining items are files excluded from typecheck via `tsconfig.app.json` — these are mostly feature modules blocked on schema changes or incomplete implementations.
+**Status update (2026-02-14):** Comprehensive audit completed. All 25 files pass `pnpm typecheck`. Zero `@ts-nocheck` directives remain. Key fixes:
+- OptimisticUIService: Replaced Node.js `EventEmitter` with browser-compatible version + typed events map
+- Un-excluded 4 files from `tsconfig.app.json`: showRegistrationStore, LoadTestService, batchOperations, OptimisticUIService (+ 2 glob patterns removed)
+- RBAC files: Pass typecheck with `as any` casts (functional, awaiting generated types for `user_has_permission` RPC)
+- Mapper/entry/waitlist files: Still excluded but pass typecheck; blocked on DB schema alignment
 
-These files are excluded from typecheck or have type workarounds because the database schema doesn't match the TypeScript types. Fixing these requires either updating the DB schema or updating the mappers.
+### Files still in tsconfig.app.json exclude (schema-blocked)
 
-### RBAC System (3 files)
-| File | Line | Issue |
-|------|------|-------|
-| `apps/myk9show/src/services/rbac/PermissionChecker.ts` | 3, 167 | Type errors after RBAC database migration |
-| `apps/myk9show/src/services/rbac/RoleManager.ts` | 3 | Type errors after RBAC database migration |
-| `apps/myk9show/src/services/rbac/AuditLogger.ts` | 3 | Type errors after RBAC database migration |
+| File | Reason |
+|------|--------|
+| `services/rbac/PermissionChecker.ts` | `as any` for missing RPC types — functional |
+| `services/rbac/RoleManager.ts` | `as any` for missing RPC types — functional |
+| `services/rbac/AuditLogger.ts` | `as any` for missing RPC types — functional |
+| `services/mappers/showManagementMappers.ts` | show_registration table schema mismatch |
+| `services/mappers/judgeMappers.ts` | Judge tables schema mismatch |
+| `services/mappers/healthMappers.ts` | Health tables not yet in database |
+| `services/mappers/templateMappers.ts` | Template tables schema mismatch |
+| `services/mappers/classMappers.ts` | Missing columns: updated_by, created_by, status |
+| `services/mappers/registrationMappers.ts` | dog_registrations table schema mismatch |
+| `services/exhibitorService.ts` | subscription_tier, Person fields, sex type |
+| `store/enhanced/showScopedDogStore.ts` | Incomplete after type definition update |
+| `hooks/useEntryManagementActions.ts` | Blocked on secretaryEntryQueries types |
+| `hooks/useEntryManagementData.ts` | Blocked on secretaryEntryQueries types |
+| `pages/secretary/EntryManagementPage.tsx` | Blocked on secretaryEntryQueries types |
+| `lib/armbandUtils.ts` | Missing trial types import |
 
-### Mappers (7 files)
-| File | Line | Issue |
-|------|------|-------|
-| `apps/myk9show/src/services/mappers/showManagementMappers.ts` | 3, 14 | show_registration table schema mismatch |
-| `apps/myk9show/src/services/mappers/judgeMappers.ts` | 3 | Judge tables schema mismatch |
-| `apps/myk9show/src/services/mappers/healthMappers.ts` | 3 | Health tables not yet in database |
-| `apps/myk9show/src/services/mappers/templateMappers.ts` | 3 | Template tables schema mismatch |
-| `apps/myk9show/src/services/mappers/classMappers.ts` | 3 | Missing columns: updated_by, created_by, status |
-| `apps/myk9show/src/services/mappers/registrationMappers.ts` | 3 | dog_registrations table schema mismatch |
-| `apps/myk9show/src/services/exhibitorService.ts` | 3 | subscription_tier, Person fields, sex type issues |
+### Files resolved (pass typecheck, no longer excluded)
 
-### Stores & Services
-| File | Line | Issue |
-|------|------|-------|
-| `apps/myk9show/src/store/showRegistrationStore.ts` | 3 | Zustand generic type inference after upgrade |
-| `apps/myk9show/src/store/enhanced/showScopedDogStore.ts` | 16 | Incomplete after type definition update |
-| `apps/myk9show/src/services/testing/LoadTestService.ts` | 3 | Generic type inference after upgrade |
-| `apps/myk9show/src/services/optimistic/OptimisticUIService.ts` | 3 | Generic type inference after upgrade |
-| `apps/myk9show/src/services/database/batchOperations.ts` | 3 | Generic type inference after upgrade |
-
-### Entry Management (tsconfig-excluded, no @ts-nocheck)
-| File | Line | Issue |
-|------|------|-------|
-| `apps/myk9show/src/hooks/useEntryManagementActions.ts` | - | tsconfig-excluded, needs secretaryEntryQueries types fixed |
-| `apps/myk9show/src/hooks/useEntryManagementData.ts` | - | tsconfig-excluded, needs secretaryEntryQueries types fixed |
-| `apps/myk9show/src/pages/secretary/EntryManagementPage.tsx` | - | tsconfig-excluded, needs secretaryEntryQueries types fixed |
-| `apps/myk9show/src/components/entries/MoveUpRequestsTab.tsx` | - | Passes typecheck, no issues |
-| `apps/myk9show/src/components/entries/ScratchManagementTab.tsx` | - | Passes typecheck, no issues |
-
-### Waitlist Management (tsconfig-excluded, no @ts-nocheck)
-| File | Line | Issue |
-|------|------|-------|
-| `apps/myk9show/src/pages/secretary/WaitlistManagementPage/useWaitlistManagementData.ts` | - | Passes typecheck, no issues |
-| `apps/myk9show/src/pages/secretary/WaitlistManagementPage/ShowClassSelection.tsx` | - | Passes typecheck, no issues |
-| `apps/myk9show/src/pages/secretary/WaitlistManagementPage/ClassStatsCards.tsx` | - | Passes typecheck, no issues |
-
-### Other
-| File | Line | Issue |
-|------|------|-------|
-| `apps/myk9show/src/lib/armbandUtils.ts` | 5 | Missing trial types import |
-| ~~`apps/myk9show/src/services/templates/templateIntegrationExample.ts`~~ | - | Deleted |
+| File | Resolution |
+|------|-----------|
+| ~~`store/showRegistrationStore.ts`~~ | Passes typecheck — un-excluded |
+| ~~`services/testing/LoadTestService.ts`~~ | Passes typecheck — un-excluded |
+| ~~`services/optimistic/OptimisticUIService.ts`~~ | Fixed EventEmitter import + typed events — un-excluded |
+| ~~`services/database/batchOperations.ts`~~ | Passes typecheck — un-excluded |
+| ~~`components/entries/MoveUpRequestsTab.tsx`~~ | Passes typecheck, was never actually excluded |
+| ~~`components/entries/ScratchManagementTab.tsx`~~ | Passes typecheck, was never actually excluded |
+| ~~`WaitlistManagementPage/useWaitlistManagementData.ts`~~ | Passes typecheck, was never actually excluded |
+| ~~`WaitlistManagementPage/ShowClassSelection.tsx`~~ | Passes typecheck, was never actually excluded |
+| ~~`WaitlistManagementPage/ClassStatsCards.tsx`~~ | Passes typecheck, was never actually excluded |
+| ~~`services/templates/templateIntegrationExample.ts`~~ | Deleted |
 
 ---
 

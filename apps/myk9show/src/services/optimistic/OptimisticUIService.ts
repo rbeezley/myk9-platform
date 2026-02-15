@@ -1,13 +1,27 @@
-import { EventEmitter } from 'events';
+import { EventEmitter } from '@/services/sync/eventEmitter';
 import { logger } from '@/services/LoggingService';
 import {
-  OptimisticOperation, 
+  OptimisticOperation,
   RollbackStrategy,
   OptimisticUpdate,
   ConflictResolution
 } from '@/types/optimistic-types';
 
-export class OptimisticUIService extends EventEmitter {
+interface OptimisticUIEvents {
+  optimisticUpdate: { operationId: string; update: OptimisticUpdate<unknown> };
+  operationConfirmed: { operationId: string; result: unknown };
+  rollbackStarted: { operationId: string; error: unknown };
+  rollbackCompleted: { operationId: string };
+  rollbackFailed: { operationId: string; error: unknown };
+  operationRetrying: { operationId: string; attempt: number };
+  conflictDetected: { operationId: string; conflicts: unknown[]; operation: OptimisticOperation };
+  operationUndone: { operationId: string };
+  offlineModeActivated: undefined;
+  operationQueued: { operationId: string };
+  uploadProgress: { entityId: string; progress: number; fileName: string };
+}
+
+export class OptimisticUIService extends EventEmitter<OptimisticUIEvents> {
   private static instance: OptimisticUIService;
   private pendingOperations: Map<string, OptimisticOperation> = new Map();
   private stateSnapshots: Map<string, unknown> = new Map();
@@ -451,7 +465,7 @@ export class OptimisticUIService extends EventEmitter {
   }
 
   private handleOfflineMode() {
-    this.emit('offlineModeActivated');
+    this.emit('offlineModeActivated', undefined);
   }
 
   private registerDefaultStrategies() {

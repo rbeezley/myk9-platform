@@ -24,7 +24,7 @@
  */
 
 import { supabase } from '../lib/supabase';
-import { NATIONALS_SCORING, NATIONALS_VALIDATION } from '../constants/nationalsConstants';
+import { NATIONALS_SCORING, NATIONALS_VALIDATION } from '@myk9/core';
 
 // Types matching our database schema
 export type ElementType = 'CONTAINER' | 'BURIED' | 'INTERIOR' | 'EXTERIOR' | 'HD_CHALLENGE';

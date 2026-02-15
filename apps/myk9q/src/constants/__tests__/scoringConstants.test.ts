@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { NATIONALS_SCORING, NATIONALS_VALIDATION } from '../nationalsConstants';
+import { NATIONALS_SCORING, NATIONALS_VALIDATION } from '@myk9/core';
 import { FASTCAT_COURSE, FASTCAT_HANDICAP, getHandicapMultiplier, getHeightCategory, calculateFastCatMph, calculateFastCatPoints } from '../fastcatConstants';
 
 describe('Nationals Scoring Constants', () => {

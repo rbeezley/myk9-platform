@@ -7,7 +7,7 @@
 
 import type { AreaScore } from '../../../services/scoresheets/areaInitialization';
 import type { ElementType } from '../../../services/nationalsScoring';
-import { NATIONALS_SCORING } from '../../../constants/nationalsConstants';
+import { NATIONALS_SCORING } from '@myk9/core';
 import { formatSecondsToTime } from '../../../utils/timeUtils';
 
 // ============================================================================

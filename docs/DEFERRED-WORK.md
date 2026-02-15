@@ -1,7 +1,7 @@
 # Deferred Work Items
 
 **Generated:** 2026-02-10
-**Updated:** 2026-02-15 (DB integration audit — 11 of 15 items already complete, 4 remain)
+**Updated:** 2026-02-15 (code organization audit — architecture correct, nationalsConstants extracted)
 **Source:** Automated scan of TODO/FIXME/HACK comments across the monorepo
 
 ---
@@ -15,7 +15,7 @@
 | Database Integration | 4 | Medium - 4 unique items remain (11 were already done) |
 | Incomplete Features | 0 | ~~Complete~~ — OfflineJudgeInterface store wiring done |
 | Realtime/Sync | 0 | ~~Complete~~ — all items verified implemented |
-| Code Organization | 3 | Low - DRY improvements (when needed by both apps) |
+| Code Organization | 0 | ~~Complete~~ — architecture reviewed, nationalsConstants extracted to @myk9/core |
 | UX Polish | 0 | ~~Complete~~ — all items verified implemented or fixed |
 | myk9q Items | 3 | Low - working fine as-is |
 
@@ -156,15 +156,19 @@ Zero instances of `'current-user'` or `'current-judge'` remain in production cod
 
 ---
 
-## 6. Code Organization (3 items)
+## 6. Code Organization — COMPLETE
 
-Services that should be extracted to shared packages for DRY compliance.
+Architecture reviewed 2026-02-15. All three services already follow the correct pattern:
+`@myk9/core` exports type contracts + no-op stubs; each app provides its own full implementation
+with app-specific dependencies (settings stores, Supabase client). Full extraction would require
+dependency injection with no concrete benefit.
 
-| File | Line | Action |
-|------|------|--------|
-| `apps/myk9show/src/services/notificationSoundService.ts` | 5 | Move to shared package |
-| `apps/myk9show/src/services/voiceAnnouncementService.ts` | 5 | Move to shared package |
-| `apps/myk9show/src/services/nationalsScoring.ts` | 5 | Move to shared package when nationals needed in both apps |
+| File | Status |
+|------|--------|
+| ~~`notificationSoundService`~~ | ~~Architecture correct — stub in @myk9/core, impl in apps (hard dep on useSettingsStore)~~ |
+| ~~`voiceAnnouncementService`~~ | ~~Architecture correct — stub in @myk9/core, impl in apps (dep on settingsStore + localStorage)~~ |
+| ~~`nationalsScoring`~~ | ~~Architecture correct — stub in @myk9/core, impl in myK9Q (dep on supabase client + store)~~ |
+| `nationalsConstants.ts` | Extracted to `@myk9/core` — was duplicated identically in both apps |
 
 ---
 

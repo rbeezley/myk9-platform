@@ -157,3 +157,11 @@ export {
   type NationalsRanking,
   type NationalsScoringInterface,
 } from './services/nationalsScoring';
+
+// Nationals scoring constants
+export {
+  NATIONALS_SCORING,
+  NATIONALS_VALIDATION,
+  type NationalsScoringConstants,
+  type NationalsValidationConstants,
+} from './constants/nationals';

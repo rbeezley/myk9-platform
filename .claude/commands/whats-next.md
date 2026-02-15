@@ -54,6 +54,17 @@ Adapt the level of detail to the task type (coding, research, analysis, writing,
 
 Write to `whats-next.md` in the current working directory using the format below.
 
+## Memory Update
+
+After writing the handoff document, also update the persistent session state in `~/.claude/projects/-Users-richardbeezley-AI-Projects-myk9-platform/memory/MEMORY.md`:
+
+1. Update "Last Completed Task" with the most recently finished work
+2. Update "Next Task" with the first item from work_remaining
+3. Update completion status tables if any tier/phase items were completed
+4. Keep the file concise (under 50 lines)
+
+This ensures the next session starts with accurate state without needing to read the handoff document.
+
 ## Output Format
 
 ```xml

@@ -4,7 +4,7 @@ import type { ClassStatusValue } from '@myk9/core';
 
 // Re-export types for external usage
 export type { Trial, TrialClass };
-import { replicatedTrialsTable, type ReplicatedTrial } from '@/services/replication';
+import { replicatedTrialsTable, replicatedClassesTable, type ReplicatedTrial, type ReplicatedClass } from '@/services/replication';
 import { reportDebug } from '@/utils/standardizedErrorHandler';
 
 // Extend Trial interface with sync metadata
@@ -22,6 +22,26 @@ export interface SyncableTrialClass extends TrialClass {
   _lastModifiedBy: string;
   _syncStatus: 'synced' | 'pending' | 'error' | 'conflict';
   _localOnly?: boolean | undefined;
+}
+
+/** Map a SyncableTrialClass to ReplicatedClass for offline persistence */
+function trialClassToReplicated(tc: SyncableTrialClass, trialId: string): ReplicatedClass {
+  return {
+    id: tc.id,
+    trialId,
+    name: [tc.element, tc.level, tc.section].filter(Boolean).join(' ').trim() || tc.id,
+    element: tc.element,
+    level: tc.level,
+    section: tc.section,
+    judgeName: tc.judgeName,
+    startTime: tc.startTime,
+    classStatus: tc.status,
+    _version: tc._version,
+    _lastModified: tc._lastModified,
+    _lastModifiedBy: tc._lastModifiedBy,
+    _syncStatus: tc._syncStatus,
+    _localOnly: tc._localOnly,
+  };
 }
 
 // Input types for creating/updating trials
@@ -549,7 +569,13 @@ export const useTrialStore = create<TrialStore>()(
             _localOnly: true
           };
 
-          // Optimistic update - add to store immediately
+          // Persist first, then update state (matches addTrial/classStore pattern)
+          await replicatedClassesTable.set(
+            newTrialClass.id,
+            trialClassToReplicated(newTrialClass, trialId),
+            true
+          );
+
           set((state) => {
             const classes = state.trialClasses[trialId] || [];
             return {
@@ -559,8 +585,6 @@ export const useTrialStore = create<TrialStore>()(
               }
             };
           });
-
-          // Phase 8: Sync via ReplicatedClassesTable for offline support
 
           return newTrialClass;
         } catch (error) {
@@ -591,7 +615,13 @@ export const useTrialStore = create<TrialStore>()(
             _syncStatus: 'pending'
           };
 
-          // Optimistic update
+          // Persist first, then update state
+          await replicatedClassesTable.set(
+            classId,
+            trialClassToReplicated(updatedClass, trialId),
+            true
+          );
+
           set((state) => ({
             trialClasses: {
               ...state.trialClasses,
@@ -600,8 +630,6 @@ export const useTrialStore = create<TrialStore>()(
               )
             }
           }));
-
-          // Phase 8: Sync via ReplicatedClassesTable for offline support
 
           return updatedClass;
         } catch (error) {
@@ -622,15 +650,15 @@ export const useTrialStore = create<TrialStore>()(
             return;
           }
 
-          // Optimistic delete - remove immediately
+          // Persist first, then update state
+          await replicatedClassesTable.delete(classId);
+
           set((state) => ({
             trialClasses: {
               ...state.trialClasses,
               [trialId]: (state.trialClasses[trialId] || []).filter(c => c.id !== classId)
             }
           }));
-
-          // Phase 8: Sync via ReplicatedClassesTable for offline support
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to delete trial class';
           set({ error: errorMessage });

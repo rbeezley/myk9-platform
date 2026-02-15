@@ -1,7 +1,7 @@
 # Deferred Work Items
 
 **Generated:** 2026-02-10
-**Updated:** 2026-02-15 (OfflineJudgeInterface store wiring complete — 0 incomplete features remain)
+**Updated:** 2026-02-15 (DB integration audit — 11 of 15 items already complete, 4 remain)
 **Source:** Automated scan of TODO/FIXME/HACK comments across the monorepo
 
 ---
@@ -10,9 +10,9 @@
 
 | Area | Count | Priority |
 |------|-------|----------|
-| Type/Schema Mismatches | 15 | Low - schema-blocked files remain excluded |
+| Type/Schema Mismatches | 0 | ~~Complete~~ — all 15 resolved (eb49834) |
 | Auth Context Integration | 0 | ~~Complete~~ — all hardcoded values replaced |
-| Database Integration | 15 | Medium - waiting on schema |
+| Database Integration | 4 | Medium - 4 unique items remain (11 were already done) |
 | Incomplete Features | 0 | ~~Complete~~ — OfflineJudgeInterface store wiring done |
 | Realtime/Sync | 0 | ~~Complete~~ — all items verified implemented |
 | Code Organization | 3 | Low - DRY improvements (when needed by both apps) |
@@ -21,51 +21,14 @@
 
 ---
 
-## 1. Type/Schema Mismatches (15 items remaining)
+## 1. Type/Schema Mismatches — COMPLETE
 
-**Status update (2026-02-14):** Phase 8 exclusion audit completed:
-- **24 dead code files deleted** (~8,981 lines removed) across sync, monitoring, virtualization, scoring, and utility modules
-- **tsconfig.app.json exclude list reduced from 135 to 88 non-test entries** (35% reduction)
-- Removed entries for non-existent files, redundant individual entries covered by globs, and duplicate entries
-- Fixed barrel exports (scoring/index.ts, lib/lazyLoading.ts) that referenced deleted modules
-- All remaining excluded files have documented reasons (schema-blocked or have active consumers with type errors)
+**Resolved (2026-02-15, eb49834):** All 15 schema-blocked type mismatches resolved:
+- **5 dead code files deleted** (~1,915 lines): judgeMappers, registrationMappers, showManagementMappers, showScopedDogStore, armbandUtils
+- **10 active files fixed:** RBAC services (`as any` → proper types), exhibitorService (manual interfaces → DB-derived), templateMappers/classMappers (`Record<string,unknown>` → `DbClassTemplate`/`DbShowTemplate`), healthMappers (type guards + `exactOptionalPropertyTypes`), entry management (removed excluded NotificationService deps)
+- Exported `Json` type from `@myk9/supabase`
 
-**Previous audit (2026-02-14):** 4 files un-excluded (showRegistrationStore, LoadTestService, batchOperations, OptimisticUIService). Zero `@ts-nocheck` directives remain.
-
-### Files still in tsconfig.app.json exclude (schema-blocked)
-
-| File | Reason |
-|------|--------|
-| `services/rbac/PermissionChecker.ts` | `as any` for missing RPC types — functional |
-| `services/rbac/RoleManager.ts` | `as any` for missing RPC types — functional |
-| `services/rbac/AuditLogger.ts` | `as any` for missing RPC types — functional |
-| `services/mappers/showManagementMappers.ts` | show_registration table schema mismatch |
-| `services/mappers/judgeMappers.ts` | Judge tables schema mismatch |
-| ~~`services/mappers/healthMappers.ts`~~ | ~~RESOLVED: Type-safe mappers with validation, no `as` casts~~ |
-| `services/mappers/templateMappers.ts` | Template tables schema mismatch |
-| `services/mappers/classMappers.ts` | Missing columns: updated_by, created_by, status |
-| `services/mappers/registrationMappers.ts` | dog_registrations table schema mismatch |
-| `services/exhibitorService.ts` | subscription_tier, Person fields, sex type |
-| `store/enhanced/showScopedDogStore.ts` | Incomplete after type definition update |
-| `hooks/useEntryManagementActions.ts` | Blocked on secretaryEntryQueries types |
-| `hooks/useEntryManagementData.ts` | Blocked on secretaryEntryQueries types |
-| `pages/secretary/EntryManagementPage.tsx` | Blocked on secretaryEntryQueries types |
-| `lib/armbandUtils.ts` | Missing trial types import |
-
-### Files resolved (pass typecheck, no longer excluded)
-
-| File | Resolution |
-|------|-----------|
-| ~~`store/showRegistrationStore.ts`~~ | Passes typecheck — un-excluded |
-| ~~`services/testing/LoadTestService.ts`~~ | Passes typecheck — un-excluded |
-| ~~`services/optimistic/OptimisticUIService.ts`~~ | Fixed EventEmitter import + typed events — un-excluded |
-| ~~`services/database/batchOperations.ts`~~ | Passes typecheck — un-excluded |
-| ~~`components/entries/MoveUpRequestsTab.tsx`~~ | Passes typecheck, was never actually excluded |
-| ~~`components/entries/ScratchManagementTab.tsx`~~ | Passes typecheck, was never actually excluded |
-| ~~`WaitlistManagementPage/useWaitlistManagementData.ts`~~ | Passes typecheck, was never actually excluded |
-| ~~`WaitlistManagementPage/ShowClassSelection.tsx`~~ | Passes typecheck, was never actually excluded |
-| ~~`WaitlistManagementPage/ClassStatsCards.tsx`~~ | Passes typecheck, was never actually excluded |
-| ~~`services/templates/templateIntegrationExample.ts`~~ | Deleted |
+**Previous audit (2026-02-14):** Phase 8 exclusion audit deleted 24 dead code files (~8,981 lines), reduced tsconfig exclude from 135 → 88 entries. 4 files un-excluded (showRegistrationStore, LoadTestService, batchOperations, OptimisticUIService). Zero `@ts-nocheck` directives remain.
 
 ---
 
@@ -87,27 +50,24 @@ Zero instances of `'current-user'` or `'current-judge'` remain in production cod
 
 ---
 
-## 3. Database Integration Pending (15 items)
+## 3. Database Integration (4 remaining of 15 audited)
 
-Features waiting on database tables or schema changes.
+**Audit (2026-02-15):** 11 of 15 items were already complete or had working workarounds:
+- ~~`user_preferences` table~~ — table exists (migration 005), service fully implemented
+- ~~`userPreferencesService.ts`~~ — duplicate of above, fully working
+- ~~`notification_queue` / EmailService~~ — table exists, all 4 TODOs are working code
+- ~~`clubQueries.ts` show relationship~~ — FK `shows.club_id` exists and works (2 items)
+- ~~`show-relationships.ts` club membership~~ — works via RBAC `role_scopes` table
 
-### Missing Tables
-| File | Line | Missing Table/Feature |
-|------|------|----------------------|
-| `apps/myk9show/src/types/user-preferences.ts` | 9 | `user_preferences` table |
-| `apps/myk9show/src/components/subscription/SubscriptionManager.tsx` | 3 | `stripe_user_subscriptions` table |
-| `apps/myk9show/src/services/payment/PaymentService.ts` | 3 | Payment tables |
-| `apps/myk9show/src/services/preferences/userPreferencesService.ts` | 3 | `user_preferences` table |
+### Remaining Items
 
-### Missing Schema Features
-| File | Line | Feature Needed |
-|------|------|----------------|
-| `apps/myk9show/src/services/notifications/FCMService.ts` | 344 | `notification_event` table integration |
-| `apps/myk9show/src/services/notifications/EmailService.ts` | 487-575 | `notification_queue` integration (4 TODOs) |
-| `apps/myk9show/src/utils/show-relationships.ts` | 50 | Club membership data for admin check |
-| `apps/myk9show/src/services/database/queries/clubQueries.ts` | 335, 356 | Show relationship in club schema |
-| `apps/myk9show/src/components/shows/enhanced/PaginatedShowsList.tsx` | 248, 485 | Entries count on Show type |
-| `apps/myk9show/src/store/trialStore.ts` | 563, 604, 633 | ReplicatedClassesTable integration (3 TODOs) |
+| File | Issue | Priority |
+|------|-------|----------|
+| `apps/myk9show/src/store/trialStore.ts` (lines 563, 604, 633) | Wire `addTrialClass`/`updateTrialClass`/`deleteTrialClass` to `ReplicatedClassesTable` for offline sync | Medium — 13 importers, store works but no persistence |
+| `apps/myk9show/src/components/subscription/SubscriptionManager.tsx` | Stripe write operations (create/upgrade/portal) need Edge Functions; reads work | Medium — needs Stripe API setup |
+| `apps/myk9show/src/services/payment/PaymentService.ts` | Payment write operations (create/confirm/refund) need Edge Functions; reads work | Medium — needs Stripe API setup |
+| `apps/myk9show/src/services/notifications/FCMService.ts` (line 344) | `notification_event` table for analytics (currently logs only) | Low — logging workaround sufficient |
+| `apps/myk9show/src/components/shows/enhanced/PaginatedShowsList.tsx` (lines 248, 485) | `entriesCount` field on Show type (component has no active importers) | Low — dead component |
 
 ---
 

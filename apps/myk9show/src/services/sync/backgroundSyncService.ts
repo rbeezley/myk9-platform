@@ -106,7 +106,7 @@ export class BackgroundSyncService {
         clientId: this.getClientId(),
         timestamp: new Date(),
         userAgent: navigator.userAgent,
-        version: '1.0.0' // TODO: Get from package.json
+        version: __APP_VERSION__
       }
     };
 

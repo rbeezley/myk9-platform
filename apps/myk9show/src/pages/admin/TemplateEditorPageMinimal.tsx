@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -8,6 +9,7 @@ import { ArrowLeft, Save, FileText, Settings, Eye } from 'lucide-react';
 import { useTemplateStore } from '@/store/templateStore';
 import { ClassTemplate, Organization, ShowType, TemplateStatus, TemplateType } from '@/types/template.types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
 import { logger } from '@/services/LoggingService';
 import { toast } from 'sonner';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -65,6 +67,10 @@ const TemplateEditorPageMinimal: React.FC = () => {
   const [activeTab, setActiveTab] = useState('basic');
   const [hasChanges, setHasChanges] = useState(false);
 
+  const updateField = <K extends keyof ClassTemplate>(field: K, value: ClassTemplate[K]) => {
+    setTemplate(prev => ({ ...prev, [field]: value }));
+    setHasChanges(true);
+  };
 
   const handleSave = async () => {
     try {
@@ -171,20 +177,56 @@ const TemplateEditorPageMinimal: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div>
-                    <strong>Template Name:</strong> {template.templateName || 'N/A'}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="templateName">Template Name</Label>
+                    <Input
+                      id="templateName"
+                      value={template.templateName || ''}
+                      onChange={(e) => updateField('templateName', e.target.value)}
+                    />
                   </div>
-                  <div>
-                    <strong>Organization:</strong> {template.organization || 'N/A'}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="organization">Organization</Label>
+                    <select
+                      id="organization"
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                      value={template.organization || Organization.AKC}
+                      onChange={(e) => updateField('organization', e.target.value as Organization)}
+                    >
+                      {Object.values(Organization).map((org) => (
+                        <option key={org} value={org}>{org}</option>
+                      ))}
+                    </select>
                   </div>
-                  <div>
-                    <strong>Show Type:</strong> {template.showType || 'N/A'}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="showType">Show Type</Label>
+                    <select
+                      id="showType"
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                      value={template.showType || ShowType.SCENT_WORK}
+                      onChange={(e) => updateField('showType', e.target.value as ShowType)}
+                    >
+                      {Object.values(ShowType).map((type) => (
+                        <option key={type} value={type}>{type}</option>
+                      ))}
+                    </select>
                   </div>
-                  <div>
-                    <strong>Version:</strong> {template.version || 'N/A'}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="version">Version</Label>
+                    <Input
+                      id="version"
+                      value={template.version || ''}
+                      onChange={(e) => updateField('version', e.target.value)}
+                    />
                   </div>
-                  <div>
-                    <strong>Description:</strong> {template.description || 'No description'}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="description">Description</Label>
+                    <textarea
+                      id="description"
+                      className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+                      value={template.description || ''}
+                      onChange={(e) => updateField('description', e.target.value)}
+                    />
                   </div>
                 </div>
               </CardContent>

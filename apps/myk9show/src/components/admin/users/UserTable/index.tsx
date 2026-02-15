@@ -17,9 +17,11 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { logger } from '@/services/LoggingService';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { Table, TableBody } from '@/components/ui/table';
+import { DeleteConfirmationDialog } from '@/components/base/DeleteConfirmationDialog';
+import { useUserStore } from '@/store/userStore';
 import '@/styles/apple-table.css';
 
 import { User } from '@/types/user-types';
@@ -47,6 +49,9 @@ export const UserTable: React.FC<UserTableProps> = ({
 }) => {
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const { deleteUser } = useUserStore();
 
   // Sort users
   const sortedUsers = useMemo(() => {
@@ -125,8 +130,21 @@ export const UserTable: React.FC<UserTableProps> = ({
   };
 
   const handleDeleteUser = (user: User) => {
-    // TODO: Implement delete confirmation dialog
-    logger.debug('Delete user:', 'admin', { data: user.id });
+    setDeleteTarget(user);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      await deleteUser(deleteTarget.id);
+      toast.success(`${deleteTarget.firstName} ${deleteTarget.lastName} has been deleted`);
+      setDeleteTarget(null);
+    } catch {
+      toast.error('Failed to delete user');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   // Loading state
@@ -184,6 +202,15 @@ export const UserTable: React.FC<UserTableProps> = ({
         totalUsers={users.length}
         searchTerm={searchTerm}
         onPageChange={onPageChange}
+      />
+
+      <DeleteConfirmationDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        onConfirm={confirmDelete}
+        entityName={deleteTarget ? `${deleteTarget.firstName} ${deleteTarget.lastName}` : ''}
+        entityType="User"
+        isDeleting={isDeleting}
       />
     </div>
   );

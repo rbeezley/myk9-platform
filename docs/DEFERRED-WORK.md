@@ -1,7 +1,7 @@
 # Deferred Work Items
 
 **Generated:** 2026-02-10
-**Updated:** 2026-02-14 (auth context complete; type/schema mismatches audited)
+**Updated:** 2026-02-15 (audit: 11 items verified complete, 3 items fixed)
 **Source:** Automated scan of TODO/FIXME/HACK comments across the monorepo
 
 ---
@@ -13,8 +13,8 @@
 | Type/Schema Mismatches | 15 | Low - schema-blocked files remain excluded |
 | Auth Context Integration | 0 | ~~Complete~~ — all hardcoded values replaced |
 | Database Integration | 15 | Medium - waiting on schema |
-| Incomplete Features | 45+ | Medium - partial implementations |
-| Realtime/Sync | 6 | Medium - infrastructure |
+| Incomplete Features | 34 | Medium - partial implementations |
+| Realtime/Sync | 5 | Medium - infrastructure |
 | Code Organization | 3 | Low - DRY improvements |
 | UX Polish | 6 | Low - confirmation dialogs, messages |
 | myk9q Items | 3 | Low - working fine as-is |
@@ -116,10 +116,10 @@ Features waiting on database tables or schema changes.
 ### Scoring & Results
 | File | Line | Missing Feature |
 |------|------|-----------------|
-| `apps/myk9show/src/components/scoring/JudgeClassInterface.tsx` | 108, 245 | Actual API calls (placeholder data) |
-| `apps/myk9show/src/components/scoring/OfflineJudgeInterface.tsx` | 166 | Actual data loading |
-| `apps/myk9show/src/components/scoring/ResultEntryNavigation.tsx` | 99, 116, 428 | API call for check-in status updates |
-| `apps/myk9show/src/services/realtime/RealtimeScoringService.ts` | 298, 370 | Conflict resolution, channel filter |
+| ~~`apps/myk9show/src/components/scoring/JudgeClassInterface.tsx`~~ | ~~108, 245~~ | ~~Already complete — uses query hooks and mutation~~ |
+| `apps/myk9show/src/components/scoring/OfflineJudgeInterface.tsx` | 109-126 | Store wiring: validation, syncStatus, authenticateJudge are stubs |
+| ~~`apps/myk9show/src/components/scoring/ResultEntryNavigation.tsx`~~ | ~~99, 116, 428~~ | ~~Already complete — all items implemented~~ |
+| ~~`apps/myk9show/src/services/realtime/RealtimeScoringService.ts`~~ | ~~298, 370~~ | ~~Already complete — conflict resolution + presence sync working~~ |
 
 ### Registration & Entry Management
 | File | Line | Missing Feature |
@@ -132,20 +132,20 @@ Features waiting on database tables or schema changes.
 ### User & Dog Management
 | File | Line | Missing Feature |
 |------|------|-----------------|
-| `apps/myk9show/src/store/userStore.ts` | 229 | Database delete (deleteUser query) |
-| `apps/myk9show/src/components/admin/users/UserTable.tsx` | 286 | Delete confirmation dialog |
-| `apps/myk9show/src/components/dogs/common/DogCard.tsx` | 84 | Save logic |
-| `apps/myk9show/src/components/dogs/AddDogDialog.tsx` | 226 | Registrations in separate table |
+| ~~`apps/myk9show/src/store/userStore.ts`~~ | ~~229~~ | ~~Already complete — deleteUser with DB call implemented~~ |
+| ~~`apps/myk9show/src/components/admin/users/UserTable`~~ | ~~128~~ | ~~Fixed 2026-02-15 — delete confirmation dialog added~~ |
+| ~~`apps/myk9show/src/components/dogs/common/DogCard.tsx`~~ | ~~84~~ | ~~Already complete — delegates via onSavePhoto callback~~ |
+| ~~`apps/myk9show/src/components/dogs/AddDogDialog.tsx`~~ | ~~226~~ | ~~Already complete — registrations saved via syncDogRegistrations~~ |
 | `apps/myk9show/src/components/users/UserListPage.tsx` | 179 | Save qualifications to backend |
 | `apps/myk9show/src/components/users/UserDetails/UserDetailsView.tsx` | 152 | Save to backend |
 | `apps/myk9show/src/components/users/PersonDetailsDialog.tsx` | 28, 29 | Edit dialog trigger |
-| `apps/myk9show/src/hooks/useUsers.ts` | 5, 14, 19, 24 | Real API endpoint (placeholder) |
+| ~~`apps/myk9show/src/hooks/useUsers.ts`~~ | ~~5, 14, 19, 24~~ | ~~Already complete — real Supabase queries via userQueries~~ |
 
 ### Secretary Tools
 | File | Line | Missing Feature |
 |------|------|-----------------|
-| `apps/myk9show/src/pages/secretary/ClassCreationPage.tsx` | 162, 171 | Copy and export functionality |
-| `apps/myk9show/src/pages/admin/TemplateEditorPageMinimal.tsx` | 68 | Save logic |
+| ~~`apps/myk9show/src/pages/secretary/ClassCreationPage.tsx`~~ | ~~162, 171~~ | ~~Already complete — copy/export implemented~~ |
+| ~~`apps/myk9show/src/pages/admin/TemplateEditorPageMinimal.tsx`~~ | ~~68~~ | ~~Fixed 2026-02-15 — editable fields + change tracking added~~ |
 | `apps/myk9show/src/components/secretary/ResultsGrid.tsx` | 75-76 | Column configuration from classConfig |
 
 ### Data Lifecycle
@@ -179,7 +179,6 @@ Features waiting on database tables or schema changes.
 | `apps/myk9show/src/hooks/useBackgroundSync.ts` | 121 | Entity-specific sync status |
 | `apps/myk9show/src/components/clubs/ClubDetails.tsx` | 321 | Registration success handling |
 | `apps/myk9show/src/components/shows/wizard/ShowCreationWizard.tsx` | 754 | Success message |
-| ~~`apps/myk9show/src/components/users/enhanced/VirtualUserList.tsx`~~ | — | Deleted (dead code) |
 | `apps/myk9show/src/components/common/UserFriendlyErrors.tsx` | 429 | Move hooks to separate file |
 | `apps/myk9show/src/services/data-scoping/role-profiles.ts` | 311 | Use scope for access control |
 | `apps/myk9show/src/pages/TrialDetailsPage.tsx` | 138, 139 | Start time and entries from data |
@@ -193,7 +192,7 @@ Features waiting on database tables or schema changes.
 | `apps/myk9show/src/hooks/useRealTimeUpdates.ts` | 82, 122, 148 | WebSocket/SSE setup (3 TODOs) |
 | `apps/myk9show/src/services/sync/InitialSyncOrchestrator.ts` | 234 | Actual sync logic with Supabase |
 | `apps/myk9show/src/services/sync/SmartQueryBuilder.ts` | 53 | Replace with actual Supabase query |
-| `apps/myk9show/src/services/sync/backgroundSyncService.ts` | 104 | Version from package.json |
+| ~~`apps/myk9show/src/services/sync/backgroundSyncService.ts`~~ | ~~104~~ | ~~Fixed 2026-02-15 — uses __APP_VERSION__ from Vite define~~ |
 
 ---
 

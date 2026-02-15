@@ -1,4 +1,7 @@
 {
+  "buildCommand": "cd ../.. && npx turbo build --filter=@myk9/q",
+  "outputDirectory": "dist",
+  "framework": "vite",
   "rewrites": [
     {
       "source": "/(.*)",

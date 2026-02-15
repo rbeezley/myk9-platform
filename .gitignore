@@ -56,6 +56,9 @@ supabase/.temp/
 # Auto Claude data directory
 .auto-claude/
 
+# Session handoff
+save-next.md
+
 # Claude Code local settings
 .claude_settings.json
 nul

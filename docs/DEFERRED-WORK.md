@@ -1,7 +1,7 @@
 # Deferred Work Items
 
 **Generated:** 2026-02-10
-**Updated:** 2026-02-15 (myk9q items audit — all 3 already implemented)
+**Updated:** 2026-02-15 (ALL SECTIONS COMPLETE — Stripe Edge Functions implemented)
 **Source:** Automated scan of TODO/FIXME/HACK comments across the monorepo
 
 ---
@@ -12,7 +12,7 @@
 |------|-------|----------|
 | Type/Schema Mismatches | 0 | ~~Complete~~ — all 15 resolved (eb49834) |
 | Auth Context Integration | 0 | ~~Complete~~ — all hardcoded values replaced |
-| Database Integration | 1 | Medium - Stripe Edge Functions (2 missing: customer-portal, upgrade-subscription) |
+| Database Integration | 0 | ~~Complete~~ — Stripe Edge Functions implemented (customer-portal, upgrade-subscription) |
 | Incomplete Features | 0 | ~~Complete~~ — OfflineJudgeInterface store wiring done |
 | Realtime/Sync | 0 | ~~Complete~~ — all items verified implemented |
 | Code Organization | 0 | ~~Complete~~ — architecture reviewed, nationalsConstants extracted to @myk9/core |
@@ -61,9 +61,7 @@ Zero instances of `'current-user'` or `'current-judge'` remain in production cod
 
 ### Remaining Items
 
-| File | Issue | Priority |
-|------|-------|----------|
-| `apps/myk9show/src/components/subscription/SubscriptionManager.tsx` | 2 missing Edge Functions: `stripe-customer-portal`, `stripe-upgrade-subscription`. Core checkout + webhooks work. | Medium — needs Stripe API setup |
+None — all items resolved.
 
 ### Resolved Items (audited 2026-02-15)
 
@@ -73,6 +71,7 @@ Zero instances of `'current-user'` or `'current-judge'` remain in production cod
 | ~~`PaymentService.ts`~~ | ~~Write stubs exist but are NOT called by any UI. Read operations work. Stripe checkout + webhook Edge Functions already implemented. Refund/confirm stubs are dead code paths.~~ |
 | ~~`FCMService.ts`~~ | ~~notification_events table exists (migration 20240124). Logging is deliberate design choice — table ready if analytics require it.~~ |
 | ~~`PaginatedShowsList.tsx`~~ | ~~Dead component — zero importers across codebase. Deleted.~~ |
+| ~~`SubscriptionManager.tsx`~~ | ~~Done — `stripe-customer-portal` and `stripe-upgrade-subscription` Edge Functions created. Requires Stripe API key + Billing Portal config in Stripe Dashboard.~~ |
 
 ---
 

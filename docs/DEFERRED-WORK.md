@@ -11,7 +11,7 @@
 | Area | Count | Priority |
 |------|-------|----------|
 | Type/Schema Mismatches | 25 | Medium - most are tsconfig-excluded files, 0 @ts-nocheck remaining |
-| Auth Context Integration | 4 (stores) | Medium - stores need architectural change |
+| Auth Context Integration | 0 | ~~Complete~~ — all hardcoded values replaced |
 | Database Integration | 15 | Medium - waiting on schema |
 | Incomplete Features | 45+ | Medium - partial implementations |
 | Realtime/Sync | 6 | Medium - infrastructure |
@@ -78,25 +78,21 @@ These files are excluded from typecheck or have type workarounds because the dat
 
 ---
 
-## 2. Auth Context Integration (4 remaining — stores only)
+## 2. Auth Context Integration — COMPLETE
 
-**Status update (2026-02-14):** All component/hook hardcoded values fixed. The original 8 items were already resolved in a prior pass. A broader scan found 10 additional files with `'current-user'`, `'current-judge'`, or mock `isPremium` — all now fixed via `useAuthContext()`. Premium gating mock replaced with RBAC-based auth check (authenticated = access granted; replace with subscription check when premium tier is implemented).
+**Status update (2026-02-14):** All hardcoded auth values eliminated from the codebase.
 
-**Fixed files (this pass):**
-- `AgilityScoresheet.tsx`, `RallyScoresheet.tsx`, `ObedienceScoresheet.tsx` — `'current-judge'` → `user?.id`
-- `RoleApprovalWorkflow.tsx` — `'current-user'` and `'current@user.com'` → auth context
-- `ConflictResolutionManager.tsx`, `TemplateActions.tsx` — `'current-user'` → `user?.id`
-- `useEntryStoreCompat.ts` — 5 instances of `'current-user'` → `user?.id`
-- `DogDetailsView.tsx`, `DogDetailsTabs.tsx`, `DogDetailsMain/utils.ts` — mock `isPremium: true` → `!!user` from auth
+**Pass 1 — Components/hooks (10 files):**
+- Scoresheets, admin components, sync components, hooks — `'current-judge'`/`'current-user'` → `user?.id` via `useAuthContext()`
+- Premium gating mock → RBAC-based auth check (`!!user`)
 
-**Remaining (Zustand stores — can't use React hooks, need userId passed as action params):**
+**Pass 2 — Zustand stores (4 stores, 19 actions, ~18 callers):**
+- `templateStore.ts` — 9 actions updated to accept `userId` param, 6 caller files updated
+- `trialStore.ts` — 4 actions updated, 4 caller files updated
+- `entryStore.ts` — 5 actions updated, 4 caller files updated
+- `classCreationStore.ts` — 1 action updated, 4 caller files updated (incl. tests)
 
-| File | Issue |
-|------|-------|
-| `apps/myk9show/src/store/templateStore.ts` | `'current-user'` in store actions |
-| `apps/myk9show/src/store/trialStore.ts` | `'current-user'` in store actions |
-| `apps/myk9show/src/store/entryStore.ts` | `'current-user'` in store actions |
-| `apps/myk9show/src/store/classCreationStore.ts` | `'current-user'` in store actions |
+Zero instances of `'current-user'` or `'current-judge'` remain in production code.
 
 ---
 

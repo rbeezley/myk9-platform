@@ -289,7 +289,7 @@ describe('Class Creation Store', () => {
     test('creates classes from selection', () => {
       const creationStore = useClassCreationStore.getState();
       
-      const result = creationStore.createClasses('trial-123');
+      const result = creationStore.createClasses('trial-123', 'test-user');
 
       expect(result.success).toBe(true);
       expect(result.classes.length).toBeGreaterThan(0);
@@ -308,7 +308,7 @@ describe('Class Creation Store', () => {
         preEntryFee: 28
       });
       
-      const result = creationStore.createClasses('trial-123');
+      const result = creationStore.createClasses('trial-123', 'test-user');
 
       expect(result.success).toBe(true);
       result.classes.forEach(cls => {
@@ -320,7 +320,7 @@ describe('Class Creation Store', () => {
     test('assigns sequential run orders', () => {
       const creationStore = useClassCreationStore.getState();
       
-      const result = creationStore.createClasses('trial-123');
+      const result = creationStore.createClasses('trial-123', 'test-user');
 
       expect(result.success).toBe(true);
       const runOrders = result.classes.map(c => c.runOrder);
@@ -464,7 +464,7 @@ describe('Class Creation Store', () => {
       creationStore.selectAllClasses();
       
       // Create classes for trial-123
-      creationStore.createClasses('trial-123');
+      creationStore.createClasses('trial-123', 'test-user');
       
       const trialClasses = creationStore.getClassesByTrial('trial-123');
       expect(trialClasses.length).toBeGreaterThan(0);
@@ -482,7 +482,7 @@ describe('Class Creation Store', () => {
       creationStore.selectTemplate(createdTemplate.id);
       creationStore.selectAllClasses();
       
-      const result = creationStore.createClasses('trial-123');
+      const result = creationStore.createClasses('trial-123', 'test-user');
       const classId = result.classes[0].id;
       
       creationStore.updateClassRunOrder(classId, 10);
@@ -503,7 +503,7 @@ describe('Class Creation Store', () => {
       creationStore.selectTemplate(createdTemplate.id);
       creationStore.selectAllClasses();
       
-      const result = creationStore.createClasses('trial-123');
+      const result = creationStore.createClasses('trial-123', 'test-user');
       const classId = result.classes[0].id;
       const newTime = new Date('2024-06-01T10:30:00');
       
@@ -525,7 +525,7 @@ describe('Class Creation Store', () => {
       creationStore.selectTemplate(createdTemplate.id);
       creationStore.selectAllClasses();
       
-      const result = creationStore.createClasses('trial-123');
+      const result = creationStore.createClasses('trial-123', 'test-user');
       const classId = result.classes[0].id;
       
       creationStore.updateClassJudge(classId, 'judge-456');

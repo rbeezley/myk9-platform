@@ -12,6 +12,7 @@ import { useShowStore } from '@/store/showStore';
 import { useClubStore } from '@/store/clubStore';
 import { useTrialStore, type TrialInput } from '@/store/trialStore';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import type { Show } from '@/types/show-types';
 import type { EditMode, ShowStatus } from './show-creation-wizard-types';
 import {
@@ -37,6 +38,7 @@ export function useShowCreationWizardActions({
   const { clubs } = useClubStore();
   const { addTrial: addTrialToStore, trials: existingTrials } = useTrialStore();
   const { addClass } = useClassStoreCompat();
+  const { user } = useAuthContext();
 
   /**
    * Create trials in the trial store
@@ -69,9 +71,9 @@ export function useShowCreationWizardActions({
           : '09:00 AM',
         order: String(index + 1),
       };
-      addTrialToStore(newTrial);
+      addTrialToStore(newTrial, user?.id || 'unknown');
     });
-  }, [editMode, existingTrials, trials, addTrialToStore]);
+  }, [editMode, existingTrials, trials, addTrialToStore, user]);
 
   /**
    * Create classes for trials

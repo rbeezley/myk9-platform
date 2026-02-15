@@ -62,7 +62,7 @@ export const TemplateActions: React.FC = () => {
         // Check if it's a single template or multiple templates
         if (data.template) {
           // Single template format
-          const result = importTemplate(data as TemplateImportExport);
+          const result = importTemplate(data as TemplateImportExport, user?.id || 'unknown');
           if (result) {
             setImportError(null);
             setImportDialogOpen(true);
@@ -80,7 +80,7 @@ export const TemplateActions: React.FC = () => {
               exportFormat: '1.0'
             };
             
-            const result = importTemplate(templateData);
+            const result = importTemplate(templateData, user?.id || 'unknown');
             if (result) imported++;
           });
           

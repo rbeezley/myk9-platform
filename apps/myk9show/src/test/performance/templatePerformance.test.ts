@@ -513,7 +513,7 @@ describe('Template System Performance Benchmarks', () => {
           const validation = creationStore.validateSelection();
           expect(validation.isValid).toBe(true);
           
-          const result = creationStore.createClasses('workflow-test-trial');
+          const result = creationStore.createClasses('workflow-test-trial', 'test-user');
           expect(result.success).toBe(true);
           expect(result.classes).toHaveLength(selectedClasses.length);
         },

@@ -36,6 +36,7 @@ import {
   FileText
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import '@/styles/apple-template-management.css';
 
 interface TemplateListProps {
@@ -49,6 +50,7 @@ export const TemplateList: React.FC<TemplateListProps> = ({
   onEdit,
   onTest
 }) => {
+  const { user } = useAuthContext();
   const { duplicateTemplate, exportTemplate } = useTemplateStore();
   const deleteTemplateMutation = useDeleteClassTemplateMutation();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -79,14 +81,14 @@ export const TemplateList: React.FC<TemplateListProps> = ({
 
   const handleDuplicate = (template: ClassTemplate) => {
     const newName = `${template.templateName} (Copy)`;
-    const duplicated = duplicateTemplate(template.id, newName);
+    const duplicated = duplicateTemplate(template.id, newName, user?.id || 'unknown');
     if (duplicated) {
       onEdit(duplicated.id);
     }
   };
 
   const handleExport = (template: ClassTemplate) => {
-    const exportData = exportTemplate(template.id);
+    const exportData = exportTemplate(template.id, user?.id || 'unknown');
     if (exportData) {
       const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);

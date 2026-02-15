@@ -13,6 +13,7 @@ import { RegistrationWorkflow } from '@/components/shows/RegistrationWorkflow';
 import { RegistrationProvider } from '@/context/RegistrationContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useTrialStore, type TrialInput } from '@/store/trialStore';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { useCompleteShowData } from '@/hooks/useShowScopedData';
 import { useShowsQuery } from '@/hooks/queries/useShowsDatabase';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
@@ -66,6 +67,7 @@ const ShowDetailsPage: React.FC = () => {
     updateTrial: updateTrialInStore,
     removeTrial: removeTrialFromStore,
   } = useTrialStore();
+  const { user } = useAuthContext();
 
   // Panel state
   const [showEditPanel, setShowEditPanel] = useState(false);
@@ -152,7 +154,7 @@ const ShowDetailsPage: React.FC = () => {
       plannedStartTime: newTrialDialogData.plannedStartTime,
       order: newTrialDialogData.order
     };
-    addTrialToStore(newTrialForStore);
+    addTrialToStore(newTrialForStore, user?.id || 'unknown');
     setShowAddTrialDialog(false);
   };
 
@@ -362,7 +364,7 @@ const ShowDetailsPage: React.FC = () => {
         onSave={async (trialData) => {
           if (selectedTrial?.id && trialData.id) {
             const updatedTrial = { ...selectedTrial, ...trialData };
-            updateTrialInStore(updatedTrial.id, updatedTrial as Partial<TrialInput>);
+            updateTrialInStore(updatedTrial.id, updatedTrial as Partial<TrialInput>, user?.id || 'unknown');
             setShowEditTrialPanel(false);
             setSelectedTrial(null);
           }

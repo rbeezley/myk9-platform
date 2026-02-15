@@ -180,8 +180,8 @@ interface TrialStore {
   error: string | null;
   
   // Local-First Trial Actions
-  addTrial: (trialData: TrialInput) => Promise<SyncableTrial>;
-  updateTrial: (id: string, updates: Partial<TrialInput>) => Promise<SyncableTrial | null>;
+  addTrial: (trialData: TrialInput, userId: string) => Promise<SyncableTrial>;
+  updateTrial: (id: string, updates: Partial<TrialInput>, userId: string) => Promise<SyncableTrial | null>;
   deleteTrial: (id: string) => Promise<void>;
   getTrialById: (id: string) => SyncableTrial | null;
   getTrialsByShow: (showId: string) => SyncableTrial[];
@@ -201,8 +201,8 @@ interface TrialStore {
   
   // Trial Classes
   trialClasses: Record<string, SyncableTrialClass[]>; // Maps trialId to its classes
-  addTrialClass: (trialId: string, trialClassData: TrialClassInput) => Promise<SyncableTrialClass>;
-  updateTrialClass: (trialId: string, classId: string, updates: Partial<TrialClassInput>) => Promise<SyncableTrialClass | null>;
+  addTrialClass: (trialId: string, trialClassData: TrialClassInput, userId: string) => Promise<SyncableTrialClass>;
+  updateTrialClass: (trialId: string, classId: string, updates: Partial<TrialClassInput>, userId: string) => Promise<SyncableTrialClass | null>;
   deleteTrialClass: (trialId: string, classId: string) => Promise<void>;
   getTrialClassesByTrial: (trialId: string) => SyncableTrialClass[];
   
@@ -282,7 +282,7 @@ export const useTrialStore = create<TrialStore>()(
     _unsubscribe: null,
 
       // Local-First Implementation
-      addTrial: async (trialData: TrialInput): Promise<SyncableTrial> => {
+      addTrial: async (trialData: TrialInput, userId: string): Promise<SyncableTrial> => {
         try {
           set({ isLoading: true, error: null });
 
@@ -297,7 +297,7 @@ export const useTrialStore = create<TrialStore>()(
             status: trialData.status,
             _version: 1,
             _lastModified: new Date(),
-            _lastModifiedBy: 'current-user',
+            _lastModifiedBy: userId,
             _syncStatus: 'pending',
             _localOnly: true,
           };
@@ -330,7 +330,7 @@ export const useTrialStore = create<TrialStore>()(
         }
       },
       
-      updateTrial: async (id: string, updates: Partial<TrialInput>): Promise<SyncableTrial | null> => {
+      updateTrial: async (id: string, updates: Partial<TrialInput>, userId: string): Promise<SyncableTrial | null> => {
         try {
           set({ isLoading: true, error: null });
 
@@ -386,7 +386,7 @@ export const useTrialStore = create<TrialStore>()(
             ...definedUpdates,
             _version: currentTrial._version ? currentTrial._version + 1 : 1,
             _lastModified: new Date(),
-            _lastModifiedBy: 'current-user',
+            _lastModifiedBy: userId,
             _syncStatus: 'pending'
           };
 
@@ -529,7 +529,7 @@ export const useTrialStore = create<TrialStore>()(
       selectTrial: (id) => set({ selectedTrialId: id }),
       
       // Local-First Trial Class Implementation
-      addTrialClass: async (trialId: string, trialClassData: TrialClassInput): Promise<SyncableTrialClass> => {
+      addTrialClass: async (trialId: string, trialClassData: TrialClassInput, userId: string): Promise<SyncableTrialClass> => {
         try {
           const trial = get().trials.find(t => t.id === trialId);
           if (!trial) {
@@ -544,7 +544,7 @@ export const useTrialStore = create<TrialStore>()(
             // Sync metadata for Local-First architecture
             _version: 1,
             _lastModified: new Date(),
-            _lastModifiedBy: 'current-user',
+            _lastModifiedBy: userId,
             _syncStatus: 'pending',
             _localOnly: true
           };
@@ -570,7 +570,7 @@ export const useTrialStore = create<TrialStore>()(
         }
       },
       
-      updateTrialClass: async (trialId: string, classId: string, updates: Partial<TrialClassInput>): Promise<SyncableTrialClass | null> => {
+      updateTrialClass: async (trialId: string, classId: string, updates: Partial<TrialClassInput>, userId: string): Promise<SyncableTrialClass | null> => {
         try {
           const classes = get().trialClasses[trialId] || [];
           const currentClass = classes.find(c => c.id === classId);
@@ -587,7 +587,7 @@ export const useTrialStore = create<TrialStore>()(
             ...updates,
             _version: currentClass._version ? currentClass._version + 1 : 1,
             _lastModified: new Date(),
-            _lastModifiedBy: 'current-user',
+            _lastModifiedBy: userId,
             _syncStatus: 'pending'
           };
 

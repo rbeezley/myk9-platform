@@ -60,7 +60,7 @@ export const useEntryStore = create<EntryStoreState>()(
       },
 
       // Local-First Entry Implementation
-      createEntry: async (entryData: ShowEntryInput): Promise<SyncableShowEntry> => {
+      createEntry: async (entryData: ShowEntryInput, userId: string): Promise<SyncableShowEntry> => {
         try {
           set({ isLoading: true, error: null });
 
@@ -74,14 +74,14 @@ export const useEntryStore = create<EntryStoreState>()(
             statusHistory: [{
               status: 'draft',
               timestamp: now,
-              userId: 'current-user',
+              userId,
               reason: 'Entry created'
             }],
             createdAt: now,
             updatedAt: now,
             _version: 1,
             _lastModified: new Date(),
-            _lastModifiedBy: 'current-user',
+            _lastModifiedBy: userId,
             _syncStatus: 'pending',
             _localOnly: true
           };
@@ -104,7 +104,7 @@ export const useEntryStore = create<EntryStoreState>()(
         }
       },
 
-      updateEntry: async (entryId: string, updates: Partial<ShowEntryInput>): Promise<SyncableShowEntry | null> => {
+      updateEntry: async (entryId: string, updates: Partial<ShowEntryInput>, userId: string): Promise<SyncableShowEntry | null> => {
         try {
           set({ isLoading: true, error: null });
 
@@ -121,7 +121,7 @@ export const useEntryStore = create<EntryStoreState>()(
             updatedAt: new Date().toISOString(),
             _version: (currentEntry._version || 0) + 1,
             _lastModified: new Date(),
-            _lastModifiedBy: 'current-user',
+            _lastModifiedBy: userId,
             _syncStatus: 'pending'
           };
 
@@ -169,7 +169,7 @@ export const useEntryStore = create<EntryStoreState>()(
         }
       },
 
-      updateRegistration: async (entryId: string, updates: Partial<RegistrationData>): Promise<SyncableShowEntry | null> => {
+      updateRegistration: async (entryId: string, updates: Partial<RegistrationData>, userId: string): Promise<SyncableShowEntry | null> => {
         try {
           const currentEntry = get().entries.find(e => e.id === entryId);
           if (!currentEntry) {
@@ -184,7 +184,7 @@ export const useEntryStore = create<EntryStoreState>()(
             updatedAt: now,
             _version: (currentEntry._version || 0) + 1,
             _lastModified: new Date(),
-            _lastModifiedBy: 'current-user',
+            _lastModifiedBy: userId,
             _syncStatus: 'pending'
           };
 
@@ -287,7 +287,7 @@ export const useEntryStore = create<EntryStoreState>()(
         }
       },
 
-      updateResult: async (entryId: string, updates: Partial<CompetitionData>): Promise<SyncableShowEntry | null> => {
+      updateResult: async (entryId: string, updates: Partial<CompetitionData>, userId: string): Promise<SyncableShowEntry | null> => {
         try {
           const currentEntry = get().entries.find(e => e.id === entryId);
           if (!currentEntry) {
@@ -304,7 +304,7 @@ export const useEntryStore = create<EntryStoreState>()(
             updatedAt: now,
             _version: (currentEntry._version || 0) + 1,
             _lastModified: new Date(),
-            _lastModifiedBy: updates.recordedBy || 'current-user',
+            _lastModifiedBy: userId,
             _syncStatus: 'pending'
           };
 
@@ -326,7 +326,7 @@ export const useEntryStore = create<EntryStoreState>()(
       },
 
       // Bulk operations
-      createMultipleEntries: async (entriesData: ShowEntryInput[]): Promise<SyncableShowEntry[]> => {
+      createMultipleEntries: async (entriesData: ShowEntryInput[], userId: string): Promise<SyncableShowEntry[]> => {
         try {
           set({ isLoading: true, error: null });
 
@@ -341,14 +341,14 @@ export const useEntryStore = create<EntryStoreState>()(
               statusHistory: [{
                 status: 'draft' as EntryStatus,
                 timestamp: now,
-                userId: 'current-user',
+                userId,
                 reason: 'Entry created in batch'
               }],
               createdAt: now,
               updatedAt: now,
               _version: 1,
               _lastModified: new Date(),
-              _lastModifiedBy: 'current-user',
+              _lastModifiedBy: userId,
               _syncStatus: 'pending' as const,
               _localOnly: true
             };

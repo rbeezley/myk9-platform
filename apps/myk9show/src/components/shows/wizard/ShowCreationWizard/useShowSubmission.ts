@@ -7,6 +7,7 @@ import { useShowStore, type ShowInput } from '@/store/showStore';
 import { useClubStore } from '@/store/clubStore';
 import { useTrialStore, type TrialInput } from '@/store/trialStore';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import type { Show } from '@/types/show-types';
 import type { ClassData } from '@/components/classes/types/classTypes';
 import type { EditMode } from './types';
@@ -72,6 +73,7 @@ export function useShowSubmission(
   const { clubs } = useClubStore();
   const { addTrial: addTrialToStore, trials: existingTrials } = useTrialStore();
   const { addClass } = useClassStoreCompat();
+  const { user } = useAuthContext();
 
   // ---- Transform wizard data into a Show object ----
   const transformWizardDataToShow = useCallback(
@@ -269,10 +271,10 @@ export function useShowSubmission(
             : '09:00 AM',
           order: String(trials.indexOf(wizardTrial) + 1),
         };
-        addTrialToStore(newTrial);
+        addTrialToStore(newTrial, user?.id || 'unknown');
       });
     },
-    [editMode, existingTrials, trials, addTrialToStore],
+    [editMode, existingTrials, trials, addTrialToStore, user],
   );
 
   // ---- Shared submit logic ----

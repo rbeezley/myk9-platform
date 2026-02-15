@@ -19,6 +19,7 @@ import { useTrialStore } from '@/store/trialStore';
 import { useShowStore } from '@/store/showStore';
 import { useEntryStore } from '@/store/entryStore';
 import { useDogStore } from '@/store/dogStore';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { useEntriesByClass } from '@/hooks/useFilteredEntries';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import Breadcrumb from '@/components/common/Breadcrumb';
@@ -87,6 +88,7 @@ export function SecretaryClassDashboard({
   const { updateResult } = useEntryStore();
   const { shows } = useShowStore();
   const { trials } = useTrialStore();
+  const { user } = useAuthContext();
   
   // Get current class, trial, and show data
   const currentClass = activeClassId ? classes.find(cls => cls.id === activeClassId) : null;
@@ -212,12 +214,12 @@ export function SecretaryClassDashboard({
       };
       
       logger.debug('Saving result for entry', 'secretary', { entryId, time: competitionData.time, qualified: competitionData.qualified, qualification: competitionData.qualification, faults: competitionData.faults, notes: competitionData.judgeNotes });
-      updateResult(entryId, competitionData);
+      updateResult(entryId, competitionData, user?.id || 'unknown');
 
     } catch (error) {
       logger.error('Error saving result', 'secretary', { entryId }, error as Error);
     }
-  }, [rawEntries, updateResult]);
+  }, [rawEntries, updateResult, user]);
 
   // Helper function to format time from milliseconds to MM:SS.HH format
   const formatTime = (ms: number): string => {

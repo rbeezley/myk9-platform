@@ -10,11 +10,13 @@ import { ClassTemplate, Organization, ShowType, TemplateStatus, TemplateType } f
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { logger } from '@/services/LoggingService';
 import { toast } from 'sonner';
+import { useAuthContext } from '@/hooks/useAuthContext';
 
 const TemplateEditorPageMinimal: React.FC = () => {
   const { templateId } = useParams<{ templateId: string }>();
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuthContext();
   const { getTemplate, createTemplate, updateTemplate } = useTemplateStore();
   
   const isNew = location.pathname.endsWith('/new');
@@ -83,12 +85,12 @@ const TemplateEditorPageMinimal: React.FC = () => {
           classDefinitions: template.classDefinitions || [],
           validationRules: template.validationRules || [],
           defaults: template.defaults || { entryFees: { preEntry: 25, dayOfShow: 30 } },
-        });
+        }, user?.id || 'unknown');
         toast.success(`Template "${newTemplate.templateName}" created`);
         navigate(`/admin/templates/${newTemplate.id}`);
       } else if (templateId) {
         const { id: _id, createdAt: _ca, createdBy: _cb, ...updates } = template;
-        const success = updateTemplate(templateId, updates);
+        const success = updateTemplate(templateId, updates, user?.id || 'unknown');
         if (success) {
           toast.success('Template saved');
         } else {

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
 import { useTrialStore, type TrialInput } from '@/store/trialStore';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useTemplateStore } from '@/store/templateStore';
 import { useShowStore } from '@/store/showStore';
@@ -29,6 +30,7 @@ const TrialDetailsPage: React.FC = () => {
   const { trialId, showId } = useParams<{ trialId: string; showId?: string }>();
   const navigate = useNavigate();
   const { trials, selectedTrialId, selectTrial, updateTrial, removeTrial } = useTrialStore();
+  const { user } = useAuthContext();
   const { templates } = useTemplateStore();
   const { shows } = useShowStore();
 
@@ -352,8 +354,8 @@ const TrialDetailsPage: React.FC = () => {
       classes: [...existingClasses, ...newTrialClasses]
     };
 
-    updateTrial(updatedTrial.id, updatedTrial as Partial<TrialInput>);
-    
+    updateTrial(updatedTrial.id, updatedTrial as Partial<TrialInput>, user?.id || 'unknown');
+
     // Provide feedback about duplicates
     if (duplicateClasses.length > 0) {
       logger.debug('Skipped duplicate classes', 'trials', {
@@ -395,7 +397,7 @@ const TrialDetailsPage: React.FC = () => {
         classes: updatedClasses
       };
 
-      updateTrial(updatedTrial.id, updatedTrial as Partial<TrialInput>);
+      updateTrial(updatedTrial.id, updatedTrial as Partial<TrialInput>, user?.id || 'unknown');
 
       // Also remove the class from the classStore
       deleteClass(selectedClassForDelete.id);
@@ -471,7 +473,7 @@ const TrialDetailsPage: React.FC = () => {
         onSave={async (trialData) => {
           if (currentTrial?.id && trialData.id) {
             const updatedTrial = { ...currentTrial, ...trialData };
-            updateTrial(currentTrial.id, updatedTrial as Partial<TrialInput>);
+            updateTrial(currentTrial.id, updatedTrial as Partial<TrialInput>, user?.id || 'unknown');
             setEditTrialPanelOpen(false);
           }
         }}

@@ -107,18 +107,18 @@ export interface EntryStoreState {
   cleanup: () => void;
 
   // Local-First Entry Actions
-  createEntry: (entryData: ShowEntryInput) => Promise<SyncableShowEntry>;
-  updateEntry: (entryId: string, updates: Partial<ShowEntryInput>) => Promise<SyncableShowEntry | null>;
+  createEntry: (entryData: ShowEntryInput, userId: string) => Promise<SyncableShowEntry>;
+  updateEntry: (entryId: string, updates: Partial<ShowEntryInput>, userId: string) => Promise<SyncableShowEntry | null>;
   deleteEntry: (entryId: string) => Promise<void>;
-  updateRegistration: (entryId: string, updates: Partial<RegistrationData>) => Promise<SyncableShowEntry | null>;
+  updateRegistration: (entryId: string, updates: Partial<RegistrationData>, userId: string) => Promise<SyncableShowEntry | null>;
   updateStatus: (entryId: string, status: EntryStatus, userId: string, reason?: string) => Promise<SyncableShowEntry | null>;
 
   // Competition phase methods
   recordResult: (entryId: string, result: CompetitionData) => Promise<SyncableShowEntry | null>;
-  updateResult: (entryId: string, updates: Partial<CompetitionData>) => Promise<SyncableShowEntry | null>;
+  updateResult: (entryId: string, updates: Partial<CompetitionData>, userId: string) => Promise<SyncableShowEntry | null>;
 
   // Bulk operations
-  createMultipleEntries: (entries: ShowEntryInput[]) => Promise<SyncableShowEntry[]>;
+  createMultipleEntries: (entries: ShowEntryInput[], userId: string) => Promise<SyncableShowEntry[]>;
   updateEntriesStatus: (entryIds: string[], status: EntryStatus, userId: string, reason?: string) => Promise<void>;
 
   // Query methods

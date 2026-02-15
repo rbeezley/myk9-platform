@@ -27,16 +27,16 @@ interface TemplateStore {
   isInitialized: boolean;
 
   // CRUD Operations
-  createTemplate: (template: Omit<ClassTemplate, 'id' | 'createdAt' | 'createdBy'>) => ClassTemplate;
-  updateTemplate: (id: string, updates: Partial<ClassTemplate>) => boolean;
+  createTemplate: (template: Omit<ClassTemplate, 'id' | 'createdAt' | 'createdBy'>, userId: string) => ClassTemplate;
+  updateTemplate: (id: string, updates: Partial<ClassTemplate>, userId: string) => boolean;
   deleteTemplate: (id: string) => boolean;
-  duplicateTemplate: (id: string, newName: string) => ClassTemplate | null;
-  
+  duplicateTemplate: (id: string, newName: string, userId: string) => ClassTemplate | null;
+
   // NEW: Advanced template operations
-  createEditableCopy: (id: string, newName?: string) => ClassTemplate | null;
-  promoteToOfficial: (id: string) => boolean;
-  deprecateTemplate: (id: string, successorId?: string) => boolean;
-  createNewVersion: (id: string, versionNumber: string) => ClassTemplate | null;
+  createEditableCopy: (id: string, userId: string, newName?: string) => ClassTemplate | null;
+  promoteToOfficial: (id: string, userId: string) => boolean;
+  deprecateTemplate: (id: string, userId: string, successorId?: string) => boolean;
+  createNewVersion: (id: string, versionNumber: string, userId: string) => ClassTemplate | null;
   canEdit: (template: ClassTemplate) => { canEdit: boolean; reason?: string };
   
   // Queries
@@ -58,8 +58,8 @@ interface TemplateStore {
   clearActiveTemplate: () => void;
   
   // Import/Export
-  exportTemplate: (id: string) => TemplateImportExport | null;
-  importTemplate: (data: TemplateImportExport) => ClassTemplate | null;
+  exportTemplate: (id: string, userId: string) => TemplateImportExport | null;
+  importTemplate: (data: TemplateImportExport, userId: string) => ClassTemplate | null;
   
   // Utility
   clearError: () => void;
@@ -92,12 +92,12 @@ export const useTemplateStore = create<TemplateStore>()(
       ...initialState,
 
       // CRUD Operations
-      createTemplate: (templateData) => {
+      createTemplate: (templateData, userId) => {
         const newTemplate: ClassTemplate = {
           ...templateData,
           id: `template-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
           createdAt: new Date(),
-          createdBy: 'current-user', // This will be replaced with actual user ID
+          createdBy: userId,
           updatedAt: new Date()
         };
 
@@ -109,7 +109,7 @@ export const useTemplateStore = create<TemplateStore>()(
         return newTemplate;
       },
 
-      updateTemplate: (id, updates) => {
+      updateTemplate: (id, updates, userId) => {
         const template = get().templates.find(t => t.id === id);
         if (!template) {
           set({ error: `Template with id ${id} not found` });
@@ -130,7 +130,7 @@ export const useTemplateStore = create<TemplateStore>()(
                   ...t,
                   ...updates,
                   updatedAt: new Date(),
-                  updatedBy: 'current-user'
+                  updatedBy: userId
                 }
               : t
           ),
@@ -165,7 +165,7 @@ export const useTemplateStore = create<TemplateStore>()(
         return true;
       },
 
-      duplicateTemplate: (id, newName) => {
+      duplicateTemplate: (id, newName, userId) => {
         const template = get().templates.find(t => t.id === id);
         if (!template) {
           set({ error: `Template with id ${id} not found` });
@@ -179,7 +179,7 @@ export const useTemplateStore = create<TemplateStore>()(
           isOfficial: false,
           isCustom: true,
           createdAt: new Date(),
-          createdBy: 'current-user',
+          createdBy: userId,
           updatedAt: new Date()
         };
 
@@ -192,7 +192,7 @@ export const useTemplateStore = create<TemplateStore>()(
       },
 
       // NEW: Advanced template operations
-      createEditableCopy: (id, newName) => {
+      createEditableCopy: (id, userId, newName) => {
         const template = get().templates.find(t => t.id === id);
         if (!template) {
           set({ error: `Template with id ${id} not found` });
@@ -214,9 +214,9 @@ export const useTemplateStore = create<TemplateStore>()(
           isCustom: true,
           // Reset audit fields
           createdAt: new Date(),
-          createdBy: 'current-user',
+          createdBy: userId,
           updatedAt: new Date(),
-          updatedBy: 'current-user'
+          updatedBy: userId
         };
 
         set(state => ({
@@ -227,7 +227,7 @@ export const useTemplateStore = create<TemplateStore>()(
         return editableCopy;
       },
 
-      promoteToOfficial: (id) => {
+      promoteToOfficial: (id, userId) => {
         const template = get().templates.find(t => t.id === id);
         if (!template) {
           set({ error: `Template with id ${id} not found` });
@@ -249,7 +249,7 @@ export const useTemplateStore = create<TemplateStore>()(
                   isOfficial: true,
                   isCustom: false,
                   updatedAt: new Date(),
-                  updatedBy: 'current-user'
+                  updatedBy: userId
                 }
               : t
           ),
@@ -259,7 +259,7 @@ export const useTemplateStore = create<TemplateStore>()(
         return true;
       },
 
-      deprecateTemplate: (id, successorId) => {
+      deprecateTemplate: (id, userId, successorId) => {
         const template = get().templates.find(t => t.id === id);
         if (!template) {
           set({ error: `Template with id ${id} not found` });
@@ -275,7 +275,7 @@ export const useTemplateStore = create<TemplateStore>()(
                   successorId,
                   isLatestVersion: false,
                   updatedAt: new Date(),
-                  updatedBy: 'current-user'
+                  updatedBy: userId
                 }
               : t
           ),
@@ -285,7 +285,7 @@ export const useTemplateStore = create<TemplateStore>()(
         return true;
       },
 
-      createNewVersion: (id, versionNumber) => {
+      createNewVersion: (id, versionNumber, userId) => {
         const template = get().templates.find(t => t.id === id);
         if (!template) {
           set({ error: `Template with id ${id} not found` });
@@ -301,9 +301,9 @@ export const useTemplateStore = create<TemplateStore>()(
           parentVersion: template.version,
           isLatestVersion: true,
           createdAt: new Date(),
-          createdBy: 'current-user',
+          createdBy: userId,
           updatedAt: new Date(),
-          updatedBy: 'current-user'
+          updatedBy: userId
         };
 
         // Mark old version as no longer latest
@@ -523,7 +523,7 @@ export const useTemplateStore = create<TemplateStore>()(
       },
 
       // Import/Export
-      exportTemplate: (id) => {
+      exportTemplate: (id, userId) => {
         const template = get().templates.find(t => t.id === id);
         if (!template) {
           set({ error: `Template with id ${id} not found` });
@@ -536,12 +536,12 @@ export const useTemplateStore = create<TemplateStore>()(
         return {
           template: exportData,
           exportedAt: new Date(),
-          exportedBy: 'current-user',
+          exportedBy: userId,
           exportFormat: '1.0'
         };
       },
 
-      importTemplate: (data) => {
+      importTemplate: (data, userId) => {
         try {
           // Validate import format
           if (data.exportFormat !== '1.0') {
@@ -555,7 +555,7 @@ export const useTemplateStore = create<TemplateStore>()(
             isOfficial: false,
             isCustom: true,
             createdAt: new Date(),
-            createdBy: 'current-user',
+            createdBy: userId,
             updatedAt: new Date()
           };
 

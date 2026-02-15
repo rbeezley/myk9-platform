@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { logger } from '@/services/LoggingService';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { toast } from 'sonner';
 import {
   ArrowLeft,
@@ -35,6 +36,7 @@ type WizardStep = 'template' | 'classes' | 'overrides' | 'review' | 'complete';
 export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId }) => {
   const { trialId: paramTrialId } = useParams<{ trialId: string }>();
   const navigate = useNavigate();
+  const { user } = useAuthContext();
   
   const { 
     selectedTemplate,
@@ -134,7 +136,7 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
     setIsCreating(true);
     
     try {
-      const result = createClasses(effectiveTrialId);
+      const result = createClasses(effectiveTrialId, user?.id || 'unknown');
       setCreatedClasses(result.classes);
       setCurrentStep('complete');
     } catch (error) {

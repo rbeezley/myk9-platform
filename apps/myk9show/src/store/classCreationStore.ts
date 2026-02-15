@@ -44,7 +44,7 @@ interface ClassCreationStore {
   getFieldValue: (className: string, fieldName: string) => unknown;
   
   // Class creation
-  createClasses: (trialId: string) => { success: boolean; classes: CreatedClass[]; errors: string[] };
+  createClasses: (trialId: string, userId: string) => { success: boolean; classes: CreatedClass[]; errors: string[] };
   getClassesByTrial: (trialId: string) => CreatedClass[];
   updateClassRunOrder: (classId: string, runOrder: number) => void;
   updateClassTime: (classId: string, time: Date) => void;
@@ -334,7 +334,7 @@ export const useClassCreationStore = create<ClassCreationStore>()(
   },
 
   // Create classes from selections
-  createClasses: (trialId) => {
+  createClasses: (trialId, userId) => {
     const { selectedTemplate, selectedClasses } = get();
     if (!selectedTemplate) return { success: false, classes: [], errors: ['No template selected'] };
 
@@ -413,7 +413,7 @@ export const useClassCreationStore = create<ClassCreationStore>()(
         },
         
         // Audit
-        createdBy: 'current-user',
+        createdBy: userId,
         createdAt: new Date()
       };
 

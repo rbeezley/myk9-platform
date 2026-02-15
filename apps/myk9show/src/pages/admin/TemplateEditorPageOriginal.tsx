@@ -17,12 +17,13 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { logger } from '@/services/LoggingService';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import {
-  Save, 
-  ArrowLeft, 
-  Eye, 
-  Settings, 
-  FileText, 
+  Save,
+  ArrowLeft,
+  Eye,
+  Settings,
+  FileText,
   TestTube,
   AlertTriangle,
   Layers,
@@ -33,6 +34,7 @@ const TemplateEditorPageOriginal: React.FC = () => {
   const { templateId } = useParams<{ templateId: string }>();
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuthContext();
   const { getTemplate, createTemplate, updateTemplate, createEditableCopy } = useTemplateStore();
   
   const isNew = location.pathname.endsWith('/new');
@@ -128,10 +130,10 @@ const TemplateEditorPageOriginal: React.FC = () => {
     setSaving(true);
     try {
       if (isNew) {
-        const created = createTemplate(template as Omit<ClassTemplate, 'id' | 'createdAt' | 'createdBy'>);
+        const created = createTemplate(template as Omit<ClassTemplate, 'id' | 'createdAt' | 'createdBy'>, user?.id || 'unknown');
         navigate(`/admin/templates/${created.id}/edit`);
       } else if (templateId) {
-        updateTemplate(templateId, template);
+        updateTemplate(templateId, template, user?.id || 'unknown');
       }
       setHasChanges(false);
     } catch (error) {
@@ -303,7 +305,7 @@ const TemplateEditorPageOriginal: React.FC = () => {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      const copy = createEditableCopy(templateId, `${template.templateName} (My Copy)`);
+                      const copy = createEditableCopy(templateId, user?.id || 'unknown', `${template.templateName} (My Copy)`);
                       if (copy) {
                         navigate(`/admin/templates/${copy.id}/edit`);
                       }

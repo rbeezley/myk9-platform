@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTemplateStore } from '@/store/templateStore';
 import { useClassCreationStore } from '@/store/classCreationStore';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { ClassTemplate, CreatedClass } from '@/types/template.types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,6 +22,7 @@ import {
 export const TemplateTestingPage: React.FC = () => {
   const { templateId } = useParams<{ templateId: string }>();
   const navigate = useNavigate();
+  const { user } = useAuthContext();
   const { getTemplate } = useTemplateStore();
   const { 
     selectTemplate, 
@@ -72,7 +74,7 @@ export const TemplateTestingPage: React.FC = () => {
       
       // Create test classes
       const mockTrialId = 'test-trial-' + Date.now();
-      const creationResult = createClasses(mockTrialId);
+      const creationResult = createClasses(mockTrialId, user?.id || 'unknown');
       
       const executionTime = Date.now() - startTime;
       

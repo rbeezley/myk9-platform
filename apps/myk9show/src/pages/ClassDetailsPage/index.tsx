@@ -8,6 +8,7 @@ import { useEffect, startTransition } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
 import { useEntryStore } from '@/store/entryStore';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { ClassGroupedSidebar } from '@/components/classes/ClassGroupedSidebar';
 import ClassDetailsMain from '@/components/classes/ClassDetailsMain';
 import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
@@ -24,6 +25,7 @@ import { DeleteEntryDialog } from './DeleteEntryDialog';
 
 const ClassDetailsPage: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuthContext();
 
   // Data hook
   const {
@@ -140,7 +142,7 @@ const ClassDetailsPage: React.FC = () => {
         recordedBy: 'secretary',
       };
 
-      updateResult(entryId, storeUpdate);
+      updateResult(entryId, storeUpdate, user?.id || 'unknown');
       logger.debug('updateResult called successfully', 'classes', { entryId });
     } catch (error) {
       logger.error('Failed to update result', 'classes', { entryId }, error as Error);

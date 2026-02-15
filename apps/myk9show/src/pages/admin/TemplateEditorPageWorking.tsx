@@ -12,12 +12,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { logger } from '@/services/LoggingService';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import {
-  Save, 
-  ArrowLeft, 
-  Eye, 
-  Settings, 
-  FileText, 
+  Save,
+  ArrowLeft,
+  Eye,
+  Settings,
+  FileText,
   TestTube,
   AlertTriangle,
   Layers,
@@ -28,6 +29,7 @@ const TemplateEditorPageWorking: React.FC = () => {
   const { templateId } = useParams<{ templateId: string }>();
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuthContext();
   const { getTemplate, createTemplate, updateTemplate, createEditableCopy } = useTemplateStore();
   
   const isNew = location.pathname.endsWith('/new');
@@ -123,10 +125,10 @@ const TemplateEditorPageWorking: React.FC = () => {
     setSaving(true);
     try {
       if (isNew) {
-        const created = createTemplate(template as Omit<ClassTemplate, 'id' | 'createdAt' | 'createdBy'>);
+        const created = createTemplate(template as Omit<ClassTemplate, 'id' | 'createdAt' | 'createdBy'>, user?.id || 'unknown');
         navigate(`/admin/templates/${created.id}/edit`);
       } else if (templateId) {
-        updateTemplate(templateId, template);
+        updateTemplate(templateId, template, user?.id || 'unknown');
       }
       setHasChanges(false);
     } catch (error) {
@@ -250,7 +252,7 @@ const TemplateEditorPageWorking: React.FC = () => {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      const copy = createEditableCopy(templateId, `${template.templateName} (My Copy)`);
+                      const copy = createEditableCopy(templateId, user?.id || 'unknown', `${template.templateName} (My Copy)`);
                       if (copy) {
                         navigate(`/admin/templates/${copy.id}/edit`);
                       }

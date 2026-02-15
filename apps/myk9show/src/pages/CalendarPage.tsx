@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useShowStore } from '@/store/showStore';
 import { useEntryStore } from '@/store/entryStore';
 import { useDogStore } from '@/store/dogStore';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { RegistrationFormData } from '@/types/show-registration-types';
 import { logger } from '@/services/LoggingService';
 import {
@@ -32,6 +33,7 @@ export default function CalendarPage() {
   const { shows } = useShowStore();
   const { createEntry, updateStatus } = useEntryStore();
   const { dogs } = useDogStore();
+  const { user } = useAuthContext();
   const [searchParams, setSearchParams] = useSearchParams();
   const [showRegistration, setShowRegistration] = useState(false);
   const [selectedShowId, setSelectedShowId] = useState<string | null>(null);
@@ -95,7 +97,7 @@ export default function CalendarPage() {
                       entryFee: 25, // Default fee
                       paymentStatus: 'paid' // Mark as paid for demo
                     }
-                  });
+                  }, user?.id || 'unknown');
                   
                   // Update status to confirmed
                   await updateStatus(entry.id, 'confirmed', 'system', 'Registration completed');
@@ -117,7 +119,7 @@ export default function CalendarPage() {
     
     setShowRegistration(false);
     setSelectedShowId(null);
-  }, [selectedShowId, dogs, createEntry, updateStatus]);
+  }, [selectedShowId, dogs, createEntry, updateStatus, user]);
 
   return (
     <motion.div 

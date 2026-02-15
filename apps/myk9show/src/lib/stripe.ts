@@ -11,39 +11,24 @@ export async function createCheckoutSession(priceId: string, mode: 'payment' | '
     throw new Error('Invalid price ID');
   }
 
-  const session = await supabase.auth.getSession();
-  const accessToken = session.data.session?.access_token;
-
-  if (!accessToken) {
-    throw new Error('No access token available');
-  }
-
-  const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-checkout`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${accessToken}`,
-    },
-    body: JSON.stringify({
+  const { data, error } = await supabase.functions.invoke('stripe-checkout', {
+    body: {
       price_id: priceId,
       success_url: `${window.location.origin}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${window.location.origin}/pricing`,
+      cancel_url: `${window.location.origin}/pricing-page`,
       mode,
-    }),
+    },
   });
 
-  if (!response.ok) {
-    const error = await response.json();
+  if (error) {
     throw new Error(error.message || 'Failed to create checkout session');
   }
 
-  const { url } = await response.json();
-
-  if (!url) {
+  if (!data?.url) {
     throw new Error('No checkout URL returned');
   }
 
-  window.location.href = url;
+  window.location.href = data.url;
 }
 
 /**
@@ -57,47 +42,23 @@ export async function createEntryCheckoutSession(cartId: string): Promise<void> 
     throw new Error('Cart ID is required');
   }
 
-  const session = await supabase.auth.getSession();
-  const accessToken = session.data.session?.access_token;
-
-  if (!accessToken) {
-    throw new Error('Please sign in to complete checkout');
-  }
-
-  const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-checkout`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${accessToken}`,
-    },
-    body: JSON.stringify({
+  const { data, error } = await supabase.functions.invoke('stripe-checkout', {
+    body: {
       mode: 'entry',
       cart_id: cartId,
       success_url: `${window.location.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${window.location.origin}/checkout/cancel`,
-    }),
+    },
   });
 
-  if (!response.ok) {
-    const error = await response.json();
-
-    // Handle specific error cases
-    if (response.status === 401) {
+  if (error) {
+    if (error.message?.includes('401') || error.message?.includes('auth')) {
       throw new Error('Session expired. Please sign in again.');
     }
-    if (response.status === 404) {
-      throw new Error('Cart not found or has expired.');
-    }
-    if (response.status === 400) {
-      throw new Error(error.message || 'Invalid cart data.');
-    }
-
     throw new Error(error.message || 'Failed to create checkout session');
   }
 
-  const data = await response.json();
-
-  if (!data.url) {
+  if (!data?.url) {
     throw new Error('No checkout URL returned from server');
   }
 

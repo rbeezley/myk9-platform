@@ -122,7 +122,7 @@ export function SubscriptionManager() {
       const { data, error } = await supabase.functions.invoke('stripe-customer-portal', {
         body: { 
           customerId: subscription?.stripeCustomerId,
-          returnUrl: window.location.origin + '/pricing'
+          returnUrl: window.location.origin + '/pricing-page'
         }
       });
 
@@ -286,7 +286,7 @@ export function SubscriptionManager() {
           ) : (
             <div className="text-center py-8">
               <p className="text-muted-foreground mb-4">No active subscription</p>
-              <Button onClick={() => window.location.href = '/pricing'}>
+              <Button onClick={() => window.location.href = '/pricing-page'}>
                 View Plans
               </Button>
             </div>

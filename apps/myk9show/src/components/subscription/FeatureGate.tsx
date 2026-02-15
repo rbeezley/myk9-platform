@@ -205,7 +205,7 @@ function FeatureUpgradePrompt({
                 Maybe Later
               </Button>
               <Button 
-                onClick={() => window.location.href = '/pricing'}
+                onClick={() => window.location.href = '/pricing-page'}
                 className="flex items-center gap-2"
               >
                 View All Plans

@@ -172,17 +172,6 @@ export const storeLazyLoaders = {
     ),
   },
   
-  batch: {
-    key: 'batch-hooks',
-    load: () => cachedDynamicImport(
-      'batch-hooks',
-      () => import('@/hooks/mutations/useBatchMutations')
-    ),
-    preload: () => preloadImport(
-      'batch-hooks',
-      () => import('@/hooks/mutations/useBatchMutations')
-    ),
-  },
 } as const;
 
 // Lazy load UI components with retry logic

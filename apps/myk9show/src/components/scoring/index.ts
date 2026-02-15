@@ -17,9 +17,6 @@ export type { JudgeClassInterfaceProps } from './JudgeClassInterface';
 export { LiveScoreUpdates } from './LiveScoreUpdates';
 export type { LiveScoreUpdatesProps } from './LiveScoreUpdates';
 
-export { OfflineScoringModeIndicator } from './OfflineScoringModeIndicator';
-export type { OfflineScoringModeIndicatorProps } from './OfflineScoringModeIndicator';
-
 export { ScoringConflictHandler } from './ScoringConflictHandler';
 export type { ScoringConflictHandlerProps } from './ScoringConflictHandler';
 
@@ -31,8 +28,5 @@ export type { PlacementRecalculationAlertProps } from './PlacementRecalculationA
 
 
 // Format-specific scoresheets
-export { default as ConformationScoresheet } from './format-specific/ConformationScoresheet';
-export type { ConformationScoresheetProps } from './format-specific/ConformationScoresheet';
-
 export { default as TrackingScoresheet } from './format-specific/TrackingScoresheet';
 export type { TrackingScoresheetProps } from './format-specific/TrackingScoresheet';

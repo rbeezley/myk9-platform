@@ -4,11 +4,13 @@
  * Handles permission checking with caching for RBAC.
  * Uses Supabase RPC functions for permission resolution.
  *
- * Note: RPC calls use `any` casts because the generated Supabase types
- * may not include all RPC functions (e.g. user_has_permission from migration 017).
- * The actual function signatures are validated at runtime by the database.
+ * Note: The RPC functions called here (user_has_permission, get_user_permissions,
+ * get_user_roles, get_effective_permissions) exist in the database (migration 017)
+ * but are not in the generated Supabase types. We use a narrowly-typed client
+ * interface to call them safely.
  */
 
+import type { PostgrestSingleResponse } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
 import {
@@ -48,13 +50,31 @@ interface DbEffectivePermission {
 }
 
 /**
- * Helper to call RPC functions that may not be in generated Supabase types.
- * The generated types don't always include all RPC functions (e.g. those from migration 017).
+ * Narrow interface for calling Supabase RPC functions that aren't in generated types.
+ * The RBAC RPC functions (user_has_permission, get_user_permissions, get_user_roles,
+ * get_effective_permissions) exist in the database from migration 017 but aren't
+ * included in the auto-generated Database type.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function rpc(name: string, params: Record<string, unknown>): Promise<{ data: any; error: any }> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (supabase as any).rpc(name, params);
+interface UntypedRpcClient {
+  rpc(
+    fn: string,
+    args: Record<string, unknown>
+  ): PromiseLike<PostgrestSingleResponse<unknown>>;
+}
+
+/**
+ * Helper to call RPC functions that are not in generated Supabase types.
+ * Uses a narrow UntypedRpcClient cast instead of `as any` to preserve
+ * type safety on the response shape.
+ */
+async function rpc<T>(
+  name: string,
+  params: Record<string, unknown>
+): Promise<PostgrestSingleResponse<T>> {
+  // Cast to UntypedRpcClient: the generated Database type doesn't include RBAC
+  // RPC functions from migration 017, but they exist at runtime in the database.
+  const client = supabase as unknown as UntypedRpcClient;
+  return client.rpc(name, params) as Promise<PostgrestSingleResponse<T>>;
 }
 
 export class PermissionChecker {
@@ -77,8 +97,8 @@ export class PermissionChecker {
         return cached.hasPermission;
       }
 
-      // user_has_permission may not be in generated types but exists in DB (migration 017)
-      const { data, error } = await rpc('user_has_permission', {
+      // user_has_permission is from migration 017 (not in generated types)
+      const { data, error } = await rpc<boolean>('user_has_permission', {
         user_id: userId,
         permission_name: permission,
         scope_type: scope?.type ?? null,
@@ -94,7 +114,7 @@ export class PermissionChecker {
         );
       }
 
-      const hasPermission = (data as boolean) || false;
+      const hasPermission = data === true;
 
       // Cache the result
       this.permissionCache.set(cacheKey, {
@@ -117,8 +137,8 @@ export class PermissionChecker {
     _scope?: { type: string; id: string }
   ): Promise<UserPermissionsResponse> {
     try {
-      // Get detailed permissions via RPC
-      const { data: permissions, error: permError } = await rpc('get_user_permissions', {
+      // Get detailed permissions via RPC (migration 017)
+      const { data: permissions, error: permError } = await rpc<DbUserPermission[]>('get_user_permissions', {
         user_id: userId,
       });
 
@@ -126,8 +146,8 @@ export class PermissionChecker {
         throw new Error(`Failed to get user permissions: ${permError.message}`);
       }
 
-      // Get user roles via RPC
-      const { data: roles, error: rolesError } = await rpc('get_user_roles', {
+      // Get user roles via RPC (migration 017)
+      const { data: roles, error: rolesError } = await rpc<DbUserRole[]>('get_user_roles', {
         user_id: userId,
       });
 
@@ -135,8 +155,8 @@ export class PermissionChecker {
         throw new Error(`Failed to get user roles: ${rolesError.message}`);
       }
 
-      // Get effective permissions via RPC
-      const { data: effectivePermissions, error: effectiveError } = await rpc('get_effective_permissions', {
+      // Get effective permissions via RPC (migration 017)
+      const { data: effectivePermissions, error: effectiveError } = await rpc<DbEffectivePermission[]>('get_effective_permissions', {
         user_id: userId,
       });
 
@@ -145,7 +165,7 @@ export class PermissionChecker {
       }
 
       // Map RPC role results to UserRoleWithDetails
-      const typedRoles = (roles ?? []) as DbUserRole[];
+      const typedRoles = roles ?? [];
       const rolesWithDetails: UserRoleWithDetails[] = typedRoles.map((userRole) => {
         const scopeType = userRole.club_id ? 'club' : userRole.show_id ? 'show' : 'global';
         const scopeId = userRole.club_id || userRole.show_id || null;
@@ -178,10 +198,10 @@ export class PermissionChecker {
       });
 
       // Map effective permissions
-      const typedEffective = (effectivePermissions ?? []) as DbEffectivePermission[];
+      const typedEffective = effectivePermissions ?? [];
 
       // Map user permissions to PermissionWithRole format
-      const typedPermissions = (permissions ?? []) as DbUserPermission[];
+      const typedPermissions = permissions ?? [];
       const mappedPermissions = typedPermissions.map((p) => {
         const scopeType = p.club_id ? 'club' : p.show_id ? 'show' : 'global';
         const scopeId = p.club_id || p.show_id || null;

@@ -5,13 +5,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useStatusUpdates } from '@/services/NotificationService';
 import { auditService } from '@/services/AuditService';
 import { UserRole } from '@/types/auth-types';
 import { AuditAction } from '@/types/audit-types';
 import { EntryStatus } from '@/types/show-registration-types';
 import { CheckInStatusDialog } from '@/components/common/CheckInStatusDialog';
-import { logger } from '@/services/LoggingService';
 import {
   Calendar,
   Users,
@@ -117,9 +115,6 @@ const EntryManagementPage: React.FC = () => {
     user,
   });
 
-  // Real-time status updates for entries
-  const { status: entryUpdates } = useStatusUpdates('entries', 'all');
-
   // Audit log page access
   useEffect(() => {
     auditService.log({
@@ -132,13 +127,6 @@ const EntryManagementPage: React.FC = () => {
       }
     });
   }, [user?.id]);
-
-  // Handle real-time updates
-  useEffect(() => {
-    if (entryUpdates) {
-      logger.debug('Entry update received:', 'secretary', { data: entryUpdates });
-    }
-  }, [entryUpdates]);
 
   // Verify secretary role access
   if (!hasRole(UserRole.SECRETARY) && !hasRole(UserRole.CLUB_ADMIN) && !hasRole(UserRole.SITE_ADMIN)) {

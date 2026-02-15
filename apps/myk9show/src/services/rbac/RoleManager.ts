@@ -13,6 +13,7 @@
 
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
+import type { Database } from '@/types/supabase';
 import {
   Role,
   Permission,
@@ -26,6 +27,49 @@ import {
   ActionType,
 } from '@/types/rbac-types';
 import type { AuditLogger } from './AuditLogger';
+
+// DB row types derived from Supabase schema
+type RolesRow = Database['public']['Tables']['roles']['Row'];
+type PermissionsRow = Database['public']['Tables']['permissions']['Row'];
+type UserRolesRow = Database['public']['Tables']['user_roles']['Row'];
+
+// Join result shapes for nested Supabase queries
+interface RoleWithJoinedPermissions extends RolesRow {
+  role_permissions: Array<{ permissions: PermissionsRow }>;
+}
+
+interface RolePermissionJoinRow {
+  permission_id: string;
+  permissions: PermissionsRow;
+}
+
+interface UserRoleWithJoinedRole extends UserRolesRow {
+  role: RolesRow;
+}
+
+/** Map a DB roles row to the app's Role interface */
+function toRole(row: RolesRow): Role {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    is_system: row.is_system,
+    permissions: row.permissions,
+    created_at: row.created_at,
+  };
+}
+
+/** Map a DB permissions row to the app's Permission interface */
+function toPermission(row: PermissionsRow): Permission {
+  return {
+    id: row.id,
+    code: row.code,
+    name: row.name,
+    description: row.description,
+    category: row.category,
+    created_at: row.created_at,
+  };
+}
 
 export class RoleManager {
   constructor(
@@ -200,7 +244,7 @@ export class RoleManager {
         },
       });
 
-      return roleData as Role;
+      return toRole(roleData);
     } catch (error) {
       logger.error('Role creation failed', 'rbac', { roleName: request.name }, error as Error);
       throw error;
@@ -265,14 +309,19 @@ export class RoleManager {
         }
       }
 
+      const auditValue: Record<string, unknown> = {};
+      if (request.description !== undefined) auditValue.description = request.description;
+      if (request.displayName !== undefined) auditValue.displayName = request.displayName;
+      if (request.permissions !== undefined) auditValue.permissions = request.permissions;
+
       await this.auditLogger.logAuditEvent(ActionType.ROLE_UPDATED, {
         targetId: roleId,
         targetType: 'role',
-        newValue: request as unknown as Record<string, unknown>,
+        newValue: auditValue,
       });
 
       this.clearAllCache();
-      return roleData as Role;
+      return toRole(roleData);
     } catch (error) {
       logger.error('Role update failed', 'rbac', { roleId }, error as Error);
       throw error;
@@ -320,7 +369,7 @@ export class RoleManager {
       throw new Error(`Failed to get roles: ${error.message}`);
     }
 
-    return (data || []) as Role[];
+    return (data || []).map(toRole);
   }
 
   /**
@@ -336,7 +385,7 @@ export class RoleManager {
       throw new Error(`Failed to get permissions: ${error.message}`);
     }
 
-    return (data || []) as Permission[];
+    return (data || []).map(toPermission);
   }
 
   /**
@@ -353,7 +402,7 @@ export class RoleManager {
       throw new Error(`Failed to get role: ${error.message}`);
     }
 
-    return data as Role;
+    return toRole(data);
   }
 
   /**
@@ -375,12 +424,12 @@ export class RoleManager {
       throw new Error(`Failed to get role: ${error.message}`);
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const rolePerms = (data as any).role_permissions as Array<{ permissions: Permission }> | undefined;
+    const joined = data as unknown as RoleWithJoinedPermissions;
+    const rolePerms = joined.role_permissions || [];
 
     return {
-      ...(data as Role),
-      permissionList: (rolePerms || []).map(rp => rp.permissions).filter(Boolean),
+      ...toRole(joined),
+      permissionList: rolePerms.map(rp => toPermission(rp.permissions)).filter(Boolean),
     };
   }
 
@@ -407,12 +456,10 @@ export class RoleManager {
       throw new Error(`Failed to get role permissions: ${error.message}`);
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (data || []).map((item: any) => ({
-      permission_id: item.permission_id || '',
-      permission: (Array.isArray(item.permissions)
-        ? item.permissions[0]
-        : item.permissions) as unknown as Permission,
+    const rows = (data || []) as unknown as RolePermissionJoinRow[];
+    return rows.map((item) => ({
+      permission_id: item.permission_id,
+      permission: toPermission(item.permissions),
     }));
   }
 
@@ -461,12 +508,20 @@ export class RoleManager {
       throw new Error(`Failed to get user roles: ${error.message}`);
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (data || []).map((item: any) => ({
-      ...item,
+    const rows = (data || []) as unknown as UserRoleWithJoinedRole[];
+    return rows.map((item): UserRole => ({
+      id: item.id,
+      user_id: item.user_id,
+      role_id: item.role_id,
+      club_id: item.club_id,
+      show_id: item.show_id,
+      granted_by: item.granted_by,
+      granted_at: item.granted_at,
+      expires_at: item.expires_at,
+      role: toRole(item.role),
       user_email: 'Unknown User',
       assigned_by_email: 'System',
-    })) as UserRole[];
+    }));
   }
 
   /**

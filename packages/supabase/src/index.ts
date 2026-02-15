@@ -19,7 +19,7 @@ export {
 export { useSupabase } from './hooks/useSupabase';
 
 // Database types (generated from Supabase schema)
-export type { Database } from './types/database.types';
+export type { Database, Json } from './types/database.types';
 
 // Re-export useful types from @supabase/supabase-js
 export type {

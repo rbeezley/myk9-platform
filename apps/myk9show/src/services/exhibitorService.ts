@@ -5,73 +5,18 @@
 
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
+import type { Database } from '@/types/supabase';
 
-// Types (widened to match actual Supabase DB schema)
-export interface Person {
-  id: string;
-  first_name: string;
-  last_name: string;
-  email: string | null;
-  phone: string | null;
-  street_address: string | null;
-  city: string | null;
-  state: string | null;
-  zip_code: string | null;
-  country: string | null;
-  profile_image: string | null;
-  auth_user_id: string | null;
-  created_at: string | null;
-  updated_at: string | null;
-}
+// Derive types from the generated Supabase schema so they never drift
+type Tables = Database['public']['Tables'];
 
-export interface ExhibitorProfile {
-  id: string;
-  person_id: string;
-  auth_user_id: string;
-  default_handler_id: string | null;
-  subscription_tier: string | null;
-  subscription_expires_at: string | null;
-  stripe_customer_id: string | null;
-  created_at: string | null;
-  updated_at: string | null;
+export type Person = Tables['people']['Row'];
+export type ExhibitorProfile = Tables['exhibitor_profiles']['Row'] & {
   person?: Person;
-}
+};
+export type ExhibitorDog = Tables['dogs']['Row'];
 
-export interface ExhibitorDog {
-  id: string;
-  name: string;
-  call_name: string | null;
-  breed: string;
-  sex: string | null;
-  date_of_birth: string | null;
-  color: string | null;
-  height: string | null;
-  weight: string | null;
-  akc_number: string | null;
-  ukc_number: string | null;
-  other_registry: string | null;
-  other_registry_number: string | null;
-  microchip_number: string | null;
-  image_url: string | null;
-  spayed_neutered: boolean | null;
-  deceased: boolean | null;
-  owner_id: string | null;
-  co_owner_id: string | null;
-  created_at: string | null;
-  updated_at: string | null;
-}
-
-export interface UpdatePersonData {
-  first_name?: string;
-  last_name?: string;
-  phone?: string | null;
-  street_address?: string | null;
-  city?: string | null;
-  state?: string | null;
-  zip_code?: string | null;
-  country?: string | null;
-  profile_image?: string | null;
-}
+export type UpdatePersonData = Tables['people']['Update'];
 
 export interface CreateDogData {
   name: string;
@@ -91,9 +36,7 @@ export interface CreateDogData {
   spayed_neutered?: boolean;
 }
 
-export interface UpdateDogData extends Partial<CreateDogData> {
-  deceased?: boolean;
-}
+export type UpdateDogData = Tables['dogs']['Update'];
 
 /**
  * Exhibitor Service

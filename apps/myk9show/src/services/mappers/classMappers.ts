@@ -4,6 +4,72 @@
 import type { DbClass, DbClassInsert, DbClassUpdate, DbEntry, DbEntryInsert, DbEntryUpdate } from '@/types/database-mappings';
 import type { ClassInput, EntryInput, SyncableClassData, SyncableEntryData } from '@/store/classStore';
 
+// ===== JOINED DATA TYPES =====
+
+/** Shape of a trial object when joined via Supabase select */
+interface JoinedTrial {
+  name?: string | null;
+  date?: string | null;
+  trial_number?: string | null;
+}
+
+/** Shape of a dog object when joined via Supabase select */
+interface JoinedDog {
+  name?: string | null;
+}
+
+/** Shape of a result object when joined via Supabase select */
+interface JoinedResult {
+  score?: string | null;
+  time_seconds?: number | null;
+  placement?: string | null;
+}
+
+/** DbClass with optional joined relations from Supabase queries */
+export interface DbClassWithRelations extends DbClass {
+  trial?: JoinedTrial | null;
+  entry?: unknown[];
+}
+
+/** DbEntry with optional joined relations from Supabase queries */
+export interface DbEntryWithRelations extends DbEntry {
+  dog?: JoinedDog | null;
+  class?: unknown;
+  result?: JoinedResult | null;
+}
+
+// ===== TYPE HELPERS =====
+
+/** Safely extract a JoinedTrial from an unknown value */
+function extractTrial(value: JoinedTrial | null | undefined): JoinedTrial | null {
+  if (value == null || typeof value !== 'object') return null;
+  return value;
+}
+
+/** Safely extract a JoinedDog from an unknown value */
+function extractDog(value: JoinedDog | null | undefined): JoinedDog | null {
+  if (value == null || typeof value !== 'object') return null;
+  return value;
+}
+
+/** Safely extract a JoinedResult from an unknown value */
+function extractResult(value: JoinedResult | null | undefined): JoinedResult | null {
+  if (value == null || typeof value !== 'object') return null;
+  return value;
+}
+
+const VALID_CLASS_STATUSES = new Set<ClassInput['status']>([
+  'Scheduled', 'In Progress', 'Completed', 'Cancelled', 'Upcoming',
+]);
+
+/** Map a database status string to a valid ClassInput status */
+function mapClassStatus(status: string | null): ClassInput['status'] {
+  if (status && VALID_CLASS_STATUSES.has(status as ClassInput['status'])) {
+    return status as ClassInput['status'];
+  }
+  return 'Scheduled';
+}
+
 // ===== CLASS MAPPERS =====
 
 /**
@@ -85,30 +151,29 @@ export const mapClassInputToUpdate = (updates: Partial<ClassInput>): DbClassUpda
 /**
  * Convert database class to SyncableClassData format
  */
-export const mapDatabaseToClass = (dbClass: DbClass & { trial?: unknown; entry?: unknown[] }): SyncableClassData => {
-  // Extract trial information if available
-  const trial = dbClass.trial as { name?: string; date?: string; trial_number?: string } | undefined;
+export const mapDatabaseToClass = (dbClass: DbClassWithRelations): SyncableClassData => {
+  const trial = extractTrial(dbClass.trial);
 
   return {
     id: dbClass.id,
-    trialId: '',
+    trialId: dbClass.trial_id,
     trial: trial?.name || 'Unknown Trial',
     trialDate: trial?.date || new Date().toISOString().split('T')[0],
     trialNumber: trial?.trial_number || 'TBD',
     classOrder: dbClass.start_time ? extractClassOrder(dbClass.start_time) : '1',
-    status: (dbClass.status || 'Scheduled') as ClassInput['status'],
+    status: mapClassStatus(dbClass.status),
     judge: 'TBD',
 
     // Class details
     className: dbClass.name,
-    classNumber: dbClass.class_number || dbClass.id.substring(0, 8),
-    element: dbClass.element || extractElement(dbClass.description),
-    level: dbClass.level || '',
-    section: dbClass.division || 'A',
+    classNumber: dbClass.class_number ?? dbClass.id.substring(0, 8),
+    element: dbClass.element ?? extractElement(dbClass.description),
+    level: dbClass.level ?? '',
+    section: dbClass.division ?? 'A',
 
     // Entry configuration
-    entryFee: dbClass.entry_fee || 0,
-    maxEntries: dbClass.max_entries || 40,
+    entryFee: dbClass.entry_fee ?? 0,
+    maxEntries: dbClass.max_entries ?? 40,
     requiresJumpHeight: Array.isArray(dbClass.jump_heights) && dbClass.jump_heights.length > 0,
 
     // Scent work specific fields (legacy compatibility)
@@ -122,11 +187,10 @@ export const mapDatabaseToClass = (dbClass: DbClass & { trial?: unknown; entry?:
 
     // Custom fields
     customFields: {},
-    templateId: undefined,
 
     // Sync metadata
     _version: 1,
-    _lastModified: new Date(dbClass.updated_at || dbClass.created_at || new Date()),
+    _lastModified: new Date(dbClass.updated_at || dbClass.created_at || new Date().toISOString()),
     _lastModifiedBy: 'system',
     _syncStatus: 'synced',
     _localOnly: false,
@@ -136,7 +200,7 @@ export const mapDatabaseToClass = (dbClass: DbClass & { trial?: unknown; entry?:
 /**
  * Convert array of database classes to SyncableClassData array
  */
-export const mapDatabaseClassesArray = (dbClasses: (DbClass & { trial?: unknown; entry?: unknown[] })[]): SyncableClassData[] => {
+export const mapDatabaseClassesArray = (dbClasses: DbClassWithRelations[]): SyncableClassData[] => {
   return dbClasses.map(mapDatabaseToClass);
 };
 
@@ -177,12 +241,9 @@ export const mapEntryInputToUpdate = (updates: Partial<EntryInput>): DbEntryUpda
 /**
  * Convert database entry to SyncableEntryData format
  */
-export const mapDatabaseToEntry = (dbEntry: DbEntry & { dog?: unknown; class?: unknown; result?: unknown }): SyncableEntryData => {
-  // Extract dog information if available
-  const dog = dbEntry.dog as { name?: string } | undefined;
-
-  // Extract result information if available
-  const result = dbEntry.result as { score?: string; time_seconds?: number; placement?: string } | undefined;
+export const mapDatabaseToEntry = (dbEntry: DbEntryWithRelations): SyncableEntryData => {
+  const dog = extractDog(dbEntry.dog);
+  const result = extractResult(dbEntry.result);
 
   return {
     id: dbEntry.id,
@@ -197,7 +258,7 @@ export const mapDatabaseToEntry = (dbEntry: DbEntry & { dog?: unknown; class?: u
 
     // Sync metadata
     _version: 1,
-    _lastModified: new Date(dbEntry.updated_at || dbEntry.created_at || new Date()),
+    _lastModified: new Date(dbEntry.updated_at || dbEntry.created_at || new Date().toISOString()),
     _lastModifiedBy: 'system',
     _syncStatus: 'synced',
     _localOnly: false,
@@ -207,7 +268,7 @@ export const mapDatabaseToEntry = (dbEntry: DbEntry & { dog?: unknown; class?: u
 /**
  * Convert array of database entries to SyncableEntryData array
  */
-export const mapDatabaseEntriesArray = (dbEntries: (DbEntry & { dog?: unknown; class?: unknown; result?: unknown })[]): SyncableEntryData[] => {
+export const mapDatabaseEntriesArray = (dbEntries: DbEntryWithRelations[]): SyncableEntryData[] => {
   return dbEntries.map(mapDatabaseToEntry);
 };
 
@@ -250,7 +311,7 @@ const mapEntryStatus = (status: string): string => {
  */
 const mapDatabaseEntryStatus = (status: string | null): 'Qualified' | 'Not Qualified' | 'Absent' | 'Excused' | 'Withdrawn' | 'Eliminated' => {
   if (!status) return 'Not Qualified';
-  
+
   const statusMap: Record<string, 'Qualified' | 'Not Qualified' | 'Absent' | 'Excused' | 'Withdrawn' | 'Eliminated'> = {
     'qualified': 'Qualified',
     'not_qualified': 'Not Qualified',
@@ -261,14 +322,3 @@ const mapDatabaseEntryStatus = (status: string | null): 'Qualified' | 'Not Quali
   };
   return statusMap[status] || 'Not Qualified';
 };
-
-/**
- * Create default sync metadata for new records
- */
-export const createSyncMetadata = () => ({
-  _version: 1,
-  _lastModified: new Date(),
-  _lastModifiedBy: 'system',
-  _syncStatus: 'pending' as const,
-  _localOnly: false,
-});

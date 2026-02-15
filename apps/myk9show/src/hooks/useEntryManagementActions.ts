@@ -1,8 +1,7 @@
 import { useState, useCallback } from 'react';
 import { logger } from '@/services/LoggingService';
 import { auditService } from '@/services/AuditService';
-import { notificationService } from '@/services/NotificationService';
-import { AuditAction, NotificationType } from '@/types/audit-types';
+import { AuditAction } from '@/types/audit-types';
 import { EntryStatus } from '@/types/show-registration-types';
 import { CheckInStatus } from '@/types/check-in-types';
 import {
@@ -124,25 +123,6 @@ export function useEntryManagementActions({
           action: 'status_change',
           secretaryId: user?.id,
           entryNumber: entry.entryNumber
-        }
-      });
-
-      notificationService.publish({
-        type: NotificationType.ENTRY_CHANGE,
-        channel: `user:${entry.ownerEmail}`,
-        sender: {
-          id: user?.id || 'secretary',
-          name: user?.email || 'Secretary',
-          role: 'secretary'
-        },
-        data: {
-          type: 'entry_status_changed',
-          entryId,
-          entryNumber: entry.entryNumber,
-          dogName: entry.dogName,
-          oldStatus,
-          newStatus,
-          changedAt: new Date().toISOString()
         }
       });
 

@@ -28,18 +28,36 @@ import type {
 } from '@/types/health';
 
 // ========================================
+// VALIDATION HELPERS
+// ========================================
+
+const HEALTH_RECORD_TYPES = ['vaccination', 'medication', 'allergy', 'vet_visit', 'general'] as const;
+type HealthRecordType = typeof HEALTH_RECORD_TYPES[number];
+
+function isHealthRecordType(value: string): value is HealthRecordType {
+  return (HEALTH_RECORD_TYPES as readonly string[]).includes(value);
+}
+
+const ALLERGY_SEVERITIES = ['mild', 'moderate', 'severe', 'life_threatening'] as const;
+type AllergySeverity = typeof ALLERGY_SEVERITIES[number];
+
+function isAllergySeverity(value: string): value is AllergySeverity {
+  return (ALLERGY_SEVERITIES as readonly string[]).includes(value);
+}
+
+// ========================================
 // HEALTH RECORD MAPPERS
 // ========================================
 
 export const mapDbHealthRecordToApp = (dbRecord: DbHealthRecord): HealthRecord => {
   return {
     id: dbRecord.id,
-    dog_id: dbRecord.dog_id || '',
-    record_type: dbRecord.record_type as 'vaccination' | 'medication' | 'allergy' | 'vet_visit' | 'general',
-    title: dbRecord.title || undefined,
-    notes: dbRecord.description || undefined,
-    created_at: dbRecord.created_at || new Date().toISOString(),
-    updated_at: dbRecord.updated_at || new Date().toISOString(),
+    dog_id: dbRecord.dog_id,
+    record_type: isHealthRecordType(dbRecord.record_type) ? dbRecord.record_type : 'general',
+    created_at: dbRecord.created_at ?? new Date().toISOString(),
+    updated_at: dbRecord.updated_at ?? new Date().toISOString(),
+    ...(dbRecord.title ? { title: dbRecord.title } : {}),
+    ...(dbRecord.description != null ? { notes: dbRecord.description } : {}),
   };
 };
 
@@ -48,8 +66,8 @@ export const mapAppHealthRecordToDbInsert = (appRecord: Omit<HealthRecord, 'id' 
     dog_id: appRecord.dog_id,
     record_type: appRecord.record_type,
     date: new Date().toISOString().split('T')[0],
-    title: appRecord.title || 'Health Record',
-    description: appRecord.notes || null,
+    title: appRecord.title ?? 'Health Record',
+    description: appRecord.notes ?? null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
@@ -62,7 +80,7 @@ export const mapAppHealthRecordToDbUpdate = (appRecord: Partial<HealthRecord>): 
 
   if (appRecord.record_type !== undefined) update.record_type = appRecord.record_type;
   if (appRecord.title !== undefined) update.title = appRecord.title;
-  if (appRecord.notes !== undefined) update.description = appRecord.notes || null;
+  if (appRecord.notes !== undefined) update.description = appRecord.notes ?? null;
 
   return update;
 };
@@ -74,15 +92,15 @@ export const mapAppHealthRecordToDbUpdate = (appRecord: Partial<HealthRecord>): 
 export const mapDbVaccinationToApp = (dbVaccination: DbVaccination): VaccinationRecord => {
   return {
     id: dbVaccination.id,
-    dog_id: dbVaccination.dog_id || '',
+    dog_id: dbVaccination.dog_id,
     vaccine_name: dbVaccination.vaccine_name,
     date_given: dbVaccination.date_administered,
-    expiration_date: dbVaccination.expiration_date || undefined,
-    vet_name: dbVaccination.administered_by || undefined,
-    lot_number: dbVaccination.lot_number || undefined,
-    notes: dbVaccination.notes || undefined,
-    created_at: dbVaccination.created_at || new Date().toISOString(),
-    updated_at: dbVaccination.updated_at || new Date().toISOString(),
+    created_at: dbVaccination.created_at ?? new Date().toISOString(),
+    updated_at: dbVaccination.updated_at ?? new Date().toISOString(),
+    ...(dbVaccination.expiration_date != null ? { expiration_date: dbVaccination.expiration_date } : {}),
+    ...(dbVaccination.administered_by != null ? { vet_name: dbVaccination.administered_by } : {}),
+    ...(dbVaccination.lot_number != null ? { lot_number: dbVaccination.lot_number } : {}),
+    ...(dbVaccination.notes != null ? { notes: dbVaccination.notes } : {}),
   };
 };
 
@@ -91,10 +109,10 @@ export const mapAppVaccinationToDbInsert = (appVaccination: Omit<VaccinationReco
     dog_id: appVaccination.dog_id,
     vaccine_name: appVaccination.vaccine_name,
     date_administered: appVaccination.date_given,
-    expiration_date: appVaccination.expiration_date || null,
-    administered_by: appVaccination.vet_name || null,
-    lot_number: appVaccination.lot_number || null,
-    notes: appVaccination.notes || null,
+    expiration_date: appVaccination.expiration_date ?? null,
+    administered_by: appVaccination.vet_name ?? null,
+    lot_number: appVaccination.lot_number ?? null,
+    notes: appVaccination.notes ?? null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
@@ -107,10 +125,10 @@ export const mapAppVaccinationToDbUpdate = (appVaccination: Partial<VaccinationR
 
   if (appVaccination.vaccine_name !== undefined) update.vaccine_name = appVaccination.vaccine_name;
   if (appVaccination.date_given !== undefined) update.date_administered = appVaccination.date_given;
-  if (appVaccination.expiration_date !== undefined) update.expiration_date = appVaccination.expiration_date || null;
-  if (appVaccination.vet_name !== undefined) update.administered_by = appVaccination.vet_name || null;
-  if (appVaccination.lot_number !== undefined) update.lot_number = appVaccination.lot_number || null;
-  if (appVaccination.notes !== undefined) update.notes = appVaccination.notes || null;
+  if (appVaccination.expiration_date !== undefined) update.expiration_date = appVaccination.expiration_date ?? null;
+  if (appVaccination.vet_name !== undefined) update.administered_by = appVaccination.vet_name ?? null;
+  if (appVaccination.lot_number !== undefined) update.lot_number = appVaccination.lot_number ?? null;
+  if (appVaccination.notes !== undefined) update.notes = appVaccination.notes ?? null;
 
   return update;
 };
@@ -122,17 +140,17 @@ export const mapAppVaccinationToDbUpdate = (appVaccination: Partial<VaccinationR
 export const mapDbMedicationToApp = (dbMedication: DbMedication): MedicationRecord => {
   return {
     id: dbMedication.id,
-    dog_id: dbMedication.dog_id || '',
+    dog_id: dbMedication.dog_id,
     medication_name: dbMedication.medication_name,
-    dosage: dbMedication.dosage || undefined,
-    frequency: dbMedication.frequency || undefined,
-    prescribed_by: dbMedication.prescribing_vet || undefined,
-    start_date: dbMedication.start_date || undefined,
-    end_date: dbMedication.end_date || undefined,
-    is_active: dbMedication.is_active ?? undefined,
-    notes: dbMedication.reason || undefined,
-    created_at: dbMedication.created_at || new Date().toISOString(),
-    updated_at: dbMedication.updated_at || new Date().toISOString(),
+    created_at: dbMedication.created_at ?? new Date().toISOString(),
+    updated_at: dbMedication.updated_at ?? new Date().toISOString(),
+    ...(dbMedication.dosage != null ? { dosage: dbMedication.dosage } : {}),
+    ...(dbMedication.frequency != null ? { frequency: dbMedication.frequency } : {}),
+    ...(dbMedication.prescribing_vet != null ? { prescribed_by: dbMedication.prescribing_vet } : {}),
+    ...(dbMedication.start_date != null ? { start_date: dbMedication.start_date } : {}),
+    ...(dbMedication.end_date != null ? { end_date: dbMedication.end_date } : {}),
+    ...(dbMedication.is_active != null ? { is_active: dbMedication.is_active } : {}),
+    ...(dbMedication.reason != null ? { notes: dbMedication.reason } : {}),
   };
 };
 
@@ -140,13 +158,13 @@ export const mapAppMedicationToDbInsert = (appMedication: Omit<MedicationRecord,
   return {
     dog_id: appMedication.dog_id,
     medication_name: appMedication.medication_name,
-    dosage: appMedication.dosage || null,
-    frequency: appMedication.frequency || null,
-    prescribing_vet: appMedication.prescribed_by || null,
-    start_date: appMedication.start_date || null,
-    end_date: appMedication.end_date || null,
+    dosage: appMedication.dosage ?? null,
+    frequency: appMedication.frequency ?? null,
+    prescribing_vet: appMedication.prescribed_by ?? null,
+    start_date: appMedication.start_date ?? null,
+    end_date: appMedication.end_date ?? null,
     is_active: appMedication.is_active ?? true,
-    reason: appMedication.notes || null,
+    reason: appMedication.notes ?? null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
@@ -158,13 +176,13 @@ export const mapAppMedicationToDbUpdate = (appMedication: Partial<MedicationReco
   };
 
   if (appMedication.medication_name !== undefined) update.medication_name = appMedication.medication_name;
-  if (appMedication.dosage !== undefined) update.dosage = appMedication.dosage || null;
-  if (appMedication.frequency !== undefined) update.frequency = appMedication.frequency || null;
-  if (appMedication.prescribed_by !== undefined) update.prescribing_vet = appMedication.prescribed_by || null;
-  if (appMedication.start_date !== undefined) update.start_date = appMedication.start_date || null;
-  if (appMedication.end_date !== undefined) update.end_date = appMedication.end_date || null;
-  if (appMedication.is_active !== undefined) update.is_active = appMedication.is_active;
-  if (appMedication.notes !== undefined) update.reason = appMedication.notes || null;
+  if (appMedication.dosage !== undefined) update.dosage = appMedication.dosage ?? null;
+  if (appMedication.frequency !== undefined) update.frequency = appMedication.frequency ?? null;
+  if (appMedication.prescribed_by !== undefined) update.prescribing_vet = appMedication.prescribed_by ?? null;
+  if (appMedication.start_date !== undefined) update.start_date = appMedication.start_date ?? null;
+  if (appMedication.end_date !== undefined) update.end_date = appMedication.end_date ?? null;
+  if (appMedication.is_active !== undefined) update.is_active = appMedication.is_active ?? null;
+  if (appMedication.notes !== undefined) update.reason = appMedication.notes ?? null;
 
   return update;
 };
@@ -176,14 +194,14 @@ export const mapAppMedicationToDbUpdate = (appMedication: Partial<MedicationReco
 export const mapDbAllergyToApp = (dbAllergy: DbAllergy): AllergyRecord => {
   return {
     id: dbAllergy.id,
-    dog_id: dbAllergy.dog_id || '',
+    dog_id: dbAllergy.dog_id,
     allergen: dbAllergy.allergen,
-    reaction: dbAllergy.reaction || undefined,
-    severity: dbAllergy.severity as 'mild' | 'moderate' | 'severe' | 'life_threatening' | undefined,
-    discovered_date: dbAllergy.diagnosed_date || undefined,
-    notes: dbAllergy.notes || undefined,
-    created_at: dbAllergy.created_at || new Date().toISOString(),
+    created_at: dbAllergy.created_at ?? new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    ...(dbAllergy.reaction != null ? { reaction: dbAllergy.reaction } : {}),
+    ...(dbAllergy.severity != null && isAllergySeverity(dbAllergy.severity) ? { severity: dbAllergy.severity } : {}),
+    ...(dbAllergy.diagnosed_date != null ? { discovered_date: dbAllergy.diagnosed_date } : {}),
+    ...(dbAllergy.notes != null ? { notes: dbAllergy.notes } : {}),
   };
 };
 
@@ -191,10 +209,10 @@ export const mapAppAllergyToDbInsert = (appAllergy: Omit<AllergyRecord, 'id' | '
   return {
     dog_id: appAllergy.dog_id,
     allergen: appAllergy.allergen,
-    reaction: appAllergy.reaction || null,
-    severity: appAllergy.severity || null,
-    diagnosed_date: appAllergy.discovered_date || null,
-    notes: appAllergy.notes || null,
+    reaction: appAllergy.reaction ?? null,
+    severity: appAllergy.severity ?? null,
+    diagnosed_date: appAllergy.discovered_date ?? null,
+    notes: appAllergy.notes ?? null,
     created_at: new Date().toISOString(),
   };
 };
@@ -203,10 +221,10 @@ export const mapAppAllergyToDbUpdate = (appAllergy: Partial<AllergyRecord>): DbA
   const update: DbAllergyUpdate = {};
 
   if (appAllergy.allergen !== undefined) update.allergen = appAllergy.allergen;
-  if (appAllergy.reaction !== undefined) update.reaction = appAllergy.reaction || null;
-  if (appAllergy.severity !== undefined) update.severity = appAllergy.severity || null;
-  if (appAllergy.discovered_date !== undefined) update.diagnosed_date = appAllergy.discovered_date || null;
-  if (appAllergy.notes !== undefined) update.notes = appAllergy.notes || null;
+  if (appAllergy.reaction !== undefined) update.reaction = appAllergy.reaction ?? null;
+  if (appAllergy.severity !== undefined) update.severity = appAllergy.severity ?? null;
+  if (appAllergy.discovered_date !== undefined) update.diagnosed_date = appAllergy.discovered_date ?? null;
+  if (appAllergy.notes !== undefined) update.notes = appAllergy.notes ?? null;
 
   return update;
 };
@@ -218,18 +236,18 @@ export const mapAppAllergyToDbUpdate = (appAllergy: Partial<AllergyRecord>): DbA
 export const mapDbVetVisitToApp = (dbVetVisit: DbVetVisit): VetVisitRecord => {
   return {
     id: dbVetVisit.id,
-    dog_id: dbVetVisit.dog_id || '',
+    dog_id: dbVetVisit.dog_id,
     visit_date: dbVetVisit.visit_date,
     reason: dbVetVisit.reason,
-    diagnosis: dbVetVisit.diagnosis || undefined,
-    treatment: dbVetVisit.treatment || undefined,
-    vet_name: dbVetVisit.vet_name || undefined,
-    clinic_name: dbVetVisit.clinic_name || undefined,
-    cost: dbVetVisit.cost || undefined,
-    follow_up_date: dbVetVisit.follow_up_date || undefined,
-    notes: dbVetVisit.notes || undefined,
-    created_at: dbVetVisit.created_at || new Date().toISOString(),
-    updated_at: dbVetVisit.updated_at || new Date().toISOString(),
+    created_at: dbVetVisit.created_at ?? new Date().toISOString(),
+    updated_at: dbVetVisit.updated_at ?? new Date().toISOString(),
+    ...(dbVetVisit.diagnosis != null ? { diagnosis: dbVetVisit.diagnosis } : {}),
+    ...(dbVetVisit.treatment != null ? { treatment: dbVetVisit.treatment } : {}),
+    ...(dbVetVisit.vet_name != null ? { vet_name: dbVetVisit.vet_name } : {}),
+    ...(dbVetVisit.clinic_name != null ? { clinic_name: dbVetVisit.clinic_name } : {}),
+    ...(dbVetVisit.cost != null ? { cost: dbVetVisit.cost } : {}),
+    ...(dbVetVisit.follow_up_date != null ? { follow_up_date: dbVetVisit.follow_up_date } : {}),
+    ...(dbVetVisit.notes != null ? { notes: dbVetVisit.notes } : {}),
   };
 };
 
@@ -238,13 +256,13 @@ export const mapAppVetVisitToDbInsert = (appVetVisit: Omit<VetVisitRecord, 'id' 
     dog_id: appVetVisit.dog_id,
     visit_date: appVetVisit.visit_date,
     reason: appVetVisit.reason,
-    diagnosis: appVetVisit.diagnosis || null,
-    treatment: appVetVisit.treatment || null,
-    vet_name: appVetVisit.vet_name || null,
-    clinic_name: appVetVisit.clinic_name || null,
-    cost: appVetVisit.cost || null,
-    follow_up_date: appVetVisit.follow_up_date || null,
-    notes: appVetVisit.notes || null,
+    diagnosis: appVetVisit.diagnosis ?? null,
+    treatment: appVetVisit.treatment ?? null,
+    vet_name: appVetVisit.vet_name ?? null,
+    clinic_name: appVetVisit.clinic_name ?? null,
+    cost: appVetVisit.cost ?? null,
+    follow_up_date: appVetVisit.follow_up_date ?? null,
+    notes: appVetVisit.notes ?? null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
@@ -257,13 +275,13 @@ export const mapAppVetVisitToDbUpdate = (appVetVisit: Partial<VetVisitRecord>): 
 
   if (appVetVisit.visit_date !== undefined) update.visit_date = appVetVisit.visit_date;
   if (appVetVisit.reason !== undefined) update.reason = appVetVisit.reason;
-  if (appVetVisit.diagnosis !== undefined) update.diagnosis = appVetVisit.diagnosis || null;
-  if (appVetVisit.treatment !== undefined) update.treatment = appVetVisit.treatment || null;
-  if (appVetVisit.vet_name !== undefined) update.vet_name = appVetVisit.vet_name || null;
-  if (appVetVisit.clinic_name !== undefined) update.clinic_name = appVetVisit.clinic_name || null;
-  if (appVetVisit.cost !== undefined) update.cost = appVetVisit.cost || null;
-  if (appVetVisit.follow_up_date !== undefined) update.follow_up_date = appVetVisit.follow_up_date || null;
-  if (appVetVisit.notes !== undefined) update.notes = appVetVisit.notes || null;
+  if (appVetVisit.diagnosis !== undefined) update.diagnosis = appVetVisit.diagnosis ?? null;
+  if (appVetVisit.treatment !== undefined) update.treatment = appVetVisit.treatment ?? null;
+  if (appVetVisit.vet_name !== undefined) update.vet_name = appVetVisit.vet_name ?? null;
+  if (appVetVisit.clinic_name !== undefined) update.clinic_name = appVetVisit.clinic_name ?? null;
+  if (appVetVisit.cost !== undefined) update.cost = appVetVisit.cost ?? null;
+  if (appVetVisit.follow_up_date !== undefined) update.follow_up_date = appVetVisit.follow_up_date ?? null;
+  if (appVetVisit.notes !== undefined) update.notes = appVetVisit.notes ?? null;
 
   return update;
 };
@@ -289,11 +307,11 @@ export const mapDbRecordsToHealthTimeline = (
       type: 'vaccination',
       date: vaccination.date_administered,
       title: `${vaccination.vaccine_name} Vaccination`,
-      description: vaccination.administered_by ? `Administered by ${vaccination.administered_by}` : undefined,
       details: mapDbVaccinationToApp(vaccination),
       dog_id: dogId,
-      urgent: Boolean(isOverdue),
-      status: isOverdue ? 'overdue' : 'completed',
+      ...(vaccination.administered_by != null ? { description: `Administered by ${vaccination.administered_by}` } : {}),
+      ...(isOverdue != null ? { urgent: Boolean(isOverdue) } : {}),
+      ...(isOverdue ? { status: 'overdue' as const } : { status: 'completed' as const }),
     });
   });
 
@@ -302,13 +320,13 @@ export const mapDbRecordsToHealthTimeline = (
     timelineEntries.push({
       id: medication.id,
       type: 'medication',
-      date: medication.start_date || medication.created_at || new Date().toISOString(),
+      date: medication.start_date ?? medication.created_at ?? new Date().toISOString(),
       title: medication.medication_name,
-      description: medication.prescribing_vet ? `Prescribed by ${medication.prescribing_vet}` : undefined,
       details: mapDbMedicationToApp(medication),
       dog_id: dogId,
       urgent: false,
-      status: medication.is_active ? 'completed' : 'completed',
+      status: 'completed',
+      ...(medication.prescribing_vet != null ? { description: `Prescribed by ${medication.prescribing_vet}` } : {}),
     });
   });
 
@@ -318,13 +336,13 @@ export const mapDbRecordsToHealthTimeline = (
     timelineEntries.push({
       id: allergy.id,
       type: 'allergy',
-      date: allergy.diagnosed_date || allergy.created_at || new Date().toISOString(),
+      date: allergy.diagnosed_date ?? allergy.created_at ?? new Date().toISOString(),
       title: `Allergy: ${allergy.allergen}`,
-      description: allergy.severity ? `Severity: ${allergy.severity}` : undefined,
       details: mapDbAllergyToApp(allergy),
       dog_id: dogId,
       urgent: isSevere,
       status: 'completed',
+      ...(allergy.severity != null ? { description: `Severity: ${allergy.severity}` } : {}),
     });
   });
 
@@ -336,11 +354,11 @@ export const mapDbRecordsToHealthTimeline = (
       type: 'vet_visit',
       date: visit.visit_date,
       title: `Vet Visit: ${visit.reason}`,
-      description: visit.vet_name ? `Seen by ${visit.vet_name}` : undefined,
       details: mapDbVetVisitToApp(visit),
       dog_id: dogId,
       urgent: hasFollowUp,
-      status: hasFollowUp ? 'upcoming' : 'completed',
+      ...(hasFollowUp ? { status: 'upcoming' as const } : { status: 'completed' as const }),
+      ...(visit.vet_name != null ? { description: `Seen by ${visit.vet_name}` } : {}),
     });
   });
 
@@ -367,7 +385,7 @@ export const generateHealthAlerts = (
   vaccinations.forEach(vaccination => {
     if (vaccination.expiration_date) {
       const expirationDate = new Date(vaccination.expiration_date);
-      
+
       if (expirationDate < now) {
         // Overdue vaccination
         alerts.push({
@@ -407,7 +425,7 @@ export const generateHealthAlerts = (
   medications.forEach(medication => {
     if (medication.is_active && medication.end_date) {
       const endDate = new Date(medication.end_date);
-      
+
       if (endDate <= thirtyDaysFromNow) {
         const daysUntilEnd = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
         alerts.push({
@@ -472,7 +490,7 @@ export const generateHealthAlerts = (
     const severityOrder = { critical: 4, high: 3, medium: 2, low: 1 };
     const severityDiff = severityOrder[b.severity] - severityOrder[a.severity];
     if (severityDiff !== 0) return severityDiff;
-    
+
     return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
   });
 };
@@ -492,13 +510,13 @@ export const calculateHealthStatisticsFromDb = (
   thirtyDaysFromNow.setDate(now.getDate() + 30);
 
   // Vaccination statistics
-  const upcomingVaccinations = vaccinations.filter(v => 
-    v.expiration_date && 
-    new Date(v.expiration_date) <= thirtyDaysFromNow && 
+  const upcomingVaccinations = vaccinations.filter(v =>
+    v.expiration_date &&
+    new Date(v.expiration_date) <= thirtyDaysFromNow &&
     new Date(v.expiration_date) >= now
   );
-  
-  const overdueVaccinations = vaccinations.filter(v => 
+
+  const overdueVaccinations = vaccinations.filter(v =>
     v.expiration_date && new Date(v.expiration_date) < now
   );
 
@@ -518,9 +536,12 @@ export const calculateHealthStatisticsFromDb = (
   const sortedVetVisits = vetVisits
     .filter(v => v.visit_date)
     .sort((a, b) => new Date(b.visit_date).getTime() - new Date(a.visit_date).getTime());
-  
+
   const nextVaccination = upcomingVaccinations
     .sort((a, b) => new Date(a.expiration_date!).getTime() - new Date(b.expiration_date!).getTime())[0];
+
+  const lastVisitDate = sortedVetVisits[0]?.visit_date;
+  const nextVaccinationDue = nextVaccination?.expiration_date;
 
   return {
     total_vaccinations: vaccinations.length,
@@ -530,8 +551,8 @@ export const calculateHealthStatisticsFromDb = (
     total_allergies: activeAllergies.length,
     total_vet_visits: vetVisits.length,
     upcoming_appointments: followUpVisits.length,
-    last_visit_date: sortedVetVisits[0]?.visit_date,
-    next_vaccination_due: nextVaccination?.expiration_date || undefined,
+    ...(lastVisitDate != null ? { last_visit_date: lastVisitDate } : {}),
+    ...(nextVaccinationDue != null ? { next_vaccination_due: nextVaccinationDue } : {}),
   };
 };
 
@@ -548,8 +569,8 @@ export const mapHealthRecordTypeToDisplayName = (type: string): string => {
     health_record: 'Health Record',
     general: 'General Record',
   };
-  
-  return typeMap[type] || type;
+
+  return typeMap[type] ?? type;
 };
 
 export const mapSeverityToColor = (severity?: string): string => {
@@ -563,8 +584,8 @@ export const mapSeverityToColor = (severity?: string): string => {
     high: 'orange',
     critical: 'red',
   };
-  
-  return colorMap[severity || ''] || 'gray';
+
+  return colorMap[severity ?? ''] ?? 'gray';
 };
 
 export const mapStatusToColor = (status?: string): string => {
@@ -574,6 +595,6 @@ export const mapStatusToColor = (status?: string): string => {
     overdue: 'red',
     upcoming: 'yellow',
   };
-  
-  return colorMap[status || ''] || 'gray';
+
+  return colorMap[status ?? ''] ?? 'gray';
 };

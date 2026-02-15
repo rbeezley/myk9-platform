@@ -7,6 +7,7 @@
  */
 
 import { supabase } from '@/lib/supabase';
+import type { Json } from '@myk9/supabase';
 import { ActionType, AuditLogEntry, AuditLogFilter } from '@/types/rbac-types';
 import { logger } from '@/services/LoggingService';
 
@@ -33,10 +34,8 @@ export class AuditLogger {
           user_id: user?.id ?? null,
           target_id: details.targetId ?? null,
           target_type: details.targetType ?? null,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          old_value: (details.oldValue ?? null) as any,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          new_value: (details.newValue ?? null) as any,
+          old_value: (details.oldValue ?? null) as Json,
+          new_value: (details.newValue ?? null) as Json,
         });
     } catch (error) {
       logger.error('Failed to log audit event:', 'rbac', {}, error as Error);

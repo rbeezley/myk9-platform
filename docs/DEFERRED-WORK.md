@@ -41,7 +41,7 @@
 | `services/rbac/AuditLogger.ts` | `as any` for missing RPC types — functional |
 | `services/mappers/showManagementMappers.ts` | show_registration table schema mismatch |
 | `services/mappers/judgeMappers.ts` | Judge tables schema mismatch |
-| `services/mappers/healthMappers.ts` | Health tables not yet in database |
+| ~~`services/mappers/healthMappers.ts`~~ | ~~RESOLVED: Type-safe mappers with validation, no `as` casts~~ |
 | `services/mappers/templateMappers.ts` | Template tables schema mismatch |
 | `services/mappers/classMappers.ts` | Missing columns: updated_by, created_by, status |
 | `services/mappers/registrationMappers.ts` | dog_registrations table schema mismatch |

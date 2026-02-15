@@ -10,7 +10,7 @@
 
 | Area | Count | Priority |
 |------|-------|----------|
-| Type/Schema Mismatches | 25 | Low - all pass typecheck, 4 un-excluded, remaining are schema-blocked |
+| Type/Schema Mismatches | 15 | Low - schema-blocked files remain excluded |
 | Auth Context Integration | 0 | ~~Complete~~ — all hardcoded values replaced |
 | Database Integration | 15 | Medium - waiting on schema |
 | Incomplete Features | 45+ | Medium - partial implementations |
@@ -21,13 +21,16 @@
 
 ---
 
-## 1. Type/Schema Mismatches (25 items)
+## 1. Type/Schema Mismatches (15 items remaining)
 
-**Status update (2026-02-14):** Comprehensive audit completed. All 25 files pass `pnpm typecheck`. Zero `@ts-nocheck` directives remain. Key fixes:
-- OptimisticUIService: Replaced Node.js `EventEmitter` with browser-compatible version + typed events map
-- Un-excluded 4 files from `tsconfig.app.json`: showRegistrationStore, LoadTestService, batchOperations, OptimisticUIService (+ 2 glob patterns removed)
-- RBAC files: Pass typecheck with `as any` casts (functional, awaiting generated types for `user_has_permission` RPC)
-- Mapper/entry/waitlist files: Still excluded but pass typecheck; blocked on DB schema alignment
+**Status update (2026-02-14):** Phase 8 exclusion audit completed:
+- **24 dead code files deleted** (~8,981 lines removed) across sync, monitoring, virtualization, scoring, and utility modules
+- **tsconfig.app.json exclude list reduced from 135 to 88 non-test entries** (35% reduction)
+- Removed entries for non-existent files, redundant individual entries covered by globs, and duplicate entries
+- Fixed barrel exports (scoring/index.ts, lib/lazyLoading.ts) that referenced deleted modules
+- All remaining excluded files have documented reasons (schema-blocked or have active consumers with type errors)
+
+**Previous audit (2026-02-14):** 4 files un-excluded (showRegistrationStore, LoadTestService, batchOperations, OptimisticUIService). Zero `@ts-nocheck` directives remain.
 
 ### Files still in tsconfig.app.json exclude (schema-blocked)
 
@@ -176,7 +179,7 @@ Features waiting on database tables or schema changes.
 | `apps/myk9show/src/hooks/useBackgroundSync.ts` | 121 | Entity-specific sync status |
 | `apps/myk9show/src/components/clubs/ClubDetails.tsx` | 321 | Registration success handling |
 | `apps/myk9show/src/components/shows/wizard/ShowCreationWizard.tsx` | 754 | Success message |
-| `apps/myk9show/src/components/users/enhanced/VirtualUserList.tsx` | 352 | Proper filtering |
+| ~~`apps/myk9show/src/components/users/enhanced/VirtualUserList.tsx`~~ | — | Deleted (dead code) |
 | `apps/myk9show/src/components/common/UserFriendlyErrors.tsx` | 429 | Move hooks to separate file |
 | `apps/myk9show/src/services/data-scoping/role-profiles.ts` | 311 | Use scope for access control |
 | `apps/myk9show/src/pages/TrialDetailsPage.tsx` | 138, 139 | Start time and entries from data |
@@ -228,3 +231,9 @@ Services that should be extracted to shared packages for DRY compliance.
 | ~~`apps/myk9show/src/services/templates/templateIntegrationExample.ts`~~ | Deleted |
 | ~~`apps/myk9q/src/hooks/useOneHandedMode.ts`~~ | Deleted, removed from App.tsx |
 | `apps/myk9show/src/services/sync/syncService.ts` | Kept - 6 active consumers, needs careful refactoring |
+
+**Phase 8 exclusion audit (2026-02-14):** Deleted 24 dead code files:
+- Components: BulkPermissionOperations, UserImpersonationDialog, PaginatedDogsList, VirtualDogsList, VirtualizedUserTable, PaginatedUserList, VirtualUserList, VirtualizedEntryList, VirtualizedClassEntriesTable, OfflineScoringModeIndicator, RealtimeScoringInterface, ConformationScoresheet
+- Hooks: useFieldLevelSync, useSearchWorker, usePushNotifications, useBatchMutations, useTrialsDatabase, useEncryptedStorage
+- Services: ErrorTracker, PerformanceBudgetService, mockDataService, migration.ts, judgeAssignmentQueries
+- Utils: optimisticHelpers

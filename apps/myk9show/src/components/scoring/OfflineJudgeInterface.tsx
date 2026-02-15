@@ -106,35 +106,49 @@ export function OfflineJudgeInterface({
   const syncStatusData = useSyncStatus();
   
   // Extract properties with fallbacks
-  const credentials = useMemo(() => ({ 
-    judgeId: currentJudgeId, 
-    judgeName, 
-    isAuthenticated 
+  const credentials = useMemo(() => ({
+    judgeId: currentJudgeId,
+    judgeName,
+    isAuthenticated
   }), [currentJudgeId, judgeName, isAuthenticated]);
   const currentEntryId = session?.entryId;
-  // const currentWorkflowStep = session?.workflowStep;
-  // const isScoring = session?.isActive || false;
   const scores = useMemo(() => Array.isArray(classScores) ? classScores : [], [classScores]);
-  // const placements: Array<{ entryId: string; place: number; score?: number }> = [];
-  // const calculatePlacements = () => Promise.resolve({ placements: [], summary: null });
-  // const validateRealTime = validateScore;
+
+  // Derived state from real hooks
   const validationErrors: Array<{ field: string; message: string }> = [];
   const isOffline = !syncStatusData.isOnline;
-  const syncStatus = 'synced' as 'synced' | 'pending' | 'error' | 'idle';
-  const isSyncing = false;
-  const forceSyncAll = () => Promise.resolve();
-  const authenticateJudge = () => Promise.resolve();
+  const isSyncing = syncStatusData.processingCount > 0;
+
+  const syncStatus: 'synced' | 'pending' | 'error' | 'idle' = useMemo(() => {
+    if (syncStatusData.failedCount > 0) return 'error';
+    if (syncStatusData.pendingCount > 0 || syncStatusData.processingCount > 0) return 'pending';
+    return 'synced';
+  }, [syncStatusData]);
   
-  // Store actions (with fallbacks to prevent errors)
+  // Store actions
   const offlineScoringStore = useOfflineScoringStore();
-  const startJudgingSession = offlineScoringStore.startJudgingSession || (() => Promise.resolve());
-  const endJudgingSession = offlineScoringStore.endJudgingSession || (() => Promise.resolve());
-  const advanceWorkflowStep = offlineScoringStore.advanceWorkflowStep || (() => {});
-  const setCurrentEntry = useMemo(() => offlineScoringStore.setCurrentEntry || (() => {}), [offlineScoringStore.setCurrentEntry]);
-  const getNextEntry = offlineScoringStore.getNextEntry || (() => null);
-  const submitScore = offlineScoringStore.submitScore || (() => Promise.resolve());
-  const setError = offlineScoringStore.setError || (() => {});
-  // const addWarning = offlineScoringStore.addWarning || (() => {});
+  const {
+    startJudgingSession,
+    endJudgingSession,
+    advanceWorkflowStep,
+    getNextEntry,
+    submitScore,
+    setError,
+    setEntryOrder,
+  } = offlineScoringStore;
+  const setCurrentEntry = useMemo(
+    () => offlineScoringStore.setCurrentEntry,
+    [offlineScoringStore.setCurrentEntry],
+  );
+
+  // Force-sync: process all pending queue items (mark them as processing)
+  const forceSyncAll = useCallback(() => {
+    const pending = offlineScoringStore.getPendingSyncItems();
+    pending.forEach(item => {
+      offlineScoringStore.updateSyncQueueItem(item.id, { status: 'processing' });
+    });
+    return Promise.resolve();
+  }, [offlineScoringStore]);
 
   // Local state
   const [currentView, setCurrentView] = useState<JudgeView>('authentication');
@@ -148,6 +162,13 @@ export function OfflineJudgeInterface({
     if (!rawEntries) return [];
     return (rawEntries as unknown as DbEntryWithDog[]).map(mapDbEntryToUnifiedEntry);
   }, [rawEntries]);
+
+  // Keep the store's entry order in sync with fetched entries
+  useEffect(() => {
+    if (entries.length > 0) {
+      setEntryOrder(entries.map(e => e.id));
+    }
+  }, [entries, setEntryOrder]);
 
   // Authentication state
   const [authForm, setAuthForm] = useState({
@@ -175,7 +196,7 @@ export function OfflineJudgeInterface({
   // Authentication Handlers
   // ========================================================================
 
-  const handleAuthentication = async () => {
+  const handleAuthentication = useCallback(async () => {
     if (!authForm.judgeId || !authForm.judgeName) {
       setError('Judge ID and name are required');
       return;
@@ -183,14 +204,16 @@ export function OfflineJudgeInterface({
 
     try {
       setIsLoading(true);
-      await authenticateJudge();
+      // Authentication is handled by the real AuthContext (useJudgeAuth).
+      // The form fields here capture the judge's self-identification
+      // for the current judging session.
       setCurrentView('setup');
     } catch (error) {
       logger.error('Authentication failed:', 'scoring', {}, error as Error);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [authForm.judgeId, authForm.judgeName, setError]);
 
   // ========================================================================
   // Session Management Handlers

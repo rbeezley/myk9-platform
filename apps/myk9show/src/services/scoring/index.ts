@@ -50,8 +50,7 @@ export {
   useJudgeAuth,
   useClassScoring,
   useScoringValidation,
-  useSyncStatus,
-  useScoringEvents
+  useSyncStatus
 } from '@/store/offlineScoringStore';
 
 export type { OfflineScoringStore as OfflineScoringState } from '@/store/offlineScoringStore';

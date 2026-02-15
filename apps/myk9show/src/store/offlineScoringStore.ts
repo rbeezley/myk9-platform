@@ -14,37 +14,43 @@ interface OfflineScoringStore {
   scores: Record<string, JudgeScore[]>;
   syncQueue: SyncQueueItem[];
   isOffline: boolean;
-  
+  error: string | null;
+  warnings: string[];
+  /** Ordered list of entry IDs for the current session */
+  entryOrder: string[];
+
   // Actions
   createSession: (session: ScoringSession) => void;
   updateSession: (sessionId: string, updates: Partial<ScoringSession>) => void;
   deleteSession: (sessionId: string) => void;
-  
+
   addScore: (classId: string, score: JudgeScore) => void;
   updateScore: (classId: string, scoreId: string, updates: Partial<JudgeScore>) => void;
   deleteScore: (classId: string, scoreId: string) => void;
-  
+
   addToSyncQueue: (item: SyncQueueItem) => void;
   removeFromSyncQueue: (itemId: string) => void;
   updateSyncQueueItem: (itemId: string, updates: Partial<SyncQueueItem>) => void;
-  
+
   setOfflineMode: (isOffline: boolean) => void;
   clearAllData: () => void;
-  
+
   // Selectors
   getSessionsByJudge: (judgeId: string) => ScoringSession[];
   getScoresByClass: (classId: string) => JudgeScore[];
   getPendingSyncItems: () => SyncQueueItem[];
-  
+
   // Additional methods for OfflineJudgeInterface
   startJudgingSession: (classId: string, judgeId: string) => void;
   endJudgingSession: (sessionId: string) => void;
   advanceWorkflowStep: (sessionId: string) => void;
   setCurrentEntry: (sessionId: string, entryId: string) => void;
-  getNextEntry: (sessionId: string) => string | null;
+  getNextEntry: (currentEntryId: string) => string | null;
   submitScore: (classId: string, score: JudgeScore) => void;
   setError: (error: string | null) => void;
   addWarning: (warning: string) => void;
+  clearWarnings: () => void;
+  setEntryOrder: (entryIds: string[]) => void;
 }
 
 export const useOfflineScoringStore = create<OfflineScoringStore>()(
@@ -55,6 +61,9 @@ export const useOfflineScoringStore = create<OfflineScoringStore>()(
       scores: {},
       syncQueue: [],
       isOffline: false,
+      error: null,
+      warnings: [],
+      entryOrder: [],
       
       // Session management
       createSession: (session) => set((state) => ({
@@ -120,7 +129,10 @@ export const useOfflineScoringStore = create<OfflineScoringStore>()(
         sessions: {},
         scores: {},
         syncQueue: [],
-        isOffline: false
+        isOffline: false,
+        error: null,
+        warnings: [],
+        entryOrder: [],
       }),
       
       // Selectors
@@ -145,16 +157,19 @@ export const useOfflineScoringStore = create<OfflineScoringStore>()(
           id: generateId(),
           classId,
           judgeId,
-          format: 'scent_work', // Default format
+          format: 'scent_work',
           status: 'active',
+          isActive: true,
+          workflowStep: 'entry_list',
           startTime: new Date(),
           totalEntries: 0,
           completedEntries: [],
-          isOffline: false,
-          pendingSync: []
+          isOffline: get().isOffline,
+          pendingSync: [],
         };
         set((state) => ({
-          sessions: { ...state.sessions, [session.id]: session }
+          sessions: { ...state.sessions, [session.id]: session },
+          error: null,
         }));
       },
       
@@ -165,14 +180,27 @@ export const useOfflineScoringStore = create<OfflineScoringStore>()(
             [sessionId]: {
               ...state.sessions[sessionId],
               status: 'completed',
-              endTime: new Date()
-            }
-          }
+              isActive: false,
+              endTime: new Date(),
+            },
+          },
         }));
       },
       
-      advanceWorkflowStep: (_sessionId) => {
-        // Placeholder implementation
+      advanceWorkflowStep: (sessionId) => {
+        const WORKFLOW_STEPS = ['setup', 'entry_list', 'scoring', 'review', 'completed'];
+        set((state) => {
+          const session = state.sessions[sessionId];
+          if (!session) return state;
+          const currentIdx = WORKFLOW_STEPS.indexOf(session.workflowStep || 'setup');
+          const nextStep = WORKFLOW_STEPS[Math.min(currentIdx + 1, WORKFLOW_STEPS.length - 1)];
+          return {
+            sessions: {
+              ...state.sessions,
+              [sessionId]: { ...session, workflowStep: nextStep },
+            },
+          };
+        });
       },
       
       setCurrentEntry: (sessionId, entryId) => {
@@ -187,28 +215,48 @@ export const useOfflineScoringStore = create<OfflineScoringStore>()(
         }));
       },
       
-      getNextEntry: (sessionId) => {
-        void sessionId; // Suppress unused parameter warning
-        // Placeholder - would need entry list logic
-        return null;
+      getNextEntry: (currentEntryId) => {
+        const state = get();
+        const order = state.entryOrder;
+        if (order.length === 0) return null;
+        const currentIdx = order.indexOf(currentEntryId);
+        if (currentIdx === -1 || currentIdx >= order.length - 1) return null;
+        return order[currentIdx + 1];
       },
       
       submitScore: (classId, score) => {
-        set((state) => ({
-          scores: {
+        set((state) => {
+          // Add the score
+          const updatedScores = {
             ...state.scores,
-            [classId]: [...(state.scores[classId] || []), score]
+            [classId]: [...(state.scores[classId] || []), score],
+          };
+
+          // Mark entry as completed in the active session
+          const updatedSessions = { ...state.sessions };
+          const activeSession = Object.values(updatedSessions).find(
+            s => s.status === 'active' && s.classId === classId,
+          );
+          if (activeSession && !activeSession.completedEntries.includes(score.entryId)) {
+            updatedSessions[activeSession.id] = {
+              ...activeSession,
+              completedEntries: [...activeSession.completedEntries, score.entryId],
+            };
           }
-        }));
+
+          return { scores: updatedScores, sessions: updatedSessions };
+        });
       },
       
-      setError: (_error) => {
-        // Would need to add error state to the store
-      },
+      setError: (error) => set({ error }),
 
-      addWarning: (_warning) => {
-        // Would need to add warnings state to the store
-      }
+      addWarning: (warning) => set((state) => ({
+        warnings: [...state.warnings, warning],
+      })),
+
+      clearWarnings: () => set({ warnings: [] }),
+
+      setEntryOrder: (entryIds) => set({ entryOrder: entryIds })
     }),
     {
       name: 'myk9show-offline-scoring-storage',
@@ -220,61 +268,39 @@ export const useOfflineScoringStore = create<OfflineScoringStore>()(
 
 export type { OfflineScoringStore };
 
-// Export convenience hooks
+// ---------------------------------------------------------------------------
+// Convenience hooks
+// ---------------------------------------------------------------------------
+
+/** Returns the currently active scoring session, if any. */
 export const useCurrentScoringSession = () => {
   const sessions = useOfflineScoringStore(state => state.sessions);
-  return Object.values(sessions).find(s => s.status === 'active');
+  return Object.values(sessions).find(s => s.status === 'active') ?? null;
 };
 
-export const useJudgeAuth = () => {
-  // Placeholder for judge authentication
-  return {
-    judgeId: 'judge-001',
-    judgeName: 'John Doe',
-    isAuthenticated: true
-  };
-};
+/**
+ * Judge authentication hook.
+ *
+ * Uses the real AuthContext to derive judge identity. Falls back to
+ * unauthenticated state when no user is signed in.
+ */
+export { useJudgeAuth } from './offlineJudgeAuth';
 
+/** Returns all scores for a given class. */
 export const useClassScoring = (classId: string) => {
-  const scores = useOfflineScoringStore(state => state.getScoresByClass(classId));
-  return scores;
+  return useOfflineScoringStore(state => state.getScoresByClass(classId));
 };
 
-export const useScoringValidation = () => {
-  // Placeholder for scoring validation
-  return {
-    validate: (score: unknown) => {
-      void score; // Suppress unused parameter warning
-      return { isValid: true, errors: [] };
-    }
-  };
-};
+/**
+ * Format-aware score validation.
+ *
+ * Returns a `validate` function that checks required fields and
+ * format-specific rules against `DEFAULT_SCORING_CONFIGS`.
+ */
+export { useScoringValidation } from './offlineScoringValidation';
 
-export const useSyncStatus = () => {
-  const syncQueue = useOfflineScoringStore(state => state.syncQueue);
-  const pendingCount = syncQueue.filter(item => item.status === 'pending').length;
-  
-  return {
-    pendingCount,
-    isOnline: true,
-    lastSyncTime: new Date()
-  };
-};
-
-export const useScoringEvents = () => {
-  // Placeholder for scoring events
-  return {
-    on: (event: string, handler: (...args: unknown[]) => void) => {
-      void event;
-      void handler;
-    },
-    off: (event: string, handler: (...args: unknown[]) => void) => {
-      void event;
-      void handler;
-    },
-    emit: (event: string, data: unknown) => {
-      void event;
-      void data;
-    }
-  };
-};
+/**
+ * Derives sync status from the store's sync queue and browser
+ * online/offline events.
+ */
+export { useSyncStatus } from './offlineSyncStatus';

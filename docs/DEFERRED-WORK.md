@@ -1,7 +1,7 @@
 # Deferred Work Items
 
 **Generated:** 2026-02-10
-**Updated:** 2026-02-15 (full audit: 39 of 45 items verified complete, 5 items fixed)
+**Updated:** 2026-02-15 (OfflineJudgeInterface store wiring complete — 0 incomplete features remain)
 **Source:** Automated scan of TODO/FIXME/HACK comments across the monorepo
 
 ---
@@ -13,7 +13,7 @@
 | Type/Schema Mismatches | 15 | Low - schema-blocked files remain excluded |
 | Auth Context Integration | 0 | ~~Complete~~ — all hardcoded values replaced |
 | Database Integration | 15 | Medium - waiting on schema |
-| Incomplete Features | 1 | Low — only OfflineJudgeInterface store wiring remains |
+| Incomplete Features | 0 | ~~Complete~~ — OfflineJudgeInterface store wiring done |
 | Realtime/Sync | 0 | ~~Complete~~ — all items verified implemented |
 | Code Organization | 3 | Low - DRY improvements (when needed by both apps) |
 | UX Polish | 0 | ~~Complete~~ — all items verified implemented or fixed |
@@ -117,7 +117,7 @@ Features waiting on database tables or schema changes.
 | File | Line | Missing Feature |
 |------|------|-----------------|
 | ~~`apps/myk9show/src/components/scoring/JudgeClassInterface.tsx`~~ | ~~108, 245~~ | ~~Already complete — uses query hooks and mutation~~ |
-| `apps/myk9show/src/components/scoring/OfflineJudgeInterface.tsx` | 109-126 | Store wiring: validation, syncStatus, authenticateJudge are stubs |
+| ~~`apps/myk9show/src/components/scoring/OfflineJudgeInterface.tsx`~~ | ~~109-126~~ | ~~Done — store wired: error/warning state, real auth, validation, sync status, entry navigation~~ |
 | ~~`apps/myk9show/src/components/scoring/ResultEntryNavigation.tsx`~~ | ~~99, 116, 428~~ | ~~Already complete — all items implemented~~ |
 | ~~`apps/myk9show/src/services/realtime/RealtimeScoringService.ts`~~ | ~~298, 370~~ | ~~Already complete — conflict resolution + presence sync working~~ |
 

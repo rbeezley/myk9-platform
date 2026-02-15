@@ -1,7 +1,7 @@
 # Deferred Work Items
 
 **Generated:** 2026-02-10
-**Updated:** 2026-02-15 (code organization audit — architecture correct, nationalsConstants extracted)
+**Updated:** 2026-02-15 (myk9q items audit — all 3 already implemented)
 **Source:** Automated scan of TODO/FIXME/HACK comments across the monorepo
 
 ---
@@ -17,7 +17,7 @@
 | Realtime/Sync | 0 | ~~Complete~~ — all items verified implemented |
 | Code Organization | 0 | ~~Complete~~ — architecture reviewed, nationalsConstants extracted to @myk9/core |
 | UX Polish | 0 | ~~Complete~~ — all items verified implemented or fixed |
-| myk9q Items | 3 | Low - working fine as-is |
+| myk9q Items | 0 | ~~Complete~~ — all 3 already implemented (stale entries) |
 
 ---
 
@@ -172,13 +172,15 @@ dependency injection with no concrete benefit.
 
 ---
 
-## 7. myk9q Items (3 items)
+## 7. myk9q Items — COMPLETE
 
-| File | Line | Issue | Priority |
-|------|------|-------|----------|
-| `apps/myk9q/src/constants/fastcatConstants.ts` | 33 | Implement full AKC height-based formula | Low - simplified formula works |
-| `apps/myk9q/src/services/replication/tables/ReplicatedEventStatisticsTable.ts` | 217 | Remove guard when event_statistics migration runs | Medium - blocks nationals |
-| `apps/myk9q/src/utils/performanceMonitoring.ts` | 323 | Implement analytics integration (GA, etc.) | Low - nice-to-have |
+Audited 2026-02-15. All 3 items were already fully implemented (document was stale).
+
+| File | Status |
+|------|--------|
+| ~~`fastcatConstants.ts`~~ | ~~Full AKC height-based formula implemented — 3 categories, getHandicapMultiplier(), calculateFastCatPoints(), tests passing~~ |
+| ~~`ReplicatedEventStatisticsTable.ts`~~ | ~~No guard exists — full sync, realtime, query methods implemented~~ |
+| ~~`performanceMonitoring.ts`~~ | ~~Pluggable AnalyticsReporter with console/beacon/noop reporters, auto-resolves via VITE_ANALYTICS_ENDPOINT~~ |
 
 ---
 

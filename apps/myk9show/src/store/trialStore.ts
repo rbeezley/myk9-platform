@@ -44,6 +44,39 @@ function trialClassToReplicated(tc: SyncableTrialClass, trialId: string): Replic
   };
 }
 
+/** Convert a ReplicatedClass (from IndexedDB) to SyncableTrialClass */
+function replicatedToTrialClass(replicated: ReplicatedClass): SyncableTrialClass {
+  return {
+    id: replicated.id,
+    element: replicated.element || '',
+    level: replicated.level || '',
+    section: replicated.section || '',
+    judgeId: '', // Local-only field (not stored in ReplicatedClass)
+    judgeName: replicated.judgeName || '',
+    startTime: replicated.startTime || '',
+    status: (replicated.classStatus as SyncableTrialClass['status']) || 'Scheduled',
+    entries: 0, // Computed field (derived from entry data, not stored on class)
+    _version: replicated._version || 1,
+    _lastModified: replicated._lastModified || new Date(),
+    _lastModifiedBy: replicated._lastModifiedBy || '',
+    _syncStatus: replicated._syncStatus || 'synced',
+    _localOnly: replicated._localOnly || false,
+  };
+}
+
+/** Merge replicated class data with existing local class data, preserving local-only fields */
+function mergeTrialClassData(replicated: ReplicatedClass, existing: SyncableTrialClass | undefined): SyncableTrialClass {
+  const base = replicatedToTrialClass(replicated);
+  if (!existing) return base;
+
+  return {
+    ...base,
+    // Preserve local-only fields from existing
+    judgeId: existing.judgeId || '',
+    entries: existing.entries || 0,
+  };
+}
+
 // Input types for creating/updating trials
 export interface TrialInput {
   // Allow id for update scenarios where full Trial object is passed
@@ -231,8 +264,12 @@ interface TrialStore {
   updateTrialClassLegacy: (trialId: string, trialClass: TrialClass) => void;
   removeTrialClass: (trialId: string, classId: string) => void;
 
+  // Data Management (classes)
+  loadTrialClasses: () => Promise<void>;
+
   // Subscription Management (for replicated table sync)
   _unsubscribe: (() => void) | null;
+  _unsubscribeClasses: (() => void) | null;
   initializeSubscription: () => void;
   cleanup: () => void;
 }
@@ -300,6 +337,7 @@ export const useTrialStore = create<TrialStore>()(
     isLoading: false,
     error: null,
     _unsubscribe: null,
+    _unsubscribeClasses: null,
 
       // Local-First Implementation
       addTrial: async (trialData: TrialInput, userId: string): Promise<SyncableTrial> => {
@@ -494,6 +532,37 @@ export const useTrialStore = create<TrialStore>()(
         }
       },
       
+      loadTrialClasses: async (): Promise<void> => {
+        try {
+          if (shouldUseMockTrials()) return;
+
+          const allClasses = await replicatedClassesTable.getAll();
+          const currentClasses = get().trialClasses;
+
+          // Group classes by trialId, merging with existing local data
+          const grouped: Record<string, SyncableTrialClass[]> = {};
+          for (const replicated of allClasses) {
+            const trialId = replicated.trialId || replicated.trial_id;
+            if (!trialId) continue;
+
+            const existing = currentClasses[trialId]?.find(c => c.id === replicated.id);
+            const merged = mergeTrialClassData(replicated, existing);
+
+            if (!grouped[trialId]) grouped[trialId] = [];
+            grouped[trialId].push(merged);
+          }
+
+          set({ trialClasses: grouped });
+          reportDebug('store', 'Loaded trial classes from replicated table', {
+            trialCount: Object.keys(grouped).length,
+            classCount: allClasses.length,
+          });
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Failed to load trial classes';
+          set({ error: errorMessage });
+        }
+      },
+
       // Sync Status
       getSyncStatus: (id: string): 'synced' | 'pending' | 'error' | 'conflict' => {
         const trial = get().trials.find(t => t.id === id);
@@ -735,35 +804,55 @@ export const useTrialStore = create<TrialStore>()(
           return;
         }
 
-        reportDebug('store', 'Initializing replicated table subscription for trials');
+        reportDebug('store', 'Initializing replicated table subscriptions for trials/classes');
 
-        // Subscribe to replicated table changes
-        const unsubscribe = replicatedTrialsTable.subscribe((trials) => {
+        // Subscribe to trial changes
+        const unsubTrials = replicatedTrialsTable.subscribe((trials) => {
           const currentTrials = get().trials;
-
-          // Merge replicated data with existing local-only fields
           const mergedTrials = trials.map(replicated => {
             const existing = currentTrials.find(t => t.id === replicated.id);
             return mergeTrialData(replicated, existing);
           });
-
           set({ trials: mergedTrials });
           reportDebug('store', 'Trials updated from replicated table', { count: mergedTrials.length });
         });
 
-        set({ _unsubscribe: unsubscribe });
+        // Subscribe to class changes — group by trialId
+        const unsubClasses = replicatedClassesTable.subscribe((classes) => {
+          const currentClasses = get().trialClasses;
+          const grouped: Record<string, SyncableTrialClass[]> = {};
+
+          for (const replicated of classes) {
+            const trialId = replicated.trialId || replicated.trial_id;
+            if (!trialId) continue;
+
+            const existing = currentClasses[trialId]?.find(c => c.id === replicated.id);
+            const merged = mergeTrialClassData(replicated, existing);
+
+            if (!grouped[trialId]) grouped[trialId] = [];
+            grouped[trialId].push(merged);
+          }
+
+          set({ trialClasses: grouped });
+          reportDebug('store', 'Trial classes updated from replicated table', {
+            trialCount: Object.keys(grouped).length,
+          });
+        });
+
+        set({ _unsubscribe: unsubTrials, _unsubscribeClasses: unsubClasses });
 
         // Load initial data
         get().loadTrials();
+        get().loadTrialClasses();
       },
 
       cleanup: () => {
-        const unsubscribe = get()._unsubscribe;
-        if (unsubscribe) {
-          unsubscribe();
-          set({ _unsubscribe: null });
-          reportDebug('store', 'Cleaned up replicated table subscription for trials');
-        }
+        const unsubTrials = get()._unsubscribe;
+        const unsubClasses = get()._unsubscribeClasses;
+        if (unsubTrials) unsubTrials();
+        if (unsubClasses) unsubClasses();
+        set({ _unsubscribe: null, _unsubscribeClasses: null });
+        reportDebug('store', 'Cleaned up replicated table subscriptions for trials/classes');
       },
     })
 );

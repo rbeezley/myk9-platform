@@ -12,7 +12,7 @@
 |------|-------|----------|
 | Type/Schema Mismatches | 0 | ~~Complete~~ — all 15 resolved (eb49834) |
 | Auth Context Integration | 0 | ~~Complete~~ — all hardcoded values replaced |
-| Database Integration | 4 | Medium - 4 unique items remain (11 were already done) |
+| Database Integration | 1 | Medium - Stripe Edge Functions (2 missing: customer-portal, upgrade-subscription) |
 | Incomplete Features | 0 | ~~Complete~~ — OfflineJudgeInterface store wiring done |
 | Realtime/Sync | 0 | ~~Complete~~ — all items verified implemented |
 | Code Organization | 0 | ~~Complete~~ — architecture reviewed, nationalsConstants extracted to @myk9/core |
@@ -63,11 +63,16 @@ Zero instances of `'current-user'` or `'current-judge'` remain in production cod
 
 | File | Issue | Priority |
 |------|-------|----------|
-| `apps/myk9show/src/store/trialStore.ts` (lines 563, 604, 633) | Wire `addTrialClass`/`updateTrialClass`/`deleteTrialClass` to `ReplicatedClassesTable` for offline sync | Medium — 13 importers, store works but no persistence |
-| `apps/myk9show/src/components/subscription/SubscriptionManager.tsx` | Stripe write operations (create/upgrade/portal) need Edge Functions; reads work | Medium — needs Stripe API setup |
-| `apps/myk9show/src/services/payment/PaymentService.ts` | Payment write operations (create/confirm/refund) need Edge Functions; reads work | Medium — needs Stripe API setup |
-| `apps/myk9show/src/services/notifications/FCMService.ts` (line 344) | `notification_event` table for analytics (currently logs only) | Low — logging workaround sufficient |
-| `apps/myk9show/src/components/shows/enhanced/PaginatedShowsList.tsx` (lines 248, 485) | `entriesCount` field on Show type (component has no active importers) | Low — dead component |
+| `apps/myk9show/src/components/subscription/SubscriptionManager.tsx` | 2 missing Edge Functions: `stripe-customer-portal`, `stripe-upgrade-subscription`. Core checkout + webhooks work. | Medium — needs Stripe API setup |
+
+### Resolved Items (audited 2026-02-15)
+
+| File | Status |
+|------|--------|
+| ~~`trialStore.ts`~~ | ~~Done (8ad8f89) — addTrialClass/updateTrialClass/deleteTrialClass wired to ReplicatedClassesTable~~ |
+| ~~`PaymentService.ts`~~ | ~~Write stubs exist but are NOT called by any UI. Read operations work. Stripe checkout + webhook Edge Functions already implemented. Refund/confirm stubs are dead code paths.~~ |
+| ~~`FCMService.ts`~~ | ~~notification_events table exists (migration 20240124). Logging is deliberate design choice — table ready if analytics require it.~~ |
+| ~~`PaginatedShowsList.tsx`~~ | ~~Dead component — zero importers across codebase. Deleted.~~ |
 
 ---
 

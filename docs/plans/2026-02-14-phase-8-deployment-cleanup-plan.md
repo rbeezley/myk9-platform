@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Deploy both monorepo apps to Vercel staging and reduce myK9Show's tsconfig exclusion list from 135 entries to under 50.
+**Goal:** Deploy both monorepo apps to Vercel staging and reduce myK9Show's tsconfig exclusion list from ~135 non-test entries (covering ~179 files including glob matches) to under 50.
 
 **Architecture:** Both apps deploy as Vite SPAs on Vercel, built via Turborepo. They share the unified `myk9-platform` Supabase backend. No custom domains in this phase — Vercel auto-generated staging URLs only.
 
@@ -102,6 +102,43 @@ Report any failures. Fix code issues and push to `main` to trigger redeployment.
 
 ---
 
+## Exclusion Audit Scope [ADDED]
+
+The tsconfig.app.json exclude list has 3 standard test patterns at the top:
+```
+"src/test/**/*"
+"src/**/__tests__/**/*"
+"src/**/*.test.ts"
+```
+**These are intentional and NOT part of the audit.** Only audit the ~135 non-test entries below them.
+
+---
+
+## Exclusion Audit Process (applies to Tasks 4-7) [ADDED]
+
+Each batch follows the same three-path decision process:
+
+**Path A — Delete (no consumers):**
+1. Search for imports of the file across `src/` (exclude the file itself and test files)
+2. If no imports found, or only imported by other excluded files with no non-excluded consumers: delete the file
+3. Remove from tsconfig.app.json exclude list
+
+**Path B — Fix and un-exclude (minor type errors):**
+1. Temporarily remove the file from the exclude list
+2. Run `pnpm typecheck` and check the errors for that file
+3. If errors are minor (< 5 errors, simple fixes like missing imports or type narrowing): fix them
+4. Run `pnpm typecheck` again to confirm clean
+5. Leave the file out of the exclude list (it's now un-excluded)
+
+**Path C — Keep excluded (blocked on schema or major work):**
+1. File has consumers in non-excluded code AND has significant type errors
+2. Keep in exclude list
+3. Add a comment above the entry: `// Blocked: [reason]`
+
+After all files in a batch are processed: run `pnpm typecheck && pnpm lint`, then commit.
+
+---
+
 ## Task 4: tsconfig Exclusion Audit — Batch 1: Sync & Conflict Services
 
 Audit the sync, conflict, and realtime services. These are the largest exclusion group (~30 entries).
@@ -111,29 +148,14 @@ Audit the sync, conflict, and realtime services. These are the largest exclusion
 - Potentially delete: Multiple files under `src/services/sync/`, `src/services/conflict/`, `src/services/realtime/`, `src/components/sync/`, `src/components/conflict/`
 - Potentially delete: Related hooks (`useBackgroundSync.ts`, `useFieldLevelSync.ts`, `useRegistrationConflicts.ts`, `useConflictResolution.ts`, `useOptimisticUpdates.ts`)
 
-**Step 1: Check for consumers of each excluded file**
+**Follow the Exclusion Audit Process above (Paths A/B/C) for each file.**
 
-For each file, search the codebase for imports. Use `grep` for the filename (without extension) across `src/`. Exclude the file itself and test files from results.
-
-**Decision criteria:**
-- **No imports found → Delete** the file
-- **Has imports from other excluded files only → Delete** the entire chain if none are imported by non-excluded code
-- **Has imports from non-excluded files → Keep excluded** (document reason) or **Fix and un-exclude** if errors are minor
-
-**Step 2: Delete dead files**
-
-Remove files with no consumers. Run `pnpm typecheck` after each batch deletion to verify no breakage.
-
-**Step 3: Update tsconfig.app.json**
-
-Remove deleted files from the exclude list. Keep entries for files that remain.
-
-**Step 4: Run quality gate**
+**Step 1: Run quality gate**
 
 Run: `pnpm typecheck && pnpm lint`
 Expected: Both pass clean.
 
-**Step 5: Commit**
+**Step 2: Commit**
 
 ```bash
 git add -A
@@ -323,6 +345,8 @@ git commit -m "docs: mark Phase 7 and Phase 8 complete, update deployment docs"
 
 **Files:**
 - Delete: `whats-next.md` (stale handoff doc, untracked)
+- Modify: `apps/myk9show/.env.example` (remove entries for deleted features) [ADDED]
+- Modify: `apps/myk9show/.env.local.example` (if it exists, same cleanup) [ADDED]
 - Modify: `MEMORY.md` (update current phase)
 
 **Step 1: Delete stale files**
@@ -330,6 +354,10 @@ git commit -m "docs: mark Phase 7 and Phase 8 complete, update deployment docs"
 ```bash
 rm whats-next.md
 ```
+
+**Step 1.5: Clean up .env.example entries [ADDED]**
+
+Review `apps/myk9show/.env.example`. If the exclusion audit deleted features referenced by env vars (e.g., CDN, performance monitoring, feature flags), remove or comment out the corresponding env var entries. Same for `.env.local.example` if it exists.
 
 **Step 2: Update MEMORY.md**
 

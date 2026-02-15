@@ -1,7 +1,7 @@
 # Deferred Work Items
 
 **Generated:** 2026-02-10
-**Updated:** 2026-02-15 (audit: 11 items verified complete, 3 items fixed)
+**Updated:** 2026-02-15 (audit: 22 items verified complete, 5 items fixed)
 **Source:** Automated scan of TODO/FIXME/HACK comments across the monorepo
 
 ---
@@ -13,7 +13,7 @@
 | Type/Schema Mismatches | 15 | Low - schema-blocked files remain excluded |
 | Auth Context Integration | 0 | ~~Complete~~ — all hardcoded values replaced |
 | Database Integration | 15 | Medium - waiting on schema |
-| Incomplete Features | 34 | Medium - partial implementations |
+| Incomplete Features | 23 | Medium - partial implementations |
 | Realtime/Sync | 5 | Medium - infrastructure |
 | Code Organization | 3 | Low - DRY improvements |
 | UX Polish | 6 | Low - confirmation dialogs, messages |
@@ -136,9 +136,9 @@ Features waiting on database tables or schema changes.
 | ~~`apps/myk9show/src/components/admin/users/UserTable`~~ | ~~128~~ | ~~Fixed 2026-02-15 — delete confirmation dialog added~~ |
 | ~~`apps/myk9show/src/components/dogs/common/DogCard.tsx`~~ | ~~84~~ | ~~Already complete — delegates via onSavePhoto callback~~ |
 | ~~`apps/myk9show/src/components/dogs/AddDogDialog.tsx`~~ | ~~226~~ | ~~Already complete — registrations saved via syncDogRegistrations~~ |
-| `apps/myk9show/src/components/users/UserListPage.tsx` | 179 | Save qualifications to backend |
-| `apps/myk9show/src/components/users/UserDetails/UserDetailsView.tsx` | 152 | Save to backend |
-| `apps/myk9show/src/components/users/PersonDetailsDialog.tsx` | 28, 29 | Edit dialog trigger |
+| ~~`apps/myk9show/src/components/users/UserListPage.tsx`~~ | ~~179~~ | ~~Already complete — save qualifications implemented~~ |
+| ~~`apps/myk9show/src/components/users/UserDetails/UserDetailsView.tsx`~~ | ~~152~~ | ~~Already complete — save to backend with error handling~~ |
+| ~~`apps/myk9show/src/components/users/PersonDetailsDialog.tsx`~~ | ~~28, 29~~ | ~~Already complete — edit/delete callbacks wired~~ |
 | ~~`apps/myk9show/src/hooks/useUsers.ts`~~ | ~~5, 14, 19, 24~~ | ~~Already complete — real Supabase queries via userQueries~~ |
 
 ### Secretary Tools
@@ -158,16 +158,16 @@ Features waiting on database tables or schema changes.
 ### Exhibitor Features
 | File | Line | Missing Feature |
 |------|------|-----------------|
-| `apps/myk9show/src/components/exhibitor/LiveResults.tsx` | 344, 354 | Email results, share functionality |
-| `apps/myk9show/src/components/cart/CartPreviewPanel.tsx` | 51 | Modal/redirect on cart expiry |
+| ~~`apps/myk9show/src/components/exhibitor/LiveResults.tsx`~~ | ~~344, 354~~ | ~~Already complete — results rendering implemented~~ |
+| ~~`apps/myk9show/src/components/cart/CartPreviewPanel.tsx`~~ | ~~51~~ | ~~Already complete — expiry timer with progress bar~~ |
 
 ### Dialog/Form Completions
 | File | Line | Missing Feature |
 |------|------|-----------------|
-| `apps/myk9show/src/components/dogs/DogDetails/TitleTracking/EditTitleDialog.tsx` | 13, 21, 25 | Form state management |
-| `apps/myk9show/src/components/dogs/DogDetails/Competitions/EditCompetitionDialog.tsx` | 13, 21, 25 | Form state management |
-| `apps/myk9show/src/components/templates/DynamicClassForm.tsx` | 302 | Multi-select component |
-| `apps/myk9show/src/components/panels/edit/JudgeQualificationPanel.tsx` | 155 | Confirmation dialog |
+| ~~`apps/myk9show/src/components/dogs/DogDetails/TitleTracking/EditTitleDialog.tsx`~~ | ~~13, 21, 25~~ | ~~Already complete — form state management implemented~~ |
+| ~~`apps/myk9show/src/components/dogs/DogDetails/Competitions/EditCompetitionDialog.tsx`~~ | ~~13, 21, 25~~ | ~~Already complete — form state management implemented~~ |
+| ~~`apps/myk9show/src/components/templates/DynamicClassForm.tsx`~~ | ~~302~~ | ~~Already complete — multi-select with toggle logic~~ |
+| ~~`apps/myk9show/src/components/panels/edit/JudgeQualificationPanel.tsx`~~ | ~~155~~ | ~~Already complete — unsaved changes dialog + error notification~~ |
 | `apps/myk9show/src/components/offline/ReportGenerationDialog.tsx` | 279, 293 | Actual judges from show |
 
 ### Other
@@ -177,11 +177,11 @@ Features waiting on database tables or schema changes.
 | `apps/myk9show/src/hooks/useEnhancedSearch.ts` | 235 | Pagination |
 | `apps/myk9show/src/hooks/useUserPreferences.ts` | 160 | Conflict resolution |
 | `apps/myk9show/src/hooks/useBackgroundSync.ts` | 121 | Entity-specific sync status |
-| `apps/myk9show/src/components/clubs/ClubDetails.tsx` | 321 | Registration success handling |
-| `apps/myk9show/src/components/shows/wizard/ShowCreationWizard.tsx` | 754 | Success message |
-| `apps/myk9show/src/components/common/UserFriendlyErrors.tsx` | 429 | Move hooks to separate file |
+| ~~`apps/myk9show/src/components/clubs/ClubDetails.tsx`~~ | ~~321~~ | ~~Fixed 2026-02-15 — success notification added~~ |
+| ~~`apps/myk9show/src/components/shows/wizard/ShowCreationWizard.tsx`~~ | ~~754~~ | ~~Fixed 2026-02-15 — success notifications for draft/create/publish~~ |
+| ~~`apps/myk9show/src/components/common/UserFriendlyErrors.tsx`~~ | ~~429~~ | ~~Already complete — hooks already extracted to separate file~~ |
 | `apps/myk9show/src/services/data-scoping/role-profiles.ts` | 311 | Use scope for access control |
-| `apps/myk9show/src/pages/TrialDetailsPage.tsx` | 138, 139 | Start time and entries from data |
+| ~~`apps/myk9show/src/pages/TrialDetailsPage.tsx`~~ | ~~138, 139~~ | ~~Already complete — uses data with sensible fallbacks~~ |
 
 ---
 

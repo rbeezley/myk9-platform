@@ -252,6 +252,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
 
   const handleRegistrationComplete = useCallback((data: RegistrationFormData) => {
     logger.info('Registration completed', 'clubs', { registrationData: data });
+    notifications.success('Registration submitted successfully');
     setShowRegistrationDialog(false);
     setSelectedShowForRegistration(null);
   }, []);

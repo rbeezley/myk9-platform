@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { logger } from '@/services/LoggingService';
+import { notifications } from '@/lib/notifications';
 import { useWizardStore } from '@/store/wizardStore';
 import { useShowStore, type ShowInput } from '@/store/showStore';
 import { useClubStore } from '@/store/clubStore';
@@ -351,6 +352,7 @@ export function useShowSubmission(
         showId: newShow.id,
         showName: newShow.name,
       });
+      notifications.success(`Draft "${newShow.name}" saved`);
     } catch (error) {
       logger.error('Error saving draft', 'wizard', {}, error as Error);
       throw error;
@@ -374,6 +376,7 @@ export function useShowSubmission(
         showId: newShow.id,
         showName: newShow.name,
       });
+      notifications.success(`Show "${newShow.name}" created`);
     } catch (error) {
       logger.error('Error creating show', 'wizard', {}, error as Error);
       throw error;
@@ -397,6 +400,7 @@ export function useShowSubmission(
         showId: newShow.id,
         showName: newShow.name,
       });
+      notifications.success(`Show "${newShow.name}" published`);
     } catch (error) {
       logger.error('Error creating and publishing show', 'wizard', {}, error as Error);
       throw error;

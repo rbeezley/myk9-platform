@@ -144,7 +144,6 @@ export default defineConfig({
       '@supabase/supabase-js',
       'date-fns',
       'clsx',
-      'uuid',
       '@tanstack/react-query',
       'sonner',
       'framer-motion',

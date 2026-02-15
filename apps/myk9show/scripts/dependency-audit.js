@@ -64,8 +64,7 @@ const CODE_SPLIT_CANDIDATES = [
   '@tiptap/react',
   'react-to-print',
   'jspdf',
-  'xlsx',
-  'swiper'
+  'xlsx'
 ];
 
 // Utility libraries that benefit from tree-shaking

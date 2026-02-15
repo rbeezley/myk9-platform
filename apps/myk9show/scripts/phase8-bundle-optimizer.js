@@ -52,8 +52,7 @@ const HEAVY_DEPENDENCIES = [
   'xlsx',
   'jspdf',
   'firebase',
-  'react-window',
-  'swiper'
+  'react-window'
 ];
 
 class Phase8BundleOptimizer {

@@ -7,7 +7,47 @@
 
 import { logger } from '@/services/LoggingService';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/** LayoutShift entry — not in standard PerformanceEntry types */
+interface LayoutShiftEntry extends PerformanceEntry {
+  hadRecentInput: boolean;
+  value: number;
+}
+
+/** PerformanceEventTiming — first-input entries */
+interface PerformanceEventTimingEntry extends PerformanceEntry {
+  processingStart: number;
+}
+
+/** Long task entry with attribution */
+interface PerformanceLongTaskEntry extends PerformanceEntry {
+  attribution?: Array<{ name: string }>;
+}
+
+/** Chrome-only performance.memory API */
+interface PerformanceMemory {
+  usedJSHeapSize: number;
+  totalJSHeapSize: number;
+  jsHeapSizeLimit: number;
+}
+
+interface PerformanceWithMemory extends Performance {
+  memory?: PerformanceMemory;
+}
+
+/** Network Information API (experimental) */
+interface NetworkInformation {
+  effectiveType?: string;
+  downlink?: number;
+  rtt?: number;
+  saveData?: boolean;
+}
+
+interface NavigatorWithConnection extends Navigator {
+  connection?: NetworkInformation;
+  mozConnection?: NetworkInformation;
+  webkitConnection?: NetworkInformation;
+}
+
 export interface WebVital {
   name: 'FCP' | 'LCP' | 'CLS' | 'FID' | 'TTFB' | 'INP';
   value: number;
@@ -161,8 +201,9 @@ export class RealUserMonitoringService {
     this.observeVital('layout-shift', (entries) => {
       let clsValue = 0;
       entries.forEach(entry => {
-        if (!(entry as any).hadRecentInput) {
-          clsValue += (entry as any).value;
+        const shift = entry as LayoutShiftEntry;
+        if (!shift.hadRecentInput) {
+          clsValue += shift.value;
         }
       });
       this.recordVital('CLS', clsValue, entries);
@@ -170,8 +211,8 @@ export class RealUserMonitoringService {
 
     // First Input Delay / Interaction to Next Paint
     this.observeVital('first-input', (entries) => {
-      const firstInput = entries[0];
-      const fid = (firstInput as any).processingStart - firstInput.startTime;
+      const firstInput = entries[0] as PerformanceEventTimingEntry;
+      const fid = firstInput.processingStart - firstInput.startTime;
       this.recordVital('FID', fid, [firstInput]);
     });
 
@@ -241,8 +282,8 @@ export class RealUserMonitoringService {
     try {
       this.longTaskObserver = new PerformanceObserver((list) => {
         list.getEntries().forEach(entry => {
-          const longTask = entry as any;
-          
+          const longTask = entry as PerformanceLongTaskEntry;
+
           this.trackCustomMetric('long_task_duration', longTask.duration, {
             startTime: longTask.startTime.toString(),
             attribution: longTask.attribution?.[0]?.name || 'unknown'
@@ -376,12 +417,13 @@ export class RealUserMonitoringService {
    * Track comprehensive memory metrics
    */
   private trackMemoryMetrics(): void {
-    if (!('memory' in performance)) {
+    const perfWithMemory = performance as PerformanceWithMemory;
+    if (!perfWithMemory.memory) {
       this.trackCustomMetric('memory_api_unavailable', 1, { reason: 'no_performance_memory' });
       return;
     }
 
-    const memInfo = (performance as any).memory;
+    const memInfo = perfWithMemory.memory;
     const usedMB = memInfo.usedJSHeapSize / 1024 / 1024;
     const totalMB = memInfo.totalJSHeapSize / 1024 / 1024;
     const limitMB = memInfo.jsHeapSizeLimit / 1024 / 1024;
@@ -670,7 +712,8 @@ export class RealUserMonitoringService {
    * Get connection information
    */
   private getConnectionInfo(): ConnectionInfo {
-    const connection = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
+    const nav = navigator as NavigatorWithConnection;
+    const connection = nav.connection || nav.mozConnection || nav.webkitConnection;
     
     return {
       effectiveType: connection?.effectiveType || 'unknown',

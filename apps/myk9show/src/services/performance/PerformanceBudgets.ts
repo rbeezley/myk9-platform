@@ -7,7 +7,27 @@ import { logger } from '@/services/LoggingService';
  * metrics to prevent performance regressions.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/** Chrome-only performance.memory API */
+interface PerformanceMemory {
+  usedJSHeapSize: number;
+  totalJSHeapSize: number;
+  jsHeapSizeLimit: number;
+}
+
+interface PerformanceWithMemory extends Performance {
+  memory?: PerformanceMemory;
+}
+
+/** Build stats from bundler output */
+interface BundleStatsAsset {
+  name: string;
+  size: number;
+}
+
+interface BundleStats {
+  assets?: BundleStatsAsset[];
+}
+
 export interface BudgetRule {
   /** Unique identifier for the rule */
   id: string;
@@ -64,7 +84,7 @@ export interface BudgetViolation {
   severity: 'error' | 'warning' | 'info';
   timestamp: number;
   environment: 'build' | 'runtime';
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
 }
 
 export interface BudgetReport {
@@ -291,7 +311,7 @@ export class PerformanceBudgetService {
     metric: BudgetMetric,
     value: number,
     environment: 'build' | 'runtime',
-    context?: Record<string, any>
+    context?: Record<string, unknown>
   ): BudgetViolation[] {
     const violations: BudgetViolation[] = [];
     const applicableRules = this.getRulesForEnvironment(environment)
@@ -329,7 +349,7 @@ export class PerformanceBudgetService {
   public checkBudgets(
     metrics: Record<BudgetMetric, number>,
     environment: 'build' | 'runtime',
-    context?: Record<string, any>
+    context?: Record<string, unknown>
   ): BudgetViolation[] {
     const allViolations: BudgetViolation[] = [];
 
@@ -373,7 +393,7 @@ export class PerformanceBudgetService {
   /**
    * Get build-time metrics from bundle stats
    */
-  public extractBuildMetrics(stats: any): Record<BudgetMetric, number> {
+  public extractBuildMetrics(stats: BundleStats): Record<BudgetMetric, number> {
     const metrics: Partial<Record<BudgetMetric, number>> = {};
 
     if (stats.assets) {
@@ -383,7 +403,7 @@ export class PerformanceBudgetService {
       let imageSize = 0;
       let maxChunkSize = 0;
 
-      stats.assets.forEach((asset: any) => {
+      stats.assets.forEach((asset) => {
         const size = asset.size / 1024; // Convert to KB
         totalSize += size;
         maxChunkSize = Math.max(maxChunkSize, size);
@@ -415,8 +435,9 @@ export class PerformanceBudgetService {
     const metrics: Partial<Record<BudgetMetric, number>> = {};
 
     // Memory usage
-    if ((performance as any).memory) {
-      const memory = (performance as any).memory;
+    const perfWithMemory = performance as PerformanceWithMemory;
+    if (perfWithMemory.memory) {
+      const memory = perfWithMemory.memory;
       metrics.memory_usage = memory.usedJSHeapSize / 1024 / 1024; // MB
     }
 

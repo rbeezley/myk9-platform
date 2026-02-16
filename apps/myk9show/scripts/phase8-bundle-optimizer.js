@@ -51,7 +51,6 @@ const HEAVY_DEPENDENCIES = [
   'framer-motion',
   'xlsx',
   'jspdf',
-  'firebase',
   'react-window'
 ];
 
@@ -642,7 +641,6 @@ class Phase8BundleOptimizer {
       'recharts': 150,
       'react-big-calendar': 80,
       '@tiptap/react': 45,
-      'firebase': 200,
       'xlsx': 180
     };
     

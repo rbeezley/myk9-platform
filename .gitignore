@@ -64,3 +64,6 @@ save-next.md
 nul
 tmpclaude-*-cwd
 .mcp.json
+
+# Turborepo
+.turbo

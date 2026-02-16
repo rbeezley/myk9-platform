@@ -2,12 +2,15 @@ import type { TimeRange } from './MaxTimeDialog.types';
 
 export const parseTimeRange = (timeText: string): { min: number; max: number } => {
   // Handle formats like "1 - 3 minutes", "4 minutes", "1-3 minutes", "2:30", "3:00"
-  const cleanText = timeText.toLowerCase().replace(/minutes?/g, '').trim();
+  const cleanText = timeText
+    .toLowerCase()
+    .replace(/minutes?/g, '')
+    .trim();
 
   // Check for MM:SS format (e.g., "2:30", "3:00")
   if (cleanText.match(/^\d+:\d{2}$/)) {
     const [mins, secs] = cleanText.split(':').map(p => parseInt(p));
-    const totalMinutes = mins + (secs / 60);
+    const totalMinutes = mins + secs / 60;
     return { min: totalMinutes, max: totalMinutes };
   }
 
@@ -40,9 +43,9 @@ export const formatTimeInput = (value: string): string => {
       seconds = seconds % 60;
     }
 
-    // Cap at reasonable maximum (5 minutes)
-    if (minutes > 5) {
-      minutes = 5;
+    // Cap at display maximum (99 minutes) - actual validation done by validateTime()
+    if (minutes > 99) {
+      minutes = 99;
       seconds = 0;
     }
 
@@ -55,7 +58,7 @@ export const formatTimeInput = (value: string): string => {
 
   if (cleaned.length <= 2) {
     // 1-2 digits: treat as minutes
-    const minutes = Math.min(numValue, 5); // Cap at 5 minutes
+    const minutes = Math.min(numValue, 99); // Cap at display max - actual validation done by validateTime()
     return `${minutes.toString().padStart(2, '0')}:00`;
   } else if (cleaned.length === 3) {
     // 3 digits: first digit as minutes, last two as seconds (e.g., 130 = 1:30)
@@ -65,14 +68,14 @@ export const formatTimeInput = (value: string): string => {
       return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     } else {
       // Invalid seconds, treat as minutes
-      const totalMinutes = Math.min(Math.floor(numValue / 60), 5);
+      const totalMinutes = Math.min(Math.floor(numValue / 60), 99);
       return `${totalMinutes.toString().padStart(2, '0')}:00`;
     }
   } else {
     // 4+ digits: treat as MMSS format
     const minutes = Math.floor(numValue / 100);
     const seconds = numValue % 100;
-    const finalMinutes = Math.min(minutes, 5);
+    const finalMinutes = Math.min(minutes, 99);
     const finalSeconds = seconds < 60 ? seconds : 0;
     return `${finalMinutes.toString().padStart(2, '0')}:${finalSeconds.toString().padStart(2, '0')}`;
   }
@@ -97,7 +100,7 @@ export const validateTime = (timeStr: string, timeRange: TimeRange | null): stri
 export const convertToMinutes = (timeStr: string): number => {
   if (timeStr.includes(':')) {
     const [minutes, seconds] = timeStr.split(':').map(p => parseInt(p) || 0);
-    return minutes + (seconds / 60);
+    return minutes + seconds / 60;
   }
   return parseInt(timeStr) || 0;
 };
@@ -138,7 +141,7 @@ export const secondsToTimeString = (seconds?: number | string): string => {
 export const timeStringToSeconds = (timeStr: string): number => {
   if (!timeStr) return 0;
   const [minutes, seconds] = timeStr.split(':').map(p => parseInt(p) || 0);
-  return (minutes * 60) + seconds;
+  return minutes * 60 + seconds;
 };
 
 export const canSave = (
@@ -146,7 +149,7 @@ export const canSave = (
   saving: boolean,
   times: string[],
   errors: string[],
-  showWarning: boolean,
+  showWarning: boolean
 ): boolean => {
   if (!timeRange || saving) return false;
 

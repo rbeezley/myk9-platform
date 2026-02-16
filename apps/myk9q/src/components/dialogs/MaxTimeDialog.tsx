@@ -19,7 +19,7 @@ export const MaxTimeDialog: React.FC<MaxTimeDialogProps> = ({
   onClose,
   showWarning = false,
   classData,
-  onTimeUpdate
+  onTimeUpdate,
 }) => {
   const { showContext } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -53,7 +53,9 @@ export const MaxTimeDialog: React.FC<MaxTimeDialogProps> = ({
       loadTimeRange();
       initializeTimes();
     }
-  }, [isOpen, classData]);
+    // Depend on classData.id (stable primitive) instead of classData (object literal
+    // recreated on every parent render) to prevent re-initialization mid-save
+  }, [isOpen, classData.id]);
 
   const loadTimeRange = async () => {
     if (!showContext?.licenseKey) return;
@@ -97,7 +99,7 @@ export const MaxTimeDialog: React.FC<MaxTimeDialogProps> = ({
         setRequirements({
           has_30_second_warning: requirementsData.has_30_second_warning,
           time_type: requirementsData.time_type,
-          warning_notes: requirementsData.warning_notes
+          warning_notes: requirementsData.warning_notes,
         });
 
         const timeText = requirementsData.time_limit_text || '';
@@ -126,7 +128,7 @@ export const MaxTimeDialog: React.FC<MaxTimeDialogProps> = ({
     const currentTimes = [
       secondsToTimeString(classData.time_limit_seconds),
       secondsToTimeString(classData.time_limit_area2_seconds),
-      secondsToTimeString(classData.time_limit_area3_seconds)
+      secondsToTimeString(classData.time_limit_area3_seconds),
     ];
 
     setTimes(currentTimes);
@@ -147,129 +149,137 @@ export const MaxTimeDialog: React.FC<MaxTimeDialogProps> = ({
       icon={<Clock className="title-icon" />}
       className="max-time-dialog"
     >
-          {loading ? (
-            <div className="loading-state">
-              <div className="loading-spinner" />
-              <p>Loading time requirements...</p>
+      {loading ? (
+        <div className="loading-state">
+          <div className="loading-spinner" />
+          <p>Loading time requirements...</p>
+        </div>
+      ) : timeRange ? (
+        <>
+          {/* Class Info Header */}
+          <div className="class-info-header">
+            <h3 className="class-title">
+              {classData.element} {classData.level}
+            </h3>
+            <div className="time-range-info">
+              <span className="range-badge">
+                {timeRange.min === timeRange.max
+                  ? `${timeRange.min} minute${timeRange.min !== 1 ? 's' : ''}`
+                  : `${timeRange.min} - ${timeRange.max} minutes`}
+              </span>
+              {timeRange.areas > 1 && <span className="areas-badge">{timeRange.areas} Areas</span>}
+              {isDictatedTime && <span className="dictated-badge">Fixed Time</span>}
             </div>
-          ) : timeRange ? (
-            <>
-              {/* Class Info Header */}
-              <div className="class-info-header">
-                <h3 className="class-title">{classData.element} {classData.level}</h3>
-                <div className="time-range-info">
-                  <span className="range-badge">
-                    {timeRange.min === timeRange.max
-                      ? `${timeRange.min} minute${timeRange.min !== 1 ? 's' : ''}`
-                      : `${timeRange.min} - ${timeRange.max} minutes`
-                    }
-                  </span>
-                  {timeRange.areas > 1 && (
-                    <span className="areas-badge">
-                      {timeRange.areas} Areas
-                    </span>
-                  )}
-                  {isDictatedTime && (
-                    <span className="dictated-badge">
-                      Fixed Time
-                    </span>
-                  )}
+          </div>
+
+          {/* Warning Banner */}
+          {showWarning && (
+            <div className="warning-banner">
+              <div className="warning-banner-content">
+                <AlertCircle className="warning-icon" />
+                <div className="warning-text">
+                  <p>
+                    <strong>Max time required before scoring</strong>
+                  </p>
+                  <p>
+                    Please set the max time for this class before starting to score entries. This
+                    ensures consistent timing for all competitors.
+                  </p>
                 </div>
               </div>
-
-              {/* Warning Banner */}
-              {showWarning && (
-                <div className="warning-banner">
-                  <div className="warning-banner-content">
-                    <AlertCircle className="warning-icon" />
-                    <div className="warning-text">
-                      <p><strong>Max time required before scoring</strong></p>
-                      <p>Please set the max time for this class before starting to score entries. This ensures consistent timing for all competitors.</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Message Display */}
-              {validationMessage && (
-                <div className="message-banner validation-message">
-                  <div className="message-content">
-                    <AlertCircle className="message-icon" />
-                    <p>{validationMessage}</p>
-                  </div>
-                </div>
-              )}
-
-              {errorMessage && (
-                <div className="message-banner error-message">
-                  <div className="message-content">
-                    <AlertCircle className="message-icon" />
-                    <p>{errorMessage}</p>
-                  </div>
-                </div>
-              )}
-
-              {successMessage && (
-                <div className="message-banner success-message">
-                  <div className="message-content">
-                    <CheckCircle className="message-icon" />
-                    <p>{successMessage}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Time Display */}
-              {isDictatedTime ? (
-                <MaxTimeDictatedDisplay
-                  dictatedTime={dictatedTime}
-                  requirements={requirements}
-                />
-              ) : (
-                <MaxTimeInputsGrid
-                  timeRange={timeRange}
-                  times={times}
-                  errors={errors}
-                  isOpen={isOpen}
-                  loading={loading}
-                  isDictatedTime={isDictatedTime}
-                  validationMessage={validationMessage}
-                  errorMessage={errorMessage}
-                  onTimeChange={handleTimeChange}
-                  onErrorsChange={setErrors}
-                  onClearMessages={() => {
-                    setValidationMessage('');
-                    setErrorMessage('');
-                  }}
-                />
-              )}
-
-              {/* Help Text */}
-              {!isDictatedTime && (
-                <div className="help-text">
-                  <p><strong>Quick entry tips:</strong></p>
-                  <p>• Type <strong>2</strong> for 2:00 minutes</p>
-                  <p>• Type <strong>230</strong> for 2:30 minutes</p>
-                  <p>• Type <strong>2:45</strong> for 2 minutes 45 seconds</p>
-                  <p>• Use preset buttons for quick time selection</p>
-                  <p>Time must be between {timeRange.min} - {timeRange.max} minutes for this class</p>
-                </div>
-              )}
-
-              {/* Master Class Warning */}
-              {!isDictatedTime && requirements?.has_30_second_warning === false && (
-                <div className="dictated-notice">
-                  <AlertCircle className="notice-icon" />
-                  <p><strong>Note:</strong> {requirements.warning_notes || 'This class does not receive a 30-second warning.'}</p>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="no-data-state">
-              <Clock className="no-data-icon" />
-              <h3>No Time Requirements Found</h3>
-              <p>Time requirements are not available for this class.</p>
             </div>
           )}
+
+          {/* Message Display */}
+          {validationMessage && (
+            <div className="message-banner validation-message">
+              <div className="message-content">
+                <AlertCircle className="message-icon" />
+                <p>{validationMessage}</p>
+              </div>
+            </div>
+          )}
+
+          {errorMessage && (
+            <div className="message-banner error-message">
+              <div className="message-content">
+                <AlertCircle className="message-icon" />
+                <p>{errorMessage}</p>
+              </div>
+            </div>
+          )}
+
+          {successMessage && (
+            <div className="message-banner success-message">
+              <div className="message-content">
+                <CheckCircle className="message-icon" />
+                <p>{successMessage}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Time Display */}
+          {isDictatedTime ? (
+            <MaxTimeDictatedDisplay dictatedTime={dictatedTime} requirements={requirements} />
+          ) : (
+            <MaxTimeInputsGrid
+              timeRange={timeRange}
+              times={times}
+              errors={errors}
+              isOpen={isOpen}
+              loading={loading}
+              isDictatedTime={isDictatedTime}
+              validationMessage={validationMessage}
+              errorMessage={errorMessage}
+              onTimeChange={handleTimeChange}
+              onErrorsChange={setErrors}
+              onClearMessages={() => {
+                setValidationMessage('');
+                setErrorMessage('');
+              }}
+            />
+          )}
+
+          {/* Help Text */}
+          {!isDictatedTime && (
+            <div className="help-text">
+              <p>
+                <strong>Quick entry tips:</strong>
+              </p>
+              <p>
+                • Type <strong>2</strong> for 2:00 minutes
+              </p>
+              <p>
+                • Type <strong>230</strong> for 2:30 minutes
+              </p>
+              <p>
+                • Type <strong>2:45</strong> for 2 minutes 45 seconds
+              </p>
+              <p>• Use preset buttons for quick time selection</p>
+              <p>
+                Time must be between {timeRange.min} - {timeRange.max} minutes for this class
+              </p>
+            </div>
+          )}
+
+          {/* Master Class Warning */}
+          {!isDictatedTime && requirements?.has_30_second_warning === false && (
+            <div className="dictated-notice">
+              <AlertCircle className="notice-icon" />
+              <p>
+                <strong>Note:</strong>{' '}
+                {requirements.warning_notes || 'This class does not receive a 30-second warning.'}
+              </p>
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="no-data-state">
+          <Clock className="no-data-icon" />
+          <h3>No Time Requirements Found</h3>
+          <p>Time requirements are not available for this class.</p>
+        </div>
+      )}
 
       {timeRange && (
         <div className="dialog-footer">

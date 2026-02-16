@@ -1,332 +1,34 @@
 import { create } from 'zustand';
-import type { Trial, TrialClass } from '@/components/trials/types/trial.types';
-import type { ClassStatusValue } from '@myk9/core';
-
-// Re-export types for external usage
-export type { Trial, TrialClass };
-import { replicatedTrialsTable, replicatedClassesTable, type ReplicatedTrial, type ReplicatedClass } from '@/services/replication';
+import { replicatedTrialsTable, replicatedClassesTable, type ReplicatedTrial } from '@/services/replication';
 import { reportDebug } from '@/utils/standardizedErrorHandler';
 
-// Extend Trial interface with sync metadata
-export interface SyncableTrial extends Trial {
-  _version: number;
-  _lastModified: Date;
-  _lastModifiedBy: string;
-  _syncStatus: 'synced' | 'pending' | 'error' | 'conflict';
-  _localOnly?: boolean | undefined;
-}
+import type {
+  SyncableTrial,
+  SyncableTrialClass,
+  TrialInput,
+  TrialClassInput,
+  TrialStore,
+  Trial,
+} from './trial-store-types';
 
-export interface SyncableTrialClass extends TrialClass {
-  _version: number;
-  _lastModified: Date;
-  _lastModifiedBy: string;
-  _syncStatus: 'synced' | 'pending' | 'error' | 'conflict';
-  _localOnly?: boolean | undefined;
-}
+// Re-export types for external consumers
+export type {
+  Trial,
+  TrialClass,
+  SyncableTrial,
+  SyncableTrialClass,
+  TrialInput,
+  TrialClassInput,
+} from './trial-store-types';
 
-/** Map a SyncableTrialClass to ReplicatedClass for offline persistence */
-function trialClassToReplicated(tc: SyncableTrialClass, trialId: string): ReplicatedClass {
-  return {
-    id: tc.id,
-    trialId,
-    name: [tc.element, tc.level, tc.section].filter(Boolean).join(' ').trim() || tc.id,
-    element: tc.element,
-    level: tc.level,
-    section: tc.section,
-    judgeName: tc.judgeName,
-    startTime: tc.startTime,
-    classStatus: tc.status,
-    _version: tc._version,
-    _lastModified: tc._lastModified,
-    _lastModifiedBy: tc._lastModifiedBy,
-    _syncStatus: tc._syncStatus,
-    _localOnly: tc._localOnly,
-  };
-}
-
-/** Convert a ReplicatedClass (from IndexedDB) to SyncableTrialClass */
-function replicatedToTrialClass(replicated: ReplicatedClass): SyncableTrialClass {
-  return {
-    id: replicated.id,
-    element: replicated.element || '',
-    level: replicated.level || '',
-    section: replicated.section || '',
-    judgeId: '', // Local-only field (not stored in ReplicatedClass)
-    judgeName: replicated.judgeName || '',
-    startTime: replicated.startTime || '',
-    status: (replicated.classStatus as SyncableTrialClass['status']) || 'Scheduled',
-    entries: 0, // Computed field (derived from entry data, not stored on class)
-    _version: replicated._version || 1,
-    _lastModified: replicated._lastModified || new Date(),
-    _lastModifiedBy: replicated._lastModifiedBy || '',
-    _syncStatus: replicated._syncStatus || 'synced',
-    _localOnly: replicated._localOnly || false,
-  };
-}
-
-/** Merge replicated class data with existing local class data, preserving local-only fields */
-function mergeTrialClassData(replicated: ReplicatedClass, existing: SyncableTrialClass | undefined): SyncableTrialClass {
-  const base = replicatedToTrialClass(replicated);
-  if (!existing) return base;
-
-  return {
-    ...base,
-    // Preserve local-only fields from existing
-    judgeId: existing.judgeId || '',
-    entries: existing.entries || 0,
-  };
-}
-
-// Input types for creating/updating trials
-export interface TrialInput {
-  // Allow id for update scenarios where full Trial object is passed
-  id?: string | undefined;
-  showId: string;
-  showName: string;
-  name: string;
-  trialDate: string;
-  trialNumber: string;
-  status: ClassStatusValue;
-  eventNumber?: string | undefined;
-  type?: string | undefined;
-  trialType?: string | undefined;
-  plannedStartTime?: string | undefined;
-  order?: string | undefined;
-  // Additional fields from Trial interface for updates
-  image?: string | undefined;
-  timeStarted?: string | undefined;
-  timeEnded?: string | undefined;
-  // Classes associated with this trial
-  classes?: Array<{
-    id: string;
-    element: string;
-    level: string;
-    section: string;
-    judgeId: string;
-    judgeName?: string | undefined;
-    startTime: string;
-    status: ClassStatusValue;
-    entries: number;
-  }> | undefined;
-}
-
-export interface TrialClassInput {
-  element: string;
-  level: string;
-  section: string;
-  judgeId: string;
-  judgeName?: string | undefined;
-  startTime: string;
-  status: ClassStatusValue;
-  entries: number;
-}
-
-// Mock data for initial state
-const mockTrials: SyncableTrial[] = [
-  {
-    id: '1',
-    showId: '1',
-    showName: 'Summer Specialty Show',
-    name: 'Scent Work Interior Search',
-    trialDate: '2025-07-20',
-    trialNumber: 'T-2025-001',
-    status: 'Upcoming',
-    eventNumber: 'EV-2025-001',
-    type: 'Interior Search',
-    trialType: 'Scent Work',
-    plannedStartTime: '09:00 AM',
-    order: '1',
-    // Sync metadata
-    _version: 1,
-    _lastModified: new Date('2025-01-01T00:00:00Z'),
-    _lastModifiedBy: 'system',
-    _syncStatus: 'synced',
-    _localOnly: false
-  },
-  {
-    id: '2',
-    showId: '1',
-    showName: 'Summer Specialty Show',
-    name: 'Scent Work Exterior Search',
-    trialDate: '2025-07-21',
-    trialNumber: 'T-2025-002',
-    status: 'Upcoming',
-    eventNumber: 'EV-2025-045',
-    type: 'Exterior Search',
-    trialType: 'Scent Work',
-    plannedStartTime: '10:30 AM',
-    order: '2',
-    // Sync metadata
-    _version: 1,
-    _lastModified: new Date('2025-01-01T00:00:00Z'),
-    _lastModifiedBy: 'system',
-    _syncStatus: 'synced',
-    _localOnly: false
-  },
-  {
-    id: '3',
-    showId: '2',
-    showName: 'Fall Agility Championship',
-    name: 'Standard Agility',
-    trialDate: '2025-10-15',
-    trialNumber: 'TR-2025-003',
-    status: 'Upcoming',
-    eventNumber: 'EV-2025-003',
-    type: 'Standard',
-    trialType: 'Agility',
-    plannedStartTime: '11:00 AM',
-    order: '3',
-    // Sync metadata
-    _version: 1,
-    _lastModified: new Date('2025-01-01T00:00:00Z'),
-    _lastModifiedBy: 'system',
-    _syncStatus: 'synced',
-    _localOnly: false
-  },
-  {
-    id: '4',
-    showId: '4',
-    showName: 'Summer Nosework Trial',
-    name: 'Nosework Elements Trial',
-    trialDate: '2025-08-10',
-    trialNumber: 'TR-2025-004',
-    status: 'Upcoming',
-    eventNumber: 'EV-2025-004',
-    type: 'Element Search',
-    trialType: 'Nosework',
-    plannedStartTime: '09:00 AM',
-    order: '1',
-    // Sync metadata
-    _version: 1,
-    _lastModified: new Date('2025-01-01T00:00:00Z'),
-    _lastModifiedBy: 'system',
-    _syncStatus: 'synced',
-    _localOnly: false
-  },
-  {
-    id: '5',
-    showId: '5',
-    showName: 'Fall Obedience & Rally Championship',
-    name: 'Obedience & Rally Combined Trial',
-    trialDate: '2025-09-25',
-    trialNumber: 'TR-2025-005',
-    status: 'Upcoming',
-    eventNumber: 'EV-2025-005',
-    type: 'Combined Trial',
-    trialType: 'Obedience & Rally',
-    plannedStartTime: '08:30 AM',
-    order: '1',
-    // Sync metadata
-    _version: 1,
-    _lastModified: new Date('2025-01-01T00:00:00Z'),
-    _lastModifiedBy: 'system',
-    _syncStatus: 'synced',
-    _localOnly: false
-  }
-];
-
-interface TrialStore {
-  // Trials
-  trials: SyncableTrial[];
-  selectedTrialId: string | null;
-  isLoading: boolean;
-  error: string | null;
-  
-  // Local-First Trial Actions
-  addTrial: (trialData: TrialInput, userId: string) => Promise<SyncableTrial>;
-  updateTrial: (id: string, updates: Partial<TrialInput>, userId: string) => Promise<SyncableTrial | null>;
-  deleteTrial: (id: string) => Promise<void>;
-  getTrialById: (id: string) => SyncableTrial | null;
-  getTrialsByShow: (showId: string) => SyncableTrial[];
-  
-  // Data Management
-  setTrials: (trials: SyncableTrial[]) => void;
-  loadTrials: () => Promise<void>;
-  
-  // Sync Status
-  getSyncStatus: (id: string) => 'synced' | 'pending' | 'error' | 'conflict';
-  
-  // Legacy methods for compatibility
-  addTrialLegacy: (trial: Omit<Trial, 'id'>) => void;
-  updateTrialLegacy: (trial: Partial<Trial> & { id: string }) => void;
-  removeTrial: (id: string) => void;
-  selectTrial: (id: string | null) => void;
-  
-  // Trial Classes
-  trialClasses: Record<string, SyncableTrialClass[]>; // Maps trialId to its classes
-  addTrialClass: (trialId: string, trialClassData: TrialClassInput, userId: string) => Promise<SyncableTrialClass>;
-  updateTrialClass: (trialId: string, classId: string, updates: Partial<TrialClassInput>, userId: string) => Promise<SyncableTrialClass | null>;
-  deleteTrialClass: (trialId: string, classId: string) => Promise<void>;
-  getTrialClassesByTrial: (trialId: string) => SyncableTrialClass[];
-  
-  // Legacy Trial Class methods
-  addTrialClassLegacy: (trialId: string, trialClass: Omit<TrialClass, 'id'>) => void;
-  updateTrialClassLegacy: (trialId: string, trialClass: TrialClass) => void;
-  removeTrialClass: (trialId: string, classId: string) => void;
-
-  // Data Management (classes)
-  loadTrialClasses: () => Promise<void>;
-
-  // Subscription Management (for replicated table sync)
-  _unsubscribe: (() => void) | null;
-  _unsubscribeClasses: (() => void) | null;
-  initializeSubscription: () => void;
-  cleanup: () => void;
-}
-
-// Import global mock data configuration
-import { shouldUseMockData } from '@/config/dataSource';
-
-const shouldUseMockTrials = () => {
-  return shouldUseMockData('USE_MOCK_SHOWS'); // Trials are part of shows
-};
-
-/**
- * Convert ReplicatedTrial (database schema) to SyncableTrial (app schema)
- * Local-only fields are initialized to defaults
- */
-function replicatedToTrial(replicated: ReplicatedTrial): SyncableTrial {
-  return {
-    id: replicated.id,
-    showId: replicated.showId || '',
-    showName: '', // Local-only: derived from show
-    name: replicated.name,
-    trialDate: replicated.date,
-    trialNumber: replicated.trialNumber || '',
-    status: (replicated.status as SyncableTrial['status']) || 'Upcoming',
-    eventNumber: '', // Local-only
-    type: '', // Local-only
-    trialType: '', // Local-only
-    plannedStartTime: '', // Local-only
-    order: '', // Local-only
-    // Sync metadata
-    _version: replicated._version || 1,
-    _lastModified: replicated._lastModified || new Date(),
-    _lastModifiedBy: replicated._lastModifiedBy || '',
-    _syncStatus: replicated._syncStatus || 'synced',
-    _localOnly: replicated._localOnly || false,
-  };
-}
-
-/**
- * Merge replicated trial data with existing local trial data
- * Preserves local-only fields
- */
-function mergeTrialData(replicated: ReplicatedTrial, existing: SyncableTrial | undefined): SyncableTrial {
-  const base = replicatedToTrial(replicated);
-  if (!existing) return base;
-
-  return {
-    ...base,
-    // Preserve local-only fields from existing
-    showName: existing.showName || '',
-    eventNumber: existing.eventNumber || '',
-    type: existing.type || '',
-    trialType: existing.trialType || '',
-    plannedStartTime: existing.plannedStartTime || '',
-    order: existing.order || '',
-  };
-}
+import {
+  trialClassToReplicated,
+  mergeTrialClassData,
+  replicatedToTrial,
+  mergeTrialData,
+  shouldUseMockTrials,
+  mockTrials,
+} from './trial-store-helpers';
 
 export const useTrialStore = create<TrialStore>()(
   (set, get) => ({
@@ -387,7 +89,7 @@ export const useTrialStore = create<TrialStore>()(
           throw error;
         }
       },
-      
+
       updateTrial: async (id: string, updates: Partial<TrialInput>, userId: string): Promise<SyncableTrial | null> => {
         try {
           set({ isLoading: true, error: null });
@@ -461,7 +163,7 @@ export const useTrialStore = create<TrialStore>()(
           throw error;
         }
       },
-      
+
       deleteTrial: async (id: string): Promise<void> => {
         try {
           set({ isLoading: true, error: null });
@@ -494,18 +196,18 @@ export const useTrialStore = create<TrialStore>()(
           throw error;
         }
       },
-      
+
       getTrialById: (id: string): SyncableTrial | null => {
         return get().trials.find(t => t.id === id) || null;
       },
-      
+
       getTrialsByShow: (showId: string): SyncableTrial[] => {
         return get().trials.filter(t => t.showId === showId);
       },
-      
+
       // Data Management
       setTrials: (trials) => set({ trials }),
-      
+
       loadTrials: async (): Promise<void> => {
         try {
           set({ isLoading: true, error: null });
@@ -531,7 +233,7 @@ export const useTrialStore = create<TrialStore>()(
           set({ error: errorMessage, isLoading: false });
         }
       },
-      
+
       loadTrialClasses: async (): Promise<void> => {
         try {
           if (shouldUseMockTrials()) return;
@@ -568,7 +270,7 @@ export const useTrialStore = create<TrialStore>()(
         const trial = get().trials.find(t => t.id === id);
         return trial?._syncStatus || 'synced';
       },
-      
+
       // Legacy methods for compatibility
       addTrialLegacy: (trial) => set((state) => {
         const newId = String(Math.max(0, ...state.trials.map(t => parseInt(t.id, 10) || 0)) + 1);
@@ -581,13 +283,13 @@ export const useTrialStore = create<TrialStore>()(
           _syncStatus: 'synced',
           _localOnly: false
         };
-        return { 
+        return {
           trials: [...state.trials, legacyTrial],
           selectedTrialId: newId
         };
       }),
-      
-      updateTrialLegacy: (updatedTrial: Partial<Trial> & { id: string }) => 
+
+      updateTrialLegacy: (updatedTrial: Partial<Trial> & { id: string }) =>
         set((state) => {
           const newTrials = state.trials.map((trial) => {
             if (trial.id === updatedTrial.id) {
@@ -604,7 +306,7 @@ export const useTrialStore = create<TrialStore>()(
           });
           return { trials: newTrials };
         }),
-      
+
       removeTrial: (id) => set((state) => {
         const { [id]: _removed, ...remainingClasses } = state.trialClasses;
         void _removed; // Suppress unused variable warning
@@ -614,9 +316,9 @@ export const useTrialStore = create<TrialStore>()(
           trialClasses: remainingClasses
         };
       }),
-      
+
       selectTrial: (id) => set({ selectedTrialId: id }),
-      
+
       // Local-First Trial Class Implementation
       addTrialClass: async (trialId: string, trialClassData: TrialClassInput, userId: string): Promise<SyncableTrialClass> => {
         try {
@@ -662,7 +364,7 @@ export const useTrialStore = create<TrialStore>()(
           throw error;
         }
       },
-      
+
       updateTrialClass: async (trialId: string, classId: string, updates: Partial<TrialClassInput>, userId: string): Promise<SyncableTrialClass | null> => {
         try {
           const classes = get().trialClasses[trialId] || [];
@@ -707,7 +409,7 @@ export const useTrialStore = create<TrialStore>()(
           throw error;
         }
       },
-      
+
       deleteTrialClass: async (trialId: string, classId: string): Promise<void> => {
         try {
           const classes = get().trialClasses[trialId] || [];
@@ -734,19 +436,19 @@ export const useTrialStore = create<TrialStore>()(
           throw error;
         }
       },
-      
+
       getTrialClassesByTrial: (trialId: string): SyncableTrialClass[] => {
         return get().trialClasses[trialId] || [];
       },
-      
+
       // Legacy Trial Class methods
       addTrialClassLegacy: (trialId, trialClass) => set((state) => {
         const trial = state.trials.find(t => t.id === trialId);
         if (!trial) return state;
-        
+
         const classes = state.trialClasses[trialId] || [];
         const newId = String(Math.max(0, ...classes.map(c => parseInt(c.id, 10) || 0)) + 1);
-        
+
         const legacyClass: SyncableTrialClass = {
           ...trialClass,
           id: newId,
@@ -756,7 +458,7 @@ export const useTrialStore = create<TrialStore>()(
           _syncStatus: 'synced',
           _localOnly: false
         };
-        
+
         return {
           trialClasses: {
             ...state.trialClasses,
@@ -764,7 +466,7 @@ export const useTrialStore = create<TrialStore>()(
           }
         };
       }),
-      
+
       updateTrialClassLegacy: (trialId, trialClass) => set((state) => {
         const classes = state.trialClasses[trialId] || [];
         return {
@@ -786,7 +488,7 @@ export const useTrialStore = create<TrialStore>()(
           }
         };
       }),
-      
+
       removeTrialClass: (trialId, classId) => set((state) => {
         const classes = state.trialClasses[trialId] || [];
         return {

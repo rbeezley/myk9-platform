@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { ConflictResolver, conflictResolver } from './ConflictResolver';
-import type { FieldAuthority } from '../types';
+import type { ConflictStrategy, FieldAuthority } from '../types';
 
 interface TestEntity {
   id: string;
@@ -50,8 +50,16 @@ describe('ConflictResolver', () => {
     it('should use string comparison when Date.getTime() produces same value', () => {
       const resolver = new ConflictResolver();
       // Same second but different microseconds
-      const local: TestEntity = { id: '1', name: 'local', updated_at: '2025-06-01T10:00:00.000100Z' };
-      const remote: TestEntity = { id: '1', name: 'remote', updated_at: '2025-06-01T10:00:00.000200Z' };
+      const local: TestEntity = {
+        id: '1',
+        name: 'local',
+        updated_at: '2025-06-01T10:00:00.000100Z',
+      };
+      const remote: TestEntity = {
+        id: '1',
+        name: 'remote',
+        updated_at: '2025-06-01T10:00:00.000200Z',
+      };
 
       const result = resolver.resolveLWW(local, remote);
 
@@ -264,7 +272,12 @@ describe('ConflictResolver', () => {
       const local: TestEntity = { id: '1', name: 'local', updated_at: '2025-06-02T10:00:00Z' };
       const remote: TestEntity = { id: '1', name: 'remote', updated_at: '2025-06-01T10:00:00Z' };
 
-      const result = resolver.resolve(local, remote, 'unknown-strategy' as any);
+      // Intentionally passing an invalid strategy to test fallback behavior
+      const result = resolver.resolve(
+        local,
+        remote,
+        'unknown-strategy' as unknown as ConflictStrategy
+      );
 
       expect(result.strategy).toBe('last-write-wins');
       expect(result.resolvedEntity).toBe(local);

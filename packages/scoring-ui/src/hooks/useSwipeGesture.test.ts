@@ -1,18 +1,19 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import type { TouchEvent as ReactTouchEvent, MouseEvent as ReactMouseEvent } from 'react';
 import { useSwipeGesture, useSwipeToAction } from './useSwipeGesture';
 
-// Helper to create mock touch events
-function createTouchEvent(clientX: number, clientY: number) {
+// Helper to create mock touch events with minimal required properties
+function createTouchEvent(clientX: number, clientY: number): ReactTouchEvent<Element> {
   return {
     touches: [{ clientX, clientY }],
     changedTouches: [{ clientX, clientY }],
     preventDefault: vi.fn(),
-  };
+  } as unknown as ReactTouchEvent<Element>;
 }
 
-function createMouseEvent(clientX: number, clientY: number) {
-  return { clientX, clientY };
+function createMouseEvent(clientX: number, clientY: number): ReactMouseEvent<Element> {
+  return { clientX, clientY } as unknown as ReactMouseEvent<Element>;
 }
 
 describe('useSwipeGesture', () => {
@@ -32,11 +33,11 @@ describe('useSwipeGesture', () => {
     );
 
     act(() => {
-      result.current.onMouseDown(createMouseEvent(200, 100) as any);
+      result.current.onMouseDown(createMouseEvent(200, 100));
     });
 
     act(() => {
-      result.current.onMouseUp(createMouseEvent(100, 100) as any);
+      result.current.onMouseUp(createMouseEvent(100, 100));
     });
 
     expect(onSwipeLeft).toHaveBeenCalledTimes(1);
@@ -49,11 +50,11 @@ describe('useSwipeGesture', () => {
     );
 
     act(() => {
-      result.current.onMouseDown(createMouseEvent(100, 100) as any);
+      result.current.onMouseDown(createMouseEvent(100, 100));
     });
 
     act(() => {
-      result.current.onMouseUp(createMouseEvent(200, 100) as any);
+      result.current.onMouseUp(createMouseEvent(200, 100));
     });
 
     expect(onSwipeRight).toHaveBeenCalledTimes(1);
@@ -66,11 +67,11 @@ describe('useSwipeGesture', () => {
     );
 
     act(() => {
-      result.current.onMouseDown(createMouseEvent(100, 200) as any);
+      result.current.onMouseDown(createMouseEvent(100, 200));
     });
 
     act(() => {
-      result.current.onMouseUp(createMouseEvent(100, 100) as any);
+      result.current.onMouseUp(createMouseEvent(100, 100));
     });
 
     expect(onSwipeUp).toHaveBeenCalledTimes(1);
@@ -83,11 +84,11 @@ describe('useSwipeGesture', () => {
     );
 
     act(() => {
-      result.current.onMouseDown(createMouseEvent(100, 100) as any);
+      result.current.onMouseDown(createMouseEvent(100, 100));
     });
 
     act(() => {
-      result.current.onMouseUp(createMouseEvent(100, 200) as any);
+      result.current.onMouseUp(createMouseEvent(100, 200));
     });
 
     expect(onSwipeDown).toHaveBeenCalledTimes(1);
@@ -95,16 +96,14 @@ describe('useSwipeGesture', () => {
 
   it('should call generic onSwipe with direction', () => {
     const onSwipe = vi.fn();
-    const { result } = renderHook(() =>
-      useSwipeGesture({ onSwipe, threshold: 50, maxTime: 1000 })
-    );
+    const { result } = renderHook(() => useSwipeGesture({ onSwipe, threshold: 50, maxTime: 1000 }));
 
     act(() => {
-      result.current.onMouseDown(createMouseEvent(200, 100) as any);
+      result.current.onMouseDown(createMouseEvent(200, 100));
     });
 
     act(() => {
-      result.current.onMouseUp(createMouseEvent(100, 100) as any);
+      result.current.onMouseUp(createMouseEvent(100, 100));
     });
 
     expect(onSwipe).toHaveBeenCalledWith('left');
@@ -117,12 +116,12 @@ describe('useSwipeGesture', () => {
     );
 
     act(() => {
-      result.current.onMouseDown(createMouseEvent(100, 100) as any);
+      result.current.onMouseDown(createMouseEvent(100, 100));
     });
 
     act(() => {
       // Only 30px movement, below 50px threshold
-      result.current.onMouseUp(createMouseEvent(70, 100) as any);
+      result.current.onMouseUp(createMouseEvent(70, 100));
     });
 
     expect(onSwipeLeft).not.toHaveBeenCalled();
@@ -135,11 +134,11 @@ describe('useSwipeGesture', () => {
     );
 
     act(() => {
-      result.current.onTouchStart(createTouchEvent(200, 100) as any);
+      result.current.onTouchStart(createTouchEvent(200, 100));
     });
 
     act(() => {
-      result.current.onTouchEnd(createTouchEvent(100, 100) as any);
+      result.current.onTouchEnd(createTouchEvent(100, 100));
     });
 
     expect(onSwipeLeft).toHaveBeenCalledTimes(1);
@@ -174,11 +173,11 @@ describe('useSwipeToAction', () => {
     );
 
     act(() => {
-      result.current.handlers.onMouseDown(createMouseEvent(300, 100) as any);
+      result.current.handlers.onMouseDown(createMouseEvent(300, 100));
     });
 
     act(() => {
-      result.current.handlers.onMouseMove(createMouseEvent(100, 100) as any);
+      result.current.handlers.onMouseMove(createMouseEvent(100, 100));
     });
 
     act(() => {
@@ -198,11 +197,11 @@ describe('useSwipeToAction', () => {
     );
 
     act(() => {
-      result.current.handlers.onMouseDown(createMouseEvent(100, 100) as any);
+      result.current.handlers.onMouseDown(createMouseEvent(100, 100));
     });
 
     act(() => {
-      result.current.handlers.onMouseMove(createMouseEvent(300, 100) as any);
+      result.current.handlers.onMouseMove(createMouseEvent(300, 100));
     });
 
     act(() => {
@@ -222,11 +221,11 @@ describe('useSwipeToAction', () => {
     );
 
     act(() => {
-      result.current.handlers.onMouseDown(createMouseEvent(200, 100) as any);
+      result.current.handlers.onMouseDown(createMouseEvent(200, 100));
     });
 
     act(() => {
-      result.current.handlers.onMouseMove(createMouseEvent(150, 100) as any);
+      result.current.handlers.onMouseMove(createMouseEvent(150, 100));
     });
 
     act(() => {
@@ -240,7 +239,7 @@ describe('useSwipeToAction', () => {
     const { result } = renderHook(() => useSwipeToAction());
 
     act(() => {
-      result.current.handlers.onMouseDown(createMouseEvent(200, 100) as any);
+      result.current.handlers.onMouseDown(createMouseEvent(200, 100));
     });
 
     // Should not throw

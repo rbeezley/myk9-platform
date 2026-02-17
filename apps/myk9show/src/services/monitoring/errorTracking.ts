@@ -2,10 +2,12 @@ import { DatabaseError } from '../database/supabaseClient';
 import { logger } from '@/services/LoggingService';
 
 interface ErrorContext {
-  user?: {
-    id: string;
-    email?: string | undefined;
-  } | undefined;
+  user?:
+    | {
+        id: string;
+        email?: string | undefined;
+      }
+    | undefined;
   operation?: string | undefined;
   table?: string | undefined;
   environment?: string | undefined;
@@ -32,9 +34,8 @@ class ErrorTracker {
     if (this.isInitialized) return;
 
     // Check if we should enable error tracking
-    const shouldTrack = 
-      import.meta.env.VITE_ERROR_TRACKING_ENABLED === 'true' &&
-      import.meta.env.VITE_SENTRY_DSN;
+    const shouldTrack =
+      import.meta.env.VITE_ERROR_TRACKING_ENABLED === 'true' && import.meta.env.VITE_SENTRY_DSN;
 
     if (!shouldTrack) {
       logger.info('Error tracking disabled');
@@ -43,14 +44,18 @@ class ErrorTracker {
 
     try {
       // Dynamically import Sentry to reduce bundle size if not used
-      // @ts-expect-error - Sentry is optional dependency
-      const Sentry = await import('@sentry/react').catch(() => null);
-      
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const Sentry = await (import('@sentry/react' as string) as Promise<any>).catch(() => null);
+
       if (!Sentry) {
-        logger.warn('Sentry not installed. Install @sentry/react for error tracking.', 'services', {});
+        logger.warn(
+          'Sentry not installed. Install @sentry/react for error tracking.',
+          'services',
+          {}
+        );
         return;
       }
-      
+
       Sentry.init({
         dsn: import.meta.env.VITE_SENTRY_DSN,
         environment: import.meta.env.MODE,
@@ -64,7 +69,7 @@ class ErrorTracker {
         tracesSampleRate: import.meta.env.MODE === 'production' ? 0.1 : 1.0,
         replaysSessionSampleRate: 0.1,
         replaysOnErrorSampleRate: 1.0,
-        beforeSend: (event: {exception?: {values?: Array<{type?: string}>}}) => {
+        beforeSend: (event: { exception?: { values?: Array<{ type?: string }> } }) => {
           // Filter out certain errors
           if (event.exception?.values?.[0]?.type === 'NetworkError') {
             return null;
@@ -103,7 +108,7 @@ class ErrorTracker {
 
   // Track a general error
   trackError(errorOrReport: Error | ErrorReport, context?: ErrorContext) {
-    const report: ErrorReport = 
+    const report: ErrorReport =
       errorOrReport instanceof Error
         ? {
             message: errorOrReport.message,
@@ -150,8 +155,8 @@ class ErrorTracker {
   setUserContext(user: { id: string; email?: string } | null) {
     if (!this.isInitialized) return;
 
-    // @ts-expect-error - Sentry is optional
-    import('@sentry/react').then(Sentry => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (import('@sentry/react' as string) as Promise<any>).then(Sentry => {
       if (!Sentry) return;
       if (user) {
         Sentry.setUser({
@@ -165,15 +170,11 @@ class ErrorTracker {
   }
 
   // Add breadcrumb for debugging
-  addBreadcrumb(
-    message: string,
-    category: string,
-    data?: Record<string, unknown>
-  ) {
+  addBreadcrumb(message: string, category: string, data?: Record<string, unknown>) {
     if (!this.isInitialized) return;
 
-    // @ts-expect-error - Sentry is optional
-    import('@sentry/react').then(Sentry => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (import('@sentry/react' as string) as Promise<any>).then(Sentry => {
       if (!Sentry) return;
       Sentry.addBreadcrumb({
         message,
@@ -194,15 +195,11 @@ class ErrorTracker {
   ) {
     if (!this.isInitialized) return;
 
-    this.addBreadcrumb(
-      `Performance: ${name}`,
-      'performance',
-      {
-        value,
-        unit,
-        ...tags,
-      }
-    );
+    this.addBreadcrumb(`Performance: ${name}`, 'performance', {
+      value,
+      unit,
+      ...tags,
+    });
 
     // Log slow performance
     if (unit === 'millisecond' && value > 1000) {
@@ -218,11 +215,11 @@ class ErrorTracker {
   // Private methods
   private async sendToErrorService(report: ErrorReport) {
     try {
-      // @ts-expect-error - Sentry is optional
-      const Sentry = await import('@sentry/react').catch(() => null);
-      
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const Sentry = await (import('@sentry/react' as string) as Promise<any>).catch(() => null);
+
       if (!Sentry) return;
-      
+
       if (report.level === 'error') {
         Sentry.captureException(new Error(report.message), {
           level: 'error',
@@ -243,7 +240,7 @@ class ErrorTracker {
     if (this.errorQueue.length === 0) return;
 
     logger.info(`Processing ${this.errorQueue.length} queued errors`, 'services');
-    
+
     this.errorQueue.forEach(report => {
       this.sendToErrorService(report);
     });
@@ -259,7 +256,7 @@ class ErrorTracker {
       error.operation || 'unknown',
       error.message.split(' ').slice(0, 3).join(' '), // First 3 words
     ];
-    
+
     return parts.join(':');
   }
 }
@@ -278,8 +275,7 @@ export const createErrorBoundary = () => {
 // Hook for error tracking in components
 export const useErrorHandler = () => {
   return {
-    trackError: (error: Error, context?: ErrorContext) => 
-      errorTracker.trackError(error, context),
+    trackError: (error: Error, context?: ErrorContext) => errorTracker.trackError(error, context),
     trackDatabaseError: (error: DatabaseError, context?: ErrorContext) =>
       errorTracker.trackDatabaseError(error, context),
     trackWarning: (message: string, context?: ErrorContext) =>
@@ -295,7 +291,7 @@ export const setupAPIErrorInterceptor = () => {
   window.fetch = async (...args) => {
     try {
       const response = await originalFetch(...args);
-      
+
       if (!response.ok) {
         errorTracker.trackError({
           message: `API Error: ${response.status} ${response.statusText}`,
@@ -308,7 +304,7 @@ export const setupAPIErrorInterceptor = () => {
           },
         });
       }
-      
+
       return response;
     } catch (error) {
       errorTracker.trackError(error as Error, {
@@ -323,20 +319,17 @@ export const setupAPIErrorInterceptor = () => {
 // Initialize on app startup
 export const initializeMonitoring = async () => {
   await errorTracker.initialize();
-  
+
   // Set up global error handler
-  window.addEventListener('unhandledrejection', (event) => {
-    errorTracker.trackError(
-      new Error(event.reason?.message || 'Unhandled promise rejection'),
-      {
-        type: 'unhandledRejection',
-        reason: event.reason,
-      }
-    );
+  window.addEventListener('unhandledrejection', event => {
+    errorTracker.trackError(new Error(event.reason?.message || 'Unhandled promise rejection'), {
+      type: 'unhandledRejection',
+      reason: event.reason,
+    });
   });
 
   // Set up global error handler
-  window.addEventListener('error', (event) => {
+  window.addEventListener('error', event => {
     errorTracker.trackError(event.error || new Error(event.message), {
       type: 'globalError',
       filename: event.filename,

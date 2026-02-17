@@ -1,4 +1,4 @@
-import type { Dog } from '@/types/dog-types';
+import type { Dog, Registration } from '@/types/dog-types';
 import AddRegistrationPanel from './AddRegistrationPanel';
 import SectionCard from '@/components/common/SectionCard';
 import EditRegistrationPanel from './EditRegistrationPanel';
@@ -10,9 +10,30 @@ import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { NoDataEmptyState } from '@/components/common/EmptyState';
 import { useEffect } from 'react';
-import {
-  useDogRegistrationManagement
-} from '@/hooks/queries/useRegistrationsDatabase';
+import { useDogRegistrationManagement } from '@/hooks/queries/useRegistrationsDatabase';
+
+/**
+ * Loose registration record supporting both camelCase (domain) and snake_case (DB) fields.
+ * Needed because registrations may come from either the DB query (snake_case) or the domain type (camelCase).
+ */
+interface RegistrationRecord {
+  id: string;
+  organization: string;
+  status?: string;
+  breed?: string;
+  variety?: string;
+  registeredName?: string;
+  registered_name?: string;
+  registrationNumber?: string;
+  registration_number?: string;
+  applicationNumber?: string;
+  application_number?: string;
+  registrationDate?: string;
+  registration_date?: string;
+  submissionDate?: string;
+  submission_date?: string;
+  certificate?: string;
+}
 
 interface RegistrationsSectionProps {
   dog?: Dog;
@@ -21,7 +42,10 @@ interface RegistrationsSectionProps {
 
 import { useRegistrationsStore } from '@/store/registrationsStore';
 
-export default function RegistrationsSection({ dog, autoOpenAddDialog = false }: RegistrationsSectionProps) {
+export default function RegistrationsSection({
+  dog,
+  autoOpenAddDialog = false,
+}: RegistrationsSectionProps) {
   const dogId = dog?.id || '';
 
   // Use database hooks for data management
@@ -33,15 +57,19 @@ export default function RegistrationsSection({ dog, autoOpenAddDialog = false }:
     isCreating,
     updateRegistration,
     deleteRegistration,
-    refetch
+    refetch,
   } = useDogRegistrationManagement(dogId);
 
   // Fallback to dog prop registrations if database not available, or use store
   const storeRegistrations = useRegistrationsStore(state => state.registrations);
   const registrations = dbRegistrations || dog?.registrations || storeRegistrations;
 
-  const isAddRegistrationDialogOpen = useRegistrationsStore(state => state.isAddRegistrationDialogOpen);
-  const setIsAddRegistrationDialogOpen = useRegistrationsStore(state => state.setIsAddRegistrationDialogOpen);
+  const isAddRegistrationDialogOpen = useRegistrationsStore(
+    state => state.isAddRegistrationDialogOpen
+  );
+  const setIsAddRegistrationDialogOpen = useRegistrationsStore(
+    state => state.setIsAddRegistrationDialogOpen
+  );
 
   // Auto-open the add registration dialog if requested
   useEffect(() => {
@@ -50,10 +78,18 @@ export default function RegistrationsSection({ dog, autoOpenAddDialog = false }:
     }
   }, [autoOpenAddDialog, setIsAddRegistrationDialogOpen]);
 
-  const isEditRegistrationDialogOpen = useRegistrationsStore(state => state.isEditRegistrationDialogOpen);
-  const setIsEditRegistrationDialogOpen = useRegistrationsStore(state => state.setIsEditRegistrationDialogOpen);
-  const isDeleteRegistrationDialogOpen = useRegistrationsStore(state => state.isDeleteRegistrationDialogOpen);
-  const setIsDeleteRegistrationDialogOpen = useRegistrationsStore(state => state.setIsDeleteRegistrationDialogOpen);
+  const isEditRegistrationDialogOpen = useRegistrationsStore(
+    state => state.isEditRegistrationDialogOpen
+  );
+  const setIsEditRegistrationDialogOpen = useRegistrationsStore(
+    state => state.setIsEditRegistrationDialogOpen
+  );
+  const isDeleteRegistrationDialogOpen = useRegistrationsStore(
+    state => state.isDeleteRegistrationDialogOpen
+  );
+  const setIsDeleteRegistrationDialogOpen = useRegistrationsStore(
+    state => state.setIsDeleteRegistrationDialogOpen
+  );
 
   const selectedRegistration = useRegistrationsStore(state => state.selectedRegistration);
   const setSelectedRegistration = useRegistrationsStore(state => state.setSelectedRegistration);
@@ -135,7 +171,6 @@ export default function RegistrationsSection({ dog, autoOpenAddDialog = false }:
     setSelectedRegistration(null);
   };
 
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -172,7 +207,7 @@ export default function RegistrationsSection({ dog, autoOpenAddDialog = false }:
           {isCreating ? 'Adding...' : 'Add New Registration'}
         </Button>
       </div>
-      {(!registrations || registrations.length === 0) ? (
+      {!registrations || registrations.length === 0 ? (
         <NoDataEmptyState
           entityName="Registrations"
           description="Add your first kennel club registration to get started."
@@ -180,76 +215,103 @@ export default function RegistrationsSection({ dog, autoOpenAddDialog = false }:
           onCreateClick={() => setIsAddRegistrationDialogOpen(true)}
         />
       ) : (
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any -- Schema mismatch: DB returns snake_case, domain uses camelCase */}
-        {registrations.map((reg: any, idx: number) => (
-          <SectionCard key={reg.id || idx} className="min-h-[170px] justify-between">
-            <div className="absolute top-4 right-4 z-10">
-              <ThreeDotMenu
-                items={[{
-                  label: 'Edit',
-                  onClick: () => {
-                    setSelectedRegistration(reg);
-                    setIsEditRegistrationDialogOpen(true);
-                  },
-                  icon: <Edit className="w-4 h-4 mr-2" />,
-                }, {
-                  label: 'Delete',
-                  onClick: () => {
-                    setSelectedRegistration(reg);
-                    setIsDeleteRegistrationDialogOpen(true);
-                  },
-                  icon: <Trash2 className="w-4 h-4 mr-2" />,
-                  className: 'text-red-600',
-                }]}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <div className="font-semibold text-base mb-0.5">{reg.organization} Registration</div>
-              <div className="text-xs text-muted-foreground mb-0.5">{reg.organization === 'AKC' ? 'American Kennel Club' : reg.organization === 'UKC' ? 'United Kennel Club' : reg.organization}</div>
-              {typeof reg.status === 'string' && reg.status.trim() !== '' ? (
-                <span className={`inline-flex w-fit px-2 py-0.5 rounded text-xs font-medium mb-1 ${reg.status === 'Active' ? 'bg-green-500/20 text-green-800 dark:text-green-200' : reg.status === 'Pending' || reg.status === 'Under review' ? 'bg-yellow-500/20 text-yellow-800 dark:text-yellow-200' : 'bg-muted text-muted-foreground'}`}>{reg.status}</span>
-              ) : (
-                <span className="text-xs text-red-600 dark:text-red-400 mb-1">No status</span>
-              )}
-              <div className="grid grid-cols-1 gap-y-2 gap-x-6 md:grid-cols-2">
-                <div>
-                  <div className="text-xs text-muted-foreground">Registered Name</div>
-                  <div className="font-semibold break-words">{reg.registeredName || reg.registered_name}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground">Registration Number</div>
-                  <div className="font-semibold">{reg.applicationNumber || reg.application_number || reg.registrationNumber || reg.registration_number}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground">Breed</div>
-                  <div className="font-semibold">{reg.breed}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground">Variety</div>
-                  <div className="font-semibold">{reg.variety || '-'}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground">Registration Date</div>
-                  <div className="font-semibold">{formatDateMMDDYYYY(reg.registrationDate || reg.registration_date)}</div>
-                </div>
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {(registrations as RegistrationRecord[]).map((reg: RegistrationRecord, idx: number) => (
+            <SectionCard key={reg.id || idx} className="min-h-[170px] justify-between">
+              <div className="absolute top-4 right-4 z-10">
+                <ThreeDotMenu
+                  items={[
+                    {
+                      label: 'Edit',
+                      onClick: () => {
+                        setSelectedRegistration(reg as Registration);
+                        setIsEditRegistrationDialogOpen(true);
+                      },
+                      icon: <Edit className="w-4 h-4 mr-2" />,
+                    },
+                    {
+                      label: 'Delete',
+                      onClick: () => {
+                        setSelectedRegistration(reg as Registration);
+                        setIsDeleteRegistrationDialogOpen(true);
+                      },
+                      icon: <Trash2 className="w-4 h-4 mr-2" />,
+                      className: 'text-red-600',
+                    },
+                  ]}
+                />
               </div>
-              {(reg.submissionDate || reg.submission_date) && (
-                <div className="mt-2">
-                  <div className="text-xs text-muted-foreground">Submission Date</div>
-                  <div className="font-semibold">{formatDateMMDDYYYY(reg.submissionDate || reg.submission_date)}</div>
+              <div className="flex flex-col gap-2">
+                <div className="font-semibold text-base mb-0.5">
+                  {reg.organization} Registration
                 </div>
-              )}
-              {reg.certificate && (
-                <div className="flex flex-col mt-2">
-                  <div className="text-xs text-muted-foreground">Certificate</div>
-                  <Button variant="outline" size="sm" className="mt-1 w-fit"><span className="mr-1">⬇️</span>Download</Button>
+                <div className="text-xs text-muted-foreground mb-0.5">
+                  {reg.organization === 'AKC'
+                    ? 'American Kennel Club'
+                    : reg.organization === 'UKC'
+                      ? 'United Kennel Club'
+                      : reg.organization}
                 </div>
-              )}
-            </div>
-          </SectionCard>
-        ))}
-      </div>
+                {typeof reg.status === 'string' && reg.status.trim() !== '' ? (
+                  <span
+                    className={`inline-flex w-fit px-2 py-0.5 rounded text-xs font-medium mb-1 ${reg.status === 'Active' ? 'bg-green-500/20 text-green-800 dark:text-green-200' : reg.status === 'Pending' || reg.status === 'Under review' ? 'bg-yellow-500/20 text-yellow-800 dark:text-yellow-200' : 'bg-muted text-muted-foreground'}`}
+                  >
+                    {reg.status}
+                  </span>
+                ) : (
+                  <span className="text-xs text-red-600 dark:text-red-400 mb-1">No status</span>
+                )}
+                <div className="grid grid-cols-1 gap-y-2 gap-x-6 md:grid-cols-2">
+                  <div>
+                    <div className="text-xs text-muted-foreground">Registered Name</div>
+                    <div className="font-semibold break-words">
+                      {reg.registeredName || reg.registered_name}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Registration Number</div>
+                    <div className="font-semibold">
+                      {reg.applicationNumber ||
+                        reg.application_number ||
+                        reg.registrationNumber ||
+                        reg.registration_number}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Breed</div>
+                    <div className="font-semibold">{reg.breed}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Variety</div>
+                    <div className="font-semibold">{reg.variety || '-'}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Registration Date</div>
+                    <div className="font-semibold">
+                      {formatDateMMDDYYYY(reg.registrationDate || reg.registration_date)}
+                    </div>
+                  </div>
+                </div>
+                {(reg.submissionDate || reg.submission_date) && (
+                  <div className="mt-2">
+                    <div className="text-xs text-muted-foreground">Submission Date</div>
+                    <div className="font-semibold">
+                      {formatDateMMDDYYYY(reg.submissionDate || reg.submission_date)}
+                    </div>
+                  </div>
+                )}
+                {reg.certificate && (
+                  <div className="flex flex-col mt-2">
+                    <div className="text-xs text-muted-foreground">Certificate</div>
+                    <Button variant="outline" size="sm" className="mt-1 w-fit">
+                      <span className="mr-1">⬇️</span>Download
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </SectionCard>
+          ))}
+        </div>
       )}
       <AddRegistrationPanel
         open={isAddRegistrationDialogOpen}

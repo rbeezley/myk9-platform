@@ -1,14 +1,15 @@
 import type { PaginationOptions, PaginatedResult, VirtualizedResult } from './types';
 
 export function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return path.split('.').reduce((current: any, key: string) => current?.[key], obj);
+  return path.split('.').reduce((current: unknown, key: string) => {
+    if (current != null && typeof current === 'object') {
+      return (current as Record<string, unknown>)[key];
+    }
+    return undefined;
+  }, obj as unknown);
 }
 
-export function paginateData<T>(
-  data: T[],
-  options: PaginationOptions
-): PaginatedResult<T> {
+export function paginateData<T>(data: T[], options: PaginationOptions): PaginatedResult<T> {
   const { page, pageSize, sortBy, sortDirection = 'asc', filters = {} } = options;
 
   let filteredData = data;
@@ -29,10 +30,10 @@ export function paginateData<T>(
     filteredData = [...filteredData].sort((a, b) => {
       const aValue = getNestedValue(a as Record<string, unknown>, sortBy);
       const bValue = getNestedValue(b as Record<string, unknown>, sortBy);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if ((aValue as any) < (bValue as any)) return sortDirection === 'asc' ? -1 : 1;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if ((aValue as any) > (bValue as any)) return sortDirection === 'asc' ? 1 : -1;
+      const aStr = String(aValue ?? '');
+      const bStr = String(bValue ?? '');
+      if (aStr < bStr) return sortDirection === 'asc' ? -1 : 1;
+      if (aStr > bStr) return sortDirection === 'asc' ? 1 : -1;
       return 0;
     });
   }
@@ -50,8 +51,8 @@ export function paginateData<T>(
       totalPages,
       totalItems,
       hasNextPage: page < totalPages,
-      hasPreviousPage: page > 1
-    }
+      hasPreviousPage: page > 1,
+    },
   };
 }
 
@@ -89,6 +90,6 @@ export function calculateVirtualizedItems<T>(
     startIndex,
     endIndex,
     totalHeight: data.length * itemHeight,
-    scrollTop: startIndex * itemHeight
+    scrollTop: startIndex * itemHeight,
   };
 }

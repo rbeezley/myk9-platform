@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { SyncAnalyticsService, getSyncAnalytics, ANALYTICS_PRESETS } from '../../../services/analytics';
+import {
+  SyncAnalyticsService,
+  getSyncAnalytics,
+  ANALYTICS_PRESETS,
+} from '../../../services/analytics';
 import { logger } from '@myk9/core';
 
 // Mock @myk9/replication to prevent real conflict manager from being used
@@ -27,8 +31,8 @@ vi.mock('@myk9/core', () => ({
  * the constructor's own property to null it out before each test.
  */
 function resetSingleton(): void {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (SyncAnalyticsService as any).instance = undefined;
+  (SyncAnalyticsService as unknown as { instance: SyncAnalyticsService | undefined }).instance =
+    undefined;
 }
 
 describe('SyncAnalyticsService', () => {
@@ -399,7 +403,7 @@ describe('SyncAnalyticsService', () => {
 
       expect(metrics.collectionMetrics).toHaveLength(5);
 
-      const collectionNames = metrics.collectionMetrics.map((c) => c.collectionName);
+      const collectionNames = metrics.collectionMetrics.map(c => c.collectionName);
       expect(collectionNames).toContain('dogs');
       expect(collectionNames).toContain('shows');
       expect(collectionNames).toContain('entries');
@@ -498,7 +502,7 @@ describe('SyncAnalyticsService', () => {
 
       const alerts = analytics.getActiveAlerts();
       expect(alerts.length).toBeGreaterThanOrEqual(1);
-      expect(alerts.some((a) => a.type === 'performance')).toBe(true);
+      expect(alerts.some(a => a.type === 'performance')).toBe(true);
     });
 
     it('should create alert on failed sync event', async () => {
@@ -512,7 +516,7 @@ describe('SyncAnalyticsService', () => {
 
       const alerts = analytics.getActiveAlerts();
       expect(alerts.length).toBeGreaterThanOrEqual(1);
-      expect(alerts.some((a) => a.type === 'health')).toBe(true);
+      expect(alerts.some(a => a.type === 'health')).toBe(true);
     });
 
     it('should acknowledge an alert', async () => {
@@ -532,7 +536,7 @@ describe('SyncAnalyticsService', () => {
 
       // Alert should still be active (acknowledged != resolved)
       const activeAlerts = analytics.getActiveAlerts();
-      const acknowledgedAlert = activeAlerts.find((a) => a.id === alertId);
+      const acknowledgedAlert = activeAlerts.find(a => a.id === alertId);
       expect(acknowledgedAlert).toBeDefined();
       expect(acknowledgedAlert!.acknowledgedAt).toBeInstanceOf(Date);
     });
@@ -554,7 +558,7 @@ describe('SyncAnalyticsService', () => {
 
       // After resolving, the alert should no longer be active
       const alertsAfter = analytics.getActiveAlerts();
-      expect(alertsAfter.find((a) => a.id === alertId)).toBeUndefined();
+      expect(alertsAfter.find(a => a.id === alertId)).toBeUndefined();
     });
   });
 
@@ -564,7 +568,7 @@ describe('SyncAnalyticsService', () => {
 
       expect(healthChecks).toHaveLength(3);
 
-      const serviceNames = healthChecks.map((h) => h.service);
+      const serviceNames = healthChecks.map(h => h.service);
       expect(serviceNames).toContain('Sync Service');
       expect(serviceNames).toContain('Database');
       expect(serviceNames).toContain('Network');
@@ -622,10 +626,7 @@ describe('SyncAnalyticsService', () => {
     it('should call logger.debug when emitting events', () => {
       analytics.emit('test:event', { foo: 'bar' });
 
-      expect(logger.debug).toHaveBeenCalledWith(
-        'Analytics event: test:event',
-        { foo: 'bar' }
-      );
+      expect(logger.debug).toHaveBeenCalledWith('Analytics event: test:event', { foo: 'bar' });
     });
   });
 });
@@ -633,8 +634,8 @@ describe('SyncAnalyticsService', () => {
 describe('getSyncAnalytics', () => {
   beforeEach(() => {
     // Reset singleton for isolation
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (SyncAnalyticsService as any).instance = undefined;
+    (SyncAnalyticsService as unknown as { instance: SyncAnalyticsService | undefined }).instance =
+      undefined;
   });
 
   it('should return a SyncAnalyticsService instance', () => {

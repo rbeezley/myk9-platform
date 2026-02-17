@@ -19,8 +19,7 @@ describe('useNotificationPermissions', () => {
       requestPermission: vi.fn().mockResolvedValue('granted'),
     };
 
-    // @ts-expect-error - Mocking global Notification
-    global.Notification = mockNotification;
+    global.Notification = mockNotification as unknown as typeof Notification;
 
     vi.useFakeTimers();
   });
@@ -39,8 +38,7 @@ describe('useNotificationPermissions', () => {
     });
 
     test('should detect when notifications are not supported', () => {
-      // @ts-expect-error - Testing unsupported browser
-      delete global.Notification;
+      delete (global as unknown as Record<string, unknown>).Notification;
 
       const { result } = renderHook(() => useNotificationPermissions());
 
@@ -170,8 +168,7 @@ describe('useNotificationPermissions', () => {
       // Use real timers for async operations
       vi.useRealTimers();
 
-      // @ts-expect-error - Testing unsupported browser
-      delete global.Notification;
+      delete (global as unknown as Record<string, unknown>).Notification;
 
       const { result } = renderHook(() => useNotificationPermissions());
 
@@ -251,9 +248,7 @@ describe('useNotificationPermissions', () => {
       mockNotification.requestPermission.mockResolvedValue('granted');
       const onPermissionChange = vi.fn();
 
-      const { result } = renderHook(() =>
-        useNotificationPermissions({ onPermissionChange })
-      );
+      const { result } = renderHook(() => useNotificationPermissions({ onPermissionChange }));
 
       await act(async () => {
         await result.current.requestPermission();
@@ -268,9 +263,7 @@ describe('useNotificationPermissions', () => {
       mockNotification.permission = 'default';
       const onPermissionChange = vi.fn();
 
-      renderHook(() =>
-        useNotificationPermissions({ onPermissionChange })
-      );
+      renderHook(() => useNotificationPermissions({ onPermissionChange }));
 
       // Clear initial call
       onPermissionChange.mockClear();
@@ -290,9 +283,7 @@ describe('useNotificationPermissions', () => {
       mockNotification.permission = 'granted';
       const onPermissionChange = vi.fn();
 
-      renderHook(() =>
-        useNotificationPermissions({ onPermissionChange })
-      );
+      renderHook(() => useNotificationPermissions({ onPermissionChange }));
 
       // Clear any initial calls
       onPermissionChange.mockClear();

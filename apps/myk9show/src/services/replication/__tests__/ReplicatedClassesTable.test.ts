@@ -11,10 +11,17 @@
  * Note: Some tests are skipped as they require IndexedDB in a browser environment.
  * Those tests are covered by E2E tests with Playwright.
  */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
 import type { Database } from '@/types/supabase';
+
+/** Shape of the _mocks export from the mocked supabaseClient module */
+interface SupabaseMocks {
+  mockSupabaseFrom: Mock;
+  mockSupabaseSelect: Mock;
+  mockSupabaseGt: Mock;
+  mockSupabaseEq: Mock;
+  mockSupabaseOrder: Mock;
+}
 
 // Mock the logger BEFORE imports
 vi.mock('@myk9/core', () => ({
@@ -113,36 +120,41 @@ describe('ReplicatedClassesTable', () => {
     ...overrides,
   });
 
-  const createDbRow = (overrides: Partial<Database['public']['Tables']['classes']['Row']> = {}): Database['public']['Tables']['classes']['Row'] => ({
-    id: 1,
-    trial_id: 'trial-1',
-    name: 'Novice A',
-    description: 'Beginner level class',
-    entry_fee: 25.0,
-    jump_heights: ['8"', '12"', '16"'],
-    max_entries: 100,
-    allow_waitlist: true,
-    max_dogs_per_handler: 3,
-    level: 'Novice',
-    breed_restrictions: [],
-    age_min: null,
-    age_max: null,
-    height_min: null,
-    height_max: null,
-    handler_age_min: null,
-    handler_age_max: null,
-    start_time: '09:00 AM',
-    estimated_duration: 120,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    ...overrides,
-  } as Database['public']['Tables']['classes']['Row']);
+  const createDbRow = (
+    overrides: Partial<Database['public']['Tables']['classes']['Row']> = {}
+  ): Database['public']['Tables']['classes']['Row'] =>
+    ({
+      id: 1,
+      trial_id: 'trial-1',
+      name: 'Novice A',
+      description: 'Beginner level class',
+      entry_fee: 25.0,
+      jump_heights: ['8"', '12"', '16"'],
+      max_entries: 100,
+      allow_waitlist: true,
+      max_dogs_per_handler: 3,
+      level: 'Novice',
+      breed_restrictions: [],
+      age_min: null,
+      age_max: null,
+      height_min: null,
+      height_max: null,
+      handler_age_min: null,
+      handler_age_max: null,
+      start_time: '09:00 AM',
+      estimated_duration: 120,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      ...overrides,
+    }) as Database['public']['Tables']['classes']['Row'];
 
   beforeEach(async () => {
     vi.clearAllMocks();
 
     // Get mocks from the mocked module
-    const { _mocks } = await import('@/services/database/supabaseClient') as any;
+    const { _mocks } = (await import('@/services/database/supabaseClient')) as unknown as {
+      _mocks: SupabaseMocks;
+    };
     mockSupabaseFrom = _mocks.mockSupabaseFrom;
     mockSupabaseSelect = _mocks.mockSupabaseSelect;
     mockSupabaseGt = _mocks.mockSupabaseGt;
@@ -257,11 +269,7 @@ describe('ReplicatedClassesTable', () => {
       });
 
       it.skip('should count affected rows correctly', async () => {
-        const mockRows = [
-          createDbRow({ id: 1 }),
-          createDbRow({ id: 2 }),
-          createDbRow({ id: 3 }),
-        ];
+        const mockRows = [createDbRow({ id: 1 }), createDbRow({ id: 2 }), createDbRow({ id: 3 })];
         mockSupabaseOrder.mockResolvedValue({ data: mockRows, error: null });
 
         const result = await classesTable.sync('trial-1');
@@ -318,7 +326,12 @@ describe('ReplicatedClassesTable', () => {
       const remoteClass = createMockClass({ name: 'Remote Name' });
 
       // Access protected method via type assertion
-      const resolved = (classesTable as any).resolveConflict(localClass, remoteClass);
+      const resolveConflict = (
+        classesTable as unknown as {
+          resolveConflict(local: ReplicatedClass, remote: ReplicatedClass): ReplicatedClass;
+        }
+      ).resolveConflict.bind(classesTable);
+      const resolved = resolveConflict(localClass, remoteClass);
 
       expect(resolved).toEqual(remoteClass);
       expect(resolved.name).toBe('Remote Name');
@@ -328,7 +341,12 @@ describe('ReplicatedClassesTable', () => {
       const localClass = createMockClass({ name: 'Old', classStatus: 'scheduled' });
       const remoteClass = createMockClass({ name: 'New', classStatus: 'in_progress' });
 
-      const resolved = (classesTable as any).resolveConflict(localClass, remoteClass);
+      const resolveConflict2 = (
+        classesTable as unknown as {
+          resolveConflict(local: ReplicatedClass, remote: ReplicatedClass): ReplicatedClass;
+        }
+      ).resolveConflict.bind(classesTable);
+      const resolved = resolveConflict2(localClass, remoteClass);
 
       expect(resolved).toBe(remoteClass);
     });
@@ -382,7 +400,7 @@ describe('ReplicatedClassesTable', () => {
         time_limit_seconds: 180,
         element: 'Interior',
         section: 'B',
-      } as any;
+      };
 
       expect(dbRow.area_count).toBe(3);
       expect(dbRow.time_limit_seconds).toBe(180);
@@ -513,7 +531,7 @@ describe('ReplicatedClassesTable', () => {
     it('should handle all scent work elements', () => {
       const elements = ['Container', 'Interior', 'Exterior', 'Buried'];
 
-      elements.forEach((element) => {
+      elements.forEach(element => {
         const classData = createMockClass({ element });
         expect(classData.element).toBe(element);
       });

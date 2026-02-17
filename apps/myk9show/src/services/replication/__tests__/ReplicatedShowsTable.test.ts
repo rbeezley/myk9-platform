@@ -11,8 +11,6 @@
  * - Offline-first behavior (queue mutations when offline)
  * - Error handling and validation
  */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ReplicatedShowsTable, type ReplicatedShow } from '../ReplicatedShowsTable';
 
@@ -179,9 +177,27 @@ describe('ReplicatedShowsTable', () => {
 
       it('should return all shows', async () => {
         const shows: ReplicatedShow[] = [
-          { id: 'show-1', name: 'Show 1', type: 'Obedience', startDate: '2024-06-15', endDate: '2024-06-16' },
-          { id: 'show-2', name: 'Show 2', type: 'Agility', startDate: '2024-07-15', endDate: '2024-07-16' },
-          { id: 'show-3', name: 'Show 3', type: 'Rally', startDate: '2024-08-15', endDate: '2024-08-16' },
+          {
+            id: 'show-1',
+            name: 'Show 1',
+            type: 'Obedience',
+            startDate: '2024-06-15',
+            endDate: '2024-06-16',
+          },
+          {
+            id: 'show-2',
+            name: 'Show 2',
+            type: 'Agility',
+            startDate: '2024-07-15',
+            endDate: '2024-07-16',
+          },
+          {
+            id: 'show-3',
+            name: 'Show 3',
+            type: 'Rally',
+            startDate: '2024-08-15',
+            endDate: '2024-08-16',
+          },
         ];
 
         for (const show of shows) {
@@ -454,9 +470,7 @@ describe('ReplicatedShowsTable', () => {
 
       it('should exclude future shows', async () => {
         const results = await table.getActiveShows();
-        const futureShows = results.filter(show =>
-          show.id === 'show-3' || show.id === 'show-4'
-        );
+        const futureShows = results.filter(show => show.id === 'show-3' || show.id === 'show-4');
         expect(futureShows).toHaveLength(0);
       });
 
@@ -527,9 +541,9 @@ describe('ReplicatedShowsTable', () => {
     });
 
     it('should throw error when updating non-existent show', async () => {
-      await expect(
-        table.updateShow('nonexistent', { name: 'Updated' })
-      ).rejects.toThrow('Show nonexistent not found');
+      await expect(table.updateShow('nonexistent', { name: 'Updated' })).rejects.toThrow(
+        'Show nonexistent not found'
+      );
     });
 
     it('should update lastModified timestamp on update', async () => {
@@ -696,11 +710,11 @@ describe('ReplicatedShowsTable', () => {
   });
 
   describe('Sync Operations', () => {
-    let supabaseMock: any;
+    let supabaseMock: { from: ReturnType<typeof vi.fn> };
 
     beforeEach(async () => {
       const { supabase } = await import('@/services/database/supabaseClient');
-      supabaseMock = supabase;
+      supabaseMock = supabase as unknown as { from: ReturnType<typeof vi.fn> };
     });
 
     it('should sync successfully with no remote changes', async () => {
@@ -1045,8 +1059,13 @@ describe('ReplicatedShowsTable', () => {
         preEntryFee: 40.0,
       };
 
-      // Access protected method via any cast
-      const resolved = (table as any).resolveConflict(localShow, remoteShow);
+      // Access protected method via type assertion
+      const resolveConflict = (
+        table as unknown as {
+          resolveConflict(local: ReplicatedShow, remote: ReplicatedShow): ReplicatedShow;
+        }
+      ).resolveConflict.bind(table);
+      const resolved = resolveConflict(localShow, remoteShow);
 
       // Server wins - remote show should be returned
       expect(resolved).toBe(remoteShow);
@@ -1075,7 +1094,12 @@ describe('ReplicatedShowsTable', () => {
         maxTotalEntries: 200,
       };
 
-      const resolved = (table as any).resolveConflict(local, remote);
+      const resolveConflict2 = (
+        table as unknown as {
+          resolveConflict(local: ReplicatedShow, remote: ReplicatedShow): ReplicatedShow;
+        }
+      ).resolveConflict.bind(table);
+      const resolved = resolveConflict2(local, remote);
 
       expect(resolved).toBe(remote);
       expect(resolved.name).toBe('Remote Show');
@@ -1193,9 +1217,27 @@ describe('ReplicatedShowsTable', () => {
   describe('Cache Management', () => {
     it('should get cache statistics', async () => {
       const shows: ReplicatedShow[] = [
-        { id: 'show-1', name: 'Show 1', type: 'Obedience', startDate: '2024-06-15', endDate: '2024-06-16' },
-        { id: 'show-2', name: 'Show 2', type: 'Agility', startDate: '2024-07-15', endDate: '2024-07-16' },
-        { id: 'show-3', name: 'Show 3', type: 'Rally', startDate: '2024-08-15', endDate: '2024-08-16' },
+        {
+          id: 'show-1',
+          name: 'Show 1',
+          type: 'Obedience',
+          startDate: '2024-06-15',
+          endDate: '2024-06-16',
+        },
+        {
+          id: 'show-2',
+          name: 'Show 2',
+          type: 'Agility',
+          startDate: '2024-07-15',
+          endDate: '2024-07-16',
+        },
+        {
+          id: 'show-3',
+          name: 'Show 3',
+          type: 'Rally',
+          startDate: '2024-08-15',
+          endDate: '2024-08-16',
+        },
       ];
 
       for (const show of shows) {
@@ -1211,8 +1253,20 @@ describe('ReplicatedShowsTable', () => {
 
     it('should clear cache', async () => {
       const shows: ReplicatedShow[] = [
-        { id: 'show-1', name: 'Show 1', type: 'Obedience', startDate: '2024-06-15', endDate: '2024-06-16' },
-        { id: 'show-2', name: 'Show 2', type: 'Agility', startDate: '2024-07-15', endDate: '2024-07-16' },
+        {
+          id: 'show-1',
+          name: 'Show 1',
+          type: 'Obedience',
+          startDate: '2024-06-15',
+          endDate: '2024-06-16',
+        },
+        {
+          id: 'show-2',
+          name: 'Show 2',
+          type: 'Agility',
+          startDate: '2024-07-15',
+          endDate: '2024-07-16',
+        },
       ];
 
       for (const show of shows) {
@@ -1462,9 +1516,7 @@ describe('ReplicatedShowsTable', () => {
         clubId: 'club-123',
       }));
 
-      const createdShows = await Promise.all(
-        showData.map(data => table.createShow(data))
-      );
+      const createdShows = await Promise.all(showData.map(data => table.createShow(data)));
 
       expect(createdShows).toHaveLength(5);
 

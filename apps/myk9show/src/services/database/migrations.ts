@@ -3,7 +3,6 @@
  * Handles version upgrades, data migrations, and rollback capabilities
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 import { logger } from '@/services/LoggingService';
@@ -55,7 +54,7 @@ export class MigrationManager {
     backupBeforeMigration: true,
     validateAfterMigration: true,
     rollbackOnFailure: true,
-    batchSize: 1000
+    batchSize: 1000,
   };
 
   constructor() {
@@ -70,18 +69,18 @@ export class MigrationManager {
     this.migrations.set(3, {
       version: 3,
       description: 'Add enhanced indexes for performance optimization',
-      up: async (db) => {
+      up: async db => {
         // Migration is handled by Dexie schema versioning
         // Add any data transformations here if needed
         logger.info('Upgrading to version 3 with enhanced indexes', 'migration');
 
         // Initialize compression metadata for existing large records
         await this.initializeCompressionMetadata(db);
-        
+
         // Optimize existing data
         await this.optimizeExistingData(db);
       },
-      validate: async (db) => {
+      validate: async db => {
         // Verify all new indexes are working
         try {
           await db.entries.where(['showId', 'status']).equals(['test', 'active']).count();
@@ -92,7 +91,7 @@ export class MigrationManager {
           logger.error('Index validation failed', 'migration', {}, error as Error);
           return false;
         }
-      }
+      },
     });
 
     // Future migration example
@@ -105,7 +104,7 @@ export class MigrationManager {
       },
       validate: async () => {
         return true;
-      }
+      },
     });
   }
 
@@ -117,21 +116,21 @@ export class MigrationManager {
    * @returns Migration result
    */
   async migrate(
-    db: DatabaseService, 
+    db: DatabaseService,
     targetVersion: number = DATABASE_VERSION,
     options?: Partial<MigrationOptions>
   ): Promise<MigrationResult> {
     const opts = { ...this.defaultOptions, ...options };
     const startTime = Date.now();
     const currentVersion = await this.getCurrentVersion(db);
-    
+
     const result: MigrationResult = {
       success: false,
       fromVersion: currentVersion,
       toVersion: targetVersion,
       migrations: [],
       duration: 0,
-      errors: []
+      errors: [],
     };
 
     try {
@@ -140,7 +139,7 @@ export class MigrationManager {
         targetVersion,
         currentMigration: 'Starting migration',
         progress: 0,
-        phase: 'backup'
+        phase: 'backup',
       });
 
       // Create backup if requested
@@ -151,13 +150,13 @@ export class MigrationManager {
           targetVersion,
           currentMigration: 'Backup created',
           progress: 10,
-          phase: 'backup'
+          phase: 'backup',
         });
       }
 
       // Get migrations to run
       const migrationsToRun = this.getMigrationsToRun(currentVersion, targetVersion);
-      
+
       if (migrationsToRun.length === 0) {
         result.success = true;
         result.duration = Date.now() - startTime;
@@ -175,21 +174,21 @@ export class MigrationManager {
             targetVersion,
             currentMigration: migration.description,
             progress,
-            phase: 'migration'
+            phase: 'migration',
           });
 
           await migration.up(db);
           result.migrations.push(migration.description);
-          
+
           progress += progressStep;
         } catch (error) {
           const errorMsg = `Migration ${migration.version} failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
           result.errors.push(errorMsg);
-          
+
           if (opts.rollbackOnFailure && result.backupCreated) {
             await this.rollback(db, result.backupCreated);
           }
-          
+
           throw new Error(errorMsg);
         }
       }
@@ -201,7 +200,7 @@ export class MigrationManager {
           targetVersion,
           currentMigration: 'Validating migrations',
           progress: 85,
-          phase: 'validation'
+          phase: 'validation',
         });
 
         for (const migration of migrationsToRun) {
@@ -222,12 +221,11 @@ export class MigrationManager {
         targetVersion,
         currentMigration: 'Migration complete',
         progress: 100,
-        phase: 'cleanup'
+        phase: 'cleanup',
       });
 
       result.success = true;
       result.toVersion = targetVersion;
-      
     } catch (error) {
       result.errors.push(error instanceof Error ? error.message : 'Unknown error');
     }
@@ -243,7 +241,7 @@ export class MigrationManager {
    */
   private async createBackup(db: DatabaseService): Promise<string> {
     const backupId = `backup_${Date.now()}`;
-    const backup: Record<string, any[]> = {};
+    const backup: Record<string, unknown[]> = {};
 
     // Export all stores
     for (const storeName of Object.keys(STORES)) {
@@ -258,11 +256,11 @@ export class MigrationManager {
     // Store in localStorage (or IndexedDB backup store in future)
     const compressed = await compressionService.compress(backup, {
       algorithm: 'gzip',
-      threshold: 0 // Always compress backups
+      threshold: 0, // Always compress backups
     });
 
     localStorage.setItem(`db_backup_${backupId}`, JSON.stringify(compressed));
-    
+
     // Store backup metadata
     const metadata = {
       id: backupId,
@@ -270,9 +268,9 @@ export class MigrationManager {
       version: await this.getCurrentVersion(db),
       compressed: compressed.compressed,
       originalSize: compressed.originalSize,
-      compressedSize: compressed.compressedSize
+      compressedSize: compressed.compressedSize,
     };
-    
+
     localStorage.setItem(`db_backup_meta_${backupId}`, JSON.stringify(metadata));
 
     return backupId;
@@ -297,7 +295,7 @@ export class MigrationManager {
       await db.clearAllStores();
 
       // Restore from backup
-      for (const [storeName, data] of Object.entries(backup as Record<string, any[]>)) {
+      for (const [storeName, data] of Object.entries(backup as Record<string, unknown[]>)) {
         if (Array.isArray(data) && data.length > 0) {
           await db.bulkCreate(storeName, data);
         }
@@ -317,7 +315,12 @@ export class MigrationManager {
    */
   private async getCurrentVersion(db: DatabaseService): Promise<number> {
     try {
-      const versionRecord = await db.read('_zustand_state', 'db_version') as any;
+      const versionRecord = await db.read<{
+        id: string;
+        version?: number;
+        state: string;
+        lastModified: Date;
+      }>('_zustand_state', 'db_version');
       return versionRecord?.version || 1;
     } catch (error) {
       return 1; // Default to version 1 if not found
@@ -334,7 +337,7 @@ export class MigrationManager {
       id: 'db_version',
       version,
       lastModified: new Date(),
-      state: JSON.stringify({ version })
+      state: JSON.stringify({ version }),
     });
   }
 
@@ -346,7 +349,7 @@ export class MigrationManager {
    */
   private getMigrationsToRun(fromVersion: number, toVersion: number): Migration[] {
     const migrations: Migration[] = [];
-    
+
     if (toVersion > fromVersion) {
       // Upgrade path
       for (let version = fromVersion + 1; version <= toVersion; version++) {
@@ -363,12 +366,12 @@ export class MigrationManager {
           migrations.push({
             ...migration,
             up: migration.down,
-            description: `Rollback: ${migration.description}`
+            description: `Rollback: ${migration.description}`,
           });
         }
       }
     }
-    
+
     return migrations;
   }
 
@@ -378,19 +381,19 @@ export class MigrationManager {
    */
   private async initializeCompressionMetadata(db: DatabaseService): Promise<void> {
     const largeDataThreshold = 10 * 1024; // 10KB
-    
+
     // Check dogs for large health records
     const dogs = await db.dogs.toArray();
     for (const dog of dogs) {
       const dogSize = JSON.stringify(dog).length;
       if (dogSize > largeDataThreshold) {
-        // Add compression metadata (using any type to bypass strict typing)
-        await (db.dogs as any).update(dog.id, {
+        // Add compression metadata via generic table access
+        await db.table('dogs').update(dog.id, {
           _compression: {
             eligible: true,
             size: dogSize,
-            lastAnalyzed: new Date()
-          }
+            lastAnalyzed: new Date(),
+          },
         });
       }
     }
@@ -400,12 +403,12 @@ export class MigrationManager {
     for (const show of shows) {
       const showSize = JSON.stringify(show).length;
       if (showSize > largeDataThreshold) {
-        await (db.shows as any).update(show.id, {
+        await db.table('shows').update(show.id, {
           _compression: {
             eligible: true,
             size: showSize,
-            lastAnalyzed: new Date()
-          }
+            lastAnalyzed: new Date(),
+          },
         });
       }
     }
@@ -422,7 +425,7 @@ export class MigrationManager {
       db.shows.count(),
       db.dogs.count(),
       db.people.count(),
-      db.classes.count()
+      db.classes.count(),
     ]);
 
     logger.info('Existing data optimized for new schema', 'migration');
@@ -434,7 +437,7 @@ export class MigrationManager {
    */
   async listBackups(): Promise<BackupMetadata[]> {
     const backups: BackupMetadata[] = [];
-    
+
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key?.startsWith('db_backup_meta_')) {

@@ -35,6 +35,13 @@ Top 3 source files over 800 lines — refactor when next modified:
 - [x] Added `reportOnFailure: true` so coverage reports even with test failures
 - [ ] Package coverage thresholds — deferred (need `@vitest/coverage-v8` dep + CI jobs)
 
+### myK9Show Test Failures (591 failing tests)
+
+- [ ] Fix 591 failing tests across 102 test files (2226 pass, 58 skipped, 2875 total)
+- Root cause: incomplete Supabase mock chains (e.g. `.select(...).is is not a function`)
+- Pre-existing failures — not caused by Session 1 changes
+- Session 1 only deleted tests that caused _hangs_, these just have assertion failures
+
 ### Remaining Sessions
 
 - [ ] Session 2: Type Safety — Packages + myK9Show (eliminate `as any`, fix `@ts-ignore`)

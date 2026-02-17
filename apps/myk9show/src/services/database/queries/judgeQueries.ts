@@ -8,7 +8,6 @@
  * in generated Supabase types, so we use type assertions for .from() calls.
  */
 
-import { supabase } from '../supabaseClient';
 import {
   JudgeQualification,
   CreateJudgeQualificationData,
@@ -16,10 +15,10 @@ import {
   JudgeQualificationFilters,
   JudgeQualificationSummary,
 } from '../../../types/judge-management';
+import { untypedFrom } from './search-query-helpers';
 
 // Helper to access the judge_qualifications table (not in generated types)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const qualificationsTable = () => (supabase as any).from('judge_qualifications');
+const qualificationsTable = () => untypedFrom('judge_qualifications');
 
 // Judge Qualification Operations
 export const judgeQualificationQueries = {
@@ -53,10 +52,11 @@ export const judgeQualificationQueries = {
   },
 
   // Get all qualifications for a judge
-  async getByJudgeId(judgeId: string, filters?: JudgeQualificationFilters): Promise<JudgeQualification[]> {
-    let query = qualificationsTable()
-      .select('*')
-      .eq('person_id', judgeId);
+  async getByJudgeId(
+    judgeId: string,
+    filters?: JudgeQualificationFilters
+  ): Promise<JudgeQualification[]> {
+    let query = qualificationsTable().select('*').eq('person_id', judgeId);
 
     // Apply filters
     if (filters?.organization) {
@@ -116,9 +116,7 @@ export const judgeQualificationQueries = {
 
   // Delete qualification
   async delete(id: string): Promise<void> {
-    const { error } = await qualificationsTable()
-      .delete()
-      .eq('id', id);
+    const { error } = await qualificationsTable().delete().eq('id', id);
 
     if (error) {
       throw new Error(`Failed to delete judge qualification: ${error.message}`);
@@ -132,7 +130,7 @@ export const judgeQualificationQueries = {
         suspension_date: new Date().toISOString(),
         suspension_reason: reason,
         is_active: false,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
       .eq('id', id)
       .select()
@@ -152,7 +150,7 @@ export const judgeQualificationQueries = {
         suspension_date: null,
         suspension_reason: null,
         is_active: true,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
       .eq('id', id)
       .select()
@@ -170,18 +168,19 @@ export const judgeQualificationQueries = {
     const qualifications = await this.getByJudgeId(judgeId);
 
     const activeQualifications = qualifications.filter(q => q.is_active);
-    const expiredQualifications = qualifications.filter(q =>
-      q.expiration_date && new Date(q.expiration_date) < new Date()
+    const expiredQualifications = qualifications.filter(
+      q => q.expiration_date && new Date(q.expiration_date) < new Date()
     );
     const suspendedQualifications = qualifications.filter(q => q.suspension_date);
 
     // Check for expiring qualifications (within 30 days)
     const thirtyDaysFromNow = new Date();
     thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-    const expiringSoon = qualifications.filter(q =>
-      q.expiration_date &&
-      new Date(q.expiration_date) <= thirtyDaysFromNow &&
-      new Date(q.expiration_date) >= new Date()
+    const expiringSoon = qualifications.filter(
+      q =>
+        q.expiration_date &&
+        new Date(q.expiration_date) <= thirtyDaysFromNow &&
+        new Date(q.expiration_date) >= new Date()
     );
 
     const summary: JudgeQualificationSummary = {
@@ -194,7 +193,7 @@ export const judgeQualificationQueries = {
       disciplines: [...new Set(qualifications.flatMap(q => q.disciplines))] as string[],
       latest_qualification: qualifications[0], // Already sorted by date desc
       qualifications_by_organization: {},
-      qualifications_by_level: {}
+      qualifications_by_level: {},
     };
 
     // Calculate distributions
@@ -207,5 +206,5 @@ export const judgeQualificationQueries = {
     });
 
     return summary;
-  }
+  },
 };

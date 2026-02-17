@@ -9,7 +9,7 @@ import {
   exportSettingsToFile,
   importSettingsFromFile,
   resetOnboarding,
-  reloadPage
+  reloadPage,
 } from './settingsHelpers';
 
 // Mock the dependencies
@@ -20,8 +20,8 @@ vi.mock('@/services/dataExportService', () => ({
     estimated: 1000,
     quota: 10000,
     percentUsed: 10,
-    localStorageSize: 500
-  })
+    localStorageSize: 500,
+  }),
 }));
 
 describe('exportPersonalDataHelper', () => {
@@ -58,11 +58,15 @@ describe('exportSettingsToFile', () => {
     const mockLink = {
       click: vi.fn(),
       href: '',
-      download: ''
+      download: '',
     };
     const createElement = vi.spyOn(document, 'createElement').mockReturnValue(mockLink as any);
-    const appendChild = vi.spyOn(document.body, 'appendChild').mockImplementation(() => mockLink as any);
-    const removeChild = vi.spyOn(document.body, 'removeChild').mockImplementation(() => mockLink as any);
+    const appendChild = vi
+      .spyOn(document.body, 'appendChild')
+      .mockImplementation(() => mockLink as any);
+    const removeChild = vi
+      .spyOn(document.body, 'removeChild')
+      .mockImplementation(() => mockLink as any);
 
     exportSettingsToFile(mockExportSettings, showToast);
 
@@ -79,7 +83,7 @@ describe('exportSettingsToFile', () => {
 describe('importSettingsFromFile', () => {
   test('should import valid settings file', async () => {
     const mockFile = {
-      text: vi.fn().mockResolvedValue('{"theme":"dark"}')
+      text: vi.fn().mockResolvedValue('{"theme":"dark"}'),
     } as any;
     const mockImportSettings = vi.fn().mockReturnValue(true);
     const showToast = vi.fn();
@@ -93,7 +97,7 @@ describe('importSettingsFromFile', () => {
 
   test('should handle invalid settings file', async () => {
     const mockFile = {
-      text: vi.fn().mockResolvedValue('invalid')
+      text: vi.fn().mockResolvedValue('invalid'),
     } as any;
     const mockImportSettings = vi.fn().mockReturnValue(false);
     const showToast = vi.fn();
@@ -118,8 +122,10 @@ describe('resetOnboarding', () => {
     // Mock window.location.reload
     const reloadSpy = vi.fn();
     const originalLocation = window.location;
-    // @ts-expect-error - mocking location
-    window.location = { ...originalLocation, reload: reloadSpy };
+    Object.defineProperty(window, 'location', {
+      writable: true,
+      value: { ...originalLocation, reload: reloadSpy },
+    });
 
     vi.useFakeTimers();
 
@@ -136,8 +142,10 @@ describe('resetOnboarding', () => {
 
     vi.useRealTimers();
     localStorage.removeItem = originalRemoveItem;
-    // @ts-expect-error - restoring location
-    window.location = originalLocation;
+    Object.defineProperty(window, 'location', {
+      writable: true,
+      value: originalLocation,
+    });
   });
 });
 
@@ -145,14 +153,18 @@ describe('reloadPage', () => {
   test('should call window.location.reload', () => {
     const reloadSpy = vi.fn();
     const originalLocation = window.location;
-    // @ts-expect-error - mocking location
-    window.location = { ...originalLocation, reload: reloadSpy };
+    Object.defineProperty(window, 'location', {
+      writable: true,
+      value: { ...originalLocation, reload: reloadSpy },
+    });
 
     reloadPage();
 
     expect(reloadSpy).toHaveBeenCalled();
 
-    // @ts-expect-error - restoring location
-    window.location = originalLocation;
+    Object.defineProperty(window, 'location', {
+      writable: true,
+      value: originalLocation,
+    });
   });
 });

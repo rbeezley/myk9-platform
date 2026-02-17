@@ -11,8 +11,6 @@
  * - Data transformation (rowToClub conversion)
  * - Error handling and edge cases
  */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ReplicatedClubsTable, type ReplicatedClub } from '../ReplicatedClubsTable';
 
@@ -442,9 +440,9 @@ describe('ReplicatedClubsTable', () => {
       });
 
       it('should throw error when updating non-existent club', async () => {
-        await expect(
-          table.updateClub('nonexistent', { name: 'New Name' })
-        ).rejects.toThrow('Club nonexistent not found');
+        await expect(table.updateClub('nonexistent', { name: 'New Name' })).rejects.toThrow(
+          'Club nonexistent not found'
+        );
       });
 
       it('should allow updating all mutable fields', async () => {
@@ -587,11 +585,11 @@ describe('ReplicatedClubsTable', () => {
   });
 
   describe('Sync Operations', () => {
-    let supabaseMock: any;
+    let supabaseMock: { from: ReturnType<typeof vi.fn> };
 
     beforeEach(async () => {
       const { supabase } = await import('@/services/database/supabaseClient');
-      supabaseMock = supabase;
+      supabaseMock = supabase as unknown as { from: ReturnType<typeof vi.fn> };
     });
 
     it('should sync successfully with no remote changes', async () => {
@@ -909,7 +907,12 @@ describe('ReplicatedClubsTable', () => {
         city: 'Portland',
       };
 
-      const resolved = (table as any).resolveConflict(localClub, remoteClub);
+      const resolveConflict = (
+        table as unknown as {
+          resolveConflict(local: ReplicatedClub, remote: ReplicatedClub): ReplicatedClub;
+        }
+      ).resolveConflict.bind(table);
+      const resolved = resolveConflict(localClub, remoteClub);
 
       expect(resolved).toBe(remoteClub);
       expect(resolved.name).toBe('Remote Name');
@@ -935,7 +938,12 @@ describe('ReplicatedClubsTable', () => {
         phone: '555-9999',
       };
 
-      const resolved = (table as any).resolveConflict(local, remote);
+      const resolveConflict2 = (
+        table as unknown as {
+          resolveConflict(local: ReplicatedClub, remote: ReplicatedClub): ReplicatedClub;
+        }
+      ).resolveConflict.bind(table);
+      const resolved = resolveConflict2(local, remote);
 
       expect(resolved).toBe(remote);
       expect(resolved.name).toBe('Remote');
@@ -1312,9 +1320,7 @@ describe('ReplicatedClubsTable', () => {
         city: i % 2 === 0 ? 'Seattle' : 'Portland',
       }));
 
-      const createdClubs = await Promise.all(
-        clubData.map(data => table.createClub(data))
-      );
+      const createdClubs = await Promise.all(clubData.map(data => table.createClub(data)));
 
       expect(createdClubs).toHaveLength(10);
 
@@ -1326,10 +1332,38 @@ describe('ReplicatedClubsTable', () => {
 
     it('should handle filtering clubs by multiple criteria', async () => {
       const clubs: ReplicatedClub[] = [
-        { id: 'club-1', name: 'Seattle Club A', email: 'a@seattle.com', phone: '555-0001', city: 'Seattle', state: 'WA' },
-        { id: 'club-2', name: 'Seattle Club B', email: 'b@seattle.com', phone: '555-0002', city: 'Seattle', state: 'WA' },
-        { id: 'club-3', name: 'Portland Club A', email: 'a@portland.com', phone: '555-0003', city: 'Portland', state: 'OR' },
-        { id: 'club-4', name: 'Portland Club B', email: 'b@portland.com', phone: '555-0004', city: 'Portland', state: 'OR' },
+        {
+          id: 'club-1',
+          name: 'Seattle Club A',
+          email: 'a@seattle.com',
+          phone: '555-0001',
+          city: 'Seattle',
+          state: 'WA',
+        },
+        {
+          id: 'club-2',
+          name: 'Seattle Club B',
+          email: 'b@seattle.com',
+          phone: '555-0002',
+          city: 'Seattle',
+          state: 'WA',
+        },
+        {
+          id: 'club-3',
+          name: 'Portland Club A',
+          email: 'a@portland.com',
+          phone: '555-0003',
+          city: 'Portland',
+          state: 'OR',
+        },
+        {
+          id: 'club-4',
+          name: 'Portland Club B',
+          email: 'b@portland.com',
+          phone: '555-0004',
+          city: 'Portland',
+          state: 'OR',
+        },
       ];
 
       for (const club of clubs) {

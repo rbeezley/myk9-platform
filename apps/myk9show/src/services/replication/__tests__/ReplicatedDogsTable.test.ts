@@ -11,11 +11,36 @@
  * - Query operations (by owner, by breed, search)
  * - Error handling and edge cases
  */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ReplicatedDogsTable, type ReplicatedDog } from '../ReplicatedDogsTable';
 import type { ReplicatedRow, SyncMetadata } from '@myk9/replication';
+
+/** Mock IndexedDB shape used by ReplicatedTable.init() */
+interface MockIDBDatabase {
+  get: ReturnType<typeof vi.fn>;
+  put: ReturnType<typeof vi.fn>;
+  delete: ReturnType<typeof vi.fn>;
+  transaction: ReturnType<typeof vi.fn>;
+  objectStoreNames: { contains: ReturnType<typeof vi.fn> };
+}
+
+/** Snake-case database row returned by Supabase for dogs */
+interface DogDbRow {
+  id: string;
+  name: string;
+  call_name?: string | null;
+  breed: string;
+  sex?: string | null;
+  date_of_birth?: string | null;
+  owner_id?: string | null;
+  height?: string | null;
+  weight?: string | null;
+  color?: string | null;
+  microchip_number?: string | null;
+  spayed_neutered?: boolean | null;
+  image_url?: string | null;
+  updated_at: string;
+}
 
 // Mock dependencies
 vi.mock('@/services/database/supabaseClient', () => ({
@@ -38,7 +63,7 @@ import { logger } from '@myk9/core';
 
 describe('ReplicatedDogsTable', () => {
   let dogsTable: ReplicatedDogsTable;
-  let mockDb: any;
+  let mockDb: MockIDBDatabase;
 
   // Helper to create mock dog data
   const createMockDog = (overrides: Partial<ReplicatedDog> = {}): ReplicatedDog => ({
@@ -59,7 +84,7 @@ describe('ReplicatedDogsTable', () => {
   });
 
   // Helper to create mock database row
-  const createMockRow = (dog: ReplicatedDog): any => ({
+  const createMockRow = (dog: ReplicatedDog): DogDbRow => ({
     id: dog.id,
     name: dog.name,
     call_name: dog.callName,
@@ -107,7 +132,10 @@ describe('ReplicatedDogsTable', () => {
     };
 
     // Mock the init method to return our mock DB
-    vi.spyOn(dogsTable as any, 'init').mockResolvedValue(mockDb);
+    vi.spyOn(
+      dogsTable as unknown as { init: () => Promise<MockIDBDatabase> },
+      'init'
+    ).mockResolvedValue(mockDb);
   });
 
   afterEach(() => {
@@ -120,7 +148,7 @@ describe('ReplicatedDogsTable', () => {
     });
 
     it('should initialize with default TTL', () => {
-      expect((dogsTable as any).ttl).toBeGreaterThan(0);
+      expect((dogsTable as unknown as { ttl: number }).ttl).toBeGreaterThan(0);
     });
   });
 
@@ -155,7 +183,11 @@ describe('ReplicatedDogsTable', () => {
         mockDb.delete.mockResolvedValue(undefined);
 
         // Mock cacheManager's isExpired to return true
-        const cacheManager = (dogsTable as any).cacheManager;
+        const cacheManager = (
+          dogsTable as unknown as {
+            cacheManager: { isExpired: (row: ReplicatedRow<ReplicatedDog>) => boolean };
+          }
+        ).cacheManager;
         vi.spyOn(cacheManager, 'isExpired').mockReturnValue(true);
 
         const result = await dogsTable.getDogById('1');
@@ -229,10 +261,12 @@ describe('ReplicatedDogsTable', () => {
         mockDb.transaction.mockReturnValue(mockTx);
 
         // Mock cacheManager's isExpired
-        const cacheManager = (dogsTable as any).cacheManager;
-        vi.spyOn(cacheManager, 'isExpired')
-          .mockReturnValueOnce(false)
-          .mockReturnValueOnce(true);
+        const cacheManager = (
+          dogsTable as unknown as {
+            cacheManager: { isExpired: (row: ReplicatedRow<ReplicatedDog>) => boolean };
+          }
+        ).cacheManager;
+        vi.spyOn(cacheManager, 'isExpired').mockReturnValueOnce(false).mockReturnValueOnce(true);
 
         const result = await dogsTable.getAllDogs();
 
@@ -264,17 +298,15 @@ describe('ReplicatedDogsTable', () => {
 
         expect(mockDb.get).toHaveBeenCalledWith('replicated_tables', ['dogs', '1']);
 
-        expect(logger.log).toHaveBeenCalledWith(
-          expect.stringContaining('Updated dog 1')
-        );
+        expect(logger.log).toHaveBeenCalledWith(expect.stringContaining('Updated dog 1'));
       });
 
       it('should throw error when dog not found', async () => {
         mockDb.get.mockResolvedValue(null);
 
-        await expect(
-          dogsTable.updateDog('999', { name: 'New Name' })
-        ).rejects.toThrow('Dog 999 not found');
+        await expect(dogsTable.updateDog('999', { name: 'New Name' })).rejects.toThrow(
+          'Dog 999 not found'
+        );
       });
 
       it('should mark dog as dirty when updated', async () => {
@@ -324,11 +356,7 @@ describe('ReplicatedDogsTable', () => {
         expect(result._syncStatus).toBe('pending');
         expect(result._localOnly).toBe(true);
 
-        expect(setSpy).toHaveBeenCalledWith(
-          result.id,
-          expect.objectContaining(newDogData),
-          true
-        );
+        expect(setSpy).toHaveBeenCalledWith(result.id, expect.objectContaining(newDogData), true);
 
         expect(logger.log).toHaveBeenCalledWith(
           expect.stringContaining(`Created new dog ${result.id}`)
@@ -362,9 +390,7 @@ describe('ReplicatedDogsTable', () => {
         await dogsTable.delete('1');
 
         expect(mockDb.delete).toHaveBeenCalledWith('replicated_tables', ['dogs', '1']);
-        expect(logger.log).toHaveBeenCalledWith(
-          expect.stringContaining('Deleted row: 1')
-        );
+        expect(logger.log).toHaveBeenCalledWith(expect.stringContaining('Deleted row: 1'));
       });
     });
   });
@@ -418,7 +444,10 @@ describe('ReplicatedDogsTable', () => {
         // Clear all existing spies before each search test
         vi.restoreAllMocks();
         // Re-mock init
-        vi.spyOn(dogsTable as any, 'init').mockResolvedValue(mockDb);
+        vi.spyOn(
+          dogsTable as unknown as { init: () => Promise<MockIDBDatabase> },
+          'init'
+        ).mockResolvedValue(mockDb);
       });
 
       it('should search by dog name (case-insensitive)', async () => {
@@ -482,9 +511,7 @@ describe('ReplicatedDogsTable', () => {
       });
 
       it('should handle search with special characters', async () => {
-        const dogs = [
-          createMockDog({ id: '1', name: "Max's Dog" }),
-        ];
+        const dogs = [createMockDog({ id: '1', name: "Max's Dog" })];
 
         vi.spyOn(dogsTable, 'getAll').mockResolvedValue(dogs);
 
@@ -511,9 +538,7 @@ describe('ReplicatedDogsTable', () => {
       });
 
       it('should return empty array when no dogs of breed', async () => {
-        const dogs = [
-          createMockDog({ id: '1', name: 'Max', breed: 'German Shepherd' }),
-        ];
+        const dogs = [createMockDog({ id: '1', name: 'Max', breed: 'German Shepherd' })];
 
         vi.spyOn(dogsTable, 'getAll').mockResolvedValue(dogs);
 
@@ -562,7 +587,9 @@ describe('ReplicatedDogsTable', () => {
           eq: vi.fn().mockResolvedValue({ data: mockRemoteDogs, error: null }),
         };
 
-        vi.mocked(supabase.from).mockReturnValue(mockQuery as any);
+        vi.mocked(supabase.from).mockReturnValue(
+          mockQuery as unknown as ReturnType<typeof supabase.from>
+        );
 
         const result = await dogsTable.sync('owner-123');
 
@@ -597,7 +624,9 @@ describe('ReplicatedDogsTable', () => {
           eq: vi.fn().mockResolvedValue({ data: [], error: null }),
         };
 
-        vi.mocked(supabase.from).mockReturnValue(mockQuery as any);
+        vi.mocked(supabase.from).mockReturnValue(
+          mockQuery as unknown as ReturnType<typeof supabase.from>
+        );
 
         const updateMetadataSpy = vi.spyOn(dogsTable, 'updateSyncMetadata').mockResolvedValue();
 
@@ -612,9 +641,7 @@ describe('ReplicatedDogsTable', () => {
         vi.spyOn(dogsTable, 'getSyncMetadata').mockResolvedValue(null);
         vi.spyOn(dogsTable, 'getAll').mockResolvedValue([]);
 
-        const mockRemoteDogs = [
-          createMockRow(createMockDog({ id: '1', name: 'Max' })),
-        ];
+        const mockRemoteDogs = [createMockRow(createMockDog({ id: '1', name: 'Max' }))];
 
         const mockQuery = {
           select: vi.fn().mockReturnThis(),
@@ -623,7 +650,9 @@ describe('ReplicatedDogsTable', () => {
           eq: vi.fn().mockResolvedValue({ data: mockRemoteDogs, error: null }),
         };
 
-        vi.mocked(supabase.from).mockReturnValue(mockQuery as any);
+        vi.mocked(supabase.from).mockReturnValue(
+          mockQuery as unknown as ReturnType<typeof supabase.from>
+        );
 
         vi.spyOn(dogsTable, 'get').mockResolvedValue(null);
         vi.spyOn(dogsTable, 'set').mockResolvedValue();
@@ -650,7 +679,9 @@ describe('ReplicatedDogsTable', () => {
           eq: vi.fn().mockResolvedValue({ data: [], error: null }),
         };
 
-        vi.mocked(supabase.from).mockReturnValue(mockQuery as any);
+        vi.mocked(supabase.from).mockReturnValue(
+          mockQuery as unknown as ReturnType<typeof supabase.from>
+        );
         vi.spyOn(dogsTable, 'updateSyncMetadata').mockResolvedValue();
 
         await dogsTable.sync('owner-123');
@@ -672,7 +703,9 @@ describe('ReplicatedDogsTable', () => {
           }),
         };
 
-        vi.mocked(supabase.from).mockReturnValue(mockQuery as any);
+        vi.mocked(supabase.from).mockReturnValue(
+          mockQuery as unknown as ReturnType<typeof supabase.from>
+        );
 
         const result = await dogsTable.sync('owner-123');
 
@@ -720,7 +753,9 @@ describe('ReplicatedDogsTable', () => {
           eq: vi.fn().mockResolvedValue({ data: [mockRemoteRow], error: null }),
         };
 
-        vi.mocked(supabase.from).mockReturnValue(mockQuery as any);
+        vi.mocked(supabase.from).mockReturnValue(
+          mockQuery as unknown as ReturnType<typeof supabase.from>
+        );
         vi.spyOn(dogsTable, 'updateSyncMetadata').mockResolvedValue();
 
         const result = await dogsTable.sync('owner-123');
@@ -768,7 +803,9 @@ describe('ReplicatedDogsTable', () => {
           eq: vi.fn().mockResolvedValue({ data: [mockRemoteRow], error: null }),
         };
 
-        vi.mocked(supabase.from).mockReturnValue(mockQuery as any);
+        vi.mocked(supabase.from).mockReturnValue(
+          mockQuery as unknown as ReturnType<typeof supabase.from>
+        );
         vi.spyOn(dogsTable, 'updateSyncMetadata').mockResolvedValue();
 
         await dogsTable.sync('owner-123');
@@ -810,7 +847,9 @@ describe('ReplicatedDogsTable', () => {
           eq: vi.fn().mockResolvedValue({ data: [mockRemoteRow], error: null }),
         };
 
-        vi.mocked(supabase.from).mockReturnValue(mockQuery as any);
+        vi.mocked(supabase.from).mockReturnValue(
+          mockQuery as unknown as ReturnType<typeof supabase.from>
+        );
         vi.spyOn(dogsTable, 'updateSyncMetadata').mockResolvedValue();
 
         await dogsTable.sync('owner-123');
@@ -890,7 +929,9 @@ describe('ReplicatedDogsTable', () => {
         eq: vi.fn().mockResolvedValue({ data: [dbRow], error: null }),
       };
 
-      vi.mocked(supabase.from).mockReturnValue(mockQuery as any);
+      vi.mocked(supabase.from).mockReturnValue(
+        mockQuery as unknown as ReturnType<typeof supabase.from>
+      );
       vi.spyOn(dogsTable, 'updateSyncMetadata').mockResolvedValue();
 
       await dogsTable.sync('owner-123');
@@ -905,9 +946,9 @@ describe('ReplicatedDogsTable', () => {
       expect(camelCaseDog.imageUrl).toBe('https://example.com/dog.jpg');
 
       // Verify no snake_case properties
-      expect((camelCaseDog as any).call_name).toBeUndefined();
-      expect((camelCaseDog as any).date_of_birth).toBeUndefined();
-      expect((camelCaseDog as any).owner_id).toBeUndefined();
+      expect((camelCaseDog as unknown as Record<string, unknown>).call_name).toBeUndefined();
+      expect((camelCaseDog as unknown as Record<string, unknown>).date_of_birth).toBeUndefined();
+      expect((camelCaseDog as unknown as Record<string, unknown>).owner_id).toBeUndefined();
     });
 
     it('should handle null values in database row', async () => {
@@ -948,7 +989,9 @@ describe('ReplicatedDogsTable', () => {
         eq: vi.fn().mockResolvedValue({ data: [dbRow], error: null }),
       };
 
-      vi.mocked(supabase.from).mockReturnValue(mockQuery as any);
+      vi.mocked(supabase.from).mockReturnValue(
+        mockQuery as unknown as ReturnType<typeof supabase.from>
+      );
       vi.spyOn(dogsTable, 'updateSyncMetadata').mockResolvedValue();
 
       await dogsTable.sync('owner-123');
@@ -989,7 +1032,9 @@ describe('ReplicatedDogsTable', () => {
         eq: vi.fn().mockResolvedValue({ data: [], error: null }),
       };
 
-      vi.mocked(supabase.from).mockReturnValue(mockQuery as any);
+      vi.mocked(supabase.from).mockReturnValue(
+        mockQuery as unknown as ReturnType<typeof supabase.from>
+      );
       vi.spyOn(dogsTable, 'updateSyncMetadata').mockResolvedValue();
 
       const result = await dogsTable.sync('owner-123');
@@ -1011,7 +1056,9 @@ describe('ReplicatedDogsTable', () => {
         }),
       };
 
-      vi.mocked(supabase.from).mockReturnValue(mockQuery as any);
+      vi.mocked(supabase.from).mockReturnValue(
+        mockQuery as unknown as ReturnType<typeof supabase.from>
+      );
 
       const result = await dogsTable.sync('owner-123');
 

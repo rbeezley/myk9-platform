@@ -1,3 +1,4 @@
+import React from 'react';
 import { toast } from 'sonner';
 import { CheckCircle, XCircle, AlertCircle, Info, Loader2 } from 'lucide-react';
 
@@ -18,12 +19,13 @@ export const notifications = {
     return toast.success(message, {
       description: options?.description,
       duration: options?.duration || 4000,
-      action: options?.action ? {
-        label: options.action.label,
-        onClick: options.action.onClick,
-      } : undefined,
-      // @ts-expect-error - sonner accepts React components
-      icon: CheckCircle,
+      action: options?.action
+        ? {
+            label: options.action.label,
+            onClick: options.action.onClick,
+          }
+        : undefined,
+      icon: React.createElement(CheckCircle),
     });
   },
 
@@ -32,12 +34,13 @@ export const notifications = {
     return toast.error(message, {
       description: options?.description,
       duration: options?.duration || 6000, // Longer for errors
-      action: options?.action ? {
-        label: options.action.label,
-        onClick: options.action.onClick,
-      } : undefined,
-      // @ts-expect-error - sonner accepts React components
-      icon: XCircle,
+      action: options?.action
+        ? {
+            label: options.action.label,
+            onClick: options.action.onClick,
+          }
+        : undefined,
+      icon: React.createElement(XCircle),
     });
   },
 
@@ -46,12 +49,13 @@ export const notifications = {
     return toast.warning(message, {
       description: options?.description,
       duration: options?.duration || 5000,
-      action: options?.action ? {
-        label: options.action.label,
-        onClick: options.action.onClick,
-      } : undefined,
-      // @ts-expect-error - sonner accepts React components
-      icon: AlertCircle,
+      action: options?.action
+        ? {
+            label: options.action.label,
+            onClick: options.action.onClick,
+          }
+        : undefined,
+      icon: React.createElement(AlertCircle),
     });
   },
 
@@ -60,12 +64,13 @@ export const notifications = {
     return toast.info(message, {
       description: options?.description,
       duration: options?.duration || 4000,
-      action: options?.action ? {
-        label: options.action.label,
-        onClick: options.action.onClick,
-      } : undefined,
-      // @ts-expect-error - sonner accepts React components
-      icon: Info,
+      action: options?.action
+        ? {
+            label: options.action.label,
+            onClick: options.action.onClick,
+          }
+        : undefined,
+      icon: React.createElement(Info),
     });
   },
 
@@ -73,8 +78,7 @@ export const notifications = {
   loading: (message: string, options?: Omit<NotificationOptions, 'action'>) => {
     return toast.loading(message, {
       description: options?.description,
-      // @ts-expect-error - sonner accepts React components
-      icon: Loader2,
+      icon: React.createElement(Loader2),
     });
   },
 
@@ -89,14 +93,10 @@ export const notifications = {
   ) => {
     return toast.promise(promise, {
       loading: messages.loading,
-      success: (result) => 
-        typeof messages.success === 'function' 
-          ? messages.success(result)
-          : messages.success,
-      error: (error) =>
-        typeof messages.error === 'function'
-          ? messages.error(error)
-          : messages.error,
+      success: result =>
+        typeof messages.success === 'function' ? messages.success(result) : messages.success,
+      error: error =>
+        typeof messages.error === 'function' ? messages.error(error) : messages.error,
     });
   },
 

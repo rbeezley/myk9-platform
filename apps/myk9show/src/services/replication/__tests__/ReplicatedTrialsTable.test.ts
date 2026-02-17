@@ -13,8 +13,6 @@
  * - Trial relationship with classes (trials contain multiple classes)
  * - Data transformation (snake_case to camelCase)
  */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ReplicatedTrialsTable, type ReplicatedTrial } from '../ReplicatedTrialsTable';
 
@@ -480,11 +478,11 @@ describe('ReplicatedTrialsTable', () => {
   });
 
   describe('Sync Operations', () => {
-    let supabaseMock: any;
+    let supabaseMock: { from: ReturnType<typeof vi.fn> };
 
     beforeEach(async () => {
       const { supabase } = await import('@/services/database/supabaseClient');
-      supabaseMock = supabase;
+      supabaseMock = supabase as unknown as { from: ReturnType<typeof vi.fn> };
     });
 
     it('should sync successfully with no remote changes', async () => {
@@ -803,8 +801,13 @@ describe('ReplicatedTrialsTable', () => {
         maxEntriesPerDog: 5,
       };
 
-      // Access protected method via any cast
-      const resolved = (table as any).resolveConflict(localTrial, remoteTrial);
+      // Access protected method via type assertion
+      const resolveConflict = (
+        table as unknown as {
+          resolveConflict(local: ReplicatedTrial, remote: ReplicatedTrial): ReplicatedTrial;
+        }
+      ).resolveConflict.bind(table);
+      const resolved = resolveConflict(localTrial, remoteTrial);
 
       // Server wins - remote trial should be returned
       expect(resolved).toBe(remoteTrial);
@@ -828,7 +831,12 @@ describe('ReplicatedTrialsTable', () => {
         maxTotalEntries: 200,
       };
 
-      const resolved = (table as any).resolveConflict(local, remote);
+      const resolveConflict2 = (
+        table as unknown as {
+          resolveConflict(local: ReplicatedTrial, remote: ReplicatedTrial): ReplicatedTrial;
+        }
+      ).resolveConflict.bind(table);
+      const resolved = resolveConflict2(local, remote);
 
       expect(resolved).toBe(remote);
       expect(resolved.name).toBe('Remote');
@@ -1156,11 +1164,41 @@ describe('ReplicatedTrialsTable', () => {
     it('should handle multi-day show with multiple trials', async () => {
       // Create trials for a 3-day show
       const trials: ReplicatedTrial[] = [
-        { id: 'trial-1', name: 'Friday AM', date: '2024-06-14', showId: 'show-1', trialNumber: '2024-001' },
-        { id: 'trial-2', name: 'Friday PM', date: '2024-06-14', showId: 'show-1', trialNumber: '2024-002' },
-        { id: 'trial-3', name: 'Saturday AM', date: '2024-06-15', showId: 'show-1', trialNumber: '2024-003' },
-        { id: 'trial-4', name: 'Saturday PM', date: '2024-06-15', showId: 'show-1', trialNumber: '2024-004' },
-        { id: 'trial-5', name: 'Sunday AM', date: '2024-06-16', showId: 'show-1', trialNumber: '2024-005' },
+        {
+          id: 'trial-1',
+          name: 'Friday AM',
+          date: '2024-06-14',
+          showId: 'show-1',
+          trialNumber: '2024-001',
+        },
+        {
+          id: 'trial-2',
+          name: 'Friday PM',
+          date: '2024-06-14',
+          showId: 'show-1',
+          trialNumber: '2024-002',
+        },
+        {
+          id: 'trial-3',
+          name: 'Saturday AM',
+          date: '2024-06-15',
+          showId: 'show-1',
+          trialNumber: '2024-003',
+        },
+        {
+          id: 'trial-4',
+          name: 'Saturday PM',
+          date: '2024-06-15',
+          showId: 'show-1',
+          trialNumber: '2024-004',
+        },
+        {
+          id: 'trial-5',
+          name: 'Sunday AM',
+          date: '2024-06-16',
+          showId: 'show-1',
+          trialNumber: '2024-005',
+        },
       ];
 
       for (const trial of trials) {

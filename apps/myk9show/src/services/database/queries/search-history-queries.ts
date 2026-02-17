@@ -10,7 +10,7 @@ import type {
   SearchHistory,
   CreateSearchHistoryData,
   UpdateSearchHistoryData,
-  SearchHistoryFilters
+  SearchHistoryFilters,
 } from '../../../types/search-analytics';
 import { searchHistoryMappers } from '../../mappers/searchMappers';
 import { untypedFrom, type SearchHistoryRow } from './search-query-helpers';
@@ -48,8 +48,7 @@ export const searchHistoryQueries = {
 
   // Get search history for a user
   async getByUserId(userId: string, filters?: SearchHistoryFilters): Promise<SearchHistory[]> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let query: any = untypedFrom('search_history')
+    let query: ReturnType<typeof untypedFrom> = untypedFrom('search_history')
       .select('*')
       .eq('user_id', userId);
 
@@ -84,7 +83,9 @@ export const searchHistoryQueries = {
       throw new Error(`Failed to fetch search history: ${(error as Error).message}`);
     }
 
-    return ((searchHistory as SearchHistoryRow[]) || []).map(item => searchHistoryMappers.fromDatabase(item));
+    return ((searchHistory as SearchHistoryRow[]) || []).map(item =>
+      searchHistoryMappers.fromDatabase(item)
+    );
   },
 
   // Update search history (typically for click tracking)
@@ -106,9 +107,7 @@ export const searchHistoryQueries = {
 
   // Delete search history
   async delete(id: string): Promise<void> {
-    const { error } = await untypedFrom('search_history')
-      .delete()
-      .eq('id', id);
+    const { error } = await untypedFrom('search_history').delete().eq('id', id);
 
     if (error) {
       throw new Error(`Failed to delete search history: ${(error as Error).message}`);
@@ -127,7 +126,9 @@ export const searchHistoryQueries = {
       throw new Error(`Failed to fetch recent searches: ${(error as Error).message}`);
     }
 
-    return ((searches as SearchHistoryRow[]) || []).map(item => searchHistoryMappers.fromDatabase(item));
+    return ((searches as SearchHistoryRow[]) || []).map(item =>
+      searchHistoryMappers.fromDatabase(item)
+    );
   },
 
   // Get unique search terms for user
@@ -143,7 +144,9 @@ export const searchHistoryQueries = {
     }
 
     // Deduplicate and limit
-    const uniqueTerms = [...new Set(((searches as SearchHistoryRow[]) || []).map(s => s.search_term))];
+    const uniqueTerms = [
+      ...new Set(((searches as SearchHistoryRow[]) || []).map(s => s.search_term)),
+    ];
     return uniqueTerms.slice(0, limit);
   },
 
@@ -158,6 +161,8 @@ export const searchHistoryQueries = {
       throw new Error(`Failed to create search history batch: ${(error as Error).message}`);
     }
 
-    return ((searchHistory as SearchHistoryRow[]) || []).map(item => searchHistoryMappers.fromDatabase(item));
-  }
+    return ((searchHistory as SearchHistoryRow[]) || []).map(item =>
+      searchHistoryMappers.fromDatabase(item)
+    );
+  },
 };

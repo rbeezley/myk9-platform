@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Performance monitoring hooks for tracking hook usage and re-renders
  */
@@ -50,7 +49,7 @@ export function useRenderTracker(componentName: string, props?: Record<string, u
     const startTime = startTimeRef.current || performance.now();
     startTimeRef.current = performance.now(); // Reset for next render
     const renderTime = performance.now() - startTime;
-    
+
     // Update global metrics
     if (!globalMetrics[componentName]) {
       globalMetrics[componentName] = {
@@ -58,7 +57,7 @@ export function useRenderTracker(componentName: string, props?: Record<string, u
         lastRenderTime: 0,
         totalRenderTime: 0,
         averageRenderTime: 0,
-        changes: []
+        changes: [],
       };
     }
 
@@ -70,20 +69,23 @@ export function useRenderTracker(componentName: string, props?: Record<string, u
 
     // Track prop changes if props provided
     if (props && prevProps.current) {
-      const changes = Object.keys(props).reduce((acc, key) => {
-        const oldValue = prevProps.current?.[key];
-        const newValue = props[key];
-        
-        if (oldValue !== newValue) {
-          acc.push({
-            prop: key,
-            oldValue,
-            newValue,
-            timestamp: Date.now()
-          });
-        }
-        return acc;
-      }, [] as Array<{prop: string; oldValue: unknown; newValue: unknown; timestamp: number}>);
+      const changes = Object.keys(props).reduce(
+        (acc, key) => {
+          const oldValue = prevProps.current?.[key];
+          const newValue = props[key];
+
+          if (oldValue !== newValue) {
+            acc.push({
+              prop: key,
+              oldValue,
+              newValue,
+              timestamp: Date.now(),
+            });
+          }
+          return acc;
+        },
+        [] as Array<{ prop: string; oldValue: unknown; newValue: unknown; timestamp: number }>
+      );
 
       if (changes.length > 0) {
         metrics.changes.push(...changes);
@@ -97,11 +99,12 @@ export function useRenderTracker(componentName: string, props?: Record<string, u
     prevProps.current = props;
 
     // Log performance warnings for excessive renders
-    if (renderTime > 16) { // More than one frame (16ms)
+    if (renderTime > 16) {
+      // More than one frame (16ms)
       logger.warn('Slow render detected', 'performance', {
         component: componentName,
         renderTime,
-        renderCount: renderCount.current
+        renderCount: renderCount.current,
       });
     }
 
@@ -109,14 +112,14 @@ export function useRenderTracker(componentName: string, props?: Record<string, u
       logger.warn('Excessive renders detected', 'performance', {
         component: componentName,
         renderCount: renderCount.current,
-        averageRenderTime: metrics.averageRenderTime
+        averageRenderTime: metrics.averageRenderTime,
       });
     }
   });
 
   return {
     renderCount: renderCountState,
-    getMetrics: () => globalMetrics[componentName]
+    getMetrics: () => globalMetrics[componentName],
   };
 }
 
@@ -134,38 +137,38 @@ export function useHookTracker<T extends ReadonlyArray<unknown>>(
 
   useEffect(() => {
     execCount.current += 1;
-    
+
     // Check which dependencies changed
-    const changedDeps: Array<{index: number; oldValue: unknown; newValue: unknown}> = [];
+    const changedDeps: Array<{ index: number; oldValue: unknown; newValue: unknown }> = [];
     dependencies.forEach((dep, index) => {
       if (prevDeps.current[index] !== dep) {
         changedDeps.push({
           index,
           oldValue: prevDeps.current[index],
-          newValue: dep
+          newValue: dep,
         });
       }
     });
 
     if (changedDeps.length > 0) {
       depChangeCount.current += 1;
-      
+
       logger.debug('Hook dependencies changed', 'performance', {
         hookName,
         execCount: execCount.current,
         changedDeps,
-        totalDeps: dependencies.length
+        totalDeps: dependencies.length,
       });
     }
 
     prevDeps.current = dependencies;
     callback?.();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hookName, callback, ...dependencies]);
 
   return {
     execCount: execCount.current,
-    depChangeCount: depChangeCount.current
+    depChangeCount: depChangeCount.current,
   };
 }
 
@@ -182,33 +185,33 @@ export function usePerformanceMeasure(measureName: string) {
 
   const end = useCallback(() => {
     if (!startMark.current) return 0;
-    
+
     const endMark = `${measureName}-end-${Date.now()}`;
     performance.mark(endMark);
-    
+
     try {
       performance.measure(measureName, startMark.current, endMark);
       const entries = performance.getEntriesByName(measureName);
       const lastEntry = entries[entries.length - 1];
-      
+
       if (lastEntry) {
         logger.debug('Performance measure', 'performance', {
           measureName,
           duration: lastEntry.duration,
-          startTime: lastEntry.startTime
+          startTime: lastEntry.startTime,
         });
-        
+
         // Clean up marks and measures
         performance.clearMarks(startMark.current);
         performance.clearMarks(endMark);
         performance.clearMeasures(measureName);
-        
+
         return lastEntry.duration;
       }
     } catch (error) {
       logger.error('Performance measure failed', 'performance', { measureName, error });
     }
-    
+
     startMark.current = null;
     return 0;
   }, [measureName]);
@@ -221,13 +224,13 @@ export function usePerformanceMeasure(measureName: string) {
  */
 export function usePerformanceInsights() {
   const [insights, setInsights] = useState<{
-    slowComponents: Array<{name: string; avgRenderTime: number; renderCount: number}>;
-    excessiveRenders: Array<{name: string; renderCount: number}>;
+    slowComponents: Array<{ name: string; avgRenderTime: number; renderCount: number }>;
+    excessiveRenders: Array<{ name: string; renderCount: number }>;
     recommendations: string[];
   }>({
     slowComponents: [],
     excessiveRenders: [],
-    recommendations: []
+    recommendations: [],
   });
 
   const generateInsights = useCallback(() => {
@@ -236,7 +239,7 @@ export function usePerformanceInsights() {
       .map(([name, metrics]) => ({
         name,
         avgRenderTime: metrics.averageRenderTime,
-        renderCount: metrics.renderCount
+        renderCount: metrics.renderCount,
       }))
       .sort((a, b) => b.avgRenderTime - a.avgRenderTime)
       .slice(0, 10);
@@ -245,18 +248,18 @@ export function usePerformanceInsights() {
       .filter(([, metrics]) => metrics.renderCount > 50)
       .map(([name, metrics]) => ({
         name,
-        renderCount: metrics.renderCount
+        renderCount: metrics.renderCount,
       }))
       .sort((a, b) => b.renderCount - a.renderCount)
       .slice(0, 10);
 
     const recommendations: string[] = [];
-    
+
     if (slowComponents.length > 0) {
       recommendations.push('Consider memoizing slow components with React.memo()');
       recommendations.push('Review expensive calculations and wrap with useMemo()');
     }
-    
+
     if (excessiveRenders.length > 0) {
       recommendations.push('Check for unnecessary prop changes causing re-renders');
       recommendations.push('Consider consolidating related state updates');
@@ -266,7 +269,7 @@ export function usePerformanceInsights() {
     setInsights({
       slowComponents,
       excessiveRenders,
-      recommendations
+      recommendations,
     });
   }, []);
 
@@ -275,7 +278,7 @@ export function usePerformanceInsights() {
     setInsights({
       slowComponents: [],
       excessiveRenders: [],
-      recommendations: []
+      recommendations: [],
     });
   }, []);
 
@@ -283,7 +286,7 @@ export function usePerformanceInsights() {
     return {
       timestamp: new Date().toISOString(),
       metrics: globalMetrics,
-      insights
+      insights,
     };
   }, [insights]);
 
@@ -292,7 +295,7 @@ export function usePerformanceInsights() {
     generateInsights,
     clearMetrics,
     exportMetrics,
-    getAllMetrics: () => globalMetrics
+    getAllMetrics: () => globalMetrics,
   };
 }
 
@@ -305,7 +308,7 @@ export function usePerformanceDebugger(enabled: boolean = process.env.NODE_ENV =
 
     // Set up performance observer to catch long tasks
     if ('PerformanceObserver' in window) {
-      const observer = new PerformanceObserver((list) => {
+      const observer = new PerformanceObserver(list => {
         const longTasks = list.getEntries().filter(entry => entry.duration > 50);
 
         if (longTasks.length > 0) {
@@ -313,8 +316,8 @@ export function usePerformanceDebugger(enabled: boolean = process.env.NODE_ENV =
             tasks: longTasks.map(task => ({
               duration: task.duration,
               startTime: task.startTime,
-              name: task.name
-            }))
+              name: task.name,
+            })),
           });
         }
       });
@@ -337,25 +340,29 @@ export function usePerformanceDebugger(enabled: boolean = process.env.NODE_ENV =
 
     const commands = {
       getPerformanceMetrics: () => globalMetrics,
-      clearPerformanceMetrics: () => { globalMetrics = {}; },
+      clearPerformanceMetrics: () => {
+        globalMetrics = {};
+      },
       logSlowComponents: () => {
         const slow = Object.entries(globalMetrics)
           .filter(([, metrics]) => metrics.averageRenderTime > 16)
           .sort(([, a], [, b]) => b.averageRenderTime - a.averageRenderTime);
-        
-        console.table(slow.map(([name, metrics]) => ({
-          component: name,
-          avgRenderTime: metrics.averageRenderTime.toFixed(2) + 'ms',
-          renderCount: metrics.renderCount
-        })));
-      }
+
+        console.table(
+          slow.map(([name, metrics]) => ({
+            component: name,
+            avgRenderTime: metrics.averageRenderTime.toFixed(2) + 'ms',
+            renderCount: metrics.renderCount,
+          }))
+        );
+      },
     };
 
     // Add to global scope for debugging
     Object.assign(window, { performanceDebug: commands });
 
     return () => {
-      delete (window as any).performanceDebug;
+      delete (window as unknown as Record<string, unknown>).performanceDebug;
     };
   }, [enabled]);
 }

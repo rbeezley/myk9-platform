@@ -59,6 +59,10 @@ export interface SearchAnalyticsRow {
 /**
  * Query a table that is not yet in the generated Supabase Database type.
  * These tables exist at runtime but are absent from the type definition.
+ *
+ * Uses `unknown` cast to bypass the strict `.from()` overloads while still
+ * returning a chainable Postgrest query builder at runtime.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const untypedFrom = (table: string) => (supabase as any).from(table);
+export const untypedFrom = (table: string) =>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- intentional escape hatch for tables not in generated types
+  (supabase as unknown as { from(t: string): any }).from(table);

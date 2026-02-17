@@ -9,8 +9,6 @@
  * - Entry filtering and search operations (by class, show, armband)
  * - Data transformation (rowToEntry conversion)
  */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ReplicatedEntriesTable, type ReplicatedEntry } from '../ReplicatedEntriesTable';
 
@@ -235,9 +233,9 @@ describe('ReplicatedEntriesTable', () => {
     });
 
     it('should throw error when updating status of non-existent entry', async () => {
-      await expect(
-        table.updateEntryStatus('nonexistent', 'checked-in')
-      ).rejects.toThrow('Entry nonexistent not found');
+      await expect(table.updateEntryStatus('nonexistent', 'checked-in')).rejects.toThrow(
+        'Entry nonexistent not found'
+      );
     });
 
     it('should support status transitions: registered -> checked-in -> scoring -> completed', async () => {
@@ -301,9 +299,9 @@ describe('ReplicatedEntriesTable', () => {
     });
 
     it('should throw error when updating non-existent entry', async () => {
-      await expect(
-        table.updateEntry('nonexistent', { armband: '102' })
-      ).rejects.toThrow('Entry nonexistent not found');
+      await expect(table.updateEntry('nonexistent', { armband: '102' })).rejects.toThrow(
+        'Entry nonexistent not found'
+      );
     });
 
     it('should update lastModified timestamp on update', async () => {
@@ -418,11 +416,11 @@ describe('ReplicatedEntriesTable', () => {
   });
 
   describe('Sync Operations', () => {
-    let supabaseMock: any;
+    let supabaseMock: { from: ReturnType<typeof vi.fn> };
 
     beforeEach(async () => {
       const { supabase } = await import('@/services/database/supabaseClient');
-      supabaseMock = supabase;
+      supabaseMock = supabase as unknown as { from: ReturnType<typeof vi.fn> };
     });
 
     it('should sync successfully with no remote changes', async () => {
@@ -664,8 +662,13 @@ describe('ReplicatedEntriesTable', () => {
         dogCallName: 'Max',
       };
 
-      // Access protected method via any cast
-      const resolved = (table as any).resolveConflict(localEntry, remoteEntry);
+      // Access protected method via type assertion
+      const resolveConflict = (
+        table as unknown as {
+          resolveConflict(local: ReplicatedEntry, remote: ReplicatedEntry): ReplicatedEntry;
+        }
+      ).resolveConflict.bind(table);
+      const resolved = resolveConflict(localEntry, remoteEntry);
 
       // Server wins - remote entry should be returned
       expect(resolved).toBe(remoteEntry);
@@ -687,7 +690,12 @@ describe('ReplicatedEntriesTable', () => {
         totalPoints: 0,
       };
 
-      const resolved = (table as any).resolveConflict(local, remote);
+      const resolveConflict2 = (
+        table as unknown as {
+          resolveConflict(local: ReplicatedEntry, remote: ReplicatedEntry): ReplicatedEntry;
+        }
+      ).resolveConflict.bind(table);
+      const resolved = resolveConflict2(local, remote);
 
       expect(resolved).toBe(remote);
       expect(resolved.isScored).toBe(false);
@@ -1060,10 +1068,34 @@ describe('ReplicatedEntriesTable', () => {
 
     it('should handle filtering entries by multiple criteria', async () => {
       const entries: ReplicatedEntry[] = [
-        { id: 'entry-1', classId: 'class-1', showId: 'show-1', armband: '101', status: 'registered' },
-        { id: 'entry-2', classId: 'class-1', showId: 'show-1', armband: '102', status: 'checked-in' },
-        { id: 'entry-3', classId: 'class-1', showId: 'show-2', armband: '101', status: 'registered' },
-        { id: 'entry-4', classId: 'class-2', showId: 'show-1', armband: '201', status: 'registered' },
+        {
+          id: 'entry-1',
+          classId: 'class-1',
+          showId: 'show-1',
+          armband: '101',
+          status: 'registered',
+        },
+        {
+          id: 'entry-2',
+          classId: 'class-1',
+          showId: 'show-1',
+          armband: '102',
+          status: 'checked-in',
+        },
+        {
+          id: 'entry-3',
+          classId: 'class-1',
+          showId: 'show-2',
+          armband: '101',
+          status: 'registered',
+        },
+        {
+          id: 'entry-4',
+          classId: 'class-2',
+          showId: 'show-1',
+          armband: '201',
+          status: 'registered',
+        },
       ];
 
       for (const entry of entries) {

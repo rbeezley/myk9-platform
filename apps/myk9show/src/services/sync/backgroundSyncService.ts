@@ -3,12 +3,11 @@
  * Implements Service Worker integration and intelligent sync scheduling
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import { logger } from '@/services/LoggingService';
 import { ensureError } from '@myk9/core';
 import { supabase } from '@/lib/supabase';
 import type { Database } from '@/types/supabase';
+import type { NavigatorExtended } from '@/types/browser-apis';
 
 /** Valid Supabase table names derived from the Database schema */
 type TableName = keyof Database['public']['Tables'] & string;
@@ -84,7 +83,7 @@ export class BackgroundSyncService {
       networkTimeout: 30000,
       batchSize: 10,
       enableServiceWorker: true,
-      ...options
+      ...options,
     };
 
     this.networkStatus = this.getCurrentNetworkStatus();
@@ -106,15 +105,15 @@ export class BackgroundSyncService {
         clientId: this.getClientId(),
         timestamp: new Date(),
         userAgent: navigator.userAgent,
-        version: __APP_VERSION__
-      }
+        version: __APP_VERSION__,
+      },
     };
 
     this.syncTasks.set(syncTask.id, syncTask);
-    
+
     // Store in IndexedDB for persistence
     await this.persistSyncTask(syncTask);
-    
+
     // Try immediate sync if online and not processing
     if (this.networkStatus.online && !this.isProcessing) {
       this.processSyncQueue();
@@ -206,20 +205,18 @@ export class BackgroundSyncService {
   getSyncStatistics(): SyncStatistics {
     const tasks = Array.from(this.syncTasks.values());
     const results = Array.from(this.syncResults.values());
-    
+
     return {
       pendingTasks: tasks.length,
       completedTasks: results.filter(r => r.success).length,
       failedTasks: results.filter(r => !r.success).length,
       totalTasks: tasks.length + results.length,
-      averageRetries: results.length > 0 
-        ? results.reduce((sum, r) => sum + r.attempts, 0) / results.length 
-        : 0,
-      averageDuration: results.length > 0
-        ? results.reduce((sum, r) => sum + r.duration, 0) / results.length
-        : 0,
+      averageRetries:
+        results.length > 0 ? results.reduce((sum, r) => sum + r.attempts, 0) / results.length : 0,
+      averageDuration:
+        results.length > 0 ? results.reduce((sum, r) => sum + r.duration, 0) / results.length : 0,
       networkQuality: this.networkStatus.quality,
-      lastSyncAttempt: Math.max(...results.map(r => r.timestamp.getTime()), 0)
+      lastSyncAttempt: Math.max(...results.map(r => r.timestamp.getTime()), 0),
     };
   }
 
@@ -263,8 +260,7 @@ export class BackgroundSyncService {
     let processedCount = 0;
 
     try {
-      const pendingTasks = this.getPendingSyncTasks()
-        .slice(0, this.options.batchSize);
+      const pendingTasks = this.getPendingSyncTasks().slice(0, this.options.batchSize);
 
       for (const task of pendingTasks) {
         try {
@@ -280,7 +276,7 @@ export class BackgroundSyncService {
 
           const result = await this.executeSyncTask(task);
           this.syncResults.set(task.id, result);
-          
+
           if (result.success) {
             this.syncTasks.delete(task.id);
             await this.removePersistentSyncTask(task.id);
@@ -300,15 +296,13 @@ export class BackgroundSyncService {
           if (this.networkStatus.quality === 'poor') {
             await this.delay(1000);
           }
-
         } catch (error) {
           logger.error('Error processing sync task', 'sync', {}, ensureError(error));
-          this.onSyncErrorCallbacks.forEach(callback => 
+          this.onSyncErrorCallbacks.forEach(callback =>
             callback(error instanceof Error ? error : new Error(String(error)), task)
           );
         }
       }
-
     } finally {
       this.isProcessing = false;
     }
@@ -327,9 +321,8 @@ export class BackgroundSyncService {
         success: true,
         attempts: task.attempts + 1,
         duration: Date.now() - startTime,
-        timestamp: new Date()
+        timestamp: new Date(),
       };
-
     } catch (error) {
       return {
         taskId: task.id,
@@ -337,7 +330,7 @@ export class BackgroundSyncService {
         error: error instanceof Error ? error.message : String(error),
         attempts: task.attempts + 1,
         duration: Date.now() - startTime,
-        timestamp: new Date()
+        timestamp: new Date(),
       };
     }
   }
@@ -350,14 +343,14 @@ export class BackgroundSyncService {
 
     switch (task.type) {
       case 'create': {
-        const { error } = await supabase
-          .from(tableName)
-          .insert(task.data ?? {});
+        const { error } = await supabase.from(tableName).insert(task.data ?? {});
 
         if (error) {
           if (error.code === '23505') {
             // Unique constraint violation — row already exists, treat as update
-            throw new Error(`CONFLICT:${JSON.stringify({ code: error.code, message: error.message })}`);
+            throw new Error(
+              `CONFLICT:${JSON.stringify({ code: error.code, message: error.message })}`
+            );
           }
           throw new Error(`Supabase insert on '${tableName}' failed: ${error.message}`);
         }
@@ -372,15 +365,14 @@ export class BackgroundSyncService {
           throw new Error(`No data provided for update on '${tableName}'`);
         }
 
-        const { error } = await supabase
-          .from(tableName)
-          .update(task.data)
-          .eq('id', task.entityId);
+        const { error } = await supabase.from(tableName).update(task.data).eq('id', task.entityId);
 
         if (error) {
           if (error.code === 'PGRST116') {
             // No rows matched — possible concurrent delete or version conflict
-            throw new Error(`CONFLICT:${JSON.stringify({ code: error.code, message: error.message })}`);
+            throw new Error(
+              `CONFLICT:${JSON.stringify({ code: error.code, message: error.message })}`
+            );
           }
           throw new Error(`Supabase update on '${tableName}' failed: ${error.message}`);
         }
@@ -390,10 +382,7 @@ export class BackgroundSyncService {
       }
 
       case 'delete': {
-        const { error } = await supabase
-          .from(tableName)
-          .delete()
-          .eq('id', task.entityId);
+        const { error } = await supabase.from(tableName).delete().eq('id', task.entityId);
 
         if (error) {
           throw new Error(`Supabase delete on '${tableName}' failed: ${error.message}`);
@@ -433,12 +422,16 @@ export class BackgroundSyncService {
     return mapped;
   }
 
-  private async updateLocalEntity(entity: string, entityId: string, updates: Record<string, unknown>): Promise<void> {
+  private async updateLocalEntity(
+    entity: string,
+    entityId: string,
+    updates: Record<string, unknown>
+  ): Promise<void> {
     // Update local store with server data
     // This would integrate with your Zustand stores
     try {
       const event = new CustomEvent('sync-entity-updated', {
-        detail: { entity, entityId, updates }
+        detail: { entity, entityId, updates },
       });
       window.dispatchEvent(event);
     } catch (error) {
@@ -471,8 +464,8 @@ export class BackgroundSyncService {
 
     // Monitor connection changes if supported
     if ('connection' in navigator) {
-      const connection = (navigator as any).connection;
-      connection.addEventListener('change', () => {
+      const connection = (navigator as NavigatorExtended).connection;
+      connection?.addEventListener('change', () => {
         this.updateNetworkStatus();
       });
     }
@@ -481,7 +474,7 @@ export class BackgroundSyncService {
   private updateNetworkStatus(): void {
     const oldStatus = this.networkStatus;
     this.networkStatus = this.getCurrentNetworkStatus();
-    
+
     // Notify listeners if status changed
     if (JSON.stringify(oldStatus) !== JSON.stringify(this.networkStatus)) {
       this.onNetworkChangeCallbacks.forEach(callback => callback(this.networkStatus));
@@ -489,15 +482,15 @@ export class BackgroundSyncService {
   }
 
   private getCurrentNetworkStatus(): NetworkStatus {
-    const connection = (navigator as any).connection;
-    
+    const connection = (navigator as NavigatorExtended).connection;
+
     const status: NetworkStatus = {
       online: navigator.onLine,
       connectionType: connection?.type || 'unknown',
       effectiveType: connection?.effectiveType || 'unknown',
       downlink: connection?.downlink || 0,
       rtt: connection?.rtt || 0,
-      quality: 'good' // Default
+      quality: 'good', // Default
     };
 
     // Determine quality based on connection info
@@ -519,11 +512,14 @@ export class BackgroundSyncService {
 
     try {
       this.serviceWorkerRegistration = await navigator.serviceWorker.register('/sw.js');
-      
+
       // Register for background sync if supported
       if ('sync' in this.serviceWorkerRegistration) {
         // Background sync will be handled by the service worker
-        await (this.serviceWorkerRegistration as any).sync.register('background-sync');
+        const reg = this.serviceWorkerRegistration as ServiceWorkerRegistration & {
+          sync: { register(tag: string): Promise<void> };
+        };
+        await reg.sync.register('background-sync');
       }
     } catch (error) {
       logger.warn('Service Worker registration failed', 'sync', {}, ensureError(error));
@@ -543,15 +539,15 @@ export class BackgroundSyncService {
     try {
       // Store in IndexedDB for persistence across browser sessions
       const request = indexedDB.open('BackgroundSyncDB', 1);
-      
-      request.onupgradeneeded = (event) => {
+
+      request.onupgradeneeded = event => {
         const db = (event.target as IDBOpenDBRequest).result;
         if (!db.objectStoreNames.contains('syncTasks')) {
           db.createObjectStore('syncTasks', { keyPath: 'id' });
         }
       };
 
-      request.onsuccess = (event) => {
+      request.onsuccess = event => {
         const db = (event.target as IDBOpenDBRequest).result;
         const transaction = db.transaction(['syncTasks'], 'readwrite');
         const store = transaction.objectStore('syncTasks');
@@ -565,8 +561,8 @@ export class BackgroundSyncService {
   private async removePersistentSyncTask(taskId: string): Promise<void> {
     try {
       const request = indexedDB.open('BackgroundSyncDB', 1);
-      
-      request.onsuccess = (event) => {
+
+      request.onsuccess = event => {
         const db = (event.target as IDBOpenDBRequest).result;
         const transaction = db.transaction(['syncTasks'], 'readwrite');
         const store = transaction.objectStore('syncTasks');

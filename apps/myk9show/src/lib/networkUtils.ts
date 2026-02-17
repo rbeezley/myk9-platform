@@ -4,6 +4,7 @@
 
 import React from 'react';
 import { logger } from '@/services/LoggingService';
+import type { NavigatorExtended } from '@/types/browser-apis';
 
 // Network error types
 export enum NetworkErrorType {
@@ -12,7 +13,7 @@ export enum NetworkErrorType {
   SERVER_ERROR = 'server_error',
   CLIENT_ERROR = 'client_error',
   RATE_LIMIT = 'rate_limit',
-  UNKNOWN = 'unknown'
+  UNKNOWN = 'unknown',
 }
 
 export interface NetworkError extends Error {
@@ -41,7 +42,7 @@ const DEFAULT_RETRY_CONFIG: RetryConfig = {
   baseDelay: 1000, // 1 second
   maxDelay: 30000, // 30 seconds
   backoffFactor: 2,
-  jitter: true
+  jitter: true,
 };
 
 /**
@@ -70,7 +71,7 @@ export class NetworkClient {
       isRetryable = true;
     } else {
       const status = response.status;
-      
+
       if (status >= 500) {
         type = NetworkErrorType.SERVER_ERROR;
         isRetryable = true;
@@ -93,7 +94,7 @@ export class NetworkClient {
       ...(response?.status !== undefined && { status: response.status }),
       ...(retryAfter !== undefined && { retryAfter }),
       isRetryable,
-      message: error.message || `Network error: ${type}`
+      message: error.message || `Network error: ${type}`,
     };
 
     return networkError;
@@ -108,7 +109,7 @@ export class NetworkClient {
     }
 
     let delay = config.baseDelay * Math.pow(config.backoffFactor, attempt);
-    
+
     if (config.jitter) {
       // Add ±25% jitter
       const jitterRange = delay * 0.25;
@@ -142,7 +143,7 @@ export class NetworkClient {
 
         const response = await fetch(url, {
           ...fetchConfig,
-          signal: controller.signal
+          signal: controller.signal,
         });
 
         clearTimeout(timeoutId);
@@ -151,11 +152,11 @@ export class NetworkClient {
         if (!response.ok) {
           const error = new Error(`HTTP ${response.status}: ${response.statusText}`);
           const networkError = this.classifyError(error, response);
-          
+
           if (!networkError.isRetryable || attempt === retryConfig.maxRetries) {
             throw networkError;
           }
-          
+
           lastError = networkError;
         } else {
           // Success - return response
@@ -163,18 +164,22 @@ export class NetworkClient {
         }
       } catch (error) {
         const networkError = this.classifyError(error as Error);
-        
+
         if (!networkError.isRetryable || attempt === retryConfig.maxRetries) {
           throw networkError;
         }
-        
+
         lastError = networkError;
       }
 
       // Calculate delay before retry
       if (attempt < retryConfig.maxRetries) {
         const delay = this.calculateDelay(attempt, retryConfig, lastError?.retryAfter);
-        logger.debug(`Request failed, retrying in ${delay}ms (attempt ${attempt + 1}/${retryConfig.maxRetries})`, 'lib', {});
+        logger.debug(
+          `Request failed, retrying in ${delay}ms (attempt ${attempt + 1}/${retryConfig.maxRetries})`,
+          'lib',
+          {}
+        );
         await this.sleep(delay);
       }
     }
@@ -191,8 +196,8 @@ export class NetworkClient {
       ...config,
       headers: {
         'Content-Type': 'application/json',
-        ...config.headers
-      }
+        ...config.headers,
+      },
     });
 
     if (!response.ok) {
@@ -209,7 +214,7 @@ export class NetworkClient {
     return this.fetchJson<T>(url, {
       ...config,
       method: 'POST',
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
     });
   }
 
@@ -220,7 +225,7 @@ export class NetworkClient {
     return this.fetchJson<T>(url, {
       ...config,
       method: 'PUT',
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
     });
   }
 
@@ -230,7 +235,7 @@ export class NetworkClient {
   async delete<T = unknown>(url: string, config: RequestConfig = {}): Promise<T> {
     return this.fetchJson<T>(url, {
       ...config,
-      method: 'DELETE'
+      method: 'DELETE',
     });
   }
 }
@@ -279,7 +284,7 @@ export function useNetworkRequest<T>(
     data,
     loading,
     error,
-    retry: executeRequest
+    retry: executeRequest,
   };
 }
 
@@ -318,15 +323,15 @@ export function useNetworkQuality(): NetworkQuality | null {
   const [quality, setQuality] = React.useState<NetworkQuality | null>(null);
 
   React.useEffect(() => {
-    // @ts-expect-error - NetworkInformation is experimental
-    const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    const nav = navigator as NavigatorExtended;
+    const connection = nav.connection || nav.mozConnection || nav.webkitConnection;
 
     if (connection) {
       const updateQuality = () => {
         setQuality({
           effectiveType: connection.effectiveType || 'unknown',
           downlink: connection.downlink || 0,
-          rtt: connection.rtt || 0
+          rtt: connection.rtt || 0,
         });
       };
 
@@ -357,7 +362,7 @@ export class ErrorLogger {
     const errorEntry = {
       error,
       timestamp: new Date(),
-      ...(context !== undefined && { context })
+      ...(context !== undefined && { context }),
     };
 
     this.errors.push(errorEntry);

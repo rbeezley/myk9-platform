@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createScoringStore } from './scoringStore';
-import type { CompetitionType, Score } from '../types';
+import type { CompetitionType, QualifyingResult, Score } from '../types';
 
 describe('scoringStore', () => {
   // Create a fresh store for each test to avoid state leakage
@@ -38,13 +38,15 @@ describe('scoringStore', () => {
 
   describe('startScoringSession', () => {
     it('should start a session with provided parameters', () => {
-      store.getState().startScoringSession(
-        42,
-        'Novice Container',
-        'AKC_SCENT_WORK' as CompetitionType,
-        'judge-abc',
-        10
-      );
+      store
+        .getState()
+        .startScoringSession(
+          42,
+          'Novice Container',
+          'AKC_SCENT_WORK' as CompetitionType,
+          'judge-abc',
+          10
+        );
 
       const state = store.getState();
       expect(state.isScoring).toBe(true);
@@ -477,7 +479,7 @@ describe('scoringStore', () => {
 
       const scores = store.getState().currentSession!.scores;
       expect(scores).toHaveLength(5);
-      scores.forEach((score) => {
+      scores.forEach(score => {
         expect(score.syncStatus).toBe('pending');
       });
     });
@@ -600,7 +602,7 @@ describe('scoringStore', () => {
         'ASCA_SCENT_DETECTION',
       ];
 
-      competitionTypes.forEach((type) => {
+      competitionTypes.forEach(type => {
         localStorage.clear();
         const testStore = createScoringStore();
 
@@ -745,13 +747,13 @@ describe('scoringStore', () => {
     });
 
     it('should handle all qualifying result codes', () => {
-      const results = ['Q', 'NQ', 'EX', 'DQ', 'E', 'ABS', 'WD'];
+      const results: QualifyingResult[] = ['Q', 'NQ', 'EX', 'DQ', 'E', 'ABS', 'WD'];
 
       results.forEach((result, index) => {
         store.getState().submitScore({
           entryId: index + 1,
           armband: index + 100,
-          qualifying: result as any,
+          qualifying: result,
         });
       });
 
@@ -759,13 +761,19 @@ describe('scoringStore', () => {
     });
 
     it('should handle verbose qualifying results', () => {
-      const verboseResults = ['Qualified', 'Excused', 'Withdrawn', 'Eliminated', 'Absent'];
+      const verboseResults: QualifyingResult[] = [
+        'Qualified',
+        'Excused',
+        'Withdrawn',
+        'Eliminated',
+        'Absent',
+      ];
 
       verboseResults.forEach((result, index) => {
         store.getState().submitScore({
           entryId: index + 1,
           armband: index + 100,
-          qualifying: result as any,
+          qualifying: result,
         });
       });
 
@@ -830,11 +838,11 @@ describe('scoringStore', () => {
       store.getState().updateScoreSync(15, 'synced');
 
       const scores = store.getState().currentSession!.scores;
-      const targetScore = scores.find((s) => s.entryId === 15);
+      const targetScore = scores.find(s => s.entryId === 15);
       expect(targetScore!.syncStatus).toBe('synced');
 
       // All other scores should still be pending
-      const pendingCount = scores.filter((s) => s.syncStatus === 'pending').length;
+      const pendingCount = scores.filter(s => s.syncStatus === 'pending').length;
       expect(pendingCount).toBe(29);
     });
   });

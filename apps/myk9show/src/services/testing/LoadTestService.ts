@@ -5,11 +5,11 @@
  * and validate optimization effectiveness at scale.
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { faker } from '@faker-js/faker';
 import type { Dog } from '@/types/dog-types';
 import type { User } from '@/types/user-types';
 import type { Show } from '@/types/show-types';
+import type { PerformanceExtended } from '@/types/browser-apis';
 import { useDogStore } from '@/store/dogStore';
 import { useUserStore } from '@/store/userStore';
 import { useShowStore } from '@/store/showStore';
@@ -46,16 +46,15 @@ export interface LoadTestResults {
 }
 
 export class LoadTestService {
-
   /**
    * Run comprehensive load test with specified data volumes
    */
   async runLoadTest(config: LoadTestConfig): Promise<LoadTestResults> {
     logger.debug(`🧪 Starting load test:`, 'testing', { data: config });
-    
+
     const startTime = performance.now();
     const memoryBefore = this.getMemoryUsage();
-    
+
     try {
       // Generate test data
       const dataGenStart = performance.now();
@@ -85,13 +84,13 @@ export class LoadTestService {
           totalTime: performance.now() - startTime,
           memoryBefore,
           memoryAfter,
-          memoryDelta: memoryAfter - memoryBefore
+          memoryDelta: memoryAfter - memoryBefore,
         },
         performance: {
           ...performanceMetrics,
-          ...renderMetrics
+          ...renderMetrics,
         },
-        success: true
+        success: true,
       };
 
       logger.debug(`✅ Load test completed:`, 'testing', { data: results });
@@ -102,7 +101,6 @@ export class LoadTestService {
       }
 
       return results;
-
     } catch (error) {
       logger.error('❌ Load test failed:', 'services', {}, error as Error);
       return {
@@ -114,16 +112,16 @@ export class LoadTestService {
           totalTime: performance.now() - startTime,
           memoryBefore,
           memoryAfter: this.getMemoryUsage(),
-          memoryDelta: 0
+          memoryDelta: 0,
         },
         performance: {
           domNodes: 0,
           storeSize: 0,
           renderFPS: 0,
-          searchLatency: 0
+          searchLatency: 0,
         },
         success: false,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       };
     }
   }
@@ -132,7 +130,11 @@ export class LoadTestService {
    * Generate realistic test data
    */
   private generateTestData(config: LoadTestConfig) {
-    logger.debug(`📊 Generating ${config.people} people, ${config.dogs} dogs, ${config.shows} shows...`, 'services', {});
+    logger.debug(
+      `📊 Generating ${config.people} people, ${config.dogs} dogs, ${config.shows} shows...`,
+      'services',
+      {}
+    );
 
     // Generate people first
     const people: User[] = [];
@@ -150,15 +152,24 @@ export class LoadTestService {
         membershipId: faker.string.alphanumeric(8),
         roles: ['exhibitor'],
         createdAt: faker.date.past(),
-        updatedAt: faker.date.recent()
+        updatedAt: faker.date.recent(),
       });
     }
 
     // Generate dogs with realistic breed distribution
     const commonBreeds = [
-      'Golden Retriever', 'Labrador Retriever', 'German Shepherd', 'Bulldog',
-      'Poodle', 'Beagle', 'Rottweiler', 'Yorkshire Terrier', 'Dachshund',
-      'Siberian Husky', 'Boxer', 'Border Collie'
+      'Golden Retriever',
+      'Labrador Retriever',
+      'German Shepherd',
+      'Bulldog',
+      'Poodle',
+      'Beagle',
+      'Rottweiler',
+      'Yorkshire Terrier',
+      'Dachshund',
+      'Siberian Husky',
+      'Boxer',
+      'Border Collie',
     ];
 
     const dogs: Dog[] = [];
@@ -177,15 +188,17 @@ export class LoadTestService {
         weight: faker.number.int({ min: 10, max: 150 }).toString(),
         height: faker.number.int({ min: 10, max: 35 }).toString(),
         microchipNumber: faker.string.numeric(15),
-        registrations: [{
-          id: faker.string.uuid(),
-          organization: faker.helpers.arrayElement(['AKC', 'UKC', 'CKC']),
-          registeredName: faker.animal.dog(),
-          breed: faker.helpers.arrayElement(commonBreeds),
-          registrationNumber: faker.string.alphanumeric(10),
-          status: 'Active',
-          registrationDate: faker.date.past().toISOString()
-        }]
+        registrations: [
+          {
+            id: faker.string.uuid(),
+            organization: faker.helpers.arrayElement(['AKC', 'UKC', 'CKC']),
+            registeredName: faker.animal.dog(),
+            breed: faker.helpers.arrayElement(commonBreeds),
+            registrationNumber: faker.string.alphanumeric(10),
+            status: 'Active',
+            registrationDate: faker.date.past().toISOString(),
+          },
+        ],
       });
     }
 
@@ -214,7 +227,7 @@ export class LoadTestService {
         chiefSteward: faker.person.fullName(),
         assignedJudges: [],
         stats: [],
-        trials: []
+        trials: [],
       });
     }
 
@@ -224,7 +237,7 @@ export class LoadTestService {
   /**
    * Populate stores with test data
    */
-  private async populateStores(testData: { people: User[], dogs: Dog[], shows: Show[] }) {
+  private async populateStores(testData: { people: User[]; dogs: Dog[]; shows: Show[] }) {
     const dogStore = useDogStore.getState();
     const userStore = useUserStore.getState();
     const showStore = useShowStore.getState();
@@ -253,20 +266,20 @@ export class LoadTestService {
 
     for (const page of pages) {
       const start = performance.now();
-      
+
       // Simulate navigation (in real app this would trigger route changes)
       window.history.pushState({}, '', page);
-      
+
       // Wait for render
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       const time = performance.now() - start;
       totalTime += time;
       totalFrames++;
     }
 
     const renderFPS = totalFrames / (totalTime / 1000);
-    
+
     // Test search latency
     const searchStart = performance.now();
     // Simulate search operation
@@ -275,7 +288,7 @@ export class LoadTestService {
 
     return {
       renderFPS,
-      searchLatency
+      searchLatency,
     };
   }
 
@@ -290,14 +303,14 @@ export class LoadTestService {
     const storeSize = JSON.stringify({
       dogs: dogStore.dogs,
       people: userStore.people,
-      shows: showStore.shows
+      shows: showStore.shows,
     }).length;
 
     const domNodes = document.querySelectorAll('*').length;
 
     return {
       domNodes,
-      storeSize
+      storeSize,
     };
   }
 
@@ -306,8 +319,8 @@ export class LoadTestService {
    */
   private getMemoryUsage(): number {
     if ('memory' in performance) {
-      const memInfo = (performance as any).memory;
-      return memInfo.usedJSHeapSize / 1024 / 1024; // MB
+      const memInfo = (performance as PerformanceExtended).memory;
+      return memInfo ? memInfo.usedJSHeapSize / 1024 / 1024 : 0; // MB
     }
     return 0;
   }
@@ -317,7 +330,7 @@ export class LoadTestService {
    */
   private async cleanupTestData() {
     logger.debug('🧹 Cleaning up test data...', 'services', {});
-    
+
     const dogStore = useDogStore.getState();
     const userStore = useUserStore.getState();
     const showStore = useShowStore.getState();
@@ -331,7 +344,11 @@ export class LoadTestService {
     testPeople.forEach(person => userStore.removePerson(person.id));
     testShows.forEach(show => showStore.removeShow(show.id));
 
-    logger.debug(`🗑️ Cleaned up ${testDogs.length} dogs, ${testPeople.length} people, ${testShows.length} shows`, 'services', {});
+    logger.debug(
+      `🗑️ Cleaned up ${testDogs.length} dogs, ${testPeople.length} people, ${testShows.length} shows`,
+      'services',
+      {}
+    );
   }
 
   /**
@@ -349,18 +366,18 @@ export class LoadTestService {
       { name: 'Small Scale', dogs: 100, people: 50, shows: 5, entries: 200 },
       { name: 'Medium Scale', dogs: 1000, people: 500, shows: 20, entries: 2000 },
       { name: 'Large Scale', dogs: 5000, people: 2000, shows: 50, entries: 10000 },
-      { name: 'Stress Test', dogs: 10000, people: 5000, shows: 100, entries: 20000 }
+      { name: 'Stress Test', dogs: 10000, people: 5000, shows: 100, entries: 20000 },
     ];
 
     const results = [];
-    
+
     for (const scenario of scenarios) {
       logger.debug(`\n🚀 Running ${scenario.name} test...`, 'services', {});
-      
+
       const config: LoadTestConfig = {
         ...scenario,
         measurePerformance: true,
-        cleanupAfter: true
+        cleanupAfter: true,
       };
 
       const result = await this.runLoadTest(config);

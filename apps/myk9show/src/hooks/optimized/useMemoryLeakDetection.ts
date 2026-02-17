@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unsafe-function-type */
 /**
  * Memory leak detection and monitoring system
@@ -6,6 +5,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { LoggingService } from '@/services/LoggingService';
+import type { PerformanceExtended, WindowExtended } from '@/types/browser-apis';
 
 const logger = LoggingService.getInstance();
 
@@ -35,12 +35,13 @@ let leakThreshold = 50 * 1024 * 1024; // 50MB threshold
  */
 function getMemoryMetrics(): MemoryMetrics | null {
   if ('memory' in performance) {
-    const memory = (performance as any).memory;
+    const memory = (performance as PerformanceExtended).memory;
+    if (!memory) return null;
     return {
       usedJSHeapSize: memory.usedJSHeapSize,
       totalJSHeapSize: memory.totalJSHeapSize,
       jsHeapSizeLimit: memory.jsHeapSizeLimit,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
   }
   return null;
@@ -57,19 +58,19 @@ export function useMemoryTracker(componentName: string) {
     const metrics = getMemoryMetrics();
     if (metrics) {
       mountMemory.current = metrics.usedJSHeapSize;
-      
+
       const componentInfo: ComponentMemoryInfo = {
         name: componentName,
         mountTime: Date.now(),
-        memoryAtMount: metrics.usedJSHeapSize
+        memoryAtMount: metrics.usedJSHeapSize,
       };
-      
+
       componentRegistry.set(mountId.current, componentInfo);
-      
+
       logger.debug('Component mounted', 'memoryTracker', {
         component: componentName,
         memoryAtMount: metrics.usedJSHeapSize,
-        totalComponents: componentRegistry.size
+        totalComponents: componentRegistry.size,
       });
     }
 
@@ -77,36 +78,36 @@ export function useMemoryTracker(componentName: string) {
       // Copy ref value to avoid stale reference
       // eslint-disable-next-line react-hooks/exhaustive-deps
       const currentMountId = mountId.current;
-      
+
       const metrics = getMemoryMetrics();
       if (metrics) {
         const componentInfo = componentRegistry.get(currentMountId);
         if (componentInfo) {
           const memoryDiff = metrics.usedJSHeapSize - componentInfo.memoryAtMount;
           const leakSuspected = memoryDiff > leakThreshold;
-          
+
           componentInfo.memoryAtUnmount = metrics.usedJSHeapSize;
           componentInfo.memoryDiff = memoryDiff;
           componentInfo.leakSuspected = leakSuspected;
-          
+
           if (leakSuspected) {
             logger.warn('Potential memory leak detected', 'memoryTracker', {
               component: componentName,
               memoryDiff,
               memoryAtMount: componentInfo.memoryAtMount,
               memoryAtUnmount: metrics.usedJSHeapSize,
-              threshold: leakThreshold
+              threshold: leakThreshold,
             });
           }
-          
+
           logger.debug('Component unmounted', 'memoryTracker', {
             component: componentName,
             memoryDiff,
             leakSuspected,
-            totalComponents: componentRegistry.size - 1
+            totalComponents: componentRegistry.size - 1,
           });
         }
-        
+
         componentRegistry.delete(currentMountId);
       }
     };
@@ -114,22 +115,24 @@ export function useMemoryTracker(componentName: string) {
 
   return {
     componentId: mountId.current,
-    getMemoryInfo: () => componentRegistry.get(mountId.current)
+    getMemoryInfo: () => componentRegistry.get(mountId.current),
   };
 }
 
 /**
  * Hook to monitor overall memory usage and trends
  */
-export function useMemoryMonitor(options: {
-  interval?: number;
-  maxHistorySize?: number;
-  alertThreshold?: number;
-} = {}) {
+export function useMemoryMonitor(
+  options: {
+    interval?: number;
+    maxHistorySize?: number;
+    alertThreshold?: number;
+  } = {}
+) {
   const {
     interval = 30000, // 30 seconds
     maxHistorySize = 100,
-    alertThreshold = 100 * 1024 * 1024 // 100MB
+    alertThreshold = 100 * 1024 * 1024, // 100MB
   } = options;
 
   const [memoryStats, setMemoryStats] = useState<{
@@ -139,7 +142,7 @@ export function useMemoryMonitor(options: {
   }>({
     current: null,
     trend: 'stable',
-    alertLevel: 'normal'
+    alertLevel: 'normal',
   });
 
   useEffect(() => {
@@ -162,7 +165,8 @@ export function useMemoryMonitor(options: {
         if (older.length > 0) {
           const avgOlder = older.reduce((sum, m) => sum + m.usedJSHeapSize, 0) / older.length;
           const diff = avgRecent - avgOlder;
-          if (diff > 5 * 1024 * 1024) trend = 'increasing'; // 5MB increase
+          if (diff > 5 * 1024 * 1024)
+            trend = 'increasing'; // 5MB increase
           else if (diff < -5 * 1024 * 1024) trend = 'decreasing'; // 5MB decrease
         }
       }
@@ -181,21 +185,21 @@ export function useMemoryMonitor(options: {
           usedMemory: metrics.usedJSHeapSize,
           threshold: alertThreshold,
           trend,
-          activeComponents: componentRegistry.size
+          activeComponents: componentRegistry.size,
         });
       } else if (alertLevel === 'warning') {
         logger.warn('High memory usage detected', 'memoryMonitor', {
           usedMemory: metrics.usedJSHeapSize,
           threshold: alertThreshold,
           trend,
-          activeComponents: componentRegistry.size
+          activeComponents: componentRegistry.size,
         });
       }
 
       setMemoryStats({
         current: metrics,
         trend,
-        alertLevel
+        alertLevel,
       });
     };
 
@@ -220,13 +224,14 @@ export function useMemoryMonitor(options: {
       suspectedLeaks,
       topMemoryConsumers: componentsByMemory,
       activeComponents: componentRegistry.size,
-      currentStats: memoryStats
+      currentStats: memoryStats,
     };
   }, [memoryStats]);
 
   const forceGarbageCollection = useCallback(() => {
-    if ('gc' in window && typeof (window as any).gc === 'function') {
-      (window as any).gc();
+    const win = window as WindowExtended;
+    if (typeof win.gc === 'function') {
+      win.gc();
       logger.info('Forced garbage collection', 'memoryMonitor');
     } else {
       logger.warn('Garbage collection not available', 'memoryMonitor');
@@ -239,7 +244,7 @@ export function useMemoryMonitor(options: {
     forceGarbageCollection,
     setLeakThreshold: (threshold: number) => {
       leakThreshold = threshold;
-    }
+    },
   };
 }
 
@@ -249,22 +254,38 @@ export function useMemoryMonitor(options: {
 export function useEventListenerTracker() {
   const listeners = useRef(new Set<{ element: EventTarget; event: string; handler: Function }>());
 
-  const addListener = useCallback((element: EventTarget, event: string, handler: Function, options?: boolean | AddEventListenerOptions) => {
-    element.addEventListener(event, handler as EventListener, options);
-    listeners.current.add({ element, event, handler });
-  }, []);
+  const addListener = useCallback(
+    (
+      element: EventTarget,
+      event: string,
+      handler: Function,
+      options?: boolean | AddEventListenerOptions
+    ) => {
+      element.addEventListener(event, handler as EventListener, options);
+      listeners.current.add({ element, event, handler });
+    },
+    []
+  );
 
-  const removeListener = useCallback((element: EventTarget, event: string, handler: Function, options?: boolean | EventListenerOptions) => {
-    element.removeEventListener(event, handler as EventListener, options);
-    listeners.current.delete({ element, event, handler });
-  }, []);
+  const removeListener = useCallback(
+    (
+      element: EventTarget,
+      event: string,
+      handler: Function,
+      options?: boolean | EventListenerOptions
+    ) => {
+      element.removeEventListener(event, handler as EventListener, options);
+      listeners.current.delete({ element, event, handler });
+    },
+    []
+  );
 
   useEffect(() => {
     return () => {
       // Copy ref value to avoid stale reference
       // eslint-disable-next-line react-hooks/exhaustive-deps
       const currentListeners = listeners.current;
-      
+
       // Cleanup all listeners on unmount
       currentListeners.forEach(({ element, event, handler }) => {
         try {
@@ -273,13 +294,13 @@ export function useEventListenerTracker() {
           logger.warn('Failed to remove event listener', 'eventListenerTracker', { event, error });
         }
       });
-      
+
       if (currentListeners.size > 0) {
         logger.warn('Event listeners not properly removed', 'eventListenerTracker', {
-          count: currentListeners.size
+          count: currentListeners.size,
         });
       }
-      
+
       currentListeners.clear();
     };
   }, []);
@@ -287,7 +308,7 @@ export function useEventListenerTracker() {
   return {
     addListener,
     removeListener,
-    getActiveListeners: () => Array.from(listeners.current)
+    getActiveListeners: () => Array.from(listeners.current),
   };
 }
 
@@ -324,19 +345,19 @@ export function useTimerTracker() {
       // Copy ref value to avoid stale reference
       // eslint-disable-next-line react-hooks/exhaustive-deps
       const currentTimers = timers.current;
-      
+
       // Cleanup all timers on unmount
       currentTimers.forEach(id => {
         window.clearTimeout(id);
         window.clearInterval(id);
       });
-      
+
       if (currentTimers.size > 0) {
         logger.warn('Timers not properly cleared', 'timerTracker', {
-          count: currentTimers.size
+          count: currentTimers.size,
         });
       }
-      
+
       currentTimers.clear();
     };
   }, []);
@@ -346,6 +367,6 @@ export function useTimerTracker() {
     setInterval,
     clearTimeout,
     clearInterval,
-    getActiveTimers: () => Array.from(timers.current)
+    getActiveTimers: () => Array.from(timers.current),
   };
 }

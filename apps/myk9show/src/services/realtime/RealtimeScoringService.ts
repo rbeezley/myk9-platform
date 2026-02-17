@@ -10,7 +10,7 @@ import { generateId } from '@/utils/idUtils';
 import {
   optimizedChannelSubscribe,
   setupOptimizedPresence,
-  setupOptimizedListeners
+  setupOptimizedListeners,
 } from '../../utils/realtimeOptimization';
 import { eventEmitter } from '../sync/eventEmitter';
 // import type { SyncEventMap } from '../sync/types';
@@ -45,12 +45,12 @@ export class RealtimeScoringService {
   private isConnected = false;
   private reconnectAttempts = 0;
   private reconnectTimer: NodeJS.Timeout | null = null;
-  
+
   private config: RealtimeConfig = {
     throttleMs: 300,
     debounceMs: 500,
     reconnectAttempts: 5,
-    reconnectDelay: 2000
+    reconnectDelay: 2000,
   };
 
   // Performance optimization
@@ -76,7 +76,7 @@ export class RealtimeScoringService {
   private async initialize() {
     // Set up connection monitoring
     this.monitorConnection();
-    
+
     // Initialize channels
     await this.setupChannels();
   }
@@ -86,15 +86,16 @@ export class RealtimeScoringService {
       // Use optimized channel subscription with performance monitoring
       this.channel = await optimizedChannelSubscribe(
         'class-scores',
-        () => supabase.channel('class-scores', {
-          config: {
-            presence: { key: 'scoring' }
-          }
-        }),
+        () =>
+          supabase.channel('class-scores', {
+            config: {
+              presence: { key: 'scoring' },
+            },
+          }),
         {
           usePool: this.isOptimizationEnabled,
           enableCompression: true,
-          batchMessages: true
+          batchMessages: true,
         }
       );
 
@@ -102,34 +103,36 @@ export class RealtimeScoringService {
       this.listenersCleanup = setupOptimizedListeners(
         this.channel,
         {
-          'postgres_changes_scores': this.handleScoreUpdate.bind(this),
-          'postgres_changes_placements': this.handlePlacementUpdate.bind(this),
-          'presence_sync': () => this.handlePresenceSync(),
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          'presence_join': (data: any) => this.handlePresenceJoin(data.key, data.newPresences),
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          'presence_leave': (data: any) => this.handlePresenceLeave(data.key, data.leftPresences)
+          postgres_changes_scores: this.handleScoreUpdate.bind(this),
+          postgres_changes_placements: this.handlePlacementUpdate.bind(this),
+          presence_sync: () => this.handlePresenceSync(),
+          presence_join: (data: { key: string; newPresences: unknown[] }) =>
+            this.handlePresenceJoin(data.key, data.newPresences),
+          presence_leave: (data: { key: string; leftPresences: unknown[] }) =>
+            this.handlePresenceLeave(data.key, data.leftPresences),
         },
         this
       );
 
       // Setup traditional listeners for Supabase-specific events
       this.channel
-        .on('postgres_changes', 
-          { 
-            event: '*', 
-            schema: 'public', 
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
             table: 'scores',
-            filter: 'show_id=eq.active' 
-          }, 
+            filter: 'show_id=eq.active',
+          },
           this.handleScoreUpdate.bind(this)
         )
-        .on('postgres_changes',
+        .on(
+          'postgres_changes',
           {
             event: '*',
             schema: 'public',
             table: 'placements',
-            filter: 'show_id=eq.active'
+            filter: 'show_id=eq.active',
           },
           this.handlePlacementUpdate.bind(this)
         )
@@ -144,7 +147,7 @@ export class RealtimeScoringService {
         });
 
       // Subscribe to channel
-      await this.channel.subscribe((status) => {
+      await this.channel.subscribe(status => {
         this.isConnected = status === 'SUBSCRIBED';
         this.handleConnectionChange(status);
       });
@@ -156,17 +159,16 @@ export class RealtimeScoringService {
         {
           usePool: this.isOptimizationEnabled,
           enableCompression: false, // Presence data is typically small
-          batchMessages: false // Presence needs immediate updates
+          batchMessages: false, // Presence needs immediate updates
         }
       );
-      
+
       await this.presenceChannel
         .on('presence', { event: 'sync' }, () => {
           const state = this.presenceChannel?.presenceState();
           this.updatePresenceStates(state);
         })
         .subscribe();
-
     } catch (error) {
       logger.error('Failed to setup realtime channels', 'realtime', {}, error as Error);
       this.scheduleReconnect();
@@ -174,103 +176,96 @@ export class RealtimeScoringService {
   }
 
   // Score Update Handling
-  private handleScoreUpdate = throttle(
-    async (...args: unknown[]) => {
-      const payload = args[0] as RealtimePostgresChangesPayload<BaseScore>;
-      const { eventType, new: newScore, old: oldScore } = payload as RealtimeScorePayload;
+  private handleScoreUpdate = throttle(async (...args: unknown[]) => {
+    const payload = args[0] as RealtimePostgresChangesPayload<BaseScore>;
+    const { eventType, new: newScore, old: oldScore } = payload as RealtimeScorePayload;
 
-      // Emit real-time update event
-      eventEmitter.emit('realtime:ui-update', {
-        type: 'score-update',
-        timestamp: Date.now(),
-        data: newScore || oldScore
-      });
+    // Emit real-time update event
+    eventEmitter.emit('realtime:ui-update', {
+      type: 'score-update',
+      timestamp: Date.now(),
+      data: newScore || oldScore,
+    });
 
-      // Update local cache based on event type
-      if (eventType === 'INSERT' || eventType === 'UPDATE') {
-        if (newScore) {
-          offlineScoringService.cacheScore(newScore as BaseScore).catch(err => {
-            logger.error('Failed to cache realtime score', 'realtime', {}, err as Error);
-          });
+    // Update local cache based on event type
+    if (eventType === 'INSERT' || eventType === 'UPDATE') {
+      if (newScore) {
+        offlineScoringService.cacheScore(newScore as BaseScore).catch(err => {
+          logger.error('Failed to cache realtime score', 'realtime', {}, err as Error);
+        });
 
-          const pendingScores = offlineScoringService.getPendingScores();
-          const matchingPending = pendingScores.find(
-            s => s.entryId === newScore.entryId && s.classId === newScore.classId
-          );
-          if (matchingPending && matchingPending.id) {
-            offlineScoringService.updateCacheWithServerData(
-              matchingPending.id,
-              newScore as BaseScore
-            ).catch(err => {
+        const pendingScores = offlineScoringService.getPendingScores();
+        const matchingPending = pendingScores.find(
+          s => s.entryId === newScore.entryId && s.classId === newScore.classId
+        );
+        if (matchingPending && matchingPending.id) {
+          offlineScoringService
+            .updateCacheWithServerData(matchingPending.id, newScore as BaseScore)
+            .catch(err => {
               logger.error('Failed to update cache with server data', 'realtime', {}, err as Error);
             });
-          }
-        }
-      } else if (eventType === 'DELETE' && oldScore) {
-        if (oldScore.id) {
-          offlineScoringService.removeScore(oldScore.id as string).catch(err => {
-            logger.error('Failed to remove score from cache', 'realtime', {}, err as Error);
-          });
         }
       }
-
-      // Check for conflicts if this is an update
-      if (eventType === 'UPDATE' && newScore && oldScore) {
-        this.detectScoringConflict(newScore, oldScore).then(conflict => {
-          if (conflict) {
-            this.handleScoringConflict(conflict);
-            return;
-          }
+    } else if (eventType === 'DELETE' && oldScore) {
+      if (oldScore.id) {
+        offlineScoringService.removeScore(oldScore.id as string).catch(err => {
+          logger.error('Failed to remove score from cache', 'realtime', {}, err as Error);
         });
       }
+    }
 
-      // Calculate new placements
-      if (newScore?.classId) {
-        this.broadcastPlacementUpdate({
-          classId: newScore.classId,
-          entryId: newScore.entryId,
-          newPlacement: 1,
-          timestamp: new Date()
-        });
-      }
-
-      // Notify subscribers
-      this.notifySubscribers('score-update', {
-        eventType,
-        score: newScore || oldScore,
-        timestamp: new Date()
+    // Check for conflicts if this is an update
+    if (eventType === 'UPDATE' && newScore && oldScore) {
+      this.detectScoringConflict(newScore, oldScore).then(conflict => {
+        if (conflict) {
+          this.handleScoringConflict(conflict);
+          return;
+        }
       });
-    },
-    this.config.throttleMs
-  );
+    }
+
+    // Calculate new placements
+    if (newScore?.classId) {
+      this.broadcastPlacementUpdate({
+        classId: newScore.classId,
+        entryId: newScore.entryId,
+        newPlacement: 1,
+        timestamp: new Date(),
+      });
+    }
+
+    // Notify subscribers
+    this.notifySubscribers('score-update', {
+      eventType,
+      score: newScore || oldScore,
+      timestamp: new Date(),
+    });
+  }, this.config.throttleMs);
 
   // Placement Update Handling
-  private handlePlacementUpdate = debounce(
-    async (...args: unknown[]) => {
-      const payload = args[0] as RealtimePostgresChangesPayload<PlacementUpdate>;
-      const { new: placement } = payload as RealtimePostgresChangesPayload<PlacementUpdate>;
-      
-      if (placement) {
-        const placementData = placement as Record<string, unknown>;
-        this.notifySubscribers('placement-update', {
-          classId: placementData.class_id as string,
-          placements: placementData.placements as unknown[],
-          timestamp: new Date()
-        });
-      }
-    },
-    this.config.debounceMs
-  );
+  private handlePlacementUpdate = debounce(async (...args: unknown[]) => {
+    const payload = args[0] as RealtimePostgresChangesPayload<PlacementUpdate>;
+    const { new: placement } = payload as RealtimePostgresChangesPayload<PlacementUpdate>;
+
+    if (placement) {
+      const placementData = placement as Record<string, unknown>;
+      this.notifySubscribers('placement-update', {
+        classId: placementData.class_id as string,
+        placements: placementData.placements as unknown[],
+        timestamp: new Date(),
+      });
+    }
+  }, this.config.debounceMs);
 
   // Conflict Detection
   private async detectScoringConflict(
-    newScore: Score, 
+    newScore: Score,
     oldScore: Score
   ): Promise<ScoringConflict | null> {
     // Check if scores were updated by different judges within a short time window
-    const timeDiff = new Date(newScore.lastModified).getTime() - 
-                     new Date(oldScore.lastModified).getTime();
-    
+    const timeDiff =
+      new Date(newScore.lastModified).getTime() - new Date(oldScore.lastModified).getTime();
+
     if (timeDiff < 5000 && newScore.judgeId !== oldScore.judgeId) {
       return {
         id: `conflict-${newScore.id}-${Date.now()}`,
@@ -280,13 +275,13 @@ export class RealtimeScoringService {
         details: {
           oldJudge: oldScore.judgeId,
           newJudge: newScore.judgeId,
-          timeDiff
+          timeDiff,
         },
         timestamp: new Date(),
-        resolved: false
+        resolved: false,
       };
     }
-    
+
     return null;
   }
 
@@ -325,9 +320,9 @@ export class RealtimeScoringService {
         judgeName: (presenceData.judgeName || presenceData.judge_name) as string,
         classId: (presenceData.classId || presenceData.class_id) as string,
         lastActivity: new Date((presenceData.lastActivity || presenceData.last_activity) as string),
-        status: 'active'
+        status: 'active',
       };
-      
+
       this.presenceStates.set(state.judgeId, state);
       this.notifySubscribers('judge-joined', state);
     });
@@ -338,18 +333,18 @@ export class RealtimeScoringService {
       const presenceData = presence as Record<string, unknown>;
       const judgeId = (presenceData.judgeId || presenceData.judge_id) as string;
       const judgeName = (presenceData.judgeName || presenceData.judge_name) as string;
-      
+
       this.presenceStates.delete(judgeId);
       this.notifySubscribers('judge-left', {
         judgeId,
-        judgeName
+        judgeName,
       });
     });
   }
 
   private updatePresenceStates(state: Record<string, unknown[]> | undefined) {
     this.presenceStates.clear();
-    
+
     if (state) {
       Object.entries(state).forEach(([, presences]: [string, unknown[]]) => {
         if (Array.isArray(presences)) {
@@ -359,15 +354,17 @@ export class RealtimeScoringService {
               judgeId: (presenceData.judgeId || presenceData.judge_id) as string,
               judgeName: (presenceData.judgeName || presenceData.judge_name) as string,
               classId: (presenceData.classId || presenceData.class_id) as string,
-              lastActivity: new Date((presenceData.lastActivity || presenceData.last_activity) as string),
-              status: (presenceData.status as PresenceState['status']) || 'active'
+              lastActivity: new Date(
+                (presenceData.lastActivity || presenceData.last_activity) as string
+              ),
+              status: (presenceData.status as PresenceState['status']) || 'active',
             };
             this.presenceStates.set(presenceState.judgeId, presenceState);
           });
         }
       });
     }
-    
+
     this.notifySubscribers('presence-sync', Array.from(this.presenceStates.values()));
   }
 
@@ -418,11 +415,11 @@ export class RealtimeScoringService {
           judge_name: judgeName,
           class_id: classId,
           last_activity: new Date().toISOString(),
-          status
+          status,
         },
         {
           heartbeatInterval: 30000,
-          adaptiveHeartbeat: true
+          adaptiveHeartbeat: true,
         }
       );
     } else {
@@ -431,7 +428,7 @@ export class RealtimeScoringService {
         judge_name: judgeName,
         class_id: classId,
         last_activity: new Date().toISOString(),
-        status
+        status,
       });
     }
   }
@@ -541,11 +538,11 @@ export class RealtimeScoringService {
 
   getActiveJudges(classId?: string): PresenceState[] {
     const judges = Array.from(this.presenceStates.values());
-    
+
     if (classId) {
       return judges.filter(judge => judge.classId === classId);
     }
-    
+
     return judges;
   }
 
@@ -559,9 +556,9 @@ export class RealtimeScoringService {
     if (!this.subscriptions.has(event)) {
       this.subscriptions.set(event, new Set());
     }
-    
+
     this.subscriptions.get(event)!.add(callback);
-    
+
     // Return unsubscribe function
     return () => {
       this.subscriptions.get(event)?.delete(callback);
@@ -590,13 +587,13 @@ export class RealtimeScoringService {
     // Monitor online/offline status
     window.addEventListener('online', () => this.handleOnline());
     window.addEventListener('offline', () => this.handleOffline());
-    
+
     // Periodic connection check
     setInterval(() => {
       if (this.isConnected && this.channel) {
         this.channel.send({
           type: 'broadcast',
-          event: 'ping'
+          event: 'ping',
         });
       }
     }, 30000); // Every 30 seconds
@@ -619,7 +616,7 @@ export class RealtimeScoringService {
 
   private handleConnectionChange(status: string) {
     logger.debug('Realtime connection status', 'realtime', { status });
-    
+
     if (status === 'SUBSCRIBED') {
       this.reconnectAttempts = 0;
       this.notifySubscribers('connection-restored', { timestamp: new Date() });
@@ -632,21 +629,26 @@ export class RealtimeScoringService {
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
     }
-    
+
     if (this.reconnectAttempts < this.config.reconnectAttempts) {
       this.reconnectAttempts++;
       const delay = this.config.reconnectDelay * this.reconnectAttempts;
-      
-      logger.debug('Scheduling reconnect attempt', 'realtime', { attempt: this.reconnectAttempts, delayMs: delay });
-      
+
+      logger.debug('Scheduling reconnect attempt', 'realtime', {
+        attempt: this.reconnectAttempts,
+        delayMs: delay,
+      });
+
       this.reconnectTimer = setTimeout(() => {
         this.reconnect();
       }, delay);
     } else {
-      logger.error('Max reconnection attempts reached', 'realtime', { attempts: this.reconnectAttempts });
-      this.notifySubscribers('connection-failed', { 
+      logger.error('Max reconnection attempts reached', 'realtime', {
         attempts: this.reconnectAttempts,
-        timestamp: new Date() 
+      });
+      this.notifySubscribers('connection-failed', {
+        attempts: this.reconnectAttempts,
+        timestamp: new Date(),
       });
     }
   }
@@ -669,7 +671,6 @@ export class RealtimeScoringService {
         logger.debug('Processing queued sync items after reconnection', 'realtime');
         syncQueue.resume();
       }
-
     } catch (error) {
       logger.error('Reconnection failed', 'realtime', {}, error as Error);
       this.scheduleReconnect();

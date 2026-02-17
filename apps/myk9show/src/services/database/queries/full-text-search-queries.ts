@@ -6,13 +6,13 @@
  * query highlighting.
  */
 
-import { supabase } from '../supabaseClient';
 import { logger } from '@/services/LoggingService';
 import type {
   FullTextSearchRequest,
   FullTextSearchResult,
-  SearchableTable
+  SearchableTable,
 } from '../../../types/search-analytics';
+import { untypedFrom } from './search-query-helpers';
 
 export const fullTextSearchQueries = {
   // Perform full-text search across multiple tables
@@ -41,23 +41,23 @@ export const fullTextSearchQueries = {
   },
 
   // Search specific table
-  async searchTable(table: SearchableTable, request: FullTextSearchRequest): Promise<FullTextSearchResult[]> {
+  async searchTable(
+    table: SearchableTable,
+    request: FullTextSearchRequest
+  ): Promise<FullTextSearchResult[]> {
     const searchConfig = this.getTableSearchConfig(table);
     const actualTableName = this.getActualTableName(table);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const baseQuery = (supabase as any)
-      .from(actualTableName)
-      .select('*');
+    const baseQuery = untypedFrom(actualTableName).select('*');
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let query: any = baseQuery;
+    // PostgrestFilterBuilder chain — exact shape depends on runtime filters
+    let query: ReturnType<typeof untypedFrom> = baseQuery;
 
     // Apply table-specific search logic
     if (searchConfig.searchFields.length > 0) {
-      const searchConditions = searchConfig.searchFields.map(field =>
-        `${field}.ilike.%${request.query}%`
-      ).join(',');
+      const searchConditions = searchConfig.searchFields
+        .map(field => `${field}.ilike.%${request.query}%`)
+        .join(',');
 
       query = query.or(searchConditions);
     }
@@ -79,53 +79,70 @@ export const fullTextSearchQueries = {
     }
 
     // Transform results to FullTextSearchResult format
-    return (results || []).map((item: Record<string, unknown>) => {
-      // Handle potential query errors
-      if (!item || typeof item !== 'object' || (item && 'error' in item)) {
-        return null;
-      }
+    return (results || [])
+      .map((item: Record<string, unknown>) => {
+        // Handle potential query errors
+        if (!item || typeof item !== 'object' || (item && 'error' in item)) {
+          return null;
+        }
 
-      const itemData = item as Record<string, unknown>;
-      const relevanceScore = this.calculateRelevanceScore(
-        itemData,
-        request.query,
-        searchConfig.searchFields,
-        request.weights?.[table] || 1.0
-      );
+        const itemData = item as Record<string, unknown>;
+        const relevanceScore = this.calculateRelevanceScore(
+          itemData,
+          request.query,
+          searchConfig.searchFields,
+          request.weights?.[table] || 1.0
+        );
 
-      // Skip results below minimum relevance
-      if (request.min_relevance && relevanceScore < request.min_relevance) {
-        return null;
-      }
+        // Skip results below minimum relevance
+        if (request.min_relevance && relevanceScore < request.min_relevance) {
+          return null;
+        }
 
-      return {
-        table,
-        id: String(itemData.id),
-        title: this.extractTitle(itemData, searchConfig.titleField),
-        content: this.extractContent(itemData, searchConfig.searchFields),
-        relevance_score: relevanceScore,
-        highlighted_content: this.highlightQuery(
-          this.extractContent(itemData, searchConfig.searchFields),
-          request.query
-        ),
-        data: itemData
-      };
-    }).filter(Boolean) as FullTextSearchResult[];
+        return {
+          table,
+          id: String(itemData.id),
+          title: this.extractTitle(itemData, searchConfig.titleField),
+          content: this.extractContent(itemData, searchConfig.searchFields),
+          relevance_score: relevanceScore,
+          highlighted_content: this.highlightQuery(
+            this.extractContent(itemData, searchConfig.searchFields),
+            request.query
+          ),
+          data: itemData,
+        };
+      })
+      .filter(Boolean) as FullTextSearchResult[];
   },
 
   // Get search configuration for table
   getTableSearchConfig(table: SearchableTable) {
-    const configs: Record<SearchableTable, { searchFields: string[], titleField: string }> = {
+    const configs: Record<SearchableTable, { searchFields: string[]; titleField: string }> = {
       dog: { searchFields: ['name', 'breed', 'registration_number'], titleField: 'name' },
-      user: { searchFields: ['first_name', 'last_name', 'email', 'phone'], titleField: 'first_name' },
+      user: {
+        searchFields: ['first_name', 'last_name', 'email', 'phone'],
+        titleField: 'first_name',
+      },
       show: { searchFields: ['name', 'location', 'description'], titleField: 'name' },
       club: { searchFields: ['name', 'location', 'description'], titleField: 'name' },
       class: { searchFields: ['name', 'description', 'level'], titleField: 'name' },
       achievement: { searchFields: ['title', 'organization', 'notes'], titleField: 'title' },
-      competition: { searchFields: ['competition_name', 'location', 'notes'], titleField: 'competition_name' },
-      judge_qualification: { searchFields: ['organization', 'qualification_level', 'notes'], titleField: 'organization' },
-      registration: { searchFields: ['registration_number', 'organization', 'notes'], titleField: 'registration_number' },
-      health_record: { searchFields: ['record_type', 'description', 'notes'], titleField: 'record_type' }
+      competition: {
+        searchFields: ['competition_name', 'location', 'notes'],
+        titleField: 'competition_name',
+      },
+      judge_qualification: {
+        searchFields: ['organization', 'qualification_level', 'notes'],
+        titleField: 'organization',
+      },
+      registration: {
+        searchFields: ['registration_number', 'organization', 'notes'],
+        titleField: 'registration_number',
+      },
+      health_record: {
+        searchFields: ['record_type', 'description', 'notes'],
+        titleField: 'record_type',
+      },
     };
 
     return configs[table] || { searchFields: ['name'], titleField: 'name' };
@@ -143,14 +160,19 @@ export const fullTextSearchQueries = {
       competition: 'competition',
       judge_qualification: 'judge_qualification',
       registration: 'dog_registration', // Maps to actual table name
-      health_record: 'health_record'
+      health_record: 'health_record',
     };
 
     return tableMap[table] || table;
   },
 
   // Calculate relevance score
-  calculateRelevanceScore(item: Record<string, unknown>, query: string, fields: string[], weight: number): number {
+  calculateRelevanceScore(
+    item: Record<string, unknown>,
+    query: string,
+    fields: string[],
+    weight: number
+  ): number {
     const queryLower = query.toLowerCase();
     let score = 0;
 
@@ -198,5 +220,5 @@ export const fullTextSearchQueries = {
 
     const regex = new RegExp(`(${query})`, 'gi');
     return content.replace(regex, '<mark>$1</mark>');
-  }
+  },
 };

@@ -1,7 +1,7 @@
 /**
  * Subscription Manager for Real-time Data
  * Phase 6.1: Real-time Infrastructure
- * 
+ *
  * Manages real-time subscriptions with intelligent lifecycle management,
  * automatic cleanup, and performance optimization.
  */
@@ -10,13 +10,13 @@ import { RealtimeChannel } from '@supabase/supabase-js';
 import { realtimeClient } from './realtimeClient';
 import { errorMonitor } from '../../lib/errorMonitoring';
 import { logger } from '../../services/LoggingService';
-import type { 
-  RealtimeSubscription, 
-  RealtimeEventCallback, 
+import type {
+  RealtimeSubscription,
+  RealtimeEventCallback,
   RealtimeEventType,
   PresenceTrackingData,
   LiveScoringSession,
-  Priority
+  Priority,
 } from '../../types/realtime-types';
 
 export interface SubscriptionConfig {
@@ -100,8 +100,10 @@ export class SubscriptionManager {
           lowLatency: config.priority === 'critical',
         };
         if (config.filter !== undefined) channelOptions.filter = config.filter;
-        if (config.enablePresence !== undefined) channelOptions.enablePresence = config.enablePresence;
-        if (config.enableBroadcast !== undefined) channelOptions.enableBroadcast = config.enableBroadcast;
+        if (config.enablePresence !== undefined)
+          channelOptions.enablePresence = config.enablePresence;
+        if (config.enableBroadcast !== undefined)
+          channelOptions.enableBroadcast = config.enableBroadcast;
 
         channel = await realtimeClient.createChannel(channelName, channelOptions);
 
@@ -121,19 +123,21 @@ export class SubscriptionManager {
       };
 
       // Setup database change listener
-      if (config.events?.includes('*') || config.events?.some(e => ['INSERT', 'UPDATE', 'DELETE'].includes(e))) {
+      if (
+        config.events?.includes('*') ||
+        config.events?.some(e => ['INSERT', 'UPDATE', 'DELETE'].includes(e))
+      ) {
         const events = config.events?.includes('*') ? '*' : config.events?.join(',') || '*';
-        
+
         channel.on(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          'postgres_changes' as any,
+          'postgres_changes' as 'system',
           {
             event: events as '*' | 'INSERT' | 'UPDATE' | 'DELETE',
             schema: 'public',
             table: config.table,
             ...(config.filter !== undefined && { filter: config.filter }),
           },
-          (payload) => {
+          payload => {
             this.handleDatabaseChange(subscriptionId, payload as Record<string, unknown>, config);
           }
         );
@@ -155,10 +159,9 @@ export class SubscriptionManager {
 
       logger.debug('Subscription created', 'realtime', { subscriptionId, table: config.table });
       return subscriptionId;
-
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { subscriptionId, config }
+        additionalData: { subscriptionId, config },
       });
       throw error;
     }
@@ -198,10 +201,9 @@ export class SubscriptionManager {
       await this.cleanupChannelIfUnused(subscription.channelName);
 
       logger.debug('Subscription removed', 'realtime', { subscriptionId });
-
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { subscriptionId }
+        additionalData: { subscriptionId },
       });
     }
   }
@@ -214,7 +216,7 @@ export class SubscriptionManager {
     callback: (presences: PresenceTrackingData[]) => void
   ): Promise<string> {
     const subscriptionId = `presence-${channelName}`;
-    
+
     const channel = await realtimeClient.createChannel(channelName, {
       enablePresence: true,
     });
@@ -247,10 +249,7 @@ export class SubscriptionManager {
   /**
    * Track user presence in a channel
    */
-  async trackPresence(
-    channelName: string,
-    userData: PresenceTrackingData
-  ): Promise<void> {
+  async trackPresence(channelName: string, userData: PresenceTrackingData): Promise<void> {
     const channel = this.channels.get(channelName);
     if (!channel) {
       throw new Error(`Channel ${channelName} not found`);
@@ -261,7 +260,7 @@ export class SubscriptionManager {
       logger.debug('Tracking presence', 'realtime', { userId: userData.user_id, channelName });
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { channelName, userData }
+        additionalData: { channelName, userData },
       });
       throw error;
     }
@@ -282,7 +281,7 @@ export class SubscriptionManager {
       logger.debug('Stopped tracking presence', 'realtime', { channelName });
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { channelName }
+        additionalData: { channelName },
       });
     }
   }
@@ -290,10 +289,7 @@ export class SubscriptionManager {
   /**
    * Broadcast message to all users in a channel
    */
-  async broadcast(
-    channelName: string,
-    event: BroadcastEvent
-  ): Promise<void> {
+  async broadcast(channelName: string, event: BroadcastEvent): Promise<void> {
     const channel = this.channels.get(channelName);
     if (!channel) {
       throw new Error(`Channel ${channelName} not found`);
@@ -321,10 +317,9 @@ export class SubscriptionManager {
       }
 
       logger.debug('Broadcast sent', 'realtime', { channelName, eventType: event.type });
-
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { channelName, event }
+        additionalData: { channelName, event },
       });
       throw error;
     }
@@ -338,7 +333,7 @@ export class SubscriptionManager {
     callback: (session: LiveScoringSession) => void
   ): Promise<string> {
     const subscriptionId = `scoring-${sessionId}`;
-    
+
     return this.subscribe(
       subscriptionId,
       {
@@ -348,7 +343,7 @@ export class SubscriptionManager {
         priority: 'critical',
         batchUpdates: false, // Real-time scoring needs immediate updates
       },
-      (event) => {
+      event => {
         if (event.data) {
           callback(event.data as LiveScoringSession);
         }
@@ -364,7 +359,7 @@ export class SubscriptionManager {
     callback: (checkIn: Record<string, unknown>) => void
   ): Promise<string> {
     const subscriptionId = `checkins-${showId}`;
-    
+
     return this.subscribe(
       subscriptionId,
       {
@@ -375,7 +370,7 @@ export class SubscriptionManager {
         batchUpdates: true,
         bufferTime: 1000, // Buffer for 1 second to reduce UI thrashing
       },
-      (event) => {
+      event => {
         if (event.data && typeof event.data === 'object' && event.data !== null) {
           callback(event.data as Record<string, unknown>);
         }
@@ -391,14 +386,19 @@ export class SubscriptionManager {
     callback: RealtimeEventCallback<T>,
     config: SubscriptionConfig
   ): RealtimeEventCallback<T> {
-    return (event) => {
+    return event => {
       const startTime = performance.now();
       const metrics = this.metrics.get(subscriptionId);
 
       try {
         // Handle batching if enabled
         if (config.batchUpdates) {
-          this.addToBatch(subscriptionId, event as unknown as Record<string, unknown>, callback, config.bufferTime || 500);
+          this.addToBatch(
+            subscriptionId,
+            event as unknown as Record<string, unknown>,
+            callback,
+            config.bufferTime || 500
+          );
         } else {
           callback(event);
         }
@@ -408,19 +408,17 @@ export class SubscriptionManager {
           metrics.messagesReceived++;
           metrics.messagesProcessed++;
           metrics.lastActivity = new Date();
-          
-          const processingTime = performance.now() - startTime;
-          metrics.averageProcessingTime = 
-            (metrics.averageProcessingTime + processingTime) / 2;
-        }
 
+          const processingTime = performance.now() - startTime;
+          metrics.averageProcessingTime = (metrics.averageProcessingTime + processingTime) / 2;
+        }
       } catch (error) {
         if (metrics) {
           metrics.errorCount++;
         }
 
         errorMonitor.captureError(error as Error, {
-          additionalData: { subscriptionId, event }
+          additionalData: { subscriptionId, event },
         });
       }
     };
@@ -456,10 +454,7 @@ export class SubscriptionManager {
   /**
    * Setup presence tracking for a subscription
    */
-  private setupPresenceTracking(
-    subscriptionId: string,
-    channel: RealtimeChannel
-  ): void {
+  private setupPresenceTracking(subscriptionId: string, channel: RealtimeChannel): void {
     channel.on('presence', { event: 'sync' }, () => {
       const state = channel.presenceState();
       this.presenceStates.set(subscriptionId, this.parsePresenceState(state));
@@ -477,11 +472,8 @@ export class SubscriptionManager {
   /**
    * Setup broadcast listener for a subscription
    */
-  private setupBroadcastListener(
-    subscriptionId: string,
-    channel: RealtimeChannel
-  ): void {
-    channel.on('broadcast', { event: '*' }, (payload) => {
+  private setupBroadcastListener(subscriptionId: string, channel: RealtimeChannel): void {
+    channel.on('broadcast', { event: '*' }, payload => {
       const subscription = this.subscriptions.get(subscriptionId);
       if (!subscription || !subscription.isActive) return;
 
@@ -535,8 +527,8 @@ export class SubscriptionManager {
     if (!buffer || buffer.length === 0) return;
 
     // Process all batched events
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    buffer.forEach(({ event, callback }: any) => {
+    buffer.forEach((item: unknown) => {
+      const { event, callback } = item as { event: unknown; callback: (event: unknown) => void };
       try {
         callback(event);
       } catch (error) {
@@ -587,7 +579,10 @@ export class SubscriptionManager {
   /**
    * Remove from presence state
    */
-  private removeFromPresenceState(channelName: string, leftPresences: Record<string, unknown>[]): void {
+  private removeFromPresenceState(
+    channelName: string,
+    leftPresences: Record<string, unknown>[]
+  ): void {
     const current = this.presenceStates.get(channelName) || [];
     const leftIds = leftPresences.map(p => p.user_id);
     const filtered = current.filter(p => !leftIds.includes(p.user_id));
@@ -607,7 +602,7 @@ export class SubscriptionManager {
    */
   private parsePresenceState(state: Record<string, unknown>): PresenceTrackingData[] {
     const presences: PresenceTrackingData[] = [];
-    
+
     Object.values(state).forEach((channelPresences: unknown) => {
       if (Array.isArray(channelPresences)) {
         channelPresences.forEach(presence => {
@@ -630,8 +625,9 @@ export class SubscriptionManager {
    * Cleanup unused channels
    */
   private async cleanupChannelIfUnused(channelName: string): Promise<void> {
-    const isUsed = Array.from(this.subscriptions.values())
-      .some(sub => sub.channelName === channelName && sub.isActive);
+    const isUsed = Array.from(this.subscriptions.values()).some(
+      sub => sub.channelName === channelName && sub.isActive
+    );
 
     if (!isUsed) {
       await realtimeClient.removeChannel(channelName);
@@ -668,7 +664,7 @@ export class SubscriptionManager {
    */
   getMetrics(subscriptionId?: string): SubscriptionMetrics | SubscriptionMetrics[] {
     if (subscriptionId) {
-      return this.metrics.get(subscriptionId) || {} as SubscriptionMetrics;
+      return this.metrics.get(subscriptionId) || ({} as SubscriptionMetrics);
     }
     return Array.from(this.metrics.values());
   }

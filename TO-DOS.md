@@ -69,6 +69,31 @@ Top 3 source files over 800 lines — refactor when next modified:
 - [x] Full quality gate passes: typecheck (0 errors), lint (0 errors), build (success)
 - ~28 files remain in the 700-750 range — address when naturally touched
 
-### Remaining Sessions
+## Code Quality Sprint — Session 5 Complete (2026-02-17)
 
-- [ ] Session 5: E2E Tests in CI + Polish
+- [x] Created `apps/myk9show/playwright.ci.config.ts` (chromium-only, vite preview)
+- [x] Added `test:e2e:ci` script to myK9Show package.json
+- [x] Added E2E CI jobs for both apps (`continue-on-error: true`, non-blocking)
+- [x] Added `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` GitHub secrets via `gh` CLI
+- [x] Re-measured myK9Q coverage — unchanged (53.86/48.41/55.13/54.47%), thresholds hold
+- [x] Skipped myK9Show coverage re-measurement (591 pre-existing test failures)
+- [x] Installed `gh` CLI for future GitHub operations
+
+### Code Quality Sprint Summary (Sessions 1-5)
+
+| Metric                          | Before          | After                    |
+| ------------------------------- | --------------- | ------------------------ |
+| `as any` casts                  | 387             | 0                        |
+| `@ts-ignore`/`@ts-expect-error` | 18              | 0                        |
+| `no-explicit-any` rule          | warn/off        | error everywhere         |
+| Files over 755 lines            | 15              | 4 (cohesive classes)     |
+| CI coverage gates               | none            | both apps enforced       |
+| CI E2E tests                    | none            | both apps (non-blocking) |
+| GitHub secrets                  | 1 (TURBO_TOKEN) | 3 (+Supabase URL/key)    |
+
+### Outstanding Items
+
+- [ ] Fix 591 failing myK9Show unit tests (pre-existing Supabase mock chain issues)
+- [ ] Package coverage thresholds (need `@vitest/coverage-v8` dep + CI jobs)
+- [ ] ~28 files in 700-750 line range — address when naturally touched
+- [ ] Make E2E CI jobs blocking once tests are stable

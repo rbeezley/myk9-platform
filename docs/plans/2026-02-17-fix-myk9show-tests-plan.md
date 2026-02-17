@@ -15,6 +15,11 @@ test files and migrate/fix the rest. Sub-agent parallelizable by directory group
 **Key constraint:** 5-minute cap per file. If a file resists, skip it with `test.skip` and a TODO
 comment. Do not repeat the previous session's mistake of spending all day on mock chain issues.
 
+**vi.mock precedence rule:** Vitest gives per-file `vi.mock()` calls priority over global setup
+mocks. This means any test file that still has its own `vi.mock('@/services/database/supabaseClient')`
+will use that mock, NOT the global one. This is why **every migrated file must have its per-file
+vi.mock removed** — otherwise the global factory is bypassed and the old broken chain is still used.
+
 ---
 
 ## Session 1: Mock Factory + Delete Dead Tests
@@ -220,6 +225,77 @@ Expected: Tests still run (some may now pass that were failing before).
 git add apps/myk9show/src/test/setup.ts
 git commit -m "test(myk9show): register global Supabase mock in test setup"
 ```
+
+---
+
+### [ADDED] Migration Reference: Before/After Example
+
+Sub-agents use this as the canonical migration pattern for every test file.
+
+**BEFORE (broken — per-file mock with incomplete chain):**
+
+```typescript
+import { supabase } from '@/services/database/supabaseClient';
+
+vi.mock('@/services/database/supabaseClient', () => ({
+  supabase: {
+    from: vi.fn(() => ({
+      select: vi.fn(() => ({
+        order: vi.fn(() => ({ data: [], error: null })),
+        // MISSING: .is(), .eq(), .or(), etc.
+      })),
+    })),
+  },
+}));
+
+describe('MyService', () => {
+  it('fetches data', async () => {
+    const result = await myService.getAll();
+    expect(supabase.from).toHaveBeenCalledWith('my_table');
+    expect(result).toEqual([]);
+  });
+});
+```
+
+**AFTER (fixed — uses global mock, overrides return data):**
+
+```typescript
+import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';
+
+// NO vi.mock here — the global setup.ts handles it.
+// Import the module under test AFTER the mock is registered (vitest hoists vi.mock).
+
+describe('MyService', () => {
+  it('fetches data', async () => {
+    // Override return data for this test
+    mockSupabase.from.mockReturnValue(
+      createChainableQuery({ data: [{ id: '1', name: 'Test' }], error: null })
+    );
+
+    const result = await myService.getAll();
+    expect(mockSupabase.from).toHaveBeenCalledWith('my_table');
+    expect(result).toEqual([{ id: '1', name: 'Test' }]);
+  });
+
+  it('handles errors', async () => {
+    mockSupabase.from.mockReturnValue(
+      createChainableQuery({ data: null, error: { message: 'DB error' } })
+    );
+
+    const result = await myService.getAll();
+    expect(result).toEqual([]);
+  });
+});
+```
+
+**Key rules for sub-agents:**
+
+1. Delete the `vi.mock('@/services/database/supabaseClient', ...)` block entirely
+2. Delete the `vi.mock('@/lib/supabase', ...)` block if present
+3. Import `mockSupabase` and `createChainableQuery` from `@/test/mocks/supabase`
+4. Replace inline mock chain setup with `mockSupabase.from.mockReturnValue(createChainableQuery({...}))`
+5. If the test asserts on `supabase.from`, change it to `mockSupabase.from`
+6. If the test doesn't need specific return data, do nothing — the global default returns `{ data: [], error: null }`
 
 ---
 
@@ -539,6 +615,17 @@ src/test/utils/format.test.ts
 src/test/validation/formValidation.test.ts
 src/test/workflows/critical-workflows.test.ts
 ```
+
+**[ADDED] Triage borderline integration tests first:** Before fixing, check these files that have
+"integration" or "quick" in their names. If they hit real Supabase without mocking, **delete them**
+(same as the integration/ directory). Likely candidates for deletion:
+
+- `src/test/quick-show-integration.test.ts`
+- `src/test/phase3-4-quick-validation.test.ts`
+- `src/test/stores/phase3-integration.test.ts` (listed in Task 2.3)
+
+Run each one individually first. If it fails with "fetch failed" or network errors → delete.
+If it fails with mock chain or assertion issues → fix normally.
 
 **Approach:** Same as other batches. Run each file, diagnose, fix or skip.
 

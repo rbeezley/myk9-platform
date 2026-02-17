@@ -2,6 +2,7 @@ import '@testing-library/jest-dom';
 import { afterEach, beforeAll, beforeEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import { testCleanup } from './config/testOptimization';
+import { mockSupabase, resetMockSupabase } from './mocks/supabase';
 import 'fake-indexeddb/auto';
 import FDBFactory from 'fake-indexeddb/lib/FDBFactory';
 import FDBDatabase from 'fake-indexeddb/lib/FDBDatabase';
@@ -11,6 +12,37 @@ import FDBCursor from 'fake-indexeddb/lib/FDBCursor';
 import FDBKeyRange from 'fake-indexeddb/lib/FDBKeyRange';
 import FDBRequest from 'fake-indexeddb/lib/FDBRequest';
 import FDBTransaction from 'fake-indexeddb/lib/FDBTransaction';
+
+// Global Supabase mock — prevents any test from hitting the real API.
+// Tests that need custom return data can import { mockSupabase, createChainableQuery }
+// from '@/test/mocks/supabase' and call mockSupabase.from.mockReturnValue(...).
+vi.mock('@/services/database/supabaseClient', () => ({
+  supabase: mockSupabase,
+  default: mockSupabase,
+  checkDatabaseConnection: vi.fn().mockResolvedValue({ connected: true, latency: 1 }),
+  getCurrentUser: vi.fn().mockResolvedValue({ user: null, error: null }),
+  signOut: vi.fn().mockResolvedValue({ error: null }),
+  createRealtimeSubscription: vi.fn().mockReturnValue({
+    subscribe: vi.fn(),
+    unsubscribe: vi.fn(),
+  }),
+  logQuery: vi.fn(),
+  createDatabaseError: vi.fn((err: unknown) => ({
+    name: 'DatabaseError',
+    message: err instanceof Error ? err.message : 'Database error',
+  })),
+  executeBatch: vi.fn().mockResolvedValue([]),
+  getConnectionInfo: vi.fn().mockReturnValue({
+    url: 'https://test.supabase.co',
+    hasValidConfig: true,
+    environment: 'test',
+  }),
+}));
+
+vi.mock('@/lib/supabase', () => ({
+  supabase: mockSupabase,
+  default: mockSupabase,
+}));
 
 // Setup IndexedDB mocking
 globalThis.indexedDB = new FDBFactory();
@@ -28,13 +60,17 @@ afterEach(() => {
   testCleanup.cleanup(); // Enhanced cleanup with render loop detection
 });
 
-// Reset IndexedDB before each test
+// Reset IndexedDB and Supabase mock before each test
 beforeEach(() => {
   // Clear IndexedDB databases - fake-indexeddb uses a Map internally
-  const db = globalThis.indexedDB as typeof FDBFactory.prototype & { _databases?: Map<string, unknown> };
+  const db = globalThis.indexedDB as typeof FDBFactory.prototype & {
+    _databases?: Map<string, unknown>;
+  };
   if (db && db._databases) {
     db._databases.clear();
   }
+  // Reset Supabase mock to defaults
+  resetMockSupabase();
 });
 
 // Mock localStorage with proper storage behavior

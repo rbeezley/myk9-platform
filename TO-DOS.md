@@ -51,8 +51,15 @@ Top 3 source files over 800 lines — refactor when next modified:
 - [x] Fixed 2 pre-existing typecheck errors (LazyComponents.tsx, dogsService.ts)
 - 9 documented `eslint-disable` exceptions remain (Sentry imports, React patterns, forwardRef)
 
+## Code Quality Sprint — Session 3 Complete (2026-02-17)
+
+- [x] Eliminated 302 `as any` casts across 36 myK9Q files (3 source, 33 test)
+- [x] Fixed 14 additional `: any` type annotations in test/source files
+- [x] Removed `no-explicit-any: "off"` override from myk9q `.eslintrc.json`
+- [x] Zero `as any` casts remain across entire codebase (packages + myk9show + myk9q)
+- [x] `no-explicit-any` is now `error` everywhere — prevents regression
+
 ### Remaining Sessions
 
-- [ ] Session 3: Type Safety — myK9Q (~303 `as any` casts in 31 files)
 - [ ] Session 4: Large File Refactoring (~15 files over 700 lines)
 - [ ] Session 5: E2E Tests in CI + Polish

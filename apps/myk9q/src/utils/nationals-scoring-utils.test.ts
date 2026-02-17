@@ -42,9 +42,7 @@ describe('nationals-scoring-utils', () => {
     });
 
     it('should map "Handler Discrimination" to HD_CHALLENGE', () => {
-      expect(mapElementToNationalsType('Handler Discrimination')).toBe(
-        'HD_CHALLENGE'
-      );
+      expect(mapElementToNationalsType('Handler Discrimination')).toBe('HD_CHALLENGE');
       expect(mapElementToNationalsType('Handler')).toBe('HD_CHALLENGE');
       expect(mapElementToNationalsType('Discrimination')).toBe('HD_CHALLENGE');
     });
@@ -67,8 +65,8 @@ describe('nationals-scoring-utils', () => {
     });
 
     it('should handle null/undefined gracefully', () => {
-      expect(mapElementToNationalsType(null as any)).toBe('CONTAINER');
-      expect(mapElementToNationalsType(undefined as any)).toBe('CONTAINER');
+      expect(mapElementToNationalsType(null as unknown as string)).toBe('CONTAINER');
+      expect(mapElementToNationalsType(undefined as unknown as string)).toBe('CONTAINER');
     });
   });
 
@@ -78,15 +76,11 @@ describe('nationals-scoring-utils', () => {
       expect(getNationalsElementDisplayName('BURIED')).toBe('Buried');
       expect(getNationalsElementDisplayName('INTERIOR')).toBe('Interior');
       expect(getNationalsElementDisplayName('EXTERIOR')).toBe('Exterior');
-      expect(getNationalsElementDisplayName('HD_CHALLENGE')).toBe(
-        'Handler Discrimination'
-      );
+      expect(getNationalsElementDisplayName('HD_CHALLENGE')).toBe('Handler Discrimination');
     });
 
     it('should handle unknown element type', () => {
-      expect(
-        getNationalsElementDisplayName('UNKNOWN' as NationalsElementType)
-      ).toBe('Unknown');
+      expect(getNationalsElementDisplayName('UNKNOWN' as NationalsElementType)).toBe('Unknown');
     });
   });
 
@@ -105,13 +99,7 @@ describe('nationals-scoring-utils', () => {
     it('should return array in correct order', () => {
       const types = getAllNationalsElementTypes();
 
-      expect(types).toEqual([
-        'CONTAINER',
-        'BURIED',
-        'INTERIOR',
-        'EXTERIOR',
-        'HD_CHALLENGE',
-      ]);
+      expect(types).toEqual(['CONTAINER', 'BURIED', 'INTERIOR', 'EXTERIOR', 'HD_CHALLENGE']);
     });
   });
 
@@ -246,19 +234,13 @@ describe('nationals-scoring-utils', () => {
 
       const mapped = elements.map(mapElementToNationalsType);
 
-      expect(mapped).toEqual([
-        'CONTAINER',
-        'BURIED',
-        'INTERIOR',
-        'EXTERIOR',
-        'HD_CHALLENGE',
-      ]);
+      expect(mapped).toEqual(['CONTAINER', 'BURIED', 'INTERIOR', 'EXTERIOR', 'HD_CHALLENGE']);
     });
 
     it('should provide max times for all elements', () => {
       const types = getAllNationalsElementTypes();
 
-      const times = types.map((type) => ({
+      const times = types.map(type => ({
         element: type,
         seconds: getNationalsMaxTime(type),
         formatted: getNationalsMaxTimeFormatted(type),
@@ -276,7 +258,7 @@ describe('nationals-scoring-utils', () => {
     it('should validate and display all competition days', () => {
       const days = [1, 2, 3] as CompetitionDay[];
 
-      const info = days.map((day) => ({
+      const info = days.map(day => ({
         day,
         valid: isValidCompetitionDay(day),
         name: getCompetitionDayName(day),

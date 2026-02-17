@@ -10,12 +10,12 @@ import {
   hasIdleCallbackSupport,
   scheduleIdleTaskWithTimeout,
   processInIdle,
-  type IdleCallbackOptions
+  type IdleCallbackOptions,
 } from './idleCallbackHelpers';
 
 describe('hasIdleCallbackSupport', () => {
-  let originalRequestIdleCallback: any;
-  let originalCancelIdleCallback: any;
+  let originalRequestIdleCallback: typeof window.requestIdleCallback;
+  let originalCancelIdleCallback: typeof window.cancelIdleCallback;
 
   beforeEach(() => {
     originalRequestIdleCallback = window.requestIdleCallback;
@@ -27,13 +27,13 @@ describe('hasIdleCallbackSupport', () => {
     if (originalRequestIdleCallback !== undefined) {
       window.requestIdleCallback = originalRequestIdleCallback;
     } else {
-      Reflect.deleteProperty(window, "requestIdleCallback");
+      Reflect.deleteProperty(window, 'requestIdleCallback');
     }
 
     if (originalCancelIdleCallback !== undefined) {
       window.cancelIdleCallback = originalCancelIdleCallback;
     } else {
-      Reflect.deleteProperty(window, "cancelIdleCallback");
+      Reflect.deleteProperty(window, 'cancelIdleCallback');
     }
   });
 
@@ -43,14 +43,14 @@ describe('hasIdleCallbackSupport', () => {
   });
 
   test('should return false when requestIdleCallback does not exist', () => {
-    Reflect.deleteProperty(window, "requestIdleCallback");
+    Reflect.deleteProperty(window, 'requestIdleCallback');
     expect(hasIdleCallbackSupport()).toBe(false);
   });
 });
 
 describe('scheduleIdleTask', () => {
-  let originalRequestIdleCallback: any;
-  let originalCancelIdleCallback: any;
+  let originalRequestIdleCallback: typeof window.requestIdleCallback;
+  let originalCancelIdleCallback: typeof window.cancelIdleCallback;
 
   beforeEach(() => {
     originalRequestIdleCallback = window.requestIdleCallback;
@@ -64,13 +64,13 @@ describe('scheduleIdleTask', () => {
     if (originalRequestIdleCallback !== undefined) {
       window.requestIdleCallback = originalRequestIdleCallback;
     } else {
-      Reflect.deleteProperty(window, "requestIdleCallback");
+      Reflect.deleteProperty(window, 'requestIdleCallback');
     }
 
     if (originalCancelIdleCallback !== undefined) {
       window.cancelIdleCallback = originalCancelIdleCallback;
     } else {
-      Reflect.deleteProperty(window, "cancelIdleCallback");
+      Reflect.deleteProperty(window, 'cancelIdleCallback');
     }
   });
 
@@ -133,7 +133,7 @@ describe('cancelIdleTask', () => {
     const originalClearTimeout = window.clearTimeout;
     const mockClearTimeout = vi.fn();
 
-    Reflect.deleteProperty(window, "cancelIdleCallback");
+    Reflect.deleteProperty(window, 'cancelIdleCallback');
     window.clearTimeout = mockClearTimeout;
 
     cancelIdleTask(123);
@@ -147,8 +147,8 @@ describe('cancelIdleTask', () => {
 });
 
 describe('scheduleIdleTasks', () => {
-  let originalRequestIdleCallback: any;
-  let originalCancelIdleCallback: any;
+  let originalRequestIdleCallback: typeof window.requestIdleCallback;
+  let originalCancelIdleCallback: typeof window.cancelIdleCallback;
 
   beforeEach(() => {
     originalRequestIdleCallback = window.requestIdleCallback;
@@ -162,13 +162,13 @@ describe('scheduleIdleTasks', () => {
     if (originalRequestIdleCallback !== undefined) {
       window.requestIdleCallback = originalRequestIdleCallback;
     } else {
-      Reflect.deleteProperty(window, "requestIdleCallback");
+      Reflect.deleteProperty(window, 'requestIdleCallback');
     }
 
     if (originalCancelIdleCallback !== undefined) {
       window.cancelIdleCallback = originalCancelIdleCallback;
     } else {
-      Reflect.deleteProperty(window, "cancelIdleCallback");
+      Reflect.deleteProperty(window, 'cancelIdleCallback');
     }
   });
 
@@ -178,13 +178,13 @@ describe('scheduleIdleTasks', () => {
     const originalRequestIdleCallback = window.requestIdleCallback;
     const originalCancelIdleCallback = window.cancelIdleCallback;
 
-    Reflect.deleteProperty(window, "requestIdleCallback");
-    Reflect.deleteProperty(window, "cancelIdleCallback");
+    Reflect.deleteProperty(window, 'requestIdleCallback');
+    Reflect.deleteProperty(window, 'cancelIdleCallback');
 
     const tasks = [
       { callback: () => executionOrder.push(1), priority: 1 },
       { callback: () => executionOrder.push(10), priority: 10 },
-      { callback: () => executionOrder.push(5), priority: 5 }
+      { callback: () => executionOrder.push(5), priority: 5 },
     ];
 
     const ids = scheduleIdleTasks(tasks);
@@ -204,7 +204,7 @@ describe('scheduleIdleTasks', () => {
   test('should return array of IDs', () => {
     const tasks = [
       { callback: vi.fn(), priority: 5 },
-      { callback: vi.fn(), priority: 3 }
+      { callback: vi.fn(), priority: 3 },
     ];
 
     const ids = scheduleIdleTasks(tasks);
@@ -227,20 +227,14 @@ describe('scheduleIdleTasks', () => {
 
     const tasks = [
       { callback: vi.fn(), priority: 5, options: { timeout: 1000 } },
-      { callback: vi.fn(), priority: 3, options: { timeout: 2000 } }
+      { callback: vi.fn(), priority: 3, options: { timeout: 2000 } },
     ];
 
     scheduleIdleTasks(tasks);
 
     expect(mockRequestIdleCallback).toHaveBeenCalledTimes(2);
-    expect(mockRequestIdleCallback).toHaveBeenCalledWith(
-      expect.any(Function),
-      { timeout: 1000 }
-    );
-    expect(mockRequestIdleCallback).toHaveBeenCalledWith(
-      expect.any(Function),
-      { timeout: 2000 }
-    );
+    expect(mockRequestIdleCallback).toHaveBeenCalledWith(expect.any(Function), { timeout: 1000 });
+    expect(mockRequestIdleCallback).toHaveBeenCalledWith(expect.any(Function), { timeout: 2000 });
 
     window.requestIdleCallback = originalRequestIdleCallback;
   });
@@ -254,7 +248,7 @@ describe('scheduleIdleTaskWithTimeout', () => {
   test('should execute callback during idle time', () => {
     vi.useFakeTimers();
     const callback = vi.fn();
-    const mockRequestIdleCallback = vi.fn((cb) => {
+    const mockRequestIdleCallback = vi.fn(cb => {
       cb();
       return 123;
     });
@@ -276,8 +270,8 @@ describe('scheduleIdleTaskWithTimeout', () => {
     const originalRequestIdleCallback = window.requestIdleCallback;
     const originalCancelIdleCallback = window.cancelIdleCallback;
 
-    Reflect.deleteProperty(window, "requestIdleCallback");
-    Reflect.deleteProperty(window, "cancelIdleCallback");
+    Reflect.deleteProperty(window, 'requestIdleCallback');
+    Reflect.deleteProperty(window, 'cancelIdleCallback');
 
     scheduleIdleTaskWithTimeout(callback, 2000);
 
@@ -298,8 +292,8 @@ describe('scheduleIdleTaskWithTimeout', () => {
     const originalRequestIdleCallback = window.requestIdleCallback;
     const originalCancelIdleCallback = window.cancelIdleCallback;
 
-    Reflect.deleteProperty(window, "requestIdleCallback");
-    Reflect.deleteProperty(window, "cancelIdleCallback");
+    Reflect.deleteProperty(window, 'requestIdleCallback');
+    Reflect.deleteProperty(window, 'cancelIdleCallback');
 
     scheduleIdleTaskWithTimeout(callback, 5000);
 
@@ -322,8 +316,8 @@ describe('scheduleIdleTaskWithTimeout', () => {
     const originalRequestIdleCallback = window.requestIdleCallback;
     const originalCancelIdleCallback = window.cancelIdleCallback;
 
-    Reflect.deleteProperty(window, "requestIdleCallback");
-    Reflect.deleteProperty(window, "cancelIdleCallback");
+    Reflect.deleteProperty(window, 'requestIdleCallback');
+    Reflect.deleteProperty(window, 'cancelIdleCallback');
 
     scheduleIdleTaskWithTimeout(callback);
 
@@ -347,11 +341,13 @@ describe('processInIdle', () => {
     const processed: number[] = [];
     const originalRequestIdleCallback = window.requestIdleCallback;
 
-    Reflect.deleteProperty(window, "requestIdleCallback");
+    Reflect.deleteProperty(window, 'requestIdleCallback');
 
     const promise = processInIdle(
       items,
-      (item) => { processed.push(item); },
+      item => {
+        processed.push(item);
+      },
       3 // batch size
     );
 
@@ -371,13 +367,13 @@ describe('processInIdle', () => {
     const progressUpdates: number[] = [];
     const originalRequestIdleCallback = window.requestIdleCallback;
 
-    Reflect.deleteProperty(window, "requestIdleCallback");
+    Reflect.deleteProperty(window, 'requestIdleCallback');
 
     const promise = processInIdle(
       items,
       () => {},
       2,
-      (progress) => progressUpdates.push(progress)
+      progress => progressUpdates.push(progress)
     );
 
     await vi.runAllTimersAsync();
@@ -395,7 +391,7 @@ describe('processInIdle', () => {
     const processed: number[] = [];
     const originalRequestIdleCallback = window.requestIdleCallback;
 
-    Reflect.deleteProperty(window, "requestIdleCallback");
+    Reflect.deleteProperty(window, 'requestIdleCallback');
 
     const asyncProcessor = async (item: number) => {
       await Promise.resolve();
@@ -419,11 +415,13 @@ describe('processInIdle', () => {
     const indices: number[] = [];
     const originalRequestIdleCallback = window.requestIdleCallback;
 
-    Reflect.deleteProperty(window, "requestIdleCallback");
+    Reflect.deleteProperty(window, 'requestIdleCallback');
 
     const promise = processInIdle(
       items,
-      (_, index) => { indices.push(index); },
+      (_, index) => {
+        indices.push(index);
+      },
       2
     );
 
@@ -438,14 +436,16 @@ describe('processInIdle', () => {
 
   test('should handle empty array', async () => {
     vi.useFakeTimers();
-    const processed: any[] = [];
+    const processed: unknown[] = [];
     const originalRequestIdleCallback = window.requestIdleCallback;
 
-    Reflect.deleteProperty(window, "requestIdleCallback");
+    Reflect.deleteProperty(window, 'requestIdleCallback');
 
     const promise = processInIdle(
       [],
-      (item) => { processed.push(item); },
+      item => {
+        processed.push(item);
+      },
       10
     );
 
@@ -464,7 +464,7 @@ describe('processInIdle', () => {
     const batches: number[] = [];
     const originalRequestIdleCallback = window.requestIdleCallback;
 
-    Reflect.deleteProperty(window, "requestIdleCallback");
+    Reflect.deleteProperty(window, 'requestIdleCallback');
 
     let currentBatch = 0;
     const promise = processInIdle(
@@ -475,7 +475,7 @@ describe('processInIdle', () => {
         }
       },
       undefined, // use default batch size
-      (progress) => {
+      progress => {
         if (progress < 100) currentBatch++;
       }
     );
@@ -502,8 +502,8 @@ describe('Integration: Complete idle workflow', () => {
     const originalRequestIdleCallback = window.requestIdleCallback;
     const originalCancelIdleCallback = window.cancelIdleCallback;
 
-    Reflect.deleteProperty(window, "requestIdleCallback");
-    Reflect.deleteProperty(window, "cancelIdleCallback");
+    Reflect.deleteProperty(window, 'requestIdleCallback');
+    Reflect.deleteProperty(window, 'cancelIdleCallback');
 
     const id = scheduleIdleTask(callback);
     expect(callback).not.toHaveBeenCalled();
@@ -524,11 +524,13 @@ describe('Integration: Complete idle workflow', () => {
     const processed: number[] = [];
     const originalRequestIdleCallback = window.requestIdleCallback;
 
-    Reflect.deleteProperty(window, "requestIdleCallback");
+    Reflect.deleteProperty(window, 'requestIdleCallback');
 
     const promise = processInIdle(
       largeDataset,
-      (item) => { processed.push(item * 2); },
+      item => {
+        processed.push(item * 2);
+      },
       10
     );
 

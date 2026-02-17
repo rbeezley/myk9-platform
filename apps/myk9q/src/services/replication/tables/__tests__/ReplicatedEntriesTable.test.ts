@@ -15,6 +15,11 @@ import { ReplicatedEntriesTable, type Entry } from '../ReplicatedEntriesTable';
 import { deleteDB } from 'idb';
 import './setup'; // Use custom setup with real IndexedDB
 
+/** Access to protected methods for testing */
+interface TableTestInternals {
+  resolveConflict(local: Entry, remote: Entry): Entry;
+}
+
 const TEST_DB_NAME = 'myK9Q';
 const TEST_LICENSE_KEY = 'test-license-123';
 
@@ -482,7 +487,7 @@ describe('ReplicatedEntriesTable', () => {
       };
 
       // Access protected method for testing
-      const resolved = (table as any).resolveConflict(local, remote);
+      const resolved = (table as unknown as TableTestInternals).resolveConflict(local, remote);
 
       // Server always wins - local changes are uploaded first via MutationManager,
       // so by the time we merge, server has the most recent committed state
@@ -522,7 +527,7 @@ describe('ReplicatedEntriesTable', () => {
         license_key: TEST_LICENSE_KEY,
       };
 
-      const resolved = (table as any).resolveConflict(local, remote);
+      const resolved = (table as unknown as TableTestInternals).resolveConflict(local, remote);
 
       // Server wins for everything
       expect(resolved.entry_status).toBe('no-status');

@@ -16,12 +16,7 @@ import { submitScore } from '@/services/entryService';
 import { useOfflineQueueStore } from '@/stores/offlineQueueStore';
 
 // Hoist mock functions so they are available to the hoisted vi.mock factories
-const {
-  mockMarkAsScored,
-  mockSubmitScore,
-  mockAddToQueue,
-  mockUpdate
-} = vi.hoisted(() => ({
+const { mockMarkAsScored, mockSubmitScore, mockAddToQueue, mockUpdate } = vi.hoisted(() => ({
   mockMarkAsScored: vi.fn(),
   mockSubmitScore: vi.fn(),
   mockAddToQueue: vi.fn(),
@@ -43,7 +38,7 @@ vi.mock('@/services/entryService', () => ({
 vi.mock('@/stores/offlineQueueStore', () => ({
   useOfflineQueueStore: vi.fn(() => ({
     addToQueue: mockAddToQueue,
-    isOnline: true
+    isOnline: true,
   })),
 }));
 
@@ -62,16 +57,16 @@ vi.mock('@/stores/entryStore', () => ({
   useEntryStore: vi.fn(() => ({
     markAsScored: mockMarkAsScored,
     entries: [],
-    setEntries: vi.fn()
-  }))
+    setEntries: vi.fn(),
+  })),
 }));
 
 vi.mock('@myk9/scoring', () => ({
   useScoringStore: vi.fn(() => ({
     submitScore: mockSubmitScore,
     scores: [],
-    isScoring: false
-  }))
+    isScoring: false,
+  })),
 }));
 
 // Mock the hook specifically
@@ -82,8 +77,8 @@ vi.mock('@/hooks/useOptimisticUpdate', () => ({
     hasError: false,
     error: null,
     retryCount: 0,
-    clearError: vi.fn()
-  }))
+    clearError: vi.fn(),
+  })),
 }));
 
 describe('useOptimisticScoring - Offline-First Compliance', () => {
@@ -91,7 +86,7 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
     id: 1,
     classId: 10,
     armband: 101,
-    className: 'Novice A'
+    className: 'Novice A',
   };
 
   const mockScoreData = {
@@ -99,7 +94,7 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
     searchTime: '1:23.45',
     faultCount: 0,
     correctCount: 3,
-    incorrectCount: 0
+    incorrectCount: 0,
   };
 
   beforeEach(() => {
@@ -110,19 +105,19 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
     mockUpdate.mockClear();
 
     // Set up default implementations
-    (submitScore as any).mockResolvedValue(undefined);
+    vi.mocked(submitScore).mockResolvedValue(undefined);
 
     // Mock offline queue store
-    (useOfflineQueueStore as unknown as any).mockReturnValue({
+    vi.mocked(useOfflineQueueStore).mockReturnValue({
       addToQueue: mockAddToQueue,
-      isOnline: true
-    });
+      isOnline: true,
+    } as unknown as ReturnType<typeof useOfflineQueueStore>);
 
     // Reset navigator.onLine
     Object.defineProperty(navigator, 'onLine', {
       writable: true,
       configurable: true,
-      value: true
+      value: true,
     });
   });
 
@@ -153,7 +148,7 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
           classId: mockEntry.classId,
           armband: mockEntry.armband,
           className: mockEntry.className,
-          scoreData: mockScoreData
+          scoreData: mockScoreData,
         });
       });
 
@@ -162,7 +157,7 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
       expect(mockSubmitScore).toHaveBeenCalledWith(
         expect.objectContaining({
           entryId: mockEntry.id,
-          armband: mockEntry.armband
+          armband: mockEntry.armband,
         })
       );
 
@@ -184,7 +179,7 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
           classId: mockEntry.classId,
           armband: mockEntry.armband,
           className: mockEntry.className,
-          scoreData: mockScoreData
+          scoreData: mockScoreData,
         });
       });
 
@@ -206,7 +201,7 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
           classId: mockEntry.classId,
           armband: mockEntry.armband,
           className: mockEntry.className,
-          scoreData: mockScoreData
+          scoreData: mockScoreData,
         });
       });
 
@@ -215,7 +210,7 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
           mockEntry.id,
           expect.objectContaining({
             resultText: 'Q',
-            searchTime: '1:23.45'
+            searchTime: '1:23.45',
           }),
           undefined,
           mockEntry.classId
@@ -232,7 +227,7 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
           classId: mockEntry.classId,
           armband: mockEntry.armband,
           className: mockEntry.className,
-          scoreData: mockScoreData
+          scoreData: mockScoreData,
         });
       });
 
@@ -248,13 +243,13 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
       Object.defineProperty(navigator, 'onLine', {
         writable: true,
         configurable: true,
-        value: false
+        value: false,
       });
 
-      (useOfflineQueueStore as unknown as Mock).mockReturnValue({
+      vi.mocked(useOfflineQueueStore).mockReturnValue({
         addToQueue: mockAddToQueue,
-        isOnline: false
-      });
+        isOnline: false,
+      } as unknown as ReturnType<typeof useOfflineQueueStore>);
     });
 
     it('updates stores immediately when offline', async () => {
@@ -266,7 +261,7 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
           classId: mockEntry.classId,
           armband: mockEntry.armband,
           className: mockEntry.className,
-          scoreData: mockScoreData
+          scoreData: mockScoreData,
         });
       });
 
@@ -288,7 +283,7 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
           classId: mockEntry.classId,
           armband: mockEntry.armband,
           className: mockEntry.className,
-          scoreData: mockScoreData
+          scoreData: mockScoreData,
         });
       });
 
@@ -314,7 +309,7 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
           classId: mockEntry.classId,
           armband: mockEntry.armband,
           className: mockEntry.className,
-          scoreData: mockScoreData
+          scoreData: mockScoreData,
         });
       });
 
@@ -342,7 +337,7 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
           classId: mockEntry.classId,
           armband: mockEntry.armband,
           className: mockEntry.className,
-          scoreData: mockScoreData
+          scoreData: mockScoreData,
         });
       });
 
@@ -366,7 +361,7 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
           classId: mockEntry.classId,
           armband: mockEntry.armband,
           className: mockEntry.className,
-          scoreData: mockScoreData
+          scoreData: mockScoreData,
         });
       });
 
@@ -382,7 +377,7 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
       const entries = [
         { id: 1, scoreData: { resultText: 'Q', searchTime: '1:00.00' } },
         { id: 2, scoreData: { resultText: 'NQ', searchTime: '2:00.00' } },
-        { id: 3, scoreData: { resultText: 'Q', searchTime: '1:30.00' } }
+        { id: 3, scoreData: { resultText: 'Q', searchTime: '1:30.00' } },
       ];
 
       // Perform 3 rapid scoring actions
@@ -394,7 +389,7 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
               classId: mockEntry.classId,
               armband: mockEntry.armband + entry.id,
               className: mockEntry.className,
-              scoreData: entry.scoreData
+              scoreData: entry.scoreData,
             })
           )
         );
@@ -406,10 +401,8 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
       expect(mockSubmitScore.mock.calls.length).toBeGreaterThanOrEqual(3);
 
       // Check each entry was marked as scored with correct data
-      entries.forEach((entry) => {
-        const matchingCall = mockMarkAsScored.mock.calls.find(
-          call => call[0] === entry.id
-        );
+      entries.forEach(entry => {
+        const matchingCall = mockMarkAsScored.mock.calls.find(call => call[0] === entry.id);
         expect(matchingCall).toBeDefined();
         expect(matchingCall[1]).toBe(entry.scoreData.resultText);
       });
@@ -428,17 +421,20 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
               classId: mockEntry.classId,
               armband: 100 + id,
               className: mockEntry.className,
-              scoreData: { resultText: 'Q', searchTime: `1:${id}0.00` }
+              scoreData: { resultText: 'Q', searchTime: `1:${id}0.00` },
             })
           )
         );
       });
 
       // Should have at least 3 API calls (may be more with retries)
-      await waitFor(() => {
-        expect(submitScore).toHaveBeenCalled();
-        expect((submitScore as Mock).mock.calls.length).toBeGreaterThanOrEqual(3);
-      }, { timeout: 10000 });
+      await waitFor(
+        () => {
+          expect(submitScore).toHaveBeenCalled();
+          expect((submitScore as Mock).mock.calls.length).toBeGreaterThanOrEqual(3);
+        },
+        { timeout: 10000 }
+      );
     }, 15000);
   });
 
@@ -453,7 +449,7 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
           classId: mockEntry.classId,
           armband: mockEntry.armband,
           className: mockEntry.className,
-          scoreData: mockScoreData
+          scoreData: mockScoreData,
         });
       });
 
@@ -485,16 +481,16 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
           classId: mockEntry.classId,
           armband: mockEntry.armband,
           className: mockEntry.className,
-          scoreData: mockScoreData
+          scoreData: mockScoreData,
         });
       });
 
-      await waitFor(() => {
-        expect(callOrder).toEqual([
-          'markAsScored',
-          'submitScore'
-        ]);
-      }, { timeout: 10000 });
+      await waitFor(
+        () => {
+          expect(callOrder).toEqual(['markAsScored', 'submitScore']);
+        },
+        { timeout: 10000 }
+      );
     }, 15000);
 
     it('updates UI in less than 50ms (optimistic)', async () => {
@@ -508,7 +504,7 @@ describe('useOptimisticScoring - Offline-First Compliance', () => {
           classId: mockEntry.classId,
           armband: mockEntry.armband,
           className: mockEntry.className,
-          scoreData: mockScoreData
+          scoreData: mockScoreData,
         });
       });
 

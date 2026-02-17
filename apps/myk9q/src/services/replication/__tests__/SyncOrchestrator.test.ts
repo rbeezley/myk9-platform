@@ -13,10 +13,17 @@
  * - Auto-sync timer management
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { SyncOrchestrator, type SyncOrchestratorConfig, type CacheStatsResult } from '../SyncOrchestrator';
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
+import {
+  SyncOrchestrator,
+  type SyncOrchestratorConfig,
+  type CacheStatsResult,
+} from '../SyncOrchestrator';
 import { SyncEngine } from '../SyncEngine';
 import type { ReplicatedTable, SyncResult } from '@myk9/replication';
+
+/** Generic row type for mock tables */
+type MockRow = Record<string, unknown>;
 
 // Mock dependencies
 vi.mock('@/utils/logger', () => ({
@@ -43,7 +50,7 @@ Object.defineProperty(window, 'dispatchEvent', {
 describe('SyncOrchestrator', () => {
   let orchestrator: SyncOrchestrator;
   let mockSyncEngine: SyncEngine;
-  let mockTables: Map<string, ReplicatedTable<any>>;
+  let mockTables: Map<string, ReplicatedTable<MockRow & { id: string }>>;
   let mockCacheStats: CacheStatsResult;
 
   const TEST_LICENSE_KEY = 'test-license-123';
@@ -60,7 +67,10 @@ describe('SyncOrchestrator', () => {
   };
 
   // Helper to create a mock ReplicatedTable
-  const createMockTable = (tableName: string, overrides = {}): ReplicatedTable<any> => ({
+  const createMockTable = (
+    tableName: string,
+    overrides = {}
+  ): ReplicatedTable<MockRow & { id: string }> => ({
     sync: vi.fn().mockResolvedValue({
       tableName,
       success: true,
@@ -133,19 +143,15 @@ describe('SyncOrchestrator', () => {
         rowsAffected: 10,
         duration: 100,
       } as SyncResult),
-    } as any;
+    } as unknown as SyncEngine;
 
     // Create orchestrator
-    orchestrator = new SyncOrchestrator(
-      DEFAULT_CONFIG,
-      mockSyncEngine,
-      {
-        getTable: (name) => mockTables.get(name) || null,
-        getTableNames: () => Array.from(mockTables.keys()),
-        notifyCacheUpdate: vi.fn(),
-        getCacheStats: vi.fn().mockResolvedValue(mockCacheStats),
-      }
-    );
+    orchestrator = new SyncOrchestrator(DEFAULT_CONFIG, mockSyncEngine, {
+      getTable: name => mockTables.get(name) || null,
+      getTableNames: () => Array.from(mockTables.keys()),
+      notifyCacheUpdate: vi.fn(),
+      getCacheStats: vi.fn().mockResolvedValue(mockCacheStats),
+    });
   });
 
   afterEach(() => {
@@ -163,16 +169,12 @@ describe('SyncOrchestrator', () => {
         licenseKey: TEST_LICENSE_KEY,
       };
 
-      const minimalOrchestrator = new SyncOrchestrator(
-        minimalConfig,
-        mockSyncEngine,
-        {
-          getTable: (name) => mockTables.get(name) || null,
-          getTableNames: () => Array.from(mockTables.keys()),
-          notifyCacheUpdate: vi.fn(),
-          getCacheStats: vi.fn().mockResolvedValue(mockCacheStats),
-        }
-      );
+      const minimalOrchestrator = new SyncOrchestrator(minimalConfig, mockSyncEngine, {
+        getTable: name => mockTables.get(name) || null,
+        getTableNames: () => Array.from(mockTables.keys()),
+        notifyCacheUpdate: vi.fn(),
+        getCacheStats: vi.fn().mockResolvedValue(mockCacheStats),
+      });
 
       expect(minimalOrchestrator).toBeDefined();
       minimalOrchestrator.destroy();
@@ -244,8 +246,8 @@ describe('SyncOrchestrator', () => {
       const options = { forceFullSync: true, batchSize: 50 };
       await orchestrator.syncTable('entries', options);
 
-      const syncCall = (mockTables.get('entries')?.sync as any).mock.calls[0];
-      expect(syncCall[1]).toMatchObject(options);
+      const syncMock = mockTables.get('entries')?.sync as Mock;
+      expect(syncMock.mock.calls[0][1]).toMatchObject(options);
     });
 
     it('should force full sync after interval expires', async () => {
@@ -257,7 +259,7 @@ describe('SyncOrchestrator', () => {
         },
         mockSyncEngine,
         {
-          getTable: (name) => mockTables.get(name) || null,
+          getTable: name => mockTables.get(name) || null,
           getTableNames: () => Array.from(mockTables.keys()),
           notifyCacheUpdate: vi.fn(),
           getCacheStats: vi.fn().mockResolvedValue(mockCacheStats),
@@ -266,7 +268,8 @@ describe('SyncOrchestrator', () => {
 
       // First sync
       await fastOrchestrator.syncTable('entries');
-      const firstCall = (mockTables.get('entries')?.sync as any).mock.calls[0][1];
+      const syncMock = mockTables.get('entries')?.sync as Mock;
+      const firstCall = syncMock.mock.calls[0][1];
       expect(firstCall.forceFullSync).toBe(true); // First sync is always full
 
       // Wait for interval to expire
@@ -274,7 +277,7 @@ describe('SyncOrchestrator', () => {
 
       // Second sync should force full sync
       await fastOrchestrator.syncTable('entries');
-      const secondCall = (mockTables.get('entries')?.sync as any).mock.calls[1][1];
+      const secondCall = syncMock.mock.calls[1][1];
       expect(secondCall.forceFullSync).toBe(true);
 
       fastOrchestrator.destroy();
@@ -282,16 +285,12 @@ describe('SyncOrchestrator', () => {
 
     it('should notify cache update on successful sync', async () => {
       const notifyCallback = vi.fn();
-      const testOrchestrator = new SyncOrchestrator(
-        DEFAULT_CONFIG,
-        mockSyncEngine,
-        {
-          getTable: (name) => mockTables.get(name) || null,
-          getTableNames: () => Array.from(mockTables.keys()),
-          notifyCacheUpdate: notifyCallback,
-          getCacheStats: vi.fn().mockResolvedValue(mockCacheStats),
-        }
-      );
+      const testOrchestrator = new SyncOrchestrator(DEFAULT_CONFIG, mockSyncEngine, {
+        getTable: name => mockTables.get(name) || null,
+        getTableNames: () => Array.from(mockTables.keys()),
+        notifyCacheUpdate: notifyCallback,
+        getCacheStats: vi.fn().mockResolvedValue(mockCacheStats),
+      });
 
       await testOrchestrator.syncTable('entries');
       expect(notifyCallback).toHaveBeenCalledWith('entries');
@@ -314,16 +313,12 @@ describe('SyncOrchestrator', () => {
       mockTables.set('failing', failingTable);
 
       const notifyCallback = vi.fn();
-      const testOrchestrator = new SyncOrchestrator(
-        DEFAULT_CONFIG,
-        mockSyncEngine,
-        {
-          getTable: (name) => mockTables.get(name) || null,
-          getTableNames: () => Array.from(mockTables.keys()),
-          notifyCacheUpdate: notifyCallback,
-          getCacheStats: vi.fn().mockResolvedValue(mockCacheStats),
-        }
-      );
+      const testOrchestrator = new SyncOrchestrator(DEFAULT_CONFIG, mockSyncEngine, {
+        getTable: name => mockTables.get(name) || null,
+        getTableNames: () => Array.from(mockTables.keys()),
+        notifyCacheUpdate: notifyCallback,
+        getCacheStats: vi.fn().mockResolvedValue(mockCacheStats),
+      });
 
       await testOrchestrator.syncTable('failing');
       expect(notifyCallback).not.toHaveBeenCalled();
@@ -335,7 +330,7 @@ describe('SyncOrchestrator', () => {
       const table = mockTables.get('entries');
 
       // Mock successful full sync
-      (table?.sync as any).mockResolvedValue({
+      vi.mocked(table!.sync).mockResolvedValue({
         tableName: 'entries',
         success: true,
         operation: 'full-sync',
@@ -379,8 +374,8 @@ describe('SyncOrchestrator', () => {
 
     it('should dispatch failure event when any sync fails', async () => {
       // Make one table fail
-      const failingTable = mockTables.get('entries');
-      (failingTable?.sync as any).mockResolvedValue({
+      const failingTable = mockTables.get('entries')!;
+      vi.mocked(failingTable.sync).mockResolvedValue({
         tableName: 'entries',
         success: false,
         operation: 'incremental-sync',
@@ -400,16 +395,12 @@ describe('SyncOrchestrator', () => {
 
     it('should check quota after sync completes', async () => {
       const getCacheStats = vi.fn().mockResolvedValue(mockCacheStats);
-      const testOrchestrator = new SyncOrchestrator(
-        DEFAULT_CONFIG,
-        mockSyncEngine,
-        {
-          getTable: (name) => mockTables.get(name) || null,
-          getTableNames: () => Array.from(mockTables.keys()),
-          notifyCacheUpdate: vi.fn(),
-          getCacheStats,
-        }
-      );
+      const testOrchestrator = new SyncOrchestrator(DEFAULT_CONFIG, mockSyncEngine, {
+        getTable: name => mockTables.get(name) || null,
+        getTableNames: () => Array.from(mockTables.keys()),
+        notifyCacheUpdate: vi.fn(),
+        getCacheStats,
+      });
 
       await testOrchestrator.syncAll();
 
@@ -427,7 +418,7 @@ describe('SyncOrchestrator', () => {
         },
         mockSyncEngine,
         {
-          getTable: (name) => mockTables.get(name) || null,
+          getTable: name => mockTables.get(name) || null,
           getTableNames: () => Array.from(mockTables.keys()),
           notifyCacheUpdate: vi.fn(),
           getCacheStats,
@@ -443,8 +434,8 @@ describe('SyncOrchestrator', () => {
 
     it('should handle table sync errors gracefully', async () => {
       // Make one table throw an error
-      const errorTable = mockTables.get('entries');
-      (errorTable?.sync as any).mockRejectedValue(new Error('Database connection failed'));
+      const errorTable = mockTables.get('entries')!;
+      vi.mocked(errorTable.sync).mockRejectedValue(new Error('Database connection failed'));
 
       const results = await orchestrator.syncAll();
 
@@ -497,16 +488,12 @@ describe('SyncOrchestrator', () => {
       mockTables.set('entries', trackingTable);
 
       // Create new orchestrator with tracking table
-      const trackingOrchestrator = new SyncOrchestrator(
-        DEFAULT_CONFIG,
-        mockSyncEngine,
-        {
-          getTable: (name) => mockTables.get(name) || null,
-          getTableNames: () => ['entries'],
-          notifyCacheUpdate: vi.fn(),
-          getCacheStats: vi.fn().mockResolvedValue(mockCacheStats),
-        }
-      );
+      const trackingOrchestrator = new SyncOrchestrator(DEFAULT_CONFIG, mockSyncEngine, {
+        getTable: name => mockTables.get(name) || null,
+        getTableNames: () => ['entries'],
+        notifyCacheUpdate: vi.fn(),
+        getCacheStats: vi.fn().mockResolvedValue(mockCacheStats),
+      });
 
       // Start multiple syncs
       const sync1 = trackingOrchestrator.syncAll();
@@ -543,7 +530,7 @@ describe('SyncOrchestrator', () => {
       const options = { batchSize: 50 };
       await orchestrator.fullSyncTable('entries', options);
 
-      const syncCall = (mockSyncEngine.fullSync as any).mock.calls[0][1];
+      const syncCall = vi.mocked(mockSyncEngine.fullSync).mock.calls[0][1];
       expect(syncCall).toMatchObject({
         licenseKey: TEST_LICENSE_KEY,
         forceFullSync: true,
@@ -561,7 +548,7 @@ describe('SyncOrchestrator', () => {
     });
 
     it('should handle errors during full sync', async () => {
-      (mockSyncEngine.fullSync as any).mockRejectedValueOnce(new Error('Sync failed'));
+      vi.mocked(mockSyncEngine.fullSync).mockRejectedValueOnce(new Error('Sync failed'));
 
       const results = await orchestrator.fullSyncAll();
 
@@ -618,7 +605,7 @@ describe('SyncOrchestrator', () => {
         },
         mockSyncEngine,
         {
-          getTable: (name) => mockTables.get(name) || null,
+          getTable: name => mockTables.get(name) || null,
           getTableNames: () => Array.from(mockTables.keys()),
           notifyCacheUpdate: vi.fn(),
           getCacheStats: vi.fn().mockResolvedValue(mockCacheStats),
@@ -641,7 +628,7 @@ describe('SyncOrchestrator', () => {
         },
         mockSyncEngine,
         {
-          getTable: (name) => mockTables.get(name) || null,
+          getTable: name => mockTables.get(name) || null,
           getTableNames: () => Array.from(mockTables.keys()),
           notifyCacheUpdate: vi.fn(),
           getCacheStats: vi.fn().mockResolvedValue(mockCacheStats),
@@ -658,7 +645,7 @@ describe('SyncOrchestrator', () => {
 
     it('should handle auto-sync errors gracefully', async () => {
       // Mock sync to fail
-      (mockSyncEngine.uploadPendingMutations as any).mockRejectedValue(
+      vi.mocked(mockSyncEngine.uploadPendingMutations).mockRejectedValue(
         new Error('Auto-sync failed')
       );
 
@@ -669,7 +656,7 @@ describe('SyncOrchestrator', () => {
         },
         mockSyncEngine,
         {
-          getTable: (name) => mockTables.get(name) || null,
+          getTable: name => mockTables.get(name) || null,
           getTableNames: () => Array.from(mockTables.keys()),
           notifyCacheUpdate: vi.fn(),
           getCacheStats: vi.fn().mockResolvedValue(mockCacheStats),
@@ -687,7 +674,7 @@ describe('SyncOrchestrator', () => {
 
     it('should handle initial sync errors gracefully', async () => {
       // Mock sync to fail
-      (mockSyncEngine.uploadPendingMutations as any).mockRejectedValue(
+      vi.mocked(mockSyncEngine.uploadPendingMutations).mockRejectedValue(
         new Error('Initial sync failed')
       );
 
@@ -698,7 +685,7 @@ describe('SyncOrchestrator', () => {
         },
         mockSyncEngine,
         {
-          getTable: (name) => mockTables.get(name) || null,
+          getTable: name => mockTables.get(name) || null,
           getTableNames: () => Array.from(mockTables.keys()),
           notifyCacheUpdate: vi.fn(),
           getCacheStats: vi.fn().mockResolvedValue(mockCacheStats),
@@ -755,22 +742,19 @@ describe('SyncOrchestrator', () => {
         ],
       };
 
-      const testOrchestrator = new SyncOrchestrator(
-        DEFAULT_CONFIG,
-        mockSyncEngine,
-        {
-          getTable: (name) => mockTables.get(name) || null,
-          getTableNames: () => Array.from(mockTables.keys()),
-          notifyCacheUpdate: vi.fn(),
-          getCacheStats: vi.fn().mockResolvedValue(overLimitStats),
-        }
-      );
+      const testOrchestrator = new SyncOrchestrator(DEFAULT_CONFIG, mockSyncEngine, {
+        getTable: name => mockTables.get(name) || null,
+        getTableNames: () => Array.from(mockTables.keys()),
+        notifyCacheUpdate: vi.fn(),
+        getCacheStats: vi.fn().mockResolvedValue(overLimitStats),
+      });
 
       await testOrchestrator.checkQuotaAndEvict();
 
       // At least one table should have been evicted
-      const evictionCalls = Array.from(mockTables.values())
-        .filter(table => (table.evictLRU as any).mock.calls.length > 0);
+      const evictionCalls = Array.from(mockTables.values()).filter(
+        table => vi.mocked(table.evictLRU).mock.calls.length > 0
+      );
 
       expect(evictionCalls.length).toBeGreaterThan(0);
 
@@ -778,16 +762,12 @@ describe('SyncOrchestrator', () => {
     });
 
     it('should handle quota check errors gracefully', async () => {
-      const testOrchestrator = new SyncOrchestrator(
-        DEFAULT_CONFIG,
-        mockSyncEngine,
-        {
-          getTable: (name) => mockTables.get(name) || null,
-          getTableNames: () => Array.from(mockTables.keys()),
-          notifyCacheUpdate: vi.fn(),
-          getCacheStats: vi.fn().mockRejectedValue(new Error('Storage error')),
-        }
-      );
+      const testOrchestrator = new SyncOrchestrator(DEFAULT_CONFIG, mockSyncEngine, {
+        getTable: name => mockTables.get(name) || null,
+        getTableNames: () => Array.from(mockTables.keys()),
+        notifyCacheUpdate: vi.fn(),
+        getCacheStats: vi.fn().mockRejectedValue(new Error('Storage error')),
+      });
 
       // Should not throw
       await expect(testOrchestrator.checkQuotaAndEvict()).resolves.not.toThrow();
@@ -836,16 +816,12 @@ describe('SyncOrchestrator', () => {
         ],
       };
 
-      const testOrchestrator = new SyncOrchestrator(
-        DEFAULT_CONFIG,
-        mockSyncEngine,
-        {
-          getTable: (name) => mockTables.get(name) || null,
-          getTableNames: () => Array.from(mockTables.keys()),
-          notifyCacheUpdate: vi.fn(),
-          getCacheStats: vi.fn().mockResolvedValue(largeStats),
-        }
-      );
+      const testOrchestrator = new SyncOrchestrator(DEFAULT_CONFIG, mockSyncEngine, {
+        getTable: name => mockTables.get(name) || null,
+        getTableNames: () => Array.from(mockTables.keys()),
+        notifyCacheUpdate: vi.fn(),
+        getCacheStats: vi.fn().mockResolvedValue(largeStats),
+      });
 
       const evicted = await testOrchestrator.evictLRU(50); // Target 50 MB
 
@@ -885,16 +861,12 @@ describe('SyncOrchestrator', () => {
         ],
       };
 
-      const testOrchestrator = new SyncOrchestrator(
-        DEFAULT_CONFIG,
-        mockSyncEngine,
-        {
-          getTable: (name) => mockTables.get(name) || null,
-          getTableNames: () => Array.from(mockTables.keys()),
-          notifyCacheUpdate: vi.fn(),
-          getCacheStats: vi.fn().mockResolvedValue(unevenStats),
-        }
-      );
+      const testOrchestrator = new SyncOrchestrator(DEFAULT_CONFIG, mockSyncEngine, {
+        getTable: name => mockTables.get(name) || null,
+        getTableNames: () => Array.from(mockTables.keys()),
+        notifyCacheUpdate: vi.fn(),
+        getCacheStats: vi.fn().mockResolvedValue(unevenStats),
+      });
 
       await testOrchestrator.evictLRU(50);
 
@@ -933,7 +905,7 @@ describe('SyncOrchestrator', () => {
 
     it('should handle sync errors on network online gracefully', async () => {
       // Mock syncAll to fail
-      (mockSyncEngine.uploadPendingMutations as any).mockRejectedValueOnce(
+      vi.mocked(mockSyncEngine.uploadPendingMutations).mockRejectedValueOnce(
         new Error('Network sync failed')
       );
 
@@ -982,16 +954,12 @@ describe('SyncOrchestrator', () => {
       });
       mockTables.set('error-table', errorTable);
 
-      const testOrchestrator = new SyncOrchestrator(
-        DEFAULT_CONFIG,
-        mockSyncEngine,
-        {
-          getTable: (name) => mockTables.get(name) || null,
-          getTableNames: () => Array.from(mockTables.keys()),
-          notifyCacheUpdate: vi.fn(),
-          getCacheStats: vi.fn().mockResolvedValue(mockCacheStats),
-        }
-      );
+      const testOrchestrator = new SyncOrchestrator(DEFAULT_CONFIG, mockSyncEngine, {
+        getTable: name => mockTables.get(name) || null,
+        getTableNames: () => Array.from(mockTables.keys()),
+        notifyCacheUpdate: vi.fn(),
+        getCacheStats: vi.fn().mockResolvedValue(mockCacheStats),
+      });
 
       // Should not throw
       await expect(testOrchestrator.syncTable('error-table')).resolves.toBeDefined();
@@ -1012,16 +980,12 @@ describe('SyncOrchestrator', () => {
       });
       mockTables.set('error-table', errorTable);
 
-      const testOrchestrator = new SyncOrchestrator(
-        DEFAULT_CONFIG,
-        mockSyncEngine,
-        {
-          getTable: (name) => mockTables.get(name) || null,
-          getTableNames: () => Array.from(mockTables.keys()),
-          notifyCacheUpdate: vi.fn(),
-          getCacheStats: vi.fn().mockResolvedValue(mockCacheStats),
-        }
-      );
+      const testOrchestrator = new SyncOrchestrator(DEFAULT_CONFIG, mockSyncEngine, {
+        getTable: name => mockTables.get(name) || null,
+        getTableNames: () => Array.from(mockTables.keys()),
+        notifyCacheUpdate: vi.fn(),
+        getCacheStats: vi.fn().mockResolvedValue(mockCacheStats),
+      });
 
       // Should not throw
       await expect(
@@ -1032,7 +996,7 @@ describe('SyncOrchestrator', () => {
     });
 
     it('should handle mutation upload errors', async () => {
-      (mockSyncEngine.uploadPendingMutations as any).mockRejectedValue(
+      vi.mocked(mockSyncEngine.uploadPendingMutations).mockRejectedValue(
         new Error('Upload failed')
       );
 
@@ -1051,16 +1015,12 @@ describe('SyncOrchestrator', () => {
       });
       mockTables.set('metadata-table', metadataTable);
 
-      const testOrchestrator = new SyncOrchestrator(
-        DEFAULT_CONFIG,
-        mockSyncEngine,
-        {
-          getTable: (name) => mockTables.get(name) || null,
-          getTableNames: () => ['metadata-table'],
-          notifyCacheUpdate: vi.fn(),
-          getCacheStats: vi.fn().mockResolvedValue(mockCacheStats),
-        }
-      );
+      const testOrchestrator = new SyncOrchestrator(DEFAULT_CONFIG, mockSyncEngine, {
+        getTable: name => mockTables.get(name) || null,
+        getTableNames: () => ['metadata-table'],
+        notifyCacheUpdate: vi.fn(),
+        getCacheStats: vi.fn().mockResolvedValue(mockCacheStats),
+      });
 
       await testOrchestrator.syncTable('metadata-table');
 
@@ -1078,16 +1038,12 @@ describe('SyncOrchestrator', () => {
       });
       mockTables.set('metadata-table', metadataTable);
 
-      const testOrchestrator = new SyncOrchestrator(
-        DEFAULT_CONFIG,
-        mockSyncEngine,
-        {
-          getTable: (name) => mockTables.get(name) || null,
-          getTableNames: () => ['metadata-table'],
-          notifyCacheUpdate: vi.fn(),
-          getCacheStats: vi.fn().mockResolvedValue(mockCacheStats),
-        }
-      );
+      const testOrchestrator = new SyncOrchestrator(DEFAULT_CONFIG, mockSyncEngine, {
+        getTable: name => mockTables.get(name) || null,
+        getTableNames: () => ['metadata-table'],
+        notifyCacheUpdate: vi.fn(),
+        getCacheStats: vi.fn().mockResolvedValue(mockCacheStats),
+      });
 
       // Sync twice
       await testOrchestrator.syncTable('metadata-table');
@@ -1104,16 +1060,12 @@ describe('SyncOrchestrator', () => {
       const nullTable = createMockTable('null-table');
       mockTables.set('null-table', nullTable);
 
-      const testOrchestrator = new SyncOrchestrator(
-        DEFAULT_CONFIG,
-        mockSyncEngine,
-        {
-          getTable: (name) => name === 'null-table' ? null : mockTables.get(name) || null,
-          getTableNames: () => ['null-table', 'entries'],
-          notifyCacheUpdate: vi.fn(),
-          getCacheStats: vi.fn().mockResolvedValue(mockCacheStats),
-        }
-      );
+      const testOrchestrator = new SyncOrchestrator(DEFAULT_CONFIG, mockSyncEngine, {
+        getTable: name => (name === 'null-table' ? null : mockTables.get(name) || null),
+        getTableNames: () => ['null-table', 'entries'],
+        notifyCacheUpdate: vi.fn(),
+        getCacheStats: vi.fn().mockResolvedValue(mockCacheStats),
+      });
 
       // Should not throw when table returns null
       await expect(testOrchestrator.syncTable('entries')).resolves.toBeDefined();
@@ -1125,16 +1077,12 @@ describe('SyncOrchestrator', () => {
   describe('Cache Statistics', () => {
     it('should get cache statistics', async () => {
       const getCacheStats = vi.fn().mockResolvedValue(mockCacheStats);
-      const testOrchestrator = new SyncOrchestrator(
-        DEFAULT_CONFIG,
-        mockSyncEngine,
-        {
-          getTable: (name) => mockTables.get(name) || null,
-          getTableNames: () => Array.from(mockTables.keys()),
-          notifyCacheUpdate: vi.fn(),
-          getCacheStats,
-        }
-      );
+      const testOrchestrator = new SyncOrchestrator(DEFAULT_CONFIG, mockSyncEngine, {
+        getTable: name => mockTables.get(name) || null,
+        getTableNames: () => Array.from(mockTables.keys()),
+        notifyCacheUpdate: vi.fn(),
+        getCacheStats,
+      });
 
       await testOrchestrator.checkQuotaAndEvict();
 

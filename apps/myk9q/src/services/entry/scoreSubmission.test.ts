@@ -4,6 +4,11 @@ import { supabase } from '@/lib/supabase';
 import { triggerImmediateEntrySync } from '../entryReplication';
 import { checkAndUpdateClassCompletion } from './classCompletionService';
 
+/** Helper to cast mock Supabase query builder chains */
+type MockQueryBuilder = ReturnType<typeof supabase.from>;
+const mockFrom = (obj: Record<string, unknown>): MockQueryBuilder =>
+  obj as unknown as MockQueryBuilder;
+
 // Mock dependencies
 vi.mock('@/lib/supabase', () => ({
   supabase: {
@@ -39,22 +44,24 @@ describe('scoreSubmission', () => {
         faultCount: 0,
       };
 
-      vi.mocked(supabase.from).mockReturnValue({
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            select: vi.fn().mockResolvedValue({
-              data: [
-                {
-                  id: mockEntryId,
-                  result_status: 'qualified',
-                  entry_status: 'completed',
-                },
-              ],
-              error: null,
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              select: vi.fn().mockResolvedValue({
+                data: [
+                  {
+                    id: mockEntryId,
+                    result_status: 'qualified',
+                    entry_status: 'completed',
+                  },
+                ],
+                error: null,
+              }),
             }),
           }),
-        }),
-      } as any);
+        })
+      );
 
       vi.mocked(triggerImmediateEntrySync).mockResolvedValue(undefined);
       vi.mocked(checkAndUpdateClassCompletion).mockResolvedValue(undefined);
@@ -77,20 +84,22 @@ describe('scoreSubmission', () => {
         level: 'Master',
       };
 
-      let capturedUpdateData: any;
-      vi.mocked(supabase.from).mockReturnValue({
-        update: vi.fn().mockImplementation((data) => {
-          capturedUpdateData = data;
-          return {
-            eq: vi.fn().mockReturnValue({
-              select: vi.fn().mockResolvedValue({
-                data: [{ id: mockEntryId }],
-                error: null,
+      let capturedUpdateData: Record<string, unknown> | undefined;
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          update: vi.fn().mockImplementation((data: Record<string, unknown>) => {
+            capturedUpdateData = data;
+            return {
+              eq: vi.fn().mockReturnValue({
+                select: vi.fn().mockResolvedValue({
+                  data: [{ id: mockEntryId }],
+                  error: null,
+                }),
               }),
-            }),
-          };
-        }),
-      } as any);
+            };
+          }),
+        })
+      );
 
       vi.mocked(triggerImmediateEntrySync).mockResolvedValue(undefined);
 
@@ -98,10 +107,10 @@ describe('scoreSubmission', () => {
       await submitScore(mockEntryId, scoreData, undefined, 456);
 
       // Assert
-      expect(capturedUpdateData.area1_time_seconds).toBe(45);
-      expect(capturedUpdateData.area2_time_seconds).toBe(52);
-      expect(capturedUpdateData.area3_time_seconds).toBe(38);
-      expect(capturedUpdateData.search_time_seconds).toBe(135); // Sum of areas
+      expect(capturedUpdateData!.area1_time_seconds).toBe(45);
+      expect(capturedUpdateData!.area2_time_seconds).toBe(52);
+      expect(capturedUpdateData!.area3_time_seconds).toBe(38);
+      expect(capturedUpdateData!.search_time_seconds).toBe(135); // Sum of areas
     });
 
     it('should set entry_status to completed when scored', async () => {
@@ -111,20 +120,22 @@ describe('scoreSubmission', () => {
         searchTime: '1:30',
       };
 
-      let capturedUpdateData: any;
-      vi.mocked(supabase.from).mockReturnValue({
-        update: vi.fn().mockImplementation((data) => {
-          capturedUpdateData = data;
-          return {
-            eq: vi.fn().mockReturnValue({
-              select: vi.fn().mockResolvedValue({
-                data: [{ id: mockEntryId }],
-                error: null,
+      let capturedUpdateData: Record<string, unknown> | undefined;
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          update: vi.fn().mockImplementation((data: Record<string, unknown>) => {
+            capturedUpdateData = data;
+            return {
+              eq: vi.fn().mockReturnValue({
+                select: vi.fn().mockResolvedValue({
+                  data: [{ id: mockEntryId }],
+                  error: null,
+                }),
               }),
-            }),
-          };
-        }),
-      } as any);
+            };
+          }),
+        })
+      );
 
       vi.mocked(triggerImmediateEntrySync).mockResolvedValue(undefined);
 
@@ -132,8 +143,8 @@ describe('scoreSubmission', () => {
       await submitScore(mockEntryId, scoreData, undefined, 456);
 
       // Assert
-      expect(capturedUpdateData.entry_status).toBe('completed');
-      expect(capturedUpdateData.is_scored).toBe(true);
+      expect(capturedUpdateData!.entry_status).toBe('completed');
+      expect(capturedUpdateData!.is_scored).toBe(true);
     });
 
     it('should set entry_status to in-ring when not scored', async () => {
@@ -142,20 +153,22 @@ describe('scoreSubmission', () => {
         resultText: 'Pending', // Maps to 'pending' result_status
       };
 
-      let capturedUpdateData: any;
-      vi.mocked(supabase.from).mockReturnValue({
-        update: vi.fn().mockImplementation((data) => {
-          capturedUpdateData = data;
-          return {
-            eq: vi.fn().mockReturnValue({
-              select: vi.fn().mockResolvedValue({
-                data: [{ id: mockEntryId }],
-                error: null,
+      let capturedUpdateData: Record<string, unknown> | undefined;
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          update: vi.fn().mockImplementation((data: Record<string, unknown>) => {
+            capturedUpdateData = data;
+            return {
+              eq: vi.fn().mockReturnValue({
+                select: vi.fn().mockResolvedValue({
+                  data: [{ id: mockEntryId }],
+                  error: null,
+                }),
               }),
-            }),
-          };
-        }),
-      } as any);
+            };
+          }),
+        })
+      );
 
       vi.mocked(triggerImmediateEntrySync).mockResolvedValue(undefined);
 
@@ -163,8 +176,8 @@ describe('scoreSubmission', () => {
       await submitScore(mockEntryId, scoreData, undefined, 456);
 
       // Assert
-      expect(capturedUpdateData.entry_status).toBe('in-ring');
-      expect(capturedUpdateData.is_scored).toBe(false);
+      expect(capturedUpdateData!.entry_status).toBe('in-ring');
+      expect(capturedUpdateData!.is_scored).toBe(false);
     });
 
     it('should handle all optional fields', async () => {
@@ -181,20 +194,22 @@ describe('scoreSubmission', () => {
         nonQualifyingReason: 'None',
       };
 
-      let capturedUpdateData: any;
-      vi.mocked(supabase.from).mockReturnValue({
-        update: vi.fn().mockImplementation((data) => {
-          capturedUpdateData = data;
-          return {
-            eq: vi.fn().mockReturnValue({
-              select: vi.fn().mockResolvedValue({
-                data: [{ id: mockEntryId }],
-                error: null,
+      let capturedUpdateData: Record<string, unknown> | undefined;
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          update: vi.fn().mockImplementation((data: Record<string, unknown>) => {
+            capturedUpdateData = data;
+            return {
+              eq: vi.fn().mockReturnValue({
+                select: vi.fn().mockResolvedValue({
+                  data: [{ id: mockEntryId }],
+                  error: null,
+                }),
               }),
-            }),
-          };
-        }),
-      } as any);
+            };
+          }),
+        })
+      );
 
       vi.mocked(triggerImmediateEntrySync).mockResolvedValue(undefined);
 
@@ -202,13 +217,13 @@ describe('scoreSubmission', () => {
       await submitScore(mockEntryId, scoreData, undefined, 456);
 
       // Assert
-      expect(capturedUpdateData.total_faults).toBe(2);
-      expect(capturedUpdateData.points_earned).toBe(95);
-      expect(capturedUpdateData.total_score).toBe(98.5);
-      expect(capturedUpdateData.total_correct_finds).toBe(10);
-      expect(capturedUpdateData.total_incorrect_finds).toBe(1);
-      expect(capturedUpdateData.no_finish_count).toBe(0);
-      expect(capturedUpdateData.disqualification_reason).toBe('None');
+      expect(capturedUpdateData!.total_faults).toBe(2);
+      expect(capturedUpdateData!.points_earned).toBe(95);
+      expect(capturedUpdateData!.total_score).toBe(98.5);
+      expect(capturedUpdateData!.total_correct_finds).toBe(10);
+      expect(capturedUpdateData!.total_incorrect_finds).toBe(1);
+      expect(capturedUpdateData!.no_finish_count).toBe(0);
+      expect(capturedUpdateData!.disqualification_reason).toBe('None');
     });
 
     it('should trigger class completion check with provided classId', async () => {
@@ -219,16 +234,18 @@ describe('scoreSubmission', () => {
       const classId = 456;
       const pairedClassId = 457;
 
-      vi.mocked(supabase.from).mockReturnValue({
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            select: vi.fn().mockResolvedValue({
-              data: [{ id: mockEntryId }],
-              error: null,
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              select: vi.fn().mockResolvedValue({
+                data: [{ id: mockEntryId }],
+                error: null,
+              }),
             }),
           }),
-        }),
-      } as any);
+        })
+      );
 
       vi.mocked(triggerImmediateEntrySync).mockResolvedValue(undefined);
       vi.mocked(checkAndUpdateClassCompletion).mockResolvedValue(undefined);
@@ -237,10 +254,14 @@ describe('scoreSubmission', () => {
       await submitScore(mockEntryId, scoreData, pairedClassId, classId);
 
       // Small delay to allow background task to start
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await new Promise(resolve => setTimeout(resolve, 10));
 
       // Assert - now includes entryId as third argument (read replica workaround)
-      expect(checkAndUpdateClassCompletion).toHaveBeenCalledWith(classId, pairedClassId, mockEntryId);
+      expect(checkAndUpdateClassCompletion).toHaveBeenCalledWith(
+        classId,
+        pairedClassId,
+        mockEntryId
+      );
     });
 
     it('should query for classId when not provided', async () => {
@@ -249,9 +270,9 @@ describe('scoreSubmission', () => {
         resultText: 'Qualified',
       };
 
-      vi.mocked(supabase.from).mockImplementation((table) => {
+      vi.mocked(supabase.from).mockImplementation(table => {
         if (table === 'entries') {
-          return {
+          return mockFrom({
             update: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
                 select: vi.fn().mockResolvedValue({
@@ -260,9 +281,9 @@ describe('scoreSubmission', () => {
                 }),
               }),
             }),
-          } as any;
+          });
         } else if (table === 'view_entry_class_join_normalized') {
-          return {
+          return mockFrom({
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
                 single: vi.fn().mockResolvedValue({
@@ -271,9 +292,9 @@ describe('scoreSubmission', () => {
                 }),
               }),
             }),
-          } as any;
+          });
         }
-        return {} as any;
+        return mockFrom({});
       });
 
       vi.mocked(triggerImmediateEntrySync).mockResolvedValue(undefined);
@@ -283,7 +304,7 @@ describe('scoreSubmission', () => {
       await submitScore(mockEntryId, scoreData); // No classId provided
 
       // Small delay to allow background task to start
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await new Promise(resolve => setTimeout(resolve, 10));
 
       // Assert - now includes entryId as third argument (read replica workaround)
       expect(supabase.from).toHaveBeenCalledWith('view_entry_class_join_normalized');
@@ -297,16 +318,18 @@ describe('scoreSubmission', () => {
       };
       const error = { message: 'Database error', code: '500' };
 
-      vi.mocked(supabase.from).mockReturnValue({
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            select: vi.fn().mockResolvedValue({
-              data: null,
-              error,
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              select: vi.fn().mockResolvedValue({
+                data: null,
+                error,
+              }),
             }),
           }),
-        }),
-      } as any);
+        })
+      );
 
       // Act & Assert
       await expect(submitScore(mockEntryId, scoreData)).rejects.toThrow();
@@ -318,16 +341,18 @@ describe('scoreSubmission', () => {
         resultText: 'Qualified',
       };
 
-      vi.mocked(supabase.from).mockReturnValue({
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            select: vi.fn().mockResolvedValue({
-              data: [{ id: mockEntryId }],
-              error: null,
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              select: vi.fn().mockResolvedValue({
+                data: [{ id: mockEntryId }],
+                error: null,
+              }),
             }),
           }),
-        }),
-      } as any);
+        })
+      );
 
       vi.mocked(triggerImmediateEntrySync).mockResolvedValue(undefined);
       vi.mocked(checkAndUpdateClassCompletion).mockRejectedValue(
@@ -347,9 +372,9 @@ describe('scoreSubmission', () => {
         resultText: 'Qualified',
       };
 
-      vi.mocked(supabase.from).mockImplementation((table) => {
+      vi.mocked(supabase.from).mockImplementation(table => {
         if (table === 'entries') {
-          return {
+          return mockFrom({
             update: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
                 select: vi.fn().mockResolvedValue({
@@ -358,9 +383,9 @@ describe('scoreSubmission', () => {
                 }),
               }),
             }),
-          } as any;
+          });
         } else if (table === 'view_entry_class_join_normalized') {
-          return {
+          return mockFrom({
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
                 single: vi.fn().mockResolvedValue({
@@ -369,9 +394,9 @@ describe('scoreSubmission', () => {
                 }),
               }),
             }),
-          } as any;
+          });
         }
-        return {} as any;
+        return mockFrom({});
       });
 
       vi.mocked(triggerImmediateEntrySync).mockResolvedValue(undefined);
@@ -407,9 +432,9 @@ describe('scoreSubmission', () => {
       ];
 
       // Use mockImplementation to handle both entries and view table lookups
-      vi.mocked(supabase.from).mockImplementation((table) => {
+      vi.mocked(supabase.from).mockImplementation(table => {
         if (table === 'entries') {
-          return {
+          return mockFrom({
             update: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
                 select: vi.fn().mockResolvedValue({
@@ -418,10 +443,10 @@ describe('scoreSubmission', () => {
                 }),
               }),
             }),
-          } as any;
+          });
         }
         // view_entry_class_join_normalized lookup for background completion
-        return {
+        return mockFrom({
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
@@ -430,7 +455,7 @@ describe('scoreSubmission', () => {
               }),
             }),
           }),
-        } as any;
+        });
       });
 
       vi.mocked(triggerImmediateEntrySync).mockResolvedValue(undefined);
@@ -440,7 +465,7 @@ describe('scoreSubmission', () => {
       const result = await submitBatchScores(scores);
 
       // Small delay to allow background tasks
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await new Promise(resolve => setTimeout(resolve, 10));
 
       // Assert
       expect(result.successful).toEqual(['score1', 'score2', 'score3']);
@@ -468,12 +493,12 @@ describe('scoreSubmission', () => {
       ];
 
       let entriesCallCount = 0;
-      vi.mocked(supabase.from).mockImplementation((table) => {
+      vi.mocked(supabase.from).mockImplementation(table => {
         if (table === 'entries') {
           entriesCallCount++;
           if (entriesCallCount === 2) {
             // Second score fails
-            return {
+            return mockFrom({
               update: vi.fn().mockReturnValue({
                 eq: vi.fn().mockReturnValue({
                   select: vi.fn().mockResolvedValue({
@@ -482,9 +507,9 @@ describe('scoreSubmission', () => {
                   }),
                 }),
               }),
-            } as any;
+            });
           }
-          return {
+          return mockFrom({
             update: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
                 select: vi.fn().mockResolvedValue({
@@ -493,10 +518,10 @@ describe('scoreSubmission', () => {
                 }),
               }),
             }),
-          } as any;
+          });
         }
         // view_entry_class_join_normalized lookup for background completion
-        return {
+        return mockFrom({
           select: vi.fn().mockReturnValue({
             eq: vi.fn().mockReturnValue({
               single: vi.fn().mockResolvedValue({
@@ -505,7 +530,7 @@ describe('scoreSubmission', () => {
               }),
             }),
           }),
-        } as any;
+        });
       });
 
       vi.mocked(triggerImmediateEntrySync).mockResolvedValue(undefined);
@@ -515,7 +540,7 @@ describe('scoreSubmission', () => {
       const result = await submitBatchScores(scores);
 
       // Small delay to allow background tasks
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await new Promise(resolve => setTimeout(resolve, 10));
 
       // Assert
       expect(result.successful).toEqual(['score1', 'score3']);

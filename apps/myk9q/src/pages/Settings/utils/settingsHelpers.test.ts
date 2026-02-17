@@ -60,13 +60,15 @@ describe('exportSettingsToFile', () => {
       href: '',
       download: '',
     };
-    const createElement = vi.spyOn(document, 'createElement').mockReturnValue(mockLink as any);
+    const createElement = vi
+      .spyOn(document, 'createElement')
+      .mockReturnValue(mockLink as unknown as HTMLElement);
     const appendChild = vi
       .spyOn(document.body, 'appendChild')
-      .mockImplementation(() => mockLink as any);
+      .mockImplementation(() => mockLink as unknown as HTMLElement);
     const removeChild = vi
       .spyOn(document.body, 'removeChild')
-      .mockImplementation(() => mockLink as any);
+      .mockImplementation(() => mockLink as unknown as HTMLElement);
 
     exportSettingsToFile(mockExportSettings, showToast);
 
@@ -84,7 +86,7 @@ describe('importSettingsFromFile', () => {
   test('should import valid settings file', async () => {
     const mockFile = {
       text: vi.fn().mockResolvedValue('{"theme":"dark"}'),
-    } as any;
+    } as unknown as File;
     const mockImportSettings = vi.fn().mockReturnValue(true);
     const showToast = vi.fn();
 
@@ -98,7 +100,7 @@ describe('importSettingsFromFile', () => {
   test('should handle invalid settings file', async () => {
     const mockFile = {
       text: vi.fn().mockResolvedValue('invalid'),
-    } as any;
+    } as unknown as File;
     const mockImportSettings = vi.fn().mockReturnValue(false);
     const showToast = vi.fn();
 

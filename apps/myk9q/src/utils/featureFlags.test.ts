@@ -44,7 +44,7 @@ Object.defineProperty(window, 'localStorage', {
 });
 
 // Helper to set settings in localStorage
-const setSettings = (settings: any) => {
+const setSettings = (settings: Partial<{ enableBetaFeatures: boolean }>) => {
   const settingsData = {
     state: {
       settings,
@@ -68,7 +68,7 @@ describe('featureFlags', () => {
     vi.clearAllMocks();
 
     // Reset to development mode
-    (import.meta.env as any).DEV = true;
+    (import.meta.env as unknown as { DEV: boolean }).DEV = true;
 
     // Reset all feature flags to disabled state by getting all flags and disabling them
     const allFlags = listFeatureFlags();
@@ -85,7 +85,7 @@ describe('featureFlags', () => {
     });
 
     it('should return false for development-only features in production', () => {
-      (import.meta.env as any).DEV = false;
+      (import.meta.env as unknown as { DEV: boolean }).DEV = false;
 
       const result = isFeatureEnabled('fps-counter');
       expect(result).toBe(false);
@@ -279,20 +279,20 @@ describe('featureFlags', () => {
       overrideFeatureFlag('pull-to-refresh', true);
 
       const list = listFeatureFlags();
-      const pullToRefresh = list.find((item) => item.flag === 'pull-to-refresh');
+      const pullToRefresh = list.find(item => item.flag === 'pull-to-refresh');
 
       expect(pullToRefresh?.enabled).toBe(true);
     });
 
     it('should update when flags are overridden', () => {
       let list = listFeatureFlags();
-      let item = list.find((item) => item.flag === 'pull-to-refresh');
+      let item = list.find(item => item.flag === 'pull-to-refresh');
       expect(item?.enabled).toBe(false);
 
       overrideFeatureFlag('pull-to-refresh', true);
 
       list = listFeatureFlags();
-      item = list.find((item) => item.flag === 'pull-to-refresh');
+      item = list.find(item => item.flag === 'pull-to-refresh');
       expect(item?.enabled).toBe(true);
     });
 
@@ -300,7 +300,7 @@ describe('featureFlags', () => {
       const list = listFeatureFlags();
 
       // Check for features from different phases
-      const flags = list.map((item) => item.flag);
+      const flags = list.map(item => item.flag);
       expect(flags).toContain('offline-indicators'); // Phase 2
       expect(flags).toContain('pull-to-refresh'); // Phase 5
       expect(flags).toContain('fps-counter'); // Phase 9
@@ -308,7 +308,7 @@ describe('featureFlags', () => {
 
     it('should include experimental features', () => {
       const list = listFeatureFlags();
-      const flags = list.map((item) => item.flag);
+      const flags = list.map(item => item.flag);
 
       expect(flags).toContain('new-ui-components');
       expect(flags).toContain('ml-powered-defaults');
@@ -349,7 +349,7 @@ describe('featureFlags', () => {
 
   describe('development vs production', () => {
     it('should respect development-only flags in dev mode', () => {
-      (import.meta.env as any).DEV = true;
+      (import.meta.env as unknown as { DEV: boolean }).DEV = true;
 
       overrideFeatureFlag('fps-counter', true);
       overrideFeatureFlag('network-monitor', true);
@@ -392,7 +392,7 @@ describe('featureFlags', () => {
     it('should handle checking all features at once', () => {
       const list = listFeatureFlags();
 
-      list.forEach((item) => {
+      list.forEach(item => {
         expect(() => isFeatureEnabled(item.flag)).not.toThrow();
       });
     });

@@ -4,6 +4,22 @@ import { supabase } from '../lib/supabase';
 import { useOfflineQueueStore } from '../stores/offlineQueueStore';
 import * as entryService from './entryService';
 
+/** Shorthand for the Supabase realtime channel return type */
+type SupabaseChannel = ReturnType<typeof supabase.channel>;
+
+/** Inferred type for the offline queue store state */
+type OfflineQueueState = ReturnType<typeof useOfflineQueueStore.getState>;
+
+/** Mock shape for the offline queue store state used in tests */
+interface MockOfflineQueueState {
+  queue: Array<{ id: string; entryId: number; scoreData: { time: number }; status: string }>;
+  startSync: ReturnType<typeof vi.fn>;
+  markAsSyncing: ReturnType<typeof vi.fn>;
+  markAsCompleted: ReturnType<typeof vi.fn>;
+  markAsFailed: ReturnType<typeof vi.fn>;
+  syncComplete: ReturnType<typeof vi.fn>;
+}
+
 // Mock the supabase client
 vi.mock('../lib/supabase', () => ({
   supabase: {
@@ -122,7 +138,7 @@ describe('SyncManager', () => {
         unsubscribe: vi.fn(),
       };
 
-      vi.mocked(supabase.channel).mockReturnValue(mockChannel as any);
+      vi.mocked(supabase.channel).mockReturnValue(mockChannel as unknown as SupabaseChannel);
 
       const callback = vi.fn();
       const unsubscribe = syncManager.subscribeToUpdates(
@@ -156,7 +172,7 @@ describe('SyncManager', () => {
         unsubscribe: vi.fn(),
       };
 
-      vi.mocked(supabase.channel).mockReturnValue(mockChannel as any);
+      vi.mocked(supabase.channel).mockReturnValue(mockChannel as unknown as SupabaseChannel);
 
       const callback = vi.fn();
 
@@ -177,7 +193,7 @@ describe('SyncManager', () => {
         unsubscribe: vi.fn(),
       };
 
-      vi.mocked(supabase.channel).mockReturnValue(mockChannel as any);
+      vi.mocked(supabase.channel).mockReturnValue(mockChannel as unknown as SupabaseChannel);
 
       const unsubscribe = syncManager.subscribeToUpdates('test-key', 'entries', 'filter', vi.fn());
 
@@ -197,7 +213,7 @@ describe('SyncManager', () => {
         unsubscribe: vi.fn(),
       };
 
-      vi.mocked(supabase.channel).mockReturnValue(mockChannel as any);
+      vi.mocked(supabase.channel).mockReturnValue(mockChannel as unknown as SupabaseChannel);
 
       syncManager.subscribeToUpdates('test-key', 'entries', 'filter', vi.fn());
 
@@ -215,7 +231,7 @@ describe('SyncManager', () => {
         unsubscribe: vi.fn(),
       };
 
-      vi.mocked(supabase.channel).mockReturnValue(mockChannel as any);
+      vi.mocked(supabase.channel).mockReturnValue(mockChannel as unknown as SupabaseChannel);
 
       syncManager.subscribeToUpdates('test-key', 'entries', 'filter', vi.fn());
       syncManager.unsubscribe('test-key');
@@ -230,7 +246,7 @@ describe('SyncManager', () => {
         unsubscribe: vi.fn(),
       };
 
-      vi.mocked(supabase.channel).mockReturnValue(mockChannel as any);
+      vi.mocked(supabase.channel).mockReturnValue(mockChannel as unknown as SupabaseChannel);
 
       // Should not throw
       syncManager.unsubscribe('non-existent-key');
@@ -254,8 +270,8 @@ describe('SyncManager', () => {
       };
 
       vi.mocked(supabase.channel)
-        .mockReturnValueOnce(mockChannel1 as any)
-        .mockReturnValueOnce(mockChannel2 as any);
+        .mockReturnValueOnce(mockChannel1 as unknown as SupabaseChannel)
+        .mockReturnValueOnce(mockChannel2 as unknown as SupabaseChannel);
 
       syncManager.subscribeToUpdates('key1', 'entries', 'filter1', vi.fn());
       syncManager.subscribeToUpdates('key2', 'results', 'filter2', vi.fn());
@@ -282,7 +298,7 @@ describe('SyncManager', () => {
         unsubscribe: vi.fn(),
       };
 
-      vi.mocked(supabase.channel).mockReturnValue(mockChannel as any);
+      vi.mocked(supabase.channel).mockReturnValue(mockChannel as unknown as SupabaseChannel);
 
       syncManager.subscribeToUpdates('key', 'entries', 'filter', vi.fn());
       syncManager.pauseSync();
@@ -325,7 +341,7 @@ describe('SyncManager', () => {
 
   describe('manualSync', () => {
     test('should process offline queue and sync queue', async () => {
-      const mockOfflineState = {
+      const mockOfflineState: MockOfflineQueueState = {
         queue: [],
         startSync: vi.fn(),
         markAsSyncing: vi.fn(),
@@ -334,7 +350,9 @@ describe('SyncManager', () => {
         syncComplete: vi.fn(),
       };
 
-      vi.mocked(useOfflineQueueStore.getState).mockReturnValue(mockOfflineState as any);
+      vi.mocked(useOfflineQueueStore.getState).mockReturnValue(
+        mockOfflineState as unknown as OfflineQueueState
+      );
 
       await syncManager.manualSync();
 
@@ -342,7 +360,7 @@ describe('SyncManager', () => {
     });
 
     test('should process pending offline queue items', async () => {
-      const mockOfflineState = {
+      const mockOfflineState: MockOfflineQueueState = {
         queue: [
           { id: '1', entryId: 101, scoreData: { time: 30 }, status: 'pending' },
           { id: '2', entryId: 102, scoreData: { time: 35 }, status: 'pending' },
@@ -354,8 +372,10 @@ describe('SyncManager', () => {
         syncComplete: vi.fn(),
       };
 
-      vi.mocked(useOfflineQueueStore.getState).mockReturnValue(mockOfflineState as any);
-      vi.mocked(entryService.submitScore).mockResolvedValue(undefined as any);
+      vi.mocked(useOfflineQueueStore.getState).mockReturnValue(
+        mockOfflineState as unknown as OfflineQueueState
+      );
+      vi.mocked(entryService.submitScore).mockResolvedValue(true);
 
       await syncManager.manualSync();
 
@@ -366,7 +386,7 @@ describe('SyncManager', () => {
     });
 
     test('should handle failed offline queue items', async () => {
-      const mockOfflineState = {
+      const mockOfflineState: MockOfflineQueueState = {
         queue: [{ id: '1', entryId: 101, scoreData: { time: 30 }, status: 'pending' }],
         startSync: vi.fn(),
         markAsSyncing: vi.fn(),
@@ -375,7 +395,9 @@ describe('SyncManager', () => {
         syncComplete: vi.fn(),
       };
 
-      vi.mocked(useOfflineQueueStore.getState).mockReturnValue(mockOfflineState as any);
+      vi.mocked(useOfflineQueueStore.getState).mockReturnValue(
+        mockOfflineState as unknown as OfflineQueueState
+      );
       vi.mocked(entryService.submitScore).mockRejectedValue(new Error('Network error'));
 
       await syncManager.manualSync();
@@ -447,7 +469,7 @@ describe('SyncManager', () => {
 
   describe('network event handlers', () => {
     test('should handle online event', async () => {
-      const mockOfflineState = {
+      const mockOfflineState: MockOfflineQueueState = {
         queue: [],
         startSync: vi.fn(),
         markAsSyncing: vi.fn(),
@@ -456,7 +478,9 @@ describe('SyncManager', () => {
         syncComplete: vi.fn(),
       };
 
-      vi.mocked(useOfflineQueueStore.getState).mockReturnValue(mockOfflineState as any);
+      vi.mocked(useOfflineQueueStore.getState).mockReturnValue(
+        mockOfflineState as unknown as OfflineQueueState
+      );
 
       // Trigger online event
       if (onlineEventHandler) {

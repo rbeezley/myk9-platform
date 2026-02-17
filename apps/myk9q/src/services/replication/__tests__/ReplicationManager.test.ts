@@ -13,12 +13,68 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
-import { ReplicationManager, initReplicationManager, getReplicationManager, destroyReplicationManager } from '../ReplicationManager';
+import {
+  ReplicationManager,
+  initReplicationManager,
+  getReplicationManager,
+  destroyReplicationManager,
+} from '../ReplicationManager';
 import type { ReplicatedTable, SyncResult } from '@myk9/replication';
+
+/** Typed mock shape for SyncEngine */
+interface MockSyncEngine {
+  isNetworkOnline: Mock;
+  clearAllMutations: Mock;
+  destroy: Mock;
+}
+
+/** Typed mock shape for ConnectionManager */
+interface MockConnectionManager {
+  initialize: Mock;
+  subscribeToTable: Mock;
+  unsubscribeFromTable: Mock;
+  waitForSubscriptionsReady: Mock;
+  destroy: Mock;
+}
+
+/** Typed mock shape for SyncOrchestrator */
+interface MockSyncOrchestrator {
+  isSyncInProgress: Mock;
+  syncTable: Mock;
+  syncAll: Mock;
+  fullSyncTable: Mock;
+  fullSyncAll: Mock;
+  refreshTable: Mock;
+  refreshAll: Mock;
+  startAutoSync: Mock;
+  stopAutoSync: Mock;
+  evictLRU: Mock;
+  getSyncHistory: Mock;
+  handleNetworkOnline: Mock;
+  handleNetworkOffline: Mock;
+  destroy: Mock;
+}
+
+/** Typed mock shape for PrefetchManager */
+interface MockPrefetchManager {
+  trackNavigation: Mock;
+  getStats: Mock;
+  prefetchForPage: Mock;
+}
+
+/** Access to ReplicationManager private internals for testing */
+interface ManagerTestInternals {
+  syncEngine: MockSyncEngine;
+  connectionManager: MockConnectionManager;
+  syncOrchestrator: MockSyncOrchestrator;
+  prefetchManager: MockPrefetchManager;
+  notifyCacheUpdated: (tableName: string) => void;
+  cacheUpdateListeners: Map<string, Set<(tableName: string) => void>>;
+}
 
 // Mock dependencies
 vi.mock('../SyncEngine', () => ({
-  SyncEngine: vi.fn(function (this: any) {
+  SyncEngine: vi.fn(function (this: MockSyncEngine) {
     this.isNetworkOnline = vi.fn(() => true);
     this.clearAllMutations = vi.fn().mockResolvedValue(undefined);
     this.destroy = vi.fn();
@@ -26,7 +82,7 @@ vi.mock('../SyncEngine', () => ({
 }));
 
 vi.mock('../ConnectionManager', () => ({
-  ConnectionManager: vi.fn(function (this: any) {
+  ConnectionManager: vi.fn(function (this: MockConnectionManager) {
     this.initialize = vi.fn();
     this.subscribeToTable = vi.fn();
     this.unsubscribeFromTable = vi.fn();
@@ -36,7 +92,7 @@ vi.mock('../ConnectionManager', () => ({
 }));
 
 vi.mock('../SyncOrchestrator', () => ({
-  SyncOrchestrator: vi.fn(function (this: any) {
+  SyncOrchestrator: vi.fn(function (this: MockSyncOrchestrator) {
     this.isSyncInProgress = vi.fn(() => false);
     this.syncTable = vi.fn().mockResolvedValue({
       success: true,
@@ -104,7 +160,7 @@ vi.mock('../SyncOrchestrator', () => ({
 }));
 
 vi.mock('../PrefetchManager', () => ({
-  PrefetchManager: vi.fn(function (this: any) {
+  PrefetchManager: vi.fn(function (this: MockPrefetchManager) {
     this.trackNavigation = vi.fn();
     this.getStats = vi.fn(() => ({
       totalPatterns: 0,
@@ -140,10 +196,10 @@ const TEST_LICENSE_KEY = 'test-license-123';
 describe('ReplicationManager', () => {
   let manager: ReplicationManager;
   let mockTable: ReplicatedTable<{ id: string }>;
-  let mockSyncEngine: any;
-  let mockConnectionManager: any;
-  let mockSyncOrchestrator: any;
-  let mockPrefetchManager: any;
+  let mockSyncEngine: MockSyncEngine;
+  let mockConnectionManager: MockConnectionManager;
+  let mockSyncOrchestrator: MockSyncOrchestrator;
+  let mockPrefetchManager: MockPrefetchManager;
 
   beforeEach(async () => {
     // Clear all mocks
@@ -169,10 +225,11 @@ describe('ReplicationManager', () => {
     });
 
     // Access the mocked instances from the manager's private properties
-    mockSyncEngine = (manager as any).syncEngine;
-    mockConnectionManager = (manager as any).connectionManager;
-    mockSyncOrchestrator = (manager as any).syncOrchestrator;
-    mockPrefetchManager = (manager as any).prefetchManager;
+    const internals = manager as unknown as ManagerTestInternals;
+    mockSyncEngine = internals.syncEngine;
+    mockConnectionManager = internals.connectionManager;
+    mockSyncOrchestrator = internals.syncOrchestrator;
+    mockPrefetchManager = internals.prefetchManager;
   });
 
   afterEach(() => {
@@ -321,10 +378,9 @@ describe('ReplicationManager', () => {
     it('should pass options to syncTable', async () => {
       await manager.syncTable('test-table', { forceFullSync: true });
 
-      expect(mockSyncOrchestrator.syncTable).toHaveBeenCalledWith(
-        'test-table',
-        { forceFullSync: true }
-      );
+      expect(mockSyncOrchestrator.syncTable).toHaveBeenCalledWith('test-table', {
+        forceFullSync: true,
+      });
     });
 
     it('should sync all registered tables', async () => {
@@ -418,7 +474,9 @@ describe('ReplicationManager', () => {
       const loggerModule = await import('@/utils/logger');
       const errorTable = {
         clearCache: vi.fn().mockRejectedValue(new Error('Clear failed')),
-        getCacheStats: vi.fn().mockResolvedValue({ rowCount: 0, sizeMB: 0, sizeBytes: 0, dirtyCount: 0 }),
+        getCacheStats: vi
+          .fn()
+          .mockResolvedValue({ rowCount: 0, sizeMB: 0, sizeBytes: 0, dirtyCount: 0 }),
       } as unknown as ReplicatedTable<{ id: string }>;
 
       manager.registerTable('error-table', errorTable);
@@ -647,7 +705,7 @@ describe('ReplicationManager', () => {
       manager.onCacheUpdate('entries', listener2);
 
       // Trigger cache update via internal method
-      (manager as any).notifyCacheUpdated('entries');
+      (manager as unknown as ManagerTestInternals).notifyCacheUpdated('entries');
 
       expect(listener1).toHaveBeenCalledWith('entries');
       expect(listener2).toHaveBeenCalledWith('entries');
@@ -660,7 +718,7 @@ describe('ReplicationManager', () => {
       manager.onCacheUpdate('entries', entriesListener);
       manager.onCacheUpdate('classes', classesListener);
 
-      (manager as any).notifyCacheUpdated('entries');
+      (manager as unknown as ManagerTestInternals).notifyCacheUpdated('entries');
 
       expect(entriesListener).toHaveBeenCalledWith('entries');
       expect(classesListener).not.toHaveBeenCalled();
@@ -672,7 +730,7 @@ describe('ReplicationManager', () => {
       const unsubscribe = manager.onCacheUpdate('entries', listener);
       unsubscribe();
 
-      (manager as any).notifyCacheUpdated('entries');
+      (manager as unknown as ManagerTestInternals).notifyCacheUpdated('entries');
 
       expect(listener).not.toHaveBeenCalled();
     });
@@ -684,7 +742,7 @@ describe('ReplicationManager', () => {
       unsubscribe();
 
       // Check that the set was removed
-      const listeners = (manager as any).cacheUpdateListeners;
+      const listeners = (manager as unknown as ManagerTestInternals).cacheUpdateListeners;
       expect(listeners.has('entries')).toBe(false);
     });
 
@@ -698,7 +756,7 @@ describe('ReplicationManager', () => {
       manager.onCacheUpdate('entries', errorListener);
       manager.onCacheUpdate('entries', normalListener);
 
-      (manager as any).notifyCacheUpdated('entries');
+      (manager as unknown as ManagerTestInternals).notifyCacheUpdated('entries');
 
       expect(loggerModule.logger.error).toHaveBeenCalledWith(
         expect.stringContaining('Error in cache update listener'),
@@ -716,7 +774,7 @@ describe('ReplicationManager', () => {
       manager.onCacheUpdate('entries', listener2);
       manager.onCacheUpdate('entries', listener3);
 
-      (manager as any).notifyCacheUpdated('entries');
+      (manager as unknown as ManagerTestInternals).notifyCacheUpdated('entries');
 
       expect(listener1).toHaveBeenCalledTimes(1);
       expect(listener2).toHaveBeenCalledTimes(1);
@@ -726,7 +784,7 @@ describe('ReplicationManager', () => {
     it('should handle no listeners gracefully', () => {
       // Should not throw when no listeners are registered
       expect(() => {
-        (manager as any).notifyCacheUpdated('entries');
+        (manager as unknown as ManagerTestInternals).notifyCacheUpdated('entries');
       }).not.toThrow();
     });
   });
@@ -735,7 +793,9 @@ describe('ReplicationManager', () => {
     it('should stop replication and cleanup tables', async () => {
       const cleanupTable = {
         clearCache: vi.fn().mockResolvedValue(undefined),
-        getCacheStats: vi.fn().mockResolvedValue({ rowCount: 0, sizeMB: 0, sizeBytes: 0, dirtyCount: 0 }),
+        getCacheStats: vi
+          .fn()
+          .mockResolvedValue({ rowCount: 0, sizeMB: 0, sizeBytes: 0, dirtyCount: 0 }),
         cleanup: vi.fn().mockResolvedValue(undefined),
       } as unknown as ReplicatedTable<{ id: string }>;
 
@@ -751,7 +811,9 @@ describe('ReplicationManager', () => {
       const loggerModule = await import('@/utils/logger');
       const errorTable = {
         clearCache: vi.fn().mockResolvedValue(undefined),
-        getCacheStats: vi.fn().mockResolvedValue({ rowCount: 0, sizeMB: 0, sizeBytes: 0, dirtyCount: 0 }),
+        getCacheStats: vi
+          .fn()
+          .mockResolvedValue({ rowCount: 0, sizeMB: 0, sizeBytes: 0, dirtyCount: 0 }),
         cleanup: vi.fn().mockRejectedValue(new Error('Cleanup failed')),
       } as unknown as ReplicatedTable<{ id: string }>;
 
@@ -799,7 +861,7 @@ describe('ReplicationManager', () => {
       manager.destroy();
 
       // Listeners map should be empty
-      const listeners = (manager as any).cacheUpdateListeners;
+      const listeners = (manager as unknown as ManagerTestInternals).cacheUpdateListeners;
       expect(listeners.size).toBe(0);
     });
   });
@@ -866,7 +928,9 @@ describe('ReplicationManager', () => {
 
       const cleanupTable = {
         clearCache: vi.fn().mockResolvedValue(undefined),
-        getCacheStats: vi.fn().mockResolvedValue({ rowCount: 0, sizeMB: 0, sizeBytes: 0, dirtyCount: 0 }),
+        getCacheStats: vi
+          .fn()
+          .mockResolvedValue({ rowCount: 0, sizeMB: 0, sizeBytes: 0, dirtyCount: 0 }),
         cleanup: vi.fn().mockResolvedValue(undefined),
       } as unknown as ReplicatedTable<{ id: string }>;
 

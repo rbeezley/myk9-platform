@@ -70,7 +70,7 @@ Object.defineProperty(window, 'localStorage', {
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
-  value: vi.fn().mockImplementation((query) => ({
+  value: vi.fn().mockImplementation(query => ({
     matches: query === '(prefers-color-scheme: dark)',
     media: query,
     onchange: null,
@@ -316,8 +316,8 @@ describe('smartDefaults', () => {
   describe('applySmartDefaults', () => {
     it('should fill in missing settings without force reset', async () => {
       const partialSettings = createMockSettings({
-        theme: undefined as any,
-        enableAnimations: undefined as any,
+        theme: undefined,
+        enableAnimations: undefined,
       });
 
       const result = await applySmartDefaults(partialSettings, undefined, false);
@@ -430,7 +430,7 @@ describe('smartDefaults', () => {
       const result = await validateSettings(settings);
 
       // Should warn about syncing on cellular
-      expect(result.warnings.some((w) => w.includes('cellular'))).toBe(true);
+      expect(result.warnings.some(w => w.includes('cellular'))).toBe(true);
     });
 
     it('should return valid for optimal settings', async () => {
@@ -489,7 +489,7 @@ describe('smartDefaults', () => {
 
       const suggestions = await getOptimizationSuggestions(settings);
 
-      const perfSuggestions = suggestions.filter((s) => s.category === 'Performance');
+      const perfSuggestions = suggestions.filter(s => s.category === 'Performance');
       expect(perfSuggestions.length).toBeGreaterThan(0);
     });
   });
@@ -565,7 +565,7 @@ describe('smartDefaults', () => {
         connectionType: 'wifi',
         connectionQuality: 'medium',
         isFirstLaunch: true,
-        userRole: 'unknown' as any,
+        userRole: 'unknown' as unknown as SmartDefaultsContext['userRole'],
       };
 
       const defaults = await generateSmartDefaults(context);

@@ -151,7 +151,10 @@ describe('favoritesUtils', () => {
 
       test('should return empty array and clear array with non-number items', () => {
         const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-        localStorageMock.setItem('dog_favorites_ABC123', JSON.stringify([101, 'not-a-number', 303]));
+        localStorageMock.setItem(
+          'dog_favorites_ABC123',
+          JSON.stringify([101, 'not-a-number', 303])
+        );
 
         const favorites = parseFavoritesFromLocalStorage('dog', 'ABC123');
         expect(favorites).toEqual([]);
@@ -248,7 +251,11 @@ describe('favoritesUtils', () => {
       test('should reject array with non-number values', () => {
         const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-        const success = saveFavoritesToLocalStorage('dog', 'ABC123', [101, 'invalid', 303] as any);
+        const success = saveFavoritesToLocalStorage('dog', 'ABC123', [
+          101,
+          'invalid',
+          303,
+        ] as unknown as number[]);
         expect(success).toBe(false);
         expect(localStorageMock.getItem('dog_favorites_ABC123')).toBeNull();
         expect(consoleSpy).toHaveBeenCalled();
@@ -268,7 +275,9 @@ describe('favoritesUtils', () => {
 
       test('should save class favorites from Set with trialId', () => {
         const favorites = new Set([4, 5, 6]);
-        const success = saveFavoritesToLocalStorage('class', 'ABC123', favorites, { trialId: '789' });
+        const success = saveFavoritesToLocalStorage('class', 'ABC123', favorites, {
+          trialId: '789',
+        });
         expect(success).toBe(true);
 
         const saved = JSON.parse(localStorageMock.getItem('favorites_ABC123_789')!);
@@ -476,7 +485,9 @@ describe('favoritesUtils', () => {
 
       // Verify trial 1 cleared, trial 2 still exists
       expect(parseFavoritesFromLocalStorage('class', licenseKey, { trialId: 101 })).toEqual([]);
-      expect(parseFavoritesFromLocalStorage('class', licenseKey, { trialId: 102 })).toEqual([4, 5, 6]);
+      expect(parseFavoritesFromLocalStorage('class', licenseKey, { trialId: 102 })).toEqual([
+        4, 5, 6,
+      ]);
     });
   });
 });

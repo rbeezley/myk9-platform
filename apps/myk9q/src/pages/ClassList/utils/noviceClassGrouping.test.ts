@@ -10,10 +10,10 @@ import {
   isCombinedNoviceEntry,
   isCombinedEntry,
   getClassIds,
-  shouldCombineAllSections
+  shouldCombineAllSections,
 } from './noviceClassGrouping';
 
-const createMockClass = (overrides: any = {}) => ({
+const createMockClass = (overrides: Record<string, unknown> = {}) => ({
   id: 1,
   class_name: 'Container Novice A',
   element: 'Container',
@@ -23,7 +23,7 @@ const createMockClass = (overrides: any = {}) => ({
   completed_count: 0,
   dogs: [],
   is_favorite: false,
-  ...overrides
+  ...overrides,
 });
 
 describe('findPairedNoviceClass', () => {
@@ -81,7 +81,7 @@ describe('groupNoviceClasses', () => {
     const classAdvanced = createMockClass({
       id: 1,
       level: 'Advanced',
-      section: 'A'
+      section: 'A',
     });
     const classes = [classAdvanced];
 
@@ -120,7 +120,7 @@ describe('getClassIds', () => {
     const combined = createMockClass({
       id: 1,
       section: 'A & B',
-      pairedClassId: 2
+      pairedClassId: 2,
     });
     const ids = getClassIds(combined);
 

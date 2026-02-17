@@ -3,16 +3,19 @@ import { authenticatePasscode, getShowByLicenseKey, testDatabaseConnection } fro
 import { supabase } from '../lib/supabase';
 import * as authUtils from '../utils/auth';
 
+/** Shorthand for the Supabase query builder return type used in mock chains */
+type SupabaseQueryChain = ReturnType<typeof supabase.from>;
+
 // Mock the supabase client
 vi.mock('../lib/supabase', () => ({
   supabase: {
-    from: vi.fn()
-  }
+    from: vi.fn(),
+  },
 }));
 
 // Mock auth utils
 vi.mock('../utils/auth', () => ({
-  validatePasscodeAgainstLicenseKey: vi.fn()
+  validatePasscodeAgainstLicenseKey: vi.fn(),
 }));
 
 // Mock fetch to simulate Edge Function unavailable (triggers client-side fallback)
@@ -43,7 +46,7 @@ describe('authService', () => {
         license_key: 'myK9Q1-a260f472-e0d76a33-4b6c264c',
         start_date: '2025-01-15',
         organization: 'AKC',
-        show_type: 'Regular'
+        show_type: 'Regular',
       },
       {
         id: 2,
@@ -52,25 +55,25 @@ describe('authService', () => {
         license_key: 'myK9Q1-b123f456-e0d76a44-5b7c375d',
         start_date: '2025-02-20',
         organization: 'UKC',
-        show_type: 'National'
-      }
+        show_type: 'National',
+      },
     ];
 
     const mockTrials = [
       { id: 101, show_id: 1, trial_name: 'Trial 1', trial_date: '2025-01-15' },
-      { id: 102, show_id: 1, trial_name: 'Trial 2', trial_date: '2025-01-16' }
+      { id: 102, show_id: 1, trial_name: 'Trial 2', trial_date: '2025-01-16' },
     ];
 
     const mockClasses = [
       { id: 201, trial_id: 101, class_name: 'Novice A', class_order: 1 },
-      { id: 202, trial_id: 101, class_name: 'Advanced B', class_order: 2 }
+      { id: 202, trial_id: 101, class_name: 'Advanced B', class_order: 2 },
     ];
 
     test('should successfully authenticate a valid passcode', async () => {
       // Mock validatePasscodeAgainstLicenseKey to return PasscodeResult for second show
       vi.spyOn(authUtils, 'validatePasscodeAgainstLicenseKey')
         .mockReturnValueOnce(null) // First show fails
-        .mockReturnValueOnce({ role: 'judge', licenseKey: 'b123', isValid: true });  // Second show succeeds
+        .mockReturnValueOnce({ role: 'judge', licenseKey: 'b123', isValid: true }); // Second show succeeds
 
       // Mock Supabase queries
       const mockFrom = vi.fn().mockReturnThis();
@@ -86,8 +89,8 @@ describe('authService', () => {
           eq: mockEq,
           in: mockIn,
           order: mockOrder,
-          single: mockSingle
-        } as any;
+          single: mockSingle,
+        } as unknown as SupabaseQueryChain;
 
         if (table === 'shows') {
           mockSelect.mockImplementation((fields?: string) => {
@@ -96,7 +99,7 @@ describe('authService', () => {
             } else if (fields === 'organization, show_type') {
               mockSingle.mockResolvedValue({
                 data: { organization: 'UKC', show_type: 'National' },
-                error: null
+                error: null,
               });
             }
             return chain;
@@ -140,8 +143,8 @@ describe('authService', () => {
 
       vi.mocked(supabase.from).mockReturnValue({
         select: mockSelect,
-        order: mockOrder
-      } as any);
+        order: mockOrder,
+      } as unknown as SupabaseQueryChain);
 
       const result = await authenticatePasscode('jb123');
 
@@ -149,8 +152,7 @@ describe('authService', () => {
     });
 
     test('should return null when passcode does not match any show', async () => {
-      vi.spyOn(authUtils, 'validatePasscodeAgainstLicenseKey')
-        .mockReturnValue(null);
+      vi.spyOn(authUtils, 'validatePasscodeAgainstLicenseKey').mockReturnValue(null);
 
       const mockFrom = vi.fn().mockReturnThis();
       const mockSelect = vi.fn().mockReturnThis();
@@ -158,8 +160,8 @@ describe('authService', () => {
 
       vi.mocked(supabase.from).mockReturnValue({
         select: mockSelect,
-        order: mockOrder
-      } as any);
+        order: mockOrder,
+      } as unknown as SupabaseQueryChain);
 
       const result = await authenticatePasscode('invalid');
 
@@ -172,13 +174,13 @@ describe('authService', () => {
       const mockSelect = vi.fn().mockReturnThis();
       const mockOrder = vi.fn().mockResolvedValue({
         data: null,
-        error: { message: 'Database error' }
-      } as any);
+        error: { message: 'Database error' },
+      });
 
       vi.mocked(supabase.from).mockReturnValue({
         select: mockSelect,
-        order: mockOrder
-      } as any);
+        order: mockOrder,
+      } as unknown as SupabaseQueryChain);
 
       const result = await authenticatePasscode('jb123');
 
@@ -186,8 +188,11 @@ describe('authService', () => {
     });
 
     test('should handle trial fetch errors gracefully', async () => {
-      vi.spyOn(authUtils, 'validatePasscodeAgainstLicenseKey')
-        .mockReturnValue({ role: 'admin', licenseKey: 'a260', isValid: true });
+      vi.spyOn(authUtils, 'validatePasscodeAgainstLicenseKey').mockReturnValue({
+        role: 'admin',
+        licenseKey: 'a260',
+        isValid: true,
+      });
 
       const mockFrom = vi.fn().mockReturnThis();
       const mockSelect = vi.fn().mockReturnThis();
@@ -200,8 +205,8 @@ describe('authService', () => {
           select: mockSelect,
           eq: mockEq,
           order: mockOrder,
-          single: mockSingle
-        } as any;
+          single: mockSingle,
+        } as unknown as SupabaseQueryChain;
 
         if (table === 'shows') {
           mockSelect.mockImplementation((fields?: string) => {
@@ -210,7 +215,7 @@ describe('authService', () => {
             } else if (fields === 'organization, show_type') {
               mockSingle.mockResolvedValue({
                 data: { organization: 'AKC', show_type: 'Regular' },
-                error: null
+                error: null,
               });
             }
             return chain;
@@ -236,8 +241,11 @@ describe('authService', () => {
     });
 
     test('should handle empty trials array', async () => {
-      vi.spyOn(authUtils, 'validatePasscodeAgainstLicenseKey')
-        .mockReturnValue({ role: 'admin', licenseKey: 'a260', isValid: true });
+      vi.spyOn(authUtils, 'validatePasscodeAgainstLicenseKey').mockReturnValue({
+        role: 'admin',
+        licenseKey: 'a260',
+        isValid: true,
+      });
 
       const mockFrom = vi.fn().mockReturnThis();
       const mockSelect = vi.fn().mockReturnThis();
@@ -250,8 +258,8 @@ describe('authService', () => {
           select: mockSelect,
           eq: mockEq,
           order: mockOrder,
-          single: mockSingle
-        } as any;
+          single: mockSingle,
+        } as unknown as SupabaseQueryChain;
 
         if (table === 'shows') {
           mockSelect.mockImplementation((fields?: string) => {
@@ -260,7 +268,7 @@ describe('authService', () => {
             } else if (fields === 'organization, show_type') {
               mockSingle.mockResolvedValue({
                 data: { organization: 'AKC', show_type: 'Regular' },
-                error: null
+                error: null,
               });
             }
             return chain;
@@ -294,16 +302,12 @@ describe('authService', () => {
       license_key: 'myK9Q1-a260f472-e0d76a33-4b6c264c',
       start_date: '2025-01-15',
       organization: 'AKC',
-      show_type: 'Regular'
+      show_type: 'Regular',
     };
 
-    const mockTrials = [
-      { id: 101, show_id: 1, trial_name: 'Trial 1', trial_date: '2025-01-15' }
-    ];
+    const mockTrials = [{ id: 101, show_id: 1, trial_name: 'Trial 1', trial_date: '2025-01-15' }];
 
-    const mockClasses = [
-      { id: 201, trial_id: 101, class_name: 'Novice A', class_order: 1 }
-    ];
+    const mockClasses = [{ id: 201, trial_id: 101, class_name: 'Novice A', class_order: 1 }];
 
     test('should retrieve show data by license key', async () => {
       const mockFrom = vi.fn().mockReturnThis();
@@ -319,8 +323,8 @@ describe('authService', () => {
           eq: mockEq,
           in: mockIn,
           order: mockOrder,
-          single: mockSingle
-        } as any;
+          single: mockSingle,
+        } as unknown as SupabaseQueryChain;
 
         if (table === 'shows') {
           mockSelect.mockImplementation((fields: string) => {
@@ -333,7 +337,7 @@ describe('authService', () => {
               mockEq.mockImplementation(() => {
                 mockSingle.mockResolvedValue({
                   data: { organization: 'AKC', show_type: 'Regular' },
-                  error: null
+                  error: null,
                 });
                 return chain;
               });
@@ -381,8 +385,8 @@ describe('authService', () => {
       vi.mocked(supabase.from).mockReturnValue({
         select: mockSelect,
         eq: mockEq,
-        single: mockSingle
-      } as any);
+        single: mockSingle,
+      } as unknown as SupabaseQueryChain);
 
       const result = await getShowByLicenseKey('invalid-key');
 
@@ -398,8 +402,8 @@ describe('authService', () => {
       vi.mocked(supabase.from).mockReturnValue({
         select: mockSelect,
         eq: mockEq,
-        single: mockSingle
-      } as any);
+        single: mockSingle,
+      } as unknown as SupabaseQueryChain);
 
       const result = await getShowByLicenseKey('myK9Q1-a260f472-e0d76a33-4b6c264c');
 
@@ -420,8 +424,8 @@ describe('authService', () => {
           select: mockSelect,
           eq: mockEq,
           order: mockOrder,
-          single: mockSingle
-        } as any;
+          single: mockSingle,
+        } as unknown as SupabaseQueryChain;
 
         if (table === 'shows') {
           mockSelect.mockImplementation((fields: string) => {
@@ -434,7 +438,7 @@ describe('authService', () => {
               mockEq.mockImplementation(() => {
                 mockSingle.mockResolvedValue({
                   data: { organization: 'UKC', show_type: 'National' },
-                  error: null
+                  error: null,
                 });
                 return chain;
               });
@@ -470,8 +474,8 @@ describe('authService', () => {
 
       vi.mocked(supabase.from).mockReturnValue({
         select: mockSelect,
-        limit: mockLimit
-      } as any);
+        limit: mockLimit,
+      } as unknown as SupabaseQueryChain);
 
       const result = await testDatabaseConnection();
 
@@ -484,13 +488,13 @@ describe('authService', () => {
       const mockSelect = vi.fn().mockReturnThis();
       const mockLimit = vi.fn().mockResolvedValue({
         data: null,
-        error: { message: 'Connection failed' }
-      } as any);
+        error: { message: 'Connection failed' },
+      });
 
       vi.mocked(supabase.from).mockReturnValue({
         select: mockSelect,
-        limit: mockLimit
-      } as any);
+        limit: mockLimit,
+      } as unknown as SupabaseQueryChain);
 
       const result = await testDatabaseConnection();
 
@@ -504,8 +508,8 @@ describe('authService', () => {
 
       vi.mocked(supabase.from).mockReturnValue({
         select: mockSelect,
-        limit: mockLimit
-      } as any);
+        limit: mockLimit,
+      } as unknown as SupabaseQueryChain);
 
       const result = await testDatabaseConnection();
 

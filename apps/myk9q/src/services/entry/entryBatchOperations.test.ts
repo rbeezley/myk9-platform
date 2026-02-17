@@ -46,7 +46,7 @@ describe('entryBatchOperations', () => {
 
       vi.mocked(supabase.from).mockReturnValue({
         update: updateMock,
-      } as any);
+      } as unknown as ReturnType<typeof supabase.from>);
 
       vi.mocked(triggerImmediateEntrySync).mockResolvedValue(undefined);
 
@@ -59,11 +59,26 @@ describe('entryBatchOperations', () => {
       expect(updateMock).toHaveBeenCalledTimes(5);
 
       // Verify 1-based indexing (updated_at is also included in updates)
-      expect(updateMock).toHaveBeenNthCalledWith(1, expect.objectContaining({ exhibitor_order: 1 }));
-      expect(updateMock).toHaveBeenNthCalledWith(2, expect.objectContaining({ exhibitor_order: 2 }));
-      expect(updateMock).toHaveBeenNthCalledWith(3, expect.objectContaining({ exhibitor_order: 3 }));
-      expect(updateMock).toHaveBeenNthCalledWith(4, expect.objectContaining({ exhibitor_order: 4 }));
-      expect(updateMock).toHaveBeenNthCalledWith(5, expect.objectContaining({ exhibitor_order: 5 }));
+      expect(updateMock).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ exhibitor_order: 1 })
+      );
+      expect(updateMock).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({ exhibitor_order: 2 })
+      );
+      expect(updateMock).toHaveBeenNthCalledWith(
+        3,
+        expect.objectContaining({ exhibitor_order: 3 })
+      );
+      expect(updateMock).toHaveBeenNthCalledWith(
+        4,
+        expect.objectContaining({ exhibitor_order: 4 })
+      );
+      expect(updateMock).toHaveBeenNthCalledWith(
+        5,
+        expect.objectContaining({ exhibitor_order: 5 })
+      );
     });
 
     it('should update correct entry IDs', async () => {
@@ -76,7 +91,7 @@ describe('entryBatchOperations', () => {
 
       vi.mocked(supabase.from).mockReturnValue({
         update: updateMock,
-      } as any);
+      } as unknown as ReturnType<typeof supabase.from>);
 
       vi.mocked(triggerImmediateEntrySync).mockResolvedValue(undefined);
 
@@ -99,7 +114,7 @@ describe('entryBatchOperations', () => {
             select: vi.fn().mockResolvedValue({ error: null, data: [] }),
           }),
         }),
-      } as any);
+      } as unknown as ReturnType<typeof supabase.from>);
 
       vi.mocked(triggerImmediateEntrySync).mockResolvedValue(undefined);
 
@@ -112,7 +127,13 @@ describe('entryBatchOperations', () => {
 
     it('should handle reordered entries correctly', async () => {
       // Arrange
-      const reordered = [mockEntries[4], mockEntries[0], mockEntries[2], mockEntries[1], mockEntries[3]];
+      const reordered = [
+        mockEntries[4],
+        mockEntries[0],
+        mockEntries[2],
+        mockEntries[1],
+        mockEntries[3],
+      ];
 
       const updateMock = vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
@@ -122,7 +143,7 @@ describe('entryBatchOperations', () => {
 
       vi.mocked(supabase.from).mockReturnValue({
         update: updateMock,
-      } as any);
+      } as unknown as ReturnType<typeof supabase.from>);
 
       vi.mocked(triggerImmediateEntrySync).mockResolvedValue(undefined);
 
@@ -130,11 +151,20 @@ describe('entryBatchOperations', () => {
       await updateExhibitorOrder(reordered);
 
       // Assert - Entry 5 should now be exhibitor_order 1
-      expect(updateMock).toHaveBeenNthCalledWith(1, expect.objectContaining({ exhibitor_order: 1 }));
+      expect(updateMock).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ exhibitor_order: 1 })
+      );
       // Entry 1 should now be exhibitor_order 2
-      expect(updateMock).toHaveBeenNthCalledWith(2, expect.objectContaining({ exhibitor_order: 2 }));
+      expect(updateMock).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({ exhibitor_order: 2 })
+      );
       // Entry 3 should now be exhibitor_order 3
-      expect(updateMock).toHaveBeenNthCalledWith(3, expect.objectContaining({ exhibitor_order: 3 }));
+      expect(updateMock).toHaveBeenNthCalledWith(
+        3,
+        expect.objectContaining({ exhibitor_order: 3 })
+      );
     });
 
     it('should throw error if any update fails', async () => {
@@ -155,7 +185,7 @@ describe('entryBatchOperations', () => {
             }),
           }),
         }),
-      } as any);
+      } as unknown as ReturnType<typeof supabase.from>);
 
       // Act & Assert
       await expect(updateExhibitorOrder(mockEntries)).rejects.toThrow();
@@ -171,7 +201,7 @@ describe('entryBatchOperations', () => {
             select: vi.fn().mockResolvedValue({ error, data: null }),
           }),
         }),
-      } as any);
+      } as unknown as ReturnType<typeof supabase.from>);
 
       vi.mocked(triggerImmediateEntrySync).mockResolvedValue(undefined);
 
@@ -198,7 +228,7 @@ describe('entryBatchOperations', () => {
 
       vi.mocked(supabase.from).mockReturnValue({
         update: updateMock,
-      } as any);
+      } as unknown as ReturnType<typeof supabase.from>);
 
       vi.mocked(triggerImmediateEntrySync).mockResolvedValue(undefined);
 
@@ -226,7 +256,7 @@ describe('entryBatchOperations', () => {
 
       vi.mocked(supabase.from).mockReturnValue({
         update: updateMock,
-      } as any);
+      } as unknown as ReturnType<typeof supabase.from>);
 
       vi.mocked(triggerImmediateEntrySync).mockResolvedValue(undefined);
 
@@ -236,8 +266,14 @@ describe('entryBatchOperations', () => {
       // Assert
       expect(result).toBe(true);
       expect(updateMock).toHaveBeenCalledTimes(50);
-      expect(updateMock).toHaveBeenNthCalledWith(1, expect.objectContaining({ exhibitor_order: 1 }));
-      expect(updateMock).toHaveBeenNthCalledWith(50, expect.objectContaining({ exhibitor_order: 50 }));
+      expect(updateMock).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ exhibitor_order: 1 })
+      );
+      expect(updateMock).toHaveBeenNthCalledWith(
+        50,
+        expect.objectContaining({ exhibitor_order: 50 })
+      );
     });
   });
 
@@ -312,7 +348,7 @@ describe('entryBatchOperations', () => {
 
     it('should reject null/undefined', () => {
       // Act
-      const result = validateExhibitorOrderArray(null as any);
+      const result = validateExhibitorOrderArray(null as unknown as Entry[]);
 
       // Assert
       expect(result.valid).toBe(false);
@@ -321,10 +357,7 @@ describe('entryBatchOperations', () => {
 
     it('should reject entry with invalid ID (0)', () => {
       // Arrange
-      const invalidEntries = [
-        { id: 1, armband: 101 } as Entry,
-        { id: 0, armband: 102 } as Entry,
-      ];
+      const invalidEntries = [{ id: 1, armband: 101 } as Entry, { id: 0, armband: 102 } as Entry];
 
       // Act
       const result = validateExhibitorOrderArray(invalidEntries);
@@ -336,10 +369,7 @@ describe('entryBatchOperations', () => {
 
     it('should reject entry with negative ID', () => {
       // Arrange
-      const invalidEntries = [
-        { id: 1, armband: 101 } as Entry,
-        { id: -5, armband: 102 } as Entry,
-      ];
+      const invalidEntries = [{ id: 1, armband: 101 } as Entry, { id: -5, armband: 102 } as Entry];
 
       // Act
       const result = validateExhibitorOrderArray(invalidEntries);
@@ -353,7 +383,7 @@ describe('entryBatchOperations', () => {
       // Arrange
       const invalidEntries = [
         { id: 1, armband: 101 } as Entry,
-        { armband: 102 } as any,
+        { armband: 102 } as unknown as Entry,
       ];
 
       // Act
@@ -402,7 +432,13 @@ describe('entryBatchOperations', () => {
   describe('integration scenarios', () => {
     it('should handle drag-and-drop move from middle to start', async () => {
       // Arrange - Move entry 3 from index 2 to index 0
-      const reordered = [mockEntries[2], mockEntries[0], mockEntries[1], mockEntries[3], mockEntries[4]];
+      const reordered = [
+        mockEntries[2],
+        mockEntries[0],
+        mockEntries[1],
+        mockEntries[3],
+        mockEntries[4],
+      ];
 
       const updateMock = vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
@@ -412,7 +448,7 @@ describe('entryBatchOperations', () => {
 
       vi.mocked(supabase.from).mockReturnValue({
         update: updateMock,
-      } as any);
+      } as unknown as ReturnType<typeof supabase.from>);
 
       vi.mocked(triggerImmediateEntrySync).mockResolvedValue(undefined);
 
@@ -426,7 +462,13 @@ describe('entryBatchOperations', () => {
 
     it('should handle drag-and-drop move from start to end', async () => {
       // Arrange - Move entry 1 from index 0 to index 4
-      const reordered = [mockEntries[1], mockEntries[2], mockEntries[3], mockEntries[4], mockEntries[0]];
+      const reordered = [
+        mockEntries[1],
+        mockEntries[2],
+        mockEntries[3],
+        mockEntries[4],
+        mockEntries[0],
+      ];
 
       const updateMock = vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
@@ -436,7 +478,7 @@ describe('entryBatchOperations', () => {
 
       vi.mocked(supabase.from).mockReturnValue({
         update: updateMock,
-      } as any);
+      } as unknown as ReturnType<typeof supabase.from>);
 
       vi.mocked(triggerImmediateEntrySync).mockResolvedValue(undefined);
 
@@ -460,7 +502,7 @@ describe('entryBatchOperations', () => {
 
       vi.mocked(supabase.from).mockReturnValue({
         update: updateMock,
-      } as any);
+      } as unknown as ReturnType<typeof supabase.from>);
 
       vi.mocked(triggerImmediateEntrySync).mockResolvedValue(undefined);
 
@@ -470,9 +512,15 @@ describe('entryBatchOperations', () => {
       // Assert
       expect(updateMock).toHaveBeenCalledTimes(5);
       // Entry 5 should be first
-      expect(updateMock).toHaveBeenNthCalledWith(1, expect.objectContaining({ exhibitor_order: 1 }));
+      expect(updateMock).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ exhibitor_order: 1 })
+      );
       // Entry 1 should be last
-      expect(updateMock).toHaveBeenNthCalledWith(5, expect.objectContaining({ exhibitor_order: 5 }));
+      expect(updateMock).toHaveBeenNthCalledWith(
+        5,
+        expect.objectContaining({ exhibitor_order: 5 })
+      );
     });
   });
 });

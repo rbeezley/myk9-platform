@@ -1,13 +1,22 @@
 import { vi } from 'vitest';
-import { recalculatePlacementsForClass, getEntryPlacement, manuallyRecalculatePlacements } from './placementService';
+import {
+  recalculatePlacementsForClass,
+  getEntryPlacement,
+  manuallyRecalculatePlacements,
+} from './placementService';
 import { supabase } from '../lib/supabase';
+
+/** Helper to cast mock Supabase query builder chains */
+type MockQueryBuilder = ReturnType<typeof supabase.from>;
+const mockFrom = (obj: Record<string, unknown>): MockQueryBuilder =>
+  obj as unknown as MockQueryBuilder;
 
 // Mock the supabase client
 vi.mock('../lib/supabase', () => ({
   supabase: {
     rpc: vi.fn(),
-    from: vi.fn()
-  }
+    from: vi.fn(),
+  },
 }));
 
 describe('placementService', () => {
@@ -24,7 +33,7 @@ describe('placementService', () => {
 
       expect(supabase.rpc).toHaveBeenCalledWith('recalculate_class_placements', {
         p_class_ids: [101],
-        p_is_nationals: false
+        p_is_nationals: false,
       });
     });
 
@@ -36,7 +45,7 @@ describe('placementService', () => {
 
       expect(supabase.rpc).toHaveBeenCalledWith('recalculate_class_placements', {
         p_class_ids: [101, 102, 103],
-        p_is_nationals: false
+        p_is_nationals: false,
       });
     });
 
@@ -48,7 +57,7 @@ describe('placementService', () => {
 
       expect(supabase.rpc).toHaveBeenCalledWith('recalculate_class_placements', {
         p_class_ids: [101],
-        p_is_nationals: true
+        p_is_nationals: true,
       });
     });
 
@@ -57,18 +66,16 @@ describe('placementService', () => {
       const mockRpc = vi.fn().mockResolvedValue({ error: mockError });
       vi.mocked(supabase.rpc).mockImplementation(mockRpc);
 
-      await expect(
-        recalculatePlacementsForClass(101, 'test-license-key', false)
-      ).rejects.toThrow();
+      await expect(recalculatePlacementsForClass(101, 'test-license-key', false)).rejects.toThrow();
     });
 
     test('should handle exceptions from supabase', async () => {
       const mockRpc = vi.fn().mockRejectedValue(new Error('Network error'));
       vi.mocked(supabase.rpc).mockImplementation(mockRpc);
 
-      await expect(
-        recalculatePlacementsForClass(101, 'test-license-key', false)
-      ).rejects.toThrow('Network error');
+      await expect(recalculatePlacementsForClass(101, 'test-license-key', false)).rejects.toThrow(
+        'Network error'
+      );
     });
 
     test('should normalize single class ID to array', async () => {
@@ -85,19 +92,20 @@ describe('placementService', () => {
 
   describe('getEntryPlacement', () => {
     test('should return placement for a valid entry', async () => {
-      const mockFrom = vi.fn().mockReturnThis();
       const mockSelect = vi.fn().mockReturnThis();
       const mockEq = vi.fn().mockReturnThis();
       const mockSingle = vi.fn().mockResolvedValue({
         data: { final_placement: 1 },
-        error: null
+        error: null,
       });
 
-      vi.mocked(supabase.from).mockReturnValue({
-        select: mockSelect,
-        eq: mockEq,
-        single: mockSingle
-      } as any);
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          select: mockSelect,
+          eq: mockEq,
+          single: mockSingle,
+        })
+      );
 
       const placement = await getEntryPlacement(1001);
 
@@ -108,19 +116,20 @@ describe('placementService', () => {
     });
 
     test('should return null when entry is not found', async () => {
-      const mockFrom = vi.fn().mockReturnThis();
       const mockSelect = vi.fn().mockReturnThis();
       const mockEq = vi.fn().mockReturnThis();
       const mockSingle = vi.fn().mockResolvedValue({
         data: null,
-        error: { message: 'Not found' }
+        error: { message: 'Not found' },
       });
 
-      vi.mocked(supabase.from).mockReturnValue({
-        select: mockSelect,
-        eq: mockEq,
-        single: mockSingle
-      } as any);
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          select: mockSelect,
+          eq: mockEq,
+          single: mockSingle,
+        })
+      );
 
       const placement = await getEntryPlacement(9999);
 
@@ -128,16 +137,17 @@ describe('placementService', () => {
     });
 
     test('should return null when query throws exception', async () => {
-      const mockFrom = vi.fn().mockReturnThis();
       const mockSelect = vi.fn().mockReturnThis();
       const mockEq = vi.fn().mockReturnThis();
       const mockSingle = vi.fn().mockRejectedValue(new Error('Database error'));
 
-      vi.mocked(supabase.from).mockReturnValue({
-        select: mockSelect,
-        eq: mockEq,
-        single: mockSingle
-      } as any);
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          select: mockSelect,
+          eq: mockEq,
+          single: mockSingle,
+        })
+      );
 
       const placement = await getEntryPlacement(1001);
 
@@ -145,19 +155,20 @@ describe('placementService', () => {
     });
 
     test('should handle placement of null (unplaced entry)', async () => {
-      const mockFrom = vi.fn().mockReturnThis();
       const mockSelect = vi.fn().mockReturnThis();
       const mockEq = vi.fn().mockReturnThis();
       const mockSingle = vi.fn().mockResolvedValue({
         data: { final_placement: null },
-        error: null
+        error: null,
       });
 
-      vi.mocked(supabase.from).mockReturnValue({
-        select: mockSelect,
-        eq: mockEq,
-        single: mockSingle
-      } as any);
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          select: mockSelect,
+          eq: mockEq,
+          single: mockSingle,
+        })
+      );
 
       const placement = await getEntryPlacement(1001);
 
@@ -165,19 +176,20 @@ describe('placementService', () => {
     });
 
     test('should return placement of 0 for NQ entries', async () => {
-      const mockFrom = vi.fn().mockReturnThis();
       const mockSelect = vi.fn().mockReturnThis();
       const mockEq = vi.fn().mockReturnThis();
       const mockSingle = vi.fn().mockResolvedValue({
         data: { final_placement: 0 },
-        error: null
+        error: null,
       });
 
-      vi.mocked(supabase.from).mockReturnValue({
-        select: mockSelect,
-        eq: mockEq,
-        single: mockSingle
-      } as any);
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          select: mockSelect,
+          eq: mockEq,
+          single: mockSingle,
+        })
+      );
 
       const placement = await getEntryPlacement(1001);
 
@@ -193,25 +205,26 @@ describe('placementService', () => {
         show_id: 1,
         shows: {
           license_key: 'myK9Q1-a260f472-e0d76a33-4b6c264c',
-          show_type: 'Regular'
-        }
-      }
+          show_type: 'Regular',
+        },
+      },
     };
 
     test('should recalculate placements for regular show', async () => {
-      const mockFrom = vi.fn().mockReturnThis();
       const mockSelect = vi.fn().mockReturnThis();
       const mockEq = vi.fn().mockReturnThis();
       const mockSingle = vi.fn().mockResolvedValue({
         data: mockClassData,
-        error: null
+        error: null,
       });
 
-      vi.mocked(supabase.from).mockReturnValue({
-        select: mockSelect,
-        eq: mockEq,
-        single: mockSingle
-      } as any);
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          select: mockSelect,
+          eq: mockEq,
+          single: mockSingle,
+        })
+      );
 
       const mockRpc = vi.fn().mockResolvedValue({ error: null });
       vi.mocked(supabase.rpc).mockImplementation(mockRpc);
@@ -222,7 +235,7 @@ describe('placementService', () => {
       expect(mockEq).toHaveBeenCalledWith('id', 101);
       expect(supabase.rpc).toHaveBeenCalledWith('recalculate_class_placements', {
         p_class_ids: [101],
-        p_is_nationals: false
+        p_is_nationals: false,
       });
     });
 
@@ -233,24 +246,25 @@ describe('placementService', () => {
           ...mockClassData.trials,
           shows: {
             ...mockClassData.trials.shows,
-            show_type: 'National Championship'
-          }
-        }
+            show_type: 'National Championship',
+          },
+        },
       };
 
-      const mockFrom = vi.fn().mockReturnThis();
       const mockSelect = vi.fn().mockReturnThis();
       const mockEq = vi.fn().mockReturnThis();
       const mockSingle = vi.fn().mockResolvedValue({
         data: nationalsClassData,
-        error: null
+        error: null,
       });
 
-      vi.mocked(supabase.from).mockReturnValue({
-        select: mockSelect,
-        eq: mockEq,
-        single: mockSingle
-      } as any);
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          select: mockSelect,
+          eq: mockEq,
+          single: mockSingle,
+        })
+      );
 
       const mockRpc = vi.fn().mockResolvedValue({ error: null });
       vi.mocked(supabase.rpc).mockImplementation(mockRpc);
@@ -259,24 +273,25 @@ describe('placementService', () => {
 
       expect(supabase.rpc).toHaveBeenCalledWith('recalculate_class_placements', {
         p_class_ids: [101],
-        p_is_nationals: true
+        p_is_nationals: true,
       });
     });
 
     test('should throw error when class data fetch fails', async () => {
-      const mockFrom = vi.fn().mockReturnThis();
       const mockSelect = vi.fn().mockReturnThis();
       const mockEq = vi.fn().mockReturnThis();
       const mockSingle = vi.fn().mockResolvedValue({
         data: null,
-        error: { message: 'Class not found' }
+        error: { message: 'Class not found' },
       });
 
-      vi.mocked(supabase.from).mockReturnValue({
-        select: mockSelect,
-        eq: mockEq,
-        single: mockSingle
-      } as any);
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          select: mockSelect,
+          eq: mockEq,
+          single: mockSingle,
+        })
+      );
 
       await expect(manuallyRecalculatePlacements(999)).rejects.toThrow(
         'Failed to fetch class data'
@@ -284,22 +299,23 @@ describe('placementService', () => {
     });
 
     test('should throw error when placement recalculation fails', async () => {
-      const mockFrom = vi.fn().mockReturnThis();
       const mockSelect = vi.fn().mockReturnThis();
       const mockEq = vi.fn().mockReturnThis();
       const mockSingle = vi.fn().mockResolvedValue({
         data: mockClassData,
-        error: null
+        error: null,
       });
 
-      vi.mocked(supabase.from).mockReturnValue({
-        select: mockSelect,
-        eq: mockEq,
-        single: mockSingle
-      } as any);
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          select: mockSelect,
+          eq: mockEq,
+          single: mockSingle,
+        })
+      );
 
       const mockRpc = vi.fn().mockResolvedValue({
-        error: { message: 'Placement calculation failed' }
+        error: { message: 'Placement calculation failed' },
       });
       vi.mocked(supabase.rpc).mockImplementation(mockRpc);
 
@@ -313,24 +329,25 @@ describe('placementService', () => {
           ...mockClassData.trials,
           shows: {
             ...mockClassData.trials.shows,
-            show_type: 'NATIONAL'
-          }
-        }
+            show_type: 'NATIONAL',
+          },
+        },
       };
 
-      const mockFrom = vi.fn().mockReturnThis();
       const mockSelect = vi.fn().mockReturnThis();
       const mockEq = vi.fn().mockReturnThis();
       const mockSingle = vi.fn().mockResolvedValue({
         data: nationalsClassData,
-        error: null
+        error: null,
       });
 
-      vi.mocked(supabase.from).mockReturnValue({
-        select: mockSelect,
-        eq: mockEq,
-        single: mockSingle
-      } as any);
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          select: mockSelect,
+          eq: mockEq,
+          single: mockSingle,
+        })
+      );
 
       const mockRpc = vi.fn().mockResolvedValue({ error: null });
       vi.mocked(supabase.rpc).mockImplementation(mockRpc);
@@ -339,7 +356,7 @@ describe('placementService', () => {
 
       expect(supabase.rpc).toHaveBeenCalledWith('recalculate_class_placements', {
         p_class_ids: [101],
-        p_is_nationals: true
+        p_is_nationals: true,
       });
     });
 
@@ -350,24 +367,25 @@ describe('placementService', () => {
           ...mockClassData.trials,
           shows: {
             ...mockClassData.trials.shows,
-            show_type: null
-          }
-        }
+            show_type: null,
+          },
+        },
       };
 
-      const mockFrom = vi.fn().mockReturnThis();
       const mockSelect = vi.fn().mockReturnThis();
       const mockEq = vi.fn().mockReturnThis();
       const mockSingle = vi.fn().mockResolvedValue({
         data: classDataWithNullType,
-        error: null
+        error: null,
       });
 
-      vi.mocked(supabase.from).mockReturnValue({
-        select: mockSelect,
-        eq: mockEq,
-        single: mockSingle
-      } as any);
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          select: mockSelect,
+          eq: mockEq,
+          single: mockSingle,
+        })
+      );
 
       const mockRpc = vi.fn().mockResolvedValue({ error: null });
       vi.mocked(supabase.rpc).mockImplementation(mockRpc);
@@ -376,7 +394,7 @@ describe('placementService', () => {
 
       expect(supabase.rpc).toHaveBeenCalledWith('recalculate_class_placements', {
         p_class_ids: [101],
-        p_is_nationals: false
+        p_is_nationals: false,
       });
     });
   });

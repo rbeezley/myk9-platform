@@ -7,7 +7,7 @@ import {
   safeLocalStorageSet,
   safeLocalStorageRemove,
   localStorageHas,
-  getLocalStorageKeys
+  getLocalStorageKeys,
 } from './localStorageUtils';
 
 // Mock localStorage
@@ -80,8 +80,8 @@ describe('localStorageUtils', () => {
         expect(safeLocalStorageGet('arr', [])).toEqual([1, 2, 3]);
 
         // Object
-        localStorage.setItem('obj', JSON.stringify({a: 1, b: 2}));
-        expect(safeLocalStorageGet('obj', {})).toEqual({a: 1, b: 2});
+        localStorage.setItem('obj', JSON.stringify({ a: 1, b: 2 }));
+        expect(safeLocalStorageGet('obj', {})).toEqual({ a: 1, b: 2 });
       });
     });
 
@@ -107,7 +107,7 @@ describe('localStorageUtils', () => {
         const result = safeLocalStorageGet<number[]>(
           'favorites',
           [],
-          (val) => Array.isArray(val) && val.every(id => typeof id === 'number')
+          val => Array.isArray(val) && val.every(id => typeof id === 'number')
         );
         expect(result).toEqual([1, 2, 3]);
       });
@@ -118,7 +118,7 @@ describe('localStorageUtils', () => {
         const result = safeLocalStorageGet<number[]>(
           'favorites',
           [],
-          (val) => Array.isArray(val) && val.every(id => typeof id === 'number')
+          val => Array.isArray(val) && val.every(id => typeof id === 'number')
         );
         expect(result).toEqual([]);
       });
@@ -126,11 +126,7 @@ describe('localStorageUtils', () => {
       test('should log warning when validation fails', () => {
         const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
         localStorage.setItem('invalid-type', JSON.stringify('string'));
-        safeLocalStorageGet<number>(
-          'invalid-type',
-          0,
-          (val) => typeof val === 'number'
-        );
+        safeLocalStorageGet<number>('invalid-type', 0, val => typeof val === 'number');
         expect(consoleSpy).toHaveBeenCalledWith(
           expect.stringContaining('Invalid data for key "invalid-type"')
         );
@@ -143,13 +139,13 @@ describe('localStorageUtils', () => {
           notifications: boolean;
         }
 
-        localStorage.setItem('config', JSON.stringify({theme: 'dark', notifications: true}));
+        localStorage.setItem('config', JSON.stringify({ theme: 'dark', notifications: true }));
         const result = safeLocalStorageGet<Config>(
           'config',
-          {theme: 'light', notifications: false},
-          (val) => typeof val === 'object' && 'theme' in val && 'notifications' in val
+          { theme: 'light', notifications: false },
+          val => typeof val === 'object' && 'theme' in val && 'notifications' in val
         );
-        expect(result).toEqual({theme: 'dark', notifications: true});
+        expect(result).toEqual({ theme: 'dark', notifications: true });
       });
     });
   });
@@ -178,8 +174,8 @@ describe('localStorageUtils', () => {
       });
 
       test('should save object', () => {
-        safeLocalStorageSet('user', {name: 'John', id: 123});
-        expect(JSON.parse(localStorage.getItem('user')!)).toEqual({name: 'John', id: 123});
+        safeLocalStorageSet('user', { name: 'John', id: 123 });
+        expect(JSON.parse(localStorage.getItem('user')!)).toEqual({ name: 'John', id: 123 });
       });
 
       test('should overwrite existing key', () => {
@@ -191,7 +187,7 @@ describe('localStorageUtils', () => {
 
     describe('Error handling', () => {
       test('should return false on serialization error', () => {
-        const circular: any = {};
+        const circular: Record<string, unknown> = {};
         circular.self = circular; // Circular reference
 
         const success = safeLocalStorageSet('circular', circular);
@@ -200,7 +196,7 @@ describe('localStorageUtils', () => {
 
       test('should log error on serialization error', () => {
         const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-        const circular: any = {};
+        const circular: Record<string, unknown> = {};
         circular.self = circular;
 
         safeLocalStorageSet('circular', circular);
@@ -220,9 +216,7 @@ describe('localStorageUtils', () => {
 
         const success = safeLocalStorageSet('large', 'data');
         expect(success).toBe(false);
-        expect(consoleSpy).toHaveBeenCalledWith(
-          expect.stringContaining('quota exceeded')
-        );
+        expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('quota exceeded'));
 
         // Restore
         localStorageMock.setItem = originalSetItem;
@@ -355,7 +349,7 @@ describe('localStorageUtils', () => {
       const initial = safeLocalStorageGet<number[]>(
         favoritesKey,
         [],
-        (val) => Array.isArray(val) && val.every(id => typeof id === 'number')
+        val => Array.isArray(val) && val.every(id => typeof id === 'number')
       );
       expect(initial).toEqual([]);
 
@@ -367,7 +361,7 @@ describe('localStorageUtils', () => {
       const loaded = safeLocalStorageGet<number[]>(
         favoritesKey,
         [],
-        (val) => Array.isArray(val) && val.every(id => typeof id === 'number')
+        val => Array.isArray(val) && val.every(id => typeof id === 'number')
       );
       expect(loaded).toEqual([101, 202, 303]);
     });
@@ -383,21 +377,21 @@ describe('localStorageUtils', () => {
       // Load default
       const config = safeLocalStorageGet<QuietHours>(
         configKey,
-        {enabled: false, start: '22:00', end: '08:00'},
-        (val) => typeof val === 'object' && 'enabled' in val
+        { enabled: false, start: '22:00', end: '08:00' },
+        val => typeof val === 'object' && 'enabled' in val
       );
       expect(config.enabled).toBe(false);
 
       // Save custom
-      safeLocalStorageSet(configKey, {enabled: true, start: '23:00', end: '07:00'});
+      safeLocalStorageSet(configKey, { enabled: true, start: '23:00', end: '07:00' });
 
       // Reload
       const updated = safeLocalStorageGet<QuietHours>(
         configKey,
-        {enabled: false, start: '22:00', end: '08:00'},
-        (val) => typeof val === 'object' && 'enabled' in val
+        { enabled: false, start: '22:00', end: '08:00' },
+        val => typeof val === 'object' && 'enabled' in val
       );
-      expect(updated).toEqual({enabled: true, start: '23:00', end: '07:00'});
+      expect(updated).toEqual({ enabled: true, start: '23:00', end: '07:00' });
     });
 
     test('should handle cleanup of multiple favorites keys', () => {

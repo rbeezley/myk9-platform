@@ -101,7 +101,7 @@ const indexedDBMock = {
   deleteDatabase: vi.fn((name: string) => {
     const request = {
       onsuccess: null as (() => void) | null,
-      onerror: null as ((event: any) => void) | null,
+      onerror: null as ((event: { type: string }) => void) | null,
       error: null,
     };
 
@@ -391,7 +391,7 @@ describe('cacheManager', () => {
       indexedDBMock.deleteDatabase.mockImplementation((name: string) => {
         const request = {
           onsuccess: null,
-          onerror: null as ((event: any) => void) | null,
+          onerror: null as ((event: { type: string }) => void) | null,
           error: null as Error | null,
         };
 
@@ -412,10 +412,7 @@ describe('cacheManager', () => {
 
       // Use Promise.race to ensure proper error handling timing
       await expect(
-        Promise.race([
-          clearPromise,
-          vi.runAllTimersAsync().then(() => clearPromise)
-        ])
+        Promise.race([clearPromise, vi.runAllTimersAsync().then(() => clearPromise)])
       ).rejects.toThrow();
     });
 

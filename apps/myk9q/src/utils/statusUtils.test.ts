@@ -45,6 +45,6 @@ describe('determineEntryStatus', () => {
 
   test('should cast any string to EntryStatus', () => {
     // Even unknown statuses get cast to EntryStatus
-    expect(determineEntryStatus('custom-status' as any)).toBe('custom-status');
+    expect(determineEntryStatus('custom-status')).toBe('custom-status');
   });
 });

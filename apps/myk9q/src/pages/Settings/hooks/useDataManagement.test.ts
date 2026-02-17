@@ -39,7 +39,7 @@ describe('useDataManagement', () => {
     vi.mocked(useSettingsStore).mockReturnValue({
       exportSettings: vi.fn(),
       importSettings: vi.fn(),
-      settings: {} as any,
+      settings: {} as unknown as ReturnType<typeof useSettingsStore>['settings'],
       updateSettings: vi.fn(),
       resetSettings: vi.fn(),
     });
@@ -106,7 +106,9 @@ describe('useDataManagement', () => {
 
     it('should handle storage usage errors gracefully', async () => {
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      vi.mocked(dataExportService.getStorageUsage).mockRejectedValue(new Error('Storage API error'));
+      vi.mocked(dataExportService.getStorageUsage).mockRejectedValue(
+        new Error('Storage API error')
+      );
 
       const { result } = renderHook(() => useDataManagement(mockShowToast));
 
@@ -146,7 +148,9 @@ describe('useDataManagement', () => {
 
     it('should handle export data errors', async () => {
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      vi.mocked(settingsHelpers.exportPersonalDataHelper).mockRejectedValue(new Error('Export failed'));
+      vi.mocked(settingsHelpers.exportPersonalDataHelper).mockRejectedValue(
+        new Error('Export failed')
+      );
 
       const { result } = renderHook(() => useDataManagement(mockShowToast));
 
@@ -165,7 +169,7 @@ describe('useDataManagement', () => {
       vi.mocked(useSettingsStore).mockReturnValue({
         exportSettings: mockExportSettings,
         importSettings: vi.fn(),
-        settings: {} as any,
+        settings: {} as unknown as ReturnType<typeof useSettingsStore>['settings'],
         updateSettings: vi.fn(),
         resetSettings: vi.fn(),
       });
@@ -222,7 +226,7 @@ describe('useDataManagement', () => {
       vi.mocked(useSettingsStore).mockReturnValue({
         exportSettings: vi.fn(),
         importSettings: mockImportSettings,
-        settings: {} as any,
+        settings: {} as unknown as ReturnType<typeof useSettingsStore>['settings'],
         updateSettings: vi.fn(),
         resetSettings: vi.fn(),
       });
@@ -252,7 +256,7 @@ describe('useDataManagement', () => {
       vi.mocked(useSettingsStore).mockReturnValue({
         exportSettings: vi.fn(),
         importSettings: vi.fn(),
-        settings: {} as any,
+        settings: {} as unknown as ReturnType<typeof useSettingsStore>['settings'],
         updateSettings: vi.fn(),
         resetSettings: vi.fn(),
       });
@@ -274,7 +278,9 @@ describe('useDataManagement', () => {
 
     it('should handle import errors', async () => {
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      vi.mocked(settingsHelpers.importSettingsFromFile).mockRejectedValue(new Error('Import failed'));
+      vi.mocked(settingsHelpers.importSettingsFromFile).mockRejectedValue(
+        new Error('Import failed')
+      );
 
       const { result } = renderHook(() => useDataManagement(mockShowToast));
 
@@ -316,11 +322,13 @@ describe('useDataManagement', () => {
     it('should set isClearing state during operation', async () => {
       let wasClearingDuringOperation = false;
 
-      vi.mocked(settingsHelpers.clearAllDataHelper).mockImplementation(async (showToast, options) => {
-        // Delay to allow checking state
-        await new Promise(resolve => setTimeout(resolve, 100));
-        return mockStorageUsage;
-      });
+      vi.mocked(settingsHelpers.clearAllDataHelper).mockImplementation(
+        async (showToast, options) => {
+          // Delay to allow checking state
+          await new Promise(resolve => setTimeout(resolve, 100));
+          return mockStorageUsage;
+        }
+      );
 
       const { result, rerender } = renderHook(() => useDataManagement(mockShowToast));
 
@@ -330,13 +338,16 @@ describe('useDataManagement', () => {
       const clearPromise = result.current.handleClearData();
 
       // Poll for state change
-      await waitFor(() => {
-        rerender();
-        if (result.current.isClearing) {
-          wasClearingDuringOperation = true;
-        }
-        return wasClearingDuringOperation;
-      }, { timeout: 500, interval: 5 });
+      await waitFor(
+        () => {
+          rerender();
+          if (result.current.isClearing) {
+            wasClearingDuringOperation = true;
+          }
+          return wasClearingDuringOperation;
+        },
+        { timeout: 500, interval: 5 }
+      );
 
       // Wait for completion
       await act(async () => {
@@ -430,7 +441,9 @@ describe('useDataManagement', () => {
       mockShowToast.mockClear();
 
       // First export fails
-      vi.mocked(settingsHelpers.exportPersonalDataHelper).mockRejectedValueOnce(new Error('Network error'));
+      vi.mocked(settingsHelpers.exportPersonalDataHelper).mockRejectedValueOnce(
+        new Error('Network error')
+      );
 
       await act(async () => {
         await result.current.handleExportData();

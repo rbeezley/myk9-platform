@@ -17,28 +17,30 @@ import * as loggerModule from '@/utils/logger';
 
 // Mock dependencies
 vi.mock('@/services/replication', () => ({
-  getReplicationManager: vi.fn()
+  getReplicationManager: vi.fn(),
 }));
 
 vi.mock('@/utils/stringUtils', () => ({
-  buildClassName: vi.fn((element, level, section) => `${element} ${level}${section ? ` ${section}` : ''}`)
+  buildClassName: vi.fn(
+    (element, level, section) => `${element} ${level}${section ? ` ${section}` : ''}`
+  ),
 }));
 
 vi.mock('@/utils/timeUtils', () => ({
-  formatTimeLimitSeconds: vi.fn((seconds) => {
+  formatTimeLimitSeconds: vi.fn(seconds => {
     if (seconds === undefined || seconds === null) return '';
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
-  })
+  }),
 }));
 
 vi.mock('@/utils/statusUtils', () => ({
-  determineEntryStatus: vi.fn((entryStatus) => {
+  determineEntryStatus: vi.fn(entryStatus => {
     if (entryStatus === 'completed') return 'completed';
     if (entryStatus === 'in-ring') return 'in-ring';
     return 'no-status';
-  })
+  }),
 }));
 
 describe('entryReplication', () => {
@@ -46,19 +48,19 @@ describe('entryReplication', () => {
     get: vi.fn(),
     getAll: vi.fn(),
     set: vi.fn(),
-    delete: vi.fn()
+    delete: vi.fn(),
   };
 
   const mockClassesTable = {
     get: vi.fn(),
     getAll: vi.fn(),
     set: vi.fn(),
-    delete: vi.fn()
+    delete: vi.fn(),
   };
 
   const mockReplicationManager = {
     getTable: vi.fn(),
-    syncTable: vi.fn()
+    syncTable: vi.fn(),
   };
 
   beforeEach(() => {
@@ -72,7 +74,9 @@ describe('entryReplication', () => {
     });
 
     // Default: return mock manager
-    vi.mocked(getReplicationManager).mockReturnValue(mockReplicationManager as any);
+    vi.mocked(getReplicationManager).mockReturnValue(
+      mockReplicationManager as unknown as ReturnType<typeof getReplicationManager>
+    );
   });
 
   afterEach(() => {
@@ -95,7 +99,7 @@ describe('entryReplication', () => {
       is_scoring_finalized: false,
       class_status: 'not_started',
       created_at: '2025-01-19T00:00:00Z',
-      updated_at: '2025-01-19T00:00:00Z'
+      updated_at: '2025-01-19T00:00:00Z',
     };
 
     const mockReplicatedEntries: ReplicatedEntry[] = [
@@ -115,7 +119,7 @@ describe('entryReplication', () => {
         final_placement: 1,
         license_key: 'TEST-KEY',
         created_at: '2025-01-19T00:00:00Z',
-        updated_at: '2025-01-19T00:00:00Z'
+        updated_at: '2025-01-19T00:00:00Z',
       },
       {
         id: '2',
@@ -133,8 +137,8 @@ describe('entryReplication', () => {
         final_placement: undefined,
         license_key: 'TEST-KEY',
         created_at: '2025-01-19T00:00:00Z',
-        updated_at: '2025-01-19T00:00:00Z'
-      }
+        updated_at: '2025-01-19T00:00:00Z',
+      },
     ];
 
     it('should return null when replication manager is not available', async () => {
@@ -199,7 +203,7 @@ describe('entryReplication', () => {
         resultText: 'qualified',
         searchTime: '45.5',
         faultCount: 0,
-        placement: 1
+        placement: 1,
       });
 
       // Check second entry (in-ring)
@@ -212,7 +216,7 @@ describe('entryReplication', () => {
         isScored: false,
         status: 'in-ring',
         resultText: 'pending',
-        searchTime: '0'
+        searchTime: '0',
       });
     });
 
@@ -220,7 +224,7 @@ describe('entryReplication', () => {
       const multiClassEntries: ReplicatedEntry[] = [
         { ...mockReplicatedEntries[0], class_id: '123' },
         { ...mockReplicatedEntries[1], class_id: '124' },
-        { ...mockReplicatedEntries[0], id: '3', class_id: '125', armband_number: 103 }
+        { ...mockReplicatedEntries[0], id: '3', class_id: '125', armband_number: 103 },
       ];
 
       mockClassesTable.get.mockResolvedValue(mockClass);
@@ -238,7 +242,7 @@ describe('entryReplication', () => {
       const unsortedEntries: ReplicatedEntry[] = [
         { ...mockReplicatedEntries[0], id: '1', armband_number: 105 },
         { ...mockReplicatedEntries[1], id: '2', armband_number: 101 },
-        { ...mockReplicatedEntries[0], id: '3', armband_number: 103 }
+        { ...mockReplicatedEntries[0], id: '3', armband_number: 103 },
       ];
 
       mockClassesTable.get.mockResolvedValue(mockClass);
@@ -254,7 +258,7 @@ describe('entryReplication', () => {
     it('should handle missing breed field', async () => {
       const entryWithoutBreed: ReplicatedEntry = {
         ...mockReplicatedEntries[0],
-        dog_breed: undefined
+        dog_breed: undefined,
       };
 
       mockClassesTable.get.mockResolvedValue(mockClass);
@@ -271,7 +275,7 @@ describe('entryReplication', () => {
         area_count: 3,
         time_limit_seconds: 180,
         time_limit_area2_seconds: 120,
-        time_limit_area3_seconds: 90
+        time_limit_area3_seconds: 90,
       };
 
       mockClassesTable.get.mockResolvedValue(classWithMultipleAreas);
@@ -305,9 +309,7 @@ describe('entryReplication', () => {
 
     it('should return empty array when no entries match class IDs', async () => {
       mockClassesTable.get.mockResolvedValue(mockClass);
-      mockEntriesTable.getAll.mockResolvedValue([
-        { ...mockReplicatedEntries[0], class_id: '999' }
-      ]);
+      mockEntriesTable.getAll.mockResolvedValue([{ ...mockReplicatedEntries[0], class_id: '999' }]);
 
       const result = await getEntriesFromReplicationCache([123], 123);
 
@@ -318,12 +320,12 @@ describe('entryReplication', () => {
   describe('triggerImmediateEntrySync', () => {
     it('should trigger immediate sync when manager is available', async () => {
       const mockSyncManager = {
-        syncTable: vi.fn().mockResolvedValue(undefined)
+        syncTable: vi.fn().mockResolvedValue(undefined),
       };
 
       // Mock dynamic import
       vi.doMock('./replication', () => ({
-        getReplicationManager: () => mockSyncManager
+        getReplicationManager: () => mockSyncManager,
       }));
 
       await triggerImmediateEntrySync('submitScore');
@@ -335,7 +337,7 @@ describe('entryReplication', () => {
       const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
       vi.doMock('./replication', () => ({
-        getReplicationManager: () => null
+        getReplicationManager: () => null,
       }));
 
       await triggerImmediateEntrySync('submitScore');
@@ -351,11 +353,11 @@ describe('entryReplication', () => {
       const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
       const mockSyncManager = {
-        syncTable: vi.fn().mockRejectedValue(new Error('Sync failed'))
+        syncTable: vi.fn().mockRejectedValue(new Error('Sync failed')),
       };
 
       vi.doMock('./replication', () => ({
-        getReplicationManager: () => mockSyncManager
+        getReplicationManager: () => mockSyncManager,
       }));
 
       await triggerImmediateEntrySync('submitScore');
@@ -372,18 +374,16 @@ describe('entryReplication', () => {
       const loggerLogSpy = vi.spyOn(loggerModule.logger, 'log').mockImplementation(() => {});
 
       const mockSyncManager = {
-        syncTable: vi.fn().mockResolvedValue(undefined)
+        syncTable: vi.fn().mockResolvedValue(undefined),
       };
 
       vi.doMock('./replication', () => ({
-        getReplicationManager: () => mockSyncManager
+        getReplicationManager: () => mockSyncManager,
       }));
 
       await triggerImmediateEntrySync('resetEntryScore');
 
-      expect(loggerLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[resetEntryScore]')
-      );
+      expect(loggerLogSpy).toHaveBeenCalledWith(expect.stringContaining('[resetEntryScore]'));
 
       loggerLogSpy.mockRestore();
     });
@@ -405,7 +405,7 @@ describe('entryReplication', () => {
       is_scoring_finalized: false,
       class_status: 'not_started',
       created_at: '2025-01-19T00:00:00Z',
-      updated_at: '2025-01-19T00:00:00Z'
+      updated_at: '2025-01-19T00:00:00Z',
     };
 
     const baseReplicatedEntry: ReplicatedEntry = {
@@ -424,13 +424,13 @@ describe('entryReplication', () => {
       final_placement: 1,
       license_key: 'TEST-KEY',
       created_at: '2025-01-19T00:00:00Z',
-      updated_at: '2025-01-19T00:00:00Z'
+      updated_at: '2025-01-19T00:00:00Z',
     };
 
     it('should transform entry with null placement', async () => {
       const entryWithNullPlacement: ReplicatedEntry = {
         ...baseReplicatedEntry,
-        final_placement: undefined
+        final_placement: undefined,
       };
 
       mockClassesTable.get.mockResolvedValue(mockClass);
@@ -444,7 +444,7 @@ describe('entryReplication', () => {
     it('should transform entry with zero search time', async () => {
       const entryWithZeroTime: ReplicatedEntry = {
         ...baseReplicatedEntry,
-        search_time_seconds: 0
+        search_time_seconds: 0,
       };
 
       mockClassesTable.get.mockResolvedValue(mockClass);

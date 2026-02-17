@@ -115,7 +115,7 @@ describe('DatabaseManager', () => {
 
   describe('CRUD Operations', () => {
     let db: IDBPDatabase;
-    let REPLICATION_STORES: any;
+    let REPLICATION_STORES: Record<string, string>;
 
     beforeEach(async () => {
       const { DatabaseManager, REPLICATION_STORES: stores } = await import('../DatabaseManager');
@@ -280,7 +280,7 @@ describe('DatabaseManager', () => {
 
   describe('Query Operations', () => {
     let db: IDBPDatabase;
-    let REPLICATION_STORES: any;
+    let REPLICATION_STORES: Record<string, string>;
 
     beforeEach(async () => {
       const { DatabaseManager, REPLICATION_STORES: stores } = await import('../DatabaseManager');
@@ -391,7 +391,7 @@ describe('DatabaseManager', () => {
 
       const startCount = getActiveTransactionCount();
 
-      const promise = new Promise<void>((resolve) => {
+      const promise = new Promise<void>(resolve => {
         setTimeout(() => resolve(), 100);
       });
 
@@ -404,11 +404,12 @@ describe('DatabaseManager', () => {
     });
 
     it('should wait for active transactions to complete', async () => {
-      const { trackTransaction, waitForActiveTransactions, getActiveTransactionCount } = await import('../DatabaseManager');
+      const { trackTransaction, waitForActiveTransactions, getActiveTransactionCount } =
+        await import('../DatabaseManager');
 
       const delays = [50, 100, 150];
-      const promises = delays.map(delay =>
-        new Promise<void>(resolve => setTimeout(() => resolve(), delay))
+      const promises = delays.map(
+        delay => new Promise<void>(resolve => setTimeout(() => resolve(), delay))
       );
 
       const startCount = getActiveTransactionCount();
@@ -513,7 +514,7 @@ describe('DatabaseManager', () => {
 
       // Try to access a non-existent object store
       await expect(async () => {
-        const tx = db.transaction('non-existent-store' as any, 'readonly');
+        const tx = db.transaction('non-existent-store', 'readonly');
         await tx.done;
       }).rejects.toThrow();
     });
@@ -651,7 +652,8 @@ describe('DatabaseManager', () => {
     });
 
     it('should skip cleanup when all IDs are already strings', async () => {
-      const { DatabaseManager, REPLICATION_STORES, cleanupDuplicateRecords } = await import('../DatabaseManager');
+      const { DatabaseManager, REPLICATION_STORES, cleanupDuplicateRecords } =
+        await import('../DatabaseManager');
       const dbManager = new DatabaseManager(mockLogger);
       const db = await dbManager.getDatabase('test-no-numeric');
 
@@ -690,7 +692,8 @@ describe('DatabaseManager', () => {
     });
 
     it('should migrate single records with numeric IDs to string IDs', async () => {
-      const { DatabaseManager, REPLICATION_STORES, cleanupDuplicateRecords } = await import('../DatabaseManager');
+      const { DatabaseManager, REPLICATION_STORES, cleanupDuplicateRecords } =
+        await import('../DatabaseManager');
       const dbManager = new DatabaseManager(mockLogger);
       const db = await dbManager.getDatabase('test-migrate-numeric');
 
@@ -725,7 +728,8 @@ describe('DatabaseManager', () => {
     });
 
     it('should remove duplicate records keeping string ID version', async () => {
-      const { DatabaseManager, REPLICATION_STORES, cleanupDuplicateRecords } = await import('../DatabaseManager');
+      const { DatabaseManager, REPLICATION_STORES, cleanupDuplicateRecords } =
+        await import('../DatabaseManager');
       const dbManager = new DatabaseManager(mockLogger);
       const db = await dbManager.getDatabase('test-remove-duplicates');
 
@@ -784,7 +788,7 @@ describe('DatabaseManager', () => {
 
   describe('Multiple Store Operations', () => {
     let db: IDBPDatabase;
-    let REPLICATION_STORES: any;
+    let REPLICATION_STORES: Record<string, string>;
 
     beforeEach(async () => {
       const { DatabaseManager, REPLICATION_STORES: stores } = await import('../DatabaseManager');

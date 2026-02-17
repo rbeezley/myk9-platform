@@ -36,7 +36,11 @@ class NotificationSoundService {
     }
 
     try {
-      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtx) return null;
+      this.audioContext = new AudioCtx();
       return this.audioContext;
     } catch (error) {
       logger.warn('Web Audio API not supported:', error);
@@ -95,7 +99,7 @@ class NotificationSoundService {
    */
   private async playNormalChime(ctx: AudioContext): Promise<void> {
     // Two-tone pleasant chime (like a doorbell)
-    await this.playTone(ctx, 880, 0.15, 0.3);  // A5
+    await this.playTone(ctx, 880, 0.15, 0.3); // A5
     await this.playTone(ctx, 1047, 0.15, 0.25); // C6
   }
 
@@ -104,8 +108,8 @@ class NotificationSoundService {
    */
   private async playHighChime(ctx: AudioContext): Promise<void> {
     // Ascending three-tone alert
-    await this.playTone(ctx, 784, 0.1, 0.35);  // G5
-    await this.playTone(ctx, 988, 0.1, 0.35);  // B5
+    await this.playTone(ctx, 784, 0.1, 0.35); // G5
+    await this.playTone(ctx, 988, 0.1, 0.35); // B5
     await this.playTone(ctx, 1175, 0.15, 0.3); // D6
   }
 
@@ -114,11 +118,11 @@ class NotificationSoundService {
    */
   private async playUrgentChime(ctx: AudioContext): Promise<void> {
     // Rapid ascending tones that demand attention
-    await this.playTone(ctx, 880, 0.08, 0.4);   // A5
+    await this.playTone(ctx, 880, 0.08, 0.4); // A5
     await this.delay(30);
-    await this.playTone(ctx, 1047, 0.08, 0.4);  // C6
+    await this.playTone(ctx, 1047, 0.08, 0.4); // C6
     await this.delay(30);
-    await this.playTone(ctx, 1319, 0.08, 0.4);  // E6
+    await this.playTone(ctx, 1319, 0.08, 0.4); // E6
     await this.delay(100);
     // Repeat for emphasis
     await this.playTone(ctx, 880, 0.08, 0.4);
@@ -137,7 +141,7 @@ class NotificationSoundService {
     duration: number,
     volume: number = 0.3
   ): Promise<void> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const oscillator = ctx.createOscillator();
       const gainNode = ctx.createGain();
 
@@ -151,7 +155,7 @@ class NotificationSoundService {
       const now = ctx.currentTime;
       gainNode.gain.setValueAtTime(0, now);
       gainNode.gain.linearRampToValueAtTime(volume, now + 0.01); // Quick attack
-      gainNode.gain.linearRampToValueAtTime(0, now + duration);  // Smooth release
+      gainNode.gain.linearRampToValueAtTime(0, now + duration); // Smooth release
 
       oscillator.start(now);
       oscillator.stop(now + duration);
@@ -164,7 +168,7 @@ class NotificationSoundService {
    * Simple delay helper
    */
   private delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   /**
@@ -210,11 +214,11 @@ class NotificationSoundService {
 
     try {
       // Distinctive warning chime: descending tones (feels like "time running out")
-      await this.playTone(ctx, 1047, 0.12, 0.35);  // C6
+      await this.playTone(ctx, 1047, 0.12, 0.35); // C6
       await this.delay(50);
-      await this.playTone(ctx, 880, 0.12, 0.35);   // A5
+      await this.playTone(ctx, 880, 0.12, 0.35); // A5
       await this.delay(50);
-      await this.playTone(ctx, 784, 0.18, 0.3);    // G5
+      await this.playTone(ctx, 784, 0.18, 0.3); // G5
     } catch (error) {
       logger.error('Error playing timer warning chime:', error);
     }

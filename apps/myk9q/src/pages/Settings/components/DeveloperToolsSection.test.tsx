@@ -13,24 +13,32 @@ import { useSettingsStore } from '@/stores/settingsStore';
 
 // Mock the settings store
 vi.mock('@/stores/settingsStore', () => ({
-  useSettingsStore: vi.fn()
+  useSettingsStore: vi.fn(),
 }));
 
+/** Type-safe helper to mock useSettingsStore with only the fields the component uses */
+function mockSettingsStore(
+  overrides: Partial<{ developerMode: boolean; consoleLogging: 'none' | 'errors' | 'all' }> = {}
+) {
+  const settings = { ...defaultSettings, ...overrides };
+  vi.mocked(useSettingsStore).mockReturnValue({
+    settings,
+    updateSettings: mockUpdateSettings,
+  } as unknown as ReturnType<typeof useSettingsStore>);
+}
+
+const mockUpdateSettings = vi.fn();
+
+const defaultSettings = {
+  developerMode: false,
+  consoleLogging: 'none' as 'none' | 'errors' | 'all',
+};
+
 describe('DeveloperToolsSection', () => {
-  const mockUpdateSettings = vi.fn();
-
-  const defaultSettings = {
-    developerMode: false,
-    consoleLogging: 'none' as 'none' | 'errors' | 'all'
-  };
-
   beforeEach(() => {
     vi.clearAllMocks();
 
-    (useSettingsStore as any).mockReturnValue({
-      settings: defaultSettings,
-      updateSettings: mockUpdateSettings
-    });
+    mockSettingsStore();
   });
 
   describe('Developer mode toggle', () => {
@@ -58,10 +66,7 @@ describe('DeveloperToolsSection', () => {
     });
 
     it('should call updateSettings when toggled off', () => {
-      (useSettingsStore as any).mockReturnValue({
-        settings: { ...defaultSettings, developerMode: true },
-        updateSettings: mockUpdateSettings
-      });
+      mockSettingsStore({ developerMode: true });
 
       render(<DeveloperToolsSection />);
 
@@ -88,10 +93,7 @@ describe('DeveloperToolsSection', () => {
     });
 
     it('should show console logging when developer mode is on', () => {
-      (useSettingsStore as any).mockReturnValue({
-        settings: { ...defaultSettings, developerMode: true },
-        updateSettings: mockUpdateSettings
-      });
+      mockSettingsStore({ developerMode: true });
 
       render(<DeveloperToolsSection />);
 
@@ -101,10 +103,7 @@ describe('DeveloperToolsSection', () => {
 
   describe('Console Logging', () => {
     beforeEach(() => {
-      (useSettingsStore as any).mockReturnValue({
-        settings: { ...defaultSettings, developerMode: true },
-        updateSettings: mockUpdateSettings
-      });
+      mockSettingsStore({ developerMode: true });
     });
 
     it('should render console logging dropdown', () => {
@@ -148,10 +147,7 @@ describe('DeveloperToolsSection', () => {
     });
 
     it('should show current logging level from settings', () => {
-      (useSettingsStore as any).mockReturnValue({
-        settings: { ...defaultSettings, developerMode: true, consoleLogging: 'errors' },
-        updateSettings: mockUpdateSettings
-      });
+      mockSettingsStore({ developerMode: true, consoleLogging: 'errors' });
 
       render(<DeveloperToolsSection />);
 
@@ -169,10 +165,7 @@ describe('DeveloperToolsSection', () => {
     });
 
     it('should render only Terminal icon when developer mode is on', () => {
-      (useSettingsStore as any).mockReturnValue({
-        settings: { ...defaultSettings, developerMode: true },
-        updateSettings: mockUpdateSettings
-      });
+      mockSettingsStore({ developerMode: true });
 
       const { container } = render(<DeveloperToolsSection />);
 
@@ -195,10 +188,7 @@ describe('DeveloperToolsSection', () => {
       expect(mockUpdateSettings).toHaveBeenCalledWith({ developerMode: true });
 
       // Simulate settings update
-      (useSettingsStore as any).mockReturnValue({
-        settings: { ...defaultSettings, developerMode: true },
-        updateSettings: mockUpdateSettings
-      });
+      mockSettingsStore({ developerMode: true });
       rerender(<DeveloperToolsSection />);
 
       // Console logging now visible
@@ -206,10 +196,7 @@ describe('DeveloperToolsSection', () => {
     });
 
     it('should handle debugging workflow', () => {
-      (useSettingsStore as any).mockReturnValue({
-        settings: { ...defaultSettings, developerMode: true },
-        updateSettings: mockUpdateSettings
-      });
+      mockSettingsStore({ developerMode: true });
 
       render(<DeveloperToolsSection />);
 
@@ -220,13 +207,7 @@ describe('DeveloperToolsSection', () => {
     });
 
     it('should handle disabling developer mode', () => {
-      (useSettingsStore as any).mockReturnValue({
-        settings: {
-          developerMode: true,
-          consoleLogging: 'all'
-        },
-        updateSettings: mockUpdateSettings
-      });
+      mockSettingsStore({ developerMode: true, consoleLogging: 'all' });
 
       const { rerender } = render(<DeveloperToolsSection />);
 
@@ -239,13 +220,7 @@ describe('DeveloperToolsSection', () => {
       expect(mockUpdateSettings).toHaveBeenCalledWith({ developerMode: false });
 
       // Simulate settings update
-      (useSettingsStore as any).mockReturnValue({
-        settings: {
-          developerMode: false,
-          consoleLogging: 'all' // Still set but hidden
-        },
-        updateSettings: mockUpdateSettings
-      });
+      mockSettingsStore({ developerMode: false, consoleLogging: 'all' });
       rerender(<DeveloperToolsSection />);
 
       // Console logging hidden

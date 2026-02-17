@@ -11,8 +11,26 @@ import {
   isBadgeSupported,
   isVibrationSupported,
   isAudioSupported,
-  DEFAULT_NOTIFICATION_SOUNDS
+  DEFAULT_NOTIFICATION_SOUNDS,
 } from './notification-delivery';
+
+/** Navigator with Badging API for test mocking */
+interface NavigatorWithBadge extends Navigator {
+  setAppBadge: (contents?: number) => Promise<void>;
+  clearAppBadge: () => Promise<void>;
+}
+
+/** Mock Audio element interface */
+interface MockAudioElement {
+  play: ReturnType<typeof vi.fn>;
+  volume: number;
+}
+
+/** Typed reference to navigator for badge/vibration API mocking */
+const nav = navigator as NavigatorWithBadge;
+
+/** Typed reference to globalThis for Audio constructor mocking */
+const globalRef = global as typeof globalThis & { Audio: typeof Audio };
 
 // Mock localStorage
 const localStorageMock = (() => {
@@ -28,14 +46,14 @@ const localStorageMock = (() => {
     },
     clear: () => {
       store = {};
-    }
+    },
   };
 })();
 
 // Replace global localStorage
 Object.defineProperty(global, 'localStorage', {
   value: localStorageMock,
-  writable: true
+  writable: true,
 });
 
 describe('notification-delivery', () => {
@@ -50,12 +68,12 @@ describe('notification-delivery', () => {
   describe('playNotificationSound', () => {
     it('should play default sound for normal priority', () => {
       const audioPlaySpy = vi.fn().mockResolvedValue(undefined);
-      const AudioMock = vi.fn().mockImplementation(function(this: any) {
+      const AudioMock = vi.fn().mockImplementation(function (this: MockAudioElement) {
         this.play = audioPlaySpy;
         this.volume = 0;
       });
 
-      global.Audio = AudioMock as any;
+      globalRef.Audio = AudioMock as unknown as typeof Audio;
 
       playNotificationSound('normal');
 
@@ -65,12 +83,12 @@ describe('notification-delivery', () => {
 
     it('should play urgent sound for urgent priority', () => {
       const audioPlaySpy = vi.fn().mockResolvedValue(undefined);
-      const AudioMock = vi.fn().mockImplementation(function(this: any) {
+      const AudioMock = vi.fn().mockImplementation(function (this: MockAudioElement) {
         this.play = audioPlaySpy;
         this.volume = 0;
       });
 
-      global.Audio = AudioMock as any;
+      globalRef.Audio = AudioMock as unknown as typeof Audio;
 
       playNotificationSound('urgent');
 
@@ -80,15 +98,15 @@ describe('notification-delivery', () => {
     it('should use custom sounds when provided', () => {
       const customSounds = {
         default: '/custom/default.mp3',
-        urgent: '/custom/urgent.mp3'
+        urgent: '/custom/urgent.mp3',
       };
 
-      const AudioMock = vi.fn().mockImplementation(function(this: any) {
+      const AudioMock = vi.fn().mockImplementation(function (this: MockAudioElement) {
         this.play = vi.fn().mockResolvedValue(undefined);
         this.volume = 0;
       });
 
-      global.Audio = AudioMock as any;
+      globalRef.Audio = AudioMock as unknown as typeof Audio;
 
       playNotificationSound('normal', customSounds);
 
@@ -97,16 +115,16 @@ describe('notification-delivery', () => {
 
     it('should set custom volume when provided', () => {
       let capturedVolume = 0;
-      const AudioMock = vi.fn().mockImplementation(function(this: any) {
+      const AudioMock = vi.fn().mockImplementation(function (this: MockAudioElement) {
         this.play = vi.fn().mockResolvedValue(undefined);
         Object.defineProperty(this, 'volume', {
           set(val: number) {
             capturedVolume = val;
-          }
+          },
         });
       });
 
-      global.Audio = AudioMock as any;
+      globalRef.Audio = AudioMock as unknown as typeof Audio;
 
       playNotificationSound('normal', DEFAULT_NOTIFICATION_SOUNDS, 0.7);
 
@@ -115,16 +133,16 @@ describe('notification-delivery', () => {
 
     it('should clamp volume to 0-1 range', () => {
       let capturedVolume = 0;
-      const AudioMock = vi.fn().mockImplementation(function(this: any) {
+      const AudioMock = vi.fn().mockImplementation(function (this: MockAudioElement) {
         this.play = vi.fn().mockResolvedValue(undefined);
         Object.defineProperty(this, 'volume', {
           set(val: number) {
             capturedVolume = val;
-          }
+          },
         });
       });
 
-      global.Audio = AudioMock as any;
+      globalRef.Audio = AudioMock as unknown as typeof Audio;
 
       playNotificationSound('normal', DEFAULT_NOTIFICATION_SOUNDS, 1.5);
       expect(capturedVolume).toBe(1);
@@ -135,12 +153,12 @@ describe('notification-delivery', () => {
 
     it('should handle audio play failure gracefully', async () => {
       const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      const AudioMock = vi.fn().mockImplementation(function(this: any) {
+      const AudioMock = vi.fn().mockImplementation(function (this: MockAudioElement) {
         this.play = vi.fn().mockRejectedValue(new Error('Playback failed'));
         this.volume = 0;
       });
 
-      global.Audio = AudioMock as any;
+      globalRef.Audio = AudioMock as unknown as typeof Audio;
 
       playNotificationSound('normal');
 
@@ -153,9 +171,9 @@ describe('notification-delivery', () => {
 
     it('should handle Audio constructor error gracefully', () => {
       const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      global.Audio = vi.fn().mockImplementation(() => {
+      globalRef.Audio = vi.fn().mockImplementation(() => {
         throw new Error('Audio not supported');
-      }) as any;
+      }) as unknown as typeof Audio;
 
       playNotificationSound('normal');
 
@@ -198,7 +216,7 @@ describe('notification-delivery', () => {
   describe('updateBadgeCount', () => {
     it('should increment badge count', async () => {
       const setAppBadgeSpy = vi.fn().mockResolvedValue(undefined);
-      (navigator as any).setAppBadge = setAppBadgeSpy;
+      nav.setAppBadge = setAppBadgeSpy;
 
       await updateBadgeCount(1);
 
@@ -209,8 +227,8 @@ describe('notification-delivery', () => {
     it('should decrement badge count', async () => {
       const setAppBadgeSpy = vi.fn().mockResolvedValue(undefined);
       const clearAppBadgeSpy = vi.fn().mockResolvedValue(undefined);
-      (navigator as any).setAppBadge = setAppBadgeSpy;
-      (navigator as any).clearAppBadge = clearAppBadgeSpy;
+      nav.setAppBadge = setAppBadgeSpy;
+      nav.clearAppBadge = clearAppBadgeSpy;
 
       localStorage.setItem('notification_badge_count', '5');
 
@@ -222,8 +240,8 @@ describe('notification-delivery', () => {
 
     it('should clear badge when count reaches zero', async () => {
       const clearAppBadgeSpy = vi.fn().mockResolvedValue(undefined);
-      (navigator as any).setAppBadge = vi.fn();
-      (navigator as any).clearAppBadge = clearAppBadgeSpy;
+      nav.setAppBadge = vi.fn().mockResolvedValue(undefined);
+      nav.clearAppBadge = clearAppBadgeSpy;
 
       localStorage.setItem('notification_badge_count', '1');
 
@@ -235,7 +253,7 @@ describe('notification-delivery', () => {
 
     it('should not allow negative badge count', async () => {
       const clearAppBadgeSpy = vi.fn().mockResolvedValue(undefined);
-      (navigator as any).clearAppBadge = clearAppBadgeSpy;
+      nav.clearAppBadge = clearAppBadgeSpy;
 
       await updateBadgeCount(-5);
 
@@ -245,7 +263,7 @@ describe('notification-delivery', () => {
 
     it('should handle missing Badge API gracefully', async () => {
       const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      delete (navigator as any).setAppBadge;
+      delete (nav as Partial<NavigatorWithBadge>).setAppBadge;
 
       await updateBadgeCount(1);
 
@@ -254,7 +272,7 @@ describe('notification-delivery', () => {
 
     it('should handle badge update error gracefully', async () => {
       const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      (navigator as any).setAppBadge = vi.fn().mockRejectedValue(new Error('Badge error'));
+      nav.setAppBadge = vi.fn().mockRejectedValue(new Error('Badge error'));
 
       await updateBadgeCount(1);
 
@@ -289,7 +307,7 @@ describe('notification-delivery', () => {
   describe('clearBadge', () => {
     it('should clear badge and reset storage', async () => {
       const clearAppBadgeSpy = vi.fn().mockResolvedValue(undefined);
-      (navigator as any).clearAppBadge = clearAppBadgeSpy;
+      nav.clearAppBadge = clearAppBadgeSpy;
 
       localStorage.setItem('notification_badge_count', '5');
 
@@ -301,7 +319,7 @@ describe('notification-delivery', () => {
 
     it('should handle missing Badge API gracefully', async () => {
       const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      delete (navigator as any).clearAppBadge;
+      delete (nav as Partial<NavigatorWithBadge>).clearAppBadge;
 
       await clearBadge();
 
@@ -310,7 +328,7 @@ describe('notification-delivery', () => {
 
     it('should handle clear error gracefully', async () => {
       const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      (navigator as any).clearAppBadge = vi.fn().mockRejectedValue(new Error('Clear failed'));
+      nav.clearAppBadge = vi.fn().mockRejectedValue(new Error('Clear failed'));
 
       await clearBadge();
 
@@ -320,29 +338,29 @@ describe('notification-delivery', () => {
 
   describe('isBadgeSupported', () => {
     it('should return true when Badge API is available', () => {
-      (navigator as any).setAppBadge = vi.fn();
-      (navigator as any).clearAppBadge = vi.fn();
+      nav.setAppBadge = vi.fn();
+      nav.clearAppBadge = vi.fn();
 
       expect(isBadgeSupported()).toBe(true);
     });
 
     it('should return false when setAppBadge is missing', () => {
-      delete (navigator as any).setAppBadge;
-      (navigator as any).clearAppBadge = vi.fn();
+      delete (nav as Partial<NavigatorWithBadge>).setAppBadge;
+      nav.clearAppBadge = vi.fn();
 
       expect(isBadgeSupported()).toBe(false);
     });
 
     it('should return false when clearAppBadge is missing', () => {
-      (navigator as any).setAppBadge = vi.fn();
-      delete (navigator as any).clearAppBadge;
+      nav.setAppBadge = vi.fn();
+      delete (nav as Partial<NavigatorWithBadge>).clearAppBadge;
 
       expect(isBadgeSupported()).toBe(false);
     });
 
     it('should return false when both APIs are missing', () => {
-      delete (navigator as any).setAppBadge;
-      delete (navigator as any).clearAppBadge;
+      delete (nav as Partial<NavigatorWithBadge>).setAppBadge;
+      delete (nav as Partial<NavigatorWithBadge>).clearAppBadge;
 
       expect(isBadgeSupported()).toBe(false);
     });
@@ -350,13 +368,13 @@ describe('notification-delivery', () => {
 
   describe('isVibrationSupported', () => {
     it('should return true when Vibration API is available', () => {
-      (navigator as any).vibrate = vi.fn();
+      navigator.vibrate = vi.fn();
 
       expect(isVibrationSupported()).toBe(true);
     });
 
     it('should return false when Vibration API is missing', () => {
-      delete (navigator as any).vibrate;
+      delete (navigator as Partial<Navigator>).vibrate;
 
       expect(isVibrationSupported()).toBe(false);
     });
@@ -364,13 +382,13 @@ describe('notification-delivery', () => {
 
   describe('isAudioSupported', () => {
     it('should return true when Audio is available', () => {
-      global.Audio = vi.fn() as any;
+      globalRef.Audio = vi.fn() as unknown as typeof Audio;
 
       expect(isAudioSupported()).toBe(true);
     });
 
     it('should return false when Audio is undefined', () => {
-      (global as any).Audio = undefined;
+      globalRef.Audio = undefined as unknown as typeof Audio;
 
       expect(isAudioSupported()).toBe(false);
     });
@@ -379,34 +397,34 @@ describe('notification-delivery', () => {
   describe('Real-world Scenarios', () => {
     it('should handle complete notification delivery flow', async () => {
       const audioPlaySpy = vi.fn().mockResolvedValue(undefined);
-      const AudioMock = vi.fn().mockImplementation(function(this: any) {
+      const AudioMock = vi.fn().mockImplementation(function (this: MockAudioElement) {
         this.play = audioPlaySpy;
         this.volume = 0;
       });
-      global.Audio = AudioMock as any;
+      globalRef.Audio = AudioMock as unknown as typeof Audio;
 
       const setAppBadgeSpy = vi.fn().mockResolvedValue(undefined);
-      (navigator as any).setAppBadge = setAppBadgeSpy;
-      (navigator as any).vibrate = vi.fn();
+      nav.setAppBadge = setAppBadgeSpy;
+      navigator.vibrate = vi.fn();
 
       // Play sound
       playNotificationSound('urgent');
 
       // Vibrate
       const pattern = getVibrationPattern('urgent');
-      (navigator as any).vibrate(pattern);
+      navigator.vibrate(pattern);
 
       // Update badge
       await updateBadgeCount(1);
 
       expect(audioPlaySpy).toHaveBeenCalled();
-      expect((navigator as any).vibrate).toHaveBeenCalledWith([200, 100, 200, 100, 200]);
+      expect(navigator.vibrate).toHaveBeenCalledWith([200, 100, 200, 100, 200]);
       expect(setAppBadgeSpy).toHaveBeenCalledWith(1);
     });
 
     it('should handle multiple badge increments', async () => {
       const setAppBadgeSpy = vi.fn().mockResolvedValue(undefined);
-      (navigator as any).setAppBadge = setAppBadgeSpy;
+      nav.setAppBadge = setAppBadgeSpy;
 
       await updateBadgeCount(1);
       await updateBadgeCount(1);
@@ -418,8 +436,8 @@ describe('notification-delivery', () => {
     it('should handle badge increment then clear', async () => {
       const setAppBadgeSpy = vi.fn().mockResolvedValue(undefined);
       const clearAppBadgeSpy = vi.fn().mockResolvedValue(undefined);
-      (navigator as any).setAppBadge = setAppBadgeSpy;
-      (navigator as any).clearAppBadge = clearAppBadgeSpy;
+      nav.setAppBadge = setAppBadgeSpy;
+      nav.clearAppBadge = clearAppBadgeSpy;
 
       await updateBadgeCount(5);
       expect(await getBadgeCount()).toBe(5);

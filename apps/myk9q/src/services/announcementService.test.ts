@@ -3,12 +3,17 @@ import { AnnouncementService } from './announcementService';
 import { supabase } from '../lib/supabase';
 import { replicatedAnnouncementsTable } from './replication';
 import type { Announcement } from '../stores/announcementStore';
+import type { Announcement as ReplicatedAnnouncement } from './replication/tables/ReplicatedAnnouncementsTable';
+import type { AnnouncementRead } from './replication/tables/ReplicatedAnnouncementReadsTable';
+
+/** Shorthand for the Supabase query builder return type used in mock chains */
+type SupabaseQueryChain = ReturnType<typeof supabase.from>;
 
 // Mock the supabase client
 vi.mock('../lib/supabase', () => ({
   supabase: {
-    from: vi.fn()
-  }
+    from: vi.fn(),
+  },
 }));
 
 // Mock replication module to force Supabase fallback for easier testing
@@ -46,7 +51,7 @@ describe('AnnouncementService', () => {
       license_key: mockLicenseKey,
       is_active: true,
       created_at: '2025-01-01T10:00:00Z',
-      expires_at: undefined
+      expires_at: undefined,
     },
     {
       id: 2,
@@ -58,9 +63,30 @@ describe('AnnouncementService', () => {
       license_key: mockLicenseKey,
       is_active: true,
       created_at: '2025-01-01T09:00:00Z',
-      expires_at: '2025-12-31T23:59:59Z'
-    }
+      expires_at: '2025-12-31T23:59:59Z',
+    },
   ];
+
+  /** Helper to create a mock replicated announcement from a store announcement */
+  function toReplicated(
+    ann: Announcement,
+    overrides: Partial<ReplicatedAnnouncement> = {}
+  ): ReplicatedAnnouncement {
+    return {
+      id: String(ann.id),
+      license_key: ann.license_key,
+      title: ann.title,
+      content: ann.content,
+      priority: ann.priority,
+      author_role: ann.author_role,
+      author_name: ann.author_name ?? null,
+      created_at: ann.created_at,
+      updated_at: ann.created_at,
+      expires_at: ann.expires_at ?? null,
+      is_active: ann.is_active,
+      ...overrides,
+    };
+  }
 
   describe('getAnnouncements', () => {
     test('should fetch announcements with default filters', async () => {
@@ -71,15 +97,15 @@ describe('AnnouncementService', () => {
       const mockOrder = vi.fn().mockResolvedValue({
         data: mockAnnouncements,
         error: null,
-        count: 2
+        count: 2,
       });
 
       vi.mocked(supabase.from).mockReturnValue({
         select: mockSelect,
         eq: mockEq,
         or: mockOr,
-        order: mockOrder
-      } as any);
+        order: mockOrder,
+      } as unknown as SupabaseQueryChain);
 
       const result = await AnnouncementService.getAnnouncements(mockLicenseKey);
 
@@ -99,15 +125,15 @@ describe('AnnouncementService', () => {
       const mockOrder = vi.fn().mockResolvedValue({
         data: [mockAnnouncements[0]],
         error: null,
-        count: 1
+        count: 1,
       });
 
       vi.mocked(supabase.from).mockReturnValue({
         select: mockSelect,
         eq: mockEq,
         or: mockOr,
-        order: mockOrder
-      } as any);
+        order: mockOrder,
+      } as unknown as SupabaseQueryChain);
 
       await AnnouncementService.getAnnouncements(mockLicenseKey, { priority: 'high' });
 
@@ -122,15 +148,15 @@ describe('AnnouncementService', () => {
       const mockOrder = vi.fn().mockResolvedValue({
         data: [mockAnnouncements[1]],
         error: null,
-        count: 1
+        count: 1,
       });
 
       vi.mocked(supabase.from).mockReturnValue({
         select: mockSelect,
         eq: mockEq,
         or: mockOr,
-        order: mockOrder
-      } as any);
+        order: mockOrder,
+      } as unknown as SupabaseQueryChain);
 
       await AnnouncementService.getAnnouncements(mockLicenseKey, { author_role: 'judge' });
 
@@ -145,21 +171,19 @@ describe('AnnouncementService', () => {
       const mockOrder = vi.fn().mockResolvedValue({
         data: [mockAnnouncements[0]],
         error: null,
-        count: 1
+        count: 1,
       });
 
       vi.mocked(supabase.from).mockReturnValue({
         select: mockSelect,
         eq: mockEq,
         or: mockOr,
-        order: mockOrder
-      } as any);
+        order: mockOrder,
+      } as unknown as SupabaseQueryChain);
 
       await AnnouncementService.getAnnouncements(mockLicenseKey, { searchTerm: 'Important' });
 
-      expect(mockOr).toHaveBeenCalledWith(
-        expect.stringContaining('title.ilike.%Important%')
-      );
+      expect(mockOr).toHaveBeenCalledWith(expect.stringContaining('title.ilike.%Important%'));
     });
 
     test('should apply pagination', async () => {
@@ -170,7 +194,7 @@ describe('AnnouncementService', () => {
       const mockOrder = vi.fn().mockResolvedValue({
         data: mockAnnouncements,
         error: null,
-        count: 2
+        count: 2,
       });
 
       vi.mocked(supabase.from).mockReturnValue({
@@ -178,12 +202,12 @@ describe('AnnouncementService', () => {
         eq: mockEq,
         or: mockOr,
         range: mockRange,
-        order: mockOrder
-      } as any);
+        order: mockOrder,
+      } as unknown as SupabaseQueryChain);
 
       await AnnouncementService.getAnnouncements(mockLicenseKey, {
         limit: 10,
-        offset: 20
+        offset: 20,
       });
 
       expect(mockRange).toHaveBeenCalledWith(20, 29);
@@ -197,19 +221,17 @@ describe('AnnouncementService', () => {
       const mockOr = vi.fn().mockReturnThis();
       const mockOrder = vi.fn().mockResolvedValue({
         data: null,
-        error: { message: 'Database error' }
+        error: { message: 'Database error' },
       });
 
       vi.mocked(supabase.from).mockReturnValue({
         select: mockSelect,
         eq: mockEq,
         or: mockOr,
-        order: mockOrder
-      } as any);
+        order: mockOrder,
+      } as unknown as SupabaseQueryChain);
 
-      await expect(
-        AnnouncementService.getAnnouncements(mockLicenseKey)
-      ).rejects.toThrow();
+      await expect(AnnouncementService.getAnnouncements(mockLicenseKey)).rejects.toThrow();
     });
 
     test('should return empty array when no announcements found', async () => {
@@ -220,15 +242,15 @@ describe('AnnouncementService', () => {
       const mockOrder = vi.fn().mockResolvedValue({
         data: [],
         error: null,
-        count: 0
+        count: 0,
       });
 
       vi.mocked(supabase.from).mockReturnValue({
         select: mockSelect,
         eq: mockEq,
         or: mockOr,
-        order: mockOrder
-      } as any);
+        order: mockOrder,
+      } as unknown as SupabaseQueryChain);
 
       const result = await AnnouncementService.getAnnouncements(mockLicenseKey);
 
@@ -240,10 +262,9 @@ describe('AnnouncementService', () => {
   describe('getAnnouncement', () => {
     test('should fetch a specific announcement', async () => {
       // Mock replicated table to return announcement
-      vi.mocked(replicatedAnnouncementsTable.get).mockResolvedValueOnce({
-        ...mockAnnouncements[0],
-        id: '1', // Replicated table uses string IDs
-      } as any);
+      vi.mocked(replicatedAnnouncementsTable.get).mockResolvedValueOnce(
+        toReplicated(mockAnnouncements[0], { id: '1' })
+      );
 
       const result = await AnnouncementService.getAnnouncement(1, mockLicenseKey);
 
@@ -267,9 +288,9 @@ describe('AnnouncementService', () => {
         new Error('Database error')
       );
 
-      await expect(
-        AnnouncementService.getAnnouncement(1, mockLicenseKey)
-      ).rejects.toThrow('Database error');
+      await expect(AnnouncementService.getAnnouncement(1, mockLicenseKey)).rejects.toThrow(
+        'Database error'
+      );
     });
   });
 
@@ -280,7 +301,7 @@ describe('AnnouncementService', () => {
       priority: 'normal' as const,
       author_role: 'admin' as const,
       author_name: 'Test Admin',
-      license_key: mockLicenseKey
+      license_key: mockLicenseKey,
     };
 
     test('should create a new announcement', async () => {
@@ -288,7 +309,7 @@ describe('AnnouncementService', () => {
         ...newAnnouncement,
         id: 3,
         is_active: true,
-        created_at: '2025-01-02T10:00:00Z'
+        created_at: '2025-01-02T10:00:00Z',
       };
 
       const mockFrom = vi.fn().mockReturnThis();
@@ -296,14 +317,14 @@ describe('AnnouncementService', () => {
       const mockSelect = vi.fn().mockReturnThis();
       const mockSingle = vi.fn().mockResolvedValue({
         data: createdAnnouncement,
-        error: null
+        error: null,
       });
 
       vi.mocked(supabase.from).mockReturnValue({
         insert: mockInsert,
         select: mockSelect,
-        single: mockSingle
-      } as any);
+        single: mockSingle,
+      } as unknown as SupabaseQueryChain);
 
       const result = await AnnouncementService.createAnnouncement(newAnnouncement);
 
@@ -317,18 +338,16 @@ describe('AnnouncementService', () => {
       const mockSelect = vi.fn().mockReturnThis();
       const mockSingle = vi.fn().mockResolvedValue({
         data: null,
-        error: { message: 'Validation error' }
+        error: { message: 'Validation error' },
       });
 
       vi.mocked(supabase.from).mockReturnValue({
         insert: mockInsert,
         select: mockSelect,
-        single: mockSingle
-      } as any);
+        single: mockSingle,
+      } as unknown as SupabaseQueryChain);
 
-      await expect(
-        AnnouncementService.createAnnouncement(newAnnouncement)
-      ).rejects.toThrow();
+      await expect(AnnouncementService.createAnnouncement(newAnnouncement)).rejects.toThrow();
     });
   });
 
@@ -338,10 +357,9 @@ describe('AnnouncementService', () => {
       const updatedAnnouncement = { ...mockAnnouncements[0], ...updates };
 
       // Mock getAnnouncement (uses replicated table)
-      vi.mocked(replicatedAnnouncementsTable.get).mockResolvedValueOnce({
-        ...mockAnnouncements[0],
-        id: '1', // Replicated table uses string IDs
-      } as any);
+      vi.mocked(replicatedAnnouncementsTable.get).mockResolvedValueOnce(
+        toReplicated(mockAnnouncements[0], { id: '1' })
+      );
 
       // Mock update
       const mockUpdate = vi.fn().mockReturnThis();
@@ -349,15 +367,15 @@ describe('AnnouncementService', () => {
       const mockSelect = vi.fn().mockReturnThis();
       const mockSingle = vi.fn().mockResolvedValue({
         data: updatedAnnouncement,
-        error: null
+        error: null,
       });
 
       vi.mocked(supabase.from).mockReturnValue({
         update: mockUpdate,
         eq: mockEq,
         select: mockSelect,
-        single: mockSingle
-      } as any);
+        single: mockSingle,
+      } as unknown as SupabaseQueryChain);
 
       const result = await AnnouncementService.updateAnnouncement(
         1,
@@ -375,10 +393,9 @@ describe('AnnouncementService', () => {
       const updatedAnnouncement = { ...mockAnnouncements[1], ...updates };
 
       // Mock getAnnouncement (uses replicated table)
-      vi.mocked(replicatedAnnouncementsTable.get).mockResolvedValueOnce({
-        ...mockAnnouncements[1], // author_role is 'judge'
-        id: '2', // Replicated table uses string IDs
-      } as any);
+      vi.mocked(replicatedAnnouncementsTable.get).mockResolvedValueOnce(
+        toReplicated(mockAnnouncements[1], { id: '2' })
+      );
 
       // Mock update
       const mockUpdate = vi.fn().mockReturnThis();
@@ -386,15 +403,15 @@ describe('AnnouncementService', () => {
       const mockSelect = vi.fn().mockReturnThis();
       const mockSingle = vi.fn().mockResolvedValue({
         data: updatedAnnouncement,
-        error: null
+        error: null,
       });
 
       vi.mocked(supabase.from).mockReturnValue({
         update: mockUpdate,
         eq: mockEq,
         select: mockSelect,
-        single: mockSingle
-      } as any);
+        single: mockSingle,
+      } as unknown as SupabaseQueryChain);
 
       const result = await AnnouncementService.updateAnnouncement(
         2,
@@ -410,10 +427,9 @@ describe('AnnouncementService', () => {
       const updates = { title: 'Unauthorized Update' };
 
       // Mock getAnnouncement to return admin announcement
-      vi.mocked(replicatedAnnouncementsTable.get).mockResolvedValueOnce({
-        ...mockAnnouncements[0], // author_role is 'admin'
-        id: '1',
-      } as any);
+      vi.mocked(replicatedAnnouncementsTable.get).mockResolvedValueOnce(
+        toReplicated(mockAnnouncements[0], { id: '1' })
+      );
 
       await expect(
         AnnouncementService.updateAnnouncement(
@@ -440,27 +456,26 @@ describe('AnnouncementService', () => {
   describe('deleteAnnouncement', () => {
     test('should soft delete announcement when user has admin role', async () => {
       // Mock getAnnouncement (uses replicated table)
-      vi.mocked(replicatedAnnouncementsTable.get).mockResolvedValueOnce({
-        ...mockAnnouncements[0],
-        id: '1',
-      } as any);
+      vi.mocked(replicatedAnnouncementsTable.get).mockResolvedValueOnce(
+        toReplicated(mockAnnouncements[0], { id: '1' })
+      );
 
       // Mock update (soft delete)
       const mockUpdate = vi.fn().mockReturnThis();
       const mockEqFirst = vi.fn().mockReturnThis();
       const mockEqSecond = vi.fn().mockResolvedValue({
-        error: null
+        error: null,
       });
 
       vi.mocked(supabase.from).mockReturnValue({
         update: mockUpdate,
-        eq: mockEqFirst
-      } as any);
+        eq: mockEqFirst,
+      } as unknown as SupabaseQueryChain);
 
       // Mock the second .eq() call in the chain
       mockEqFirst.mockReturnValue({
-        eq: mockEqSecond
-      } as any);
+        eq: mockEqSecond,
+      } as unknown as SupabaseQueryChain);
 
       await AnnouncementService.deleteAnnouncement(1, mockLicenseKey, 'admin');
 
@@ -471,27 +486,26 @@ describe('AnnouncementService', () => {
 
     test('should allow user to delete their own role announcements', async () => {
       // Mock getAnnouncement (uses replicated table)
-      vi.mocked(replicatedAnnouncementsTable.get).mockResolvedValueOnce({
-        ...mockAnnouncements[1], // author_role is 'judge'
-        id: '2',
-      } as any);
+      vi.mocked(replicatedAnnouncementsTable.get).mockResolvedValueOnce(
+        toReplicated(mockAnnouncements[1], { id: '2' })
+      );
 
       // Mock update (soft delete)
       const mockUpdate = vi.fn().mockReturnThis();
       const mockEqFirst = vi.fn().mockReturnThis();
       const mockEqSecond = vi.fn().mockResolvedValue({
-        error: null
+        error: null,
       });
 
       vi.mocked(supabase.from).mockReturnValue({
         update: mockUpdate,
-        eq: mockEqFirst
-      } as any);
+        eq: mockEqFirst,
+      } as unknown as SupabaseQueryChain);
 
       // Mock the second .eq() call in the chain
       mockEqFirst.mockReturnValue({
-        eq: mockEqSecond
-      } as any);
+        eq: mockEqSecond,
+      } as unknown as SupabaseQueryChain);
 
       await AnnouncementService.deleteAnnouncement(2, mockLicenseKey, 'judge');
 
@@ -502,10 +516,9 @@ describe('AnnouncementService', () => {
 
     test('should throw error when user lacks permission to delete', async () => {
       // Mock getAnnouncement to return admin announcement
-      vi.mocked(replicatedAnnouncementsTable.get).mockResolvedValueOnce({
-        ...mockAnnouncements[0], // author_role is 'admin'
-        id: '1',
-      } as any);
+      vi.mocked(replicatedAnnouncementsTable.get).mockResolvedValueOnce(
+        toReplicated(mockAnnouncements[0], { id: '1' })
+      );
 
       await expect(
         AnnouncementService.deleteAnnouncement(1, mockLicenseKey, 'steward')
@@ -519,27 +532,27 @@ describe('AnnouncementService', () => {
       const mockUpsert = vi.fn().mockResolvedValue({ error: null });
 
       vi.mocked(supabase.from).mockReturnValue({
-        upsert: mockUpsert
-      } as any);
+        upsert: mockUpsert,
+      } as unknown as SupabaseQueryChain);
 
       await AnnouncementService.markAsRead(1, mockLicenseKey, 'user-123');
 
       expect(mockUpsert).toHaveBeenCalledWith({
         announcement_id: 1,
         user_identifier: 'user-123',
-        license_key: mockLicenseKey
+        license_key: mockLicenseKey,
       });
     });
 
     test('should handle duplicate read records gracefully', async () => {
       const mockFrom = vi.fn().mockReturnThis();
       const mockUpsert = vi.fn().mockResolvedValue({
-        error: { message: 'duplicate key value violates unique constraint' }
+        error: { message: 'duplicate key value violates unique constraint' },
       });
 
       vi.mocked(supabase.from).mockReturnValue({
-        upsert: mockUpsert
-      } as any);
+        upsert: mockUpsert,
+      } as unknown as SupabaseQueryChain);
 
       // Should not throw error for duplicate
       await expect(
@@ -550,16 +563,14 @@ describe('AnnouncementService', () => {
     test('should throw error for non-duplicate database errors', async () => {
       const mockFrom = vi.fn().mockReturnThis();
       const mockUpsert = vi.fn().mockResolvedValue({
-        error: { message: 'Database connection failed' }
+        error: { message: 'Database connection failed' },
       });
 
       vi.mocked(supabase.from).mockReturnValue({
-        upsert: mockUpsert
-      } as any);
+        upsert: mockUpsert,
+      } as unknown as SupabaseQueryChain);
 
-      await expect(
-        AnnouncementService.markAsRead(1, mockLicenseKey, 'user-123')
-      ).rejects.toThrow();
+      await expect(AnnouncementService.markAsRead(1, mockLicenseKey, 'user-123')).rejects.toThrow();
     });
   });
 
@@ -569,8 +580,8 @@ describe('AnnouncementService', () => {
       const mockUpsert = vi.fn().mockResolvedValue({ error: null });
 
       vi.mocked(supabase.from).mockReturnValue({
-        upsert: mockUpsert
-      } as any);
+        upsert: mockUpsert,
+      } as unknown as SupabaseQueryChain);
 
       await AnnouncementService.markMultipleAsRead([1, 2, 3], mockLicenseKey, 'user-123');
 
@@ -586,8 +597,8 @@ describe('AnnouncementService', () => {
       const mockUpsert = vi.fn().mockResolvedValue({ error: null });
 
       vi.mocked(supabase.from).mockReturnValue({
-        upsert: mockUpsert
-      } as any);
+        upsert: mockUpsert,
+      } as unknown as SupabaseQueryChain);
 
       await AnnouncementService.markMultipleAsRead([], mockLicenseKey, 'user-123');
 
@@ -597,12 +608,12 @@ describe('AnnouncementService', () => {
     test('should throw error on database failure', async () => {
       const mockFrom = vi.fn().mockReturnThis();
       const mockUpsert = vi.fn().mockResolvedValue({
-        error: { message: 'Database error' }
+        error: { message: 'Database error' },
       });
 
       vi.mocked(supabase.from).mockReturnValue({
-        upsert: mockUpsert
-      } as any);
+        upsert: mockUpsert,
+      } as unknown as SupabaseQueryChain);
 
       await expect(
         AnnouncementService.markMultipleAsRead([1, 2], mockLicenseKey, 'user-123')
@@ -613,11 +624,23 @@ describe('AnnouncementService', () => {
   describe('getReadStatus', () => {
     test('should get read status for all announcements', async () => {
       const { replicatedAnnouncementReadsTable } = await import('./replication');
-      const mockReads = [
-        { announcement_id: '1', user_identifier: 'user-123', license_key: mockLicenseKey },
-        { announcement_id: '2', user_identifier: 'user-123', license_key: mockLicenseKey },
+      const mockReads: AnnouncementRead[] = [
+        {
+          id: '1',
+          announcement_id: '1',
+          user_identifier: 'user-123',
+          license_key: mockLicenseKey,
+          read_at: '2025-01-01T00:00:00Z',
+        },
+        {
+          id: '2',
+          announcement_id: '2',
+          user_identifier: 'user-123',
+          license_key: mockLicenseKey,
+          read_at: '2025-01-01T00:00:00Z',
+        },
       ];
-      vi.mocked(replicatedAnnouncementReadsTable.getByUser).mockResolvedValueOnce(mockReads as any);
+      vi.mocked(replicatedAnnouncementReadsTable.getByUser).mockResolvedValueOnce(mockReads);
 
       const result = await AnnouncementService.getReadStatus(mockLicenseKey, 'user-123');
 
@@ -628,11 +651,23 @@ describe('AnnouncementService', () => {
 
     test('should filter by license key', async () => {
       const { replicatedAnnouncementReadsTable } = await import('./replication');
-      const mockReads = [
-        { announcement_id: '1', user_identifier: 'user-123', license_key: mockLicenseKey },
-        { announcement_id: '2', user_identifier: 'user-123', license_key: 'other-license' },
+      const mockReads: AnnouncementRead[] = [
+        {
+          id: '1',
+          announcement_id: '1',
+          user_identifier: 'user-123',
+          license_key: mockLicenseKey,
+          read_at: '2025-01-01T00:00:00Z',
+        },
+        {
+          id: '2',
+          announcement_id: '2',
+          user_identifier: 'user-123',
+          license_key: 'other-license',
+          read_at: '2025-01-01T00:00:00Z',
+        },
       ];
-      vi.mocked(replicatedAnnouncementReadsTable.getByUser).mockResolvedValueOnce(mockReads as any);
+      vi.mocked(replicatedAnnouncementReadsTable.getByUser).mockResolvedValueOnce(mockReads);
 
       const result = await AnnouncementService.getReadStatus(mockLicenseKey, 'user-123');
 
@@ -642,12 +677,30 @@ describe('AnnouncementService', () => {
 
     test('should filter by specific announcement IDs', async () => {
       const { replicatedAnnouncementReadsTable } = await import('./replication');
-      const mockReads = [
-        { announcement_id: '1', user_identifier: 'user-123', license_key: mockLicenseKey },
-        { announcement_id: '2', user_identifier: 'user-123', license_key: mockLicenseKey },
-        { announcement_id: '3', user_identifier: 'user-123', license_key: mockLicenseKey },
+      const mockReads: AnnouncementRead[] = [
+        {
+          id: '1',
+          announcement_id: '1',
+          user_identifier: 'user-123',
+          license_key: mockLicenseKey,
+          read_at: '2025-01-01T00:00:00Z',
+        },
+        {
+          id: '2',
+          announcement_id: '2',
+          user_identifier: 'user-123',
+          license_key: mockLicenseKey,
+          read_at: '2025-01-01T00:00:00Z',
+        },
+        {
+          id: '3',
+          announcement_id: '3',
+          user_identifier: 'user-123',
+          license_key: mockLicenseKey,
+          read_at: '2025-01-01T00:00:00Z',
+        },
       ];
-      vi.mocked(replicatedAnnouncementReadsTable.getByUser).mockResolvedValueOnce(mockReads as any);
+      vi.mocked(replicatedAnnouncementReadsTable.getByUser).mockResolvedValueOnce(mockReads);
 
       const result = await AnnouncementService.getReadStatus(mockLicenseKey, 'user-123', [1, 3]);
 
@@ -669,17 +722,35 @@ describe('AnnouncementService', () => {
   describe('getUnreadCount', () => {
     test('should calculate unread count correctly', async () => {
       const { replicatedAnnouncementReadsTable } = await import('./replication');
-      const activeAnnouncements = [
-        { ...mockAnnouncements[0], id: '1' },
-        { ...mockAnnouncements[1], id: '2' },
-        { id: '3', license_key: mockLicenseKey, is_active: true } as any,
+      const activeAnnouncements: ReplicatedAnnouncement[] = [
+        toReplicated(mockAnnouncements[0], { id: '1' }),
+        toReplicated(mockAnnouncements[1], { id: '2' }),
+        {
+          id: '3',
+          license_key: mockLicenseKey,
+          is_active: true,
+          title: '',
+          content: '',
+          priority: 'normal',
+          author_role: 'admin',
+          author_name: null,
+          created_at: '',
+          updated_at: '',
+          expires_at: null,
+        },
       ];
       vi.mocked(replicatedAnnouncementsTable.getActive).mockResolvedValueOnce(activeAnnouncements);
 
-      const mockReads = [
-        { announcement_id: '1', user_identifier: 'user-123', license_key: mockLicenseKey },
+      const mockReads: AnnouncementRead[] = [
+        {
+          id: '1',
+          announcement_id: '1',
+          user_identifier: 'user-123',
+          license_key: mockLicenseKey,
+          read_at: '2025-01-01T00:00:00Z',
+        },
       ];
-      vi.mocked(replicatedAnnouncementReadsTable.getByUser).mockResolvedValueOnce(mockReads as any);
+      vi.mocked(replicatedAnnouncementReadsTable.getByUser).mockResolvedValueOnce(mockReads);
 
       const count = await AnnouncementService.getUnreadCount(mockLicenseKey, 'user-123');
 
@@ -696,11 +767,37 @@ describe('AnnouncementService', () => {
 
     test('should filter by license key', async () => {
       const { replicatedAnnouncementReadsTable } = await import('./replication');
-      const activeAnnouncementsWithDifferentKeys = [
-        { id: '1', license_key: mockLicenseKey, is_active: true } as any,
-        { id: '2', license_key: 'other-license', is_active: true } as any,
+      const activeAnnouncementsWithDifferentKeys: ReplicatedAnnouncement[] = [
+        {
+          id: '1',
+          license_key: mockLicenseKey,
+          is_active: true,
+          title: '',
+          content: '',
+          priority: 'normal',
+          author_role: 'admin',
+          author_name: null,
+          created_at: '',
+          updated_at: '',
+          expires_at: null,
+        },
+        {
+          id: '2',
+          license_key: 'other-license',
+          is_active: true,
+          title: '',
+          content: '',
+          priority: 'normal',
+          author_role: 'admin',
+          author_name: null,
+          created_at: '',
+          updated_at: '',
+          expires_at: null,
+        },
       ];
-      vi.mocked(replicatedAnnouncementsTable.getActive).mockResolvedValueOnce(activeAnnouncementsWithDifferentKeys);
+      vi.mocked(replicatedAnnouncementsTable.getActive).mockResolvedValueOnce(
+        activeAnnouncementsWithDifferentKeys
+      );
       vi.mocked(replicatedAnnouncementReadsTable.getByUser).mockResolvedValueOnce([]);
 
       const count = await AnnouncementService.getUnreadCount(mockLicenseKey, 'user-123');
@@ -713,15 +810,22 @@ describe('AnnouncementService', () => {
     test('should combine announcements with read status', async () => {
       const { replicatedAnnouncementReadsTable } = await import('./replication');
       const futureDate = new Date(Date.now() + 86400000).toISOString();
-      vi.mocked(replicatedAnnouncementsTable.getAll).mockResolvedValueOnce([
-        { ...mockAnnouncements[0], id: '1', expires_at: null },
-        { ...mockAnnouncements[1], id: '2', expires_at: futureDate },
-      ] as any);
-
-      const mockReads = [
-        { announcement_id: '1', user_identifier: 'user-123', license_key: mockLicenseKey },
+      const replicatedAnnouncements: ReplicatedAnnouncement[] = [
+        toReplicated(mockAnnouncements[0], { id: '1', expires_at: null }),
+        toReplicated(mockAnnouncements[1], { id: '2', expires_at: futureDate }),
       ];
-      vi.mocked(replicatedAnnouncementReadsTable.getByUser).mockResolvedValueOnce(mockReads as any);
+      vi.mocked(replicatedAnnouncementsTable.getAll).mockResolvedValueOnce(replicatedAnnouncements);
+
+      const mockReads: AnnouncementRead[] = [
+        {
+          id: '1',
+          announcement_id: '1',
+          user_identifier: 'user-123',
+          license_key: mockLicenseKey,
+          read_at: '2025-01-01T00:00:00Z',
+        },
+      ];
+      vi.mocked(replicatedAnnouncementReadsTable.getByUser).mockResolvedValueOnce(mockReads);
 
       const result = await AnnouncementService.getAnnouncementsWithReadStatus(
         mockLicenseKey,
@@ -744,15 +848,15 @@ describe('AnnouncementService', () => {
       const mockOrder = vi.fn().mockResolvedValue({
         data: [],
         error: null,
-        count: 0
+        count: 0,
       });
 
       vi.mocked(supabase.from).mockReturnValue({
         select: mockSelect,
         eq: mockEq,
         or: mockOr,
-        order: mockOrder
-      } as any);
+        order: mockOrder,
+      } as unknown as SupabaseQueryChain);
 
       const result = await AnnouncementService.getAnnouncementsWithReadStatus(
         mockLicenseKey,
@@ -766,11 +870,13 @@ describe('AnnouncementService', () => {
 
   describe('getRecentUrgentAnnouncements', () => {
     test('should get urgent announcements', async () => {
-      const urgentAnnouncements = [
-        { ...mockAnnouncements[0], id: '1', priority: 'urgent' },
-        { ...mockAnnouncements[1], id: '2', priority: 'urgent' },
+      const urgentAnnouncements: ReplicatedAnnouncement[] = [
+        toReplicated(mockAnnouncements[0], { id: '1', priority: 'urgent' }),
+        toReplicated(mockAnnouncements[1], { id: '2', priority: 'urgent' }),
       ];
-      vi.mocked(replicatedAnnouncementsTable.getByPriority).mockResolvedValueOnce(urgentAnnouncements as any);
+      vi.mocked(replicatedAnnouncementsTable.getByPriority).mockResolvedValueOnce(
+        urgentAnnouncements
+      );
 
       const result = await AnnouncementService.getRecentUrgentAnnouncements(mockLicenseKey);
 
@@ -780,11 +886,37 @@ describe('AnnouncementService', () => {
 
     test('should filter by timestamp', async () => {
       const recentTime = '2025-01-01T09:30:00Z';
-      const urgentAnnouncements = [
-        { id: '1', created_at: '2025-01-01T10:00:00Z', license_key: mockLicenseKey, is_active: true, priority: 'urgent' } as any,
-        { id: '2', created_at: '2025-01-01T09:00:00Z', license_key: mockLicenseKey, is_active: true, priority: 'urgent' } as any,
+      const urgentAnnouncements: ReplicatedAnnouncement[] = [
+        {
+          id: '1',
+          created_at: '2025-01-01T10:00:00Z',
+          license_key: mockLicenseKey,
+          is_active: true,
+          priority: 'urgent',
+          title: '',
+          content: '',
+          author_role: 'admin',
+          author_name: null,
+          updated_at: '',
+          expires_at: null,
+        },
+        {
+          id: '2',
+          created_at: '2025-01-01T09:00:00Z',
+          license_key: mockLicenseKey,
+          is_active: true,
+          priority: 'urgent',
+          title: '',
+          content: '',
+          author_role: 'admin',
+          author_name: null,
+          updated_at: '',
+          expires_at: null,
+        },
       ];
-      vi.mocked(replicatedAnnouncementsTable.getByPriority).mockResolvedValueOnce(urgentAnnouncements);
+      vi.mocked(replicatedAnnouncementsTable.getByPriority).mockResolvedValueOnce(
+        urgentAnnouncements
+      );
 
       const result = await AnnouncementService.getRecentUrgentAnnouncements(
         mockLicenseKey,
@@ -796,11 +928,37 @@ describe('AnnouncementService', () => {
     });
 
     test('should filter by license key', async () => {
-      const urgentAnnouncements = [
-        { id: '1', license_key: mockLicenseKey, is_active: true, priority: 'urgent' } as any,
-        { id: '2', license_key: 'other-license', is_active: true, priority: 'urgent' } as any,
+      const urgentAnnouncements: ReplicatedAnnouncement[] = [
+        {
+          id: '1',
+          license_key: mockLicenseKey,
+          is_active: true,
+          priority: 'urgent',
+          title: '',
+          content: '',
+          author_role: 'admin',
+          author_name: null,
+          created_at: '',
+          updated_at: '',
+          expires_at: null,
+        },
+        {
+          id: '2',
+          license_key: 'other-license',
+          is_active: true,
+          priority: 'urgent',
+          title: '',
+          content: '',
+          author_role: 'admin',
+          author_name: null,
+          created_at: '',
+          updated_at: '',
+          expires_at: null,
+        },
       ];
-      vi.mocked(replicatedAnnouncementsTable.getByPriority).mockResolvedValueOnce(urgentAnnouncements);
+      vi.mocked(replicatedAnnouncementsTable.getByPriority).mockResolvedValueOnce(
+        urgentAnnouncements
+      );
 
       const result = await AnnouncementService.getRecentUrgentAnnouncements(mockLicenseKey);
 
@@ -809,14 +967,22 @@ describe('AnnouncementService', () => {
     });
 
     test('should limit to 10 results', async () => {
-      const urgentAnnouncements = Array.from({ length: 15 }, (_, i) => ({
+      const urgentAnnouncements: ReplicatedAnnouncement[] = Array.from({ length: 15 }, (_, i) => ({
         id: `${i + 1}`,
         license_key: mockLicenseKey,
         is_active: true,
-        priority: 'urgent',
+        priority: 'urgent' as const,
         created_at: new Date().toISOString(),
+        title: '',
+        content: '',
+        author_role: 'admin' as const,
+        author_name: null,
+        updated_at: '',
+        expires_at: null,
       }));
-      vi.mocked(replicatedAnnouncementsTable.getByPriority).mockResolvedValueOnce(urgentAnnouncements as any);
+      vi.mocked(replicatedAnnouncementsTable.getByPriority).mockResolvedValueOnce(
+        urgentAnnouncements
+      );
 
       const result = await AnnouncementService.getRecentUrgentAnnouncements(mockLicenseKey);
 
@@ -824,12 +990,50 @@ describe('AnnouncementService', () => {
     });
 
     test('should sort by created_at descending', async () => {
-      const urgentAnnouncements = [
-        { id: '1', created_at: '2025-01-01T00:00:00Z', license_key: mockLicenseKey, is_active: true } as any,
-        { id: '2', created_at: '2025-01-03T00:00:00Z', license_key: mockLicenseKey, is_active: true } as any,
-        { id: '3', created_at: '2025-01-02T00:00:00Z', license_key: mockLicenseKey, is_active: true } as any,
+      const urgentAnnouncements: ReplicatedAnnouncement[] = [
+        {
+          id: '1',
+          created_at: '2025-01-01T00:00:00Z',
+          license_key: mockLicenseKey,
+          is_active: true,
+          title: '',
+          content: '',
+          priority: 'normal',
+          author_role: 'admin',
+          author_name: null,
+          updated_at: '',
+          expires_at: null,
+        },
+        {
+          id: '2',
+          created_at: '2025-01-03T00:00:00Z',
+          license_key: mockLicenseKey,
+          is_active: true,
+          title: '',
+          content: '',
+          priority: 'normal',
+          author_role: 'admin',
+          author_name: null,
+          updated_at: '',
+          expires_at: null,
+        },
+        {
+          id: '3',
+          created_at: '2025-01-02T00:00:00Z',
+          license_key: mockLicenseKey,
+          is_active: true,
+          title: '',
+          content: '',
+          priority: 'normal',
+          author_role: 'admin',
+          author_name: null,
+          updated_at: '',
+          expires_at: null,
+        },
       ];
-      vi.mocked(replicatedAnnouncementsTable.getByPriority).mockResolvedValueOnce(urgentAnnouncements);
+      vi.mocked(replicatedAnnouncementsTable.getByPriority).mockResolvedValueOnce(
+        urgentAnnouncements
+      );
 
       const result = await AnnouncementService.getRecentUrgentAnnouncements(mockLicenseKey);
 

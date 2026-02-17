@@ -270,7 +270,7 @@ describe('settingsMigration', () => {
       const invalidExport: SettingsExport = {
         version: SETTINGS_VERSION,
         exportedAt: new Date().toISOString(),
-        settings: { theme: 'dark' } as any, // Missing required fields
+        settings: { theme: 'dark' } as unknown as AppSettings, // Missing required fields
       };
 
       const result = importSettingsWithMigration(invalidExport, defaults);
@@ -281,7 +281,7 @@ describe('settingsMigration', () => {
     });
 
     it('should repair severely corrupted data with defaults', () => {
-      const corruptedData = { invalid: 'data' } as any;
+      const corruptedData = { invalid: 'data' } as unknown as SettingsExport;
 
       const result = importSettingsWithMigration(corruptedData, defaults);
 
@@ -297,7 +297,7 @@ describe('settingsMigration', () => {
       const noVersion = {
         exportedAt: new Date().toISOString(),
         settings: createMockSettings(),
-      } as any;
+      } as unknown as SettingsExport;
 
       const result = importSettingsWithMigration(noVersion, defaults);
 
@@ -318,7 +318,7 @@ describe('settingsMigration', () => {
         ...createMockSettings(),
         unknownField: 'value',
         anotherField: 123,
-      } as any;
+      } as AppSettings & Record<string, unknown>;
 
       expect(validateSettings(settingsWithExtra)).toBe(true);
     });
@@ -329,10 +329,10 @@ describe('settingsMigration', () => {
         theme: 'dark',
         accentColor: 'green',
         customField: 'preserved',
-      } as any;
+      } as AppSettings & { customField: string };
 
       const result = repairSettings(settingsWithExtra, defaults);
-      expect((result as any).customField).toBe('preserved');
+      expect((result as AppSettings & { customField: string }).customField).toBe('preserved');
     });
   });
 });

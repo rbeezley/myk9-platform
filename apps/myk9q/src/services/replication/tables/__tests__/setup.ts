@@ -7,7 +7,11 @@ import { vi } from 'vitest';
 import fakeIndexedDB from 'fake-indexeddb';
 
 // Override the mocked IndexedDB from global setup with real implementation
-(global as any).indexedDB = fakeIndexedDB;
+Object.defineProperty(globalThis, 'indexedDB', {
+  value: fakeIndexedDB,
+  writable: true,
+  configurable: true,
+});
 
 // Mock Supabase
 vi.mock('@/lib/supabase', () => ({
@@ -41,9 +45,15 @@ const localStorageMock = (() => {
   let store: Record<string, string> = {};
   return {
     getItem: (key: string) => store[key] || null,
-    setItem: (key: string, value: string) => { store[key] = value; },
-    removeItem: (key: string) => { delete store[key]; },
-    clear: () => { store = {}; },
+    setItem: (key: string, value: string) => {
+      store[key] = value;
+    },
+    removeItem: (key: string) => {
+      delete store[key];
+    },
+    clear: () => {
+      store = {};
+    },
   };
 })();
 

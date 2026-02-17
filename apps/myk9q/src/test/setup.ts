@@ -38,10 +38,10 @@ const localStorageMock = {
   clear: vi.fn(),
 };
 Object.defineProperty(window, 'localStorage', {
-  value: localStorageMock
+  value: localStorageMock,
 });
 
-// Mock sessionStorage  
+// Mock sessionStorage
 const sessionStorageMock = {
   getItem: vi.fn(),
   setItem: vi.fn(),
@@ -49,18 +49,17 @@ const sessionStorageMock = {
   clear: vi.fn(),
 };
 Object.defineProperty(window, 'sessionStorage', {
-  value: sessionStorageMock
+  value: sessionStorageMock,
 });
 
 // Mock window.addEventListener for online/offline events
 const originalAddEventListener = window.addEventListener.bind(window);
-window.addEventListener = vi.fn((event: string, handler: any) => {
+window.addEventListener = vi.fn((event: string, handler: EventListenerOrEventListenerObject) => {
   if (event === 'online' || event === 'offline') {
-    // Mock implementation for network events
     return;
   }
-  return originalAddEventListener(event as any, handler);
-}) as any;
+  return originalAddEventListener(event, handler);
+}) as typeof window.addEventListener;
 
 // Setup IndexedDB polyfill for replication system tests
 import 'fake-indexeddb/auto';

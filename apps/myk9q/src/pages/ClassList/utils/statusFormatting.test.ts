@@ -6,10 +6,10 @@ import {
   getContextualPreview,
   getFormattedStatus,
   getStatusColor,
-  getStatusLabel
+  getStatusLabel,
 } from './statusFormatting';
 
-const createMockClass = (overrides: any = {}) => ({
+const createMockClass = (overrides: Record<string, unknown> = {}) => ({
   id: 1,
   class_name: 'Container Novice A',
   element: 'Container',
@@ -20,7 +20,7 @@ const createMockClass = (overrides: any = {}) => ({
   dogs: [],
   is_favorite: false,
   class_status: 'no-status' as const,
-  ...overrides
+  ...overrides,
 });
 
 describe('getContextualPreview', () => {
@@ -29,7 +29,7 @@ describe('getContextualPreview', () => {
       entry_count: 5,
       completed_count: 0,
       class_status: 'no-status',
-      dogs: []
+      dogs: [],
     });
 
     const preview = getContextualPreview(classEntry);
@@ -43,7 +43,7 @@ describe('getContextualPreview', () => {
       completed_count: 5,
       class_status: 'completed',
       is_scoring_finalized: true,
-      dogs: Array(5).fill({ is_scored: true, in_ring: false })
+      dogs: Array(5).fill({ is_scored: true, in_ring: false }),
     });
 
     const preview = getContextualPreview(classEntry);
@@ -59,8 +59,8 @@ describe('getContextualPreview', () => {
       dogs: [
         { armband: '101', call_name: 'Buddy', is_scored: true, in_ring: false },
         { armband: '102', call_name: 'Max', is_scored: true, in_ring: false },
-        { armband: '103', call_name: 'Rex', is_scored: false, in_ring: true }
-      ]
+        { armband: '103', call_name: 'Rex', is_scored: false, in_ring: true },
+      ],
     });
 
     const preview = getContextualPreview(classEntry);
@@ -77,8 +77,8 @@ describe('getContextualPreview', () => {
       dogs: [
         { is_scored: true, in_ring: false },
         { is_scored: true, in_ring: false },
-        { armband: '103', is_scored: false, in_ring: false }
-      ]
+        { armband: '103', is_scored: false, in_ring: false },
+      ],
     });
 
     const preview = getContextualPreview(classEntry);
@@ -90,7 +90,7 @@ describe('getFormattedStatus', () => {
   test('should format setup status', () => {
     const classEntry = createMockClass({
       class_status: 'setup',
-      completed_count: 0
+      completed_count: 0,
     });
 
     const status = getFormattedStatus(classEntry);
@@ -100,7 +100,7 @@ describe('getFormattedStatus', () => {
   test('should format briefing status with time', () => {
     const classEntry = createMockClass({
       class_status: 'briefing',
-      briefing_time: '9:30 AM'
+      briefing_time: '9:30 AM',
     });
 
     const status = getFormattedStatus(classEntry);
@@ -112,7 +112,7 @@ describe('getFormattedStatus', () => {
     const classEntry = createMockClass({
       class_status: 'in_progress',
       entry_count: 5,
-      completed_count: 2
+      completed_count: 2,
     });
 
     const status = getFormattedStatus(classEntry);
@@ -125,7 +125,7 @@ describe('getFormattedStatus', () => {
       class_status: 'completed',
       is_scoring_finalized: true,
       entry_count: 5,
-      completed_count: 5
+      completed_count: 5,
     });
 
     const status = getFormattedStatus(classEntry);
@@ -143,7 +143,7 @@ describe('getStatusColor', () => {
     const classEntry = createMockClass({
       class_status: 'in_progress',
       entry_count: 5,
-      completed_count: 2
+      completed_count: 2,
     });
     expect(getStatusColor(classEntry.class_status, classEntry)).toBe('in-progress');
   });
@@ -151,7 +151,7 @@ describe('getStatusColor', () => {
   test('should return correct color for completed', () => {
     const classEntry = createMockClass({
       class_status: 'completed',
-      is_scoring_finalized: true
+      is_scoring_finalized: true,
     });
     expect(getStatusColor(classEntry.class_status, classEntry)).toBe('completed');
   });
@@ -168,7 +168,7 @@ describe('getStatusLabel', () => {
     const classEntry = createMockClass({
       class_status: 'in_progress',
       entry_count: 5,
-      completed_count: 2
+      completed_count: 2,
     });
     const label = getStatusLabel(classEntry.class_status, classEntry);
     expect(label).toBe('In Progress'); // getStatusLabel doesn't include "2 of 5"
@@ -177,7 +177,7 @@ describe('getStatusLabel', () => {
   test('should return label for completed', () => {
     const classEntry = createMockClass({
       class_status: 'completed',
-      is_scoring_finalized: true
+      is_scoring_finalized: true,
     });
     const label = getStatusLabel(classEntry.class_status, classEntry);
     expect(label).toBe('Completed');

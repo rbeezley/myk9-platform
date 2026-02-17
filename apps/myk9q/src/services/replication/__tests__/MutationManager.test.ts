@@ -12,7 +12,11 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { MutationManager, type MutationManagerConfig, type GetDatabaseCallback } from '../MutationManager';
+import {
+  MutationManager,
+  type MutationManagerConfig,
+  type GetDatabaseCallback,
+} from '../MutationManager';
 import type { PendingMutation } from '@myk9/replication';
 import { openDB, type IDBPDatabase } from 'idb';
 import { REPLICATION_STORES } from '@myk9/replication';
@@ -38,9 +42,9 @@ vi.mock('@/utils/logger', () => ({
 }));
 
 vi.mock('@/utils/networkUtils', () => ({
-  withTimeout: vi.fn((promise) => promise),
+  withTimeout: vi.fn(promise => promise),
   backoffDelay: vi.fn(() => Promise.resolve()),
-  isRetryableError: vi.fn((error) => {
+  isRetryableError: vi.fn(error => {
     if (error instanceof Error) {
       const msg = error.message.toLowerCase();
       return msg.includes('network') || msg.includes('timeout') || msg.includes('5xx');
@@ -85,9 +89,15 @@ describe('MutationManager', () => {
     Object.defineProperty(global, 'localStorage', {
       value: {
         getItem: (key: string) => localStorageMock[key] || null,
-        setItem: (key: string, value: string) => { localStorageMock[key] = value; },
-        removeItem: (key: string) => { delete localStorageMock[key]; },
-        clear: () => { localStorageMock = {}; },
+        setItem: (key: string, value: string) => {
+          localStorageMock[key] = value;
+        },
+        removeItem: (key: string) => {
+          delete localStorageMock[key];
+        },
+        clear: () => {
+          localStorageMock = {};
+        },
         length: 0,
         key: () => null,
       },
@@ -113,11 +123,11 @@ describe('MutationManager', () => {
       delete: vi.fn(() => ({
         eq: vi.fn(() => Promise.resolve({ data: null, error: null })),
       })),
-    } as any);
+    } as unknown as ReturnType<typeof supabase.from>);
 
-    vi.mocked(withTimeout).mockImplementation((promise) => promise);
+    vi.mocked(withTimeout).mockImplementation(promise => promise);
     vi.mocked(backoffDelay).mockResolvedValue(undefined);
-    vi.mocked(isRetryableError).mockImplementation((error) => {
+    vi.mocked(isRetryableError).mockImplementation(error => {
       if (error instanceof Error) {
         const msg = error.message.toLowerCase();
         return msg.includes('network') || msg.includes('timeout') || msg.includes('5xx');
@@ -261,37 +271,41 @@ describe('MutationManager', () => {
       );
     });
 
-    it.skip('should dispatch overflow event when queue is at max capacity', { timeout: 10000 }, async () => {
-      // Create 1000 mutations (max capacity)
-      // Skipped: Too slow for unit tests - should be integration test
-      const mutations: PendingMutation[] = [];
-      for (let i = 0; i < 1000; i++) {
-        mutations.push({
-          id: `mut-${i}`,
-          tableName: 'entries',
-          operation: 'UPDATE',
-          rowId: `entry-${i}`,
-          data: { id: `entry-${i}` },
-          timestamp: Date.now(),
-          retries: 0,
-          status: 'pending',
-        });
+    it.skip(
+      'should dispatch overflow event when queue is at max capacity',
+      { timeout: 10000 },
+      async () => {
+        // Create 1000 mutations (max capacity)
+        // Skipped: Too slow for unit tests - should be integration test
+        const mutations: PendingMutation[] = [];
+        for (let i = 0; i < 1000; i++) {
+          mutations.push({
+            id: `mut-${i}`,
+            tableName: 'entries',
+            operation: 'UPDATE',
+            rowId: `entry-${i}`,
+            data: { id: `entry-${i}` },
+            timestamp: Date.now(),
+            retries: 0,
+            status: 'pending',
+          });
+        }
+
+        const tx = mockDb.transaction(REPLICATION_STORES.PENDING_MUTATIONS, 'readwrite');
+        for (const mutation of mutations) {
+          await tx.store.put(mutation);
+        }
+        await tx.done;
+
+        await manager.uploadPendingMutations();
+
+        expect(window.dispatchEvent).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: 'replication:queue-overflow',
+          })
+        );
       }
-
-      const tx = mockDb.transaction(REPLICATION_STORES.PENDING_MUTATIONS, 'readwrite');
-      for (const mutation of mutations) {
-        await tx.store.put(mutation);
-      }
-      await tx.done;
-
-      await manager.uploadPendingMutations();
-
-      expect(window.dispatchEvent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: 'replication:queue-overflow',
-        })
-      );
-    });
+    );
   });
 
   describe('Retry Logic', () => {
@@ -313,7 +327,7 @@ describe('MutationManager', () => {
       const mockError = new Error('Network timeout');
       vi.mocked(supabase.from).mockReturnValueOnce({
         upsert: vi.fn(() => Promise.reject(mockError)),
-      } as any);
+      } as unknown as ReturnType<typeof supabase.from>);
 
       // Mock isRetryableError to return true
       vi.mocked(isRetryableError).mockReturnValue(true);
@@ -351,7 +365,7 @@ describe('MutationManager', () => {
       const mockError = new Error('Network timeout');
       vi.mocked(supabase.from).mockReturnValue({
         upsert: vi.fn(() => Promise.reject(mockError)),
-      } as any);
+      } as unknown as ReturnType<typeof supabase.from>);
 
       vi.mocked(isRetryableError).mockReturnValue(true);
 
@@ -382,7 +396,7 @@ describe('MutationManager', () => {
       const mockError = new Error('Validation failed');
       vi.mocked(supabase.from).mockReturnValue({
         upsert: vi.fn(() => Promise.reject(mockError)),
-      } as any);
+      } as unknown as ReturnType<typeof supabase.from>);
 
       vi.mocked(isRetryableError).mockReturnValue(false);
 
@@ -412,7 +426,7 @@ describe('MutationManager', () => {
       const mockError = new Error('Permanent failure');
       vi.mocked(supabase.from).mockReturnValue({
         upsert: vi.fn(() => Promise.reject(mockError)),
-      } as any);
+      } as unknown as ReturnType<typeof supabase.from>);
 
       vi.mocked(isRetryableError).mockReturnValue(false);
 
@@ -470,12 +484,15 @@ describe('MutationManager', () => {
       }
 
       const executionOrder: string[] = [];
-      vi.mocked(supabase.from).mockImplementation((table) => ({
-        upsert: vi.fn(async (data) => {
-          executionOrder.push(data.id);
-          return { data: null, error: null };
-        }),
-      } as any));
+      vi.mocked(supabase.from).mockImplementation(
+        table =>
+          ({
+            upsert: vi.fn(async data => {
+              executionOrder.push(data.id);
+              return { data: null, error: null };
+            }),
+          }) as unknown as ReturnType<typeof supabase.from>
+      );
 
       await manager.uploadPendingMutations();
 
@@ -610,12 +627,15 @@ describe('MutationManager', () => {
       }
 
       const executionOrder: string[] = [];
-      vi.mocked(supabase.from).mockImplementation(() => ({
-        upsert: vi.fn(async (data) => {
-          executionOrder.push(data.id);
-          return { data: null, error: null };
-        }),
-      } as any));
+      vi.mocked(supabase.from).mockImplementation(
+        () =>
+          ({
+            upsert: vi.fn(async data => {
+              executionOrder.push(data.id);
+              return { data: null, error: null };
+            }),
+          }) as unknown as ReturnType<typeof supabase.from>
+      );
 
       await manager.uploadPendingMutations();
 
@@ -713,7 +733,10 @@ describe('MutationManager', () => {
 
       const restored = await mockDb.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
       expect(restored).toHaveLength(2);
-      expect(restored.map((m: PendingMutation) => m.id)).toEqual(['mut-restore-1', 'mut-restore-2']);
+      expect(restored.map((m: PendingMutation) => m.id)).toEqual([
+        'mut-restore-1',
+        'mut-restore-2',
+      ]);
     });
 
     it('should not restore mutations that already exist', { timeout: 5000 }, async () => {
@@ -885,9 +908,7 @@ describe('MutationManager', () => {
     it('should clean up timers on destroy', () => {
       manager.destroy();
 
-      expect(logger.log).toHaveBeenCalledWith(
-        expect.stringContaining('Destroyed')
-      );
+      expect(logger.log).toHaveBeenCalledWith(expect.stringContaining('Destroyed'));
     });
   });
 
@@ -900,7 +921,7 @@ describe('MutationManager', () => {
 
       const brokenManager = new MutationManager(
         { maxRetries: 3, retryBackoffBase: 100 },
-        async () => brokenDb as any
+        async () => brokenDb as unknown as IDBPDatabase
       );
 
       const results = await brokenManager.uploadPendingMutations();
@@ -916,7 +937,7 @@ describe('MutationManager', () => {
       const mutation: PendingMutation = {
         id: 'mut-unknown',
         tableName: 'entries',
-        operation: 'UNKNOWN_OP' as any,
+        operation: 'UNKNOWN_OP' as PendingMutation['operation'],
         rowId: 'entry-1',
         data: { id: 'entry-1' },
         timestamp: Date.now(),
@@ -950,7 +971,7 @@ describe('MutationManager', () => {
       const supabaseError = { message: 'Database error', code: '500' };
       vi.mocked(supabase.from).mockReturnValue({
         upsert: vi.fn(() => Promise.resolve({ data: null, error: supabaseError })),
-      } as any);
+      } as unknown as ReturnType<typeof supabase.from>);
 
       const results = await manager.uploadPendingMutations();
 
@@ -982,7 +1003,7 @@ describe('MutationManager', () => {
       const mockError = new Error('Network error');
       vi.mocked(supabase.from).mockReturnValue({
         upsert: vi.fn(() => Promise.reject(mockError)),
-      } as any);
+      } as unknown as ReturnType<typeof supabase.from>);
 
       vi.mocked(isRetryableError).mockReturnValue(true);
 

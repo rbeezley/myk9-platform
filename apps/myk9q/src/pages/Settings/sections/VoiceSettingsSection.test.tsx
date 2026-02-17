@@ -23,14 +23,23 @@ vi.mock('@/services/voiceAnnouncementService', () => ({
   },
 }));
 
-describe('VoiceSettingsSection', () => {
-  const mockUpdateSettings = vi.fn();
-  const mockGetVoices = vi.fn();
+const mockUpdateSettings = vi.fn();
 
-  const defaultSettings = {
-    voiceName: '',
-    voiceRate: 1.0,
-  };
+const defaultVoiceSettings = {
+  voiceName: '',
+  voiceRate: 1.0,
+};
+
+/** Type-safe helper to mock useSettingsStore with voice settings */
+function mockSettingsStore(overrides: Partial<{ voiceName: string; voiceRate: number }> = {}) {
+  vi.mocked(useSettingsStore).mockReturnValue({
+    settings: { ...defaultVoiceSettings, ...overrides },
+    updateSettings: mockUpdateSettings,
+  } as unknown as ReturnType<typeof useSettingsStore>);
+}
+
+describe('VoiceSettingsSection', () => {
+  const mockGetVoices = vi.fn();
 
   const mockVoices: SpeechSynthesisVoice[] = [
     {
@@ -59,10 +68,7 @@ describe('VoiceSettingsSection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    (useSettingsStore as any).mockReturnValue({
-      settings: defaultSettings,
-      updateSettings: mockUpdateSettings,
-    });
+    mockSettingsStore();
 
     // Mock speechSynthesis
     mockGetVoices.mockReturnValue(mockVoices);
@@ -141,10 +147,7 @@ describe('VoiceSettingsSection', () => {
     });
 
     it('should select the current voice from settings', () => {
-      (useSettingsStore as any).mockReturnValue({
-        settings: { ...defaultSettings, voiceName: 'Samantha' },
-        updateSettings: mockUpdateSettings,
-      });
+      mockSettingsStore({ voiceName: 'Samantha' });
 
       render(<VoiceSettingsSection />);
 
@@ -160,10 +163,7 @@ describe('VoiceSettingsSection', () => {
     });
 
     it('should display updated speech rate', () => {
-      (useSettingsStore as any).mockReturnValue({
-        settings: { ...defaultSettings, voiceRate: 1.5 },
-        updateSettings: mockUpdateSettings,
-      });
+      mockSettingsStore({ voiceRate: 1.5 });
 
       render(<VoiceSettingsSection />);
       expect(screen.getByText('Speed: 1.5x')).toBeInTheDocument();

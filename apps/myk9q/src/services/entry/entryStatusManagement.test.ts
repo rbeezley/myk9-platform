@@ -11,6 +11,12 @@ import { supabase } from '@/lib/supabase';
 import { triggerImmediateEntrySync } from '../entryReplication';
 import { checkAndUpdateClassCompletion } from './classCompletionService';
 import { getReplicationManager } from '../replication/ReplicationManager';
+import type { ReplicationManager } from '../replication/ReplicationManager';
+
+/** Helper to cast mock Supabase query builder chains */
+type MockQueryBuilder = ReturnType<typeof supabase.from>;
+const mockFrom = (obj: Record<string, unknown>): MockQueryBuilder =>
+  obj as unknown as MockQueryBuilder;
 
 // Mock dependencies
 vi.mock('@/lib/supabase', () => ({
@@ -50,13 +56,15 @@ describe('entryStatusManagement', () => {
   describe('markInRing', () => {
     it('should mark entry as in-ring', async () => {
       // Arrange
-      vi.mocked(supabase.from).mockReturnValue({
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            select: vi.fn().mockResolvedValue({ error: null }),
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              select: vi.fn().mockResolvedValue({ error: null }),
+            }),
           }),
-        }),
-      } as any);
+        })
+      );
 
       // Act
       const result = await markInRing(mockEntryId, true);
@@ -68,9 +76,9 @@ describe('entryStatusManagement', () => {
 
     it('should remove entry from ring when not scored', async () => {
       // Arrange
-      vi.mocked(supabase.from).mockImplementation((table) => {
+      vi.mocked(supabase.from).mockImplementation(table => {
         if (table === 'entries') {
-          return {
+          return mockFrom({
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
                 maybeSingle: vi.fn().mockResolvedValue({
@@ -84,9 +92,9 @@ describe('entryStatusManagement', () => {
                 select: vi.fn().mockResolvedValue({ error: null }),
               }),
             }),
-          } as any;
+          });
         }
-        return {} as any;
+        return mockFrom({});
       });
 
       // Act
@@ -98,9 +106,9 @@ describe('entryStatusManagement', () => {
 
     it('should preserve completed status when removing scored entry from ring', async () => {
       // Arrange
-      vi.mocked(supabase.from).mockImplementation((table) => {
+      vi.mocked(supabase.from).mockImplementation(table => {
         if (table === 'entries') {
-          return {
+          return mockFrom({
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
                 maybeSingle: vi.fn().mockResolvedValue({
@@ -114,9 +122,9 @@ describe('entryStatusManagement', () => {
                 select: vi.fn().mockResolvedValue({ error: null }),
               }),
             }),
-          } as any;
+          });
         }
-        return {} as any;
+        return mockFrom({});
       });
 
       // Act
@@ -132,13 +140,15 @@ describe('entryStatusManagement', () => {
     it('should handle database errors', async () => {
       // Arrange
       const error = new Error('Database error');
-      vi.mocked(supabase.from).mockReturnValue({
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            select: vi.fn().mockResolvedValue({ error }),
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              select: vi.fn().mockResolvedValue({ error }),
+            }),
           }),
-        }),
-      } as any);
+        })
+      );
 
       // Act & Assert
       await expect(markInRing(mockEntryId, true)).rejects.toThrow();
@@ -148,21 +158,23 @@ describe('entryStatusManagement', () => {
   describe('markEntryCompleted', () => {
     it('should mark unscored entry as completed', async () => {
       // Arrange
-      vi.mocked(supabase.from).mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: { id: mockEntryId, is_scored: false },
-              error: null,
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { id: mockEntryId, is_scored: false },
+                error: null,
+              }),
             }),
           }),
-        }),
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            select: vi.fn().mockResolvedValue({ error: null }),
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              select: vi.fn().mockResolvedValue({ error: null }),
+            }),
           }),
-        }),
-      } as any);
+        })
+      );
 
       // Act
       const result = await markEntryCompleted(mockEntryId);
@@ -174,16 +186,18 @@ describe('entryStatusManagement', () => {
 
     it('should skip marking when entry is already scored', async () => {
       // Arrange
-      vi.mocked(supabase.from).mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: { id: mockEntryId, is_scored: true },
-              error: null,
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { id: mockEntryId, is_scored: true },
+                error: null,
+              }),
             }),
           }),
-        }),
-      } as any);
+        })
+      );
 
       // Act
       const result = await markEntryCompleted(mockEntryId);
@@ -197,21 +211,23 @@ describe('entryStatusManagement', () => {
 
     it('should handle PGRST116 error (no rows) as valid', async () => {
       // Arrange
-      vi.mocked(supabase.from).mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: null,
-              error: { code: 'PGRST116' },
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: null,
+                error: { code: 'PGRST116' },
+              }),
             }),
           }),
-        }),
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            select: vi.fn().mockResolvedValue({ error: null }),
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              select: vi.fn().mockResolvedValue({ error: null }),
+            }),
           }),
-        }),
-      } as any);
+        })
+      );
 
       // Act
       const result = await markEntryCompleted(mockEntryId);
@@ -223,16 +239,18 @@ describe('entryStatusManagement', () => {
     it('should propagate non-PGRST116 errors', async () => {
       // Arrange
       const error = { code: 'OTHER_ERROR', message: 'Some error' };
-      vi.mocked(supabase.from).mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: null,
-              error,
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: null,
+                error,
+              }),
             }),
           }),
-        }),
-      } as any);
+        })
+      );
 
       // Act & Assert
       await expect(markEntryCompleted(mockEntryId)).rejects.toThrow();
@@ -251,21 +269,23 @@ describe('entryStatusManagement', () => {
 
     it('should update check-in status', async () => {
       // Arrange
-      vi.mocked(supabase.from).mockReturnValue({
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            select: vi.fn().mockResolvedValue({ error: null }),
-          }),
-        }),
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: { id: mockEntryId, entry_status: 'checked-in' },
-              error: null,
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              select: vi.fn().mockResolvedValue({ error: null }),
             }),
           }),
-        }),
-      } as any);
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { id: mockEntryId, entry_status: 'checked-in' },
+                error: null,
+              }),
+            }),
+          }),
+        })
+      );
 
       vi.mocked(triggerImmediateEntrySync).mockResolvedValue(undefined);
 
@@ -281,13 +301,15 @@ describe('entryStatusManagement', () => {
 
     it('should trigger immediate sync after successful update', async () => {
       // Arrange
-      vi.mocked(supabase.from).mockReturnValue({
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            select: vi.fn().mockResolvedValue({ error: null }),
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              select: vi.fn().mockResolvedValue({ error: null }),
+            }),
           }),
-        }),
-      } as any);
+        })
+      );
 
       vi.mocked(triggerImmediateEntrySync).mockResolvedValue(undefined);
 
@@ -303,13 +325,15 @@ describe('entryStatusManagement', () => {
     it('should handle database errors with detailed logging', async () => {
       // Arrange
       const error = { message: 'Update failed', code: '23505', details: 'Constraint violation' };
-      vi.mocked(supabase.from).mockReturnValue({
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            select: vi.fn().mockResolvedValue({ error }),
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              select: vi.fn().mockResolvedValue({ error }),
+            }),
           }),
-        }),
-      } as any);
+        })
+      );
 
       // Act & Assert
       await expect(updateEntryCheckinStatus(mockEntryId, 'checked-in')).rejects.toThrow(
@@ -327,19 +351,21 @@ describe('entryStatusManagement', () => {
     it('should reset entry score and trigger class completion check', async () => {
       // Arrange
       const mockClassId = 456;
-      vi.mocked(supabase.from).mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: { class_id: mockClassId },
-              error: null,
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { class_id: mockClassId },
+                error: null,
+              }),
             }),
           }),
-        }),
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({ error: null }),
-        }),
-      } as any);
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ error: null }),
+          }),
+        })
+      );
 
       // Act
       const result = await resetEntryScore(mockEntryId);
@@ -348,28 +374,35 @@ describe('entryStatusManagement', () => {
       expect(result).toBe(true);
       expect(triggerImmediateEntrySync).toHaveBeenCalledWith('resetEntryScore');
       // Function now takes: (classId, pairedClassId, justScoredEntryId, justResetEntryId)
-      expect(checkAndUpdateClassCompletion).toHaveBeenCalledWith(mockClassId, undefined, undefined, mockEntryId);
+      expect(checkAndUpdateClassCompletion).toHaveBeenCalledWith(
+        mockClassId,
+        undefined,
+        undefined,
+        mockEntryId
+      );
     });
 
     it('should reset all score fields to default values', async () => {
       // Arrange
-      let capturedUpdateData: any;
-      vi.mocked(supabase.from).mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: { class_id: 123 },
-              error: null,
+      let capturedUpdateData: Record<string, unknown> | undefined;
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { class_id: 123 },
+                error: null,
+              }),
             }),
           }),
-        }),
-        update: vi.fn().mockImplementation((data) => {
-          capturedUpdateData = data;
-          return {
-            eq: vi.fn().mockResolvedValue({ error: null }),
-          };
-        }),
-      } as any);
+          update: vi.fn().mockImplementation((data: Record<string, unknown>) => {
+            capturedUpdateData = data;
+            return {
+              eq: vi.fn().mockResolvedValue({ error: null }),
+            };
+          }),
+        })
+      );
 
       // Act
       await resetEntryScore(mockEntryId);
@@ -388,19 +421,21 @@ describe('entryStatusManagement', () => {
 
     it('should handle class completion check errors gracefully', async () => {
       // Arrange
-      vi.mocked(supabase.from).mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: { class_id: 456 },
-              error: null,
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { class_id: 456 },
+                error: null,
+              }),
             }),
           }),
-        }),
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({ error: null }),
-        }),
-      } as any);
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ error: null }),
+          }),
+        })
+      );
 
       vi.mocked(checkAndUpdateClassCompletion).mockRejectedValue(
         new Error('Completion check failed')
@@ -416,19 +451,21 @@ describe('entryStatusManagement', () => {
     it('should handle database errors', async () => {
       // Arrange
       const error = { message: 'Reset failed', code: '500' };
-      vi.mocked(supabase.from).mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: { class_id: 456 },
-              error: null,
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { class_id: 456 },
+                error: null,
+              }),
             }),
           }),
-        }),
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({ error }),
-        }),
-      } as any);
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ error }),
+          }),
+        })
+      );
 
       // Act & Assert
       await expect(resetEntryScore(mockEntryId)).rejects.toThrow('Database reset failed');
@@ -436,19 +473,21 @@ describe('entryStatusManagement', () => {
 
     it('should work when entry has no class_id', async () => {
       // Arrange
-      vi.mocked(supabase.from).mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: { class_id: null },
-              error: null,
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { class_id: null },
+                error: null,
+              }),
             }),
           }),
-        }),
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({ error: null }),
-        }),
-      } as any);
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ error: null }),
+          }),
+        })
+      );
 
       // Act
       const result = await resetEntryScore(mockEntryId);
@@ -465,21 +504,23 @@ describe('entryStatusManagement', () => {
       vi.useFakeTimers();
 
       // Step 1: Check in
-      vi.mocked(supabase.from).mockReturnValue({
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            select: vi.fn().mockResolvedValue({ error: null }),
-          }),
-        }),
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: { id: mockEntryId, entry_status: 'checked-in' },
-              error: null,
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              select: vi.fn().mockResolvedValue({ error: null }),
             }),
           }),
-        }),
-      } as any);
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { id: mockEntryId, entry_status: 'checked-in' },
+                error: null,
+              }),
+            }),
+          }),
+        })
+      );
 
       const checkinPromise = updateEntryCheckinStatus(mockEntryId, 'checked-in');
       await vi.runAllTimersAsync();
@@ -489,37 +530,41 @@ describe('entryStatusManagement', () => {
       await markInRing(mockEntryId, true);
 
       // Step 3: Mark completed
-      vi.mocked(supabase.from).mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: { id: mockEntryId, is_scored: false },
-              error: null,
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { id: mockEntryId, is_scored: false },
+                error: null,
+              }),
             }),
           }),
-        }),
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            select: vi.fn().mockResolvedValue({ error: null }),
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              select: vi.fn().mockResolvedValue({ error: null }),
+            }),
           }),
-        }),
-      } as any);
+        })
+      );
       await markEntryCompleted(mockEntryId);
 
       // Step 4: Reset
-      vi.mocked(supabase.from).mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: { class_id: 456 },
-              error: null,
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { class_id: 456 },
+                error: null,
+              }),
             }),
           }),
-        }),
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({ error: null }),
-        }),
-      } as any);
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ error: null }),
+          }),
+        })
+      );
       const resetResult = await resetEntryScore(mockEntryId);
 
       // Assert
@@ -578,13 +623,15 @@ describe('entryStatusManagement', () => {
     it('should use knownPreviousStatus when provided', async () => {
       // Arrange
       vi.mocked(getReplicationManager).mockReturnValue(null);
-      vi.mocked(supabase.from).mockReturnValue({
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            select: vi.fn().mockResolvedValue({ error: null }),
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              select: vi.fn().mockResolvedValue({ error: null }),
+            }),
           }),
-        }),
-      } as any);
+        })
+      );
 
       // Act
       await markInRing(mockEntryId, true, 'checked-in');
@@ -605,7 +652,7 @@ describe('entryStatusManagement', () => {
 
       vi.mocked(getReplicationManager).mockReturnValue({
         getTable: vi.fn().mockReturnValue(mockEntriesTable),
-      } as any);
+      } as unknown as ReplicationManager);
 
       // Act
       const result = await markInRing(mockEntryId, true);
@@ -626,15 +673,17 @@ describe('entryStatusManagement', () => {
 
       vi.mocked(getReplicationManager).mockReturnValue({
         getTable: vi.fn().mockReturnValue(mockEntriesTable),
-      } as any);
+      } as unknown as ReplicationManager);
 
-      vi.mocked(supabase.from).mockReturnValue({
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            select: vi.fn().mockResolvedValue({ error: null }),
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              select: vi.fn().mockResolvedValue({ error: null }),
+            }),
           }),
-        }),
-      } as any);
+        })
+      );
 
       // Act
       const result = await markInRing(mockEntryId, true);
@@ -649,13 +698,15 @@ describe('entryStatusManagement', () => {
       savePreviousStatus(mockEntryId, 'checked-in');
 
       vi.mocked(getReplicationManager).mockReturnValue(null);
-      vi.mocked(supabase.from).mockReturnValue({
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            select: vi.fn().mockResolvedValue({ error: null }),
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              select: vi.fn().mockResolvedValue({ error: null }),
+            }),
           }),
-        }),
-      } as any);
+        })
+      );
 
       // Act - Try to mark in-ring with different known status
       await markInRing(mockEntryId, true, 'no-status');
@@ -673,15 +724,17 @@ describe('entryStatusManagement', () => {
 
       vi.mocked(getReplicationManager).mockReturnValue({
         getTable: vi.fn().mockReturnValue(mockEntriesTable),
-      } as any);
+      } as unknown as ReplicationManager);
 
-      vi.mocked(supabase.from).mockReturnValue({
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            select: vi.fn().mockResolvedValue({ error: null }),
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              select: vi.fn().mockResolvedValue({ error: null }),
+            }),
           }),
-        }),
-      } as any);
+        })
+      );
 
       // Act
       const result = await markInRing(mockEntryId, true);
@@ -702,15 +755,17 @@ describe('entryStatusManagement', () => {
 
       vi.mocked(getReplicationManager).mockReturnValue({
         getTable: vi.fn().mockReturnValue(mockEntriesTable),
-      } as any);
+      } as unknown as ReplicationManager);
 
-      vi.mocked(supabase.from).mockReturnValue({
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            select: vi.fn().mockResolvedValue({ error: null }),
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              select: vi.fn().mockResolvedValue({ error: null }),
+            }),
           }),
-        }),
-      } as any);
+        })
+      );
 
       // Act
       await markInRing(mockEntryId, true);
@@ -731,15 +786,17 @@ describe('entryStatusManagement', () => {
 
       vi.mocked(getReplicationManager).mockReturnValue({
         getTable: vi.fn().mockReturnValue(mockEntriesTable),
-      } as any);
+      } as unknown as ReplicationManager);
 
-      vi.mocked(supabase.from).mockReturnValue({
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            select: vi.fn().mockResolvedValue({ error: null }),
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              select: vi.fn().mockResolvedValue({ error: null }),
+            }),
           }),
-        }),
-      } as any);
+        })
+      );
 
       // Act - Should not throw even if cache fails
       const result = await markInRing(mockEntryId, true);
@@ -752,24 +809,26 @@ describe('entryStatusManagement', () => {
   describe('resetEntryScore - Advanced Edge Cases', () => {
     it('should unlock scored entry before reset', async () => {
       // Arrange
-      vi.mocked(supabase.from).mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: { class_id: 456, is_scored: true },
-              error: null,
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { class_id: 456, is_scored: true },
+                error: null,
+              }),
             }),
           }),
-        }),
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({ error: null }),
-        }),
-      } as any);
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ error: null }),
+          }),
+        })
+      );
 
       vi.mocked(supabase.rpc).mockResolvedValue({
         data: null,
         error: null,
-      } as any);
+      } as unknown as ReturnType<typeof supabase.rpc>);
 
       // Act
       await resetEntryScore(mockEntryId);
@@ -782,22 +841,24 @@ describe('entryStatusManagement', () => {
 
     it('should throw error if unlock fails', async () => {
       // Arrange
-      vi.mocked(supabase.from).mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: { class_id: 456, is_scored: true },
-              error: null,
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { class_id: 456, is_scored: true },
+                error: null,
+              }),
             }),
           }),
-        }),
-      } as any);
+        })
+      );
 
       const unlockError = { message: 'Failed to unlock' };
       vi.mocked(supabase.rpc).mockResolvedValue({
         data: null,
         error: unlockError,
-      } as any);
+      } as unknown as ReturnType<typeof supabase.rpc>);
 
       // Act & Assert
       await expect(resetEntryScore(mockEntryId)).rejects.toThrow('Failed to unlock entry');
@@ -805,19 +866,21 @@ describe('entryStatusManagement', () => {
 
     it('should skip unlock if entry not scored', async () => {
       // Arrange
-      vi.mocked(supabase.from).mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: { class_id: 456, is_scored: false },
-              error: null,
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { class_id: 456, is_scored: false },
+                error: null,
+              }),
             }),
           }),
-        }),
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({ error: null }),
-        }),
-      } as any);
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ error: null }),
+          }),
+        })
+      );
 
       // Act
       await resetEntryScore(mockEntryId);
@@ -839,21 +902,23 @@ describe('entryStatusManagement', () => {
 
       vi.mocked(getReplicationManager).mockReturnValue({
         getTable: vi.fn().mockReturnValue(mockEntriesTable),
-      } as any);
+      } as unknown as ReplicationManager);
 
-      vi.mocked(supabase.from).mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: { class_id: 456, is_scored: false },
-              error: null,
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { class_id: 456, is_scored: false },
+                error: null,
+              }),
             }),
           }),
-        }),
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({ error: null }),
-        }),
-      } as any);
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ error: null }),
+          }),
+        })
+      );
 
       // Act
       await resetEntryScore(mockEntryId);
@@ -875,19 +940,21 @@ describe('entryStatusManagement', () => {
 
     it('should trigger background sync without awaiting', async () => {
       // Arrange
-      vi.mocked(supabase.from).mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: { class_id: 456, is_scored: false },
-              error: null,
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { class_id: 456, is_scored: false },
+                error: null,
+              }),
             }),
           }),
-        }),
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockResolvedValue({ error: null }),
-        }),
-      } as any);
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({ error: null }),
+          }),
+        })
+      );
 
       vi.mocked(triggerImmediateEntrySync).mockResolvedValue(undefined);
 
@@ -917,13 +984,15 @@ describe('entryStatusManagement', () => {
         'no-status',
       ];
 
-      vi.mocked(supabase.from).mockReturnValue({
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            select: vi.fn().mockResolvedValue({ error: null }),
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              select: vi.fn().mockResolvedValue({ error: null }),
+            }),
           }),
-        }),
-      } as any);
+        })
+      );
 
       vi.mocked(triggerImmediateEntrySync).mockResolvedValue(undefined);
 
@@ -938,13 +1007,15 @@ describe('entryStatusManagement', () => {
 
     it('should include 100ms propagation delay', async () => {
       // Arrange
-      vi.mocked(supabase.from).mockReturnValue({
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            select: vi.fn().mockResolvedValue({ error: null }),
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              select: vi.fn().mockResolvedValue({ error: null }),
+            }),
           }),
-        }),
-      } as any);
+        })
+      );
 
       vi.mocked(triggerImmediateEntrySync).mockResolvedValue(undefined);
 
@@ -964,25 +1035,27 @@ describe('entryStatusManagement', () => {
   describe('markEntryCompleted - Edge Cases', () => {
     it('should set result_status to manual_complete', async () => {
       // Arrange
-      let capturedUpdateData: any;
-      vi.mocked(supabase.from).mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: { id: mockEntryId, is_scored: false },
-              error: null,
+      let capturedUpdateData: Record<string, unknown> | undefined;
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { id: mockEntryId, is_scored: false },
+                error: null,
+              }),
             }),
           }),
-        }),
-        update: vi.fn().mockImplementation((data) => {
-          capturedUpdateData = data;
-          return {
-            eq: vi.fn().mockReturnValue({
-              select: vi.fn().mockResolvedValue({ error: null }),
-            }),
-          };
-        }),
-      } as any);
+          update: vi.fn().mockImplementation((data: Record<string, unknown>) => {
+            capturedUpdateData = data;
+            return {
+              eq: vi.fn().mockReturnValue({
+                select: vi.fn().mockResolvedValue({ error: null }),
+              }),
+            };
+          }),
+        })
+      );
 
       // Act
       await markEntryCompleted(mockEntryId);
@@ -993,22 +1066,24 @@ describe('entryStatusManagement', () => {
         is_scored: true,
         result_status: 'manual_complete',
       });
-      expect(capturedUpdateData.scoring_completed_at).toBeDefined();
+      expect(capturedUpdateData!.scoring_completed_at).toBeDefined();
     });
 
     it('should handle check error other than PGRST116', async () => {
       // Arrange
       const error = { code: '500', message: 'Server error' };
-      vi.mocked(supabase.from).mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: null,
-              error,
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: null,
+                error,
+              }),
             }),
           }),
-        }),
-      } as any);
+        })
+      );
 
       // Act & Assert
       await expect(markEntryCompleted(mockEntryId)).rejects.toThrow();
@@ -1017,21 +1092,23 @@ describe('entryStatusManagement', () => {
     it('should handle update error', async () => {
       // Arrange
       const updateError = { message: 'Update failed' };
-      vi.mocked(supabase.from).mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: { id: mockEntryId, is_scored: false },
-              error: null,
+      vi.mocked(supabase.from).mockReturnValue(
+        mockFrom({
+          select: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              single: vi.fn().mockResolvedValue({
+                data: { id: mockEntryId, is_scored: false },
+                error: null,
+              }),
             }),
           }),
-        }),
-        update: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            select: vi.fn().mockResolvedValue({ error: updateError }),
+          update: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              select: vi.fn().mockResolvedValue({ error: updateError }),
+            }),
           }),
-        }),
-      } as any);
+        })
+      );
 
       // Act & Assert
       await expect(markEntryCompleted(mockEntryId)).rejects.toThrow();

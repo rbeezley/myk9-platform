@@ -42,9 +42,17 @@ Top 3 source files over 800 lines — refactor when next modified:
 - Pre-existing failures — not caused by Session 1 changes
 - Session 1 only deleted tests that caused _hangs_, these just have assertion failures
 
+## Code Quality Sprint — Session 2 Complete (2026-02-17)
+
+- [x] Eliminated 24 `as any` casts in packages (3 files)
+- [x] Eliminated 61 `as any` casts in myK9Show (25 files — source + test)
+- [x] Removed all 18 `@ts-ignore`/`@ts-expect-error` suppressions (6 files)
+- [x] Promoted ESLint `no-explicit-any` from `warn` → `error` in root config
+- [x] Fixed 2 pre-existing typecheck errors (LazyComponents.tsx, dogsService.ts)
+- 9 documented `eslint-disable` exceptions remain (Sentry imports, React patterns, forwardRef)
+
 ### Remaining Sessions
 
-- [ ] Session 2: Type Safety — Packages + myK9Show (eliminate `as any`, fix `@ts-ignore`)
-- [ ] Session 3: Type Safety — myK9Q (~360 `as any` casts)
+- [ ] Session 3: Type Safety — myK9Q (~303 `as any` casts in 31 files)
 - [ ] Session 4: Large File Refactoring (~15 files over 700 lines)
 - [ ] Session 5: E2E Tests in CI + Polish

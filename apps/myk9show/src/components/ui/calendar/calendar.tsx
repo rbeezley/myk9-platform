@@ -1,11 +1,11 @@
-import * as React from "react"
-import { ChevronLeft, ChevronRight } from "lucide-react"
-import { DayPicker } from "react-day-picker"
+import * as React from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { DayPicker } from 'react-day-picker';
 
-import { cn } from "@/lib/utils"
-import { buttonVariants } from "@/components/ui/button/buttonVariants"
+import { cn } from '@/lib/utils';
+import { buttonVariants } from '@/components/ui/button/buttonVariants';
 
-export type CalendarProps = React.ComponentProps<typeof DayPicker>
+export type CalendarProps = React.ComponentProps<typeof DayPicker>;
 
 import type { MonthCaptionProps } from 'react-day-picker';
 
@@ -21,13 +21,14 @@ function YearMonthCaption(props: YearMonthCaptionProps) {
   function handleYearChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const newDate = new Date(displayMonth);
     newDate.setFullYear(Number(e.target.value));
-    // Find the parent element with data-rdp and dispatch a synthetic event
-    // Removed unused 'calendar' variable (e.target.closest('[data-rdp]') as any)?.__reactFiber$;
+    // Dispatch month change via the DayPicker callback
     if (props && typeof (props as YearMonthCaptionProps).onMonthChange === 'function') {
       (props as YearMonthCaptionProps).onMonthChange!(newDate);
     }
   }
-  const months = Array.from({ length: 12 }, (_, i) => new Date(2000, i).toLocaleString('default', { month: 'long' }));
+  const months = Array.from({ length: 12 }, (_, i) =>
+    new Date(2000, i).toLocaleString('default', { month: 'long' })
+  );
 
   function handleMonthChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const newDate = new Date(displayMonth);
@@ -56,7 +57,18 @@ function YearMonthCaption(props: YearMonthCaptionProps) {
         aria-label="Previous Month"
         onClick={handlePrevMonth}
       >
-        <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6" /></svg>
+        <svg
+          width="18"
+          height="18"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          viewBox="0 0 24 24"
+        >
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
       </button>
       <div className="relative">
         <select
@@ -66,11 +78,24 @@ function YearMonthCaption(props: YearMonthCaptionProps) {
           style={{ minWidth: 90 }}
         >
           {months.map((month, idx) => (
-            <option key={month} value={idx}>{month}</option>
+            <option key={month} value={idx}>
+              {month}
+            </option>
           ))}
         </select>
         <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground">
-          <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9" /></svg>
+          <svg
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            viewBox="0 0 24 24"
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
         </span>
       </div>
       <div className="relative">
@@ -81,11 +106,24 @@ function YearMonthCaption(props: YearMonthCaptionProps) {
           style={{ minWidth: 70 }}
         >
           {years.map(year => (
-            <option key={year} value={year}>{year}</option>
+            <option key={year} value={year}>
+              {year}
+            </option>
           ))}
         </select>
         <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground">
-          <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9" /></svg>
+          <svg
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            viewBox="0 0 24 24"
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
         </span>
       </div>
       <button
@@ -94,18 +132,24 @@ function YearMonthCaption(props: YearMonthCaptionProps) {
         aria-label="Next Month"
         onClick={handleNextMonth}
       >
-        <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18" /></svg>
+        <svg
+          width="18"
+          height="18"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          viewBox="0 0 24 24"
+        >
+          <polyline points="9 6 15 12 9 18" />
+        </svg>
       </button>
     </div>
   );
 }
 
-function Calendar({
-  className,
-  classNames,
-  showOutsideDays = true,
-  ...props
-}: CalendarProps) {
+function Calendar({ className, classNames, showOutsideDays = true, ...props }: CalendarProps) {
   const [month, setMonth] = React.useState(() => props.month ?? new Date());
   const handleMonthChange = (newMonth: Date) => {
     setMonth(newMonth);
@@ -118,65 +162,62 @@ function Calendar({
       showOutsideDays={showOutsideDays}
       month={month}
       onMonthChange={handleMonthChange}
-      className={cn("p-3", className)}
+      className={cn('p-3', className)}
       classNames={{
         // v9 class names
-        months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-        month: "space-y-4",
-        month_caption: "flex justify-center pt-1 relative items-center",
-        caption_label: "text-sm font-medium",
-        nav: "space-x-1 flex items-center",
+        months: 'flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0',
+        month: 'space-y-4',
+        month_caption: 'flex justify-center pt-1 relative items-center',
+        caption_label: 'text-sm font-medium',
+        nav: 'space-x-1 flex items-center',
         button_previous: cn(
-          buttonVariants({ variant: "outline" }),
-          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 absolute left-1"
+          buttonVariants({ variant: 'outline' }),
+          'h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 absolute left-1'
         ),
         button_next: cn(
-          buttonVariants({ variant: "outline" }),
-          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 absolute right-1"
+          buttonVariants({ variant: 'outline' }),
+          'h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 absolute right-1'
         ),
-        month_grid: "w-full border-collapse",
-        weekdays: "grid grid-cols-7 mb-1",
-        weekday: "text-muted-foreground rounded-md w-9 h-9 flex items-center justify-center font-normal text-[0.8rem]",
-        week: "grid grid-cols-7 mt-1",
+        month_grid: 'w-full border-collapse',
+        weekdays: 'grid grid-cols-7 mb-1',
+        weekday:
+          'text-muted-foreground rounded-md w-9 h-9 flex items-center justify-center font-normal text-[0.8rem]',
+        week: 'grid grid-cols-7 mt-1',
         day: cn(
-          "relative p-0 text-center text-sm focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-accent [&:has([aria-selected].outside)]:bg-accent/50 [&:has([aria-selected].range_end)]:rounded-r-md",
-          props.mode === "range"
-            ? "[&:has(>.range_end)]:rounded-r-md [&:has(>.range_start)]:rounded-l-md first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md"
-            : "[&:has([aria-selected])]:rounded-md"
+          'relative p-0 text-center text-sm focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-accent [&:has([aria-selected].outside)]:bg-accent/50 [&:has([aria-selected].range_end)]:rounded-r-md',
+          props.mode === 'range'
+            ? '[&:has(>.range_end)]:rounded-r-md [&:has(>.range_start)]:rounded-l-md first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md'
+            : '[&:has([aria-selected])]:rounded-md'
         ),
         day_button: cn(
-          buttonVariants({ variant: "ghost" }),
-          "h-9 w-9 p-0 font-normal aria-selected:opacity-100"
+          buttonVariants({ variant: 'ghost' }),
+          'h-9 w-9 p-0 font-normal aria-selected:opacity-100'
         ),
-        range_start: "range_start",
-        range_end: "range_end",
+        range_start: 'range_start',
+        range_end: 'range_end',
         selected:
-          "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-        today: "bg-accent text-accent-foreground",
+          'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground',
+        today: 'bg-accent text-accent-foreground',
         outside:
-          "outside text-muted-foreground aria-selected:bg-accent/50 aria-selected:text-muted-foreground",
-        disabled: "text-muted-foreground opacity-50",
-        range_middle:
-          "aria-selected:bg-accent aria-selected:text-accent-foreground",
-        hidden: "invisible",
+          'outside text-muted-foreground aria-selected:bg-accent/50 aria-selected:text-muted-foreground',
+        disabled: 'text-muted-foreground opacity-50',
+        range_middle: 'aria-selected:bg-accent aria-selected:text-accent-foreground',
+        hidden: 'invisible',
         ...classNames,
       }}
       components={{
         Chevron: ({ orientation, className, ...props }) => {
           const Icon = orientation === 'left' ? ChevronLeft : ChevronRight;
-          return <Icon className={cn("h-4 w-4", className)} {...props} />;
+          return <Icon className={cn('h-4 w-4', className)} {...props} />;
         },
-        MonthCaption: (captionProps) => (
-          <YearMonthCaption
-            {...captionProps}
-            onMonthChange={handleMonthChange}
-          />
+        MonthCaption: captionProps => (
+          <YearMonthCaption {...captionProps} onMonthChange={handleMonthChange} />
         ),
       }}
       {...props}
     />
-  )
+  );
 }
-Calendar.displayName = "Calendar"
+Calendar.displayName = 'Calendar';
 
-export { Calendar }
+export { Calendar };

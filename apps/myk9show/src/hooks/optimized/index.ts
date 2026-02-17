@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/rules-of-hooks */
 /**
  * Optimized Hooks Library
- * 
+ *
  * This library provides optimized versions of common React hook patterns
  * to improve performance and reduce memory usage.
  */
@@ -15,52 +15,47 @@ export {
   useMemoizedCallbacks,
   usePrevious,
   useWhyDidYouUpdate,
-  useStableCallback
+  useStableCallback,
 } from './useSimplifiedHooks';
 
 // Consolidated table management
-export {
-  useConsolidatedTable,
-  useConsolidatedModals
-} from './useConsolidatedHooks';
+export { useConsolidatedTable, useConsolidatedModals } from './useConsolidatedHooks';
 
 // Memory leak detection
 export {
   useMemoryTracker,
   useMemoryMonitor,
   useEventListenerTracker,
-  useTimerTracker
+  useTimerTracker,
 } from './useMemoryLeakDetection';
 
 // Performance monitoring (conditionally imported to avoid build errors)
-export type {
-  RenderInfo,
-  PerformanceMetrics
-} from './usePerformanceMonitor';
+export type { RenderInfo, PerformanceMetrics } from './usePerformanceMonitor';
 
 // Import performance hooks conditionally
-const performanceHooks = process.env.NODE_ENV === 'development' 
-  ? require('./usePerformanceMonitor')
-  : {
-      useRenderTracker: () => ({ renderCount: 0, getMetrics: () => null }),
-      useHookTracker: () => ({ execCount: 0, depChangeCount: 0 }),
-      usePerformanceMeasure: () => ({ start: () => {}, end: () => 0 }),
-      usePerformanceInsights: () => ({ 
-        insights: { slowComponents: [], excessiveRenders: [], recommendations: [] },
-        generateInsights: () => {},
-        clearMetrics: () => {},
-        exportMetrics: () => null,
-        getAllMetrics: () => ({})
-      }),
-      usePerformanceDebugger: () => {}
-    };
+const performanceHooks =
+  process.env.NODE_ENV === 'development'
+    ? require('./usePerformanceMonitor')
+    : {
+        useRenderTracker: () => ({ renderCount: 0, getMetrics: () => null }),
+        useHookTracker: () => ({ execCount: 0, depChangeCount: 0 }),
+        usePerformanceMeasure: () => ({ start: () => {}, end: () => 0 }),
+        usePerformanceInsights: () => ({
+          insights: { slowComponents: [], excessiveRenders: [], recommendations: [] },
+          generateInsights: () => {},
+          clearMetrics: () => {},
+          exportMetrics: () => null,
+          getAllMetrics: () => ({}),
+        }),
+        usePerformanceDebugger: () => {},
+      };
 
 export const {
   useRenderTracker,
   useHookTracker,
   usePerformanceMeasure,
   usePerformanceInsights,
-  usePerformanceDebugger
+  usePerformanceDebugger,
 } = performanceHooks;
 
 // Migration guide for common patterns
@@ -78,7 +73,7 @@ export const HOOK_OPTIMIZATION_PATTERNS = {
         error: null,
         data: null
       });
-    `
+    `,
   },
 
   // Instead of multiple useCallback calls
@@ -94,7 +89,7 @@ export const HOOK_OPTIMIZATION_PATTERNS = {
         handleSubmit: () => {},
         handleCancel: () => {}
       }, []);
-    `
+    `,
   },
 
   // Instead of complex async state management
@@ -121,8 +116,8 @@ export const HOOK_OPTIMIZATION_PATTERNS = {
       const { data, loading, error, execute } = useAsyncOperation();
       
       const fetchData = () => execute(() => api.getData());
-    `
-  }
+    `,
+  },
 };
 
 // Performance monitoring utilities
@@ -146,10 +141,10 @@ export const PERFORMANCE_UTILS = {
   },
 
   // Add to debug why components re-render
-  debugRenders: (componentName: string, props: Record<string, any>) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+  debugRenders: (componentName: string, props: Record<string, unknown>) => {
     if (process.env.NODE_ENV === 'development') {
       const { useWhyDidYouUpdate } = require('./useSimplifiedHooks');
       useWhyDidYouUpdate(componentName, props);
     }
-  }
+  },
 };

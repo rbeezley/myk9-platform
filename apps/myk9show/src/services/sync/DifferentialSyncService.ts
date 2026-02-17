@@ -1,4 +1,3 @@
-import { compress, decompress } from 'fflate';
 import * as jsonpatch from 'fast-json-patch';
 import { diff as deepDiff } from 'deep-object-diff';
 import { isEqual, cloneDeep, get, set, unset } from 'lodash';
@@ -6,9 +5,7 @@ import { logger } from '@/services/LoggingService';
 import {
   DeltaPayload,
   DeltaOperation,
-  DeltaCompressionType,
-  DeltaValidationResult,
-  ConflictResolutionStrategy
+  ConflictResolutionStrategy,
 } from '../../types/performance-types';
 import { SyncableEntity } from '../../types/sync-types';
 import { eventEmitter } from './eventEmitter';
@@ -30,18 +27,28 @@ import {
   arrayBuffersEqual,
   arrayBufferToBase64,
   base64ToArrayBuffer,
-  simpleHash,
-  normalizeForChecksum,
-  isSyncableEntity,
+  processCustomChanges,
+  compressDelta,
+  decompressDelta,
+  calculateChecksum,
+  validateDelta as validateDeltaUtil,
+  getEntityType,
+  getEntityId,
+  createEmptyDelta,
+  createFullReplacementDelta,
 } from './differential-sync-utils';
 
+import {
+  CACHE_TTL,
+  MAX_DELTA_SIZE,
+  CACHE_CLEANUP_INTERVAL,
+  METRICS_RETENTION_MS,
+} from './differential-sync-constants';
 
 export class DifferentialSyncService {
   private static instance: DifferentialSyncService;
   private checksumCache: ChecksumCache = {};
   private performanceMetrics: Map<string, DeltaPerformanceMetrics> = new Map();
-  private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-  private readonly MAX_DELTA_SIZE = 1024 * 1024; // 1MB
 
   private constructor() {
     this.startCacheCleanup();
@@ -69,26 +76,22 @@ export class DifferentialSyncService {
         algorithm = 'json-patch',
         compressionType = 'gzip',
         includeChecksum = true,
-        maxDeltaSize = this.MAX_DELTA_SIZE
+        maxDeltaSize = MAX_DELTA_SIZE,
       } = options;
 
-      // Quick equality check
       if (isEqual(original, modified)) {
-        return this.createEmptyDelta(original);
+        return createEmptyDelta(original);
       }
 
-      // Calculate checksums
-      const originalChecksum = includeChecksum ? await this.calculateChecksum(original) : undefined;
-      const modifiedChecksum = includeChecksum ? await this.calculateChecksum(modified) : undefined;
+      const originalChecksum = includeChecksum ? await calculateChecksum(original) : undefined;
+      const modifiedChecksum = includeChecksum ? await calculateChecksum(modified) : undefined;
 
-      // Check cache for existing delta
       const cacheKey = `${originalChecksum}-${modifiedChecksum}`;
       const cachedDelta = this.getCachedDelta(cacheKey);
       if (cachedDelta) {
         return cachedDelta;
       }
 
-      // Calculate delta operations
       let operations: DeltaOperation[];
       switch (algorithm) {
         case 'json-patch':
@@ -104,11 +107,10 @@ export class DifferentialSyncService {
           throw new Error(`Unsupported delta algorithm: ${algorithm}`);
       }
 
-      // Create delta payload
       let deltaPayload: DeltaPayload = {
         id: generateDeltaId(),
-        entityType: this.getEntityType(original),
-        entityId: this.getEntityId(original),
+        entityType: getEntityType(original),
+        entityId: getEntityId(original),
         operations,
         algorithm,
         originalChecksum,
@@ -117,33 +119,28 @@ export class DifferentialSyncService {
         metadata: {
           originalSize: JSON.stringify(original).length,
           modifiedSize: JSON.stringify(modified).length,
-          operationCount: operations.length
-        }
+          operationCount: operations.length,
+        },
       };
 
-      // Compress if needed
       if (compressionType !== 'none') {
-        deltaPayload = await this.compressDelta(deltaPayload, compressionType);
+        deltaPayload = await compressDelta(deltaPayload, compressionType);
       }
 
-      // Validate delta size
       const deltaSize = JSON.stringify(deltaPayload).length;
       if (deltaSize > maxDeltaSize) {
-        // Fall back to full replacement if delta is too large
-        deltaPayload = this.createFullReplacementDelta(modified, originalChecksum, modifiedChecksum);
+        deltaPayload = createFullReplacementDelta(modified, originalChecksum, modifiedChecksum);
       }
 
-      // Cache the delta
       this.cacheDelta(cacheKey, deltaPayload);
 
-      // Track performance
       const endTime = performance.now();
       this.trackPerformance('calculateDelta', {
         duration: endTime - startTime,
         algorithm,
         compressionType,
         deltaSize,
-        operationCount: operations.length
+        operationCount: operations.length,
       });
 
       return deltaPayload;
@@ -151,7 +148,7 @@ export class DifferentialSyncService {
       logger.error('Error calculating delta:', 'sync', {}, error as Error);
       eventEmitter.emit('sync:error', {
         type: 'delta-calculation',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -169,27 +166,25 @@ export class DifferentialSyncService {
     const {
       validateChecksum = true,
       rollbackOnError = true,
-      trackPerformance = true
+      trackPerformance: shouldTrack = true,
     } = options;
 
     let result = cloneDeep(original) as T;
     const rollbackState = rollbackOnError ? cloneDeep(original) : null;
 
     try {
-      // Decompress delta if needed
-      const decompressedDelta = delta.compressionType && delta.compressionType !== 'none'
-        ? await this.decompressDelta(delta)
-        : delta;
+      const decompressedDelta =
+        delta.compressionType && delta.compressionType !== 'none'
+          ? await decompressDelta(delta)
+          : delta;
 
-      // Validate checksum if provided
       if (validateChecksum && decompressedDelta.originalChecksum) {
-        const currentChecksum = await this.calculateChecksum(original);
+        const currentChecksum = await calculateChecksum(original);
         if (currentChecksum !== decompressedDelta.originalChecksum) {
           throw new Error('Checksum mismatch: original object has been modified');
         }
       }
 
-      // Apply operations based on algorithm
       switch (decompressedDelta.algorithm) {
         case 'json-patch':
           result = this.applyJsonPatchDelta(result, decompressedDelta.operations);
@@ -204,101 +199,168 @@ export class DifferentialSyncService {
           throw new Error(`Unsupported delta algorithm: ${decompressedDelta.algorithm}`);
       }
 
-      // Validate result checksum if provided
       if (validateChecksum && decompressedDelta.modifiedChecksum) {
-        const resultChecksum = await this.calculateChecksum(result);
+        const resultChecksum = await calculateChecksum(result);
         if (resultChecksum !== decompressedDelta.modifiedChecksum) {
           throw new Error('Checksum mismatch: delta application failed');
         }
       }
 
-      // Track performance
-      if (trackPerformance) {
+      if (shouldTrack) {
         const endTime = performance.now();
         this.trackPerformance('applyDelta', {
           duration: endTime - startTime,
           algorithm: decompressedDelta.algorithm,
           operationCount: decompressedDelta.operations.length,
-          success: true
+          success: true,
         });
       }
 
       eventEmitter.emit('sync:delta-applied', {
         entityType: delta.entityType,
         entityId: delta.entityId,
-        operationCount: delta.operations.length
+        operationCount: delta.operations.length,
       });
 
       return result;
     } catch (error) {
       logger.error('Error applying delta:', 'sync', {}, error as Error);
-
       if (rollbackOnError && rollbackState) {
         return rollbackState;
       }
-
       throw error;
     }
   }
 
   /**
-   * Calculate JSON Patch delta
+   * Validate delta before application (delegates to pure utility)
    */
-  private calculateJsonPatchDelta<T extends SyncableEntity>(original: T, modified: T): DeltaOperation[] {
-    const patches = jsonpatch.compare(original as Record<string, unknown>, modified as Record<string, unknown>) as JsonPatchOperation[];
+  async validateDelta(delta: DeltaPayload) {
+    return validateDeltaUtil(delta);
+  }
+
+  /**
+   * Handle conflicts during delta application
+   */
+  async resolveConflict(
+    local: SyncableEntity,
+    remote: SyncableEntity,
+    base: SyncableEntity,
+    strategy: ConflictResolutionStrategy = 'last-write-wins'
+  ): Promise<ConflictableEntity> {
+    switch (strategy) {
+      case 'last-write-wins':
+        return remote;
+      case 'first-write-wins':
+        return local;
+      case 'manual':
+        return {
+          ...local,
+          _conflict: true,
+          local,
+          remote,
+          base,
+        } as ConflictableEntity;
+      case 'merge':
+        return this.attemptAutoMerge(local, remote, base);
+      default:
+        return remote;
+    }
+  }
+
+  /**
+   * Get performance statistics
+   */
+  getPerformanceStats(operation?: string): Record<string, unknown> | null {
+    const relevantMetrics = Array.from(this.performanceMetrics.values()).filter(
+      m => !operation || m.operation === operation
+    );
+
+    if (relevantMetrics.length === 0) return null;
+
+    const durations = relevantMetrics.map(m => m.duration || 0);
+    const avgDuration = durations.reduce((a, b) => a + b, 0) / durations.length;
+
+    return {
+      operation,
+      count: relevantMetrics.length,
+      avgDuration,
+      minDuration: Math.min(...durations),
+      maxDuration: Math.max(...durations),
+      totalOperations: relevantMetrics.reduce((sum, m) => sum + (m.operationCount || 0), 0),
+    };
+  }
+
+  /**
+   * Clear all caches and metrics
+   */
+  clearCache(): void {
+    this.checksumCache = {};
+    this.performanceMetrics.clear();
+  }
+
+  // === Private: Delta Algorithm Implementations ===
+
+  private calculateJsonPatchDelta<T extends SyncableEntity>(
+    original: T,
+    modified: T
+  ): DeltaOperation[] {
+    const patches = jsonpatch.compare(
+      original as Record<string, unknown>,
+      modified as Record<string, unknown>
+    ) as JsonPatchOperation[];
 
     return patches.map(patch => ({
       type: mapJsonPatchOp(patch.op),
       path: patch.path,
       value: 'value' in patch ? patch.value : undefined,
-      oldValue: undefined, // JSON patch doesn't provide old values
-      from: 'from' in patch ? patch.from : undefined
+      oldValue: undefined,
+      from: 'from' in patch ? patch.from : undefined,
     }));
   }
 
-  /**
-   * Apply JSON Patch delta
-   */
-  private applyJsonPatchDelta<T extends SyncableEntity>(target: T, operations: DeltaOperation[]): T {
-    const patches = operations.map(op => {
-      const patchOp: ExtendedPatchOperation = {
-        op: mapToJsonPatchOp(op.type) as jsonpatch.Operation['op'],
-        path: op.path
-      };
-
-      if (op.value !== undefined) {
-        patchOp.value = op.value;
-      }
-
-      if (op.from) {
-        patchOp.from = op.from;
-      }
-
-      return patchOp;
-    }).filter(patch =>
-      patch.op === 'remove' ||
-      'value' in patch ||
-      (patch.op === 'move' || patch.op === 'copy') && 'from' in patch
-    ) as jsonpatch.Operation[];
+  private applyJsonPatchDelta<T extends SyncableEntity>(
+    target: T,
+    operations: DeltaOperation[]
+  ): T {
+    const patches = operations
+      .map(op => {
+        const patchOp: ExtendedPatchOperation = {
+          op: mapToJsonPatchOp(op.type) as jsonpatch.Operation['op'],
+          path: op.path,
+        };
+        if (op.value !== undefined) patchOp.value = op.value;
+        if (op.from) patchOp.from = op.from;
+        return patchOp;
+      })
+      .filter(
+        patch =>
+          patch.op === 'remove' ||
+          'value' in patch ||
+          ((patch.op === 'move' || patch.op === 'copy') && 'from' in patch)
+      ) as jsonpatch.Operation[];
 
     const result = jsonpatch.applyPatch(target as Record<string, unknown>, patches);
     return result.newDocument as T;
   }
 
-  /**
-   * Calculate binary delta (for large data)
-   */
-  private async calculateBinaryDelta<T extends SyncableEntity>(original: T, modified: T): Promise<DeltaOperation[]> {
+  private async calculateBinaryDelta<T extends SyncableEntity>(
+    original: T,
+    modified: T
+  ): Promise<DeltaOperation[]> {
     const encoder = new TextEncoder();
     const originalBuffer = encoder.encode(JSON.stringify(original));
     const modifiedBuffer = encoder.encode(JSON.stringify(modified));
 
-    // Simple binary diff implementation
     const operations: DeltaOperation[] = [];
     let offset = 0;
 
     while (offset < Math.max(originalBuffer.length, modifiedBuffer.length)) {
-      const chunkSize = Math.min(1024, originalBuffer.length - offset, modifiedBuffer.length - offset);
+      const chunkSize = Math.min(
+        1024,
+        originalBuffer.length - offset,
+        modifiedBuffer.length - offset
+      );
       const originalChunk = originalBuffer.slice(offset, offset + chunkSize);
       const modifiedChunk = modifiedBuffer.slice(offset, offset + chunkSize);
 
@@ -308,23 +370,19 @@ export class DifferentialSyncService {
           path: `/binary/${offset}`,
           value: arrayBufferToBase64(modifiedChunk),
           oldValue: arrayBufferToBase64(originalChunk),
-          metadata: {
-            offset,
-            length: chunkSize
-          }
+          metadata: { offset, length: chunkSize },
         });
       }
-
       offset += chunkSize;
     }
 
     return operations;
   }
 
-  /**
-   * Apply binary delta
-   */
-  private async applyBinaryDelta<T extends SyncableEntity>(target: T, operations: DeltaOperation[]): Promise<T> {
+  private async applyBinaryDelta<T extends SyncableEntity>(
+    target: T,
+    operations: DeltaOperation[]
+  ): Promise<T> {
     const encoder = new TextEncoder();
     const decoder = new TextDecoder();
     let targetBuffer = encoder.encode(JSON.stringify(target));
@@ -334,13 +392,11 @@ export class DifferentialSyncService {
         const newData = base64ToArrayBuffer(op.value as string);
         const offset = op.metadata.offset as number;
 
-        // Expand buffer if needed
         if (offset + newData.length > targetBuffer.length) {
           const expandedBuffer = new Uint8Array(offset + newData.length);
           expandedBuffer.set(targetBuffer);
           targetBuffer = expandedBuffer;
         }
-
         targetBuffer.set(newData, offset);
       }
     }
@@ -348,20 +404,19 @@ export class DifferentialSyncService {
     return JSON.parse(decoder.decode(targetBuffer));
   }
 
-  /**
-   * Calculate custom delta (optimized for specific entities)
-   */
-  private calculateCustomDelta<T extends SyncableEntity>(original: T, modified: T): DeltaOperation[] {
+  private calculateCustomDelta<T extends SyncableEntity>(
+    original: T,
+    modified: T
+  ): DeltaOperation[] {
     const operations: DeltaOperation[] = [];
-    const changes = deepDiff(original as Record<string, unknown>, modified as Record<string, unknown>);
-
-    this.processCustomChanges(changes, operations);
+    const changes = deepDiff(
+      original as Record<string, unknown>,
+      modified as Record<string, unknown>
+    );
+    processCustomChanges(changes, operations);
     return operations;
   }
 
-  /**
-   * Apply custom delta
-   */
   private applyCustomDelta<T extends SyncableEntity>(target: T, operations: DeltaOperation[]): T {
     const result = cloneDeep(target) as Record<string, unknown>;
 
@@ -393,306 +448,52 @@ export class DifferentialSyncService {
     return result as T;
   }
 
-  /**
-   * Process custom changes into operations
-   */
-  private processCustomChanges(
-    changes: unknown,
-    operations: DeltaOperation[],
-    path: string = ''
-  ): void {
-    if (!changes || typeof changes !== 'object') {
-      return;
-    }
+  // === Private: Conflict Resolution ===
 
-    const changesRecord = changes as Record<string, unknown>;
-    for (const [key, value] of Object.entries(changesRecord)) {
-      const currentPath = path ? `${path}.${key}` : key;
-
-      if (value === undefined) {
-        operations.push({
-          type: 'remove',
-          path: currentPath,
-          value: null
-        });
-      } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-        this.processCustomChanges(value as Record<string, unknown>, operations, currentPath);
-      } else {
-        operations.push({
-          type: 'replace',
-          path: currentPath,
-          value
-        });
-      }
-    }
-  }
-
-  /**
-   * Compress delta payload
-   */
-  private async compressDelta(
-    delta: DeltaPayload,
-    compressionType: DeltaCompressionType
-  ): Promise<DeltaPayload> {
-    if (compressionType === 'none') {
-      return delta;
-    }
-
-    const dataToCompress = JSON.stringify(delta.operations);
-    const compressed = await new Promise<Uint8Array>((resolve, reject) => {
-      compress(
-        new TextEncoder().encode(dataToCompress),
-        { level: compressionType === 'gzip' ? 6 : 9 },
-        (err, data) => {
-          if (err) reject(err);
-          else resolve(data);
-        }
-      );
-    });
-
-    return {
-      ...delta,
-      operations: [], // Clear original operations
-      compressedData: arrayBufferToBase64(compressed),
-      compressionType,
-      compressionRatio: compressed.length / dataToCompress.length
-    };
-  }
-
-  /**
-   * Decompress delta payload
-   */
-  private async decompressDelta(delta: DeltaPayload): Promise<DeltaPayload> {
-    if (!delta.compressedData || delta.compressionType === 'none') {
-      return delta;
-    }
-
-    const compressed = base64ToArrayBuffer(delta.compressedData);
-    const decompressed = await new Promise<Uint8Array>((resolve, reject) => {
-      decompress(compressed, (err, data) => {
-        if (err) reject(err);
-        else resolve(data);
-      });
-    });
-
-    const operations = JSON.parse(new TextDecoder().decode(decompressed));
-
-    return {
-      ...delta,
-      operations,
-      compressedData: undefined
-    };
-  }
-
-  /**
-   * Calculate checksum for an object using Web Crypto API or fallback
-   */
-  private async calculateChecksum(data: unknown): Promise<string> {
-    const normalized = normalizeForChecksum(data);
-    const dataString = JSON.stringify(normalized);
-
-    // Check if we're in a browser environment with Web Crypto API
-    if (typeof crypto !== 'undefined' && crypto.subtle) {
-      const encoder = new TextEncoder();
-      const dataBuffer = encoder.encode(dataString);
-
-      const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
-      return hashHex;
-    } else {
-      // Fallback for Node.js/test environment - simple hash
-      return simpleHash(dataString);
-    }
-  }
-
-  /**
-   * Validate delta before application
-   */
-  async validateDelta(delta: DeltaPayload): Promise<DeltaValidationResult> {
-    const errors: string[] = [];
-
-    // Validate structure
-    if (!delta.id || !delta.algorithm) {
-      errors.push('Invalid delta structure');
-    }
-
-    // Ensure operations is an array
-    if (!Array.isArray(delta.operations)) {
-      errors.push('Operations must be an array');
-      return {
-        isValid: false,
-        errors,
-        warnings: []
-      };
-    }
-
-    // Validate operations
-    for (const op of delta.operations) {
-      if (!op.type || !op.path) {
-        errors.push(`Invalid operation: ${JSON.stringify(op)}`);
-      }
-    }
-
-    // Validate checksum format
-    if (delta.originalChecksum && !/^[a-f0-9]{64}$/.test(delta.originalChecksum)) {
-      errors.push('Invalid original checksum format');
-    }
-
-    // Validate compression
-    if (delta.compressedData && !delta.compressionType) {
-      errors.push('Compressed data without compression type');
-    }
-
-    return {
-      isValid: errors.length === 0,
-      errors,
-      warnings: []
-    };
-  }
-
-  /**
-   * Handle conflicts during delta application
-   */
-  async resolveConflict(
+  private attemptAutoMerge(
     local: SyncableEntity,
     remote: SyncableEntity,
-    base: SyncableEntity,
-    strategy: ConflictResolutionStrategy = 'last-write-wins'
-  ): Promise<ConflictableEntity> {
-    switch (strategy) {
-      case 'last-write-wins':
-        return remote;
-
-      case 'first-write-wins':
-        return local;
-
-      case 'manual':
-        // Return conflict markers for manual resolution
-        return {
-          ...local,
-          _conflict: true,
-          local,
-          remote,
-          base
-        } as ConflictableEntity;
-
-      case 'merge':
-        // Attempt automatic merge
-        return this.attemptAutoMerge(local, remote, base);
-
-      default:
-        return remote;
-    }
-  }
-
-  /**
-   * Attempt automatic merge of conflicting changes
-   */
-  private attemptAutoMerge(local: SyncableEntity, remote: SyncableEntity, base: SyncableEntity): SyncableEntity {
+    base: SyncableEntity
+  ): SyncableEntity {
     const localDelta = this.calculateCustomDelta(base, local);
     const remoteDelta = this.calculateCustomDelta(base, remote);
 
-    // Check for conflicting paths
     const localPaths = new Set(localDelta.map(op => op.path));
     const remotePaths = new Set(remoteDelta.map(op => op.path));
-
     const conflicts = Array.from(localPaths).filter(path => remotePaths.has(path));
 
     if (conflicts.length === 0) {
-      // No conflicts, apply both deltas
       let result = cloneDeep(base);
       result = this.applyCustomDelta(result, localDelta);
       result = this.applyCustomDelta(result, remoteDelta);
       return result;
     }
 
-    // Has conflicts, mark them
     let result = cloneDeep(base);
-
-    // Apply non-conflicting changes
     for (const op of [...localDelta, ...remoteDelta]) {
       if (!conflicts.includes(op.path)) {
         result = this.applyCustomDelta(result, [op]);
       }
     }
 
-    // Mark conflicts
     for (const path of conflicts) {
       const localOp = localDelta.find(op => op.path === path);
       const remoteOp = remoteDelta.find(op => op.path === path);
-
       set(result, `${path}_conflict`, {
         local: localOp?.value,
         remote: remoteOp?.value,
-        base: get(base, path)
+        base: get(base, path),
       });
     }
 
     return result;
   }
 
-  private getEntityType(entity: SyncableEntity): string {
-    // SyncableEntity only has id, createdAt, updatedAt, and optional _sync
-    // We'll use a generic approach or metadata from _sync
-    if (entity._sync && 'entityType' in entity._sync) {
-      const syncData = entity._sync as { entityType?: string };
-      return syncData.entityType || 'unknown';
-    }
-    // Fallback: try to infer from constructor name or use unknown
-    return entity.constructor?.name?.toLowerCase() || 'unknown';
-  }
+  // === Private: Cache Management ===
 
-  private getEntityId(entity: SyncableEntity): string {
-    return entity.id || 'unknown';
-  }
-
-  private createEmptyDelta(entity?: SyncableEntity): DeltaPayload {
-    return {
-      id: generateDeltaId(),
-      entityType: entity ? this.getEntityType(entity) : 'unknown',
-      entityId: entity ? this.getEntityId(entity) : 'unknown',
-      operations: [],
-      algorithm: 'json-patch',
-      timestamp: Date.now()
-    };
-  }
-
-  private createFullReplacementDelta(
-    data: unknown,
-    originalChecksum?: string,
-    modifiedChecksum?: string
-  ): DeltaPayload {
-    // Try to extract entity info if data is a SyncableEntity
-    const entityType = isSyncableEntity(data) ? this.getEntityType(data) : 'unknown';
-    const entityId = isSyncableEntity(data) ? this.getEntityId(data) : 'unknown';
-
-    return {
-      id: generateDeltaId(),
-      entityType,
-      entityId,
-      operations: [{
-        type: 'replace',
-        path: '',
-        value: data
-      }],
-      algorithm: 'custom',
-      originalChecksum,
-      modifiedChecksum,
-      timestamp: Date.now(),
-      metadata: {
-        fullReplacement: true
-      }
-    };
-  }
-
-  /**
-   * Cache management
-   */
   private getCachedDelta(key: string): DeltaPayload | null {
     const cached = this.checksumCache[key];
-    if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
       return cached.data as unknown as DeltaPayload;
     }
     return null;
@@ -702,7 +503,7 @@ export class DifferentialSyncService {
     this.checksumCache[key] = {
       checksum: key,
       timestamp: Date.now(),
-      data: delta as unknown as Record<string, unknown>
+      data: delta as unknown as Record<string, unknown>,
     };
   }
 
@@ -710,16 +511,15 @@ export class DifferentialSyncService {
     setInterval(() => {
       const now = Date.now();
       for (const key in this.checksumCache) {
-        if (now - this.checksumCache[key].timestamp > this.CACHE_TTL) {
+        if (now - this.checksumCache[key].timestamp > CACHE_TTL) {
           delete this.checksumCache[key];
         }
       }
-    }, 60000); // Cleanup every minute
+    }, CACHE_CLEANUP_INTERVAL);
   }
 
-  /**
-   * Performance tracking
-   */
+  // === Private: Performance Tracking ===
+
   private trackPerformance(operation: string, metrics: Record<string, unknown>): void {
     const key = `${operation}_${Date.now()}`;
     const performanceEntry: DeltaPerformanceMetrics = {
@@ -730,60 +530,21 @@ export class DifferentialSyncService {
       algorithm: metrics.algorithm as string,
       compressionType: metrics.compressionType as string,
       deltaSize: metrics.deltaSize as number,
-      success: metrics.success !== false
+      success: metrics.success !== false,
     };
 
     this.performanceMetrics.set(key, performanceEntry);
-
-    // Emit performance event
-    eventEmitter.emit('performance:delta', {
-      operation,
-      metrics: performanceEntry
-    });
-
-    // Clean old metrics
+    eventEmitter.emit('performance:delta', { operation, metrics: performanceEntry });
     this.cleanOldMetrics();
   }
 
   private cleanOldMetrics(): void {
-    const cutoff = Date.now() - (60 * 60 * 1000); // 1 hour
+    const cutoff = Date.now() - METRICS_RETENTION_MS;
     for (const [key, metric] of this.performanceMetrics) {
       if (metric.timestamp < cutoff) {
         this.performanceMetrics.delete(key);
       }
     }
-  }
-
-  /**
-   * Get performance statistics
-   */
-  getPerformanceStats(operation?: string): Record<string, unknown> | null {
-    const relevantMetrics = Array.from(this.performanceMetrics.values())
-      .filter(m => !operation || m.operation === operation);
-
-    if (relevantMetrics.length === 0) {
-      return null;
-    }
-
-    const durations = relevantMetrics.map(m => m.duration || 0);
-    const avgDuration = durations.reduce((a, b) => a + b, 0) / durations.length;
-
-    return {
-      operation,
-      count: relevantMetrics.length,
-      avgDuration,
-      minDuration: Math.min(...durations),
-      maxDuration: Math.max(...durations),
-      totalOperations: relevantMetrics.reduce((sum, m) => sum + (m.operationCount || 0), 0)
-    };
-  }
-
-  /**
-   * Clear all caches and metrics
-   */
-  clearCache(): void {
-    this.checksumCache = {};
-    this.performanceMetrics.clear();
   }
 }
 

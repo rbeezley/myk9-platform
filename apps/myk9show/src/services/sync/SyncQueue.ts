@@ -1,7 +1,7 @@
 /**
  * Sync Queue Implementation
  * Phase 6.3: Sync & Offline Systems
- * 
+ *
  * Advanced sync queue with priority management, batching, and intelligent retry logic
  * for robust offline-first architecture.
  */
@@ -12,42 +12,26 @@ import { BackoffCalculator } from '../../lib/connectionRecovery';
 import { eventEmitter } from './eventEmitter';
 import type { SyncQueueItem } from '../../types/sync-types';
 import type { SyncProcessor, SyncProcessorResult } from './types/processor';
+import type { SyncQueueConfig, QueueMetrics, QueueStats } from './SyncQueue.types';
+import {
+  DEFAULT_SYNC_QUEUE_CONFIG,
+  SYNC_QUEUE_STORAGE_KEY,
+  QUEUE_PROCESSING_INTERVAL,
+  PERMANENT_FAILURE_RETRY_DELAY,
+  MAX_RETRY_BACKOFF_DELAY,
+  createInitialMetrics,
+} from './SyncQueue.constants';
+import {
+  compareQueueItems,
+  findDuplicateItem,
+  calculateQueueStats,
+  generateQueueItemId,
+  loadQueueFromStorage,
+  saveQueueToStorage,
+} from './SyncQueue.helpers';
 
-export interface SyncQueueConfig {
-  maxQueueSize: number;
-  batchSize: number;
-  retryAttempts: number;
-  retryDelay: number;
-  priorityLevels: number;
-  persistenceEnabled: boolean;
-  compressionEnabled: boolean;
-  deduplicationEnabled: boolean;
-}
-
-export interface QueueMetrics {
-  queueSize: number;
-  itemsProcessed: number;
-  itemsFailed: number;
-  averageProcessingTime: number;
-  lastProcessedAt: Date | null;
-  priorityDistribution: Record<number, number>;
-  retryStats: {
-    totalRetries: number;
-    successfulRetries: number;
-    failedRetries: number;
-  };
-}
-
-export interface QueueStats {
-  totalItems: number;
-  pendingItems: number;
-  processingItems: number;
-  completedItems: number;
-  failedItems: number;
-  highPriorityItems: number;
-  mediumPriorityItems: number;
-  lowPriorityItems: number;
-}
+// Re-export types for backward compatibility
+export type { SyncQueueConfig, QueueMetrics, QueueStats } from './SyncQueue.types';
 
 /**
  * Advanced Sync Queue with Intelligent Processing
@@ -57,7 +41,7 @@ export class SyncQueue {
   private processingItems = new Set<string>();
   private config: SyncQueueConfig;
   private metrics: QueueMetrics;
-  private storageKey = 'myK9Show_sync_queue';
+  private storageKey = SYNC_QUEUE_STORAGE_KEY;
   private isProcessing = false;
   private processingTimer: NodeJS.Timeout | null = null;
   private retryTimers = new Map<string, NodeJS.Timeout>();
@@ -65,18 +49,11 @@ export class SyncQueue {
 
   constructor(customConfig?: Partial<SyncQueueConfig>) {
     this.config = {
-      maxQueueSize: 1000,
-      batchSize: 10,
-      retryAttempts: 5,
-      retryDelay: 1000,
-      priorityLevels: 10,
-      persistenceEnabled: true,
-      compressionEnabled: true,
-      deduplicationEnabled: true,
+      ...DEFAULT_SYNC_QUEUE_CONFIG,
       ...customConfig,
     };
 
-    this.metrics = this.initializeMetrics();
+    this.metrics = createInitialMetrics();
     this.loadFromStorage();
     this.startProcessing();
   }
@@ -84,10 +61,12 @@ export class SyncQueue {
   /**
    * Add item to sync queue with intelligent priority and deduplication
    */
-  enqueue(item: Omit<SyncQueueItem, 'id' | 'timestamp' | 'retryCount' | 'status' | 'processedAt'>): string {
+  enqueue(
+    item: Omit<SyncQueueItem, 'id' | 'timestamp' | 'retryCount' | 'status' | 'processedAt'>
+  ): string {
     const now = new Date();
     const queueItem: SyncQueueItem = {
-      id: `queue-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: generateQueueItemId(),
       timestamp: now,
       retryCount: 0,
       status: 'pending',
@@ -99,9 +78,11 @@ export class SyncQueue {
 
     // Deduplication check
     if (this.config.deduplicationEnabled) {
-      const duplicate = this.findDuplicate(queueItem);
+      const duplicate = findDuplicateItem(this.queue, queueItem);
       if (duplicate) {
-        logger.debug('Duplicate sync item detected, updating existing', 'sync', { itemId: duplicate.id });
+        logger.debug('Duplicate sync item detected, updating existing', 'sync', {
+          itemId: duplicate.id,
+        });
         this.updateItem(duplicate.id, queueItem);
         return duplicate.id;
       }
@@ -115,9 +96,9 @@ export class SyncQueue {
     // Add to queue
     this.queue.push(queueItem);
     this.sortQueue();
-    
+
     // Update metrics
-    this.metrics.priorityDistribution[queueItem.priority] = 
+    this.metrics.priorityDistribution[queueItem.priority] =
       (this.metrics.priorityDistribution[queueItem.priority] || 0) + 1;
 
     // Persist to storage
@@ -125,7 +106,10 @@ export class SyncQueue {
       this.saveToStorage();
     }
 
-    logger.debug('Added sync item to queue', 'sync', { itemId: queueItem.id, priority: queueItem.priority });
+    logger.debug('Added sync item to queue', 'sync', {
+      itemId: queueItem.id,
+      priority: queueItem.priority,
+    });
     return queueItem.id;
   }
 
@@ -153,16 +137,9 @@ export class SyncQueue {
   }
 
   /**
-   * Get next batch of items to process with performance optimization
+   * Get next batch of items to process
    */
   async dequeueBatch(): Promise<SyncQueueItem[]> {
-    return this.dequeueBatchFallback();
-  }
-
-  /**
-   * Fallback batch dequeue without optimization
-   */
-  private dequeueBatchFallback(): SyncQueueItem[] {
     if (this.queue.length === 0) return [];
 
     // Get items that are not currently being processed
@@ -173,16 +150,7 @@ export class SyncQueue {
     if (availableItems.length === 0) return [];
 
     // Sort by priority and get batch
-    const batch = availableItems
-      .sort((a, b) => {
-        // Priority first (higher number = higher priority)
-        if (a.priority !== b.priority) {
-          return b.priority - a.priority;
-        }
-        // Then by scheduled time
-        return a.scheduledFor.getTime() - b.scheduledFor.getTime();
-      })
-      .slice(0, this.config.batchSize);
+    const batch = availableItems.sort(compareQueueItems).slice(0, this.config.batchSize);
 
     // Mark as processing
     batch.forEach(item => {
@@ -215,8 +183,7 @@ export class SyncQueue {
     // Update metrics
     this.metrics.itemsProcessed++;
     const processingTime = Date.now() - item.timestamp.getTime();
-    this.metrics.averageProcessingTime =
-      (this.metrics.averageProcessingTime + processingTime) / 2;
+    this.metrics.averageProcessingTime = (this.metrics.averageProcessingTime + processingTime) / 2;
     this.metrics.lastProcessedAt = new Date();
 
     // Remove from processing set and queue
@@ -234,7 +201,7 @@ export class SyncQueue {
     eventEmitter.emit('sync:operation-completed', {
       operation: item,
       processingTime,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
 
     logger.debug('Sync item completed', 'sync', { itemId });
@@ -263,12 +230,12 @@ export class SyncQueue {
 
     // Log error
     errorMonitor.captureError(error, {
-      additionalData: { 
+      additionalData: {
         syncItemId: itemId,
         retryCount: item.retryCount,
         entityType: item.entityType,
         actionType: item.actionType,
-      }
+      },
     });
 
     // Schedule retry if under limit
@@ -277,24 +244,12 @@ export class SyncQueue {
     } else {
       logger.error('Sync item failed permanently', 'sync', { itemId, retryCount: item.retryCount });
       // Keep in queue for manual intervention or exponentially longer retry
-      item.scheduledFor = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+      item.scheduledFor = new Date(Date.now() + PERMANENT_FAILURE_RETRY_DELAY);
     }
 
     if (this.config.persistenceEnabled) {
       this.saveToStorage();
     }
-  }
-
-  /**
-   * Find duplicate items in queue
-   */
-  private findDuplicate(newItem: SyncQueueItem): SyncQueueItem | null {
-    return this.queue.find(item => 
-      item.entityType === newItem.entityType &&
-      item.entityId === newItem.entityId &&
-      item.actionType === newItem.actionType &&
-      (item.status === 'pending' || item.status === 'processing')
-    ) || null;
   }
 
   /**
@@ -324,7 +279,7 @@ export class SyncQueue {
     const delay = BackoffCalculator.calculateDelay(item.retryCount, {
       maxAttempts: this.config.retryAttempts,
       baseDelay: this.config.retryDelay,
-      maxDelay: 60000, // 1 minute max
+      maxDelay: MAX_RETRY_BACKOFF_DELAY,
       backoffMultiplier: 2,
       jitter: true,
     });
@@ -332,7 +287,11 @@ export class SyncQueue {
     item.scheduledFor = new Date(Date.now() + delay);
     item.status = 'pending';
 
-    logger.debug('Scheduling retry for sync item', 'sync', { itemId: item.id, delay, attempt: item.retryCount });
+    logger.debug('Scheduling retry for sync item', 'sync', {
+      itemId: item.id,
+      delay,
+      attempt: item.retryCount,
+    });
 
     // Set timer to mark as available for processing
     const timer = setTimeout(() => {
@@ -348,8 +307,8 @@ export class SyncQueue {
    */
   private evictLowPriorityItems(): void {
     // Remove completed/failed items first
-    this.queue = this.queue.filter(item => 
-      item.status === 'pending' || item.status === 'processing'
+    this.queue = this.queue.filter(
+      item => item.status === 'pending' || item.status === 'processing'
     );
 
     // If still over limit, remove lowest priority pending items
@@ -373,14 +332,7 @@ export class SyncQueue {
    * Sort queue by priority and scheduled time
    */
   private sortQueue(): void {
-    this.queue.sort((a, b) => {
-      // Priority first (higher number = higher priority)
-      if (a.priority !== b.priority) {
-        return b.priority - a.priority;
-      }
-      // Then by scheduled time (earlier first)
-      return a.scheduledFor.getTime() - b.scheduledFor.getTime();
-    });
+    this.queue.sort(compareQueueItems);
   }
 
   /**
@@ -395,7 +347,7 @@ export class SyncQueue {
       if (!this.isProcessing) {
         this.processQueue();
       }
-    }, 5000); // Process every 5 seconds
+    }, QUEUE_PROCESSING_INTERVAL);
   }
 
   /**
@@ -408,22 +360,23 @@ export class SyncQueue {
 
     try {
       const batch = await this.dequeueBatch();
-      
+
       if (batch.length > 0) {
         logger.debug('Processing sync batch', 'sync', { batchSize: batch.length });
-        
+
         // Process batch (actual sync logic would be implemented here)
-        await Promise.allSettled(
-          batch.map(item => this.processItem(item))
-        );
+        await Promise.allSettled(batch.map(item => this.processItem(item)));
       }
-
     } catch (error) {
-      logger.error('Error processing sync queue', 'sync', { queueSize: this.queue.length }, error as Error);
+      logger.error(
+        'Error processing sync queue',
+        'sync',
+        { queueSize: this.queue.length },
+        error as Error
+      );
       errorMonitor.captureError(error as Error, {
-        additionalData: { queueSize: this.queue.length }
+        additionalData: { queueSize: this.queue.length },
       });
-
     } finally {
       this.isProcessing = false;
     }
@@ -434,7 +387,11 @@ export class SyncQueue {
    */
   private async processItem(item: SyncQueueItem): Promise<void> {
     try {
-      logger.debug('Processing sync item', 'sync', { itemId: item.id, entityType: item.entityType, actionType: item.actionType });
+      logger.debug('Processing sync item', 'sync', {
+        itemId: item.id,
+        entityType: item.entityType,
+        actionType: item.actionType,
+      });
 
       // Get the processor for this entity type
       const processor = this.processors.get(item.entityType);
@@ -469,11 +426,12 @@ export class SyncQueue {
         }
       } else {
         // No processor registered - use legacy stub behavior
-        logger.warn('No processor registered for entity type', 'sync', { entityType: item.entityType });
+        logger.warn('No processor registered for entity type', 'sync', {
+          entityType: item.entityType,
+        });
         await new Promise(resolve => setTimeout(resolve, 100));
         this.markCompleted(item.id);
       }
-
     } catch (error) {
       this.markFailed(item.id, error as Error);
     }
@@ -491,57 +449,15 @@ export class SyncQueue {
   }
 
   /**
-   * Initialize metrics
-   */
-  private initializeMetrics(): QueueMetrics {
-    return {
-      queueSize: 0,
-      itemsProcessed: 0,
-      itemsFailed: 0,
-      averageProcessingTime: 0,
-      lastProcessedAt: null,
-      priorityDistribution: {},
-      retryStats: {
-        totalRetries: 0,
-        successfulRetries: 0,
-        failedRetries: 0,
-      },
-    };
-  }
-
-  /**
    * Load queue from localStorage
    */
   private loadFromStorage(): void {
     if (!this.config.persistenceEnabled) return;
 
-    try {
-      const stored = localStorage.getItem(this.storageKey);
-      if (stored) {
-        const data = JSON.parse(stored);
-        this.queue = data.queue?.map((item: Record<string, unknown>) => ({
-          ...item,
-          timestamp: new Date(item.timestamp as string),
-          scheduledFor: new Date((item.scheduledFor as string) || (item.timestamp as string)), // Fallback to timestamp if scheduledFor missing
-          processedAt: item.processedAt ? new Date(item.processedAt as string) : undefined,
-          retries: (item.retries as number) || (item.retryCount as number) || 0, // Ensure retries field exists
-          retryCount: (item.retryCount as number) || (item.retries as number) || 0, // Ensure retryCount field exists
-        } as SyncQueueItem)) || [];
-        
-        this.metrics = { ...this.metrics, ...data.metrics };
-        
-        // Reset processing status for items that were being processed
-        this.queue.forEach(item => {
-          if (item.status === 'processing') {
-            item.status = 'pending';
-          }
-        });
-        
-        this.sortQueue();
-        logger.info('Loaded sync items from storage', 'sync', { count: this.queue.length });
-      }
-    } catch (error) {
-      logger.error('Failed to load sync queue from storage', 'sync', {}, error as Error);
+    const result = loadQueueFromStorage(this.storageKey);
+    if (result) {
+      this.queue = result.queue;
+      this.metrics = { ...this.metrics, ...result.metrics };
     }
   }
 
@@ -550,64 +466,14 @@ export class SyncQueue {
    */
   private saveToStorage(): void {
     if (!this.config.persistenceEnabled) return;
-
-    try {
-      const data = {
-        queue: this.queue,
-        metrics: this.metrics,
-        timestamp: Date.now(),
-      };
-
-      localStorage.setItem(this.storageKey, JSON.stringify(data));
-    } catch (error) {
-      logger.error('Failed to save sync queue to storage', 'sync', {}, error as Error);
-    }
+    saveQueueToStorage(this.storageKey, this.queue, this.metrics);
   }
 
   /**
    * Get queue statistics
    */
   getStats(): QueueStats {
-    const stats = this.queue.reduce((acc, item) => {
-      acc.totalItems++;
-      
-      switch (item.status) {
-        case 'pending':
-          acc.pendingItems++;
-          break;
-        case 'processing':
-          acc.processingItems++;
-          break;
-        case 'completed':
-          acc.completedItems++;
-          break;
-        case 'failed':
-          acc.failedItems++;
-          break;
-      }
-
-      // Count by priority (assuming 1-3 scale)
-      if (item.priority >= 7) {
-        acc.highPriorityItems++;
-      } else if (item.priority >= 4) {
-        acc.mediumPriorityItems++;
-      } else {
-        acc.lowPriorityItems++;
-      }
-
-      return acc;
-    }, {
-      totalItems: 0,
-      pendingItems: 0,
-      processingItems: 0,
-      completedItems: 0,
-      failedItems: 0,
-      highPriorityItems: 0,
-      mediumPriorityItems: 0,
-      lowPriorityItems: 0,
-    });
-
-    return stats;
+    return calculateQueueStats(this.queue);
   }
 
   /**
@@ -650,7 +516,7 @@ export class SyncQueue {
 
     this.queue.splice(index, 1);
     this.processingItems.delete(itemId);
-    
+
     // Clear retry timer if exists
     const retryTimer = this.retryTimers.get(itemId);
     if (retryTimer) {
@@ -685,12 +551,12 @@ export class SyncQueue {
   clear(): void {
     this.queue = [];
     this.processingItems.clear();
-    
+
     // Clear all retry timers
     this.retryTimers.forEach(timer => clearTimeout(timer));
     this.retryTimers.clear();
 
-    this.metrics = this.initializeMetrics();
+    this.metrics = createInitialMetrics();
 
     if (this.config.persistenceEnabled) {
       this.saveToStorage();
@@ -732,7 +598,7 @@ export class SyncQueue {
    */
   updateConfig(updates: Partial<SyncQueueConfig>): void {
     this.config = { ...this.config, ...updates };
-    
+
     // Restart processing if batch size or timing changed
     if (updates.batchSize) {
       this.pause();
@@ -746,16 +612,16 @@ export class SyncQueue {
   destroy(): void {
     // Stop processing
     this.pause();
-    
+
     // Clear all timers
     this.retryTimers.forEach(timer => clearTimeout(timer));
     this.retryTimers.clear();
-    
+
     // Save final state
     if (this.config.persistenceEnabled) {
       this.saveToStorage();
     }
-    
+
     logger.info('Sync queue destroyed', 'sync');
   }
 }

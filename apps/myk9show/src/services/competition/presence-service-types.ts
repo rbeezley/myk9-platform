@@ -31,10 +31,12 @@ export interface UserPresence {
     type: 'desktop' | 'tablet' | 'mobile';
     os: string;
     browser: string;
-    screen?: {
-      width: number;
-      height: number;
-    } | undefined;
+    screen?:
+      | {
+          width: number;
+          height: number;
+        }
+      | undefined;
   };
   preferences: {
     showPresence: boolean;
@@ -64,11 +66,13 @@ export interface ActivityIndicator {
   intensity: 'low' | 'medium' | 'high';
   startedAt: Date;
   expiresAt: Date;
-  metadata?: {
-    targetElement?: string | undefined;
-    progress?: number | undefined;
-    estimatedCompletion?: Date | undefined;
-  } | undefined;
+  metadata?:
+    | {
+        targetElement?: string | undefined;
+        progress?: number | undefined;
+        estimatedCompletion?: Date | undefined;
+      }
+    | undefined;
   [key: string]: unknown; // Index signature for broadcast compatibility
 }
 
@@ -92,4 +96,15 @@ export interface PresenceAnalytics {
     activityLevel: 'low' | 'medium' | 'high';
   }>;
   lastUpdated: Date;
+}
+
+export interface PresenceServiceConfig {
+  heartbeatIntervalMs: number;
+  idleTimeoutMs: number;
+  awayTimeoutMs: number;
+  offlineTimeoutMs: number;
+  activityIndicatorTimeoutMs: number;
+  maxPresenceHistoryHours: number;
+  enableActivityTracking: boolean;
+  enableAnalytics: boolean;
 }

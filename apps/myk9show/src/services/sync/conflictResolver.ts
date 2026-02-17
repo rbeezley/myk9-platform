@@ -1,7 +1,7 @@
 /**
  * Conflict Resolution Service
  * Phase 6.3: Sync & Offline Systems
- * 
+ *
  * Intelligent conflict resolution with multiple strategies for handling
  * data conflicts in offline-first architecture.
  */
@@ -11,45 +11,33 @@ import { logger } from '@/services/LoggingService';
 import type {
   SyncConflict,
   ResolutionStrategy,
-  EnhancedConflictResolution
+  EnhancedConflictResolution,
 } from '../../types/sync-types';
+import {
+  DEFAULT_CONFLICT_RESOLVER_CONFIG,
+  CLEANUP_INTERVAL_MS,
+  createInitialMetrics,
+} from './conflictResolver.constants';
+import {
+  deepEqual,
+  categorizeConflict,
+  analyzeFieldConflict,
+  resolveFieldConflict,
+  selectDefaultFieldValue,
+} from './conflictResolver.helpers';
+import type {
+  ConflictResolverConfig,
+  ConflictMetrics,
+  MergeResult,
+} from './conflictResolver.types';
 
-export interface ConflictResolverConfig {
-  defaultStrategy: ResolutionStrategy;
-  autoResolveThreshold: number; // 0-1, confidence threshold for auto-resolution
-  maxConflictAge: number; // ms, how long to keep unresolved conflicts
-  enableSmartMerging: boolean;
-  enableFieldLevelResolution: boolean;
-  enableUserPreferences: boolean;
-}
-
-export interface ConflictMetrics {
-  totalConflicts: number;
-  resolvedConflicts: number;
-  autoResolvedConflicts: number;
-  manualResolvedConflicts: number;
-  conflictsByStrategy: Record<ResolutionStrategy, number>;
-  averageResolutionTime: number;
-  conflictsByEntity: Record<string, number>;
-}
-
-export interface FieldConflict {
-  fieldName: string;
-  localValue: unknown;
-  remoteValue: unknown;
-  baseValue?: unknown; // For three-way merge
-  suggestion: ResolutionStrategy;
-  confidence: number;
-  reason: string;
-}
-
-export interface MergeResult {
-  success: boolean;
-  mergedData: Record<string, unknown>;
-  conflicts: FieldConflict[];
-  warnings: string[];
-  confidence: number;
-}
+// Re-export types for external consumers
+export type {
+  ConflictResolverConfig,
+  ConflictMetrics,
+  FieldConflict,
+  MergeResult,
+} from './conflictResolver.types';
 
 /**
  * Advanced Conflict Resolution Engine
@@ -63,16 +51,11 @@ export class ConflictResolver {
 
   constructor(customConfig?: Partial<ConflictResolverConfig>) {
     this.config = {
-      defaultStrategy: 'newest_wins',
-      autoResolveThreshold: 0.8,
-      maxConflictAge: 24 * 60 * 60 * 1000, // 24 hours
-      enableSmartMerging: true,
-      enableFieldLevelResolution: true,
-      enableUserPreferences: true,
+      ...DEFAULT_CONFLICT_RESOLVER_CONFIG,
       ...customConfig,
     };
 
-    this.metrics = this.initializeMetrics();
+    this.metrics = createInitialMetrics();
     this.startCleanupRoutine();
   }
 
@@ -87,7 +70,7 @@ export class ConflictResolver {
     baseData?: Record<string, unknown>
   ): SyncConflict | null {
     // Quick check - if data is identical, no conflict
-    if (this.deepEqual(localData, remoteData)) {
+    if (deepEqual(localData, remoteData)) {
       return null;
     }
 
@@ -103,7 +86,7 @@ export class ConflictResolver {
       createdAt: new Date(),
       priority: 'medium',
       status: 'pending',
-      conflictType: this.categorizeConflict(localData, remoteData, baseData),
+      conflictType: categorizeConflict(localData, remoteData, baseData),
       conflictFields: [],
       lastModified: {
         local: new Date(), // Placeholder - should be actual modification time
@@ -149,18 +132,12 @@ export class ConflictResolver {
     }
 
     const startTime = Date.now();
-    
+
     try {
-      const resolution = await this.applyResolutionStrategy(
-        conflict,
-        strategy,
-        customData
-      );
+      const resolution = await this.applyResolutionStrategy(conflict, strategy, customData);
 
       // Update conflict status
       conflict.status = 'resolved';
-      // Store resolution separately (BaseConflict doesn't have resolution property)
-      // conflict.resolution = resolution;
 
       // Update metrics
       this.updateResolutionMetrics(strategy, Date.now() - startTime);
@@ -172,11 +149,10 @@ export class ConflictResolver {
 
       logger.debug('Conflict resolved', 'sync', { conflictId, strategy });
       return resolution;
-
     } catch (error) {
       conflict.status = 'escalated'; // Use valid status instead of 'rejected'
       errorMonitor.captureError(error as Error, {
-        additionalData: { conflictId, strategy }
+        additionalData: { conflictId, strategy },
       });
       throw error;
     }
@@ -225,7 +201,6 @@ export class ConflictResolver {
           reason: fc.reason,
           confidence: fc.confidence,
         }));
-        // resolution.warnings = mergeResult.warnings; // Property doesn't exist
         break;
       }
 
@@ -236,7 +211,6 @@ export class ConflictResolver {
         resolution.resolvedEntity = customData;
         resolution.confidence = 1.0;
         resolution.resolutionNotes = 'Manual resolution by user';
-        // resolution.appliedBy = 'user'; // Property doesn't exist
         break;
 
       case 'retry_later':
@@ -282,230 +256,41 @@ export class ConflictResolver {
       const baseValue = base?.[fieldName];
 
       // If values are the same, no conflict
-      if (this.deepEqual(localValue, remoteValue)) {
+      if (deepEqual(localValue, remoteValue)) {
         result.mergedData[fieldName] = localValue;
         continue;
       }
 
       // Analyze field conflict
-      const fieldConflict = this.analyzeFieldConflict(
-        fieldName,
-        localValue,
-        remoteValue,
-        baseValue
-      );
+      const fieldConflict = analyzeFieldConflict(fieldName, localValue, remoteValue, baseValue);
 
       // Apply field-level resolution
-      const resolution = this.resolveFieldConflict(fieldConflict);
-      
-      if (resolution.confidence >= this.config.autoResolveThreshold) {
-        result.mergedData[fieldName] = resolution.value;
-        result.confidence = Math.min(result.confidence, resolution.confidence);
+      const fieldResolution = resolveFieldConflict(fieldConflict);
+
+      if (fieldResolution.confidence >= this.config.autoResolveThreshold) {
+        result.mergedData[fieldName] = fieldResolution.value;
+        result.confidence = Math.min(result.confidence, fieldResolution.confidence);
       } else {
         // Add to unresolved conflicts
         result.conflicts.push(fieldConflict);
         result.success = false;
-        
+
         // Use a default value for now
-        result.mergedData[fieldName] = this.selectDefaultFieldValue(
+        result.mergedData[fieldName] = selectDefaultFieldValue(
           fieldName,
           localValue,
-          remoteValue
+          remoteValue,
+          this.userPreferences
         );
       }
     }
 
     // Adjust overall confidence based on conflicts
     if (result.conflicts.length > 0) {
-      result.confidence *= Math.max(0.3, 1 - (result.conflicts.length * 0.2));
+      result.confidence *= Math.max(0.3, 1 - result.conflicts.length * 0.2);
     }
 
     return result;
-  }
-
-  /**
-   * Analyze individual field conflict
-   */
-  private analyzeFieldConflict(
-    fieldName: string,
-    localValue: unknown,
-    remoteValue: unknown,
-    baseValue?: unknown
-  ): FieldConflict {
-    const conflict: FieldConflict = {
-      fieldName,
-      localValue,
-      remoteValue,
-      baseValue,
-      suggestion: 'newest_wins',
-      confidence: 0.5,
-      reason: 'Default resolution',
-    };
-
-    // Special handling for common field patterns
-    if (fieldName.includes('timestamp') || fieldName.includes('_at')) {
-      // For timestamps, prefer the more recent one
-      const localTime = this.parseTimestamp(localValue);
-      const remoteTime = this.parseTimestamp(remoteValue);
-      
-      if (localTime && remoteTime) {
-        if (localTime > remoteTime) {
-          conflict.suggestion = 'local_wins';
-          conflict.reason = 'Local timestamp is more recent';
-        } else {
-          conflict.suggestion = 'newest_wins';
-          conflict.reason = 'Remote timestamp is more recent';
-        }
-        conflict.confidence = 0.9;
-      }
-    } else if (fieldName.includes('version') || fieldName === 'v') {
-      // For version fields, prefer the higher version
-      const localVersion = this.parseVersion(localValue);
-      const remoteVersion = this.parseVersion(remoteValue);
-      
-      if (localVersion !== null && remoteVersion !== null) {
-        if (localVersion > remoteVersion) {
-          conflict.suggestion = 'local_wins';
-          conflict.reason = 'Local version is higher';
-        } else {
-          conflict.suggestion = 'newest_wins';
-          conflict.reason = 'Remote version is higher';
-        }
-        conflict.confidence = 0.85;
-      }
-    } else if (typeof localValue === 'string' && typeof remoteValue === 'string') {
-      // For string fields, analyze content
-      const localLength = localValue.length;
-      const remoteLength = remoteValue.length;
-      
-      if (Math.abs(localLength - remoteLength) > localLength * 0.5) {
-        // Significant length difference - prefer longer one (more content)
-        if (localLength > remoteLength) {
-          conflict.suggestion = 'local_wins';
-          conflict.reason = 'Local value has more content';
-        } else {
-          conflict.suggestion = 'newest_wins';
-          conflict.reason = 'Remote value has more content';
-        }
-        conflict.confidence = 0.7;
-      }
-    } else if (Array.isArray(localValue) && Array.isArray(remoteValue)) {
-      // For arrays, we could merge them
-      conflict.suggestion = 'merge_automatic';
-      conflict.reason = 'Arrays can be merged';
-      conflict.confidence = 0.8;
-    }
-
-    // Three-way merge analysis if base value is available
-    if (baseValue !== undefined) {
-      if (this.deepEqual(localValue, baseValue)) {
-        // Local unchanged, remote changed
-        conflict.suggestion = 'newest_wins';
-        conflict.reason = 'Local unchanged, using remote changes';
-        conflict.confidence = 0.95;
-      } else if (this.deepEqual(remoteValue, baseValue)) {
-        // Remote unchanged, local changed
-        conflict.suggestion = 'local_wins';
-        conflict.reason = 'Remote unchanged, using local changes';
-        conflict.confidence = 0.95;
-      }
-    }
-
-    return conflict;
-  }
-
-  /**
-   * Resolve individual field conflict
-   */
-  private resolveFieldConflict(conflict: FieldConflict): {
-    value: unknown;
-    confidence: number;
-  } {
-    switch (conflict.suggestion) {
-      case 'local_wins':
-        return {
-          value: conflict.localValue,
-          confidence: conflict.confidence,
-        };
-
-      case 'newest_wins':
-        return {
-          value: conflict.remoteValue,
-          confidence: conflict.confidence,
-        };
-
-      case 'merge_automatic':
-        // Attempt to merge arrays or objects
-        if (Array.isArray(conflict.localValue) && Array.isArray(conflict.remoteValue)) {
-          return {
-            value: [...new Set([...conflict.localValue, ...conflict.remoteValue])],
-            confidence: conflict.confidence,
-          };
-        }
-        // For other types, fall back to last write wins
-        return {
-          value: conflict.remoteValue,
-          confidence: conflict.confidence * 0.8,
-        };
-
-      default:
-        return {
-          value: conflict.remoteValue,
-          confidence: 0.5,
-        };
-    }
-  }
-
-  /**
-   * Select default field value when resolution fails
-   */
-  private selectDefaultFieldValue(
-    fieldName: string,
-    localValue: unknown,
-    remoteValue: unknown
-  ): unknown {
-    // Use user preference if available
-    const userPreference = this.userPreferences.get(fieldName);
-    if (userPreference) {
-      switch (userPreference) {
-        case 'local_wins':
-          return localValue;
-        case 'newest_wins':
-          return remoteValue;
-      }
-    }
-
-    // Default to remote value (last write wins)
-    return remoteValue;
-  }
-
-  /**
-   * Categorize conflict type
-   */
-  private categorizeConflict(
-    localData: Record<string, unknown>,
-    remoteData: Record<string, unknown>,
-    baseData?: Record<string, unknown>
-  ): SyncConflict['conflictType'] {
-    // Check for creation conflicts
-    if (!baseData) {
-      return 'concurrent_edit';
-    }
-
-    // Check for deletion conflicts
-    if (Object.keys(localData).length === 0 || Object.keys(remoteData).length === 0) {
-      return 'version_mismatch';
-    }
-
-    // Check for edit conflicts
-    const localChanged = !this.deepEqual(localData, baseData);
-    const remoteChanged = !this.deepEqual(remoteData, baseData);
-
-    if (localChanged && remoteChanged) {
-      return 'sync_conflict';
-    }
-
-    return 'sync_conflict'; // Default
   }
 
   /**
@@ -528,7 +313,6 @@ export class ConflictResolver {
     }
 
     // For now, auto-resolve based on conflict type since conflictFields is just string[]
-    // In the future, we could add a separate fieldConflicts array with confidence scores
     return conflict.conflictFields.length <= 2; // Simple heuristic for auto-resolution
   }
 
@@ -545,72 +329,15 @@ export class ConflictResolver {
         logger.debug('Auto-resolved conflict', 'sync', { conflictId: conflict.id, strategy });
       })
       .catch(error => {
-        logger.error('Failed to auto-resolve conflict', 'sync', { conflictId: conflict.id }, error as Error);
+        logger.error(
+          'Failed to auto-resolve conflict',
+          'sync',
+          { conflictId: conflict.id },
+          error as Error
+        );
       });
 
     return conflict;
-  }
-
-  /**
-   * Parse timestamp from various formats
-   */
-  private parseTimestamp(value: unknown): number | null {
-    if (typeof value === 'number') {
-      return value;
-    }
-    if (typeof value === 'string') {
-      const timestamp = Date.parse(value);
-      return isNaN(timestamp) ? null : timestamp;
-    }
-    if (value instanceof Date) {
-      return value.getTime();
-    }
-    return null;
-  }
-
-  /**
-   * Parse version number
-   */
-  private parseVersion(value: unknown): number | null {
-    if (typeof value === 'number') {
-      return value;
-    }
-    if (typeof value === 'string') {
-      const version = parseFloat(value);
-      return isNaN(version) ? null : version;
-    }
-    return null;
-  }
-
-  /**
-   * Deep equality check
-   */
-  private deepEqual(a: unknown, b: unknown): boolean {
-    if (a === b) return true;
-    
-    if (a == null || b == null) return a === b;
-    
-    if (typeof a !== typeof b) return false;
-    
-    if (typeof a === 'object') {
-      const aObj = a as Record<string, unknown>;
-      const bObj = b as Record<string, unknown>;
-      
-      const aKeys = Object.keys(aObj);
-      const bKeys = Object.keys(bObj);
-      
-      if (aKeys.length !== bKeys.length) return false;
-      
-      for (const key of aKeys) {
-        if (!bKeys.includes(key) || !this.deepEqual(aObj[key], bObj[key])) {
-          return false;
-        }
-      }
-      
-      return true;
-    }
-    
-    return false;
   }
 
   /**
@@ -618,11 +345,10 @@ export class ConflictResolver {
    */
   private updateResolutionMetrics(strategy: ResolutionStrategy, timeMs: number): void {
     this.metrics.resolvedConflicts++;
-    this.metrics.conflictsByStrategy[strategy] = 
+    this.metrics.conflictsByStrategy[strategy] =
       (this.metrics.conflictsByStrategy[strategy] || 0) + 1;
-    
-    this.metrics.averageResolutionTime = 
-      (this.metrics.averageResolutionTime + timeMs) / 2;
+
+    this.metrics.averageResolutionTime = (this.metrics.averageResolutionTime + timeMs) / 2;
 
     if (strategy !== 'user_decides') {
       this.metrics.autoResolvedConflicts++;
@@ -632,39 +358,12 @@ export class ConflictResolver {
   }
 
   /**
-   * Initialize metrics
-   */
-  private initializeMetrics(): ConflictMetrics {
-    return {
-      totalConflicts: 0,
-      resolvedConflicts: 0,
-      autoResolvedConflicts: 0,
-      manualResolvedConflicts: 0,
-      conflictsByStrategy: {
-        local_wins: 0,
-        remote_wins: 0,
-        server_wins: 0,
-        merge_automatic: 0,
-        merge_manual: 0,
-        newest_wins: 0,
-        user_decides: 0,
-        escalate: 0,
-        retry_later: 0,
-        ignore: 0,
-        rollback: 0,
-      },
-      averageResolutionTime: 0,
-      conflictsByEntity: {},
-    };
-  }
-
-  /**
    * Start cleanup routine for old conflicts
    */
   private startCleanupRoutine(): void {
     this.cleanupTimer = setInterval(() => {
       this.cleanupOldConflicts();
-    }, 60 * 60 * 1000); // Run every hour
+    }, CLEANUP_INTERVAL_MS);
   }
 
   /**
@@ -691,9 +390,7 @@ export class ConflictResolver {
    * Get all pending conflicts
    */
   getPendingConflicts(): SyncConflict[] {
-    return Array.from(this.conflicts.values()).filter(
-      conflict => conflict.status === 'pending'
-    );
+    return Array.from(this.conflicts.values()).filter(conflict => conflict.status === 'pending');
   }
 
   /**
@@ -708,8 +405,8 @@ export class ConflictResolver {
    */
   getConflictsByEntity(entityType: string, entityId?: string): SyncConflict[] {
     return Array.from(this.conflicts.values()).filter(
-      conflict => conflict.entityType === entityType && 
-                 (!entityId || conflict.entityId === entityId)
+      conflict =>
+        conflict.entityType === entityType && (!entityId || conflict.entityId === entityId)
     );
   }
 
@@ -740,7 +437,7 @@ export class ConflictResolver {
    */
   clearConflicts(): void {
     this.conflicts.clear();
-    this.metrics = this.initializeMetrics();
+    this.metrics = createInitialMetrics();
     logger.debug('All conflicts cleared', 'sync');
   }
 
@@ -766,7 +463,7 @@ export class ConflictResolver {
       clearInterval(this.cleanupTimer);
       this.cleanupTimer = null;
     }
-    
+
     this.conflicts.clear();
     this.userPreferences.clear();
 

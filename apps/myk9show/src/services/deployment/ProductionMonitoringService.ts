@@ -6,10 +6,7 @@
  */
 
 import { logger } from '@/services/LoggingService';
-import {
-  MonitoringConfig,
-  MetricType,
-} from '../../types/deployment-types';
+import { MonitoringConfig, MetricType } from '../../types/deployment-types';
 
 import type {
   ErrorReport,
@@ -21,8 +18,7 @@ import type {
   LocationInfo,
   UserSession,
   AlertRule,
-  AlertCondition,
-  Alert
+  Alert,
 } from './production-monitoring-types';
 
 import {
@@ -31,7 +27,20 @@ import {
   getDeviceInfo,
   getMetricUnit,
   parseUTMParameters,
+  getMemoryInfo,
+  evaluateAlertCondition,
+  getErrorSummary,
+  getPerformanceSummary,
+  getUserSummary,
+  getAlertSummary,
 } from './production-monitoring-helpers';
+
+import {
+  DEFAULT_MONITORING_CONFIG,
+  DEFAULT_ALERT_RULES,
+  MONITORING_INTERVALS,
+  DATA_RETENTION_MS,
+} from './production-monitoring-constants';
 
 // Re-export all types so existing consumers can still import from this file
 export type {
@@ -46,15 +55,11 @@ export type {
   UserSession,
   AlertRule,
   AlertCondition,
-  Alert
+  Alert,
 } from './production-monitoring-types';
 
 // Re-export types that aren't used in this file but were previously accessible
-export type {
-  TransactionTrace,
-  TraceSpan,
-  SpanLog
-} from './production-monitoring-types';
+export type { TransactionTrace, TraceSpan, SpanLog } from './production-monitoring-types';
 
 /**
  * Main Production Monitoring Service
@@ -71,8 +76,8 @@ export class ProductionMonitoringService {
   private isInitialized = false;
 
   private constructor() {
-    this.config = this.getDefaultConfig();
-    this.initializeDefaultAlertRules();
+    this.config = { ...DEFAULT_MONITORING_CONFIG };
+    this.alertRules = [...DEFAULT_ALERT_RULES];
   }
 
   public static getInstance(): ProductionMonitoringService {
@@ -107,7 +112,6 @@ export class ProductionMonitoringService {
 
       this.isInitialized = true;
       logger.info('Production monitoring initialized successfully', 'monitoring');
-
     } catch (error) {
       logger.error('Failed to initialize production monitoring', 'monitoring', {}, error as Error);
       throw error;
@@ -143,14 +147,14 @@ export class ProductionMonitoringService {
         userAgent: navigator.userAgent,
         url: window.location.href,
         breadcrumbs: this.getBreadcrumbs(),
-        ...context
+        ...context,
       },
       fingerprint,
       count: 1,
       firstSeen: new Date(),
       lastSeen: new Date(),
       resolved: false,
-      tags: this.extractErrorTags(error, context)
+      tags: this.extractErrorTags(error, context),
     };
 
     this.errors.push(errorReport);
@@ -173,7 +177,7 @@ export class ProductionMonitoringService {
       // Add to session breadcrumbs (stored in memory/sessionStorage)
       this.addBreadcrumbToSession(session.id, {
         ...breadcrumb,
-        timestamp: new Date()
+        timestamp: new Date(),
       });
     }
   }
@@ -183,7 +187,12 @@ export class ProductionMonitoringService {
   /**
    * Record a performance metric
    */
-  public recordMetric(name: string, value: number, type: MetricType = 'gauge', tags: Record<string, string> = {}): void {
+  public recordMetric(
+    name: string,
+    value: number,
+    type: MetricType = 'gauge',
+    tags: Record<string, string> = {}
+  ): void {
     const metric: PerformanceMetric = {
       id: generateId('metric'),
       name,
@@ -193,9 +202,9 @@ export class ProductionMonitoringService {
       timestamp: new Date(),
       tags: {
         ...tags,
-        environment: this.config.errorTracking?.environment || 'production'
+        environment: this.config.errorTracking?.environment || 'production',
       },
-      source: 'browser'
+      source: 'browser',
     };
 
     this.performanceMetrics.push(metric);
@@ -214,14 +223,14 @@ export class ProductionMonitoringService {
     const report: WebVitalsReport = {
       ...vitals,
       sessionId: this.getCurrentSessionId(),
-      timestamp: new Date()
+      timestamp: new Date(),
     };
 
     // Record individual metrics
     Object.entries(report.metrics).forEach(([key, value]) => {
       this.recordMetric(`web_vitals.${key}`, value, 'gauge', {
         url: report.url,
-        device_type: report.deviceInfo.type
+        device_type: report.deviceInfo.type,
       });
     });
 
@@ -254,7 +263,11 @@ export class ProductionMonitoringService {
   /**
    * Track a user event
    */
-  public trackEvent(event: string, properties: Record<string, unknown> = {}, userId?: string): void {
+  public trackEvent(
+    event: string,
+    properties: Record<string, unknown> = {},
+    userId?: string
+  ): void {
     const userEvent: UserEvent = {
       id: generateId('event'),
       event,
@@ -264,10 +277,10 @@ export class ProductionMonitoringService {
       properties: {
         ...properties,
         page_url: window.location.href,
-        page_title: document.title
+        page_title: document.title,
       },
       deviceInfo: getDeviceInfo(),
-      location: this.getLocationInfo()
+      location: this.getLocationInfo(),
     };
 
     this.userEvents.push(userEvent);
@@ -286,7 +299,7 @@ export class ProductionMonitoringService {
     this.trackEvent('page_view', {
       url: url || window.location.href,
       referrer: document.referrer,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
 
     // Update session page view count
@@ -304,10 +317,14 @@ export class ProductionMonitoringService {
       session.userId = userId;
     }
 
-    this.trackEvent('identify', {
-      user_id: userId,
-      traits
-    }, userId);
+    this.trackEvent(
+      'identify',
+      {
+        user_id: userId,
+        traits,
+      },
+      userId
+    );
   }
 
   // === Alert Management ===
@@ -319,7 +336,7 @@ export class ProductionMonitoringService {
     const ruleId = generateId('alert_rule');
     const alertRule: AlertRule = {
       ...rule,
-      id: ruleId
+      id: ruleId,
     };
 
     this.alertRules.push(alertRule);
@@ -329,7 +346,11 @@ export class ProductionMonitoringService {
   /**
    * Trigger an alert
    */
-  private triggerAlert(rule: AlertRule, value: number, context: Record<string, unknown> = {}): void {
+  private triggerAlert(
+    rule: AlertRule,
+    value: number,
+    context: Record<string, unknown> = {}
+  ): void {
     // Check cooldown period
     if (rule.lastTriggered) {
       const timeSinceLastAlert = Date.now() - rule.lastTriggered.getTime();
@@ -347,7 +368,7 @@ export class ProductionMonitoringService {
       value,
       threshold: rule.threshold,
       context,
-      acknowledged: false
+      acknowledged: false,
     };
 
     this.alerts.push(alert);
@@ -380,94 +401,36 @@ export class ProductionMonitoringService {
   /**
    * Get monitoring dashboard data
    */
-  public getDashboardData(): {
-    errors: {
-      total: number;
-      recent: number;
-      byLevel: Record<string, number>;
-      topErrors: ErrorReport[];
-    };
-    performance: {
-      avgResponseTime: number;
-      errorRate: number;
-      throughput: number;
-      webVitals: {
-        fcp: number;
-        lcp: number;
-        fid: number;
-        cls: number;
-      };
-    };
-    users: {
-      activeUsers: number;
-      totalSessions: number;
-      avgSessionDuration: number;
-      topEvents: Array<{ event: string; count: number }>;
-    };
-    alerts: {
-      active: number;
-      acknowledged: number;
-      resolved: number;
-      recent: Alert[];
-    };
-  } {
+  public getDashboardData() {
     const now = new Date();
-    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const oneDayAgo = new Date(now.getTime() - DATA_RETENTION_MS);
 
     return {
-      errors: this.getErrorSummary(oneDayAgo, now),
-      performance: this.getPerformanceSummary(oneDayAgo, now),
-      users: this.getUserSummary(oneDayAgo, now),
-      alerts: this.getAlertSummary(oneDayAgo, now)
+      errors: getErrorSummary(this.errors, oneDayAgo, now),
+      performance: getPerformanceSummary(this.performanceMetrics, oneDayAgo, now),
+      users: getUserSummary(this.sessions, this.userEvents, oneDayAgo, now),
+      alerts: getAlertSummary(this.alerts, oneDayAgo, now),
     };
   }
 
   // === Private Implementation Methods ===
-
-  private getDefaultConfig(): MonitoringConfig {
-    return {
-      errorTracking: {
-        provider: 'sentry',
-        dsn: 'https://mock-sentry-dsn@sentry.io/project',
-        environment: 'production',
-        sampleRate: 1.0,
-        enableSourceMaps: true,
-        filterErrors: ['Network Error', 'Script error']
-      },
-      performanceMonitoring: {
-        provider: 'sentry',
-        apiKey: 'mock-api-key',
-        traceSampleRate: 0.1,
-        enableProfiling: false,
-        enableWebVitals: true
-      },
-      userAnalytics: {
-        provider: 'mixpanel',
-        apiKey: 'mock-mixpanel-key',
-        trackPageViews: true,
-        trackUserEvents: true,
-        enableHeatmaps: false
-      },
-      customMetrics: []
-    };
-  }
 
   private async initializeErrorTracking(): Promise<void> {
     // Initialize error tracking provider (Sentry, Bugsnag, etc.)
     logger.debug('Initializing error tracking', 'monitoring');
 
     // Set up global error handlers
-    window.addEventListener('error', (event) => {
+    window.addEventListener('error', event => {
       this.reportError(new Error(event.message), {
         url: event.filename,
         additionalData: {
           lineNumber: event.lineno,
-          columnNumber: event.colno
-        }
+          columnNumber: event.colno,
+        },
       });
     });
 
-    window.addEventListener('unhandledrejection', (event) => {
+    window.addEventListener('unhandledrejection', event => {
       this.reportError(new Error(`Unhandled Promise Rejection: ${event.reason}`));
     });
   }
@@ -496,57 +459,17 @@ export class ProductionMonitoringService {
   }
 
   private startMonitoringLoops(): void {
-    // Monitor performance metrics
     setInterval(() => {
       this.collectSystemMetrics();
-    }, 60000); // Every minute
+    }, MONITORING_INTERVALS.SYSTEM_METRICS);
 
-    // Clean up old data
     setInterval(() => {
       this.cleanupOldData();
-    }, 300000); // Every 5 minutes
+    }, MONITORING_INTERVALS.DATA_CLEANUP);
 
-    // Check alert conditions
     setInterval(() => {
       this.evaluateAlertRules();
-    }, 30000); // Every 30 seconds
-  }
-
-  private initializeDefaultAlertRules(): void {
-    this.alertRules = [
-      {
-        id: 'high_error_rate',
-        name: 'High Error Rate',
-        description: 'Error rate exceeds 5% over 5 minutes',
-        metric: 'error_rate',
-        condition: {
-          operator: 'gt',
-          timeWindow: 5,
-          aggregation: 'avg'
-        },
-        threshold: 0.05,
-        severity: 'error',
-        enabled: true,
-        channels: ['email', 'slack'],
-        cooldown: 15
-      },
-      {
-        id: 'slow_response_time',
-        name: 'Slow Response Time',
-        description: 'Average response time exceeds 2 seconds',
-        metric: 'response_time',
-        condition: {
-          operator: 'gt',
-          timeWindow: 10,
-          aggregation: 'avg'
-        },
-        threshold: 2000,
-        severity: 'warning',
-        enabled: true,
-        channels: ['slack'],
-        cooldown: 30
-      }
-    ];
+    }, MONITORING_INTERVALS.ALERT_EVALUATION);
   }
 
   private getCurrentSessionId(): string {
@@ -579,7 +502,7 @@ export class ProductionMonitoringService {
       events: 0,
       deviceInfo: getDeviceInfo(),
       referrer: document.referrer,
-      utm: parseUTMParameters()
+      utm: parseUTMParameters(),
     };
 
     this.sessions.push(session);
@@ -592,110 +515,29 @@ export class ProductionMonitoringService {
 
   // Placeholder implementations for external service integrations
   private sendToErrorTrackingService(error: ErrorReport): void {
-    logger.debug('Sending error to tracking service', 'monitoring', { errorMessage: error.message });
+    logger.debug('Sending error to tracking service', 'monitoring', {
+      errorMessage: error.message,
+    });
   }
 
   private sendToPerformanceService(metric: PerformanceMetric): void {
-    logger.debug('Sending performance metric', 'monitoring', { name: metric.name, value: metric.value });
+    logger.debug('Sending performance metric', 'monitoring', {
+      name: metric.name,
+      value: metric.value,
+    });
   }
 
   private sendToAnalyticsService(event: UserEvent): void {
-    logger.debug('Sending user event', 'monitoring', { event: event.event, properties: event.properties });
+    logger.debug('Sending user event', 'monitoring', {
+      event: event.event,
+      properties: event.properties,
+    });
   }
 
   private sendAlertNotifications(alert: Alert, rule: AlertRule): void {
     rule.channels.forEach(channel => {
       logger.debug('Sending alert notification', 'monitoring', { channel, message: alert.message });
     });
-  }
-
-  // Data aggregation methods
-  private getErrorSummary(startTime: Date, endTime: Date) {
-    const recentErrors = this.errors.filter(e =>
-      e.timestamp >= startTime && e.timestamp <= endTime
-    );
-
-    return {
-      total: this.errors.length,
-      recent: recentErrors.length,
-      byLevel: recentErrors.reduce((acc, error) => {
-        acc[error.level] = (acc[error.level] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>),
-      topErrors: recentErrors.slice(0, 10)
-    };
-  }
-
-  private getPerformanceSummary(startTime: Date, endTime: Date) {
-    const recentMetrics = this.performanceMetrics.filter(m =>
-      m.timestamp >= startTime && m.timestamp <= endTime
-    );
-
-    return {
-      avgResponseTime: this.calculateAverage(recentMetrics.filter(m => m.name === 'response_time')),
-      errorRate: 0.02, // Placeholder
-      throughput: recentMetrics.filter(m => m.name === 'requests').length,
-      webVitals: {
-        fcp: this.calculateAverage(recentMetrics.filter(m => m.name === 'web_vitals.fcp')),
-        lcp: this.calculateAverage(recentMetrics.filter(m => m.name === 'web_vitals.lcp')),
-        fid: this.calculateAverage(recentMetrics.filter(m => m.name === 'web_vitals.fid')),
-        cls: this.calculateAverage(recentMetrics.filter(m => m.name === 'web_vitals.cls'))
-      }
-    };
-  }
-
-  private getUserSummary(startTime: Date, endTime: Date) {
-    const recentSessions = this.sessions.filter(s =>
-      s.startTime >= startTime && s.startTime <= endTime
-    );
-
-    const recentEvents = this.userEvents.filter(e =>
-      e.timestamp >= startTime && e.timestamp <= endTime
-    );
-
-    return {
-      activeUsers: new Set(recentSessions.map(s => s.userId).filter(Boolean)).size,
-      totalSessions: recentSessions.length,
-      avgSessionDuration: this.calculateAverageSessionDuration(recentSessions),
-      topEvents: this.getTopEvents(recentEvents)
-    };
-  }
-
-  private getAlertSummary(startTime: Date, endTime: Date) {
-    const recentAlerts = this.alerts.filter(a =>
-      a.triggered >= startTime && a.triggered <= endTime
-    );
-
-    return {
-      active: this.alerts.filter(a => !a.resolved && !a.acknowledged).length,
-      acknowledged: this.alerts.filter(a => a.acknowledged && !a.resolved).length,
-      resolved: this.alerts.filter(a => a.resolved).length,
-      recent: recentAlerts.slice(0, 10)
-    };
-  }
-
-  // Helper methods
-  private calculateAverage(metrics: PerformanceMetric[]): number {
-    if (metrics.length === 0) return 0;
-    return metrics.reduce((sum, m) => sum + m.value, 0) / metrics.length;
-  }
-
-  private calculateAverageSessionDuration(sessions: UserSession[]): number {
-    const completedSessions = sessions.filter(s => s.duration);
-    if (completedSessions.length === 0) return 0;
-    return completedSessions.reduce((sum, s) => sum + (s.duration || 0), 0) / completedSessions.length;
-  }
-
-  private getTopEvents(events: UserEvent[]): Array<{ event: string; count: number }> {
-    const eventCounts = events.reduce((acc, event) => {
-      acc[event.event] = (acc[event.event] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    return Object.entries(eventCounts)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 10)
-      .map(([event, count]) => ({ event, count }));
   }
 
   // Placeholder implementations
@@ -712,7 +554,7 @@ export class ProductionMonitoringService {
     return {
       error_type: error.name,
       component: context?.component || 'unknown',
-      url: window.location.pathname
+      url: window.location.pathname,
     };
   }
 
@@ -746,24 +588,15 @@ export class ProductionMonitoringService {
   }
 
   private collectSystemMetrics(): void {
-    // Collect browser performance metrics
-    if ('memory' in performance) {
-      const memory = (performance as Performance & {
-        memory?: {
-          usedJSHeapSize: number;
-          totalJSHeapSize: number;
-          jsHeapSizeLimit: number;
-        }
-      }).memory;
-      if (memory) {
-        this.recordMetric('memory.used', memory.usedJSHeapSize, 'gauge');
-        this.recordMetric('memory.total', memory.totalJSHeapSize, 'gauge');
-      }
+    const memoryInfo = getMemoryInfo();
+    if (memoryInfo) {
+      this.recordMetric('memory.used', memoryInfo.usedJSHeapSize, 'gauge');
+      this.recordMetric('memory.total', memoryInfo.totalJSHeapSize, 'gauge');
     }
   }
 
   private cleanupOldData(): void {
-    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours
+    const cutoff = new Date(Date.now() - DATA_RETENTION_MS);
 
     this.errors = this.errors.filter(e => e.timestamp > cutoff);
     this.performanceMetrics = this.performanceMetrics.filter(m => m.timestamp > cutoff);
@@ -771,27 +604,13 @@ export class ProductionMonitoringService {
   }
 
   private evaluateAlertRules(): void {
-    // Evaluate alert conditions (simplified implementation)
     for (const rule of this.alertRules) {
       if (!rule.enabled) continue;
 
-      // This would contain complex metric aggregation logic
       const mockValue = Math.random() * 100;
-      if (this.evaluateAlertCondition(rule.condition, mockValue, rule.threshold)) {
+      if (evaluateAlertCondition(rule.condition, mockValue, rule.threshold)) {
         this.triggerAlert(rule, mockValue);
       }
-    }
-  }
-
-  private evaluateAlertCondition(condition: AlertCondition, value: number, threshold: number): boolean {
-    switch (condition.operator) {
-      case 'gt': return value > threshold;
-      case 'lt': return value < threshold;
-      case 'gte': return value >= threshold;
-      case 'lte': return value <= threshold;
-      case 'eq': return value === threshold;
-      case 'ne': return value !== threshold;
-      default: return false;
     }
   }
 }

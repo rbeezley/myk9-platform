@@ -10,28 +10,32 @@ import { subscriptionManager } from '../realtime/subscriptionManager';
 import { errorMonitor } from '../../lib/errorMonitoring';
 import { logger } from '../../services/LoggingService';
 import type { PresenceTrackingData } from '../../types/realtime-types';
-
-// Import types from extracted module
 import type {
   UserPresence,
   PresenceGroup,
   ActivityIndicator,
   PresenceAnalytics,
+  PresenceServiceConfig,
 } from './presence-service-types';
-
-// Import utility functions from extracted module
 import {
-  getRoleBadgeColor,
   getActivityIntensity,
-  detectDeviceType,
-  detectOS,
-  detectBrowser,
-  getScreenSize,
   initializeAnalytics,
+  convertToPresenceTrackingData,
+  mapPresenceToUserPresence,
+  buildCurrentUser,
+  computeUserStatus,
+  getGroupUsers,
+  computeAnalytics,
 } from './presence-service-utils';
+import { DEFAULT_PRESENCE_CONFIG } from './presence-service-constants';
 
 // Re-export types for backward compatibility
-export type { UserPresence, PresenceGroup, ActivityIndicator, PresenceAnalytics } from './presence-service-types';
+export type {
+  UserPresence,
+  PresenceGroup,
+  ActivityIndicator,
+  PresenceAnalytics,
+} from './presence-service-types';
 
 /**
  * Service for tracking and managing user presence in live competitions
@@ -61,19 +65,11 @@ export class PresenceService {
   private groupUpdateListeners = new Set<(group: PresenceGroup) => void>();
 
   // Configuration
-  private config = {
-    heartbeatIntervalMs: 15000, // 15 seconds
-    idleTimeoutMs: 2 * 60 * 1000, // 2 minutes
-    awayTimeoutMs: 5 * 60 * 1000, // 5 minutes
-    offlineTimeoutMs: 10 * 60 * 1000, // 10 minutes
-    activityIndicatorTimeoutMs: 30000, // 30 seconds
-    maxPresenceHistoryHours: 24,
-    enableActivityTracking: true,
-    enableAnalytics: true,
-  };
+  private config: PresenceServiceConfig;
 
   constructor(showId: string) {
     this.showId = showId;
+    this.config = { ...DEFAULT_PRESENCE_CONFIG };
     this.analytics = initializeAnalytics(showId);
   }
 
@@ -89,10 +85,8 @@ export class PresenceService {
     try {
       logger.debug('Starting presence service', 'presence', { showId: this.showId });
 
-      // Initialize current user
-      await this.initializeCurrentUser(currentUserData);
+      this.initializeCurrentUser(currentUserData);
 
-      // Subscribe to presence channel
       const presenceSubscriptionId = await subscriptionManager.subscribeToPresence(
         `presence-${this.showId}`,
         this.handlePresenceChange.bind(this)
@@ -100,33 +94,23 @@ export class PresenceService {
 
       this.subscriptions.set('presence', presenceSubscriptionId);
 
-      // Track current user presence
       if (this.currentUser) {
         await subscriptionManager.trackPresence(
           `presence-${this.showId}`,
-          this.convertToPresenceTrackingData(this.currentUser)
+          convertToPresenceTrackingData(this.currentUser)
         );
       }
 
-      // Start heartbeat
       this.startHeartbeat();
-
-      // Start activity monitoring
-      if (this.config.enableActivityTracking) {
-        this.startActivityMonitoring();
-      }
-
-      // Start analytics collection
-      if (this.config.enableAnalytics) {
-        this.startAnalyticsCollection();
-      }
-
+      if (this.config.enableActivityTracking) this.startActivityMonitoring();
+      if (this.config.enableAnalytics) this.startAnalyticsCollection();
       this.isActive = true;
-      logger.info('Presence service started successfully', 'presence', { showId: this.showId });
-
+      logger.info('Presence service started successfully', 'presence', {
+        showId: this.showId,
+      });
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { showId: this.showId, currentUserData }
+        additionalData: { showId: this.showId, currentUserData },
       });
       throw error;
     }
@@ -141,26 +125,16 @@ export class PresenceService {
     try {
       logger.debug('Stopping presence service', 'presence');
 
-      // Stop tracking current user presence
       await subscriptionManager.untrackPresence(`presence-${this.showId}`);
 
-      // Unsubscribe from presence updates
       for (const [, subscriptionId] of this.subscriptions) {
         await subscriptionManager.unsubscribe(subscriptionId);
       }
 
-      // Clear timers
-      if (this.heartbeatTimer) {
-        clearInterval(this.heartbeatTimer);
-      }
-      if (this.activityTimer) {
-        clearInterval(this.activityTimer);
-      }
-      if (this.analyticsTimer) {
-        clearInterval(this.analyticsTimer);
-      }
+      if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
+      if (this.activityTimer) clearInterval(this.activityTimer);
+      if (this.analyticsTimer) clearInterval(this.analyticsTimer);
 
-      // Clear data
       this.userPresences.clear();
       this.presenceGroups.clear();
       this.activityIndicators.clear();
@@ -169,10 +143,9 @@ export class PresenceService {
 
       this.isActive = false;
       logger.info('Presence service stopped', 'presence');
-
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { showId: this.showId }
+        additionalData: { showId: this.showId },
       });
     }
   }
@@ -185,63 +158,20 @@ export class PresenceService {
       const now = new Date();
       const activeUserIds = new Set<string>();
 
-      // Process each presence
       presences.forEach(presence => {
         activeUserIds.add(presence.user_id);
 
         const existingUser = this.userPresences.get(presence.user_id);
         const isNewUser = !existingUser;
 
-        const userPresence: UserPresence = {
-          userId: presence.user_id,
-          userName: presence.user_name,
-          displayName: presence.user_name,
-          role: presence.role,
-          status: presence.status,
-          lastSeen: new Date(presence.last_seen),
-          joinedAt: existingUser?.joinedAt || now,
-          location: {
-            page: 'unknown',
-            showId: presence.show_id || this.showId,
-            classId: presence.class_id,
-          },
-          activity: existingUser?.activity || {
-            type: 'viewing',
-            description: 'Viewing competition',
-            startedAt: now,
-          },
-          device: presence.device_info || {
-            type: 'desktop',
-            os: 'unknown',
-            browser: 'unknown',
-          },
-          preferences: existingUser?.preferences || {
-            showPresence: true,
-            showActivity: true,
-            notificationLevel: 'all',
-          },
-          badgeColor: getRoleBadgeColor(presence.role),
-        };
+        const userPresence = mapPresenceToUserPresence(presence, existingUser, this.showId, now);
 
         this.userPresences.set(presence.user_id, userPresence);
 
-        // Trigger appropriate listeners
         if (isNewUser) {
-          this.userJoinedListeners.forEach(listener => {
-            try {
-              listener(userPresence);
-            } catch (error) {
-              logger.error('Error in user joined listener', 'presence', {}, error as Error);
-            }
-          });
+          this.notifyListeners(this.userJoinedListeners, userPresence, 'user joined');
         } else {
-          this.userUpdatedListeners.forEach(listener => {
-            try {
-              listener(userPresence);
-            } catch (error) {
-              logger.error('Error in user updated listener', 'presence', {}, error as Error);
-            }
-          });
+          this.notifyListeners(this.userUpdatedListeners, userPresence, 'user updated');
         }
       });
 
@@ -250,103 +180,70 @@ export class PresenceService {
       for (const userId of currentUserIds) {
         if (!activeUserIds.has(userId)) {
           this.userPresences.delete(userId);
-
-          this.userLeftListeners.forEach(listener => {
-            try {
-              listener(userId);
-            } catch (error) {
-              logger.error('Error in user left listener', 'presence', {}, error as Error);
-            }
-          });
+          this.notifyListeners(this.userLeftListeners, userId, 'user left');
         }
       }
 
-      // Update groups
       this.updatePresenceGroups();
-
-      // Update analytics
       this.updateAnalytics();
 
       logger.debug('Presence updated', 'presence', { usersOnline: presences.length });
-
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { presenceCount: presences.length, showId: this.showId }
+        additionalData: { presenceCount: presences.length, showId: this.showId },
       });
     }
   }
 
   /**
-   * Update current user's location
+   * Safely notify a set of listeners, catching errors in each.
    */
+  private notifyListeners<T>(listeners: Set<(arg: T) => void>, arg: T, context: string): void {
+    listeners.forEach(listener => {
+      try {
+        listener(arg);
+      } catch (error) {
+        logger.error(`Error in ${context} listener`, 'presence', {}, error as Error);
+      }
+    });
+  }
+
+  /** Update current user's location */
   async updateUserLocation(location: UserPresence['location']): Promise<void> {
     if (!this.currentUser) return;
-
-    try {
-      this.currentUser.location = { ...this.currentUser.location, ...location };
-      this.currentUser.lastSeen = new Date();
-
-      // Update in presence tracking
-      await subscriptionManager.trackPresence(
-        `presence-${this.showId}`,
-        this.convertToPresenceTrackingData(this.currentUser)
-      );
-
-      logger.debug('Location updated', 'presence', { page: location.page, section: location.section });
-
-    } catch (error) {
-      errorMonitor.captureError(error as Error, {
-        additionalData: { location, showId: this.showId }
-      });
-    }
+    this.currentUser.location = { ...this.currentUser.location, ...location };
+    await this.syncCurrentUser({ location, showId: this.showId });
+    logger.debug('Location updated', 'presence', { page: location.page });
   }
 
-  /**
-   * Update current user's activity
-   */
+  /** Update current user's activity */
   async updateUserActivity(activity: UserPresence['activity']): Promise<void> {
     if (!this.currentUser) return;
-
-    try {
-      this.currentUser.activity = activity;
-      this.currentUser.lastSeen = new Date();
-
-      // Update in presence tracking
-      await subscriptionManager.trackPresence(
-        `presence-${this.showId}`,
-        this.convertToPresenceTrackingData(this.currentUser)
-      );
-
-      logger.debug('Activity updated', 'presence', { type: activity.type, description: activity.description });
-
-    } catch (error) {
-      errorMonitor.captureError(error as Error, {
-        additionalData: { activity, showId: this.showId }
-      });
-    }
+    this.currentUser.activity = activity;
+    await this.syncCurrentUser({ activity, showId: this.showId });
+    logger.debug('Activity updated', 'presence', { type: activity.type });
   }
 
-  /**
-   * Update current user's status
-   */
+  /** Update current user's status */
   async updateUserStatus(status: UserPresence['status']): Promise<void> {
     if (!this.currentUser) return;
+    this.currentUser.status = status;
+    await this.syncCurrentUser({ status, showId: this.showId });
+    logger.debug('Status updated', 'presence', { status });
+  }
 
+  /** Sync current user's state to the presence channel */
+  private async syncCurrentUser(errorContext: Record<string, unknown>): Promise<void> {
+    if (!this.currentUser) return;
     try {
-      this.currentUser.status = status;
       this.currentUser.lastSeen = new Date();
-
-      // Update in presence tracking
       await subscriptionManager.trackPresence(
         `presence-${this.showId}`,
-        this.convertToPresenceTrackingData(this.currentUser)
+        convertToPresenceTrackingData(this.currentUser)
       );
-
-      logger.debug('Status updated', 'presence', { status });
-
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { status, showId: this.showId }
+        additionalData: errorContext,
       });
     }
   }
@@ -374,30 +271,18 @@ export class PresenceService {
 
       this.activityIndicators.set(this.currentUser.userId, indicator);
 
-      // Broadcast activity indicator
       await subscriptionManager.broadcast(`presence-${this.showId}`, {
         type: 'activity-indicator',
         payload: indicator,
-        metadata: {
-          priority: 'low',
-          timestamp: Date.now(),
-        },
+        metadata: { priority: 'low', timestamp: Date.now() },
       });
 
-      // Trigger listeners
-      this.activityListeners.forEach(listener => {
-        try {
-          listener(indicator);
-        } catch (error) {
-          logger.error('Error in activity listener', 'presence', {}, error as Error);
-        }
-      });
+      this.notifyListeners(this.activityListeners, indicator, 'activity');
 
       logger.debug('Activity indicator', 'presence', { type, context });
-
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { type, context, metadata, showId: this.showId }
+        additionalData: { type, context, metadata, showId: this.showId },
       });
     }
   }
@@ -411,19 +296,14 @@ export class PresenceService {
     try {
       this.activityIndicators.delete(this.currentUser.userId);
 
-      // Broadcast removal
       await subscriptionManager.broadcast(`presence-${this.showId}`, {
         type: 'activity-indicator-removed',
         payload: { userId: this.currentUser.userId },
-        metadata: {
-          priority: 'low',
-          timestamp: Date.now(),
-        },
+        metadata: { priority: 'low', timestamp: Date.now() },
       });
-
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { showId: this.showId }
+        additionalData: { showId: this.showId },
       });
     }
   }
@@ -454,60 +334,37 @@ export class PresenceService {
       this.updatePresenceGroups();
 
       logger.debug('Presence group created', 'presence', { id, name, type });
-
     } catch (error) {
       errorMonitor.captureError(error as Error, {
-        additionalData: { id, name, type, description, showId: this.showId }
+        additionalData: { id, name, type, description, showId: this.showId },
       });
     }
   }
 
-  /**
-   * Get users by role
-   */
   getUsersByRole(role: UserPresence['role']): UserPresence[] {
-    return Array.from(this.userPresences.values())
-      .filter(user => user.role === role);
+    return Array.from(this.userPresences.values()).filter(user => user.role === role);
   }
 
-  /**
-   * Get users by status
-   */
   getUsersByStatus(status: UserPresence['status']): UserPresence[] {
-    return Array.from(this.userPresences.values())
-      .filter(user => user.status === status);
+    return Array.from(this.userPresences.values()).filter(user => user.status === status);
   }
 
-  /**
-   * Get users by location
-   */
   getUsersByLocation(page: string, section?: string): UserPresence[] {
-    return Array.from(this.userPresences.values())
-      .filter(user =>
-        user.location.page === page &&
-        (!section || user.location.section === section)
-      );
+    return Array.from(this.userPresences.values()).filter(
+      user => user.location.page === page && (!section || user.location.section === section)
+    );
   }
 
-  /**
-   * Get active judges
-   */
   getActiveJudges(): UserPresence[] {
-    return this.getUsersByRole('judge')
-      .filter(user => user.status === 'active' || user.status === 'busy');
+    return this.getUsersByRole('judge').filter(
+      user => user.status === 'active' || user.status === 'busy'
+    );
   }
 
-  /**
-   * Get online stewards
-   */
   getOnlineStewards(): UserPresence[] {
-    return this.getUsersByRole('steward')
-      .filter(user => user.status !== 'offline');
+    return this.getUsersByRole('steward').filter(user => user.status !== 'offline');
   }
 
-  /**
-   * Event listener management
-   */
   onUserJoined(listener: (user: UserPresence) => void): () => void {
     this.userJoinedListeners.add(listener);
     return () => this.userJoinedListeners.delete(listener);
@@ -533,9 +390,6 @@ export class PresenceService {
     return () => this.groupUpdateListeners.delete(listener);
   }
 
-  /**
-   * Data access methods
-   */
   getAllUsers(): UserPresence[] {
     return Array.from(this.userPresences.values());
   }
@@ -557,68 +411,25 @@ export class PresenceService {
   }
 
   getActivityIndicators(): ActivityIndicator[] {
-    return Array.from(this.activityIndicators.values())
-      .filter(indicator => indicator.expiresAt > new Date());
+    return Array.from(this.activityIndicators.values()).filter(
+      indicator => indicator.expiresAt > new Date()
+    );
   }
 
   getAnalytics(): PresenceAnalytics {
     return { ...this.analytics };
   }
 
-  /**
-   * Private helper methods
-   */
-  private async initializeCurrentUser(userData: Partial<UserPresence>): Promise<void> {
-    const now = new Date();
-
-    this.currentUser = {
-      userId: userData.userId || 'unknown',
-      userName: userData.userName || 'Unknown User',
-      displayName: userData.displayName || userData.userName || 'Unknown User',
-      role: userData.role || 'observer',
-      status: 'active',
-      lastSeen: now,
-      joinedAt: now,
-      location: {
-        page: 'dashboard',
-        showId: this.showId,
-        ...userData.location,
-      },
-      activity: {
-        type: 'viewing',
-        description: 'Viewing competition',
-        startedAt: now,
-        ...userData.activity,
-      },
-      device: {
-        type: detectDeviceType(),
-        os: detectOS(),
-        browser: detectBrowser(),
-        screen: getScreenSize(),
-        ...userData.device,
-      },
-      preferences: {
-        showPresence: true,
-        showActivity: true,
-        notificationLevel: 'all',
-        ...userData.preferences,
-      },
-      avatar: userData.avatar,
-      badgeColor: getRoleBadgeColor(userData.role || 'observer'),
-    };
+  isServiceActive(): boolean {
+    return this.isActive;
   }
 
-  private convertToPresenceTrackingData(user: UserPresence): PresenceTrackingData {
-    return {
-      user_id: user.userId,
-      user_name: user.userName,
-      role: (['judge', 'secretary', 'steward'].includes(user.role) ? user.role : 'judge') as 'judge' | 'secretary' | 'steward',
-      class_id: user.location.classId,
-      show_id: user.location.showId,
-      status: (['active', 'idle', 'away'].includes(user.status) ? user.status : 'active') as 'active' | 'idle' | 'away',
-      last_seen: user.lastSeen.toISOString(),
-      device_info: user.device,
-    };
+  updateConfig(updates: Partial<PresenceServiceConfig>): void {
+    this.config = { ...this.config, ...updates };
+  }
+
+  private initializeCurrentUser(userData: Partial<UserPresence>): void {
+    this.currentUser = buildCurrentUser(userData, this.showId, new Date());
   }
 
   private startHeartbeat(): void {
@@ -626,12 +437,11 @@ export class PresenceService {
       if (this.currentUser) {
         this.currentUser.lastSeen = new Date();
 
-        subscriptionManager.trackPresence(
-          `presence-${this.showId}`,
-          this.convertToPresenceTrackingData(this.currentUser)
-        ).catch(error => {
-          logger.error('Heartbeat failed', 'presence', {}, error as Error);
-        });
+        subscriptionManager
+          .trackPresence(`presence-${this.showId}`, convertToPresenceTrackingData(this.currentUser))
+          .catch(error => {
+            logger.error('Heartbeat failed', 'presence', {}, error as Error);
+          });
       }
     }, this.config.heartbeatIntervalMs);
   }
@@ -640,34 +450,24 @@ export class PresenceService {
     this.activityTimer = setInterval(() => {
       this.updateUserStatuses();
       this.cleanupExpiredIndicators();
-    }, 30000); // Check every 30 seconds
+    }, 30000);
   }
 
   private startAnalyticsCollection(): void {
     this.analyticsTimer = setInterval(() => {
       this.updateAnalytics();
-    }, 60000); // Update analytics every minute
+    }, 60000);
   }
 
   private updateUserStatuses(): void {
     const now = new Date();
-
     this.userPresences.forEach(user => {
-      const timeSinceLastSeen = now.getTime() - user.lastSeen.getTime();
-
-      if (timeSinceLastSeen > this.config.offlineTimeoutMs) {
-        user.status = 'offline';
-      } else if (timeSinceLastSeen > this.config.awayTimeoutMs) {
-        user.status = 'away';
-      } else if (timeSinceLastSeen > this.config.idleTimeoutMs) {
-        user.status = 'idle';
-      }
+      user.status = computeUserStatus(user.lastSeen, now, this.config);
     });
   }
 
   private cleanupExpiredIndicators(): void {
     const now = new Date();
-
     for (const [userId, indicator] of this.activityIndicators) {
       if (indicator.expiresAt < now) {
         this.activityIndicators.delete(userId);
@@ -676,90 +476,20 @@ export class PresenceService {
   }
 
   private updatePresenceGroups(): void {
+    const allUsers = Array.from(this.userPresences.values());
+
     this.presenceGroups.forEach(group => {
-      // Update user list based on group criteria
-      const groupUsers = this.getGroupUsers(group);
+      const groupUsers = getGroupUsers(group, allUsers);
       group.users = groupUsers;
       group.userCount = groupUsers.length;
 
-      // Trigger listeners
-      this.groupUpdateListeners.forEach(listener => {
-        try {
-          listener(group);
-        } catch (error) {
-          logger.error('Error in group update listener', 'presence', {}, error as Error);
-        }
-      });
+      this.notifyListeners(this.groupUpdateListeners, group, 'group update');
     });
-  }
-
-  private getGroupUsers(group: PresenceGroup): UserPresence[] {
-    const allUsers = Array.from(this.userPresences.values());
-
-    switch (group.type) {
-      case 'class':
-        return allUsers.filter(user => user.location.classId === group.classId);
-      case 'ring':
-        return allUsers.filter(user =>
-          user.location.page === 'ring' || user.activity.type === 'scoring'
-        );
-      case 'check-in':
-        return allUsers.filter(user =>
-          user.location.page === 'check-in' || user.activity.type === 'checking-in'
-        );
-      case 'scoring':
-        return allUsers.filter(user =>
-          user.activity.type === 'scoring' || user.activity.type === 'judging'
-        );
-      default:
-        return allUsers;
-    }
   }
 
   private updateAnalytics(): void {
     const users = Array.from(this.userPresences.values());
-
-    this.analytics.totalUsers = users.length;
-    this.analytics.activeUsers = users.filter(u => u.status === 'active').length;
-
-    // Update peak concurrent users
-    if (this.analytics.activeUsers > this.analytics.peakConcurrentUsers) {
-      this.analytics.peakConcurrentUsers = this.analytics.activeUsers;
-    }
-
-    // Count by role
-    this.analytics.usersByRole = {};
-    users.forEach(user => {
-      this.analytics.usersByRole[user.role] = (this.analytics.usersByRole[user.role] || 0) + 1;
-    });
-
-    // Count by status
-    this.analytics.usersByStatus = {};
-    users.forEach(user => {
-      this.analytics.usersByStatus[user.status] = (this.analytics.usersByStatus[user.status] || 0) + 1;
-    });
-
-    // Count by device
-    this.analytics.usersByDevice = {};
-    users.forEach(user => {
-      this.analytics.usersByDevice[user.device.type] = (this.analytics.usersByDevice[user.device.type] || 0) + 1;
-    });
-
-    this.analytics.lastUpdated = new Date();
-  }
-
-  /**
-   * Check if service is active
-   */
-  isServiceActive(): boolean {
-    return this.isActive;
-  }
-
-  /**
-   * Update configuration
-   */
-  updateConfig(updates: Partial<typeof this.config>): void {
-    this.config = { ...this.config, ...updates };
+    computeAnalytics(this.analytics, users);
   }
 }
 

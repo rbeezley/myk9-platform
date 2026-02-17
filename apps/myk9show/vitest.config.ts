@@ -22,11 +22,12 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
+      reportOnFailure: true,
       thresholds: {
-        statements: 20,
-        branches: 20,
-        functions: 20,
-        lines: 20,
+        statements: 33,
+        branches: 24,
+        functions: 29,
+        lines: 35,
       },
       exclude: ['node_modules/', 'src/test/', '**/*.d.ts', '**/*.config.*', '**/types/**'],
     },

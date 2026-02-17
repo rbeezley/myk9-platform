@@ -17,6 +17,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
+      reportOnFailure: true,
       thresholds: {
         statements: 51,
         branches: 46,

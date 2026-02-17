@@ -59,7 +59,16 @@ Top 3 source files over 800 lines — refactor when next modified:
 - [x] Zero `as any` casts remain across entire codebase (packages + myk9show + myk9q)
 - [x] `no-explicit-any` is now `error` everywhere — prevents regression
 
+## Code Quality Sprint — Session 4 Complete (2026-02-17)
+
+- [x] Triaged 40 source files over 700 lines, prioritized 15 files (755+ lines)
+- [x] Refactored 11 service files via 4 parallel sub-agents (batch 1)
+- [x] Refactored 4 component/hook files via 2 parallel sub-agents (batch 2)
+- [x] 11 of 15 files now under 500 lines; 4 slightly over (cohesive classes)
+- [x] Created 38 new sibling modules (.types.ts, .helpers.ts, .constants.ts, sub-components)
+- [x] Full quality gate passes: typecheck (0 errors), lint (0 errors), build (success)
+- ~28 files remain in the 700-750 range — address when naturally touched
+
 ### Remaining Sessions
 
-- [ ] Session 4: Large File Refactoring (~15 files over 700 lines)
 - [ ] Session 5: E2E Tests in CI + Polish

@@ -1,22 +1,24 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
 import { useTemplateStore } from '@/store/templateStore';
-import { 
-  createMockTemplate, 
+import {
+  createMockTemplate,
   createMockTemplates,
-  createAKCScentWorkTemplate 
+  createAKCScentWorkTemplate,
 } from '@/test/utils/mockData';
 import { Organization, ShowType } from '@/types/template.types';
+
+const TEST_USER = 'test-user';
 
 // Mock localStorage
 const mockLocalStorage = {
   getItem: vi.fn(),
   setItem: vi.fn(),
   removeItem: vi.fn(),
-  clear: vi.fn()
+  clear: vi.fn(),
 };
 
 Object.defineProperty(window, 'localStorage', {
-  value: mockLocalStorage
+  value: mockLocalStorage,
 });
 
 describe('Template Store', () => {
@@ -27,9 +29,9 @@ describe('Template Store', () => {
       activeTemplate: null,
       searchQuery: '',
       filterOrganization: null,
-      filterShowType: null
+      filterShowType: null,
     });
-    
+
     // Clear localStorage mocks
     vi.clearAllMocks();
   });
@@ -41,7 +43,7 @@ describe('Template Store', () => {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { id, createdAt, createdBy, ...templateData } = template;
 
-      const createdTemplate = store.createTemplate(templateData);
+      const createdTemplate = store.createTemplate(templateData, TEST_USER);
 
       const state = useTemplateStore.getState();
       expect(state.templates).toHaveLength(1);
@@ -55,9 +57,9 @@ describe('Template Store', () => {
       const template = createMockTemplate({ templateName: 'Original Name' });
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { id, createdAt, createdBy, ...templateData } = template;
-      
-      const createdTemplate = store.createTemplate(templateData);
-      store.updateTemplate(createdTemplate.id, { templateName: 'Updated Name' });
+
+      const createdTemplate = store.createTemplate(templateData, TEST_USER);
+      store.updateTemplate(createdTemplate.id, { templateName: 'Updated Name' }, TEST_USER);
 
       const state = useTemplateStore.getState();
       const updatedTemplate = state.templates.find(t => t.id === createdTemplate.id);
@@ -70,32 +72,36 @@ describe('Template Store', () => {
       const template = createMockTemplate();
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { id, createdAt, createdBy, ...templateData } = template;
-      
-      const createdTemplate = store.createTemplate(templateData);
+
+      const createdTemplate = store.createTemplate(templateData, TEST_USER);
       expect(useTemplateStore.getState().templates).toHaveLength(1);
-      
+
       store.deleteTemplate(createdTemplate.id);
       expect(useTemplateStore.getState().templates).toHaveLength(0);
     });
 
     test('duplicates a template with new ID and version', () => {
       const store = useTemplateStore.getState();
-      const original = createMockTemplate({ 
+      const original = createMockTemplate({
         templateName: 'Original Template',
-        version: '1.0.0'
+        version: '1.0.0',
       });
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { id, createdAt, createdBy, ...templateData } = original;
-      
-      const createdOriginal = store.createTemplate(templateData);
-      const duplicated = store.duplicateTemplate(createdOriginal.id, 'Duplicated Template');
+
+      const createdOriginal = store.createTemplate(templateData, TEST_USER);
+      const duplicated = store.duplicateTemplate(
+        createdOriginal.id,
+        'Duplicated Template',
+        TEST_USER
+      );
 
       // Ensure duplication was successful
       expect(duplicated).not.toBeNull();
-      
+
       const state = useTemplateStore.getState();
       expect(state.templates).toHaveLength(2);
-      
+
       // Find the duplicated template in the store
       const duplicate = duplicated ? state.templates.find(t => t.id === duplicated.id) : null;
       expect(duplicate?.templateName).toBe('Duplicated Template');
@@ -109,8 +115,8 @@ describe('Template Store', () => {
       const template = createMockTemplate();
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { id, createdAt, createdBy, ...templateData } = template;
-      
-      const createdTemplate = store.createTemplate(templateData);
+
+      const createdTemplate = store.createTemplate(templateData, TEST_USER);
       store.setActiveTemplate(createdTemplate.id);
 
       const state = useTemplateStore.getState();
@@ -122,11 +128,11 @@ describe('Template Store', () => {
       const template = createMockTemplate();
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { id, createdAt, createdBy, ...templateData } = template;
-      
-      const createdTemplate = store.createTemplate(templateData);
+
+      const createdTemplate = store.createTemplate(templateData, TEST_USER);
       store.setActiveTemplate(createdTemplate.id);
       expect(useTemplateStore.getState().activeTemplate).toBeTruthy();
-      
+
       store.clearActiveTemplate();
       expect(useTemplateStore.getState().activeTemplate).toBeNull();
     });
@@ -136,33 +142,33 @@ describe('Template Store', () => {
     beforeEach(() => {
       const store = useTemplateStore.getState();
       const templates = [
-        createMockTemplate({ 
+        createMockTemplate({
           id: 'akc-1',
-          organization: Organization.AKC, 
+          organization: Organization.AKC,
           showType: ShowType.SCENT_WORK,
-          templateName: 'AKC Scent Work'
+          templateName: 'AKC Scent Work',
         }),
-        createMockTemplate({ 
+        createMockTemplate({
           id: 'akc-2',
-          organization: Organization.AKC, 
+          organization: Organization.AKC,
           showType: ShowType.AGILITY,
-          templateName: 'AKC Agility'
+          templateName: 'AKC Agility',
         }),
-        createMockTemplate({ 
+        createMockTemplate({
           id: 'ukc-1',
-          organization: Organization.UKC, 
+          organization: Organization.UKC,
           showType: ShowType.SCENT_WORK,
-          templateName: 'UKC Scent Work'
-        })
+          templateName: 'UKC Scent Work',
+        }),
       ];
-      
-      templates.forEach(template => store.createTemplate(template));
+
+      templates.forEach(template => store.createTemplate(template, TEST_USER));
     });
 
     test('gets templates by organization', () => {
       const store = useTemplateStore.getState();
       const akcTemplates = store.getTemplatesByOrganization(Organization.AKC);
-      
+
       expect(akcTemplates).toHaveLength(2);
       expect(akcTemplates.every(t => t.organization === Organization.AKC)).toBe(true);
     });
@@ -170,7 +176,7 @@ describe('Template Store', () => {
     test('gets templates by show type', () => {
       const store = useTemplateStore.getState();
       const scentWorkTemplates = store.getTemplatesByShowType(ShowType.SCENT_WORK);
-      
+
       expect(scentWorkTemplates).toHaveLength(2);
       expect(scentWorkTemplates.every(t => t.showType === ShowType.SCENT_WORK)).toBe(true);
     });
@@ -178,7 +184,7 @@ describe('Template Store', () => {
     test('gets templates by organization and show type', () => {
       const store = useTemplateStore.getState();
       const filtered = store.getTemplatesByOrgAndType(Organization.AKC, ShowType.SCENT_WORK);
-      
+
       expect(filtered).toHaveLength(1);
       expect(filtered[0].organization).toBe(Organization.AKC);
       expect(filtered[0].showType).toBe(ShowType.SCENT_WORK);
@@ -187,7 +193,7 @@ describe('Template Store', () => {
     test('searches templates by name', () => {
       const store = useTemplateStore.getState();
       store.setSearchQuery('Agility');
-      
+
       const filtered = store.getFilteredTemplates();
       expect(filtered).toHaveLength(1);
       expect(filtered[0].templateName).toContain('Agility');
@@ -196,7 +202,7 @@ describe('Template Store', () => {
     test('filters by organization', () => {
       const store = useTemplateStore.getState();
       store.setFilterOrganization(Organization.UKC);
-      
+
       const filtered = store.getFilteredTemplates();
       expect(filtered).toHaveLength(1);
       expect(filtered[0].organization).toBe(Organization.UKC);
@@ -206,7 +212,7 @@ describe('Template Store', () => {
       const store = useTemplateStore.getState();
       store.setSearchQuery('Scent');
       store.setFilterOrganization(Organization.AKC);
-      
+
       const filtered = store.getFilteredTemplates();
       expect(filtered).toHaveLength(1);
       expect(filtered[0].organization).toBe(Organization.AKC);
@@ -217,9 +223,9 @@ describe('Template Store', () => {
       const store = useTemplateStore.getState();
       store.setSearchQuery('test');
       store.setFilterOrganization(Organization.AKC);
-      
+
       store.clearFilters();
-      
+
       const state = useTemplateStore.getState();
       expect(state.searchQuery).toBe('');
       expect(state.filterOrganization).toBeNull();
@@ -227,86 +233,26 @@ describe('Template Store', () => {
     });
   });
 
-  describe('Data Persistence', () => {
-    test.skip('persists templates to localStorage on create', () => {
-      const store = useTemplateStore.getState();
-      const template = createMockTemplate();
-
-      store.createTemplate(template);
-
-      expect(mockLocalStorage.setItem).toHaveBeenCalledWith(
-        'template-store',
-        expect.stringContaining(template.id)
-      );
-    });
-
-    test.skip('persists templates to localStorage on update', () => {
-      const store = useTemplateStore.getState();
-      const template = createMockTemplate();
-      const targetId = template.id;
-      
-      store.createTemplate(template);
-      vi.clearAllMocks(); // Clear create call
-      
-      store.updateTemplate(targetId, { templateName: 'Updated Template Name' });
-
-      expect(mockLocalStorage.setItem).toHaveBeenCalled();
-    });
-
-    test.skip('persists templates to localStorage on delete', () => {
-      const store = useTemplateStore.getState();
-      const template = createMockTemplate();
-      
-      store.createTemplate(template);
-      vi.clearAllMocks(); // Clear create call
-      
-      store.deleteTemplate(template.id);
-
-      expect(mockLocalStorage.setItem).toHaveBeenCalled();
-    });
-
-    test.skip('loads templates from localStorage on initialization', () => {
-      const template = createMockTemplate();
-      const storedData = {
-        state: {
-          templates: [template],
-          activeTemplate: null,
-          searchQuery: '',
-          filterOrganization: null,
-          filterShowType: null
-        },
-        version: 1
-      };
-      
-      mockLocalStorage.getItem.mockReturnValueOnce(JSON.stringify(storedData));
-
-      // Trigger store initialization by accessing state
-      useTemplateStore.getState();
-      
-      expect(mockLocalStorage.getItem).toHaveBeenCalledWith('template-store');
-    });
-  });
-
   describe('Template Import/Export', () => {
     test('imports template data', () => {
       const store = useTemplateStore.getState();
       const templateData = createMockTemplate();
-      
+
       // Create a proper TemplateImportExport object
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { id, createdAt, createdBy, ...exportData } = templateData;
       const importData = {
         template: exportData,
         exportedAt: new Date(),
-        exportedBy: 'test-user',
-        exportFormat: '1.0' as const
+        exportedBy: TEST_USER,
+        exportFormat: '1.0' as const,
       };
-      
-      const importedTemplate = store.importTemplate(importData);
+
+      const importedTemplate = store.importTemplate(importData, TEST_USER);
 
       // Ensure import was successful
       expect(importedTemplate).not.toBeNull();
-      
+
       if (importedTemplate) {
         expect(importedTemplate.templateName).toBe(templateData.templateName);
         expect(importedTemplate.id).not.toBe(templateData.id);
@@ -318,9 +264,9 @@ describe('Template Store', () => {
       const template = createMockTemplate();
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { id, createdAt, createdBy, ...templateData } = template;
-      
-      const createdTemplate = store.createTemplate(templateData);
-      const exported = store.exportTemplate(createdTemplate.id);
+
+      const createdTemplate = store.createTemplate(templateData, TEST_USER);
+      const exported = store.exportTemplate(createdTemplate.id, TEST_USER);
 
       // The exported data should contain the template without id, createdAt, and createdBy
       // and include exportedAt, exportedBy, and exportFormat
@@ -332,22 +278,22 @@ describe('Template Store', () => {
     test('imports AKC Scent Work template successfully', () => {
       const store = useTemplateStore.getState();
       const akcTemplate = createAKCScentWorkTemplate();
-      
+
       // Create a proper TemplateImportExport object
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { id, createdAt, createdBy, ...exportData } = akcTemplate;
       const importData = {
         template: exportData,
         exportedAt: new Date(),
-        exportedBy: 'test-user',
-        exportFormat: '1.0' as const
+        exportedBy: TEST_USER,
+        exportFormat: '1.0' as const,
       };
-      
-      const importedTemplate = store.importTemplate(importData);
+
+      const importedTemplate = store.importTemplate(importData, TEST_USER);
 
       // Ensure import was successful
       expect(importedTemplate).not.toBeNull();
-      
+
       if (importedTemplate) {
         expect(importedTemplate.organization).toBe(Organization.AKC);
         expect(importedTemplate.showType).toBe(ShowType.SCENT_WORK);
@@ -357,55 +303,22 @@ describe('Template Store', () => {
   });
 
   describe('Template Validation', () => {
-    test.skip('validates template on create - validation not implemented', () => {
-      const store = useTemplateStore.getState();
-      const invalidTemplate = createMockTemplate({ templateName: '' });
-
-      expect(() => store.createTemplate(invalidTemplate)).toThrow();
-    });
-
-    test.skip('validates template on update - validation not implemented', () => {
-      const store = useTemplateStore.getState();
-      const template = createMockTemplate();
-      
-      store.createTemplate(template);
-      
-      expect(() => store.updateTemplate(template.id, { templateName: '' })).toThrow();
-    });
-
-    test.skip('prevents duplicate template names within same org/type - validation not implemented', () => {
-      const store = useTemplateStore.getState();
-      const template1 = createMockTemplate({ 
-        templateName: 'Duplicate Name',
-        organization: Organization.AKC,
-        showType: ShowType.SCENT_WORK
-      });
-      const template2 = createMockTemplate({ 
-        templateName: 'Duplicate Name',
-        organization: Organization.AKC,
-        showType: ShowType.SCENT_WORK
-      });
-
-      store.createTemplate(template1);
-      expect(() => store.createTemplate(template2)).toThrow();
-    });
-
     test('allows duplicate names across different org/type', () => {
       const store = useTemplateStore.getState();
-      const template1 = createMockTemplate({ 
+      const template1 = createMockTemplate({
         templateName: 'Same Name',
         organization: Organization.AKC,
-        showType: ShowType.SCENT_WORK
+        showType: ShowType.SCENT_WORK,
       });
-      const template2 = createMockTemplate({ 
+      const template2 = createMockTemplate({
         templateName: 'Same Name',
         organization: Organization.UKC,
-        showType: ShowType.SCENT_WORK
+        showType: ShowType.SCENT_WORK,
       });
 
-      store.createTemplate(template1);
-      expect(() => store.createTemplate(template2)).not.toThrow();
-      
+      store.createTemplate(template1, TEST_USER);
+      expect(() => store.createTemplate(template2, TEST_USER)).not.toThrow();
+
       expect(useTemplateStore.getState().templates).toHaveLength(2);
     });
   });
@@ -414,11 +327,11 @@ describe('Template Store', () => {
     test('handles large number of templates efficiently', () => {
       const store = useTemplateStore.getState();
       const templates = createMockTemplates(100);
-      
+
       const startTime = performance.now();
-      templates.forEach(template => store.createTemplate(template));
+      templates.forEach(template => store.createTemplate(template, TEST_USER));
       const endTime = performance.now();
-      
+
       expect(endTime - startTime).toBeLessThan(1000); // Should complete in under 1 second
       expect(useTemplateStore.getState().templates).toHaveLength(100);
     });
@@ -429,14 +342,14 @@ describe('Template Store', () => {
       templates.forEach(template => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { id, createdAt, createdBy, ...templateData } = template;
-        store.createTemplate(templateData);
+        store.createTemplate(templateData, TEST_USER);
       });
-      
+
       const startTime = performance.now();
       store.setSearchQuery('Template 5');
       const filtered = store.getFilteredTemplates();
       const endTime = performance.now();
-      
+
       expect(endTime - startTime).toBeLessThan(100); // Should complete in under 100ms
       expect(filtered.length).toBeGreaterThan(0);
     });

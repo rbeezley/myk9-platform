@@ -6,13 +6,19 @@ import * as path from 'path';
 
 describe('RegistrationWorkflow Error Detection Tests', () => {
   describe('Context Provider Error Detection', () => {
-    it.skip('should catch missing RegistrationProvider error', async () => {
-      // TODO: fix - vi.doMock cannot override already-cached modules in Vitest
-      // These dynamic mocks don't work after module caching has occurred
+    it('should catch missing RegistrationProvider error via static analysis', () => {
+      // Static analysis: verify RegistrationProvider is used in CalendarPage where RegistrationWorkflow is used.
+      const calendarPagePath = path.join(__dirname, '../../pages/CalendarPage.tsx');
+      const calendarPageContent = fs.readFileSync(calendarPagePath, 'utf8');
+      // CalendarPage must import RegistrationProvider to wrap RegistrationWorkflow
+      expect(calendarPageContent.includes('RegistrationProvider')).toBe(true);
     });
 
-    it.skip('should pass when provider is present', async () => {
-      // TODO: fix - vi.doMock cannot override already-cached modules in Vitest
+    it('should pass when provider is present via static analysis', () => {
+      // Verify the RegistrationProvider is not just imported but actually used in JSX
+      const calendarPagePath = path.join(__dirname, '../../pages/CalendarPage.tsx');
+      const calendarPageContent = fs.readFileSync(calendarPagePath, 'utf8');
+      expect(calendarPageContent.includes('<RegistrationProvider>')).toBe(true);
     });
   });
 

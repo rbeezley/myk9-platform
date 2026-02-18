@@ -435,19 +435,6 @@ async function encryptPaymentReference(data: Record<string, string>) {
   return encrypted;
 }
 
-async function encryptWithCurrentKey(data: { sensitiveData: string }) {
-  return 'current_key_' + Buffer.from(JSON.stringify(data)).toString('base64');
-}
-
-async function rotateEncryptionKey() {
-  // Mock key rotation
-}
-
-async function decryptWithHistoricalKeys(encrypted: string): Promise<{ sensitiveData: string }> {
-  const data = Buffer.from(encrypted.replace(/^current_key_|^old_key_/, ''), 'base64').toString();
-  return JSON.parse(data);
-}
-
 async function auditPaymentOperation(_operation: unknown) {
   // Mock audit logging
 }
@@ -471,30 +458,6 @@ async function verifyAuditLogIntegrity(_log: unknown) {
   return true; // Mock verification
 }
 
-async function storePaymentData(_data: unknown) {
-  // Mock storage
-}
-
-async function runDataRetentionCleanup() {
-  return {
-    recordsReviewed: 100,
-    recordsRetained: 0,
-    recordsArchived: 5,
-  };
-}
-
-async function getPaymentData(_transactionId: string) {
-  return null; // Cleaned up
-}
-
-async function getArchivedPaymentData(_transactionId: string) {
-  return {
-    transactionId,
-    archived: true,
-    archiveDate: new Date(),
-  };
-}
-
 async function recordPaymentAttempt(_payment: unknown) {
   // Mock recording
 }
@@ -504,14 +467,6 @@ async function analyzeFraudPatterns(_ipAddress: string) {
     riskScore: 0.9,
     flags: ['multiple_users_same_ip'],
     recommendedAction: 'require_additional_verification',
-  };
-}
-
-async function checkPaymentVelocity(_payment: unknown) {
-  const attemptCount = 8; // Mock count
-  return {
-    allowed: attemptCount < 5,
-    reason: attemptCount >= 5 ? 'velocity_limit_exceeded' : undefined,
   };
 }
 

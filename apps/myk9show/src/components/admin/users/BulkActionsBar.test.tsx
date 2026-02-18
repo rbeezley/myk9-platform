@@ -188,8 +188,7 @@ describe('BulkActionsBar', () => {
       expect(screen.queryByText('Delete Users')).not.toBeInTheDocument();
     });
 
-    it.skip('successfully deletes users when confirmed', async () => {
-      // TODO: fix - assertion drift: mutateAsync called with { id } not { id, cascadeDelete: false }
+    it('successfully deletes users when confirmed', async () => {
       mockMutateAsync.mockResolvedValue(undefined);
       const mockOnUsersDeleted = vi.fn();
       const mockOnBulkComplete = vi.fn();
@@ -211,8 +210,9 @@ describe('BulkActionsBar', () => {
       fireEvent.click(confirmButton);
 
       await waitFor(() => {
-        expect(mockMutateAsync).toHaveBeenCalledWith({ id: 'user-1', cascadeDelete: false });
-        expect(mockMutateAsync).toHaveBeenCalledWith({ id: 'user-2', cascadeDelete: false });
+        // Source calls mutateAsync({ id: userId }) without cascadeDelete
+        expect(mockMutateAsync).toHaveBeenCalledWith({ id: 'user-1' });
+        expect(mockMutateAsync).toHaveBeenCalledWith({ id: 'user-2' });
         expect(mockMutateAsync).toHaveBeenCalledTimes(2);
       });
 

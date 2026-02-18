@@ -6,6 +6,7 @@
 import { describe, it, expect } from 'vitest';
 import { EntryValidator } from '@/services/entries/EntryValidator';
 import { EntryLimitChecker } from '@/services/entries/EntryLimitChecker';
+import { EntryStatus } from '@/types/show-registration-types';
 
 describe('Entry Validation System', () => {
   describe('EntryValidator - Competition Data Validation', () => {
@@ -110,8 +111,9 @@ describe('Entry Validation System', () => {
       maxEntries: 10,
     };
 
-    // TODO: fix - test uses status='waitlisted' but source checks for 'waitlist' (without 'd'); EntryStatus enum mismatch
-    it.skip('should calculate class statistics correctly', () => {
+    it('should calculate class statistics correctly', () => {
+      // Previously skipped because test used status='waitlisted', but source checks for 'waitlist'
+      // (EntryStatus.WAITLIST = 'waitlist'). Fixed by using EntryStatus.WAITLIST.
       const entries = [
         {
           id: 'entry-1',
@@ -132,7 +134,7 @@ describe('Entry Validation System', () => {
         {
           id: 'entry-2',
           classId: 'class-1',
-          status: 'waitlisted' as const,
+          status: EntryStatus.WAITLIST,
           showId: 'show-1',
           dogId: 'dog-2',
           registrationData: {

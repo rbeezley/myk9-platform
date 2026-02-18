@@ -351,8 +351,7 @@ describe('Form Validation Tests', () => {
       }
     });
 
-    it.skip('should validate date constraints for shows', () => {
-      // TODO: Time-dependent test - uses hardcoded 2025 dates which are now in the past
+    it('should validate date constraints for shows', () => {
       const validateShowDates = (startDate: string, endDate: string, deadline: string) => {
         const start = new Date(startDate);
         const end = new Date(endDate);
@@ -375,16 +374,16 @@ describe('Form Validation Tests', () => {
         return errors;
       };
 
-      // Valid dates
-      expect(validateShowDates('2025-06-15', '2025-06-17', '2025-06-01').length).toBe(0);
+      // Valid dates (future)
+      expect(validateShowDates('2028-06-15', '2028-06-17', '2028-06-01').length).toBe(0);
 
       // Invalid: end before start
-      expect(validateShowDates('2025-06-15', '2025-06-14', '2025-06-01')).toContain(
+      expect(validateShowDates('2028-06-15', '2028-06-14', '2028-06-01')).toContain(
         'End date must be after start date'
       );
 
       // Invalid: deadline after start
-      expect(validateShowDates('2025-06-15', '2025-06-17', '2025-06-16')).toContain(
+      expect(validateShowDates('2028-06-15', '2028-06-17', '2028-06-16')).toContain(
         'Entry deadline must be before show start'
       );
     });
@@ -469,8 +468,7 @@ describe('Form Validation Tests', () => {
   });
 
   describe('Payment Form Validation', () => {
-    it.skip('should validate credit card information', () => {
-      // TODO: Time-dependent test - uses expiryYear 2025 which is now expired
+    it('should validate credit card information', () => {
       const validateCreditCard = (cardData: {
         number: string;
         expiryMonth: number;
@@ -531,7 +529,7 @@ describe('Form Validation Tests', () => {
         validateCreditCard({
           number: '4111111111111111',
           expiryMonth: 12,
-          expiryYear: 2025,
+          expiryYear: 2030,
           cvv: '123',
           name: 'John Doe',
         }).length
@@ -542,7 +540,7 @@ describe('Form Validation Tests', () => {
         validateCreditCard({
           number: '1234567890123456',
           expiryMonth: 12,
-          expiryYear: 2025,
+          expiryYear: 2030,
           cvv: '123',
           name: 'John Doe',
         })

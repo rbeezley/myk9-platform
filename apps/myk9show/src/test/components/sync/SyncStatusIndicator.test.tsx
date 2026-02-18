@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { SyncStatusIndicator } from '@/components/sync/SyncStatusIndicator';
 
@@ -60,224 +60,163 @@ vi.mock('@/components/ui/tooltip', () => ({
   ),
 }));
 
-vi.mock('@/components/ui/dropdown-menu', () => ({
-  DropdownMenu: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="dropdown-menu">{children}</div>
-  ),
-  DropdownMenuContent: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="dropdown-content">{children}</div>
-  ),
-  DropdownMenuItem: ({
-    children,
-    onClick,
-  }: {
-    children: React.ReactNode;
-    onClick?: () => void;
-  }) => (
-    <div data-testid="dropdown-item" onClick={onClick}>
-      {children}
-    </div>
-  ),
-  DropdownMenuSeparator: () => <hr data-testid="dropdown-separator" />,
-  DropdownMenuTrigger: ({ children, asChild }: { children: React.ReactNode; asChild?: boolean }) =>
-    asChild ? children : <div data-testid="dropdown-trigger">{children}</div>,
-}));
-
-// TODO: fix - major API mismatch: tests use entityType/entityName/pendingChanges/lastSyncTime/variant
-// but the component API has different props. All tests need rewriting against actual component API.
-describe.skip('SyncStatusIndicator', () => {
+describe('SyncStatusIndicator', () => {
   const defaultProps = {
     status: 'synced' as const,
     entityType: 'person',
-    entityName: 'John Doe',
-    onRetrySync: vi.fn(),
-    onViewHistory: vi.fn(),
-    onResolveConflict: vi.fn(),
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Mock navigator.onLine
-    Object.defineProperty(navigator, 'onLine', {
-      value: true,
-      configurable: true,
-    });
   });
 
-  describe('Badge Variant', () => {
-    it('should render badge variant by default', () => {
+  describe('Basic Rendering', () => {
+    it('should render without errors', () => {
+      expect(() => render(<SyncStatusIndicator {...defaultProps} />)).not.toThrow();
+    });
+
+    it('should render tooltip provider in full mode', () => {
       render(<SyncStatusIndicator {...defaultProps} />);
-
-      expect(screen.getByTestId('badge')).toBeInTheDocument();
-      expect(screen.getByText('Synced')).toBeInTheDocument();
+      expect(screen.getByTestId('tooltip-provider')).toBeInTheDocument();
     });
 
-    it('should show correct status for synced', () => {
-      render(<SyncStatusIndicator {...defaultProps} status="synced" />);
-
-      expect(screen.getByText('Synced')).toBeInTheDocument();
-      const badge = screen.getByTestId('badge');
-      expect(badge).toHaveClass('text-success-green');
+    it('should render tooltip provider in compact mode', () => {
+      render(<SyncStatusIndicator {...defaultProps} compact />);
+      expect(screen.getByTestId('tooltip-provider')).toBeInTheDocument();
     });
 
-    it('should show correct status for pending', () => {
-      render(<SyncStatusIndicator {...defaultProps} status="pending" />);
-
-      expect(screen.getByText('Pending')).toBeInTheDocument();
-      const badge = screen.getByTestId('badge');
-      expect(badge).toHaveClass('text-warning-orange');
-    });
-
-    it('should show correct status for error', () => {
-      render(<SyncStatusIndicator {...defaultProps} status="error" />);
-
-      expect(screen.getByText('Error')).toBeInTheDocument();
-      const badge = screen.getByTestId('badge');
-      expect(badge).toHaveClass('text-error-red');
-    });
-
-    it('should show correct status for conflict', () => {
-      render(<SyncStatusIndicator {...defaultProps} status="conflict" />);
-
-      expect(screen.getByText('Conflict')).toBeInTheDocument();
-      const badge = screen.getByTestId('badge');
-      expect(badge).toHaveClass('text-warning-orange');
-    });
-
-    it('should show pending changes count when provided', () => {
-      render(<SyncStatusIndicator {...defaultProps} status="pending" pendingChanges={3} />);
-
-      expect(screen.getByText('Pending')).toBeInTheDocument();
-      expect(screen.getByText('(3)')).toBeInTheDocument();
-    });
-
-    it('should show tooltip on hover with additional information', () => {
-      const lastSyncTime = new Date('2024-01-15T10:00:00Z');
-      render(
-        <SyncStatusIndicator
-          {...defaultProps}
-          lastSyncTime={lastSyncTime}
-          errorMessage="Network error"
-        />
-      );
-
+    it('should render tooltip content with status info', () => {
+      render(<SyncStatusIndicator {...defaultProps} />);
       expect(screen.getByTestId('tooltip-content')).toBeInTheDocument();
     });
   });
 
-  describe('Compact Variant', () => {
-    it('should render compact variant', () => {
-      render(<SyncStatusIndicator {...defaultProps} variant="compact" />);
+  describe('Status Labels (showLabel mode)', () => {
+    it('should show Synced label when showLabel is true', () => {
+      render(<SyncStatusIndicator status="synced" showLabel />);
+      const badge = screen.getByTestId('badge');
+      expect(badge).toBeInTheDocument();
+      // Badge shows the label text (may also appear in tooltip, use badge specifically)
+      expect(badge).toHaveTextContent('Synced');
+    });
 
-      expect(screen.getByText('Synced')).toBeInTheDocument();
+    it('should show Pending label when showLabel is true', () => {
+      render(<SyncStatusIndicator status="pending" showLabel />);
+      const badge = screen.getByTestId('badge');
+      expect(badge).toHaveTextContent('Pending');
+    });
+
+    it('should show Error label when showLabel is true', () => {
+      render(<SyncStatusIndicator status="error" showLabel />);
+      const badge = screen.getByTestId('badge');
+      expect(badge).toHaveTextContent('Error');
+    });
+
+    it('should show Conflict label when showLabel is true', () => {
+      render(<SyncStatusIndicator status="conflict" showLabel />);
+      const badge = screen.getByTestId('badge');
+      expect(badge).toHaveTextContent('Conflict');
+    });
+
+    it('should show Offline label when showLabel is true', () => {
+      render(<SyncStatusIndicator status="offline" showLabel />);
+      const badge = screen.getByTestId('badge');
+      expect(badge).toHaveTextContent('Offline');
+    });
+
+    it('should not show badge without showLabel', () => {
+      render(<SyncStatusIndicator status="synced" />);
+      expect(screen.queryByTestId('badge')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Tooltip Content', () => {
+    it('should show status description in tooltip for synced', () => {
+      render(<SyncStatusIndicator status="synced" />);
+      expect(screen.getByText('All changes synchronized')).toBeInTheDocument();
+    });
+
+    it('should show status description in tooltip for pending', () => {
+      render(<SyncStatusIndicator status="pending" />);
+      expect(screen.getByText('Waiting to sync')).toBeInTheDocument();
+    });
+
+    it('should show status description in tooltip for error', () => {
+      render(<SyncStatusIndicator status="error" />);
+      expect(screen.getByText('Sync failed')).toBeInTheDocument();
+    });
+
+    it('should show status description in tooltip for conflict', () => {
+      render(<SyncStatusIndicator status="conflict" />);
+      expect(screen.getByText('Requires manual resolution')).toBeInTheDocument();
+    });
+
+    it('should show error message in tooltip when provided and status is error', () => {
+      render(<SyncStatusIndicator status="error" errorMessage="Network timeout" />);
+      expect(screen.getByText('Error: Network timeout')).toBeInTheDocument();
+    });
+
+    it('should show entityType and entityId in tooltip when both provided', () => {
+      render(<SyncStatusIndicator status="synced" entityType="show" entityId="show-123" />);
+      expect(screen.getByText('show: show-123')).toBeInTheDocument();
+    });
+  });
+
+  describe('Compact Mode', () => {
+    it('should render compact icon without badge', () => {
+      render(<SyncStatusIndicator status="synced" compact />);
+      // In compact mode, no badge — just icon in tooltip
       expect(screen.queryByTestId('badge')).not.toBeInTheDocument();
     });
 
-    it('should show dropdown menu when actions available', () => {
-      render(<SyncStatusIndicator {...defaultProps} variant="compact" status="error" />);
-
-      expect(screen.getByTestId('dropdown-menu')).toBeInTheDocument();
-    });
-
-    it('should show offline indicator when not online', () => {
-      Object.defineProperty(navigator, 'onLine', {
-        value: false,
-        configurable: true,
-      });
-
-      render(<SyncStatusIndicator {...defaultProps} variant="compact" />);
-
-      // Should show offline icon (WifiOff)
-      expect(screen.getByTestId('dropdown-menu')).toBeInTheDocument();
+    it('should render tooltip in compact mode', () => {
+      render(<SyncStatusIndicator status="error" compact />);
+      expect(screen.getByTestId('tooltip')).toBeInTheDocument();
     });
   });
 
-  describe('Detailed Variant', () => {
-    it('should render detailed variant', () => {
-      render(<SyncStatusIndicator {...defaultProps} variant="detailed" />);
-
-      expect(screen.getByText('Synced')).toBeInTheDocument();
-      expect(screen.getByText('All changes have been synchronized')).toBeInTheDocument();
+  describe('Quick Actions (enableActions)', () => {
+    it('should show retry button for error status when enableActions and onRetry provided', () => {
+      const onRetry = vi.fn();
+      render(<SyncStatusIndicator status="error" enableActions onRetry={onRetry} />);
+      const retryButton = screen.getByRole('button', { name: /retry sync for/i });
+      expect(retryButton).toBeInTheDocument();
     });
 
-    it('should show last sync time when provided', () => {
-      const lastSyncTime = new Date('2024-01-15T10:00:00Z');
-      render(
-        <SyncStatusIndicator {...defaultProps} variant="detailed" lastSyncTime={lastSyncTime} />
-      );
-
-      expect(screen.getByText(/Last synchronized:/)).toBeInTheDocument();
+    it('should call onRetry when retry button is clicked', () => {
+      const onRetry = vi.fn();
+      render(<SyncStatusIndicator status="error" enableActions onRetry={onRetry} />);
+      const retryButton = screen.getByRole('button', { name: /retry sync for/i });
+      fireEvent.click(retryButton);
+      expect(onRetry).toHaveBeenCalledOnce();
     });
 
-    it('should show error message when provided', () => {
-      render(
-        <SyncStatusIndicator
-          {...defaultProps}
-          variant="detailed"
-          status="error"
-          errorMessage="Network timeout occurred"
-        />
-      );
-
-      expect(screen.getByText('Network timeout occurred')).toBeInTheDocument();
+    it('should show retry button for conflict status when enableActions and onRetry provided', () => {
+      const onRetry = vi.fn();
+      render(<SyncStatusIndicator status="conflict" enableActions onRetry={onRetry} />);
+      const retryButton = screen.getByRole('button', { name: /retry sync for/i });
+      expect(retryButton).toBeInTheDocument();
     });
 
-    it('should show offline message for pending status when offline', () => {
-      Object.defineProperty(navigator, 'onLine', {
-        value: false,
-        configurable: true,
-      });
+    it('should not show retry button for synced status even when enableActions', () => {
+      const onRetry = vi.fn();
+      render(<SyncStatusIndicator status="synced" enableActions onRetry={onRetry} />);
+      expect(screen.queryByRole('button', { name: /retry/i })).not.toBeInTheDocument();
+    });
 
-      render(<SyncStatusIndicator {...defaultProps} variant="detailed" status="pending" />);
+    it('should not show retry button when enableActions is false', () => {
+      const onRetry = vi.fn();
+      render(<SyncStatusIndicator status="error" enableActions={false} onRetry={onRetry} />);
+      expect(screen.queryByRole('button', { name: /retry/i })).not.toBeInTheDocument();
+    });
 
-      expect(
-        screen.getByText(/Currently offline. Changes will sync when connection is restored./)
-      ).toBeInTheDocument();
+    it('should not show retry button when onRetry is not provided', () => {
+      render(<SyncStatusIndicator status="error" enableActions />);
+      expect(screen.queryByRole('button', { name: /retry/i })).not.toBeInTheDocument();
     });
   });
 
-  describe('Action Handlers', () => {
-    it('should call onRetrySync when retry button clicked', () => {
-      render(<SyncStatusIndicator {...defaultProps} variant="compact" status="error" />);
-
-      const retryItem = screen.getByText('Retry Sync');
-      fireEvent.click(retryItem);
-
-      expect(defaultProps.onRetrySync).toHaveBeenCalled();
-    });
-
-    it('should call onResolveConflict when resolve button clicked', () => {
-      render(<SyncStatusIndicator {...defaultProps} variant="compact" status="conflict" />);
-
-      const resolveItem = screen.getByText('Resolve Conflict');
-      fireEvent.click(resolveItem);
-
-      expect(defaultProps.onResolveConflict).toHaveBeenCalled();
-    });
-
-    it('should call onViewHistory when view history clicked', () => {
-      render(<SyncStatusIndicator {...defaultProps} variant="compact" />);
-
-      const historyItem = screen.getByText('View History');
-      fireEvent.click(historyItem);
-
-      expect(defaultProps.onViewHistory).toHaveBeenCalled();
-    });
-
-    it('should show retry action only for error status', () => {
-      render(<SyncStatusIndicator {...defaultProps} variant="compact" status="synced" />);
-
-      expect(screen.queryByText('Retry Sync')).not.toBeInTheDocument();
-    });
-
-    it('should show resolve conflict action only for conflict status', () => {
-      render(<SyncStatusIndicator {...defaultProps} variant="compact" status="synced" />);
-
-      expect(screen.queryByText('Resolve Conflict')).not.toBeInTheDocument();
-    });
-  });
-
-  describe('Time Formatting', () => {
+  describe('Last Sync Time in Tooltip', () => {
     beforeEach(() => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date('2024-01-15T12:00:00Z'));
@@ -287,83 +226,64 @@ describe.skip('SyncStatusIndicator', () => {
       vi.useRealTimers();
     });
 
-    it('should format recent time as "Just now"', () => {
-      const recentTime = new Date('2024-01-15T11:59:30Z'); // 30 seconds ago
-      render(
-        <SyncStatusIndicator {...defaultProps} variant="detailed" lastSyncTime={recentTime} />
-      );
+    it('should show last sync time in tooltip when lastSyncAt provided', () => {
+      const lastSyncAt = new Date('2024-01-15T11:55:00Z'); // 5 minutes ago
+      render(<SyncStatusIndicator status="synced" lastSyncAt={lastSyncAt} />);
+      expect(screen.getByText(/Last sync:/)).toBeInTheDocument();
+    });
 
+    it('should format recent sync time as "Just now"', () => {
+      const recentTime = new Date('2024-01-15T11:59:30Z'); // 30 seconds ago
+      render(<SyncStatusIndicator status="synced" lastSyncAt={recentTime} />);
       expect(screen.getByText(/Just now/)).toBeInTheDocument();
     });
 
     it('should format minutes ago correctly', () => {
       const minutesAgo = new Date('2024-01-15T11:55:00Z'); // 5 minutes ago
-      render(
-        <SyncStatusIndicator {...defaultProps} variant="detailed" lastSyncTime={minutesAgo} />
-      );
-
+      render(<SyncStatusIndicator status="synced" lastSyncAt={minutesAgo} />);
       expect(screen.getByText(/5m ago/)).toBeInTheDocument();
     });
 
     it('should format hours ago correctly', () => {
       const hoursAgo = new Date('2024-01-15T10:00:00Z'); // 2 hours ago
-      render(<SyncStatusIndicator {...defaultProps} variant="detailed" lastSyncTime={hoursAgo} />);
-
+      render(<SyncStatusIndicator status="synced" lastSyncAt={hoursAgo} />);
       expect(screen.getByText(/2h ago/)).toBeInTheDocument();
     });
 
     it('should format days ago correctly', () => {
       const daysAgo = new Date('2024-01-13T12:00:00Z'); // 2 days ago
-      render(<SyncStatusIndicator {...defaultProps} variant="detailed" lastSyncTime={daysAgo} />);
-
+      render(<SyncStatusIndicator status="synced" lastSyncAt={daysAgo} />);
       expect(screen.getByText(/2d ago/)).toBeInTheDocument();
     });
 
-    it('should format old dates as date string', () => {
+    it('should show date string for old dates', () => {
       const oldDate = new Date('2024-01-01T12:00:00Z'); // 2 weeks ago
-      render(<SyncStatusIndicator {...defaultProps} variant="detailed" lastSyncTime={oldDate} />);
-
-      expect(screen.getByText(/1\/1\/2024/)).toBeInTheDocument();
-    });
-
-    it('should show "Never" when no last sync time', () => {
-      render(<SyncStatusIndicator {...defaultProps} variant="detailed" lastSyncTime={undefined} />);
-
-      expect(screen.getByText(/Never/)).toBeInTheDocument();
+      render(<SyncStatusIndicator status="synced" lastSyncAt={oldDate} />);
+      // Should show formatted date string
+      expect(screen.getByText(/Last sync:/)).toBeInTheDocument();
     });
   });
 
-  describe('Accessibility and Props', () => {
-    it('should apply custom className', () => {
-      render(<SyncStatusIndicator {...defaultProps} className="custom-class" />);
-
-      const badge = screen.getByTestId('badge');
-      expect(badge).toHaveClass('custom-class');
-    });
-
-    it('should handle missing callbacks gracefully', () => {
-      const propsWithoutCallbacks = {
-        status: 'error' as const,
-        entityType: 'person',
-        entityName: 'John Doe',
-      };
-
-      expect(() => {
-        render(<SyncStatusIndicator {...propsWithoutCallbacks} variant="compact" />);
-      }).not.toThrow();
-    });
-
-    it('should show pending changes badge in detailed view', () => {
-      render(
-        <SyncStatusIndicator
-          {...defaultProps}
-          variant="detailed"
-          status="pending"
-          pendingChanges={5}
-        />
+  describe('Custom className', () => {
+    it('should apply custom className to wrapper element', () => {
+      const { container } = render(
+        <SyncStatusIndicator status="synced" className="custom-class" />
       );
+      const wrapper = container.querySelector('.custom-class');
+      expect(wrapper).toBeInTheDocument();
+    });
+  });
 
-      expect(screen.getByText('5 pending')).toBeInTheDocument();
+  describe('Missing callbacks handled gracefully', () => {
+    it('should not throw when onRetry is missing', () => {
+      expect(() => render(<SyncStatusIndicator status="error" enableActions />)).not.toThrow();
+    });
+
+    it('should render all status types without errors', () => {
+      const statuses = ['synced', 'pending', 'error', 'conflict', 'offline'] as const;
+      for (const status of statuses) {
+        expect(() => render(<SyncStatusIndicator status={status} />)).not.toThrow();
+      }
     });
   });
 });

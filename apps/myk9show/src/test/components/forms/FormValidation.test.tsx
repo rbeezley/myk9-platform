@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 // Form validation utilities
@@ -48,29 +48,33 @@ const ValidatedInput = ({
   error?: string | null;
   placeholder?: string;
   [key: string]: unknown;
-}) => (
-  <div className="form-field">
-    <label className="block text-sm font-medium mb-1">
-      {label} {required && <span className="text-red-500">*</span>}
-    </label>
-    <input
-      type={type}
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      onBlur={onBlur}
-      className={`w-full p-2 border rounded ${error ? 'border-red-500' : 'border-gray-300'}`}
-      placeholder={placeholder}
-      aria-invalid={!!error}
-      aria-describedby={error ? `${label.toLowerCase()}-error` : undefined}
-      {...props}
-    />
-    {error && (
-      <p id={`${label.toLowerCase()}-error`} className="text-red-500 text-sm mt-1" role="alert">
-        {error}
-      </p>
-    )}
-  </div>
-);
+}) => {
+  const inputId = label.toLowerCase().replace(/\s+/g, '-');
+  return (
+    <div className="form-field">
+      <label htmlFor={inputId} className="block text-sm font-medium mb-1">
+        {label} {required && <span className="text-red-500">*</span>}
+      </label>
+      <input
+        id={inputId}
+        type={type}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        onBlur={onBlur}
+        className={`w-full p-2 border rounded ${error ? 'border-red-500' : 'border-gray-300'}`}
+        placeholder={placeholder}
+        aria-invalid={!!error}
+        aria-describedby={error ? `${inputId}-error` : undefined}
+        {...props}
+      />
+      {error && (
+        <p id={`${inputId}-error`} className="text-red-500 text-sm mt-1" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+};
 
 // Complex Form Component with Multiple Validation Rules
 const UserRegistrationForm = ({
@@ -315,8 +319,8 @@ describe('Form Validation', () => {
       const errorMessage = screen.getByRole('alert');
 
       expect(input).toHaveAttribute('aria-invalid', 'true');
-      expect(input).toHaveAttribute('aria-describedby', 'test field-error');
-      expect(errorMessage).toHaveAttribute('id', 'test field-error');
+      expect(input).toHaveAttribute('aria-describedby', 'test-field-error');
+      expect(errorMessage).toHaveAttribute('id', 'test-field-error');
     });
 
     it('should clear error when field becomes valid', async () => {
@@ -386,8 +390,7 @@ describe('Form Validation', () => {
     });
   });
 
-  describe.skip('Complex Form Validation', () => {
-    // TODO: fix - assertion drift: ValidatedInput label element lacks htmlFor attr, getByLabelText fails
+  describe('Complex Form Validation', () => {
     it('should render registration form with all fields', () => {
       render(<UserRegistrationForm onSubmit={() => {}} />);
 
@@ -402,12 +405,12 @@ describe('Form Validation', () => {
 
     it('should validate all fields on submit', async () => {
       const onSubmit = vi.fn();
-      const user = userEvent.setup();
 
       render(<UserRegistrationForm onSubmit={onSubmit} />);
 
-      const submitButton = screen.getByRole('button', { name: /create account/i });
-      await user.click(submitButton);
+      // The button is disabled when form is invalid; trigger form submission directly
+      const form = screen.getByTestId('registration-form');
+      fireEvent.submit(form);
 
       await waitFor(() => {
         expect(screen.getByText('Email is required')).toBeInTheDocument();
@@ -501,8 +504,7 @@ describe('Form Validation', () => {
     });
   });
 
-  describe.skip('Phone Number Validation', () => {
-    // TODO: fix - assertion drift: ValidatedInput label lacks htmlFor, getByLabelText(/phone/i) fails
+  describe('Phone Number Validation', () => {
     it('should validate phone number format', async () => {
       const user = userEvent.setup();
       render(<UserRegistrationForm onSubmit={() => {}} />);
@@ -528,8 +530,7 @@ describe('Form Validation', () => {
     });
   });
 
-  describe.skip('Form State Management', () => {
-    // TODO: fix - assertion drift: ValidatedInput label lacks htmlFor, getByLabelText(/email/i) fails
+  describe('Form State Management', () => {
     it('should track touched fields', async () => {
       const user = userEvent.setup();
       render(<UserRegistrationForm onSubmit={() => {}} />);

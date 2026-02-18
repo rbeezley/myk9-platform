@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useUserStore } from '@/store/userStore';
 import { useUserStoreCompat } from '@/hooks/useUserStoreCompat';
 import { resetFactories } from '@/test/utils/factories';
 import type { UserInput } from '@/store/userStore';
@@ -489,44 +488,6 @@ describe('userStore (with database integration)', () => {
       const users = result.current.searchUsers('John');
       expect(users).toHaveLength(1);
       expect(users[0].firstName).toBe('John');
-    });
-  });
-
-  describe('Dialog State Management', () => {
-    it.skip('should manage add person dialog state', () => {
-      // TODO: fix - useUserStore does not expose openAddDialog/closeAddDialog/isAddDialogOpen
-      const { result } = renderHook(() => useUserStore());
-
-      act(() => {
-        result.current.openAddDialog();
-      });
-
-      expect(result.current.isAddDialogOpen).toBe(true);
-
-      act(() => {
-        result.current.closeAddDialog();
-      });
-
-      expect(result.current.isAddDialogOpen).toBe(false);
-    });
-
-    it.skip('should manage edit person dialog state', () => {
-      // TODO: fix - useUserStore does not expose openEditDialog/closeEditDialog/isEditDialogOpen/editingUserId
-      const { result } = renderHook(() => useUserStore());
-
-      act(() => {
-        result.current.openEditDialog('user-1');
-      });
-
-      expect(result.current.isEditDialogOpen).toBe(true);
-      expect(result.current.editingUserId).toBe('user-1');
-
-      act(() => {
-        result.current.closeEditDialog();
-      });
-
-      expect(result.current.isEditDialogOpen).toBe(false);
-      expect(result.current.editingUserId).toBeNull();
     });
   });
 

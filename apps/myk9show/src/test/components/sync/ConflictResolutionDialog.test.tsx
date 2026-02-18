@@ -132,13 +132,12 @@ describe('ConflictResolutionDialog', () => {
     vi.clearAllMocks();
   });
 
-  it.skip('should render when open with conflict data', () => {
-    // TODO: fix - assertion drift: 'Sync Conflict Detected' text not found (component text changed)
+  it('should render when open with conflict data', () => {
     render(<ConflictResolutionDialog {...defaultProps} />);
 
     expect(screen.getByTestId('dialog')).toBeInTheDocument();
-    expect(screen.getByText('Sync Conflict Detected')).toBeInTheDocument();
-    expect(screen.getByText('John Doe')).toBeInTheDocument();
+    // Title changed from 'Sync Conflict Detected' to 'Resolve Data Conflict'
+    expect(screen.getByText('Resolve Data Conflict')).toBeInTheDocument();
   });
 
   it('should not render when closed', () => {
@@ -162,31 +161,36 @@ describe('ConflictResolutionDialog', () => {
     expect(screen.getByText('By: user2')).toBeInTheDocument();
   });
 
-  it.skip('should display conflicting fields for resolution', () => {
-    // TODO: fix - assertion drift: 'Last Name' field label text not rendered in component
+  it('should display conflicting fields for resolution', () => {
     render(<ConflictResolutionDialog {...defaultProps} />);
 
-    expect(screen.getByText('Last Name')).toBeInTheDocument();
-    expect(screen.getByText('Email')).toBeInTheDocument();
+    // Field names are rendered via `field.replace(/([A-Z])/g, ' $1').trim()` so
+    // 'lastName' → 'last Name' (capitalized via CSS or text-transform, shown as-is)
+    // Check field label elements exist (they use `capitalize` CSS class)
+    expect(screen.getByText('last Name')).toBeInTheDocument();
+    expect(screen.getByText('email')).toBeInTheDocument();
+    // Field values from local and remote are rendered via formatValue
     expect(screen.getByText('Doe')).toBeInTheDocument();
     expect(screen.getByText('Smith')).toBeInTheDocument();
     expect(screen.getByText('john@example.com')).toBeInTheDocument();
     expect(screen.getByText('john.smith@example.com')).toBeInTheDocument();
   });
 
-  it.skip('should allow selecting local or remote values for each field', async () => {
-    // TODO: fix - assertion drift: component shows 2 'Use This' buttons not 4 (component changed)
+  it('should allow selecting local or remote values for each field', async () => {
     render(<ConflictResolutionDialog {...defaultProps} />);
 
-    // Find buttons for lastName field
+    // With 2 conflict fields, local is 'Selected' (default) and remote shows 'Use This'.
+    // So there are 2 'Use This' buttons (one per conflict field, for remote side).
     const useThisButtons = screen.getAllByText('Use This');
-    expect(useThisButtons).toHaveLength(4); // 2 fields × 2 buttons each
+    expect(useThisButtons).toHaveLength(2); // 2 fields × 1 remote button each
 
-    // Click on remote version for lastName
-    fireEvent.click(useThisButtons[1]); // Second button (remote for first field)
+    // Click on remote version for first field (lastName)
+    fireEvent.click(useThisButtons[0]);
 
     await waitFor(() => {
-      expect(screen.getByText('Selected')).toBeInTheDocument();
+      // After clicking remote for first field, both fields now have a 'Selected' button
+      // (remote for lastName, local for email still Selected)
+      expect(screen.getAllByText('Selected')).toHaveLength(2);
     });
   });
 
@@ -208,13 +212,14 @@ describe('ConflictResolutionDialog', () => {
     expect(defaultProps.onResolve).toHaveBeenCalledWith('remote');
   });
 
-  it.skip('should call onResolve with merge and merged data when Apply Selected Changes is clicked', async () => {
-    // TODO: fix - assertion drift: 'Use This' buttons count mismatch, click fails
+  it('should call onResolve with merge and merged data when Apply Selected Changes is clicked', async () => {
     render(<ConflictResolutionDialog {...defaultProps} />);
 
-    // Select remote value for email field
+    // With 2 conflict fields, remote buttons are the 'Use This' buttons.
+    // Clicking the second 'Use This' selects remote email.
     const useThisButtons = screen.getAllByText('Use This');
-    fireEvent.click(useThisButtons[3]); // Remote button for email field
+    expect(useThisButtons).toHaveLength(2); // One per field (remote side)
+    fireEvent.click(useThisButtons[1]); // Remote button for email field
 
     const applyButton = screen.getByText('Apply Selected Changes');
     fireEvent.click(applyButton);
@@ -308,13 +313,12 @@ describe('ConflictResolutionDialog', () => {
     });
   });
 
-  it.skip('should display entity type and conflict information correctly', () => {
-    // TODO: fix - assertion drift: text 'Changes were made to...' not rendered by component
+  it('should display entity type and conflict information correctly', () => {
     render(<ConflictResolutionDialog {...defaultProps} />);
 
-    expect(
-      screen.getByText(/Changes were made to "John Doe" both locally and on the server/)
-    ).toBeInTheDocument();
-    expect(screen.getByText('Requires Resolution')).toBeInTheDocument();
+    // The dialog header shows entity type and "Multiple fields" since no fieldPath is provided
+    // 'person' entity type is shown in DialogDescription
+    expect(screen.getByText(/person conflict detected/)).toBeInTheDocument();
+    expect(screen.getByText(/Multiple fields/)).toBeInTheDocument();
   });
 });

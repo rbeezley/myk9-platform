@@ -38,41 +38,23 @@ describe('Class Creation Store', () => {
     vi.clearAllMocks();
   });
 
-  // TODO: fix - classCreationStore uses require('./templateStore') which fails to resolve in vitest ESM mode
-  describe.skip('Template Selection', () => {
-    test('selects a template by ID', () => {
+  // Use setTemplateData() to bypass the require('./templateStore') circular dependency
+  describe('Template Selection', () => {
+    test('selects a template by providing data directly', () => {
       const template = createMockTemplate();
-      const templateStore = useTemplateStore.getState();
       const creationStore = useClassCreationStore.getState();
 
-      // Create template and get the generated ID
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { id, createdAt, createdBy, ...templateData } = template;
-      const createdTemplate = templateStore.createTemplate(templateData);
-      creationStore.selectTemplate(createdTemplate.id);
+      creationStore.setTemplateData(template);
 
       const state = useClassCreationStore.getState();
-      expect(state.selectedTemplate?.id).toBe(createdTemplate.id);
-    });
-
-    test('clears selection when invalid template ID provided', () => {
-      const creationStore = useClassCreationStore.getState();
-
-      creationStore.selectTemplate('non-existent-id');
-
-      const state = useClassCreationStore.getState();
-      expect(state.selectedTemplate).toBeNull();
+      expect(state.selectedTemplate?.id).toBe(template.id);
     });
 
     test('clears template selection', () => {
       const template = createMockTemplate();
-      const templateStore = useTemplateStore.getState();
       const creationStore = useClassCreationStore.getState();
 
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { id, createdAt, createdBy, ...templateData } = template;
-      const createdTemplate = templateStore.createTemplate(templateData);
-      creationStore.selectTemplate(createdTemplate.id);
+      creationStore.setTemplateData(template);
       expect(useClassCreationStore.getState().selectedTemplate).toBeTruthy();
 
       creationStore.clearTemplateSelection();
@@ -80,17 +62,11 @@ describe('Class Creation Store', () => {
     });
   });
 
-  // TODO: fix - selectTemplate in beforeEach triggers require('./templateStore') which fails in vitest ESM mode
-  describe.skip('Class Selection', () => {
+  describe('Class Selection', () => {
     beforeEach(() => {
       const template = createAKCScentWorkTemplate();
-      const templateStore = useTemplateStore.getState();
       const creationStore = useClassCreationStore.getState();
-
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { id, createdAt, createdBy, ...templateData } = template;
-      const createdTemplate = templateStore.createTemplate(templateData);
-      creationStore.selectTemplate(createdTemplate.id);
+      creationStore.setTemplateData(template);
     });
 
     test('toggles class selection', () => {
@@ -139,14 +115,6 @@ describe('Class Creation Store', () => {
       expect(allDeselected).toBe(true);
     });
 
-    test.skip('selects classes by element - method not implemented', () => {
-      // This functionality could be added to the store if needed
-    });
-
-    test.skip('selects classes by level - method not implemented', () => {
-      // This functionality could be added to the store if needed
-    });
-
     test('gets available elements from template', () => {
       const creationStore = useClassCreationStore.getState();
 
@@ -169,17 +137,11 @@ describe('Class Creation Store', () => {
     });
   });
 
-  // TODO: fix - selectTemplate in beforeEach triggers require('./templateStore') which fails in vitest ESM mode
-  describe.skip('Field Overrides', () => {
+  describe('Field Overrides', () => {
     beforeEach(() => {
       const template = createMockTemplate();
-      const templateStore = useTemplateStore.getState();
       const creationStore = useClassCreationStore.getState();
-
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { id, createdAt, createdBy, ...templateData } = template;
-      const createdTemplate = templateStore.createTemplate(templateData);
-      creationStore.selectTemplate(createdTemplate.id);
+      creationStore.setTemplateData(template);
     });
 
     test('updates field override', () => {
@@ -216,10 +178,6 @@ describe('Class Creation Store', () => {
       expect(state.fieldOverrides.estimatedJudgingTime).toBe(50);
     });
 
-    test.skip('clears all field overrides - method not implemented', () => {
-      // This functionality could be added to the store if needed
-    });
-
     test('resets specific field override', () => {
       const creationStore = useClassCreationStore.getState();
 
@@ -236,19 +194,13 @@ describe('Class Creation Store', () => {
     });
   });
 
-  // TODO: fix - selectTemplate in beforeEach triggers require('./templateStore') which fails in vitest ESM mode
-  describe.skip('Class Creation Workflow', () => {
+  describe('Class Creation Workflow', () => {
     beforeEach(() => {
       const template = createAKCScentWorkTemplate();
-      const templateStore = useTemplateStore.getState();
       const creationStore = useClassCreationStore.getState();
+      creationStore.setTemplateData(template);
 
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { id, createdAt, createdBy, ...templateData } = template;
-      const createdTemplate = templateStore.createTemplate(templateData);
-      creationStore.selectTemplate(createdTemplate.id);
-
-      // Select some classes manually since selectClassesByElement doesn't exist
+      // Select some classes manually
       const state = useClassCreationStore.getState();
       const containerClasses = state.selectedTemplate!.classDefinitions.filter(
         c => c.element === 'Container'
@@ -302,14 +254,23 @@ describe('Class Creation Store', () => {
     });
 
     test('applies field overrides during creation', () => {
-      const creationStore = useClassCreationStore.getState();
+      // Re-set up state since createClasses resets selection
+      const template = createAKCScentWorkTemplate();
+      useClassCreationStore.getState().setTemplateData(template);
+      const freshStore = useClassCreationStore.getState();
+      const containerClasses = freshStore.selectedTemplate!.classDefinitions.filter(
+        c => c.element === 'Container'
+      );
+      containerClasses.forEach(classDef => {
+        freshStore.toggleClass(classDef);
+      });
 
-      creationStore.updateFieldOverrides({
+      freshStore.updateFieldOverrides({
         maxEntries: 45,
         preEntryFee: 28,
       });
 
-      const result = creationStore.createClasses('trial-123', 'test-user');
+      const result = freshStore.createClasses('trial-123', 'test-user');
 
       expect(result.success).toBe(true);
       result.classes.forEach(cls => {
@@ -319,9 +280,18 @@ describe('Class Creation Store', () => {
     });
 
     test('assigns sequential run orders', () => {
-      const creationStore = useClassCreationStore.getState();
+      // Re-set up state since createClasses resets selection
+      const template = createAKCScentWorkTemplate();
+      useClassCreationStore.getState().setTemplateData(template);
+      const freshStore = useClassCreationStore.getState();
+      const containerClasses = freshStore.selectedTemplate!.classDefinitions.filter(
+        c => c.element === 'Container'
+      );
+      containerClasses.forEach(classDef => {
+        freshStore.toggleClass(classDef);
+      });
 
-      const result = creationStore.createClasses('trial-123', 'test-user');
+      const result = freshStore.createClasses('trial-123', 'test-user');
 
       expect(result.success).toBe(true);
       const runOrders = result.classes.map(c => c.runOrder);
@@ -391,52 +361,13 @@ describe('Class Creation Store', () => {
     });
   });
 
-  describe('Data Persistence', () => {
-    test.skip('persists state to localStorage on changes', () => {
-      // Skip - classCreationStore doesn't currently use persist middleware
-      const creationStore = useClassCreationStore.getState();
-
-      creationStore.updateFieldOverride('maxEntries', 50);
-
-      expect(mockLocalStorage.setItem).toHaveBeenCalledWith(
-        'class-creation-store',
-        expect.stringContaining('maxEntries')
-      );
-    });
-
-    test.skip('loads state from localStorage on initialization', () => {
-      // Skip - classCreationStore doesn't currently use persist middleware
-      const savedState = {
-        state: {
-          selectedTemplate: null,
-          selectedClasses: [],
-          fieldOverrides: { maxEntries: 42 },
-          createdClasses: [],
-          currentStep: 2,
-          trialId: 'trial-456',
-        },
-        version: 0,
-      };
-
-      mockLocalStorage.getItem.mockReturnValue(JSON.stringify(savedState));
-
-      // Access state to trigger initialization
-      useClassCreationStore.getState();
-
-      expect(mockLocalStorage.getItem).toHaveBeenCalledWith('class-creation-store');
-    });
-  });
-
-  // TODO: fix - selectTemplate triggers require('./templateStore') which fails in vitest ESM mode
-  describe.skip('Workflow Reset', () => {
+  describe('Workflow Reset', () => {
     test('resets entire workflow', () => {
       const template = createMockTemplate();
-      const templateStore = useTemplateStore.getState();
       const creationStore = useClassCreationStore.getState();
 
       // Set up some state
-      templateStore.createTemplate(template);
-      creationStore.selectTemplate(template.id);
+      creationStore.setTemplateData(template);
       creationStore.toggleClass(template.classDefinitions[0]);
       creationStore.updateFieldOverride('maxEntries', 25);
       creationStore.setStep(3);
@@ -453,85 +384,73 @@ describe('Class Creation Store', () => {
     });
   });
 
-  // TODO: fix - selectTemplate triggers require('./templateStore') which fails in vitest ESM mode
-  describe.skip('Created Classes Management', () => {
+  describe('Created Classes Management', () => {
     test('gets classes by trial ID', () => {
-      const creationStore = useClassCreationStore.getState();
       const template = createMockTemplate();
-      const templateStore = useTemplateStore.getState();
-
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { id, createdAt, createdBy, ...templateData } = template;
-      const createdTemplate = templateStore.createTemplate(templateData);
-      creationStore.selectTemplate(createdTemplate.id);
+      useClassCreationStore.getState().setTemplateData(template);
+      const creationStore = useClassCreationStore.getState();
       creationStore.selectAllClasses();
 
       // Create classes for trial-123
       creationStore.createClasses('trial-123', 'test-user');
 
-      const trialClasses = creationStore.getClassesByTrial('trial-123');
+      const trialClasses = useClassCreationStore.getState().getClassesByTrial('trial-123');
       expect(trialClasses.length).toBeGreaterThan(0);
       expect(trialClasses.every(c => c.trialId === 'trial-123')).toBe(true);
     });
 
     test('updates class run order', () => {
-      const creationStore = useClassCreationStore.getState();
       const template = createMockTemplate();
-      const templateStore = useTemplateStore.getState();
-
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { id, createdAt, createdBy, ...templateData } = template;
-      const createdTemplate = templateStore.createTemplate(templateData);
-      creationStore.selectTemplate(createdTemplate.id);
+      useClassCreationStore.getState().setTemplateData(template);
+      const creationStore = useClassCreationStore.getState();
       creationStore.selectAllClasses();
 
       const result = creationStore.createClasses('trial-123', 'test-user');
       const classId = result.classes[0].id;
 
-      creationStore.updateClassRunOrder(classId, 10);
+      useClassCreationStore.getState().updateClassRunOrder(classId, 10);
 
-      const updatedClass = creationStore.getClassesByTrial('trial-123').find(c => c.id === classId);
+      const updatedClass = useClassCreationStore
+        .getState()
+        .getClassesByTrial('trial-123')
+        .find(c => c.id === classId);
       expect(updatedClass?.runOrder).toBe(10);
     });
 
     test('updates class time', () => {
-      const creationStore = useClassCreationStore.getState();
       const template = createMockTemplate();
-      const templateStore = useTemplateStore.getState();
-
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { id, createdAt, createdBy, ...templateData } = template;
-      const createdTemplate = templateStore.createTemplate(templateData);
-      creationStore.selectTemplate(createdTemplate.id);
+      useClassCreationStore.getState().setTemplateData(template);
+      const creationStore = useClassCreationStore.getState();
       creationStore.selectAllClasses();
 
       const result = creationStore.createClasses('trial-123', 'test-user');
       const classId = result.classes[0].id;
       const newTime = new Date('2024-06-01T10:30:00');
 
-      creationStore.updateClassTime(classId, newTime);
+      useClassCreationStore.getState().updateClassTime(classId, newTime);
 
-      const updatedClass = creationStore.getClassesByTrial('trial-123').find(c => c.id === classId);
+      const updatedClass = useClassCreationStore
+        .getState()
+        .getClassesByTrial('trial-123')
+        .find(c => c.id === classId);
       expect(updatedClass?.plannedStartTime).toEqual(newTime);
     });
 
     test('updates class judge', () => {
-      const creationStore = useClassCreationStore.getState();
       const template = createMockTemplate();
-      const templateStore = useTemplateStore.getState();
-
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { id, createdAt, createdBy, ...templateData } = template;
-      const createdTemplate = templateStore.createTemplate(templateData);
-      creationStore.selectTemplate(createdTemplate.id);
+      useClassCreationStore.getState().setTemplateData(template);
+      const creationStore = useClassCreationStore.getState();
       creationStore.selectAllClasses();
 
       const result = creationStore.createClasses('trial-123', 'test-user');
       const classId = result.classes[0].id;
 
-      creationStore.updateClassJudge(classId, 'judge-456');
+      useClassCreationStore.getState().updateClassJudge(classId, 'judge-456');
 
-      const updatedClass = creationStore.getClassesByTrial('trial-123').find(c => c.id === classId);
+      const updatedClass = useClassCreationStore
+        .getState()
+        .getClassesByTrial('trial-123')
+        .find(c => c.id === classId);
       expect(updatedClass?.personnel.judgeId).toBe('judge-456');
     });
   });

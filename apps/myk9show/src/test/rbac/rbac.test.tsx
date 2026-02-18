@@ -1,37 +1,46 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import React from 'react';
-import { UserRole, PERMISSIONS, ScopeType, MOCK_USERS } from '../../types/auth-types';
-import { PermissionGuard, CommonGuards } from '../../components/auth/PermissionGuard';
+import {
+  UserRole,
+  PERMISSIONS,
+  ScopeType,
+  MOCK_USERS,
+  DEFAULT_ROLE_PERMISSIONS,
+} from '../../types/auth-types';
+import {
+  PermissionGuard,
+  ExhibitorOnly,
+  SecretaryOrAbove,
+} from '../../components/auth/PermissionGuard';
 import { useRegistrationPermissions } from '../../hooks/useRegistrationPermissions';
-import { AuthProvider } from '../../context/AuthContext';
-import { RegistrationProvider } from '../../context/RegistrationContext';
 
-// Mock the auth hook
-vi.mock('../../hooks/useAuth', () => ({
-  useAuth: () => ({
-    user: { id: 'exhibitor-user', email: 'exhibitor@example.com' },
-    loading: false,
-    signIn: vi.fn(),
-    signUp: vi.fn(),
-    signOut: vi.fn(),
-    resetPassword: vi.fn(),
-    updatePassword: vi.fn(),
-    updateProfile: vi.fn(),
-  }),
+// Mock useAuthContext so no QueryClientProvider / AuthProvider needed
+vi.mock('../../hooks/useAuthContext', () => ({
+  useAuthContext: vi.fn(),
 }));
 
-// Test wrapper with providers
-const TestWrapper = ({ children }: { children: React.ReactNode }) => (
-  <AuthProvider>
-    <RegistrationProvider>{children}</RegistrationProvider>
-  </AuthProvider>
-);
+import { useAuthContext } from '../../hooks/useAuthContext';
 
-// TODO: AuthProvider internally calls useUserRoles (useQuery) which needs QueryClientProvider.
-// Also CommonGuards namespace export does not exist - individual components are exported directly.
-// Fix: Wrap TestWrapper with QueryClientProvider and update CommonGuards.X usages to use direct imports.
-describe.skip('RBAC System', () => {
+// Build a mock UserWithRoles for the exhibitor user
+const exhibitorUserWithRoles = {
+  id: 'exhibitor-user',
+  email: 'exhibitor@example.com',
+  roles: [UserRole.EXHIBITOR],
+  permissions: DEFAULT_ROLE_PERMISSIONS[UserRole.EXHIBITOR],
+  scopes: [],
+};
+
+// Set up the mock to return an exhibitor before each test
+beforeEach(() => {
+  vi.clearAllMocks();
+  (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
+    userWithRoles: exhibitorUserWithRoles,
+    loading: false,
+  });
+});
+
+describe('RBAC System', () => {
   describe('Permission Types and Constants', () => {
     it('should have all required permission constants', () => {
       expect(PERMISSIONS.DOG_CREATE).toBe('dog:create');
@@ -82,11 +91,7 @@ describe.skip('RBAC System', () => {
     };
 
     it('should provide correct permissions for exhibitor role', () => {
-      render(
-        <TestWrapper>
-          <TestComponent expectedRole={UserRole.EXHIBITOR} />
-        </TestWrapper>
-      );
+      render(<TestComponent expectedRole={UserRole.EXHIBITOR} />);
 
       expect(screen.getByTestId('has-role')).toHaveTextContent('true');
       expect(screen.getByTestId('can-view-all-dogs')).toHaveTextContent('false');
@@ -103,11 +108,9 @@ describe.skip('RBAC System', () => {
   describe('PermissionGuard Component', () => {
     it('should render children when user has required permission', () => {
       render(
-        <TestWrapper>
-          <PermissionGuard permission={PERMISSIONS.DOG_READ}>
-            <div data-testid="protected-content">Protected Content</div>
-          </PermissionGuard>
-        </TestWrapper>
+        <PermissionGuard permission={PERMISSIONS.DOG_READ}>
+          <div data-testid="protected-content">Protected Content</div>
+        </PermissionGuard>
       );
 
       expect(screen.getByTestId('protected-content')).toBeInTheDocument();
@@ -115,11 +118,9 @@ describe.skip('RBAC System', () => {
 
     it('should not render children when user lacks required permission', () => {
       render(
-        <TestWrapper>
-          <PermissionGuard permission={PERMISSIONS.REGISTRATION_VIEW_ALL_DOGS}>
-            <div data-testid="protected-content">Protected Content</div>
-          </PermissionGuard>
-        </TestWrapper>
+        <PermissionGuard permission={PERMISSIONS.REGISTRATION_VIEW_ALL_DOGS}>
+          <div data-testid="protected-content">Protected Content</div>
+        </PermissionGuard>
       );
 
       expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
@@ -127,14 +128,12 @@ describe.skip('RBAC System', () => {
 
     it('should render fallback when user lacks permission', () => {
       render(
-        <TestWrapper>
-          <PermissionGuard
-            permission={PERMISSIONS.REGISTRATION_VIEW_ALL_DOGS}
-            fallback={<div data-testid="fallback">No Permission</div>}
-          >
-            <div data-testid="protected-content">Protected Content</div>
-          </PermissionGuard>
-        </TestWrapper>
+        <PermissionGuard
+          permission={PERMISSIONS.REGISTRATION_VIEW_ALL_DOGS}
+          fallback={<div data-testid="fallback">No Permission</div>}
+        >
+          <div data-testid="protected-content">Protected Content</div>
+        </PermissionGuard>
       );
 
       expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
@@ -143,14 +142,14 @@ describe.skip('RBAC System', () => {
 
     it('should support role-based protection', () => {
       render(
-        <TestWrapper>
+        <>
           <PermissionGuard role={UserRole.EXHIBITOR}>
             <div data-testid="exhibitor-content">Exhibitor Content</div>
           </PermissionGuard>
           <PermissionGuard role={UserRole.SECRETARY}>
             <div data-testid="secretary-content">Secretary Content</div>
           </PermissionGuard>
-        </TestWrapper>
+        </>
       );
 
       expect(screen.getByTestId('exhibitor-content')).toBeInTheDocument();
@@ -159,11 +158,9 @@ describe.skip('RBAC System', () => {
 
     it('should support multiple roles (OR logic)', () => {
       render(
-        <TestWrapper>
-          <PermissionGuard role={[UserRole.SECRETARY, UserRole.CLUB_ADMIN]}>
-            <div data-testid="secretary-or-admin">Secretary or Admin Content</div>
-          </PermissionGuard>
-        </TestWrapper>
+        <PermissionGuard role={[UserRole.SECRETARY, UserRole.CLUB_ADMIN]}>
+          <div data-testid="secretary-or-admin">Secretary or Admin Content</div>
+        </PermissionGuard>
       );
 
       // Should not render because user is exhibitor, not secretary or club admin
@@ -172,11 +169,9 @@ describe.skip('RBAC System', () => {
 
     it('should support inverted checks with not prop', () => {
       render(
-        <TestWrapper>
-          <PermissionGuard permission={PERMISSIONS.REGISTRATION_VIEW_ALL_DOGS} not>
-            <div data-testid="not-admin">Not Admin Content</div>
-          </PermissionGuard>
-        </TestWrapper>
+        <PermissionGuard permission={PERMISSIONS.REGISTRATION_VIEW_ALL_DOGS} not>
+          <div data-testid="not-admin">Not Admin Content</div>
+        </PermissionGuard>
       );
 
       // Should render because user does NOT have view all dogs permission
@@ -185,14 +180,14 @@ describe.skip('RBAC System', () => {
 
     it('should support custom checks', () => {
       render(
-        <TestWrapper>
+        <>
           <PermissionGuard customCheck={() => true}>
             <div data-testid="custom-true">Custom True</div>
           </PermissionGuard>
           <PermissionGuard customCheck={() => false}>
             <div data-testid="custom-false">Custom False</div>
           </PermissionGuard>
-        </TestWrapper>
+        </>
       );
 
       expect(screen.getByTestId('custom-true')).toBeInTheDocument();
@@ -203,11 +198,9 @@ describe.skip('RBAC System', () => {
   describe('CommonGuards', () => {
     it('should render ExhibitorOnly content for exhibitors', () => {
       render(
-        <TestWrapper>
-          <CommonGuards.ExhibitorOnly>
-            <div data-testid="exhibitor-only">Exhibitor Only</div>
-          </CommonGuards.ExhibitorOnly>
-        </TestWrapper>
+        <ExhibitorOnly>
+          <div data-testid="exhibitor-only">Exhibitor Only</div>
+        </ExhibitorOnly>
       );
 
       expect(screen.getByTestId('exhibitor-only')).toBeInTheDocument();
@@ -215,11 +208,9 @@ describe.skip('RBAC System', () => {
 
     it('should not render SecretaryOrAbove content for exhibitors', () => {
       render(
-        <TestWrapper>
-          <CommonGuards.SecretaryOrAbove>
-            <div data-testid="secretary-or-above">Secretary or Above</div>
-          </CommonGuards.SecretaryOrAbove>
-        </TestWrapper>
+        <SecretaryOrAbove>
+          <div data-testid="secretary-or-above">Secretary or Above</div>
+        </SecretaryOrAbove>
       );
 
       expect(screen.queryByTestId('secretary-or-above')).not.toBeInTheDocument();
@@ -227,13 +218,9 @@ describe.skip('RBAC System', () => {
 
     it('should render SecretaryOrAbove fallback for exhibitors', () => {
       render(
-        <TestWrapper>
-          <CommonGuards.SecretaryOrAbove
-            fallback={<div data-testid="fallback">Need Secretary Role</div>}
-          >
-            <div data-testid="secretary-or-above">Secretary or Above</div>
-          </CommonGuards.SecretaryOrAbove>
-        </TestWrapper>
+        <SecretaryOrAbove fallback={<div data-testid="fallback">Need Secretary Role</div>}>
+          <div data-testid="secretary-or-above">Secretary or Above</div>
+        </SecretaryOrAbove>
       );
 
       expect(screen.queryByTestId('secretary-or-above')).not.toBeInTheDocument();
@@ -254,11 +241,7 @@ describe.skip('RBAC System', () => {
         );
       };
 
-      render(
-        <TestWrapper>
-          <TestScopedComponent />
-        </TestWrapper>
-      );
+      render(<TestScopedComponent />);
 
       // Exhibitors typically don't have club scopes
       expect(screen.getByTestId('has-club-scope')).toHaveTextContent('false');
@@ -272,9 +255,9 @@ describe.skip('RBAC System', () => {
         const { filterAccessibleDogs } = useRegistrationPermissions();
 
         const allDogs = [
-          { id: 'dog-1', ownerId: 'test-user', clubId: 'club-1' },
+          { id: 'dog-1', ownerId: 'exhibitor-user', clubId: 'club-1' },
           { id: 'dog-2', ownerId: 'other-user', clubId: 'club-1' },
-          { id: 'dog-3', ownerId: 'test-user', clubId: 'club-2' },
+          { id: 'dog-3', ownerId: 'exhibitor-user', clubId: 'club-2' },
           { id: 'dog-4', ownerId: 'other-user', clubId: 'club-2' },
         ];
 
@@ -288,11 +271,7 @@ describe.skip('RBAC System', () => {
         );
       };
 
-      render(
-        <TestWrapper>
-          <TestFilterComponent />
-        </TestWrapper>
-      );
+      render(<TestFilterComponent />);
 
       // Exhibitors should only see their own dogs
       expect(screen.getByTestId('accessible-count')).toHaveTextContent('2');
@@ -308,11 +287,7 @@ describe.skip('RBAC System', () => {
         return <div data-testid="mode">{getRegistrationMode()}</div>;
       };
 
-      render(
-        <TestWrapper>
-          <TestModeComponent />
-        </TestWrapper>
-      );
+      render(<TestModeComponent />);
 
       expect(screen.getByTestId('mode')).toHaveTextContent('exhibitor');
     });
@@ -326,11 +301,7 @@ describe.skip('RBAC System', () => {
         return <div data-testid="max-dogs">{getMaxDogsPerRegistration()}</div>;
       };
 
-      render(
-        <TestWrapper>
-          <TestLimitComponent />
-        </TestWrapper>
-      );
+      render(<TestLimitComponent />);
 
       // Exhibitors should have a limit of 5 dogs
       expect(screen.getByTestId('max-dogs')).toHaveTextContent('5');

@@ -224,15 +224,6 @@ describe('Application Smoke Tests', () => {
     expect(typeof validateHandlerEligibility).toBe('function');
   });
 
-  it.skip('should validate armband utilities', async () => {
-    // TODO: fix - armbandUtils module does not exist; assignArmbands lives in armbandStore
-    throw new Error('armbandUtils does not exist'); // Prevents Vite static analysis error
-    const assignArmbands = undefined;
-
-    expect(assignArmbands).toBeDefined();
-    expect(typeof assignArmbands).toBe('function');
-  });
-
   it('should pass production polish feature validation', async () => {
     // Validate that all production polish features are properly exported
 

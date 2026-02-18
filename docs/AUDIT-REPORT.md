@@ -1,17 +1,21 @@
 # Codebase Health Audit Report
-Generated: 2026-02-15
+
+Generated: 2026-02-18
 
 ## Summary
 
-| Category | Count | Trend (vs 2026-02-12) |
-|----------|-------|-----------------------|
-| @ts-nocheck files | 0 | DOWN from 29 (all removed) |
-| @ts-ignore comments | 1 | same |
-| Explicit `any` types | 486 (total) | ~same (was 483) |
-| Console statements (app source) | 2 files, 99 occurrences | DOWN from 7 files, 371 occurrences |
-| Files over 400 lines (source) | 33 | DOWN from 49 |
-| Unused dependencies | 7 | DOWN from 13 |
-| Stale TO-DOS items | All complete | improved (myk9q TO-DOS is all checkmarks) |
+| Category                          | Count                   | Trend (vs 2026-02-15)                        |
+| --------------------------------- | ----------------------- | -------------------------------------------- |
+| @ts-nocheck files                 | 0                       | same                                         |
+| @ts-ignore comments               | 0                       | DOWN from 1 (removed from syncManager.test)  |
+| Explicit `any` types (app source) | 3 in 2 files            | DOWN from ~80 (massive cleanup in sprint)    |
+| Explicit `any` types (all)        | 28 across 14 files      | DOWN from 486 (97% reduction)                |
+| `as any` casts (app source)       | 0                       | same (maintained at zero)                    |
+| Console statements (app source)   | 0                       | same (debug utils are dev-gated)             |
+| Files over 800 lines              | 1                       | DOWN from 8 (7 refactored)                   |
+| Files over 700 lines              | 26                      | DOWN from ~40 (sprint 4 refactored 15)       |
+| Unused dependencies               | 6 removable + 1 missing | changed (old ones removed, new ones found)   |
+| Stale TO-DOS items                | 1                       | new (package coverage threshold not checked) |
 
 ---
 
@@ -19,9 +23,9 @@ Generated: 2026-02-15
 
 ### 1. TypeScript Escape Hatches
 
-**@ts-nocheck: 0 files** -- All 29 previously flagged files have been resolved (deleted dead files, fixed types).
+**@ts-nocheck: 0 files** -- Clean since 2026-02-15 audit.
 
-**@ts-ignore: 1 file** -- `apps/myk9q/src/services/syncManager.test.ts:37` (test mock, acceptable)
+**@ts-ignore / @ts-expect-error: 0 files** -- The last remaining occurrence (in `syncManager.test.ts`) was removed during the Code Quality Sprint.
 
 Severity: resolved | No action needed
 
@@ -29,149 +33,147 @@ Severity: resolved | No action needed
 
 ### 2. `any` Type Hotspots
 
-Total: 486 occurrences across 86 files (apps + packages).
+**App source (non-test, non-script, non-edge-function): 3 occurrences in 2 files**
 
-**By area:**
+| File                                                             | Line(s)  | Usage                                         | Assessment                                                   |
+| ---------------------------------------------------------------- | -------- | --------------------------------------------- | ------------------------------------------------------------ |
+| `myk9show/src/hooks/optimized/useSimplifiedHooks.ts`             | 115, 163 | `(...args: any[]) => any` generic constraints | Acceptable -- standard pattern for generic callback wrappers |
+| `myk9show/src/services/database/queries/search-query-helpers.ts` | 68       | `{ from(t: string): any }` type narrowing     | Workaround for Supabase client type limitation               |
 
-| Area | Source `any` | Test `any` | Notes |
-|------|-------------|------------|-------|
-| myk9show src | ~50 | ~230 | Performance APIs, browser compat |
-| myk9q src | ~30 | ~170 | Test mocks, replication layer |
-| packages | 1 (typeGuards.ts) | 24 | Mostly test mocks |
+**Edge Functions: 10 occurrences in 4 files**
 
-**Top source hotspots (non-test):**
+| File                                                       | Count | Usage                           |
+| ---------------------------------------------------------- | ----- | ------------------------------- |
+| `myk9q/supabase/functions/send-push-notification/index.ts` | 5     | Error catches, payload types    |
+| `myk9q/supabase/functions/validate-passcode/index.ts`      | 2     | `matchedShow: any`, error catch |
+| `myk9q/supabase/functions/clear-rate-limits/index.ts`      | 1     | Error catch                     |
+| `myk9q/supabase/functions/search-rules-v2/index.ts`        | 1     | `supabase: any` param           |
 
-| Directory | Count | Primary Files |
-|-----------|-------|---------------|
-| `myk9show/src/utils/` | 10 | enhancedLazyLoading.ts (9) |
-| `myk9show/src/services/performance/` | 10 | RealUserMonitoring.ts (6), PerformanceBudgets.ts (4) |
-| `myk9show/src/hooks/optimized/` | 8 | useSimplifiedHooks.ts (4), useMemoryLeakDetection.ts (3) |
-| `myk9show/src/hooks/` | 4 | performance-optimization-utils.ts (3) |
-| `myk9show/src/services/sync/` | 3 | backgroundSyncService.ts |
-| `myk9show/src/services/realtime/` | 4 | subscriptionManager.ts (2), RealtimeScoringService.ts (2) |
+**Scripts: 7 occurrences in 6 files** -- All in `myk9q/scripts/` (debug/seed tooling). Acceptable.
 
-Most `any` usage is justified for browser performance APIs (`performance.memory`, `navigator.connection`) which lack standard TypeScript definitions.
+**`as any` casts: 1 real occurrence** -- `send-push-notification/index.ts:209` (Edge Function)
 
-Severity: low | Effort: sprint-task
+Severity: resolved | Remaining occurrences are justified or in non-app code
 
 ---
 
 ### 3. Console Statements
 
-**Application source (non-test, non-script, non-edge-function):**
+**Application source (non-test, non-script, non-debug-util, non-logger): 0**
 
-| File | Count | Assessment |
-|------|-------|------------|
-| `myk9q/src/services/entryDebug.ts` | 85 | Debug utility -- dev-gated (`initializeDebugFunctions` has DEV check) |
-| `myk9q/src/utils/testDatabaseConnections.ts` | 14 | Test utility |
+All console statements in production app code route through `LoggingService` or `@myk9/core/logger`.
 
-**Edge Functions (server-side, OK to keep):** ~116 across 11 function files
-**Scripts (OK to keep):** ~120 across debug/seed scripts
-**Test files (OK to keep):** ~1,074
+**Debug utilities (intentional, dev-gated):**
 
-**Improvement:** Previous audit found 7 app source files with console statements. Now only 2 remain (both are intentional debug utilities with dev gates).
+| File                                         | Count | Assessment                                              |
+| -------------------------------------------- | ----- | ------------------------------------------------------- |
+| `myk9q/src/services/entryDebug.ts`           | ~85   | Dev-only debug functions for Supabase real-time testing |
+| `myk9q/src/utils/testDatabaseConnections.ts` | ~14   | Database connection test script                         |
+
+**Edge Functions: ~160 occurrences across 11 files** -- Server-side logging, expected.
 
 Severity: resolved | No action needed
 
 ---
 
-### 4. Large Files (>400 lines, source only)
+### 4. Large Files
 
-**33 files over 400 lines** (excluding generated types, dist/, tests):
+**Source files by size range** (excluding generated types, tests, scripts, edge functions):
 
-| Range | Count | Examples |
-|-------|-------|---------|
-| 800+ lines | 8 | trialStore.ts (858), OfflineScoringService.ts (875), DataExportImport.ts (859) |
-| 700-799 | 10 | ConfirmationStep.tsx (781), useScheduleBoard.ts (781), conflictResolver.ts (779) |
-| 600-699 | 4 | showStore.ts, scoring pages |
-| 400-599 | 11 | Various services and components |
+| Range      | Count | Notable files                                                                                                |
+| ---------- | ----- | ------------------------------------------------------------------------------------------------------------ |
+| 800+ lines | 1     | `OfflineScoringService.ts` (875)                                                                             |
+| 700-799    | 25    | `UserEditPanel.tsx` (752), `BulkActionsBar.tsx` (750), `EditClassDialog.tsx` (749), `templateStore.ts` (747) |
+| 600-699    | 80    | Various services and components                                                                              |
+| 500-599    | 111   | Various                                                                                                      |
 
 **Top 10 largest source files:**
 
-| File | Lines |
-|------|-------|
-| `myk9show/src/services/scoring/OfflineScoringService.ts` | 875 |
-| `myk9show/src/services/data-lifecycle/DataExportImport.ts` | 859 |
-| `myk9show/src/store/trialStore.ts` | 858 |
-| `myk9show/src/services/deployment/ProductionMonitoringService.ts` | 797 |
-| `myk9show/src/services/sync/DifferentialSyncService.ts` | 791 |
-| `myk9show/src/services/analytics/UserBehaviorLearning.ts` | 784 |
-| `myk9show/src/components/shows/RegistrationWorkflow/ConfirmationStep.tsx` | 781 |
-| `myk9q/src/pages/TrialSecretary/hooks/useScheduleBoard.ts` | 781 |
-| `myk9show/src/services/sync/conflictResolver.ts` | 779 |
-| `myk9show/src/services/offline-checkin/OfflineCheckInService.ts` | 775 |
+| File                                                            | Lines | Already tracked?                   |
+| --------------------------------------------------------------- | ----- | ---------------------------------- |
+| `myk9show/src/services/scoring/OfflineScoringService.ts`        | 875   | Yes (TO-DOS: skip, cohesive class) |
+| `myk9show/src/components/panels/edit/UserEditPanel.tsx`         | 752   | Yes (700-750 backlog)              |
+| `myk9show/src/components/admin/users/BulkActionsBar.tsx`        | 750   | Yes (700-750 backlog)              |
+| `myk9show/src/components/classes/EditClassDialog.tsx`           | 749   | Yes (700-750 backlog)              |
+| `myk9show/src/store/templateStore.ts`                           | 747   | Yes (700-750 backlog)              |
+| `myk9show/src/services/deployment/FeatureFlagService.ts`        | 746   | Yes (700-750 backlog)              |
+| `myk9show/src/components/templates/admin/FieldConfigurator.tsx` | 744   | Yes (700-750 backlog)              |
+| `myk9show/src/components/sync/SyncSettingsPanel.tsx`            | 738   | Yes (700-750 backlog)              |
+| `myk9show/src/components/stewards/GateStewardInterface.tsx`     | 737   | Yes (700-750 backlog)              |
+| `myk9show/src/services/notifications/EmailService.ts`           | 736   | Yes (700-750 backlog)              |
 
-**Improvement:** Down from 49 to 33 (16 files resolved since last audit via refactoring and dead code deletion).
+**Improvement:** Files over 800 lines dropped from 8 to 1 (Code Quality Sprint Session 4 refactored 7 of them).
 
-Severity: moderate | Effort: sprint-task per file
+**CLAUDE.md guideline:** "Keep files under 500 lines." 217 source files exceed this threshold. The 26 files over 700 lines are the priority targets; address when naturally touched.
+
+Severity: moderate | Effort: sprint-task per file (address when modified)
 
 ---
 
 ### 5. Unused Dependencies
 
-**myk9show (5 unused):**
+**apps/myk9show -- 4 removable devDependencies + 1 missing runtime dep:**
 
-| Dependency | Reason |
-|-----------|--------|
-| `dexie-react-hooks` | Never imported; only `dexie` is used |
-| `react-dnd` | Superseded by `@dnd-kit`; zero imports |
-| `react-dnd-html5-backend` | Superseded by `@dnd-kit`; zero imports |
-| `swiper` | Zero imports anywhere |
-| `uuid` | Code uses `crypto.randomUUID()`; also listed in vite optimizeDeps but uninstalled |
+| Dependency              | Type          | Issue                                                                                   |
+| ----------------------- | ------------- | --------------------------------------------------------------------------------------- |
+| `web-vitals`            | devDep        | Zero imports; only mentioned in a comment                                               |
+| `@rollup/plugin-terser` | devDep        | Explicitly commented out in `vite.config.ts`                                            |
+| `husky`                 | devDep        | No `.husky/` directory exists; pre-commit via Claude Code hooks                         |
+| `lint-staged`           | devDep        | No config file; vestigial alongside husky                                               |
+| `pako` (MISSING)        | should be dep | Imported in `CompressionService.ts` but only available transitively via `jspdf`/`jszip` |
 
-**myk9q (2 unused devDependencies):**
+**apps/myk9q -- 2 removable devDependencies:**
 
-| Dependency | Reason |
-|-----------|--------|
-| `pdfjs-dist` | Not imported in src/ |
-| `puppeteer` | Not imported in src/ |
+| Dependency       | Type   | Issue                                                              |
+| ---------------- | ------ | ------------------------------------------------------------------ |
+| `workbox-window` | devDep | Not directly imported; pulled in transitively by `vite-plugin-pwa` |
+| `workbox-core`   | devDep | Not directly imported; pulled in transitively by `vite-plugin-pwa` |
 
-**Note:** `firebase` in myk9show is technically imported (FCMService.ts) but may be dead code since push notifications aren't active. `sharp` in myk9q is a build-time image tool. `react-router-dom` in myk9q is a devDependency that should be a regular dependency.
+**Previous audit found 7 unused** (5 in myk9show: `dexie-react-hooks`, `react-dnd`, `react-dnd-html5-backend`, `swiper`, `uuid`; 2 in myk9q: `pdfjs-dist`, `puppeteer`). All were removed. New unused deps found this audit are lower severity.
 
-**All shared packages have no unused dependencies.**
+**All shared packages: clean** -- No unused dependencies.
 
-Severity: low | Effort: quick-win (5 min)
+Severity: low (removals) / moderate (missing `pako`) | Effort: quick-win
 
 ---
 
-### 6. TO-DOS.md Staleness
+### 6. Stale TO-DOS Items
 
-**Root TO-DOS.md:** Says "No outstanding items. All 32 oversized files have been refactored." -- Accurate for tracked items.
+**1 stale item found:**
 
-**myk9q TO-DOS.md:** All items marked COMPLETE. No stale references. Contains useful historical record of:
-- React CVE patches
-- Scoresheet refactoring (43% reduction)
-- Production readiness audit (all critical/high items fixed)
-- UKC Nosework module conversion
-- 20+ feature implementations
+| Line | Item                                          | Issue                                                              |
+| ---- | --------------------------------------------- | ------------------------------------------------------------------ |
+| 36   | `[ ] Package coverage thresholds -- deferred` | Completed 2026-02-18 (commit `921156b`) but still marked unchecked |
 
-**Previous stale items (from 2026-02-12 audit) have been resolved:**
-- Deleted file references: fixed (files were deleted in schema-blocked type mismatch work)
-- Missing @ts-nocheck tracking: resolved (all @ts-nocheck files removed)
-- Count mismatches: resolved
+All other items verified:
 
-Severity: resolved | No action needed
+- File references still exist (OfflineScoringService.ts confirmed at 875 lines)
+- Completed items (`[x]`) are accurately marked
+- Outstanding items (E2E blocking, 700-750 files) are still relevant
+
+Severity: low | Effort: quick-win (update checkbox)
 
 ---
 
 ## Recommended Actions
 
-### Quick Wins (5-10 minutes)
+### Quick Wins (5 minutes)
 
-1. **Remove 5 unused dependencies from myk9show**: `dexie-react-hooks`, `react-dnd`, `react-dnd-html5-backend`, `swiper`, `uuid`
-2. **Remove `uuid` from vite.config.ts optimizeDeps.include** (already not installed)
-3. **Move `react-router-dom` to dependencies** in myk9q (currently misclassified as devDependency)
-
-### Sprint Items
-
-1. **Refactor top 3 largest files** if they need modification: trialStore.ts (858), OfflineScoringService.ts (875), DataExportImport.ts (859)
-2. **Review `any` hotspots** in enhancedLazyLoading.ts (9 occurrences) and RealUserMonitoring.ts (6)
-3. **Evaluate firebase dependency** in myk9show: is FCMService actively used? If not, remove firebase + related code
+1. **Fix stale TO-DOS.md item:** Check off "Package coverage thresholds" (line 36)
+2. **Add `pako` to myk9show dependencies:** Prevents breakage if `jspdf`/`jszip` drop the transitive dep
+3. **Remove unused devDeps from myk9show:** `web-vitals`, `@rollup/plugin-terser`, `husky`, `lint-staged`
+4. **Remove unused devDeps from myk9q:** `workbox-window`, `workbox-core`
 
 ### No Action Needed
 
-- @ts-nocheck: all resolved
-- @ts-ignore: 1 occurrence in test mock (acceptable)
-- Console statements: only in dev-gated debug utilities
-- TO-DOS staleness: all current
-- Package dependencies: all shared packages clean
+- @ts-nocheck / @ts-ignore: zero, fully resolved
+- `as any` casts in app source: zero, maintained since sprint
+- Console statements: zero in production code (debug utils are dev-gated)
+- Shared package dependencies: all clean
+- TO-DOS accuracy: 1 minor checkbox fix
+
+### Ongoing (address when files are naturally modified)
+
+- 26 files over 700 lines -- refactor when touched
+- 3 `any` types in app source -- acceptable patterns, no action required
+- Edge Function `any` types (10 occurrences) -- improve when functions are updated

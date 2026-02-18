@@ -33,7 +33,7 @@ Top 3 source files over 800 lines — refactor when next modified:
 - [x] Added `--coverage` to CI pipeline, fixed duplicate `--run` bug, bumped timeouts
 - [x] Deleted 9 broken auto-generated tests (phase4 + UserActivityMonitor + DifferentialSyncService)
 - [x] Added `reportOnFailure: true` so coverage reports even with test failures
-- [ ] Package coverage thresholds — deferred (need `@vitest/coverage-v8` dep + CI jobs)
+- [x] Package coverage thresholds — 6 packages with baseline-2% thresholds, CI job, root script (2026-02-18)
 
 ### myK9Show Test Failures (591 failing tests) — RESOLVED (2026-02-17)
 

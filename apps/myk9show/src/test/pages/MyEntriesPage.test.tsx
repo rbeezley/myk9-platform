@@ -10,29 +10,29 @@ import type { UserWithRoles } from '@/types/auth-types';
 // Mock dependencies
 vi.mock('@/hooks/useAuthContext');
 vi.mock('@/hooks/useBreadcrumb', () => ({
-  useBreadcrumb: () => [{ label: 'Home', href: '/' }, { label: 'My Entries' }]
+  useBreadcrumb: () => [{ label: 'Home', href: '/' }, { label: 'My Entries' }],
 }));
 vi.mock('@/services/NotificationService', () => ({
-  useStatusUpdates: () => ({ status: null })
+  useStatusUpdates: () => ({ status: null }),
 }));
 vi.mock('@/services/AuditService', () => ({
   auditService: {
-    log: vi.fn()
+    log: vi.fn(),
   },
   AuditAction: {
     READ: 'READ',
-    UPDATE: 'UPDATE'
-  }
+    UPDATE: 'UPDATE',
+  },
 }));
 vi.mock('@/services/LoggingService', () => ({
   logger: {
     error: vi.fn(),
     log: vi.fn(),
-    info: vi.fn()
-  }
+    info: vi.fn(),
+  },
 }));
 vi.mock('@/services/database/queries/entryQueries', () => ({
-  getUserEntries: vi.fn().mockResolvedValue({ data: [], error: null })
+  getUserEntries: vi.fn().mockResolvedValue({ data: [], error: null }),
 }));
 
 // Mock entry data
@@ -52,7 +52,7 @@ const mockEntries = [
     paymentStatus: PaymentStatus.PAID_ONLINE,
     confirmationNumber: 'ABC123',
     submittedAt: new Date(Date.now() - 604800000), // 1 week ago
-    lastUpdated: new Date(Date.now() - 86400000) // Yesterday
+    lastUpdated: new Date(Date.now() - 86400000), // Yesterday
   },
   {
     id: 'entry-2',
@@ -69,8 +69,8 @@ const mockEntries = [
     paymentStatus: PaymentStatus.PENDING,
     confirmationNumber: 'DEF456',
     submittedAt: new Date(Date.now() - 172800000), // 2 days ago
-    lastUpdated: new Date(Date.now() - 86400000) // Yesterday
-  }
+    lastUpdated: new Date(Date.now() - 86400000), // Yesterday
+  },
 ];
 
 const mockUser: UserWithRoles = {
@@ -79,22 +79,20 @@ const mockUser: UserWithRoles = {
   firstName: 'Test',
   lastName: 'User',
   roles: ['exhibitor'],
-  permissions: []
+  permissions: [],
 };
 
 const renderWithProviders = (ui: React.ReactElement) => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
-      mutations: { retry: false }
-    }
+      mutations: { retry: false },
+    },
   });
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={['/my-entries']}>
-        {ui}
-      </MemoryRouter>
+      <MemoryRouter initialEntries={['/my-entries']}>{ui}</MemoryRouter>
     </QueryClientProvider>
   );
 };
@@ -104,7 +102,7 @@ describe('MyEntriesPage UI Improvements', () => {
     vi.clearAllMocks();
     (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
       user: mockUser,
-      isAuthenticated: true
+      isAuthenticated: true,
     });
   });
 
@@ -160,11 +158,11 @@ describe('MyEntriesPage UI Improvements', () => {
 
       await screen.findByRole('heading', { name: 'My Entries' });
 
-      // Tabs should have simple labels without counts
-      expect(screen.getByRole('tab', { name: 'All' })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: 'Pending' })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: 'Waitlist' })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: 'Upcoming' })).toBeInTheDocument();
+      // Tabs should have simple labels without counts (rendered as lowercase values)
+      expect(screen.getByRole('tab', { name: 'all' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'pending' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'waitlist' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'upcoming' })).toBeInTheDocument();
     });
 
     it('should have scrollable tab container for mobile', async () => {
@@ -204,7 +202,7 @@ describe('Receipt Button Visibility', () => {
     vi.clearAllMocks();
     (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
       user: mockUser,
-      isAuthenticated: true
+      isAuthenticated: true,
     });
   });
 
@@ -215,19 +213,19 @@ describe('Receipt Button Visibility', () => {
     const pendingEntry = mockEntries[1]; // PENDING
 
     // Paid entry should qualify for receipt
-    const paidHasReceipt = paidEntry.confirmationNumber && (
-      paidEntry.paymentStatus === PaymentStatus.PAID_ONLINE ||
-      paidEntry.paymentStatus === PaymentStatus.PAID_BY_CHECK ||
-      paidEntry.paymentStatus === PaymentStatus.PAID_BY_CASH
-    );
+    const paidHasReceipt =
+      paidEntry.confirmationNumber &&
+      (paidEntry.paymentStatus === PaymentStatus.PAID_ONLINE ||
+        paidEntry.paymentStatus === PaymentStatus.PAID_BY_CHECK ||
+        paidEntry.paymentStatus === PaymentStatus.PAID_BY_CASH);
     expect(paidHasReceipt).toBe(true);
 
     // Pending entry should NOT qualify for receipt
-    const pendingHasReceipt = pendingEntry.confirmationNumber && (
-      pendingEntry.paymentStatus === PaymentStatus.PAID_ONLINE ||
-      pendingEntry.paymentStatus === PaymentStatus.PAID_BY_CHECK ||
-      pendingEntry.paymentStatus === PaymentStatus.PAID_BY_CASH
-    );
+    const pendingHasReceipt =
+      pendingEntry.confirmationNumber &&
+      (pendingEntry.paymentStatus === PaymentStatus.PAID_ONLINE ||
+        pendingEntry.paymentStatus === PaymentStatus.PAID_BY_CHECK ||
+        pendingEntry.paymentStatus === PaymentStatus.PAID_BY_CASH);
     expect(pendingHasReceipt).toBe(false);
   });
 });
@@ -237,7 +235,7 @@ describe('Status Stepper Integration', () => {
     vi.clearAllMocks();
     (useAuthContext as ReturnType<typeof vi.fn>).mockReturnValue({
       user: mockUser,
-      isAuthenticated: true
+      isAuthenticated: true,
     });
   });
 

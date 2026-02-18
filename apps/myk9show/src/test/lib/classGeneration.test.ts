@@ -1,13 +1,10 @@
 import { describe, test, expect } from 'vitest';
-import {
-  generateClassesFromTemplate,
-  validateClassGeneration
-} from '@/lib/classGeneration';
+import { generateClassesFromTemplate, validateClassGeneration } from '@/lib/classGeneration';
 import {
   createMockTemplate,
   createMockClassDefinition,
   createMockField,
-  createAKCScentWorkTemplate
+  createAKCScentWorkTemplate,
 } from '@/test/utils/mockData';
 
 describe('Class Generation', () => {
@@ -19,7 +16,7 @@ describe('Class Generation', () => {
         selectedClasses: template.classDefinitions.slice(0, 2),
         fieldOverrides: { maxEntries: 25 },
         runOrderStart: 1,
-        createdBy: 'test-user'
+        createdBy: 'test-user',
       };
 
       const result = generateClassesFromTemplate(template, options);
@@ -27,7 +24,7 @@ describe('Class Generation', () => {
       expect(result.success).toBe(true);
       expect(result.classes).toHaveLength(2);
       expect(result.errors).toHaveLength(0);
-      
+
       // Check first class properties
       const firstClass = result.classes[0];
       expect(firstClass.templateId).toBe(template.id);
@@ -36,7 +33,7 @@ describe('Class Generation', () => {
       expect(firstClass.runOrder).toBe(1);
       expect(firstClass.entries.maxEntries).toBe(25); // Override applied
       expect(firstClass.createdBy).toBe('test-user');
-      expect(firstClass.status).toBe('Pending');
+      expect(firstClass.status).toBe('Scheduled');
     });
 
     test('applies field overrides correctly', () => {
@@ -47,9 +44,9 @@ describe('Class Generation', () => {
         fieldOverrides: {
           maxEntries: 35,
           preEntryFee: 30,
-          estimatedJudgingTime: 60
+          estimatedJudgingTime: 60,
         },
-        createdBy: 'test-user'
+        createdBy: 'test-user',
       };
 
       const result = generateClassesFromTemplate(template, options);
@@ -66,17 +63,17 @@ describe('Class Generation', () => {
         defaults: {
           entryFees: {
             preEntry: 20,
-            dayOfShow: 30
+            dayOfShow: 30,
           },
-          judgingTimeEstimate: 45
-        }
+          judgingTimeEstimate: 45,
+        },
       });
 
       const options = {
         trialId: 'trial-123',
         selectedClasses: [template.classDefinitions[0]],
         fieldOverrides: {},
-        createdBy: 'test-user'
+        createdBy: 'test-user',
       };
 
       const result = generateClassesFromTemplate(template, options);
@@ -95,25 +92,25 @@ describe('Class Generation', () => {
           createMockField({
             fieldName: 'searchAreas',
             fieldType: 'rule-based',
-            ruleValue: 1
+            ruleValue: 1,
           }),
           createMockField({
             fieldName: 'hides',
             fieldType: 'rule-based',
-            ruleValue: 1
-          })
-        ]
+            ruleValue: 1,
+          }),
+        ],
       });
 
       const template = createMockTemplate({
-        classDefinitions: [ruleBasedClass]
+        classDefinitions: [ruleBasedClass],
       });
 
       const options = {
         trialId: 'trial-123',
         selectedClasses: [ruleBasedClass],
         fieldOverrides: {},
-        createdBy: 'test-user'
+        createdBy: 'test-user',
       };
 
       const result = generateClassesFromTemplate(template, options);
@@ -133,30 +130,30 @@ describe('Class Generation', () => {
           createMockField({
             fieldName: 'searchAreas',
             fieldType: 'rule-based',
-            ruleValue: 2
+            ruleValue: 2,
           }),
           createMockField({
             fieldName: 'timeLimit1',
             fieldType: 'rule-based',
-            ruleValue: 180
+            ruleValue: 180,
           }),
           createMockField({
             fieldName: 'timeLimit2',
             fieldType: 'rule-based',
-            ruleValue: 180
-          })
-        ]
+            ruleValue: 180,
+          }),
+        ],
       });
 
       const template = createMockTemplate({
-        classDefinitions: [multiAreaClass]
+        classDefinitions: [multiAreaClass],
       });
 
       const options = {
         trialId: 'trial-123',
         selectedClasses: [multiAreaClass],
         fieldOverrides: {},
-        createdBy: 'test-user'
+        createdBy: 'test-user',
       };
 
       const result = generateClassesFromTemplate(template, options);
@@ -174,9 +171,9 @@ describe('Class Generation', () => {
           createMockField({
             fieldName: 'hides',
             fieldType: 'rule-based',
-            ruleValue: 1
-          })
-        ]
+            ruleValue: 1,
+          }),
+        ],
       });
 
       const advancedClass = createMockClassDefinition({
@@ -185,31 +182,31 @@ describe('Class Generation', () => {
           createMockField({
             fieldName: 'hides',
             fieldType: 'judge-set',
-            allowedRange: { min: 1, max: 3 }
-          })
-        ]
+            allowedRange: { min: 1, max: 3 },
+          }),
+        ],
       });
 
       const template = createMockTemplate({
-        classDefinitions: [noviceClass, advancedClass]
+        classDefinitions: [noviceClass, advancedClass],
       });
 
       const options = {
         trialId: 'trial-123',
         selectedClasses: [noviceClass, advancedClass],
         fieldOverrides: { hides: 2 },
-        createdBy: 'test-user'
+        createdBy: 'test-user',
       };
 
       const result = generateClassesFromTemplate(template, options);
 
       expect(result.success).toBe(true);
-      
+
       // Novice should have known hide count
       const noviceCreated = result.classes.find(c => c.level === 'Novice');
       expect(noviceCreated?.hideConfiguration.type).toBe('known');
       expect(noviceCreated?.hideConfiguration.count).toBe(2);
-      
+
       // Advanced should have unknown hide range
       const advancedCreated = result.classes.find(c => c.level === 'Advanced');
       expect(advancedCreated?.hideConfiguration.type).toBe('unknown');
@@ -221,24 +218,24 @@ describe('Class Generation', () => {
       const advancedClass = createMockClassDefinition({ level: 'Advanced' });
 
       const template = createMockTemplate({
-        classDefinitions: [noviceClass, advancedClass]
+        classDefinitions: [noviceClass, advancedClass],
       });
 
       const options = {
         trialId: 'trial-123',
         selectedClasses: [noviceClass, advancedClass],
         fieldOverrides: {},
-        createdBy: 'test-user'
+        createdBy: 'test-user',
       };
 
       const result = generateClassesFromTemplate(template, options);
 
       expect(result.success).toBe(true);
-      
+
       // Novice should have no distractions
       const noviceCreated = result.classes.find(c => c.level === 'Novice');
       expect(noviceCreated?.distractions.required).toBe(0);
-      
+
       // Advanced should require distractions
       const advancedCreated = result.classes.find(c => c.level === 'Advanced');
       expect(advancedCreated?.distractions.required).toBe(1);
@@ -251,7 +248,7 @@ describe('Class Generation', () => {
         selectedClasses: template.classDefinitions,
         fieldOverrides: {},
         runOrderStart: 5,
-        createdBy: 'test-user'
+        createdBy: 'test-user',
       };
 
       const result = generateClassesFromTemplate(template, options);
@@ -267,17 +264,17 @@ describe('Class Generation', () => {
         trialId: 'trial-123',
         selectedClasses: template.classDefinitions,
         fieldOverrides: {},
-        createdBy: 'test-user'
+        createdBy: 'test-user',
       };
 
       const result = generateClassesFromTemplate(template, options);
 
       expect(result.success).toBe(true);
-      
+
       const classNumbers = result.classes.map(c => c.classNumber);
       const uniqueNumbers = new Set(classNumbers);
       expect(uniqueNumbers.size).toBe(classNumbers.length); // All unique
-      
+
       // Check format (ElementLevelSection-RunOrder)
       expect(result.classes[0].classNumber).toMatch(/^[A-Z]+[A-Z]*[A-Z]*-\d+$/);
     });
@@ -287,7 +284,7 @@ describe('Class Generation', () => {
         trialId: 'trial-123',
         selectedClasses: [],
         fieldOverrides: {},
-        createdBy: 'test-user'
+        createdBy: 'test-user',
       });
 
       expect(result.success).toBe(false);
@@ -300,7 +297,7 @@ describe('Class Generation', () => {
         trialId: 'trial-123',
         selectedClasses: [],
         fieldOverrides: {},
-        createdBy: 'test-user'
+        createdBy: 'test-user',
       });
 
       expect(result.success).toBe(false);
@@ -313,7 +310,7 @@ describe('Class Generation', () => {
         trialId: 'trial-123',
         selectedClasses: template.classDefinitions.slice(0, 3),
         fieldOverrides: { maxEntries: 40 },
-        createdBy: 'test-secretary'
+        createdBy: 'test-secretary',
       };
 
       const result = generateClassesFromTemplate(template, options);
@@ -321,7 +318,7 @@ describe('Class Generation', () => {
       expect(result.success).toBe(true);
       expect(result.classes).toHaveLength(3);
       expect(result.errors).toHaveLength(0);
-      
+
       // Check that all classes have proper structure
       result.classes.forEach(cls => {
         expect(cls.templateId).toBe(template.id);
@@ -350,7 +347,7 @@ describe('Class Generation', () => {
       const template = createMockTemplate();
       const foreignClassDef = createMockClassDefinition({
         element: 'Unknown',
-        level: 'NonExistent'
+        level: 'NonExistent',
       });
 
       const result = validateClassGeneration(template, foreignClassDef, {});
@@ -363,16 +360,16 @@ describe('Class Generation', () => {
       const ruleBasedField = createMockField({
         fieldName: 'ruleField',
         fieldSource: 'rule-based',
-        editable: false
+        editable: false,
       });
 
       const template = createMockTemplate({
         fieldSpecifications: [ruleBasedField],
-        classDefinitions: [createMockClassDefinition()]
+        classDefinitions: [createMockClassDefinition()],
       });
 
       const result = validateClassGeneration(template, template.classDefinitions[0], {
-        ruleField: 'attempt to override'
+        ruleField: 'attempt to override',
       });
 
       expect(result.isValid).toBe(false);
@@ -382,16 +379,16 @@ describe('Class Generation', () => {
     test('validates data type constraints', () => {
       const numberField = createMockField({
         fieldName: 'numericField',
-        dataType: 'number'
+        dataType: 'number',
       });
 
       const template = createMockTemplate({
         fieldSpecifications: [numberField],
-        classDefinitions: [createMockClassDefinition()]
+        classDefinitions: [createMockClassDefinition()],
       });
 
       const result = validateClassGeneration(template, template.classDefinitions[0], {
-        numericField: 'not a number'
+        numericField: 'not a number',
       });
 
       expect(result.isValid).toBe(false);

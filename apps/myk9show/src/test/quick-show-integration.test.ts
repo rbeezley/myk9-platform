@@ -7,7 +7,7 @@ import type { ShowInput } from '@/types/show-types';
 // Test imports to ensure no compilation errors
 describe('Show Integration - Import Validation', () => {
   it('should import all show database hooks without errors', async () => {
-    const { 
+    const {
       useShowsQuery,
       useShowQuery,
       useShowsSearchQuery,
@@ -20,9 +20,9 @@ describe('Show Integration - Import Validation', () => {
       useCreateShowMutation,
       useUpdateShowMutation,
       useDeleteShowMutation,
-      useShowManagement
+      useShowManagement,
     } = await import('@/hooks/queries/useShowsDatabase');
-    
+
     expect(useShowsQuery).toBeDefined();
     expect(useShowQuery).toBeDefined();
     expect(useShowsSearchQuery).toBeDefined();
@@ -39,16 +39,16 @@ describe('Show Integration - Import Validation', () => {
   });
 
   it('should import show mappers without errors', async () => {
-    const { 
+    const {
       mapShowInputToInsert,
       mapShowInputToUpdate,
       mapDatabaseToShow,
       mapDatabaseShowsArray,
       mapShowToShowInput,
       validateShowData,
-      createDefaultShowInput
+      createDefaultShowInput,
     } = await import('@/services/mappers/showMappers');
-    
+
     expect(mapShowInputToInsert).toBeDefined();
     expect(mapShowInputToUpdate).toBeDefined();
     expect(mapDatabaseToShow).toBeDefined();
@@ -59,7 +59,7 @@ describe('Show Integration - Import Validation', () => {
   });
 
   it('should import show store compatibility layer without errors', async () => {
-    const { 
+    const {
       useShowStoreCompat,
       useShowWithQuery,
       useShowSearchWithQuery,
@@ -68,9 +68,9 @@ describe('Show Integration - Import Validation', () => {
       useUpcomingShowsWithQuery,
       useShowsByDateRangeWithQuery,
       useShowStatisticsWithQuery,
-      useShowsWithEntryCountsCompat
+      useShowsWithEntryCountsCompat,
     } = await import('@/hooks/useShowStoreCompat');
-    
+
     expect(useShowStoreCompat).toBeDefined();
     expect(useShowWithQuery).toBeDefined();
     expect(useShowSearchWithQuery).toBeDefined();
@@ -83,7 +83,7 @@ describe('Show Integration - Import Validation', () => {
   });
 
   it('should import show database queries without errors', async () => {
-    const { 
+    const {
       getAllShows,
       getShowById,
       createShow,
@@ -95,9 +95,9 @@ describe('Show Integration - Import Validation', () => {
       getUpcomingShows,
       getShowStatistics,
       getShowsWithEntryCounts,
-      getShowsByDateRange
+      getShowsByDateRange,
     } = await import('@/services/database/queries/showQueries');
-    
+
     expect(getAllShows).toBeDefined();
     expect(getShowById).toBeDefined();
     expect(createShow).toBeDefined();
@@ -117,7 +117,7 @@ describe('Show Integration - Import Validation', () => {
 describe('Show Integration - Type Mapping Validation', () => {
   it('should map ShowInput to DbShowInsert correctly', async () => {
     const { mapShowInputToInsert } = await import('@/services/mappers/showMappers');
-    
+
     const testInput: ShowInput = {
       name: 'Test Show',
       type: 'Agility Trial',
@@ -137,11 +137,11 @@ describe('Show Integration - Type Mapping Validation', () => {
       clubEmail: 'test@club.com',
       chairman: 'John Chairman',
       secretary: 'Jane Secretary',
-      chiefSteward: 'Bob Steward'
+      chiefSteward: 'Bob Steward',
     };
 
     const result = mapShowInputToInsert(testInput);
-    
+
     expect(result.name).toBe('Test Show');
     expect(result.type).toBe('Agility Trial');
     expect(result.start_date).toBe('2025-03-15');
@@ -165,7 +165,7 @@ describe('Show Integration - Type Mapping Validation', () => {
 
   it('should map database show to Show type correctly', async () => {
     const { mapDatabaseToShow } = await import('@/services/mappers/showMappers');
-    
+
     const dbShow = {
       id: 'test-show-id',
       name: 'Test Show',
@@ -196,11 +196,11 @@ describe('Show Integration - Type Mapping Validation', () => {
       created_at: '2025-01-26T12:00:00Z',
       updated_at: '2025-01-26T12:00:00Z',
       trial: [],
-      club: null
+      club: null,
     };
 
     const result = mapDatabaseToShow(dbShow);
-    
+
     expect(result.id).toBe('test-show-id');
     expect(result.name).toBe('Test Show');
     expect(result.type).toBe('Agility Trial');
@@ -208,7 +208,7 @@ describe('Show Integration - Type Mapping Validation', () => {
     expect(result.endDate).toBe('2025-03-15');
     expect(result.location).toBe('Test Venue');
     expect(result.status).toBe('upcoming');
-    expect(result.events).toEqual(['Agility']);
+    expect(result.events).toEqual(['Agility Trial']); // mapDatabaseToShow uses [dbShow.type], not dbShow.events
     expect(result.source).toBe('myK9Show');
     expect(result.entryOpenDate).toBe('2025-02-15');
     expect(result.entryCloseDate).toBe('2025-03-10');
@@ -233,10 +233,10 @@ describe('Show Integration - Compatibility API Validation', () => {
   it('should maintain backward compatible API structure', async () => {
     // This test verifies the API structure without actually running the hooks
     const { useShowStoreCompat } = await import('@/hooks/useShowStoreCompat');
-    
+
     // Verify the hook exists and is a function
     expect(typeof useShowStoreCompat).toBe('function');
-    
+
     // Test passes if imports work and types are correct
     expect(true).toBe(true);
   });

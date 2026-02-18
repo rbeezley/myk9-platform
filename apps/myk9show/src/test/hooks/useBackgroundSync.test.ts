@@ -14,7 +14,7 @@ vi.mock('@/services/sync/backgroundSyncService', () => ({
       averageRetries: 1,
       averageDuration: 1000,
       networkQuality: 'good',
-      lastSyncAttempt: Date.now()
+      lastSyncAttempt: Date.now(),
     }),
     getNetworkStatus: vi.fn().mockReturnValue({
       online: true,
@@ -22,14 +22,15 @@ vi.mock('@/services/sync/backgroundSyncService', () => ({
       effectiveType: '4g',
       downlink: 10,
       rtt: 50,
-      quality: 'good'
+      quality: 'good',
     }),
     onSyncComplete: vi.fn(),
     onSyncError: vi.fn(),
     onNetworkChange: vi.fn(),
     forcSync: vi.fn().mockResolvedValue(0),
-    stop: vi.fn().mockResolvedValue(undefined)
-  }
+    stop: vi.fn().mockResolvedValue(undefined),
+    getPendingSyncTasks: vi.fn().mockReturnValue([]),
+  },
 }));
 
 // Mock the logger
@@ -39,12 +40,12 @@ vi.mock('@/services/LoggingService', () => ({
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
-  }
+  },
 }));
 
 // Mock @myk9/core
 vi.mock('@myk9/core', () => ({
-  ensureError: vi.fn((e: unknown) => e instanceof Error ? e : new Error(String(e))),
+  ensureError: vi.fn((e: unknown) => (e instanceof Error ? e : new Error(String(e)))),
 }));
 
 describe('useBackgroundSync', () => {
@@ -54,7 +55,7 @@ describe('useBackgroundSync', () => {
     // Mock navigator.onLine
     Object.defineProperty(navigator, 'onLine', {
       value: true,
-      configurable: true
+      configurable: true,
     });
   });
 
@@ -127,7 +128,7 @@ describe('useBackgroundSync', () => {
     // Mock offline state
     Object.defineProperty(navigator, 'onLine', {
       value: false,
-      configurable: true
+      configurable: true,
     });
 
     const { result } = renderHook(() => useBackgroundSync());

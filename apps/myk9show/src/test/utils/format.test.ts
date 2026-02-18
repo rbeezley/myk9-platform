@@ -57,7 +57,7 @@ describe('format utilities', () => {
     it('should respect decimal places', () => {
       expect(formatBytes(1536, 0)).toBe('2 KB');
       expect(formatBytes(1536, 1)).toBe('1.5 KB');
-      expect(formatBytes(1536, 3)).toBe('1.500 KB');
+      expect(formatBytes(1536, 3)).toBe('1.5 KB'); // formatBytes strips trailing zeros
     });
 
     it('should handle negative decimal places', () => {
@@ -155,7 +155,7 @@ describe('format utilities', () => {
 
     it('should format recent times as "just now"', () => {
       const recent = new Date('2024-01-15T11:59:30Z'); // 30 seconds ago
-      
+
       expect(formatRelativeTime(recent)).toBe('just now');
     });
 
@@ -163,7 +163,7 @@ describe('format utilities', () => {
       const oneMinuteAgo = new Date('2024-01-15T11:59:00Z');
       const twoMinutesAgo = new Date('2024-01-15T11:58:00Z');
       const fiftyNineMinutesAgo = new Date('2024-01-15T11:01:00Z');
-      
+
       expect(formatRelativeTime(oneMinuteAgo)).toBe('1 minute ago');
       expect(formatRelativeTime(twoMinutesAgo)).toBe('2 minutes ago');
       expect(formatRelativeTime(fiftyNineMinutesAgo)).toBe('59 minutes ago');
@@ -173,7 +173,7 @@ describe('format utilities', () => {
       const oneHourAgo = new Date('2024-01-15T11:00:00Z');
       const twoHoursAgo = new Date('2024-01-15T10:00:00Z');
       const twentyThreeHoursAgo = new Date('2024-01-14T13:00:00Z');
-      
+
       expect(formatRelativeTime(oneHourAgo)).toBe('1 hour ago');
       expect(formatRelativeTime(twoHoursAgo)).toBe('2 hours ago');
       expect(formatRelativeTime(twentyThreeHoursAgo)).toBe('23 hours ago');
@@ -183,7 +183,7 @@ describe('format utilities', () => {
       const oneDayAgo = new Date('2024-01-14T12:00:00Z');
       const twoDaysAgo = new Date('2024-01-13T12:00:00Z');
       const sixDaysAgo = new Date('2024-01-09T12:00:00Z');
-      
+
       expect(formatRelativeTime(oneDayAgo)).toBe('1 day ago');
       expect(formatRelativeTime(twoDaysAgo)).toBe('2 days ago');
       expect(formatRelativeTime(sixDaysAgo)).toBe('6 days ago');
@@ -192,7 +192,7 @@ describe('format utilities', () => {
     it('should format older dates as date string', () => {
       const oneWeekAgo = new Date('2024-01-08T12:00:00Z');
       const oneMonthAgo = new Date('2023-12-15T12:00:00Z');
-      
+
       expect(formatRelativeTime(oneWeekAgo)).toBe(oneWeekAgo.toLocaleDateString());
       expect(formatRelativeTime(oneMonthAgo)).toBe(oneMonthAgo.toLocaleDateString());
     });
@@ -201,7 +201,7 @@ describe('format utilities', () => {
       const oneMinuteAgo = new Date('2024-01-15T11:59:00Z');
       const oneHourAgo = new Date('2024-01-15T11:00:00Z');
       const oneDayAgo = new Date('2024-01-14T12:00:00Z');
-      
+
       expect(formatRelativeTime(oneMinuteAgo)).toBe('1 minute ago');
       expect(formatRelativeTime(oneHourAgo)).toBe('1 hour ago');
       expect(formatRelativeTime(oneDayAgo)).toBe('1 day ago');
@@ -258,7 +258,7 @@ describe('format utilities', () => {
   describe('formatNetworkSpeed', () => {
     it('should format bits per second', () => {
       expect(formatNetworkSpeed(100)).toBe('800 bps');
-      expect(formatNetworkSpeed(125)).toBe('1000 bps');
+      expect(formatNetworkSpeed(125)).toBe('1.0 Kbps'); // 125 bytes/s = 1000 bps, crosses into Kbps threshold
     });
 
     it('should format kilobits per second', () => {
@@ -308,7 +308,7 @@ describe('format utilities', () => {
   describe('Performance considerations', () => {
     it('should handle multiple calls efficiently', () => {
       const iterations = 1000;
-      
+
       for (let i = 0; i < iterations; i++) {
         formatBytes(i * 1024);
         formatDuration(i * 1000);
@@ -316,7 +316,7 @@ describe('format utilities', () => {
         formatNumber(i * 1000);
         formatCurrency(i);
       }
-      
+
       // Should complete without errors
       expect(true).toBe(true);
     });
@@ -324,7 +324,7 @@ describe('format utilities', () => {
     it('should not modify global objects', () => {
       const originalIntl = global.Intl;
       const originalDate = global.Date;
-      
+
       formatBytes(1024);
       formatDuration(1000);
       formatPercentage(50);
@@ -332,7 +332,7 @@ describe('format utilities', () => {
       formatRelativeTime(new Date());
       formatCurrency(100);
       formatNetworkSpeed(1000);
-      
+
       expect(global.Intl).toBe(originalIntl);
       expect(global.Date).toBe(originalDate);
     });

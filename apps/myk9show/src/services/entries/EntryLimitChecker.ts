@@ -3,10 +3,7 @@
  * Uses local data to check class capacity, duplicate entries, and show limits
  */
 
-import type { 
-  ShowEntry, 
-  ShowEntryInput
-} from '@/store/entryStore';
+import type { ShowEntry, ShowEntryInput } from '@/store/entryStore';
 import { EntryStatus as RegistrationEntryStatus } from '@/types/show-registration-types';
 import type { Dog } from '@/types/dog-types';
 import type { Show, Trial, Class } from '@/types/show-types';
@@ -83,7 +80,7 @@ export class EntryLimitChecker {
       warnings,
       currentCount: capacityCheck.currentCount,
       maxAllowed: capacityCheck.maxAllowed,
-      waitlistPosition: capacityCheck.waitlistPosition
+      waitlistPosition: capacityCheck.waitlistPosition,
     };
   }
 
@@ -98,11 +95,12 @@ export class EntryLimitChecker {
     const warnings: EntryLimitError[] = [];
 
     // Check existing entries
-    const existingEntry = context.existingEntries.find(entry => 
-      entry.dogId === entryData.dogId && 
-      entry.classId === entryData.classId &&
-      entry.status !== 'withdrawn' &&
-      entry.status !== 'scratched'
+    const existingEntry = context.existingEntries.find(
+      entry =>
+        entry.dogId === entryData.dogId &&
+        entry.classId === entryData.classId &&
+        entry.status !== 'withdrawn' &&
+        entry.status !== 'scratched'
     );
 
     if (existingEntry) {
@@ -112,32 +110,32 @@ export class EntryLimitChecker {
         severity: 'error',
         details: {
           existingEntryId: existingEntry.id,
-          existingStatus: existingEntry.status
-        }
+          existingStatus: existingEntry.status,
+        },
       });
     }
 
     // Check pending entries in the same batch
     if (context.pendingEntries) {
-      const pendingDuplicate = context.pendingEntries.find(entry =>
-        entry.dogId === entryData.dogId && 
-        entry.classId === entryData.classId
+      const pendingDuplicate = context.pendingEntries.find(
+        entry => entry.dogId === entryData.dogId && entry.classId === entryData.classId
       );
 
       if (pendingDuplicate) {
         errors.push({
           code: 'DUPLICATE_PENDING_ENTRY',
           message: `${context.dog.name} is already being entered in ${context.class.name} in this batch`,
-          severity: 'error'
+          severity: 'error',
         });
       }
     }
 
     // Check for conflicting classes in the same time slot
-    const conflictingEntries = context.existingEntries.filter(entry =>
-      entry.dogId === entryData.dogId &&
-      entry.status !== 'withdrawn' &&
-      entry.status !== 'scratched'
+    const conflictingEntries = context.existingEntries.filter(
+      entry =>
+        entry.dogId === entryData.dogId &&
+        entry.status !== 'withdrawn' &&
+        entry.status !== 'scratched'
     );
 
     for (const conflictEntry of conflictingEntries) {
@@ -147,8 +145,8 @@ export class EntryLimitChecker {
           message: `Potential scheduling conflict with another class`,
           severity: 'warning',
           details: {
-            conflictingClassId: conflictEntry.classId
-          }
+            conflictingClassId: conflictEntry.classId,
+          },
         });
       }
     }
@@ -162,8 +160,8 @@ export class EntryLimitChecker {
   private static checkClassCapacity(
     entryData: ShowEntryInput,
     context: LimitCheckContext
-  ): { 
-    errors: EntryLimitError[]; 
+  ): {
+    errors: EntryLimitError[];
     warnings: EntryLimitError[];
     currentCount?: number;
     maxAllowed?: number;
@@ -178,16 +176,16 @@ export class EntryLimitChecker {
     }
 
     // Count current active entries
-    const currentEntries = context.existingEntries.filter(entry =>
-      entry.classId === entryData.classId &&
-      entry.status !== 'withdrawn' &&
-      entry.status !== 'scratched'
+    const currentEntries = context.existingEntries.filter(
+      entry =>
+        entry.classId === entryData.classId &&
+        entry.status !== 'withdrawn' &&
+        entry.status !== 'scratched'
     );
 
     // Count pending entries in this batch
-    const pendingCount = context.pendingEntries?.filter(entry =>
-      entry.classId === entryData.classId
-    ).length || 0;
+    const pendingCount =
+      context.pendingEntries?.filter(entry => entry.classId === entryData.classId).length || 0;
 
     const currentCount = currentEntries.length;
     const totalWithPending = currentCount + pendingCount;
@@ -196,9 +194,11 @@ export class EntryLimitChecker {
     if (totalWithPending >= maxCapacity) {
       if (context.class.allowWaitlist) {
         // Calculate waitlist position
-        const waitlistEntries = context.existingEntries.filter(entry =>
-          entry.classId === entryData.classId &&
-          (entry.status as string === 'waitlist' || (entry.status as string) === RegistrationEntryStatus.WAITLIST)
+        const waitlistEntries = context.existingEntries.filter(
+          entry =>
+            entry.classId === entryData.classId &&
+            ((entry.status as string) === 'waitlist' ||
+              (entry.status as string) === RegistrationEntryStatus.WAITLIST)
         );
         const waitlistPosition = waitlistEntries.length + 1;
 
@@ -209,16 +209,16 @@ export class EntryLimitChecker {
           details: {
             currentCount,
             maxCapacity,
-            waitlistPosition
-          }
+            waitlistPosition,
+          },
         });
 
-        return { 
-          errors, 
-          warnings, 
-          currentCount, 
+        return {
+          errors,
+          warnings,
+          currentCount,
           maxAllowed: maxCapacity,
-          waitlistPosition 
+          waitlistPosition,
         };
       } else {
         errors.push({
@@ -227,8 +227,8 @@ export class EntryLimitChecker {
           severity: 'error',
           details: {
             currentCount,
-            maxCapacity
-          }
+            maxCapacity,
+          },
         });
       }
     }
@@ -242,16 +242,16 @@ export class EntryLimitChecker {
         severity: 'warning',
         details: {
           currentCount: totalWithPending,
-          maxCapacity
-        }
+          maxCapacity,
+        },
       });
     }
 
-    return { 
-      errors, 
-      warnings, 
-      currentCount: totalWithPending, 
-      maxAllowed: maxCapacity 
+    return {
+      errors,
+      warnings,
+      currentCount: totalWithPending,
+      maxAllowed: maxCapacity,
     };
   }
 
@@ -267,17 +267,18 @@ export class EntryLimitChecker {
 
     // Check maximum entries per dog per trial
     if (context.trial.maxEntriesPerDog) {
-      const dogTrialEntries = context.existingEntries.filter(entry =>
-        entry.dogId === entryData.dogId &&
-        this.isEntryInTrial(entry, context.trial) &&
-        entry.status !== 'withdrawn' &&
-        entry.status !== 'scratched'
+      const dogTrialEntries = context.existingEntries.filter(
+        entry =>
+          entry.dogId === entryData.dogId &&
+          this.isEntryInTrial(entry, context.trial) &&
+          entry.status !== 'withdrawn' &&
+          entry.status !== 'scratched'
       );
 
-      const pendingTrialEntries = context.pendingEntries?.filter(entry =>
-        entry.dogId === entryData.dogId &&
-        this.isEntryDataInTrial(entry, context.trial)
-      ).length || 0;
+      const pendingTrialEntries =
+        context.pendingEntries?.filter(
+          entry => entry.dogId === entryData.dogId && this.isEntryDataInTrial(entry, context.trial)
+        ).length || 0;
 
       const totalTrialEntries = dogTrialEntries.length + pendingTrialEntries;
 
@@ -288,25 +289,26 @@ export class EntryLimitChecker {
           severity: 'error',
           details: {
             currentEntries: totalTrialEntries,
-            maxAllowed: context.trial.maxEntriesPerDog
-          }
+            maxAllowed: context.trial.maxEntriesPerDog,
+          },
         });
       }
     }
 
     // Check maximum entries per dog per show
     if (context.show.maxEntriesPerDog) {
-      const dogShowEntries = context.existingEntries.filter(entry =>
-        entry.dogId === entryData.dogId &&
-        entry.showId === entryData.showId &&
-        entry.status !== 'withdrawn' &&
-        entry.status !== 'scratched'
+      const dogShowEntries = context.existingEntries.filter(
+        entry =>
+          entry.dogId === entryData.dogId &&
+          entry.showId === entryData.showId &&
+          entry.status !== 'withdrawn' &&
+          entry.status !== 'scratched'
       );
 
-      const pendingShowEntries = context.pendingEntries?.filter(entry =>
-        entry.dogId === entryData.dogId &&
-        entry.showId === entryData.showId
-      ).length || 0;
+      const pendingShowEntries =
+        context.pendingEntries?.filter(
+          entry => entry.dogId === entryData.dogId && entry.showId === entryData.showId
+        ).length || 0;
 
       const totalShowEntries = dogShowEntries.length + pendingShowEntries;
 
@@ -317,8 +319,8 @@ export class EntryLimitChecker {
           severity: 'error',
           details: {
             currentEntries: totalShowEntries,
-            maxAllowed: context.show.maxEntriesPerDog
-          }
+            maxAllowed: context.show.maxEntriesPerDog,
+          },
         });
       }
     }
@@ -337,15 +339,16 @@ export class EntryLimitChecker {
     const warnings: EntryLimitError[] = [];
 
     if (context.trial.maxTotalEntries) {
-      const trialEntries = context.existingEntries.filter(entry =>
-        this.isEntryInTrial(entry, context.trial) &&
-        entry.status !== 'withdrawn' &&
-        entry.status !== 'scratched'
+      const trialEntries = context.existingEntries.filter(
+        entry =>
+          this.isEntryInTrial(entry, context.trial) &&
+          entry.status !== 'withdrawn' &&
+          entry.status !== 'scratched'
       );
 
-      const pendingTrialEntries = context.pendingEntries?.filter(entry =>
-        this.isEntryDataInTrial(entry, context.trial)
-      ).length || 0;
+      const pendingTrialEntries =
+        context.pendingEntries?.filter(entry => this.isEntryDataInTrial(entry, context.trial))
+          .length || 0;
 
       const totalTrialEntries = trialEntries.length + pendingTrialEntries;
 
@@ -356,18 +359,21 @@ export class EntryLimitChecker {
           severity: 'error',
           details: {
             currentEntries: totalTrialEntries,
-            maxAllowed: context.trial.maxTotalEntries
-          }
+            maxAllowed: context.trial.maxTotalEntries,
+          },
         });
       }
 
       // Warning when trial is nearly full
       const warningThreshold = Math.floor(context.trial.maxTotalEntries * 0.9);
-      if (totalTrialEntries >= warningThreshold && totalTrialEntries < context.trial.maxTotalEntries) {
+      if (
+        totalTrialEntries >= warningThreshold &&
+        totalTrialEntries < context.trial.maxTotalEntries
+      ) {
         warnings.push({
           code: 'TRIAL_NEARLY_FULL',
           message: `Trial is nearly full (${totalTrialEntries}/${context.trial.maxTotalEntries} entries)`,
-          severity: 'warning'
+          severity: 'warning',
         });
       }
     }
@@ -386,15 +392,15 @@ export class EntryLimitChecker {
     const warnings: EntryLimitError[] = [];
 
     if (context.show.maxTotalEntries) {
-      const showEntries = context.existingEntries.filter(entry =>
-        entry.showId === entryData.showId &&
-        entry.status !== 'withdrawn' &&
-        entry.status !== 'scratched'
+      const showEntries = context.existingEntries.filter(
+        entry =>
+          entry.showId === entryData.showId &&
+          entry.status !== 'withdrawn' &&
+          entry.status !== 'scratched'
       );
 
-      const pendingShowEntries = context.pendingEntries?.filter(entry =>
-        entry.showId === entryData.showId
-      ).length || 0;
+      const pendingShowEntries =
+        context.pendingEntries?.filter(entry => entry.showId === entryData.showId).length || 0;
 
       const totalShowEntries = showEntries.length + pendingShowEntries;
 
@@ -405,8 +411,8 @@ export class EntryLimitChecker {
           severity: 'error',
           details: {
             currentEntries: totalShowEntries,
-            maxAllowed: context.show.maxTotalEntries
-          }
+            maxAllowed: context.show.maxTotalEntries,
+          },
         });
       }
     }
@@ -429,17 +435,19 @@ export class EntryLimitChecker {
 
     // Check maximum dogs per handler per class (if applicable)
     if (context.class.maxDogsPerHandler) {
-      const handlerClassEntries = context.existingEntries.filter(entry =>
-        entry.classId === entryData.classId &&
-        entry.registrationData.handlerId === handlerId &&
-        entry.status !== 'withdrawn' &&
-        entry.status !== 'scratched'
+      const handlerClassEntries = context.existingEntries.filter(
+        entry =>
+          entry.classId === entryData.classId &&
+          entry.registrationData.handlerId === handlerId &&
+          entry.status !== 'withdrawn' &&
+          entry.status !== 'scratched'
       );
 
-      const pendingHandlerEntries = context.pendingEntries?.filter(entry =>
-        entry.classId === entryData.classId &&
-        entry.registrationData.handlerId === handlerId
-      ).length || 0;
+      const pendingHandlerEntries =
+        context.pendingEntries?.filter(
+          entry =>
+            entry.classId === entryData.classId && entry.registrationData.handlerId === handlerId
+        ).length || 0;
 
       const totalHandlerEntries = handlerClassEntries.length + pendingHandlerEntries;
 
@@ -451,25 +459,28 @@ export class EntryLimitChecker {
           details: {
             handlerId,
             currentEntries: totalHandlerEntries,
-            maxAllowed: context.class.maxDogsPerHandler
-          }
+            maxAllowed: context.class.maxDogsPerHandler,
+          },
         });
       }
     }
 
     // Check maximum entries per handler per trial
     if (context.trial.maxEntriesPerHandler) {
-      const handlerTrialEntries = context.existingEntries.filter(entry =>
-        this.isEntryInTrial(entry, context.trial) &&
-        entry.registrationData.handlerId === handlerId &&
-        entry.status !== 'withdrawn' &&
-        entry.status !== 'scratched'
+      const handlerTrialEntries = context.existingEntries.filter(
+        entry =>
+          this.isEntryInTrial(entry, context.trial) &&
+          entry.registrationData.handlerId === handlerId &&
+          entry.status !== 'withdrawn' &&
+          entry.status !== 'scratched'
       );
 
-      const pendingHandlerTrialEntries = context.pendingEntries?.filter(entry =>
-        this.isEntryDataInTrial(entry, context.trial) &&
-        entry.registrationData.handlerId === handlerId
-      ).length || 0;
+      const pendingHandlerTrialEntries =
+        context.pendingEntries?.filter(
+          entry =>
+            this.isEntryDataInTrial(entry, context.trial) &&
+            entry.registrationData.handlerId === handlerId
+        ).length || 0;
 
       const totalHandlerTrialEntries = handlerTrialEntries.length + pendingHandlerTrialEntries;
 
@@ -481,8 +492,8 @@ export class EntryLimitChecker {
           details: {
             handlerId,
             currentEntries: totalHandlerTrialEntries,
-            maxAllowed: context.trial.maxEntriesPerHandler
-          }
+            maxAllowed: context.trial.maxEntriesPerHandler,
+          },
         });
       }
     }
@@ -502,9 +513,9 @@ export class EntryLimitChecker {
       return { canPromote: true, spotsAvailable: Infinity };
     }
 
-    const confirmedEntries = existingEntries.filter(entry =>
-      entry.classId === classId &&
-      (entry.status === 'confirmed' || entry.status === 'paid')
+    const confirmedEntries = existingEntries.filter(
+      entry =>
+        entry.classId === classId && (entry.status === 'confirmed' || entry.status === 'paid')
     );
 
     const spotsAvailable = classData.maxEntries - confirmedEntries.length;
@@ -529,15 +540,17 @@ export class EntryLimitChecker {
     isFull: boolean;
   } {
     const classEntries = existingEntries.filter(entry => entry.classId === classId);
-    
-    const confirmed = classEntries.filter(entry => 
-      entry.status === 'confirmed' || entry.status === 'paid'
+
+    const confirmed = classEntries.filter(
+      entry => entry.status === 'confirmed' || entry.status === 'paid'
     ).length;
-    
-    const waitlisted = classEntries.filter(entry => 
-      (entry.status as string === 'waitlist' || (entry.status as string) === RegistrationEntryStatus.WAITLIST)
+
+    const waitlisted = classEntries.filter(
+      entry =>
+        (entry.status as string) === 'waitlist' ||
+        (entry.status as string) === RegistrationEntryStatus.WAITLIST
     ).length;
-    
+
     const total = confirmed + waitlisted;
     const capacity = classData.maxEntries || null;
     const availableSpots = capacity ? Math.max(0, capacity - confirmed) : null;
@@ -549,7 +562,7 @@ export class EntryLimitChecker {
       total,
       capacity,
       availableSpots,
-      isFull
+      isFull,
     };
   }
 
@@ -558,14 +571,14 @@ export class EntryLimitChecker {
    */
   private static hasTimeConflict(class1: Class, class2: Class | null): boolean {
     if (!class1.startTime || !class2?.startTime) return false;
-    
+
     // Simple time overlap check - could be enhanced with more sophisticated scheduling logic
     const start1 = new Date(class1.startTime);
     const end1 = new Date(start1.getTime() + (class1.estimatedDuration || 60) * 60000);
     const start2 = new Date(class2.startTime);
     const end2 = new Date(start2.getTime() + (class2.estimatedDuration || 60) * 60000);
-    
-    return (start1 < end2 && start2 < end1);
+
+    return start1 < end2 && start2 < end1;
   }
 
   private static getClassById(_classId: string, _context: LimitCheckContext): Class | null {
@@ -575,13 +588,12 @@ export class EntryLimitChecker {
   }
 
   private static isEntryInTrial(entry: ShowEntry, trial: Trial): boolean {
-    // Check if entry belongs to the specified trial
-    // This would need to be implemented based on your trial/class relationship structure
-    return entry.classId.includes(trial.id) || false;
+    if (!trial.classes) return false;
+    return trial.classes.some(c => c.id === entry.classId);
   }
 
   private static isEntryDataInTrial(entryData: ShowEntryInput, trial: Trial): boolean {
-    // Check if entry data belongs to the specified trial
-    return entryData.classId.includes(trial.id) || false;
+    if (!trial.classes) return false;
+    return trial.classes.some(c => c.id === entryData.classId);
   }
 }

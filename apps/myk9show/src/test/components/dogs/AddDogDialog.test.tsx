@@ -120,7 +120,6 @@ describe('AddDogDialog', () => {
     });
 
     it('should start on basic info tab', () => {
-      // POTENTIAL-BUG: Label components in AddDogDialog lack htmlFor association, making them inaccessible
       render(<AddDogDialog {...defaultProps} />);
       // Tab panel renders the basic info content
       expect(screen.getByRole('tabpanel')).toBeInTheDocument();
@@ -131,7 +130,6 @@ describe('AddDogDialog', () => {
 
   describe('Basic Info Tab', () => {
     it('should render all basic info fields', () => {
-      // POTENTIAL-BUG: Label components in AddDogDialog lack htmlFor association, making them inaccessible
       render(<AddDogDialog {...defaultProps} />);
 
       // Use label text content (not getByLabelText since labels lack htmlFor)
@@ -155,7 +153,6 @@ describe('AddDogDialog', () => {
     });
 
     it('should calculate and display age from date of birth', async () => {
-      // POTENTIAL-BUG: Label components in AddDogDialog lack htmlFor association, making them inaccessible
       const user = userEvent.setup();
       render(<AddDogDialog {...defaultProps} />);
 
@@ -177,7 +174,6 @@ describe('AddDogDialog', () => {
   });
 
   describe('Form Validation', () => {
-    // POTENTIAL-BUG: Label components in AddDogDialog lack htmlFor association, making them inaccessible
     it('should show validation errors for required fields', async () => {
       const user = userEvent.setup();
       render(<AddDogDialog {...defaultProps} />);
@@ -324,7 +320,6 @@ describe('AddDogDialog', () => {
 
   describe('Additional Info Tab', () => {
     it('should render optional fields', async () => {
-      // POTENTIAL-BUG: Label components in AddDogDialog lack htmlFor association, making them inaccessible
       const user = userEvent.setup();
       render(<AddDogDialog {...defaultProps} />);
 
@@ -355,7 +350,6 @@ describe('AddDogDialog', () => {
   });
 
   describe('Tab Validation Indicators', () => {
-    // POTENTIAL-BUG: Label components in AddDogDialog lack htmlFor association, making them inaccessible
     it('should show validation status on tabs', async () => {
       const user = userEvent.setup();
       render(<AddDogDialog {...defaultProps} />);
@@ -376,7 +370,6 @@ describe('AddDogDialog', () => {
   });
 
   describe('Form Submission', () => {
-    // POTENTIAL-BUG: Label components in AddDogDialog lack htmlFor association, making them inaccessible
     it('should show Create Dog submit button', () => {
       // The submit button is always rendered
       render(<AddDogDialog {...defaultProps} />);
@@ -397,7 +390,6 @@ describe('AddDogDialog', () => {
     });
 
     it('should show validation error when gender is missing on submit', async () => {
-      // POTENTIAL-BUG: Label components in AddDogDialog lack htmlFor association, making them inaccessible
       const user = userEvent.setup();
       render(<AddDogDialog {...defaultProps} />);
 
@@ -434,7 +426,6 @@ describe('AddDogDialog', () => {
     });
 
     it('should reset form when dialog opens', () => {
-      // POTENTIAL-BUG: Label components in AddDogDialog lack htmlFor association, making them inaccessible
       const { rerender } = render(<AddDogDialog {...defaultProps} open={false} />);
 
       rerender(<AddDogDialog {...defaultProps} open={true} />);
@@ -446,7 +437,6 @@ describe('AddDogDialog', () => {
   });
 
   describe('Accessibility', () => {
-    // POTENTIAL-BUG: Label components in AddDogDialog lack htmlFor association, making them inaccessible
     it('should have proper tablist role', () => {
       render(<AddDogDialog {...defaultProps} />);
 
@@ -460,6 +450,12 @@ describe('AddDogDialog', () => {
       // Each tab trigger renders with role="tab"
       const tabs = screen.getAllByRole('tab');
       expect(tabs.length).toBeGreaterThan(0);
+    });
+
+    it('should associate labels with form controls via htmlFor', () => {
+      render(<AddDogDialog {...defaultProps} />);
+      // Labels with htmlFor should find their associated input
+      expect(screen.getByLabelText(/call name/i)).toBeInTheDocument();
     });
   });
 });

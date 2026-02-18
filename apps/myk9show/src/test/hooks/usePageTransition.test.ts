@@ -424,7 +424,6 @@ describe('useTransitionPrefetch', () => {
   });
 
   it('should prefetch route and mark as prefetched', () => {
-    // POTENTIAL-BUG: hook uses logger.debug not console.log for prefetch logging; can't spy on it
     const { result } = renderHook(() => useTransitionPrefetch());
 
     act(() => {
@@ -436,7 +435,6 @@ describe('useTransitionPrefetch', () => {
   });
 
   it('should not prefetch same route twice', () => {
-    // POTENTIAL-BUG: hook uses logger.debug not console.log; console.log spy cannot detect prefetch calls
     const { result } = renderHook(() => useTransitionPrefetch());
 
     act(() => {

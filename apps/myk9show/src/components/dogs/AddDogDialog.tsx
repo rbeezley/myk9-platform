@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetBody,
-  SheetFooter,
-  SheetTitle,
-} from '@myk9/ui';
+import { Sheet, SheetContent, SheetHeader, SheetBody, SheetFooter, SheetTitle } from '@myk9/ui';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -62,7 +61,7 @@ const INITIAL_FORM_DATA: DogFormData = {
   microchip: '',
   spayedNeutered: false,
   ownerId: '',
-  registrations: []
+  registrations: [],
 };
 
 export const AddDogDialog: React.FC<AddDogDialogProps> = ({
@@ -70,7 +69,7 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
   onOpenChange,
   onDogCreated,
   userRole = UserRole.EXHIBITOR,
-  currentUserPersonId
+  currentUserPersonId,
 }) => {
   const people = useUserStore(state => state.people);
   const { addDog, isLoading: isSaving, error: saveError } = useDogStoreCompat();
@@ -97,7 +96,7 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
       const initialData = {
         ...INITIAL_FORM_DATA,
         // Set default owner based on user role
-        ownerId: userRole === UserRole.EXHIBITOR ? (currentUserPersonId || '') : ''
+        ownerId: userRole === UserRole.EXHIBITOR ? currentUserPersonId || '' : '',
       };
       setFormData(initialData);
       setActiveTab('basic');
@@ -130,10 +129,13 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
 
     // Registration validation: Validate each registration in the array
     data.registrations.forEach((reg, index) => {
-      if (!reg.organization.trim()) errors[`registration-${index}-organization`] = 'Organization is required';
-      if (!reg.registeredName.trim()) errors[`registration-${index}-registeredName`] = 'Registered name is required';
+      if (!reg.organization.trim())
+        errors[`registration-${index}-organization`] = 'Organization is required';
+      if (!reg.registeredName.trim())
+        errors[`registration-${index}-registeredName`] = 'Registered name is required';
       if (!reg.breed.trim()) errors[`registration-${index}-breed`] = 'Breed is required';
-      if (!reg.registrationNumber.trim()) errors[`registration-${index}-registrationNumber`] = 'Registration number is required';
+      if (!reg.registrationNumber.trim())
+        errors[`registration-${index}-registrationNumber`] = 'Registration number is required';
     });
 
     return errors;
@@ -175,7 +177,7 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
   const handleRemoveRegistration = (id: string) => {
     setFormData(prev => ({
       ...prev,
-      registrations: prev.registrations.filter(reg => reg.id !== id)
+      registrations: prev.registrations.filter(reg => reg.id !== id),
     }));
   };
 
@@ -244,7 +246,7 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
       logger.error('Error creating dog:', 'dogs', {}, error as Error);
       // Show error to user
       setValidationErrors({
-        submit: error instanceof Error ? error.message : 'Failed to create dog'
+        submit: error instanceof Error ? error.message : 'Failed to create dog',
       });
     } finally {
       setIsCreating(false);
@@ -263,18 +265,20 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
     const errors = validateForm(formData);
     switch (tab) {
       case 'basic': {
-        const basicValid = !errors.callName && !errors.gender && !errors.dateOfBirth && !errors.ownerId;
+        const basicValid =
+          !errors.callName && !errors.gender && !errors.dateOfBirth && !errors.ownerId;
         return basicValid ? 'valid' : 'invalid';
       }
       case 'registration': {
         // If no registrations, the tab is valid (no errors to show)
         if (formData.registrations.length === 0) return 'valid';
         // Check if all registrations are valid
-        const regValid = formData.registrations.every((_, index) =>
-          !errors[`registration-${index}-organization`] &&
-          !errors[`registration-${index}-registeredName`] &&
-          !errors[`registration-${index}-breed`] &&
-          !errors[`registration-${index}-registrationNumber`]
+        const regValid = formData.registrations.every(
+          (_, index) =>
+            !errors[`registration-${index}-organization`] &&
+            !errors[`registration-${index}-registeredName`] &&
+            !errors[`registration-${index}-breed`] &&
+            !errors[`registration-${index}-registrationNumber`]
         );
         return regValid ? 'valid' : 'invalid';
       }
@@ -293,28 +297,37 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
         </SheetHeader>
 
         <SheetBody>
-          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'basic' | 'registration' | 'optional')}>
+          <Tabs
+            value={activeTab}
+            onValueChange={value => setActiveTab(value as 'basic' | 'registration' | 'optional')}
+          >
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger
                 value="basic"
                 className={`flex items-center gap-2 ${getTabStatus('basic') === 'invalid' ? 'text-red-600' : ''}`}
               >
                 Basic Info *
-                {getTabStatus('basic') === 'valid' && <CheckCircle className="h-4 w-4 text-green-600" />}
+                {getTabStatus('basic') === 'valid' && (
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                )}
               </TabsTrigger>
               <TabsTrigger
                 value="registration"
                 className={`flex items-center gap-2 ${getTabStatus('registration') === 'invalid' ? 'text-red-600' : ''}`}
               >
                 Registration
-                {getTabStatus('registration') === 'valid' && <CheckCircle className="h-4 w-4 text-green-600" />}
+                {getTabStatus('registration') === 'valid' && (
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                )}
               </TabsTrigger>
               <TabsTrigger
                 value="optional"
                 className={`flex items-center gap-2 ${getTabStatus('optional') === 'invalid' ? 'text-red-600' : ''}`}
               >
                 Additional Info
-                {getTabStatus('optional') === 'valid' && <CheckCircle className="h-4 w-4 text-green-600" />}
+                {getTabStatus('optional') === 'valid' && (
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                )}
               </TabsTrigger>
             </TabsList>
 
@@ -332,10 +345,13 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
             <TabsContent value="basic" className="space-y-6 mt-6">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Call Name <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="add-dog-call-name">
+                    Call Name <span className="text-destructive">*</span>
+                  </Label>
                   <Input
+                    id="add-dog-call-name"
                     value={formData.callName}
-                    onChange={(e) => handleFieldChange('callName', e.target.value)}
+                    onChange={e => handleFieldChange('callName', e.target.value)}
                     placeholder="Everyday name"
                     className="form-input"
                   />
@@ -346,12 +362,14 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
               </div>
 
               <div className="space-y-2">
-                <Label>Gender <span className="text-destructive">*</span></Label>
+                <Label htmlFor="add-dog-gender">
+                  Gender <span className="text-destructive">*</span>
+                </Label>
                 <Select
                   value={formData.gender}
-                  onValueChange={(value) => handleFieldChange('gender', value)}
+                  onValueChange={value => handleFieldChange('gender', value)}
                 >
-                  <SelectTrigger className="form-select">
+                  <SelectTrigger id="add-dog-gender" className="form-select">
                     <SelectValue placeholder="Select gender" />
                   </SelectTrigger>
                   <SelectContent>
@@ -365,11 +383,14 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
               </div>
 
               <div className="space-y-2">
-                <Label>Date of Birth <span className="text-destructive">*</span></Label>
+                <Label htmlFor="add-dog-dob">
+                  Date of Birth <span className="text-destructive">*</span>
+                </Label>
                 <Input
+                  id="add-dog-dob"
                   type="date"
                   value={formData.dateOfBirth}
-                  onChange={(e) => handleFieldChange('dateOfBirth', e.target.value)}
+                  onChange={e => handleFieldChange('dateOfBirth', e.target.value)}
                   className="form-input"
                 />
                 {formData.dateOfBirth && !getVisibleError('dateOfBirth') && (
@@ -383,34 +404,41 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
               </div>
 
               <div className="space-y-2">
-                <Label>Color/Markings</Label>
+                <Label htmlFor="add-dog-color">Color/Markings</Label>
                 <Input
+                  id="add-dog-color"
                   value={formData.color}
-                  onChange={(e) => handleFieldChange('color', e.target.value)}
+                  onChange={e => handleFieldChange('color', e.target.value)}
                   placeholder="e.g., Black & White, Red, Blue Merle"
                   className="form-input"
                 />
               </div>
 
               {/* Owner Selection - Show for Secretary/Admin, hidden for Exhibitor */}
-              {(userRole === UserRole.SECRETARY || userRole === UserRole.CLUB_ADMIN || userRole === UserRole.SITE_ADMIN) && (
+              {(userRole === UserRole.SECRETARY ||
+                userRole === UserRole.CLUB_ADMIN ||
+                userRole === UserRole.SITE_ADMIN) && (
                 <div className="space-y-2">
-                  <Label>Owner <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="add-dog-owner">
+                    Owner <span className="text-destructive">*</span>
+                  </Label>
                   <Select
                     value={formData.ownerId}
-                    onValueChange={(value) => handleFieldChange('ownerId', value)}
+                    onValueChange={value => handleFieldChange('ownerId', value)}
                   >
-                    <SelectTrigger className="form-select">
+                    <SelectTrigger id="add-dog-owner" className="form-select">
                       <SelectValue placeholder="Select owner" />
                     </SelectTrigger>
                     <SelectContent>
-                      {people.map((person) => (
+                      {people.map(person => (
                         <SelectItem key={person.id} value={person.id}>
                           <div className="flex items-center gap-2">
                             <User className="h-4 w-4" />
                             {person.firstName} {person.lastName}
                             {person.email && (
-                              <span className="text-xs text-muted-foreground">({person.email})</span>
+                              <span className="text-xs text-muted-foreground">
+                                ({person.email})
+                              </span>
                             )}
                           </div>
                         </SelectItem>
@@ -432,7 +460,9 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
                     <span className="text-sm">
                       {(() => {
                         const currentPerson = people.find(p => p.id === currentUserPersonId);
-                        return currentPerson ? `${currentPerson.firstName} ${currentPerson.lastName}` : 'You';
+                        return currentPerson
+                          ? `${currentPerson.firstName} ${currentPerson.lastName}`
+                          : 'You';
                       })()}
                     </span>
                   </div>
@@ -455,9 +485,13 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
                 {formData.registrations.map((reg, index) => (
                   <div key={reg.id || index} className="border p-4 rounded-md shadow-sm">
                     <h4 className="font-semibold">{reg.organization}</h4>
-                    <p className="text-sm text-muted-foreground">Registered Name: {reg.registeredName}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Registered Name: {reg.registeredName}
+                    </p>
                     <p className="text-sm text-muted-foreground">Breed: {reg.breed}</p>
-                    <p className="text-sm text-muted-foreground">Number: {reg.registrationNumber}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Number: {reg.registrationNumber}
+                    </p>
                     <p className="text-sm text-muted-foreground">Status: {reg.status}</p>
                     <div className="flex space-x-2 mt-2">
                       <button
@@ -495,10 +529,11 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
             <TabsContent value="optional" className="space-y-6 mt-6">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Height (inches)</Label>
+                  <Label htmlFor="add-dog-height">Height (inches)</Label>
                   <Input
+                    id="add-dog-height"
                     value={formData.height}
-                    onChange={(e) => handleFieldChange('height', e.target.value)}
+                    onChange={e => handleFieldChange('height', e.target.value)}
                     placeholder="e.g., 24"
                     type="number"
                     step="0.1"
@@ -507,10 +542,11 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Weight (pounds)</Label>
+                  <Label htmlFor="add-dog-weight">Weight (pounds)</Label>
                   <Input
+                    id="add-dog-weight"
                     value={formData.weight}
-                    onChange={(e) => handleFieldChange('weight', e.target.value)}
+                    onChange={e => handleFieldChange('weight', e.target.value)}
                     placeholder="e.g., 55"
                     type="number"
                     step="0.1"
@@ -520,10 +556,11 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
               </div>
 
               <div className="space-y-2">
-                <Label>Microchip Number</Label>
+                <Label htmlFor="add-dog-microchip">Microchip Number</Label>
                 <Input
+                  id="add-dog-microchip"
                   value={formData.microchip}
-                  onChange={(e) => handleFieldChange('microchip', e.target.value)}
+                  onChange={e => handleFieldChange('microchip', e.target.value)}
                   placeholder="15-digit microchip number"
                   className="form-input"
                 />
@@ -533,7 +570,7 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
                 <Checkbox
                   id="spayedNeutered"
                   checked={formData.spayedNeutered}
-                  onCheckedChange={(checked) => handleFieldChange('spayedNeutered', checked === true)}
+                  onCheckedChange={checked => handleFieldChange('spayedNeutered', checked === true)}
                 />
                 <label htmlFor="spayedNeutered" className="text-sm font-medium">
                   Spayed/Neutered
@@ -547,10 +584,7 @@ export const AddDogDialog: React.FC<AddDogDialogProps> = ({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={isCreating || isSaving}
-          >
+          <Button onClick={handleSubmit} disabled={isCreating || isSaving}>
             {isCreating || isSaving ? 'Creating...' : 'Create Dog'}
           </Button>
         </SheetFooter>

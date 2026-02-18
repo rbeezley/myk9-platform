@@ -519,8 +519,7 @@ describe('LogTransport Implementations', () => {
       }
     });
 
-    // TODO: fix - fetch call includes extra headers (apikey etc.) not accounted for in assertion
-    it.skip('should send logs to remote endpoint', async () => {
+    it('should send logs to remote endpoint', async () => {
       logger.error('Critical error', 'test'); // Error level triggers immediate flush
 
       // Wait for async operations
@@ -530,7 +529,7 @@ describe('LogTransport Implementations', () => {
         'https://api.example.com/logs',
         expect.objectContaining({
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
           body: expect.stringContaining('Critical error'),
         })
       );

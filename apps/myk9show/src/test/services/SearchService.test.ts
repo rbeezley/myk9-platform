@@ -180,8 +180,7 @@ describe('SearchService', () => {
   });
 
   describe('popular searches', () => {
-    // TODO: fix - service returns results in ascending count order; test expects descending
-    it.skip('should track and return popular searches', async () => {
+    it('should track and return popular searches', async () => {
       const searchCounts = {
         agility: 5,
         obedience: 3,
@@ -189,7 +188,8 @@ describe('SearchService', () => {
         tracking: 1,
       };
 
-      // Simulate multiple searches
+      // Use unique entity types per call to bypass cache, so each search is recorded in history
+      let callIndex = 0;
       for (const [term, count] of Object.entries(searchCounts)) {
         for (let i = 0; i < count; i++) {
           const mockQuery: SearchQuery = { term, filters: {} };
@@ -201,7 +201,13 @@ describe('SearchService', () => {
             searchTime: 0,
           });
 
-          await service.search(mockEntityType, mockQuery, mockSearchFunction, `user-${i}`);
+          // Use unique entity type to prevent cache from short-circuiting history recording
+          await service.search(
+            `unique-type-${callIndex++}`,
+            mockQuery,
+            mockSearchFunction,
+            `user-${i}`
+          );
         }
       }
 

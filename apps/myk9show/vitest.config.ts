@@ -38,6 +38,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
+      // Stub packages that are not installed but imported by source files under test.
+      // Tests that need real behavior mock these via vi.mock() in the test file.
+      pako: path.resolve(__dirname, 'src/test/mocks/pako.ts'),
     },
   },
 });

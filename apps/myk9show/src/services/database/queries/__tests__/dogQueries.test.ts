@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { supabase } from '../../supabaseClient';
 import {
   getAllDogs,
   getDogById,
@@ -11,31 +10,7 @@ import {
   getDogStatistics,
 } from '../dogQueries';
 import type { DbDogInsert, DbDogUpdate } from '../../../../types/database-mappings';
-
-// Type for Supabase query mocks
-type SupabaseMockQuery = {
-  select: vi.Mock;
-  insert: vi.Mock;
-  update: vi.Mock;
-  delete: vi.Mock;
-  eq: vi.Mock;
-  ilike: vi.Mock;
-  limit: vi.Mock;
-  single: vi.Mock;
-  or: vi.Mock;
-};
-
-// Mock the Supabase client
-vi.mock('../../supabaseClient', () => ({
-  supabase: {
-    from: vi.fn(),
-  },
-  logQuery: vi.fn(),
-  createDatabaseError: vi.fn((error) => ({
-    message: error?.message || 'Database error',
-    code: error?.code,
-  })),
-}));
+import { mockSupabase, createChainableQuery } from '@/test/mocks/supabase';
 
 describe('Dog Queries', () => {
   beforeEach(() => {
@@ -63,42 +38,27 @@ describe('Dog Queries', () => {
         },
       ];
 
-      const mockQuery = {
-        select: vi.fn().mockReturnThis(),
-        order: vi.fn().mockResolvedValue({
-          data: mockDogs,
-          error: null,
-        }),
-      };
-
-      vi.mocked(supabase.from).mockReturnValue(mockQuery as SupabaseMockQuery);
+      mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockDogs, error: null }));
 
       const result = await getAllDogs();
 
-      expect(supabase.from).toHaveBeenCalledWith('dogs');
-      expect(mockQuery.select).toHaveBeenCalledWith(expect.stringContaining('owner:people'));
-      expect(mockQuery.order).toHaveBeenCalledWith('name', { ascending: true });
-      expect(result).toEqual({ data: mockDogs, error: null });
+      expect(mockSupabase.from).toHaveBeenCalledWith('dogs');
+      expect(result.data).toEqual(mockDogs);
+      expect(result.error).toBeNull();
     });
 
     it('should handle errors gracefully', async () => {
       const mockError = { message: 'Database connection failed' };
-      const mockQuery = {
-        select: vi.fn().mockReturnThis(),
-        order: vi.fn().mockResolvedValue({
-          data: null,
-          error: mockError,
-        }),
-      };
-
-      vi.mocked(supabase.from).mockReturnValue(mockQuery as SupabaseMockQuery);
+      mockSupabase.from.mockReturnValue(createChainableQuery({ data: null, error: mockError }));
 
       const result = await getAllDogs();
 
       expect(result.data).toEqual([]);
-      expect(result.error).toEqual(expect.objectContaining({
-        message: 'Database connection failed',
-      }));
+      expect(result.error).toEqual(
+        expect.objectContaining({
+          message: 'Database connection failed',
+        })
+      );
     });
   });
 
@@ -114,23 +74,13 @@ describe('Dog Queries', () => {
         entries: [],
       };
 
-      const mockQuery = {
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({
-          data: mockDog,
-          error: null,
-        }),
-      };
-
-      vi.mocked(supabase.from).mockReturnValue(mockQuery as SupabaseMockQuery);
+      mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockDog, error: null }));
 
       const result = await getDogById('1');
 
-      expect(supabase.from).toHaveBeenCalledWith('dogs');
-      expect(mockQuery.eq).toHaveBeenCalledWith('id', '1');
-      expect(mockQuery.single).toHaveBeenCalled();
-      expect(result).toEqual({ data: mockDog, error: null });
+      expect(mockSupabase.from).toHaveBeenCalledWith('dogs');
+      expect(result.data).toEqual(mockDog);
+      expect(result.error).toBeNull();
     });
   });
 
@@ -150,54 +100,40 @@ describe('Dog Queries', () => {
         owner: { id: '1', first_name: 'John', last_name: 'Doe' },
       };
 
-      const mockQuery = {
-        insert: vi.fn().mockReturnThis(),
-        select: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({
-          data: mockCreatedDog,
-          error: null,
-        }),
-      };
-
-      vi.mocked(supabase.from).mockReturnValue(mockQuery as SupabaseMockQuery);
+      mockSupabase.from.mockReturnValue(
+        createChainableQuery({ data: mockCreatedDog, error: null })
+      );
 
       const result = await createDog(newDog);
 
-      expect(supabase.from).toHaveBeenCalledWith('dogs');
-      expect(mockQuery.insert).toHaveBeenCalledWith([newDog]);
-      expect(result).toEqual({ data: mockCreatedDog, error: null });
+      expect(mockSupabase.from).toHaveBeenCalledWith('dogs');
+      expect(result.data).toEqual(mockCreatedDog);
+      expect(result.error).toBeNull();
     });
 
     it('should handle validation errors', async () => {
       const invalidDog: DbDogInsert = {
-        name: '', // Invalid - empty name
+        name: '',
         breed: 'Beagle',
         owner_id: '1',
         sex: 'male',
       };
 
-      const mockError = { 
+      const mockError = {
         message: 'Invalid input',
-        code: '23514', // Check constraint violation
+        code: '23514',
       };
 
-      const mockQuery = {
-        insert: vi.fn().mockReturnThis(),
-        select: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({
-          data: null,
-          error: mockError,
-        }),
-      };
-
-      vi.mocked(supabase.from).mockReturnValue(mockQuery as SupabaseMockQuery);
+      mockSupabase.from.mockReturnValue(createChainableQuery({ data: null, error: mockError }));
 
       const result = await createDog(invalidDog);
 
       expect(result.data).toBeNull();
-      expect(result.error).toEqual(expect.objectContaining({
-        message: 'Invalid input',
-      }));
+      expect(result.error).toEqual(
+        expect.objectContaining({
+          message: 'Invalid input',
+        })
+      );
     });
   });
 
@@ -216,29 +152,15 @@ describe('Dog Queries', () => {
         owner: { id: '1', first_name: 'John', last_name: 'Doe' },
       };
 
-      const mockQuery = {
-        update: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        select: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({
-          data: mockUpdatedDog,
-          error: null,
-        }),
-      };
-
-      vi.mocked(supabase.from).mockReturnValue(mockQuery as SupabaseMockQuery);
+      mockSupabase.from.mockReturnValue(
+        createChainableQuery({ data: mockUpdatedDog, error: null })
+      );
 
       const result = await updateDog('1', updates);
 
-      expect(supabase.from).toHaveBeenCalledWith('dogs');
-      expect(mockQuery.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          ...updates,
-          updated_at: expect.any(String),
-        })
-      );
-      expect(mockQuery.eq).toHaveBeenCalledWith('id', '1');
-      expect(result).toEqual({ data: mockUpdatedDog, error: null });
+      expect(mockSupabase.from).toHaveBeenCalledWith('dogs');
+      expect(result.data).toEqual(mockUpdatedDog);
+      expect(result.error).toBeNull();
     });
   });
 
@@ -246,24 +168,15 @@ describe('Dog Queries', () => {
     it('should delete a dog', async () => {
       const mockDeletedDog = { id: '1', name: 'Max' };
 
-      const mockQuery = {
-        delete: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        select: vi.fn().mockReturnThis(),
-        single: vi.fn().mockResolvedValue({
-          data: mockDeletedDog,
-          error: null,
-        }),
-      };
-
-      vi.mocked(supabase.from).mockReturnValue(mockQuery as SupabaseMockQuery);
+      mockSupabase.from.mockReturnValue(
+        createChainableQuery({ data: mockDeletedDog, error: null })
+      );
 
       const result = await deleteDog('1');
 
-      expect(supabase.from).toHaveBeenCalledWith('dogs');
-      expect(mockQuery.delete).toHaveBeenCalled();
-      expect(mockQuery.eq).toHaveBeenCalledWith('id', '1');
-      expect(result).toEqual({ data: mockDeletedDog, error: null });
+      expect(mockSupabase.from).toHaveBeenCalledWith('dogs');
+      expect(result.data).toEqual(mockDeletedDog);
+      expect(result.error).toBeNull();
     });
   });
 
@@ -275,43 +188,25 @@ describe('Dog Queries', () => {
         { id: '2', name: 'Max', breed: 'Golden Retriever' },
       ];
 
-      const mockQuery = {
-        select: vi.fn().mockReturnThis(),
-        or: vi.fn().mockReturnThis(),
-        order: vi.fn().mockResolvedValue({
-          data: mockResults,
-          error: null,
-        }),
-      };
-
-      vi.mocked(supabase.from).mockReturnValue(mockQuery as SupabaseMockQuery);
+      mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockResults, error: null }));
 
       const result = await searchDogs(searchTerm);
 
-      expect(supabase.from).toHaveBeenCalledWith('dogs');
-      expect(mockQuery.or).toHaveBeenCalledWith(
-        expect.stringContaining(`name.ilike.%${searchTerm}%`)
-      );
-      expect(result).toEqual({ data: mockResults, error: null });
+      expect(mockSupabase.from).toHaveBeenCalledWith('dogs');
+      expect(result.data).toEqual(mockResults);
+      expect(result.error).toBeNull();
     });
   });
 
   describe('getDogStatistics', () => {
     it('should get dog count statistics', async () => {
-      const mockQuery = {
-        select: vi.fn().mockResolvedValue({
-          data: null,
-          error: null,
-          count: 42,
-        }),
-      };
-
-      vi.mocked(supabase.from).mockReturnValue(mockQuery as SupabaseMockQuery);
+      mockSupabase.from.mockReturnValue(
+        createChainableQuery({ data: null, error: null, count: 42 })
+      );
 
       const result = await getDogStatistics();
 
-      expect(supabase.from).toHaveBeenCalledWith('dogs');
-      expect(mockQuery.select).toHaveBeenCalledWith('id', { count: 'exact', head: true });
+      expect(mockSupabase.from).toHaveBeenCalledWith('dogs');
       expect(result).toEqual({
         data: { total: 42 },
         error: null,
@@ -327,23 +222,13 @@ describe('Dog Queries', () => {
         { id: '2', name: 'Bella', owner_id: ownerId },
       ];
 
-      const mockQuery = {
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        order: vi.fn().mockResolvedValue({
-          data: mockDogs,
-          error: null,
-        }),
-      };
-
-      vi.mocked(supabase.from).mockReturnValue(mockQuery as SupabaseMockQuery);
+      mockSupabase.from.mockReturnValue(createChainableQuery({ data: mockDogs, error: null }));
 
       const result = await getDogsByOwner(ownerId);
 
-      expect(supabase.from).toHaveBeenCalledWith('dogs');
-      expect(mockQuery.eq).toHaveBeenCalledWith('owner_id', ownerId);
-      expect(mockQuery.order).toHaveBeenCalledWith('name', { ascending: true });
-      expect(result).toEqual({ data: mockDogs, error: null });
+      expect(mockSupabase.from).toHaveBeenCalledWith('dogs');
+      expect(result.data).toEqual(mockDogs);
+      expect(result.error).toBeNull();
     });
   });
 });

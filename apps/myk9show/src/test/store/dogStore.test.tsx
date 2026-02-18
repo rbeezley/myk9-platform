@@ -28,11 +28,11 @@ const mockDogs: Dog[] = [
       vaccinations: [],
       medications: [],
       allergies: [],
-      vetVisits: []
+      vetVisits: [],
     },
     createdAt: new Date('2023-01-01'),
-    updatedAt: new Date('2023-01-01')
-  }
+    updatedAt: new Date('2023-01-01'),
+  },
 ];
 
 // Mock the database hooks
@@ -56,10 +56,10 @@ vi.mock('@/hooks/queries/useDogsDatabase', () => ({
 
 // Mock the mappers
 vi.mock('@/services/mappers/dogMappers', () => ({
-  mapDogInputToInsert: vi.fn((input) => ({ ...input, id: `db-${Date.now()}` })),
-  mapDogInputToUpdate: vi.fn((input) => ({ ...input })),
-  mapDatabaseToDog: vi.fn((dbDog) => ({ ...dbDog })),
-  mapDatabaseDogsArray: vi.fn((dbDogs) => dbDogs || []),
+  mapDogInputToInsert: vi.fn(input => ({ ...input, id: `db-${Date.now()}` })),
+  mapDogInputToUpdate: vi.fn(input => ({ ...input })),
+  mapDatabaseToDog: vi.fn(dbDog => ({ ...dbDog })),
+  mapDatabaseDogsArray: vi.fn(dbDogs => dbDogs || []),
 }));
 
 // Test wrapper with QueryClient
@@ -70,11 +70,9 @@ const createWrapper = () => {
       mutations: { retry: false },
     },
   });
-  
+
   return ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={queryClient}>
-      {children}
-    </QueryClientProvider>
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
 };
 
@@ -82,10 +80,10 @@ describe('dogStore (with database integration)', () => {
   beforeEach(() => {
     // Reset all mocks
     vi.clearAllMocks();
-    
+
     // Reset factories
     resetFactories();
-    
+
     // Setup default mock implementations
     mockUseDogsQuery.mockReturnValue({
       data: [],
@@ -95,37 +93,37 @@ describe('dogStore (with database integration)', () => {
       isFetching: false,
       refetch: vi.fn(),
     });
-    
+
     mockUseCreateDogMutation.mockReturnValue({
       mutateAsync: vi.fn().mockResolvedValue(mockDogs[0]),
       isPending: false,
       error: null,
     });
-    
+
     mockUseUpdateDogMutation.mockReturnValue({
       mutateAsync: vi.fn().mockResolvedValue(mockDogs[0]),
       isPending: false,
       error: null,
     });
-    
+
     mockUseDeleteDogMutation.mockReturnValue({
       mutateAsync: vi.fn().mockResolvedValue(undefined),
       isPending: false,
       error: null,
     });
-    
+
     mockUseDogStatisticsQuery.mockReturnValue({
       data: null,
       isLoading: false,
       error: null,
     });
-    
+
     mockUseDogQuery.mockReturnValue({
       data: null,
       isLoading: false,
       error: null,
     });
-    
+
     mockUseDogsByOwnerQuery.mockReturnValue({
       data: [],
       isLoading: false,
@@ -142,7 +140,7 @@ describe('dogStore (with database integration)', () => {
       const { result } = renderHook(() => useDogStoreCompat(), {
         wrapper: createWrapper(),
       });
-      
+
       expect(result.current.dogs).toHaveLength(0);
       expect(result.current.isLoading).toBe(false);
       expect(result.current.error).toBeNull();
@@ -161,7 +159,7 @@ describe('dogStore (with database integration)', () => {
       const { result } = renderHook(() => useDogStoreCompat(), {
         wrapper: createWrapper(),
       });
-      
+
       const dogInput: DogInput = {
         name: 'Buddy',
         breed: 'Golden Retriever',
@@ -193,7 +191,7 @@ describe('dogStore (with database integration)', () => {
       const { result } = renderHook(() => useDogStoreCompat(), {
         wrapper: createWrapper(),
       });
-      
+
       const updateData = { name: 'Updated Buddy' };
 
       await act(async () => {
@@ -222,7 +220,7 @@ describe('dogStore (with database integration)', () => {
         await result.current.deleteDog('dog-1');
       });
 
-      expect(mockMutateAsync).toHaveBeenCalledWith('dog-1');
+      expect(mockMutateAsync).toHaveBeenCalledWith({ id: 'dog-1' });
     });
 
     it('should retrieve dogs from database', () => {
@@ -238,7 +236,7 @@ describe('dogStore (with database integration)', () => {
       const { result } = renderHook(() => useDogStoreCompat(), {
         wrapper: createWrapper(),
       });
-      
+
       expect(result.current.dogs).toHaveLength(1);
       expect(result.current.dogs[0].name).toBe('Buddy');
     });
@@ -256,7 +254,7 @@ describe('dogStore (with database integration)', () => {
       const { result } = renderHook(() => useDogStoreCompat(), {
         wrapper: createWrapper(),
       });
-      
+
       const dog = result.current.getDogById('dog-1');
       expect(dog).toBeTruthy();
       expect(dog?.name).toBe('Buddy');
@@ -266,7 +264,7 @@ describe('dogStore (with database integration)', () => {
       const { result } = renderHook(() => useDogStoreCompat(), {
         wrapper: createWrapper(),
       });
-      
+
       const dog = result.current.getDogById('non-existent');
       expect(dog).toBeNull();
     });
@@ -284,7 +282,7 @@ describe('dogStore (with database integration)', () => {
       const { result } = renderHook(() => useDogStoreCompat(), {
         wrapper: createWrapper(),
       });
-      
+
       const dogs = result.current.getDogsByOwner('owner-1');
       expect(dogs).toHaveLength(1);
       expect(dogs[0].name).toBe('Buddy');
@@ -294,7 +292,7 @@ describe('dogStore (with database integration)', () => {
       const { result } = renderHook(() => useDogStoreCompat(), {
         wrapper: createWrapper(),
       });
-      
+
       const dogs = result.current.getDogsByOwner('non-existent-owner');
       expect(dogs).toHaveLength(0);
     });
@@ -314,7 +312,7 @@ describe('dogStore (with database integration)', () => {
       const { result } = renderHook(() => useDogStoreCompat(), {
         wrapper: createWrapper(),
       });
-      
+
       expect(result.current.isLoading).toBe(true);
       expect(result.current.getSyncStatus()).toBe('pending');
     });
@@ -333,7 +331,7 @@ describe('dogStore (with database integration)', () => {
       const { result } = renderHook(() => useDogStoreCompat(), {
         wrapper: createWrapper(),
       });
-      
+
       expect(result.current.error).toBe(mockError.message);
       expect(result.current.getSyncStatus()).toBe('error');
     });
@@ -348,7 +346,7 @@ describe('dogStore (with database integration)', () => {
       const { result } = renderHook(() => useDogStoreCompat(), {
         wrapper: createWrapper(),
       });
-      
+
       expect(result.current.isLoading).toBe(true);
       expect(result.current.isCreating).toBe(true);
     });
@@ -357,7 +355,7 @@ describe('dogStore (with database integration)', () => {
   describe('Legacy Store UI State', () => {
     it('should select a dog by ID', () => {
       const { result } = renderHook(() => useDogStore());
-      
+
       act(() => {
         result.current.selectDog('dog-1');
       });
@@ -367,14 +365,14 @@ describe('dogStore (with database integration)', () => {
 
     it('should reset store to initial state', () => {
       const { result } = renderHook(() => useDogStore());
-      
+
       // First select a dog
       act(() => {
         result.current.selectDog('dog-1');
       });
-      
+
       expect(result.current.selectedDogId).toBe('dog-1');
-      
+
       // Then reset
       act(() => {
         result.current.resetStore();
@@ -398,7 +396,7 @@ describe('dogStore (with database integration)', () => {
       const { result } = renderHook(() => useDogStoreCompat(), {
         wrapper: createWrapper(),
       });
-      
+
       expect(result.current.isStale).toBe(true);
       expect(result.current.isFetching).toBe(true);
       expect(result.current._usingDatabase).toBe(true);
@@ -419,7 +417,7 @@ describe('dogStore (with database integration)', () => {
       const { result } = renderHook(() => useDogStoreCompat(), {
         wrapper: createWrapper(),
       });
-      
+
       result.current.refetch();
       expect(mockRefetch).toHaveBeenCalled();
     });

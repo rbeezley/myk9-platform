@@ -27,9 +27,16 @@ vi.mock('@/services/database/supabaseClient', () => ({
     unsubscribe: vi.fn(),
   }),
   logQuery: vi.fn(),
-  createDatabaseError: vi.fn((err: unknown) => ({
+  createDatabaseError: vi.fn((err: unknown, table?: string, operation?: string) => ({
     name: 'DatabaseError',
-    message: err instanceof Error ? err.message : 'Database error',
+    message:
+      err instanceof Error
+        ? err.message
+        : ((err as Record<string, unknown>)?.message ?? 'Database error'),
+    code: err instanceof Error ? undefined : (err as Record<string, unknown>)?.code,
+    details: err instanceof Error ? undefined : (err as Record<string, unknown>)?.details,
+    table,
+    operation,
   })),
   executeBatch: vi.fn().mockResolvedValue([]),
   getConnectionInfo: vi.fn().mockReturnValue({

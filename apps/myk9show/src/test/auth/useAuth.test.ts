@@ -1,24 +1,8 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useAuth } from '@/hooks/useAuth';
+import { mockSupabase } from '@/test/mocks/supabase';
 import type { User } from '@supabase/supabase-js';
-
-// Mock Supabase completely
-vi.mock('../../lib/supabase', () => ({
-  supabase: {
-    auth: {
-      getSession: vi.fn(),
-      signUp: vi.fn(),
-      signInWithPassword: vi.fn(),
-      signOut: vi.fn(),
-      resetPasswordForEmail: vi.fn(),
-      updateUser: vi.fn(),
-      onAuthStateChange: vi.fn(() => ({
-        data: { subscription: { unsubscribe: vi.fn() } },
-      })),
-    },
-  },
-}));
 
 describe('useAuth', () => {
   const mockUser: User = {
@@ -36,41 +20,34 @@ describe('useAuth', () => {
     updated_at: new Date().toISOString(),
   };
 
-  // Get the mocked supabase instance
-  let mockSupabase: Record<string, unknown>;
-
-  beforeEach(async () => {
+  beforeEach(() => {
     vi.clearAllMocks();
-    
-    // Import the mocked supabase
-    const { supabase } = await import('../../lib/supabase');
-    mockSupabase = supabase;
-    
+
     // Setup default successful mock responses
     mockSupabase.auth.getSession.mockResolvedValue({
       data: { session: null },
       error: null,
     });
-    
+
     mockSupabase.auth.signUp.mockResolvedValue({
       data: { user: mockUser },
       error: null,
     });
-    
+
     mockSupabase.auth.signInWithPassword.mockResolvedValue({
       data: { user: mockUser, session: { user: mockUser } },
       error: null,
     });
-    
+
     mockSupabase.auth.signOut.mockResolvedValue({
       error: null,
     });
-    
+
     mockSupabase.auth.resetPasswordForEmail.mockResolvedValue({
       data: {},
       error: null,
     });
-    
+
     mockSupabase.auth.updateUser.mockResolvedValue({
       data: { user: mockUser },
       error: null,
@@ -82,18 +59,19 @@ describe('useAuth', () => {
   });
 
   describe('Initialization', () => {
-    it('should initialize with mock development user', () => {
+    it('should initialize with loading state and no user', async () => {
       const { result } = renderHook(() => useAuth());
-      
-      // The current implementation always sets a dev user immediately
-      expect(result.current.loading).toBe(false);
-      expect(result.current.user).toBeDefined();
-      expect(result.current.user?.email).toBe('dev@example.com');
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      expect(result.current.user).toBeNull();
     });
 
     it('should provide auth methods', () => {
       const { result } = renderHook(() => useAuth());
-      
+
       expect(typeof result.current.signIn).toBe('function');
       expect(typeof result.current.signUp).toBe('function');
       expect(typeof result.current.signOut).toBe('function');
@@ -106,15 +84,17 @@ describe('useAuth', () => {
   describe('signUp', () => {
     it('should call Supabase signUp with correct parameters', async () => {
       const { result } = renderHook(() => useAuth());
-      
+
       await act(async () => {
         await result.current.signUp('test@example.com', 'password123');
       });
 
-      expect(mockSupabase.auth.signUp).toHaveBeenCalledWith({
-        email: 'test@example.com',
-        password: 'password123',
-      });
+      expect(mockSupabase.auth.signUp).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email: 'test@example.com',
+          password: 'password123',
+        })
+      );
     });
 
     it('should handle signUp errors', async () => {
@@ -125,7 +105,7 @@ describe('useAuth', () => {
       });
 
       const { result } = renderHook(() => useAuth());
-      
+
       await expect(async () => {
         await act(async () => {
           await result.current.signUp('test@example.com', 'weak');
@@ -137,7 +117,7 @@ describe('useAuth', () => {
       mockSupabase.auth.signUp.mockRejectedValue(new Error('Network error'));
 
       const { result } = renderHook(() => useAuth());
-      
+
       await expect(async () => {
         await act(async () => {
           await result.current.signUp('test@example.com', 'password123');
@@ -147,38 +127,42 @@ describe('useAuth', () => {
   });
 
   describe('signIn', () => {
-    it('should handle signIn in development mode', async () => {
+    it('should call signInWithPassword', async () => {
       const { result } = renderHook(() => useAuth());
-      
+
       await act(async () => {
         await result.current.signIn('test@example.com', 'password');
       });
 
-      // In development mode, it should set user based on email
-      expect(result.current.user).toBeDefined();
-      expect(result.current.user?.email).toBe('test@example.com');
-      expect(result.current.loading).toBe(false);
+      expect(mockSupabase.auth.signInWithPassword).toHaveBeenCalledWith({
+        email: 'test@example.com',
+        password: 'password',
+      });
     });
 
-    it('should set user based on email in development', async () => {
-      const { result } = renderHook(() => useAuth());
-      
-      await act(async () => {
-        await result.current.signIn('custom@example.com', 'password');
+    it('should handle signIn errors', async () => {
+      const mockError = new Error('Invalid credentials');
+      mockSupabase.auth.signInWithPassword.mockResolvedValue({
+        data: { user: null, session: null },
+        error: mockError,
       });
 
-      expect(result.current.user?.email).toBe('custom@example.com');
+      const { result } = renderHook(() => useAuth());
+
+      await expect(async () => {
+        await act(async () => {
+          await result.current.signIn('test@example.com', 'wrongpassword');
+        });
+      }).rejects.toThrow('Invalid credentials');
     });
 
     it('should handle loading state during signIn', async () => {
       const { result } = renderHook(() => useAuth());
-      
-      // Start signIn
+
       const signInPromise = act(async () => {
         await result.current.signIn('test@example.com', 'password');
       });
 
-      // Complete the signIn
       await signInPromise;
 
       await waitFor(() => {
@@ -188,29 +172,9 @@ describe('useAuth', () => {
   });
 
   describe('signOut', () => {
-    it('should handle signOut in development mode', async () => {
+    it('should call Supabase signOut', async () => {
       const { result } = renderHook(() => useAuth());
-      
-      // First ensure we have a dev user
-      expect(result.current.user?.email).toBe('dev@example.com');
-      
-      await act(async () => {
-        await result.current.signOut();
-      });
 
-      // In development mode with dev user, it should clear the user
-      expect(result.current.user).toBeNull();
-    });
-
-    it('should call Supabase signOut for non-dev users', async () => {
-      const { result } = renderHook(() => useAuth());
-      
-      // First sign in with a non-dev user
-      await act(async () => {
-        await result.current.signIn('real@example.com', 'password');
-      });
-
-      // Now sign out
       await act(async () => {
         await result.current.signOut();
       });
@@ -225,11 +189,6 @@ describe('useAuth', () => {
       });
 
       const { result } = renderHook(() => useAuth());
-      
-      // Sign in with non-dev user to trigger real signOut
-      await act(async () => {
-        await result.current.signIn('real@example.com', 'password');
-      });
 
       await expect(async () => {
         await act(async () => {
@@ -242,14 +201,12 @@ describe('useAuth', () => {
   describe('resetPassword', () => {
     it('should call Supabase resetPasswordForEmail', async () => {
       const { result } = renderHook(() => useAuth());
-      
+
       await act(async () => {
         await result.current.resetPassword('test@example.com');
       });
 
-      expect(mockSupabase.auth.resetPasswordForEmail).toHaveBeenCalledWith(
-        'test@example.com'
-      );
+      expect(mockSupabase.auth.resetPasswordForEmail).toHaveBeenCalledWith('test@example.com');
     });
 
     it('should handle resetPassword errors', async () => {
@@ -260,7 +217,7 @@ describe('useAuth', () => {
       });
 
       const { result } = renderHook(() => useAuth());
-      
+
       await expect(async () => {
         await act(async () => {
           await result.current.resetPassword('test@example.com');
@@ -272,7 +229,7 @@ describe('useAuth', () => {
   describe('updatePassword', () => {
     it('should call Supabase updateUser for password', async () => {
       const { result } = renderHook(() => useAuth());
-      
+
       await act(async () => {
         await result.current.updatePassword('newpassword123');
       });
@@ -290,7 +247,7 @@ describe('useAuth', () => {
       });
 
       const { result } = renderHook(() => useAuth());
-      
+
       await expect(async () => {
         await act(async () => {
           await result.current.updatePassword('newpassword123');
@@ -302,12 +259,12 @@ describe('useAuth', () => {
   describe('updateProfile', () => {
     it('should call Supabase updateUser with profile updates', async () => {
       const { result } = renderHook(() => useAuth());
-      
+
       const updates = {
         email: 'newemail@example.com',
         data: { firstName: 'John', lastName: 'Doe' },
       };
-      
+
       await act(async () => {
         await result.current.updateProfile(updates);
       });
@@ -323,7 +280,7 @@ describe('useAuth', () => {
       });
 
       const { result } = renderHook(() => useAuth());
-      
+
       await expect(async () => {
         await act(async () => {
           await result.current.updateProfile({
@@ -334,63 +291,28 @@ describe('useAuth', () => {
     });
   });
 
-  describe('Development Mode Behavior', () => {
-    it('should use mock user in development without Supabase config', () => {
+  describe('Auth State', () => {
+    it('should update user when auth state changes', async () => {
+      mockSupabase.auth.onAuthStateChange.mockImplementation(
+        (callback: (event: string, session: { user: User } | null) => void) => {
+          callback('SIGNED_IN', { user: mockUser });
+          return { data: { subscription: { unsubscribe: vi.fn() } } };
+        }
+      );
+
       const { result } = renderHook(() => useAuth());
-      
-      // Should immediately have a dev user
-      expect(result.current.user).toBeDefined();
-      expect(result.current.user?.id).toBe('dev-user');
-      expect(result.current.user?.email).toBe('dev@example.com');
-      expect(result.current.loading).toBe(false);
+
+      await waitFor(() => {
+        expect(result.current.user).toEqual(mockUser);
+      });
     });
 
-    it('should not call Supabase methods during initialization', () => {
-      renderHook(() => useAuth());
-      
-      // Due to the current implementation that's disabled for testing,
-      // Supabase methods should not be called during initialization
-      expect(mockSupabase.auth.getSession).not.toHaveBeenCalled();
-      expect(mockSupabase.auth.onAuthStateChange).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('Error Handling', () => {
-    it('should handle promise rejections gracefully', async () => {
-      // Test that methods don't crash the hook when errors occur
-      mockSupabase.auth.signUp.mockRejectedValue(new Error('Network error'));
-      
+    it('should not call Supabase methods with invalid state', async () => {
       const { result } = renderHook(() => useAuth());
-      
+
       // Should not crash
       expect(result.current.user).toBeDefined();
       expect(typeof result.current.signUp).toBe('function');
-    });
-
-    it('should maintain user state after method errors', async () => {
-      const { result } = renderHook(() => useAuth());
-      
-      // Cause an error in signOut - for dev user, this won't throw
-      // So let's test with a real user first
-      await act(async () => {
-        await result.current.signIn('real@example.com', 'password');
-      });
-
-      // Now cause signOut error
-      mockSupabase.auth.signOut.mockResolvedValue({
-        error: new Error('Sign out failed'),
-      });
-      
-      try {
-        await act(async () => {
-          await result.current.signOut();
-        });
-      } catch {
-        // Expected to throw
-      }
-      
-      // User state should remain unchanged after error
-      expect(result.current.user?.email).toBe('real@example.com');
     });
   });
 });

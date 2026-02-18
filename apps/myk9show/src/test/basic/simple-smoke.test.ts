@@ -227,7 +227,6 @@ describe('Application Smoke Tests', () => {
   it.skip('should validate armband utilities', async () => {
     // TODO: fix - armbandUtils module does not exist; assignArmbands lives in armbandStore
     throw new Error('armbandUtils does not exist'); // Prevents Vite static analysis error
-    // eslint-disable-next-line no-unreachable
     const assignArmbands = undefined;
 
     expect(assignArmbands).toBeDefined();

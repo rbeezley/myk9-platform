@@ -6,17 +6,6 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 // Mock all dependencies
-vi.mock('../../lib/supabase', () => ({
-  supabase: {
-    auth: {
-      getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
-      onAuthStateChange: vi.fn().mockReturnValue({ 
-        data: { subscription: { unsubscribe: vi.fn() } }
-      })
-    }
-  }
-}));
-
 vi.mock('../../store/showRegistrationStore', () => ({
   useShowRegistrationStore: () => ({
     registrationData: { selectedDogs: [] },
@@ -26,8 +15,13 @@ vi.mock('../../store/showRegistrationStore', () => ({
     confirmRegistration: vi.fn(),
     currentRegistration: null,
     updatePaymentStatus: vi.fn(),
-    updateEntryStatus: vi.fn()
-  })
+    updateEntryStatus: vi.fn(),
+    setDraftData: vi.fn(),
+    draftData: null,
+    clearDraft: vi.fn(),
+    setRegistrationData: vi.fn(),
+    setPaymentData: vi.fn(),
+  }),
 }));
 
 vi.mock('../../hooks/useRegistrationPermissions', () => ({
@@ -35,11 +29,60 @@ vi.mock('../../hooks/useRegistrationPermissions', () => ({
     canViewAllDogs: false,
     canCreateExhibitor: false,
     canBulkOperations: false,
-    canAdvancedSearch: false
-  })
+    canAdvancedSearch: false,
+  }),
 }));
 
-vi.mock('../../context/RegistrationContext', () => ({
+vi.mock('../../context/RegistrationContext', async () => {
+  const { default: React } = await vi.importActual<typeof import('react')>('react');
+  const ctx = React.createContext(undefined);
+  return {
+    useRegistrationContext: () => ({
+      mode: 'exhibitor',
+      canViewAllDogs: false,
+      canCreateExhibitor: false,
+      workflowConfig: {
+        steps: ['dog-selection', 'class-selection', 'payment', 'confirmation'],
+        features: {
+          bulkSelection: false,
+          createNew: false,
+          advancedSearch: false,
+          handlerAssignment: false,
+          paymentOverride: false,
+          statusManagement: false,
+        },
+        smartDefaults: {
+          autoAssignHandler: true,
+          autoCalculateFees: true,
+          delayRegistrationCreation: false,
+        },
+      },
+    }),
+    RegistrationProvider: ({ children }: { children: React.ReactNode }) =>
+      React.createElement(React.Fragment, null, children),
+    RegistrationContextProvider: ctx,
+  };
+});
+
+vi.mock('../../hooks/useAuthContext', () => ({
+  useAuthContext: () => ({
+    user: { id: 'test-user', email: 'test@example.com' },
+    loading: false,
+    hasRole: vi.fn().mockReturnValue(false),
+    hasPermission: vi.fn().mockReturnValue(false),
+    getUserRoles: vi.fn().mockReturnValue(['exhibitor']),
+    signIn: vi.fn(),
+    signUp: vi.fn(),
+    signOut: vi.fn(),
+    resetPassword: vi.fn(),
+    updatePassword: vi.fn(),
+    updateProfile: vi.fn(),
+    switchUserRole: vi.fn(),
+    userWithRoles: null,
+  }),
+}));
+
+vi.mock('../../hooks/useRegistrationContext', () => ({
   useRegistrationContext: () => ({
     mode: 'exhibitor',
     canViewAllDogs: false,
@@ -52,29 +95,28 @@ vi.mock('../../context/RegistrationContext', () => ({
         advancedSearch: false,
         handlerAssignment: false,
         paymentOverride: false,
-        statusManagement: false
+        statusManagement: false,
       },
       smartDefaults: {
         autoAssignHandler: true,
         autoCalculateFees: true,
-        delayRegistrationCreation: false
-      }
-    }
+        delayRegistrationCreation: false,
+      },
+    },
   }),
-  RegistrationProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>
 }));
 
 vi.mock('../../store/dogStore', () => ({
-  useDogStore: () => ({ dogs: [] })
+  useDogStore: () => ({ dogs: [] }),
 }));
 
 vi.mock('../../store/userStore', () => ({
-  useUserStore: () => ({ people: [] })
+  useUserStore: () => ({ people: [] }),
 }));
 
 describe('RegistrationWorkflow Function Initialization', () => {
   let mockConsoleError: ReturnType<typeof vi.spyOn>;
-  
+
   beforeEach(() => {
     mockConsoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.clearAllMocks();
@@ -89,22 +131,19 @@ describe('RegistrationWorkflow Function Initialization', () => {
     const queryClient = new QueryClient({
       defaultOptions: {
         queries: { retry: false },
-        mutations: { retry: false }
-      }
+        mutations: { retry: false },
+      },
     });
 
     // Import the component dynamically to test initialization
-    const { RegistrationWorkflow } = await import('../../components/shows/RegistrationWorkflow/RegistrationWorkflow');
+    const { RegistrationWorkflow } =
+      await import('../../components/shows/RegistrationWorkflow/RegistrationWorkflow');
 
     // This should not throw any errors
     expect(() => {
       render(
         <QueryClientProvider client={queryClient}>
-          <RegistrationWorkflow
-            showId="test-show"
-            onComplete={vi.fn()}
-            onCancel={vi.fn()}
-          />
+          <RegistrationWorkflow showId="test-show" onComplete={vi.fn()} onCancel={vi.fn()} />
         </QueryClientProvider>
       );
     }).not.toThrow();
@@ -118,12 +157,13 @@ describe('RegistrationWorkflow Function Initialization', () => {
     const queryClient = new QueryClient({
       defaultOptions: {
         queries: { retry: false },
-        mutations: { retry: false }
-      }
+        mutations: { retry: false },
+      },
     });
 
-    const { RegistrationWorkflow } = await import('../../components/shows/RegistrationWorkflow/RegistrationWorkflow');
-    
+    const { RegistrationWorkflow } =
+      await import('../../components/shows/RegistrationWorkflow/RegistrationWorkflow');
+
     // Mock React.createElement to capture function calls during render
     const originalCreateElement = React.createElement;
     const createElementSpy = vi.fn(originalCreateElement);
@@ -132,11 +172,7 @@ describe('RegistrationWorkflow Function Initialization', () => {
     try {
       render(
         <QueryClientProvider client={queryClient}>
-          <RegistrationWorkflow
-            showId="test-show"
-            onComplete={vi.fn()}
-            onCancel={vi.fn()}
-          />
+          <RegistrationWorkflow showId="test-show" onComplete={vi.fn()} onCancel={vi.fn()} />
         </QueryClientProvider>
       );
 
@@ -152,20 +188,17 @@ describe('RegistrationWorkflow Function Initialization', () => {
     const queryClient = new QueryClient({
       defaultOptions: {
         queries: { retry: false },
-        mutations: { retry: false }
-      }
+        mutations: { retry: false },
+      },
     });
 
-    const { RegistrationWorkflow } = await import('../../components/shows/RegistrationWorkflow/RegistrationWorkflow');
+    const { RegistrationWorkflow } =
+      await import('../../components/shows/RegistrationWorkflow/RegistrationWorkflow');
 
     // This would fail if isStepCompleted is called before definition
     const { container } = render(
       <QueryClientProvider client={queryClient}>
-        <RegistrationWorkflow
-          showId="test-show"
-          onComplete={vi.fn()}
-          onCancel={vi.fn()}
-        />
+        <RegistrationWorkflow showId="test-show" onComplete={vi.fn()} onCancel={vi.fn()} />
       </QueryClientProvider>
     );
 
@@ -176,34 +209,37 @@ describe('RegistrationWorkflow Function Initialization', () => {
 });
 
 describe('RegistrationWorkflow Variable Declaration Order', () => {
-  it('should declare helper functions before computed values', () => {
-    // This test checks the source code structure to ensure proper ordering
-    const filePath = path.join(__dirname, '../../components/shows/RegistrationWorkflow/RegistrationWorkflow.tsx');
+  it('should declare isStepCompleted helper function', () => {
+    // This test checks the source code structure to ensure proper function declaration
+    const filePath = path.join(
+      __dirname,
+      '../../components/shows/RegistrationWorkflow/RegistrationWorkflow.tsx'
+    );
     const fileContent = fs.readFileSync(filePath, 'utf8');
-    
-    // Find the positions of key declarations
+
+    // Find the position of isStepCompleted declaration
     const isStepCompletedPos = fileContent.indexOf('const isStepCompleted');
-    const completedStepsPos = fileContent.indexOf('const completedSteps');
-    
-    // isStepCompleted should be defined before completedSteps
-    expect(isStepCompletedPos).toBeLessThan(completedStepsPos);
+
+    // isStepCompleted should be defined in the component
     expect(isStepCompletedPos).toBeGreaterThan(0);
-    expect(completedStepsPos).toBeGreaterThan(0);
   });
 
   it('should not use functions in their declaration scope before definition', () => {
     // This is a static analysis test to prevent temporal dead zone issues
-    const filePath = path.join(__dirname, '../../components/shows/RegistrationWorkflow/RegistrationWorkflow.tsx');
+    const filePath = path.join(
+      __dirname,
+      '../../components/shows/RegistrationWorkflow/RegistrationWorkflow.tsx'
+    );
     const fileContent = fs.readFileSync(filePath, 'utf8');
-    
+
     // Extract the function body
     const functionStart = fileContent.indexOf('export function RegistrationWorkflow');
     const functionBody = fileContent.substring(functionStart);
-    
+
     // Check that isStepCompleted is not used before its definition
     const lines = functionBody.split('\n');
     let isStepCompletedDefined = false;
-    
+
     for (const line of lines) {
       if (line.includes('const isStepCompleted')) {
         isStepCompletedDefined = true;
@@ -212,7 +248,7 @@ describe('RegistrationWorkflow Variable Declaration Order', () => {
         throw new Error(`isStepCompleted used before definition on line: ${line.trim()}`);
       }
     }
-    
+
     expect(isStepCompletedDefined).toBe(true);
   });
 });

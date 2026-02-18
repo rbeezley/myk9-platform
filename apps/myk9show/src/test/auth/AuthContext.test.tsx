@@ -4,6 +4,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { renderHook } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, ProtectedRoute } from '@/context/AuthContext';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole, PERMISSIONS, MOCK_USERS } from '@/types/auth-types';
@@ -12,6 +13,21 @@ import { UserRole, PERMISSIONS, MOCK_USERS } from '@/types/auth-types';
 const mockUseAuth = vi.fn();
 vi.mock('@/hooks/useAuth', () => ({
   useAuth: () => mockUseAuth(),
+}));
+
+// Mock useUserRoles to avoid React Query loading state issues
+vi.mock('@/hooks/queries/useUserRoles', () => ({
+  useUserRoles: () => ({ data: [], isLoading: false, error: null }),
+  useUserRoleNames: () => ({ data: [], isLoading: false, error: null }),
+}));
+
+// Mock RBACService to avoid async loading
+vi.mock('@/services/rbac/RBACService', () => ({
+  rbacService: {
+    getUserRoles: vi.fn().mockResolvedValue([]),
+    getUserRolesByEmail: vi.fn().mockResolvedValue([]),
+    hasPermission: vi.fn().mockResolvedValue(false),
+  },
 }));
 
 // Mock Supabase types
@@ -61,10 +77,15 @@ describe('AuthContext', () => {
   });
 
   const renderWithAuthProvider = (children: React.ReactNode) => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
     return render(
-      <MemoryRouter>
-        <AuthProvider>{children}</AuthProvider>
-      </MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <AuthProvider>{children}</AuthProvider>
+        </MemoryRouter>
+      </QueryClientProvider>
     );
   };
 
@@ -110,10 +131,10 @@ describe('AuthContext', () => {
 
     it('should use mock user when email matches', () => {
       // Use a mock user email
-      const adminMockUser = Object.values(MOCK_USERS).find(u => 
+      const adminMockUser = Object.values(MOCK_USERS).find(u =>
         u.roles.includes(UserRole.SITE_ADMIN)
       );
-      
+
       if (adminMockUser) {
         mockUseAuth.mockReturnValue({
           ...mockAuthReturn,
@@ -133,9 +154,7 @@ describe('AuthContext', () => {
 
         renderWithAuthProvider(<TestComponent />);
 
-        expect(screen.getByTestId('user-roles')).toHaveTextContent(
-          adminMockUser.roles.join(', ')
-        );
+        expect(screen.getByTestId('user-roles')).toHaveTextContent(adminMockUser.roles.join(', '));
       }
     });
 
@@ -186,12 +205,8 @@ describe('AuthContext', () => {
         const auth = useAuthContext();
         return (
           <div>
-            <span data-testid="has-exhibitor">
-              {auth.hasRole(UserRole.EXHIBITOR).toString()}
-            </span>
-            <span data-testid="has-admin">
-              {auth.hasRole(UserRole.SITE_ADMIN).toString()}
-            </span>
+            <span data-testid="has-exhibitor">{auth.hasRole(UserRole.EXHIBITOR).toString()}</span>
+            <span data-testid="has-admin">{auth.hasRole(UserRole.SITE_ADMIN).toString()}</span>
           </div>
         );
       };
@@ -227,9 +242,7 @@ describe('AuthContext', () => {
       const TestComponent = () => {
         const auth = useAuthContext();
         const roles = auth.getUserRoles();
-        return (
-          <span data-testid="user-roles">{roles.join(', ')}</span>
-        );
+        return <span data-testid="user-roles">{roles.join(', ')}</span>;
       };
 
       renderWithAuthProvider(<TestComponent />);
@@ -240,10 +253,10 @@ describe('AuthContext', () => {
     it('should switch mock user for testing', () => {
       const TestComponent = () => {
         const auth = useAuthContext();
-        
+
         React.useEffect(() => {
           // Find an admin mock user
-          const adminUser = Object.values(MOCK_USERS).find(u => 
+          const adminUser = Object.values(MOCK_USERS).find(u =>
             u.roles.includes(UserRole.SITE_ADMIN)
           );
           if (adminUser) {
@@ -252,9 +265,7 @@ describe('AuthContext', () => {
         }, [auth]);
 
         return (
-          <span data-testid="user-roles">
-            {auth.userWithRoles?.roles.join(', ') || 'No roles'}
-          </span>
+          <span data-testid="user-roles">{auth.userWithRoles?.roles.join(', ') || 'No roles'}</span>
         );
       };
 
@@ -281,10 +292,15 @@ describe('AuthContext', () => {
     });
 
     it('should return auth context when used within provider', () => {
+      const queryClient = new QueryClient({
+        defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+      });
       const wrapper = ({ children }: { children: React.ReactNode }) => (
-        <MemoryRouter>
-          <AuthProvider>{children}</AuthProvider>
-        </MemoryRouter>
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter>
+            <AuthProvider>{children}</AuthProvider>
+          </MemoryRouter>
+        </QueryClientProvider>
       );
 
       const { result } = renderHook(() => useAuthContext(), { wrapper });
@@ -415,10 +431,7 @@ describe('AuthContext', () => {
       const scope = { type: 'club' as const, id: 'club-123' };
 
       renderWithAuthProvider(
-        <ProtectedRoute 
-          requiredPermission={PERMISSIONS.SHOW_MANAGE} 
-          scope={scope}
-        >
+        <ProtectedRoute requiredPermission={PERMISSIONS.SHOW_MANAGE} scope={scope}>
           <TestPage />
         </ProtectedRoute>
       );
@@ -438,7 +451,7 @@ describe('AuthContext', () => {
 
       const TestComponent = () => {
         const auth = useAuthContext();
-        
+
         const handleSignIn = () => {
           auth.signIn('test@example.com', 'password');
         };
@@ -467,7 +480,7 @@ describe('AuthContext', () => {
 
       const TestComponent = () => {
         const auth = useAuthContext();
-        
+
         const handleSignUp = () => {
           auth.signUp('new@example.com', 'password123');
         };
@@ -496,7 +509,7 @@ describe('AuthContext', () => {
 
       const TestComponent = () => {
         const auth = useAuthContext();
-        
+
         const handleSignOut = () => {
           auth.signOut();
         };
@@ -525,7 +538,7 @@ describe('AuthContext', () => {
 
       const TestComponent = () => {
         const auth = useAuthContext();
-        
+
         const handleResetPassword = () => {
           auth.resetPassword('reset@example.com');
         };

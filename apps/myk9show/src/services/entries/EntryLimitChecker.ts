@@ -17,6 +17,7 @@ export interface EntryLimitError {
 
 export interface EntryLimitCheckResult {
   isAllowed: boolean;
+  isWaitlisted: boolean;
   errors: EntryLimitError[];
   warnings: EntryLimitError[];
   currentCount?: number | undefined;
@@ -74,8 +75,11 @@ export class EntryLimitChecker {
     errors.push(...handlerLimitCheck.errors);
     warnings.push(...handlerLimitCheck.warnings);
 
+    const isWaitlisted = warnings.some(w => w.code === 'CLASS_FULL_WAITLIST');
+
     return {
       isAllowed: errors.length === 0,
+      isWaitlisted,
       errors,
       warnings,
       currentCount: capacityCheck.currentCount,

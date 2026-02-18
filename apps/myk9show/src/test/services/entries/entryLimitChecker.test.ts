@@ -87,6 +87,7 @@ describe('EntryLimitChecker', () => {
       const result = EntryLimitChecker.checkEntryLimits(entryData, testContext);
 
       expect(result.isAllowed).toBe(true);
+      expect(result.isWaitlisted).toBe(false);
       expect(result.errors).toHaveLength(0);
       expect(result.currentCount).toBe(0);
       expect(result.maxAllowed).toBe(5);
@@ -129,6 +130,7 @@ describe('EntryLimitChecker', () => {
       const result = EntryLimitChecker.checkEntryLimits(entryData, testContext);
 
       expect(result.isAllowed).toBe(false);
+      expect(result.isWaitlisted).toBe(false);
       expect(result.errors).toHaveLength(1);
       expect(result.errors[0].code).toBe('CLASS_FULL');
       expect(result.errors[0].message).toContain('Class is full (5/5 entries)');
@@ -171,6 +173,7 @@ describe('EntryLimitChecker', () => {
 
       // Source returns isAllowed=true (no errors) with a CLASS_FULL_WAITLIST warning
       expect(result.isAllowed).toBe(true);
+      expect(result.isWaitlisted).toBe(true);
       expect(result.warnings).toHaveLength(1);
       expect(result.warnings[0].code).toBe('CLASS_FULL_WAITLIST');
       expect(result.waitlistPosition).toBe(1);

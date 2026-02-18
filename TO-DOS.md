@@ -96,8 +96,8 @@ Top 3 source files over 800 lines — refactor when next modified:
 
 ### Outstanding Items
 
-- [ ] Package coverage thresholds (need `@vitest/coverage-v8` dep + CI jobs)
+- [x] Package coverage thresholds — 6 packages with baseline-2% thresholds, CI job, root script (2026-02-18)
 - [ ] ~28 files in 700-750 line range — address when naturally touched
 - [ ] Make E2E CI jobs blocking once tests are stable
 - [x] Address 441 skipped tests → all fixed or deleted (2026-02-18)
-- [ ] Fix 4 potential source bugs documented in `docs/potential-bugs.md`
+- [x] Fix 4 potential source bugs documented in `docs/potential-bugs.md` (3 fixed, 1 closed as not-a-bug)

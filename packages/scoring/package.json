@@ -16,7 +16,8 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "zustand": "^5.0.10"
@@ -27,6 +28,7 @@
   "devDependencies": {
     "@myk9/test-utils": "workspace:*",
     "@types/react": "^19.2.10",
+    "@vitest/coverage-v8": "^4.0.18",
     "react": "^19.2.4",
     "tsup": "^8.5.1",
     "typescript": "~5.9.3",

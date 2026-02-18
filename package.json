@@ -13,6 +13,7 @@
     "lint": "turbo lint",
     "test": "turbo test",
     "test:packages": "turbo test --filter=@myk9/core --filter=@myk9/replication --filter=@myk9/scoring --filter=@myk9/scoring-ui --filter=@myk9/supabase --filter=@myk9/ui",
+    "test:packages:coverage": "turbo test --filter=@myk9/core --filter=@myk9/replication --filter=@myk9/scoring --filter=@myk9/scoring-ui --filter=@myk9/supabase --filter=@myk9/ui -- --coverage",
     "clean": "turbo clean && rm -rf node_modules"
   },
   "devDependencies": {

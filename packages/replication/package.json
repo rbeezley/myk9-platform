@@ -21,6 +21,7 @@
     "dev": "tsup src/index.ts --format esm --dts --watch",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "clean": "rimraf dist"
   },
   "dependencies": {
@@ -30,6 +31,7 @@
     "@myk9/core": "workspace:*",
     "@myk9/supabase": "workspace:*",
     "@myk9/test-utils": "workspace:*",
+    "@vitest/coverage-v8": "^4.0.18",
     "fake-indexeddb": "^6.2.5",
     "rimraf": "^6.1.2",
     "tsup": "^8.5.1",

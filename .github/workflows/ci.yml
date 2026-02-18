@@ -99,11 +99,38 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=4096
 
+  test-packages:
+    name: Test Packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: quality
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared packages
+        run: pnpm build --filter=@myk9/core --filter=@myk9/replication --filter=@myk9/scoring --filter=@myk9/scoring-ui --filter=@myk9/supabase --filter=@myk9/ui
+
+      - name: Run package tests with coverage
+        run: pnpm test:packages -- --coverage
+
   build:
     name: Build
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [test-myk9q, test-myk9show]
+    needs: [test-myk9q, test-myk9show, test-packages]
 
     steps:
       - uses: actions/checkout@v4

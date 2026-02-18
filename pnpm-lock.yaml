@@ -475,6 +475,9 @@ importers:
       '@myk9/test-utils':
         specifier: workspace:*
         version: link:../test-utils
+      '@vitest/coverage-v8':
+        specifier: ^4.0.18
+        version: 4.0.18(vitest@4.0.18)
       rimraf:
         specifier: ^6.1.2
         version: 6.1.2
@@ -506,6 +509,9 @@ importers:
       '@myk9/test-utils':
         specifier: workspace:*
         version: link:../test-utils
+      '@vitest/coverage-v8':
+        specifier: ^4.0.18
+        version: 4.0.18(vitest@4.0.18)
       fake-indexeddb:
         specifier: ^6.2.5
         version: 6.2.5
@@ -534,6 +540,9 @@ importers:
       '@types/react':
         specifier: ^19.2.10
         version: 19.2.10
+      '@vitest/coverage-v8':
+        specifier: ^4.0.18
+        version: 4.0.18(vitest@4.0.18)
       react:
         specifier: ^19.2.4
         version: 19.2.4
@@ -577,6 +586,9 @@ importers:
       '@types/react':
         specifier: ^19.2.10
         version: 19.2.10
+      '@vitest/coverage-v8':
+        specifier: ^4.0.18
+        version: 4.0.18(vitest@4.0.18)
       jsdom:
         specifier: ^27.4.0
         version: 27.4.0
@@ -623,6 +635,9 @@ importers:
       '@types/react-dom':
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.10)
+      '@vitest/coverage-v8':
+        specifier: ^4.0.18
+        version: 4.0.18(vitest@4.0.18)
       jsdom:
         specifier: ^27.4.0
         version: 27.4.0
@@ -691,6 +706,9 @@ importers:
       '@types/react-dom':
         specifier: ^19.2.3
         version: 19.2.3(@types/react@19.2.10)
+      '@vitest/coverage-v8':
+        specifier: ^4.0.18
+        version: 4.0.18(vitest@4.0.18)
       autoprefixer:
         specifier: ^10.4.23
         version: 10.4.23(postcss@8.5.6)

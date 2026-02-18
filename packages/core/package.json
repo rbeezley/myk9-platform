@@ -21,11 +21,13 @@
     "dev": "tsup src/index.ts --format esm --dts --watch",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "clean": "rimraf dist"
   },
   "devDependencies": {
     "@myk9/test-utils": "workspace:*",
+    "@vitest/coverage-v8": "^4.0.18",
     "rimraf": "^6.1.2",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",

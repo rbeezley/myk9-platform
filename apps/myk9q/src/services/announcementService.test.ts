@@ -268,7 +268,10 @@ describe('AnnouncementService', () => {
 
       const result = await AnnouncementService.getAnnouncement(1, mockLicenseKey);
 
-      expect(result).toEqual(mockAnnouncements[0]);
+      expect(result).toEqual({
+        ...mockAnnouncements[0],
+        updated_at: mockAnnouncements[0].created_at,
+      });
       expect(replicatedAnnouncementsTable.get).toHaveBeenCalledWith('1');
     });
 

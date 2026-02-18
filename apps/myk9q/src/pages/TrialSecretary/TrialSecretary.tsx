@@ -12,13 +12,31 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { HamburgerMenu, CompactOfflineIndicator, TabBar, FilterTriggerButton } from '../../components/ui';
+import {
+  HamburgerMenu,
+  CompactOfflineIndicator,
+  TabBar,
+  FilterTriggerButton,
+} from '../../components/ui';
 import type { Tab } from '../../components/ui';
-import { ClipboardList, Users, MoreVertical, Plus, Settings, Eye, Sliders, FileText } from 'lucide-react';
+import {
+  ClipboardList,
+  Users,
+  MoreVertical,
+  Plus,
+  Settings,
+  Eye,
+  Sliders,
+  FileText,
+  Printer,
+} from 'lucide-react';
 import { KanbanBoard } from './components/KanbanBoard';
 import { ScheduleBoard } from './components/ScheduleBoard';
 import { ResultsControlTab } from './components/ResultsControlTab';
 import { CheckInStatusReport } from './components/CheckInStatusReport';
+import { generatePasscodesFromLicenseKey } from '../../utils/auth';
+import { generateShowFlyer } from '../../services/reportService';
+import { replicatedShowsTable } from '@/services/replication';
 import './TrialSecretary.css';
 
 type TabType = 'kanban' | 'schedule' | 'results' | 'reports';
@@ -32,7 +50,9 @@ export function TrialSecretary() {
   const isReadOnly = role !== 'admin';
 
   // External triggers for ScheduleBoard actions
-  const [scheduleTrigger, setScheduleTrigger] = useState<'add-volunteer' | 'manage-roles' | null>(null);
+  const [scheduleTrigger, setScheduleTrigger] = useState<'add-volunteer' | 'manage-roles' | null>(
+    null
+  );
 
   // Search/filter state for volunteer schedule
   const [searchTerm, setSearchTerm] = useState('');
@@ -41,7 +61,8 @@ export function TrialSecretary() {
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
 
   // Check if any filters are active
-  const hasActiveFilters = searchTerm.length > 0 || selectedVolunteers.length > 0 || selectedJudges.length > 0;
+  const hasActiveFilters =
+    searchTerm.length > 0 || selectedVolunteers.length > 0 || selectedJudges.length > 0;
 
   // Clear all filters
   const clearAllFilters = useCallback(() => {
@@ -50,13 +71,70 @@ export function TrialSecretary() {
     setSelectedJudges([]);
   }, []);
 
+  // Format show date range for flyer
+  const formatShowDates = useCallback((startDate: string, endDate?: string): string => {
+    const start = new Date(startDate + 'T00:00:00');
+    const monthNames = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+
+    if (!endDate || startDate === endDate) {
+      return `${monthNames[start.getMonth()]} ${start.getDate()}, ${start.getFullYear()}`;
+    }
+
+    const end = new Date(endDate + 'T00:00:00');
+    if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+      return `${monthNames[start.getMonth()]} ${start.getDate()}\u2013${end.getDate()}, ${start.getFullYear()}`;
+    }
+    return `${monthNames[start.getMonth()]} ${start.getDate()} \u2013 ${monthNames[end.getMonth()]} ${end.getDate()}, ${end.getFullYear()}`;
+  }, []);
+
+  // Print show flyer handler
+  const handlePrintFlyer = useCallback(async () => {
+    if (!showContext?.licenseKey || !showContext?.showName || !showContext?.showId) return;
+
+    const passcodes = generatePasscodesFromLicenseKey(showContext.licenseKey);
+    if (!passcodes) {
+      alert('Unable to generate exhibitor passcode from license key.');
+      return;
+    }
+
+    const exhibitorCode = passcodes.exhibitor;
+    const loginUrl = `https://myk9q.com/login?code=${exhibitorCode}`;
+
+    const showData = await replicatedShowsTable.getShowById(showContext.showId);
+
+    generateShowFlyer(showContext.showName, exhibitorCode, loginUrl, {
+      clubName: showData?.club_name || showContext.clubName || undefined,
+      showDates: showData?.start_date
+        ? formatShowDates(showData.start_date, showData.end_date)
+        : undefined,
+      secretaryName: showData?.secretary_name || showData?.show_secretary_name || undefined,
+      chairmanName: showData?.chairman_name || undefined,
+    });
+  }, [showContext, formatShowDates]);
+
   // Tab configuration for TabBar component
-  const tabs: Tab[] = useMemo(() => [
-    { id: 'schedule', label: 'Volunteers', icon: <Users size={16} /> },
-    { id: 'kanban', label: 'Tasks', icon: <ClipboardList size={16} /> },
-    { id: 'reports', label: 'Reports', icon: <FileText size={16} /> },
-    { id: 'results', label: 'Settings', icon: <Sliders size={16} /> },
-  ], []);
+  const tabs: Tab[] = useMemo(
+    () => [
+      { id: 'schedule', label: 'Volunteers', icon: <Users size={16} /> },
+      { id: 'kanban', label: 'Tasks', icon: <ClipboardList size={16} /> },
+      { id: 'reports', label: 'Reports', icon: <FileText size={16} /> },
+      { id: 'results', label: 'Settings', icon: <Sliders size={16} /> },
+    ],
+    []
+  );
 
   // Clear trigger after it's been consumed
   const clearScheduleTrigger = useCallback(() => {
@@ -104,7 +182,9 @@ export function TrialSecretary() {
             <FilterTriggerButton
               onClick={() => setIsFilterPanelOpen(true)}
               hasActiveFilters={hasActiveFilters}
-              activeFilterCount={selectedVolunteers.length + selectedJudges.length + (searchTerm ? 1 : 0)}
+              activeFilterCount={
+                selectedVolunteers.length + selectedJudges.length + (searchTerm ? 1 : 0)
+              }
             />
 
             {/* Actions menu (three-dot) - only for admin users */}
@@ -153,7 +233,7 @@ export function TrialSecretary() {
       <TabBar
         tabs={tabs}
         activeTab={activeTab}
-        onTabChange={(tabId) => setActiveTab(tabId as TabType)}
+        onTabChange={tabId => setActiveTab(tabId as TabType)}
       />
 
       {/* Tab Content */}
@@ -176,13 +256,20 @@ export function TrialSecretary() {
           />
         )}
         {activeTab === 'reports' && showContext?.licenseKey && (
-          <CheckInStatusReport licenseKey={showContext.licenseKey} />
+          <>
+            {!isReadOnly && (
+              <div className="reports-actions">
+                <button className="btn btn-primary reports-flyer-btn" onClick={handlePrintFlyer}>
+                  <Printer size={18} />
+                  Print Show Flyer
+                </button>
+              </div>
+            )}
+            <CheckInStatusReport licenseKey={showContext.licenseKey} />
+          </>
         )}
         {activeTab === 'results' && showContext?.licenseKey && (
-          <ResultsControlTab
-            licenseKey={showContext.licenseKey}
-            isReadOnly={isReadOnly}
-          />
+          <ResultsControlTab licenseKey={showContext.licenseKey} isReadOnly={isReadOnly} />
         )}
       </div>
     </div>

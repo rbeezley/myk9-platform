@@ -4,12 +4,13 @@ import {
   formatReportDate,
   formatReportTime,
   sortByPlacement,
+  sortByArmband,
   getPlacementText,
   getResultStatusText,
   isQualified,
   countQualified,
   getOrgTitle,
-  generateShowIdentifier
+  generateShowIdentifier,
 } from './reportUtils';
 
 export interface ResultsSheetProps {
@@ -27,17 +28,19 @@ export interface ResultsSheetProps {
     activityType?: string;
   };
   entries: Entry[];
+  sortOrder?: 'placement' | 'armband';
 }
 
-export const ResultsSheet: React.FC<ResultsSheetProps> = ({ classInfo, entries }) => {
-  const sortedEntries = sortByPlacement(entries);
+export const ResultsSheet: React.FC<ResultsSheetProps> = ({ classInfo, entries, sortOrder }) => {
+  const sortedEntries = sortOrder === 'armband' ? sortByArmband(entries) : sortByPlacement(entries);
   const qualifiedCount = countQualified(sortedEntries);
   // Build title: "AKC Scent Work Preliminary Results" or fallback to element-based title
-  const orgTitle = classInfo.organization && classInfo.activityType
-    ? `${classInfo.organization} ${classInfo.activityType}`
-    : classInfo.organization
-    ? `${classInfo.organization} ${classInfo.element}`
-    : getOrgTitle(classInfo.element);
+  const orgTitle =
+    classInfo.organization && classInfo.activityType
+      ? `${classInfo.organization} ${classInfo.activityType}`
+      : classInfo.organization
+        ? `${classInfo.organization} ${classInfo.element}`
+        : getOrgTitle(classInfo.element);
   const showId = generateShowIdentifier(classInfo.trialDate, classInfo.trialNumber);
 
   return (
@@ -53,9 +56,7 @@ export const ResultsSheet: React.FC<ResultsSheetProps> = ({ classInfo, entries }
       </div>
 
       {/* Show Name (if available) */}
-      {classInfo.showName && (
-        <div className="show-name">{classInfo.showName}</div>
-      )}
+      {classInfo.showName && <div className="show-name">{classInfo.showName}</div>}
 
       {/* Trial Info Box */}
       <div className="trial-info-box">
@@ -108,7 +109,7 @@ export const ResultsSheet: React.FC<ResultsSheetProps> = ({ classInfo, entries }
           </tr>
         </thead>
         <tbody>
-          {sortedEntries.map((entry) => {
+          {sortedEntries.map(entry => {
             const qualified = isQualified(entry);
             const resultText = getResultStatusText(entry);
             const placementDisplay = getPlacementText(entry);
@@ -137,9 +138,7 @@ export const ResultsSheet: React.FC<ResultsSheetProps> = ({ classInfo, entries }
           Class Entries: {sortedEntries.length}
           <span className="qualified-count"> Qualified Entries: {qualifiedCount}</span>
         </div>
-        <div className="footer-right">
-          Page 1 of 1
-        </div>
+        <div className="footer-right">Page 1 of 1</div>
       </div>
     </div>
   );

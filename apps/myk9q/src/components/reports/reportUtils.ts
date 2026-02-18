@@ -38,6 +38,11 @@ export const sortByRunOrder = (entries: Entry[]): Entry[] => {
   });
 };
 
+// Sort entries by armband number
+export const sortByArmband = (entries: Entry[]): Entry[] => {
+  return [...entries].sort((a, b) => a.armband - b.armband);
+};
+
 // Sort entries by placement for results sheet
 // Qualified entries with numbered placements first, then Absent/Excused/NQ
 export const sortByPlacement = (entries: Entry[]): Entry[] => {
@@ -95,8 +100,8 @@ export const getPlacementText = (entry: Entry): string => {
   if (placement === 9995) return 'EXC'; // Excluded
   if (placement === 9996) return 'NQ';
   if (placement === 9997) return 'ABS'; // Absent
-  if (placement === 9998) return 'EX';  // Excused
-  if (placement === 9999) return 'WD';  // Withdrawn
+  if (placement === 9998) return 'EX'; // Excused
+  if (placement === 9999) return 'WD'; // Withdrawn
   if (placement === 10000) return 'DQ'; // Disqualified
   if (placement === 10001) return 'COMP'; // Completed
 

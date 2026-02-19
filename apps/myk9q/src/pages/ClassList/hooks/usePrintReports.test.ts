@@ -95,7 +95,7 @@ const mockEntries: Entry[] = [
 
 const mockOrgData = {
   organization: 'Test Dog Club',
-  activity_type: 'AKC Agility'
+  activity_type: 'AKC Agility',
 };
 
 describe('usePrintReports', () => {
@@ -123,7 +123,7 @@ describe('usePrintReports', () => {
     licenseKey: 'license-123',
     organization: 'Test Club',
     onComplete: mockOnComplete,
-    ...overrides
+    ...overrides,
   });
 
   afterEach(async () => {
@@ -163,7 +163,8 @@ describe('usePrintReports', () => {
           section: 'A',
           judgeName: 'Judge Smith',
         }),
-        mockEntries
+        mockEntries,
+        undefined
       );
       expect(mockOnComplete).toHaveBeenCalled();
     });
@@ -185,7 +186,7 @@ describe('usePrintReports', () => {
 
       expect(reportResult).toEqual({
         success: false,
-        error: 'Class not found'
+        error: 'Class not found',
       });
       expect(entryService.getClassEntries).not.toHaveBeenCalled();
       expect(mockOnComplete).not.toHaveBeenCalled();
@@ -207,7 +208,7 @@ describe('usePrintReports', () => {
 
       expect(reportResult).toEqual({
         success: false,
-        error: 'License key required'
+        error: 'License key required',
       });
       expect(entryService.getClassEntries).not.toHaveBeenCalled();
     });
@@ -225,7 +226,7 @@ describe('usePrintReports', () => {
 
       expect(reportResult).toEqual({
         success: false,
-        error: 'Database error'
+        error: 'Database error',
       });
       expect(consoleErrorSpy).toHaveBeenCalled();
 
@@ -261,9 +262,10 @@ describe('usePrintReports', () => {
       expect(reportService.generateCheckInSheet).toHaveBeenCalledWith(
         expect.objectContaining({
           organization: 'Test Dog Club',
-          activityType: 'AKC Agility'
+          activityType: 'AKC Agility',
         }),
-        mockEntries
+        mockEntries,
+        undefined
       );
     });
   });
@@ -284,7 +286,8 @@ describe('usePrintReports', () => {
           className: 'Novice A Agility',
           judgeName: 'Judge Smith',
         }),
-        mockEntries
+        mockEntries,
+        undefined
       );
       expect(mockOnComplete).toHaveBeenCalled();
     });
@@ -308,7 +311,7 @@ describe('usePrintReports', () => {
 
       expect(reportResult).toEqual({
         success: false,
-        error: 'No scored entries to display in results sheet'
+        error: 'No scored entries to display in results sheet',
       });
       expect(reportService.generateResultsSheet).not.toHaveBeenCalled();
       expect(mockOnComplete).toHaveBeenCalled(); // Still calls completion to close popup
@@ -324,7 +327,7 @@ describe('usePrintReports', () => {
 
       expect(reportResult).toEqual({
         success: false,
-        error: 'Class not found'
+        error: 'Class not found',
       });
     });
 
@@ -343,7 +346,7 @@ describe('usePrintReports', () => {
 
       expect(reportResult).toEqual({
         success: false,
-        error: 'Print error'
+        error: 'Print error',
       });
       expect(consoleErrorSpy).toHaveBeenCalled();
 
@@ -360,9 +363,10 @@ describe('usePrintReports', () => {
       expect(reportService.generateResultsSheet).toHaveBeenCalledWith(
         expect.objectContaining({
           trialDate: '2025-01-20',
-          trialNumber: '1'
+          trialNumber: '1',
         }),
-        mockEntries
+        mockEntries,
+        undefined
       );
     });
 
@@ -379,9 +383,10 @@ describe('usePrintReports', () => {
       expect(reportService.generateResultsSheet).toHaveBeenCalledWith(
         expect.objectContaining({
           trialDate: '',
-          trialNumber: ''
+          trialNumber: '',
         }),
-        mockEntries
+        mockEntries,
+        undefined
       );
     });
   });

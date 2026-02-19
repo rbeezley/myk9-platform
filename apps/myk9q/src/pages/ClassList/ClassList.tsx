@@ -22,9 +22,21 @@ import { useClassListData, ClassEntry, TrialInfo } from './hooks/useClassListDat
 import { useClassDialogs } from './hooks/useClassDialogs';
 import { useClassStatus, type StatusDependencies } from './hooks/useClassStatus';
 import { useClassRealtime } from './hooks/useClassRealtime';
-import { usePrintReports, type ReportDependencies } from './hooks/usePrintReports';
+import {
+  usePrintReports,
+  type ReportDependencies,
+  type ReportOperationResult,
+} from './hooks/usePrintReports';
 import { useFavoriteClasses } from './hooks/useFavoriteClasses';
-import { findPairedSectionedClass, groupSectionedClasses, shouldCombineAllSections } from './utils/noviceClassGrouping';
+import {
+  ScoresheetPrintDialog,
+  type PrintSortOrder,
+} from '../../components/dialogs/ScoresheetPrintDialog';
+import {
+  findPairedSectionedClass,
+  groupSectionedClasses,
+  shouldCombineAllSections,
+} from './utils/noviceClassGrouping';
 
 // eslint-disable-next-line complexity -- Large page component with many dialog/action handlers
 export const ClassList: React.FC = () => {
@@ -45,14 +57,14 @@ export const ClassList: React.FC = () => {
     isLoading,
     isRefreshing,
     error: fetchError,
-    refetch
+    refetch,
   } = useClassListData(trialId, showContext?.showId, showContext?.licenseKey);
 
   // Favorites management (extracted hook)
-  const {
-    favoriteClasses,
-    toggleFavorite: toggleFavoriteHook,
-  } = useFavoriteClasses(showContext?.licenseKey, trialId);
+  const { favoriteClasses, toggleFavorite: toggleFavoriteHook } = useFavoriteClasses(
+    showContext?.licenseKey,
+    trialId
+  );
 
   // Local state for data (synced from React Query)
   const [trialInfo, setTrialInfo] = useState<TrialInfo | null>(null);
@@ -110,6 +122,12 @@ export const ClassList: React.FC = () => {
     handleGenerateScoresheet: handleScoresheetHook,
   } = usePrintReports();
 
+  // Print dialog state - tracks which report type to generate and for which class
+  const [printDialogState, setPrintDialogState] = useState<{
+    type: 'check-in' | 'results' | 'scoresheet' | null;
+    classId: number | null;
+  }>({ type: null, classId: null });
+
   // Max time warning is local-only (not in shared hook)
   const [showMaxTimeWarning, setShowMaxTimeWarning] = useState(false);
 
@@ -123,14 +141,16 @@ export const ClassList: React.FC = () => {
 
   // Search and sort states
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortOrder, setSortOrder] = useState<'class_order' | 'element_level' | 'level_element'>('class_order');
+  const [sortOrder, setSortOrder] = useState<'class_order' | 'element_level' | 'level_element'>(
+    'class_order'
+  );
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
 
   // Sort options for FilterPanel
   const sortOptions = [
     { value: 'class_order', label: 'Run Order' },
     { value: 'element_level', label: 'Element → Level' },
-    { value: 'level_element', label: 'Level → Element' }
+    { value: 'level_element', label: 'Level → Element' },
   ];
 
   // Prevent FOUC by adding 'loaded' class after mount
@@ -160,14 +180,13 @@ export const ClassList: React.FC = () => {
       setClasses(prevClasses =>
         prevClasses.map(classEntry => ({
           ...classEntry,
-          is_favorite: favoriteClasses.has(classEntry.id)
+          is_favorite: favoriteClasses.has(classEntry.id),
         }))
       );
     }
   }, [favoriteClasses]);
 
   // Data is loaded via useStaleWhileRevalidate hook - no manual loading needed
-
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -218,38 +237,63 @@ export const ClassList: React.FC = () => {
   });
 
   // Report dependencies - grouped for cleaner function signatures
-  const reportDeps: ReportDependencies = useMemo(() => ({
-    classes,
-    trialInfo,
-    licenseKey: showContext?.licenseKey || '',
-    organization: showContext?.org || '',
-    onComplete: () => setActivePopup(null)
-  }), [classes, trialInfo, showContext, setActivePopup]);
+  const reportDeps: ReportDependencies = useMemo(
+    () => ({
+      classes,
+      trialInfo,
+      licenseKey: showContext?.licenseKey || '',
+      organization: showContext?.org || '',
+      onComplete: () => setActivePopup(null),
+    }),
+    [classes, trialInfo, showContext, setActivePopup]
+  );
 
-  // Print report wrappers (delegates to usePrintReports hook)
-  const handleGenerateCheckIn = useCallback(async (classId: number) => {
-    if (!showContext?.licenseKey) return;
-    const result = await handleCheckInHook(classId, reportDeps);
-    if (!result.success && result.error) {
-      alert(result.error);
-    }
-  }, [handleCheckInHook, showContext?.licenseKey, reportDeps]);
+  // Print report wrappers - open sort dialog instead of calling hook directly
+  const handleGenerateCheckIn = useCallback((classId: number) => {
+    setPrintDialogState({ type: 'check-in', classId });
+  }, []);
 
-  const handleGenerateResults = useCallback(async (classId: number) => {
-    if (!showContext?.licenseKey) return;
-    const result = await handleResultsHook(classId, reportDeps);
-    if (!result.success && result.error) {
-      alert(result.error);
-    }
-  }, [handleResultsHook, showContext?.licenseKey, reportDeps]);
+  const handleGenerateResults = useCallback((classId: number) => {
+    setPrintDialogState({ type: 'results', classId });
+  }, []);
 
-  const handleGenerateScoresheet = useCallback(async (classId: number) => {
-    if (!showContext?.licenseKey) return;
-    const result = await handleScoresheetHook(classId, reportDeps);
-    if (!result.success && result.error) {
-      alert(result.error);
-    }
-  }, [handleScoresheetHook, showContext?.licenseKey, reportDeps]);
+  const handleGenerateScoresheet = useCallback((classId: number) => {
+    setPrintDialogState({ type: 'scoresheet', classId });
+  }, []);
+
+  // Handler for when user picks a sort order from the print dialog
+  const handlePrintWithSortOrder = useCallback(
+    async (selectedSortOrder: PrintSortOrder) => {
+      const { type, classId } = printDialogState;
+      if (!type || !classId || !showContext?.licenseKey) return;
+
+      setPrintDialogState({ type: null, classId: null });
+
+      let result: ReportOperationResult;
+
+      if (type === 'check-in') {
+        result = await handleCheckInHook(classId, reportDeps, { sortOrder: selectedSortOrder });
+      } else if (type === 'results') {
+        result = await handleResultsHook(classId, reportDeps, {
+          sortOrder: selectedSortOrder === 'run-order' ? 'placement' : 'armband',
+        });
+      } else {
+        result = await handleScoresheetHook(classId, reportDeps, { sortOrder: selectedSortOrder });
+      }
+
+      if (!result.success && result.error) {
+        alert(result.error);
+      }
+    },
+    [
+      printDialogState,
+      showContext?.licenseKey,
+      reportDeps,
+      handleCheckInHook,
+      handleResultsHook,
+      handleScoresheetHook,
+    ]
+  );
 
   // Helper function to check if max times are set for a class
   const isMaxTimeSet = (classEntry: ClassEntry): boolean => {
@@ -271,55 +315,67 @@ export const ClassList: React.FC = () => {
 
   // Helper function to find the paired sectioned class (A pairs with B, and vice versa)
   // For UKC Nosework: all levels; for AKC: only Novice
-  const findPaired = useCallback((clickedClass: ClassEntry): ClassEntry | null => {
-    return findPairedSectionedClass(clickedClass, classes, showContext?.org);
-  }, [classes, showContext?.org]);
+  const findPaired = useCallback(
+    (clickedClass: ClassEntry): ClassEntry | null => {
+      return findPairedSectionedClass(clickedClass, classes, showContext?.org);
+    },
+    [classes, showContext?.org]
+  );
 
   // Prefetch class entry data when hovering/touching class card
-  const handleClassPrefetch = useCallback(async (classId: number) => {
-    if (!showContext?.licenseKey) return;
+  const handleClassPrefetch = useCallback(
+    async (classId: number) => {
+      if (!showContext?.licenseKey) return;
 
-    await prefetch(
-      `class-entries-${classId}`,
-      async () => {
-        // Try replicated cache first (offline-first)
-        try {
-          const manager = await ensureReplicationManager();
-          const entriesTable = manager.getTable('entries');
-          if (entriesTable) {
-            const allEntries = await entriesTable.getAll() as Entry[];
-            const classEntries = allEntries
-              .filter(e => String(e.class_id) === String(classId))
-              .sort((a, b) => a.armband_number - b.armband_number);
+      await prefetch(
+        `class-entries-${classId}`,
+        async () => {
+          // Try replicated cache first (offline-first)
+          try {
+            const manager = await ensureReplicationManager();
+            const entriesTable = manager.getTable('entries');
+            if (entriesTable) {
+              const allEntries = (await entriesTable.getAll()) as Entry[];
+              const classEntries = allEntries
+                .filter(e => String(e.class_id) === String(classId))
+                .sort((a, b) => a.armband_number - b.armband_number);
 
-            if (classEntries.length > 0) {
-              logger.log('📡 Prefetched class entries from cache:', classId, classEntries.length);
-              return classEntries;
+              if (classEntries.length > 0) {
+                logger.log('📡 Prefetched class entries from cache:', classId, classEntries.length);
+                return classEntries;
+              }
             }
+          } catch (error) {
+            logger.error('❌ Error prefetching entries from cache:', error);
           }
-        } catch (error) {
-          logger.error('❌ Error prefetching entries from cache:', error);
-        }
 
-        // Fall back to Supabase if cache miss
-        const { data: entriesData } = await supabase
-          .from('entries')
-          .select(`
+          // Fall back to Supabase if cache miss
+          const { data: entriesData } = await supabase
+            .from('entries')
+            .select(
+              `
             *,
             classes!inner (element, level, section, trial_id)
-          `)
-          .eq('class_id', classId)
-          .order('armband_number', { ascending: true });
+          `
+            )
+            .eq('class_id', classId)
+            .order('armband_number', { ascending: true });
 
-        logger.log('📡 Prefetched class entries from Supabase:', classId, entriesData?.length || 0);
-        return entriesData || [];
-      },
-      {
-        ttl: 60, // 1 minute cache
-        priority: 3 // High priority - likely next action
-      }
-    );
-  }, [showContext?.licenseKey, prefetch]);
+          logger.log(
+            '📡 Prefetched class entries from Supabase:',
+            classId,
+            entriesData?.length || 0
+          );
+          return entriesData || [];
+        },
+        {
+          ttl: 60, // 1 minute cache
+          priority: 3, // High priority - likely next action
+        }
+      );
+    },
+    [showContext?.licenseKey, prefetch]
+  );
 
   const handleViewEntries = (classEntry: ClassEntry) => {
     hapticFeedback.medium();
@@ -350,7 +406,8 @@ export const ClassList: React.FC = () => {
     // Fallback: Check if this class should be paired based on organization
     // UKC Nosework: all levels with A/B sections; AKC: only Novice
     const combineAll = shouldCombineAllSections(showContext?.org);
-    const shouldCheckForPair = (classEntry.section === 'A' || classEntry.section === 'B') &&
+    const shouldCheckForPair =
+      (classEntry.section === 'A' || classEntry.section === 'B') &&
       (combineAll || classEntry.level === 'Novice');
 
     if (shouldCheckForPair) {
@@ -367,63 +424,70 @@ export const ClassList: React.FC = () => {
   };
 
   // Status dependencies - grouped for cleaner function signatures
-  const statusDeps: StatusDependencies = useMemo(() => ({
-    classes,
-    setClasses,
-    supabaseClient: supabase,
-    refetch
-  }), [classes, refetch]);
+  const statusDeps: StatusDependencies = useMemo(
+    () => ({
+      classes,
+      setClasses,
+      supabaseClient: supabase,
+      refetch,
+    }),
+    [classes, refetch]
+  );
 
   // Wrapper for status changes with time (delegates to useClassStatus hook)
-  const handleClassStatusChangeWithTime = useCallback(async (
-    classId: number,
-    status: ClassEntry['class_status'],
-    timeValue: string
-  ) => {
-    await handleStatusChangeWithTimeHook(classId, status, timeValue, statusDeps);
-  }, [handleStatusChangeWithTimeHook, statusDeps]);
+  const handleClassStatusChangeWithTime = useCallback(
+    async (classId: number, status: ClassEntry['class_status'], timeValue: string) => {
+      await handleStatusChangeWithTimeHook(classId, status, timeValue, statusDeps);
+    },
+    [handleStatusChangeWithTimeHook, statusDeps]
+  );
 
   // Wrapper for status changes without time (delegates to useClassStatus hook)
-  const handleClassStatusChange = useCallback(async (
-    classId: number,
-    status: ClassEntry['class_status']
-  ) => {
-    await handleStatusChangeHook(classId, status, statusDeps);
-  }, [handleStatusChangeHook, statusDeps]);
+  const handleClassStatusChange = useCallback(
+    async (classId: number, status: ClassEntry['class_status']) => {
+      await handleStatusChangeHook(classId, status, statusDeps);
+    },
+    [handleStatusChangeHook, statusDeps]
+  );
 
   // Wrapper for favorite toggle (delegates to useFavoriteClasses hook, adds haptic feedback)
-  const toggleFavorite = useCallback((classId: number) => {
-    const classEntry = classes.find(c => c.id === classId);
-    const isCurrentlyFavorite = classEntry?.is_favorite;
+  const toggleFavorite = useCallback(
+    (classId: number) => {
+      const classEntry = classes.find(c => c.id === classId);
+      const isCurrentlyFavorite = classEntry?.is_favorite;
 
-    // Enhanced haptic feedback for outdoor/gloved use
-    if (isCurrentlyFavorite) {
-      hapticFeedback.light();  // Removing favorite - softer feedback
-    } else {
-      hapticFeedback.medium(); // Adding favorite - stronger feedback for confirmation
-    }
+      // Enhanced haptic feedback for outdoor/gloved use
+      if (isCurrentlyFavorite) {
+        hapticFeedback.light(); // Removing favorite - softer feedback
+      } else {
+        hapticFeedback.medium(); // Adding favorite - stronger feedback for confirmation
+      }
 
-    // Trigger heart burst animation
-    setJustToggledClassId(classId);
-    setTimeout(() => setJustToggledClassId(null), 400);
+      // Trigger heart burst animation
+      setJustToggledClassId(classId);
+      setTimeout(() => setJustToggledClassId(null), 400);
 
-    // Delegate to hook (handles localStorage, paired classes via useEffect syncs to classes)
-    toggleFavoriteHook(classId, classEntry?.pairedClassId);
+      // Delegate to hook (handles localStorage, paired classes via useEffect syncs to classes)
+      toggleFavoriteHook(classId, classEntry?.pairedClassId);
 
-    // Update classes state immediately for responsive UI
-    const pairedId = classEntry?.pairedClassId;
-    const idsToToggle = pairedId ? [classId, pairedId] : [classId];
-    setClasses(prev => prev.map(c =>
-      idsToToggle.includes(c.id) ? { ...c, is_favorite: !c.is_favorite } : c
-    ));
-  }, [classes, hapticFeedback, toggleFavoriteHook]);
-
+      // Update classes state immediately for responsive UI
+      const pairedId = classEntry?.pairedClassId;
+      const idsToToggle = pairedId ? [classId, pairedId] : [classId];
+      setClasses(prev =>
+        prev.map(c => (idsToToggle.includes(c.id) ? { ...c, is_favorite: !c.is_favorite } : c))
+      );
+    },
+    [classes, hapticFeedback, toggleFavoriteHook]
+  );
 
   // Helper function to group sectioned A/B classes into combined entries
   // UKC Nosework: all levels; AKC: only Novice
-  const groupSectionedClassesCached = useCallback((classList: ClassEntry[]): ClassEntry[] => {
-    return groupSectionedClasses(classList, showContext?.org);
-  }, [showContext?.org]);
+  const groupSectionedClassesCached = useCallback(
+    (classList: ClassEntry[]): ClassEntry[] => {
+      return groupSectionedClasses(classList, showContext?.org);
+    },
+    [showContext?.org]
+  );
 
   // Memoized grouped classes - used for consistent counts across tabs and panel
   const groupedClasses = useMemo(() => {
@@ -450,11 +514,18 @@ export const ClassList: React.FC = () => {
         const matchesElement = classEntry.element.toLowerCase().includes(searchLower);
         const matchesLevel = classEntry.level.toLowerCase().includes(searchLower);
         const matchesJudge = classEntry.judge_name.toLowerCase().includes(searchLower);
-        const matchesSection = classEntry.section && classEntry.section !== '-'
-          ? classEntry.section.toLowerCase().includes(searchLower)
-          : false;
+        const matchesSection =
+          classEntry.section && classEntry.section !== '-'
+            ? classEntry.section.toLowerCase().includes(searchLower)
+            : false;
 
-        if (!matchesClassName && !matchesElement && !matchesLevel && !matchesJudge && !matchesSection) {
+        if (
+          !matchesClassName &&
+          !matchesElement &&
+          !matchesLevel &&
+          !matchesJudge &&
+          !matchesSection
+        ) {
           return false;
         }
       }
@@ -474,7 +545,7 @@ export const ClassList: React.FC = () => {
             return a.element.localeCompare(b.element);
           }
           if (a.level !== b.level) {
-            const levelOrder = { 'novice': 1, 'advanced': 2, 'excellent': 3, 'master': 4, 'masters': 4 };
+            const levelOrder = { novice: 1, advanced: 2, excellent: 3, master: 4, masters: 4 };
             const aLevelOrder = levelOrder[a.level.toLowerCase() as keyof typeof levelOrder] || 999;
             const bLevelOrder = levelOrder[b.level.toLowerCase() as keyof typeof levelOrder] || 999;
             if (aLevelOrder !== bLevelOrder) {
@@ -539,7 +610,8 @@ export const ClassList: React.FC = () => {
   // Show error state with retry button if fetch failed
   // BUT: "Could not find" errors typically mean empty data (no classes), not a real error
   // So we let those fall through to the empty state handling below
-  const isEmptyDataError = fetchError?.message?.toLowerCase().includes('could not find') ||
+  const isEmptyDataError =
+    fetchError?.message?.toLowerCase().includes('could not find') ||
     fetchError?.message?.toLowerCase().includes('no rows') ||
     fetchError?.message?.toLowerCase().includes('not found');
 
@@ -561,10 +633,7 @@ export const ClassList: React.FC = () => {
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <p className="text-foreground text-lg font-semibold mb-2">Trial not found</p>
-            <button
-              onClick={() => navigate(-1)}
-              className="icon-button"
-            >
+            <button onClick={() => navigate(-1)} className="icon-button">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Go Back
             </button>
@@ -583,12 +652,10 @@ export const ClassList: React.FC = () => {
             <List size={40} strokeWidth={1.5} />
           </div>
           <h2 className="empty-state-title">No Classes Yet</h2>
-          {trialInfo?.trial_name && (
-            <p className="empty-state-context">{trialInfo.trial_name}</p>
-          )}
+          {trialInfo?.trial_name && <p className="empty-state-context">{trialInfo.trial_name}</p>}
           <p className="empty-state-message">
-            This trial doesn't have any classes set up yet.
-            Classes will appear here once they're added.
+            This trial doesn't have any classes set up yet. Classes will appear here once they're
+            added.
           </p>
           <div className="empty-state-action">
             <button onClick={() => navigate(-1)}>
@@ -622,11 +689,7 @@ export const ClassList: React.FC = () => {
         hapticFeedback={hapticFeedback}
       />
 
-      <PullToRefresh
-        onRefresh={handleRefresh}
-        enabled
-        threshold={80}
-      >
+      <PullToRefresh onRefresh={handleRefresh} enabled threshold={80}>
         <ClassCardGrid
           filteredClasses={filteredClasses}
           isLoaded={isLoaded}
@@ -646,7 +709,7 @@ export const ClassList: React.FC = () => {
         trialId={trialId}
         organization={showContext?.org || ''}
         canModifyClassSettings={canModifyClassSettings}
-        navigate={(path) => navigate(path)}
+        navigate={path => navigate(path)}
         activePopup={activePopup}
         classes={classes}
         setActivePopup={setActivePopup}
@@ -691,6 +754,27 @@ export const ClassList: React.FC = () => {
         filteredClassCount={filteredClasses.length}
         totalClassCount={groupedClasses.length}
         refetch={refetch}
+      />
+
+      <ScoresheetPrintDialog
+        isOpen={printDialogState.type !== null}
+        onClose={() => setPrintDialogState({ type: null, classId: null })}
+        onPrint={handlePrintWithSortOrder}
+        title={
+          printDialogState.type === 'check-in'
+            ? 'Print Check-In Sheet'
+            : printDialogState.type === 'results'
+              ? 'Print Results'
+              : 'Print Scoresheet'
+        }
+        options={
+          printDialogState.type === 'results'
+            ? {
+                primary: { label: 'Placement', sortOrder: 'placement' },
+                secondary: { label: 'Armband Number', sortOrder: 'armband' },
+              }
+            : undefined
+        }
       />
     </div>
   );

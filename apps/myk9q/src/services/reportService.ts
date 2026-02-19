@@ -444,12 +444,11 @@ export const generateCheckInSheet = (
 ): void => {
   try {
     // Create props for CheckInSheet component
+    const resolvedSortOrder = options?.sortOrder === 'placement' ? 'run-order' : options?.sortOrder;
     const props: CheckInSheetProps = {
       classInfo,
       entries,
-      sortOrder: (options?.sortOrder === 'placement'
-        ? 'run-order'
-        : options?.sortOrder) as CheckInSheetProps['sortOrder'],
+      sortOrder: resolvedSortOrder,
     };
 
     // Render component to HTML string
@@ -603,12 +602,11 @@ export const generateScoresheetReport = (
     }
 
     // Create props for ScoresheetReport component
+    const resolvedSortOrder = options?.sortOrder === 'placement' ? 'run-order' : options?.sortOrder;
     const props: ScoresheetReportProps = {
       classInfo,
       entries,
-      sortOrder: (options?.sortOrder === 'placement'
-        ? 'run-order'
-        : options?.sortOrder) as ScoresheetReportProps['sortOrder'],
+      sortOrder: resolvedSortOrder,
       showSectionBadge: options?.showSectionBadge,
     };
 

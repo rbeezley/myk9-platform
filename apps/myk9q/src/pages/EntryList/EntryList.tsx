@@ -1,12 +1,30 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePermission } from '../../hooks/usePermission';
-import { ErrorState, PullToRefresh, TabBar, Tab, FilterPanel, SortOption } from '../../components/ui';
+import {
+  ErrorState,
+  PullToRefresh,
+  TabBar,
+  Tab,
+  FilterPanel,
+  SortOption,
+} from '../../components/ui';
 import { AreaCountRequirements } from '../../components/dialogs/AreaCountSelectionDialog';
+import {
+  ScoresheetPrintDialog,
+  type PrintSortOrder,
+} from '../../components/dialogs/ScoresheetPrintDialog';
 import { Clock, CheckCircle, Trophy, ArrowUpDown, Users, ArrowLeft } from 'lucide-react';
 import { Entry } from '../../stores/entryStore';
-import { useEntryListData, useEntryListActions, useEntryListFilters, useDragAndDropEntries, useEntryListHandlers, useEntryListEffects } from './hooks';
+import {
+  useEntryListData,
+  useEntryListActions,
+  useEntryListFilters,
+  useDragAndDropEntries,
+  useEntryListHandlers,
+  useEntryListEffects,
+} from './hooks';
 import type { TabType } from './hooks';
 import {
   EntryListHeader,
@@ -27,15 +45,9 @@ export const EntryList: React.FC = () => {
   const isDraggingRef = useRef<boolean>(false);
 
   // Data management using shared hook
-  const {
-    entries,
-    classInfo,
-    isRefreshing,
-    fetchError,
-    refresh
-  } = useEntryListData({
+  const { entries, classInfo, isRefreshing, fetchError, refresh } = useEntryListData({
     classId,
-    isDraggingRef
+    isDraggingRef,
   });
 
   // Actions using shared hook
@@ -45,7 +57,7 @@ export const EntryList: React.FC = () => {
     handleMarkInRing,
     handleMarkCompleted,
     isSyncing,
-    hasError
+    hasError,
   } = useEntryListActions(refresh);
 
   // NOTE: Subscription to cache updates is handled by useEntryListData hook
@@ -75,12 +87,24 @@ export const EntryList: React.FC = () => {
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [isRecalculatingPlacements, setIsRecalculatingPlacements] = useState(false);
   const [areaCountDialogOpen, setAreaCountDialogOpen] = useState(false);
-  const [areaCountRequirements, setAreaCountRequirements] = useState<AreaCountRequirements | null>(null);
+  const [areaCountRequirements, setAreaCountRequirements] = useState<AreaCountRequirements | null>(
+    null
+  );
+
+  // Print dialog state - tracks which report type to generate
+  const [printDialogType, setPrintDialogType] = useState<
+    'check-in' | 'results' | 'scoresheet' | null
+  >(null);
 
   // Reset menu state
   const [activeResetMenu, setActiveResetMenu] = useState<number | null>(null);
-  const [resetMenuPosition, setResetMenuPosition] = useState<{ top: number; left: number } | null>(null);
-  const [resetConfirmDialog, setResetConfirmDialog] = useState<{ show: boolean; entry: Entry | null }>({ show: false, entry: null });
+  const [resetMenuPosition, setResetMenuPosition] = useState<{ top: number; left: number } | null>(
+    null
+  );
+  const [resetConfirmDialog, setResetConfirmDialog] = useState<{
+    show: boolean;
+    entry: Entry | null;
+  }>({ show: false, entry: null });
 
   // Filtering and sorting (extracted hook)
   const {
@@ -99,23 +123,19 @@ export const EntryList: React.FC = () => {
     prioritizeInRing: true,
     deprioritizePulled: true,
     manualOrder: manualOrder,
-    defaultSort: 'run'
+    defaultSort: 'run',
   });
 
   // Current entries based on active tab
   const currentEntries = activeTab === 'pending' ? pendingEntries : completedEntries;
 
   // Drag and drop (extracted hook)
-  const {
-    sensors,
-    handleDragStart,
-    handleDragEnd,
-  } = useDragAndDropEntries({
+  const { sensors, handleDragStart, handleDragEnd } = useDragAndDropEntries({
     localEntries,
     setLocalEntries,
     currentEntries,
     isDraggingRef,
-    setManualOrder
+    setManualOrder,
   });
 
   // Effects: sync local entries, auto-open dialogs, initial load tracking
@@ -192,19 +212,42 @@ export const EntryList: React.FC = () => {
     handleMarkCompleted,
   });
 
+  // Handler for when user picks a sort order from the print dialog
+  const handlePrintSortOrder = useCallback(
+    (selectedSortOrder: PrintSortOrder) => {
+      const type = printDialogType;
+      setPrintDialogType(null);
+      if (type === 'check-in') handlePrintCheckIn({ sortOrder: selectedSortOrder });
+      else if (type === 'results')
+        handlePrintResults({
+          sortOrder: selectedSortOrder === 'run-order' ? 'placement' : 'armband',
+        });
+      else if (type === 'scoresheet') handlePrintScoresheet({ sortOrder: selectedSortOrder });
+    },
+    [printDialogType, handlePrintCheckIn, handlePrintResults, handlePrintScoresheet]
+  );
+
   // Tab configuration
   // NOTE: Use entryCounts (from full entries array) instead of pendingEntries.length/completedEntries.length
   // because those are derived from filteredEntries which is already tab-filtered, causing inactive tab to show 0
-  const statusTabs: Tab[] = useMemo(() => [
-    { id: 'pending', label: 'Pending', icon: <Clock size={16} />, count: entryCounts.pending },
-    { id: 'completed', label: 'Completed', icon: <CheckCircle size={16} />, count: entryCounts.completed }
-  ], [entryCounts.pending, entryCounts.completed]);
+  const statusTabs: Tab[] = useMemo(
+    () => [
+      { id: 'pending', label: 'Pending', icon: <Clock size={16} />, count: entryCounts.pending },
+      {
+        id: 'completed',
+        label: 'Completed',
+        icon: <CheckCircle size={16} />,
+        count: entryCounts.completed,
+      },
+    ],
+    [entryCounts.pending, entryCounts.completed]
+  );
 
   // Sort options
   const sortOptions: SortOption[] = useMemo(() => {
     const options: SortOption[] = [
       { value: 'run', label: 'Run Order', icon: <ArrowUpDown size={16} /> },
-      { value: 'armband', label: 'Armband', icon: <ArrowUpDown size={16} /> }
+      { value: 'armband', label: 'Armband', icon: <ArrowUpDown size={16} /> },
     ];
     if (activeTab === 'completed') {
       options.push({ value: 'placement', label: 'Placement', icon: <Trophy size={16} /> });
@@ -245,12 +288,9 @@ export const EntryList: React.FC = () => {
             <Users size={48} />
           </div>
           <h2 className="empty-state-title">No Entries Yet</h2>
-          {classInfo?.className && (
-            <p className="empty-state-class-name">{classInfo.className}</p>
-          )}
+          {classInfo?.className && <p className="empty-state-class-name">{classInfo.className}</p>}
           <p className="empty-state-message">
-            This class doesn't have any entries yet.
-            Entries will appear once they are registered.
+            This class doesn't have any entries yet. Entries will appear once they are registered.
           </p>
           <div className="empty-state-action">
             <button className="btn btn-secondary" onClick={() => navigate(-1)}>
@@ -283,9 +323,22 @@ export const EntryList: React.FC = () => {
           onRecalculatePlacements: handleRecalculatePlacements,
           onClassSettingsClick: () => setClassOptionsDialogOpen(true),
           printOptions: [
-            { label: 'Check-In Sheet', onClick: handlePrintCheckIn, icon: 'checkin' },
-            { label: 'Results Sheet', onClick: handlePrintResults, icon: 'results', disabled: completedEntries.length === 0 },
-            { label: 'Scoresheet', onClick: handlePrintScoresheet, icon: 'scoresheet' },
+            {
+              label: 'Check-In Sheet',
+              onClick: () => setPrintDialogType('check-in'),
+              icon: 'checkin',
+            },
+            {
+              label: 'Results Sheet',
+              onClick: () => setPrintDialogType('results'),
+              icon: 'results',
+              disabled: completedEntries.length === 0,
+            },
+            {
+              label: 'Scoresheet',
+              onClick: () => setPrintDialogType('scoresheet'),
+              icon: 'scoresheet',
+            },
           ],
         }}
       />
@@ -293,7 +346,7 @@ export const EntryList: React.FC = () => {
       <TabBar
         tabs={statusTabs}
         activeTab={activeTab}
-        onTabChange={(tabId) => setActiveTab(tabId as TabType)}
+        onTabChange={tabId => setActiveTab(tabId as TabType)}
       />
 
       <PullToRefresh onRefresh={() => refresh(true)} enabled threshold={80}>
@@ -328,11 +381,15 @@ export const EntryList: React.FC = () => {
         searchPlaceholder="Search dog, handler, breed, armband..."
         sortOptions={sortOptions}
         sortOrder={sortOrder}
-        onSortChange={(order) => {
+        onSortChange={order => {
           setSortOrder(order as 'run' | 'armband' | 'placement' | 'manual');
           setIsDragMode(false);
         }}
-        resultsLabel={searchTerm ? `${filteredEntries.length} of ${localEntries.length} entries` : `${currentEntries.length} entries`}
+        resultsLabel={
+          searchTerm
+            ? `${filteredEntries.length} of ${localEntries.length} entries`
+            : `${currentEntries.length} entries`
+        }
       />
 
       <EntryListDialogs
@@ -354,9 +411,9 @@ export const EntryList: React.FC = () => {
         setSettingsDialogOpen={setSettingsDialogOpen}
         setStatusDialogOpen={setStatusDialogOpen}
         handleStatisticsClick={handleStatisticsClick}
-        handlePrintCheckIn={handlePrintCheckIn}
-        handlePrintResults={handlePrintResults}
-        handlePrintScoresheet={handlePrintScoresheet}
+        handlePrintCheckIn={() => setPrintDialogType('check-in')}
+        handlePrintResults={() => setPrintDialogType('results')}
+        handlePrintScoresheet={() => setPrintDialogType('scoresheet')}
         requirementsDialogOpen={requirementsDialogOpen}
         maxTimeDialogOpen={maxTimeDialogOpen}
         maxTimeRequiredWarning={maxTimeRequiredWarning}
@@ -381,10 +438,28 @@ export const EntryList: React.FC = () => {
         setSelfCheckinDisabledDialog={setSelfCheckinDisabledDialog}
       />
 
-      <SuccessToast
-        isVisible={showSuccessMessage}
-        message="Run order updated successfully"
+      <ScoresheetPrintDialog
+        isOpen={printDialogType !== null}
+        onClose={() => setPrintDialogType(null)}
+        onPrint={handlePrintSortOrder}
+        title={
+          printDialogType === 'check-in'
+            ? 'Print Check-In Sheet'
+            : printDialogType === 'results'
+              ? 'Print Results'
+              : 'Print Scoresheet'
+        }
+        options={
+          printDialogType === 'results'
+            ? {
+                primary: { label: 'Placement', sortOrder: 'placement' },
+                secondary: { label: 'Armband Number', sortOrder: 'armband' },
+              }
+            : undefined
+        }
       />
+
+      <SuccessToast isVisible={showSuccessMessage} message="Run order updated successfully" />
 
       <FloatingDoneButton
         isVisible={isDragMode}

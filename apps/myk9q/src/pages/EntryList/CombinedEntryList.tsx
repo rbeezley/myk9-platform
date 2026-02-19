@@ -54,6 +54,120 @@ function parseOrganizationData(orgString: string) {
   return { organization: parts[0], activity_type: parts.slice(1).join(' ') };
 }
 
+/**
+ * Compare entries for sorting — extracted to reduce component complexity
+ */
+function compareEntries(
+  a: Entry,
+  b: Entry,
+  sortOrder: 'run' | 'armband' | 'placement' | 'section-armband'
+): number {
+  // In-ring entries always first
+  const aInRing = a.status === 'in-ring';
+  const bInRing = b.status === 'in-ring';
+  if (aInRing && !bInRing) return -1;
+  if (!aInRing && bInRing) return 1;
+
+  if (sortOrder === 'section-armband') {
+    if (a.section && b.section && a.section !== b.section) {
+      return a.section.localeCompare(b.section);
+    }
+    return a.armband - b.armband;
+  } else if (sortOrder === 'armband') {
+    return a.armband - b.armband;
+  } else if (sortOrder === 'placement') {
+    if (a.section && b.section && a.section !== b.section) {
+      return a.section.localeCompare(b.section);
+    }
+    if (a.placement === undefined && b.placement === undefined) return 0;
+    if (a.placement === undefined) return 1;
+    if (b.placement === undefined) return -1;
+    return a.placement - b.placement;
+  } else if (sortOrder === 'run') {
+    return (a.exhibitorOrder || 0) - (b.exhibitorOrder || 0);
+  }
+  return 0;
+}
+
+/**
+ * Parse time limits from string format
+ */
+function parseTimeLimit(timeStr?: string): number | undefined {
+  if (!timeStr) return undefined;
+  const num = parseInt(timeStr, 10);
+  if (!isNaN(num)) return num;
+  return undefined;
+}
+
+/**
+ * Fetch class requirements (hides/distractions) from database
+ */
+async function fetchClassRequirements(
+  orgData: { organization: string },
+  element?: string,
+  level?: string
+) {
+  // Skip for Master level - judge determines hides count
+  const isMasterLevel = level?.toLowerCase().includes('master');
+  if (isMasterLevel || !orgData.organization || !element || !level) {
+    return { hidesText: undefined, distractionsText: undefined };
+  }
+
+  try {
+    const { data: requirements } = await supabase
+      .from('class_requirements')
+      .select('hides, distractions')
+      .eq('organization', orgData.organization)
+      .eq('element', element)
+      .eq('level', level)
+      .single();
+
+    if (requirements) {
+      return { hidesText: requirements.hides, distractionsText: requirements.distractions };
+    }
+  } catch (reqError) {
+    logger.warn('Could not fetch class requirements:', reqError);
+  }
+  return { hidesText: undefined, distractionsText: undefined };
+}
+
+/**
+ * Determine scoresheet route based on org/activity/element
+ */
+function getScoresheetNavigationRoute(orgString: string, entry: Entry): string | null {
+  const orgData = parseOrganizationData(orgString);
+  const element = entry.element || '';
+  const base = `/scoresheet`;
+
+  if (orgData.organization === 'AKC') {
+    if (orgData.activity_type === 'Scent Work' || orgData.activity_type === 'ScentWork') {
+      return `${base}/akc-scent-work/${entry.classId}/${entry.id}`;
+    }
+    if (orgData.activity_type === 'FastCat' || orgData.activity_type === 'Fast Cat') {
+      return `${base}/akc-fastcat/${entry.classId}/${entry.id}`;
+    }
+  } else if (orgData.organization === 'UKC') {
+    if (orgData.activity_type === 'Nosework') {
+      return `${base}/ukc-nosework/${entry.classId}/${entry.id}`;
+    }
+    if (element === 'Obedience') {
+      return `${base}/ukc-obedience/${entry.classId}/${entry.id}`;
+    }
+    if (element === 'Rally') {
+      return `${base}/ukc-rally/${entry.classId}/${entry.id}`;
+    }
+  }
+  return null;
+}
+
+const PRINT_DIALOG_TITLES: Record<string, string> = {
+  'check-in': 'Print Check-In Sheet',
+  'results-a': 'Print Results - Section A',
+  'results-b': 'Print Results - Section B',
+  'scoresheet-a': 'Print Scoresheet - Section A',
+  'scoresheet-b': 'Print Scoresheet - Section B',
+};
+
 export const CombinedEntryList: React.FC = () => {
   const { classIdA, classIdB } = useParams<{ classIdA: string; classIdB: string }>();
   const navigate = useNavigate();
@@ -152,33 +266,7 @@ export const CombinedEntryList: React.FC = () => {
       : filteredEntries.filter(e => e.section === sectionFilter);
 
   const sortedEntries = useMemo(() => {
-    return [...sectionFilteredEntries].sort((a, b) => {
-      // In-ring entries always first
-      const aInRing = a.status === 'in-ring';
-      const bInRing = b.status === 'in-ring';
-      if (aInRing && !bInRing) return -1;
-      if (!aInRing && bInRing) return 1;
-
-      if (sortOrder === 'section-armband') {
-        if (a.section && b.section && a.section !== b.section) {
-          return a.section.localeCompare(b.section);
-        }
-        return a.armband - b.armband;
-      } else if (sortOrder === 'armband') {
-        return a.armband - b.armband;
-      } else if (sortOrder === 'placement') {
-        if (a.section && b.section && a.section !== b.section) {
-          return a.section.localeCompare(b.section);
-        }
-        if (a.placement === undefined && b.placement === undefined) return 0;
-        if (a.placement === undefined) return 1;
-        if (b.placement === undefined) return -1;
-        return a.placement - b.placement;
-      } else if (sortOrder === 'run') {
-        return (a.exhibitorOrder || 0) - (b.exhibitorOrder || 0);
-      }
-      return 0;
-    });
+    return [...sectionFilteredEntries].sort((a, b) => compareEntries(a, b, sortOrder));
   }, [sectionFilteredEntries, sortOrder]);
 
   const pendingEntries = sortedEntries.filter(e => !e.isScored);
@@ -210,7 +298,6 @@ export const CombinedEntryList: React.FC = () => {
   );
 
   // Prefetch handler
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- Using specific property access is intentional
   const handleEntryPrefetch = useCallback(
     (entry: Entry) => {
       if (entry.isScored || !showContext?.org) return;
@@ -236,7 +323,7 @@ export const CombinedEntryList: React.FC = () => {
         });
       }
     },
-    [showContext?.org, prefetch, pendingEntries, getScoreSheetRoute]
+    [showContext, prefetch, pendingEntries, getScoreSheetRoute]
   );
 
   // Score click handler (combined view navigation)
@@ -252,34 +339,9 @@ export const CombinedEntryList: React.FC = () => {
       const pairedClassId =
         entry.classId === parseInt(classIdA!) ? parseInt(classIdB!) : parseInt(classIdA!);
 
-      const orgData = parseOrganizationData(showContext?.org || '');
-      const element = entry.element || '';
-      const navigationState = { pairedClassId };
-
-      if (orgData.organization === 'AKC') {
-        if (orgData.activity_type === 'Scent Work' || orgData.activity_type === 'ScentWork') {
-          navigate(`/scoresheet/akc-scent-work/${entry.classId}/${entry.id}`, {
-            state: navigationState,
-          });
-        } else if (orgData.activity_type === 'FastCat' || orgData.activity_type === 'Fast Cat') {
-          navigate(`/scoresheet/akc-fastcat/${entry.classId}/${entry.id}`, {
-            state: navigationState,
-          });
-        }
-      } else if (orgData.organization === 'UKC') {
-        if (orgData.activity_type === 'Nosework') {
-          navigate(`/scoresheet/ukc-nosework/${entry.classId}/${entry.id}`, {
-            state: navigationState,
-          });
-        } else if (element === 'Obedience') {
-          navigate(`/scoresheet/ukc-obedience/${entry.classId}/${entry.id}`, {
-            state: navigationState,
-          });
-        } else if (element === 'Rally') {
-          navigate(`/scoresheet/ukc-rally/${entry.classId}/${entry.id}`, {
-            state: navigationState,
-          });
-        }
+      const route = getScoresheetNavigationRoute(showContext?.org || '', entry);
+      if (route) {
+        navigate(route, { state: { pairedClassId } });
       }
     },
     [hasPermission, classIdA, classIdB, showContext?.org, navigate]
@@ -512,44 +574,6 @@ export const CombinedEntryList: React.FC = () => {
     },
     [classInfo, showContext?.org, entries]
   );
-
-  // Parse time limits from string format
-  const parseTimeLimit = (timeStr?: string): number | undefined => {
-    if (!timeStr) return undefined;
-    const num = parseInt(timeStr, 10);
-    if (!isNaN(num)) return num;
-    return undefined;
-  };
-
-  // Helper to fetch class requirements
-  const fetchClassRequirements = async (
-    orgData: { organization: string },
-    element?: string,
-    level?: string
-  ) => {
-    // Skip for Master level - judge determines hides count
-    const isMasterLevel = level?.toLowerCase().includes('master');
-    if (isMasterLevel || !orgData.organization || !element || !level) {
-      return { hidesText: undefined, distractionsText: undefined };
-    }
-
-    try {
-      const { data: requirements } = await supabase
-        .from('class_requirements')
-        .select('hides, distractions')
-        .eq('organization', orgData.organization)
-        .eq('element', element)
-        .eq('level', level)
-        .single();
-
-      if (requirements) {
-        return { hidesText: requirements.hides, distractionsText: requirements.distractions };
-      }
-    } catch (reqError) {
-      logger.warn('Could not fetch class requirements:', reqError);
-    }
-    return { hidesText: undefined, distractionsText: undefined };
-  };
 
   const handlePrintScoresheetSectionA = useCallback(
     async (options?: { sortOrder?: ReportSortOrder; showSectionBadge?: boolean }) => {
@@ -873,17 +897,7 @@ export const CombinedEntryList: React.FC = () => {
         onClose={() => setPrintDialogState({ type: null })}
         onPrint={handlePrintSortOrder}
         title={
-          printDialogState.type === 'check-in'
-            ? 'Print Check-In Sheet'
-            : printDialogState.type === 'results-a'
-              ? 'Print Results - Section A'
-              : printDialogState.type === 'results-b'
-                ? 'Print Results - Section B'
-                : printDialogState.type === 'scoresheet-a'
-                  ? 'Print Scoresheet - Section A'
-                  : printDialogState.type === 'scoresheet-b'
-                    ? 'Print Scoresheet - Section B'
-                    : 'Print Report'
+          (printDialogState.type && PRINT_DIALOG_TITLES[printDialogState.type]) || 'Print Report'
         }
         options={
           printDialogState.type === 'results-a' || printDialogState.type === 'results-b'

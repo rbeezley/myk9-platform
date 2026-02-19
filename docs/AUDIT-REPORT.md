@@ -122,12 +122,13 @@ Severity: moderate | Effort: sprint-task per file (address when modified)
 | `lint-staged`           | devDep        | No config file; vestigial alongside husky                                               |
 | `pako` (MISSING)        | should be dep | Imported in `CompressionService.ts` but only available transitively via `jspdf`/`jszip` |
 
-**apps/myk9q -- 2 removable devDependencies:**
+**apps/myk9q -- 1 removable devDependency:**
 
-| Dependency       | Type   | Issue                                                              |
-| ---------------- | ------ | ------------------------------------------------------------------ |
-| `workbox-window` | devDep | Not directly imported; pulled in transitively by `vite-plugin-pwa` |
-| `workbox-core`   | devDep | Not directly imported; pulled in transitively by `vite-plugin-pwa` |
+| Dependency     | Type   | Issue                                                              |
+| -------------- | ------ | ------------------------------------------------------------------ |
+| `workbox-core` | devDep | Not directly imported; pulled in transitively by `vite-plugin-pwa` |
+
+**Note:** `workbox-window` was previously flagged but is **required** by `vite-plugin-pwa` at build time (Rollup resolves its virtual `pwa-register` module to `workbox-window`). Re-added 2026-02-18.
 
 **Previous audit found 7 unused** (5 in myk9show: `dexie-react-hooks`, `react-dnd`, `react-dnd-html5-backend`, `swiper`, `uuid`; 2 in myk9q: `pdfjs-dist`, `puppeteer`). All were removed. New unused deps found this audit are lower severity.
 

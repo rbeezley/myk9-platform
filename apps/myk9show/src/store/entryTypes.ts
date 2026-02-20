@@ -113,7 +113,6 @@ export interface EntryStoreState {
   createEntryLegacy: (data: Omit<ShowEntry, 'id' | 'status' | 'statusHistory' | 'createdAt' | 'updatedAt'>) => string;
   updateRegistrationLegacy: (entryId: string, updates: Partial<RegistrationData>) => void;
   updateStatusLegacy: (entryId: string, status: EntryStatus, userId: string, reason?: string) => void;
-  deleteEntryLegacy: (entryId: string) => void;
   recordResultLegacy: (entryId: string, result: CompetitionData) => void;
   updateResultLegacy: (entryId: string, updates: Partial<CompetitionData>) => void;
 

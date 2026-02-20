@@ -16,7 +16,6 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import type { Show } from '@/types/show-types';
 import type { EditMode, ShowStatus } from './show-creation-wizard-types';
 import {
-  buildTrialIdMapping,
   createClassDataFromWizard,
   showToShowInput,
   transformWizardDataToShow,
@@ -42,37 +41,57 @@ export function useShowCreationWizardActions({
 
   /**
    * Create trials in the trial store
+   * Returns a map from wizard trial ID to actual DB UUID
    */
-  const createTrials = useCallback((newShow: Show) => {
+  const createTrials = useCallback(async (showId: string, showName: string, showType: string): Promise<Record<string, string>> => {
+    const trialIdMap: Record<string, string> = {};
+
     // In edit mode, only add trials that don't already exist
     const trialsToAdd = editMode
       ? (() => {
           const existingTrialIds = existingTrials
-            .filter(t => t.showId === newShow.id)
+            .filter(t => t.showId === showId)
             .map(t => t.id);
           return trials.filter(wizardTrial => !existingTrialIds.includes(wizardTrial.id));
         })()
       : trials;
 
-    trialsToAdd.forEach((wizardTrial, index) => {
+    // Also map existing trials (edit mode) to themselves
+    if (editMode) {
+      const existingTrialIds = existingTrials
+        .filter(t => t.showId === showId)
+        .map(t => t.id);
+      trials.forEach(wizardTrial => {
+        if (existingTrialIds.includes(wizardTrial.id)) {
+          trialIdMap[wizardTrial.id] = wizardTrial.id;
+        }
+      });
+    }
+
+    // Create new trials and collect their real UUIDs
+    for (let index = 0; index < trialsToAdd.length; index++) {
+      const wizardTrial = trialsToAdd[index];
       const trialName = wizardTrial.name || `Trial ${index + 1}`;
       const newTrial: TrialInput = {
-        showId: newShow.id,
-        showName: newShow.name,
+        showId,
+        showName,
         name: trialName,
         trialDate: wizardTrial.dateTime,
         trialNumber: trialName,
         status: 'Upcoming',
         eventNumber: wizardTrial.eventNumber || '',
         type: trialName,
-        trialType: newShow.type,
+        trialType: showType,
         plannedStartTime: wizardTrial.dateTime
           ? format(new Date(wizardTrial.dateTime), 'h:mm a')
           : '09:00 AM',
         order: String(index + 1),
       };
-      addTrialToStore(newTrial, user?.id || 'unknown');
-    });
+      const savedTrial = await addTrialToStore(newTrial, user?.id || 'unknown');
+      trialIdMap[wizardTrial.id] = savedTrial.id;
+    }
+
+    return trialIdMap;
   }, [editMode, existingTrials, trials, addTrialToStore, user]);
 
   /**
@@ -105,7 +124,7 @@ export function useShowCreationWizardActions({
       logger.debug(`Saving show with status: ${status}`, 'wizard');
 
       // Transform wizard data to Show format
-      const newShow = transformWizardDataToShow(
+      const wizardShow = transformWizardDataToShow(
         show,
         trials,
         judgeDetails,
@@ -114,28 +133,22 @@ export function useShowCreationWizardActions({
         editMode
       );
 
-      // Save to show store (add or update based on mode)
+      // Save to show store and get the real DB UUID back
+      let savedShow: Show;
       if (editMode?.showId) {
-        updateShow(editMode.showId, showToShowInput(newShow));
+        const updated = await updateShow(editMode.showId, showToShowInput(wizardShow));
+        savedShow = updated || wizardShow;
       } else {
-        addShow(showToShowInput(newShow));
+        savedShow = await addShow(showToShowInput(wizardShow));
       }
 
-      // Create trials in trial store
-      createTrials(newShow);
+      const realShowId = savedShow.id;
 
-      // Build trial ID mapping and create classes
-      const trialIdMap = buildTrialIdMapping(
-        trials,
-        newShow.id,
-        existingTrials,
-        editMode
-      );
+      // Create trials (awaited) and get wizard-ID → real-UUID mapping
+      const trialIdMap = await createTrials(realShowId, savedShow.name, savedShow.type);
 
-      // Wait for trials to be saved before creating classes
-      setTimeout(() => {
-        createClasses(newShow.id, trialIdMap);
-      }, 1000);
+      // Create classes using the real trial UUIDs
+      createClasses(realShowId, trialIdMap);
 
       // Save progress to wizard store if draft
       if (status === 'draft') {
@@ -144,12 +157,12 @@ export function useShowCreationWizardActions({
         resetWizard();
       }
 
-      // Navigate to the new show
-      navigate(`/shows/${newShow.id}`);
+      // Navigate to the new show using the real DB UUID
+      navigate(`/shows/${realShowId}`);
 
       logger.info(`Show saved successfully (${status})`, 'wizard', {
-        showId: newShow.id,
-        showName: newShow.name,
+        showId: realShowId,
+        showName: savedShow.name,
       });
     } catch (error) {
       logger.error('Error saving show', 'wizard', {}, error as Error);
@@ -163,7 +176,6 @@ export function useShowCreationWizardActions({
     judgeDetails,
     clubs,
     editMode,
-    existingTrials,
     addShow,
     updateShow,
     createTrials,

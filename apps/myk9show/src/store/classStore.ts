@@ -431,11 +431,6 @@ export const useClassStore = create<ClassStoreState>()(
           }),
         })),
 
-      deleteEntryLegacy: (id) =>
-        set((state) => ({
-          entries: state.entries.filter((entry) => entry.id !== id),
-        })),
-
   // Template methods
       addClassesFromTemplate: (trialId, generatedClasses) => {
         const newClasses: SyncableClassData[] = generatedClasses.map((genClass, index) => {

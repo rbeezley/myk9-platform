@@ -181,7 +181,6 @@ export const useClassStoreCompat = () => {
   const deleteClassLegacy = () => {};
   const addEntryLegacy = () => {};
   const updateEntryLegacy = () => {};
-  const deleteEntryLegacy = () => {};
 
   return {
     // Data
@@ -225,7 +224,6 @@ export const useClassStoreCompat = () => {
     deleteClassLegacy,
     addEntryLegacy,
     updateEntryLegacy,
-    deleteEntryLegacy,
 
     // Additional React Query benefits
     refetch,

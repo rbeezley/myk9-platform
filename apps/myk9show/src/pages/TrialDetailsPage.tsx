@@ -175,14 +175,35 @@ const TrialDetailsPage: React.FC = () => {
       .reduce((sum: number, c: TrialClass) => sum + (c.entries || 0), 0);
     const upcomingEntries = totalEntries - completedEntries;
 
-    const qualifiedEntries = completedEntries > 0 ? Math.floor(completedEntries * 0.75) : 0;
-    
+    // Count unique judges from class assignments
+    const uniqueJudges = new Set(
+      trialWithClasses.classes
+        .map((c: TrialClass) => c.judgeId)
+        .filter((id: string) => id && id !== 'TBD')
+    );
+    const totalJudges = uniqueJudges.size;
+    const activeJudges = trialWithClasses.status === 'In Progress'
+      ? trialWithClasses.classes
+          .filter((c: TrialClass) => c.status === 'In Progress')
+          .reduce((judges: Set<string>, c: TrialClass) => {
+            if (c.judgeId && c.judgeId !== 'TBD') judges.add(c.judgeId);
+            return judges;
+          }, new Set<string>()).size
+      : 0;
+
+    // Count qualified entries from actual competition results
+    const trialEntries = allEntries.filter(e =>
+      trialWithClasses.classes.some((c: TrialClass) => c.id === e.classId)
+    );
+    const qualifiedEntries = trialEntries.filter(e => e.status === 'Qualified').length;
+    const scoredEntries = trialEntries.filter(e => e.status === 'Qualified' || e.status === 'Not Qualified').length;
+
     return {
       judges: {
-        total: 2,
-        active: trialWithClasses.status === 'In Progress' ? 2 : 0,
+        total: totalJudges,
+        active: activeJudges,
         onBreak: 0,
-        percentChange: Math.round(((trialWithClasses.status === 'In Progress' ? 2 : 0) / 2) * 100)
+        percentChange: totalJudges > 0 ? Math.round((activeJudges / totalJudges) * 100) : 0
       },
       classes: {
         total: totalClasses,
@@ -197,13 +218,13 @@ const TrialDetailsPage: React.FC = () => {
         percentChange: totalEntries > 0 ? Math.round((completedEntries / totalEntries) * 100) : 0
       },
       qualifiedRate: {
-        percent: completedEntries > 0 ? Math.round((qualifiedEntries / completedEntries) * 100) : 0,
+        percent: scoredEntries > 0 ? Math.round((qualifiedEntries / scoredEntries) * 100) : 0,
         qualified: qualifiedEntries,
-        total: completedEntries,
-        percentChange: completedEntries > 0 ? Math.round((qualifiedEntries / completedEntries) * 100) : 0
+        total: scoredEntries,
+        percentChange: scoredEntries > 0 ? Math.round((qualifiedEntries / scoredEntries) * 100) : 0
       }
     };
-  }, [trialWithClasses]);
+  }, [trialWithClasses, allEntries]);
 
   // Handle case where trial doesn't exist - moved after hooks
   if (trialId && !currentTrial && trials.length > 0) {

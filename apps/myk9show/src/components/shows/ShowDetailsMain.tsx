@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -13,6 +13,7 @@ import { ShowCreationWizard } from '@/components/shows/wizard';
 import { ShowCloneDialog } from '@/components/shows/cloning';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { PERMISSIONS } from '@/types/auth-types';
+import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import ShowDetailsEnhancedApple from './ShowDetails/ShowDetailsEnhancedApple';
 import '@/styles/apple-show-details.css';
 
@@ -67,44 +68,60 @@ const ShowDetailsMain: React.FC<ShowDetailsMainProps> = ({
     });
     setShowWizard(true);
   };
-  // Calculate real statistics based on actual data
+  // Get real class and entry data from stores
+  const { classes: allClasses, entries: allEntries } = useClassStoreCompat();
+
+  // Calculate real statistics from actual data
+  const stats = useMemo(() => {
+    const trialIds = new Set(associatedTrials.map(t => t.id));
+    const totalTrials = associatedTrials.length;
+    const upcomingTrials = associatedTrials.filter(trial => trial.status === 'Upcoming').length;
+    const completedTrials = associatedTrials.filter(trial => trial.status === 'Completed').length;
+
+    // Count real classes belonging to this show's trials
+    const showClasses = allClasses.filter(c => trialIds.has(c.trialId));
+    const totalClasses = showClasses.length;
+    const completedClasses = showClasses.filter(c => c.status === 'Completed').length;
+    const activeClasses = showClasses.filter(c => c.status === 'In Progress' || c.status === 'Upcoming' || c.status === 'Scheduled').length;
+
+    // Count real entries belonging to this show's classes
+    const classIds = new Set(showClasses.map(c => c.id));
+    const showEntries = allEntries.filter(e => classIds.has(e.classId));
+    const totalEntries = showEntries.length;
+    const completedEntries = showEntries.filter(e => e.status === 'Qualified' || e.status === 'Not Qualified').length;
+
+    return [
+      {
+        title: "Total Trials",
+        value: totalTrials.toString(),
+        trend: "",
+        detail1: `Upcoming: ${upcomingTrials}`,
+        detail2: `Completed: ${completedTrials}`,
+        progress: totalTrials > 0 ? Math.round((completedTrials / totalTrials) * 100) : 0,
+        type: "trials"
+      },
+      {
+        title: "Total Classes",
+        value: totalClasses.toString(),
+        trend: "",
+        detail1: `Active: ${activeClasses}`,
+        detail2: `Finished: ${completedClasses}`,
+        progress: totalClasses > 0 ? Math.round((completedClasses / totalClasses) * 100) : 0,
+        type: "classes"
+      },
+      {
+        title: "Total Entries",
+        value: totalEntries.toString(),
+        trend: "",
+        detail1: `Registered: ${totalEntries}`,
+        detail2: `Judged: ${completedEntries}`,
+        progress: totalEntries > 0 ? Math.round((completedEntries / totalEntries) * 100) : 0,
+        type: "entries"
+      },
+    ];
+  }, [associatedTrials, allClasses, allEntries]);
+
   const totalTrials = associatedTrials.length;
-  const upcomingTrials = associatedTrials.filter(trial => trial.status === 'Upcoming').length;
-  const completedTrials = associatedTrials.filter(trial => trial.status === 'Completed').length;
-  
-  // Mock class and entry data - in real app, this would come from trials
-  const totalClasses = totalTrials * 8; // Approximate 8 classes per trial
-  const totalEntries = totalTrials * 32; // Approximate 32 entries per trial
-  
-  const stats = [
-    {
-      title: "Total Trials",
-      value: totalTrials.toString(),
-      trend: "+12%",
-      detail1: `Upcoming: ${upcomingTrials}`,
-      detail2: `Completed: ${completedTrials}`,
-      progress: totalTrials > 0 ? Math.round((completedTrials / totalTrials) * 100) : 0,
-      type: "trials"
-    },
-    {
-      title: "Total Classes", 
-      value: totalClasses.toString(),
-      trend: "+8%",
-      detail1: `Active: ${upcomingTrials * 8}`,
-      detail2: `Finished: ${completedTrials * 8}`,
-      progress: totalClasses > 0 ? Math.round(((completedTrials * 8) / totalClasses) * 100) : 0,
-      type: "classes"
-    },
-    {
-      title: "Total Entries",
-      value: totalEntries.toString(),
-      trend: "+15%", 
-      detail1: `Registered: ${upcomingTrials * 32}`,
-      detail2: `Judged: ${completedTrials * 32}`,
-      progress: totalEntries > 0 ? Math.round(((completedTrials * 32) / totalEntries) * 100) : 0,
-      type: "entries"
-    },
-  ];
 
   const getStatusClass = (status: string) => {
     switch (status?.toLowerCase()) {

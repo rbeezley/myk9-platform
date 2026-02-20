@@ -174,7 +174,7 @@ const ClassDetailsPage: React.FC = () => {
         recordedBy: 'secretary',
       };
 
-      updateResult(entryId, storeUpdate, user?.id || 'unknown');
+      await updateResult(entryId, storeUpdate, user?.id || 'unknown');
       logger.debug('updateResult called successfully', 'classes', { entryId });
     } catch (error) {
       logger.error('Failed to update result', 'classes', { entryId }, error as Error);

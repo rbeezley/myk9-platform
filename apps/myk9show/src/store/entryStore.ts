@@ -587,12 +587,6 @@ export const useEntryStore = create<EntryStoreState>()(
         }));
       },
 
-      deleteEntryLegacy: (entryId) => {
-        set((state) => ({
-          entries: state.entries.filter((entry) => entry.id !== entryId)
-        }));
-      },
-
       recordResultLegacy: (entryId, result) => {
         const now = new Date().toISOString();
 

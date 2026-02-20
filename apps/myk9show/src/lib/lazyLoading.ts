@@ -178,7 +178,6 @@ export const storeLazyLoaders = {
 export const componentLazyLoaders = {
   // Dog components
   dogDetailsMain: lazyLoadWithRetry(() => import('@/components/dogs/DogDetailsMain').then(module => ({ default: module.default as React.ComponentType<{dog?: unknown}> }))),
-  addDogDialog: lazyLoadWithRetry(() => import('@/components/dogs/AddDogDialog').then(module => ({ default: module.AddDogDialog as React.ComponentType<{open?: boolean; onOpenChange?: (open: boolean) => void; onDogCreated?: (dog: unknown) => void}> }))),
   
   // Show components  
   showDetailsMain: lazyLoadWithRetry(() => import('@/components/shows/ShowDetailsMain').then(module => ({ default: module.default as React.ComponentType<{showData?: unknown; associatedTrials?: unknown[]; onEditShow?: (show: unknown) => void; onDeleteShow?: (showId: string) => void; showEditDialog?: boolean; showDeleteDialog?: boolean}> }))),

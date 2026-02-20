@@ -49,6 +49,8 @@ export interface EntryInput {
   armband: string;
   handler: string;
   dog: string;
+  dogId?: string;
+  showId?: string;
   status: string;
   score?: string;
   time?: string;
@@ -97,7 +99,6 @@ export interface ClassStoreState {
   deleteClassLegacy: (id: string) => void;
   addEntryLegacy: (data: EntryData) => void;
   updateEntryLegacy: (id: string, data: Partial<EntryData>) => void;
-  deleteEntryLegacy: (id: string) => void;
 
   // Subscription Management (for replicated table sync)
   _unsubscribeClasses: (() => void) | null;

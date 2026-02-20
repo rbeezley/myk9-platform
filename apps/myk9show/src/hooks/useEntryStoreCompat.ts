@@ -324,8 +324,6 @@ export const useEntryStoreCompat = () => {
 
   const updateStatusLegacy = (_entryId: string, _status: EntryStatus, _userId: string, _reason?: string) => {};
 
-  const deleteEntryLegacy = (_entryId: string) => {};
-
   const recordResultLegacy = (_entryId: string, _result: CompetitionData) => {};
 
   const updateResultLegacy = (_entryId: string, _updates: Partial<CompetitionData>) => {};
@@ -368,7 +366,6 @@ export const useEntryStoreCompat = () => {
     createEntryLegacy,
     updateRegistrationLegacy,
     updateStatusLegacy,
-    deleteEntryLegacy,
     recordResultLegacy,
     updateResultLegacy,
     

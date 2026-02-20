@@ -214,7 +214,7 @@ export function SecretaryClassDashboard({
       };
       
       logger.debug('Saving result for entry', 'secretary', { entryId, time: competitionData.time, qualified: competitionData.qualified, qualification: competitionData.qualification, faults: competitionData.faults, notes: competitionData.judgeNotes });
-      updateResult(entryId, competitionData, user?.id || 'unknown');
+      await updateResult(entryId, competitionData, user?.id || 'unknown');
 
     } catch (error) {
       logger.error('Error saving result', 'secretary', { entryId }, error as Error);

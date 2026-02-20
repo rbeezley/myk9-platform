@@ -221,7 +221,8 @@ export const mapDatabaseClassesArray = (dbClasses: DbClassWithRelations[]): Sync
 export const mapEntryInputToInsert = (entryData: EntryInput): DbEntryInsert => {
   return {
     class_id: entryData.classId,
-    dog_id: null,
+    dog_id: entryData.dogId || null,
+    show_id: entryData.showId || null,
     armband: entryData.armband,
     entry_status: mapEntryStatus(entryData.status),
     handler: entryData.handler,

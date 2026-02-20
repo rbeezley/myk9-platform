@@ -141,17 +141,20 @@ function UserDetails(): React.ReactElement {
           roles: [],
         }}
         onSave={async (userData) => {
+          // UserEditPanel's formDataToUser outputs `address` (flat string), not `streetAddress`
+          const streetValue = userData.address || userData.streetAddress || '';
           const newPersonInput: PersonInput = {
             firstName: userData.firstName || '',
             lastName: userData.lastName || '',
             email: userData.email || '',
             phone: userData.phone || '',
             address: {
-              street: userData.streetAddress || '',
+              street: streetValue,
               city: userData.city || '',
               state: userData.state || '',
               zipCode: userData.zipCode || ''
-            }
+            },
+            roles: (userData.roles as string[]) || [],
           };
 
           const newUser = await addUser(newPersonInput);

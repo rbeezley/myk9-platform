@@ -26,14 +26,11 @@ export const mapShowInputToInsert = (input: ShowInput): DbShowInsert => {
     max_total_entries: null, // Will be set from trials
     allow_non_owner_handlers: true, // Default to true
     
-    // Additional fields that may not be in the actual schema but are in our types
-    ...(input.events && { events: input.events } as Record<string, unknown>),
-    ...(input.source && { source: input.source } as Record<string, unknown>),
-    ...(input.clubName && { club_name: input.clubName } as Record<string, unknown>),
-    ...(input.clubAddress && { club_address: input.clubAddress } as Record<string, unknown>),
-    ...(input.clubEmail && { club_email: input.clubEmail } as Record<string, unknown>),
-    // Note: assignedJudges mapping removed as assigned_judges column doesn't exist in database schema
-  } as DbShowInsert;
+    // Note: events, source, club_name, club_address, club_email do NOT exist in the
+    // database schema. These are app-only fields derived from the club relation or
+    // computed locally. Sending them to Supabase would cause insert errors.
+    // assignedJudges are stored in the separate judge_assignments table, not on shows.
+  };
 };
 
 /**
@@ -57,23 +54,21 @@ export const mapShowInputToUpdate = (input: Partial<ShowInput>): DbShowUpdate =>
   if (input.secretary !== undefined) update.secretary = input.secretary;
   if (input.chiefSteward !== undefined) update.chief_steward = input.chiefSteward;
   
-  // Additional fields that may not be in the actual schema
-  if (input.events !== undefined) update.events = input.events;
-  if (input.source !== undefined) update.source = input.source;
-  if (input.clubName !== undefined) update.club_name = input.clubName;
-  if (input.clubAddress !== undefined) update.club_address = input.clubAddress;
-  if (input.clubEmail !== undefined) update.club_email = input.clubEmail;
-  // Note: assignedJudges mapping removed as assigned_judges column doesn't exist in database schema
+  // Note: events, source, club_name, club_address, club_email do NOT exist in the
+  // database schema. These are app-only fields derived from the club relation or
+  // computed locally. assignedJudges are stored in the separate judge_assignments table.
 
-  return update as unknown as DbShowUpdate;
+  return update as DbShowUpdate;
 };
 
 /**
  * Maps DbShow (from Supabase) to Show (for Zustand store)
  */
-export const mapDatabaseToShow = (dbShow: DbShow & { trial?: unknown[], club?: unknown, judge_assignment?: unknown[] }): Show => {
+export const mapDatabaseToShow = (dbShow: DbShow & { trial?: unknown[], trials?: unknown[], club?: unknown, judge_assignment?: unknown[], judge_assignments?: unknown[] }): Show => {
   // Map trials from database format (if available)
-  const trials = (dbShow.trial || []).map((trial: unknown) => {
+  // Supabase returns the key matching the table name ("trials", plural) or the alias ("trial", singular)
+  const rawTrials = dbShow.trials || dbShow.trial || [];
+  const trials = rawTrials.map((trial: unknown) => {
     const trialObj = trial as Record<string, unknown>;
     return {
       id: trialObj.id as string,
@@ -116,8 +111,10 @@ export const mapDatabaseToShow = (dbShow: DbShow & { trial?: unknown[], club?: u
     };
   });
 
-  // Map judge assignments from judge_assignment table
-  const assignedJudges = (dbShow.judge_assignment || [])
+  // Map judge assignments from judge_assignments table
+  // Supabase returns the key matching the table name ("judge_assignments", plural) or the alias
+  const rawJudgeAssignments = dbShow.judge_assignments || dbShow.judge_assignment || [];
+  const assignedJudges = rawJudgeAssignments
     .filter((assignment: unknown) => {
       const assignmentObj = assignment as Record<string, unknown>;
       return assignmentObj.assignment_type === 'judge'; // Only include judge assignments, not stewards etc.
@@ -186,7 +183,7 @@ export const mapDatabaseToShow = (dbShow: DbShow & { trial?: unknown[], club?: u
 /**
  * Maps array of DbShow to array of Show
  */
-export const mapDatabaseShowsArray = (dbShows: (DbShow & { trial?: unknown[], club?: unknown, judge_assignment?: unknown[] })[]): Show[] => {
+export const mapDatabaseShowsArray = (dbShows: (DbShow & { trial?: unknown[], trials?: unknown[], club?: unknown, judge_assignment?: unknown[], judge_assignments?: unknown[] })[]): Show[] => {
   return dbShows.map(mapDatabaseToShow);
 };
 

@@ -4,7 +4,7 @@ import { Trial, TrialClass } from './types/trial.types';
 import { TrialStatisticsData } from './TrialDetail/TrialStatistics';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Users, Trophy, Edit, Trash2, MoreVertical, Play, Check, Clock, Gavel, ChevronLeft, ChevronRight, Copy } from 'lucide-react';
+import { Users, Trophy, Edit, Trash2, MoreVertical, Play, Check, Clock, Gavel, ChevronLeft, ChevronRight } from 'lucide-react';
 import { TrialClassesTable } from './TrialDetail/TrialClassesTable';
 import Breadcrumb from '@/components/common/Breadcrumb';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
@@ -203,8 +203,8 @@ const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={onEdit}>
-                  <Copy className="mr-2 h-4 w-4" />
-                  Duplicate Trial
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit Trial
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem

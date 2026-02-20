@@ -72,6 +72,7 @@ export const AddDogPanel: React.FC<AddDogPanelProps> = ({
     try {
       const dogInput: DogInput = {
         name: formData.callName,
+        callName: formData.callName,
         breed: formData.registrations?.[0]?.breed || 'Mixed Breed',
         birthDate: formData.dateOfBirth,
         sex: formData.gender === 'Female' ? 'female' : 'male',
@@ -83,6 +84,7 @@ export const AddDogPanel: React.FC<AddDogPanelProps> = ({
         registrations: formData.registrations?.map(reg => ({
           organization: reg.organization,
           number: reg.registrationNumber,
+          registeredName: reg.registeredName,
           type: reg.breed,
           status: reg.status || 'active',
         })),

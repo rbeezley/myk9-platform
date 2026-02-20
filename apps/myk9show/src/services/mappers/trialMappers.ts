@@ -34,9 +34,9 @@ export const mapDatabaseToTrial = (dbTrial: DbTrialWithShow): Trial => {
     trialDate: dbTrial.date || '',
     trialNumber: dbTrial.trial_number || '',
     status: (dbTrial.status as Trial['status']) || 'Upcoming',
-    plannedStartTime: undefined, // Not in current database schema
-    timeStarted: undefined, // Not in current database schema
-    timeEnded: undefined, // Not in current database schema
+    plannedStartTime: dbTrial.planned_start_time ?? undefined,
+    timeStarted: dbTrial.actual_start_time ?? undefined,
+    timeEnded: dbTrial.actual_end_time ?? undefined,
     eventNumber: undefined, // Not in current database schema
     type: undefined, // Not in current database schema
     order: undefined, // Not in current database schema
@@ -62,9 +62,9 @@ export const mapTrialInputToInsert = (trialInput: TrialInput): DbTrialInsert => 
     date: trialInput.trialDate,
     trial_number: trialInput.trialNumber,
     status: trialInput.status,
+    planned_start_time: trialInput.plannedStartTime || null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-    // Additional fields could be mapped here when they exist in the schema
   };
 };
 
@@ -90,6 +90,9 @@ export const mapTrialInputToUpdate = (updates: Partial<TrialInput>): DbTrialUpda
   }
   if (updates.status !== undefined) {
     updateData.status = updates.status;
+  }
+  if (updates.plannedStartTime !== undefined) {
+    updateData.planned_start_time = updates.plannedStartTime;
   }
 
   return updateData;

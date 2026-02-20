@@ -62,7 +62,22 @@ export const useDogStoreCompat = () => {
   const addDog = async (dogData: DogInput): Promise<Dog> => {
     const dbData = mapDogInputToInsert(dogData);
     const result = await createMutation.mutateAsync(dbData);
-    return mapDatabaseToDog(result);
+    const newDog = mapDatabaseToDog(result);
+
+    // Sync registrations if provided (registrations are stored in a separate table)
+    if (dogData.registrations && dogData.registrations.length > 0) {
+      try {
+        const changed = await syncDogRegistrations(newDog.id, dogData.registrations);
+        if (changed) {
+          queryClient.invalidateQueries({ queryKey: queryKeys.registrationsByDog(newDog.id) });
+          dogsQuery.refetch();
+        }
+      } catch (err) {
+        logger.error('Failed to create registrations for new dog', 'dogs', { dogId: newDog.id }, err as Error);
+      }
+    }
+
+    return newDog;
   };
 
   const updateDog = async (id: string, updates: Partial<DogInput>): Promise<Dog | null> => {

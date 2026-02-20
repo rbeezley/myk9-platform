@@ -46,7 +46,7 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
       city: '',
       state: '',
       zipCode: '',
-      country: 'United States',
+      country: 'US',
     },
     description: '',
     ...context.preFilledData,

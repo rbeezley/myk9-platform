@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Plus, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import { MoreVertical, Pencil, Trash } from 'lucide-react';
 import type { Trial } from '@/components/trials/types/trial.types';
 
 interface TrialsListProps {
@@ -23,8 +25,8 @@ const TrialsList: React.FC<TrialsListProps> = ({
     <div>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold">Trials</h3>
-        <Button 
-          size="sm" 
+        <Button
+          size="sm"
           onClick={onAddTrial}
           className="text-white hover:text-white/90"
         >
@@ -45,7 +47,7 @@ const TrialsList: React.FC<TrialsListProps> = ({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => startTransition(() => navigate(`/trials/${trial.id}`))}>
+                    <DropdownMenuItem onClick={() => startTransition(() => navigate(trial.showId ? `/shows/${trial.showId}/trials/${trial.id}` : `/trials/${trial.id}`))}>
                       <Eye className="w-4 h-4 mr-2" /> View Details
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => onEditTrial(trial)}>
@@ -73,8 +75,8 @@ const TrialsList: React.FC<TrialsListProps> = ({
       ) : (
         <div className="text-center py-8 text-muted-foreground">
           <p>No trials found. Add a trial to get started.</p>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             className="mt-4"
             onClick={onAddTrial}
           >
@@ -86,9 +88,5 @@ const TrialsList: React.FC<TrialsListProps> = ({
     </div>
   );
 };
-
-// Imports for dropdown and icons
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
-import { MoreVertical, Pencil, Trash } from 'lucide-react';
 
 export default TrialsList;

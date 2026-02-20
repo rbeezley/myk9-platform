@@ -13,6 +13,7 @@ import { RegistrationWorkflow } from '@/components/shows/RegistrationWorkflow';
 import { RegistrationProvider } from '@/context/RegistrationContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useTrialStore, type TrialInput } from '@/store/trialStore';
+import { useShowStore, type ShowInput } from '@/store/showStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useCompleteShowData } from '@/hooks/useShowScopedData';
 import { useShowsQuery } from '@/hooks/queries/useShowsDatabase';
@@ -65,7 +66,7 @@ const ShowDetailsPage: React.FC = () => {
     trials,
     addTrial: addTrialToStore,
     updateTrial: updateTrialInStore,
-    removeTrial: removeTrialFromStore,
+    deleteTrial: deleteTrialFromStore,
   } = useTrialStore();
   const { user } = useAuthContext();
 
@@ -176,9 +177,9 @@ const ShowDetailsPage: React.FC = () => {
     setShowDeleteTrialDialog(true);
   };
 
-  const handleConfirmDeleteTrial = () => {
+  const handleConfirmDeleteTrial = async () => {
     if (selectedTrial) {
-      removeTrialFromStore(selectedTrial.id);
+      await deleteTrialFromStore(selectedTrial.id);
       if (selectedTrial.showId) {
         navigate(`/shows/${selectedTrial.showId}`);
       }
@@ -362,9 +363,9 @@ const ShowDetailsPage: React.FC = () => {
         trialName={selectedTrial?.name || selectedTrial?.type || ''}
         initialTrialData={selectedTrial || {}}
         onSave={async (trialData) => {
-          if (selectedTrial?.id && trialData.id) {
+          if (selectedTrial?.id) {
             const updatedTrial = { ...selectedTrial, ...trialData };
-            updateTrialInStore(updatedTrial.id, updatedTrial as Partial<TrialInput>, user?.id || 'unknown');
+            updateTrialInStore(selectedTrial.id, updatedTrial as Partial<TrialInput>, user?.id || 'unknown');
             setShowEditTrialPanel(false);
             setSelectedTrial(null);
           }
@@ -376,7 +377,10 @@ const ShowDetailsPage: React.FC = () => {
         showId={actualCurrentShow?.id || ''}
         showName={actualCurrentShow?.name || ''}
         initialShowData={actualCurrentShow || {}}
-        onSave={async () => {
+        onSave={async (showData) => {
+          if (actualCurrentShow?.id) {
+            await useShowStore.getState().updateShow(actualCurrentShow.id, showData as Partial<ShowInput>);
+          }
           setShowEditPanel(false);
         }}
       />

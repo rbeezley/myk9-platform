@@ -85,6 +85,9 @@ export const mapClassInputToInsert = (classData: ClassInput): DbClassInsert => {
     level: classData.level || null,
     description: classData.element ? `${classData.element} ${classData.level}` : null,
     element: classData.element || null,
+    division: classData.section || null,
+    status: classData.status || 'Scheduled',
+    class_number: classData.classNumber || null,
 
     // Entry configuration
     entry_fee: classData.entryFee || null,
@@ -124,6 +127,9 @@ export const mapClassInputToUpdate = (updates: Partial<ClassInput>): DbClassUpda
   if (updates.level !== undefined) {
     updateData.level = updates.level;
   }
+  if (updates.status !== undefined) {
+    updateData.status = updates.status;
+  }
   if (updates.entryFee !== undefined) {
     updateData.entry_fee = updates.entryFee;
   }
@@ -143,6 +149,9 @@ export const mapClassInputToUpdate = (updates: Partial<ClassInput>): DbClassUpda
     const element = updates.element || '';
     const level = updates.level || '';
     updateData.description = element && level ? `${element} ${level}` : null;
+  }
+  if (updates.section !== undefined) {
+    updateData.division = updates.section || null;
   }
 
   return updateData;

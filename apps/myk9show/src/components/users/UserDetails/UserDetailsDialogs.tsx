@@ -3,7 +3,7 @@ import { Trash2 } from 'lucide-react';
 import ProfilePhotoDialog from '@/components/users/ProfilePhotoDialog';
 import StandardDialog from '@/components/common/StandardDialog';
 import { JudgeQualificationPanel, UserEditPanel } from '@/components/panels/edit';
-import type { User as UserType } from '@/types/dog-types';
+import type { User as UserType } from '@/types/user-types';
 import type { JudgeQualification } from '@/types/judge-types';
 
 interface UserDetailsDialogsProps {

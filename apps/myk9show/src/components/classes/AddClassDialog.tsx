@@ -1,4 +1,5 @@
 import React from 'react';
+import { toast } from 'sonner';
 import EditClassDialog from '@/components/classes/EditClassDialog';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { ClassData } from '@/components/classes/types/classTypes';
@@ -68,9 +69,11 @@ const AddClassDialog: React.FC<AddClassDialogProps> = ({ open, onClose, trialId 
       };
       
       await addClass(classInput);
+      toast.success('Class created successfully');
       onClose();
     } catch (error) {
       logger.error('Failed to add class:', 'classes', {}, error as Error);
+      toast.error('Failed to create class');
     }
   };
 

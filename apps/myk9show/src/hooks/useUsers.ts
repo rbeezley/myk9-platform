@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryClient';
-import type { User } from '../types/dog-types';
+import type { User } from '@/types/user-types';
 import {
   getAllUsers,
   createUser,
@@ -48,12 +48,14 @@ export function useUpdatePerson() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (person: User): Promise<User> => {
+      // Support both `address` and `streetAddress` fields (User type has both)
+      const streetValue = person.address || person.streetAddress || null;
       const { data, error } = await updateUser(person.id, {
         first_name: person.firstName,
         last_name: person.lastName,
         email: person.email || null,
         phone: person.phone || null,
-        street_address: person.streetAddress || null,
+        street_address: streetValue,
         city: person.city || null,
         state: person.state || null,
         zip_code: person.zipCode || null,

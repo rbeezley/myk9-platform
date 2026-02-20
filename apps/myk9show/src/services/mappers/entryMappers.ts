@@ -54,7 +54,7 @@ export const mapEntryInputToInsert = (input: ShowEntryInput): DbEntryInsertWithS
     show_id: input.showId,
     class_id: input.classId,
     dog_id: input.dogId,
-    status: 'draft', // Default status for new entries
+    entry_status: 'draft', // Default status for new entries
     armband: input.registrationData.armband || null,
     handler: input.registrationData.handler,
     handler_id: input.registrationData.handlerId || null,
@@ -196,7 +196,7 @@ export const mapDatabaseToEntry = (dbEntry: Record<string, unknown>): ShowEntry 
     userId: history.changed_by as string,
     reason: history.reason as string,
   })) || [{
-    status: dbEntry.status as EntryStatus,
+    status: (dbEntry.entry_status || dbEntry.status) as EntryStatus,
     timestamp: dbEntry.created_at as string,
     userId: 'system',
     reason: 'Entry created',
@@ -207,7 +207,7 @@ export const mapDatabaseToEntry = (dbEntry: Record<string, unknown>): ShowEntry 
     showId: dbEntry.show_id as string,
     classId: dbEntry.class_id as string,
     dogId: dbEntry.dog_id as string,
-    status: dbEntry.status as EntryStatus,
+    status: (dbEntry.entry_status || dbEntry.status) as EntryStatus,
     registrationData,
     competitionData,
     statusHistory,

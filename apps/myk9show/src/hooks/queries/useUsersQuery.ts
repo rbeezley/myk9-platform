@@ -40,7 +40,9 @@ const mapUserToDbUpdate = (user: Partial<User>): DbUserUpdate => {
   if (user.lastName !== undefined) dbUpdate.last_name = user.lastName;
   if (user.email !== undefined) dbUpdate.email = user.email;
   if (user.phone !== undefined) dbUpdate.phone = user.phone;
-  if (user.address !== undefined) dbUpdate.street_address = user.address;
+  // Support both `address` and `streetAddress` fields (User type has both)
+  const streetValue = user.address ?? user.streetAddress;
+  if (streetValue !== undefined) dbUpdate.street_address = streetValue;
   if (user.city !== undefined) dbUpdate.city = user.city;
   if (user.state !== undefined) dbUpdate.state = user.state;
   if (user.zipCode !== undefined) dbUpdate.zip_code = user.zipCode;

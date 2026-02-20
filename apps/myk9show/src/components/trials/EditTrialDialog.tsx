@@ -51,7 +51,7 @@ interface EditTrialDialogProps {
 
 const EditTrialDialog: React.FC<EditTrialDialogProps> = ({ open, onOpenChange, onSave, trial }) => {
   const [formData, setFormData] = useState({
-    id: null as number | null,
+    id: null as string | null,
     name: '',
     date: format(new Date(), 'yyyy-MM-dd'),
     trialNumber: '',
@@ -89,7 +89,7 @@ const EditTrialDialog: React.FC<EditTrialDialogProps> = ({ open, onOpenChange, o
     setPrevTrialKey(trialKey);
     if (trial) {
       setFormData({
-        id: trial.id ? parseInt(trial.id) : null,
+        id: trial.id || null,
         name: trial.name || trial.type || '',
         date: trial.date || format(new Date(), 'yyyy-MM-dd'),
         trialNumber: trial.trialNumber || '',
@@ -106,7 +106,7 @@ const EditTrialDialog: React.FC<EditTrialDialogProps> = ({ open, onOpenChange, o
 
   const handleSave = () => {
     onSave({
-      ...(formData.id !== null && { id: String(formData.id) }),
+      ...(formData.id !== null && { id: formData.id }),
       name: formData.name,
       date: date ? format(date, 'yyyy-MM-dd') : '',
       type: formData.name,

@@ -1,6 +1,6 @@
 import React from 'react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import type { User } from '@/types/dog-types';
+import type { User } from '@/types/user-types';
 
 // Update DeletePersonDialogProps to match usage in Users-List.tsx
 interface DeletePersonDialogProps {

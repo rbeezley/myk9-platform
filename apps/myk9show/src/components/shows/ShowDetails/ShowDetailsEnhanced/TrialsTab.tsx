@@ -79,7 +79,7 @@ export const TrialsTab: React.FC<TrialsTabProps> = ({ trials }) => {
               <Button
                 variant="outline"
                 size="lg"
-                onClick={() => navigate(`/trials/${trial.id}`)}
+                onClick={() => navigate(trial.showId ? `/shows/${trial.showId}/trials/${trial.id}` : `/trials/${trial.id}`)}
                 className="ml-6 border-2 border-gray-200 hover:border-teal-400 hover:bg-teal-50 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg font-semibold px-6"
               >
                 <Eye className="w-4 h-4 mr-2" />

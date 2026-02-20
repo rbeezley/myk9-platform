@@ -6,6 +6,68 @@ import type { DbDogInsert, DbDogUpdate } from '@/types/database-mappings';
 import type { DogInput } from '@/store/dogStore';
 
 /**
+ * Health record row from the database (health_records table)
+ */
+interface DbHealthRecordRow {
+  id: string;
+  record_type: string;
+  title: string;
+  date: string;
+  description?: string | null;
+  vet_name?: string | null;
+  vet_clinic?: string | null;
+}
+
+/**
+ * Maps an array of health_records rows from the DB into the nested
+ * healthRecords shape expected by the Dog domain type.
+ *
+ * The DB stores all health record types in a single table differentiated
+ * by `record_type`. We split them into vaccinations / medications / allergies
+ * based on that discriminator.
+ */
+function mapHealthRecords(raw: unknown): Dog['healthRecords'] {
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return { vaccinations: [], medications: [], allergies: [] };
+  }
+
+  const rows = raw as DbHealthRecordRow[];
+
+  const vaccinations = rows
+    .filter(r => r.record_type === 'vaccination')
+    .map(r => ({
+      id: r.id,
+      name: r.title,
+      date: r.date,
+      nextDue: undefined,
+      veterinarian: r.vet_name || '',
+    }));
+
+  const medications = rows
+    .filter(r => r.record_type === 'medication')
+    .map(r => ({
+      id: r.id,
+      name: r.title,
+      dosage: r.description || '',
+      frequency: '',
+      startDate: r.date,
+      endDate: undefined,
+    }));
+
+  const allergies = rows
+    .filter(r => r.record_type === 'allergy')
+    .map(r => ({
+      id: r.id,
+      allergen: r.title,
+      severity: '',
+      reaction: r.description || '',
+      notes: undefined,
+    }));
+
+  return { vaccinations, medications, allergies };
+}
+
+/**
  * Convert DogInput (from dogStore) to DbDogInsert (for database)
  */
 export const mapDogInputToInsert = (input: DogInput): DbDogInsert => {
@@ -87,30 +149,7 @@ export const mapDatabaseToDog = (dbDog: Record<string, unknown>): Dog => {
         registrationNumber: (reg.registration_number as string) || '',
         status: (reg.status as string) || 'active',
       })) : [],
-    healthRecords: {
-      vaccinations: ((dbDog.health_record as Record<string, unknown>)?.vaccinations as Array<{
-        id: string;
-        name: string;
-        date: string;
-        nextDue?: string;
-        veterinarian: string;
-      }>) || [],
-      medications: ((dbDog.health_record as Record<string, unknown>)?.medications as Array<{
-        id: string;
-        name: string;
-        dosage: string;
-        frequency: string;
-        startDate: string;
-        endDate?: string;
-      }>) || [],
-      allergies: ((dbDog.health_record as Record<string, unknown>)?.allergies as Array<{
-        id: string;
-        allergen: string;
-        severity: string;
-        reaction: string;
-        notes?: string;
-      }>) || [],
-    },
+    healthRecords: mapHealthRecords(dbDog.health_records),
     // Sync metadata - no longer needed with React Query, but kept for compatibility
     _version: 1,
     _lastModified: new Date((dbDog.updated_at as string) || (dbDog.created_at as string)),

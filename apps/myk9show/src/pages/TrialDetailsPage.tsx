@@ -29,7 +29,7 @@ import { TrialStatisticsData } from '@/components/trials/TrialDetail/TrialStatis
 const TrialDetailsPage: React.FC = () => {
   const { trialId, showId } = useParams<{ trialId: string; showId?: string }>();
   const navigate = useNavigate();
-  const { trials, selectedTrialId, selectTrial, updateTrial, removeTrial } = useTrialStore();
+  const { trials, selectedTrialId, selectTrial, updateTrial, deleteTrial: deleteTrialAsync } = useTrialStore();
   const { user } = useAuthContext();
   const { templates } = useTemplateStore();
   const { shows } = useShowStore();
@@ -237,10 +237,10 @@ const TrialDetailsPage: React.FC = () => {
     setDeleteTrialDialogOpen(true);
   };
 
-  const handleConfirmDeleteTrial = () => {
+  const handleConfirmDeleteTrial = async () => {
     if (currentTrial) {
-      removeTrial(currentTrial.id);
-      
+      await deleteTrialAsync(currentTrial.id);
+
       // Navigate based on context and remaining trials
       if (showId && currentTrial.showId) {
         // We came from a show context, go back to the show
@@ -471,7 +471,7 @@ const TrialDetailsPage: React.FC = () => {
         trialName={currentTrial?.type || currentTrial?.trialNumber || ''}
         initialTrialData={currentTrial || {}}
         onSave={async (trialData) => {
-          if (currentTrial?.id && trialData.id) {
+          if (currentTrial?.id) {
             const updatedTrial = { ...currentTrial, ...trialData };
             updateTrial(currentTrial.id, updatedTrial as Partial<TrialInput>, user?.id || 'unknown');
             setEditTrialPanelOpen(false);

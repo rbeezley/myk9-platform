@@ -1,4 +1,4 @@
-import type { User as UserType } from '@/types/dog-types';
+import type { User as UserType } from '@/types/user-types';
 import type { JudgeQualification } from '@/types/judge-types';
 
 export interface UserFormData {

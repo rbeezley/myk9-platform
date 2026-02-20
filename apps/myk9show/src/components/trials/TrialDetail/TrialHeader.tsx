@@ -28,7 +28,7 @@ export const TrialHeader = ({
       case 'upcoming': return 'apple-show-status-upcoming';
       case 'in progress': return 'apple-show-status-in-progress';
       case 'completed': return 'apple-show-status-completed';
-      case 'cancelled': return 'apple-show-status-completed';
+      case 'cancelled': return 'apple-show-status-cancelled';
       default: return 'apple-show-status-upcoming';
     }
   };

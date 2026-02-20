@@ -11,6 +11,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { logger } from '@/services/LoggingService';
+import { notifications } from '@/lib/notifications';
 import {
   Users, 
   Search, 
@@ -173,7 +174,7 @@ const UserManagementPage: React.FC = () => {
   // Handle edit panel save
   const handleEditPanelSave = async (userData: Partial<User>) => {
     if (!selectedUser) return;
-    
+
     try {
       const updatedUser = await updateUserMutation.mutateAsync({
         id: selectedUser.id,
@@ -181,8 +182,10 @@ const UserManagementPage: React.FC = () => {
       });
       setSelectedUser(updatedUser);
       setShowUserEditPanel(false);
+      notifications.success('User updated successfully');
     } catch (error) {
       logger.error('Failed to update user:', 'pages', {}, error as Error);
+      notifications.error('Failed to update user');
       throw error; // Let the edit panel handle the error
     }
   };

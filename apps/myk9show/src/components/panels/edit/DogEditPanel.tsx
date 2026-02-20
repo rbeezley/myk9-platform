@@ -150,7 +150,7 @@ const formDataToDog = (formData: DogFormData): Partial<DogType> => {
     callName: formData.callName,
     name: formData.callName, // Keep both for compatibility
     gender: formData.gender as 'Male' | 'Female' | '',
-    sex: (formData.gender?.toLowerCase() || 'male') as 'male' | 'female', // Properly lowercase for database
+    ...(formData.gender ? { sex: formData.gender.toLowerCase() as 'male' | 'female' } : {}),
     dateOfBirth: formData.dateOfBirth,
     birthDate: formData.dateOfBirth, // Keep both for compatibility
     color: formData.color,

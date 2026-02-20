@@ -13,6 +13,7 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { CheckInStatus } from '@/types/check-in-types';
 import { logger } from '@/services/LoggingService';
 import { getUserEntries } from '@/services/database/queries/entryQueries';
+import { updateCheckInStatus } from '@/services/database/queries/secretaryEntryQueries';
 import type { MyEntry, EntryClass, EntryUpdateEvent } from './my-entries-types';
 
 /**
@@ -102,28 +103,25 @@ export function useMyEntriesData(): UseMyEntriesDataReturn {
       city?: string;
       state?: string;
     } | null;
-    const classEntries = (entry.class_entry || []) as Array<{
-      id: string;
-      class_id: string;
-      armband?: string;
-      run_order?: number;
-      jump_height?: string;
-      entry_fee?: number;
-      status?: string;
-      class?: { id: string; name: string; class_number?: string } | null;
-    }>;
+    // Each entry row from getUserEntries represents one dog in one class.
+    // The class data is available via the `class` join (class:class_id).
+    const classData = entry.class as { id: string; name: string; class_number?: string } | null;
 
-    // Map class entries to EntryClass format
-    const classes: EntryClass[] = classEntries.map((ce) => ({
-      id: ce.id,
-      name: ce.class?.name || 'Unknown Class',
-      number: ce.class?.class_number || '',
-      fee: ce.entry_fee || 0,
-      jumpHeight: ce.jump_height,
-      runOrder: ce.run_order,
-      status: mapClassEntryStatus(ce.status),
-      checkInStatus: undefined,
-    }));
+    // Build a single-element classes array from this entry row's own data
+    const classes: EntryClass[] = classData
+      ? [
+          {
+            id: entry.id as string,
+            name: classData.name || 'Unknown Class',
+            number: classData.class_number || '',
+            fee: (entry.entry_fee as number) || 0,
+            jumpHeight: (entry.jump_height as string) || undefined,
+            runOrder: (entry.run_order as number) || undefined,
+            status: mapClassEntryStatus(entry.entry_status as string),
+            checkInStatus: undefined,
+          },
+        ]
+      : [];
 
     const entryStatus = mapEntryStatus(entry.entry_status as string);
     const paymentStatus = mapPaymentStatus(entry.payment_status as string);
@@ -142,7 +140,7 @@ export function useMyEntriesData(): UseMyEntriesDataReturn {
       dogName: dog?.call_name || dog?.name || 'Unknown Dog',
       dogId: dog?.id || '',
       classes,
-      totalFee: (entry.total_fees as number) || classes.reduce((sum, c) => sum + c.fee, 0),
+      totalFee: (entry.entry_fee as number) || 0,
       entryStatus,
       paymentStatus,
       registrationNumber: undefined,
@@ -256,6 +254,12 @@ export function useMyEntriesData(): UseMyEntriesDataReturn {
             return e;
           })
         );
+
+        // Persist check-in status to database
+        const { error: dbError } = await updateCheckInStatus(entryId, status, notes);
+        if (dbError) {
+          throw dbError;
+        }
 
         // Log the check-in status change
         auditService.log({

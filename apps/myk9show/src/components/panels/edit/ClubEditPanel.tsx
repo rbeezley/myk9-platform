@@ -25,6 +25,8 @@ interface ClubEditPanelProps {
   onSave?: (clubData: Partial<Club>) => Promise<void>;
   enableAutoSave?: boolean;
   showAdvancedFields?: boolean;
+  /** Set to 'create' when adding a new club. Defaults to 'edit'. */
+  mode?: 'create' | 'edit';
 }
 
 // Form data interface extending ClubFormData for edit panel needs
@@ -513,6 +515,7 @@ export const ClubEditPanel: React.FC<ClubEditPanelProps> = ({
   initialClubData,
   onSave,
   enableAutoSave = false,
+  mode = 'edit',
 }) => {
   // Convert club data to form data
   const initialFormData = useMemo(() => clubToFormData(initialClubData), [initialClubData]);
@@ -531,14 +534,14 @@ export const ClubEditPanel: React.FC<ClubEditPanelProps> = ({
     <EditPanelWrapper<ClubEditFormData>
       open={open}
       onClose={onClose}
-      title="Edit Club"
-      subtitle={`Editing profile for ${clubName}`}
+      title={mode === 'create' ? 'Create Club' : 'Edit Club'}
+      subtitle={mode === 'create' ? 'Fill in the details for your new club' : `Editing profile for ${clubName}`}
       size="xl"
       initialData={initialFormData}
       onSave={handleSave}
       validateData={validateClubData}
       enableAutoSave={enableAutoSave}
-      saveLabel="Save Changes"
+      saveLabel={mode === 'create' ? 'Create Club' : 'Save Changes'}
       cancelLabel="Cancel"
     >
       <ClubEditForm />

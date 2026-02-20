@@ -18,67 +18,62 @@ export const mapClubInputToInsert = (input: ClubInput): DbClubInsert => {
     description: input.description || null,
     logo_url: input.logo || null,
     address: fullAddress,
-    
-    // Additional fields that may not be in the actual schema but are in our types
-    ...(input.clubNumber && { club_number: input.clubNumber } as Record<string, unknown>),
-    ...(input.founded && { founded: input.founded.toISOString() } as Record<string, unknown>),
-    ...(input.clubType && { club_type: input.clubType } as Record<string, unknown>),
-    ...(input.memberIds && { member_ids: JSON.stringify(input.memberIds) } as Record<string, unknown>),
-  } as DbClubInsert;
+    // Store city, state, zip_code in their dedicated columns for search
+    city: input.city || null,
+    state: input.state || null,
+    zip_code: input.zipCode || null,
+  };
 };
 
 /**
  * Maps ClubInput (from Zustand store) to DbClubUpdate (for Supabase updates)
  */
 export const mapClubInputToUpdate = (input: Partial<ClubInput>): DbClubUpdate => {
-  const update: Record<string, unknown> = {};
+  const update: DbClubUpdate = {};
 
   if (input.name !== undefined) update.name = input.name;
-  if (input.email !== undefined) update.email = input.email;
-  if (input.phone !== undefined) update.phone = input.phone;
-  if (input.website !== undefined) update.website = input.website;
-  if (input.description !== undefined) update.description = input.description;
-  if (input.logo !== undefined) update.logo_url = input.logo;
-  
-  // Handle address fields
-  if (input.street !== undefined || input.city !== undefined || 
-      input.state !== undefined || input.zipCode !== undefined || 
+  if (input.email !== undefined) update.email = input.email || null;
+  if (input.phone !== undefined) update.phone = input.phone || null;
+  if (input.website !== undefined) update.website = input.website || null;
+  if (input.description !== undefined) update.description = input.description || null;
+  if (input.logo !== undefined) update.logo_url = input.logo || null;
+
+  // Handle address fields - update individual columns and the combined address string
+  if (input.city !== undefined) update.city = input.city || null;
+  if (input.state !== undefined) update.state = input.state || null;
+  if (input.zipCode !== undefined) update.zip_code = input.zipCode || null;
+
+  if (input.street !== undefined || input.city !== undefined ||
+      input.state !== undefined || input.zipCode !== undefined ||
       input.country !== undefined) {
-    // If any address field is updated, we need to reconstruct the full address
-    // For partial updates, we'll need to merge with existing data
+    // Reconstruct the combined address string from available fields
     const addressParts = [
       input.street,
       input.city,
-      input.state ? `${input.state} ${input.zipCode || ''}` : input.zipCode,
+      input.state ? `${input.state} ${input.zipCode || ''}`.trim() : input.zipCode,
       input.country
     ].filter(Boolean);
-    
+
     if (addressParts.length > 0) {
       update.address = addressParts.join(', ');
     }
   }
 
-  // Additional fields that may not be in the actual schema
-  if (input.clubNumber !== undefined) update.club_number = input.clubNumber;
-  if (input.founded !== undefined) update.founded = input.founded?.toISOString() || null;
-  if (input.clubType !== undefined) update.club_type = input.clubType;
-  if (input.memberIds !== undefined) update.member_ids = JSON.stringify(input.memberIds);
-
-  return update as unknown as DbClubUpdate;
+  return update;
 };
 
 /**
  * Maps DbClub (from Supabase) to Club (for Zustand store)
  */
 export const mapDatabaseToClub = (dbClub: DbClub & { show?: unknown[] }): Club => {
-  // Parse address string back to structured format
+  // Parse address: prefer dedicated city/state/zip_code columns, fall back to parsing address string
   const addressParts = dbClub.address?.split(', ') || [];
   const address: ClubAddress = {
     street: addressParts[0] || '',
-    city: addressParts[1] || '',
-    state: addressParts[2]?.split(' ')[0] || '',
-    zipCode: addressParts[2]?.split(' ')[1] || '',
-    country: addressParts[3] || ''
+    city: dbClub.city || addressParts[1] || '',
+    state: dbClub.state || addressParts[2]?.split(' ')[0] || '',
+    zipCode: dbClub.zip_code || addressParts[2]?.split(' ')[1] || '',
+    country: addressParts[3] || 'US'
   };
 
   // Map shows from database format (if available)
@@ -101,23 +96,20 @@ export const mapDatabaseToClub = (dbClub: DbClub & { show?: unknown[] }): Club =
   return {
     id: dbClub.id,
     name: dbClub.name,
-    clubNumber: (dbClub as Record<string, unknown>).club_number as string || '',
+    clubNumber: '', // Not stored in DB schema
     email: dbClub.email || '',
     phone: dbClub.phone || '',
     website: dbClub.website || undefined,
     description: dbClub.description || '',
     logo: dbClub.logo_url || '',
     address,
-    founded: (dbClub as Record<string, unknown>).founded ? new Date((dbClub as Record<string, unknown>).founded as string) : undefined,
-    clubType: (dbClub as Record<string, unknown>).club_type as Club['clubType'] || undefined,
-    memberIds: safeParseJson((dbClub as Record<string, unknown>).member_ids as string, []),
     upcomingShows,
     pastShows,
 
     // Sync metadata for Local-First architecture
-    _version: 1, // Default version
+    _version: 1,
     _lastModified: new Date(dbClub.updated_at || dbClub.created_at || new Date().toISOString()),
-    _lastModifiedBy: 'system', // Default value
+    _lastModifiedBy: 'system',
     _syncStatus: 'synced',
     _localOnly: false
   };
@@ -160,7 +152,7 @@ export const mapClubToUpdate = (club: Club): DbClubUpdate => {
   // Combine address fields into a single string for the database
   const fullAddress = `${club.address.street}, ${club.address.city}, ${club.address.state} ${club.address.zipCode}, ${club.address.country}`;
 
-  const update: Record<string, unknown> = {
+  return {
     name: club.name,
     email: club.email || null,
     phone: club.phone || null,
@@ -168,15 +160,10 @@ export const mapClubToUpdate = (club: Club): DbClubUpdate => {
     description: club.description || null,
     logo_url: club.logo || null,
     address: fullAddress,
+    city: club.address.city || null,
+    state: club.address.state || null,
+    zip_code: club.address.zipCode || null,
   };
-
-  // Add optional fields that may exist
-  if (club.clubNumber !== undefined) update.club_number = club.clubNumber;
-  if (club.founded !== undefined) update.founded = club.founded?.toISOString() || null;
-  if (club.clubType !== undefined) update.club_type = club.clubType;
-  if (club.memberIds !== undefined) update.member_ids = JSON.stringify(club.memberIds || []);
-
-  return update as DbClubUpdate;
 };
 
 /**

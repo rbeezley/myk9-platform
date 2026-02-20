@@ -20,7 +20,7 @@ const DeleteShowDialog: React.FC<DeleteShowDialogProps> = ({
 }) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [preview, setPreview] = useState<CascadingDeletePreview | null>(null);
-  const { previewCascadingDelete, removeShowCascading } = useShowStore();
+  const { previewCascadingDelete, deleteShowCascading } = useShowStore();
 
   // Load preview when dialog opens
   useEffect(() => {
@@ -33,12 +33,12 @@ const DeleteShowDialog: React.FC<DeleteShowDialogProps> = ({
   const handleConfirm = async () => {
     setIsDeleting(true);
     try {
-      // Perform cascading delete
-      removeShowCascading(showId);
-      
+      // Perform async cascading delete (handles replicated table + local store)
+      await deleteShowCascading(showId);
+
       // Call the original onDelete callback
       onDelete();
-      
+
       // Close dialog
       onOpenChange(false);
     } catch (error) {

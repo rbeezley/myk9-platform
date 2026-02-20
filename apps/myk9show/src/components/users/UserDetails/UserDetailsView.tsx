@@ -7,7 +7,7 @@ import { useUserStore } from '@/store/userStore';
 import { useUpdateUserMutation, useDeleteUserMutation } from '@/hooks/queries/useUsersQuery';
 import UserDetailsTabs from '@/components/users/UserDetails/UserDetailsTabs';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
-import { User as UserType } from '@/types/dog-types';
+import { User as UserType } from '@/types/user-types';
 import { useRBAC } from '@/hooks/useRBAC';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useRoleBasedPeople } from '@/hooks/useRoleBasedData';
@@ -67,6 +67,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
       await deleteUserMutation.mutateAsync({ id: person.id });
 
       setIsDeleteDialogOpen(false);
+      notifications.success('User deleted successfully');
 
       const remainingPeople = people.filter(p => p.id !== person.id);
       if (remainingPeople.length > 0) {
@@ -119,11 +120,13 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
 
   const handleUserEditSave = async (userData: Partial<UserType>) => {
     try {
+      // UserEditPanel outputs `address` (flat string), map it for local form state
+      const addressValue = userData.address || userData.streetAddress || '';
       const definedUpdates: Partial<typeof formData> = {};
       if (userData.firstName !== undefined) definedUpdates.name = `${userData.firstName} ${userData.lastName || ''}`.trim();
       if (userData.email !== undefined) definedUpdates.email = userData.email;
       if (userData.phone !== undefined) definedUpdates.phone = userData.phone;
-      if (userData.streetAddress !== undefined) definedUpdates.address = userData.streetAddress;
+      if (addressValue) definedUpdates.address = addressValue;
       if (userData.city !== undefined) definedUpdates.city = userData.city;
       if (userData.state !== undefined) definedUpdates.state = userData.state;
       if (userData.zipCode !== undefined) definedUpdates.zipCode = userData.zipCode;
@@ -132,12 +135,14 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
 
       logger.debug('Saving user data', 'users', { userId: person.id });
 
+      // Build updates using `address` (the field mapUserToDbUpdate expects for street_address)
       const updates: Partial<UserType> = {
         ...(userData.firstName !== undefined && { firstName: userData.firstName }),
         ...(userData.lastName !== undefined && { lastName: userData.lastName }),
         ...(userData.email !== undefined && { email: userData.email }),
         ...(userData.phone !== undefined && { phone: userData.phone }),
-        streetAddress: userData.streetAddress || '',
+        ...(userData.roles !== undefined && { roles: userData.roles }),
+        address: addressValue,
         city: userData.city || '',
         state: userData.state || '',
         zipCode: userData.zipCode || ''
@@ -148,6 +153,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
         updates
       });
 
+      notifications.success('User updated successfully');
       logger.info('User data saved successfully', 'users', { userId: person.id });
     } catch (error) {
       logger.error('Failed to save user data', 'users', { userId: person.id }, error as Error);

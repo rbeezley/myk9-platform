@@ -8,10 +8,11 @@ import { Club } from '@/types/club-types';
 import { useClubStore } from '@/store/clubStore';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { buildClasses } from '@/utils/designTokens';
-import { useAuthContext } from '@/hooks/useAuthContext';
 import { SidebarLayout } from '@/components/layout/SidebarLayout';
 import { useSidebarLayoutState } from '@/hooks/useSidebarLayoutState';
 import { ClubsPageSkeleton } from '@/components/common/SkeletonLoaders';
+import { notifications } from '@/lib/notifications';
+import { logger } from '@/services/LoggingService';
 
 // Sidebar width constant
 const SIDEBAR_WIDTH = 320; // 20rem
@@ -100,9 +101,6 @@ const ClubsPage: React.FC = () => {
     setShowCreateClubPanel(true);
   }, []);
 
-  // Get current user for RBAC role assignment
-  const { userWithRoles } = useAuthContext();
-
   // Generate breadcrumb items for the current club
   const breadcrumbItems = useBreadcrumb({
     currentPage: 'club',
@@ -111,7 +109,8 @@ const ClubsPage: React.FC = () => {
 
   function handleClubCreated(entity: Record<string, unknown>): void {
     const newClub = entity as unknown as Club;
-    addClub(newClub);
+    // The club has already been added via addClub in the onSave handler;
+    // just select and navigate.
     selectClub(newClub.id);
     navigate(`/clubs/${newClub.id}`);
     setShowCreateClubPanel(false);
@@ -178,11 +177,11 @@ const ClubsPage: React.FC = () => {
             clubId=""
             clubName=""
             initialClubData={{}}
+            mode="create"
             onSave={async (clubData) => {
-              if (userWithRoles) {
-                const newId = `club-${Date.now()}`;
+              try {
                 const newClub: Club = {
-                  id: newId,
+                  id: '', // Will be assigned by the replication layer
                   name: clubData.name || '',
                   clubNumber: clubData.clubNumber || '',
                   email: clubData.email || '',
@@ -199,15 +198,26 @@ const ClubsPage: React.FC = () => {
                   logo: clubData.logo || '',
                   founded: clubData.founded instanceof Date ? clubData.founded : undefined,
                   clubType: clubData.clubType as 'specialty' | 'all-breed' | 'local' | 'regional' | 'national' | undefined,
-                  memberIds: [userWithRoles.id],
                   upcomingShows: [],
                   pastShows: []
                 };
 
-                addClub(newClub);
-                selectClub(newId);
-                navigate(`/clubs/${newId}`);
+                await addClub(newClub);
+
+                // After addClub + loadClubs, the new club is in the store.
+                // Find it by name since the ID was assigned by the replication layer.
+                const currentClubs = useClubStore.getState().clubs;
+                const created = currentClubs.find(c => c.name === newClub.name);
+                if (created) {
+                  selectClub(created.id);
+                  navigate(`/clubs/${created.id}`);
+                }
+
                 setShowCreateClubPanel(false);
+                notifications.success('Club created successfully');
+              } catch (error) {
+                logger.error('Failed to create club', 'clubs', {}, error as Error);
+                notifications.error('Failed to create club');
               }
             }}
           />

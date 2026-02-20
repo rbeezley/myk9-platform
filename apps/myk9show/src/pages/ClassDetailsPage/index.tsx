@@ -6,6 +6,7 @@
 
 import { useEffect, startTransition } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { logger } from '@/services/LoggingService';
 import { useEntryStore } from '@/store/entryStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -69,18 +70,24 @@ const ClassDetailsPage: React.FC = () => {
     });
   };
 
-  const handleConfirmDeleteClass = () => {
+  const handleConfirmDeleteClass = async () => {
     if (classId) {
-      deleteClass(classId);
-      startTransition(() => {
-        if (trialId) {
-          navigate(`/trials/${trialId}`);
-        } else if (currentClass?.trialId) {
-          navigate(`/trials/${currentClass.trialId}`);
-        } else {
-          navigate('/classes');
-        }
-      });
+      try {
+        await deleteClass(classId);
+        toast.success('Class deleted successfully');
+        startTransition(() => {
+          if (trialId) {
+            navigate(`/trials/${trialId}`);
+          } else if (currentClass?.trialId) {
+            navigate(`/trials/${currentClass.trialId}`);
+          } else {
+            navigate('/classes');
+          }
+        });
+      } catch (error) {
+        logger.error('Failed to delete class', 'classes', { classId }, error as Error);
+        toast.error('Failed to delete class');
+      }
     }
     dialogs.closeDeleteDialog();
   };
@@ -97,31 +104,56 @@ const ClassDetailsPage: React.FC = () => {
     dialogs.openDeleteEntryDialog(entryId);
   };
 
-  const handleConfirmDeleteEntry = () => {
+  const handleConfirmDeleteEntry = async () => {
     if (dialogs.entryToDelete) {
-      const { deleteEntry } = useEntryStore.getState();
-      deleteEntry(dialogs.entryToDelete);
+      try {
+        const { deleteEntry } = useEntryStore.getState();
+        await deleteEntry(dialogs.entryToDelete);
+        toast.success('Entry deleted successfully');
+      } catch (error) {
+        logger.error('Failed to delete entry', 'classes', { entryId: dialogs.entryToDelete }, error as Error);
+        toast.error('Failed to delete entry');
+      }
       dialogs.closeDeleteEntryDialog();
     }
   };
 
-  const handleSaveClassEdit = (data: Partial<typeof currentClass>) => {
+  const handleSaveClassEdit = async (data: Partial<typeof currentClass>) => {
     if (classId && currentClass) {
-      updateClass(classId, data as Partial<ClassData>);
+      try {
+        await updateClass(classId, data as Partial<ClassData>);
+        toast.success('Class updated successfully');
+      } catch (error) {
+        logger.error('Failed to update class', 'classes', { classId }, error as Error);
+        toast.error('Failed to update class');
+      }
     }
     dialogs.closeEditClassPanel();
   };
 
-  const handleSaveEntryEdit = (data: Record<string, unknown>) => {
-    if (dialogs.editEntryId) {
-      logger.debug('Save entry', 'classes', { editEntryId: dialogs.editEntryId, data });
+  const handleSaveEntryEdit = async (data: Record<string, unknown>) => {
+    if (dialogs.editEntryId && Object.keys(data).length > 0) {
+      try {
+        const { updateEntry } = useEntryStore.getState();
+        await updateEntry(dialogs.editEntryId, data, user?.id || 'unknown');
+        toast.success('Entry updated successfully');
+      } catch (error) {
+        logger.error('Failed to update entry', 'classes', { editEntryId: dialogs.editEntryId }, error as Error);
+        toast.error('Failed to update entry');
+      }
     }
     dialogs.closeEditEntryDialog();
   };
 
-  const handleStatusChange = (newStatus: string) => {
+  const handleStatusChange = async (newStatus: string) => {
     if (classId) {
-      updateClass(classId, { status: newStatus as ClassStatusValue });
+      try {
+        await updateClass(classId, { status: newStatus as ClassStatusValue });
+        toast.success(`Class status updated to ${newStatus}`);
+      } catch (error) {
+        logger.error('Failed to update class status', 'classes', { classId, newStatus }, error as Error);
+        toast.error('Failed to update class status');
+      }
     }
   };
 

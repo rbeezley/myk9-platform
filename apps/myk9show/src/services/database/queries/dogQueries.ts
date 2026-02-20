@@ -63,16 +63,16 @@ export const getDogById = async (id: string) => {
           state,
           zip_code
         ),
-        registrations:dog_registration(*),
-        health_record(*),
-        entry(
+        registrations:dog_registrations(*),
+        health_records(*),
+        entries(
           *,
-          class:"class"(
+          class:classes(
             id,
             name,
             class_number
           ),
-          show:"show"(
+          show:shows(
             id,
             name,
             start_date,
@@ -225,7 +225,6 @@ export const deleteDog = async (id: string, deletedBy?: string) => {
 
     if (deletedBy) {
       updateData.deleted_by = deletedBy;
-      updateData.updated_by = deletedBy;
     }
 
     logger.debug('📝 Update data being sent:', 'database', { data: updateData });
@@ -434,9 +433,8 @@ export const getDeletedDogs = async () => {
       .select(
         `
         *,
-        owner:people!dogs_owner_id_fkey(id, first_name, last_name, email),
-        deleted_by_user:people!dogs_deleted_by_fkey(id, email, first_name, last_name)
-      `
+        owner:people!dogs_owner_id_fkey(id, first_name, last_name, email)
+`
       )
       .not('deleted_at', 'is', null)
       .order('deleted_at', { ascending: false });

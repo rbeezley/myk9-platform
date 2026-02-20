@@ -296,21 +296,31 @@ export const useUserStore = create<UserStore>()(
       },
       
       // Primary methods using new terminology
-      addUserLegacy: (user) => set((state) => ({ users: [...state.users, user] })),
+      addUserLegacy: (user) => set((state) => ({
+        users: [...state.users, user],
+        people: [...state.people, user],
+      })),
       updateUserLegacy: (user) => set((state) => ({
         users: state.users.map((u) => u.id === user.id ? user : u),
+        people: state.people.map((u) => u.id === user.id ? user : u),
       })),
       removeUser: (id) => set((state) => ({
         users: state.users.filter((u) => u.id !== id),
+        people: state.people.filter((u) => u.id !== id),
       })),
-      
+
       // Legacy aliases for backward compatibility
-      addPersonLegacy: (person) => set((state) => ({ users: [...state.users, person] })),
+      addPersonLegacy: (person) => set((state) => ({
+        users: [...state.users, person],
+        people: [...state.people, person],
+      })),
       updatePersonLegacy: (person) => set((state) => ({
         users: state.users.map((u) => u.id === person.id ? person : u),
+        people: state.people.map((u) => u.id === person.id ? person : u),
       })),
       removePerson: (id) => set((state) => ({
         users: state.users.filter((u) => u.id !== id),
+        people: state.people.filter((u) => u.id !== id),
       })),
       getPersonById: (id: string): User | null => {
         return get().users.find(u => u.id === id) || null;
@@ -345,6 +355,7 @@ export const useUserStore = create<UserStore>()(
       // Cleanup
       reset: () => set({
         users: [],
+        people: [], // Reset backward compatibility property too
         isLoading: false,
         error: null,
         selectedUser: null,

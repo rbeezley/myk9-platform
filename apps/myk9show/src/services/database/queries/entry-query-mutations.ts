@@ -158,16 +158,17 @@ export const updateEntryStatus = async (params: {
   userId: string;
   reason?: string;
 }) => {
-  const { id, status, userId, reason } = params;
+  const { id, status, userId } = params;
   const startTime = Date.now();
 
   try {
     // Update entry status
+    // Note: status change reason is logged via userId/audit, not written to special_requests
+    // which holds exhibitor-provided data that should not be overwritten
     const { data: entryData, error: entryError } = await supabase
       .from('entries')
       .update({
         entry_status: status,
-        ...(reason ? { special_requests: `Status changed: ${reason}` } : {}),
         updated_at: new Date().toISOString(),
       })
       .eq('id', id)

@@ -472,7 +472,7 @@ const UserEditForm: React.FC = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="phone" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Phone Number *</Label>
+                <Label htmlFor="phone" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Phone Number</Label>
                 <Input
                   id="phone"
                   type="tel"
@@ -494,7 +494,7 @@ const UserEditForm: React.FC = () => {
                 </h4>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="address" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Street Address *</Label>
+                  <Label htmlFor="address" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Street Address</Label>
                   <Input
                     id="address"
                     value={data.address}
@@ -508,7 +508,7 @@ const UserEditForm: React.FC = () => {
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="city" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">City *</Label>
+                    <Label htmlFor="city" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">City</Label>
                     <Input
                       id="city"
                       value={data.city}
@@ -521,7 +521,7 @@ const UserEditForm: React.FC = () => {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="state" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">State *</Label>
+                    <Label htmlFor="state" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">State</Label>
                     <Input
                       id="state"
                       value={data.state}
@@ -534,7 +534,7 @@ const UserEditForm: React.FC = () => {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="zipCode" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">ZIP Code *</Label>
+                    <Label htmlFor="zipCode" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">ZIP Code</Label>
                     <Input
                       id="zipCode"
                       value={data.zipCode}

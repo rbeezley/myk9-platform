@@ -57,10 +57,33 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({ open, onOpenChange, onS
   const [date, setDate] = useState<Date | undefined>(new Date());
 
   const handleSave = () => {
+    // Validate required fields
+    if (!formData.name.trim()) return;
+    if (!formData.trialNumber.trim()) return;
+    if (!date) return;
+
     onSave({
       ...formData,
-      date: date ? format(date, 'MMMM d, yyyy') : '',
+      date: date ? format(date, 'yyyy-MM-dd') : '',
     });
+
+    // Reset form after successful save
+    const year = new Date().getFullYear();
+    const timestamp = Date.now();
+    const trialSuffix = (timestamp % 9000) + 1000;
+    const eventSuffix = (timestamp % 900) + 100;
+    setFormData({
+      name: '',
+      date: format(new Date(), 'yyyy-MM-dd'),
+      trialNumber: `TR-${year}-${trialSuffix}`,
+      status: 'Upcoming',
+      description: '',
+      eventNumber: `EV-${year}-${eventSuffix}`,
+      plannedStartTime: '09:00 AM',
+      order: '1',
+      showName: currentShowName || '',
+    });
+    setDate(new Date());
   };
 
   return (
@@ -201,7 +224,10 @@ const AddTrialDialog: React.FC<AddTrialDialogProps> = ({ open, onOpenChange, onS
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSave}>
+          <Button
+            onClick={handleSave}
+            disabled={!formData.name.trim() || !formData.trialNumber.trim() || !date}
+          >
             Save
           </Button>
         </SheetFooter>

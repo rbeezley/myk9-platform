@@ -14,6 +14,7 @@ import { useUserStore } from '@/store/userStore';
 import { useClubStore } from '@/store/clubStore';
 import { Club } from '@/types/club-types';
 import { Users } from 'lucide-react';
+import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
 
 interface AddMemberDialogProps {
@@ -49,12 +50,18 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
       };
       
       await updateClub(updatedClub);
-      
+
+      // Show success feedback
+      const addedPerson = people.find(p => p.id.toString() === selectedPersonId);
+      const personName = addedPerson ? `${addedPerson.firstName} ${addedPerson.lastName}` : 'Member';
+      notifications.success(`${personName} added to ${club.name}`);
+
       // Reset form and close dialog
       setSelectedPersonId('');
       onOpenChange(false);
     } catch (error) {
       logger.error('Failed to add member:', 'clubs', {}, error as Error);
+      notifications.error('Failed to add member');
     } finally {
       setIsLoading(false);
     }

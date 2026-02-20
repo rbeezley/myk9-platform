@@ -10,6 +10,7 @@ import { useUserStore } from '../../store/userStore';
 import { useDogStore } from '../../store/dogStore';
 import { useUsers, useAddPerson, useUpdatePerson, useDeletePerson } from '../../hooks/useUsers';
 import { logger } from '@/services/LoggingService';
+import { notifications } from '@/lib/notifications';
 
 const UserListPage: React.FC = () => {
   // State hooks
@@ -133,14 +134,17 @@ const [formData, setFormData] = useState<UserFormData>({
           try {
             if (isEditPersonDialogOpen) {
               await updatePersonMutation.mutateAsync(personPayload);
+              notifications.success('User updated successfully');
             } else {
               await addPersonMutation.mutateAsync(personPayload);
+              notifications.success('User created successfully');
             }
             setIsAddPersonDialogOpen(false);
             setIsEditPersonDialogOpen(false);
             setSelectedPerson(null);
           } catch (error) {
             logger.error('Failed to save person:', 'components', {}, error as Error);
+            notifications.error('Failed to save user');
             throw error;
           }
         }}
@@ -154,9 +158,15 @@ const [formData, setFormData] = useState<UserFormData>({
         onCancel={() => setIsDeleteDialogOpen(false)}
         onDelete={async () => {
           if (selectedUser) {
-            await deletePersonMutation.mutateAsync(selectedUser.id);
-            setIsDeleteDialogOpen(false);
-            setSelectedPerson(null);
+            try {
+              await deletePersonMutation.mutateAsync(selectedUser.id);
+              setIsDeleteDialogOpen(false);
+              setSelectedPerson(null);
+              notifications.success('User deleted successfully');
+            } catch (error) {
+              logger.error('Failed to delete user', 'components', {}, error as Error);
+              notifications.error('Failed to delete user');
+            }
           }
         }}
       />

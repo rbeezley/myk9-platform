@@ -1,0 +1,1299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>myK9Show — The Premium Dog Show Experience</title>
+<style>
+  /* ========== CSS Custom Properties ========== */
+  :root {
+    --navy-deep: #1B2A4A;
+    --navy-mid: #243556;
+    --navy-light: #2D4168;
+    --gold: #C9A962;
+    --gold-light: #D4BA7A;
+    --gold-dark: #B8963F;
+    --white: #FFFFFF;
+    --off-white: #F8F6F1;
+    --cream: #F0EDE4;
+    --text-primary: #1B2A4A;
+    --text-secondary: #4A5568;
+    --text-light: #8896AB;
+    --border-light: #E2DDD3;
+    --shadow-sm: 0 1px 3px rgba(27, 42, 74, 0.08);
+    --shadow-md: 0 4px 12px rgba(27, 42, 74, 0.1);
+    --shadow-lg: 0 8px 30px rgba(27, 42, 74, 0.12);
+    --shadow-gold: 0 4px 20px rgba(201, 169, 98, 0.2);
+    --radius-sm: 6px;
+    --radius-md: 12px;
+    --radius-lg: 20px;
+    --transition: 0.3s ease;
+    --max-width: 1100px;
+    --font-serif: Georgia, 'Times New Roman', serif;
+    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  }
+
+  /* ========== Reset & Base ========== */
+  *, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    font-size: 16px;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    color: var(--text-primary);
+    background: var(--off-white);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ========== Typography ========== */
+  h1, h2, h3, h4 {
+    font-family: var(--font-serif);
+    font-weight: 700;
+    line-height: 1.25;
+  }
+
+  h1 { font-size: 2.75rem; letter-spacing: -0.02em; }
+  h2 { font-size: 2rem; letter-spacing: -0.01em; }
+  h3 { font-size: 1.5rem; }
+  h4 { font-size: 1.15rem; }
+
+  p { max-width: 70ch; }
+
+  a { color: var(--gold-dark); text-decoration: none; }
+  a:hover { color: var(--gold); }
+
+  /* ========== Navigation ========== */
+  .nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: rgba(27, 42, 74, 0.97);
+    border-bottom: 1px solid rgba(201, 169, 98, 0.2);
+    transition: background var(--transition);
+  }
+
+  .nav-inner {
+    max-width: var(--max-width);
+    margin: 0 auto;
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+  }
+
+  .nav-brand {
+    font-family: var(--font-serif);
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--gold);
+    white-space: nowrap;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 0.25rem;
+    list-style: none;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .nav-links a {
+    display: block;
+    padding: 0.4rem 0.75rem;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.8rem;
+    font-weight: 500;
+    border-radius: var(--radius-sm);
+    transition: all var(--transition);
+    white-space: nowrap;
+  }
+
+  .nav-links a:hover,
+  .nav-links a.active {
+    color: var(--white);
+    background: rgba(201, 169, 98, 0.15);
+  }
+
+  .nav-links a.active {
+    color: var(--gold);
+  }
+
+  /* ========== Hero ========== */
+  .hero {
+    background: linear-gradient(160deg, var(--navy-deep) 0%, var(--navy-mid) 50%, var(--navy-light) 100%);
+    color: var(--white);
+    padding: 8rem 2rem 5rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle at 30% 50%, rgba(201, 169, 98, 0.06) 0%, transparent 50%),
+                radial-gradient(circle at 70% 80%, rgba(201, 169, 98, 0.04) 0%, transparent 40%);
+    pointer-events: none;
+  }
+
+  .hero-inner {
+    position: relative;
+    max-width: var(--max-width);
+    margin: 0 auto;
+  }
+
+  .hero-label {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--gold);
+    border: 1px solid rgba(201, 169, 98, 0.3);
+    padding: 0.35rem 1rem;
+    border-radius: 100px;
+    margin-bottom: 2rem;
+  }
+
+  .hero h1 {
+    font-size: 3.25rem;
+    margin-bottom: 1.5rem;
+    color: var(--white);
+  }
+
+  .hero h1 span {
+    color: var(--gold);
+  }
+
+  .hero-thesis {
+    font-size: 1.35rem;
+    font-family: var(--font-serif);
+    color: var(--gold-light);
+    max-width: 700px;
+    margin: 0 auto 2rem;
+    line-height: 1.5;
+    font-style: italic;
+  }
+
+  .hero-principle {
+    font-size: 1.05rem;
+    color: rgba(255, 255, 255, 0.75);
+    max-width: 650px;
+    margin: 0 auto;
+    line-height: 1.65;
+  }
+
+  .hero-divider {
+    width: 60px;
+    height: 2px;
+    background: var(--gold);
+    margin: 2rem auto;
+    opacity: 0.5;
+  }
+
+  /* ========== Sections ========== */
+  .section {
+    padding: 5rem 2rem;
+  }
+
+  .section-inner {
+    max-width: var(--max-width);
+    margin: 0 auto;
+  }
+
+  .section-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--gold-dark);
+    margin-bottom: 0.75rem;
+  }
+
+  .section h2 {
+    margin-bottom: 1rem;
+  }
+
+  .section-lead {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    margin-bottom: 2.5rem;
+    max-width: 65ch;
+  }
+
+  .section-alt {
+    background: var(--white);
+  }
+
+  .section-dark {
+    background: var(--navy-deep);
+    color: var(--white);
+  }
+
+  .section-dark .section-label {
+    color: var(--gold);
+  }
+
+  .section-dark .section-lead {
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  /* ========== Architecture Cards ========== */
+  .arch-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    margin-top: 2.5rem;
+  }
+
+  .arch-card {
+    background: var(--white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    padding: 2rem;
+    transition: all var(--transition);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .arch-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--gold);
+    transform: scaleX(0);
+    transition: transform var(--transition);
+  }
+
+  .arch-card:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+  }
+
+  .arch-card:hover::before {
+    transform: scaleX(1);
+  }
+
+  .arch-icon {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, var(--navy-deep), var(--navy-mid));
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.25rem;
+    font-size: 1.5rem;
+    color: var(--gold);
+  }
+
+  .arch-card h3 {
+    font-size: 1.2rem;
+    margin-bottom: 0.35rem;
+    color: var(--text-primary);
+  }
+
+  .arch-card .arch-subtitle {
+    font-size: 0.85rem;
+    font-style: italic;
+    color: var(--gold-dark);
+    margin-bottom: 0.75rem;
+  }
+
+  .arch-card p {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    line-height: 1.65;
+  }
+
+  /* ========== Move Sections ========== */
+  .move-section {
+    padding: 5rem 2rem;
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .move-section:last-of-type {
+    border-bottom: none;
+  }
+
+  .move-inner {
+    max-width: var(--max-width);
+    margin: 0 auto;
+  }
+
+  .move-header {
+    margin-bottom: 3rem;
+  }
+
+  .move-number {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--gold-dark);
+    margin-bottom: 0.5rem;
+  }
+
+  .move-header h2 {
+    margin-bottom: 0.5rem;
+  }
+
+  .move-metaphor {
+    font-size: 1.1rem;
+    font-style: italic;
+    color: var(--text-secondary);
+  }
+
+  .move-desc {
+    font-size: 1.05rem;
+    color: var(--text-secondary);
+    margin-bottom: 2.5rem;
+    max-width: 65ch;
+    line-height: 1.7;
+  }
+
+  /* Feature tiles */
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.25rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .feature-tile {
+    background: var(--white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    padding: 1.75rem;
+    transition: all var(--transition);
+  }
+
+  .feature-tile:hover {
+    box-shadow: var(--shadow-md);
+  }
+
+  .feature-tile h4 {
+    color: var(--navy-deep);
+    margin-bottom: 0.5rem;
+    font-family: var(--font-sans);
+    font-weight: 600;
+  }
+
+  .feature-tile p {
+    font-size: 0.92rem;
+    color: var(--text-secondary);
+    line-height: 1.65;
+  }
+
+  /* Infographic area */
+  .infographic-container {
+    margin: 2.5rem 0;
+    text-align: center;
+  }
+
+  .infographic-container img {
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+  }
+
+  .infographic-caption {
+    font-size: 0.8rem;
+    color: var(--text-light);
+    margin-top: 0.75rem;
+    font-style: italic;
+  }
+
+  /* ========== Flywheel Section ========== */
+  .flywheel-diagram {
+    background: var(--white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    padding: 3rem;
+    margin-top: 2rem;
+    text-align: center;
+  }
+
+  .flywheel-steps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 2rem 0;
+  }
+
+  .flywheel-step {
+    background: linear-gradient(135deg, var(--navy-deep), var(--navy-mid));
+    color: var(--white);
+    padding: 0.75rem 1.25rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.88rem;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .flywheel-arrow {
+    color: var(--gold);
+    font-size: 1.25rem;
+    font-weight: 700;
+  }
+
+  .flywheel-note {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    max-width: 60ch;
+    margin: 0 auto;
+    line-height: 1.65;
+  }
+
+  /* ========== Monetization ========== */
+  .tier-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    margin-top: 2rem;
+  }
+
+  .tier-card {
+    background: var(--white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    padding: 2rem;
+    position: relative;
+    transition: all var(--transition);
+  }
+
+  .tier-card:hover {
+    box-shadow: var(--shadow-md);
+  }
+
+  .tier-card.featured {
+    border-color: var(--gold);
+    box-shadow: var(--shadow-gold);
+  }
+
+  .tier-card.featured::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--gold-dark), var(--gold), var(--gold-dark));
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+  }
+
+  .tier-badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--gold-dark);
+    background: rgba(201, 169, 98, 0.1);
+    padding: 0.25rem 0.75rem;
+    border-radius: 100px;
+    margin-bottom: 1rem;
+  }
+
+  .tier-card h3 {
+    font-size: 1.3rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .tier-price {
+    font-size: 0.9rem;
+    color: var(--text-light);
+    margin-bottom: 1rem;
+  }
+
+  .tier-tagline {
+    font-size: 0.95rem;
+    font-style: italic;
+    color: var(--text-secondary);
+    margin-bottom: 1.25rem;
+    line-height: 1.5;
+  }
+
+  .tier-features {
+    list-style: none;
+    padding: 0;
+  }
+
+  .tier-features li {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    padding: 0.35rem 0;
+    padding-left: 1.25rem;
+    position: relative;
+  }
+
+  .tier-features li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.7rem;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--gold);
+  }
+
+  /* ========== Collapsible / Expandable ========== */
+  .expandable {
+    margin-bottom: 0.75rem;
+  }
+
+  .expandable-toggle {
+    width: 100%;
+    text-align: left;
+    background: var(--white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    padding: 1rem 1.25rem;
+    cursor: pointer;
+    font-family: var(--font-sans);
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all var(--transition);
+  }
+
+  .expandable-toggle:hover {
+    background: var(--cream);
+  }
+
+  .expandable-toggle .chevron {
+    font-size: 0.75rem;
+    color: var(--text-light);
+    transition: transform var(--transition);
+  }
+
+  .expandable.open .expandable-toggle .chevron {
+    transform: rotate(180deg);
+  }
+
+  .expandable-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease;
+  }
+
+  .expandable.open .expandable-content {
+    max-height: 500px;
+  }
+
+  .expandable-body {
+    padding: 1rem 1.25rem;
+    font-size: 0.92rem;
+    color: var(--text-secondary);
+    line-height: 1.65;
+    border-left: 2px solid var(--gold);
+    margin-left: 1rem;
+    margin-top: 0.5rem;
+  }
+
+  /* ========== Questions List ========== */
+  .question-list {
+    list-style: none;
+    padding: 0;
+    counter-reset: question;
+  }
+
+  .question-item {
+    counter-increment: question;
+    padding: 1.5rem;
+    background: var(--white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    margin-bottom: 1rem;
+    transition: all var(--transition);
+  }
+
+  .question-item:hover {
+    box-shadow: var(--shadow-sm);
+  }
+
+  .question-item h4 {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    color: var(--navy-deep);
+    margin-bottom: 0.5rem;
+  }
+
+  .question-item h4::before {
+    content: counter(question) ".";
+    color: var(--gold-dark);
+    margin-right: 0.5rem;
+    font-weight: 700;
+  }
+
+  .question-item p {
+    font-size: 0.92rem;
+    color: var(--text-secondary);
+    line-height: 1.65;
+  }
+
+  /* ========== Territory List ========== */
+  .territory-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+
+  .territory-item {
+    padding: 1.25rem;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(201, 169, 98, 0.15);
+    border-radius: var(--radius-sm);
+  }
+
+  .territory-item h4 {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    color: var(--gold-light);
+    margin-bottom: 0.35rem;
+    font-size: 1rem;
+  }
+
+  .territory-item p {
+    font-size: 0.88rem;
+    color: rgba(255, 255, 255, 0.6);
+    line-height: 1.6;
+  }
+
+  /* ========== Resources ========== */
+  .resources-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.25rem;
+    margin-top: 2rem;
+  }
+
+  .resource-card {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    background: var(--white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    padding: 1.5rem;
+    text-decoration: none;
+    color: var(--text-primary);
+    transition: all var(--transition);
+  }
+
+  .resource-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+    color: var(--text-primary);
+  }
+
+  .resource-icon {
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, var(--navy-deep), var(--navy-mid));
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    color: var(--gold);
+  }
+
+  .resource-info h4 {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: 0.15rem;
+  }
+
+  .resource-info p {
+    font-size: 0.82rem;
+    color: var(--text-light);
+  }
+
+  /* ========== Footer ========== */
+  .footer {
+    background: var(--navy-deep);
+    color: rgba(255, 255, 255, 0.5);
+    padding: 2.5rem 2rem;
+    text-align: center;
+    font-size: 0.85rem;
+  }
+
+  .footer-brand {
+    font-family: var(--font-serif);
+    color: var(--gold);
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 0.35rem;
+  }
+
+  /* ========== Scroll Reveal ========== */
+  .reveal {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ========== Responsive ========== */
+  @media (max-width: 900px) {
+    .arch-grid, .tier-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .hero h1 { font-size: 2.25rem; }
+    h2 { font-size: 1.6rem; }
+
+    .nav-links { display: none; }
+
+    .flywheel-steps {
+      flex-direction: column;
+    }
+
+    .flywheel-arrow {
+      transform: rotate(90deg);
+    }
+  }
+
+  @media (max-width: 600px) {
+    .hero { padding: 6rem 1.25rem 3.5rem; }
+    .section, .move-section { padding: 3rem 1.25rem; }
+    .hero h1 { font-size: 1.85rem; }
+    .feature-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ========== Print / PDF ========== */
+  @media print {
+    .nav { display: none; }
+    .reveal { opacity: 1 !important; transform: none !important; }
+    .hero { padding-top: 3rem; }
+    .section, .move-section { padding: 2rem 0; }
+    .expandable-content { max-height: none !important; overflow: visible !important; }
+    .arch-card:hover, .feature-tile:hover, .tier-card:hover, .resource-card:hover {
+      box-shadow: none;
+      transform: none;
+    }
+    body { background: white; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ========== Navigation ========== -->
+<nav class="nav" id="nav">
+  <div class="nav-inner">
+    <div class="nav-brand">myK9Show</div>
+    <ul class="nav-links">
+      <li><a href="#overview">Overview</a></li>
+      <li><a href="#career-narrative">Career Narrative</a></li>
+      <li><a href="#show-design">Show Design</a></li>
+      <li><a href="#intelligence">Intelligence</a></li>
+      <li><a href="#flywheel">Flywheel</a></li>
+      <li><a href="#monetization">Monetization</a></li>
+      <li><a href="#boundaries">Boundaries</a></li>
+      <li><a href="#questions">Questions</a></li>
+      <li><a href="#resources">Resources</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- ========== Hero ========== -->
+<header class="hero" id="hero">
+  <div class="hero-inner">
+    <div class="hero-label">Product Vision</div>
+    <h1>myK9Show: The <span>Premium</span> Dog Show Experience</h1>
+    <p class="hero-thesis">"Dog showing is a career, not a transaction."</p>
+    <div class="hero-divider"></div>
+    <p class="hero-principle">myK9Show does the work you were going to do anyway, but better, faster, and with insights you couldn't generate yourself. The app knows what you're trying to accomplish and helps you get there.</p>
+  </div>
+</header>
+
+<!-- ========== Overview ========== -->
+<section class="section" id="overview">
+  <div class="section-inner">
+    <div class="section-label">The Architecture</div>
+    <h2>Three Moves, One Vision</h2>
+    <p class="section-lead">The session produced a three-layer architecture. These are not three features. They are three aspects of one integrated product, described through the metaphor the session itself developed: soul, spine, and moat.</p>
+
+    <div class="arch-grid">
+      <div class="arch-card reveal">
+        <div class="arch-icon">I</div>
+        <h3>The Career Narrative</h3>
+        <p class="arch-subtitle">The Soul</p>
+        <p>Why exhibitors open the app when there's no show to manage. Tracks each dog's show career as a continuous story &mdash; progress toward titles, results history, judge performance, and competitive standing.</p>
+      </div>
+      <div class="arch-card reveal">
+        <div class="arch-icon">II</div>
+        <h3>The Show Design Engine</h3>
+        <p class="arch-subtitle">The Spine</p>
+        <p>Why secretaries can't go back to spreadsheets. Treats show scheduling as the constraint-satisfaction problem it actually is, with real-time conflict detection and adaptive day-of management.</p>
+      </div>
+      <div class="arch-card reveal">
+        <div class="arch-icon">III</div>
+        <h3>The Intelligence Layer</h3>
+        <p class="arch-subtitle">The Moat</p>
+        <p>What competitors can't replicate by building either pillar alone. When career data and show design data share a platform, capabilities emerge that neither system could produce independently.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== Move 1: Career Narrative ========== -->
+<div class="move-section section-alt" id="career-narrative">
+  <div class="move-inner">
+    <div class="move-header reveal">
+      <div class="move-number">Move 1</div>
+      <h2>The Career Narrative</h2>
+      <p class="move-metaphor">The soul &mdash; why exhibitors open the app when there's no show to manage.</p>
+    </div>
+
+    <p class="move-desc reveal">myK9Show tracks each dog's show career as a continuous story &mdash; progress toward titles, results history, judge performance, and competitive standing. The app makes visible what exhibitors already track in their heads and notebooks, and adds strategic intelligence they couldn't generate themselves.</p>
+
+    <div class="feature-grid">
+      <div class="feature-tile reveal">
+        <h4>The Post-Show Moment</h4>
+        <p>After a show, exhibitors automatically receive a career update: "Rex earned 2 points today. He now has 13 of 15 toward his Championship." Value arrives uninvited. Each show becomes a distribution event &mdash; the primary acquisition mechanism.</p>
+      </div>
+      <div class="feature-tile reveal">
+        <h4>The Tuesday Screen</h4>
+        <p>Between shows, the app shows progress bars toward titles, strategic show recommendations, and judge history. This is the fitness tracker energy: you open it because you want to see the number. The habit loop that keeps people coming back.</p>
+      </div>
+      <div class="feature-tile reveal">
+        <h4>The Secretary Flywheel</h4>
+        <p>Exhibitor career data powers predictive entry intelligence for secretaries. "If 40 exhibitors within driving distance are 1&ndash;2 points from a major, you can predict entry counts with scary accuracy." Each side's engagement makes the other's experience better.</p>
+      </div>
+      <div class="feature-tile reveal">
+        <h4>Competitive Awareness</h4>
+        <p>Leaderboards and standings, not friend lists and feeds. The tournament bracket, not the social network. "#1 Golden Retriever in the region just entered the same show as you." The app makes the competition visible.</p>
+      </div>
+      <div class="feature-tile reveal">
+        <h4>The First Chapter</h4>
+        <p>For novices, the emotional hook is belonging, not progress. "Cooper: 1 show, 0 points. Chapter 1 of many." The career narrative begins with aspiration and contextual guidance &mdash; the mentor every newcomer wishes they had.</p>
+      </div>
+    </div>
+
+    <div class="infographic-container reveal">
+      <img src="images/INFOGRAPHIC_career-narrative.png" alt="The Career Narrative &mdash; showing the Post-Show Moment hook, Tuesday Screen habit loop, and Secretary Flywheel" />
+      <p class="infographic-caption">The Career Narrative: hook, habit, and flywheel working as one system</p>
+    </div>
+  </div>
+</div>
+
+<!-- ========== Move 2: Show Design Engine ========== -->
+<div class="move-section" id="show-design">
+  <div class="move-inner">
+    <div class="move-header reveal">
+      <div class="move-number">Move 2</div>
+      <h2>The Intelligent Show Design Engine</h2>
+      <p class="move-metaphor">The spine &mdash; why secretaries can't go back to spreadsheets.</p>
+    </div>
+
+    <p class="move-desc reveal">A typical all-breed show has 150&ndash;200+ breeds, 7 groups, 6&ndash;10 judges, 4&ndash;8 rings &mdash; with cascading constraints that secretaries currently manage by hand. The show design engine makes this complexity visible and solvable. It's Google Maps for dog shows: you don't plan a route and then check if it works; you see it updating as you adjust.</p>
+
+    <div class="feature-grid">
+      <div class="feature-tile reveal">
+        <h4>Conflict-Aware Design</h4>
+        <p>A real-time dashboard showing all conflicts &mdash; judge overlaps, exhibitor time gaps, ring collisions, venue constraints &mdash; that updates instantly as changes are made. Combined with what-if simulation: "What happens if Judge Smith cancels?" The secretary answers in seconds questions that currently take hours.</p>
+      </div>
+      <div class="feature-tile reveal">
+        <h4>Adaptive Show Day</h4>
+        <p>Show day never goes according to plan. The schedule is alive: when a breed finishes early or a judge runs late, the system adjusts downstream and pushes updates to exhibitors' phones. "Ring 3 is running 15 minutes ahead. Your breed has been moved up. Updated time: 2:15pm."</p>
+      </div>
+      <div class="feature-tile reveal">
+        <h4>Shared Visibility</h4>
+        <p>Show committees need transparency, not simultaneous editing. The show chair, superintendent, and chief ring steward all see the same live dashboard &mdash; current schedule, recent changes, active conflicts. One person builds; the committee sees. Nobody has to ask "where are we?"</p>
+      </div>
+    </div>
+
+    <div class="infographic-container reveal">
+      <img src="images/INFOGRAPHIC_show-design-engine.png" alt="The Show Design Engine &mdash; constraint-aware planning, adaptive execution, and shared visibility" />
+      <p class="infographic-caption">The Show Design Engine: from planning through execution to collaboration</p>
+    </div>
+  </div>
+</div>
+
+<!-- ========== Move 3: Emergent Intelligence ========== -->
+<div class="move-section section-alt" id="intelligence">
+  <div class="move-inner">
+    <div class="move-header reveal">
+      <div class="move-number">Move 3</div>
+      <h2>The Emergent Intelligence Layer</h2>
+      <p class="move-metaphor">The moat &mdash; what competitors can't replicate by building either pillar alone.</p>
+    </div>
+
+    <p class="move-desc reveal">When career data and show design data share a platform, capabilities emerge that neither system could produce independently. The app transitions from tracker and planner to <em>strategist</em>.</p>
+
+    <div class="feature-grid">
+      <div class="feature-tile reveal">
+        <h4>Smart Entry Recommendations</h4>
+        <p>Combines career state with show structural data: "The Riverside cluster has Judge Chen on Saturday. You've done well under Chen &mdash; 1st, 2nd. Saturday entries suggest a probable major. Enter Saturday for the major chance. Enter Sunday to build data on a new judge." This is the advice an experienced handler gives over coffee &mdash; available to everyone, all the time.</p>
+      </div>
+      <div class="feature-tile reveal">
+        <h4>Cross-Show Campaign Optimization</h4>
+        <p>"Springfield cluster &mdash; 4 shows over 2 days. Enter Shows 1 and 3 for best major probability. Skip Show 2. Enter Show 4 only if Show 1 doesn't produce your major." You're not managing individual shows &mdash; you're managing a campaign. The app makes cluster strategy data-driven.</p>
+      </div>
+    </div>
+
+    <div class="infographic-container reveal">
+      <img src="images/INFOGRAPHIC_emergent-intelligence.png" alt="The Emergent Intelligence Layer &mdash; smart recommendations and cross-show optimization" />
+      <p class="infographic-caption">The Intelligence Layer: where career data meets show data to produce strategic insight</p>
+    </div>
+  </div>
+</div>
+
+<!-- ========== Flywheel ========== -->
+<section class="section section-alt" id="flywheel">
+  <div class="section-inner">
+    <div class="section-label reveal">The System</div>
+    <h2 class="reveal">How They Fit Together</h2>
+    <p class="section-lead reveal">The three moves form a reinforcing system, not a feature list. One data model, three experiences. That's why this is a platform, not a collection of features.</p>
+
+    <div class="flywheel-diagram reveal">
+      <div class="flywheel-steps">
+        <span class="flywheel-step">Secretary runs show on myK9Show</span>
+        <span class="flywheel-arrow">&#8594;</span>
+        <span class="flywheel-step">Exhibitors receive career updates</span>
+        <span class="flywheel-arrow">&#8594;</span>
+        <span class="flywheel-step">Exhibitors start tracking careers</span>
+        <span class="flywheel-arrow">&#8594;</span>
+        <span class="flywheel-step">Exhibitors ask other secretaries to adopt</span>
+        <span class="flywheel-arrow">&#8594;</span>
+        <span class="flywheel-step">More data, smarter intelligence</span>
+        <span class="flywheel-arrow">&#8635;</span>
+      </div>
+      <p class="flywheel-note">The career narrative creates exhibitor engagement. That engagement produces data. That data flows into the show design engine, giving secretaries predictive intelligence. Better shows attract more exhibitors. The cycle accelerates.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ========== Monetization ========== -->
+<section class="section" id="monetization">
+  <div class="section-inner">
+    <div class="section-label reveal">Revenue Model</div>
+    <h2 class="reveal">Monetization Framework</h2>
+    <p class="section-lead reveal">The free tier is not a loss leader &mdash; it is the data acquisition layer. Free usage creates the network effects that premium users pay to leverage.</p>
+
+    <div class="tier-grid">
+      <div class="tier-card reveal">
+        <div class="tier-badge">Free</div>
+        <h3>The Hook &amp; Habit</h3>
+        <p class="tier-price">Free forever</p>
+        <p class="tier-tagline">Everything that creates data or drives the flywheel.</p>
+        <ul class="tier-features">
+          <li>Post-Show Moment notifications</li>
+          <li>Basic career page (show history, points, titles)</li>
+          <li>Basic show creation and entry management</li>
+          <li>Conflict detection dashboard for secretaries</li>
+        </ul>
+      </div>
+      <div class="tier-card featured reveal">
+        <div class="tier-badge">Premium</div>
+        <h3>The Intelligence</h3>
+        <p class="tier-price">~$9.99&ndash;14.99/month or ~$99&ndash;149/year</p>
+        <p class="tier-tagline">The free tier tells you where you are. Premium tells you where to go.</p>
+        <ul class="tier-features">
+          <li>Judge history and performance analysis</li>
+          <li>Strategic show recommendations</li>
+          <li>Smart Entry Recommendations</li>
+          <li>Cross-Show Campaign Optimization</li>
+          <li>Competitive awareness</li>
+          <li>Advanced career analytics</li>
+        </ul>
+      </div>
+      <div class="tier-card reveal">
+        <div class="tier-badge">Professional</div>
+        <h3>The Engine</h3>
+        <p class="tier-price">~$99&ndash;299 per show</p>
+        <p class="tier-tagline">Per-show pricing: lower trial barrier, every show is a revenue and distribution event.</p>
+        <ul class="tier-features">
+          <li>Full show design engine</li>
+          <li>What-if simulator</li>
+          <li>Adaptive Show Day management</li>
+          <li>Shared visibility dashboard</li>
+          <li>Predictive entry intelligence</li>
+          <li>Auto-generated post-show reports</li>
+          <li>Dynamic show marketing tools</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== Boundaries ========== -->
+<section class="section section-alt" id="boundaries">
+  <div class="section-inner">
+    <div class="section-label reveal">Scope</div>
+    <h2 class="reveal">What the Product Is Not</h2>
+    <p class="section-lead reveal">Deliberate boundaries that keep the vision focused.</p>
+
+    <div class="reveal">
+      <div class="expandable">
+        <button class="expandable-toggle" onclick="toggleExpand(this)">
+          Not a social network
+          <span class="chevron">&#9660;</span>
+        </button>
+        <div class="expandable-content">
+          <div class="expandable-body">Facebook groups already own the social layer of dog showing. myK9Show's social play is competitive awareness &mdash; leaderboards and standings, not friend lists and feeds. Making careers visible is the social strategy. People will do the socializing themselves.</div>
+        </div>
+      </div>
+
+      <div class="expandable">
+        <button class="expandable-toggle" onclick="toggleExpand(this)">
+          Not a tool for spectators (yet)
+          <span class="chevron">&#9660;</span>
+        </button>
+        <div class="expandable-content">
+          <div class="expandable-body">The spectator mode concept was explored and grounded as a strategic play for year 2&ndash;3, not a core differentiator. The novice exhibitor angle (the "first chapter") was extracted and kept; the broader spectator vision was deferred.</div>
+        </div>
+      </div>
+
+      <div class="expandable">
+        <button class="expandable-toggle" onclick="toggleExpand(this)">
+          Not a breeding program manager
+          <span class="chevron">&#9660;</span>
+        </button>
+        <div class="expandable-content">
+          <div class="expandable-body">Multi-generational tracking introduces breeders as a third audience before the exhibitor and secretary experiences are nailed. It's a natural future extension &mdash; "a 10-year relationship with the app" &mdash; but it's not the current product direction.</div>
+        </div>
+      </div>
+
+      <div class="expandable">
+        <button class="expandable-toggle" onclick="toggleExpand(this)">
+          Not a B2B data analytics platform (yet)
+          <span class="chevron">&#9660;</span>
+        </button>
+        <div class="expandable-content">
+          <div class="expandable-body">The Health of the Sport Dashboard was proposed and deferred. It requires massive platform adoption to produce statistically meaningful data. A compelling eventual extension, not a current product direction.</div>
+        </div>
+      </div>
+
+      <div class="expandable">
+        <button class="expandable-toggle" onclick="toggleExpand(this)">
+          Not a gamification platform
+          <span class="chevron">&#9660;</span>
+        </button>
+        <div class="expandable-content">
+          <div class="expandable-body">The career narrative tracks real progress toward real titles. The right metaphor is a fitness tracker &mdash; simple, addictive, you check the number &mdash; not a video game. Progress bars, not skill trees.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== Open Questions ========== -->
+<section class="section" id="questions">
+  <div class="section-inner">
+    <div class="section-label reveal">Unresolved</div>
+    <h2 class="reveal">Open Questions</h2>
+    <p class="section-lead reveal">Tensions the session identified but intentionally left unresolved.</p>
+
+    <ol class="question-list">
+      <li class="question-item reveal">
+        <h4>How does the Post-Show Moment reach non-users?</h4>
+        <p>Entry forms contain email addresses. But the first unsolicited contact needs to feel like a gift, not spam. The exact content, timing, and tone of this first touch determines whether the acquisition model works or creates backlash. This is a design problem with regulatory implications.</p>
+      </li>
+      <li class="question-item reveal">
+        <h4>What happens when career data is incomplete?</h4>
+        <p>If some shows use myK9Show and others don't, career pictures have gaps. The app needs to either import historical results from external sources or handle partial data gracefully. The gap between the promise and early reality is a critical UX challenge.</p>
+      </li>
+      <li class="question-item reveal">
+        <h4>How good does the constraint solver need to be at launch?</h4>
+        <p>If the engine produces schedules that experienced secretaries find obviously suboptimal, trust is damaged rather than built. The minimum viable intelligence level needs definition.</p>
+      </li>
+      <li class="question-item reveal">
+        <h4>What's the minimum platform density for the intelligence layer?</h4>
+        <p>Smart Entry Recommendations require data from multiple shows and many exhibitors. Below some threshold, recommendations will be unreliable. What's that threshold, and how does the app provide value during the growth phase?</p>
+      </li>
+      <li class="question-item reveal">
+        <h4>Where exactly is the monetization line?</h4>
+        <p>The conflict dashboard being free could cannibalize professional tier value. The line between "free conflict visibility" and "premium what-if simulation" needs precise definition. Per-show pricing tiers and subscription transition triggers need market testing.</p>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<!-- ========== What Wasn't Explored ========== -->
+<section class="section section-dark" id="unexplored">
+  <div class="section-inner">
+    <div class="section-label reveal">Future Territory</div>
+    <h2 class="reveal">What Wasn't Explored</h2>
+    <p class="section-lead reveal">Territory the session identified but didn't enter.</p>
+
+    <div class="territory-grid">
+      <div class="territory-item reveal">
+        <h4>The Handler/Agent Perspective</h4>
+        <p>Professional handlers manage multiple dogs for multiple owners. The career narrative maps naturally to "manage your roster" but handler-specific needs weren't explored.</p>
+      </div>
+      <div class="territory-item reveal">
+        <h4>Performance Events</h4>
+        <p>Obedience, agility, rally have different career structures, title paths, and competitive dynamics. The framework should extend but wasn't tested against them.</p>
+      </div>
+      <div class="territory-item reveal">
+        <h4>International Showing</h4>
+        <p>Different registries (AKC, KC, FCI) with different point systems and title structures. The career narrative assumes AKC-style progression. International extension is unscoped.</p>
+      </div>
+      <div class="territory-item reveal">
+        <h4>Integration with Incumbents</h4>
+        <p>InfoDog, ShowEdge, and other tools handle entry processing. How myK9Show coexists with or replaces existing infrastructure during transition was identified but not resolved.</p>
+      </div>
+      <div class="territory-item reveal">
+        <h4>The Data Acquisition Strategy</h4>
+        <p>How the platform bootstraps career data for exhibitors who join after years of showing. AKC data import, manual entry, third-party sources &mdash; this infrastructure question remains open.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== Resources ========== -->
+<section class="section" id="resources">
+  <div class="section-inner">
+    <div class="section-label reveal">Materials</div>
+    <h2 class="reveal">Session Resources</h2>
+
+    <div class="resources-grid reveal">
+      <a href="PRESENTATION_myk9show-premium-experience.pptx" class="resource-card" download>
+        <div class="resource-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+        </div>
+        <div class="resource-info">
+          <h4>Presentation Deck</h4>
+          <p>PowerPoint slide deck of the vision</p>
+        </div>
+      </a>
+      <a href="session/VISION_myk9show-premium-experience.md" class="resource-card">
+        <div class="resource-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+          </svg>
+        </div>
+        <div class="resource-info">
+          <h4>Vision Document</h4>
+          <p>Full vision in Markdown format</p>
+        </div>
+      </a>
+      <a href="session/briefs/" class="resource-card">
+        <div class="resource-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+          </svg>
+        </div>
+        <div class="resource-info">
+          <h4>Idea Briefs</h4>
+          <p>Detailed briefs for each of the three moves</p>
+        </div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ========== Footer ========== -->
+<footer class="footer">
+  <div class="footer-brand">myK9Show</div>
+  <p>Product vision from multi-agent ideation session &mdash; February 2026</p>
+</footer>
+
+<!-- ========== JavaScript ========== -->
+<script>
+(function() {
+  // ---- Expandable sections ----
+  window.toggleExpand = function(btn) {
+    var parent = btn.parentElement;
+    parent.classList.toggle('open');
+  };
+
+  // ---- Scroll reveal ----
+  var reveals = document.querySelectorAll('.reveal');
+
+  function checkReveal() {
+    var windowHeight = window.innerHeight;
+    for (var i = 0; i < reveals.length; i++) {
+      var el = reveals[i];
+      var top = el.getBoundingClientRect().top;
+      if (top < windowHeight - 60) {
+        el.classList.add('visible');
+      }
+    }
+  }
+
+  window.addEventListener('scroll', checkReveal);
+  window.addEventListener('resize', checkReveal);
+  // Initial check
+  checkReveal();
+
+  // ---- Active nav link ----
+  var navLinks = document.querySelectorAll('.nav-links a');
+  var sections = [];
+
+  navLinks.forEach(function(link) {
+    var id = link.getAttribute('href').replace('#', '');
+    var section = document.getElementById(id);
+    if (section) {
+      sections.push({ el: section, link: link });
+    }
+  });
+
+  function updateActiveNav() {
+    var scrollPos = window.scrollY + 100;
+    var active = null;
+
+    for (var i = 0; i < sections.length; i++) {
+      if (sections[i].el.offsetTop <= scrollPos) {
+        active = sections[i];
+      }
+    }
+
+    navLinks.forEach(function(link) {
+      link.classList.remove('active');
+    });
+
+    if (active) {
+      active.link.classList.add('active');
+    }
+  }
+
+  window.addEventListener('scroll', updateActiveNav);
+  updateActiveNav();
+})();
+</script>
+
+</body>
+</html>

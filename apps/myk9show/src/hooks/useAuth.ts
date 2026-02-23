@@ -126,6 +126,8 @@ export function useAuth() {
     if (error) {
       throw error;
     }
+    // Navigate to landing page after sign out
+    window.location.href = '/';
   }, []);
 
   /**

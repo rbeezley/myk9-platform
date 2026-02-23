@@ -5,7 +5,6 @@ import ShowDetailsMain from '@/components/shows/ShowDetailsMain';
 import { ShowGroupedSidebar } from '@/components/shows/ShowDetails/ShowGroupedSidebar';
 import { ShowEditPanel } from '@/components/panels/edit/ShowEditPanel';
 import DeleteShowDialog from '@/components/shows/ShowDetails/dialogs/DeleteShowDialog';
-import { ShowCreationWizard } from '@/components/shows/wizard/ShowCreationWizard';
 import AddTrialDialog from '@/components/trials/AddTrialDialog';
 import StandardDialog from '@/components/common/StandardDialog';
 import { TrialEditPanel } from '@/components/panels/edit/TrialEditPanel';
@@ -73,7 +72,6 @@ const ShowDetailsPage: React.FC = () => {
   // Panel state
   const [showEditPanel, setShowEditPanel] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [showWizardDialog, setShowWizardDialog] = useState(false);
   const [showAddTrialDialog, setShowAddTrialDialog] = useState(false);
   const [showDeleteTrialDialog, setShowDeleteTrialDialog] = useState(false);
   const [showEditTrialPanel, setShowEditTrialPanel] = useState(false);
@@ -95,8 +93,8 @@ const ShowDetailsPage: React.FC = () => {
   }, [navigate, closeMobile]);
 
   const handleOpenWizardDialog = useCallback(() => {
-    setShowWizardDialog(true);
-  }, []);
+    navigate('/secretary/create-show/wizard');
+  }, [navigate]);
 
   // Fallback: Find current show from database if scoped data doesn't have it
   const actualCurrentShow = React.useMemo(() => {
@@ -297,7 +295,7 @@ const ShowDetailsPage: React.FC = () => {
             </p>
             <div className="flex gap-3 justify-center">
               <button
-                onClick={() => setShowWizardDialog(true)}
+                onClick={() => navigate('/secretary/create-show/wizard')}
                 className={`${buildClasses.button.primary} px-4 py-2 rounded-lg transition-colors`}
               >
                 Create Your First Show
@@ -393,12 +391,6 @@ const ShowDetailsPage: React.FC = () => {
           showName={actualCurrentShow.name || 'Unknown Show'}
         />
       )}
-
-      {/* Show Creation Wizard */}
-      <ShowCreationWizard
-        open={showWizardDialog}
-        onOpenChange={setShowWizardDialog}
-      />
 
       {/* Registration Dialog */}
       <Dialog open={showRegistration} onOpenChange={setShowRegistration}>

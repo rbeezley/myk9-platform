@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo, Suspense } from 'react';
+import React, { useEffect, useMemo, Suspense } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Hero from '@/components/landing/Hero';
 import FeaturesSection from '@/components/landing/FeaturesSection';
 import FAQSection from '@/components/landing/FAQSection';
@@ -7,13 +8,6 @@ import features from '@/data/features';
 import upcomingShows from '@/data/upcomingShows';
 import faqs from '@/data/faqs';
 
-// Lazy load heavy components to improve initial page load
-const ShowCreationWizard = React.lazy(() => 
-  import('@/components/shows/wizard/ShowCreationWizard').then(module => ({
-    default: module.ShowCreationWizard
-  }))
-);
-
 const UpcomingShows = React.lazy(() => 
   import('@/components/shows').then(module => ({
     default: module.UpcomingShows
@@ -21,20 +15,15 @@ const UpcomingShows = React.lazy(() =>
 );
 
 const Home: React.FC = () => {
-  const [showWizardOpen, setShowWizardOpen] = useState(false);
+  const navigate = useNavigate();
 
-  // No automatic redirects on home page - let users choose where to go
-  
   // Handle wizard query parameter from command palette
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('wizard') === 'true') {
-      queueMicrotask(() => {
-        setShowWizardOpen(true);
-      });
-      // Don't clean up URL immediately - let the wizard open first
+      navigate('/secretary/create-show/wizard', { replace: true });
     }
-  }, []);
+  }, [navigate]);
   
   // Memoize expensive static data to prevent re-computation
   const memoizedFeatures = useMemo(() => features, []);
@@ -67,18 +56,6 @@ const Home: React.FC = () => {
 
       {/* FAQ Section */}
       <FAQSection faqs={memoizedFaqs} />
-
-      {/* Show Creation Wizard - Lazy loaded with magical loading */}
-      {showWizardOpen && (
-        <Suspense fallback={<DelightfulLoading variant="wizard" />}>
-          <ShowCreationWizard
-            open={showWizardOpen}
-            onOpenChange={setShowWizardOpen}
-          />
-        </Suspense>
-      )}
-      
-      
     </div>
   );
 };

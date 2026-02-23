@@ -1,6 +1,3 @@
-// Wizard Components
-export { ShowCreationWizard } from './ShowCreationWizard';
-
 // Wizard Steps
 export { default as ShowDetailsStep } from './steps/ShowDetailsStep';
 export { default as TrialConfigurationStep } from './steps/TrialConfigurationStep';

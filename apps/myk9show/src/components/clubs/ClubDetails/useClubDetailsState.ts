@@ -51,9 +51,6 @@ export function useClubDetailsState(selectedClub: Club | null) {
   const [showRegistrationDialog, setShowRegistrationDialog] = useState(false);
   const [selectedShowForRegistration, setSelectedShowForRegistration] = useState<string | null>(null);
 
-  // Show creation wizard state
-  const [showWizardDialog, setShowWizardDialog] = useState(false);
-
   // Delete club dialog state
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -263,10 +260,10 @@ export function useClubDetailsState(selectedClub: Club | null) {
     setSelectedShowForRegistration(null);
   }, []);
 
-  // Add Show handler
+  // Add Show handler — navigate to full-page wizard
   const handleAddShow = useCallback(() => {
-    setShowWizardDialog(true);
-  }, []);
+    navigate('/secretary/create-show/wizard');
+  }, [navigate]);
 
   // Add Member handler
   const handleAddMember = useCallback(() => {
@@ -312,8 +309,6 @@ export function useClubDetailsState(selectedClub: Club | null) {
     handleRegistrationComplete,
     handleRegistrationCancel,
     // Show wizard
-    showWizardDialog,
-    setShowWizardDialog,
     handleAddShow,
     // Members
     showAddMemberDialog,

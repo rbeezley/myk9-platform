@@ -10,7 +10,6 @@ import {
   Bell,
   Activity,
 } from 'lucide-react';
-import { ShowCreationWizard } from '@/components/shows/wizard';
 import { ShowCloneDialog } from '@/components/shows/cloning';
 import { SecretaryLayout } from '@/components/secretary/SecretaryLayout';
 
@@ -27,7 +26,6 @@ import {
 const SecretaryDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [selectedTab, setSelectedTab] = useState('active');
-  const [showWizard, setShowWizard] = useState(false);
   const [showCloneDialog, setShowCloneDialog] = useState(false);
   const [hasNewActivity] = useState(false);
 
@@ -46,7 +44,7 @@ const SecretaryDashboard: React.FC = () => {
   };
 
   const handleCreateShow = () => {
-    setShowWizard(true);
+    navigate('/secretary/create-show/wizard');
   };
 
   return (
@@ -150,9 +148,6 @@ const SecretaryDashboard: React.FC = () => {
 
         {/* Recent Activity */}
         <RecentActivitySection hasTrials={allTrials.length > 0} />
-
-        {/* Show Creation Wizard */}
-        <ShowCreationWizard open={showWizard} onOpenChange={setShowWizard} />
 
         {/* Show Clone Dialog */}
         <ShowCloneDialog open={showCloneDialog} onOpenChange={setShowCloneDialog} />

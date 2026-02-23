@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, startTransition, Suspense } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ShowCalendar } from '@/components/common/LazyComponents';
 import { CalendarSkeleton } from '@/components/common/CalendarSkeleton';
@@ -21,7 +21,6 @@ import {
   Clock,
   Copy
 } from 'lucide-react';
-import { ShowCreationWizard } from '@/components/shows/wizard';
 import { ShowCloneDialog } from '@/components/shows/cloning';
 import '@/styles/apple-show-details.css';
 import '@/styles/calendar-performance.css';
@@ -30,6 +29,7 @@ import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { PERMISSIONS } from '@/types/auth-types';
 
 export default function CalendarPage() {
+  const navigate = useNavigate();
   const { shows } = useShowStore();
   const { createEntry, updateStatus } = useEntryStore();
   const { dogs } = useDogStore();
@@ -38,7 +38,6 @@ export default function CalendarPage() {
   const [showRegistration, setShowRegistration] = useState(false);
   const [selectedShowId, setSelectedShowId] = useState<string | null>(null);
   const [showRegistrationHint, setShowRegistrationHint] = useState(false);
-  const [showWizard, setShowWizard] = useState(false);
   const [showCloneDialog, setShowCloneDialog] = useState(false);
   const [isCalendarLoading, setIsCalendarLoading] = useState(true);
 
@@ -157,7 +156,7 @@ export default function CalendarPage() {
             </PermissionGuard>
             
             <PermissionGuard permission={PERMISSIONS.SHOW_CREATE}>
-              <Button onClick={() => setShowWizard(true)} size="sm">
+              <Button onClick={() => navigate('/secretary/create-show/wizard')} size="sm">
                 <Plus className="h-4 w-4 mr-2" />
                 Create Show
               </Button>
@@ -335,12 +334,6 @@ export default function CalendarPage() {
             </RegistrationProvider>
           </DialogContent>
         </Dialog>
-
-        {/* Show Creation Wizard */}
-        <ShowCreationWizard
-          open={showWizard}
-          onOpenChange={setShowWizard}
-        />
 
         {/* Show Clone Dialog */}
         <ShowCloneDialog

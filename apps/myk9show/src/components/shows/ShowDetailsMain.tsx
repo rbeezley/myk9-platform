@@ -9,7 +9,6 @@ import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import Breadcrumb from '@/components/common/Breadcrumb';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
-import { ShowCreationWizard } from '@/components/shows/wizard';
 import { ShowCloneDialog } from '@/components/shows/cloning';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { PERMISSIONS } from '@/types/auth-types';
@@ -39,8 +38,6 @@ const ShowDetailsMain: React.FC<ShowDetailsMainProps> = ({
   useEnhancedView = true,
 }) => {
   const navigate = useNavigate();
-  const [showWizard, setShowWizard] = useState(false);
-  const [wizardEditMode, setWizardEditMode] = useState<{showId: string, mode: 'add-trials' | 'add-classes' | 'edit-show'} | undefined>();
   const [showCloneDialog, setShowCloneDialog] = useState(false);
   
   // Generate breadcrumb items
@@ -54,19 +51,11 @@ const ShowDetailsMain: React.FC<ShowDetailsMainProps> = ({
   };
 
   const handleAddTrialViaWizard = () => {
-    setWizardEditMode({
-      showId: showData.id,
-      mode: 'add-trials'
-    });
-    setShowWizard(true);
+    navigate(`/secretary/create-show/wizard?showId=${showData.id}&mode=add-trials`);
   };
 
   const handleAddClassesViaWizard = () => {
-    setWizardEditMode({
-      showId: showData.id,
-      mode: 'add-classes'
-    });
-    setShowWizard(true);
+    navigate(`/secretary/create-show/wizard?showId=${showData.id}&mode=add-classes`);
   };
   // Get real class and entry data from stores
   const { classes: allClasses, entries: allEntries } = useClassStoreCompat();
@@ -169,18 +158,6 @@ const ShowDetailsMain: React.FC<ShowDetailsMainProps> = ({
           }}
         />
         
-        {/* Show Creation Wizard */}
-        <ShowCreationWizard
-          open={showWizard}
-          onOpenChange={(open: boolean) => {
-            setShowWizard(open);
-            if (!open) {
-              setWizardEditMode(undefined);
-            }
-          }}
-          editMode={wizardEditMode}
-        />
-
         {/* Show Clone Dialog */}
         <ShowCloneDialog
           open={showCloneDialog}
@@ -516,18 +493,6 @@ const ShowDetailsMain: React.FC<ShowDetailsMainProps> = ({
           </div>
         )}
       </div>
-
-      {/* Show Creation Wizard */}
-      <ShowCreationWizard
-        open={showWizard}
-        onOpenChange={(open: boolean) => {
-          setShowWizard(open);
-          if (!open) {
-            setWizardEditMode(undefined);
-          }
-        }}
-        editMode={wizardEditMode}
-      />
 
       {/* Show Clone Dialog */}
       <ShowCloneDialog

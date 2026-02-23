@@ -2,14 +2,11 @@ import React from 'react';
 import { Club } from '@/types/club-types';
 import { ClubEditPanel } from '@/components/panels/edit/ClubEditPanel';
 import ClubPhotoDialog from '../ClubPhotoDialog';
-import { ShowCreationWizard } from '@/components/shows/wizard/ShowCreationWizard';
-import { PanelProvider, PanelStack } from '@/components/panels';
 import { RegistrationWorkflow } from '@/components/shows/RegistrationWorkflow/RegistrationWorkflow';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { RegistrationFormData } from '@/types/show-registration-types';
 import { DeleteConfirmationDialog } from '@/components/base/DeleteConfirmationDialog';
 import { AddMemberDialog } from '../members/AddMemberDialog';
-import { logger } from '@/services/LoggingService';
 
 interface ClubDialogsProps {
   club: Club;
@@ -34,9 +31,6 @@ interface ClubDialogsProps {
   selectedShowForRegistration: string | null;
   onRegistrationComplete: (data: RegistrationFormData) => void;
   onRegistrationCancel: () => void;
-  // Show creation wizard
-  showWizardDialog: boolean;
-  onWizardDialogChange: (open: boolean) => void;
   // Delete dialog
   showDeleteDialog: boolean;
   onDeleteDialogChange: (open: boolean) => void;
@@ -67,8 +61,6 @@ export const ClubDialogs: React.FC<ClubDialogsProps> = ({
   selectedShowForRegistration,
   onRegistrationComplete,
   onRegistrationCancel,
-  showWizardDialog,
-  onWizardDialogChange,
   showDeleteDialog,
   onDeleteDialogChange,
   onConfirmDelete,
@@ -115,29 +107,6 @@ export const ClubDialogs: React.FC<ClubDialogsProps> = ({
           )}
         </DialogContent>
       </Dialog>
-
-      {/* Show Creation Wizard */}
-      {showWizardDialog && (
-        <PanelProvider
-          onEntityCreated={(entity, context) => {
-            logger.info('Entity created from club page', 'clubs', { entityName: entity.name || entity.id, entityType: context.entityType });
-
-            // Handle automatic selection of newly created entities
-            if (context.selectionCallback) {
-              context.selectionCallback(entity);
-            }
-          }}
-          onPanelResult={(panelId, result) => {
-            logger.debug('Panel result from club page', 'clubs', { panelId, action: result.action, success: result.success });
-          }}
-        >
-          <ShowCreationWizard
-            open={showWizardDialog}
-            onOpenChange={onWizardDialogChange}
-          />
-          <PanelStack maxPanels={3} />
-        </PanelProvider>
-      )}
 
       {/* Delete Club Confirmation Dialog */}
       <DeleteConfirmationDialog

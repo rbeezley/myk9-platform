@@ -69,15 +69,6 @@ export const OfflineDataManager = lazy(() =>
   import('@/components/offline/OfflineDataManager').then(m => ({ default: m.OfflineDataManager }))
 );
 
-// Wizard Components - Placeholder for future development
-export const ShowCreationWizard = lazy(async () => {
-  const { createElement } = await import('react');
-  return {
-    default: () =>
-      createElement('div', { className: 'p-6 text-center' }, 'Show Creation Wizard Coming Soon'),
-  };
-});
-
 // Chart Components (recharts dependency - heavy)
 export const TrendChart = lazy(
   () => import('@/components/shows/ShowDetails/ShowStatistics/TrendChart')

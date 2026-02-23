@@ -24,12 +24,11 @@ export class ShowTestHelper extends TestSetup {
   }
 
   /**
-   * Navigate to show creation wizard
+   * Navigate to show creation wizard (full-page)
    */
   async goToShowCreationWizard() {
-    await this.goToShowManagement();
-    await this.page.click('[data-testid="create-new-show-button"]');
-    await this.page.waitForSelector('[data-testid="wizard-dialog"]', { state: 'visible' });
+    await this.page.goto('/secretary/create-show/wizard');
+    await this.page.waitForLoadState('networkidle');
   }
 
   /**

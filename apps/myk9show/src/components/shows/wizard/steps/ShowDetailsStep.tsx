@@ -6,7 +6,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { Button } from '@/components/ui/button';
-import { Plus, Search, HelpCircle } from 'lucide-react';
+import { Plus, Search, HelpCircle, X, GraduationCap } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { isAfter, subDays } from 'date-fns';
 import {
   Tooltip,
@@ -34,7 +35,7 @@ const SHOW_TYPES = [
 
 export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) => {
   logger.debug('ShowDetailsStep component loaded', 'wizard');
-  const { show, updateShowData, markStepCompleted } = useWizardStore();
+  const { show, updateShowData, markStepCompleted, addJudgeToShow, removeJudgeFromShow, judgeDetails } = useWizardStore();
   const { clubs, loadClubs } = useClubStore();
   const { people, loadPeople } = useUserStore();
   const panelManager = usePanelManager();
@@ -42,6 +43,8 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
   // Search states
   const [clubSearchTerm, setClubSearchTerm] = useState('');
   const [showClubSearch, setShowClubSearch] = useState(false);
+  const [judgeSearchTerm, setJudgeSearchTerm] = useState('');
+  const [showJudgeSearch, setShowJudgeSearch] = useState(false);
 
   // Filter clubs based on search term
   const filteredClubs = React.useMemo(() => {
@@ -66,6 +69,37 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
       return nameA.localeCompare(nameB);
     });
   }, [people]);
+
+  // Filter people with judge role, excluding already-selected judges
+  const availableJudges = React.useMemo(() => {
+    return people.filter(person =>
+      person.roles?.includes('judge') &&
+      !show.judgeIds.includes(person.id)
+    ).filter(judge => {
+      if (!judgeSearchTerm.trim()) return true;
+      const term = judgeSearchTerm.toLowerCase();
+      const fullName = `${judge.firstName} ${judge.lastName}`.toLowerCase();
+      const judgeNumber = judge.judgeInfo?.judgeNumber?.toLowerCase() || '';
+      return fullName.includes(term) || judgeNumber.includes(term);
+    }).sort((a, b) => {
+      const nameA = `${a.firstName} ${a.lastName}`.toLowerCase();
+      const nameB = `${b.firstName} ${b.lastName}`.toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+  }, [people, show.judgeIds, judgeSearchTerm]);
+
+  // Resolve selected judge IDs to people records
+  const selectedJudges = React.useMemo(() => {
+    return show.judgeIds.map(id => {
+      const person = people.find(p => p.id === id);
+      const details = judgeDetails[id];
+      return {
+        id,
+        name: person ? `${person.firstName} ${person.lastName}` : details?.name || 'Unknown Judge',
+        judgeNumber: person?.judgeInfo?.judgeNumber || '',
+      };
+    });
+  }, [show.judgeIds, people, judgeDetails]);
 
   // Handlers for opening creation panels
   const handleCreateClub = () => {
@@ -131,6 +165,40 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         }
       }
     });
+  };
+
+  const handleCreateJudge = () => {
+    panelManager.openPanel({
+      type: 'judge',
+      title: 'Create New Judge',
+      subtitle: 'Add a new qualified judge to the system',
+      context: {
+        entityType: 'judge',
+        mode: 'create',
+        selectionCallback: (entity: Record<string, unknown>) => {
+          const judge = entity as { id: string; firstName: string; lastName: string; email?: string; phone?: string };
+          const judgeName = `${judge.firstName} ${judge.lastName}`;
+          addJudgeToShow(judge.id, {
+            name: judgeName,
+            email: judge.email || '',
+            phone: judge.phone || '',
+          });
+          loadPeople();
+          logger.debug('Judge created and added to show', 'wizard', { judgeName });
+        },
+      },
+      size: 'lg',
+    });
+  };
+
+  const handleAddJudge = (person: typeof people[number]) => {
+    addJudgeToShow(person.id, {
+      name: `${person.firstName} ${person.lastName}`,
+      email: person.email || '',
+      phone: person.phone || '',
+    });
+    setShowJudgeSearch(false);
+    setJudgeSearchTerm('');
   };
 
   // Auto-complete step when valid
@@ -389,6 +457,101 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                   </Button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Show Judges */}
+        <div className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-lg hover:-translate-y-0.5">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <div className="relative">
+            <h3 className="text-lg font-semibold mb-4 pl-3 border-l-2 border-primary text-primary transition-colors duration-300">
+              <span className="flex items-center gap-2">
+                <GraduationCap className="h-5 w-5" />
+                Show Judges
+              </span>
+            </h3>
+            <div className="space-y-4">
+              {/* Selected Judges */}
+              {selectedJudges.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {selectedJudges.map((judge) => (
+                    <Badge key={judge.id} variant="secondary" className="flex items-center gap-1.5 py-1.5 px-3 text-sm">
+                      <span>{judge.name}</span>
+                      {judge.judgeNumber && (
+                        <span className="text-muted-foreground">#{judge.judgeNumber}</span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removeJudgeFromShow(judge.id)}
+                        className="ml-1 hover:text-destructive transition-colors"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+
+              {/* Judge Search Popover */}
+              <Popover open={showJudgeSearch} onOpenChange={setShowJudgeSearch}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start">
+                    {selectedJudges.length > 0
+                      ? `${selectedJudges.length} judge${selectedJudges.length !== 1 ? 's' : ''} selected — add more`
+                      : 'Search and add judges'
+                    }
+                    <Search className="ml-auto h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-0" align="start">
+                  <div className="p-3 border-b">
+                    <Input
+                      placeholder="Search by name or judge number..."
+                      value={judgeSearchTerm}
+                      onChange={(e) => setJudgeSearchTerm(e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                  <div className="max-h-60 overflow-auto">
+                    {availableJudges.map((judge) => (
+                      <div
+                        key={judge.id}
+                        className="p-3 hover:bg-muted cursor-pointer border-b last:border-b-0"
+                        onClick={() => handleAddJudge(judge)}
+                      >
+                        <div className="font-medium">{judge.firstName} {judge.lastName}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {judge.judgeInfo?.judgeNumber ? `#${judge.judgeInfo.judgeNumber}` : 'No judge number'}
+                        </div>
+                      </div>
+                    ))}
+                    {availableJudges.length === 0 && (
+                      <div className="p-3 text-sm text-muted-foreground text-center">
+                        {people.some(p => p.roles?.includes('judge'))
+                          ? 'No more judges available'
+                          : 'No judges found in the system'
+                        }
+                      </div>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              {/* Create New Judge */}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCreateJudge}
+                className="w-full border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300 shadow-sm"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Create New Judge
+              </Button>
+
+              <p className="text-xs text-muted-foreground">
+                Judges added here will be available for class assignment in the next steps.
+              </p>
             </div>
           </div>
         </div>

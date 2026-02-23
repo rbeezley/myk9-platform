@@ -221,9 +221,9 @@ const ShowDetailsMain: React.FC<ShowDetailsMainProps> = ({
                   Edit Show
                 </DropdownMenuItem>
                 <PermissionGuard permission={PERMISSIONS.SHOW_CREATE}>
-                  <DropdownMenuItem onClick={() => setShowWizard(true)}>
+                  <DropdownMenuItem onClick={() => navigate('/secretary/create-show/wizard')}>
                     <Wand2 className="mr-2 h-4 w-4" />
-                    Show Creation Wizard (Demo)
+                    Show Creation Wizard
                   </DropdownMenuItem>
                 </PermissionGuard>
                 <PermissionGuard permission={PERMISSIONS.SHOW_CREATE}>

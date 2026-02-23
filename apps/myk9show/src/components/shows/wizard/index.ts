@@ -2,7 +2,6 @@
 export { default as ShowDetailsStep } from './steps/ShowDetailsStep';
 export { default as TrialConfigurationStep } from './steps/TrialConfigurationStep';
 export { default as ClassSelectionStep } from './steps/ClassSelectionStep';
-export { default as JudgeAssignmentStep } from './steps/JudgeAssignmentStep';
 export { default as ReviewStep } from './steps/ReviewStep';
 
 // Wizard Components

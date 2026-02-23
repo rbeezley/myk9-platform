@@ -120,28 +120,13 @@ export default function Hero() {
               </div>
             </div>
             
-            {/* CTA Buttons with enhanced delights */}
+            {/* CTA Button */}
             <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-              <Button 
+              <Button
                 asChild
-                className="bg-gradient-to-r from-primary to-secondary text-primary-foreground 
-                         hover:shadow-xl hover:-translate-y-1 hover:scale-[1.02] 
-                         transition-all duration-300 shadow-sm relative overflow-hidden group"
-              >
-                <a href="/signup" className="relative z-10">
-                  <span className="flex items-center gap-2">
-                    Get Started
-                    <span className="group-hover:animate-bounce">🚀</span>
-                  </span>
-                  {/* Subtle shimmer effect */}
-                  <div className="absolute inset-0 -skew-x-12 bg-gradient-to-r from-transparent via-white/20 to-transparent transform translate-x-full group-hover:translate-x-[-200%] transition-transform duration-1000" />
-                </a>
-              </Button>
-              <Button 
-                variant="outline" 
-                asChild
-                className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 
+                className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40
                          hover:-translate-y-0.5 transition-all duration-300 shadow-sm rounded-full group relative overflow-hidden"
+                variant="outline"
               >
                 <a href="/pricing-page" className="relative z-10">
                   <span className="flex items-center gap-2">

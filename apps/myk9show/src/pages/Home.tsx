@@ -1,12 +1,11 @@
-import React, { useEffect, useMemo, Suspense } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useMemo, Suspense } from 'react';
 import Hero from '@/components/landing/Hero';
 import FeaturesSection from '@/components/landing/FeaturesSection';
 import FAQSection from '@/components/landing/FAQSection';
 import DelightfulLoading from '@/components/ui/DelightfulLoading';
 import features from '@/data/features';
-import upcomingShows from '@/data/upcomingShows';
 import faqs from '@/data/faqs';
+import { useUpcomingShowsQuery } from '@/hooks/queries/useShowsDatabase';
 
 const UpcomingShows = React.lazy(() => 
   import('@/components/shows').then(module => ({
@@ -15,20 +14,25 @@ const UpcomingShows = React.lazy(() =>
 );
 
 const Home: React.FC = () => {
-  const navigate = useNavigate();
-
-  // Handle wizard query parameter from command palette
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('wizard') === 'true') {
-      navigate('/secretary/create-show/wizard', { replace: true });
-    }
-  }, [navigate]);
-  
-  // Memoize expensive static data to prevent re-computation
   const memoizedFeatures = useMemo(() => features, []);
-  const memoizedUpcomingShows = useMemo(() => upcomingShows, []);
   const memoizedFaqs = useMemo(() => faqs, []);
+
+  const { data: dbShows, isLoading: showsLoading } = useUpcomingShowsQuery(5);
+
+  const mappedShows = useMemo(() =>
+    (dbShows || []).map(show => ({
+      id: show.id,
+      title: show.name,
+      date: show.startDate && show.endDate
+        ? `${new Date(show.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${new Date(show.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+        : show.startDate
+          ? new Date(show.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+          : 'TBD',
+      location: show.location || 'Location TBD',
+      imageUrl: '',
+    })),
+    [dbShows]
+  );
   
 
   // Show the same beautiful landing page for everyone
@@ -45,10 +49,12 @@ const Home: React.FC = () => {
           <Suspense fallback={
             <DelightfulLoading variant="carousel" />
           }>
-            <UpcomingShows 
-              shows={memoizedUpcomingShows} 
+            <UpcomingShows
+              shows={mappedShows}
               variant="carousel"
               className="mt-8"
+              isLoading={showsLoading}
+              isEmpty={!showsLoading && mappedShows.length === 0}
             />
           </Suspense>
         </div>

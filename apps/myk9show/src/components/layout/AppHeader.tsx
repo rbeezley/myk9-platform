@@ -111,6 +111,7 @@ const AppHeader: React.FC = () => {
                   size="sm"
                   onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                   className="md:hidden p-2"
+                  aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
                 >
                   {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
                 </Button>
@@ -121,6 +122,7 @@ const AppHeader: React.FC = () => {
                   size="sm"
                   onClick={() => setCommandPaletteOpen(true)}
                   className="lg:hidden p-2"
+                  aria-label="Search"
                 >
                   <Search className="h-4 w-4" />
                 </Button>
@@ -132,6 +134,7 @@ const AppHeader: React.FC = () => {
                     size="sm"
                     onClick={() => navigate('/cart')}
                     className="p-2 relative"
+                    aria-label="Shopping cart"
                   >
                     <ShoppingCart className="h-4 w-4" />
                     <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-primary text-primary-foreground text-[10px] font-medium flex items-center justify-center">
@@ -149,6 +152,7 @@ const AppHeader: React.FC = () => {
                   size="sm"
                   onClick={toggleTheme}
                   className="p-2 rounded-lg"
+                  aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
                 >
                   {theme === 'dark' ? (
                     <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" className="w-4 h-4">
@@ -174,7 +178,7 @@ const AppHeader: React.FC = () => {
                 {/* Profile Dropdown */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className={`${buildClasses.button.ghost} flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-muted/50`}>
+                    <Button variant="ghost" className={`${buildClasses.button.ghost} flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-muted/50`} aria-label="Account menu">
                       <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">
                         {user.email?.charAt(0).toUpperCase() || 'U'}
                       </div>

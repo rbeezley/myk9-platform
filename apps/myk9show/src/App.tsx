@@ -1,5 +1,5 @@
 import React, { Suspense } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { optimizeQueryCache, setupQueryPerformanceMonitoring, prefetchCriticalData } from '@/utils/performanceOptimizations';
@@ -28,6 +28,7 @@ import { NetworkStatusProvider } from './components/common/NetworkStatusProvider
 
 // Context
 import { AuthProvider } from './context/AuthContext';
+import { useAuthContext } from '@/hooks/useAuthContext';
 import { AudioSettingsProvider } from './contexts/AudioSettingsContext';
 import { FormErrorProvider } from './providers/FormErrorProvider';
 import { StoreProvider } from './providers/StoreProvider';
@@ -79,6 +80,20 @@ const PageLoadingFallback = () => (
     <p className="text-sm text-muted-foreground">Loading page...</p>
   </div>
 );
+
+// Redirect authenticated users to /shows, show landing page for guests
+const HomeRedirect = () => {
+  const { user, loading } = useAuthContext();
+  if (loading) return <PageLoadingFallback />;
+  if (user) {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('wizard') === 'true') {
+      return <Navigate to="/secretary/create-show/wizard" replace />;
+    }
+    return <Navigate to="/shows" replace />;
+  }
+  return <Home />;
+};
 
 // Error fallback component
 const ErrorFallback = ({
@@ -212,7 +227,7 @@ function App() {
                         <AppHeader />
                         <Routes>
                           {/* Public routes */}
-                          <Route path="/" element={<PageTransition><Home /></PageTransition>} />
+                          <Route path="/" element={<PageTransition><HomeRedirect /></PageTransition>} />
                           <Route path="/pricing-page" element={
                             <PageTransition>
                               <Suspense fallback={<PageLoadingFallback />}>

@@ -5,6 +5,7 @@
 
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { logger } from '@/services/LoggingService';
 import { useWizardStore } from '@/store/wizardStore';
@@ -13,6 +14,7 @@ import { useClubStore } from '@/store/clubStore';
 import { useTrialStore, type TrialInput } from '@/store/trialStore';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
 import type { Show } from '@/types/show-types';
 import type { EditMode, ShowStatus } from './show-creation-wizard-types';
 import {
@@ -31,6 +33,7 @@ export function useShowCreationWizardActions({
   setIsLoading,
 }: UseShowCreationWizardActionsOptions) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const { show, trials, judgeDetails, saveProgress, resetWizard } = useWizardStore();
   const { addShow, updateShow } = useShowStore();
@@ -150,6 +153,15 @@ export function useShowCreationWizardActions({
       // Create classes using the real trial UUIDs
       createClasses(realShowId, trialIdMap);
 
+      // Seed React Query cache so ShowDetailsPage finds the show immediately
+      // (addShow writes to IndexedDB/Zustand but the detail page reads from React Query)
+      queryClient.setQueryData<Show>(showQueryKeys.detail(realShowId), savedShow);
+      queryClient.setQueryData<Show[]>(showQueryKeys.lists(), (old) => {
+        if (!old) return [savedShow];
+        const exists = old.some(s => s.id === realShowId);
+        return exists ? old.map(s => s.id === realShowId ? savedShow : s) : [savedShow, ...old];
+      });
+
       // Save progress to wizard store if draft
       if (status === 'draft') {
         saveProgress();
@@ -183,6 +195,7 @@ export function useShowCreationWizardActions({
     saveProgress,
     resetWizard,
     navigate,
+    queryClient,
     setIsLoading,
   ]);
 

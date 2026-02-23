@@ -1,0 +1,239 @@
+/**
+ * Touch Target Optimization
+ *
+ * Ensures all interactive elements meet WCAG 2.1 AA standards:
+ * - Minimum 44x44px touch targets
+ * - Adequate spacing between targets
+ * - Visual feedback on interaction
+ *
+ * Apple HIG: 44x44pt minimum
+ * Material Design: 48x48dp minimum
+ * This file uses 44px as the baseline for cross-platform compatibility.
+ */
+
+:root {
+  --touch-target-min: 44px;
+  --touch-target-comfortable: 48px;
+  --touch-target-large: 56px;
+  --touch-target-xl: 64px;
+
+  --touch-spacing-min: var(--space-md);
+  --touch-spacing-comfortable: var(--space-lg);
+  --touch-spacing-generous: var(--space-xl);
+
+  --hit-area-expand: var(--space-md);
+}
+
+/* Base touch target */
+.touch-target {
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
+  padding: var(--space-lg) var(--space-xl);
+  position: relative;
+}
+
+.touch-target-comfortable {
+  min-width: var(--touch-target-comfortable);
+  min-height: var(--touch-target-comfortable);
+  padding: 14px var(--space-2xl);
+}
+
+.touch-target-large {
+  min-width: var(--touch-target-large);
+  min-height: var(--touch-target-large);
+  padding: var(--space-xl) var(--space-3xl);
+}
+
+/* Expand hit area for small visual elements */
+.touch-target-expand::before {
+  content: '';
+  position: absolute;
+  top: calc(var(--hit-area-expand) * -1);
+  right: calc(var(--hit-area-expand) * -1);
+  bottom: calc(var(--hit-area-expand) * -1);
+  left: calc(var(--hit-area-expand) * -1);
+  z-index: -1;
+}
+
+/* Icon-only buttons */
+.touch-target-icon {
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
+  padding: var(--space-lg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.touch-target-icon-comfortable {
+  min-width: var(--touch-target-comfortable);
+  min-height: var(--touch-target-comfortable);
+  padding: var(--space-lg);
+}
+
+/* Spacing between touch targets */
+.touch-group > * + * {
+  margin-top: var(--touch-spacing-min);
+}
+
+.touch-group-horizontal > * + * {
+  margin-left: var(--touch-spacing-min);
+}
+
+.touch-group-comfortable > * + * {
+  margin-top: var(--touch-spacing-comfortable);
+}
+
+.touch-group-horizontal-comfortable > * + * {
+  margin-left: var(--touch-spacing-comfortable);
+}
+
+/* Checkbox & radio touch targets */
+.touch-checkbox,
+.touch-radio {
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-lg);
+  cursor: pointer;
+  padding: var(--space-lg);
+  border-radius: var(--space-md);
+  transition: background 0.2s;
+}
+
+.touch-checkbox:hover,
+.touch-radio:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.touch-checkbox input,
+.touch-radio input {
+  width: var(--space-2xl);
+  height: var(--space-2xl);
+  cursor: pointer;
+}
+
+/* Link touch targets */
+.touch-link {
+  padding: var(--space-md) var(--space-sm);
+  min-height: var(--touch-target-min);
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Swipeable items */
+.touch-swipeable {
+  min-height: var(--touch-target-large);
+  padding: var(--space-lg) var(--space-xl);
+  cursor: grab;
+  user-select: none;
+  touch-action: pan-y;
+}
+
+.touch-swipeable:active {
+  cursor: grabbing;
+}
+
+/* Bottom sheet triggers */
+.touch-bottom-sheet-trigger {
+  min-height: var(--touch-target-large);
+  padding: 14px var(--space-xl);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-lg);
+  border-radius: var(--space-lg);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.touch-bottom-sheet-trigger:active {
+  transform: scale(0.98);
+}
+
+/* Focus indicators for keyboard navigation */
+.touch-target:focus-visible,
+.touch-link:focus-visible,
+.touch-checkbox:focus-visible,
+.touch-radio:focus-visible {
+  outline: 2px solid var(--ring, #007AFF);
+  outline-offset: 2px;
+}
+
+/* Disabled state */
+.touch-target:disabled,
+.touch-target[aria-disabled="true"] {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Mobile-specific: larger touch targets */
+.touch-target-mobile-large {
+  min-width: var(--touch-target-large);
+  min-height: var(--touch-target-large);
+  padding: var(--space-xl) var(--space-3xl);
+}
+
+.touch-group-mobile > * + * {
+  margin-top: var(--touch-spacing-comfortable);
+}
+
+.touch-target-mobile-full {
+  width: 100%;
+  min-height: var(--touch-target-large);
+}
+
+/* Desktop: standard touch targets */
+@media (min-width: 640px) {
+  .touch-target-mobile-large {
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
+    padding: var(--space-lg) var(--space-xl);
+  }
+
+  .touch-group-mobile > * + * {
+    margin-top: var(--touch-spacing-min);
+  }
+
+  .touch-target-mobile-full {
+    width: auto;
+    min-height: var(--touch-target-min);
+  }
+}
+
+/* Active/pressed visual feedback */
+.touch-target:active,
+.touch-link:active,
+.touch-checkbox:active,
+.touch-radio:active {
+  transform: scale(0.98);
+  opacity: 0.8;
+}
+
+/* High contrast support */
+@media (prefers-contrast: high) {
+  .touch-target:focus-visible,
+  .touch-link:focus-visible {
+    outline-width: 3px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .touch-target,
+  .touch-link,
+  .touch-checkbox,
+  .touch-radio {
+    transition: none;
+  }
+
+  .touch-target:active,
+  .touch-link:active,
+  .touch-checkbox:active,
+  .touch-radio:active {
+    transform: none;
+  }
+}

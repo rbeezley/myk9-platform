@@ -5,6 +5,12 @@
  * These values come from the design-tokens.json specification.
  */
 
+/* Accessibility utilities */
+@import './accessibility/high-contrast.css';
+@import './accessibility/touch-targets.css';
+@import './accessibility/reduce-motion.css';
+@import './accessibility/one-handed-mode.css';
+
 :root {
   /* Base radius */
   --radius: 0.75rem;
@@ -47,6 +53,30 @@
   --chart-4: #d97706;
   --chart-5: #dc2626;
 
+  /* Spacing scale */
+  --space-xs: 0.125rem;
+  --space-sm: 0.25rem;
+  --space-md: 0.5rem;
+  --space-lg: 0.75rem;
+  --space-xl: 1rem;
+  --space-2xl: 1.25rem;
+  --space-3xl: 1.5rem;
+  --space-4xl: 2rem;
+
+  /* Surface colors */
+  --surface: #f1f5f9;
+  --surface-subtle: #f3f4f6;
+  --surface-elevated: #ffffff;
+
+  /* Touch target tokens */
+  --touch-target-min: 44px;
+  --touch-target-comfortable: 48px;
+
+  /* Brand colors */
+  --brand-blue: #007AFF;
+  --brand-purple: #5856D6;
+  --brand-gradient: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
+
   /* Status colors */
   --status-pending-bg: rgba(255, 149, 0, 0.1);
   --status-pending-color: #FF9500;
@@ -69,10 +99,26 @@
   --status-at-gate: #FF9500;
   --status-in-ring: #007AFF;
   --status-scored: #5856D6;
+
+  /* Class workflow status colors */
+  --status-setup: #b45309;
+  --status-briefing: #ff6b00;
+  --status-break: #c000ff;
+  --status-in-progress: #0066ff;
+  --status-completed: #00cc66;
+
+  /* Result colors */
+  --status-qualified: #14b8a6;
+  --status-not-qualified: #ef4444;
+  --status-excused: #fef3c7;
 }
 
 /* Dark theme */
 .dark {
+  --surface: #2a2a2a;
+  --surface-subtle: #262626;
+  --surface-elevated: #2c3e50;
+
   --background: #1a1d23;
   --background-alt: #22262e;
   --foreground: #f8fafc;
@@ -112,7 +158,7 @@
 body {
   background-color: var(--background);
   color: var(--foreground);
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
 }
 
 /* Focus ring utility */

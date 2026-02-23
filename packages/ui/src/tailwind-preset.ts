@@ -62,6 +62,17 @@ export const myk9Preset: Partial<Config> = {
           DEFAULT: '#FF3B30',
           light: '#FF375F',
         },
+        // Surface colors
+        surface: {
+          DEFAULT: 'var(--surface)',
+          subtle: 'var(--surface-subtle)',
+          elevated: 'var(--surface-elevated)',
+        },
+        // Brand colors
+        brand: {
+          blue: 'var(--brand-blue)',
+          purple: 'var(--brand-purple)',
+        },
         // Status colors (for class status, etc.)
         status: {
           pending: '#FF9500',
@@ -72,6 +83,16 @@ export const myk9Preset: Partial<Config> = {
           'at-gate': '#FF9500',
           'in-ring': '#007AFF',
           scored: '#5856D6',
+          // Class workflow statuses
+          setup: 'var(--status-setup)',
+          briefing: 'var(--status-briefing)',
+          break: 'var(--status-break)',
+          'in-progress': 'var(--status-in-progress)',
+          completed: 'var(--status-completed)',
+          // Result statuses
+          qualified: 'var(--status-qualified)',
+          'not-qualified': 'var(--status-not-qualified)',
+          excused: 'var(--status-excused)',
         },
         // Chart colors
         chart: {
@@ -81,6 +102,29 @@ export const myk9Preset: Partial<Config> = {
           4: 'var(--chart-4)',
           5: 'var(--chart-5)',
         },
+      },
+
+      // Spacing scale (mapped from CSS variables)
+      spacing: {
+        'space-xs': 'var(--space-xs)',
+        'space-sm': 'var(--space-sm)',
+        'space-md': 'var(--space-md)',
+        'space-lg': 'var(--space-lg)',
+        'space-xl': 'var(--space-xl)',
+        'space-2xl': 'var(--space-2xl)',
+        'space-3xl': 'var(--space-3xl)',
+        'space-4xl': 'var(--space-4xl)',
+      },
+
+      // Font size scale
+      fontSize: {
+        'token-xs': '0.625rem',
+        'token-sm': '0.75rem',
+        'token-md': '0.875rem',
+        'token-lg': '1rem',
+        'token-xl': '1.125rem',
+        'token-2xl': '1.25rem',
+        'token-3xl': '1.5rem',
       },
 
       // Border radius
@@ -94,12 +138,18 @@ export const myk9Preset: Partial<Config> = {
       // Typography
       fontFamily: {
         sans: [
+          'Montserrat',
           '-apple-system',
           'BlinkMacSystemFont',
           '"SF Pro Display"',
           '"SF Pro Text"',
           'system-ui',
           'sans-serif',
+        ],
+        display: [
+          '"Playfair Display"',
+          'Georgia',
+          'serif',
         ],
       },
 

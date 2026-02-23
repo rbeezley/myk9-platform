@@ -1,0 +1,273 @@
+/**
+ * Reduce Motion Mode
+ *
+ * Comprehensive reduced motion preferences for accessibility.
+ * Activated by adding `.reduce-motion` class to <html>,
+ * or automatically via `prefers-reduced-motion: reduce` media query.
+ */
+
+/* Global reduce motion rules */
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+.reduce-motion * {
+  animation-name: none !important;
+}
+
+/* Decorative animations */
+.reduce-motion .decorative-animation,
+.reduce-motion .loading-spinner,
+.reduce-motion .pulse,
+.reduce-motion .shimmer {
+  animation: none !important;
+}
+
+/* Transform removal */
+.reduce-motion .slide-in,
+.reduce-motion .slide-out,
+.reduce-motion .fade-in,
+.reduce-motion .fade-out,
+.reduce-motion .scale-in,
+.reduce-motion .scale-out {
+  transform: none !important;
+  opacity: 1 !important;
+}
+
+.reduce-motion [class*="parallax"] {
+  transform: none !important;
+}
+
+.reduce-motion *:hover {
+  transform: none !important;
+}
+
+/* Scroll behavior */
+.reduce-motion,
+.reduce-motion * {
+  scroll-behavior: auto !important;
+}
+
+/* Loading states — static instead of animated */
+.reduce-motion .skeleton,
+.reduce-motion .loading-skeleton {
+  background: var(--surface-subtle, #f3f4f6) !important;
+  animation: none !important;
+}
+
+.reduce-motion .spinner,
+.reduce-motion .loading-spinner {
+  animation: none !important;
+}
+
+.reduce-motion .progress-bar {
+  transition: none !important;
+}
+
+/* Modal and dialog animations */
+.reduce-motion .modal-enter,
+.reduce-motion .modal-exit,
+.reduce-motion .dialog-enter,
+.reduce-motion .dialog-exit {
+  animation: none !important;
+  transition: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+.reduce-motion .modal-overlay {
+  transition: none !important;
+  animation: none !important;
+}
+
+/* Dropdown and menu animations */
+.reduce-motion .dropdown-menu,
+.reduce-motion .context-menu,
+.reduce-motion .tooltip {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* Toast and notification animations */
+.reduce-motion .toast,
+.reduce-motion .notification,
+.reduce-motion .alert {
+  animation: none !important;
+  transition: none !important;
+}
+
+.reduce-motion .toast-enter,
+.reduce-motion .toast-exit {
+  transform: none !important;
+  opacity: 1 !important;
+}
+
+/* Accordion and collapse animations */
+.reduce-motion .accordion-panel,
+.reduce-motion .collapse,
+.reduce-motion .expandable {
+  transition: none !important;
+  animation: none !important;
+}
+
+.reduce-motion [aria-expanded] {
+  transition: none !important;
+}
+
+/* Tab and navigation animations */
+.reduce-motion .tab-panel,
+.reduce-motion .nav-content {
+  animation: none !important;
+  transition: none !important;
+}
+
+.reduce-motion .tab-indicator,
+.reduce-motion .active-indicator {
+  transition: none !important;
+}
+
+/* Card and list item animations */
+.reduce-motion .card,
+.reduce-motion .list-item {
+  transition: none !important;
+}
+
+.reduce-motion .card:hover,
+.reduce-motion .list-item:hover {
+  transform: none !important;
+}
+
+/* Button and interactive element animations */
+.reduce-motion button,
+.reduce-motion .button,
+.reduce-motion input,
+.reduce-motion select,
+.reduce-motion textarea {
+  transition: background-color 0.01ms, border-color 0.01ms, color 0.01ms !important;
+}
+
+.reduce-motion button:active,
+.reduce-motion .button:active {
+  transform: none !important;
+}
+
+/* Ripple effects */
+.reduce-motion .ripple,
+.reduce-motion .wave-effect {
+  display: none !important;
+}
+
+/* Focus indicators — keep but make instant */
+.reduce-motion *:focus-visible {
+  transition: none !important;
+}
+
+/* Page transitions */
+.reduce-motion .page-enter,
+.reduce-motion .page-exit,
+.reduce-motion .route-transition {
+  animation: none !important;
+  transition: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* Image and media */
+.reduce-motion img {
+  transition: none !important;
+  animation: none !important;
+}
+
+.reduce-motion img:hover {
+  transform: none !important;
+}
+
+/* SVG animations */
+.reduce-motion svg,
+.reduce-motion svg * {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* Drag and drop */
+.reduce-motion .draggable,
+.reduce-motion .droppable {
+  transition: none !important;
+}
+
+/* Chart animations */
+.reduce-motion .chart,
+.reduce-motion .graph,
+.reduce-motion .chart-bar,
+.reduce-motion .chart-line {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* Badge and indicator animations */
+.reduce-motion .badge,
+.reduce-motion .indicator,
+.reduce-motion .pulse-indicator,
+.reduce-motion .notification-badge {
+  animation: none !important;
+}
+
+/* Form validation animations */
+.reduce-motion .error-shake,
+.reduce-motion .success-bounce {
+  animation: none !important;
+}
+
+/* System preference support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .essential-animation {
+    animation-duration: 0.1s !important;
+    transition-duration: 0.1s !important;
+  }
+}
+
+/* Essential animations — kept very short */
+.reduce-motion .essential-animation,
+.reduce-motion [data-essential-animation="true"] {
+  animation-duration: 0.1s !important;
+  transition-duration: 0.1s !important;
+}
+
+/* Loading indicators with ARIA live regions */
+.reduce-motion .loading[aria-live="polite"],
+.reduce-motion .loading[aria-live="assertive"] {
+  animation-duration: 0.5s !important;
+}
+
+/* Utility classes */
+.no-motion {
+  animation: none !important;
+  transition: none !important;
+}
+
+.instant-transition {
+  transition-duration: 0.01ms !important;
+}
+
+/* Print support */
+@media print {
+  * {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}

@@ -60,6 +60,9 @@ export const buttonVariants = cva(
         // Premium/highlight button
         premium:
           'bg-yellow-500 hover:bg-yellow-600 text-primary-foreground font-bold',
+        // Gradient button (brand blue → purple)
+        gradient:
+          'bg-gradient-to-r from-brand-blue to-brand-purple text-white hover:opacity-90',
       },
       size: {
         // Sizes matching myK9Q spacing tokens

@@ -1,0 +1,305 @@
+/**
+ * One-Handed Mode Styles
+ *
+ * Optimizes UI for one-handed operation:
+ * - Bottom-aligned actions
+ * - Floating action button (FAB)
+ * - Reachability mode
+ * - Hand-specific layouts (left/right/auto)
+ *
+ * Activated by adding `.one-handed-mode` class to <html>.
+ */
+
+.one-handed-mode {
+  --fab-size: 64px;
+  --fab-offset: var(--space-2xl);
+}
+
+/* Floating Action Button (FAB) */
+.fab-enabled .floating-action-button {
+  position: fixed;
+  bottom: var(--fab-offset);
+  width: var(--fab-size);
+  height: var(--fab-size);
+  border-radius: 50%;
+  background: var(--brand-gradient, linear-gradient(135deg, #6366f1, #8b5cf6));
+  color: white;
+  border: none;
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.5);
+  cursor: pointer;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fab-enabled .floating-action-button:active {
+  transform: scale(0.95);
+}
+
+/* Hand-specific positioning */
+.hand-left .floating-action-button {
+  left: var(--fab-offset);
+}
+
+.hand-right .floating-action-button {
+  right: var(--fab-offset);
+}
+
+.hand-auto .floating-action-button {
+  right: var(--fab-offset);
+}
+
+/* FAB ripple effect */
+.floating-action-button::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  opacity: 0;
+  transform: scale(0);
+  transition: transform 0.5s, opacity 0.5s;
+}
+
+.floating-action-button:active::after {
+  opacity: 1;
+  transform: scale(1.5);
+}
+
+/* Thumb zone optimization */
+.one-handed-mode .primary-actions {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: var(--space-xl);
+  padding-bottom: max(var(--space-xl), env(safe-area-inset-bottom));
+  background: white;
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+}
+
+.one-handed-mode .content-with-actions {
+  padding-bottom: 128px;
+}
+
+/* Reachability mode */
+.reachability-enabled.reachability-active {
+  transform: translateY(50%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.reachability-enabled.reachability-active::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 50%;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 100;
+  pointer-events: none;
+}
+
+.reachability-enabled .reachability-trigger {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 44px;
+  z-index: 1000;
+  cursor: pointer;
+}
+
+.reachability-enabled .reachability-trigger::after {
+  content: '';
+  position: absolute;
+  top: var(--space-md);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 36px;
+  height: var(--space-sm);
+  background: var(--border);
+  border-radius: 2px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.reachability-enabled .reachability-trigger:hover::after {
+  opacity: 1;
+}
+
+/* Hand-specific layouts */
+.hand-left .one-handed-action-group {
+  justify-content: flex-start;
+}
+
+.hand-left .one-handed-menu {
+  left: 0;
+  right: auto;
+  transform-origin: left bottom;
+}
+
+.hand-right .one-handed-action-group {
+  justify-content: flex-end;
+}
+
+.hand-right .one-handed-menu {
+  right: 0;
+  left: auto;
+  transform-origin: right bottom;
+}
+
+.hand-auto .one-handed-action-group {
+  justify-content: center;
+}
+
+.hand-auto .one-handed-menu {
+  left: 50%;
+  transform: translateX(-50%);
+  transform-origin: center bottom;
+}
+
+/* Quick actions menu */
+.one-handed-mode .quick-actions {
+  position: fixed;
+  bottom: calc(var(--fab-size) + var(--fab-offset) + var(--space-lg));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  opacity: 0;
+  transform: scale(0.8);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+  z-index: 100;
+}
+
+.quick-actions.visible {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+
+.hand-left .quick-actions {
+  left: var(--fab-offset);
+}
+
+.hand-right .quick-actions,
+.hand-auto .quick-actions {
+  right: var(--fab-offset);
+}
+
+.quick-actions .quick-action-button {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: white;
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.quick-actions .quick-action-button:hover {
+  background: var(--input);
+  transform: scale(1.1);
+}
+
+.quick-actions .quick-action-button:active {
+  transform: scale(0.95);
+}
+
+/* Compact mode */
+.one-handed-mode .compact-header {
+  padding: var(--space-md) var(--space-xl);
+  min-height: 44px;
+}
+
+.one-handed-mode .compact-list-item {
+  padding: var(--space-lg) var(--space-xl);
+  min-height: 56px;
+}
+
+/* Thumb-friendly spacing */
+.one-handed-mode .action-row {
+  display: flex;
+  gap: var(--space-lg);
+  padding: var(--space-lg);
+}
+
+.one-handed-mode .action-button {
+  flex: 1;
+  min-height: 56px;
+  padding: var(--space-lg) var(--space-xl);
+  border-radius: var(--space-lg);
+  font-size: 1.125rem;
+  font-weight: 500;
+}
+
+/* Desktop: smaller FAB */
+@media (min-width: 640px) {
+  .one-handed-mode {
+    --fab-size: 56px;
+    --fab-offset: var(--space-xl);
+  }
+
+  .one-handed-mode .action-button {
+    min-height: 48px;
+    font-size: 1rem;
+  }
+
+  .fab-enabled .floating-action-button {
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+  }
+}
+
+/* Landscape mode */
+@media (orientation: landscape) and (max-height: 600px) {
+  .one-handed-mode .primary-actions {
+    padding: var(--space-md) var(--space-xl);
+  }
+
+  .one-handed-mode {
+    --fab-size: 48px;
+  }
+}
+
+/* Dark mode */
+.dark .one-handed-mode .primary-actions,
+.theme-dark .one-handed-mode .primary-actions {
+  background: var(--card);
+  border-top-color: var(--border);
+}
+
+.dark .quick-actions .quick-action-button,
+.theme-dark .quick-actions .quick-action-button {
+  background: var(--card);
+  border-color: var(--border);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .floating-action-button,
+  .quick-actions,
+  .reachability-enabled,
+  .quick-action-button {
+    transition: none;
+  }
+
+  .floating-action-button:active,
+  .quick-action-button:active,
+  .quick-action-button:hover {
+    transform: none;
+  }
+
+  .floating-action-button::after {
+    display: none;
+  }
+}

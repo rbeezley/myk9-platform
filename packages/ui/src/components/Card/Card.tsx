@@ -2,16 +2,29 @@ import * as React from 'react';
 
 import { cn } from '../../utils/cn';
 
+const cardVariantStyles = {
+  default: '',
+  scored: 'border-teal-500/50 border-2',
+  unscored: 'border-orange-400/60 border-2 shadow-[0_0_12px_rgba(251,146,60,0.15)]',
+} as const;
+
+type CardVariant = keyof typeof cardVariantStyles;
+
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+  variant?: CardVariant;
+}
+
 /**
  * Card container component
  */
-const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => (
+const Card = React.forwardRef<HTMLDivElement, CardProps>(
+  ({ className, variant = 'default', ...props }, ref) => (
     <div
       ref={ref}
       className={cn(
         'rounded-xl border border-border/50 bg-card text-card-foreground shadow-card',
         'backdrop-blur-sm',
+        cardVariantStyles[variant],
         className
       )}
       {...props}

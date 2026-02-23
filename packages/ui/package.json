@@ -25,7 +25,7 @@
   ],
   "scripts": {
     "build": "tsup && npm run build:css",
-    "build:css": "node -e \"const fs=require('fs');const path=require('path');fs.mkdirSync('./dist/styles',{recursive:true});fs.copyFileSync('./src/styles/index.css','./dist/styles/index.css')\"",
+    "build:css": "node -e \"require('fs').mkdirSync('./dist/styles',{recursive:true})\" && postcss src/styles/index.css -o dist/styles/index.css",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -49,6 +49,8 @@
     "autoprefixer": "^10.4.23",
     "jsdom": "^27.4.0",
     "postcss": "^8.5.6",
+    "postcss-cli": "^11.0.1",
+    "postcss-import": "^16.1.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "rimraf": "^6.1.2",

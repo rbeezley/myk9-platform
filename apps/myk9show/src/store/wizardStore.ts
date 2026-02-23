@@ -111,9 +111,11 @@ export const useWizardStore = create<WizardState & WizardActions>()(
       // Navigation
       setCurrentStep: (step) => set({ currentStep: step }),
       
-      markStepCompleted: (step) => set((state) => ({
-        completedSteps: [...new Set([...state.completedSteps, step])].sort((a, b) => a - b)
-      })),
+      markStepCompleted: (step) => {
+        const { completedSteps } = get();
+        if (completedSteps.includes(step)) return;
+        set({ completedSteps: [...completedSteps, step].sort((a, b) => a - b) });
+      },
       
       goToStep: (step) => {
         const { completedSteps } = get();

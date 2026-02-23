@@ -11,6 +11,7 @@ import {
   Layers,
   ArrowLeft
 } from 'lucide-react';
+import { useShallow } from 'zustand/react/shallow';
 import { SimpleClassSelector } from '@/components/templates/secretary/SimpleClassSelector';
 import { useWizardStore } from '@/store/wizardStore';
 import { useTemplateStore } from '@/store/templateStore';
@@ -26,15 +27,25 @@ interface TrialClassState {
 }
 
 export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ className }) => {
-  const { 
-    trials, 
-    updateTrial, 
+  const {
+    trials,
+    updateTrial,
     markStepCompleted,
     show,
     judgeDetails,
     judgeAssignments,
     assignJudgeToClass
-  } = useWizardStore();
+  } = useWizardStore(
+    useShallow(state => ({
+      trials: state.trials,
+      updateTrial: state.updateTrial,
+      markStepCompleted: state.markStepCompleted,
+      show: state.show,
+      judgeDetails: state.judgeDetails,
+      judgeAssignments: state.judgeAssignments,
+      assignJudgeToClass: state.assignJudgeToClass,
+    }))
+  );
   
   const { templates } = useTemplateStore();
   

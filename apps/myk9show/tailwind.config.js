@@ -77,6 +77,10 @@ export default {
   			'accordion-down': 'accordion-down 0.2s ease-out',
   			'accordion-up': 'accordion-up 0.2s ease-out'
   		},
+  		fontFamily: {
+  			sans: ['Montserrat', '-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', 'system-ui', 'sans-serif'],
+  			display: ['"Playfair Display"', 'Georgia', 'serif'],
+  		},
   		transitionTimingFunction: {
   			'apple': 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
   			'bounce': 'cubic-bezier(0.34, 1.56, 0.64, 1)'

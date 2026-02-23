@@ -1,8 +1,19 @@
 import React from 'react';
+import {
+  Card as UICard,
+  CardHeader as UICardHeader,
+  CardContent as UICardContent,
+  CardFooter as UICardFooter,
+} from '@myk9/ui';
 import { cn } from '../../lib/utils';
 
 /**
- * Card Component - Migrated to Tailwind CSS
+ * Card Components — myK9Q adapters wrapping @myk9/ui Card
+ *
+ * API mapping:
+ * - variant 'clickable' → adds cursor-pointer + hover styles
+ * - variant 'scored'/'unscored' → maps to @myk9/ui Card variants
+ * - CardActions → re-exports @myk9/ui CardFooter with myK9Q styling
  */
 
 interface CardProps {
@@ -12,35 +23,12 @@ interface CardProps {
   onClick?: () => void;
 }
 
-// Base card styles
-const baseStyles = [
-  'bg-[var(--card)]',
-  'rounded-[var(--token-radius-lg)]',
-  'border border-[var(--border)]',
-  'p-4',
-  'shadow-[var(--token-shadow-sm)]',
-  'transition-all duration-300',
+const clickableStyles = [
+  'cursor-pointer',
+  'hover:-translate-y-0.5 hover:shadow-lg',
+  'active:scale-[0.98] active:transition-transform active:duration-100',
 ].join(' ');
 
-// Variant-specific styles
-const variantStyles = {
-  default: '',
-  clickable: [
-    'cursor-pointer',
-    'hover:-translate-y-0.5 hover:shadow-[var(--token-shadow-lg)]',
-    'active:scale-[0.98] active:transition-transform active:duration-100',
-  ].join(' '),
-  scored: [
-    'border-[var(--status-checked-in)]',
-    'bg-[rgba(52,199,89,0.05)]',
-  ].join(' '),
-  unscored: [
-    'border-[var(--pending-orange)]',
-    'shadow-[0_0_0_2px_var(--pending-orange),var(--pending-glow)]',
-  ].join(' '),
-} as const;
-
-// Haptic feedback is handled globally by useGlobalHaptic hook
 export const Card: React.FC<CardProps> = ({
   children,
   className,
@@ -48,51 +36,46 @@ export const Card: React.FC<CardProps> = ({
   onClick,
 }) => {
   const isClickable = variant === 'clickable' || !!onClick;
+  // Map 'clickable' to 'default' for @myk9/ui (it doesn't have a clickable variant)
+  const uiVariant = variant === 'clickable' ? 'default' : variant;
 
   return (
-    <div
+    <UICard
+      variant={uiVariant as 'default' | 'scored' | 'unscored'}
       className={cn(
-        baseStyles,
-        variantStyles[variant],
-        isClickable && variant !== 'clickable' && variantStyles.clickable,
-        className
+        'p-4', // myK9Q default padding
+        isClickable && clickableStyles,
+        className,
       )}
       onClick={onClick}
     >
       {children}
-    </div>
+    </UICard>
   );
 };
 
-interface CardHeaderProps {
+interface CardSubProps {
   children: React.ReactNode;
   className?: string;
 }
 
-export const CardHeader: React.FC<CardHeaderProps> = ({ children, className }) => (
-  <div className={cn('flex items-center justify-between mb-3', className)}>
+export const CardHeader: React.FC<CardSubProps> = ({ children, className }) => (
+  <UICardHeader className={cn('flex-row items-center justify-between p-0 pb-3 space-y-0', className)}>
     {children}
-  </div>
+  </UICardHeader>
 );
 
-interface CardContentProps {
-  children: React.ReactNode;
-  className?: string;
-}
-
-export const CardContent: React.FC<CardContentProps> = ({ children, className }) => (
-  <div className={cn('', className)}>
+export const CardContent: React.FC<CardSubProps> = ({ children, className }) => (
+  <UICardContent className={cn('p-0', className)}>
     {children}
-  </div>
+  </UICardContent>
 );
 
-interface CardActionsProps {
-  children: React.ReactNode;
-  className?: string;
-}
-
-export const CardActions: React.FC<CardActionsProps> = ({ children, className }) => (
-  <div className={cn('flex items-center gap-2 mt-4 pt-4 border-t border-[var(--border)]', className)}>
+/**
+ * CardActions — maps to @myk9/ui's CardFooter with myK9Q-style separator
+ */
+export const CardActions: React.FC<CardSubProps> = ({ children, className }) => (
+  <UICardFooter className={cn('gap-2 p-0 pt-4 mt-4 border-t border-border', className)}>
     {children}
-  </div>
+  </UICardFooter>
 );

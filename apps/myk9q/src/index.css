@@ -4,8 +4,13 @@
 /* Tailwind component layer utilities (migration helpers) */
 @import './styles/tailwind-utilities.css';
 
-/* Import design tokens first - available everywhere */
+/* Shared design tokens + accessibility from @myk9/ui */
+@import '@myk9/ui/styles';
+
+/* myK9Q-specific design token overrides (warm backgrounds, teal primary, etc.) */
 @import './styles/design-tokens.css';
+
+/* App-specific styles */
 @import './styles/apple-design-system.css';
 @import './styles/shared-components.css';
 @import './components/dialogs/shared-dialog.css';
@@ -14,12 +19,10 @@
 @import './styles/utilities.css';
 @import './styles/touch-feedback.css';
 @import './styles/micro-animations.css';
-@import './styles/touch-targets.css';
-@import './styles/one-handed-mode.css';
+/* Accessibility CSS now provided by @myk9/ui/styles:
+   - touch-targets.css, one-handed-mode.css, high-contrast.css, reduce-motion.css */
 /* performance.css removed - device-tier classes not used */
 @import './styles/viewport.css';
-@import './styles/high-contrast.css';
-@import './styles/reduce-motion.css';
 
 /* Import shared UI component CSS upfront to prevent FOUC */
 /* These styles are used across multiple pages and must load before React renders */

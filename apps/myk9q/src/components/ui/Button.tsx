@@ -1,73 +1,40 @@
 import React from 'react';
+import { Button as UIButton, type ButtonProps as UIButtonProps } from '@myk9/ui';
 import { cn } from '../../lib/utils';
 
 /**
- * Button Component - Migrated to Tailwind CSS
+ * Button Component — myK9Q adapter wrapping @myk9/ui Button
+ *
+ * Maps myK9Q's API to @myk9/ui:
+ * - variant: 'primary' → 'default', rest map directly
+ * - size: 'md' → 'default', rest map directly
+ * - fullWidth → className 'w-full'
  */
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface ButtonProps extends Omit<UIButtonProps, 'variant' | 'size'> {
   children: React.ReactNode;
   variant?: 'primary' | 'secondary' | 'outline' | 'gradient' | 'ghost';
   size?: 'sm' | 'md' | 'lg' | 'icon';
   fullWidth?: boolean;
 }
 
-// Base button styles
-const baseStyles = [
-  'inline-flex items-center justify-center',
-  'border-none rounded-[0.75rem]',
-  'font-semibold cursor-pointer',
-  'transition-all duration-300',
-  'relative overflow-hidden',
-  'select-none',
-  'disabled:opacity-50 disabled:cursor-not-allowed',
-  'active:scale-[0.98] active:transition-transform active:duration-100',
-].join(' ');
+// Map myK9Q variant names to @myk9/ui variant names
+const variantMap: Record<string, UIButtonProps['variant']> = {
+  primary: 'default',
+  secondary: 'outline',
+  outline: 'outline',
+  gradient: 'gradient',
+  ghost: 'ghost',
+};
 
-// Variant styles
-const variantStyles = {
-  primary: [
-    'bg-[var(--brand-gradient)] bg-gradient-to-r from-[var(--brand-blue)] to-[var(--brand-purple)]',
-    'text-white',
-    'shadow-[0_2px_8px_rgba(0,122,255,0.3)]',
-    'hover:enabled:-translate-y-px hover:enabled:scale-[1.02]',
-    'hover:enabled:shadow-[0_4px_12px_rgba(0,122,255,0.4)]',
-  ].join(' '),
-  secondary: [
-    'bg-[var(--secondary)] text-[var(--secondary-foreground)]',
-    'border border-[var(--border)]',
-    'hover:enabled:bg-[var(--muted)]',
-    'hover:enabled:-translate-y-px',
-    'hover:enabled:shadow-[0_4px_12px_rgba(0,0,0,0.08)]',
-  ].join(' '),
-  outline: [
-    'bg-transparent text-[var(--foreground)]',
-    'border border-[var(--border)]',
-    'hover:enabled:bg-[var(--muted)]',
-  ].join(' '),
-  gradient: [
-    'bg-gradient-to-r from-[var(--brand-blue)] to-[var(--brand-purple)]',
-    'text-white',
-    'shadow-[0_2px_8px_rgba(0,122,255,0.3)]',
-    'hover:enabled:-translate-y-px hover:enabled:scale-[1.02]',
-    'hover:enabled:shadow-[0_4px_12px_rgba(0,122,255,0.4)]',
-  ].join(' '),
-  ghost: [
-    'bg-transparent text-[var(--muted-foreground)]',
-    'hover:enabled:bg-[var(--muted)]',
-    'hover:enabled:text-[var(--foreground)]',
-  ].join(' '),
-} as const;
+// Map myK9Q size names to @myk9/ui size names
+const sizeMap: Record<string, UIButtonProps['size']> = {
+  sm: 'sm',
+  md: 'default',
+  lg: 'lg',
+  icon: 'icon',
+};
 
-// Size styles
-const sizeStyles = {
-  sm: 'px-3 py-2 text-[0.8125rem] min-h-[36px]',
-  md: 'px-4 py-3 text-[0.875rem] min-h-[52px]',
-  lg: 'px-6 py-4 text-base min-h-[56px]',
-  icon: 'p-3 min-h-[44px] min-w-[44px]',
-} as const;
-
-// Haptic feedback is handled globally by useGlobalHaptic hook
 export const Button: React.FC<ButtonProps> = ({
   children,
   className,
@@ -77,17 +44,13 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   return (
-    <button
-      className={cn(
-        baseStyles,
-        variantStyles[variant],
-        sizeStyles[size],
-        fullWidth && 'w-full',
-        className
-      )}
+    <UIButton
+      variant={variantMap[variant] || 'default'}
+      size={sizeMap[size] || 'default'}
+      className={cn(fullWidth && 'w-full', className)}
       {...props}
     >
       {children}
-    </button>
+    </UIButton>
   );
 };

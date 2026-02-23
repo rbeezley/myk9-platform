@@ -33,6 +33,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@myk9/core": "workspace:*",
     "@myk9/replication": "workspace:*",
+    "@myk9/ui": "workspace:*",
     "@myk9/scoring": "workspace:*",
     "@myk9/scoring-ui": "workspace:*",
     "@myk9/supabase": "workspace:*",

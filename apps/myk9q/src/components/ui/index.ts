@@ -1,7 +1,14 @@
-// MyK9Show UI Components - Apple-inspired Design System
+// myK9Q UI Components - Design System
+// Core components migrated to @myk9/ui (shared design system)
 export { Card, CardHeader, CardContent, CardActions } from './Card';
 export { Button } from './Button';
 export { Badge, ArmbandBadge, StatusIndicator } from './Badge';
+
+// TabBar — re-exported from @myk9/ui (identical API)
+export { TabBar } from '@myk9/ui';
+export type { Tab } from '@myk9/ui';
+
+// App-specific components (remain local)
 export { HamburgerMenu } from './HamburgerMenu';
 export { TrialDateBadge } from './TrialDateBadge';
 export { EmptyState } from './EmptyState';
@@ -19,8 +26,6 @@ export { FilterTriggerButton } from './FilterTriggerButton';
 export type { FilterTriggerButtonProps } from './FilterTriggerButton';
 export { FilterTabs } from './FilterTabs';
 export type { FilterTabsProps, FilterTab } from './FilterTabs';
-export { TabBar } from './TabBar';
-export type { Tab } from './TabBar';
 export { SyncIndicator, GlobalSyncIndicator } from './SyncIndicator';
 export type { SyncIndicatorProps } from './SyncIndicator';
 export { RefreshIndicator } from './RefreshIndicator';

@@ -10,7 +10,7 @@ Items to address in future sessions.
 
 Top 3 source files over 800 lines — refactor when next modified:
 
-- [ ] `apps/myk9show/src/services/scoring/OfflineScoringService.ts` (875 lines — single cohesive class, types/serialization already extracted, skip)
+- [x] `apps/myk9show/src/services/scoring/OfflineScoringService.ts` (875 lines — closed as skip: cohesive service class, types/serialization already extracted, 500-line guideline has exceptions for cohesive classes)
 - [x] `apps/myk9show/src/services/data-lifecycle/DataExportImport.ts` (859→471 lines — extracted types, CSV utils, import handlers)
 - [x] `apps/myk9show/src/store/trialStore.ts` (858→560 lines — extracted types and helpers)
 

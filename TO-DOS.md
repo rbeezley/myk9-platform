@@ -136,7 +136,7 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 ### LOW: Console Warnings for Base UI Select Components
 
-- [ ] **Base UI Select controlled/uncontrolled state warnings** — Console shows warnings about switching between controlled and uncontrolled states in Base UI Select components used for chairman/secretary selection. **Files:** `ShowDetailsStep.tsx` Select components.
+- [x] **Base UI Select controlled/uncontrolled state warnings** — Fixed: Select wrapper now always passes `value` to Base UI when caller provides it (even empty string), maintaining consistent controlled state. Previously, empty strings were normalized to `undefined` which omitted the `value` prop, making the component uncontrolled until a selection was made. **Files:** `select/select.tsx`.
 
 ---
 

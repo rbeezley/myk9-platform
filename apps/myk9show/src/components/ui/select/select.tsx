@@ -18,14 +18,16 @@ function Select<T extends string = string>({ onValueChange, value, defaultValue,
     ? (newValue: unknown) => onValueChange((newValue ?? '') as T)
     : undefined
 
-  // Convert empty strings to undefined for Base UI (empty string can cause issues with controlled mode)
-  const normalizedValue = value === '' ? undefined : value
+  // Always pass value when caller provides it (even empty string) to maintain
+  // consistent controlled state. Omitting value on empty strings caused React
+  // "switching between controlled and uncontrolled" warnings.
+  const isControlled = value !== undefined
   const normalizedDefaultValue = defaultValue === '' ? undefined : defaultValue
 
   return (
     <SelectPrimitive.Root
       {...(handleValueChange !== undefined && { onValueChange: handleValueChange })}
-      {...(normalizedValue !== undefined && { value: normalizedValue })}
+      {...(isControlled && { value })}
       {...(normalizedDefaultValue !== undefined && { defaultValue: normalizedDefaultValue })}
       {...props}
     />

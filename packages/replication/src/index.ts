@@ -139,3 +139,7 @@ export {
   MAX_BACKOFF_MS,
   BACKOFF_JITTER,
 } from './mutation-utils';
+
+// MutationManager
+export { MutationManager } from './MutationManager';
+export type { MutationManagerOptions } from './MutationManager';

@@ -149,8 +149,48 @@ function rowToEntry(row: EntryRow): ReplicatedEntry {
 }
 
 export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
+  /** Most recent mutation ID from a create/update operation */
+  private _lastMutationId: string | null = null;
+
   constructor() {
     super('entries', undefined, { logger });
+  }
+
+  /** Get the mutation ID from the last create/update operation */
+  get lastMutationId(): string | null {
+    return this._lastMutationId;
+  }
+
+  /**
+   * Convert app-level Entry to Supabase row format (snake_case).
+   * Only maps fields that exist as actual DB columns. Strips sync metadata
+   * and app-only display fields (dogCallName, handlerName, etc.).
+   */
+  private toSupabaseRow(entry: ReplicatedEntry): Record<string, unknown> {
+    return {
+      id: entry.id,
+      class_id: entry.classId ?? null,
+      show_id: entry.showId ?? null,
+      dog_id: entry.dogId ?? null,
+      handler_id: entry.handlerId ?? null,
+      armband: entry.armband ?? null,
+      handler: entry.handler ?? null,
+      entry_status: entry.entryStatus ?? null,
+      jump_height: entry.jumpHeight ?? null,
+      entry_fee: entry.entryFee ?? null,
+      payment_status: entry.paymentStatus ?? null,
+      run_order: entry.runOrder ?? null,
+      move_up_requested: entry.moveUpRequested ?? null,
+      preferred_judge: entry.preferredJudge ?? null,
+      special_requests: entry.specialRequests ?? null,
+      submitted_at: entry.submittedAt ?? null,
+      is_scored: entry.isScored ?? null,
+      result_status: entry.resultStatus ?? null,
+      search_time_seconds: entry.searchTimeSeconds ?? null,
+      total_score: entry.totalPoints ?? null,
+      final_placement: entry.finalPlacement != null ? Number(entry.finalPlacement) : null,
+      updated_at: new Date().toISOString(),
+    };
   }
 
   async sync(licenseKey: string): Promise<SyncResult> {
@@ -284,8 +324,9 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
 
   /**
    * Update entry status (offline-first)
+   * @returns mutation ID if queued, null if no MutationManager
    */
-  async updateEntryStatus(entryId: string, status: string): Promise<void> {
+  async updateEntryStatus(entryId: string, status: string): Promise<string | null> {
     const entry = await this.get(entryId);
     if (!entry) {
       throw new Error(`Entry ${entryId} not found`);
@@ -300,13 +341,17 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     };
 
     await this.set(entryId, updated, true);
+    const mutationId = await this.queueMutation('UPDATE', entryId, this.toSupabaseRow(updated));
+    this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated entry ${entryId} status to ${status}`);
+    return mutationId;
   }
 
   /**
    * Update entry (marks as dirty for sync)
+   * @returns mutation ID if queued, null if no MutationManager
    */
-  async updateEntry(entryId: string, updates: Partial<ReplicatedEntry>): Promise<void> {
+  async updateEntry(entryId: string, updates: Partial<ReplicatedEntry>): Promise<string | null> {
     const entry = await this.get(entryId);
     if (!entry) {
       throw new Error(`Entry ${entryId} not found`);
@@ -320,7 +365,40 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     };
 
     await this.set(entryId, updated, true);
+    const mutationId = await this.queueMutation('UPDATE', entryId, this.toSupabaseRow(updated));
+    this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated entry ${entryId}`);
+    return mutationId;
+  }
+
+  /**
+   * Create a new entry locally (queued for sync)
+   * @param entry - Entry data (must include id)
+   * @param classMutationId - Optional mutation ID of the parent class (for dependency tracking)
+   * The mutation ID is available via `lastMutationId` for dependency tracking.
+   */
+  async createEntry(
+    entry: ReplicatedEntry,
+    classMutationId?: string,
+  ): Promise<ReplicatedEntry> {
+    const newEntry: ReplicatedEntry = {
+      ...entry,
+      _version: 1,
+      _lastModified: new Date(),
+      _syncStatus: 'pending',
+      _localOnly: true,
+    };
+
+    await this.set(entry.id, newEntry, true);
+    const mutationId = await this.queueMutation(
+      'INSERT',
+      entry.id,
+      this.toSupabaseRow(newEntry),
+      classMutationId ? [classMutationId] : undefined,
+    );
+    this._lastMutationId = mutationId;
+    logger.log(`[${this.getTableName()}] Created new entry ${entry.id}`);
+    return newEntry;
   }
 }
 

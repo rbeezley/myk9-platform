@@ -75,8 +75,44 @@ function rowToShow(row: ShowRow): ReplicatedShow {
 }
 
 export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
+  /** Most recent mutation ID from a create/update operation */
+  private _lastMutationId: string | null = null;
+
   constructor() {
     super('shows', undefined, { logger });
+  }
+
+  /** Get the mutation ID from the last create/update operation */
+  get lastMutationId(): string | null {
+    return this._lastMutationId;
+  }
+
+  /**
+   * Convert app-level Show to Supabase row format (snake_case).
+   * Strips sync metadata fields (_version, _lastModified, etc.)
+   */
+  private toSupabaseRow(show: ReplicatedShow): Record<string, unknown> {
+    return {
+      id: show.id,
+      name: show.name,
+      type: show.type,
+      start_date: show.startDate,
+      end_date: show.endDate,
+      location: show.location ?? null,
+      status: show.status ?? null,
+      entry_open_date: show.entryOpenDate ?? null,
+      entry_close_date: show.entryCloseDate ?? null,
+      pre_entry_fee: show.preEntryFee ?? null,
+      day_of_show_fee: show.dayOfShowFee ?? null,
+      club_id: show.clubId ?? null,
+      chairman: show.chairman ?? null,
+      secretary: show.secretary ?? null,
+      chief_steward: show.chiefSteward ?? null,
+      max_entries_per_dog: show.maxEntriesPerDog ?? null,
+      max_total_entries: show.maxTotalEntries ?? null,
+      allow_non_owner_handlers: show.allowsNonOwnerHandlers ?? null,
+      updated_at: new Date().toISOString(),
+    };
   }
 
   /**
@@ -267,8 +303,9 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
 
   /**
    * Update show (marks as dirty for later sync)
+   * @returns mutation ID if queued, null if no MutationManager
    */
-  async updateShow(showId: string, updates: Partial<ReplicatedShow>): Promise<void> {
+  async updateShow(showId: string, updates: Partial<ReplicatedShow>): Promise<string | null> {
     const currentShow = await this.get(showId);
     if (!currentShow) {
       throw new Error(`Show ${showId} not found`);
@@ -282,11 +319,15 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     };
 
     await this.set(showId, updatedShow, true); // Mark as dirty
+    const mutationId = await this.queueMutation('UPDATE', showId, this.toSupabaseRow(updatedShow));
+    this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated show ${showId}`);
+    return mutationId;
   }
 
   /**
    * Create a new show locally (queued for sync)
+   * The mutation ID is available via `lastMutationId` for dependency tracking.
    */
   async createShow(show: Omit<ReplicatedShow, 'id'>): Promise<ReplicatedShow> {
     const id = crypto.randomUUID();
@@ -300,6 +341,8 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     };
 
     await this.set(id, newShow, true); // Mark as dirty
+    const mutationId = await this.queueMutation('INSERT', id, this.toSupabaseRow(newShow));
+    this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Created new show ${id}`);
     return newShow;
   }

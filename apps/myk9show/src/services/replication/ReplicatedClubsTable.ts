@@ -85,8 +85,37 @@ function rowToClub(row: ClubRow): ReplicatedClub {
 }
 
 export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
+  /** Most recent mutation ID from a create/update operation */
+  private _lastMutationId: string | null = null;
+
   constructor() {
     super('clubs', undefined, { logger });
+  }
+
+  /** Get the mutation ID from the last create/update operation */
+  get lastMutationId(): string | null {
+    return this._lastMutationId;
+  }
+
+  /**
+   * Convert app-level Club to Supabase row format (snake_case).
+   * Strips sync metadata fields. Clubs have no FK dependencies.
+   */
+  private toSupabaseRow(club: ReplicatedClub): Record<string, unknown> {
+    return {
+      id: club.id,
+      name: club.name,
+      email: club.email || null,
+      phone: club.phone || null,
+      website: club.website ?? null,
+      description: club.description ?? null,
+      logo_url: club.logoUrl ?? null,
+      address: club.address ?? null,
+      city: club.city ?? null,
+      state: club.state ?? null,
+      zip_code: club.zipCode ?? null,
+      updated_at: new Date().toISOString(),
+    };
   }
 
   /**
@@ -246,8 +275,9 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
 
   /**
    * Update club (marks as dirty for later sync)
+   * @returns mutation ID if queued, null if no MutationManager
    */
-  async updateClub(clubId: string, updates: Partial<ReplicatedClub>): Promise<void> {
+  async updateClub(clubId: string, updates: Partial<ReplicatedClub>): Promise<string | null> {
     const currentClub = await this.get(clubId);
     if (!currentClub) {
       throw new Error(`Club ${clubId} not found`);
@@ -261,11 +291,16 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
     };
 
     await this.set(clubId, updatedClub, true); // Mark as dirty
+    const mutationId = await this.queueMutation('UPDATE', clubId, this.toSupabaseRow(updatedClub));
+    this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated club ${clubId}`);
+    return mutationId;
   }
 
   /**
    * Create a new club locally (queued for sync)
+   * Clubs have no FK dependencies — uploaded independently.
+   * The mutation ID is available via `lastMutationId`.
    */
   async createClub(club: Omit<ReplicatedClub, 'id'>): Promise<ReplicatedClub> {
     const id = crypto.randomUUID();
@@ -279,6 +314,8 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
     };
 
     await this.set(id, newClub, true); // Mark as dirty
+    const mutationId = await this.queueMutation('INSERT', id, this.toSupabaseRow(newClub));
+    this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Created new club ${id}`);
     return newClub;
   }
@@ -287,6 +324,7 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
    * Delete club locally (soft delete, queued for sync)
    */
   async deleteClubLocal(clubId: string): Promise<void> {
+    await this.queueMutation('DELETE', clubId, { id: clubId, deleted_at: new Date().toISOString() });
     await this.delete(clubId);
     logger.log(`[${this.getTableName()}] Deleted club ${clubId} from local cache`);
   }

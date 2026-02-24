@@ -63,8 +63,35 @@ function rowToTrial(row: TrialRow): ReplicatedTrial {
 }
 
 export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
+  /** Most recent mutation ID from a create/update operation */
+  private _lastMutationId: string | null = null;
+
   constructor() {
     super('trials', undefined, { logger });
+  }
+
+  /** Get the mutation ID from the last create/update operation */
+  get lastMutationId(): string | null {
+    return this._lastMutationId;
+  }
+
+  /**
+   * Convert app-level Trial to Supabase row format (snake_case).
+   * Strips sync metadata fields (_version, _lastModified, etc.)
+   */
+  private toSupabaseRow(trial: ReplicatedTrial): Record<string, unknown> {
+    return {
+      id: trial.id,
+      show_id: trial.showId ?? null,
+      name: trial.name,
+      date: trial.date,
+      trial_number: trial.trialNumber ?? null,
+      status: trial.status ?? null,
+      max_entries_per_dog: trial.maxEntriesPerDog ?? null,
+      max_total_entries: trial.maxTotalEntries ?? null,
+      max_entries_per_handler: trial.maxEntriesPerHandler ?? null,
+      updated_at: new Date().toISOString(),
+    };
   }
 
   async sync(licenseKey: string): Promise<SyncResult> {
@@ -185,6 +212,67 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
   async getTrialsByDate(date: string): Promise<ReplicatedTrial[]> {
     const allTrials = await this.getAll();
     return allTrials.filter(trial => trial.date === date);
+  }
+
+  /**
+   * Create a new trial locally (queued for sync)
+   * @param trial - Trial data (must include id)
+   * @param showMutationId - Optional mutation ID of the parent show (for dependency tracking)
+   * The mutation ID is available via `lastMutationId` for dependency tracking.
+   */
+  async createTrial(
+    trial: ReplicatedTrial,
+    showMutationId?: string,
+  ): Promise<ReplicatedTrial> {
+    const newTrial: ReplicatedTrial = {
+      ...trial,
+      _version: 1,
+      _lastModified: new Date(),
+      _syncStatus: 'pending',
+      _localOnly: true,
+    };
+
+    await this.set(trial.id, newTrial, true);
+    const mutationId = await this.queueMutation(
+      'INSERT',
+      trial.id,
+      this.toSupabaseRow(newTrial),
+      showMutationId ? [showMutationId] : undefined,
+    );
+    this._lastMutationId = mutationId;
+    logger.log(`[${this.getTableName()}] Created new trial ${trial.id}`);
+    return newTrial;
+  }
+
+  /**
+   * Update trial (marks as dirty for sync)
+   * @returns mutation ID if queued, null if no MutationManager
+   */
+  async updateTrial(
+    trialId: string,
+    updates: Partial<ReplicatedTrial>,
+  ): Promise<string | null> {
+    const currentTrial = await this.get(trialId);
+    if (!currentTrial) {
+      throw new Error(`Trial ${trialId} not found`);
+    }
+
+    const updatedTrial: ReplicatedTrial = {
+      ...currentTrial,
+      ...updates,
+      _lastModified: new Date(),
+      _syncStatus: 'pending',
+    };
+
+    await this.set(trialId, updatedTrial, true);
+    const mutationId = await this.queueMutation(
+      'UPDATE',
+      trialId,
+      this.toSupabaseRow(updatedTrial),
+    );
+    this._lastMutationId = mutationId;
+    logger.log(`[${this.getTableName()}] Updated trial ${trialId}`);
+    return mutationId;
   }
 }
 

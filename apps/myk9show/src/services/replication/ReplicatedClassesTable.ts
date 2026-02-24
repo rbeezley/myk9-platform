@@ -123,8 +123,51 @@ function rowToClass(row: ClassRow): ReplicatedClass {
 }
 
 export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
+  /** Most recent mutation ID from a create/update operation */
+  private _lastMutationId: string | null = null;
+
   constructor() {
     super('classes', undefined, { logger });
+  }
+
+  /** Get the mutation ID from the last create/update operation */
+  get lastMutationId(): string | null {
+    return this._lastMutationId;
+  }
+
+  /**
+   * Convert app-level Class to Supabase row format (snake_case).
+   * Strips sync metadata fields and compatibility snake_case aliases.
+   */
+  private toSupabaseRow(cls: ReplicatedClass): Record<string, unknown> {
+    return {
+      id: cls.id,
+      trial_id: cls.trialId ?? null,
+      name: cls.name,
+      description: cls.description ?? null,
+      entry_fee: cls.entryFee ?? null,
+      jump_heights: cls.jumpHeights ?? null,
+      max_entries: cls.maxEntries ?? null,
+      allow_waitlist: cls.allowsWaitlist ?? null,
+      max_dogs_per_handler: cls.maxDogsPerHandler ?? null,
+      level: cls.level ?? null,
+      breed_restrictions: cls.breedRestrictions ?? null,
+      age_min: cls.ageMin ?? null,
+      age_max: cls.ageMax ?? null,
+      height_min: cls.heightMin ?? null,
+      height_max: cls.heightMax ?? null,
+      handler_age_min: cls.handlerAgeMin ?? null,
+      handler_age_max: cls.handlerAgeMax ?? null,
+      start_time: cls.startTime ?? null,
+      estimated_duration: cls.estimatedDuration ?? null,
+      element: cls.element ?? null,
+      num_areas: cls.areaCount ?? null,
+      time_limit_seconds: cls.timeLimitSeconds ?? null,
+      status: cls.classStatus ?? null,
+      actual_start_time: cls.actual_start_time ?? null,
+      actual_end_time: cls.actual_end_time ?? null,
+      updated_at: new Date().toISOString(),
+    };
   }
 
   async sync(licenseKey: string): Promise<SyncResult> {
@@ -239,8 +282,9 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
 
   /**
    * Update class (marks as dirty for sync)
+   * @returns mutation ID if queued, null if no MutationManager
    */
-  async updateClass(classId: string, updates: Partial<ReplicatedClass>): Promise<void> {
+  async updateClass(classId: string, updates: Partial<ReplicatedClass>): Promise<string | null> {
     const currentClass = await this.get(classId);
     if (!currentClass) {
       throw new Error(`Class ${classId} not found`);
@@ -254,7 +298,44 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     };
 
     await this.set(classId, updatedClass, true);
+    const mutationId = await this.queueMutation(
+      'UPDATE',
+      classId,
+      this.toSupabaseRow(updatedClass),
+    );
+    this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated class ${classId}`);
+    return mutationId;
+  }
+
+  /**
+   * Create a new class locally (queued for sync)
+   * @param classData - Class data (must include id)
+   * @param trialMutationId - Optional mutation ID of the parent trial (for dependency tracking)
+   * The mutation ID is available via `lastMutationId` for dependency tracking.
+   */
+  async createClass(
+    classData: ReplicatedClass,
+    trialMutationId?: string,
+  ): Promise<ReplicatedClass> {
+    const newClass: ReplicatedClass = {
+      ...classData,
+      _version: 1,
+      _lastModified: new Date(),
+      _syncStatus: 'pending',
+      _localOnly: true,
+    };
+
+    await this.set(classData.id, newClass, true);
+    const mutationId = await this.queueMutation(
+      'INSERT',
+      classData.id,
+      this.toSupabaseRow(newClass),
+      trialMutationId ? [trialMutationId] : undefined,
+    );
+    this._lastMutationId = mutationId;
+    logger.log(`[${this.getTableName()}] Created new class ${classData.id}`);
+    return newClass;
   }
 }
 

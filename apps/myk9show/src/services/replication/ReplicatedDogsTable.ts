@@ -65,8 +65,39 @@ function rowToDog(row: DogRow): ReplicatedDog {
 }
 
 export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
+  /** Most recent mutation ID from a create/update operation */
+  private _lastMutationId: string | null = null;
+
   constructor() {
     super('dogs', undefined, { logger });
+  }
+
+  /** Get the mutation ID from the last create/update operation */
+  get lastMutationId(): string | null {
+    return this._lastMutationId;
+  }
+
+  /**
+   * Convert app-level Dog to Supabase row format (snake_case).
+   * Strips sync metadata fields. Dogs have no FK dependencies.
+   */
+  private toSupabaseRow(dog: ReplicatedDog): Record<string, unknown> {
+    return {
+      id: dog.id,
+      name: dog.name,
+      call_name: dog.callName ?? null,
+      breed: dog.breed,
+      sex: dog.sex ?? null,
+      date_of_birth: dog.dateOfBirth ?? null,
+      owner_id: dog.ownerId ?? null,
+      height: dog.height ?? null,
+      weight: dog.weight ?? null,
+      color: dog.color ?? null,
+      microchip_number: dog.microchipNumber ?? null,
+      spayed_neutered: dog.isSpayedNeutered ?? null,
+      image_url: dog.imageUrl ?? null,
+      updated_at: new Date().toISOString(),
+    };
   }
 
   async sync(licenseKey: string): Promise<SyncResult> {
@@ -216,8 +247,9 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
 
   /**
    * Update dog (marks as dirty for sync)
+   * @returns mutation ID if queued, null if no MutationManager
    */
-  async updateDog(dogId: string, updates: Partial<ReplicatedDog>): Promise<void> {
+  async updateDog(dogId: string, updates: Partial<ReplicatedDog>): Promise<string | null> {
     const dog = await this.get(dogId);
     if (!dog) {
       throw new Error(`Dog ${dogId} not found`);
@@ -231,11 +263,16 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
     };
 
     await this.set(dogId, updated, true);
+    const mutationId = await this.queueMutation('UPDATE', dogId, this.toSupabaseRow(updated));
+    this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated dog ${dogId}`);
+    return mutationId;
   }
 
   /**
-   * Create a new dog locally
+   * Create a new dog locally (queued for sync)
+   * Dogs have no FK dependencies — uploaded independently.
+   * The mutation ID is available via `lastMutationId`.
    */
   async createDog(dog: Omit<ReplicatedDog, 'id'>): Promise<ReplicatedDog> {
     const id = crypto.randomUUID();
@@ -249,6 +286,8 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
     };
 
     await this.set(id, newDog, true);
+    const mutationId = await this.queueMutation('INSERT', id, this.toSupabaseRow(newDog));
+    this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Created new dog ${id}`);
     return newDog;
   }

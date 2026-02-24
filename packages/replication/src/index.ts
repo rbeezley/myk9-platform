@@ -124,3 +124,18 @@ export {
 export { ReplicatedTableCacheManager } from './core/ReplicatedTableCache';
 export { ReplicatedTableBatchManager } from './core/ReplicatedTableBatch';
 export { ReplicatedTable } from './core/ReplicatedTable';
+
+// Mutation utilities
+export {
+  TimeoutError,
+  withTimeout,
+  calculateBackoffDelay,
+  backoffDelay,
+  isRetryableError,
+  TIMEOUT_PRESETS,
+  DEFAULT_TIMEOUT_MS,
+  DEFAULT_MAX_RETRIES,
+  DEFAULT_BACKOFF_BASE_MS,
+  MAX_BACKOFF_MS,
+  BACKOFF_JITTER,
+} from './mutation-utils';

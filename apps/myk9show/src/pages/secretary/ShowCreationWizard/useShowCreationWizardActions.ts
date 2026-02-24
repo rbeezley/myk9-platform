@@ -12,16 +12,42 @@ import { useWizardStore } from '@/store/wizardStore';
 import { useShowStore } from '@/store/showStore';
 import { useClubStore } from '@/store/clubStore';
 import { useTrialStore, type TrialInput } from '@/store/trialStore';
-import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
+import {
+  replicatedClassesTable,
+  type ReplicatedClass,
+} from '@/services/replication/ReplicatedClassesTable';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
 import type { Show } from '@/types/show-types';
 import type { EditMode, ShowStatus } from './show-creation-wizard-types';
+import type { ClassData } from '@/components/classes/types/classTypes';
 import {
   createClassDataFromWizard,
   showToShowInput,
   transformWizardDataToShow,
 } from './showCreationWizardTransformers';
+
+/**
+ * Convert wizard ClassData to ReplicatedClass for offline-first storage
+ */
+function classDataToReplicatedClass(classData: ClassData): ReplicatedClass {
+  return {
+    id: classData.id || crypto.randomUUID(),
+    trialId: classData.trialId,
+    name: classData.className || classData.trial || 'Class',
+    level: classData.level,
+    element: classData.element,
+    section: classData.section,
+    entryFee: classData.preEntryFee || classData.entryFee,
+    maxEntries: classData.maxEntries,
+    judgeName: classData.judge,
+    classOrder: classData.classOrder ? parseInt(classData.classOrder, 10) : undefined,
+    classStatus: classData.status || 'Scheduled',
+    startTime: classData.startTime,
+    // Keep snake_case alias for backward compat
+    trial_id: classData.trialId,
+  };
+}
 
 interface UseShowCreationWizardActionsOptions {
   editMode?: EditMode | undefined;
@@ -39,7 +65,6 @@ export function useShowCreationWizardActions({
   const { addShow, updateShow } = useShowStore();
   const { clubs } = useClubStore();
   const { addTrial: addTrialToStore, trials: existingTrials } = useTrialStore();
-  const { addClass } = useClassStoreCompat();
   const { user } = useAuthContext();
 
   /**
@@ -98,9 +123,9 @@ export function useShowCreationWizardActions({
   }, [editMode, existingTrials, trials, addTrialToStore, user]);
 
   /**
-   * Create classes for trials
+   * Create classes for trials via offline-first replication
    */
-  const createClasses = useCallback((showId: string, trialIdMap: Record<string, string>) => {
+  const createClasses = useCallback(async (showId: string, trialIdMap: Record<string, string>) => {
     logger.debug('createClasses called', 'wizard', { showId, trialIdMap });
 
     const classesToCreate = createClassDataFromWizard(
@@ -112,11 +137,17 @@ export function useShowCreationWizardActions({
       editMode
     );
 
-    classesToCreate.forEach(classData => {
-      logger.debug('Adding class', 'wizard', { classId: classData.id, className: classData.className });
-      addClass(classData);
-    });
-  }, [trials, judgeDetails, existingTrials, editMode, addClass]);
+    for (const classData of classesToCreate) {
+      const replicatedClass = classDataToReplicatedClass(classData);
+      logger.debug('Creating class via replication', 'wizard', {
+        classId: replicatedClass.id,
+        className: replicatedClass.name,
+      });
+      await replicatedClassesTable.createClass(replicatedClass);
+    }
+
+    logger.debug(`Created ${classesToCreate.length} classes`, 'wizard');
+  }, [trials, judgeDetails, existingTrials, editMode]);
 
   /**
    * Main save/create function - handles all save operations
@@ -150,8 +181,11 @@ export function useShowCreationWizardActions({
       // Create trials (awaited) and get wizard-ID → real-UUID mapping
       const trialIdMap = await createTrials(realShowId, savedShow.name, savedShow.type);
 
-      // Create classes using the real trial UUIDs
-      createClasses(realShowId, trialIdMap);
+      // Create classes using the real trial UUIDs (await for offline-first storage)
+      await createClasses(realShowId, trialIdMap);
+
+      // Trigger immediate sync to upload show/trial/class data to Supabase
+      window.dispatchEvent(new CustomEvent('replication:sync-requested'));
 
       // Seed React Query cache so ShowDetailsPage finds the show immediately
       // (addShow writes to IndexedDB/Zustand but the detail page reads from React Query)

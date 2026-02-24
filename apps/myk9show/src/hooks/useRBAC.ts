@@ -250,6 +250,10 @@ export function usePermission(
   const [hasPermission, setHasPermission] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Stabilize scope reference to prevent infinite re-render loops
+  // when scope is passed as an object literal
+  const scopeKey = scope ? `${scope.type}:${scope.id}` : '';
+
   const checkPermission = useCallback(async (): Promise<boolean> => {
     if (!user?.id) {
       setHasPermission(false);
@@ -259,7 +263,8 @@ export function usePermission(
 
     try {
       setIsLoading(true);
-      const result = await rbacService.checkPermission(user.id, permission, scope);
+      const scopeObj = scopeKey ? { type: scopeKey.split(':')[0], id: scopeKey.split(':')[1] } : undefined;
+      const result = await rbacService.checkPermission(user.id, permission, scopeObj);
       setHasPermission(result);
       return result;
     } catch {
@@ -268,7 +273,7 @@ export function usePermission(
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id, permission, scope]);
+  }, [user?.id, permission, scopeKey]);
 
   useEffect(() => {
     checkPermission();

@@ -39,6 +39,7 @@ const ShowCreationWizardPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [validationExpanded, setValidationExpanded] = useState(false);
+  const [hasAttemptedNext, setHasAttemptedNext] = useState(false);
   const stepContentRef = useRef<HTMLDivElement>(null);
 
   // Extract edit mode from URL params
@@ -238,12 +239,14 @@ const ShowCreationWizardPage: React.FC = () => {
 
   const handleNext = useCallback(async () => {
     setIsLoading(true);
+    setHasAttemptedNext(true);
 
     try {
       markStepCompleted(currentStep);
 
       if (currentStep < WIZARD_STEPS.length - 1) {
         setCurrentStep(currentStep + 1);
+        setHasAttemptedNext(false); // Reset for next step
       }
     } catch (error) {
       logger.error('Error in wizard navigation', 'wizard', {}, error as Error);
@@ -368,8 +371,8 @@ const ShowCreationWizardPage: React.FC = () => {
               <div className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl min-h-[700px] flex flex-col transition-all duration-300 hover:shadow-lg">
                 <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-                {/* Collapsible Validation Banner */}
-                {validationMessages.length > 0 && (
+                {/* Collapsible Validation Banner — only shown after user clicks Next */}
+                {hasAttemptedNext && validationMessages.length > 0 && (
                   <div className="relative border-b border-amber-200/50 dark:border-amber-700/50 rounded-t-2xl overflow-hidden">
                     <button
                       onClick={() => setValidationExpanded(!validationExpanded)}

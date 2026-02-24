@@ -5,9 +5,8 @@
  */
 
 import React, { ReactNode, useEffect, useState } from 'react';
-import { useRBAC, usePermission } from '@/hooks/useRBAC';
+import { useRBAC } from '@/hooks/useRBAC';
 import { Lock, Loader2 } from 'lucide-react';
-// AlertCircle not used
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { logger } from '@/services/LoggingService';
 
@@ -51,10 +50,6 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
   className
 }) => {
   const { hasPermission, userRoles, isLoading: rbacLoading } = useRBAC();
-  const { 
-    // hasPermission: singlePermissionCheck, // Not used
-    isLoading: singlePermissionLoading 
-  } = usePermission(permission, scope);
 
   const [hasAccess, setHasAccess] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
@@ -121,7 +116,7 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
   ]);
 
   // Show loading state
-  if (rbacLoading || isChecking || singlePermissionLoading) {
+  if (rbacLoading || isChecking) {
     if (loading) {
       return <>{loading}</>;
     }

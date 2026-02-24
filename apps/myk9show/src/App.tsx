@@ -13,6 +13,7 @@ const PricingPage = React.lazy(() => import('./pages/PricingPage'));
 const SignInPage = React.lazy(() => import('./pages/SignInPage'));
 const SignUpPage = React.lazy(() => import('./pages/SignUpPage'));
 const TestPanelPage = React.lazy(() => import('./pages/TestPanelPage'));
+const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage'));
 
 // Organized route groups
 import { AdminRoutes } from './routes/adminRoutes';
@@ -264,6 +265,15 @@ function App() {
                           {JudgeRoutes()}
                           {SecretaryRoutes()}
                           {PublicRoutes()}
+
+                          {/* 404 catch-all */}
+                          <Route path="*" element={
+                            <PageTransition>
+                              <Suspense fallback={<PageLoadingFallback />}>
+                                <NotFoundPage />
+                              </Suspense>
+                            </PageTransition>
+                          } />
                         </Routes>
                       </div>
                       

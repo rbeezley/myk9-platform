@@ -28,16 +28,6 @@ interface Trial {
 }
 
 /**
- * Check if the current step is valid based on completed steps
- */
-export function isStepValid(
-  currentStep: number,
-  completedSteps: number[]
-): boolean {
-  return completedSteps.includes(currentStep);
-}
-
-/**
  * Get validation messages for the Show Details step (step 0)
  */
 export function getShowDetailsValidationMessages(show: ShowData): string[] {
@@ -85,6 +75,13 @@ export function getClassValidationMessages(trials: Trial[]): string[] {
   const totalClasses = trials.reduce((sum, trial) => sum + trial.classes.length, 0);
   if (totalClasses === 0) {
     messages.push('At least one class must be added to the trials');
+  } else {
+    // Ensure every trial has at least one class
+    trials.forEach((trial) => {
+      if (trial.classes.length === 0) {
+        messages.push(`${trial.name || 'A trial'} needs at least one class`);
+      }
+    });
   }
 
   return messages;

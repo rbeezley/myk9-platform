@@ -110,20 +110,20 @@ export const useWizardStore = create<WizardState & WizardActions>()(
 
       // Navigation
       setCurrentStep: (step) => set({ currentStep: step }),
-      
+
       markStepCompleted: (step) => {
         const { completedSteps } = get();
         if (completedSteps.includes(step)) return;
         set({ completedSteps: [...completedSteps, step].sort((a, b) => a - b) });
       },
-      
+
       goToStep: (step) => {
         const { completedSteps } = get();
         // Only allow navigation to completed steps or the next step
-        const maxAllowedStep = completedSteps.length > 0 
-          ? Math.max(...completedSteps) + 1 
+        const maxAllowedStep = completedSteps.length > 0
+          ? Math.max(...completedSteps) + 1
           : 0;
-        
+
         if (step <= maxAllowedStep) {
           set({ currentStep: step });
         }

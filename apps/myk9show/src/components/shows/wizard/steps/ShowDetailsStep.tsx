@@ -34,7 +34,7 @@ const SHOW_TYPES = [
 
 export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) => {
   logger.debug('ShowDetailsStep component loaded', 'wizard');
-  const { show, updateShowData, markStepCompleted, addJudgeToShow, removeJudgeFromShow, judgeDetails } = useWizardStore();
+  const { show, updateShowData, addJudgeToShow, removeJudgeFromShow, judgeDetails } = useWizardStore();
   const { clubs, loadClubs } = useClubStore();
   const { people, loadPeople } = useUserStore();
   const panelManager = usePanelManager();
@@ -202,25 +202,8 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
     setJudgeSearchTerm('');
   };
 
-  // Auto-complete step when valid
-  useEffect(() => {
-    const isValid = !!(
-      show.name?.trim() &&
-      show.type &&
-      show.startDate &&
-      show.endDate &&
-      show.location?.trim() &&
-      show.clubId &&
-      show.chairman?.trim() &&
-      show.secretary?.trim() &&
-      show.entryOpenDate &&
-      show.entryCloseDate
-    );
-    
-    if (isValid) {
-      markStepCompleted(0);
-    }
-  }, [show, markStepCompleted]);
+  // Validation is handled by the wizard page via getValidationMessagesForStep.
+  // No auto-marking needed — markStepCompleted is called by handleNext.
 
   // Date validation
   const isValidDateRange = () => {

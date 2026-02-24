@@ -267,10 +267,13 @@ const ShowCreationWizardPage: React.FC = () => {
 
   // Step navigation validation
   const canGoBack = !isLoading;
-  const canGoNext = !isLoading && completedSteps.includes(currentStep);
 
   // Get validation messages for current step
   const validationMessages = getValidationMessagesForStep(currentStep, show, trials);
+
+  // Enable Next when validation passes (decoupled from completedSteps to prevent
+  // auto-advance caused by markStepCompleted side effects during re-renders)
+  const canGoNext = !isLoading && validationMessages.length === 0;
 
   // Render current step content
   const renderStepContent = () => {

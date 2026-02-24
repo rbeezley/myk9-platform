@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { logger } from '@/services/LoggingService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -30,7 +30,6 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
   const {
     trials,
     updateTrial,
-    markStepCompleted,
     show,
     judgeDetails,
     judgeAssignments,
@@ -39,7 +38,6 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
     useShallow(state => ({
       trials: state.trials,
       updateTrial: state.updateTrial,
-      markStepCompleted: state.markStepCompleted,
       show: state.show,
       judgeDetails: state.judgeDetails,
       judgeAssignments: state.judgeAssignments,
@@ -220,14 +218,6 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
 
     return newErrors;
   }, [totalClasses, trials]);
-
-  // Mark step complete when validation passes
-  const isValid = Object.keys(errors).length === 0;
-  useEffect(() => {
-    if (isValid) {
-      markStepCompleted(2);
-    }
-  }, [isValid, markStepCompleted]);
 
   // Update trial state
   const updateTrialState = (trialId: string, updates: Partial<TrialClassState>) => {

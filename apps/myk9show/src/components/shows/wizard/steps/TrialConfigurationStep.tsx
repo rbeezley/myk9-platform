@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { DateTimePicker } from '@/components/ui/date-time-picker';
@@ -24,7 +24,6 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({ 
     addTrial,
     updateTrial,
     removeTrial,
-    markStepCompleted
   } = useWizardStore();
 
   // Derive errors using useMemo instead of useState + effect
@@ -77,16 +76,6 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({ 
 
     return newErrors;
   }, [trials, show.startDate, show.endDate]);
-
-  // Derive validity from errors
-  const isValid = Object.keys(errors).length === 0;
-
-  // Mark step complete when form is valid
-  useEffect(() => {
-    if (isValid) {
-      markStepCompleted(1);
-    }
-  }, [isValid, markStepCompleted]);
 
   const handleAddTrial = () => {
     const trialNumber = trials.length + 1;

@@ -11,6 +11,8 @@ import { useDogStore } from '../../store/dogStore';
 import { useUsers, useAddPerson, useUpdatePerson, useDeletePerson } from '../../hooks/useUsers';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
+import { Button } from '@/components/ui/button';
+import { Plus } from 'lucide-react';
 
 const UserListPage: React.FC = () => {
   // State hooks
@@ -63,13 +65,41 @@ const [formData, setFormData] = useState<UserFormData>({
   dogs: [],
   id: '',
 });
-  // Handlers (add, edit, delete, view, open dialogs)
-  // ... (Will be filled in next step)
   if (isLoading) return <div className="p-8">Loading people...</div>;
   if (error) return <div className="p-8 text-red-500">Failed to load people.</div>;
 
+  const handleAddPerson = () => {
+    setFormData({
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
+      streetAddress: '',
+      city: '',
+      state: '',
+      zipCode: '',
+      selectedDogIds: [],
+      dogs: [],
+      id: '',
+    });
+    setSelectedPerson(null);
+    setIsAddPersonDialogOpen(true);
+  };
+
   return (
     <div className="p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">People</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Manage exhibitors, judges, and officials
+          </p>
+        </div>
+        <Button onClick={handleAddPerson}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Person
+        </Button>
+      </div>
       <UserTable
         people={(people as User[]) || []}
         onView={(person: User) => { setSelectedPerson(person); setIsViewDetailsDialogOpen(true); }}

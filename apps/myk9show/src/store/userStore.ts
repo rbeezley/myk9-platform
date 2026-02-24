@@ -333,15 +333,15 @@ export const useUserStore = create<UserStore>()(
 
       // Dialog and selection state using new terminology
       isAddUserDialogOpen: false,
-      setIsAddUserDialogOpen: (open) => set({ isAddUserDialogOpen: open }),
+      setIsAddUserDialogOpen: (open) => set({ isAddUserDialogOpen: open, isAddPersonDialogOpen: open }),
       isEditUserDialogOpen: false,
-      setIsEditUserDialogOpen: (open) => set({ isEditUserDialogOpen: open }),
+      setIsEditUserDialogOpen: (open) => set({ isEditUserDialogOpen: open, isEditPersonDialogOpen: open }),
       
-      // Legacy aliases for dialog state
+      // Legacy aliases for dialog state — keep both properties in sync
       isAddPersonDialogOpen: false,
-      setIsAddPersonDialogOpen: (open) => set({ isAddUserDialogOpen: open }),
+      setIsAddPersonDialogOpen: (open) => set({ isAddPersonDialogOpen: open, isAddUserDialogOpen: open }),
       isEditPersonDialogOpen: false,
-      setIsEditPersonDialogOpen: (open) => set({ isEditUserDialogOpen: open }),
+      setIsEditPersonDialogOpen: (open) => set({ isEditPersonDialogOpen: open, isEditUserDialogOpen: open }),
       isDeleteDialogOpen: false,
       setIsDeleteDialogOpen: (open) => set({ isDeleteDialogOpen: open }),
       isViewDetailsDialogOpen: false,
@@ -361,6 +361,8 @@ export const useUserStore = create<UserStore>()(
         selectedUser: null,
         isAddUserDialogOpen: false,
         isEditUserDialogOpen: false,
+        isAddPersonDialogOpen: false,
+        isEditPersonDialogOpen: false,
         isDeleteDialogOpen: false,
         isViewDetailsDialogOpen: false
       })

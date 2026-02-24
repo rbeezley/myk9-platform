@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Building2, Mail, Phone, MapPin } from 'lucide-react';
 import { useClubStore } from '@/store/clubStore';
+import { notifications } from '@/lib/notifications';
 import { BasePanelProps, EntityCreationResult } from '../types';
 import type { Club } from '@/types/club-types';
 
@@ -157,11 +158,18 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
         action,
       };
 
+      notifications.success(
+        context.mode === 'edit'
+          ? `"${clubData.name}" updated successfully`
+          : `"${clubData.name}" created successfully`
+      );
+
       onResult(result);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to save club';
       setError(errorMessage);
       setIsLoading(false);
+      notifications.error(errorMessage);
     }
   }, [validationState.isValid, formData, context, addClub, updateClub, onResult]);
 
@@ -210,6 +218,7 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
             <Label htmlFor="name">Club Name *</Label>
             <Input
               id="name"
+              autoComplete="organization"
               value={formData.name}
               onChange={(e) => updateFormData({ name: e.target.value })}
               placeholder="Enter club name"
@@ -230,6 +239,7 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
                 <Input
                   id="email"
                   type="email"
+                  autoComplete="email"
                   value={formData.email}
                   onChange={(e) => updateFormData({ email: e.target.value })}
                   placeholder="club@example.com"
@@ -244,6 +254,8 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
                 <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="phone"
+                  type="tel"
+                  autoComplete="tel"
                   value={formData.phone}
                   onChange={(e) => updateFormData({ phone: e.target.value })}
                   placeholder="(555) 123-4567"
@@ -258,6 +270,7 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
             <Input
               id="website"
               type="url"
+              autoComplete="url"
               value={formData.website}
               onChange={(e) => updateFormData({ website: e.target.value })}
               placeholder="https://www.clubwebsite.com"
@@ -282,6 +295,7 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
             <Label htmlFor="street">Street Address</Label>
             <Input
               id="street"
+              autoComplete="street-address"
               value={formData.address.street}
               onChange={(e) => updateAddress({ street: e.target.value })}
               placeholder="123 Main Street"
@@ -293,6 +307,7 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
               <Label htmlFor="city">City *</Label>
               <Input
                 id="city"
+                autoComplete="address-level2"
                 value={formData.address.city}
                 onChange={(e) => updateAddress({ city: e.target.value })}
                 placeholder="City"
@@ -303,6 +318,7 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
               <Label htmlFor="state">State *</Label>
               <Input
                 id="state"
+                autoComplete="address-level1"
                 value={formData.address.state}
                 onChange={(e) => updateAddress({ state: e.target.value })}
                 placeholder="State"
@@ -313,6 +329,7 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
               <Label htmlFor="zipCode">ZIP Code</Label>
               <Input
                 id="zipCode"
+                autoComplete="postal-code"
                 value={formData.address.zipCode}
                 onChange={(e) => updateAddress({ zipCode: e.target.value })}
                 placeholder="12345"
@@ -324,6 +341,7 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
             <Label htmlFor="country">Country</Label>
             <Input
               id="country"
+              autoComplete="country-name"
               value={formData.address.country}
               onChange={(e) => updateAddress({ country: e.target.value })}
               placeholder="United States"
@@ -354,7 +372,7 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
         </CardContent>
       </Card>
 
-      {/* Quick Actions for testing */}
+      {/* Action Buttons */}
       <div className="flex gap-3 pt-4">
         <Button
           variant="outline"

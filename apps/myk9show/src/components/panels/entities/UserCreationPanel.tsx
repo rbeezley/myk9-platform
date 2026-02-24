@@ -9,6 +9,7 @@ import { useUserStore, PersonInput } from '@/store/userStore';
 import { BasePanelProps } from '../types';
 import type { UserRole } from '@/types/user-types';
 import { logger } from '@/services/LoggingService';
+import { notifications } from '@/lib/notifications';
 
 interface PersonFormData {
   firstName: string;
@@ -333,6 +334,8 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
 
       logger.debug('✅ User created successfully:', 'panels', { data: newPerson });
 
+      notifications.success(`${personData.firstName} ${personData.lastName} created successfully`);
+
       // Call the selection callback if provided (may be async to refresh store)
       if (context.selectionCallback) {
         await context.selectionCallback((newPerson as unknown) as Record<string, unknown>);
@@ -347,6 +350,7 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
 
     } catch (error) {
       logger.error('❌ Failed to create person:', 'components', {}, error as Error);
+      notifications.error('Failed to create person. Please try again.');
       setErrors({ submit: 'Failed to create person. Please try again.' });
     } finally {
       setIsSubmitting(false);
@@ -410,6 +414,7 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
               <Label htmlFor="firstName">First Name *</Label>
               <Input
                 id="firstName"
+                autoComplete="given-name"
                 value={formData.firstName}
                 onChange={(e) => handleInputChange('firstName', e.target.value)}
                 placeholder="Enter first name"
@@ -424,6 +429,7 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
               <Label htmlFor="lastName">Last Name *</Label>
               <Input
                 id="lastName"
+                autoComplete="family-name"
                 value={formData.lastName}
                 onChange={(e) => handleInputChange('lastName', e.target.value)}
                 placeholder="Enter last name"
@@ -449,6 +455,7 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
               <Input
                 id="email"
                 type="email"
+                autoComplete="email"
                 value={formData.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
                 placeholder="Enter email address"
@@ -464,6 +471,7 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
               <Input
                 id="phone"
                 type="tel"
+                autoComplete="tel"
                 value={formData.phone}
                 onChange={(e) => handleInputChange('phone', e.target.value)}
                 placeholder="Enter phone number"
@@ -487,6 +495,7 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
             <Label htmlFor="address">Address *</Label>
             <Input
               id="address"
+              autoComplete="street-address"
               value={formData.address}
               onChange={(e) => handleInputChange('address', e.target.value)}
               placeholder="Enter street address"
@@ -502,6 +511,7 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
               <Label htmlFor="city">City *</Label>
               <Input
                 id="city"
+                autoComplete="address-level2"
                 value={formData.city}
                 onChange={(e) => handleInputChange('city', e.target.value)}
                 placeholder="Enter city"
@@ -538,6 +548,7 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
               <Label htmlFor="zipCode">ZIP Code *</Label>
               <Input
                 id="zipCode"
+                autoComplete="postal-code"
                 value={formData.zipCode}
                 onChange={(e) => handleInputChange('zipCode', e.target.value)}
                 placeholder="12345"

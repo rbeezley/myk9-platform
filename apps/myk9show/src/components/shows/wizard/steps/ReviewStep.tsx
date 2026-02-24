@@ -43,7 +43,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
     setCurrentStep
   } = useWizardStore();
   const { clubs } = useClubStore();
-  
+
   const [errors, setErrors] = useState<string[]>([]);
 
   // Validation

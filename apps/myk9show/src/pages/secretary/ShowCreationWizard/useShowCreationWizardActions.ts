@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { logger } from '@/services/LoggingService';
+import { notifications } from '@/lib/notifications';
 import { useWizardStore } from '@/store/wizardStore';
 import { useShowStore } from '@/store/showStore';
 import { useClubStore } from '@/store/clubStore';
@@ -206,12 +207,20 @@ export function useShowCreationWizardActions({
       // Navigate to the new show using the real DB UUID
       navigate(`/shows/${realShowId}`);
 
+      // Show success toast
+      if (status === 'draft') {
+        notifications.success(`"${savedShow.name}" saved as draft`);
+      } else {
+        notifications.success(`"${savedShow.name}" created successfully`);
+      }
+
       logger.info(`Show saved successfully (${status})`, 'wizard', {
         showId: realShowId,
         showName: savedShow.name,
       });
     } catch (error) {
       logger.error('Error saving show', 'wizard', {}, error as Error);
+      notifications.error('Failed to create show. Please try again.');
       throw error;
     } finally {
       setIsLoading(false);

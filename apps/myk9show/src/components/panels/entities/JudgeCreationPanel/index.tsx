@@ -5,6 +5,7 @@ import { useUserStore, PersonInput } from '@/store/userStore';
 import { BasePanelProps } from '../../types';
 import type { JudgeInfo } from '@/types/user-types';
 import { logger } from '@/services/LoggingService';
+import { notifications } from '@/lib/notifications';
 import type { JudgeFormData, ExpandedSections } from './types';
 import { PersonalInfoSection } from './PersonalInfoSection';
 import { AddressSection } from './AddressSection';
@@ -203,6 +204,8 @@ export const JudgeCreationPanel: React.FC<JudgeCreationPanelProps> = ({
 
       logger.debug('Judge created successfully:', 'panels', { data: newJudge });
 
+      notifications.success(`Judge ${formData.firstName} ${formData.lastName} created successfully`);
+
       // Call the selection callback if provided (may be async to refresh store)
       if (context.selectionCallback) {
         await context.selectionCallback((newJudge as unknown) as Record<string, unknown>);
@@ -217,6 +220,7 @@ export const JudgeCreationPanel: React.FC<JudgeCreationPanelProps> = ({
 
     } catch (error) {
       logger.error('Failed to create judge:', 'components', {}, error as Error);
+      notifications.error('Failed to create judge. Please try again.');
       setErrors({ submit: 'Failed to create judge. Please try again.' });
     } finally {
       setIsSubmitting(false);

@@ -29,6 +29,7 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({
             <Label htmlFor="firstName">First Name *</Label>
             <Input
               id="firstName"
+              autoComplete="given-name"
               value={formData.firstName}
               onChange={(e) => onInputChange('firstName', e.target.value)}
               placeholder="Enter first name"
@@ -43,6 +44,7 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({
             <Label htmlFor="lastName">Last Name *</Label>
             <Input
               id="lastName"
+              autoComplete="family-name"
               value={formData.lastName}
               onChange={(e) => onInputChange('lastName', e.target.value)}
               placeholder="Enter last name"
@@ -59,6 +61,7 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({
           <Label htmlFor="judgeNumber">Judge Number *</Label>
           <Input
             id="judgeNumber"
+            autoComplete="off"
             value={formData.judgeNumber}
             onChange={(e) => onInputChange('judgeNumber', e.target.value)}
             placeholder="Enter official judge number"
@@ -76,6 +79,7 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({
             <Input
               id="email"
               type="email"
+              autoComplete="email"
               value={formData.email}
               onChange={(e) => onInputChange('email', e.target.value)}
               placeholder="Enter email address"
@@ -91,6 +95,7 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({
             <Input
               id="phone"
               type="tel"
+              autoComplete="tel"
               value={formData.phone}
               onChange={(e) => onInputChange('phone', e.target.value)}
               placeholder="Enter phone number"

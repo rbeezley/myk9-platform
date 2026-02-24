@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { Plus, Trash2, GripVertical, CalendarPlus, HelpCircle } from 'lucide-react';
-import { format, isWithinInterval, parseISO } from 'date-fns';
+import { addDays, format, isWithinInterval, parseISO } from 'date-fns';
 import { Label } from '@/components/ui/label';
 import {
   Tooltip,
@@ -90,8 +90,25 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({ 
 
   const handleAddTrial = () => {
     const trialNumber = trials.length + 1;
-    // Default to 8:00 AM on the show start date, or today at 8:00 AM
-    const baseDate = show.startDate ? new Date(show.startDate) : new Date();
+    // Default to next available day: if trials exist, use the day after the latest trial date;
+    // otherwise use show start date. Capped at show end date.
+    let baseDate: Date;
+    if (trials.length > 0) {
+      const latestTrialDate = trials.reduce((latest, t) => {
+        const d = t.dateTime ? new Date(t.dateTime) : new Date(0);
+        return d > latest ? d : latest;
+      }, new Date(0));
+      baseDate = addDays(latestTrialDate, 1);
+      // Cap at show end date if set
+      if (show.endDate) {
+        const endDate = new Date(show.endDate);
+        if (baseDate > endDate) {
+          baseDate = endDate;
+        }
+      }
+    } else {
+      baseDate = show.startDate ? new Date(show.startDate) : new Date();
+    }
     baseDate.setHours(8, 0, 0, 0); // Set to 8:00 AM
     const defaultDateTime = format(baseDate, "yyyy-MM-dd'T'HH:mm:ss");
 

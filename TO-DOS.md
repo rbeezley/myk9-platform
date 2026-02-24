@@ -128,7 +128,7 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 ### MEDIUM: Trial 2 Defaults to Same Date as Trial 1
 
-- [ ] **Multi-day show: Trial 2 gets same date as Trial 1** — For a 2-day show (Mar 14-15, 2026), when adding Trial 2 in Step 2, it defaults to the same date (Mar 14) as Trial 1 instead of defaulting to the next day (Mar 15). This is a poor UX default that requires manual correction. **Files:** Wizard Step 2 trial creation logic.
+- [x] **Multi-day show: Trial 2 gets same date as Trial 1** — Fixed: `handleAddTrial` now defaults new trials to the day after the latest existing trial's date (capped at `show.endDate`). First trial still defaults to `show.startDate`. **Files:** `TrialConfigurationStep.tsx`.
 
 ### LOW: Escape Key in Date Picker Triggers Navigation Dialog
 

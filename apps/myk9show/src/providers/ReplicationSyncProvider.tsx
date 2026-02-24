@@ -15,6 +15,8 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { logger } from '@/services/LoggingService';
 import { ReplicationSyncContext, type ReplicationSyncContextValue } from '@/contexts/ReplicationSyncContext';
+import { MutationManager } from '@myk9/replication';
+import { supabase } from '@/services/database/supabaseClient';
 
 // Import replicated table singletons
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
@@ -48,6 +50,20 @@ const REPLICATED_TABLES = [
   { name: 'entries', table: replicatedEntriesTable },
   { name: 'dogs', table: replicatedDogsTable },
 ] as const;
+
+// Adapt myK9Show's LoggingService to the @myk9/replication Logger interface
+const replicationLogger = {
+  log: (...args: unknown[]) => logger.debug(String(args[0]), 'replication'),
+  warn: (...args: unknown[]) => logger.warn(String(args[0]), 'replication'),
+  error: (...args: unknown[]) => logger.error(String(args[0]), 'replication'),
+  debug: (...args: unknown[]) => logger.debug(String(args[0]), 'replication'),
+};
+
+// Create shared MutationManager and connect to all tables
+const mutationManager = new MutationManager(supabase, { logger: replicationLogger });
+for (const { table } of REPLICATED_TABLES) {
+  table.setMutationManager(mutationManager);
+}
 
 export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = ({
   children,
@@ -124,7 +140,22 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
     setStatus(prev => ({ ...prev, isSyncing: true, error: null }));
 
     try {
-      // Sync tables in order (shows first, then dependent tables)
+      // Phase 1: Upload pending mutations to Supabase
+      try {
+        const uploadResults = await mutationManager.uploadPendingMutations();
+        const succeeded = uploadResults.filter(r => r.success).length;
+        if (uploadResults.length > 0) {
+          logger.info('Phase 1 upload complete', 'replication', {
+            succeeded,
+            total: uploadResults.length,
+          });
+        }
+      } catch (uploadError) {
+        logger.error('Phase 1 upload failed', 'replication', {}, uploadError as Error);
+        // Continue to Phase 2 even if upload fails
+      }
+
+      // Phase 2: Download sync (shows first, then dependent tables)
       for (const { name, table } of REPLICATED_TABLES) {
         setStatus(prev => ({
           ...prev,
@@ -190,16 +221,16 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
     return undefined;
   }, [autoSync, isOnline, triggerSync]);
 
-  // Sync when coming back online
+  // Sync when coming back online + restore localStorage backup
   useEffect(() => {
     if (syncOnReconnect) {
       if (!isOnline) {
         wasOffline.current = true;
       } else if (wasOffline.current) {
         wasOffline.current = false;
-        logger.info('Back online - triggering sync', 'replication');
-        // Defer to next tick to avoid synchronous setState in effect
-        const timer = setTimeout(() => {
+        logger.info('Back online - restoring mutations and triggering sync', 'replication');
+        const timer = setTimeout(async () => {
+          await mutationManager.restoreMutationsFromLocalStorage();
           triggerSync();
         }, 0);
         return () => clearTimeout(timer);
@@ -207,6 +238,30 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
     }
     return undefined;
   }, [isOnline, syncOnReconnect, triggerSync]);
+
+  // Startup: flush pending mutations from previous session
+  useEffect(() => {
+    const startupUpload = async () => {
+      await mutationManager.restoreMutationsFromLocalStorage();
+      const pendingCount = await mutationManager.getPendingCount();
+      if (pendingCount > 0) {
+        logger.info('Startup: flushing pending mutations', 'replication', { pendingCount });
+        triggerSync();
+      }
+    };
+    const startupTimer = setTimeout(startupUpload, 2000);
+    return () => clearTimeout(startupTimer);
+  }, [triggerSync]);
+
+  // Listen for sync-requested events (e.g., from wizard after publish)
+  useEffect(() => {
+    const handleSyncRequest = () => {
+      logger.info('Sync requested via event', 'replication');
+      triggerSync();
+    };
+    window.addEventListener('replication:sync-requested', handleSyncRequest);
+    return () => window.removeEventListener('replication:sync-requested', handleSyncRequest);
+  }, [triggerSync]);
 
   const contextValue: ReplicationSyncContextValue = {
     status,

@@ -172,6 +172,22 @@ When a class reaches capacity, additional entries go to a waitlist.
 
 ---
 
+## Financial Tracking [ADDED]
+
+Secretary and club treasurer tools for trial finances.
+
+**Per-trial financial summary:**
+- Club net total (entry fees minus platform fees, refunds, comps)
+- Entry count by payment status (paid, pending, refunded, comped)
+- Per-exhibitor payment breakdown with running balances
+
+**Operational tools:**
+- Bulk refund + scratch for waitlisted entries that don't get promoted
+- Credit tracking for exhibitors who withdraw (credits apply to future entries)
+- Export financial summary as CSV for club bookkeeping
+
+---
+
 ## Database Changes
 
 ### New tables

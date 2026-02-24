@@ -77,6 +77,14 @@ SportTemplate {
     supersedes[]       — which lower titles it replaces
   }
 
+  // OPERATIONAL REQUIREMENTS [ADDED]
+  operationalConfig {
+    sizeCategories[]   — optional dog size groups (S/M/L for container prep)
+    ringSetup          — sport-specific ring/search area configuration notes
+    equipmentNeeded[]  — containers, barriers, hides, distraction items
+    mrvMinutesPerEntry — weighted ring time for capacity calculations (from classRules)
+  }
+
   // EXPORT FORMAT
   exportConfig {
     format             — "akc-catalog" | "ukc-judges-book" | "asca-paperwork"

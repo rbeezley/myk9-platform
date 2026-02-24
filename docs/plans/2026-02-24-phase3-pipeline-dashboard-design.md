@@ -13,6 +13,28 @@ The Pipeline Dashboard replaces the current secretary dashboard (tabs and cards)
 
 ---
 
+## Design Principles
+
+**The GPS metaphor.** [ADDED] The dashboard shows the next turn, not the entire map. The full feature set remains accessible through standard navigation, but the pipeline ensures the secretary is never left wondering what to do next.
+
+**Completed stages remain browsable.** [ADDED] Secretaries can click back to review any previous stage. A "return to current stage" prompt keeps them oriented. Previous stages are read-only unless the secretary explicitly unlocks them for editing.
+
+---
+
+## Create Show Wizard Handoff [ADDED]
+
+The existing Create Show Wizard is preserved. When the wizard completes, it navigates directly into the pipeline dashboard at Stage 1 (Trial Setup) with wizard-completed items already checked off. This makes the wizard the natural beginning of the pipeline rather than a separate tool.
+
+After initial creation, individual setup items are editable through targeted slide-over panels in the dashboard — the secretary does not need to re-run the full wizard to change one field.
+
+---
+
+## Editing UX: Slide-Over Panels [ADDED]
+
+Each checklist item opens a slide-over panel (not a full page navigation) for editing the relevant configuration. The pipeline view stays visible behind the panel, maintaining context. Saving the panel auto-completes the associated checklist item. This pattern applies to all canned checklist items across all stages.
+
+---
+
 ## Six Pipeline Stages
 
 ```
@@ -109,6 +131,29 @@ Some checklist items appear only when relevant:
 - "Premium results synced" — only appears if exhibitors with premium subscriptions entered
 
 This prevents clutter from irrelevant items.
+
+---
+
+## Exception Paths [ADDED]
+
+Exceptions (judge gets sick, entry has a conflict, venue change) surface as inline side-lane tasks within the current stage rather than separate parallel workflows. A blocking exception appears inline and must be resolved before the secretary can advance, but the overall pipeline structure remains unchanged. Non-blocking exceptions (e.g., "exhibitor requested armband change") appear as soft alerts that don't gate progression.
+
+---
+
+## Stage Variants [ADDED]
+
+The trial type captured during setup determines which pipeline configuration loads. A single-day trial sees a simpler checklist than a multi-day trial. Variant selection happens automatically based on trial dates — the secretary sees a pipeline suited to their specific situation without visible complexity.
+
+---
+
+## Blocking vs. Background Items [EXPANDED]
+
+Canned checklist items come in two categories:
+
+- **Blocking items** — Must be complete before stage advancement. Shown with a required indicator.
+- **Background items** — Should happen during a stage but don't prevent progression. Softer visual treatment, tracked but not gated. Example: "Send confirmation emails" during Entry Period — important but not a hard blocker.
+
+Custom items are always non-blocking.
 
 ---
 

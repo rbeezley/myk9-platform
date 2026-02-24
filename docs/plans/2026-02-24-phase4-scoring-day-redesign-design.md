@@ -143,6 +143,28 @@ PDF export. Batch print all scribesheets for a class or for the entire trial. La
 
 ---
 
+## Input Modes: myK9Q vs. Manual [ADDED]
+
+Each class operates in one of two input modes, visible on the card and in the scoring panel:
+
+**myK9Q mode (default when tablets are in use):**
+- Scores sync automatically from ringside via `@myk9/replication`
+- Progress updates in realtime on the card grid
+- Secretary monitors but doesn't need to enter scores
+
+**Manual mode (paper scribesheets):**
+- Secretary enters scores directly in the class scoring panel
+- Activated per-class when a judge works without a tablet
+- Uses the same scoresheet fields — just entered by the secretary instead of the judge
+
+A class can switch modes mid-trial (e.g., tablet dies, secretary takes over with paper). The input source is tracked per score but does not affect the result.
+
+### Secretary Override
+
+Even on myK9Q-synced classes, every field remains editable by the secretary. If a judge corrects a score verbally after the fact, the secretary's manual change takes precedence. Override is communicated clearly in the UI with an "edited by secretary" indicator and logged in the Activity Log (Phase 3).
+
+---
+
 ## Realtime Sync
 
 Scoring Day relies on realtime data flow between myK9Q (ringside scoring) and myK9Show (secretary overview).

@@ -16,6 +16,7 @@ import type { IDBPDatabase, IDBPObjectStore } from 'idb';
 import type { ReplicatedRow, SyncMetadata, SyncResult, SyncOptions, CacheStats } from '../types';
 import type { Logger, GetTableTTL, ReplicatedTableDependencies } from '../dependencies';
 import { noopLogger, defaultGetTableTTL } from '../dependencies';
+import type { MutationManager } from '../MutationManager';
 import {
   QUERY_TIMEOUT_MS,
   SLOW_QUERY_THRESHOLD_MS,
@@ -77,6 +78,44 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       this.logger,
       () => this.init(),
       () => this.notifyListeners()
+    );
+  }
+
+  // ========================================
+  // MUTATION MANAGER
+  // ========================================
+
+  /** MutationManager reference (set by app at startup) */
+  private mutationManager: MutationManager | null = null;
+
+  /**
+   * Connect this table to a MutationManager for mutation upload.
+   * Must be called once at app startup before any writes.
+   */
+  setMutationManager(manager: MutationManager): void {
+    this.mutationManager = manager;
+  }
+
+  /**
+   * Queue a mutation for upload to Supabase.
+   * Subclasses call this after set() with the Supabase-format payload.
+   */
+  protected async queueMutation(
+    operation: 'INSERT' | 'UPDATE' | 'DELETE',
+    rowId: string,
+    supabasePayload: Record<string, unknown>,
+    dependsOn?: string[]
+  ): Promise<string | null> {
+    if (!this.mutationManager) {
+      this.logger.warn(`[${this.tableName}] No MutationManager set — mutation not queued`);
+      return null;
+    }
+    return this.mutationManager.queueMutation(
+      this.tableName,
+      operation,
+      rowId,
+      supabasePayload,
+      dependsOn
     );
   }
 

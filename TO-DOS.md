@@ -106,3 +106,65 @@ Top 3 source files over 800 lines — refactor when next modified:
 
 - [x] **Debug show not appearing after Create and Publish** — Root cause: wizard saved to IndexedDB/Zustand via `addShow()` but `ShowDetailsPage` reads from React Query cache (Supabase). Show existed locally but React Query never knew about it. **Fix:** Seed React Query cache (`showQueryKeys.detail` + `showQueryKeys.lists`) in `useShowCreationWizardActions.ts` before navigating.
 
+## Show Creation Wizard Bugs — 2026-02-24
+
+Bugs found during end-to-end testing of the Show Creation Wizard via Claude Preview.
+
+### CRITICAL: Classes Not Persisted After Publish
+
+- [ ] **Classes fail to save to Supabase (52 unhandled promise rejections)** — Root cause: **storage layer architecture mismatch**. Shows and trials use offline-first `ReplicatedTable` (IndexedDB only), but classes use direct Supabase inserts via React Query (`useClassStoreCompat → createClassMutation → supabase.from('classes').insert()`). When wizard publishes, the `trial_id` FK on the `classes` table references trials that only exist in IndexedDB, not in Supabase's `trials` table, so ALL class inserts fail with FK constraint violations. Additionally, `createClasses()` in `useShowCreationWizardActions.ts:115-118` fires off `addClass()` in a `forEach` without `await`, so errors are unhandled promises. **Impact:** Show publishes but has zero classes — users see "No classes available yet" on the show detail page. **Fix options:** (1) Make classes use offline-first storage like trials, (2) Ensure trials sync to Supabase before class creation, (3) Use a single Supabase transaction for trials + classes. **Files:** `useShowCreationWizardActions.ts:103-118`, `useClassStoreCompat.ts:101-106`, `classQueries.ts:173-209`.
+
+### CRITICAL: Replication Layer Not Syncing to Supabase
+
+- [ ] **Zero rows in Supabase despite data visible in UI** — All Supabase tables (`shows`, `trials`, `classes`) have 0 rows. Shows and trials are only stored in IndexedDB via `ReplicatedTable`. The UI works because it reads from local cache (Zustand stores populated from IndexedDB). Data is never reaching Supabase. This means **all show data is local-only and will be lost if the browser cache is cleared**. The `ReplicatedTrialsTable` constructor passes `undefined` as the second parameter to `super()` which may disable remote sync. **Files:** `ReplicatedTrialsTable.ts:66-68`, `@myk9/replication` package.
+
+### HIGH: Newly Created Users Don't Appear in Dropdowns
+
+- [ ] **Inline-created person not available in chairman/secretary dropdown** — When creating a new person (e.g., "Sarah Johnson") via the "Create New Chairman" panel in Step 1, the person is saved but does NOT appear in the chairman/secretary select dropdown. Only pre-existing users (Test Admin, Test Secretary, Test Steward) show. The dropdown likely reads from a cached/pre-fetched user list that isn't invalidated after inline creation. **Files:** `ShowDetailsStep.tsx` (dropdown population), `UserCreationPanel.tsx`.
+
+### MEDIUM: Club Shows "Unknown Club" After Inline Creation
+
+- [ ] **Club shows "Unknown Club" after inline creation in wizard** — When creating a new club via "Create New Club" in Step 1, after saving, the host club field briefly shows "Unknown Club" instead of the actual name. The club search dropdown later shows the correct name when re-selected. Likely a React Query cache invalidation timing issue. **Files:** `ShowDetailsStep.tsx`, `ClubCreationPanel.tsx`.
+
+### MEDIUM: Trial 2 Defaults to Same Date as Trial 1
+
+- [ ] **Multi-day show: Trial 2 gets same date as Trial 1** — For a 2-day show (Mar 14-15, 2026), when adding Trial 2 in Step 2, it defaults to the same date (Mar 14) as Trial 1 instead of defaulting to the next day (Mar 15). This is a poor UX default that requires manual correction. **Files:** Wizard Step 2 trial creation logic.
+
+### LOW: Escape Key in Date Picker Triggers Navigation Dialog
+
+- [ ] **Pressing Escape to close date picker popover triggers "Unsaved Changes" navigation dialog** — When the date picker calendar popover is open and the user presses Escape, it closes the popover but also triggers the wizard's route-leave guard, showing an "Unsaved Changes — Are you sure you want to leave?" dialog. Escape should only close the innermost popover. **Files:** Date picker component, wizard navigation guard.
+
+### LOW: Console Warnings for Base UI Select Components
+
+- [ ] **Base UI Select controlled/uncontrolled state warnings** — Console shows warnings about switching between controlled and uncontrolled states in Base UI Select components used for chairman/secretary selection. **Files:** `ShowDetailsStep.tsx` Select components.
+
+---
+
+## Test Complete Club CRUD Capabilities - 2026-02-23 22:04
+
+- **Test club Create/Edit/Delete end-to-end** — Verify full CRUD lifecycle for clubs using the Claude preview feature. **Problem:** Club CRUD operations have not been manually validated end-to-end — need to confirm create new club, edit existing club details, and delete a club all work correctly through the UI. **Files:** `apps/myk9show/src/pages/ClubsPage.tsx`, `apps/myk9show/src/components/panels/entities/ClubCreationPanel.tsx`, `apps/myk9show/src/components/panels/edit/ClubEditPanel.tsx`, `apps/myk9show/src/components/clubs/ClubDetails/index.tsx`, `apps/myk9show/src/components/clubs/ClubDetails/ClubDialogs.tsx`, `apps/myk9show/src/components/clubs/ClubDetails/useClubDetailsState.ts`, `apps/myk9show/src/services/mappers/clubMappers.ts`.
+
+## Test Complete Dog CRUD Capabilities - 2026-02-23 22:05
+
+- **Test dog Create/Edit/Delete end-to-end** — Verify full CRUD lifecycle for dogs using the Claude preview feature. **Problem:** Dog CRUD operations have not been manually validated end-to-end — need to confirm create new dog, edit existing dog details, and delete a dog all work correctly through the UI. **Files:** `apps/myk9show/src/pages/DogDetailsPage.tsx`, `apps/myk9show/src/components/panels/edit/AddDogPanel/index.tsx`, `apps/myk9show/src/components/panels/edit/DogEditPanel.tsx`, `apps/myk9show/src/components/dogs/common/DeleteDogDialog.tsx`, `apps/myk9show/src/components/dogs/common/DogProfileEditDialog.tsx`, `apps/myk9show/src/components/dogs/DogDetailsMain/index.tsx`, `apps/myk9show/src/services/mappers/dogMappers.ts`, `apps/myk9show/src/services/database/queries/dogQueries.ts`.
+
+## Test Complete Person CRUD Capabilities - 2026-02-23 22:07
+
+- **Test person Create/Edit/Delete end-to-end** — Verify full CRUD lifecycle for persons (users/judges) using the Claude preview feature. In this codebase, "person" maps to user and judge entities. **Problem:** Person CRUD operations have not been manually validated end-to-end — need to confirm create new user/judge, edit existing person details, and delete a person all work correctly through the UI. **Files:** `apps/myk9show/src/pages/UserDetailsPage.tsx`, `apps/myk9show/src/pages/admin/UserManagementPage.tsx`, `apps/myk9show/src/components/panels/entities/UserCreationPanel.tsx`, `apps/myk9show/src/components/panels/entities/JudgeCreationPanel/index.tsx`, `apps/myk9show/src/components/panels/edit/UserEditPanel.tsx`, `apps/myk9show/src/components/users/UserListPage.tsx`, `apps/myk9show/src/services/mappers/userMappers.ts`.
+
+## Test Complete Show CRUD Capabilities - 2026-02-23 22:07
+
+- **Test show Create/Edit/Delete end-to-end** — Verify full CRUD lifecycle for shows using the Claude preview feature. **Problem:** Show CRUD operations have not been manually validated end-to-end — need to confirm create new show (via wizard), edit existing show details, and delete a show all work correctly through the UI. **Files:** `apps/myk9show/src/pages/ShowDetailsPage.tsx`, `apps/myk9show/src/pages/secretary/ShowCreationWizardPage.tsx`, `apps/myk9show/src/components/shows/ShowDetails/dialogs/EditShowDialog.tsx`, `apps/myk9show/src/components/shows/ShowDetails/dialogs/DeleteShowDialog.tsx`, `apps/myk9show/src/components/shows/ShowDetailsMain.tsx`, `apps/myk9show/src/components/panels/edit/ShowEditForm.tsx`, `apps/myk9show/src/services/mappers/showMappers.ts`, `apps/myk9show/src/services/database/queries/showQueries.ts`.
+
+## Test Complete Trial CRUD Capabilities - 2026-02-23 22:07
+
+- **Test trial Create/Edit/Delete end-to-end** — Verify full CRUD lifecycle for trials using the Claude preview feature. **Problem:** Trial CRUD operations have not been manually validated end-to-end — need to confirm create new trial (via AddTrialDialog), edit existing trial details, and delete a trial all work correctly through the UI. **Files:** `apps/myk9show/src/pages/TrialDetailsPage.tsx`, `apps/myk9show/src/components/trials/AddTrialDialog.tsx`, `apps/myk9show/src/components/trials/TrialDetailsMain.tsx`, `apps/myk9show/src/components/trials/TrialDetail/TrialInfo.tsx`, `apps/myk9show/src/components/trials/TrialDetail/TrialHeader.tsx`, `apps/myk9show/src/components/panels/edit/TrialEditPanel.tsx`, `apps/myk9show/src/services/mappers/trialMappers.ts`, `apps/myk9show/src/services/database/queries/trialQueries.ts`.
+
+## Test Complete Class CRUD Capabilities - 2026-02-23 22:07
+
+- **Test class Create/Edit/Delete end-to-end** — Verify full CRUD lifecycle for classes using the Claude preview feature. **Problem:** Class CRUD operations have not been manually validated end-to-end — need to confirm create new class (via AddClassDialog or ClassCreationPage), edit existing class details, and delete a class all work correctly through the UI. **Files:** `apps/myk9show/src/pages/ClassDetailsPage.tsx`, `apps/myk9show/src/pages/secretary/ClassCreationPage.tsx`, `apps/myk9show/src/components/classes/AddClassDialog.tsx`, `apps/myk9show/src/components/classes/EditClassDialog.tsx`, `apps/myk9show/src/components/classes/ClassDetailsMain.tsx`, `apps/myk9show/src/components/panels/edit/ClassEditPanel.tsx`, `apps/myk9show/src/services/mappers/classMappers.ts`, `apps/myk9show/src/services/database/queries/classQueries.ts`.
+
+## Test Complete Entry CRUD Capabilities - 2026-02-23 22:07
+
+- **Test entry Create/Edit/Delete end-to-end** — Verify full CRUD lifecycle for entries using the Claude preview feature. **Problem:** Entry CRUD operations have not been manually validated end-to-end — need to confirm create new entry (via AddEntryDialog or RegistrationWorkflow), edit existing entry details, and delete an entry all work correctly through the UI. **Files:** `apps/myk9show/src/pages/ClassDetailsPage/AddEntryDialog.tsx`, `apps/myk9show/src/pages/ClassDetailsPage/EditEntryDialog.tsx`, `apps/myk9show/src/pages/ClassDetailsPage/DeleteEntryDialog.tsx`, `apps/myk9show/src/pages/secretary/EntryManagementPage.tsx`, `apps/myk9show/src/components/entries/EntryEditDialog.tsx`, `apps/myk9show/src/components/entries/OfflineEntryForm.tsx`, `apps/myk9show/src/services/mappers/entryMappers.ts`, `apps/myk9show/src/services/database/queries/entryQueries.ts`, `apps/myk9show/src/services/database/queries/entry-query-mutations.ts`.
+

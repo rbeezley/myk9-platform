@@ -46,30 +46,46 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
 
   const [errors, setErrors] = useState<string[]>([]);
 
-  // Validation
+  // Validation — check all required fields, not just a subset
   const validateReview = useCallback(() => {
     const newErrors: string[] = [];
-    
+
     if (!show.name.trim()) {
       newErrors.push('Show name is required');
     }
-    
+
     if (!show.startDate || !show.endDate) {
       newErrors.push('Show dates are required');
     }
-    
+
+    if (!show.location?.trim()) {
+      newErrors.push('Location is required');
+    }
+
+    if (!show.clubId) {
+      newErrors.push('Club selection is required');
+    }
+
+    if (!show.chairman?.trim()) {
+      newErrors.push('Show chairman is required');
+    }
+
+    if (!show.secretary?.trim()) {
+      newErrors.push('Show secretary is required');
+    }
+
     if (trials.length === 0) {
       newErrors.push('At least one trial is required');
     }
-    
+
     const totalClasses = trials.reduce((sum, trial) => sum + trial.classes.length, 0);
     if (totalClasses === 0) {
       newErrors.push('At least one class must be configured');
     }
-    
+
     setErrors(newErrors);
     return newErrors.length === 0;
-  }, [show.name, show.startDate, show.endDate, trials]);
+  }, [show.name, show.startDate, show.endDate, show.location, show.clubId, show.chairman, show.secretary, trials]);
 
   // Auto-validate and mark step complete
   useEffect(() => {

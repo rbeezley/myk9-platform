@@ -137,7 +137,7 @@ export const useWizardStore = create<WizardState & WizardActions>()(
 
       // Trial management
       addTrial: (trial) => set((state) => ({
-        trials: [...state.trials, { ...trial, id: `trial-${Date.now()}` }],
+        trials: [...state.trials, { ...trial, id: `trial-${Date.now()}-${Math.random().toString(36).slice(2, 7)}` }],
         isDirty: true
       })),
       

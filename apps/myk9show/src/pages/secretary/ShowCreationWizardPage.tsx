@@ -238,10 +238,20 @@ const ShowCreationWizardPage: React.FC = () => {
   }, [currentStep, setCurrentStep, handleClose]);
 
   const handleNext = useCallback(async () => {
-    setIsLoading(true);
     setHasAttemptedNext(true);
 
+    // Check validation before allowing navigation
+    const messages = getValidationMessagesForStep(currentStep, show, trials);
+    if (messages.length > 0) {
+      // Validation failed — show the banner but don't navigate
+      setValidationExpanded(true);
+      return;
+    }
+
+    setIsLoading(true);
+
     try {
+      // Mark step complete only after validation passes
       markStepCompleted(currentStep);
 
       if (currentStep < WIZARD_STEPS.length - 1) {
@@ -253,7 +263,7 @@ const ShowCreationWizardPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentStep, markStepCompleted, setCurrentStep]);
+  }, [currentStep, markStepCompleted, setCurrentStep, show, trials]);
 
   // Step navigation validation
   const canGoBack = !isLoading;

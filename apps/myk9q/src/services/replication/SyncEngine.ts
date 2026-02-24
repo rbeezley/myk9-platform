@@ -15,11 +15,12 @@
  * **Phase 2 Day 6-7** - Core sync infrastructure
  */
 
-import type { ReplicatedTable, SyncMetadata, SyncResult, SyncProgress } from '@myk9/replication';
+import type { ReplicatedTable, SyncMetadata, SyncResult, SyncProgress, Logger } from '@myk9/replication';
 import { REPLICATION_STORES } from '@myk9/replication';
 import { logger } from '@/utils/logger';
+import { supabase } from '@/lib/supabase';
 import { openDB, type IDBPDatabase } from 'idb';
-import { MutationManager, type MutationManagerConfig } from './MutationManager';
+import { MutationManager, type MutationManagerOptions } from './MutationManager';
 import { SyncExecutor, type SyncExecutorOptions } from './SyncExecutor';
 import { DB_NAME, DB_VERSION } from './replicationConstants';
 
@@ -68,16 +69,20 @@ export class SyncEngine {
     void this.syncInterval; // Reserved for future periodic sync feature
     this.autoSyncOnReconnect = config.autoSyncOnReconnect ?? true;
 
-    // Initialize extracted modules with callbacks
-    const mutationConfig: MutationManagerConfig = {
-      maxRetries: config.maxRetries || 3,
-      retryBackoffBase: config.retryBackoffBase || 1000,
+    // Initialize extracted modules with dependency injection
+    const loggerAdapter: Logger = {
+      log: (...args: unknown[]) => logger.log(...args),
+      warn: (...args: unknown[]) => logger.warn(...args),
+      error: (...args: unknown[]) => logger.error(...args),
     };
 
-    this.mutationManager = new MutationManager(
-      mutationConfig,
-      () => this.init() // Provide database access via callback
-    );
+    const mutationOptions: MutationManagerOptions = {
+      maxRetries: config.maxRetries || 3,
+      retryBackoffBase: config.retryBackoffBase || 1000,
+      logger: loggerAdapter,
+    };
+
+    this.mutationManager = new MutationManager(supabase, mutationOptions);
 
     this.syncExecutor = new SyncExecutor(
       (tableName) => this.getSyncMetadata(tableName),

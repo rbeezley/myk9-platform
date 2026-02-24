@@ -88,6 +88,13 @@ const ShowCreationWizardPage: React.FC = () => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isDirty) {
+        // Don't trigger if a popover, dropdown, or dialog overlay is open —
+        // Escape should only close the innermost overlay (e.g., date picker)
+        const hasOpenOverlay = document.querySelector(
+          '[data-open], [data-state="open"]'
+        );
+        if (hasOpenOverlay) return;
+
         e.preventDefault();
         setShowConfirmDialog(true);
       }

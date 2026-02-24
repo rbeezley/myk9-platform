@@ -132,7 +132,7 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 ### LOW: Escape Key in Date Picker Triggers Navigation Dialog
 
-- [ ] **Pressing Escape to close date picker popover triggers "Unsaved Changes" navigation dialog** — When the date picker calendar popover is open and the user presses Escape, it closes the popover but also triggers the wizard's route-leave guard, showing an "Unsaved Changes — Are you sure you want to leave?" dialog. Escape should only close the innermost popover. **Files:** Date picker component, wizard navigation guard.
+- [x] **Pressing Escape to close date picker popover triggers "Unsaved Changes" navigation dialog** — Fixed: wizard's global Escape handler now checks for open overlays (`[data-open]` for Base UI, `[data-state="open"]` for Radix) before triggering the navigation dialog. Escape only closes the innermost overlay. **Files:** `ShowCreationWizardPage.tsx`.
 
 ### LOW: Console Warnings for Base UI Select Components
 

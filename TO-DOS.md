@@ -120,11 +120,11 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 ### HIGH: Newly Created Users Don't Appear in Dropdowns
 
-- [ ] **Inline-created person not available in chairman/secretary dropdown** — When creating a new person (e.g., "Sarah Johnson") via the "Create New Chairman" panel in Step 1, the person is saved but does NOT appear in the chairman/secretary select dropdown. Only pre-existing users (Test Admin, Test Secretary, Test Steward) show. The dropdown likely reads from a cached/pre-fetched user list that isn't invalidated after inline creation. **Files:** `ShowDetailsStep.tsx` (dropdown population), `UserCreationPanel.tsx`.
+- [x] **Inline-created person not available in chairman/secretary dropdown** — Fixed: (1) userStore `persist.merge` syncs `people` from `users` on rehydration (was `[]` after rehydration since `people` wasn't persisted), (2) creation panels now `await` the `selectionCallback` before calling `onResult` so the store refresh completes before the panel closes, (3) `selectionCallback` type updated to `void | Promise<void>`. **Files:** `userStore.ts`, `ShowDetailsStep.tsx`, `UserCreationPanel.tsx`, `ClubCreationPanel.tsx`, `JudgeCreationPanel/index.tsx`, `panels/types.ts`.
 
 ### MEDIUM: Club Shows "Unknown Club" After Inline Creation
 
-- [ ] **Club shows "Unknown Club" after inline creation in wizard** — When creating a new club via "Create New Club" in Step 1, after saving, the host club field briefly shows "Unknown Club" instead of the actual name. The club search dropdown later shows the correct name when re-selected. Likely a React Query cache invalidation timing issue. **Files:** `ShowDetailsStep.tsx`, `ClubCreationPanel.tsx`.
+- [x] **Club shows "Unknown Club" after inline creation in wizard** — Fixed: `ClubCreationPanel.handleSave()` now `await addClub()` (was fire-and-forget, so club wasn't in IndexedDB when `loadClubs()` ran), and `selectionCallback` is awaited so `loadClubs()` completes before panel closes. **Files:** `ClubCreationPanel.tsx`, `ShowDetailsStep.tsx`.
 
 ### MEDIUM: Trial 2 Defaults to Same Date as Trial 1
 

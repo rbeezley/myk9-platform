@@ -372,10 +372,16 @@ export const useUserStore = create<UserStore>()(
       partialize: (state) => ({
         users: state.users,
       }),
-      onRehydrateStorage: () => () => {
-        // Store should remain empty unless user explicitly adds data
-        // No automatic mock data restoration
-      },
+      // Sync `people` from `users` after rehydration so the two arrays
+      // are always in sync.  `people` is NOT persisted (redundant copy),
+      // so without this merge it would stay as [] after rehydration while
+      // `users` has the restored data — causing dropdowns that read from
+      // `people` to appear empty.
+      merge: (persistedState, currentState) => ({
+        ...currentState,
+        ...(persistedState as Partial<UserStore>),
+        people: (persistedState as Partial<UserStore>).users ?? currentState.users,
+      }),
       version: 1,
       migrate: (persistedState: unknown, version: number) => {
         // Handle version migrations if needed

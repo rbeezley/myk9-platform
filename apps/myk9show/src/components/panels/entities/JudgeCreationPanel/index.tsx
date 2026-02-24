@@ -203,9 +203,9 @@ export const JudgeCreationPanel: React.FC<JudgeCreationPanelProps> = ({
 
       logger.debug('Judge created successfully:', 'panels', { data: newJudge });
 
-      // Call the selection callback if provided
+      // Call the selection callback if provided (may be async to refresh store)
       if (context.selectionCallback) {
-        context.selectionCallback((newJudge as unknown) as Record<string, unknown>);
+        await context.selectionCallback((newJudge as unknown) as Record<string, unknown>);
       }
 
       // Return result based on action

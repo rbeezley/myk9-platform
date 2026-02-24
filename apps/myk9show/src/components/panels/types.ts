@@ -13,7 +13,7 @@ export interface EntityCreationContext {
   entityType: EntityType;
   mode: 'create' | 'edit';
   preFilledData?: Record<string, unknown>;
-  selectionCallback?: (entity: Record<string, unknown>) => void;
+  selectionCallback?: (entity: Record<string, unknown>) => void | Promise<void>;
   validationRules?: ValidationRule[];
   parentPanelId?: string;
   metadata?: Record<string, unknown>;

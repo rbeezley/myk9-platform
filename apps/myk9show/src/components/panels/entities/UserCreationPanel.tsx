@@ -282,9 +282,9 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
         });
       }
 
-      // Call the selection callback with the existing person
+      // Call the selection callback with the existing person (may be async to refresh store)
       if (context.selectionCallback) {
-        context.selectionCallback((existingPerson as unknown) as Record<string, unknown>);
+        await context.selectionCallback((existingPerson as unknown) as Record<string, unknown>);
       }
 
       // Return success
@@ -333,9 +333,9 @@ export const UserCreationPanel: React.FC<PersonCreationPanelProps> = ({
 
       logger.debug('✅ User created successfully:', 'panels', { data: newPerson });
 
-      // Call the selection callback if provided
+      // Call the selection callback if provided (may be async to refresh store)
       if (context.selectionCallback) {
-        context.selectionCallback((newPerson as unknown) as Record<string, unknown>);
+        await context.selectionCallback((newPerson as unknown) as Record<string, unknown>);
       }
 
       // Return result based on action

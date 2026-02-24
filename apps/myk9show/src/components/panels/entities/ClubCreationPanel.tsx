@@ -142,13 +142,13 @@ export const ClubCreationPanel: React.FC<ClubCreationPanelProps> = ({
         // Update existing club
         await updateClub(clubData);
       } else {
-        // Create new club
-        addClub(clubData);
+        // Create new club — await so it's in IndexedDB before selectionCallback runs
+        await addClub(clubData);
       }
 
-      // Call the selection callback if provided
+      // Call the selection callback if provided (may be async to refresh store)
       if (context.selectionCallback) {
-        context.selectionCallback((clubData as unknown) as Record<string, unknown>);
+        await context.selectionCallback((clubData as unknown) as Record<string, unknown>);
       }
 
       const result: EntityCreationResult = {

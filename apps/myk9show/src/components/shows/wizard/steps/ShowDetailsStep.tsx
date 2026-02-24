@@ -110,11 +110,11 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
       context: {
         entityType: 'club',
         mode: 'create',
-        selectionCallback: (entity: Record<string, unknown>) => {
+        selectionCallback: async (entity: Record<string, unknown>) => {
           const club = entity as { id: string; name: string };
           updateShowData({ clubId: club.id });
-          // Refresh the clubs list to include the new club in dropdown
-          loadClubs();
+          // Refresh the clubs list so the new club appears in the dropdown
+          await loadClubs();
           logger.debug('Club created and selected', 'wizard', { clubName: club.name });
         }
       }
@@ -131,13 +131,14 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         entityType: 'person',
         mode: 'create',
         preFilledData: {
-          role: 'chairman'
+          role: 'chairman',
+          roleLabel: 'Chairman',
         },
-        selectionCallback: (person) => {
+        selectionCallback: async (person: Record<string, unknown>) => {
           const chairmanName = `${person.firstName} ${person.lastName}`;
           updateShowData({ chairman: chairmanName });
-          // Refresh the people list to include the new person in dropdown
-          loadPeople();
+          // Refresh the people list so the new person appears in the dropdown
+          await loadPeople();
           logger.debug('Chairman created and selected', 'wizard', { chairmanName });
         }
       }
@@ -154,13 +155,14 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         entityType: 'person',
         mode: 'create',
         preFilledData: {
-          role: 'secretary'
+          role: 'secretary',
+          roleLabel: 'Secretary',
         },
-        selectionCallback: (person) => {
+        selectionCallback: async (person: Record<string, unknown>) => {
           const secretaryName = `${person.firstName} ${person.lastName}`;
           updateShowData({ secretary: secretaryName });
-          // Refresh the people list to include the new person in dropdown
-          loadPeople();
+          // Refresh the people list so the new person appears in the dropdown
+          await loadPeople();
           logger.debug('Secretary created and selected', 'wizard', { secretaryName });
         }
       }
@@ -175,7 +177,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
       context: {
         entityType: 'judge',
         mode: 'create',
-        selectionCallback: (entity: Record<string, unknown>) => {
+        selectionCallback: async (entity: Record<string, unknown>) => {
           const judge = entity as { id: string; firstName: string; lastName: string; email?: string; phone?: string };
           const judgeName = `${judge.firstName} ${judge.lastName}`;
           addJudgeToShow(judge.id, {
@@ -183,7 +185,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
             email: judge.email || '',
             phone: judge.phone || '',
           });
-          loadPeople();
+          await loadPeople();
           logger.debug('Judge created and added to show', 'wizard', { judgeName });
         },
       },

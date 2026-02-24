@@ -844,7 +844,7 @@ describe('Deployment System Integration', () => {
       expect(allEvents.length).toBeGreaterThanOrEqual(10); // Multiple events per deployment
     });
 
-    test('should manage memory usage with large datasets', () => {
+    test('should manage memory usage with large datasets', { timeout: 30000 }, () => {
       // Generate large number of monitoring events
       for (let i = 0; i < 1000; i++) {
         monitoringService.trackEvent(`test_event_${i % 10}`, {

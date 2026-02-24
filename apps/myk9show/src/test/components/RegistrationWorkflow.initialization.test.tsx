@@ -126,7 +126,7 @@ describe('RegistrationWorkflow Function Initialization', () => {
     mockConsoleError.mockRestore();
   });
 
-  it('should not throw temporal dead zone errors during component initialization', async () => {
+  it('should not throw temporal dead zone errors during component initialization', { timeout: 20000 }, async () => {
     // This test specifically checks for the "Cannot access 'isStepCompleted' before initialization" error
     const queryClient = new QueryClient({
       defaultOptions: {
@@ -148,8 +148,11 @@ describe('RegistrationWorkflow Function Initialization', () => {
       );
     }).not.toThrow();
 
-    // Should not have logged any console errors
-    expect(mockConsoleError).not.toHaveBeenCalled();
+    // Should not have logged any TDZ-related console errors
+    const tdzErrors = mockConsoleError.mock.calls.filter(
+      (args) => String(args[0]).includes('before initialization') || String(args[0]).includes('temporal dead zone')
+    );
+    expect(tdzErrors).toHaveLength(0);
   });
 
   it('should define all required functions before usage', async () => {

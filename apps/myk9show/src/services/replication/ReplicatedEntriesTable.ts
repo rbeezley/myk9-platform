@@ -334,6 +334,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
 
     const updated: ReplicatedEntry = {
       ...entry,
+      status,
       entryStatus: status,
       entry_status: status,
       _lastModified: new Date(),

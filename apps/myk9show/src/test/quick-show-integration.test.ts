@@ -148,16 +148,13 @@ describe('Show Integration - Type Mapping Validation', () => {
     expect(result.end_date).toBe('2025-03-15');
     expect(result.location).toBe('Test Venue');
     expect(result.status).toBe('upcoming');
-    expect(result.events).toEqual(['Agility']);
-    expect(result.source).toBe('myK9Show');
+    // events, source, club_name, club_address, club_email are intentionally omitted —
+    // they are app-only fields not in the DB schema (see showMappers.ts comments)
     expect(result.entry_open_date).toBe('2025-02-15');
     expect(result.entry_close_date).toBe('2025-03-10');
     expect(result.pre_entry_fee).toBe(25);
     expect(result.day_of_show_fee).toBe(30);
     expect(result.club_id).toBe('test-club-id');
-    expect(result.club_name).toBe('Test Club');
-    expect(result.club_address).toBe('123 Test St');
-    expect(result.club_email).toBe('test@club.com');
     expect(result.chairman).toBe('John Chairman');
     expect(result.secretary).toBe('Jane Secretary');
     expect(result.chief_steward).toBe('Bob Steward');

@@ -22,6 +22,7 @@ import type { Trial } from '@/components/trials/types/trial.types';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole, PERMISSIONS } from '@/types/auth-types';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
+import { useResolvePersonName } from '@/hooks/useResolvePersonName';
 import Breadcrumb from '@/components/common/Breadcrumb';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { EntryStatusBadge } from '@/components/shows/EntryStatusBadge';
@@ -222,6 +223,7 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
 }) => {
   const navigate = useNavigate();
   const { userWithRoles } = useAuthContext();
+  const resolvePersonName = useResolvePersonName();
   const [activeTab, setActiveTab] = useState('overview');
 
   // Generate breadcrumb items
@@ -423,11 +425,11 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
                 </div>
                 <div className="apple-show-info-item">
                   <div className="apple-show-info-label">Chairman</div>
-                  <div className="apple-show-info-value">{showData.chairman}</div>
+                  <div className="apple-show-info-value">{resolvePersonName(showData.chairman)}</div>
                 </div>
                 <div className="apple-show-info-item">
                   <div className="apple-show-info-label">Secretary</div>
-                  <div className="apple-show-info-value">{showData.secretary}</div>
+                  <div className="apple-show-info-value">{resolvePersonName(showData.secretary)}</div>
                 </div>
                 <div className="apple-show-info-item">
                   <div className="apple-show-info-label">Entry Fees</div>
@@ -580,7 +582,7 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
     });
 
     return tabs;
-  }, [primaryRole, stats, showData, registrationState, trialStats.total, associatedTrials, navigate, onRegisterForShow, onManageEntries, onEditShow]);
+  }, [primaryRole, stats, showData, registrationState, trialStats.total, associatedTrials, navigate, onRegisterForShow, onManageEntries, onEditShow, resolvePersonName]);
 
   // Memoized tab change handler to prevent unnecessary re-renders
   const handleTabChange = useCallback((tabId: string) => {

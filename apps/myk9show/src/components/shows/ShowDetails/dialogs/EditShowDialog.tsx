@@ -277,7 +277,7 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({ open, onOpenChange, for
                   <SelectContent>
                     {allPeople.length > 0 ? (
                       allPeople.map(person => (
-                        <SelectItem key={person.id} value={person.name}>
+                        <SelectItem key={person.id} value={person.id}>
                           {person.name}
                         </SelectItem>
                       ))
@@ -298,7 +298,7 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({ open, onOpenChange, for
                   <SelectContent>
                     {allPeople.length > 0 ? (
                       allPeople.map(person => (
-                        <SelectItem key={person.id} value={person.name}>
+                        <SelectItem key={person.id} value={person.id}>
                           {person.name}
                         </SelectItem>
                       ))
@@ -319,7 +319,7 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({ open, onOpenChange, for
                   <SelectContent>
                     {allPeople.length > 0 ? (
                       allPeople.map(person => (
-                        <SelectItem key={person.id} value={person.name}>
+                        <SelectItem key={person.id} value={person.id}>
                           {person.name}
                         </SelectItem>
                       ))

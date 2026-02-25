@@ -13,6 +13,7 @@ import { ShowCloneDialog } from '@/components/shows/cloning';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { PERMISSIONS } from '@/types/auth-types';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
+import { useResolvePersonName } from '@/hooks/useResolvePersonName';
 import ShowDetailsEnhancedApple from './ShowDetails/ShowDetailsEnhancedApple';
 import '@/styles/apple-show-details.css';
 
@@ -39,7 +40,8 @@ const ShowDetailsMain: React.FC<ShowDetailsMainProps> = ({
 }) => {
   const navigate = useNavigate();
   const [showCloneDialog, setShowCloneDialog] = useState(false);
-  
+  const resolvePersonName = useResolvePersonName();
+
   // Generate breadcrumb items
   const breadcrumbItems = useBreadcrumb({
     currentPage: 'show',
@@ -289,7 +291,7 @@ const ShowDetailsMain: React.FC<ShowDetailsMainProps> = ({
           </div>
           <div className="apple-show-info-item">
             <div className="apple-show-info-label">Chairman</div>
-            <div className="apple-show-info-value">{showData.chairman}</div>
+            <div className="apple-show-info-value">{resolvePersonName(showData.chairman)}</div>
           </div>
           <div className="apple-show-info-item">
             <div className="apple-show-info-label">Entries Open</div>
@@ -323,7 +325,7 @@ const ShowDetailsMain: React.FC<ShowDetailsMainProps> = ({
           )}
           <div className="apple-show-info-item">
             <div className="apple-show-info-label">Secretary</div>
-            <div className="apple-show-info-value">{showData.secretary}</div>
+            <div className="apple-show-info-value">{resolvePersonName(showData.secretary)}</div>
           </div>
           <div className="apple-show-info-item">
             <div className="apple-show-info-label">Pre-Entry Fee</div>

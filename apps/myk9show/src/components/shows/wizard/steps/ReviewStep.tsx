@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useWizardStore } from '@/store/wizardStore';
 import { useClubStore } from '@/store/clubStore';
+import { useResolvePersonName } from '@/hooks/useResolvePersonName';
 import { format } from 'date-fns';
 
 interface ReviewStepProps {
@@ -43,6 +44,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
     setCurrentStep
   } = useWizardStore();
   const { clubs } = useClubStore();
+  const resolvePersonName = useResolvePersonName();
 
   const [errors, setErrors] = useState<string[]>([]);
 
@@ -224,12 +226,12 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
 
                 <div>
                   <div className="text-sm text-muted-foreground">Chairman</div>
-                  <div className="text-foreground font-medium">{show.chairman || 'Not assigned'}</div>
+                  <div className="text-foreground font-medium">{resolvePersonName(show.chairman)}</div>
                 </div>
 
                 <div>
                   <div className="text-sm text-muted-foreground">Secretary</div>
-                  <div className="text-foreground font-medium">{show.secretary || 'Not assigned'}</div>
+                  <div className="text-foreground font-medium">{resolvePersonName(show.secretary)}</div>
                 </div>
 
                 <div>

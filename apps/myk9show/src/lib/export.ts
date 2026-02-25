@@ -1,4 +1,5 @@
 // Export utilities for various formats
+import { resolvePersonNameFromStore } from '@/hooks/useResolvePersonName';
 
 export interface ExportOptions {
   filename?: string;
@@ -154,9 +155,9 @@ export const entityExports = {
       'Entry Open': show.entryOpenDate || '',
       'Entry Close': show.entryCloseDate || '',
       'Pre-Entry Fee': show.preEntryFee || '',
-      Chairman: show.chairman || '',
-      Secretary: show.secretary || '',
-      'Chief Steward': show.chiefSteward || '',
+      Chairman: resolvePersonNameFromStore(show.chairman as string),
+      Secretary: resolvePersonNameFromStore(show.secretary as string),
+      'Chief Steward': resolvePersonNameFromStore(show.chiefSteward as string),
     }));
     
     exportToCSV(

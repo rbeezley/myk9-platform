@@ -13,12 +13,14 @@ import {
   Mail,
 } from 'lucide-react';
 import { isAfter, isBefore } from 'date-fns';
+import { useResolvePersonName } from '@/hooks/useResolvePersonName';
 import type { ExhibitorDashboardProps } from './types';
 
 /** Milliseconds in one day */
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
 export const ExhibitorDashboard: React.FC<ExhibitorDashboardProps> = ({ show, onRegister }) => {
+  const resolvePersonName = useResolvePersonName();
   const { canRegister, daysUntilClose } = useMemo(() => {
     const now = new Date();
     const entriesOpen = isAfter(now, new Date(show.entryOpenDate));
@@ -201,7 +203,7 @@ export const ExhibitorDashboard: React.FC<ExhibitorDashboardProps> = ({ show, on
                 <Mail className="w-3 h-3" />
                 Secretary
               </div>
-              <div className="text-base font-semibold text-gray-900">{show.secretary}</div>
+              <div className="text-base font-semibold text-gray-900">{resolvePersonName(show.secretary)}</div>
             </div>
           </div>
         </CardContent>

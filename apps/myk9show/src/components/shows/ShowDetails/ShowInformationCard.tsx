@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { useResolvePersonName } from '@/hooks/useResolvePersonName';
 
 import type { ShowFormData } from "./dialogs/EditShowDialog";
 
@@ -12,7 +13,10 @@ interface ShowInformationCardProps {
   setShowDeleteDialog: () => void;
 }
 
-const ShowInformationCard: React.FC<ShowInformationCardProps> = ({ showData, handleEditShow, setShowDeleteDialog }) => (
+const ShowInformationCard: React.FC<ShowInformationCardProps> = ({ showData, handleEditShow, setShowDeleteDialog }) => {
+  const resolvePersonName = useResolvePersonName();
+
+  return (
   <div className="col-span-1 lg:col-span-2 w-full">
     <div className="p-6 bg-card dark:bg-card rounded-xl shadow-sm">
       <div className="flex justify-between items-start mb-6">
@@ -75,7 +79,7 @@ const ShowInformationCard: React.FC<ShowInformationCardProps> = ({ showData, han
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-card-secondary p-4 rounded-xl">
             <h4 className="text-sm font-medium text-muted-foreground mb-1">Chairman</h4>
-            <p className="text-muted-foreground">{showData.chairman}</p>
+            <p className="text-muted-foreground">{resolvePersonName(showData.chairman)}</p>
             <a href="mailto:thomas.green@nationalkennelclub.com" className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 mt-1 flex items-center gap-1 break-all">
               <i className="fas fa-envelope text-xs flex-shrink-0"></i>
               thomas.green@nationalkennelclub.com
@@ -83,7 +87,7 @@ const ShowInformationCard: React.FC<ShowInformationCardProps> = ({ showData, han
           </div>
           <div className="bg-card-secondary p-4 rounded-xl">
             <h4 className="text-sm font-medium text-muted-foreground mb-1">Secretary</h4>
-            <p className="text-muted-foreground">{showData.secretary}</p>
+            <p className="text-muted-foreground">{resolvePersonName(showData.secretary)}</p>
             <a href="mailto:jennifer.white@nationalkennelclub.com" className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 mt-1 flex items-center gap-1 break-all">
               <i className="fas fa-envelope text-xs flex-shrink-0"></i>
               jennifer.white@nationalkennelclub.com
@@ -91,7 +95,7 @@ const ShowInformationCard: React.FC<ShowInformationCardProps> = ({ showData, han
           </div>
           <div className="bg-card-secondary p-4 rounded-xl">
             <h4 className="text-sm font-medium text-muted-foreground mb-1">Chief Steward</h4>
-            <p className="text-muted-foreground">{showData.chiefSteward}</p>
+            <p className="text-muted-foreground">{resolvePersonName(showData.chiefSteward)}</p>
             <a href="mailto:david.miller@nationalkennelclub.com" className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 mt-1 flex items-center gap-1 break-all">
               <i className="fas fa-envelope text-xs flex-shrink-0"></i>
               david.miller@nationalkennelclub.com
@@ -118,6 +122,7 @@ const ShowInformationCard: React.FC<ShowInformationCardProps> = ({ showData, han
       </div>
     </div>
   </div>
-);
+  );
+};
 
 export default ShowInformationCard;

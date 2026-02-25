@@ -9,9 +9,11 @@ import {
   UserCheck,
   Mail,
 } from 'lucide-react';
+import { useResolvePersonName } from '@/hooks/useResolvePersonName';
 import type { OverviewTabProps } from './types';
 
 export const OverviewTab: React.FC<OverviewTabProps> = ({ showData, associatedTrials }) => {
+  const resolvePersonName = useResolvePersonName();
   const classesEstimate = associatedTrials.length * 8;
   const entriesEstimate = associatedTrials.length * 32;
 
@@ -86,7 +88,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ showData, associatedTr
                   <UserCheck className="w-3 h-3" />
                   Chairman
                 </div>
-                <div className="text-base font-semibold text-gray-900">{showData.chairman}</div>
+                <div className="text-base font-semibold text-gray-900">{resolvePersonName(showData.chairman)}</div>
               </div>
             )}
             <div className="space-y-2">
@@ -94,7 +96,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ showData, associatedTr
                 <Mail className="w-3 h-3" />
                 Secretary
               </div>
-              <div className="text-base font-semibold text-gray-900">{showData.secretary}</div>
+              <div className="text-base font-semibold text-gray-900">{resolvePersonName(showData.secretary)}</div>
             </div>
             <div className="space-y-2">
               <div className="text-sm font-medium text-gray-500 uppercase tracking-wide flex items-center gap-2">

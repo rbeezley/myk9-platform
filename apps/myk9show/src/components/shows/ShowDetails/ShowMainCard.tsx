@@ -1,6 +1,7 @@
 import React from "react";
 import ThreeDotMenu from "@/components/common/ThreeDotMenu";
 import { Badge } from "@/components/ui/badge";
+import { useResolvePersonName } from '@/hooks/useResolvePersonName';
 
 interface ShowMainCardProps {
   showData: { 
@@ -31,7 +32,10 @@ interface ShowMainCardProps {
   setShowDeleteDialog: () => void;
 }
 
-const ShowMainCard: React.FC<ShowMainCardProps> = ({ showData, handleEditShow, setShowDeleteDialog }) => (
+const ShowMainCard: React.FC<ShowMainCardProps> = ({ showData, handleEditShow, setShowDeleteDialog }) => {
+  const resolvePersonName = useResolvePersonName();
+
+  return (
   <div className="relative">
       {/* Header Row */}
       <div className="flex items-center justify-between mb-6 w-full">
@@ -82,7 +86,7 @@ const ShowMainCard: React.FC<ShowMainCardProps> = ({ showData, handleEditShow, s
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <div className="p-4">
           <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Chairman</div>
-          <div className="font-semibold text-gray-900 dark:text-gray-100">{showData.chairman}</div>
+          <div className="font-semibold text-gray-900 dark:text-gray-100">{resolvePersonName(showData.chairman)}</div>
           <a href="mailto:thomas.green@nationalkennelclub.com" className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center gap-1 mt-1 break-all">
             <i className="fas fa-envelope text-xs flex-shrink-0"></i>
             thomas.green@nationalkennelclub.com
@@ -90,7 +94,7 @@ const ShowMainCard: React.FC<ShowMainCardProps> = ({ showData, handleEditShow, s
         </div>
         <div className="p-4">
           <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Secretary</div>
-          <div className="font-semibold text-gray-900 dark:text-gray-100">{showData.secretary}</div>
+          <div className="font-semibold text-gray-900 dark:text-gray-100">{resolvePersonName(showData.secretary)}</div>
           <a href="mailto:jennifer.white@nationalkennelclub.com" className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center gap-1 mt-1 break-all">
             <i className="fas fa-envelope text-xs flex-shrink-0"></i>
             jennifer.white@nationalkennelclub.com
@@ -98,7 +102,7 @@ const ShowMainCard: React.FC<ShowMainCardProps> = ({ showData, handleEditShow, s
         </div>
         <div className="p-4">
           <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Chief Steward</div>
-          <div className="font-semibold text-gray-900 dark:text-gray-100">{showData.chiefSteward}</div>
+          <div className="font-semibold text-gray-900 dark:text-gray-100">{resolvePersonName(showData.chiefSteward)}</div>
           <a href="mailto:david.miller@nationalkennelclub.com" className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center gap-1 mt-1 break-all">
             <i className="fas fa-envelope text-xs flex-shrink-0"></i>
             david.miller@nationalkennelclub.com
@@ -150,6 +154,7 @@ const ShowMainCard: React.FC<ShowMainCardProps> = ({ showData, handleEditShow, s
         </>
       )}
   </div>
-);
+  );
+};
 
 export default ShowMainCard;

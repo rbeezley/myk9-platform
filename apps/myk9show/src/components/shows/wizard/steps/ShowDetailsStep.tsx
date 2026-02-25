@@ -134,11 +134,10 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
           roleLabel: 'Chairman',
         },
         selectionCallback: async (person: Record<string, unknown>) => {
-          const chairmanName = `${person.firstName} ${person.lastName}`;
-          updateShowData({ chairman: chairmanName });
+          updateShowData({ chairman: person.id as string });
           // Refresh the people list so the new person appears in the dropdown
           await loadPeople();
-          logger.debug('Chairman created and selected', 'wizard', { chairmanName });
+          logger.debug('Chairman created and selected', 'wizard', { chairmanId: person.id });
         }
       }
     });
@@ -158,11 +157,10 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
           roleLabel: 'Secretary',
         },
         selectionCallback: async (person: Record<string, unknown>) => {
-          const secretaryName = `${person.firstName} ${person.lastName}`;
-          updateShowData({ secretary: secretaryName });
+          updateShowData({ secretary: person.id as string });
           // Refresh the people list so the new person appears in the dropdown
           await loadPeople();
-          logger.debug('Secretary created and selected', 'wizard', { secretaryName });
+          logger.debug('Secretary created and selected', 'wizard', { secretaryId: person.id });
         }
       }
     });
@@ -394,7 +392,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                     </SelectTrigger>
                     <SelectContent>
                       {filteredPeople.map((person) => (
-                        <SelectItem key={person.id} value={`${person.firstName} ${person.lastName}`}>
+                        <SelectItem key={person.id} value={person.id}>
                           {person.firstName} {person.lastName}
                         </SelectItem>
                       ))}
@@ -424,7 +422,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                     </SelectTrigger>
                     <SelectContent>
                       {filteredPeople.map((person) => (
-                        <SelectItem key={person.id} value={`${person.firstName} ${person.lastName}`}>
+                        <SelectItem key={person.id} value={person.id}>
                           {person.firstName} {person.lastName}
                         </SelectItem>
                       ))}

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { useResolvePersonName } from '@/hooks/useResolvePersonName';
 
 interface ShowInfoCardProps {
   showData: {
@@ -20,6 +21,8 @@ interface ShowInfoCardProps {
 }
 
 const ShowInfoCard: React.FC<ShowInfoCardProps> = ({ showData }) => {
+  const resolvePersonName = useResolvePersonName();
+
   return (
     <Card className="mb-8 p-6">
       <div className="flex items-center justify-between mb-2">
@@ -37,15 +40,15 @@ const ShowInfoCard: React.FC<ShowInfoCardProps> = ({ showData }) => {
         </div>
         <div>
           <div className="text-sm text-muted-foreground mb-1 font-semibold">Chairman</div>
-          <div className="font-medium">{showData.chairman}</div>
+          <div className="font-medium">{resolvePersonName(showData.chairman)}</div>
         </div>
         <div>
           <div className="text-sm text-muted-foreground mb-1 font-semibold">Secretary</div>
-          <div className="font-medium">{showData.secretary}</div>
+          <div className="font-medium">{resolvePersonName(showData.secretary)}</div>
         </div>
         <div>
           <div className="text-sm text-muted-foreground mb-1 font-semibold">Chief Steward</div>
-          <div className="font-medium">{showData.chiefSteward}</div>
+          <div className="font-medium">{resolvePersonName(showData.chiefSteward)}</div>
         </div>
         <div>
           <div className="text-sm text-muted-foreground mb-1 font-semibold">Entry Open</div>

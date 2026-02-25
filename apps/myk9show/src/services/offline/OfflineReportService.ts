@@ -3,6 +3,7 @@ import 'jspdf-autotable';
 import { Show, ShowClass } from '../../types/show-types';
 import { Dog } from '../../types/dog-types';
 import { User } from '../../types/show-types';
+import { resolvePersonNameFromStore } from '../../hooks/useResolvePersonName';
 
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: Record<string, unknown>) => void;
@@ -516,7 +517,7 @@ class OfflineReportService {
       `Date: ${new Date(show.startDate).toLocaleDateString()}`,
       `Location: ${show.location}`,
       `Club: ${show.clubName}`,
-      `Secretary: ${show.secretary || 'N/A'}`,
+      `Secretary: ${resolvePersonNameFromStore(show.secretary) || 'N/A'}`,
       `Show Type: ${show.type || 'Conformation'}`
     ];
 

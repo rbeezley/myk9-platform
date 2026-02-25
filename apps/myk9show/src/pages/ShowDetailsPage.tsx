@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, Suspense, startTransition } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import ShowDetailsMain from '@/components/shows/ShowDetailsMain';
 import { ShowGroupedSidebar } from '@/components/shows/ShowDetails/ShowGroupedSidebar';
@@ -71,6 +71,16 @@ const ShowDetailsPage: React.FC = () => {
 
   // Panel state
   const [showEditPanel, setShowEditPanel] = useState(false);
+
+  // Auto-open edit panel when redirected from /secretary/shows/:id/edit
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get('edit') === 'true') {
+      setShowEditPanel(true);
+      searchParams.delete('edit');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- run once on mount
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showAddTrialDialog, setShowAddTrialDialog] = useState(false);
   const [showDeleteTrialDialog, setShowDeleteTrialDialog] = useState(false);

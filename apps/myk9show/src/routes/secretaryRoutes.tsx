@@ -4,8 +4,8 @@
  * Includes class management, run order, and show administration
  */
 
-import { lazy } from 'react';
-import { Route } from 'react-router-dom';
+import { lazy, useEffect } from 'react';
+import { Route, useParams, useNavigate } from 'react-router-dom';
 import { ProtectedRoute } from '@/context/AuthContext';
 import { PageTransition } from '@/components/common/PageTransition';
 import { UserRole } from '@/types/auth-types';
@@ -28,6 +28,15 @@ const SyncDashboardPage = lazy(() => import('@/pages/sync/SyncDashboardPage').th
 const EntryManagementPage = lazy(() => import('@/pages/secretary/EntryManagementPage').catch(() => ({ default: () => <div>Entry Management Coming Soon</div> })));
 const WaitlistManagementPage = lazy(() => import('@/pages/secretary/WaitlistManagementPage'));
 const DayOfOperationsPage = lazy(() => import('@/pages/secretary/DayOfOperationsPage'));
+
+const ShowEditRedirect = () => {
+  const { showId } = useParams<{ showId: string }>();
+  const navigate = useNavigate();
+  useEffect(() => {
+    navigate(`/shows/${showId}?edit=true`, { replace: true });
+  }, [showId, navigate]);
+  return null;
+};
 
 export const SecretaryRoutes = () => (
   <>
@@ -54,6 +63,15 @@ export const SecretaryRoutes = () => (
       <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
         <SuspenseWrapper>
           <PageTransition><ShowCreationWizardPage /></PageTransition>
+        </SuspenseWrapper>
+      </ProtectedRoute>
+    } />
+
+    {/* Show Edit Redirect - opens ShowDetailsPage with edit panel */}
+    <Route path="/secretary/shows/:showId/edit" element={
+      <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+        <SuspenseWrapper>
+          <ShowEditRedirect />
         </SuspenseWrapper>
       </ProtectedRoute>
     } />

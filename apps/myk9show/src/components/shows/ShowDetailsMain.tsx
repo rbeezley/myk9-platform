@@ -112,6 +112,21 @@ const ShowDetailsMain: React.FC<ShowDetailsMainProps> = ({
     ];
   }, [associatedTrials, allClasses, allEntries]);
 
+  // Per-trial class and entry counts for trial cards
+  const trialStats = useMemo(() => {
+    const statsMap: Record<string, { classCount: number; entryCount: number }> = {};
+    associatedTrials.forEach(trial => {
+      const trialClasses = allClasses.filter(c => c.trialId === trial.id);
+      const classIds = new Set(trialClasses.map(c => c.id));
+      const trialEntries = allEntries.filter(e => classIds.has(e.classId));
+      statsMap[trial.id] = {
+        classCount: trialClasses.length,
+        entryCount: trialEntries.length,
+      };
+    });
+    return statsMap;
+  }, [associatedTrials, allClasses, allEntries]);
+
   const totalTrials = associatedTrials.length;
 
   const getStatusClass = (status: string) => {
@@ -441,6 +456,42 @@ const ShowDetailsMain: React.FC<ShowDetailsMainProps> = ({
                         <div className="apple-show-info-value text-sm">{trial.order}</div>
                       </div>
                     </div>
+
+                    {/* Class & Entry Counts */}
+                    <div className="flex items-center gap-3 mt-3 text-sm text-muted-foreground">
+                      <span>{trialStats[trial.id]?.classCount || 0} classes</span>
+                      <span className="text-muted-foreground/40">&middot;</span>
+                      <span>{trialStats[trial.id]?.entryCount || 0} entries</span>
+                    </div>
+
+                    {/* Quick Actions */}
+                    <PermissionGuard permission={PERMISSIONS.SHOW_MANAGE}>
+                      <div className="flex items-center gap-2 mt-3">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/secretary/create-show/wizard?showId=${showData.id}&mode=add-classes`);
+                          }}
+                        >
+                          <Plus className="w-3 h-3 mr-1" />
+                          Add Classes
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/trials/${trial.id}/classes`);
+                          }}
+                        >
+                          Manage Classes
+                        </Button>
+                      </div>
+                    </PermissionGuard>
                   </div>
                 </div>
 

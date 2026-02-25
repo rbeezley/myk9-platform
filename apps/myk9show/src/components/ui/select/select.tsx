@@ -47,13 +47,16 @@ interface SelectValueProps extends Omit<React.ComponentPropsWithoutRef<typeof Se
 const SelectValue = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Value>,
   SelectValueProps
->(({ placeholder, className, ...props }, ref) => (
+>(({ placeholder, className, children, ...props }, ref) => (
   <SelectPrimitive.Value
     ref={ref}
     {...(className !== undefined && { className })}
     {...props}
   >
-    {(value) => value || (placeholder ? <span className="text-muted-foreground">{placeholder}</span> : null)}
+    {children !== undefined
+      ? children
+      : (value: string | null) => value || (placeholder ? <span className="text-muted-foreground">{placeholder}</span> : null)
+    }
   </SelectPrimitive.Value>
 ))
 SelectValue.displayName = "SelectValue"

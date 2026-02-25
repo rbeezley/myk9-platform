@@ -196,6 +196,12 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
     return availableJudges.find(j => j.judgeId === judgeId);
   };
 
+  const getJudgeDisplayName = (judgeId: string | undefined) => {
+    if (!judgeId || judgeId === 'no-judge') return 'No Judge';
+    const judge = availableJudges.find(j => j.judgeId === judgeId);
+    return judge?.judgeName || 'Unknown Judge';
+  };
+
   return (
     <div className="apple-class-selector w-full">
       {/* Streamlined Filters and Search */}
@@ -349,7 +355,7 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
                           onValueChange={(judgeId) => handleElementJudgeChange(element, judgeId)}
                         >
                           <SelectTrigger className="w-48 h-6 text-[10px] border-muted">
-                            <SelectValue placeholder="Judge" />
+                            <SelectValue>{getJudgeDisplayName(elementJudges[element])}</SelectValue>
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="no-judge">No Judge</SelectItem>
@@ -440,7 +446,7 @@ export const SimpleClassSelector: React.FC<SimpleClassSelectorProps> = ({
                                 onValueChange={(judgeId) => handleClassJudgeChange(classDefinition.className, judgeId)}
                               >
                                 <SelectTrigger className="w-full h-5 text-[9px] border-muted">
-                                  <SelectValue placeholder="Judge" className="truncate" />
+                                  <SelectValue className="truncate">{getJudgeDisplayName(judgeAssignments[classDefinition.className])}</SelectValue>
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="no-judge">No Judge</SelectItem>

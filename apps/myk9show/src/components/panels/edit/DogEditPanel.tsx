@@ -56,6 +56,7 @@ interface DogFormData extends Record<string, unknown> {
   // Optional advanced fields
   notes?: string;
   specialNeeds?: string;
+  spayedNeutered?: boolean;
 }
 
 // Form validation
@@ -118,6 +119,7 @@ const dogToFormData = (dog: Partial<DogType>): DogFormData => {
     healthRecords: dog.healthRecords || {},
     notes: (dog as Record<string, unknown>).notes as string || '',
     specialNeeds: (dog as Record<string, unknown>).specialNeeds as string || '',
+    spayedNeutered: dog.spayedNeutered ?? false,
   };
 };
 
@@ -168,6 +170,7 @@ const formDataToDog = (formData: DogFormData): Partial<DogType> => {
     healthRecords: formData.healthRecords,
     ...(formData.notes && ({ notes: formData.notes } as Record<string, unknown>)),
     ...(formData.specialNeeds && ({ specialNeeds: formData.specialNeeds } as Record<string, unknown>)),
+    spayedNeutered: formData.spayedNeutered,
   };
 };
 
@@ -473,6 +476,19 @@ const DogEditForm: React.FC = () => {
                   onChange={handleInputChange('microchip')}
                   placeholder="Enter microchip number"
                 />
+              </div>
+
+              <div className="flex items-center space-x-3 pt-2">
+                <input
+                  type="checkbox"
+                  id="spayedNeutered"
+                  checked={data.spayedNeutered ?? false}
+                  onChange={(e) => updateData({ spayedNeutered: e.target.checked })}
+                  className="h-4 w-4 rounded border-input accent-primary"
+                />
+                <Label htmlFor="spayedNeutered" className="text-sm font-medium cursor-pointer">
+                  Spayed/Neutered
+                </Label>
               </div>
 
               {/* Owner Selection - Only shown for admins */}

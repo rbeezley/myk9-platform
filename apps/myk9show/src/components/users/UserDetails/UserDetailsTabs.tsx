@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import AssociatedDogsSection from '../AssociatedDogsSection';
-import { DogProfileEditDialog } from '@/components/dogs/common/DogProfileEditDialog';
+import { DogEditPanel } from '@/components/panels/edit/DogEditPanel';
 import type { User, Dog, DogInput } from '@/types/dog-types';
 import { useDogStore } from '@/store/dogStore';
 import { useUserStore } from '@/store/userStore';
@@ -53,47 +53,26 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
 
   // --- Removed obsolete editDogForm state/handlers ---
 
-  // Convert selectedUser (User) to Owner type for dialog
-  const owner = {
-    id: selectedUser.id,
-    name: selectedUser.firstName + (selectedUser.lastName ? ' ' + selectedUser.lastName : ''),
-    email: selectedUser.email || '',
-    phone: selectedUser.phone || '',
-    profileImage: selectedUser.profileImage || undefined,
-  };
+  // Handler for saving dog edits from DogEditPanel
+  const handleSaveDogEdit = async (updatedDogData: Partial<Dog>) => {
+    if (!dogToEdit) return;
 
-  // Handler for saving dog edits
-  const handleSaveDogEdit = (updatedDog: Dog) => {
-    const isNewDog = !updatedDog.id;
-    
+    const isNewDog = !dogToEdit.id;
+
     if (isNewDog) {
-      // Generate a temporary ID for the new dog
       const tempId = `temp-${Date.now()}`;
-      const newDog = { 
-        ...updatedDog, 
-        id: tempId,
-        // Ensure the ownerId is set to the current person
-        ownerId: selectedUser.id
-      };
-      
-      // Add the new dog to the store
+      const mergedDog = { ...dogToEdit, ...updatedDogData, id: tempId, ownerId: selectedUser.id };
+
       const { addDog } = useDogStore.getState();
-      addDog(dogToDogInput(newDog));
-      
-      // Add the new dog to the person's dogs array
+      addDog(dogToDogInput(mergedDog as Dog));
+
       const currentDogs = selectedUser.dogs || [];
-      updateUser(selectedUser.id, { 
-        dogs: [...currentDogs, tempId] 
-      });
+      updateUser(selectedUser.id, { dogs: [...currentDogs, tempId] });
     } else {
-      // Update existing dog
       const { updateDog } = useDogStore.getState();
-      updateDog(updatedDog.id, dogToDogInput(updatedDog));
-      
-      // Dogs array is string IDs, no need to update individual dog data here
-      // The dog is already updated in the dog store
+      updateDog(dogToEdit.id, dogToDogInput({ ...dogToEdit, ...updatedDogData } as Dog));
     }
-    
+
     setIsEditDialogOpen(false);
     setDogToEdit(null);
   };
@@ -220,16 +199,17 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
           </TabsContent>
         ))}
       </Tabs>
-      {/* The DogProfileEditDialog is self-contained and includes its own StandardDialog */}
-      <DogProfileEditDialog
+      <DogEditPanel
         open={isEditDialogOpen}
-        dog={dogToEdit}
-        owners={[owner]} // Ensure 'owner' is correctly defined and passed
         onClose={() => {
           setIsEditDialogOpen(false);
           setDogToEdit(null);
         }}
+        dogId={dogToEdit?.id || ''}
+        dogName={dogToEdit?.callName || dogToEdit?.name || 'New Dog'}
+        initialDogData={dogToEdit || {}}
         onSave={handleSaveDogEdit}
+        enableAutoSave={false}
       />
     </div>
   );

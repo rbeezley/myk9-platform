@@ -69,14 +69,16 @@ const ShowDetailsPage: React.FC = () => {
   } = useTrialStore();
   const { user } = useAuthContext();
 
-  // Panel state
-  const [showEditPanel, setShowEditPanel] = useState(false);
-
   // Auto-open edit panel when redirected from /secretary/shows/:id/edit
   const [searchParams, setSearchParams] = useSearchParams();
+  // Panel state - lazy init from URL so we don't call setState inside a useEffect
+  const [showEditPanel, setShowEditPanel] = useState(
+    () => new URLSearchParams(window.location.search).get('edit') === 'true',
+  );
+
+  // Clean up the ?edit param from the URL after using it on mount
   useEffect(() => {
     if (searchParams.get('edit') === 'true') {
-      setShowEditPanel(true);
       searchParams.delete('edit');
       setSearchParams(searchParams, { replace: true });
     }

@@ -31,8 +31,10 @@ function DogDetails(): React.ReactElement {
   const { userWithRoles, getUserRoles } = useAuthContext();
   const currentUserPersonId = useCurrentUserPersonId();
 
-  // Panel state
-  const [showCreateDogPanel, setShowCreateDogPanel] = useState(false);
+  // Panel state - lazy init from URL so we don't call setState inside a useEffect
+  const [showCreateDogPanel, setShowCreateDogPanel] = useState(
+    () => searchParams.get('add') === 'true',
+  );
   const canAccessDog = useCanAccessDog(id || '');
 
   // Sidebar state management using the shared hook
@@ -47,12 +49,6 @@ function DogDetails(): React.ReactElement {
   const fromPersonId = searchParams.get('fromPerson');
   const fromPerson = fromPersonId ? people.find(p => p.id === fromPersonId) : undefined;
 
-  // Open create panel when navigated with ?add=true (e.g. from command palette)
-  useEffect(() => {
-    if (searchParams.get('add') === 'true') {
-      setShowCreateDogPanel(true);
-    }
-  }, [searchParams]);
 
   // Initialize loading state
   const [isLoading, setIsLoading] = useState(true);

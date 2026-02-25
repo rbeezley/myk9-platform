@@ -47,7 +47,7 @@ Avatar.displayName = "Avatar"
 const AvatarImage = React.forwardRef<
   HTMLImageElement,
   React.ImgHTMLAttributes<HTMLImageElement>
->(({ className, onLoad, onError, ...props }, ref) => {
+>(({ className, src, onLoad, onError, ...props }, ref) => {
   const { setImageLoaded, setImageError, imageError } = useAvatarContext()
 
   const handleLoad = React.useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -61,11 +61,13 @@ const AvatarImage = React.forwardRef<
     onError?.(e)
   }, [setImageError, onError])
 
-  if (imageError) return null
+  // Don't render img with empty/missing src — it triggers a browser request for the page URL
+  if (imageError || !src) return null
 
   return (
     <img
       ref={ref}
+      src={src}
       className={cn("aspect-square h-full w-full object-cover", className)}
       onLoad={handleLoad}
       onError={handleError}

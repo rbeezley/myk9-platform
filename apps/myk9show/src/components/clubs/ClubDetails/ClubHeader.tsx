@@ -19,7 +19,7 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
   onDeleteClub,
 }) => {
   return (
-    <div className="mb-10 p-8 bg-card border border-border rounded-2xl relative overflow-hidden">
+    <div className="mb-10 p-8 bg-card border border-border rounded-2xl relative">
       {/* 3-dot menu positioned absolutely in top-right corner */}
       <div className="absolute top-4 right-4">
         <DropdownMenu>

@@ -142,7 +142,11 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 ## Test Complete Club CRUD Capabilities - 2026-02-23 22:04
 
-- **Test club Create/Edit/Delete end-to-end** — Verify full CRUD lifecycle for clubs using the Claude preview feature. **Problem:** Club CRUD operations have not been manually validated end-to-end — need to confirm create new club, edit existing club details, and delete a club all work correctly through the UI. **Files:** `apps/myk9show/src/pages/ClubsPage.tsx`, `apps/myk9show/src/components/panels/entities/ClubCreationPanel.tsx`, `apps/myk9show/src/components/panels/edit/ClubEditPanel.tsx`, `apps/myk9show/src/components/clubs/ClubDetails/index.tsx`, `apps/myk9show/src/components/clubs/ClubDetails/ClubDialogs.tsx`, `apps/myk9show/src/components/clubs/ClubDetails/useClubDetailsState.ts`, `apps/myk9show/src/services/mappers/clubMappers.ts`.
+- [x] **Test club Create/Edit/Delete end-to-end** — CRUD lifecycle verified via Claude Preview (2026-02-25). Create, edit, and delete all work correctly. Found and fixed 3 bugs:
+  - **Bug: Validation errors shown immediately on panel open** — `EditPanelWrapper` ran `validateData()` on mount. Fixed: added `isTouched` state to defer error display until user interacts. **File:** `EditPanelWrapper.tsx`.
+  - **Bug: Dropdown menu clipped at viewport edge** — `overflow-hidden` on ClubHeader card container clipped the dropdown portal. Fixed: removed `overflow-hidden`. **File:** `ClubHeader.tsx`.
+  - **Bug: Console errors for empty avatar src** — `AvatarImage` rendered `<img>` with `src=""` causing browser to request page URL. Fixed: added `!src` guard to return null. **File:** `avatar.tsx`.
+  - **Known limitation: Club Number field lost on edit** — `ReplicatedClub` interface lacks `clubNumber`; `replicatedToClub()` hardcodes `''`. Requires schema change to add `club_number` column. Not fixed.
 
 ## Test Complete Dog CRUD Capabilities - 2026-02-23 22:05
 

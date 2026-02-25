@@ -72,11 +72,13 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
   const [isValid, setIsValid] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [, setLastAutoSave] = useState<number>(Date.now());
+  const [isTouched, setIsTouched] = useState(false);
 
   // Update data when initialData changes
   useEffect(() => {
     setData(initialData);
     setHasChanges(false);
+    setIsTouched(false);
     setLastAutoSave(Date.now());
   }, [initialData]);
 
@@ -84,11 +86,11 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
   useEffect(() => {
     const hasChangesNow = JSON.stringify(data) !== JSON.stringify(initialData);
     setHasChanges(hasChangesNow);
-    
-    // Validate data
+
+    // Validate data (always compute validity, but only surface errors after user interaction)
     let validationErrors: string[] = [];
     let isValidNow = true;
-    
+
     if (validateData) {
       const result = validateData(data);
       if (result && result.length > 0) {
@@ -96,14 +98,15 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
         isValidNow = false;
       }
     }
-    
-    setErrors(validationErrors);
+
+    // Only show errors after the user has started editing
+    setErrors(isTouched ? validationErrors : []);
     setIsValid(isValidNow);
-    
+
     // Notify parent components
     onDataChange?.(data, hasChangesNow);
-    onValidationChange?.(isValidNow, validationErrors);
-  }, [data, initialData, validateData, onDataChange, onValidationChange]);
+    onValidationChange?.(isValidNow, isTouched ? validationErrors : []);
+  }, [data, initialData, validateData, onDataChange, onValidationChange, isTouched]);
 
   // Auto-save functionality
   useEffect(() => {
@@ -127,6 +130,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
 
   // Update data function
   const updateData = useCallback((updates: Partial<T>) => {
+    setIsTouched(true);
     setData(prev => ({ ...prev, ...updates }));
   }, []);
 
@@ -137,6 +141,8 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
 
   // Handle save
   const handleSave = async () => {
+    // Show validation errors on save attempt even if user hasn't edited yet
+    setIsTouched(true);
     if (!isValid) {
       logger.warn('Cannot save: validation errors exist', 'components', {});
       return;

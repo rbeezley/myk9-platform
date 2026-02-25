@@ -208,6 +208,7 @@ export interface DogInput {
   ownerName?: string | undefined;
   microchipNumber?: string | undefined;
   imageUrl?: string | undefined;
+  spayedNeutered?: boolean | undefined;
   registrations?: Array<{
     organization: string;
     number: string;

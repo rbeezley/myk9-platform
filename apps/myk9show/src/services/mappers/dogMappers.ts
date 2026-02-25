@@ -83,6 +83,7 @@ export const mapDogInputToInsert = (input: DogInput): DbDogInsert => {
     microchip_number: input.microchipNumber || null,
     image_url: input.imageUrl || null,
     call_name: input.callName || null, // Use callName from input if provided
+    spayed_neutered: input.spayedNeutered ?? null,
     // Note: registrations and health records are handled in separate tables
     // Note: ID is explicitly omitted to allow database auto-generation
   };
@@ -112,6 +113,7 @@ export const mapDogInputToUpdate = (input: Partial<DogInput>): DbDogUpdate => {
   if (input.ownerId !== undefined) update.owner_id = input.ownerId;
   if (input.microchipNumber !== undefined) update.microchip_number = input.microchipNumber || null;
   if (input.imageUrl !== undefined) update.image_url = input.imageUrl || null;
+  if (input.spayedNeutered !== undefined) update.spayed_neutered = input.spayedNeutered;
 
   return update;
 };
@@ -140,6 +142,7 @@ export const mapDatabaseToDog = (dbDog: Record<string, unknown>): Dog => {
       `${(dbDog.owner as Record<string, unknown>).first_name} ${(dbDog.owner as Record<string, unknown>).last_name}`.trim() : '',
     microchipNumber: dbDog.microchip_number as string,
     imageUrl: (dbDog.image_url as string) || undefined,
+    spayedNeutered: (dbDog.spayed_neutered as boolean) ?? undefined,
     registrations: Array.isArray(dbDog.registrations) ? 
       dbDog.registrations.map((reg: Record<string, unknown>) => ({
         id: reg.id as string,
@@ -182,6 +185,7 @@ export const mapDogToDogInput = (dog: Dog): DogInput => {
     ownerName: dog.ownerName,
     microchipNumber: dog.microchipNumber,
     imageUrl: dog.imageUrl,
+    spayedNeutered: dog.spayedNeutered,
     registrations: dog.registrations?.map(reg => ({
       organization: reg.organization,
       number: reg.registrationNumber,

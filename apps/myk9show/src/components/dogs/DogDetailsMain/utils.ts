@@ -74,6 +74,7 @@ export function convertDogToDogInput(dogData: Partial<Dog>, currentDog: Dog): Pa
     }));
   }
   if (dogData.healthRecords !== undefined) result.healthRecords = dogData.healthRecords;
+  if (dogData.spayedNeutered !== undefined) result.spayedNeutered = dogData.spayedNeutered;
 
   return result;
 }

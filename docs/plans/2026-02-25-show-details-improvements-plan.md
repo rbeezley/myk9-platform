@@ -15,39 +15,27 @@
 **Files:**
 - Modify: `apps/myk9show/src/routes/secretaryRoutes.tsx:59` (after wizard route)
 
-**Step 1: Add the edit route**
+**Step 1: Add imports and redirect component**
 
-Add a new route after the wizard route (line 59) that navigates to `/shows/:showId` with `?edit=true` param. Use a small redirect component:
-
+[EXPANDED] Change the react-router-dom import on line 8 from:
 ```tsx
-// Add to lazy imports at top (after line 18):
-const ShowEditRedirect = lazy(() => Promise.resolve({
-  default: () => {
-    const { showId } = useParams<{ showId: string }>();
-    const navigate = useNavigate();
-    React.useEffect(() => {
-      navigate(`/shows/${showId}?edit=true`, { replace: true });
-    }, [showId, navigate]);
-    return null;
-  }
-}));
+import { Route } from 'react-router-dom';
+```
+to:
+```tsx
+import { Route, useParams, useNavigate } from 'react-router-dom';
 ```
 
-Actually, since we need hooks inside the component, use a simple inline component instead. Add route after line 59:
-
+Add `useEffect` import on line 1 — change:
 ```tsx
-{/* Show Edit Redirect - opens ShowDetailsPage with edit panel */}
-<Route path="/secretary/shows/:showId/edit" element={
-  <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-    <SuspenseWrapper>
-      <ShowEditRedirect />
-    </SuspenseWrapper>
-  </ProtectedRoute>
-} />
+import { lazy } from 'react';
+```
+to:
+```tsx
+import { lazy, useEffect } from 'react';
 ```
 
-For the redirect component, add it above the `SecretaryRoutes` export. It needs `useParams` and `useNavigate` from react-router-dom (already imported):
-
+Add the redirect component above the `SecretaryRoutes` export (before line 32):
 ```tsx
 const ShowEditRedirect: React.FC = () => {
   const { showId } = useParams<{ showId: string }>();
@@ -59,9 +47,19 @@ const ShowEditRedirect: React.FC = () => {
 };
 ```
 
-Add `React, { useEffect }` usage — but `React` isn't imported in secretaryRoutes. Instead, import `useEffect` and `useParams`/`useNavigate` need to come from react-router-dom (already imported as `Route`). Actually `useParams` and `useNavigate` need explicit import.
+**Step 2: Add the route**
 
-Full change: Add imports of `useParams, useNavigate` and `useEffect` at top, add `ShowEditRedirect` component before export, add route inside the JSX.
+Add route after the wizard route (after line 59):
+```tsx
+{/* Show Edit Redirect - opens ShowDetailsPage with edit panel */}
+<Route path="/secretary/shows/:showId/edit" element={
+  <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+    <SuspenseWrapper>
+      <ShowEditRedirect />
+    </SuspenseWrapper>
+  </ProtectedRoute>
+} />
+```
 
 **Step 2: Verify typecheck passes**
 
@@ -83,8 +81,11 @@ git commit -m "feat(routes): add /secretary/shows/:showId/edit redirect route"
 
 **Step 1: Read `?edit=true` and auto-open panel**
 
-Add `useSearchParams` import and read the param on mount. At line 29, add:
-
+[EXPANDED] Change the react-router-dom import on line 2 of ShowDetailsPage.tsx from:
+```tsx
+import { useParams, useNavigate } from 'react-router-dom';
+```
+to:
 ```tsx
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 ```

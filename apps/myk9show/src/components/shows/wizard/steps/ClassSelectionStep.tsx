@@ -170,8 +170,8 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
         // Fill in missing trials with defaults
         states[trial.id] = { selectedTemplate: null, selectedClasses: [] };
       }
-      // Auto-select single template for trials with no template and no classes
-      if (autoSelectTemplate && !states[trial.id].selectedTemplate && trial.classes.length === 0) {
+      // Auto-select single template for trials with no template set
+      if (autoSelectTemplate && !states[trial.id].selectedTemplate) {
         states[trial.id] = {
           ...states[trial.id],
           selectedTemplate: autoSelectTemplate
@@ -240,7 +240,9 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
 
   // Handle class selection
   const handleClassSelectionChange = (selectedClasses: ClassDefinition[]) => {
-    updateTrialState(currentTrialId, { selectedClasses });
+    // Persist both selected classes AND the current template (which may have been auto-selected
+    // in derived state only) to prevent template loss on re-render
+    updateTrialState(currentTrialId, { selectedClasses, selectedTemplate: currentTrialState.selectedTemplate });
     
     // Update the trial with the selected classes
     if (currentTrial) {

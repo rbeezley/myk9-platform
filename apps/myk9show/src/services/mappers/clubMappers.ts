@@ -22,6 +22,7 @@ export const mapClubInputToInsert = (input: ClubInput): DbClubInsert => {
     city: input.city || null,
     state: input.state || null,
     zip_code: input.zipCode || null,
+    club_number: input.clubNumber || null,
   };
 };
 
@@ -37,6 +38,7 @@ export const mapClubInputToUpdate = (input: Partial<ClubInput>): DbClubUpdate =>
   if (input.website !== undefined) update.website = input.website || null;
   if (input.description !== undefined) update.description = input.description || null;
   if (input.logo !== undefined) update.logo_url = input.logo || null;
+  if (input.clubNumber !== undefined) update.club_number = input.clubNumber || null;
 
   // Handle address fields - update individual columns and the combined address string
   if (input.city !== undefined) update.city = input.city || null;
@@ -96,7 +98,7 @@ export const mapDatabaseToClub = (dbClub: DbClub & { show?: unknown[] }): Club =
   return {
     id: dbClub.id,
     name: dbClub.name,
-    clubNumber: '', // Not stored in DB schema
+    clubNumber: dbClub.club_number || '',
     email: dbClub.email || '',
     phone: dbClub.phone || '',
     website: dbClub.website || undefined,
@@ -163,6 +165,7 @@ export const mapClubToUpdate = (club: Club): DbClubUpdate => {
     city: club.address.city || null,
     state: club.address.state || null,
     zip_code: club.address.zipCode || null,
+    club_number: club.clubNumber || null,
   };
 };
 

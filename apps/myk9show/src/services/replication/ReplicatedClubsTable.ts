@@ -23,6 +23,7 @@ interface ClubRow {
   city: string | null;
   state: string | null;
   zip_code: string | null;
+  club_number?: string | null;
   email: string | null;
   phone: string | null;
   website: string | null;
@@ -52,6 +53,7 @@ export interface ReplicatedClub {
   city?: string | undefined;
   state?: string | undefined;
   zipCode?: string | undefined;
+  clubNumber?: string | undefined;
   // Timestamps
   createdAt?: string | undefined;
   updatedAt?: string | undefined;
@@ -79,6 +81,7 @@ function rowToClub(row: ClubRow): ReplicatedClub {
     city: row.city ?? undefined,
     state: row.state ?? undefined,
     zipCode: row.zip_code ?? undefined,
+    clubNumber: row.club_number ?? undefined,
     createdAt: row.created_at ?? undefined,
     updatedAt: row.updated_at ?? undefined,
   };
@@ -114,6 +117,7 @@ export class ReplicatedClubsTable extends ReplicatedTable<ReplicatedClub> {
       city: club.city ?? null,
       state: club.state ?? null,
       zip_code: club.zipCode ?? null,
+      club_number: club.clubNumber ?? null,
       updated_at: new Date().toISOString(),
     };
   }

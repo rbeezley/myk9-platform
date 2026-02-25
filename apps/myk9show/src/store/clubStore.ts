@@ -20,7 +20,7 @@ function replicatedToClub(rc: ReplicatedClub): Club {
   return {
     id: rc.id,
     name: rc.name,
-    clubNumber: '',
+    clubNumber: rc.clubNumber || '',
     email: rc.email || '',
     phone: rc.phone || '',
     website: rc.website,
@@ -61,6 +61,7 @@ function clubToReplicated(club: Club): ReplicatedClub {
     city: club.address.city,
     state: club.address.state,
     zipCode: club.address.zipCode,
+    clubNumber: club.clubNumber || undefined,
     _syncStatus: club._syncStatus,
     _version: club._version,
     _lastModified: club._lastModified,

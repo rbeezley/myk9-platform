@@ -504,6 +504,7 @@ export type Database = {
         Row: {
           address: string | null
           city: string | null
+          club_number: string | null
           created_at: string | null
           deleted_at: string | null
           deleted_by: string | null
@@ -522,6 +523,7 @@ export type Database = {
         Insert: {
           address?: string | null
           city?: string | null
+          club_number?: string | null
           created_at?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
@@ -540,6 +542,7 @@ export type Database = {
         Update: {
           address?: string | null
           city?: string | null
+          club_number?: string | null
           created_at?: string | null
           deleted_at?: string | null
           deleted_by?: string | null

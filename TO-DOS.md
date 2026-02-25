@@ -146,7 +146,7 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
   - **Bug: Validation errors shown immediately on panel open** — `EditPanelWrapper` ran `validateData()` on mount. Fixed: added `isTouched` state to defer error display until user interacts. **File:** `EditPanelWrapper.tsx`.
   - **Bug: Dropdown menu clipped at viewport edge** — `overflow-hidden` on ClubHeader card container clipped the dropdown portal. Fixed: removed `overflow-hidden`. **File:** `ClubHeader.tsx`.
   - **Bug: Console errors for empty avatar src** — `AvatarImage` rendered `<img>` with `src=""` causing browser to request page URL. Fixed: added `!src` guard to return null. **File:** `avatar.tsx`.
-  - **Known limitation: Club Number field lost on edit** — `ReplicatedClub` interface lacks `clubNumber`; `replicatedToClub()` hardcodes `''`. Requires schema change to add `club_number` column. Not fixed.
+  - [x] **Club Number field lost on edit** — Added `club_number` TEXT column via migration 026, updated Supabase types (both packages/supabase and app-level), ReplicatedClub interface, rowToClub/toSupabaseRow, clubStore converters, and all clubMappers. Club number now persists through full round-trip.
 
 ## Test Complete Dog CRUD Capabilities - 2026-02-23 22:05
 

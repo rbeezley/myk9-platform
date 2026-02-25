@@ -47,6 +47,13 @@ function DogDetails(): React.ReactElement {
   const fromPersonId = searchParams.get('fromPerson');
   const fromPerson = fromPersonId ? people.find(p => p.id === fromPersonId) : undefined;
 
+  // Open create panel when navigated with ?add=true (e.g. from command palette)
+  useEffect(() => {
+    if (searchParams.get('add') === 'true') {
+      setShowCreateDogPanel(true);
+    }
+  }, [searchParams]);
+
   // Initialize loading state
   const [isLoading, setIsLoading] = useState(true);
 

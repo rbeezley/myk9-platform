@@ -197,7 +197,14 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                 "focus:bg-background focus:ring-2 focus:ring-primary/20 focus:ring-offset-1",
                 validationErrors.ownerId && "ring-2 ring-destructive/50 bg-destructive/5"
               )}>
-                <SelectValue placeholder="Choose dog owner" />
+                <SelectValue placeholder="Choose dog owner">
+                  {formData.ownerId
+                    ? (() => {
+                        const owner = people.find(p => p.id === formData.ownerId);
+                        return owner ? `${owner.firstName} ${owner.lastName}` : formData.ownerId;
+                      })()
+                    : undefined}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent className="bg-popover/95 backdrop-blur-xl border border-border/30 rounded-xl shadow-2xl max-h-60">
                 {people.map((person) => (

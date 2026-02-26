@@ -36,7 +36,8 @@ function validateFile(file: File): string | null {
 function generateFilePath(folder: string, userId: string, fileName: string): string {
   const timestamp = Date.now();
   const ext = fileName.split('.').pop() || 'jpg';
-  const sanitizedName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+  const nameWithoutExt = fileName.substring(0, fileName.lastIndexOf('.')) || fileName;
+  const sanitizedName = nameWithoutExt.replace(/[^a-zA-Z0-9_-]/g, '_');
   return `${folder}/${userId}/${timestamp}-${sanitizedName.slice(0, 50)}.${ext}`;
 }
 

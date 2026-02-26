@@ -14,6 +14,8 @@ import {
 import { AKC_SCENT_WORK_TEMPLATE } from '@/data/templates/akcScentWorkTemplate';
 import { STRUCTURED_TEMPLATES } from '@/data/mockTemplatesWithFields';
 import { runTemplateStorageCleanup } from '@/utils/cleanup-localstorage';
+import { fetchAllSportTemplatesWithRules } from '@/services/sportTemplateService';
+import { mapSportTemplateToClassTemplate } from '@/types/sport-template-types';
 
 interface TemplateStore {
   // State
@@ -580,96 +582,89 @@ export const useTemplateStore = create<TemplateStore>()(
         set(initialState);
       },
 
-      // Initialize with default templates - optimized for performance
+      // Initialize templates from DB, with hardcoded fallback
       initializeDefaultTemplates: (force = false) => {
         const { templates, isInitialized } = get();
-        
-        // Quick check to avoid expensive operations
+
         if (!force && (isInitialized || templates.length > 0)) {
           return;
         }
-        
-        // Use requestIdleCallback for non-blocking initialization
-        const initializeAsync = () => {
+
+        set({ isLoading: true });
+
+        const loadFromDB = async () => {
           try {
-            const templatesToAdd: ClassTemplate[] = [];
+            const rows = await fetchAllSportTemplatesWithRules();
+            const dbTemplates = rows.map((row) =>
+              mapSportTemplateToClassTemplate(row, row.sport_class_rules),
+            );
 
-            // Only add essential templates to reduce load time
-            const currentTemplates = get().templates; // Get fresh state
-            const hasAKCTemplate = currentTemplates.some(t => t.id === 'akc-scent-work-official-2024');
-
-            if (force || !hasAKCTemplate) {
-              const akcTemplate: ClassTemplate = {
-                ...AKC_SCENT_WORK_TEMPLATE,
-                id: 'akc-scent-work-official-2024',
-                createdAt: new Date(),
-                createdBy: 'system'
-              };
-              templatesToAdd.push(akcTemplate);
-            }
-
-            // Defer structured templates to after initial render
-            if (templatesToAdd.length > 0) {
+            if (dbTemplates.length > 0) {
               set((state) => {
-                // Deduplicate by ID
-                const existingIds = new Set(state.templates.map(t => t.id));
-                const newTemplates = templatesToAdd.filter(t => !existingIds.has(t.id));
-
+                const existingIds = new Set(state.templates.map((t) => t.id));
+                const newTemplates = dbTemplates.filter((t) => !existingIds.has(t.id));
                 return {
                   templates: [...state.templates, ...newTemplates],
                   isInitialized: true,
-                  error: null
+                  isLoading: false,
+                  error: null,
                 };
               });
-            } else {
-              // No templates to add but initialization is complete
-              set({ isInitialized: true });
+              return;
             }
-            
-            // Load additional templates after a delay
-            setTimeout(() => {
-              const additionalTemplates: ClassTemplate[] = [];
-              const currentTemplates = get().templates; // Get fresh state
-              
-              STRUCTURED_TEMPLATES.forEach(template => {
-                const exists = currentTemplates.some(t => t.id === template.id);
+          } catch (error) {
+            logger.warn('DB template fetch failed, using local fallback', 'store', {
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
 
-                if (force || !exists) {
-                  additionalTemplates.push({
-                    ...template,
-                    createdAt: template.createdAt || new Date(),
-                    createdBy: template.createdBy || 'system',
-                    updatedAt: new Date()
-                  });
-                }
+          // Fallback: hardcoded AKC template + STRUCTURED_TEMPLATES
+          try {
+            const templatesToAdd: ClassTemplate[] = [];
+            const currentTemplates = get().templates;
+
+            if (force || !currentTemplates.some((t) => t.id === 'akc-scent-work-official-2024')) {
+              templatesToAdd.push({
+                ...AKC_SCENT_WORK_TEMPLATE,
+                id: 'akc-scent-work-official-2024',
+                createdAt: new Date(),
+                createdBy: 'system',
               });
-              
-              if (additionalTemplates.length > 0) {
-                set((state) => {
-                  // Deduplicate by ID
-                  const existingIds = new Set(state.templates.map(t => t.id));
-                  const newTemplates = additionalTemplates.filter(t => !existingIds.has(t.id));
+            }
 
-                  return {
-                    templates: [...state.templates, ...newTemplates],
-                    error: null
-                  };
+            STRUCTURED_TEMPLATES.forEach((template) => {
+              if (force || !currentTemplates.some((t) => t.id === template.id)) {
+                templatesToAdd.push({
+                  ...template,
+                  createdAt: template.createdAt || new Date(),
+                  createdBy: template.createdBy || 'system',
+                  updatedAt: new Date(),
                 });
               }
-            }, 1000);
-            
+            });
+
+            set((state) => {
+              const existingIds = new Set(state.templates.map((t) => t.id));
+              const newTemplates = templatesToAdd.filter((t) => !existingIds.has(t.id));
+              return {
+                templates: [...state.templates, ...newTemplates],
+                isInitialized: true,
+                isLoading: false,
+                error: null,
+              };
+            });
           } catch (error) {
             logger.error('Error initializing templates:', 'store', {}, error as Error);
-            set({ error: `Failed to initialize templates: ${error instanceof Error ? error.message : 'Unknown error'}` });
+            set({
+              isInitialized: true,
+              isLoading: false,
+              error: `Failed to initialize templates: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            });
           }
         };
-        
-        // Use requestIdleCallback if available, otherwise setTimeout
-        if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-          (window as Window & { requestIdleCallback: (callback: () => void) => void }).requestIdleCallback(initializeAsync);
-        } else {
-          setTimeout(initializeAsync, 0);
-        }
+
+        // Non-blocking: kick off the async load
+        loadFromDB();
       },
       
       // Emergency function to clear corrupted data

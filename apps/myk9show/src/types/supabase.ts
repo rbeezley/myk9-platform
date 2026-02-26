@@ -1240,6 +1240,54 @@ export type Database = {
           },
         ]
       }
+      frontend_logs: {
+        Row: {
+          category: string
+          created_at: string
+          fingerprint: string | null
+          id: number
+          level: number
+          message: string
+          metadata: Json | null
+          page_url: string | null
+          session_id: string | null
+          source: string
+          stack: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          fingerprint?: string | null
+          id?: never
+          level: number
+          message: string
+          metadata?: Json | null
+          page_url?: string | null
+          session_id?: string | null
+          source?: string
+          stack?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          fingerprint?: string | null
+          id?: never
+          level?: number
+          message?: string
+          metadata?: Json | null
+          page_url?: string | null
+          session_id?: string | null
+          source?: string
+          stack?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       health_records: {
         Row: {
           attachments: string[] | null
@@ -1875,6 +1923,7 @@ export type Database = {
       }
       performance_metrics: {
         Row: {
+          auth_user_id: string | null
           created_at: string | null
           id: string
           license_key: string | null
@@ -1884,6 +1933,7 @@ export type Database = {
           metric_value: number | null
         }
         Insert: {
+          auth_user_id?: string | null
           created_at?: string | null
           id?: string
           license_key?: string | null
@@ -1893,6 +1943,7 @@ export type Database = {
           metric_value?: number | null
         }
         Update: {
+          auth_user_id?: string | null
           created_at?: string | null
           id?: string
           license_key?: string | null
@@ -2554,6 +2605,206 @@ export type Database = {
           },
         ]
       }
+      sport_class_rules: {
+        Row: {
+          area_count: number | null
+          class_name: string
+          created_at: string | null
+          default_entry_fee: number | null
+          display_order: number | null
+          distraction_count_max: number | null
+          distraction_count_min: number | null
+          element: string
+          field_overrides: Json | null
+          has_blank: boolean | null
+          hide_count_fixed: number | null
+          hide_count_max: number | null
+          hide_count_min: number | null
+          hides_known: boolean | null
+          id: string
+          level: string | null
+          max_time_seconds_fixed: number | null
+          max_time_seconds_max: number | null
+          max_time_seconds_min: number | null
+          mrv_minutes: number | null
+          odors: string[] | null
+          section: string | null
+          sport_template_id: string
+          timer_mode: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          area_count?: number | null
+          class_name: string
+          created_at?: string | null
+          default_entry_fee?: number | null
+          display_order?: number | null
+          distraction_count_max?: number | null
+          distraction_count_min?: number | null
+          element: string
+          field_overrides?: Json | null
+          has_blank?: boolean | null
+          hide_count_fixed?: number | null
+          hide_count_max?: number | null
+          hide_count_min?: number | null
+          hides_known?: boolean | null
+          id?: string
+          level?: string | null
+          max_time_seconds_fixed?: number | null
+          max_time_seconds_max?: number | null
+          max_time_seconds_min?: number | null
+          mrv_minutes?: number | null
+          odors?: string[] | null
+          section?: string | null
+          sport_template_id: string
+          timer_mode?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          area_count?: number | null
+          class_name?: string
+          created_at?: string | null
+          default_entry_fee?: number | null
+          display_order?: number | null
+          distraction_count_max?: number | null
+          distraction_count_min?: number | null
+          element?: string
+          field_overrides?: Json | null
+          has_blank?: boolean | null
+          hide_count_fixed?: number | null
+          hide_count_max?: number | null
+          hide_count_min?: number | null
+          hides_known?: boolean | null
+          id?: string
+          level?: string | null
+          max_time_seconds_fixed?: number | null
+          max_time_seconds_max?: number | null
+          max_time_seconds_min?: number | null
+          mrv_minutes?: number | null
+          odors?: string[] | null
+          section?: string | null
+          sport_template_id?: string
+          timer_mode?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sport_class_rules_sport_template_id_fkey"
+            columns: ["sport_template_id"]
+            isOneToOne: false
+            referencedRelation: "sport_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sport_templates: {
+        Row: {
+          created_at: string | null
+          divisions: string[] | null
+          elements: string[]
+          export_config: Json | null
+          id: string
+          is_active: boolean | null
+          levels: string[]
+          operational_config: Json | null
+          organization: string
+          section_mode: string
+          sport_code: string
+          sport_name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          divisions?: string[] | null
+          elements: string[]
+          export_config?: Json | null
+          id?: string
+          is_active?: boolean | null
+          levels: string[]
+          operational_config?: Json | null
+          organization: string
+          section_mode?: string
+          sport_code: string
+          sport_name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          divisions?: string[] | null
+          elements?: string[]
+          export_config?: Json | null
+          id?: string
+          is_active?: boolean | null
+          levels?: string[]
+          operational_config?: Json | null
+          organization?: string
+          section_mode?: string
+          sport_code?: string
+          sport_name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      sport_titles: {
+        Row: {
+          abbreviation: string
+          created_at: string | null
+          full_name: string
+          id: string
+          prerequisite_title_id: string | null
+          required_elements: string[] | null
+          required_legs: number
+          sort_order: number | null
+          sport_template_id: string
+          supersedes_title_ids: string[] | null
+          title_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          abbreviation: string
+          created_at?: string | null
+          full_name: string
+          id?: string
+          prerequisite_title_id?: string | null
+          required_elements?: string[] | null
+          required_legs: number
+          sort_order?: number | null
+          sport_template_id: string
+          supersedes_title_ids?: string[] | null
+          title_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          abbreviation?: string
+          created_at?: string | null
+          full_name?: string
+          id?: string
+          prerequisite_title_id?: string | null
+          required_elements?: string[] | null
+          required_legs?: number
+          sort_order?: number | null
+          sport_template_id?: string
+          supersedes_title_ids?: string[] | null
+          title_type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sport_titles_prerequisite_title_id_fkey"
+            columns: ["prerequisite_title_id"]
+            isOneToOne: false
+            referencedRelation: "sport_titles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sport_titles_sport_template_id_fkey"
+            columns: ["sport_template_id"]
+            isOneToOne: false
+            referencedRelation: "sport_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stripe_customers: {
         Row: {
           created_at: string | null
@@ -2842,6 +3093,7 @@ export type Database = {
           name: string
           planned_start_time: string | null
           show_id: string
+          sport_type: string | null
           status: string | null
           trial_number: string | null
           updated_at: string | null
@@ -2861,6 +3113,7 @@ export type Database = {
           name: string
           planned_start_time?: string | null
           show_id: string
+          sport_type?: string | null
           status?: string | null
           trial_number?: string | null
           updated_at?: string | null
@@ -2880,6 +3133,7 @@ export type Database = {
           name?: string
           planned_start_time?: string | null
           show_id?: string
+          sport_type?: string | null
           status?: string | null
           trial_number?: string | null
           updated_at?: string | null
@@ -3524,43 +3778,80 @@ export type Database = {
           waitlist_position: number
         }[]
       }
+      get_current_person_id: { Args: never; Returns: string }
       get_effective_permissions: {
-        Args: { user_id: string }
+        Args: {
+          filter_scope_id?: string
+          filter_scope_type?: string
+          user_id: string
+        }
         Returns: {
-          category: string
           permission_code: string
           permission_name: string
           scope_id: string
           scope_type: string
-          source: string
+          source_role: string
+          source_type: string
         }[]
       }
       get_license_key: { Args: never; Returns: string }
+      get_my_person_id: { Args: never; Returns: string }
       get_user_permissions: {
-        Args: { user_id: string }
+        Args: {
+          filter_scope_id?: string
+          filter_scope_type?: string
+          user_id: string
+        }
         Returns: {
           category: string
-          club_id: string
+          description: string
           permission_code: string
+          permission_id: string
           permission_name: string
+          role_id: string
           role_name: string
-          show_id: string
+          scope_id: string
+          scope_type: string
         }[]
       }
       get_user_roles: {
         Args: { user_id: string }
         Returns: {
-          club_id: string
           expires_at: string
           granted_at: string
+          granted_by: string
+          is_active: boolean
+          is_system: boolean
           role_description: string
           role_id: string
           role_name: string
-          show_id: string
+          scope_id: string
+          scope_type: string
+          user_role_id: string
         }[]
       }
       has_role: {
         Args: { role_name: string; scope_club_id?: string }
+        Returns: boolean
+      }
+      is_club_admin: { Args: { check_club_id?: string }; Returns: boolean }
+      is_dog_owner: { Args: { check_dog_id: string }; Returns: boolean }
+      is_platform_admin: { Args: never; Returns: boolean }
+      is_show_secretary:
+        | { Args: never; Returns: boolean }
+        | { Args: { check_club_id?: string }; Returns: boolean }
+      is_trial_secretary: { Args: { check_club_id?: string }; Returns: boolean }
+      soft_delete_dog: { Args: { p_dog_id: string }; Returns: undefined }
+      test_as_anon: { Args: never; Returns: undefined }
+      test_as_user: { Args: { user_id: string }; Returns: undefined }
+      test_reset: { Args: never; Returns: undefined }
+      user_has_permission: {
+        Args: {
+          permission_name: string
+          scope_id?: string
+          scope_type?: string
+          user_id: string
+        }
         Returns: boolean
       }
     }

@@ -2,6 +2,13 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { getOptimalStorage } from '@/services/database/storage-adapter';
 
+/** Maps show organization to the default sport_type code for the trials table. */
+const SPORT_TYPE_MAP: Record<string, string> = {
+  AKC: 'akc-scent-work',
+  UKC: 'ukc-nosework',
+  ASCA: 'asca-scent-detection',
+};
+
 interface WizardState {
   currentStep: number;
   completedSteps: number[];
@@ -31,6 +38,7 @@ interface WizardState {
     name: string;
     dateTime: string; // ISO datetime string
     eventNumber: string;
+    sportType?: string | undefined; // e.g. 'akc-scent-work', 'ukc-nosework'
     classes: Array<{
       templateId: string;
       customizations: Record<string, unknown>;
@@ -137,7 +145,11 @@ export const useWizardStore = create<WizardState & WizardActions>()(
 
       // Trial management
       addTrial: (trial) => set((state) => ({
-        trials: [...state.trials, { ...trial, id: `trial-${Date.now()}-${Math.random().toString(36).slice(2, 7)}` }],
+        trials: [...state.trials, {
+          ...trial,
+          id: `trial-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          sportType: trial.sportType ?? SPORT_TYPE_MAP[state.show.type] ?? 'akc-scent-work',
+        }],
         isDirty: true
       })),
       

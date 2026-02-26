@@ -164,6 +164,12 @@ export const queryKeys = {
   trial: (id: string) => ['trials', id] as const,
   trialClasses: (trialId: string) => ['trials', trialId, 'classes'] as const,
 
+  // Sport Templates (DB-driven)
+  sportTemplates: ['sport-templates'] as const,
+  sportTemplate: (code: string) => ['sport-templates', code] as const,
+  sportTemplateRules: (templateId: string) => ['sport-templates', templateId, 'rules'] as const,
+  sportTemplateTitles: (templateId: string) => ['sport-templates', templateId, 'titles'] as const,
+
   // Templates
   classTemplates: ['templates', 'class'] as const,
   classTemplate: (id: string) => ['templates', 'class', id] as const,

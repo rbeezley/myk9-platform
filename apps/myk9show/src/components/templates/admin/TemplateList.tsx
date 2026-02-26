@@ -2,9 +2,6 @@ import React, { useState } from 'react';
 import { ClassTemplate } from '@/types/template.types';
 import { useTemplateStore } from '@/store/templateStore';
 import { logger } from '@/services/LoggingService';
-import {
-  useDeleteClassTemplateMutation
-} from '@/hooks/queries/useTemplatesDatabase';
 import { Button } from '@/components/ui/button';
 import { 
   DropdownMenu, 
@@ -51,8 +48,7 @@ export const TemplateList: React.FC<TemplateListProps> = ({
   onTest
 }) => {
   const { user } = useAuthContext();
-  const { duplicateTemplate, exportTemplate } = useTemplateStore();
-  const deleteTemplateMutation = useDeleteClassTemplateMutation();
+  const { duplicateTemplate, exportTemplate, deleteTemplate } = useTemplateStore();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [templateToDelete, setTemplateToDelete] = useState<ClassTemplate | null>(null);
 
@@ -66,16 +62,13 @@ export const TemplateList: React.FC<TemplateListProps> = ({
 
   const confirmDelete = () => {
     if (templateToDelete) {
-      deleteTemplateMutation.mutate(templateToDelete.id, {
-        onSuccess: () => {
-          setDeleteDialogOpen(false);
-          setTemplateToDelete(null);
-        },
-        onError: (error) => {
-          logger.error('Failed to delete template:', 'components', {}, error as Error);
-          // You could add toast notification here
-        }
-      });
+      try {
+        deleteTemplate(templateToDelete.id);
+        setDeleteDialogOpen(false);
+        setTemplateToDelete(null);
+      } catch (error) {
+        logger.error('Failed to delete template:', 'components', {}, error as Error);
+      }
     }
   };
 

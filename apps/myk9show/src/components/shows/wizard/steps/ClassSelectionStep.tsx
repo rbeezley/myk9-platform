@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from 'react';
-import { logger } from '@/services/LoggingService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -94,70 +93,24 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
   // Extract show type for stable dependency
   const showType = show?.type;
 
-  // Filter templates to active ones and matching show type
+  // Filter templates to active ones matching the show organization
   const activeTemplates = useMemo(() => {
-    logger.debug('ClassSelectionStep - Filtering templates', 'wizard', {
-      showType: showType,
-      templatesCount: templates.length,
-      templates: templates.map(t => ({
-        id: t.id,
-        name: t.templateName,
-        organization: t.organization,
-        showType: t.showType,
-        isActive: t.isActive
-      }))
-    });
-
     if (!showType) {
-      const filtered = templates.filter(t => t.isActive);
-      logger.debug('No show type, returning active templates', 'wizard', { count: filtered.length });
-      return filtered;
+      return templates.filter(t => t.isActive);
     }
 
+    const normalizedShowType = showType.toLowerCase().trim();
+
     const filtered = templates.filter(template => {
-      if (!template.isActive) {
-        logger.debug('Template skipped (not active)', 'wizard', { templateName: template.templateName });
-        return false;
-      }
-
-      // The wizard stores organization (AKC, UKC, etc.) as show.type
-      // We need to check if the template's organization matches
-      const templateOrganization = typeof template.organization === 'object'
-        ? String(Object.values(template.organization)[0] || '')
-        : String(template.organization || '');
-
-      const templateShowType = typeof template.showType === 'object'
-        ? String(Object.values(template.showType)[0] || '')
-        : String(template.showType || '');
-
-      // Normalize comparison (case-insensitive, handle variations)
-      const normalizedShowType = (showType || '').toLowerCase().trim();
-      const normalizedTemplateOrg = templateOrganization.toLowerCase().trim();
-      const normalizedTemplateShowType = templateShowType.toLowerCase().trim();
-
-      // Check if the show type matches either organization or show type
-      const matches = normalizedShowType === normalizedTemplateOrg ||
-             normalizedShowType === normalizedTemplateShowType ||
-             normalizedShowType.includes(normalizedTemplateOrg) ||
-             normalizedShowType.includes(normalizedTemplateShowType) ||
-             normalizedTemplateOrg.includes(normalizedShowType) ||
-             normalizedTemplateShowType.includes(normalizedShowType);
-
-      logger.debug('Template matching result', 'wizard', { templateName: template.templateName, org: templateOrganization, showType: templateShowType, matches });
-
-      return matches;
+      if (!template.isActive) return false;
+      const org = String(template.organization || '').toLowerCase().trim();
+      return org === normalizedShowType || normalizedShowType.includes(org) || org.includes(normalizedShowType);
     });
 
-    logger.debug('Filtered templates before deduplication', 'wizard', { count: filtered.length });
-
-    // Deduplicate templates by name to prevent showing multiple with same display name
-    const deduplicatedTemplates = filtered.filter((template, index, array) => {
-      const templateDisplayName = template.templateName?.toLowerCase();
-      return array.findIndex(t => t.templateName?.toLowerCase() === templateDisplayName) === index;
-    });
-
-    logger.debug('Final filtered templates after deduplication', 'wizard', { count: deduplicatedTemplates.length });
-    return deduplicatedTemplates;
+    // Deduplicate by template name
+    return filtered.filter((template, index, arr) =>
+      arr.findIndex(t => t.templateName?.toLowerCase() === template.templateName?.toLowerCase()) === index,
+    );
   }, [templates, showType]);
 
   // Derive complete trial states (fills in missing trials and applies auto-select)

@@ -437,11 +437,18 @@ export class UserPreferencesService {
     // The StoredPreferences object is fully JSON-serializable so this is safe.
     const jsonCompatible = JSON.parse(JSON.stringify(stored));
 
+    // RLS policy requires auth_user_id = auth.uid(), so we must include it
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser?.id) {
+      throw new Error('Cannot save preferences: no authenticated user');
+    }
+
     const { error } = await supabase
       .from('user_preferences')
       .upsert(
         {
           user_id: userId,
+          auth_user_id: authUser.id,
           app: APP_ID,
           preferences: jsonCompatible,
           updated_at: new Date().toISOString(),

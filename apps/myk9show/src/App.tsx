@@ -138,9 +138,34 @@ const ErrorFallback = ({
 // Track initialization to prevent duplicate runs in StrictMode
 const initializationState = {
   errorHandler: false,
-  userData: false,
   clubData: false,
 };
+
+// Loads users whenever the authenticated user changes (e.g. after login).
+// Must render inside AuthProvider.
+function UserDataInitializer() {
+  const { user } = useAuthContext();
+
+  React.useEffect(() => {
+    if (!user) return;
+
+    const initializeUserData = async () => {
+      try {
+        const { useUserStore } = await import('./store/userStore');
+        const store = useUserStore.getState();
+        if (store.users.length === 0) {
+          await store.loadUsers();
+        }
+      } catch (error) {
+        logger.error('Failed to load user data after auth:', 'app', {}, error as Error);
+      }
+    };
+
+    initializeUserData();
+  }, [user]);
+
+  return null;
+}
 
 function App() {
   // Initialize global error handler - deferred to not block initial render
@@ -162,26 +187,6 @@ function App() {
       const timeoutId = setTimeout(initErrorHandler, 100);
       return () => clearTimeout(timeoutId);
     }
-  }, []);
-
-  // Initialize user data from database - deferred and guarded
-  React.useEffect(() => {
-    if (initializationState.userData) return;
-    initializationState.userData = true;
-
-    const initializeUserData = async () => {
-      try {
-        const { useUserStore } = await import('./store/userStore');
-        const { loadUsers } = useUserStore.getState();
-        await loadUsers();
-      } catch (error) {
-        logger.error('Failed to initialize user data:', 'app', {}, error as Error);
-      }
-    };
-
-    // Defer to avoid blocking render
-    const timeoutId = setTimeout(initializeUserData, 50);
-    return () => clearTimeout(timeoutId);
   }, []);
 
   // Initialize club data from database - deferred and guarded
@@ -212,6 +217,7 @@ function App() {
         <ReplicationSyncProvider autoSync={true} syncOnReconnect={true}>
           <StoreProvider>
             <AuthProvider>
+              <UserDataInitializer />
               <AudioSettingsProvider>
                 <FormErrorProvider>
                   <PanelProvider>

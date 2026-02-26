@@ -35,7 +35,10 @@ export interface EditPanelWrapperProps<T = Record<string, unknown>> {
   footerActions?: React.ReactNode;
   headerActions?: React.ReactNode;
   className?: string;
-  
+
+  // For create forms where hasChanges tracking doesn't apply
+  forceHasChanges?: boolean;
+
   // Callbacks
   onDataChange?: (data: T, hasChanges: boolean) => void;
   onValidationChange?: (isValid: boolean, errors: string[]) => void;
@@ -60,6 +63,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
   footerActions,
   headerActions,
   className,
+  forceHasChanges = false,
   onDataChange,
   onValidationChange,
   onAutoSave,
@@ -165,7 +169,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
 
   // Handle close with unsaved changes warning
   const handleClose = () => {
-    if (hasChanges && showUnsavedWarning) {
+    if ((hasChanges || forceHasChanges) && showUnsavedWarning) {
       const shouldClose = window.confirm('You have unsaved changes. Are you sure you want to close?');
       if (!shouldClose) return;
     }
@@ -223,7 +227,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
         </Button>
         <Button
           onClick={handleSave}
-          disabled={!hasChanges || !isValid || isLoading}
+          disabled={(!hasChanges && !forceHasChanges) || !isValid || isLoading}
           className="gap-2 transition-all duration-200 hover:scale-105 active:scale-95"
         >
           <Save className="h-4 w-4" />
@@ -245,7 +249,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
         footer={footer}
         headerActions={headerActions}
         className={cn('edit-panel-wrapper', className)}
-        preventClose={hasChanges && showUnsavedWarning}
+        preventClose={(hasChanges || forceHasChanges) && showUnsavedWarning}
       >
         <div className="flex flex-col h-full animate-in fade-in-0 duration-300 ease-out">
           {/* Error display */}

@@ -103,7 +103,7 @@ const DogInfoCards: React.FC<DogInfoCardsProps> = ({ dog, onEditPanelOpen }) => 
                 Microchip
               </span>
               <EditableValue
-                value={dog.microchip}
+                value={dog.microchipNumber}
                 onEdit={onEditPanelOpen}
               />
             </div>

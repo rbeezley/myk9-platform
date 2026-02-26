@@ -229,14 +229,10 @@ export const deleteDog = async (id: string, deletedBy?: string) => {
 
     logger.debug('📝 Update data being sent:', 'database', { data: updateData });
 
-    const { data, error } = await supabase
-      .from('dogs')
-      .update(updateData)
-      .eq('id', id)
-      .select('id, name, deleted_at, deleted_by')
-      .single();
-
-    logger.debug('📊 Database response:', 'database', { data: { data, error } });
+    // Use a SECURITY DEFINER RPC to bypass the dogs_update RLS WITH CHECK
+    // restriction on deleted_at, while still enforcing ownership in the function.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase.rpc as any)('soft_delete_dog', { p_dog_id: id });
 
     const duration = Date.now() - startTime;
     logQuery('dog', 'soft_delete', duration, error?.message);
@@ -253,11 +249,12 @@ export const deleteDog = async (id: string, deletedBy?: string) => {
       throw createDatabaseError(error, 'dog', 'soft_delete');
     }
 
-    if (!data) {
-      logger.error('❌ No data returned from delete operation', 'database', {});
-      throw new Error('Delete operation returned no data');
-    }
-
+    const data = {
+      id,
+      deleted_at: updateData.deleted_at as string,
+      deleted_by: updateData.deleted_by as string | null ?? null,
+    };
+    logger.debug('📊 Soft delete succeeded:', 'database', { data });
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;

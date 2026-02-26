@@ -92,7 +92,7 @@ function DogDetails(): React.ReactElement {
   async function handleDeleteDog(): Promise<void> {
     if (!selectedDog) return;
 
-    await deleteDog(selectedDog.id, userWithRoles?.databaseUserId);
+    await deleteDog(selectedDog.id, userWithRoles?.id);
 
     const remainingDogs = dogs.filter(d => d.id !== selectedDog.id);
     if (remainingDogs.length > 0) {

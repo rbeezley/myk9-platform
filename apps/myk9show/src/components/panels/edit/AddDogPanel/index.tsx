@@ -11,6 +11,7 @@ import { UserRole } from '@/types/auth-types';
 import { logger } from '@/services/LoggingService';
 
 import type { AddDogPanelProps, DogFormData } from './types';
+import { INITIAL_FORM_DATA } from './types';
 import { validateDogData, isTabValid } from './validation';
 import { useAddDogForm } from './useAddDogForm';
 import { TabNavigation } from './TabNavigation';
@@ -114,32 +115,45 @@ export const AddDogPanel: React.FC<AddDogPanelProps> = ({
     return `${completedTabs} of 3 sections complete`;
   }, [isBasicValid, isRegistrationValid, isOptionalValid]);
 
+  // Stable empty initial data — never changes, so EditPanelWrapper correctly tracks
+  // hasChanges relative to a fixed baseline (not the live form state).
+  const initialFormData = useMemo<DogFormData>(() => ({
+    ...INITIAL_FORM_DATA,
+    ownerId: userRole === UserRole.EXHIBITOR ? (currentUserPersonId || '') : '',
+  }), [userRole, currentUserPersonId]);
+
+  // For create panels, treat as "dirty" whenever the user has edited any field.
+  const isDirty = useMemo(() => {
+    return JSON.stringify(formData) !== JSON.stringify(initialFormData);
+  }, [formData, initialFormData]);
+
   return (
     <EditPanelWrapper
       open={open}
       onClose={onClose}
       title="Add New Dog"
       subtitle={panelSubtitle}
-      initialData={formData}
+      initialData={initialFormData}
       onSave={async () => await handleSave()}
-      validateData={(data) => {
-        const castData = data as DogFormData;
-        const hasRequiredFields = castData.callName?.trim() &&
-                                  castData.gender &&
-                                  castData.dateOfBirth &&
-                                  castData.ownerId;
+      validateData={() => {
+        // Use formData from closure — the wrapper's internal data is a stable empty
+        // baseline and is not driven by child tab changes, so we validate the live state.
+        const hasRequiredFields = formData.callName?.trim() &&
+                                  formData.gender &&
+                                  formData.dateOfBirth &&
+                                  formData.ownerId;
 
         if (!hasRequiredFields) {
           const missingFields: string[] = [];
-          if (!castData.callName?.trim()) missingFields.push('Call name');
-          if (!castData.gender) missingFields.push('Gender');
-          if (!castData.dateOfBirth) missingFields.push('Date of birth');
-          if (!castData.ownerId) missingFields.push('Owner');
+          if (!formData.callName?.trim()) missingFields.push('Call name');
+          if (!formData.gender) missingFields.push('Gender');
+          if (!formData.dateOfBirth) missingFields.push('Date of birth');
+          if (!formData.ownerId) missingFields.push('Owner');
           return [`Missing required fields: ${missingFields.join(', ')}`];
         }
 
-        if (castData.dateOfBirth) {
-          const birthDate = new Date(castData.dateOfBirth);
+        if (formData.dateOfBirth) {
+          const birthDate = new Date(formData.dateOfBirth);
           const now = new Date();
           if (birthDate > now) {
             return ['Date of birth cannot be in the future'];
@@ -151,6 +165,7 @@ export const AddDogPanel: React.FC<AddDogPanelProps> = ({
 
         return null;
       }}
+      forceHasChanges={isDirty}
       size="xl"
       saveLabel={isCreating || isSaving ? 'Creating...' : 'Create Dog'}
       enableAutoSave={false}

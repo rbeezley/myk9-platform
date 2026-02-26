@@ -150,7 +150,12 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 ## Test Complete Dog CRUD Capabilities - 2026-02-23 22:05
 
-- **Test dog Create/Edit/Delete end-to-end** — Verify full CRUD lifecycle for dogs using the Claude preview feature. **Problem:** Dog CRUD operations have not been manually validated end-to-end — need to confirm create new dog, edit existing dog details, and delete a dog all work correctly through the UI. **Files:** `apps/myk9show/src/pages/DogDetailsPage.tsx`, `apps/myk9show/src/components/panels/edit/AddDogPanel/index.tsx`, `apps/myk9show/src/components/panels/edit/DogEditPanel.tsx`, `apps/myk9show/src/components/dogs/common/DeleteDogDialog.tsx`, `apps/myk9show/src/components/dogs/common/DogProfileEditDialog.tsx`, `apps/myk9show/src/components/dogs/DogDetailsMain/index.tsx`, `apps/myk9show/src/services/mappers/dogMappers.ts`, `apps/myk9show/src/services/database/queries/dogQueries.ts`.
+- [x] **Test dog Create/Edit/Delete end-to-end** — E2E CRUD test completed 2026-02-26. All core flows verified: create, view, edit, delete. Four bugs found and fixed:
+  - **Bug 1 fixed**: "Create Dog" Save button always disabled — Added `forceHasChanges` prop to `EditPanelWrapper`. **Files:** `AddDogPanel/index.tsx`, `EditPanelWrapper.tsx`.
+  - **Bug 2 fixed**: `loadUsers` never ran after login (dogs list blank) — Added `UserDataInitializer` component to `App.tsx`. **File:** `App.tsx`.
+  - **Bug 3 fixed**: Microchip displayed blank on dog details — `DogInfoCards.tsx` used `dog.microchip` but mapper populates `dog.microchipNumber`. **File:** `DogInfoCards.tsx`.
+  - **Bug 4 fixed**: Soft delete fails 403 (RLS WITH CHECK blocked `deleted_at`) — Added `soft_delete_dog` SECURITY DEFINER RPC (migration 028) and updated `dogQueries.ts` to use `supabase.rpc()`. Also fixed `DogDetailsPage.tsx` to pass correct auth user ID (`userId` not `databaseUserId`) as `deleted_by`. **Files:** `dogQueries.ts`, `DogDetailsPage.tsx`, `supabase/migrations/028_soft_delete_dog_rpc.sql`.
+  - **Known issue (pre-existing)**: "Add New Dog" from person's profile page is broken — uses deprecated `useDogStore.getState().addDog` and `DogEditPanel` (which lacks a breed field), causing 3 validation errors on save. **File:** `UserDetailsTabs.tsx:66-73`. Needs refactor to use `useDogStoreCompat` + `AddDogPanel`.
 
 ## Test Complete Person CRUD Capabilities - 2026-02-23 22:07
 

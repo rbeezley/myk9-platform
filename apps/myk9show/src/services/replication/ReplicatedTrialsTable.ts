@@ -28,6 +28,7 @@ export interface ReplicatedTrial {
   maxEntriesPerDog?: number | undefined;
   maxTotalEntries?: number | undefined;
   maxEntriesPerHandler?: number | undefined;
+  sportType?: string | undefined;
 
   // Extra fields for scoring
   trial_date?: string | undefined;
@@ -55,6 +56,7 @@ function rowToTrial(row: TrialRow): ReplicatedTrial {
     maxEntriesPerDog: row.max_entries_per_dog ?? undefined,
     maxTotalEntries: row.max_total_entries ?? undefined,
     maxEntriesPerHandler: row.max_entries_per_handler ?? undefined,
+    sportType: row.sport_type ?? undefined,
 
     // Map additional fields (from any as they might be missing in older types)
     trial_date: row.date,
@@ -90,6 +92,7 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
       max_entries_per_dog: trial.maxEntriesPerDog ?? null,
       max_total_entries: trial.maxTotalEntries ?? null,
       max_entries_per_handler: trial.maxEntriesPerHandler ?? null,
+      sport_type: trial.sportType ?? null,
       updated_at: new Date().toISOString(),
     };
   }

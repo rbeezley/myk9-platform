@@ -19,6 +19,7 @@ import { useOptimisticScoring } from '@/hooks/useOptimisticScoring';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
+import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 
 // Scoresheets from shared package
 import { logger } from '@/services/LoggingService';
@@ -81,6 +82,7 @@ export function ScoresheetPage() {
   const [entry, setEntry] = useState<ScoringEntry | null>(null);
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
   const [rules, setRules] = useState<ResolvedClassRules | null>(null);
+  const [trialSportType, setTrialSportType] = useState<string | undefined>(undefined);
   const [allEntries, setAllEntries] = useState<ScoringEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -102,6 +104,14 @@ export function ScoresheetPage() {
         if (!cls) {
           setError('Class not found');
           return;
+        }
+
+        // Load trial to get authoritative sport_type
+        if (cls.trialId) {
+          const trial = await replicatedTrialsTable.getTrialById(cls.trialId);
+          if (trial?.sportType) {
+            setTrialSportType(trial.sportType);
+          }
         }
 
         // Load all entries for navigation
@@ -251,8 +261,11 @@ export function ScoresheetPage() {
     );
   }
 
-  // Detect organization and sport type
-  const { organization, sportType } = detectScoresheetType(classInfo);
+  // Determine organization and sport type from trial sport_type (preferred)
+  // or fall back to class name detection for pre-migration trials
+  const { organization, sportType } = trialSportType
+    ? mapSportType(trialSportType)
+    : detectScoresheetType(classInfo);
 
   // Render appropriate scoresheet
   const scoresheetContext: ScoresheetContext = {
@@ -292,7 +305,37 @@ export function ScoresheetPage() {
 }
 
 /**
- * Detect organization and sport type from class info
+ * Map trial sport_type code to organization and sport type.
+ * Uses the authoritative sport_type from the trial record (Migration 029).
+ */
+function mapSportType(sportTypeCode: string): {
+  organization: Organization;
+  sportType: SportType;
+} {
+  switch (sportTypeCode) {
+    case 'akc-scent-work':
+      return { organization: 'AKC', sportType: 'scent-work' };
+    case 'akc-scent-work-nationals':
+      return { organization: 'AKC', sportType: 'scent-work-nationals' };
+    case 'akc-fast-cat':
+      return { organization: 'AKC', sportType: 'fast-cat' };
+    case 'ukc-nosework':
+      return { organization: 'UKC', sportType: 'nosework' };
+    case 'ukc-rally':
+      return { organization: 'UKC', sportType: 'rally' };
+    case 'ukc-obedience':
+      return { organization: 'UKC', sportType: 'obedience' };
+    case 'asca-scent-detection':
+      return { organization: 'ASCA', sportType: 'scent-work' };
+    default:
+      return { organization: 'Unknown', sportType: 'unknown' };
+  }
+}
+
+/**
+ * Detect organization and sport type from class info.
+ * @deprecated Use mapSportType() with trial.sportType instead. Kept as fallback
+ * for pre-migration trials that don't have sport_type set.
  */
 function detectScoresheetType(classInfo: ClassInfo): {
   organization: Organization;

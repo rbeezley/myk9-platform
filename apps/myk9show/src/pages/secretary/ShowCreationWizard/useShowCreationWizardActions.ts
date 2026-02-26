@@ -33,7 +33,10 @@ import {
 /**
  * Convert wizard ClassData to ReplicatedClass for offline-first storage
  */
-function classDataToReplicatedClass(classData: ClassData): ReplicatedClass {
+function classDataToReplicatedClass(
+  classData: ClassData,
+  rule?: SportClassRuleRow,
+): ReplicatedClass {
   return {
     id: classData.id || crypto.randomUUID(),
     trialId: classData.trialId,
@@ -49,6 +52,14 @@ function classDataToReplicatedClass(classData: ClassData): ReplicatedClass {
     startTime: classData.startTime,
     // Keep snake_case alias for backward compat
     trial_id: classData.trialId,
+    // Scoring rule fields (from sport_class_rules, baked in at creation)
+    ...(rule && {
+      timerMode: rule.timer_mode,
+      hidesKnown: rule.hides_known,
+      distractionCount: rule.distraction_count_min,
+      areaCount: rule.area_count,
+      timeLimitSeconds: rule.max_time_seconds_fixed ?? undefined,
+    }),
   };
 }
 
@@ -165,20 +176,14 @@ export function useShowCreationWizardActions({
     }
 
     for (const classData of classesToCreate) {
-      const replicatedClass = classDataToReplicatedClass(classData);
-
-      // Enrich with rule fields from sport_class_rules
+      // Look up matching rule before transforming
+      let rule: SportClassRuleRow | undefined;
       if (classData.templateId) {
         const ruleKey = `${classData.templateId}|${classData.element ?? ''}|${classData.level ?? ''}`;
-        const rule = ruleMap.get(ruleKey);
-        if (rule) {
-          replicatedClass.timerMode = rule.timer_mode;
-          replicatedClass.hidesKnown = rule.hides_known;
-          replicatedClass.distractionCount = rule.distraction_count_min;
-          replicatedClass.areaCount = rule.area_count;
-          replicatedClass.timeLimitSeconds = rule.max_time_seconds_fixed ?? undefined;
-        }
+        rule = ruleMap.get(ruleKey);
       }
+
+      const replicatedClass = classDataToReplicatedClass(classData, rule);
 
       logger.debug('Creating class via replication', 'wizard', {
         classId: replicatedClass.id,

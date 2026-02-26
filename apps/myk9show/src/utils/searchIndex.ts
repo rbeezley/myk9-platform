@@ -387,7 +387,7 @@ export function createSearchableItem(
           data.phone
         ].filter(Boolean).join(' '),
         metadata: data,
-        route: `/people/${data.id}`
+        route: `/users/${data.id}`
       };
       
     case 'show':

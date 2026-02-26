@@ -44,7 +44,7 @@ const PeopleDetailsLayout: React.FC<PeopleDetailsLayoutProps> = ({
   useEffect(() => {
     if (id && !selectedUser && people.length > 0) {
       startTransition(() => {
-        navigate(`/people/${people[0].id}`);
+        navigate(`/users/${people[0].id}`);
       });
     }
   }, [id, selectedUser, people, navigate]);
@@ -57,13 +57,13 @@ const PeopleDetailsLayout: React.FC<PeopleDetailsLayoutProps> = ({
       <EntitySidebar
         items={people}
         selectedId={id || null}
-        onSelect={(personId) => navigate(`/people/${personId}`)}
+        onSelect={(personId) => navigate(`/users/${personId}`)}
         renderItem={(person, isSelected, isCollapsed) => (
           <UserListItem
             person={person}
             isSelected={isSelected}
             isCollapsed={isCollapsed}
-            onClick={() => startTransition(() => navigate(`/people/${person.id}`))}
+            onClick={() => startTransition(() => navigate(`/users/${person.id}`))}
             toggleCollapsed={toggleCollapsed}
           />
         )}

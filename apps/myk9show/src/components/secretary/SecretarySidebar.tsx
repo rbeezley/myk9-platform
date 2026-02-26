@@ -107,7 +107,7 @@ const navigationGroups: NavGroup[] = [
     items: [
       {
         title: 'Users',
-        href: '/people',
+        href: '/users',
         icon: Users,
         description: 'Exhibitors and handlers'
       },

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { Registration } from '@/types/dog-types';
 import { UserRole } from '@/types/auth-types';
 import type { DogFormData, TabValue } from './types';
@@ -43,6 +43,20 @@ export function useAddDogForm({ open, userRole, currentUserPersonId }: UseAddDog
       setIsCreating(false);
     }
   }
+
+  // Sync ownerId when currentUserPersonId resolves asynchronously (e.g., after
+  // the people store finishes loading). Without this, the form stays stuck with
+  // ownerId='' and the Create Dog button remains disabled.
+  useEffect(() => {
+    if (currentUserPersonId && userRole === UserRole.EXHIBITOR) {
+      setFormData(prev => {
+        if (!prev.ownerId && currentUserPersonId) {
+          return { ...prev, ownerId: currentUserPersonId };
+        }
+        return prev;
+      });
+    }
+  }, [currentUserPersonId, userRole]);
 
   // Handle form field changes
   const handleFieldChange = useCallback((field: keyof DogFormData, value: string | boolean) => {

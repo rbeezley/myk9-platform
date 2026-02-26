@@ -1,0 +1,2872 @@
+ASCA 
+
+Scent Detection Program 
+
+ 
+
+Mission Statement ......................................................................................................................... 4 
+1. Holding a Scent Detection Trial ................................................................................................... 4 
+1.1 Who can hold an ASCA Scent Detection Trial? ................................................................................... 4 
+1.2 Non-Affiliate Group ............................................................................................................................ 4 
+1.3 Boundaries of Trial Grounds ............................................................................................................... 5 
+1.4 Sanctioning a Trial .............................................................................................................................. 5 
+1.5 Premium ............................................................................................................................................. 5 
+1.6 Trial Committee Needed and Job Descriptions .................................................................................. 6 
+1.7 Trial Equipment Needed ..................................................................................................................... 8 
+1.8 General Rules for all Trials .................................................................................................................. 9 
+SCENT DETECTION RUN ENTRY TABLE ........................................................................................... 11 
+1.9 Ribbons and Awards ......................................................................................................................... 12 
+1.10 High in Trial (HIT) and other awards............................................................................................... 13 
+2. Scent ....................................................................................................................................... 14 
+2.1 Scents ............................................................................................................................................... 14 
+2.2 Scent Preparation ............................................................................................................................. 14 
+2.3 Scent Transport and Storage ............................................................................................................ 14 
+2.4 Scent Vessels .................................................................................................................................... 15 
+2.5 Hide Placement ................................................................................................................................ 15 
+2.6 Combining Scent in the same Scent Vessel ...................................................................................... 15 
+3. Scores and Titles ...................................................................................................................... 15 
+3.1 Scoring .............................................................................................................................................. 15 
+3.2 Titling in Novice ................................................................................................................................ 15 
+3.3 Titling in Open .................................................................................................................................. 16 
+3.4 Titling in Advanced ........................................................................................................................... 16 
+3.5 Titling in Excellent ............................................................................................................................. 17 
+4. General Element Area Guidelines ............................................................................................. 17 
+4.1 Containers ........................................................................................................................................ 17 
+4.2 Interiors ............................................................................................................................................ 17 
+4.3 Exteriors ............................................................................................................................................ 18 
+4.4 Vehicles ............................................................................................................................................. 18 
+5. Novice Level and Elements ....................................................................................................... 19 
+NOVICE LEVEL CHART ................................................................................................................... 19 
+5.1 Novice Level ...................................................................................................................................... 19 
+5.2 Novice Level C ................................................................................................................................... 19 
+5.3 Novice - Scents to be used ............................................................................................................... 20 
+5.4 Novice - Setting the Course .............................................................................................................. 20 
+5.5 Novice - Competing .......................................................................................................................... 20 
+
+5.6 Novice - Container Search ................................................................................................................ 20 
+5.7 Novice - Interior Search .................................................................................................................... 21 
+5.8 Novice - Exterior Area Search ........................................................................................................... 21 
+5.9 Novice - Vehicle Search .................................................................................................................... 21 
+6. Open Level and Elements ......................................................................................................... 21 
+OPEN LEVEL CHART ...................................................................................................................... 21 
+6.1 Open Level ........................................................................................................................................ 21 
+6.2 Open Level C ..................................................................................................................................... 22 
+6.3 Open - Scents to be Used ................................................................................................................. 22 
+6.4 Open - Setting the Course ................................................................................................................ 22 
+6.5 Open - Competing ............................................................................................................................ 23 
+6.6 Open - Container Search .................................................................................................................. 23 
+6.7 Open - Interior Area Search .............................................................................................................. 23 
+6.8 Open - Exterior Area Search ............................................................................................................. 23 
+6.9 Open - Vehicle Search....................................................................................................................... 23 
+7. Advanced Level and Elements .................................................................................................. 24 
+ADVANCED LEVEL CHART ............................................................................................................. 24 
+7.1 Advanced Level ................................................................................................................................. 24 
+7.2 Advanced Level C .............................................................................................................................. 24 
+7.3 Advanced – Scents to be used .......................................................................................................... 25 
+7.4 Advanced - Setting the Course ......................................................................................................... 25 
+7.5 Advanced - Competing ..................................................................................................................... 25 
+7.6 Advanced - Container Search ........................................................................................................... 26 
+7.7 Advanced - Interior Area Search ...................................................................................................... 26 
+7.8 Advanced - Exterior Area Search ...................................................................................................... 26 
+7.9 Advanced - Vehicle Search ............................................................................................................... 26 
+8. Excellent Class Levels and Elements .......................................................................................... 27 
+EXCELLENT LEVEL CHART .............................................................................................................. 27 
+8.1 Excellent Level .................................................................................................................................. 27 
+8.2 Excellent Level C ............................................................................................................................... 27 
+8.3 Excellent – Scents to be used ........................................................................................................... 28 
+8.4 Excellent - Setting the Course........................................................................................................... 28 
+8.5 Excellent - Competing ....................................................................................................................... 28 
+8.6 Excellent - Container Search ............................................................................................................. 28 
+8.7 Excellent - Interior Area Search ........................................................................................................ 29 
+8.8 Excellent - Exterior Area Search ....................................................................................................... 29 
+8.9 Excellent - Vehicle Search ................................................................................................................. 29 
+9. Faults ....................................................................................................................................... 29 
+9.1 Faults ................................................................................................................................................ 29 
+9.2 Non-qualifying faults ........................................................................................................................ 30 
+9.3 Excusal .............................................................................................................................................. 30 
+10. Intentional Distractions .......................................................................................................... 31 
+10.1 When Allowed ................................................................................................................................ 31 
+10.2 Placement of distraction ................................................................................................................ 31 
+
+10.3 Types of Distractions ...................................................................................................................... 31 
+11. Becoming a Judge ................................................................................................................... 31 
+11.1 Requirements to become an ASCA Scent Detection Judge ............................................................ 31 
+11.2 Applicants with Relevant Scent Sports Judging Experiences ......................................................... 31 
+11.3 Applicants with Relevant Scent Sports Experiences ....................................................................... 32 
+11.4 Scent Detection Judge Application Process ................................................................................... 32 
+12. Judging Guidelines ................................................................................................................. 33 
+12.1 Judge Duties ................................................................................................................................... 33 
+12.2 Judges Directions (Handler's Meeting) ........................................................................................... 34 
+12.3 Payment to the Judge ..................................................................................................................... 34 
+13. People Who May/May Not Compete ..................................................................................... 34 
+13.1 People Who May Compete ............................................................................................................ 34 
+13.2 People Who May Not Compete...................................................................................................... 34 
+14. Dogs Who May Compete ........................................................................................................ 34 
+14.1 Dogs That May Compete ................................................................................................................ 34 
+14.2 Bitches in Season ............................................................................................................................ 35 
+14.3 Socializing ....................................................................................................................................... 35 
+14.4 Physically Challenged Dogs ............................................................................................................ 35 
+15. Dogs Who May Not Compete ................................................................................................. 35 
+16. For Exhibition Only (FEO) ........................................................................................................ 36 
+17. Junior Handlers ...................................................................................................................... 36 
+18. Glossary of Terms ................................................................................................................... 36 
+19. Recommended Resources for Scent Detection Oils .................................................................. 38 
+20. Scent Detection Forms-Can be found on the ASCA website ...................................................... 38 
+21. ASCA Forms-Can be found on the ASCA website ...................................................................... 38 
+
+
+ 
+
+
+ASCA Scent Detection 
+
+ 
+
+Mission Statement 
+
+The Scent Detection Committee is dedicated to raising awareness around the fundamental role that scent 
+plays with working stock dogs, highlighting the skills of problem-solving in any terrain or weather while 
+showcasing independent working and thinking. A dog who uses its nose to do its job is a well-rounded and 
+versatile working partner. This is also a sport in which veteran dogs and handlers or otherwise challenged 
+handlers/dogs can compete and succeed. 
+
+1. Holding a Scent Detection Trial 
+
+To hold a Scent Detection trial, you do not have to hold all levels or all elements. You can choose what your 
+club wants to offer depending on how many days, the type of facility, how many judges you want to hire and 
+how many volunteers you have. 
+
+1.1 Who can hold an ASCA Scent Detection Trial? 
+
+Only ASCA Affiliate Clubs in good standing may sanction an ASCA Scent Detection Trial. 
+
+No Scent Detection Trials will be sanctioned within 300 miles regardless of state lines taking into 
+account the considerations listed below. 
+
+1.1.1 California Areas - California is divided into three areas: from the Mexican border north to the 
+city of Ventura, from Ventura north to San Jose, and from San Jose north to Oregon. 
+
+ 
+
+1.1.2 Nevada is divided into two areas: From the southernmost border north to Highway 6, Highway 
+6 north to the Oregon and Idaho borders. 
+
+ 
+
+1.1.3 Alaska Exception - Alaska Affiliates may have more than one of each type of event per day from 
+October 1 through March 30. 
+
+1.2 Non-Affiliate Group 
+
+1.2.1 Official ASCA programs that require sanctioning and award points or qualifying scores that lead 
+to an ASCA title shall not be conducted by any individual(s), non-ASCA Affiliated corporation(s) 
+or business(es). Affiliate Club(s) in good standing with ASCA will have the exclusive right to 
+schedule, sanction, and conduct Official ASCA programs. 
+
+ 
+
+1.2.2 Non-ASCA Affiliated, Corporation, Business, or Individual cannot put on sanctioned ASCA 
+events. 
+
+ 
+
+1.2.3 No individual(s), non-ASCA Affiliated corporation(s), or business(es) shall realize any monetary 
+profit, or any other benefit as a result of any connection with an ASCA-sanctioned event. 
+Normal event sponsorship or advertisement by any individual(s), corporation(s), or business(s) 
+shall not be considered to be in conflict with this rule. Individuals, corporations, or businesses 
+that enter into agreements with Affiliate Clubs to supply materials, services, facility rentals, 
+livestock rentals, or any other need required for the conduct of sanctioned events shall not be 
+considered to be in conflict with this rule. 
+
+ 
+
+
+1.3 Boundaries of Trial Grounds 
+
+1.3.1 Minimum Requirements are explained in each class and level. The total area needed will be 
+defined by what the event classes shall include. 
+
+ 
+
+1.3.2 Trial Grounds are the boundaries of the grounds on which ASCA events are being held. They 
+include, but are not limited to, all areas outside the ring/trial arena (including the buffer zone) 
+set aside for grooming, holding of dogs, and parking of vehicles of the exhibitor. 
+
+ 
+
+1.3.3 Trial Site is the boundary in which judging of an ASCA event occurs and over which the Judge 
+has authority. The boundary is defined by physical barriers plus a buffer zone extending ten 
+(10) feet from such physical barriers. 
+
+1.4 Sanctioning a Trial 
+
+1.4.1 ASCA Sanctioning Form, see ASCA Website for the current form. A sanctioning fee will be 
+submitted with the official request for sanctioning form to the ASCA Business Office. This form 
+will not be accepted without being fully completed. This application must be submitted and 
+postmarked no later than sixty (60) days prior to the event. 
+
+ 
+
+1.4.2 Two ASCA Affiliates may hold a trial on the same site together IF they submit their sanctioning 
+together with a letter of understanding included with both completed sanctioning forms. 
+
+ 
+
+1.4.3 Late Sanctioning Fee requests received between 45-60 days prior to an event will be accepted 
+upon payment of a fine, a fee to be determined by the board, for the first three (3) days past 
+the 60-day postmark deadline with an increase fee to be determined by the board, per day 
+thereafter. Sanctioning request *received by the Business Office* less than 45 days prior to a 
+sanctioned event will not be accepted under any circumstances. Clubs submitting delinquent 
+sanctioning requests three times will lose all late sanctioning privileges for a period of 2 years. 
+It is recommended Clubs retain the proof of mailing for all sanctioning requests. The ASCA 
+Business Office will not accept responsibility for sanctioning requests lost in the mail. All 
+sanctioning requests sent after the 60-day postmark deadline must be original forms (no faxes 
+or emails) and must have all required signatures and fees. 
+
+1.5 Premium 
+
+The premium must accompany the sanctioning form. The premium must at a minimum supply the 
+following information: 
+
+1.5.1 Name of the affiliate club hosting the event. 
+
+1.5.2 Sanctioning status (pending or approved). 
+
+1.5.3 A statement that the trial will be held under the current rules and regulations of ASCA. 
+
+1.5.4 Date and location of trial(s) including physical address. 
+
+1.5.5 Trial secretary and trial chairperson’s name and contact information. Must include a phone or 
+email address that will be answered daily. 
+
+1.5.6 The trial levels and elements being offered. 
+
+
+1.5.7 Judges’ names, accompanied by their affiliation, and their judging assignments. 
+
+1.5.8 A description of prizes and awards. 
+
+1.5.9 The scents that will be used for each level. 
+
+1.5.10 A listing of all classes offered for each day in the order in which they will proceed. 
+
+1.5.11 Fee amounts for pre-entry and day-of-show entries (if accepted) for classes. 
+
+1.5.12 Postmark dates for opening and/or closing of pre-entries and maximum entry number. 
+
+1.5.13 Day of Show Entries times and date (if applicable). 
+
+1.5.14 Maximum entries and how entries over that will be handled. 
+
+1.5.15 Whether move-ups will be allowed, and how they will be handled. 
+
+1.5.16 Handler’s meeting time at the beginning of the trial. 
+
+1.5.17 Time the show grounds will be open for set up. 
+
+1.5.18 Any concerns for handicapped or limited mobility handlers or dogs such as: long distances 
+between search areas, uneven surfaces, steep grades, steps, etc. 
+
+ 
+
+1.5.19 Whether spectators or videoing will or will not be allowed. 
+
+1.5.20 Local veterinarians for emergency contact. 
+
+1.5.21 Local hotel(s) and pet accommodation information. 
+
+1.5.22 RV hook-up amenities and availability if the show facility is an RV Park. 
+
+1.5.23 Food vendor Information (if applicable). 
+
+1.5.24 Show photographer contact information (if applicable). 
+
+1.5.25 Rules of the club (including waivers to be signed, if applicable). 
+
+1.5.26 Listing of any applicable local laws or show site regulations pertaining to the exhibition of 
+dogs. (Including waivers to be signed, if applicable). 
+
+ 
+
+1.5.27 A statement that no entry shall be accepted from a dog or handler disqualified from the ASCA 
+programs or a person not in good standing with ASCA. 
+
+ 
+
+1.5.28 A link to the appropriate entry forms on the ASCA Website must be included. 
+
+1.5.29 The link to the ASCA Website with information regarding the QTracker number and the 
+Service Membership Application should be listed on the premium. And that dogs are not 
+required to be registered with ASCA or have a QTracker number, but if they want their titles to 
+be tracked, they MUST have a QTracker number. 
+
+ 
+
+1.5.30 Cancellation and Refund Policy 
+
+1.6 Trial Committee Needed and Job Descriptions 
+
+A club holding a trial must name a Trial Chairperson and a Trial Secretary, which cannot be the same 
+person. The Chairperson must be a member in good standing with ASCA and of the affiliate club. The 
+
+
+premium list for all trials shall designate the Trial Secretary as receiving entries. The Trial Secretary 
+and Chairperson shall be ineligible to judge at the event in which they are acting in these official 
+capacities. 
+
+1.6.1 Trial Chairperson -The job will include but not be limited to securing the trial site, hiring the 
+judges, filing the sanctioning, and overseeing the trial in general. This person is required to be 
+always on the trial grounds during competition. The Trial Chairperson is ineligible to judge at 
+the trial. The chairperson may participate in Scent Detection trials where they perform these 
+duties, though this participation should not interfere with their official duties. The Trial Chair 
+should plan on speaking at the beginning of each day welcoming the participants and 
+volunteers, going over any special requests, and introducing the judge(s). 
+
+ 
+
+1.6.2 Trial Secretary - This job will include but not be limited to being the record keeper, including 
+taking entries and taking care of the ASCA paperwork. This person will help the judge keep 
+track of all paperwork and collect the paperwork at the end of the trial that will have to go to 
+ASCA, making sure that all paperwork is signed by the judge. This person is required to be on 
+the grounds at all times during the competition. The Secretary may participate in Scent 
+Detection trials where they perform these duties, though this participation should not 
+interfere with their official duties or slow down the trial. 
+
+ 
+
+1.6.3 Score Table/Computer Operator - This person is responsible for inputting all scores, 
+determining the placements in the classes, and ensuring the judge has verified these records. 
+Once completed, the awards and ribbons may be handed out. At the end of each level, this 
+person computes High Scores and any other special awards, verifies those scores with the 
+judge, and distributes those awards in some manner. 
+
+ 
+
+1.6.4 Judges Hospitality - To be responsible for taking care of the judge. This may include arranging 
+for the judge to have their airline tickets, motel room, transportation (when needed), and food 
+and drink before, during, and after the event. It is recommended to provide an ice chest at 
+each scent area for the judges and workers. Always take into consideration any dietary needs 
+of all the judges. (This should be addressed in the judge’s contract.) This person is only 
+responsible for making sure the jobs are done, not necessarily to do each of these jobs 
+themselves. 
+
+ 
+
+1.6.5 Volunteer Coordinator: - This person’s job will include, but not be limited to securing and 
+accounting for all stewards and other volunteers needed at a trial. They will assign and 
+educate the stewards and volunteers on their roles. The volunteer coordinator is also in 
+charge of volunteer hospitality and ensures all required roles are filled and running smoothly 
+throughout the trial. 
+
+ 
+
+1.6.6 Stewards 
+
+1. Gate Steward - Will keep the trial running smoothly, making sure there is a minimum of two 
+dogs in line ready to compete and assuring that the handler cannot see or hear anything in 
+the search area. They will accept any other duties assigned to them by the judge. This 
+steward may compete in this event but not in the class they are stewarding. 
+
+
+ 
+
+2. Timing Steward - This is an optional position; the judge may opt to do their own timing. 
+Check with the judge if a timer will be needed. If a timer is used, they will time the 
+
+
+
+competing team and relay the correct time to the judge. The time shall be kept to the 
+hundredth of a second. A backup stopwatch may be used but only one timer is needed. The 
+time will start when the dog’s nose crosses the start line. The timer will stop the clock when 
+the handler calls “Alert” for Novice or “Finish” for Open, Advanced, and Excellent. The same 
+timer will preferably time an entire level/element. For example, the Novice Containers. This 
+steward may compete in this event but not in the class they are stewarding. The timer will 
+sit or stand where the judge indicates. The timer remains in the same spot for all runs in 
+that class. *Malfunction of the Clock will give the handler two choices. They may take the 
+maximum time as decided by the judge prior to the start of that class OR they may rerun 
+the search. If there is a rerun of the search it will be held at the end of that class and the 
+hides will be reset and rest for 10 minutes before starting the new search. If the search 
+team does not qualify the handler will accept an NQ and will not be allowed to accept the 
+first run. 
+
+
+ 
+
+3. Equipment Steward - The equipment steward will ensure that there are enough vessels, 
+containers, and other miscellaneous items at the trial area and that everything from the 
+past class is picked up. This may need to be more than one person. The judge will handle 
+the scents. 
+
+
+ 
+
+4. Cold Box Steward - Handles the boxes/containers with no scent, at no time is this person 
+allowed to handle anything with scent. This person straightens or replaces (if needed) any 
+COLD boxes/containers that may get disturbed by the working dog. This person does not 
+touch or straighten the HOT box. 
+
+
+ 
+
+5. Hot Box Steward - Handles the boxes/containers that contain the odor, at no time does this 
+person handle any other boxes/containers not containing the scent. This person straightens 
+or replaces (if needed) any HOT boxes/containers that may get disturbed by the working 
+dog. This person does not touch or straighten the COLD boxes. The hot box steward should 
+wear disposable gloves while handling hot boxes. 
+
+
+1.7 Trial Equipment Needed 
+
+1.7.1 Rule book MUST be at the entry table. 
+
+1.7.2 All Scent Detection Forms 
+
+1.7.3 Tables and chairs 
+
+1.7.4 Computer- laptop & printer with extra paper 
+
+1.7.5 Ring tape 
+
+1.7.6 One (1) stopwatch per search area, but extra stopwatches and batteries need to be available in 
+case of malfunction. 
+
+ 
+
+1.7.7 White Boards, Markers, and Erasers 
+
+1.7.8 Clipboards, pens/pencils, markers, tape 
+
+1.7.9 A 20 ft measuring tape minimum 
+
+1.7.10 Appropriate containers as needed for each level. 
+
+
+1.7.11 Plastic garbage bags 
+
+1.7.12 Cones or other boundary markers 
+
+1.7.13 Painter’s tape 
+
+1.7.14 Cleaning supplies (for dog accidents in the search area) 
+
+1.7.15 Latex gloves 
+
+1.7.16 It is suggested that a “Supply Box” be prepared for each search area some of the items it 
+should include are: 
+
+● Clip Board 
+
+● Extra Score Sheets 
+
+● Pens, Pencils 
+
+● Stopwatch and batteries 
+
+● Tape 
+
+● Measuring tape 
+
+● Rule book 
+
+1.8 General Rules for all Trials 
+
+1.8.1 Hide will not be known or easily visible to the handler. The handler should not be actively looking 
+for the scent vessel. It is the dog’s job to indicate to the handler the source of the odor. The 
+handler will be warned, faulted, or excused if the judge feels they are looking for the scent vessel(s). 
+
+ 
+
+1.8.2 No specific alert indication is required from the dog, but there must be a noticeable change in behavior 
+from the dog. The behavior change may be extremely subtle such as a head flick. The judge should use 
+their discretion on the “Alert” call depending upon if the hide is accessible or inaccessible, as well as 
+taking into consideration environmental factors such as wind, temperature and humidity. 
+
+ 
+
+1.8.3 When an “Alert” is called but it is not clear to the judge where the dog is indicating the judge may ask 
+“WHERE?” At which time the handler must immediately point to the hide location without re-cueing 
+the dog or touching anything. 
+
+ 
+
+1.8.4 Handler may reward the dog in the search area with food or toys at any time during the search. 
+Handlers may wear treat bags to carry treats and toys. The handler should ensure treats and 
+toys do not fall out of the treat bag or be dropped in the search area. The judge may assess a 
+fault for any contamination of the search area with food or toy delivery. 
+
+ 
+
+1.8.5 Handler may touch the dog at any time during the search. 
+
+ 
+
+1.8.6 The hide may never be placed on or inside an object that is put in the search area to designate 
+the boundary area. IE: boundary tape, flags, or cones. However, the hide may be placed on a 
+wall or structure that is part of the search areas outer limits. 
+
+ 
+
+1.8.7 Hide locations are not to be discussed by anyone (competitors, volunteers, spectators) until 
+the completion of the class/element. 
+
+ 
+
+1.8.8 Handlers should not touch anything in the search area without permission from the judge. 
+
+ 
+
+
+1.8.9 Dogs may wear a flat buckle collar, martingale collar, limited slip collar, and/or harness while 
+searching. 
+
+ 
+
+1.8.10 No electronic collars or prong collars will be allowed on the trial grounds. Dogs may not wear 
+cameras in the search area. 
+
+ 
+
+1.8.11 Leash may be of any length, but the dog must always remain under control. Flexi leads are 
+allowed in the search area only. 
+
+ 
+
+1.8.12 Dogs may wear any other items that may deem necessary by the handler such as sweaters or 
+jackets, booties, hair clips, or tags that do not jingle. The Judge will make the final 
+determination if questioned. 
+
+ 
+
+1.8.13 Handlers may carry a timer or wear watches in the search area to be aware of the time 
+remaining in their search. 
+
+ 
+
+1.8.14 No target odors are allowed on the grounds or in vehicles except for those used by the judge 
+in the trial. 
+
+ 
+
+1.8.15 Spectators may be allowed in the search areas at judge's discretion. With the permission of 
+the dog’s handler, spectators are allowed to photograph and video dogs and handlers while 
+they search, no flash is allowed. Under no circumstances may the video be shared until after 
+the entire class is completed. Handlers are not allowed to take video of their own search 
+while handling a dog, except wearable cameras such as the “Go Pro” are permitted to be 
+worn by the handler. 
+
+ 
+
+1.8.16 The handler must confirm the dog's indication of odor with the word “ALERT”. If verbal 
+confirmation is not possible the handler MUST inform the judge, they will be making the call 
+with another signal (such as a raised hand) before the start of the search. The judge can 
+require an alternative confirmation signal (such as a raised hand) due to environmental 
+factors (such as a noisy highway) or concerns due to the closeness of the parking/staging 
+areas. 
+
+ 
+
+1.8.17 The “FINISH” call is used in all classes, except Novice, to indicate when all hides have been 
+located. The “FINISH” call will stop time. If the handler fails to call “FINISH” before the end of 
+the search time and the team is in Open they will qualify and receive the maximum time 
+allowed, if the team is in Advanced or Excellent, they will NQ. 
+
+ 
+
+1.8.18 The judge will state whether the search can be done on or off-leash. It is up to the handler if 
+they want to run the dog on or off-leash. Handlers can leash/unleash their dog anytime 
+during the search. 
+
+ 
+
+1.8.19 The timer will be instructed to give a 30-second warning for all levels. The timer will make 
+every effort to give this warning, but situations may occur, and a warning may be late or not 
+given at all. It is the handler’s responsibility to keep track of search time. Should a timer fail to 
+give 30 seconds warning, no recourse is available to the handler. No warning will be given if 
+the search time is less than one minute. 
+
+ 
+
+
+1.8.20 All handlers should check in upon arrival. A running order will be posted in the staging area. 
+
+ 
+
+1.8.21 Limitations of Entries 
+
+A. Judge’s assignment should not exceed eight hours per day. If entries are over the 8-hour 
+time limit for the judge, clubs have the option of hiring another judge. 
+
+B. If no set entry limit is stated on the premium clubs should use the Scent Detection Entry 
+Table to determine the number of runs available depending on the levels and elements that 
+are being offered. 
+
+C. If the trial runs behind or there is a miscalculation in the number of runs, judges should not 
+stop their assignment. 
+
+D. Clubs may use any of the following methods in accepting pre-entries, method used should 
+be stated on the premium: 
+
+1. Accept entries in order of postmark date. 
+
+A. Trial is closed once all available runs are filled. 
+
+B. Any additional entries should be returned to the sender. 
+
+2. Start a waitlist. 
+
+A. Entries that are received after the trial has been filled are added to a waitlist 
+in the order received. 
+
+B. If a pre-entered dog cancels, the wait list is utilized to fill the open spots. 
+
+3. The random draw method. 
+
+A. Determine “draw period” that entries will be accepted. 
+
+B. All entries received before the draw period ends shall be accepted as valid 
+entries and will be included in the draw, no matter when they were received. 
+
+C. If entries exceed the eight-hour limit, before the end of the draw period, all 
+entries are eligible for the draw. The draw should be made two days before 
+the end of the closing date. 
+
+SCENT DETECTION RUN ENTRY TABLE 
+
+To use this calculator, multiply the number of runs by the minutes to determine the approximate time 
+needed for that class. Example: There are 18 Novice Container runs. 18(runs) x 2.5(minutes) = 45 
+(minutes) to run the class. Don’t forget to factor in the set-up time. 
+
+ 
+
+Level 
+Time in Minutes 
+
+Containers 
+
+Interior 
+
+Exterior 
+
+Vehicle 
+
+Urban 
+
+Novice 
+
+2.5 
+
+2.5 
+
+2.5 
+
+2.5 
+
+N/A 
+
+Open 
+
+3 
+
+3 
+
+3 
+
+3 
+
+N/A 
+
+Advanced 
+
+3 
+
+5 
+
+3 
+
+3 
+
+N/A 
+
+Excellent 
+
+4 
+
+6 
+
+4 
+
+4 
+
+N/A 
+
+Time Allowed for Set Up 
+
+15 
+
+30 
+
+30 
+
+30 
+
+N/A 
+
+
+
+ 
+
+ 
+
+
+ 
+
+1.8.23 Weather Conditions - all outdoor searches will be completed regardless of the weather, unless, 
+in the opinion of the judge, conditions pose a risk of physical harm to the competitors. Searches 
+may be postponed to finish class(es) until the weather conditions improve. 
+
+ 
+
+1.8.24 A warm-up and recovery area should be designated and should contain at least one scent from 
+each of the levels offered. Blank boxes are optional. Teams on deck should have priority using 
+this area. 
+
+ 
+
+1.8.25 In general hides should be set and aged for at least 10 minutes before the start of each class. 
+
+
+1.8.26 Nesting of search areas is not allowed. (Nesting meaning using a Novice search area (hide 
+placement) for the Open search area by just increasing the space and adding an additional hide 
+or adding distractions. 
+
+
+1.8.27 Though not recommended search areas can be reused for the higher levels. If an area is reused, 
+all previous hide locations must be changed and the old locations must be clearly marked with 
+stickers or tape. Or if possible, the hide location can be removed from the search area. Handlers 
+must be notified at the handlers meeting of the trial area(s) that are being reused. They should 
+also be reminded at the beginning of the search. 
+
+ 
+
+ 1.8.28 If a hide must be relocated in the middle of a class in a trial, the judge must inform the team(s) 
+at the start line of the search. The previous hide areas must be marked with stickers or tape. If a 
+hide is relocated the new location should be of the same challenges as the old hide. The scent 
+should be left to stand for 10 minutes before the next dog runs. 
+
+ 
+
+1.8.29 The judge’s decision is final. Arguments from a competitor will not be allowed. 
+
+1.9 Ribbons and Awards 
+
+1.9.1 Ribbons for the four official placements within a single Scent Detection class at Sanctioned 
+Scent Detection Trial must be awarded only to dogs that earn qualifying scores. Although 
+placement awards are not absolutely required, they are very strongly recommended. 
+
+ 
+
+1.9.2 A qualifying ribbon or rosette shall be given for each qualifying run in each class. Each ribbon 
+awarded at the trial shall have the words "ASCA Sanctioned Trial" printed on it (synonyms such 
+as "event" may be used for the word "trial"). 
+
+ 
+
+1.9.3 Each ribbon or rosette shall be at least two inches wide and eight inches long and indicate on 
+its face the placement and the name of the Host Club. 
+
+ 
+
+1.9.4 The ASCA logo may be used in awards offered by an ASCA affiliate hosting a sanctioned trial. 
+For matches these can be made by a computer or crafty person. 
+
+ 
+
+1.9.5 The following color ribbons are suggested unless sanctioned as a Specialty in which case the 
+following colors must be used: 
+
+1st - Blue 
+
+
+2nd - Red 
+
+3rd - Yellow 
+
+4th - White 
+
+Qualifying Score - Green 
+
+HIT - Optional 
+
+ 
+
+1.9.6 A Self-Serve table for ribbons can be used unless the judge wants to hand out the awards. 
+
+A. Tabs or something similar can be ordered for the levels and elements being offered so they 
+can be attached to the placement/qualifying ribbons. 
+
+B. Labels can be printed that attach to the back of the ribbons showing the class/element, 
+placement, faults and time. This will be helpful to the competitors in tracking their scores. 
+
+1.10 High in Trial (HIT) and other awards 
+
+1.10.1 It is up to the host club if they want to offer High in Trial or any other special awards or 
+ribbons. 
+
+ 
+
+1.10.2 If offering a HIT, there shall be one High in Trial winner for each level offered. 
+
+ 
+
+1.10.3 Only teams who are entered in the same level of each of the elements offered, and qualify in 
+each element, are eligible for High in Trial. The High in Trial is determined by adding a team’s 
+faults and then their times across the elements offered. The team with the fewest faults and 
+the lowest time will be declared High in Trial for that level. If there is a tie after considering 
+both faults and time, a coin flip will determine the High in Trial. Example: If a club offers all 
+elements of the Novice classes at a single trial, any dog who participates and qualifies in every 
+element offered is eligible for HIT Novice. If a club offers two elements of Novice and two 
+elements of Advanced, there shall be a Novice High in Trial and an Advanced High in Trial. 
+
+ 
+
+1.10.4 Teams entered in more than one level at a trial are ineligible for the HIT award. 
+
+ 
+
+1.10.5 Teams entered in Level C of any level are not eligible for the HIT award. 
+
+ 
+
+
+2. Scent 
+
+SCENT CHART 
+
+Suggested 
+Usage: 
+
+Novice 
+(Choose One) 
+
+Open 
+(Choose One) 
+
+Advanced 
+(Choose One) 
+
+Excellent 
+(Choose One) 
+
+Line 1 - 
+United States 
+
+ 
+
+Birch (Betula 
+Lenta) 
+
+Anise (Pimpinella 
+Anisum) 
+
+Clove (Eugenia 
+
+Caryophyllata) 
+
+ No new scent 
+
+Line 2 - 
+Canada 
+
+ 
+
+Wintergreen 
+
+(Gaultheria 
+
+Procumbens) 
+
+Pine (Pinus) 
+
+Thyme (Thymus 
+vulgaris) 
+
+No new scent 
+
+Line 3 - 
+Europe 
+
+ 
+
+Lavender 
+
+(Lavandula 
+
+Intermedia) 
+
+Eucalyptus 
+
+(Eucalyptus 
+
+Globulus) 
+
+Bay (Larus / Sinus) 
+
+No new scent 
+
+
+
+2.1 Scents Allowed 
+
+There is a choice of three suggested scents per level. 
+Line 1 - (Birch, Anise, & Clove) is used in the United States. 
+Line 2 - (Wintergreen, Pine, and Thyme) is used in Canada (CDC). 
+Line 3 - (Lavender, Eucalyptus, and Bay) is used in European trials. 
+It is suggested that the scents chosen are appropriate for your area. 
+
+2.2 Scent Preparation 
+
+The judge will supply and prepare the odors needed for the trial. This should be done at least 24 to 
+48 hours before the trial. Gloves should be used while preparing the scent. 
+
+Materials needed: 
+
+● Target odors - 100 percent Pure essential oils of odor(s) being used for trial. (See list at the 
+back of these rules for recommended suppliers). 
+
+● 4-ounce glass jar{s) with metal lids – One jar per odor of scents being used for the trial. 
+
+● 100% cotton swabs with paper stem (not plastic) - cut in half. 
+
+● Latex, Nitrile or Vinyl gloves 
+
+Steps to prepare odor(s): 
+
+● Cut enough cotton swabs in half to fill the jar(s) approximately ⅔ full (make sure there are 
+enough swabs for the entire trial). Do not over fill. 
+
+● Extract one dropper full of oil. Exact amounts may vary but the general rule is: 1-dram bottle 
+droppers need to be full, 2-dram bottle droppers half full, ½ oz. droppers about ¼ full. 
+
+● Drizzle the odor around the insides of the glass jar. 
+
+● Add cotton swabs to the jar, secure the lid and shake the swabs vigorously in the jar. 
+
+● Let swabs sit (cook) for 24 hours, then check to see if odor strength is sufficient. Add more 
+odor to the sides of the jar if needed. 
+
+2.3 Scent Transport and Storage 
+
+The scented cotton swabs should be transported/stored in a glass jar with a threaded plastic or 
+metal lid. If storing scented tips, they should be kept in an airtight, glass storage container away 
+from sunlight. Do not store scented swabs in plastic containers, refrigerator, or freezer. 
+
+
+2.4 Scent Vessels 
+
+A scent vessel (hide) will prevent the swab from coming in direct contact and contaminating the 
+object's surface area while allowing the scent to escape. Scent vessels must never contain glass. 
+Some examples of scent vessels may be a small tin with holes, plastic straw, ink pen cap, or tea 
+strainer. Hides should contain at least 3 half cotton swabs unless conditions dictate more or less 
+odor strength is needed. 
+
+2.5 Hide Placement 
+
+The scent vessel is attached to an object's surface or secured to the inside of a container using tape, 
+putty (such as Quakehold), a magnet, or any other means, that does not harm the object or surface. 
+The target odor at the trial is only handled by the judge. 
+
+2.6 Combining Scent in the same Scent Vessel 
+
+Scent combinations may be used starting at the Excellent level. Combination scents are when 
+multiple scents for a single hide are placed in the same scent vessel. 
+
+3. Scores and Titles 
+
+3.1 Scoring 
+
+The Scent Detection competition is a pass/fail competition. Placements are determined by the 
+fewest number of faults acquired and then on the time of the run. For example, a team with no 
+faults will place higher than a team with a faster time with faults. If teams are tied on both the 
+number of faults and search time, then a coin flip will determine the placements. 
+
+3.2 Titling in Novice 
+
+3.2.1 Novice Level 
+
+Dog/handler team must have 3 qualifying scores from an individual element to earn the 
+Novice Level element title. 
+
+A. Containers SCNc (Scent Detection Novice Containers) 
+
+B. Interiors SCNi (Scent Detection Novice Interiors) 
+
+C. Exteriors SCNe (Scent Detection Novice Exteriors) 
+
+D. Vehicles SCNv (Scent Detection Novice Vehicle) 
+
+E. ALL NOVICE ELEMENT TITLES – SCN4 (Scent Detection Novice Four) (indicating all four 
+Novice element titles have been acquired) Separate element titles are dropped. 
+
+ 
+
+3.2.2 Novice Level C 
+Dog/handler team must have 7 additional (10 total) qualifying scores from an individual 
+element to earn the Novice Level C element title. 
+
+A. Containers SCNc-C (Scent Detection Novice Containers-Level C) 
+
+B. Interiors SCNi-C (Scent Detection Novice Interiors-Level C) 
+
+C. Exteriors SCNe-C (Scent Detection Novice Exteriors-Level C) 
+
+D. Vehicles SCNv-C (Scent Detection Novice Vehicles-Level C) 
+
+E. ALL NOVICE LEVEL C ELEMENT TITLES – SCN4-C (Scent Detection Novice Four-Level C) 
+(indicating all four Novice Level C element titles have been acquired) Separate element 
+titles are dropped. 
+
+ 
+
+
+3.3 Titling in Open 
+
+3.3.1 Open Level 
+
+Dog/handler team must have 3 qualifying scores from an individual element to earn the Open 
+Level element title. 
+
+A. Containers SCOc (Scent Detection Open Containers) 
+
+B. Interiors SCOi (Scent Detection Open Interiors) 
+
+C. Exteriors SCOe (Scent Detection Open Exteriors) 
+
+D. Vehicles SCOv (Scent Detection Open Vehicles) 
+
+E. ALL OPEN ELEMENT TITLES – SCO4 (Scent Detection Open Four) (indicating all four 
+Open element titles have been acquired) Separate element titles are dropped. 
+
+ 
+
+3.3.2 Open Level C 
+
+Dog/handler team must have 7 additional (10 total) qualifying scores from an individual 
+element to earn the Open Level C element title. 
+
+A. Containers SCOc-C (Scent Detection Open Containers-Level C) 
+
+B. Interiors SCOi-C (Scent Detection Open Interiors-Level C) 
+
+C. Exteriors SCOe-C (Scent Detection Open Exteriors-Level C) 
+
+D. Vehicles SCOv-C (Scent Detection Open Vehicles-Level C) 
+
+E. ALL OPEN LEVEL C ELEMENT TITLES – SCO4-C (Scent Detection Open Four-Level C) 
+(indicating all four Open Level C element titles have been acquired) Separate element 
+titles are dropped. 
+
+3.4 Titling in Advanced 
+
+3.4.1 Advanced Level 
+
+Dog/handler team must have 3 qualifying scores from an individual element to earn the 
+Advanced Level element title. 
+
+A. Containers SCAc (Scent Detection Advanced Containers) 
+
+B. Interiors SCAi (Scent Detection Advanced Interiors) 
+
+C. Exteriors SCAe (Scent Detection Advanced Exteriors) 
+
+D. Vehicles SCAv (Scent Detection Advanced Vehicles) 
+
+E. ALL ADVANCED ELEMENT TITLES – SCA4 (Scent Detection Advanced Four) (indicating 
+all four Advanced element titles have been acquired) Separate element titles are 
+dropped. 
+
+ 
+
+3.4.2 Advanced Level C 
+
+Dog/handler team must have 7 additional (10 total) qualifying scores from an individual 
+element to earn the Advanced Level C element title. 
+
+A. Containers SCAc-C (Scent Detection Advanced Containers-Level C) 
+
+B. Interiors SCAi-C (Scent Detection Advanced Interiors-Level C) 
+
+C. Exteriors SCAe-C (Scent Detection Advanced Exteriors-Level C) 
+
+D. Vehicles SCAv-C (Scent Detection Advanced Vehicles-Level C) 
+
+E. ALL ADVANCE LEVEL C ELEMENT TITLES – SCA4-C (Scent Detection Advance Four-Level 
+C) (indicating all four Advanced Level C element titles have been acquired) Separate 
+element titles are dropped. 
+
+ 
+
+
+3.5 Titling in Excellent 
+
+3.5.1 Excellent Level 
+
+Dog/handler team must have 3 qualifying scores from an individual element to earn the 
+Excellent Level element title. 
+
+A. Containers SCEc (Scent Detection Excellent Containers) 
+
+B. Interiors SCEi (Scent Detection Excellent Interiors) 
+
+C. Exteriors SCEe (Scent Detection Excellent Exteriors) 
+
+D. Vehicles SCEv (Scent Detection Excellent Vehicles) 
+
+E. ALL EXCELLENT ELEMENT TITLES – SCE4 (Scent Detection Excellent Four) (indicating all 
+four Excellent element titles have been acquired) Separate element titles are dropped. 
+
+ 
+
+3.5.2 Excellent Level C 
+
+Dog/handler team must have 7 additional (10 total) qualifying scores from an individual 
+element to earn the Open Level C element title. 
+
+A. Containers SCEc-C (Scent Detection Excellent Containers-Level C) 
+
+B. Interiors SCEi-C (Scent Detection Excellent Interiors-Level C) 
+
+C. Exteriors SCEe-C (Scent Detection Excellent Exteriors-Level C) 
+
+D. Vehicles SCEv-C (Scent Detection Excellent Vehicles-Level C) 
+
+E. ALL EXCELLENT LEVEL C ELEMENT TITLES – SCE4-C (Scent Detection Excellent Four-
+Level C) (indicating all four Excellent Level C element titles have been acquired) Separate 
+element titles are dropped. 
+
+4. General Element Area Guidelines 
+
+4.1 Containers 
+
+4.1.1 A container is something that you can put something in but has holes or other means for the 
+odor to escape but is not easily seen by the handler or the dog. 
+
+ 
+
+4.1.2 It is required that there are enough extra boxes/containers available to replace any containers 
+that may get damaged. 
+
+ 
+
+4.1.3 Search can be indoors or outdoors. 
+
+ 
+
+4.1.4 Handlers are not permitted to touch the containers. 
+
+4.2 Interiors 
+
+4.2.1 The interior area can be anything from kitchens, bathrooms, bedrooms, office rooms, living 
+rooms, school rooms or meeting rooms including hallways and common areas. 
+
+ 
+
+4.2.2 If bringing items into the area they should be placed to look as if they belong in the area. 
+
+ 
+
+4.2.3 Interior areas must have a roof with four walls from floor to ceiling. 
+
+ 
+
+4.2.4 If using one large room for multiple search areas each area must be designated by caution 
+tape, ring gates or other acceptable markers and should be at least 30 feet apart, preferably 
+
+
+with at least 5-foot barriers that are flush to the ground/floor. 
+
+ 
+
+4.2.5 The hide may be located on, in, or under an object. Examples of hide locations include (but are 
+not limited to) tables, drawers, dressers, chairs, cabinets, baseboards, walls or any other 
+object that will conceal the scent vessel from plain sight. 
+
+4.3 Exteriors 
+
+4.3.1 This area can be anything from exteriors of buildings, courtyards, patios, parking lots, or grassy 
+areas and can include picnic tables, camp chairs, logs, trash cans, or anything found outdoors. 
+Objects can be brought out from indoors but should be placed to look as if they belong in the 
+area. 
+
+ 
+
+4.3.2 Area will be clearly identified with cones, tape, or other markers. The hides will only be in the 
+designated area. However, the dog or handler may move outside the area to search. 
+
+ 
+
+4.3.3 This area may have a roof with no more than two walls and open enough that fresh air will 
+circulate at all times. 
+
+ 
+
+4.3.4 The hide may be located on, in, or under an object. The hide may be placed at ground level 
+such as in rocks, sidewalk cracks, drainpipes, or on walls, trees, etc. The scent vessel must be 
+hidden from plain sight. 
+
+ 
+
+4.3.5 Hides cannot be buried. 
+
+4.4 Vehicles 
+
+4.4.1 Anything with wheels that can be stabilized so that it is not moveable. Examples include 
+automobiles, pick-up trucks, SUVs, snowmobiles or ATVs, tractors, agricultural vehicles, boats, 
+or RVs. Non-motorized examples include wheelbarrows, hand carts, wagons, etc. 
+
+ 
+
+4.4.2 The hide will only be placed on the vehicle's exterior. 
+
+ 
+
+4.4.3 Hide should not be placed as to encourage the dog to jump up on a vehicle. 
+
+ 
+
+4.4.4 Hides may NOT be placed in tailpipes. 
+
+ 
+
+4.4.5 There may NOT be any dogs, humans, or target scents inside the vehicle when being used in a 
+search. 
+
+ 
+
+4.4.6 No odor may have been placed on the vehicle for four weeks prior (no lingering odor). 
+
+ 
+
+4.4.7 Once a vehicle has held a hide for a class or level it cannot be reused for that trial or any other 
+trials for that weekend. Vehicles without hides (cold) may be reused. 
+
+ 
+
+4.4.8 Vehicle searches may be indoors or outdoors. 
+
+
+5. Novice Level and Elements 
+
+NOVICE LEVEL CHART 
+
+ELEMENT 
+
+AREA 
+
+MAX 
+
+TIME 
+
+# OF 
+
+HIDES 
+
+KNOWN 
+
+ 
+
+FAULTS 
+
+# OF Q’S TITLES 
+
+Containers 
+
+12 identical cardboard 
+boxes. 
+
+2.5 Min. 
+
+1 Hide 
+
+2 
+
+3 - SCNc 
+
+10 - SCNc-C 
+
+Interiors 
+
+100 - 400 Sq. Ft. 
+
+2.5 Min. 
+
+1 Hide 
+
+2 
+
+3 - SCNi 
+
+10 - SCNi-C 
+
+Exteriors 
+
+200 - 400 Sq. Ft. 
+
+2.5 Min. 
+
+1 Hide 
+
+2 
+
+3 - SCNe 
+
+10- SCNe-C 
+
+Vehicles 
+
+2 Vehicles 
+
+2.5 Min. 
+
+1 Hide 
+
+2 
+
+3 - SCNv 
+
+10 - SCNv-C 
+
+
+
+5.1 Novice Level 
+
+5.1.1 ALL dogs must start at the NOVICE level. 
+
+ 
+
+5.1.2 A Novice dog should demonstrate “scent obedience”. 
+
+ 
+
+5.1.3 A Novice handler should recognize a change in behavior while the dog works to scent the odor 
+source. 
+
+ 
+
+5.1.4 A dog can continue to be shown in the Novice Class until written notification has been received 
+from the ASCA Business Office that it has completed the requirements for the Novice Level 
+title (3 qualifying runs) of an element. Then they must either move to the Novice Level C class 
+of that element or to the Open Level of that element. 
+
+
+5.2 Novice Level C 
+
+The Level C classes are for teams who wish to “Continue” on and earn additional titles in each 
+element or for teams who are not yet ready to move to the next level. 
+
+5.2.1 The Novice Level C class shall be for dogs that have completed the ASCA Scent Detection 
+Novice Level title of an element. 
+
+ 
+
+.2.2 The same methods and standards are used for judging and scoring the Novice Level C classes as 
+the Novice Level classes. 
+
+ 
+
+5.2.3 Teams must earn seven additional qualifying scores to complete the Level C element titles. 
+
+ 
+
+5.2.4 Teams may stay in the Novice Level C element class indefinitely. 
+
+ 
+
+
+5.2.5 Teams may move back to Novice Level C and earn the Novice Level C titles after they have moved 
+up or received the upper-level titles. 
+
+ 
+
+5.2.6 Dogs may not compete in Novice Level C element class and any other element class (different 
+level) in one trial. Example: Team cannot compete in Novice Level C-Containers and Open Level-
+Containers in the same trial. 
+
+ 
+
+5.2.7 Dogs in the Novice Level C are not eligible for HIT awards unless there are special awards being 
+offered for the Level C classes. 
+
+5.3 Novice - Scents to be used. 
+
+5.3.1 The host club will pick one of the scents from the Novice List on the Scent Detection Chart 
+(Section 2) 
+
+ 
+
+5.3.2 The host club will enter the scent onto the sanctioning form and place it on the premium. 
+
+5.4 Novice - Setting the Course 
+
+5.4.1 There will be one hide per element. 
+
+ 
+
+5.4.2 No intentional distractions are allowed at this level. 
+
+ 
+
+5.4.3 No inaccessible hides at this level. 
+
+ 
+
+5.4.4 The hide will be no more than two feet high in any novice class. 
+
+ 
+
+5.4.5 Actual search time to be determined by the judge with a maximum time of 2.5 minutes. 
+
+5.5 Novice - Competing 
+
+5.5.1 No incorrect calls are allowed at this level. If at any time during the search, an incorrect call is 
+made the search will be ended. When there is an incorrect call, the judge may tell a Novice team 
+where a correct hide is, and the handler has the choice to show and reward their dog quickly 
+before they leave the area. 
+
+ 
+
+5.5.2 You may have no more than two faults to qualify. 
+
+5.6 Novice - Container Search 
+
+5.6.1 Container Element Guidelines 
+
+A. Twelve (12) identical cardboard boxes must be used, a minimum of 10 x 8 x 2.75 or close to 
+this size. 
+
+B. Boxes may be set up in a simple pattern such as a square, one or two rows, a circle, or a 
+triangle. If set up in rows there should be approx. 3 feet between the rows to allow the 
+dog/handler to walk in between the rows. 
+
+ 
+
+
+5.7 Novice - Interior Search 
+
+5.7.1 Interior Element Guidelines 
+A. Hides must be accessible to the dog. 
+
+5.8 Novice - Exterior Area Search 
+
+5.8.1 Exterior Element Guidelines 
+
+A. Hide must be accessible to the dog. 
+
+5.9 Novice - Vehicle Search 
+
+5.9.1 Vehicle Element Guidelines 
+
+A. Vehicles may be placed in any physical arrangement, no closer than five feet from each other 
+in any direction. 
+
+B. Hides will be placed no more than two inches in depth under the frame of the vehicle. 
+
+ 
+
+6. Open Level and Elements 
+
+OPEN LEVEL CHART 
+
+ELEMENT 
+
+AREA 
+
+MAX 
+
+TIME 
+
+# OF 
+
+HIDES 
+
+KNOWN 
+
+ 
+
+FAULTS 
+
+# OF Q’S - TITLE 
+
+Container 
+
+12-18 Containers. 
+Any container that is 
+not fabric or glass. 
+
+3 Min. 
+
+1-2 Hides 
+
+2 
+
+3 - SCOc 
+
+10-SCOc-C 
+
+Interiors 
+
+300-600 sq. ft. 
+
+3 Min. 
+
+1-2 Hides 
+
+2 
+
+3 - SCOi 
+
+10-SCOi-C 
+
+Exteriors 
+
+400-800 sq. ft. 
+
+3 Min. 
+
+1-2 Hides 
+
+2 
+
+3 - SCOe 
+
+10-SCOe-C 
+
+Vehicles 
+
+2-3 Vehicles 
+
+3 Min. 
+
+1-2 Hides 
+
+2 
+
+3 - SCOv 
+
+10-SCOv-C 
+
+
+
+6.1 Open Level 
+
+6.1.1 An Open dog should be able to find multiple scents and be able to find scents regardless of 
+distractions in the search area. 
+
+ 
+
+6.1.2 Teams do not need to earn all the Novice Level element titles to move up to Open Level, they 
+must have finished their title in that element but not the entire level. (EXAMPLE: once a dog 
+earns their Novice Container Title, they are eligible to move up to the Open Level in Containers 
+even if they have not earned their Novice titles in the other 3 elements.) 
+
+ 
+
+6.1.3 A dog can continue to be shown in the Open Class until written notification has been received 
+
+
+from the ASCA Business Office that it has completed the requirements for the Open Level title (3 
+qualifying runs) of an element. Then they must either move to the Open Level C class of that 
+element or to the Advanced Level of that element. 
+
+6.2 Open Level C 
+
+The Level C classes are for teams who wish to “Continue” on and earn additional titles in each element 
+or for teams who are not yet ready to move to the next level. 
+
+6.2.1 The Open Level C class shall be for dogs that have completed the ASCA Scent Detection Open 
+Level title of an element. 
+
+ 
+
+6.2.2 The same methods and standards are used for judging and scoring the Open Level C classes as 
+the Open Level classes. 
+
+ 
+
+6.2.3 Teams must earn seven additional qualifying scores to complete the Level C element titles. 
+
+ 
+
+6.2.4 Teams may stay in the Open Level C element class indefinitely. 
+
+ 
+
+6.2.5 Teams may move back to Open Level C and earn the Open Level C titles after they have moved 
+up or received the upper-level titles. 
+
+ 
+
+6.2.6 Dogs may not compete in Open Level C element class and any other element class (different 
+level) in one trial. Example: Team cannot compete in Open Level C-Containers and Advanced 
+Level-Containers in the same trial. 
+
+ 
+
+6.2.7 Dogs in the Open Level C are not eligible for HIT awards unless there are special awards being 
+offered for the Level C classes. 
+
+6.3 Open - Scents to be used. 
+
+6.3.1 The host club will pick one Novice scent and one Open scent from the Scent Detection Chart 
+(Section 2) from the same line. 
+
+ 
+
+6.3.2 The host club will enter the chosen scents onto the sanctioning form and place it on the 
+premium. 
+
+6.4 Open - Setting the Course 
+
+6.4.1 Handler will be told the number of hides (1 or 2) before the start of each search. 
+
+ 
+
+6.4.2 There may or may not be one non-food distraction at this level. 
+
+ 
+
+6.4.3 Hides can be accessible or inaccessible. 
+
+ 
+
+6.4.4 The hide will be no more than three feet high in any open class. 
+
+ 
+
+6.4.5 Actual search time to be determined by the judge with a maximum time of three minutes. 
+
+
+6.5 Open - Competing 
+
+6.5.1 No incorrect calls are allowed at this level. If at any time during the search, an incorrect call is 
+made the search will be ended. 
+
+ 
+
+6.5.2 You may have no more than two faults to qualify. 
+
+ 
+
+6.5.3 The handler must call “Finish” to stop the time when all hides are located. If the handler does not 
+call “Finish” the team will still pass but be given the full time allotted for that search. 
+
+6.6 Open - Container Search 
+
+6.6.1 Container Element Guidelines 
+
+A. There are 12-18 containers (no fabric or glass), which can include one type or a mix of any of 
+the following examples: boxes, plastic containers, metal containers, gift boxes, etc. 
+
+B. Containers may be set up in any pattern the judge prefers. 
+
+C. There may or may not be one intentional non-food distraction. 
+
+6.7 Open - Interior Area Search 
+
+6.7.1 Interior Element Guidelines 
+
+A. There may or may not be one intentional non-food distraction. 
+
+6.8 Open - Exterior Area Search 
+
+6.8.1 Exterior Element Guidelines 
+
+A. There may or may not be one intentional non-food distraction. 
+
+6.9 Open - Vehicle Search 
+
+6.9.1 Vehicle Element Guidelines 
+
+A. Vehicles may be placed in any physical arrangement, no closer than four feet from each other 
+in any direction. 
+
+B. The hides will be no more than six inches under the vehicle. 
+
+C. No more than one hide per vehicle. 
+
+D. There may not be intentional distractions. 
+
+ 
+
+
+7. Advanced Level and Elements 
+
+ADVANCED LEVEL CHART 
+
+ELEMENT 
+
+AREA 
+
+MAX 
+
+TIME 
+
+# OF HIDES 
+
+UNKNOWN 
+
+ 
+
+FAULTS 
+
+# OF Q’S TITLES 
+
+Containers 
+
+12-24 containers 
+
+Any container that is 
+not glass. 
+
+3 Min. 
+
+UNKNOWN 
+
+1-3 Hides 
+
+1 
+
+3 - SCAc 
+
+10 - SCAc-C 
+
+Interior 
+
+1 or 2 Rooms 
+
+Two small rooms 
+
+(400-700 sq ft each) 
+
+or one large room 
+
+(up to 1200 sq ft) 
+
+5 Min. 
+
+Total 
+
+UNKNOWN 
+
+1-3 Hides 
+
+Total 
+
+1 
+
+3 - SCAi 
+
+10 - SCAi-C 
+
+Exterior 
+
+One area 500-900 sq ft 
+
+3 Min. 
+
+UNKNOWN 
+
+1-3 Hides 
+
+1 
+
+3 - SCAe 
+
+10 - SCAe-C 
+
+Vehicles 
+
+3-4 Vehicles 
+
+3 Min. 
+
+UNKNOWN 
+
+1-3 Hides 
+
+1 
+
+3 - SCAv 
+
+10 - SCAv-C 
+
+
+
+7.1 Advanced Level 
+
+7.1.1 An Advanced dog should be able to find multiple odors and be able to find odor regardless of 
+distractions in the search area. 
+
+ 
+
+7.1.2 The Advanced handler should be able to determine when all hides have been found in a search 
+area. 
+
+ 
+
+7.1.3 Teams do not need to earn all the Open Level element titles to move up to Advanced Level, they 
+must have finished their title in that element but not the entire level. (EXAMPLE: once a dog 
+earns their Open Container Title, they are eligible to move up to the Advanced Level in Containers 
+even if they have not earned their Open titles in the other 3 elements.) 
+
+ 
+
+7.1.4 A dog can continue to be shown in the Advanced Class until written notification has been 
+received from the ASCA Business Office that it has completed the requirements for the 
+Advanced Level title (3 qualifying runs) of an element. Then they must either move to the 
+Advanced Level C class of that element or to the Excellent Level of that element. 
+
+7.2 Advanced Level C 
+
+The Level C classes are for teams who wish to “Continue” on and earn additional titles in each element 
+or for teams who are not yet ready to move to the next level. 
+
+7.2.1 The Advanced Level C class shall be for dogs that have completed the ASCA Scent Detection 
+Advanced Level title of an element. 
+
+ 
+
+7.2.2 The same methods and standards are used for judging and scoring the Advanced Level C classes 
+
+
+as the Advanced Level classes. 
+
+ 
+
+7.2.3 Teams must earn seven additional qualifying scores to complete the Level C element titles. 
+
+ 
+
+.2.4 Teams may stay in the Advanced Level C element class indefinitely. 
+
+ 
+
+7.2.5 Teams may move back to Advanced Level C and earn the Open Advanced Level C titles after they 
+have moved up or received the upper-level titles. 
+
+ 
+
+7.2.6 Dogs may not compete in the Advanced Level C element class and any other element class 
+(different level) in one trial. Example: Team cannot compete in Advanced Level C-Containers and 
+Excellent Level-Containers in the same trial. 
+
+ 
+
+7.2.7 Dogs in the Advanced Level C are not eligible for HIT awards unless there are special awards 
+being offered for the Level C classes. 
+
+7.3 Advanced – Scents to be used. 
+
+7.3.1 The host club will pick three scents from the same line to include a Novice, Open, and Advanced 
+scent from the Scent Detection Chart (Section 2). 
+
+ 
+
+7.3.2 The host club will enter the scents being used on the sanctioning form and place it on the 
+premium. 
+
+7.4 Advanced - Setting the Course 
+
+7.4.1 Handler will not be told the number of hides (1 to 3) before the start of the search. 
+
+ 
+
+7.4.2 There may or may not be up to two intentional food or non-food distractions at this level. 
+
+ 
+
+7.4.3 Hides can be accessible or inaccessible. 
+
+ 
+
+7.4.4 The hide will be no more than four feet high in any Advanced class. 
+
+ 
+
+7.4.5 Actual search time to be determined by the judge with a maximum time of three minutes for 
+Containers, Exteriors, Vehicles, and five minutes for Interior. 
+
+7.5 Advanced - Competing 
+
+7.5.1 You may have no more than one fault to qualify. 
+
+ 
+
+7.5.2 No incorrect calls are allowed at this level. If at any time during the search, an incorrect call is 
+made the search will be ended. 
+
+ 
+
+7.5.3 The handler must call “Finish” to stop time when they believe all hides have been located. If the 
+handler does not call “Finish”, or the “Finish” is called and not all hides have been located the 
+team will not qualify. 
+
+
+7.6 Advanced - Container Search 
+
+7.6.1 Container Element Guidelines 
+
+A. There are 12-24 containers, which can include one type or a mix of any of the following 
+examples: boxes, plastic containers, metal containers, gift boxes, cloth bags, luggage, 
+backpacks, purses, etc. 
+
+B. Containers may be set up in any pattern the judge prefers. 
+
+C. Containers can be elevated. Example placed on a bench or a chair. 
+
+7.7 Advanced - Interior Area Search 
+
+7.7.1 Interior Element Guidelines 
+
+A. The interior room search may be contained within a larger room or be split into two separate 
+rooms or adjoining areas. When using one room with multiple search areas each area must 
+be designated by tape, ring gates, or other acceptable markers and should be at least 30 feet 
+apart with visible markers, preferably with at least 5-foot barriers that are flush to the 
+ground/floor. 
+
+B. When using two rooms or areas only one area will be searched at a time. 
+
+C. If using two interior search areas, none of the search areas can be blank. 
+
+D. The Judge will determine how the search and time will be computed. The total times of both 
+areas cannot exceed the total search time allowed of five minutes. 
+
+E. If a handler fails to find all the hides or calls a false alert in the first search area, they may not 
+continue the search and will be considered a NQ. 
+
+7.8 Advanced - Exterior Area Search 
+
+7.8.1 Exterior Element Guidelines 
+
+A. The search area may be contained within a larger area but must be designated by caution 
+tape, cones, or other acceptable markers. 
+
+7.9 Advanced - Vehicle Search 
+
+7.9.1 Vehicle Element Guidelines 
+
+A. Vehicles may be placed in any physical arrangement, no closer than three feet from each 
+other in any direction. 
+
+B. More than one hide can be placed on a vehicle, but all hides must be at least four feet apart. 
+
+C. There may or may not be up to two intentional food or non-food distractions. But these 
+distractions should not be placed on the vehicles. 
+
+ 
+
+ 
+
+
+8. Excellent Class Levels and Elements 
+
+EXCELLENT LEVEL CHART 
+
+ELEMENT 
+
+AREA 
+
+MAX TIME 
+
+# OF HIDES 
+
+UNKNOWN 
+
+ 
+
+FAULTS 
+
+# OF Q’S - TITLE 
+
+Containers 
+
+Minimum of 20 
+containers, as long as 
+they are not glass. 
+
+4 min 
+
+UNKNOWN 
+
+0-4 
+
+1 
+
+3 - SCEc 
+
+10 - SCEc-C 
+
+Interiors 
+
+One large area (up to 
+1500 sq. ft.) or two 
+smaller areas (600-800 
+sq. ft. each). 
+
+6 min 
+
+UNKNOWN 
+
+0-4 hides total 
+
+1 
+
+3 - SCEi 
+
+10 - SCEI-C 
+
+ 
+
+Exteriors 
+
+One large area up to 
+1400 sq. ft. 
+
+4 min 
+
+UNKNOWN 
+
+0-4 hides total 
+
+1 
+
+3 - SCEe 
+
+10 - SCEe-C 
+
+ 
+
+Vehicles 
+
+3-5 vehicles 
+
+4 min 
+
+UNKNOWN 
+
+0-4 hides 
+
+1 
+
+3 - SCEv 
+
+10 - SCEv-C 
+
+ 
+
+
+
+8.1 Excellent Level 
+
+8.1.1 An Excellent dog should be able to find multiple odors or a combination of odors, regardless of 
+distractions in the search area. 
+
+ 
+
+8.1.2 The Excellent handler should be able to determine when all hides have been found or if there are 
+no hides in a search area. 
+
+ 
+
+8.1.3 A dog can continue to be shown in the Excellent Class until written notification has been received 
+from the ASCA Business Office that it has completed the requirements for the Excellent Level 
+title (3 qualifying runs) of an element. Then they must move to the Excellent Level C class of that 
+element. 
+
+8.2 Excellent Level C 
+
+The Level C classes are for teams who wish to “Continue” on and earn additional titles in each element 
+or for teams who are not yet ready to move to the next level. 
+
+8.2.1 The Excellent Level C class shall be for dogs that have completed the ASCA Scent Detection 
+Excellent Level title of an element. 
+
+ 
+
+8.2.2 The same methods and standards are used for judging and scoring the Excellent Level C classes 
+as the Excellent Level classes. 
+
+ 
+
+8.2.3 Teams may stay in the Excellent C element class indefinitely. 
+
+ 
+
+
+8.2.4 Dogs may not compete in Excellent Level C element class and any other element class (different 
+level) in one trial. Example: Team cannot compete in Excellent Level C-Containers and Novice 
+Level C -Containers in the same trial. 
+
+8.2.5 Dogs in the Excellent Level C are not eligible for HIT awards unless there are special awards being 
+offered for the Level C classes. 
+
+8.3 Excellent – Scents to be used. 
+
+8.3.1 The host club will pick three scents from the same line to include a Novice, Open, and Advanced 
+scent from the Scent Detection Chart (Section 2). 
+
+ 
+
+8.3.2 The host club will enter the scents being used on the sanctioning form and place it on the 
+premium. 
+
+ 
+
+8.3.3 The Search area can include single odor hides or combination odor hides (Example: Birch-Clove 
+combo). All odors do not need to be used. 
+
+8.4 Excellent - Setting the Course 
+
+8.4.1 Handler will not be told the number of hides (0-4) before the start of the search. 
+
+ 
+
+8.4.2 There may or may not be up to three intentional food or non-food distractions at this level. 
+
+ 
+
+8.4.3 Hides can be accessible or inaccessible. 
+
+ 
+
+8.4.4 The hide will be no more than five feet high in any Excellent class. 
+
+ 
+
+8.4.5 Actual search time to be determined by the judge with a maximum time of four minutes for 
+Containers, Exteriors, and Vehicles, and six minutes for Interiors. 
+
+ 
+
+8.4.6 If the Interior search involves two areas only one of those search areas may be blank. 
+
+8.5 Excellent - Competing 
+
+8.5.1 No incorrect calls are allowed at this level. If at any time during the search, an incorrect call is 
+made the search will be ended. 
+
+ 
+
+8.5.2 You may have no more than one fault to qualify. 
+
+ 
+
+8.5.3 The handler must call “Finish” to stop time when they believe all hides have been located. If the 
+handler does not call “Finish”, or the “Finish” is called and not all hides have been located the 
+team will not qualify. 
+
+8.6 Excellent - Container Search 
+
+8.6.1 Container Element Guidelines 
+
+A. A minimum of 20 containers are to be used which can include one type or a mix of any of the 
+following examples: boxes, plastic containers, metal containers, cloth bags, luggage, 
+
+
+backpacks, purses, etc. 
+
+B. Containers may be arranged in any pattern the judge prefers. 
+
+C. Containers can be elevated (placed on a chair or bench) 
+
+8.7 Excellent - Interior Area Search 
+
+8.7.1 Interior Element Guidelines 
+
+A. The interior room search may be contained within a larger room or be split into two separate 
+rooms or adjoining areas. When using one room with multiple search areas each area must 
+be designated by tape, ring gates or other acceptable markers and should be at least 30 feet 
+apart with visible markers, preferably with at least 5-foot barriers that are flush to the 
+ground/floor. 
+
+B. When using two rooms or areas only one area will be searched at a time. 
+
+C. If using two rooms, only one room can be blank (NO hide) 
+
+D. The Judge will determine how the search and time will be computed. The total times of both 
+areas cannot exceed the total search time allowed of six minutes. 
+
+E. If a handler fails to find all the hides or calls a false alert in the first search area, they may not 
+continue the search and will be considered a NQ. 
+
+8.8 Excellent - Exterior Area Search 
+
+8.8.1 Exterior Element Guidelines 
+
+A. The search area may be contained within a larger area but must be designated by caution 
+tape, cones, or other acceptable markers. 
+
+8.9 Excellent - Vehicle Search 
+
+8.9.1 Vehicle Element Guidelines 
+
+A. Vehicles may be arranged in any physical arrangement, no closer than three feet from each 
+other in any direction. 
+
+B. More than one hide may be placed on a vehicle, but all hides must be at least three feet apart. 
+
+C. There may or may not be up to three intentional food or non-food distractions. But these 
+distractions should not be placed on the vehicles. 
+
+9. Faults 
+
+9.1 Faults 
+
+It is up to the judge to assess faults for minor handling errors and/or rule infractions during a search. A 
+team may still receive a qualifying score with minor faults, the faults only affect placement in the class. 
+
+9.1.1 Handler drops food or toys in the search area. 
+
+ 
+
+9.1.2 Handler takes the dog off leash in an “on leash” search area without permission. If the handler 
+drops the lead because their dog is getting tangled this should not be considered a fault, as long 
+as the handler immediately gains control of the leash after the dog is safe. 
+
+ 
+
+9.1.3 The safety of the dog is compromised by completely disappearing under a vehicle or object in the 
+search area. 
+
+ 
+
+
+9.1.4 Entering search area from other than the designated start line. 
+
+ 
+
+9.1.5 Handler allows the dog to slightly disturb the search area. 
+
+ 
+
+9.1.6 Handler is obviously looking for the scent vessel with their own eyes. 
+
+9.2 Non-qualifying faults 
+
+Dogs will be excused from the search area if, in the opinion of the judge, any of the following points 
+are met. Dogs may still compete in any other classes they may have entered that day. 
+
+9.2.1 Dog eliminates in the search area. 
+
+ 
+
+9.2.2 Exceeding maximum time 
+
+ 
+
+9.2.3 Dog stops working for an extended period of time and does not re-engage. 
+
+ 
+
+9.2.4 Dog destroys the containers or boxes. 
+
+ 
+
+9.2.5 Dog or handler causes excessive disturbance of the search area to the extent that the judge must 
+address before the next team may compete. 
+
+ 
+
+9.2.6 Dog excessively scratches or causes any damage to vehicle or property. When a dog gently 
+braces itself on an object for balance it is not a fault. 
+
+ 
+
+9.2.7 Handler is not able to point to the hide location when asked “WHERE” by the judge. 
+
+ 
+
+9.2.8 Handler makes an incorrect call: 
+
+A. Handler calls "Alert" incorrectly. 
+
+B. Handler names the location of the hide instead of saying “ALERT” as other competitors could 
+overhear. 
+
+C. Handler does not call “FINISH” at the end of a search in the Advanced and Excellent levels. 
+
+D. Handler calls “FINSH” when there are still hides that have not been found or called in all levels 
+but Novice. 
+
+9.3 Excusal 
+
+Teams will be excused from the trial ground if, in the opinion of the judge, any of the following points 
+are met. Dogs must leave the grounds and may not compete. There will be NO refund. The judge will 
+make note on their paperwork. 
+
+9.3.1 Dog shows signs of extreme pain, stress, fear or aggression, subject to judge’s discretion. 
+
+ 
+
+9.3.2 Harsh handling or corrections of the dog 
+
+ 
+
+9.3.3 Poor sportsmanship 
+
+ 
+
+9.3.4 Revealing the location of a hide to another exhibitor. 
+
+
+10. Intentional Distractions 
+
+10.1 When Allowed 
+
+No intentional distractions are allowed in Novice. Intentional distractions are allowed in all levels 
+AFTER the Novice level. 
+
+10.2 Placement of distraction 
+
+A distraction may not be placed on top of the hide or on top of the location of a previous hide. 
+
+10.3 Types of Distractions 
+
+10.3.1 Non-food: Any type of item that may be considered tempting to a dog. Examples include dog 
+toys, tennis balls, shoes, socks, etc. 
+
+ 
+
+10.3.2 Food: Any type of human or animal food is allowed. No food that is considered harmful to dogs 
+can be used. Food must be in a container large enough to not be swallowed and secure enough 
+that a dog cannot consume anything. 
+
+11. Becoming a Judge 
+
+NOTE: Judging an ASCA Scent Detection Trial is a privilege, not a right. Approval to judge Scent Sport Trials for 
+other organizations is not a guarantee of approval to judge ASCA Scent Detection Trials. Judges must follow 
+ASCA Scent Detection Regulations and adhere to ASCA’s Code of Ethics. Any documented failure to perform 
+at this level may result in the revocation of judging privileges by the ASCA Board of Directors without regard 
+to any other qualifications or for former service. 
+
+11.1 Requirements to become an ASCA Scent Detection Judge 
+
+11.1.1 Completed Application (see the ASCA website) 
+
+ 
+
+11.1.2 Must be 21 years of age. 
+
+ 
+
+11.1.3 Must be in good standing with the Australian Shepherd Club of America (ASCA) but do not have 
+to be a member of ASCA. 
+
+ 
+
+11.1.4 Have full mobility and be physically able to perform all duties of a judge. 
+
+11.2 Applicants with Relevant Scent Sports Judging Experiences 
+
+Current Judges of the following organizations may apply for judges’ status in the ASCA Scent Detection 
+Program by submitting a Judges Application Form (see the ASCA website) to the ASCA Business Office. 
+
+11.2.1 National Association of Canine Scent Work Judges or Certifying Official (NACSW) 
+
+ 
+
+11.2.2 American Kennel Club Scent Work Judges (AKC) 
+
+ 
+
+11.2.3 Canadian Kennel Club Scent Work Judges (CKC) 
+
+ 
+
+11.2.4 United Kennel Club Full License Nosework judge (UKC) 
+
+ 
+
+11.2.5 Canine Performance Events Canine Scent Search Judges (CPE) 
+
+
+ 
+
+11.2.6 US Canine Scent Sports Judges (USCSS) 
+
+ 
+
+11.2.7 Equivalent Scent Detection Judges in other countries 
+
+11.3 Applicants with Relevant Scent Sports Experiences 
+
+Applicants with relevant scent sport experiences, but are not a judge in other recognized scent sport 
+organizations can apply if they meet the following requirements: 
+
+11.3.1 Active in Scent Sports for a minimum of three years, either as a sport participant or as a working 
+detection dog handler (volunteer or professional). 
+
+ 
+
+11.3.2 Experience with how scent works in different environments and conditions. 
+
+ 
+
+11.3.3 PLUS any three of the following with documentation. The ASCA Business Office will review the 
+applications for accuracy. 
+
+A. Has successfully completed an in-depth scent detection training course, such as the National 
+Association of Canine Scent Work (NACSW) Certified Nose Work Instructor (CNWI) program. 
+
+B. Trained or Handled scent detection dogs for law enforcement, military or private 
+organizations. 
+
+C. Trained and handled Search and Rescue dogs for 3+ years. 
+
+D. Be a Tracking Judge for ASCA, AKC, or CKC 
+
+E. Be a Barn Hunt Judge for Barn Hunt Association 
+
+F. Has obtained at least one of the following: 
+
+AKC - Master Title 
+
+CKC - Master Title 
+
+CPE - Level CH Or any other organization equivalent Title 
+
+UKC - MN Title 
+
+NACSW - NW3 Title 
+
+We will accept equivalent higher-level titles in the European counties. 
+
+11.4 Scent Detection Judge Application Process 
+
+11.4.1 Applicants who wish to apply to become an ASCA Scent Detection Judge should fill out the 
+Application Form (see the ASCA website) and send it to the ASCA Business Office. 
+
+ 
+
+11.4.2 The Applications Form will be forwarded to the Scent Detection Committee for review. 
+
+ 
+
+11.4.3 Applicants need to pass the Scent Detection Judges written, open book test 100%. 
+
+ 
+
+11.4.4 All applicants will need to be approved by ASCA Scent Detection Committee, then ASCA 
+Business Office, and the ASCA Board of Directors to become an ASCA Scent Detection judge. 
+
+ 
+
+11.4.5 When approved, applicants with Relevant Scent Sports Experiences (as described in 11.3) will 
+become Provisional Judges for a minimum of two assignments per level. 
+
+ 
+
+11.4.6 After the Provisional Judge’s assignments are completed, the applicant can petition the Board 
+to be moved to regular status by sending copies of the Co-Judge reviews to the Executive 
+
+
+Secretary to be forwarded to the ASCA Board the copies of the Co-judge reviews and if accepted, 
+their name will go forward in the approval process. 
+
+ 
+
+11.4.7 Applicants with Relevant Scent Sports Judging Experiences (as described in 11.2) are 
+immediately a Regular Status judge after passing the judge’s written test and eligible to judge 
+any ASCA Scent Detection class. 
+
+12. Judging Guidelines 
+
+12.1 Judge Duties 
+
+12.1.1 Working knowledge of SCENT THEORY and how to apply it. 
+
+ 
+
+12.1.2 Only the judge shall place the hides. When selecting the hide location(s), the challenges 
+presented should be level-appropriate taking into consideration the conditions of the search 
+area (weather, unintentional distractions already presented in the search area, airflow, 
+temperature, humidity, etc.). 
+
+ 
+
+12.1.3 Confirm that designated search areas are following ASCA rules for each class and level. Verify 
+search areas are constructed in such a way that odor drift is minimal between multiple areas. 
+
+ 
+
+12.1.4 Make modifications to the search area to aid a handicapped handler or dog (if needed). No 
+modifications can be made that in anyway change the search pattern, hide placement or how the dog 
+may perform the search. 
+
+ 
+
+12.1.5 Conduct the briefings in a professional and quick, to-the-point manner, answering all questions 
+efficiently. Realize we are encouraging junior handlers and must talk to them, not over their 
+head or level of understanding. 
+
+ 
+
+12.1.6 Vigilant about search area conditions (food drops, dog damage to site or containers). When an 
+area is contaminated that it is properly cleaned. 
+
+ 
+
+12.1.7 Answer any questions about the search areas, their boundaries and times before the teams 
+begin their search. 
+
+ 
+
+12.1.8 Be aware of keeping competitions running smoothly and managing the volunteers, that the 
+timers pay attention and make timely calls; keeping hot containers clean and cold containers 
+free from odor, and ensuring scores are getting to the runners. 
+
+ 
+
+12.1.9 Ensure competitor and judges' comments cannot be overheard by the waiting competitors. 
+
+ 
+
+12.1.10 Assess faults when applicable and in accordance with these rules. 
+
+ 
+
+12.1.11 Double-check all placements before handing out ribbons. 
+
+ 
+
+12.1.12 The judge is responsible for confirming when the handler's alert is correct by responding in the 
+affirmative (such as "Yes") or when the handler's alert is incorrect by responding in the 
+negative (such as "NO"). 
+
+
+ 
+
+12.1.13 Records faults, hides and time on to the score sheets. The score sheets are then turned into 
+the main score table for recording. 
+
+ 
+
+12.1.14 A judge must use a White Dog to evaluate the difficulty of the search as designed. An 
+experienced/accomplished search dog that is not entered in the class will be run. The judge 
+should consider adjusting the hide location(s), and/or search time if the white dog encounters 
+unexpected difficulty. The club is responsible for making an appropriate white dog available to 
+the judge, but it is ultimately the judge’s decision on what dog is used as the white dog. The 
+club has no authority to require the judge to use the white dog that they have provided. 
+Judges can and may use their own dogs as white dogs. If the judge will be using a dog other 
+than their own, they need to notify the chairperson ASAP so he/she can make arrangements to 
+have a dog(s) available for the job. 
+
+12.2 Judges Directions (Handler's Meeting) 
+
+Judges will give an encouraging statement before the trial starts including an idea of what is expected 
+from the dog and handler. This should include what they do and do not want to see. Finish this 
+meeting by asking if anyone has any questions. 
+
+12.3 Payment to the Judge 
+
+Payment terms should be negotiated between the host club and the judge at the time of hiring. 
+
+13. People Who May/May Not Compete 
+
+13.1 People Who May Compete 
+
+13.1.1 Physically Challenged Handlers: Only one person may handle a dog in each search area. 
+Handlers must be able to navigate the search areas without any outside guidance. The judge 
+may make simple modifications to a search area to aid the handler's maneuverability, but no 
+modification can be made that may aid the dog or how the dog performs. Premium should state 
+any concerns for handicapped or limited mobility handlers or dogs such as long distances 
+between search areas, uneven surfaces, steep grades, steps, etc. 
+
+ 
+
+13.1.2 Multiple Dogs owned by one owner/co-owner – anyone can handle a dog, but a handler can 
+only handle one dog per element in each level. 
+
+ 
+
+13.1.3 Trainers, handlers, and owners may compete under their trainer as a presiding judge. 
+
+13.2 People Who May Not Compete 
+
+13.2.1 Handlers who own/co-own Dogs owned/co-owned by a judge or judge’s family may not 
+compete under the presiding judge. 
+
+13.2.2 Handlers may not compete under a family member who is the presiding judge. 
+
+14. Dogs Who May Compete 
+
+14.1 Dogs That May Compete 
+
+14.1.1 All ASCA Scent Detection trials shall be open to purebred and mixed breed dogs. 
+
+
+ 
+
+14.1.2 Dogs must be over 6 months of age. 
+
+ 
+
+14.1.3 Dogs do not need a QTracker to compete in an ASCA Scent Detection Trial. But if you would 
+like to earn ASCA titles, you will need to obtain an ASCA QTracker number for your dog. 
+The ASCA Business Office will track qualifying scores earned only by ASCA registered dogs. 
+
+14.2 Bitches in Season 
+
+14.2.1 Bitches in Season may compete. 
+
+ 
+
+14.2.2 Bitches will be kenneled in a vehicle and potty in an area away from everyone else. 
+
+ 
+
+14.2.3 Teams will run last in their class and should also wear a red bandana to remind others to 
+maintain a safe distance. 
+
+ 
+
+14.2.4 Bitches in season must wear pants while competing. 
+
+ 
+
+14.2.5 No class will be held or reset. 
+
+ 
+
+14.3.6 Competitor should contact the host at least 72 hours in advance if they anticipate their 
+dog may be in season to allow for any adjustment in the run schedule and parking/exercise 
+arrangements (if location permits). 
+
+14.3 Socializing 
+
+14.3.1 Dogs should always maintain an eight-to-ten-foot (8-10 ft.) distance from other competitors. 
+
+ 
+
+14.3.2 Dogs and competitors should not be near the staging (line up) area unless they are in line 
+to search. 
+
+ 
+
+14.3.3 Dogs socializing and being too close may affect a dog's ability to work at their best. 
+Dog/Handler teams may wear (or attach to a leash) a red bandanna to let others know they 
+would like to maintain extra space and be left alone. 
+
+14.4 Physically Challenged Dogs 
+
+14.4.1 Physically challenged dogs (deaf dogs, blind dogs, or dogs that have lost use of or are missing 
+limbs) may compete but must be able to perform all required searches. Dogs that display any 
+type of physical discomfort will be excused. Provisions may be made for dogs with rear 
+support wheelchairs/K9 carts, such as running last, etc. but no modifications can be made that 
+may aid the dog in their search. Dogs with carts should note this on their entry form. 
+
+15. Dogs Who May Not Compete 
+
+15.1.1 A dog may not compete with visible bandages, sutures, or wounds. 
+
+ 
+
+15.1.2 No lactating bitches. 
+
+
+ 
+
+15.1.3 A dog that is incontinent may not compete; belly bands will not be allowed. 
+
+ 
+
+15.1.4 Communicable Disease - No dog shall be eligible to compete or be brought onto the 
+trial grounds if the dog has knowingly been exposed, be housed with, or is showing signs of a 
+communicable illness within the prior 30 days. 
+
+16. For Exhibition Only (FEO) 
+
+16.1.1 Dogs may compete as FEO (For Exhibition Only). FEO teams may enter in any level or 
+class (above or below whatever titles they may or may not have). 
+
+ 
+
+16.1.2 Participants may enter an FEO dog in the same class that they are running a titling class 
+dog. (FEO dog must run after the titling class dog) 
+
+ 
+
+16.1.3 All FEO teams will run at the end of the running order. 
+
+ 
+
+16.1.4 Dogs entered in FEO are not eligible to earn titles or be considered for placements or any 
+other awards. 
+
+ 
+
+16.1.5 An official ASCA entry form must be filled out and a full entry must be paid. 
+
+17. Junior Handlers 
+
+17.1.1 Minimum age requirement for handlers is eight (8) years of age. A Junior may run any 
+dog that is not previously titled higher than the class they are entered. 
+
+ 
+
+17.1.2 Juniors will compete with and in the same classes as adults. The host club will keep these 
+statistics and entry forms separate and turn in to the office in a manner that will alert the 
+office that this is a junior. The host club is encouraged to acknowledge all juniors that 
+qualify in some special manner. 
+
+ 
+
+17.1.3 All minors must always have an adult responsible for them on the show grounds. 
+
+ 
+
+17.1.4 All competing junior handlers are encouraged to let the office know when they receive 
+a qualifying score or a title. 
+
+18. Glossary of Terms 
+
+Accessible: A hide that the dog can reach and touch with his nose. 
+
+Alert: The dog demonstrates a change in behavior that communicates to the handler; the handler 
+notifies the judge by stating “Alert” or raising a hand. The judge will confirm if the dog 
+has correctly identified the location of the hide. 
+
+Anise: Essential oil, Pimpinella Anisum or “Aniseed”. 
+
+Birch: Essential oil, Betula Lenta or “Sweet Birch”. 
+
+Blank area/room: Area or room used in a trial without targeted odor. 
+
+Clove: Essential oil, Clove Bud, or Eugenia Caryophylatta. 
+
+Cold Box: Containers holding NO scented cotton swabs of target scent. 
+
+
+Container: A container is something you can put something in such as boxes, cans/pails, and 
+backpacks that can contain scented swabs/targeted odor. 
+
+Change of behavior: The behavior that indicates the dog has found the source of the odor. 
+
+Distractor(s): Distractor or distractions are smells, articles, and effects that competes for the 
+dog’s attention during the search. The distractor can be food, non-food, sound, light, or human. 
+
+Disqualify: Action by judge or trial committee to bar team from future scent events. 
+
+Elements: A specific search area, such as containers, interior, or exterior. 
+
+Exterior: Outdoor or outside search area with natural airflow and no more than 2 walls. 
+
+Finish: Call made by the handler to indicate that the team has completed the search. The “finish” 
+call stops the clock. 
+
+Fringing: Behavior of dog on objects or area near, but not at the source of the odor. 
+
+Handler: The person who takes the dog through the search. 
+
+Hide: Targeted scent or container placed in the search area. 
+
+Hot Box (container): Container holding scented cotton swabs of targeted scent. 
+
+Inaccessible Hide: Hide placed in a position in which the dog cannot touch with his nose. 
+
+Interior: Indoor search area that must have 4 walls and ceiling. 
+
+Indication: Change of behavior exhibited when dog identifies targeted scent. 
+
+Lingering odor: A persistent scent that is slow to leave the search area, scent that may be carried 
+on air currents or airflow. 
+
+Non-qualifying: The search in which the team does not meet the requirements for successful 
+completion of the search. 
+
+Novice: Beginning or 1st level of competition. 
+
+Pine: Essential oil, Pinus Sylvestris, or Pine 
+
+Residual Odor/Scent: Scent that remains on an item in a search area after the target scent has 
+been removed. 
+
+Scent: Scent used in scent or nose work. A smell that is generated from natural oil. 
+
+Scent Cone: Movement of scent out from the target scent in a cone-like shape. 
+
+Scent Obedient: Is when a dog is "alerting' or indicating with a trained behavior on a particular 
+scent/odor. The dog indicates scent regardless of other food or scent distractions that may 
+be in the search area. 
+
+Scent Vessel: A container holding cotton swabs scented with natural oil – Birch, Anise, Clove, 
+or other oil. The vessel can be metal, plastic straw, or other permeable material but not 
+glass. The vessel is used to place the scent source in the search area. 
+
+Search area: Designated space where the search will be judged. 
+
+Source: The specific location of the scent vessel the dog is searching for. 
+
+Start Line: Threshold or designated line that the dog/handler team must pass over to start timing 
+the search; can be a tape line, doorway, cone, or other identified markers. 
+
+Stewards: Individuals assigned specific tasks to facilitate a trial. 
+
+Target odor/scent: A natural oil used to scent cotton swabs. The specific scent or scents that a 
+dog is searching for in a particular class. 
+
+Thyme: Essential oil, Thymus Vulgaris or Thyme 
+
+Timed Out: The time reached without the team completing the requirements of the search. 
+Trial Committee: The Committee consists of the Chair, Secretary, Stewards, and any other title 
+the Chair decides they want. 
+
+White Dog: A dog (who is not entered in the class) that is used by the judge to evaluate the difficulty 
+of the search. The pre-search dog helps the judge to understand whether the odor is behaving as 
+expected and allows them to adjust the times and hide locations accordingly. This dog can be 
+supplied by the judge or be a dog entered in the trial but not entered in the class it is doing the 
+
+
+pre-search for. This dog should be of a higher level in ASCA or an equivalent in another venue than 
+the class it is acting as the white dog. 
+
+Wintergreen: Essential oil, Gaultheria Procumbens or Wintergreen 
+
+19. Recommended Resources for Scent Detection Oils 
+
+https://k9nwsource.com/ 
+
+https://allgooddogs.biz/ 
+
+https://www.thek9nose.com/ 
+
+https://paws4fun.net/oils/ 
+
+https://leerburg.com 
+
+20. Scent Detection Forms-Can be found on the ASCA website 
+
+Sanctioning Form 
+
+Match Permission Form 
+
+Judges Application 
+
+Entry Form 
+
+Trial Report 
+Post Event Evaluation Form 
+Trial Score Sheet 
+
+Trial Roster 
+
+21. ASCA Forms-Can be found on the ASCA website 
+
+ASCA Judges Code of Ethics 
+
+ASCA Dog Aggression Policy 
+
+ASCA Conflict Protocol and Form 
+
+ASCA Incident Report Form 
+
+

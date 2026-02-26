@@ -589,14 +589,11 @@ export const useTemplateStore = create<TemplateStore>()(
           return;
         }
         
-        // Mark as initialized immediately to prevent race conditions
-        set({ isInitialized: true });
-        
         // Use requestIdleCallback for non-blocking initialization
         const initializeAsync = () => {
           try {
             const templatesToAdd: ClassTemplate[] = [];
-            
+
             // Only add essential templates to reduce load time
             const currentTemplates = get().templates; // Get fresh state
             const hasAKCTemplate = currentTemplates.some(t => t.id === 'akc-scent-work-official-2024');
@@ -620,9 +617,13 @@ export const useTemplateStore = create<TemplateStore>()(
 
                 return {
                   templates: [...state.templates, ...newTemplates],
+                  isInitialized: true,
                   error: null
                 };
               });
+            } else {
+              // No templates to add but initialization is complete
+              set({ isInitialized: true });
             }
             
             // Load additional templates after a delay

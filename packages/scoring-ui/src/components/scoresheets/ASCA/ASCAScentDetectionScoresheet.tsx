@@ -51,6 +51,7 @@ type QualifyingResult = 'Q' | 'NQ' | 'ABS' | 'EX' | '';
 
 /**
  * Determine area count based on level
+ * @deprecated Use rules.areaCount from ResolvedClassRules. Remove after backfill migration verifies all classes have rule fields.
  */
 function getAreaCount(level?: string): number {
   if (!level) return 1;

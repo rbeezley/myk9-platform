@@ -345,6 +345,7 @@ export async function loadFromIndexedDB(
 
 /**
  * Default max times based on AKC Scent Work requirements.
+ * @deprecated Use class record's time_limit_seconds via ResolvedClassRules.maxTimeSeconds. Remove after backfill migration verifies all classes have rule fields.
  */
 export function getDefaultMaxTime(element: string, level: string): string {
   const elem = element?.toLowerCase() || '';
@@ -387,6 +388,8 @@ export function getDefaultMaxTime(element: string, level: string): string {
  * | Open      | 3:00      | 3:00     | 3:00     | 3:00    |
  * | Advanced  | 3:00      | 5:00     | 3:00     | 3:00    |
  * | Excellent | 4:00      | 6:00     | 4:00     | 4:00    |
+ *
+ * @deprecated Use class record's time_limit_seconds via ResolvedClassRules.maxTimeSeconds. Remove after backfill migration verifies all classes have rule fields.
  */
 export function getASCADefaultMaxTime(element: string, level: string): string {
   const elem = element?.toLowerCase() || '';
@@ -429,6 +432,8 @@ export function getASCADefaultMaxTime(element: string, level: string): string {
  * | Superior | 3:00 |
  * | Master   | 4:00 |
  * | Elite    | 6:00 |
+ *
+ * @deprecated Use class record's time_limit_seconds via ResolvedClassRules.maxTimeSeconds. Remove after backfill migration verifies all classes have rule fields.
  */
 export function getUKCDefaultMaxTime(level: string): string {
   const lvl = level?.toLowerCase() || '';
@@ -446,6 +451,7 @@ export function getUKCDefaultMaxTime(level: string): string {
 /**
  * Get max time for a specific area, falling back to defaults.
  * Supports sport-specific max times (e.g., ASCA has different times than AKC).
+ * @deprecated Orchestrator for deprecated sport-specific helpers. Remove when those are removed.
  */
 export function getMaxTimeForAreaHelper(
   entry: Entry | null,

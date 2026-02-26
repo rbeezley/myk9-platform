@@ -34,8 +34,7 @@ export interface Class {
   time_limit_area2_seconds?: number;
   time_limit_area3_seconds?: number;
   area_count?: number;
-  num_areas?: number;
-  num_hides?: number;
+  hide_count?: number;
   timer_mode?: string;
   hides_known?: boolean;
   distraction_count?: number;

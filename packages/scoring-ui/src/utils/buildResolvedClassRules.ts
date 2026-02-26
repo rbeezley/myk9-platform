@@ -13,7 +13,7 @@ import type { ClassRuleFields, ResolvedClassRules } from '../types/resolvedClass
 const DEFAULT_MAX_TIME_SECONDS = 180; // 3 minutes
 
 export function buildResolvedClassRules(classRecord: ClassRuleFields): ResolvedClassRules {
-  const areaCount = classRecord.areaCount ?? classRecord.area_count ?? classRecord.num_areas ?? 1;
+  const areaCount = classRecord.areaCount ?? classRecord.area_count ?? 1;
 
   const maxTimeSeconds =
     classRecord.timeLimitSeconds ?? classRecord.time_limit_seconds ?? DEFAULT_MAX_TIME_SECONDS;
@@ -21,7 +21,7 @@ export function buildResolvedClassRules(classRecord: ClassRuleFields): ResolvedC
   const rawTimerMode = classRecord.timerMode ?? classRecord.timer_mode ?? 'single';
   const timerMode: 'single' | 'dual' = rawTimerMode === 'dual' ? 'dual' : 'single';
 
-  const hideCount = classRecord.hideCount ?? classRecord.hide_count ?? classRecord.num_hides ?? null;
+  const hideCount = classRecord.hideCount ?? classRecord.hide_count ?? null;
 
   const hidesKnown = classRecord.hidesKnown ?? classRecord.hides_known ?? true;
 

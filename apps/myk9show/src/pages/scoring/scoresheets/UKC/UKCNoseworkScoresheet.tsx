@@ -53,6 +53,7 @@ type QualifyingResult = 'Q' | 'NQ' | 'ABS' | 'EX' | '';
 
 /**
  * Check if level requires dual timer mode (Superior/Master/Elite have multiple hides)
+ * @deprecated Use rules.timerMode === 'dual' from ResolvedClassRules. Remove after backfill migration verifies all classes have rule fields.
  */
 function isDualTimerLevel(level?: string): boolean {
   if (!level) return false;

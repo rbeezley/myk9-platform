@@ -46,6 +46,7 @@ interface ScoringResult {
 
 type QualifyingResult = 'Q' | 'NQ' | 'ABS' | 'EX' | '';
 
+/** @deprecated Use rules.timerMode === 'dual' from ResolvedClassRules. Remove after backfill migration verifies all classes have rule fields. */
 function isDualTimerLevel(level?: string): boolean {
   if (!level) return false;
   const normalizedLevel = level.toLowerCase();

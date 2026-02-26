@@ -8,18 +8,16 @@ disable-model-invocation: true
 
 ## Pre-flight Check
 
-### 1. Platform Check
+### 1. Clear Stale Sessions
 
-agent-browser requires **Linux, WSL, or macOS**. Check the platform:
+agent-browser sessions persist across runs. Clear any stale sessions before starting:
 ```bash
-uname -s
+agent-browser session list 2>&1
 ```
-- `Linux` or `Darwin` → proceed
-- Anything else (e.g., `MINGW`, `CYGWIN`, or native Windows) → stop with:
-
-> "agent-browser only supports Linux, WSL, and macOS. It cannot run on native Windows. Please run this command from WSL or a Linux/macOS environment."
-
-Stop execution if the platform is unsupported.
+If sessions exist, close them:
+```bash
+agent-browser close 2>&1
+```
 
 ### 2. Frontend Check
 

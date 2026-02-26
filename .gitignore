@@ -36,6 +36,8 @@ playwright-report/
 test-results/
 *-snapshots/
 screenshots/
+e2e-screenshots/
+e2e-test-report.md
 debug-*.png
 
 # Logs
@@ -65,6 +67,7 @@ save-next.md
 # Claude Code local settings
 .claude_settings.json
 nul
+--annotate
 tmpclaude-*-cwd
 .mcp.json
 

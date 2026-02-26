@@ -7,6 +7,7 @@ import { ImpersonationContext, ImpersonationSession, AuditAction, NotificationTy
 import { auditService } from './AuditService';
 import { notificationService } from './NotificationService';
 import { logger } from '@/services/LoggingService';
+import { supabase } from '@/lib/supabase';
 
 export interface ImpersonationConfig {
   maxSessionDuration?: number; // in milliseconds
@@ -55,7 +56,7 @@ export class ImpersonationService {
     }
 
     // Validate target user exists
-    await this.validateTargetUser();
+    await this.validateTargetUser(request.targetUserId);
 
     // Check for existing session
     const existingSession = this.findActiveSessionByAdmin(request.adminUserId);
@@ -281,29 +282,50 @@ export class ImpersonationService {
   // Private helper methods
 
   private async validateAdminPermissions(): Promise<void> {
-    // In a real implementation, this would check user roles against allowed roles
-    // For now, assume validation passes
-    return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user?.id) {
+      throw new Error('Authentication required for impersonation');
+    }
+
+    const { data: person, error } = await supabase
+      .from('people')
+      .select('roles')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    if (error || !person) {
+      throw new Error('Unable to verify admin permissions');
+    }
+
+    const roles: string[] = person.roles ?? [];
+    const hasAllowedRole = roles.some(role => this.config.allowedRoles.includes(role));
+    if (!hasAllowedRole) {
+      throw new Error(`Impersonation requires one of: ${this.config.allowedRoles.join(', ')}`);
+    }
   }
 
+  // TODO: Implement real 2FA validation (TOTP/SMS) — currently only checks format
   private async validate2FA(adminUserId: string, code?: string): Promise<void> {
     if (!code) {
       throw new Error('2FA code required for impersonation');
     }
 
     logger.debug('Validating 2FA for admin', 'impersonation', { adminUserId });
-    // In a real implementation, this would validate the 2FA code
-    // For now, accept any 6-digit code
     if (!/^\d{6}$/.test(code)) {
       throw new Error('Invalid 2FA code format');
     }
   }
 
-  private async validateTargetUser(targetUserId?: string): Promise<void> {
-    // In a real implementation, this would check if target user exists
-    logger.debug('Validating target user', 'impersonation', { targetUserId });
-    // For now, assume validation passes
-    return;
+  private async validateTargetUser(targetUserId: string): Promise<void> {
+    const { data: person, error } = await supabase
+      .from('people')
+      .select('id')
+      .eq('id', targetUserId)
+      .single();
+
+    if (error || !person) {
+      throw new Error('Target user does not exist');
+    }
   }
 
   private findActiveSessionByAdmin(adminUserId: string): ImpersonationSession | undefined {
@@ -502,8 +524,10 @@ export const impersonationService = new ImpersonationService({
 
 // React hook for impersonation context
 import { useEffect, useState } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 
 export const useImpersonationContext = () => {
+  const { user } = useAuth();
   const [context, setContext] = useState<ImpersonationContext | null>(null);
 
   useEffect(() => {
@@ -521,14 +545,15 @@ export const useImpersonationContext = () => {
   }, []);
 
   const startImpersonation = async (request: Omit<ImpersonationRequest, 'adminUserId'>) => {
-    // In a real implementation, this would get the current admin user ID
-    const adminUserId = 'current_admin_user';
-    
+    if (!user?.id) {
+      throw new Error('Must be authenticated to start impersonation');
+    }
+
     const newContext = await impersonationService.startImpersonation({
       ...request,
-      adminUserId
+      adminUserId: user.id
     });
-    
+
     setContext(newContext);
     return newContext;
   };

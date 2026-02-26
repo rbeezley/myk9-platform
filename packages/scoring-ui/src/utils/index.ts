@@ -14,3 +14,5 @@ export {
   parseTimeToMs,
   formatTimeInputToMMSS,
 } from './timeUtils';
+
+export { buildResolvedClassRules } from './buildResolvedClassRules';

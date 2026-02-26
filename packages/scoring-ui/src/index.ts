@@ -79,6 +79,7 @@ export {
   parseTimeToMs,
   formatTimeInputToMMSS,
 } from './utils/timeUtils';
+export { buildResolvedClassRules } from './utils/buildResolvedClassRules';
 
 // Types
 export type {
@@ -94,6 +95,8 @@ export type {
   EntryListFiltersReturn,
   DragAndDropOptions,
   DragAndDropReturn,
+  ResolvedClassRules,
+  ClassRuleFields,
 } from './types';
 
 // Scoresheets - AKC

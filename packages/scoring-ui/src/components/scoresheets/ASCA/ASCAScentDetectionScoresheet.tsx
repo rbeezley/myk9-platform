@@ -10,6 +10,7 @@ import { X, ClipboardCheck, ArrowLeft, Minus, Plus } from 'lucide-react';
 import { Button, Input, Card, cn } from '@myk9/ui';
 import { logger } from '@myk9/core';
 import { useStopwatch } from '../../../hooks/useStopwatch';
+import type { ResolvedClassRules } from '../../../types/resolvedClassRules';
 
 // Types
 interface ASCAScentDetectionScoresheetProps {
@@ -27,6 +28,7 @@ interface ASCAScentDetectionScoresheetProps {
     maxTime?: string;
     level?: string;
   };
+  rules?: ResolvedClassRules;
   onSave: (result: ScoringResult) => Promise<void>;
   onNavigate: (direction: 'prev' | 'next') => void;
   onBack: () => void;
@@ -90,14 +92,18 @@ function parseTimeToMs(timeStr: string): number {
 export const ASCAScentDetectionScoresheet: React.FC<ASCAScentDetectionScoresheetProps> = ({
   entry,
   classInfo,
+  rules,
   onSave,
   onNavigate,
   onBack,
   hasNext,
   hasPrev: _hasPrev,
 }) => {
-  // Determine number of areas
-  const areaCount = useMemo(() => getAreaCount(classInfo.level), [classInfo.level]);
+  // Determine number of areas — use rules prop when available, fall back to level-based logic
+  const areaCount = useMemo(
+    () => rules?.areaCount ?? getAreaCount(classInfo.level),
+    [rules?.areaCount, classInfo.level],
+  );
 
   // Scoring state
   const [areas, setAreas] = useState<AreaTime[]>(

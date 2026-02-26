@@ -9,6 +9,7 @@ import { X, ClipboardCheck, ArrowLeft } from 'lucide-react';
 import { Button, Input, Card, cn } from '@myk9/ui';
 import { logger } from '@myk9/core';
 import { useStopwatch } from '../../../hooks/useStopwatch';
+import type { ResolvedClassRules } from '../../../types/resolvedClassRules';
 
 // Types
 interface AKCScentWorkScoresheetProps {
@@ -26,6 +27,7 @@ interface AKCScentWorkScoresheetProps {
     maxTime: string;
     level?: string;
   };
+  rules?: ResolvedClassRules;
   onSave: (result: ScoringResult) => Promise<void>;
   onNavigate: (direction: 'prev' | 'next') => void;
   onBack: () => void;
@@ -74,14 +76,20 @@ function parseSmartTime(input: string): string {
 export const AKCScentWorkScoresheet: React.FC<AKCScentWorkScoresheetProps> = ({
   entry,
   classInfo,
+  rules,
   onSave,
   onNavigate,
   onBack,
   hasNext,
   hasPrev: _hasPrev,
 }) => {
-  // Scoring state
-  const [areas, setAreas] = useState<AreaScore[]>([{ time: '', areaName: 'Search' }]);
+  // Initialize areas from rules.areaCount when available, default to 1 area
+  const initialAreaCount = rules?.areaCount ?? 1;
+  const [areas, setAreas] = useState<AreaScore[]>(
+    Array.from({ length: initialAreaCount }, (_, i) =>
+      ({ time: '', areaName: initialAreaCount > 1 ? `Area ${i + 1}` : 'Search' }),
+    ),
+  );
   const [qualifying, setQualifying] = useState<QualifyingResult>('');
   const [nonQualifyingReason, setNonQualifyingReason] = useState('');
   const [faultCount, setFaultCount] = useState(0);

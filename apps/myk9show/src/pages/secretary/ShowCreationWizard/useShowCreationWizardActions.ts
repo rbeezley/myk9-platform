@@ -17,6 +17,8 @@ import {
   replicatedClassesTable,
   type ReplicatedClass,
 } from '@/services/replication/ReplicatedClassesTable';
+import { fetchClassRulesForTemplate } from '@/services/sportTemplateService';
+import type { SportClassRuleRow } from '@/types/sport-template-types';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
 import type { Show } from '@/types/show-types';
@@ -124,7 +126,9 @@ export function useShowCreationWizardActions({
   }, [editMode, existingTrials, trials, addTrialToStore, user]);
 
   /**
-   * Create classes for trials via offline-first replication
+   * Create classes for trials via offline-first replication.
+   * Fetches sport_class_rules and bakes rule fields into each class record
+   * so scoring works fully offline.
    */
   const createClasses = useCallback(async (showId: string, trialIdMap: Record<string, string>) => {
     logger.debug('createClasses called', 'wizard', { showId, trialIdMap });
@@ -138,8 +142,44 @@ export function useShowCreationWizardActions({
       editMode
     );
 
+    // Build a lookup map of sport_class_rules by (templateId, element, level)
+    // so we can bake rule fields into each class record at creation time.
+    const ruleMap = new Map<string, SportClassRuleRow>();
+    const templateIds = new Set(
+      classesToCreate.map((c) => c.templateId).filter((id): id is string => Boolean(id)),
+    );
+
+    for (const templateId of templateIds) {
+      try {
+        const rules = await fetchClassRulesForTemplate(templateId);
+        for (const rule of rules) {
+          const key = `${templateId}|${rule.element}|${rule.level ?? ''}`;
+          ruleMap.set(key, rule);
+        }
+      } catch (err) {
+        logger.warn('Failed to fetch rules for template', 'wizard', {
+          templateId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
     for (const classData of classesToCreate) {
       const replicatedClass = classDataToReplicatedClass(classData);
+
+      // Enrich with rule fields from sport_class_rules
+      if (classData.templateId) {
+        const ruleKey = `${classData.templateId}|${classData.element ?? ''}|${classData.level ?? ''}`;
+        const rule = ruleMap.get(ruleKey);
+        if (rule) {
+          replicatedClass.timerMode = rule.timer_mode;
+          replicatedClass.hidesKnown = rule.hides_known;
+          replicatedClass.distractionCount = rule.distraction_count_min;
+          replicatedClass.areaCount = rule.area_count;
+          replicatedClass.timeLimitSeconds = rule.max_time_seconds_fixed ?? undefined;
+        }
+      }
+
       logger.debug('Creating class via replication', 'wizard', {
         classId: replicatedClass.id,
         className: replicatedClass.name,

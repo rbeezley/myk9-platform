@@ -23,6 +23,7 @@ import { markInRing } from '../../../services/entryService';
 import type { AreaScore } from '../../../services/scoresheets/areaInitialization';
 import type { Entry } from '../../../stores/entryStore';
 import { logger } from '@/utils/logger';
+import type { ResolvedClassRules } from '@myk9/scoring-ui';
 import {
   type RouteState,
   loadFromRouteState,
@@ -76,6 +77,8 @@ export interface EntryNavigationReturn {
   navigateToPreviousEntry: () => void;
   /** Get max time for a specific area index */
   getMaxTimeForArea: (areaIndex: number) => string;
+  /** Resolved class rules for scoring */
+  rules: ResolvedClassRules | null;
   /** Reload entries from cache/server */
   reloadEntries: () => Promise<void>;
 }
@@ -138,6 +141,7 @@ export function useEntryNavigation(config: EntryNavigationConfig): EntryNavigati
     level: string;
     section?: string;
   } | null>(null);
+  const [rules, setRules] = useState<ResolvedClassRules | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Ref for cleanup
@@ -191,6 +195,7 @@ export function useEntryNavigation(config: EntryNavigationConfig): EntryNavigati
       const result = await loadFromRouteState(routeState, isNationals);
 
       setClassInfo(result.classInfo);
+      setRules(result.rules);
       setLocalEntries([result.entry]);
       setEntries([result.entry]);
       setCurrentClassEntries(parseInt(classId));
@@ -225,6 +230,7 @@ export function useEntryNavigation(config: EntryNavigationConfig): EntryNavigati
       });
 
       setClassInfo(result.classInfo);
+      setRules(result.rules);
       setLocalEntries(result.entries);
       setEntries(result.entries);
       setCurrentClassEntries(parseInt(classId));
@@ -312,6 +318,7 @@ export function useEntryNavigation(config: EntryNavigationConfig): EntryNavigati
     currentEntry,
     entries,
     classInfo,
+    rules,
     isLoading,
     navigateToEntry,
     navigateToNextEntry,

@@ -30,7 +30,9 @@ import {
   UKCRallyScoresheet,
   UKCObedienceScoresheet,
   ASCAScentDetectionScoresheet,
+  buildResolvedClassRules,
 } from '@myk9/scoring-ui';
+import type { ResolvedClassRules } from '@myk9/scoring-ui';
 
 // Types
 import type { ScoringEntry, ClassInfo } from './types';
@@ -45,6 +47,7 @@ type SportType = 'scent-work' | 'scent-work-nationals' | 'nosework' | 'rally' | 
 interface ScoresheetContext {
   entry: ScoringEntry;
   classInfo: ClassInfo;
+  rules: ResolvedClassRules;
   organization: Organization;
   sportType: SportType;
   onSave: (result: ScoringResult) => Promise<void>;
@@ -77,6 +80,7 @@ export function ScoresheetPage() {
   // Data state
   const [entry, setEntry] = useState<ScoringEntry | null>(null);
   const [classInfo, setClassInfo] = useState<ClassInfo | null>(null);
+  const [rules, setRules] = useState<ResolvedClassRules | null>(null);
   const [allEntries, setAllEntries] = useState<ScoringEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -133,6 +137,7 @@ export function ScoresheetPage() {
         setAllEntries(scoringEntries);
         setEntry(currentEntry);
         setClassInfo(toClassInfo(cls, scoringEntries.length));
+        setRules(buildResolvedClassRules(cls));
       } catch (err) {
         logger.error('Failed to load scoresheet data:', 'pages', {}, err as Error);
         setError(err instanceof Error ? err.message : 'Failed to load data');
@@ -231,7 +236,7 @@ export function ScoresheetPage() {
   }
 
   // Error state
-  if (error || !entry || !classInfo) {
+  if (error || !entry || !classInfo || !rules) {
     return (
       <div className="flex flex-col items-center justify-center h-96 gap-4">
         <AlertCircle className="h-12 w-12 text-destructive" />
@@ -253,6 +258,7 @@ export function ScoresheetPage() {
   const scoresheetContext: ScoresheetContext = {
     entry,
     classInfo,
+    rules,
     organization,
     sportType,
     onSave: handleSave,
@@ -344,7 +350,7 @@ function renderScoresheet(
   context: ScoresheetContext,
   onBack: () => void
 ) {
-  const { organization, sportType, entry, classInfo, onSave, onNavigate, hasNext, hasPrev } = context;
+  const { organization, sportType, entry, classInfo, rules, onSave, onNavigate, hasNext, hasPrev } = context;
 
   // Common props for all scoresheets
   // Create classInfo with required maxTime for scoresheet components
@@ -356,6 +362,7 @@ function renderScoresheet(
   const scoresheetProps = {
     entry,
     classInfo: scoresheetClassInfo,
+    rules,
     onSave,
     onNavigate,
     onBack,

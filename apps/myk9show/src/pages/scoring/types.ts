@@ -152,23 +152,18 @@ export function toClassInfo(
     ...(level || parts[1] ? { level: level || parts[1] } : {}),
     ...(element || parts[0] ? { element: element || parts[0] } : {}),
     ...(judgeName ? { judge: judgeName } : {}),
-    maxTime: getMaxTimeForLevel(level),
+    maxTime: formatTimeLimitFromClass(cls.timeLimitSeconds),
     entryCount,
   };
 }
 
 /**
- * Get max time for scent work levels
+ * Format timeLimitSeconds from the class record to M:SS display string.
+ * Falls back to 3:00 (180s) if the field is missing (pre-migration classes).
  */
-function getMaxTimeForLevel(level?: string): string {
-  const normalizedLevel = level?.toLowerCase() || '';
-
-  if (normalizedLevel.includes('novice')) return '2:00';
-  if (normalizedLevel.includes('advanced')) return '2:30';
-  if (normalizedLevel.includes('excellent')) return '2:30';
-  if (normalizedLevel.includes('master')) return '3:00';
-  if (normalizedLevel.includes('detective')) return '3:00';
-  if (normalizedLevel.includes('elite')) return '4:00';
-
-  return '3:00'; // Default
+function formatTimeLimitFromClass(timeLimitSeconds?: number): string {
+  const seconds = timeLimitSeconds ?? 180; // Default 3 minutes
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
 }

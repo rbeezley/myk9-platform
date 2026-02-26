@@ -11,6 +11,7 @@ import { X, ArrowLeft, Search } from 'lucide-react';
 import { Button, Input, Card, cn } from '@myk9/ui';
 import { logger } from '@myk9/core';
 import { useStopwatch } from '../../../hooks/useStopwatch';
+import type { ResolvedClassRules } from '../../../types/resolvedClassRules';
 
 // Types
 interface UKCNoseworkScoresheetProps {
@@ -28,6 +29,7 @@ interface UKCNoseworkScoresheetProps {
     maxTime: string;
     level?: string;
   };
+  rules?: ResolvedClassRules;
   onSave: (result: ScoringResult) => Promise<void>;
   onNavigate: (direction: 'prev' | 'next') => void;
   onBack: () => void;
@@ -80,13 +82,15 @@ function formatMs(ms: number): string {
 export const UKCNoseworkScoresheet: React.FC<UKCNoseworkScoresheetProps> = ({
   entry,
   classInfo,
+  rules,
   onSave,
   onNavigate,
   onBack,
   hasNext,
   hasPrev: _hasPrev,
 }) => {
-  const dualTimerMode = isDualTimerLevel(classInfo.level);
+  // Use rules prop when available, fall back to level-based logic
+  const dualTimerMode = rules ? rules.timerMode === 'dual' : isDualTimerLevel(classInfo.level);
 
   const [searchTime, setSearchTime] = useState('');
   const [elementTime, setElementTime] = useState('');

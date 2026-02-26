@@ -14,6 +14,8 @@ import type { AreaScore } from '../../../services/scoresheets/areaInitialization
 import { markInRing } from '../../../services/entryService';
 import { initializeAreas } from '../../../services/scoresheets/areaInitialization';
 import { ensureReplicationManager } from '../../../utils/replicationHelper';
+import { buildResolvedClassRules } from '@myk9/scoring-ui';
+import type { ResolvedClassRules } from '@myk9/scoring-ui';
 import { logger } from '@/utils/logger';
 
 // ============================================================================
@@ -41,6 +43,7 @@ export interface FastPathResult {
   entry: Entry;
   classInfo: ClassInfo;
   areas: AreaScore[];
+  rules: ResolvedClassRules;
 }
 
 export interface SlowPathResult {
@@ -48,6 +51,7 @@ export interface SlowPathResult {
   targetEntry: Entry | null;
   classInfo: ClassInfo;
   areas: AreaScore[];
+  rules: ResolvedClassRules;
 }
 
 // ============================================================================
@@ -62,31 +66,38 @@ interface CurrentClassSettings {
   timeLimit?: number;
   timeLimit2?: number;
   timeLimit3?: number;
+  rules: ResolvedClassRules;
 }
+
+const DEFAULT_SETTINGS: CurrentClassSettings = {
+  rules: buildResolvedClassRules({}),
+};
 
 /**
  * Fetch current class settings from IndexedDB.
  * This ensures we always have the latest judge-configured values,
  * even if the entry list cache is stale (e.g., after changing area count or time allocation).
+ * Also builds ResolvedClassRules for scoring.
  */
 async function fetchCurrentClassSettings(classId: number): Promise<CurrentClassSettings> {
   try {
     const manager = await ensureReplicationManager();
     const classesTable = manager.getTable('classes');
-    if (!classesTable) return {};
+    if (!classesTable) return DEFAULT_SETTINGS;
 
     const classData = await classesTable.get(String(classId)) as Class | undefined;
-    if (!classData) return {};
+    if (!classData) return DEFAULT_SETTINGS;
 
     return {
       areaCount: classData.area_count ?? undefined,
       timeLimit: classData.time_limit_seconds ?? undefined,
       timeLimit2: classData.time_limit_area2_seconds ?? undefined,
       timeLimit3: classData.time_limit_area3_seconds ?? undefined,
+      rules: buildResolvedClassRules(classData),
     };
   } catch (error) {
     logger.warn('[fetchCurrentClassSettings] Error fetching class data:', error);
-    return {};
+    return DEFAULT_SETTINGS;
   }
 }
 
@@ -144,7 +155,8 @@ export async function loadFromRouteState(
   return {
     entry: updatedEntry,
     classInfo,
-    areas
+    areas,
+    rules: currentSettings.rules,
   };
 }
 
@@ -315,11 +327,15 @@ export async function loadFromIndexedDB(
     );
   }
 
+  // Build rules from class data
+  const rules = buildResolvedClassRules(classData);
+
   return {
     entries: transformedEntries,
     targetEntry,
     classInfo,
-    areas
+    areas,
+    rules,
   };
 }
 

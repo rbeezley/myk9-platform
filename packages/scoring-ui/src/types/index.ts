@@ -2,6 +2,9 @@
  * Shared types for scoring UI hooks
  */
 
+// Class rules (resolved from class record for scoresheet rendering)
+export type { ResolvedClassRules, ClassRuleFields } from './resolvedClassRules';
+
 /**
  * Base entry type for scoring operations.
  * Apps can extend this with additional fields.

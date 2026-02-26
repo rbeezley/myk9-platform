@@ -372,9 +372,10 @@ export const UKCNoseworkScoresheet: React.FC = () => {
   }, [navigation]);
 
   // Determine if we need dual timer mode
+  // Prefer rules from class record; fall back to level-based heuristic for old classes
   const dualTimerMode = useMemo(
-    () => isDualTimerLevel(currentEntry?.level),
-    [currentEntry?.level]
+    () => navigation.rules ? navigation.rules.timerMode === 'dual' : isDualTimerLevel(currentEntry?.level),
+    [navigation.rules, currentEntry?.level]
   );
 
   // ==========================================================================

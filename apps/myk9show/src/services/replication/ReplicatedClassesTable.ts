@@ -51,6 +51,11 @@ export interface ReplicatedClass {
   classOrder?: number | undefined;
   isCompleted?: boolean | undefined;
 
+  // Scoring rule fields (from sport template, baked in at class creation)
+  timerMode?: string | undefined;
+  hidesKnown?: boolean | undefined;
+  distractionCount?: number | undefined;
+
   // Scent Work specific fields (snake_case for Compatibility with older hooks)
   trial_id?: string | undefined;
   area_count?: number | undefined;
@@ -109,6 +114,11 @@ function rowToClass(row: ClassRow): ReplicatedClass {
     classOrder: (dbRow.class_order as number | undefined) ?? undefined,
     isCompleted: (dbRow.is_completed as boolean | undefined) ?? false,
 
+    // Scoring rule fields
+    timerMode: (dbRow.timer_mode as string | undefined) ?? undefined,
+    hidesKnown: (dbRow.hides_known as boolean | undefined) ?? undefined,
+    distractionCount: (dbRow.distraction_count as number | undefined) ?? undefined,
+
     // Snake_case fields (compatibility)
     trial_id: row.trial_id ?? undefined,
     area_count: (dbRow.area_count as number | undefined) ?? undefined,
@@ -163,6 +173,9 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       element: cls.element ?? null,
       num_areas: cls.areaCount ?? null,
       time_limit_seconds: cls.timeLimitSeconds ?? null,
+      timer_mode: cls.timerMode ?? null,
+      hides_known: cls.hidesKnown ?? null,
+      distraction_count: cls.distractionCount ?? null,
       status: cls.classStatus ?? null,
       actual_start_time: cls.actual_start_time ?? null,
       actual_end_time: cls.actual_end_time ?? null,

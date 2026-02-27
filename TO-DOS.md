@@ -209,7 +209,7 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 ## Club Page Shows No Clubs via Breadcrumb - 2026-02-27 14:40
 
-- **Fix ClubsPage showing "No Clubs" when navigated via breadcrumb** — On the Show Details page, the breadcrumb shows `Home > Test Dog Show Club > Test Show 1`. Clicking "Test Dog Show Club" navigates to `/clubs/{clubId}`, but the ClubsPage shows "No Clubs Available" even though the club exists. **Problem:** ClubsPage reads from `useClubStore().clubs` (line 28) and selects the club via `clubs.find()` (line 46-47). When navigating directly to `/clubs/{id}` via breadcrumb, the club store may not be populated yet — `clubs` is an empty array, so the page renders the empty state. The breadcrumb in `useBreadcrumb.ts:50-56` correctly passes the club ID from `show.clubId`, but the destination page doesn't load club data on demand. **Files:** `apps/myk9show/src/pages/ClubsPage.tsx:28-57` (club store reads and selectedClub derivation), `apps/myk9show/src/store/clubStore.ts` (club loading/hydration), `apps/myk9show/src/hooks/useBreadcrumb.ts:50-56` (breadcrumb club link generation). **Solution:** Ensure ClubsPage triggers club loading if the store is empty on mount (e.g., call `loadClubs()` in a useEffect if `clubs.length === 0`), or use the URL param `clubIdFromUrl` to fetch the specific club directly from Supabase as a fallback.
+- [x] **Fix ClubsPage showing "No Clubs" when navigated via breadcrumb** — Fixed: ClubsPage now calls `loadClubs()` on mount when the store is empty. Same pattern as ShowEditForm fix. **File:** `ClubsPage.tsx`.
 
 ## Judge Creation Fails with Error - 2026-02-27 14:47
 

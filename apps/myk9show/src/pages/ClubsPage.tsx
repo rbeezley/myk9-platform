@@ -29,6 +29,7 @@ const ClubsPage: React.FC = () => {
   const selectedClubId = useClubStore(state => state.selectedClubId);
   const selectClub = useClubStore(state => state.selectClub);
   const addClub = useClubStore(state => state.addClub);
+  const loadClubs = useClubStore(state => state.loadClubs);
   const isLoading = useClubStore(state => state.isLoading);
   const isSyncing = useClubStore(state => state.isSyncing);
 
@@ -39,7 +40,10 @@ const ClubsPage: React.FC = () => {
     closeMobile,
   } = useSidebarLayoutState();
 
-  // Club loading and subscriptions handled globally by useStoreSubscriptions
+  // Ensure clubs are loaded when navigating directly (e.g., via breadcrumb)
+  useEffect(() => {
+    if (clubs.length === 0 && !isLoading) loadClubs();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- load once on mount
 
   // Memoize selected club to prevent unnecessary re-renders
   // Only recalculate when clubs array or selectedClubId changes

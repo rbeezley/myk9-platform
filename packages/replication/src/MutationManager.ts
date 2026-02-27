@@ -313,7 +313,10 @@ export class MutationManager {
   }
 
   /**
-   * Execute a single mutation on the server with timeout protection
+   * Execute a single mutation on the server with timeout protection.
+   *
+   * Uses `select()` after upsert/delete to get the returned rows,
+   * which lets us detect RLS silent rejections (0 rows affected = RLS blocked).
    */
   private async executeMutation(mutation: PendingMutation): Promise<void> {
     const { tableName, operation, data } = mutation;
@@ -321,12 +324,18 @@ export class MutationManager {
     switch (operation) {
       case 'INSERT':
       case 'UPDATE': {
-        const { error } = await withTimeout(
-          this.supabase.from(tableName).upsert(data),
+        const { data: rows, error } = await withTimeout(
+          this.supabase.from(tableName).upsert(data).select('id'),
           TIMEOUT_PRESETS.standard,
           `${tableName} upsert`,
         );
         if (error) throw error;
+        if (!rows || rows.length === 0) {
+          throw new Error(
+            `RLS policy blocked ${operation} on ${tableName} for row ${mutation.rowId}. ` +
+            `Check that the authenticated user has the required role (e.g., club_admin, platform_admin).`,
+          );
+        }
         break;
       }
 

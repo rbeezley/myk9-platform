@@ -234,6 +234,11 @@ export function isRetryableError(error: unknown): boolean {
   if (error instanceof Error) {
     const message = error.message.toLowerCase();
 
+    // RLS policy rejections are never retryable (need role/permission fix)
+    if (message.includes('rls policy blocked')) {
+      return false;
+    }
+
     // Network-related errors are retryable
     if (
       message.includes('network') ||

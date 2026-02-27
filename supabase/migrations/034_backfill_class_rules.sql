@@ -25,6 +25,6 @@ SET
 FROM trials t
 JOIN sport_templates st ON st.sport_code = t.sport_type
 JOIN sport_class_rules scr ON scr.sport_template_id = st.id
+WHERE c.trial_id = t.id
   AND LOWER(scr.element) = LOWER(c.element)
-  AND LOWER(COALESCE(scr.level, '')) = LOWER(COALESCE(c.level, ''))
-WHERE c.trial_id = t.id;
+  AND LOWER(COALESCE(scr.level, '')) = LOWER(COALESCE(c.level, ''));

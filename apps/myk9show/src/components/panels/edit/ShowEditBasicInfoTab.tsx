@@ -174,7 +174,7 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
                   {data.clubId
                     ? (() => {
                         const club = clubs.find(c => c.id === data.clubId);
-                        return club ? `${club.name} (${club.clubNumber})` : undefined;
+                        return club ? `${club.name} (${club.clubNumber})` : 'Loading...';
                       })()
                     : undefined}
                 </SelectValue>

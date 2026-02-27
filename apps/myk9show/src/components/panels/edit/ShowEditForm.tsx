@@ -5,7 +5,7 @@
  * using the EditPanel context for data and update callbacks.
  */
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { useEditPanel } from './useEditPanel';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -32,8 +32,14 @@ export const ShowEditForm: React.FC = () => {
 
   // Store data
   const { templates } = useTemplateStore();
-  const { clubs } = useClubStore();
-  const { people } = useUserStore();
+  const { clubs, loadClubs } = useClubStore();
+  const { people, loadUsers } = useUserStore();
+
+  // Ensure clubs and people are loaded when the form opens
+  useEffect(() => {
+    if (clubs.length === 0) loadClubs();
+    if (people.length === 0) loadUsers();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- load once on mount
 
   // Handle input changes
   const handleInputChange = useCallback(
@@ -208,7 +214,11 @@ export const ShowEditForm: React.FC = () => {
                   </Label>
                   <Select value={data.chairman} onValueChange={handleSelectChange('chairman')}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select chairman" />
+                      <SelectValue placeholder="Select chairman">
+                        {data.chairman
+                          ? (allPeople.find(p => p.id === data.chairman)?.name ?? 'Loading...')
+                          : undefined}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {allPeople.length > 0 ? (
@@ -239,7 +249,11 @@ export const ShowEditForm: React.FC = () => {
                   </Label>
                   <Select value={data.secretary} onValueChange={handleSelectChange('secretary')}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select secretary" />
+                      <SelectValue placeholder="Select secretary">
+                        {data.secretary
+                          ? (allPeople.find(p => p.id === data.secretary)?.name ?? 'Loading...')
+                          : undefined}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {allPeople.length > 0 ? (
@@ -273,7 +287,11 @@ export const ShowEditForm: React.FC = () => {
                     onValueChange={handleSelectChange('chiefSteward')}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select chief steward" />
+                      <SelectValue placeholder="Select chief steward">
+                        {data.chiefSteward
+                          ? (allPeople.find(p => p.id === data.chiefSteward)?.name ?? 'Loading...')
+                          : undefined}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {allPeople.length > 0 ? (

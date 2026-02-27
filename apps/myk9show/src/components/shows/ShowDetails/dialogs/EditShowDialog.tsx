@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { useTemplateStore } from "@/store/templateStore";
 import { useClubStore } from "@/store/clubStore";
 import { useUserStore } from "@/store/userStore";
@@ -353,38 +354,46 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({ open, onOpenChange, for
             <div className="grid grid-cols-4 gap-4">
               <div className="form-field">
                 <label className="form-label required">Start Date</label>
-                <Input
-                  type="date"
-                  value={formData.startDate || ''}
-                  onChange={(e) => handleInputChange('startDate', e.target.value)}
-                  className="form-input h-10"
+                <DateTimePicker
+                  value={formData.startDate ? new Date(formData.startDate) : undefined}
+                  onChange={(date) => {
+                    if (date) handleInputChange('startDate', date.toISOString());
+                  }}
+                  placeholder="Select start date"
+                  showTime={true}
                 />
               </div>
               <div className="form-field">
                 <label className="form-label">End Date</label>
-                <Input
-                  type="date"
-                  value={formData.endDate || ''}
-                  onChange={(e) => handleInputChange('endDate', e.target.value)}
-                  className="form-input h-10"
+                <DateTimePicker
+                  value={formData.endDate ? new Date(formData.endDate) : undefined}
+                  onChange={(date) => {
+                    if (date) handleInputChange('endDate', date.toISOString());
+                  }}
+                  placeholder="Select end date"
+                  showTime={true}
                 />
               </div>
               <div className="form-field">
                 <label className="form-label">Entry Open Date</label>
-                <Input
-                  type="date"
-                  value={formData.entryOpenDate || ''}
-                  onChange={(e) => handleInputChange('entryOpenDate', e.target.value)}
-                  className="form-input h-10"
+                <DateTimePicker
+                  value={formData.entryOpenDate ? new Date(formData.entryOpenDate) : undefined}
+                  onChange={(date) => {
+                    if (date) handleInputChange('entryOpenDate', date.toISOString());
+                  }}
+                  placeholder="Select entry open date"
+                  showTime={true}
                 />
               </div>
               <div className="form-field">
                 <label className="form-label">Entry Close Date</label>
-                <Input
-                  type="date"
-                  value={formData.entryCloseDate || ''}
-                  onChange={(e) => handleInputChange('entryCloseDate', e.target.value)}
-                  className="form-input h-10"
+                <DateTimePicker
+                  value={formData.entryCloseDate ? new Date(formData.entryCloseDate) : undefined}
+                  onChange={(date) => {
+                    if (date) handleInputChange('entryCloseDate', date.toISOString());
+                  }}
+                  placeholder="Select entry close date"
+                  showTime={true}
                 />
               </div>
             </div>

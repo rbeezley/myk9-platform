@@ -283,7 +283,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                     }
                   }}
                   placeholder="Select start date"
-                  showTime={false}
+                  showTime={true}
                 />
                 {!isValidDateRange() && (
                   <p className="text-sm text-red-500 mt-1">Start date must be before end date</p>
@@ -300,7 +300,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                     }
                   }}
                   placeholder="Select end date"
-                  showTime={false}
+                  showTime={true}
                 />
               </div>
 
@@ -569,7 +569,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                     }
                   }}
                   placeholder="Select entry open date"
-                  showTime={false}
+                  showTime={true}
                 />
                 {!isValidEntryDates() && (
                   <p className="text-sm text-red-500 mt-1">Entry open date must be before close date</p>
@@ -586,7 +586,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                     }
                   }}
                   placeholder="Select entry close date"
-                  showTime={false}
+                  showTime={true}
                 />
               </div>
 

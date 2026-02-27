@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Calendar } from 'lucide-react';
+import { DateTimePicker } from '@/components/ui/date-time-picker';
 import type { ShowEditFormData } from './ShowEditPanel.types';
 import { cn } from '@/lib/utils';
 
@@ -28,6 +29,7 @@ interface ShowEditBasicInfoTabProps {
     field: keyof ShowEditFormData
   ) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   handleSelectChange: (field: keyof ShowEditFormData) => (value: string) => void;
+  handleDateChange: (field: keyof ShowEditFormData) => (date: Date | undefined) => void;
 }
 
 export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
@@ -37,6 +39,7 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
   clubs,
   handleInputChange,
   handleSelectChange,
+  handleDateChange,
 }) => {
   return (
     <TabsContent
@@ -226,11 +229,11 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
                 >
                   Start Date *
                 </Label>
-                <Input
-                  id="startDate"
-                  type="date"
-                  value={data.startDate}
-                  onChange={handleInputChange('startDate')}
+                <DateTimePicker
+                  value={data.startDate ? new Date(data.startDate) : undefined}
+                  onChange={handleDateChange('startDate')}
+                  placeholder="Select start date"
+                  showTime={true}
                   className={cn(errors.some(e => e.includes('Start date')) && 'border-destructive')}
                 />
               </div>
@@ -242,11 +245,11 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
                 >
                   End Date *
                 </Label>
-                <Input
-                  id="endDate"
-                  type="date"
-                  value={data.endDate}
-                  onChange={handleInputChange('endDate')}
+                <DateTimePicker
+                  value={data.endDate ? new Date(data.endDate) : undefined}
+                  onChange={handleDateChange('endDate')}
+                  placeholder="Select end date"
+                  showTime={true}
                   className={cn(errors.some(e => e.includes('End date')) && 'border-destructive')}
                 />
               </div>
@@ -258,11 +261,11 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
                 >
                   Entry Open Date
                 </Label>
-                <Input
-                  id="entryOpenDate"
-                  type="date"
-                  value={data.entryOpenDate}
-                  onChange={handleInputChange('entryOpenDate')}
+                <DateTimePicker
+                  value={data.entryOpenDate ? new Date(data.entryOpenDate) : undefined}
+                  onChange={handleDateChange('entryOpenDate')}
+                  placeholder="Select entry open date"
+                  showTime={true}
                 />
               </div>
 
@@ -273,11 +276,11 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
                 >
                   Entry Close Date
                 </Label>
-                <Input
-                  id="entryCloseDate"
-                  type="date"
-                  value={data.entryCloseDate}
-                  onChange={handleInputChange('entryCloseDate')}
+                <DateTimePicker
+                  value={data.entryCloseDate ? new Date(data.entryCloseDate) : undefined}
+                  onChange={handleDateChange('entryCloseDate')}
+                  placeholder="Select entry close date"
+                  showTime={true}
                 />
               </div>
             </div>

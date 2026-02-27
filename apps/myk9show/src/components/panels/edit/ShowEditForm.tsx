@@ -52,6 +52,16 @@ export const ShowEditForm: React.FC = () => {
     [updateData]
   );
 
+  // Handle date picker changes (DateTimePicker returns Date | undefined)
+  const handleDateChange = useCallback(
+    (field: keyof ShowEditFormData) => (date: Date | undefined) => {
+      if (date) {
+        updateData({ [field]: date.toISOString() });
+      }
+    },
+    [updateData]
+  );
+
   // Handle checkbox changes
   const handleCheckboxChange = useCallback(
     (field: keyof ShowEditFormData) => (checked: boolean) => {
@@ -172,6 +182,7 @@ export const ShowEditForm: React.FC = () => {
           clubs={clubs}
           handleInputChange={handleInputChange}
           handleSelectChange={handleSelectChange}
+          handleDateChange={handleDateChange}
         />
 
         {/* Personnel Tab */}

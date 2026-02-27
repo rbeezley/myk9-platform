@@ -293,18 +293,31 @@ export const validateShowData = (show: Show | ShowInput): string[] => {
 export const createDefaultShowInput = (): Partial<ShowInput> => {
   const today = new Date();
   const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
-  
+
+  // Build full datetime defaults with sensible times
+  const startDate = new Date(nextMonth);
+  startDate.setHours(8, 0, 0, 0);
+
+  const endDate = new Date(nextMonth);
+  endDate.setHours(17, 0, 0, 0);
+
+  const entryOpenDate = new Date(today);
+  entryOpenDate.setHours(0, 0, 0, 0);
+
+  const entryCloseDate = new Date(nextMonth.getTime() - 7 * 24 * 60 * 60 * 1000);
+  entryCloseDate.setHours(23, 59, 0, 0);
+
   return {
     name: '',
     type: 'Agility Trial',
-    startDate: nextMonth.toISOString().split('T')[0],
-    endDate: nextMonth.toISOString().split('T')[0],
+    startDate: startDate.toISOString(),
+    endDate: endDate.toISOString(),
     location: '',
     status: 'upcoming',
     events: ['Agility'],
     source: 'myK9Show',
-    entryOpenDate: today.toISOString().split('T')[0],
-    entryCloseDate: new Date(nextMonth.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 1 week before
+    entryOpenDate: entryOpenDate.toISOString(),
+    entryCloseDate: entryCloseDate.toISOString(),
     preEntryFee: '25.00',
     dayOfShowFee: '30.00',
     clubId: '',

@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useCallback, useMemo, Suspense, startTransition } from 'react';
+import React, { useState, useEffect, Suspense, startTransition } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import ShowDetailsMain from '@/components/shows/ShowDetailsMain';
-import { ShowGroupedSidebar } from '@/components/shows/ShowDetails/ShowGroupedSidebar';
 import { ShowEditPanel } from '@/components/panels/edit/ShowEditPanel';
 import DeleteShowDialog from '@/components/shows/ShowDetails/dialogs/DeleteShowDialog';
 import AddTrialDialog from '@/components/trials/AddTrialDialog';
@@ -22,8 +21,6 @@ import type { Trial } from '@/components/trials/types/trial.types';
 import type { Show } from '@/types/show-types';
 import type { RegistrationFormData } from '@/types/show-registration-types';
 import { buildClasses } from '@/utils/designTokens';
-import { SidebarLayout } from '@/components/layout/SidebarLayout';
-import { useSidebarLayoutState } from '@/hooks/useSidebarLayoutState';
 
 const ShowDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -36,7 +33,7 @@ const ShowDetailsPage: React.FC = () => {
     show: currentShow,
     isLoading: fastLoading,
     hasData,
-    isFromCache
+    isFromCache,
   } = useFastShowDetails(id);
 
   // Track navigation performance when data loads
@@ -47,12 +44,9 @@ const ShowDetailsPage: React.FC = () => {
   }, [currentShow, fastLoading, isFromCache, endNavigation]);
 
   // Get trials from complete show data (only if needed)
-  const {
-    trials: showTrials,
-    isLoading: trialsLoading
-  } = useCompleteShowData(id, {
+  const { trials: showTrials, isLoading: trialsLoading } = useCompleteShowData(id, {
     needsEntries: false,
-    needsClasses: false
+    needsClasses: false,
   });
 
   // Get cached shows data from React Query cache (already loaded in BrowseShows)
@@ -73,7 +67,7 @@ const ShowDetailsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   // Panel state - lazy init from URL so we don't call setState inside a useEffect
   const [showEditPanel, setShowEditPanel] = useState(
-    () => new URLSearchParams(window.location.search).get('edit') === 'true',
+    () => new URLSearchParams(window.location.search).get('edit') === 'true'
   );
 
   // Clean up the ?edit param from the URL after using it on mount
@@ -90,24 +84,6 @@ const ShowDetailsPage: React.FC = () => {
   const [selectedTrial, setSelectedTrial] = useState<Trial | null>(null);
   const [showRegistration, setShowRegistration] = useState(false);
 
-  // State for sidebar search
-  const [searchTerm, setSearchTerm] = useState("");
-
-  // Sidebar state management using the shared hook
-  const { mobileOpen, setMobileOpen, closeMobile } = useSidebarLayoutState();
-
-  // Memoize callbacks to prevent ShowGroupedSidebar re-renders
-  const handleShowSelect = useCallback((selectedShowId: string) => {
-    startTransition(() => {
-      navigate(`/shows/${selectedShowId}`);
-    });
-    closeMobile();
-  }, [navigate, closeMobile]);
-
-  const handleOpenWizardDialog = useCallback(() => {
-    navigate('/secretary/create-show/wizard');
-  }, [navigate]);
-
   // Fallback: Find current show from database if scoped data doesn't have it
   const actualCurrentShow = React.useMemo(() => {
     if (currentShow) return currentShow;
@@ -119,17 +95,15 @@ const ShowDetailsPage: React.FC = () => {
 
   // Override hasData to be true if we found the show in database
   const actualHasData = React.useMemo(() => {
-    return hasData || (actualCurrentShow !== null);
+    return hasData || actualCurrentShow !== null;
   }, [hasData, actualCurrentShow]);
 
-  // Handle navigation and fallback to first show if needed
+  // Redirect to browse page if no show ID provided
   useEffect(() => {
-    if (!id && shows.length > 0) {
-      startTransition(() => {
-        navigate(`/shows/${shows[0].id}`, { replace: true });
-      });
+    if (!id) {
+      navigate('/browse-shows', { replace: true });
     }
-  }, [id, shows, navigate]);
+  }, [id, navigate]);
 
   // Enhanced trials data combining store and scoped data
   const combinedTrials = React.useMemo(() => {
@@ -143,15 +117,29 @@ const ShowDetailsPage: React.FC = () => {
       status: trial.status as 'Upcoming' | 'In Progress' | 'Completed' | 'Cancelled',
       eventNumber: trial.trialNumber,
       plannedStartTime: '09:00 AM',
-      order: trial.trialNumber
+      order: trial.trialNumber,
     }));
 
     return storeTrials.length > 0 ? storeTrials : scopedTrialsFromShow;
   }, [trials, showId, showTrials, actualCurrentShow]);
 
   // Handler for adding a new trial
-  const handleAddTrial = (newTrialDialogData: { name: string; date: string; trialNumber: string; status: string; eventNumber: string; plannedStartTime: string; order: string; showName: string; description?: string; }) => {
-    const validStatus = newTrialDialogData.status as 'Upcoming' | 'In Progress' | 'Completed' | 'Cancelled';
+  const handleAddTrial = (newTrialDialogData: {
+    name: string;
+    date: string;
+    trialNumber: string;
+    status: string;
+    eventNumber: string;
+    plannedStartTime: string;
+    order: string;
+    showName: string;
+    description?: string;
+  }) => {
+    const validStatus = newTrialDialogData.status as
+      | 'Upcoming'
+      | 'In Progress'
+      | 'Completed'
+      | 'Cancelled';
 
     const newTrialForStore: TrialInput = {
       showId: showId || '',
@@ -163,7 +151,7 @@ const ShowDetailsPage: React.FC = () => {
       type: newTrialDialogData.name,
       eventNumber: newTrialDialogData.eventNumber,
       plannedStartTime: newTrialDialogData.plannedStartTime,
-      order: newTrialDialogData.order
+      order: newTrialDialogData.order,
     };
     addTrialToStore(newTrialForStore, user?.id || 'unknown');
     setShowAddTrialDialog(false);
@@ -174,7 +162,7 @@ const ShowDetailsPage: React.FC = () => {
     const associatedShow = shows.find(show => show.id === trial.showId);
     const enrichedTrial = {
       ...trial,
-      showName: associatedShow?.name || trial.showName || 'Unknown Show'
+      showName: associatedShow?.name || trial.showName || 'Unknown Show',
     };
 
     setSelectedTrial(enrichedTrial);
@@ -217,7 +205,7 @@ const ShowDetailsPage: React.FC = () => {
   const handleConfirmDelete = () => {
     setShowDeleteDialog(false);
     setTimeout(() => {
-      navigate('/shows');
+      navigate('/browse-shows');
     }, 100);
   };
 
@@ -230,19 +218,6 @@ const ShowDetailsPage: React.FC = () => {
   function handleRegistrationComplete(_registrationData: RegistrationFormData): void {
     setShowRegistration(false);
   }
-
-  // Memoize sidebar content to prevent unnecessary re-renders
-  const sidebarContent = useMemo(() => (
-    <ShowGroupedSidebar
-      shows={shows}
-      selectedId={showId}
-      onSelect={handleShowSelect}
-      searchTerm={searchTerm}
-      onSearchChange={setSearchTerm}
-      onCloseMobile={closeMobile}
-      onAdd={handleOpenWizardDialog}
-    />
-  ), [shows, showId, handleShowSelect, searchTerm, closeMobile, handleOpenWizardDialog]);
 
   // Render main content based on loading/data state
   const renderContent = () => {
@@ -264,7 +239,7 @@ const ShowDetailsPage: React.FC = () => {
             <h1 className="text-2xl font-bold text-foreground mb-4">Show Not Found</h1>
             <p className="text-muted-foreground mb-4">The show you're looking for doesn't exist.</p>
             <button
-              onClick={() => startTransition(() => navigate('/shows'))}
+              onClick={() => startTransition(() => navigate('/browse-shows'))}
               className={`${buildClasses.button.primary} px-4 py-2 rounded-lg transition-colors`}
             >
               Back to Shows
@@ -276,14 +251,16 @@ const ShowDetailsPage: React.FC = () => {
 
     if (actualHasData && actualCurrentShow) {
       return (
-        <Suspense fallback={
-          <div className="flex items-center justify-center min-h-screen">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-              <h1 className="text-xl font-medium text-foreground">Loading show details...</h1>
+        <Suspense
+          fallback={
+            <div className="flex items-center justify-center min-h-screen">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                <h1 className="text-xl font-medium text-foreground">Loading show details...</h1>
+              </div>
             </div>
-          </div>
-        }>
+          }
+        >
           <ShowDetailsMain
             showData={actualCurrentShow}
             associatedTrials={combinedTrials}
@@ -330,15 +307,7 @@ const ShowDetailsPage: React.FC = () => {
 
   return (
     <>
-      <SidebarLayout
-        sidebar={sidebarContent}
-        sidebarWidth={288} // w-72 = 18rem = 288px
-        mobileMenuLabel="Shows Menu"
-        mobileOpen={mobileOpen}
-        onMobileOpenChange={setMobileOpen}
-      >
-        {renderContent()}
-      </SidebarLayout>
+      {renderContent()}
 
       {/* Dialogs */}
       <AddTrialDialog
@@ -357,12 +326,15 @@ const ShowDetailsPage: React.FC = () => {
         cancelLabel="Cancel"
         saveButtonProps={{
           variant: 'destructive',
-          className: '!rounded-button whitespace-nowrap'
+          className: '!rounded-button whitespace-nowrap',
         }}
         hideSave={false}
       >
         <div className="py-2 text-foreground">
-          <p>Are you sure you want to delete <b>{selectedTrial?.type || selectedTrial?.trialNumber}</b>?</p>
+          <p>
+            Are you sure you want to delete{' '}
+            <b>{selectedTrial?.type || selectedTrial?.trialNumber}</b>?
+          </p>
           <p className="mt-2 text-destructive">This action cannot be undone.</p>
         </div>
       </StandardDialog>
@@ -372,10 +344,14 @@ const ShowDetailsPage: React.FC = () => {
         trialId={selectedTrial?.id || ''}
         trialName={selectedTrial?.name || selectedTrial?.type || ''}
         initialTrialData={selectedTrial || {}}
-        onSave={async (trialData) => {
+        onSave={async trialData => {
           if (selectedTrial?.id) {
             const updatedTrial = { ...selectedTrial, ...trialData };
-            updateTrialInStore(selectedTrial.id, updatedTrial as Partial<TrialInput>, user?.id || 'unknown');
+            updateTrialInStore(
+              selectedTrial.id,
+              updatedTrial as Partial<TrialInput>,
+              user?.id || 'unknown'
+            );
             setShowEditTrialPanel(false);
             setSelectedTrial(null);
           }
@@ -387,9 +363,11 @@ const ShowDetailsPage: React.FC = () => {
         showId={actualCurrentShow?.id || ''}
         showName={actualCurrentShow?.name || ''}
         initialShowData={actualCurrentShow || {}}
-        onSave={async (showData) => {
+        onSave={async showData => {
           if (actualCurrentShow?.id) {
-            await useShowStore.getState().updateShow(actualCurrentShow.id, showData as Partial<ShowInput>);
+            await useShowStore
+              .getState()
+              .updateShow(actualCurrentShow.id, showData as Partial<ShowInput>);
           }
           setShowEditPanel(false);
         }}
@@ -411,15 +389,17 @@ const ShowDetailsPage: React.FC = () => {
             <DialogTitle className="text-foreground">Show Registration</DialogTitle>
           </DialogHeader>
           <RegistrationProvider>
-            <Suspense fallback={
-              <div className="flex items-center justify-center p-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                <span className="ml-3 text-muted-foreground">Loading registration...</span>
-              </div>
-            }>
+            <Suspense
+              fallback={
+                <div className="flex items-center justify-center p-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  <span className="ml-3 text-muted-foreground">Loading registration...</span>
+                </div>
+              }
+            >
               <RegistrationWorkflow
                 showId={showId || ''}
-                onComplete={(data) => handleRegistrationComplete(data as RegistrationFormData)}
+                onComplete={data => handleRegistrationComplete(data as RegistrationFormData)}
                 onCancel={() => setShowRegistration(false)}
               />
             </Suspense>
@@ -428,6 +408,6 @@ const ShowDetailsPage: React.FC = () => {
       </Dialog>
     </>
   );
-}
+};
 
 export default ShowDetailsPage;

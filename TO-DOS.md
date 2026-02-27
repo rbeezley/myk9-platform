@@ -187,7 +187,7 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 ## Fix Trial Date Defaulting in Wizard - 2026-02-27 10:41
 
-- **Fix trial default dates to allow 2 trials per day** — When adding trials in the Show Creation Wizard, each new trial defaults to the next day after the latest trial. This prevents having multiple trials on the same day, which is a common show format (e.g., AM trial and PM trial). **Problem:** `handleAddTrial` always adds 1 day (`addDays(latestTrialDate, 1)`) for each new trial. A 2-day show with 4 trials should default to: Trial 1 → Day 1, Trial 2 → Day 1, Trial 3 → Day 2, Trial 4 → Day 2 (i.e., 2 trials per day). Currently Trial 2 goes to Day 2, Trial 3 caps at end date. Also, once a trial date is set to an unwanted date, it may not be editable. **Files:** `apps/myk9show/src/components/shows/wizard/steps/TrialConfigurationStep.tsx:80-100` (the `handleAddTrial` function with `addDays(latestTrialDate, 1)` logic). **Solution:** Change default logic to assign 2 trials per day: `Math.floor(trialIndex / 2)` days offset from show start. E.g., trials 0-1 → startDate, trials 2-3 → startDate+1, etc. Ensure trial date fields remain editable so users can override defaults. Cap at show end date.
+- [x] **Fix trial default dates to allow 2 trials per day** — Fixed: `handleAddTrial` now uses `Math.floor(trialIndex / 2)` days offset from show start date instead of `addDays(latestTrialDate, 1)`. Trials 0-1 default to Day 1, trials 2-3 to Day 2, etc. Capped at show end date. Date fields remain editable. **File:** `TrialConfigurationStep.tsx`.
 
 ## Show Not Persisting to Supabase After Publish - 2026-02-27 10:47
 

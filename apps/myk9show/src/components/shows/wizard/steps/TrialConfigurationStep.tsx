@@ -5,12 +5,7 @@ import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { Plus, Trash2, GripVertical, CalendarPlus, HelpCircle } from 'lucide-react';
 import { addDays, format, isWithinInterval, parseISO } from 'date-fns';
 import { Label } from '@/components/ui/label';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useWizardStore } from '@/store/wizardStore';
 
 interface TrialConfigurationStepProps {
@@ -18,13 +13,7 @@ interface TrialConfigurationStepProps {
 }
 
 export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({ className }) => {
-  const {
-    show,
-    trials,
-    addTrial,
-    updateTrial,
-    removeTrial,
-  } = useWizardStore();
+  const { show, trials, addTrial, updateTrial, removeTrial } = useWizardStore();
 
   // Derive errors using useMemo instead of useState + effect
   const errors = useMemo(() => {
@@ -69,7 +58,9 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({ 
 
     // Check for duplicate event numbers
     const eventNumbers = trials.map(t => t.eventNumber.trim());
-    const duplicateEvents = eventNumbers.filter((num, index) => eventNumbers.indexOf(num) !== index);
+    const duplicateEvents = eventNumbers.filter(
+      (num, index) => eventNumbers.indexOf(num) !== index
+    );
     if (duplicateEvents.length > 0) {
       newErrors.duplicateEvents = 'Event numbers must be unique';
     }
@@ -79,24 +70,17 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({ 
 
   const handleAddTrial = () => {
     const trialNumber = trials.length + 1;
-    // Default to next available day: if trials exist, use the day after the latest trial date;
-    // otherwise use show start date. Capped at show end date.
-    let baseDate: Date;
-    if (trials.length > 0) {
-      const latestTrialDate = trials.reduce((latest, t) => {
-        const d = t.dateTime ? new Date(t.dateTime) : new Date(0);
-        return d > latest ? d : latest;
-      }, new Date(0));
-      baseDate = addDays(latestTrialDate, 1);
-      // Cap at show end date if set
-      if (show.endDate) {
-        const endDate = new Date(show.endDate);
-        if (baseDate > endDate) {
-          baseDate = endDate;
-        }
+    const trialIndex = trials.length;
+    // Default 2 trials per day: trials 0-1 → startDate, 2-3 → startDate+1, etc.
+    const startDate = show.startDate ? new Date(show.startDate) : new Date();
+    const daysOffset = Math.floor(trialIndex / 2);
+    let baseDate = addDays(startDate, daysOffset);
+    // Cap at show end date if set
+    if (show.endDate) {
+      const endDate = new Date(show.endDate);
+      if (baseDate > endDate) {
+        baseDate = endDate;
       }
-    } else {
-      baseDate = show.startDate ? new Date(show.startDate) : new Date();
     }
     baseDate.setHours(8, 0, 0, 0); // Set to 8:00 AM
     const defaultDateTime = format(baseDate, "yyyy-MM-dd'T'HH:mm:ss");
@@ -105,7 +89,7 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({ 
       name: `Trial ${trialNumber}`,
       dateTime: defaultDateTime,
       eventNumber: trialNumber.toString(),
-      classes: []
+      classes: [],
     });
   };
 
@@ -115,14 +99,15 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({ 
     }
   };
 
-
   return (
     <div className={className}>
       <div className="space-y-6">
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Add Trial Button */}
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold pl-3 border-l-2 border-primary text-primary">Trials ({trials.length})</h3>
+            <h3 className="text-lg font-semibold pl-3 border-l-2 border-primary text-primary">
+              Trials ({trials.length})
+            </h3>
             <Button onClick={handleAddTrial} className="flex items-center gap-2">
               <Plus className="h-4 w-4" />
               Add Trial
@@ -142,11 +127,10 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({ 
                 <div className="mx-auto w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-5 shadow-sm">
                   <CalendarPlus className="h-8 w-8 text-primary" />
                 </div>
-                <h4 className="text-xl font-semibold text-foreground mb-2">
-                  Schedule Your Trials
-                </h4>
+                <h4 className="text-xl font-semibold text-foreground mb-2">Schedule Your Trials</h4>
                 <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-6">
-                  Trials are individual competition events within your show. Add your first trial to get started.
+                  Trials are individual competition events within your show. Add your first trial to
+                  get started.
                 </p>
                 <Button onClick={handleAddTrial} size="lg" className="shadow-md">
                   <Plus className="h-4 w-4 mr-2" />
@@ -157,7 +141,10 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({ 
           ) : (
             <div className="space-y-4">
               {trials.map((trial, index) => (
-                <div key={trial.id} className="border border-border rounded-xl p-5 space-y-4 bg-card/50 hover:bg-card/80 transition-colors duration-200 shadow-sm">
+                <div
+                  key={trial.id}
+                  className="border border-border rounded-xl p-5 space-y-4 bg-card/50 hover:bg-card/80 transition-colors duration-200 shadow-sm"
+                >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <GripVertical className="h-4 w-4 text-muted-foreground" />
@@ -175,10 +162,12 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({ 
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Trial Name <span className="text-destructive">*</span></Label>
+                      <Label>
+                        Trial Name <span className="text-destructive">*</span>
+                      </Label>
                       <Input
                         value={trial.name}
-                        onChange={(e) => updateTrial(trial.id, { name: e.target.value })}
+                        onChange={e => updateTrial(trial.id, { name: e.target.value })}
                         placeholder="e.g., Trial 1, Novice Trial"
                         className="h-10"
                       />
@@ -196,28 +185,35 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({ 
                               <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
                             </TooltipTrigger>
                             <TooltipContent side="top" className="max-w-xs">
-                              <p>A unique identifier for this trial, often assigned by the sanctioning organization (e.g., "2024-001" for AKC events).</p>
+                              <p>
+                                A unique identifier for this trial, often assigned by the
+                                sanctioning organization (e.g., "2024-001" for AKC events).
+                              </p>
                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
                       </Label>
                       <Input
                         value={trial.eventNumber}
-                        onChange={(e) => updateTrial(trial.id, { eventNumber: e.target.value })}
+                        onChange={e => updateTrial(trial.id, { eventNumber: e.target.value })}
                         placeholder="e.g., 1, 2024-001"
                         className="h-10"
                       />
                       {errors[`trial-${index}-eventNumber`] && (
-                        <p className="text-sm text-destructive">{errors[`trial-${index}-eventNumber`]}</p>
+                        <p className="text-sm text-destructive">
+                          {errors[`trial-${index}-eventNumber`]}
+                        </p>
                       )}
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Trial Date & Time <span className="text-destructive">*</span></Label>
+                    <Label>
+                      Trial Date & Time <span className="text-destructive">*</span>
+                    </Label>
                     <DateTimePicker
                       value={trial.dateTime ? new Date(trial.dateTime) : undefined}
-                      onChange={(date) => handleTrialDateTimeChange(trial.id, date)}
+                      onChange={date => handleTrialDateTimeChange(trial.id, date)}
                       placeholder="Pick trial date and time"
                       className="h-10"
                       minDate={show.startDate ? new Date(show.startDate) : new Date()}
@@ -226,7 +222,9 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({ 
                       timeFormat="12h"
                     />
                     {errors[`trial-${index}-dateTime`] && (
-                      <p className="text-sm text-destructive">{errors[`trial-${index}-dateTime`]}</p>
+                      <p className="text-sm text-destructive">
+                        {errors[`trial-${index}-dateTime`]}
+                      </p>
                     )}
                   </div>
                 </div>

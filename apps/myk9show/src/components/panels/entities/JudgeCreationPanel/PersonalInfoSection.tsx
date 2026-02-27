@@ -58,7 +58,7 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({
 
         {/* Judge Number */}
         <div className="space-y-2">
-          <Label htmlFor="judgeNumber">Judge Number *</Label>
+          <Label htmlFor="judgeNumber">Judge Number</Label>
           <Input
             id="judgeNumber"
             autoComplete="off"
@@ -75,7 +75,7 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({
         {/* Contact Fields */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email *</Label>
+            <Label htmlFor="email">Email</Label>
             <Input
               id="email"
               type="email"
@@ -91,7 +91,7 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="phone">Phone *</Label>
+            <Label htmlFor="phone">Phone</Label>
             <Input
               id="phone"
               type="tel"

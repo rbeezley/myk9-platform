@@ -37,9 +37,9 @@ Select.displayName = "Select"
 
 const SelectGroup = SelectPrimitive.Group
 
-// Wrapper for SelectValue to support placeholder prop
-// Base UI's Value component renders the selected item's text
-// The children render function receives the value directly (not a state object)
+// Wrapper for SelectValue to support placeholder prop.
+// Let Base UI render the selected item's text natively (from ItemText).
+// Placeholder styling is handled by SelectTrigger's data-[placeholder] rule.
 interface SelectValueProps extends Omit<React.ComponentPropsWithoutRef<typeof SelectPrimitive.Value>, 'placeholder'> {
   placeholder?: string | undefined
 }
@@ -51,12 +51,10 @@ const SelectValue = React.forwardRef<
   <SelectPrimitive.Value
     ref={ref}
     {...(className !== undefined && { className })}
+    {...(placeholder !== undefined && { placeholder })}
     {...props}
   >
-    {children !== undefined
-      ? children
-      : (value: string | null) => value || (placeholder ? <span className="text-muted-foreground">{placeholder}</span> : null)
-    }
+    {children}
   </SelectPrimitive.Value>
 ))
 SelectValue.displayName = "SelectValue"

@@ -55,7 +55,7 @@ export const QualificationsSection: React.FC<QualificationsSectionProps> = ({
         <CardTitle className="text-base flex items-center justify-between">
           <span className="flex items-center gap-2">
             <Award className="h-4 w-4" />
-            Qualifications *
+            Qualifications
           </span>
           <span className="text-sm font-normal text-muted-foreground">
             {formData.qualifications.length} qualification{formData.qualifications.length !== 1 ? 's' : ''}

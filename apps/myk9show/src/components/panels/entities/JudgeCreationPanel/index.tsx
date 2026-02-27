@@ -22,7 +22,6 @@ interface JudgeCreationPanelProps extends BasePanelProps {
 export const JudgeCreationPanel: React.FC<JudgeCreationPanelProps> = ({
   context,
   onResult,
-  requiredCertifications = []
 }) => {
   const { addUser, people } = useUserStore();
 
@@ -63,7 +62,8 @@ export const JudgeCreationPanel: React.FC<JudgeCreationPanelProps> = ({
     return hasSubmitted ? errors[field] : undefined;
   };
 
-  // Validation
+  // Validation — only name is required. Judge number, qualifications,
+  // and certifications are optional (not stored in DB yet).
   const validateForm = useCallback(() => {
     const newErrors: Record<string, string> = {};
 
@@ -75,37 +75,13 @@ export const JudgeCreationPanel: React.FC<JudgeCreationPanelProps> = ({
       newErrors.lastName = 'Last name is required';
     }
 
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
+    if (formData.email.trim() && !/^\S+@\S+\.\S+$/.test(formData.email)) {
       newErrors.email = 'Please enter a valid email address';
     }
 
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'Phone number is required';
-    }
-
-    if (!formData.judgeNumber.trim()) {
-      newErrors.judgeNumber = 'Judge number is required';
-    }
-
-    if (formData.qualifications.length === 0) {
-      newErrors.qualifications = 'At least one qualification is required';
-    }
-
-    // Check for required certifications
-    requiredCertifications.forEach(reqCert => {
-      const hasCert = formData.certifications.some(cert =>
-        cert.name.toLowerCase().includes(reqCert.toLowerCase())
-      );
-      if (!hasCert) {
-        newErrors.certifications = `${reqCert} certification is required`;
-      }
-    });
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [formData, requiredCertifications]);
+  }, [formData]);
 
   // Check for duplicate judges
   const checkForDuplicates = useCallback(() => {

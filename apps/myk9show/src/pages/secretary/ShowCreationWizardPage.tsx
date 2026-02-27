@@ -301,14 +301,22 @@ const ShowCreationWizardPage: React.FC = () => {
     }
   };
 
-  // Reset wizard when component unmounts or navigating away
+  // Reset wizard when component unmounts (not on every re-render).
+  // Use refs so the cleanup captures the latest values without
+  // adding them to the dependency array, which would cause the
+  // cleanup to fire prematurely on store updates.
+  const editModeRef = useRef(editMode);
+  const resetWizardRef = useRef(resetWizard);
+  editModeRef.current = editMode;
+  resetWizardRef.current = resetWizard;
+
   useEffect(() => {
     return () => {
-      if (!editMode) {
-        resetWizard();
+      if (!editModeRef.current) {
+        resetWizardRef.current();
       }
     };
-  }, [editMode, resetWizard]);
+  }, []);
 
   return (
     <PanelProvider

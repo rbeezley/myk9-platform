@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
-import { LogOut, User as UserIcon, ChevronDown, Search, Settings, CreditCard, Heart, Wifi, WifiOff, RefreshCw, Menu, X, Palette, ShoppingCart } from 'lucide-react';
+import { LogOut, User as UserIcon, ChevronDown, Search, Settings, CreditCard, Heart, Wifi, WifiOff, RefreshCw, Menu, X, Palette, ShoppingCart, Info } from 'lucide-react';
 import { ExhibitorNavigation, SecretaryNavigation, JudgeNavigation, AdminNavigation } from './navigation';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import { NotificationCenter } from '@/components/common/NotificationCenter';
 import { useGlobalSyncStatus } from '@/hooks/useGlobalSyncStatus';
 import { buildClasses } from '@/utils/designTokens';
 import { useCartItemCount } from '@/stores/cartStore';
+import { AboutDialog } from '@/components/common/AboutDialog';
 
 const AppHeader: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
@@ -24,6 +25,7 @@ const AppHeader: React.FC = () => {
   const navigate = useNavigate();
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const cartItemCount = useCartItemCount();
 
   // Handler for opening command palette
@@ -289,6 +291,11 @@ const AppHeader: React.FC = () => {
                       </>
                     )}
                     
+                    <DropdownMenuItem onClick={() => setAboutOpen(true)} className="cursor-pointer">
+                      <Info className="h-4 w-4 mr-2" />
+                      About
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={signOut} className="text-red-600 dark:text-red-400">
                       <LogOut className="h-4 w-4 mr-2" />
                       Sign Out
@@ -330,6 +337,9 @@ const AppHeader: React.FC = () => {
         open={commandPaletteOpen}
         onOpenChange={setCommandPaletteOpen}
       />
+
+      {/* About Dialog */}
+      <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
     </nav>
   );
 };

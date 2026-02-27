@@ -282,14 +282,14 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
           ) : (
             <Tabs value={currentTrialId} onValueChange={setSelectedTrialId}>
               {/* Trial Tabs */}
-              <TabsList className="w-auto mx-auto bg-muted/60 border border-border p-1 rounded-lg">
+              <TabsList className="w-auto mx-auto bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1">
                 {trials.map(trial => {
                   const isCompleted = trial.classes.length > 0;
                   return (
                     <TabsTrigger
                       key={trial.id}
                       value={trial.id}
-                      className="flex-none px-6 py-2 rounded-md data-[selected]:bg-background data-[selected]:shadow-md data-[selected]:border data-[selected]:border-border"
+                      className="flex-none px-6 py-2 rounded-lg transition-all duration-300 aria-selected:bg-gradient-to-r aria-selected:from-primary/10 aria-selected:to-primary/5 aria-selected:text-primary aria-selected:shadow-sm"
                     >
                       <span className="truncate">{trial.name}</span>
                       <Badge

@@ -98,7 +98,7 @@ Top 3 source files over 800 lines — refactor when next modified:
 
 - [x] Package coverage thresholds — 6 packages with baseline-2% thresholds, CI job, root script (2026-02-18)
 - [ ] ~28 files in 700-750 line range — address when naturally touched
-- [ ] Make E2E CI jobs blocking once tests are stable
+- [ ] Make E2E CI jobs blocking once tests are stable — **Investigated 2026-02-27:** CI has been broken since at least Feb 25 due to GitHub Actions billing (free plan minutes exhausted, resets in ~2 days). Locally: myK9Q 1/10 passing (9 blocked on missing test passcode — no passcodes exist in myk9-platform Supabase, they came from legacy Access app; needs design decision on test auth strategy). myK9Show 1020 tests, ~0% pass rate (bulk are AI-generated debug artifacts needing triage). Created `apps/myk9q/.env` with Supabase credentials (was missing, preventing app from loading). Next steps: (1) fix GitHub billing/wait for reset, (2) decide passcode seeding strategy for myK9Q E2E, (3) triage myK9Show E2E test files down to a maintainable set.
 - [x] Address 441 skipped tests → all fixed or deleted (2026-02-18)
 - [x] Fix 4 potential source bugs documented in `docs/potential-bugs.md` (3 fixed, 1 closed as not-a-bug)
 
@@ -201,7 +201,7 @@ Bugs found during end-to-end testing of the Show Creation Wizard via Claude Prev
 
 ## Improve Trial Tab Bar in Class Selection Step - 2026-02-27 10:44
 
-- **Restyle trial tabs in wizard Class Selection step** — The trial tab bar on the Class Selection step of the Show Creation Wizard looks like plain text links rather than a proper tab bar. There's no clear visual indicator of the active/selected trial tab. **Problem:** The `TabsList` uses a grid layout with minimal styling, making it hard to tell which trial tab is currently active. Users can't easily distinguish the selected tab from unselected ones — it all looks like flat text. **Files:** `apps/myk9show/src/components/shows/wizard/steps/ClassSelectionStep.tsx:274-295` (the `<Tabs>` / `<TabsList>` / `<TabsTrigger>` rendering for trial selection). **Solution:** Apply proper tab bar styling with clear active state — e.g., solid background or underline on selected tab, muted/inactive style on unselected tabs, hover states, and possibly a bottom border on the tab bar container. Should match the design language used elsewhere in myK9Show (shadcn/ui Tabs component defaults may just need proper variant props or custom classes).
+- [x] **Restyle trial tabs in wizard Class Selection step** — Fixed: root cause was `data-[selected]` CSS selectors that don't match Base UI's `aria-selected` attribute — active state never applied. Replaced with `aria-selected:` selectors and aligned styling with app-wide tab pattern (gradient active state, rounded-xl container, transition animations). **File:** `ClassSelectionStep.tsx`.
 
 ## Format Fee Fields with Dollar Sign and Decimal Places - 2026-02-27 14:27
 

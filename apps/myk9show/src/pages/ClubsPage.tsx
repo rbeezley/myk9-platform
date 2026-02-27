@@ -29,11 +29,8 @@ const ClubsPage: React.FC = () => {
   const selectedClubId = useClubStore(state => state.selectedClubId);
   const selectClub = useClubStore(state => state.selectClub);
   const addClub = useClubStore(state => state.addClub);
-  const loadClubs = useClubStore(state => state.loadClubs);
-  const syncClubs = useClubStore(state => state.syncClubs);
   const isLoading = useClubStore(state => state.isLoading);
   const isSyncing = useClubStore(state => state.isSyncing);
-  const subscribeToChanges = useClubStore(state => state.subscribeToChanges);
 
   // Sidebar state management using the shared hook (mobile only, no collapse)
   const {
@@ -42,18 +39,7 @@ const ClubsPage: React.FC = () => {
     closeMobile,
   } = useSidebarLayoutState();
 
-  // Load clubs from local cache on mount, then sync with server
-  useEffect(() => {
-    // Load from local cache first (instant, works offline)
-    loadClubs();
-
-    // Then sync with server in background (when online)
-    syncClubs();
-
-    // Subscribe to real-time changes
-    const unsubscribe = subscribeToChanges();
-    return unsubscribe;
-  }, [loadClubs, syncClubs, subscribeToChanges]);
+  // Club loading and subscriptions handled globally by useStoreSubscriptions
 
   // Memoize selected club to prevent unnecessary re-renders
   // Only recalculate when clubs array or selectedClubId changes
@@ -63,8 +49,10 @@ const ClubsPage: React.FC = () => {
 
     return {
       ...rawSelectedClub,
-      upcomingShows: Array.isArray(rawSelectedClub.upcomingShows) ? rawSelectedClub.upcomingShows : [],
-      pastShows: Array.isArray(rawSelectedClub.pastShows) ? rawSelectedClub.pastShows : []
+      upcomingShows: Array.isArray(rawSelectedClub.upcomingShows)
+        ? rawSelectedClub.upcomingShows
+        : [],
+      pastShows: Array.isArray(rawSelectedClub.pastShows) ? rawSelectedClub.pastShows : [],
     };
   }, [clubs, selectedClubId]);
 
@@ -91,11 +79,14 @@ const ClubsPage: React.FC = () => {
   const [showCreateClubPanel, setShowCreateClubPanel] = useState(false);
 
   // Memoize callbacks to prevent ClubSidebar re-renders
-  const handleSelectClub = useCallback((clubId: string) => {
-    selectClub(clubId);
-    navigate(`/clubs/${clubId}`);
-    closeMobile(); // Close mobile sidebar after selection
-  }, [selectClub, navigate, closeMobile]);
+  const handleSelectClub = useCallback(
+    (clubId: string) => {
+      selectClub(clubId);
+      navigate(`/clubs/${clubId}`);
+      closeMobile(); // Close mobile sidebar after selection
+    },
+    [selectClub, navigate, closeMobile]
+  );
 
   const handleOpenCreatePanel = useCallback(() => {
     setShowCreateClubPanel(true);
@@ -104,7 +95,7 @@ const ClubsPage: React.FC = () => {
   // Generate breadcrumb items for the current club
   const breadcrumbItems = useBreadcrumb({
     currentPage: 'club',
-    club: selectedClub ? { id: selectedClub.id, name: selectedClub.name } : undefined
+    club: selectedClub ? { id: selectedClub.id, name: selectedClub.name } : undefined,
   });
 
   function handleClubCreated(entity: Record<string, unknown>): void {
@@ -117,14 +108,17 @@ const ClubsPage: React.FC = () => {
   }
 
   // Memoize sidebar content to prevent unnecessary re-renders
-  const sidebarContent = useMemo(() => (
-    <ClubSidebar
-      clubs={clubs}
-      selectedClubId={selectedClubId}
-      onSelectClub={handleSelectClub}
-      onAddClub={handleOpenCreatePanel}
-    />
-  ), [clubs, selectedClubId, handleSelectClub, handleOpenCreatePanel]);
+  const sidebarContent = useMemo(
+    () => (
+      <ClubSidebar
+        clubs={clubs}
+        selectedClubId={selectedClubId}
+        onSelectClub={handleSelectClub}
+        onAddClub={handleOpenCreatePanel}
+      />
+    ),
+    [clubs, selectedClubId, handleSelectClub, handleOpenCreatePanel]
+  );
 
   // Render main content based on loading/data state
   const renderContent = () => {
@@ -153,7 +147,9 @@ const ClubsPage: React.FC = () => {
       );
     }
 
-    return <ClubDetails selectedClub={selectedClub as Club | null} breadcrumbItems={breadcrumbItems} />;
+    return (
+      <ClubDetails selectedClub={selectedClub as Club | null} breadcrumbItems={breadcrumbItems} />
+    );
   };
 
   return (
@@ -178,7 +174,7 @@ const ClubsPage: React.FC = () => {
             clubName=""
             initialClubData={{}}
             mode="create"
-            onSave={async (clubData) => {
+            onSave={async clubData => {
               try {
                 const newClub: Club = {
                   id: '', // Will be assigned by the replication layer
@@ -193,13 +189,19 @@ const ClubsPage: React.FC = () => {
                     city: clubData.address?.city || '',
                     state: clubData.address?.state || '',
                     zipCode: clubData.address?.zipCode || '',
-                    country: clubData.address?.country || 'US'
+                    country: clubData.address?.country || 'US',
                   },
                   logo: clubData.logo || '',
                   founded: clubData.founded instanceof Date ? clubData.founded : undefined,
-                  clubType: clubData.clubType as 'specialty' | 'all-breed' | 'local' | 'regional' | 'national' | undefined,
+                  clubType: clubData.clubType as
+                    | 'specialty'
+                    | 'all-breed'
+                    | 'local'
+                    | 'regional'
+                    | 'national'
+                    | undefined,
                   upcomingShows: [],
-                  pastShows: []
+                  pastShows: [],
                 };
 
                 await addClub(newClub);

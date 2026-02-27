@@ -13,8 +13,12 @@
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { useStoreSubscriptions } from '@/hooks/useStoreSubscriptions';
 import { logger } from '@/services/LoggingService';
-import { ReplicationSyncContext, type ReplicationSyncContextValue } from '@/contexts/ReplicationSyncContext';
+import {
+  ReplicationSyncContext,
+  type ReplicationSyncContextValue,
+} from '@/contexts/ReplicationSyncContext';
 import { MutationManager } from '@myk9/replication';
 import { supabase } from '@/services/database/supabaseClient';
 
@@ -24,6 +28,7 @@ import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTa
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
+import { replicatedClubsTable } from '@/services/replication/ReplicatedClubsTable';
 
 interface SyncStatus {
   isSyncing: boolean;
@@ -49,6 +54,7 @@ const REPLICATED_TABLES = [
   { name: 'classes', table: replicatedClassesTable },
   { name: 'entries', table: replicatedEntriesTable },
   { name: 'dogs', table: replicatedDogsTable },
+  { name: 'clubs', table: replicatedClubsTable },
 ] as const;
 
 // Adapt myK9Show's LoggingService to the @myk9/replication Logger interface
@@ -75,6 +81,9 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
   const wasOffline = useRef(false);
   const hasInitialSynced = useRef(false);
 
+  // Subscribe all Zustand stores to replicated table changes
+  useStoreSubscriptions();
+
   const [status, setStatus] = useState<SyncStatus>({
     isSyncing: false,
     lastSyncAt: null,
@@ -85,42 +94,48 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
   /**
    * Sync a single table
    */
-  const syncTable = useCallback(async (tableName: string) => {
-    const tableConfig = REPLICATED_TABLES.find(t => t.name === tableName);
-    if (!tableConfig) {
-      logger.warn('Unknown table', 'replication', { tableName });
-      return;
-    }
+  const syncTable = useCallback(
+    async (tableName: string) => {
+      const tableConfig = REPLICATED_TABLES.find(t => t.name === tableName);
+      if (!tableConfig) {
+        logger.warn('Unknown table', 'replication', { tableName });
+        return;
+      }
 
-    setStatus(prev => ({
-      ...prev,
-      tablesStatus: { ...prev.tablesStatus, [tableName]: 'syncing' },
-    }));
+      setStatus(prev => ({
+        ...prev,
+        tablesStatus: { ...prev.tablesStatus, [tableName]: 'syncing' },
+      }));
 
-    try {
-      const result = await tableConfig.table.sync(licenseKey);
+      try {
+        const result = await tableConfig.table.sync(licenseKey);
 
-      if (result.success) {
-        logger.info('Table synced', 'replication', { tableName, rowsAffected: result.rowsAffected });
-        setStatus(prev => ({
-          ...prev,
-          tablesStatus: { ...prev.tablesStatus, [tableName]: 'success' },
-        }));
-      } else {
-        logger.error('Table sync failed', 'replication', { tableName, error: result.error });
+        if (result.success) {
+          logger.info('Table synced', 'replication', {
+            tableName,
+            rowsAffected: result.rowsAffected,
+          });
+          setStatus(prev => ({
+            ...prev,
+            tablesStatus: { ...prev.tablesStatus, [tableName]: 'success' },
+          }));
+        } else {
+          logger.error('Table sync failed', 'replication', { tableName, error: result.error });
+          setStatus(prev => ({
+            ...prev,
+            tablesStatus: { ...prev.tablesStatus, [tableName]: 'error' },
+          }));
+        }
+      } catch (error) {
+        logger.error('Table sync error', 'replication', { tableName }, error as Error);
         setStatus(prev => ({
           ...prev,
           tablesStatus: { ...prev.tablesStatus, [tableName]: 'error' },
         }));
       }
-    } catch (error) {
-      logger.error('Table sync error', 'replication', { tableName }, error as Error);
-      setStatus(prev => ({
-        ...prev,
-        tablesStatus: { ...prev.tablesStatus, [tableName]: 'error' },
-      }));
-    }
-  }, [licenseKey]);
+    },
+    [licenseKey]
+  );
 
   /**
    * Trigger sync for all tables
@@ -166,13 +181,19 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
           const result = await table.sync(licenseKey);
 
           if (result.success) {
-            logger.info('Table sync success', 'replication', { name, rowsAffected: result.rowsAffected });
+            logger.info('Table sync success', 'replication', {
+              name,
+              rowsAffected: result.rowsAffected,
+            });
             setStatus(prev => ({
               ...prev,
               tablesStatus: { ...prev.tablesStatus, [name]: 'success' },
             }));
           } else {
-            logger.warn('Table sync failed', 'replication', { name, error: result.error || 'Unknown error' });
+            logger.warn('Table sync failed', 'replication', {
+              name,
+              error: result.error || 'Unknown error',
+            });
             setStatus(prev => ({
               ...prev,
               tablesStatus: { ...prev.tablesStatus, [name]: 'error' },

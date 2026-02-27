@@ -3,17 +3,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  AlertTriangle,
-  FileText,
-  Layers,
-  ArrowLeft
-} from 'lucide-react';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { AlertTriangle, FileText, Layers, ArrowLeft } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { SimpleClassSelector } from '@/components/templates/secretary/SimpleClassSelector';
 import { useWizardStore } from '@/store/wizardStore';
-import { useTemplateStore } from '@/store/templateStore';
+import { useTemplates } from '@/hooks/useTemplates';
 import { ClassTemplate, ClassDefinition } from '@/types/template.types';
 
 interface ClassSelectionStepProps {
@@ -26,26 +27,20 @@ interface TrialClassState {
 }
 
 export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ className }) => {
-  const {
-    trials,
-    updateTrial,
-    show,
-    judgeDetails,
-    judgeAssignments,
-    assignJudgeToClass
-  } = useWizardStore(
-    useShallow(state => ({
-      trials: state.trials,
-      updateTrial: state.updateTrial,
-      show: state.show,
-      judgeDetails: state.judgeDetails,
-      judgeAssignments: state.judgeAssignments,
-      assignJudgeToClass: state.assignJudgeToClass,
-    }))
-  );
-  
-  const { templates } = useTemplateStore();
-  
+  const { trials, updateTrial, show, judgeDetails, judgeAssignments, assignJudgeToClass } =
+    useWizardStore(
+      useShallow(state => ({
+        trials: state.trials,
+        updateTrial: state.updateTrial,
+        show: state.show,
+        judgeDetails: state.judgeDetails,
+        judgeAssignments: state.judgeAssignments,
+        assignJudgeToClass: state.assignJudgeToClass,
+      }))
+    );
+
+  const { templates } = useTemplates();
+
   // Track user's selected trial ID (raw state)
   const [selectedTrialId, setSelectedTrialId] = useState<string>(() =>
     trials.length > 0 ? trials[0].id : ''
@@ -72,14 +67,16 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
           selectedTemplate = templates.find(t => t.id === templateId) || null;
           if (selectedTemplate) {
             selectedClasses = trial.classes.map(cls => {
-              const templateClass = selectedTemplate!.classDefinitions?.find(def =>
-                def.className === (cls.customizations?.className as string)
+              const templateClass = selectedTemplate!.classDefinitions?.find(
+                def => def.className === (cls.customizations?.className as string)
               );
-              return templateClass || {
-                className: (cls.customizations?.className as string) || 'Unknown Class',
-                element: (cls.customizations?.element as string) || 'Unknown Element',
-                displayOrder: 0
-              };
+              return (
+                templateClass || {
+                  className: (cls.customizations?.className as string) || 'Unknown Class',
+                  element: (cls.customizations?.element as string) || 'Unknown Element',
+                  displayOrder: 0,
+                }
+              );
             });
           }
         }
@@ -103,13 +100,22 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
 
     const filtered = templates.filter(template => {
       if (!template.isActive) return false;
-      const org = String(template.organization || '').toLowerCase().trim();
-      return org === normalizedShowType || normalizedShowType.includes(org) || org.includes(normalizedShowType);
+      const org = String(template.organization || '')
+        .toLowerCase()
+        .trim();
+      return (
+        org === normalizedShowType ||
+        normalizedShowType.includes(org) ||
+        org.includes(normalizedShowType)
+      );
     });
 
     // Deduplicate by template name
-    return filtered.filter((template, index, arr) =>
-      arr.findIndex(t => t.templateName?.toLowerCase() === template.templateName?.toLowerCase()) === index,
+    return filtered.filter(
+      (template, index, arr) =>
+        arr.findIndex(
+          t => t.templateName?.toLowerCase() === template.templateName?.toLowerCase()
+        ) === index
     );
   }, [templates, showType]);
 
@@ -127,7 +133,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
       if (autoSelectTemplate && !states[trial.id].selectedTemplate) {
         states[trial.id] = {
           ...states[trial.id],
-          selectedTemplate: autoSelectTemplate
+          selectedTemplate: autoSelectTemplate,
         };
       }
     });
@@ -139,9 +145,9 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
   const currentTrial = trials.find(t => t.id === currentTrialId);
   const currentTrialState = trialStates[currentTrialId] || {
     selectedTemplate: null,
-    selectedClasses: []
+    selectedClasses: [],
   };
-  
+
   // Get total classes across all trials
   const totalClasses = trials.reduce((sum, trial) => sum + trial.classes.length, 0);
 
@@ -151,7 +157,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
     judgeName: judgeDetails[judgeId]?.name || 'Unknown Judge',
     assignedDate: new Date().toISOString().split('T')[0], // Default to today's date
     email: judgeDetails[judgeId]?.email || '',
-    phone: judgeDetails[judgeId]?.phone || ''
+    phone: judgeDetails[judgeId]?.phone || '',
   }));
 
   // Derive validation errors (no setState needed)
@@ -176,7 +182,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
   const updateTrialState = (trialId: string, updates: Partial<TrialClassState>) => {
     setRawTrialStates(prev => ({
       ...prev,
-      [trialId]: { ...prev[trialId], ...updates }
+      [trialId]: { ...prev[trialId], ...updates },
     }));
   };
 
@@ -184,9 +190,9 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
   const handleTemplateSelected = (templateId: string) => {
     const template = activeTemplates.find(t => t.id === templateId);
     if (template) {
-      updateTrialState(currentTrialId, { 
+      updateTrialState(currentTrialId, {
         selectedTemplate: template,
-        selectedClasses: [] // Reset classes when template changes
+        selectedClasses: [], // Reset classes when template changes
       });
     }
   };
@@ -195,19 +201,22 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
   const handleClassSelectionChange = (selectedClasses: ClassDefinition[]) => {
     // Persist both selected classes AND the current template (which may have been auto-selected
     // in derived state only) to prevent template loss on re-render
-    updateTrialState(currentTrialId, { selectedClasses, selectedTemplate: currentTrialState.selectedTemplate });
-    
+    updateTrialState(currentTrialId, {
+      selectedClasses,
+      selectedTemplate: currentTrialState.selectedTemplate,
+    });
+
     // Update the trial with the selected classes
     if (currentTrial) {
-      const classItems = selectedClasses.map((cls) => ({
+      const classItems = selectedClasses.map(cls => ({
         templateId: currentTrialState.selectedTemplate?.id || '',
         customizations: {
           ...cls,
-          fieldOverrides: {}
+          fieldOverrides: {},
         },
-        judgeId: judgeAssignments[cls.className] // Include judge assignment
+        judgeId: judgeAssignments[cls.className], // Include judge assignment
       }));
-      
+
       updateTrial(currentTrial.id, { classes: classItems });
     }
   };
@@ -218,18 +227,18 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
     Object.entries(assignments).forEach(([classId, judgeId]) => {
       assignJudgeToClass(classId, judgeId);
     });
-    
+
     // Also update the trial classes with judge assignments
     if (currentTrial && currentTrialState.selectedClasses.length > 0) {
-      const classItems = currentTrialState.selectedClasses.map((cls) => ({
+      const classItems = currentTrialState.selectedClasses.map(cls => ({
         templateId: currentTrialState.selectedTemplate?.id || '',
         customizations: {
           ...cls,
-          fieldOverrides: {}
+          fieldOverrides: {},
         },
-        judgeId: assignments[cls.className] || judgeAssignments[cls.className]
+        judgeId: assignments[cls.className] || judgeAssignments[cls.className],
       }));
-      
+
       updateTrial(currentTrial.id, { classes: classItems });
     }
   };
@@ -240,7 +249,9 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
         <div className="max-w-5xl mx-auto space-y-6 px-4">
           {/* Classes Header */}
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold pl-3 border-l-2 border-primary text-primary">Classes ({totalClasses})</h3>
+            <h3 className="text-lg font-semibold pl-3 border-l-2 border-primary text-primary">
+              Classes ({totalClasses})
+            </h3>
           </div>
 
           {/* Template Selection Alert for No Templates */}
@@ -248,10 +259,9 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
             <Alert>
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
-                {show?.type 
+                {show?.type
                   ? `No active templates found for "${show.type}" organization. Please create a template for this organization or ensure your templates are activated.`
-                  : 'No active templates are available. Please create a template first or ensure your templates are activated.'
-                }
+                  : 'No active templates are available. Please create a template first or ensure your templates are activated.'}
               </AlertDescription>
             </Alert>
           )}
@@ -262,39 +272,32 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
                 <div className="mx-auto w-16 h-16 rounded-2xl bg-amber-500/10 flex items-center justify-center mb-5 shadow-sm">
                   <ArrowLeft className="h-8 w-8 text-amber-500" />
                 </div>
-                <h4 className="text-xl font-semibold text-foreground mb-2">
-                  No Trials Configured
-                </h4>
+                <h4 className="text-xl font-semibold text-foreground mb-2">No Trials Configured</h4>
                 <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-                  Please go back to the Trial Configuration step to add trials before configuring classes.
+                  Please go back to the Trial Configuration step to add trials before configuring
+                  classes.
                 </p>
               </div>
             </div>
           ) : (
             <Tabs value={currentTrialId} onValueChange={setSelectedTrialId}>
               {/* Trial Tabs */}
-              <div className="w-full overflow-x-auto">
-                <TabsList className="grid w-full min-w-max" style={{ gridTemplateColumns: `repeat(${trials.length}, minmax(180px, 1fr))` }}>
-                  {trials.map((trial) => {
-                    const isCompleted = trial.classes.length > 0;
-                    return (
-                      <TabsTrigger 
-                        key={trial.id} 
-                        value={trial.id}
-                        className="flex items-center gap-2 text-sm px-3 py-2"
-                      >
-                        <span className="truncate">{trial.name}</span>
-                        <Badge variant={isCompleted ? "default" : "outline"} className="text-xs">
-                          {isCompleted ? trial.classes.length : '0'}
-                        </Badge>
-                      </TabsTrigger>
-                    );
-                  })}
-                </TabsList>
-              </div>
+              <TabsList>
+                {trials.map(trial => {
+                  const isCompleted = trial.classes.length > 0;
+                  return (
+                    <TabsTrigger key={trial.id} value={trial.id}>
+                      <span className="truncate">{trial.name}</span>
+                      <Badge variant={isCompleted ? 'default' : 'outline'} className="text-xs">
+                        {isCompleted ? trial.classes.length : '0'}
+                      </Badge>
+                    </TabsTrigger>
+                  );
+                })}
+              </TabsList>
 
               {/* Trial Content */}
-              {trials.map((trial) => (
+              {trials.map(trial => (
                 <TabsContent key={trial.id} value={trial.id} className="space-y-6">
                   {/* Template Selection */}
                   {activeTemplates.length > 1 && (
@@ -308,7 +311,9 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
                       <CardContent>
                         <div className="space-y-4">
                           <div>
-                            <label className="block text-sm font-medium mb-2">Available Templates</label>
+                            <label className="block text-sm font-medium mb-2">
+                              Available Templates
+                            </label>
                             <Select
                               value={currentTrialState.selectedTemplate?.id || ''}
                               onValueChange={handleTemplateSelected}
@@ -316,20 +321,23 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
                               <SelectTrigger>
                                 <SelectValue placeholder="Select a template">
                                   {currentTrialState.selectedTemplate?.id
-                                    ? currentTrialState.selectedTemplate.templateName || 'Unnamed Template'
+                                    ? currentTrialState.selectedTemplate.templateName ||
+                                      'Unnamed Template'
                                     : undefined}
                                 </SelectValue>
                               </SelectTrigger>
                               <SelectContent>
-                                {activeTemplates.map((template) => {
-                                  const orgValue = typeof template.organization === 'object' 
-                                    ? String(Object.values(template.organization)[0] || 'Unknown')
-                                    : String(template.organization || 'Unknown');
-                                  const showTypeValue = typeof template.showType === 'object'
-                                    ? String(Object.values(template.showType)[0] || 'Unknown') 
-                                    : String(template.showType || 'Unknown');
+                                {activeTemplates.map(template => {
+                                  const orgValue =
+                                    typeof template.organization === 'object'
+                                      ? String(Object.values(template.organization)[0] || 'Unknown')
+                                      : String(template.organization || 'Unknown');
+                                  const showTypeValue =
+                                    typeof template.showType === 'object'
+                                      ? String(Object.values(template.showType)[0] || 'Unknown')
+                                      : String(template.showType || 'Unknown');
                                   const templateName = template.templateName || 'Unnamed Template';
-                                  
+
                                   return (
                                     <SelectItem key={template.id} value={template.id}>
                                       {templateName} ({orgValue} - {showTypeValue})
@@ -346,17 +354,20 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
                                 <div className="apple-template-title-section">
                                   <FileText className="apple-template-icon" />
                                   <h3 className="apple-template-title">
-                                    {currentTrialState.selectedTemplate.templateName || 'Unnamed Template'}
+                                    {currentTrialState.selectedTemplate.templateName ||
+                                      'Unnamed Template'}
                                   </h3>
                                 </div>
                               </div>
-                              
+
                               <div className="apple-template-content">
                                 <div className="apple-template-details">
                                   <div className="apple-template-detail-item">
                                     <span className="apple-template-label">Classes Available:</span>
                                     <span className="apple-template-value">
-                                      {currentTrialState.selectedTemplate.classDefinitions?.length || 0} classes
+                                      {currentTrialState.selectedTemplate.classDefinitions
+                                        ?.length || 0}{' '}
+                                      classes
                                     </span>
                                   </div>
                                 </div>
@@ -432,7 +443,8 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
                   <div className="space-y-1">
                     <h4 className="font-medium">Configuration Summary</h4>
                     <p className="text-sm text-muted-foreground">
-                      {totalClasses} total classes configured across {trials.filter(t => t.classes.length > 0).length} trials
+                      {totalClasses} total classes configured across{' '}
+                      {trials.filter(t => t.classes.length > 0).length} trials
                     </p>
                   </div>
                   <div className="text-right">

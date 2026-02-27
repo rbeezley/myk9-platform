@@ -15,7 +15,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useWizardStore } from '@/store/wizardStore';
 import { useShowStore } from '@/store/showStore';
-import { useClubStore } from '@/store/clubStore';
 import { useTrialStore } from '@/store/trialStore';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useUserStore } from '@/store/userStore';
@@ -26,10 +25,7 @@ import TrialConfigurationStep from '@/components/shows/wizard/steps/TrialConfigu
 import ClassSelectionStep from '@/components/shows/wizard/steps/ClassSelectionStep';
 import ReviewStep from '@/components/shows/wizard/steps/ReviewStep';
 import { PanelProvider, PanelStack } from '@/components/panels';
-import {
-  WIZARD_STEPS,
-  type EditMode,
-} from './ShowCreationWizard';
+import { WIZARD_STEPS, type EditMode } from './ShowCreationWizard';
 import { getValidationMessagesForStep } from './ShowCreationWizard/showCreationWizardValidation';
 import { useShowCreationWizardActions } from './ShowCreationWizard/useShowCreationWizardActions';
 
@@ -63,27 +59,21 @@ const ShowCreationWizardPage: React.FC = () => {
   } = useWizardStore();
 
   const { shows } = useShowStore();
-  const { loadClubs } = useClubStore();
   const { trials: existingTrials } = useTrialStore();
   const { classes: existingClasses } = useClassStoreCompat();
   const { people, loadPeople } = useUserStore();
 
   // Initialize wizard actions
-  const {
-    handleSaveDraft,
-    handleCreateShow,
-    handleCreateAndPublish,
-    handleSaveProgress,
-  } = useShowCreationWizardActions({
-    editMode,
-    setIsLoading,
-  });
+  const { handleSaveDraft, handleCreateShow, handleCreateAndPublish, handleSaveProgress } =
+    useShowCreationWizardActions({
+      editMode,
+      setIsLoading,
+    });
 
-  // Load required data when page mounts
+  // Load people data when page mounts (clubs handled by global store subscriptions)
   useEffect(() => {
-    loadClubs();
     loadPeople();
-  }, [loadClubs, loadPeople]);
+  }, [loadPeople]);
 
   // Keyboard navigation handler - Escape to prompt save draft
   useEffect(() => {
@@ -91,9 +81,7 @@ const ShowCreationWizardPage: React.FC = () => {
       if (e.key === 'Escape' && isDirty) {
         // Don't trigger if a popover, dropdown, or dialog overlay is open —
         // Escape should only close the innermost overlay (e.g., date picker)
-        const hasOpenOverlay = document.querySelector(
-          '[data-open], [data-state="open"]'
-        );
+        const hasOpenOverlay = document.querySelector('[data-open], [data-state="open"]');
         if (hasOpenOverlay) return;
 
         e.preventDefault();
@@ -135,8 +123,8 @@ const ShowCreationWizardPage: React.FC = () => {
           const wizardClasses = trialClasses.map(classData => {
             let judgeId = '';
             if (classData.judge && classData.judge !== 'TBD') {
-              const matchingJudge = existingShow.assignedJudges?.find(j =>
-                j.judgeName === classData.judge
+              const matchingJudge = existingShow.assignedJudges?.find(
+                j => j.judgeName === classData.judge
               );
               if (matchingJudge) {
                 judgeId = matchingJudge.judgeId;
@@ -150,9 +138,9 @@ const ShowCreationWizardPage: React.FC = () => {
                 element: classData.element,
                 level: classData.level,
                 section: classData.section,
-                fieldOverrides: {}
+                fieldOverrides: {},
               },
-              judgeId: judgeId
+              judgeId: judgeId,
             };
           });
 
@@ -161,18 +149,21 @@ const ShowCreationWizardPage: React.FC = () => {
             name: trial.type || trial.name || 'Trial',
             dateTime: trial.trialDate,
             eventNumber: trial.eventNumber || '',
-            classes: wizardClasses
+            classes: wizardClasses,
           };
         });
 
         // Build judge details from assigned judges and people store
-        const judgeDetailsMap: Record<string, {
-          name: string;
-          email: string;
-          phone: string;
-          certifications: string[];
-          notes: string;
-        }> = {};
+        const judgeDetailsMap: Record<
+          string,
+          {
+            name: string;
+            email: string;
+            phone: string;
+            certifications: string[];
+            notes: string;
+          }
+        > = {};
         existingShow.assignedJudges?.forEach(judge => {
           const personInfo = people.find(p => p.id === judge.judgeId);
 
@@ -181,7 +172,7 @@ const ShowCreationWizardPage: React.FC = () => {
             email: personInfo?.email || '',
             phone: personInfo?.phone || '',
             certifications: personInfo?.judgeQualifications?.map(q => q.organization) || [],
-            notes: ''
+            notes: '',
           };
         });
 
@@ -203,10 +194,9 @@ const ShowCreationWizardPage: React.FC = () => {
           },
           trials: wizardTrials,
           judgeDetails: judgeDetailsMap,
-          currentStep: editMode.mode === 'add-trials' ? 1 :
-                      editMode.mode === 'add-classes' ? 2 : 0,
-          completedSteps: editMode.mode === 'add-trials' ? [0] :
-                         editMode.mode === 'add-classes' ? [0, 1] : []
+          currentStep: editMode.mode === 'add-trials' ? 1 : editMode.mode === 'add-classes' ? 2 : 0,
+          completedSteps:
+            editMode.mode === 'add-trials' ? [0] : editMode.mode === 'add-classes' ? [0, 1] : [],
         });
       }
     }
@@ -277,7 +267,7 @@ const ShowCreationWizardPage: React.FC = () => {
 
   // Render current step content
   const renderStepContent = () => {
-    const stepProps = { className: "" };
+    const stepProps = { className: '' };
 
     switch (currentStep) {
       case 0:
@@ -310,13 +300,20 @@ const ShowCreationWizardPage: React.FC = () => {
   return (
     <PanelProvider
       onEntityCreated={(entity, context) => {
-        logger.debug('Entity created', 'wizard', { entityName: entity.name || entity.id, entityType: context.entityType });
+        logger.debug('Entity created', 'wizard', {
+          entityName: entity.name || entity.id,
+          entityType: context.entityType,
+        });
         if (context.selectionCallback) {
           context.selectionCallback(entity);
         }
       }}
       onPanelResult={(panelId, result) => {
-        logger.debug('Panel result', 'wizard', { panelId, action: result.action, success: result.success });
+        logger.debug('Panel result', 'wizard', {
+          panelId,
+          action: result.action,
+          success: result.success,
+        });
       }}
     >
       <div className="min-h-screen bg-background">
@@ -340,10 +337,14 @@ const ShowCreationWizardPage: React.FC = () => {
                 <span>/</span>
                 <span className="text-foreground font-medium">
                   {editMode
-                    ? `${editMode.mode === 'add-trials' ? 'Add Trials' :
-                         editMode.mode === 'add-classes' ? 'Add Classes' : 'Edit Show'}`
-                    : 'Wizard'
-                  }
+                    ? `${
+                        editMode.mode === 'add-trials'
+                          ? 'Add Trials'
+                          : editMode.mode === 'add-classes'
+                            ? 'Add Classes'
+                            : 'Edit Show'
+                      }`
+                    : 'Wizard'}
                 </span>
               </div>
             </div>
@@ -360,10 +361,14 @@ const ShowCreationWizardPage: React.FC = () => {
                   <div className="relative">
                     <h2 className="text-xl font-semibold mb-6 text-foreground group-hover:text-primary transition-colors duration-300">
                       {editMode
-                        ? `${editMode.mode === 'add-trials' ? 'Add Trials' :
-                             editMode.mode === 'add-classes' ? 'Add Classes' : 'Edit Show'}`
-                        : 'Create New Show'
-                      }
+                        ? `${
+                            editMode.mode === 'add-trials'
+                              ? 'Add Trials'
+                              : editMode.mode === 'add-classes'
+                                ? 'Add Classes'
+                                : 'Edit Show'
+                          }`
+                        : 'Create New Show'}
                     </h2>
                     <VerticalProgressIndicator
                       steps={WIZARD_STEPS}
@@ -391,7 +396,9 @@ const ShowCreationWizardPage: React.FC = () => {
                       <div className="flex items-center gap-3">
                         <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
                         <span className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                          {validationMessages.length} required field{validationMessages.length !== 1 ? 's' : ''} need{validationMessages.length === 1 ? 's' : ''} attention
+                          {validationMessages.length} required field
+                          {validationMessages.length !== 1 ? 's' : ''} need
+                          {validationMessages.length === 1 ? 's' : ''} attention
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
@@ -473,7 +480,10 @@ const ShowCreationWizardPage: React.FC = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Keep Editing</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmClose} className="bg-amber-500 hover:bg-amber-600">
+            <AlertDialogAction
+              onClick={handleConfirmClose}
+              className="bg-amber-500 hover:bg-amber-600"
+            >
               Leave Wizard
             </AlertDialogAction>
           </AlertDialogFooter>

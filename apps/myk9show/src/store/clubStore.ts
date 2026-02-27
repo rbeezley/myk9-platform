@@ -86,7 +86,10 @@ export interface ClubStoreState {
   removeClub: (clubId: string) => Promise<void>;
 
   // Subscription management
+  _unsubscribe: (() => void) | null;
   subscribeToChanges: () => () => void;
+  initializeSubscription: () => void;
+  cleanup: () => void;
 }
 
 export const useClubStore = create<ClubStoreState>()((set, get) => ({
@@ -95,6 +98,7 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
   isLoading: false,
   isSyncing: false,
   error: null,
+  _unsubscribe: null,
 
   /**
    * Load clubs from local IndexedDB cache
@@ -210,9 +214,29 @@ export const useClubStore = create<ClubStoreState>()((set, get) => ({
    * Returns unsubscribe function
    */
   subscribeToChanges: () => {
-    return replicatedClubsTable.subscribe((replicatedClubs) => {
+    return replicatedClubsTable.subscribe(replicatedClubs => {
       const clubs = replicatedClubs.map(replicatedToClub);
       set({ clubs });
     });
+  },
+
+  initializeSubscription: () => {
+    if (get()._unsubscribe) return;
+
+    const unsubscribe = replicatedClubsTable.subscribe(replicatedClubs => {
+      const clubs = replicatedClubs.map(replicatedToClub);
+      set({ clubs });
+    });
+
+    set({ _unsubscribe: unsubscribe });
+    get().loadClubs();
+  },
+
+  cleanup: () => {
+    const unsubscribe = get()._unsubscribe;
+    if (unsubscribe) {
+      unsubscribe();
+      set({ _unsubscribe: null });
+    }
   },
 }));

@@ -2,7 +2,11 @@ import React, { Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { optimizeQueryCache, setupQueryPerformanceMonitoring, prefetchCriticalData } from '@/utils/performanceOptimizations';
+import {
+  optimizeQueryCache,
+  setupQueryPerformanceMonitoring,
+  prefetchCriticalData,
+} from '@/utils/performanceOptimizations';
 
 // Home page loaded synchronously for LCP optimization
 import Home from './pages/Home';
@@ -99,7 +103,7 @@ const HomeRedirect = () => {
 // Error fallback component
 const ErrorFallback = ({
   error,
-  resetErrorBoundary
+  resetErrorBoundary,
 }: {
   error: Error | null;
   resetErrorBoundary: () => void;
@@ -138,7 +142,6 @@ const ErrorFallback = ({
 // Track initialization to prevent duplicate runs in StrictMode
 const initializationState = {
   errorHandler: false,
-  clubData: false,
 };
 
 // Loads users whenever the authenticated user changes (e.g. after login).
@@ -189,27 +192,8 @@ function App() {
     }
   }, []);
 
-  // Initialize club data from database - deferred and guarded
-  React.useEffect(() => {
-    if (initializationState.clubData) return;
-    initializationState.clubData = true;
-
-    const initializeClubData = async () => {
-      try {
-        const { useClubStore } = await import('./store/clubStore');
-        const { loadClubs } = useClubStore.getState();
-        await loadClubs();
-      } catch (error) {
-        logger.error('Failed to initialize club data:', 'app', {}, error as Error);
-      }
-    };
-
-    // Defer to avoid blocking render
-    const timeoutId = setTimeout(initializeClubData, 100);
-    return () => clearTimeout(timeoutId);
-  }, []);
-
   // Store rehydration is now handled by StoreProvider
+  // Club data initialization is handled by useStoreSubscriptions in ReplicationSyncProvider
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -223,71 +207,92 @@ function App() {
                   <PanelProvider>
                     <AlertInitializer>
                       <ExhibitorOnboardingChecker>
-                    <ErrorBoundary
-                      level="page"
-                      context="Application"
-                      fallback={({ error, resetErrorBoundary }) => (
-                        <ErrorFallback error={error} resetErrorBoundary={resetErrorBoundary} />
-                      )}
-                    >
-                      <div className="min-h-screen transition-colors duration-300 bg-background text-foreground">
-                        <AppHeader />
-                        <Routes>
-                          {/* Public routes */}
-                          <Route path="/" element={<PageTransition><HomeRedirect /></PageTransition>} />
-                          <Route path="/pricing-page" element={
-                            <PageTransition>
-                              <Suspense fallback={<PageLoadingFallback />}>
-                                <PricingPage />
-                              </Suspense>
-                            </PageTransition>
-                          } />
-                          <Route path="/sign-in" element={
-                            <PageTransition>
-                              <Suspense fallback={<PageLoadingFallback />}>
-                                <SignInPage />
-                              </Suspense>
-                            </PageTransition>
-                          } />
-                          <Route path="/sign-up" element={
-                            <PageTransition>
-                              <Suspense fallback={<PageLoadingFallback />}>
-                                <SignUpPage />
-                              </Suspense>
-                            </PageTransition>
-                          } />
-                          
-                          {/* Test page for SlideOverPanel components - Phase 2 */}
-                          <Route path="/test-panels" element={
-                            <PageTransition>
-                              <Suspense fallback={<PageLoadingFallback />}>
-                                <TestPanelPage />
-                              </Suspense>
-                            </PageTransition>
-                          } />
-                          
-                          {/* Organized route groups */}
-                          {AdminRoutes()}
-                          {JudgeRoutes()}
-                          {SecretaryRoutes()}
-                          {PublicRoutes()}
+                        <ErrorBoundary
+                          level="page"
+                          context="Application"
+                          fallback={({ error, resetErrorBoundary }) => (
+                            <ErrorFallback error={error} resetErrorBoundary={resetErrorBoundary} />
+                          )}
+                        >
+                          <div className="min-h-screen transition-colors duration-300 bg-background text-foreground">
+                            <AppHeader />
+                            <Routes>
+                              {/* Public routes */}
+                              <Route
+                                path="/"
+                                element={
+                                  <PageTransition>
+                                    <HomeRedirect />
+                                  </PageTransition>
+                                }
+                              />
+                              <Route
+                                path="/pricing-page"
+                                element={
+                                  <PageTransition>
+                                    <Suspense fallback={<PageLoadingFallback />}>
+                                      <PricingPage />
+                                    </Suspense>
+                                  </PageTransition>
+                                }
+                              />
+                              <Route
+                                path="/sign-in"
+                                element={
+                                  <PageTransition>
+                                    <Suspense fallback={<PageLoadingFallback />}>
+                                      <SignInPage />
+                                    </Suspense>
+                                  </PageTransition>
+                                }
+                              />
+                              <Route
+                                path="/sign-up"
+                                element={
+                                  <PageTransition>
+                                    <Suspense fallback={<PageLoadingFallback />}>
+                                      <SignUpPage />
+                                    </Suspense>
+                                  </PageTransition>
+                                }
+                              />
 
-                          {/* 404 catch-all */}
-                          <Route path="*" element={
-                            <PageTransition>
-                              <Suspense fallback={<PageLoadingFallback />}>
-                                <NotFoundPage />
-                              </Suspense>
-                            </PageTransition>
-                          } />
-                        </Routes>
-                      </div>
-                      
-                    </ErrorBoundary>
+                              {/* Test page for SlideOverPanel components - Phase 2 */}
+                              <Route
+                                path="/test-panels"
+                                element={
+                                  <PageTransition>
+                                    <Suspense fallback={<PageLoadingFallback />}>
+                                      <TestPanelPage />
+                                    </Suspense>
+                                  </PageTransition>
+                                }
+                              />
+
+                              {/* Organized route groups */}
+                              {AdminRoutes()}
+                              {JudgeRoutes()}
+                              {SecretaryRoutes()}
+                              {PublicRoutes()}
+
+                              {/* 404 catch-all */}
+                              <Route
+                                path="*"
+                                element={
+                                  <PageTransition>
+                                    <Suspense fallback={<PageLoadingFallback />}>
+                                      <NotFoundPage />
+                                    </Suspense>
+                                  </PageTransition>
+                                }
+                              />
+                            </Routes>
+                          </div>
+                        </ErrorBoundary>
                       </ExhibitorOnboardingChecker>
-                  </AlertInitializer>
-                </PanelProvider>
-              </FormErrorProvider>
+                    </AlertInitializer>
+                  </PanelProvider>
+                </FormErrorProvider>
               </AudioSettingsProvider>
             </AuthProvider>
           </StoreProvider>

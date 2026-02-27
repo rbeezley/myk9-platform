@@ -265,8 +265,11 @@ export function useShowCreationWizardActions({
       });
     } catch (error) {
       logger.error('Error saving show', 'wizard', {}, error as Error);
-      notifications.error('Failed to create show. Please try again.');
-      throw error;
+      notifications.error(
+        error instanceof Error
+          ? `Failed to create show: ${error.message}`
+          : 'Failed to create show. Please try again.'
+      );
     } finally {
       setIsLoading(false);
     }

@@ -290,6 +290,7 @@ const ShowCreationWizardPage: React.FC = () => {
         return (
           <ReviewStep
             {...stepProps}
+            isLoading={isLoading}
             onSaveDraft={handleSaveDraft}
             onCreateShow={handleCreateShow}
             onCreateAndPublish={handleCreateAndPublish}

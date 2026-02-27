@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
+import {
   Calendar,
   Trophy,
   CheckCircle,
@@ -14,7 +14,8 @@ import {
   Eye,
   AlertTriangle,
   ArrowLeft,
-  Users
+  Users,
+  Loader2
 } from 'lucide-react';
 import { useWizardStore } from '@/store/wizardStore';
 import { useClubStore } from '@/store/clubStore';
@@ -23,14 +24,16 @@ import { format } from 'date-fns';
 
 interface ReviewStepProps {
   className?: string;
+  isLoading?: boolean;
   onSaveDraft?: () => void;
   onCreateShow?: () => void;
   onCreateAndPublish?: () => void;
   onBack?: () => void;
 }
 
-export const ReviewStep: React.FC<ReviewStepProps> = ({ 
+export const ReviewStep: React.FC<ReviewStepProps> = ({
   className,
+  isLoading = false,
   onSaveDraft,
   onCreateShow,
   onCreateAndPublish,
@@ -429,19 +432,19 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                   
                   {/* Main Actions */}
                   <div className="flex flex-col sm:flex-row gap-3">
-                    <Button variant="outline" onClick={onSaveDraft} className="flex-1">
-                      <Save className="h-4 w-4 mr-2" />
+                    <Button variant="outline" onClick={onSaveDraft} disabled={isLoading} className="flex-1">
+                      {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                       Save as Draft
                     </Button>
-                    
-                    <Button variant="secondary" onClick={onCreateShow} className="flex-1">
-                      <FileText className="h-4 w-4 mr-2" />
+
+                    <Button variant="secondary" onClick={onCreateShow} disabled={isLoading} className="flex-1">
+                      {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
                       Create Show (Unpublished)
                     </Button>
-                    
-                    <Button onClick={onCreateAndPublish} className="flex-1">
-                      <Eye className="h-4 w-4 mr-2" />
-                      Create & Publish Show
+
+                    <Button onClick={onCreateAndPublish} disabled={isLoading} className="flex-1">
+                      {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Eye className="h-4 w-4 mr-2" />}
+                      {isLoading ? 'Creating...' : 'Create & Publish Show'}
                     </Button>
                   </div>
                 </div>

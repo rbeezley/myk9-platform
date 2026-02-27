@@ -17,12 +17,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Logger } from './dependencies';
 import { noopLogger } from './dependencies';
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
-import {
-  withTimeout,
-  backoffDelay,
-  isRetryableError,
-  TIMEOUT_PRESETS,
-} from './mutation-utils';
+import { withTimeout, backoffDelay, isRetryableError, TIMEOUT_PRESETS } from './mutation-utils';
 import type { PendingMutation, SyncResult } from './types';
 
 // ============================================
@@ -106,27 +101,23 @@ export class MutationManager {
     operation: PendingMutation['operation'],
     rowId: string,
     data: Record<string, unknown>,
-    dependsOn?: string[],
+    dependsOn?: string[]
   ): Promise<string> {
     // Queue overflow protection
     const pendingCount = await this.getPendingCount();
     if (pendingCount >= QUEUE_MAX_SIZE) {
-      this.logger.error(
-        `[MutationManager] Queue overflow: ${pendingCount} pending mutations`,
-      );
+      this.logger.error(`[MutationManager] Queue overflow: ${pendingCount} pending mutations`);
       if (typeof window !== 'undefined') {
         window.dispatchEvent(
           new CustomEvent('replication:queue-overflow', {
             detail: { count: pendingCount },
-          }),
+          })
         );
       }
       throw new Error(`Mutation queue overflow: ${pendingCount} pending`);
     }
     if (pendingCount >= QUEUE_WARNING_THRESHOLD) {
-      this.logger.warn(
-        `[MutationManager] Queue warning: ${pendingCount} pending mutations`,
-      );
+      this.logger.warn(`[MutationManager] Queue warning: ${pendingCount} pending mutations`);
     }
 
     const db = await databaseManager.getDatabase('MutationManager');
@@ -143,9 +134,7 @@ export class MutationManager {
       dependsOn,
     };
     await db.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation);
-    this.logger.log(
-      `[MutationManager] Queued ${operation} for ${tableName}/${rowId}`,
-    );
+    this.logger.log(`[MutationManager] Queued ${operation} for ${tableName}/${rowId}`);
     await this.backupMutationsToLocalStorage();
     return id;
   }
@@ -184,7 +173,7 @@ export class MutationManager {
       if (pending.length >= QUEUE_MAX_SIZE) {
         this.logger.error(
           `[MutationManager] Mutation queue at maximum capacity (${pending.length}/${QUEUE_MAX_SIZE}). ` +
-            `Please sync immediately to prevent data loss!`,
+            `Please sync immediately to prevent data loss!`
         );
 
         // Dispatch critical warning event
@@ -192,27 +181,23 @@ export class MutationManager {
           window.dispatchEvent(
             new CustomEvent('replication:queue-overflow', {
               detail: { queueSize: pending.length, maxSize: QUEUE_MAX_SIZE },
-            }),
+            })
           );
         }
       } else if (pending.length >= QUEUE_WARNING_THRESHOLD) {
         this.logger.warn(
-          `[MutationManager] Mutation queue is getting large (${pending.length}/${QUEUE_MAX_SIZE}). Consider syncing soon.`,
+          `[MutationManager] Mutation queue is getting large (${pending.length}/${QUEUE_MAX_SIZE}). Consider syncing soon.`
         );
       }
 
-      this.logger.log(
-        `[MutationManager] Uploading ${pending.length} pending mutations...`,
-      );
+      this.logger.log(`[MutationManager] Uploading ${pending.length} pending mutations...`);
 
       // Sort mutations to respect dependencies
-      const sortedMutations = this.topologicalSortMutations(
-        pending as PendingMutation[],
-      );
+      const sortedMutations = this.topologicalSortMutations(pending as PendingMutation[]);
 
       if (sortedMutations.length < pending.length) {
         this.logger.warn(
-          `[MutationManager] Circular dependency detected! ${pending.length - sortedMutations.length} mutations skipped`,
+          `[MutationManager] Circular dependency detected! ${pending.length - sortedMutations.length} mutations skipped`
         );
       }
 
@@ -238,12 +223,9 @@ export class MutationManager {
             duration: 0,
           });
 
-          this.logger.log(
-            `[MutationManager] Mutation ${mutation.id} uploaded successfully`,
-          );
+          this.logger.log(`[MutationManager] Mutation ${mutation.id} uploaded successfully`);
         } catch (error) {
-          const message =
-            error instanceof Error ? error.message : String(error);
+          const message = error instanceof Error ? error.message : String(error);
           const canRetry = isRetryableError(error);
 
           // Increment retry count
@@ -259,27 +241,25 @@ export class MutationManager {
 
             this.logger.error(
               `[MutationManager] Mutation ${mutation.id} failed permanently${canRetry ? ' (max retries)' : ' (non-retryable)'}:`,
-              error,
+              error
             );
+            // Remove permanently failed mutations from the queue
+            await db.delete(REPLICATION_STORES.PENDING_MUTATIONS, mutation.id);
           } else {
             mutation.status = 'pending';
             mutation.error = message;
 
             this.logger.warn(
               `[MutationManager] Mutation ${mutation.id} failed (retry ${mutation.retries}/${this.maxRetries}):`,
-              error,
+              error
             );
 
             // Apply exponential backoff delay before next attempt
-            await backoffDelay(
-              mutation.retries - 1,
-              this.retryBackoffBase,
-              this.logger,
-            );
-          }
+            await backoffDelay(mutation.retries - 1, this.retryBackoffBase, this.logger);
 
-          // Update mutation in queue
-          await db.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation);
+            // Update retryable mutation in queue
+            await db.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation);
+          }
 
           results.push({
             success: false,
@@ -295,19 +275,18 @@ export class MutationManager {
       // Notify user if any mutations permanently failed
       if (failedMutations.length > 0) {
         this.notifyUserOfSyncFailure(failedMutations);
+        // Update backup to reflect removed failed mutations
+        await this.backupMutationsToLocalStorage();
       }
 
       const duration = Date.now() - startTime;
       this.logger.log(
-        `[MutationManager] Uploaded ${results.filter((r) => r.success).length}/${pending.length} mutations in ${duration}ms`,
+        `[MutationManager] Uploaded ${results.filter(r => r.success).length}/${pending.length} mutations in ${duration}ms`
       );
 
       return results;
     } catch (error) {
-      this.logger.error(
-        '[MutationManager] Failed to upload mutations:',
-        error,
-      );
+      this.logger.error('[MutationManager] Failed to upload mutations:', error);
       return [];
     }
   }
@@ -327,13 +306,13 @@ export class MutationManager {
         const { data: rows, error } = await withTimeout(
           this.supabase.from(tableName).upsert(data).select('id'),
           TIMEOUT_PRESETS.standard,
-          `${tableName} upsert`,
+          `${tableName} upsert`
         );
         if (error) throw error;
         if (!rows || rows.length === 0) {
           throw new Error(
             `RLS policy blocked ${operation} on ${tableName} for row ${mutation.rowId}. ` +
-            `Check that the authenticated user has the required role (e.g., club_admin, platform_admin).`,
+              `Check that the authenticated user has the required role (e.g., club_admin, platform_admin).`
           );
         }
         break;
@@ -346,7 +325,7 @@ export class MutationManager {
             .delete()
             .eq('id', data.id as string),
           TIMEOUT_PRESETS.standard,
-          `${tableName} delete`,
+          `${tableName} delete`
         );
         if (error) throw error;
         break;
@@ -369,9 +348,7 @@ export class MutationManager {
    *
    * @returns Sorted mutations array
    */
-  private topologicalSortMutations(
-    mutations: PendingMutation[],
-  ): PendingMutation[] {
+  private topologicalSortMutations(mutations: PendingMutation[]): PendingMutation[] {
     // Build adjacency list (mutation ID -> dependents)
     const graph = new Map<string, string[]>();
     const inDegree = new Map<string, number>();
@@ -391,10 +368,7 @@ export class MutationManager {
           // Only add edge if dependency exists in current batch
           if (mutationMap.has(depId)) {
             graph.get(depId)!.push(mutation.id);
-            inDegree.set(
-              mutation.id,
-              (inDegree.get(mutation.id) || 0) + 1,
-            );
+            inDegree.set(mutation.id, (inDegree.get(mutation.id) || 0) + 1);
           }
         }
       }
@@ -431,22 +405,19 @@ export class MutationManager {
 
     // Fallback: If circular dependency detected, add remaining mutations by sequence/timestamp
     if (sorted.length < mutations.length) {
-      const sortedIds = new Set(sorted.map((m) => m.id));
-      const remaining = mutations.filter((m) => !sortedIds.has(m.id));
+      const sortedIds = new Set(sorted.map(m => m.id));
+      const remaining = mutations.filter(m => !sortedIds.has(m.id));
 
       // Sort remaining by sequenceNumber (if exists) or timestamp
       remaining.sort((a, b) => {
-        if (
-          a.sequenceNumber !== undefined &&
-          b.sequenceNumber !== undefined
-        ) {
+        if (a.sequenceNumber !== undefined && b.sequenceNumber !== undefined) {
           return a.sequenceNumber - b.sequenceNumber;
         }
         return a.timestamp - b.timestamp;
       });
 
       this.logger.warn(
-        `[MutationManager] Circular dependency detected, adding ${remaining.length} mutations in timestamp order`,
+        `[MutationManager] Circular dependency detected, adding ${remaining.length} mutations in timestamp order`
       );
 
       sorted.push(...remaining);
@@ -474,13 +445,11 @@ export class MutationManager {
     }
 
     // Debounce for 1 second
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       this.backupDebounceTimer = setTimeout(async () => {
         // Skip if backup already in progress
         if (this.isBackupInProgress) {
-          this.logger.log(
-            '[MutationManager] Backup already in progress, skipping duplicate call',
-          );
+          this.logger.log('[MutationManager] Backup already in progress, skipping duplicate call');
           resolve();
           return;
         }
@@ -488,26 +457,18 @@ export class MutationManager {
         this.isBackupInProgress = true;
         try {
           const db = await databaseManager.getDatabase('MutationManager');
-          const pending = await db.getAll(
-            REPLICATION_STORES.PENDING_MUTATIONS,
-          );
+          const pending = await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
 
           if (pending.length > 0) {
-            localStorage.setItem(
-              BACKUP_STORAGE_KEY,
-              JSON.stringify(pending),
-            );
+            localStorage.setItem(BACKUP_STORAGE_KEY, JSON.stringify(pending));
             this.logger.log(
-              `[MutationManager] Backed up ${pending.length} mutations to localStorage`,
+              `[MutationManager] Backed up ${pending.length} mutations to localStorage`
             );
           } else {
             localStorage.removeItem(BACKUP_STORAGE_KEY);
           }
         } catch (error) {
-          this.logger.warn(
-            '[MutationManager] Failed to backup mutations to localStorage:',
-            error,
-          );
+          this.logger.warn('[MutationManager] Failed to backup mutations to localStorage:', error);
         } finally {
           this.isBackupInProgress = false;
           resolve();
@@ -542,15 +503,14 @@ export class MutationManager {
 
       // Check if mutations already exist in IndexedDB
       const existing = await db.getAll(REPLICATION_STORES.PENDING_MUTATIONS);
-      const existingIds = new Set(
-        existing.map((m: PendingMutation) => m.id),
-      );
+      const existingIds = new Set(existing.map((m: PendingMutation) => m.id));
 
       let restoredCount = 0;
 
       for (const mutation of mutations) {
-        // Only restore if not already in IndexedDB
-        if (!existingIds.has(mutation.id)) {
+        // Only restore pending mutations that aren't already in IndexedDB
+        // Skip failed mutations to prevent infinite retry loops
+        if (!existingIds.has(mutation.id) && mutation.status !== 'failed') {
           await db.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation);
           restoredCount++;
         }
@@ -558,14 +518,11 @@ export class MutationManager {
 
       if (restoredCount > 0) {
         this.logger.log(
-          `[MutationManager] Restored ${restoredCount} mutations from localStorage backup`,
+          `[MutationManager] Restored ${restoredCount} mutations from localStorage backup`
         );
       }
     } catch (error) {
-      this.logger.error(
-        '[MutationManager] Failed to restore mutations from localStorage:',
-        error,
-      );
+      this.logger.error('[MutationManager] Failed to restore mutations from localStorage:', error);
     }
   }
 
@@ -591,7 +548,7 @@ export class MutationManager {
 
     this.logger.error(
       `[MutationManager] ${failedMutations.length} mutations failed permanently`,
-      failedMutations,
+      failedMutations
     );
   }
 
@@ -610,10 +567,7 @@ export class MutationManager {
       const db = await databaseManager.getDatabase('MutationManager');
 
       // Clear all pending mutations from IndexedDB
-      const tx = db.transaction(
-        REPLICATION_STORES.PENDING_MUTATIONS,
-        'readwrite',
-      );
+      const tx = db.transaction(REPLICATION_STORES.PENDING_MUTATIONS, 'readwrite');
       await tx.store.clear();
       await tx.done;
 
@@ -622,14 +576,9 @@ export class MutationManager {
         localStorage.removeItem(BACKUP_STORAGE_KEY);
       }
 
-      this.logger.log(
-        '[MutationManager] Cleared all pending mutations and localStorage backup',
-      );
+      this.logger.log('[MutationManager] Cleared all pending mutations and localStorage backup');
     } catch (error) {
-      this.logger.error(
-        '[MutationManager] Failed to clear mutations:',
-        error,
-      );
+      this.logger.error('[MutationManager] Failed to clear mutations:', error);
     }
   }
 

@@ -67,12 +67,10 @@ export function buildTrialIdMapping(
 
   if (editMode) {
     // In edit mode, existing trials keep their IDs, only new trials get mapped
-    const existingTrialIds = existingTrials
-      .filter(t => t.showId === showId)
-      .map(t => t.id);
+    const existingTrialIds = existingTrials.filter(t => t.showId === showId).map(t => t.id);
 
     let newTrialIndex = 0;
-    wizardTrials.forEach((wizardTrial) => {
+    wizardTrials.forEach(wizardTrial => {
       if (existingTrialIds.includes(wizardTrial.id)) {
         // Existing trial - use its existing ID
         trialIdMap[wizardTrial.id] = wizardTrial.id;
@@ -110,9 +108,7 @@ export function createClassDataFromWizard(
   // In edit mode, only create classes for NEW trials
   const trialsToProcess = editMode
     ? (() => {
-        const existingTrialIds = existingTrials
-          .filter(t => t.showId === showId)
-          .map(t => t.id);
+        const existingTrialIds = existingTrials.filter(t => t.showId === showId).map(t => t.id);
         return wizardTrials.filter(wizardTrial => !existingTrialIds.includes(wizardTrial.id));
       })()
     : wizardTrials;
@@ -122,12 +118,12 @@ export function createClassDataFromWizard(
 
     if (trialId && wizardTrial.classes.length > 0) {
       wizardTrial.classes.forEach((cls, index) => {
-        const className = cls.customizations?.className as string || `Class ${index + 1}`;
-        const element = cls.customizations?.element as string || 'Unknown';
-        const level = cls.customizations?.level as string || 'Unknown';
+        const className = (cls.customizations?.className as string) || `Class ${index + 1}`;
+        const element = (cls.customizations?.element as string) || 'Unknown';
+        const level = (cls.customizations?.level as string) || 'Unknown';
 
-        // Generate a unique class ID
-        const classId = `${trialId}-class-${Date.now()}-${index}`;
+        // Generate a proper UUID for the class
+        const classId = crypto.randomUUID();
 
         const classData: ClassData = {
           id: classId,
@@ -140,7 +136,7 @@ export function createClassDataFromWizard(
           judge: judgeDetails[cls.judgeId || '']?.name || 'TBD',
           element: element,
           level: level,
-          section: cls.customizations?.section as string || 'A',
+          section: (cls.customizations?.section as string) || 'A',
           hidesUsed: '0',
           distractionsUsed: '0',
           itemsUsed: '',
@@ -153,7 +149,7 @@ export function createClassDataFromWizard(
           preEntryFee: 30,
           dayOfShowFee: 35,
           maxEntries: 40,
-          templateId: cls.templateId
+          templateId: cls.templateId,
         };
 
         classes.push(classData);
@@ -189,7 +185,7 @@ export function showToShowInput(show: Show): ShowInput {
     secretary: show.secretary,
     chiefSteward: show.chiefSteward,
     assignedJudges: show.assignedJudges,
-    trials: show.trials
+    trials: show.trials,
   };
 }
 
@@ -205,11 +201,13 @@ export function transformWizardDataToShow(
   editMode?: EditMode
 ): Show {
   // Use existing ID in edit mode, or generate new ID for new shows
-  const showId = editMode ? editMode.showId : (() => {
-    const timestamp = Date.now();
-    const randomSuffix = Math.floor(Math.random() * 1000);
-    return `wizard-${timestamp}-${randomSuffix}`;
-  })();
+  const showId = editMode
+    ? editMode.showId
+    : (() => {
+        const timestamp = Date.now();
+        const randomSuffix = Math.floor(Math.random() * 1000);
+        return `wizard-${timestamp}-${randomSuffix}`;
+      })();
 
   // Look up club information
   const selectedClub = clubs.find(club => club.id === show.clubId);
@@ -251,13 +249,17 @@ export function transformWizardDataToShow(
     dayOfShowFee: show.dayOfShowFee.toString(),
     clubId: show.clubId,
     clubName: selectedClub?.name || 'Unknown Club',
-    clubAddress: selectedClub ? [
-      selectedClub.address.street,
-      selectedClub.address.city,
-      selectedClub.address.state,
-      selectedClub.address.zipCode,
-      selectedClub.address.country
-    ].filter(Boolean).join(', ') : '',
+    clubAddress: selectedClub
+      ? [
+          selectedClub.address.street,
+          selectedClub.address.city,
+          selectedClub.address.state,
+          selectedClub.address.zipCode,
+          selectedClub.address.country,
+        ]
+          .filter(Boolean)
+          .join(', ')
+      : '',
     clubEmail: selectedClub?.email || '',
     chairman: show.chairman,
     secretary: show.secretary,

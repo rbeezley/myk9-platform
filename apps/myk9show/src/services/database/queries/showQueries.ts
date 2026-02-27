@@ -1,18 +1,16 @@
 // Show-related database queries
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
-import type {
-  DbShowInsert,
-  DbShowUpdate,
-} from '../../../types/database-mappings';
+import type { DbShowInsert, DbShowUpdate } from '../../../types/database-mappings';
 
 // Get all shows with club and trial information (excluding soft-deleted)
 export const getAllShows = async () => {
   const startTime = Date.now();
-  
+
   try {
     const { data, error } = await supabase
       .from('shows')
-      .select(`
+      .select(
+        `
         *,
         club:clubs(
           id,
@@ -28,17 +26,18 @@ export const getAllShows = async () => {
           max_total_entries,
           max_entries_per_handler
         )
-      `)
+      `
+      )
       .is('deleted_at', null)
       .order('start_date', { ascending: true });
 
     const duration = Date.now() - startTime;
     logQuery('show', 'select_all_detailed', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'show', 'select_all');
     }
-    
+
     return { data: data || [], error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -51,11 +50,12 @@ export const getAllShows = async () => {
 // Get show by ID with complete details (excluding soft-deleted)
 export const getShowById = async (id: string) => {
   const startTime = Date.now();
-  
+
   try {
     const { data, error } = await supabase
       .from('shows')
-      .select(`
+      .select(
+        `
         *,
         club:clubs(
           id,
@@ -77,38 +77,35 @@ export const getShowById = async (id: string) => {
         ),
         judge_assignments(
           id,
-          judge_id,
-          assignment_type,
-          assigned_classes,
-          assigned_rings,
-          assignment_date,
-          assignment_status,
-          compensation_amount,
-          expenses_covered,
-          travel_provided,
-          special_requirements,
-          notes,
-          confirmed_by,
+          person_id,
+          show_id,
+          trial_id,
+          class_id,
+          status,
+          invited_at,
           confirmed_at,
-          judge:user(
+          fee,
+          notes,
+          judge:people(
             id,
             first_name,
             last_name,
             email
           )
         )
-      `)
+      `
+      )
       .eq('id', id)
       .is('deleted_at', null)
       .single();
 
     const duration = Date.now() - startTime;
     logQuery('show', 'select_by_id_complete', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'show', 'select_by_id');
     }
-    
+
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -122,11 +119,12 @@ export const getShowById = async (id: string) => {
 export const getUpcomingShows = async (limit = 10) => {
   const startTime = Date.now();
   const today = new Date().toISOString().split('T')[0];
-  
+
   try {
     const { data, error } = await supabase
       .from('shows')
-      .select(`
+      .select(
+        `
         *,
         club:clubs(
           id,
@@ -139,19 +137,20 @@ export const getUpcomingShows = async (limit = 10) => {
           trial_number,
           status
         )
-      `)
+      `
+      )
       .gte('start_date', today)
       .is('deleted_at', null)
       .order('start_date', { ascending: true })
       .limit(limit);
-    
+
     const duration = Date.now() - startTime;
     logQuery('show', 'select_upcoming', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'show', 'select_upcoming');
     }
-    
+
     return { data: data || [], error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -164,11 +163,12 @@ export const getUpcomingShows = async (limit = 10) => {
 // Get shows by date range (excluding soft-deleted)
 export const getShowsByDateRange = async (startDate: string, endDate: string) => {
   const startTime = Date.now();
-  
+
   try {
     const { data, error } = await supabase
       .from('shows')
-      .select(`
+      .select(
+        `
         *,
         club:clubs(
           id,
@@ -181,19 +181,20 @@ export const getShowsByDateRange = async (startDate: string, endDate: string) =>
           trial_number,
           status
         )
-      `)
+      `
+      )
       .gte('start_date', startDate)
       .lte('end_date', endDate)
       .is('deleted_at', null)
       .order('start_date', { ascending: true });
-    
+
     const duration = Date.now() - startTime;
     logQuery('show', 'select_by_date_range', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'show', 'select_by_date_range');
     }
-    
+
     return { data: data || [], error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -206,11 +207,12 @@ export const getShowsByDateRange = async (startDate: string, endDate: string) =>
 // Get shows by club (excluding soft-deleted)
 export const getShowsByClub = async (clubId: string) => {
   const startTime = Date.now();
-  
+
   try {
     const { data, error } = await supabase
       .from('shows')
-      .select(`
+      .select(
+        `
         *,
         club:clubs(
           id,
@@ -223,18 +225,19 @@ export const getShowsByClub = async (clubId: string) => {
           trial_number,
           status
         )
-      `)
+      `
+      )
       .eq('club_id', clubId)
       .is('deleted_at', null)
       .order('start_date', { ascending: false });
-    
+
     const duration = Date.now() - startTime;
     logQuery('show', 'select_by_club', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'show', 'select_by_club');
     }
-    
+
     return { data: data || [], error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -247,28 +250,30 @@ export const getShowsByClub = async (clubId: string) => {
 // Create new show
 export const createShow = async (showData: DbShowInsert) => {
   const startTime = Date.now();
-  
+
   try {
     const { data, error } = await supabase
       .from('shows')
       .insert([showData])
-      .select(`
+      .select(
+        `
         *,
         club:clubs(
           id,
           name,
           address
         )
-      `)
+      `
+      )
       .single();
-    
+
     const duration = Date.now() - startTime;
     logQuery('show', 'insert', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'show', 'insert');
     }
-    
+
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -281,7 +286,7 @@ export const createShow = async (showData: DbShowInsert) => {
 // Update show
 export const updateShow = async (id: string, updates: DbShowUpdate) => {
   const startTime = Date.now();
-  
+
   try {
     const { data, error } = await supabase
       .from('shows')
@@ -290,23 +295,25 @@ export const updateShow = async (id: string, updates: DbShowUpdate) => {
         updated_at: new Date().toISOString(),
       })
       .eq('id', id)
-      .select(`
+      .select(
+        `
         *,
         club:clubs(
           id,
           name,
           address
         )
-      `)
+      `
+      )
       .single();
-    
+
     const duration = Date.now() - startTime;
     logQuery('show', 'update', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'show', 'update');
     }
-    
+
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -357,21 +364,17 @@ export const deleteShow = async (id: string, deletedBy?: string) => {
 // Hard delete show (permanent removal)
 export const hardDeleteShow = async (id: string) => {
   const startTime = Date.now();
-  
+
   try {
-    const { data, error } = await supabase
-      .from('shows')
-      .delete()
-      .eq('id', id)
-      .select('id, name');
-    
+    const { data, error } = await supabase.from('shows').delete().eq('id', id).select('id, name');
+
     const duration = Date.now() - startTime;
     logQuery('show', 'hard_delete', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'show', 'hard_delete');
     }
-    
+
     const deletedShow = Array.isArray(data) ? data[0] : data;
     return { data: deletedShow || null, error: null };
   } catch (error) {
@@ -450,7 +453,7 @@ export const getDeletedShows = async () => {
 // Legacy hard delete show (kept for compatibility)
 export const legacyDeleteShow = async (id: string) => {
   const startTime = Date.now();
-  
+
   try {
     const { data, error } = await supabase
       .from('shows')
@@ -458,14 +461,14 @@ export const legacyDeleteShow = async (id: string) => {
       .eq('id', id)
       .select('id, name')
       .single();
-    
+
     const duration = Date.now() - startTime;
     logQuery('show', 'delete', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'show', 'delete');
     }
-    
+
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -478,7 +481,7 @@ export const legacyDeleteShow = async (id: string) => {
 // Search shows by name or location (excluding soft-deleted)
 export const searchShows = async (searchTerm: string) => {
   const startTime = Date.now();
-  
+
   try {
     const { data, error } = await supabase
       .from('shows')
@@ -486,14 +489,14 @@ export const searchShows = async (searchTerm: string) => {
       .or(`name.ilike.%${searchTerm}%,location.ilike.%${searchTerm}%`)
       .is('deleted_at', null)
       .order('start_date', { ascending: true });
-    
+
     const duration = Date.now() - startTime;
     logQuery('show', 'search', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'show', 'search');
     }
-    
+
     return { data: data || [], error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -506,23 +509,23 @@ export const searchShows = async (searchTerm: string) => {
 // Get show statistics (excluding soft-deleted)
 export const getShowStatistics = async () => {
   const startTime = Date.now();
-  
+
   try {
     const { error, count } = await supabase
       .from('shows')
       .select('id', { count: 'exact', head: true })
       .is('deleted_at', null);
-    
+
     const duration = Date.now() - startTime;
-    
+
     if (error) {
       throw createDatabaseError(error, 'show', 'statistics');
     }
-    
+
     const stats = {
       total: count || 0,
     };
-    
+
     logQuery('show', 'statistics', duration);
     return { data: stats, error: null };
   } catch (error) {
@@ -540,29 +543,32 @@ export const getShowsWithEntryCounts = async () => {
   try {
     const { data, error } = await supabase
       .from('shows')
-      .select(`
+      .select(
+        `
         *,
         club:clubs(
           id,
           name
         )
-      `)
+      `
+      )
       .is('deleted_at', null)
       .order('start_date', { ascending: true });
-    
+
     const duration = Date.now() - startTime;
     logQuery('show', 'select_with_entry_counts', duration, error?.message);
-    
+
     if (error) {
       throw createDatabaseError(error, 'show', 'select_with_entry_counts');
     }
-    
+
     // Add basic entry count as 0 for now
-    const dataWithCounts = data?.map(show => ({
-      ...show,
-      entry_count: 0,
-    })) || [];
-    
+    const dataWithCounts =
+      data?.map(show => ({
+        ...show,
+        entry_count: 0,
+      })) || [];
+
     return { data: dataWithCounts, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
@@ -610,12 +616,14 @@ export const getSecretaryShows = async (_userId: string) => {
     // In a full implementation, this would check secretary_assignments or show_staff table
     const { data, error } = await supabase
       .from('shows')
-      .select(`
+      .select(
+        `
         id,
         name,
         start_date,
         end_date
-      `)
+      `
+      )
       .is('deleted_at', null)
       .order('start_date', { ascending: false });
 

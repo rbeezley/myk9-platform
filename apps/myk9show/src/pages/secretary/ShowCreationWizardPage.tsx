@@ -301,22 +301,10 @@ const ShowCreationWizardPage: React.FC = () => {
     }
   };
 
-  // Reset wizard when component unmounts (not on every re-render).
-  // Use refs so the cleanup captures the latest values without
-  // adding them to the dependency array, which would cause the
-  // cleanup to fire prematurely on store updates.
-  const editModeRef = useRef(editMode);
-  const resetWizardRef = useRef(resetWizard);
-  editModeRef.current = editMode;
-  resetWizardRef.current = resetWizard;
-
-  useEffect(() => {
-    return () => {
-      if (!editModeRef.current) {
-        resetWizardRef.current();
-      }
-    };
-  }, []);
+  // Wizard state is reset explicitly on cancel (handleConfirmClose) or
+  // successful creation (saveShow). No unmount cleanup needed — the Zustand
+  // persist middleware preserves form data across navigations so users don't
+  // lose work if they briefly leave the page.
 
   return (
     <PanelProvider

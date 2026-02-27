@@ -167,7 +167,14 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
               <SelectTrigger
                 className={cn(errors.some(e => e.includes('club')) && 'border-destructive')}
               >
-                <SelectValue placeholder="Select hosting club" />
+                <SelectValue placeholder="Select hosting club">
+                  {data.clubId
+                    ? (() => {
+                        const club = clubs.find(c => c.id === data.clubId);
+                        return club ? `${club.name} (${club.clubNumber})` : undefined;
+                      })()
+                    : undefined}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {clubs.length > 0 ? (

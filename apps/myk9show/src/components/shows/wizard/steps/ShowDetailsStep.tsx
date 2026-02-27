@@ -87,6 +87,15 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
     });
   }, [people, show.judgeIds, judgeSearchTerm]);
 
+  // Look up a person's display name by ID.
+  // Used to pass explicit labels to SelectValue since Base UI can't resolve
+  // value→label when Portal-rendered items are unmounted.
+  const getPersonName = (id: string | undefined) => {
+    if (!id) return undefined;
+    const person = people.find(p => p.id === id);
+    return person ? `${person.firstName} ${person.lastName}` : undefined;
+  };
+
   // Resolve selected judge IDs to people records
   const selectedJudges = React.useMemo(() => {
     return show.judgeIds.map(id => {
@@ -250,7 +259,9 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                   onValueChange={(value) => updateShowData({ type: value as 'AKC' | 'UKC' | 'NASDA' | 'Other' })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select show type" />
+                    <SelectValue placeholder="Select show type">
+                      {show.type ? SHOW_TYPES.find(t => t.value === show.type)?.label : undefined}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {SHOW_TYPES.map((type) => (
@@ -388,7 +399,9 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                     onValueChange={(value) => updateShowData({ chairman: value })}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select chairman" />
+                      <SelectValue placeholder="Select chairman">
+                        {getPersonName(show.chairman)}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {filteredPeople.map((person) => (
@@ -418,7 +431,9 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                     onValueChange={(value) => updateShowData({ secretary: value })}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select secretary" />
+                      <SelectValue placeholder="Select secretary">
+                        {getPersonName(show.secretary)}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {filteredPeople.map((person) => (

@@ -309,12 +309,16 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
                         <div className="space-y-4">
                           <div>
                             <label className="block text-sm font-medium mb-2">Available Templates</label>
-                            <Select 
-                              value={currentTrialState.selectedTemplate?.id || ''} 
+                            <Select
+                              value={currentTrialState.selectedTemplate?.id || ''}
                               onValueChange={handleTemplateSelected}
                             >
                               <SelectTrigger>
-                                <SelectValue placeholder="Select a template" />
+                                <SelectValue placeholder="Select a template">
+                                  {currentTrialState.selectedTemplate?.id
+                                    ? currentTrialState.selectedTemplate.templateName || 'Unnamed Template'
+                                    : undefined}
+                                </SelectValue>
                               </SelectTrigger>
                               <SelectContent>
                                 {activeTemplates.map((template) => {

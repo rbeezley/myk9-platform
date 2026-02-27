@@ -246,7 +246,14 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({ open, onOpenChange, for
                 <label className="form-label required">Hosting Club</label>
                 <Select value={formData.clubId || ''} onValueChange={(value) => handleInputChange('clubId', value)}>
                   <SelectTrigger className="form-select h-10">
-                    <SelectValue placeholder="Select hosting club" />
+                    <SelectValue placeholder="Select hosting club">
+                      {formData.clubId
+                        ? (() => {
+                            const club = clubs.find(c => c.id === formData.clubId);
+                            return club ? `${club.name} (${club.clubNumber})` : undefined;
+                          })()
+                        : undefined}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {clubs.length > 0 ? (
@@ -272,7 +279,9 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({ open, onOpenChange, for
                 <label className="form-label">Chairman</label>
                 <Select value={formData.chairman || ''} onValueChange={(value) => handleInputChange('chairman', value)}>
                   <SelectTrigger className="form-select h-10">
-                    <SelectValue placeholder="Select chairman" />
+                    <SelectValue placeholder="Select chairman">
+                      {formData.chairman ? allPeople.find(p => p.id === formData.chairman)?.name : undefined}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {allPeople.length > 0 ? (
@@ -293,7 +302,9 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({ open, onOpenChange, for
                 <label className="form-label">Secretary</label>
                 <Select value={formData.secretary || ''} onValueChange={(value) => handleInputChange('secretary', value)}>
                   <SelectTrigger className="form-select h-10">
-                    <SelectValue placeholder="Select secretary" />
+                    <SelectValue placeholder="Select secretary">
+                      {formData.secretary ? allPeople.find(p => p.id === formData.secretary)?.name : undefined}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {allPeople.length > 0 ? (
@@ -314,7 +325,9 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({ open, onOpenChange, for
                 <label className="form-label">Chief Steward</label>
                 <Select value={formData.chiefSteward || ''} onValueChange={(value) => handleInputChange('chiefSteward', value)}>
                   <SelectTrigger className="form-select h-10">
-                    <SelectValue placeholder="Select chief steward" />
+                    <SelectValue placeholder="Select chief steward">
+                      {formData.chiefSteward ? allPeople.find(p => p.id === formData.chiefSteward)?.name : undefined}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {allPeople.length > 0 ? (

@@ -17,7 +17,7 @@ import { extractPersonName, buildFormData } from './userDetailsTypes';
 import HeroProfileCard from './HeroProfileCard';
 import ContactInformationCard from './ContactInformationCard';
 import AccountSummaryCard from './AccountSummaryCard';
-import SystemInformationCard from './SystemInformationCard';
+
 import JudgeQualificationsCard from './JudgeQualificationsCard';
 import UserDetailsDialogs from './UserDetailsDialogs';
 import '@/styles/apple-user-details.css';
@@ -249,11 +249,6 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
 
       {/* Account Summary Card */}
       <AccountSummaryCard person={person} dogCount={dogCount} />
-
-      {/* System Information Card - Admin only */}
-      {(hasPermission('admin:manage') || hasPermission('user:manage')) && (
-        <SystemInformationCard person={person} dogCount={dogCount} />
-      )}
 
       {/* Judge Qualifications Card */}
       {(person.roles?.includes('judge') ||

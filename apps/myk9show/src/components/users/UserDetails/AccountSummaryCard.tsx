@@ -31,7 +31,7 @@ const AccountSummaryCard: React.FC<AccountSummaryCardProps> = ({ person, dogCoun
           </h3>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div
             className="flex flex-col items-center text-center p-4 bg-gradient-to-br
                          from-muted/30 to-muted/10 rounded-xl apple-subtle-card-border
@@ -74,10 +74,39 @@ const AccountSummaryCard: React.FC<AccountSummaryCardProps> = ({ person, dogCoun
                          hover:scale-105 transition-all duration-300"
           >
             <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-2">
+              Account Status
+            </span>
+            <Badge
+              className="bg-gradient-to-r from-green-500/20 to-green-500/10
+                            text-green-700 dark:text-green-300 border border-green-500/30 font-medium"
+            >
+              Active
+            </Badge>
+          </div>
+
+          <div
+            className="flex flex-col items-center text-center p-4 bg-gradient-to-br
+                         from-muted/30 to-muted/10 rounded-xl apple-subtle-card-border
+                         hover:scale-105 transition-all duration-300"
+          >
+            <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-2">
               Dogs Registered
             </span>
             <span className="text-lg font-semibold text-foreground">{dogCount} dogs</span>
           </div>
+        </div>
+
+        {/* User ID */}
+        <div
+          className="flex items-center justify-between py-3 px-4 bg-gradient-to-br
+                       from-muted/20 to-muted/10 rounded-xl apple-subtle-card-border"
+        >
+          <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
+            User ID
+          </span>
+          <span className="text-sm font-mono bg-muted/50 px-2 py-1 rounded-md text-foreground">
+            {person.id}
+          </span>
         </div>
       </div>
     </Card>

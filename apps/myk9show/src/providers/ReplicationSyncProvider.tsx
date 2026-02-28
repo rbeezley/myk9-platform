@@ -12,6 +12,7 @@
  */
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useStoreSubscriptions } from '@/hooks/useStoreSubscriptions';
 import { logger } from '@/services/LoggingService';
@@ -89,6 +90,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
   syncOnReconnect = true,
 }) => {
   const { isOnline } = useNetworkStatus();
+  const queryClient = useQueryClient();
   const wasOffline = useRef(false);
   const hasInitialSynced = useRef(false);
 
@@ -126,6 +128,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
             tableName,
             rowsAffected: result.rowsAffected,
           });
+          queryClient.invalidateQueries({ queryKey: [tableName] });
           setStatus(prev => ({
             ...prev,
             tablesStatus: { ...prev.tablesStatus, [tableName]: 'success' },
@@ -145,7 +148,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         }));
       }
     },
-    [licenseKey]
+    [licenseKey, queryClient]
   );
 
   /**
@@ -226,6 +229,14 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         lastSyncAt: new Date(),
       }));
 
+      // Invalidate React Query caches so components refetch fresh data
+      queryClient.invalidateQueries({ queryKey: ['shows'] });
+      queryClient.invalidateQueries({ queryKey: ['trials'] });
+      queryClient.invalidateQueries({ queryKey: ['classes'] });
+      queryClient.invalidateQueries({ queryKey: ['entries'] });
+      queryClient.invalidateQueries({ queryKey: ['dogs'] });
+      queryClient.invalidateQueries({ queryKey: ['clubs'] });
+
       logger.info('Full sync complete', 'replication');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Sync failed';
@@ -236,7 +247,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         error: errorMessage,
       }));
     }
-  }, [isOnline, status.isSyncing, licenseKey]);
+  }, [isOnline, status.isSyncing, licenseKey, queryClient]);
 
   // Initial sync on startup
   useEffect(() => {

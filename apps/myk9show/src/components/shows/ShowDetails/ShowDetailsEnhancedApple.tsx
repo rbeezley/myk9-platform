@@ -520,22 +520,21 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
       },
     ];
 
-    // Add role-specific tabs
-    if (primaryRole === UserRole.EXHIBITOR) {
-      tabs.push({
-        id: 'registration',
-        label: 'Registration',
-        description: 'Entry information and registration status',
-        content: (
-          <ExhibitorView
-            showData={showData}
-            registrationState={registrationState}
-            onRegisterForShow={onRegisterForShow}
-          />
-        ),
-      });
-    }
+    // Registration tab — everyone can enter a show
+    tabs.push({
+      id: 'registration',
+      label: 'Registration',
+      description: 'Entry information and registration status',
+      content: (
+        <ExhibitorView
+          showData={showData}
+          registrationState={registrationState}
+          onRegisterForShow={onRegisterForShow}
+        />
+      ),
+    });
 
+    // Management tab — admin/secretary/club admin only
     if (
       primaryRole === UserRole.SECRETARY ||
       primaryRole === UserRole.CLUB_ADMIN ||
@@ -752,10 +751,9 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
           </div>
         </div>
 
-        {/* Primary Action Button - Role-based */}
+        {/* Primary Action Buttons */}
         <div className="flex items-center gap-3">
-          {primaryRole === UserRole.EXHIBITOR &&
-            onRegisterForShow &&
+          {onRegisterForShow &&
             (registrationState.canRegister ? (
               <Button
                 onClick={onRegisterForShow}

@@ -2,7 +2,8 @@
 
 /* Typography - San Francisco inspired */
 .apple-show-page {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
   letter-spacing: -0.01em;
   background: var(--background);
   min-height: 100vh;
@@ -57,43 +58,44 @@
 
 .apple-show-status-draft {
   background: rgba(162, 162, 167, 0.1);
-  color: #8E8E93;
+  color: #8e8e93;
   border: 1px solid rgba(162, 162, 167, 0.2);
 }
 
 .apple-show-status-unpublished {
   background: rgba(255, 204, 0, 0.1);
-  color: #FFCC00;
+  color: #ffcc00;
   border: 1px solid rgba(255, 204, 0, 0.2);
 }
 
 .apple-show-status-published {
   background: rgba(52, 199, 89, 0.1);
-  color: #34C759;
+  color: #34c759;
   border: 1px solid rgba(52, 199, 89, 0.2);
 }
 
 .apple-show-status-cancelled {
   background: rgba(255, 69, 58, 0.1);
-  color: #FF453A;
+  color: #ff453a;
   border: 1px solid rgba(255, 69, 58, 0.2);
 }
 
 .apple-show-status-upcoming {
   background: rgba(52, 199, 89, 0.1);
-  color: #34C759;
+  color: #34c759;
   border: 1px solid rgba(52, 199, 89, 0.2);
 }
 
 .apple-show-status-in-progress {
   background: rgba(255, 149, 0, 0.1);
-  color: #FF9500;
+  color: #ff9500;
   border: 1px solid rgba(255, 149, 0, 0.2);
   animation: status-pulse 2s ease-in-out infinite;
 }
 
 @keyframes status-pulse {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 0 0 rgba(255, 149, 0, 0.3);
   }
   50% {
@@ -103,7 +105,7 @@
 
 .apple-show-status-completed {
   background: rgba(88, 86, 214, 0.1);
-  color: #5856D6;
+  color: #5856d6;
   border: 1px solid rgba(88, 86, 214, 0.2);
 }
 
@@ -148,36 +150,36 @@
   justify-content: center;
   font-size: 20px;
   color: white;
-  background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
+  background: linear-gradient(135deg, #007aff 0%, #5856d6 100%);
   flex-shrink: 0;
 }
 
 .apple-show-stat-icon.trials {
-  background: linear-gradient(135deg, #007AFF 0%, #00C7BE 100%);
+  background: linear-gradient(135deg, #007aff 0%, #00c7be 100%);
 }
 
 .apple-show-stat-icon.classes {
-  background: linear-gradient(135deg, #5856D6 0%, #AF52DE 100%);
+  background: linear-gradient(135deg, #5856d6 0%, #af52de 100%);
 }
 
 .apple-show-stat-icon.entries {
-  background: linear-gradient(135deg, #34C759 0%, #30D158 100%);
+  background: linear-gradient(135deg, #34c759 0%, #30d158 100%);
 }
 
 .apple-show-stat-icon.judges {
-  background: linear-gradient(135deg, #FF9500 0%, #FF6200 100%);
+  background: linear-gradient(135deg, #ff9500 0%, #ff6200 100%);
 }
 
 .apple-show-stat-icon.qualified {
-  background: linear-gradient(135deg, #FF3B30 0%, #FF375F 100%);
+  background: linear-gradient(135deg, #ff3b30 0%, #ff375f 100%);
 }
 
 .apple-show-stat-icon.judging {
-  background: linear-gradient(135deg, #FF9500 0%, #FF6200 100%);
+  background: linear-gradient(135deg, #ff9500 0%, #ff6200 100%);
 }
 
 .apple-show-stat-icon.awards {
-  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+  background: linear-gradient(135deg, #ffd700 0%, #ffa500 100%);
 }
 
 .apple-show-stat-header {
@@ -193,7 +195,7 @@
   padding: 4px 8px;
   border-radius: 8px;
   background: rgba(52, 199, 89, 0.1);
-  color: #34C759;
+  color: #34c759;
 }
 
 .apple-show-stat-subtitle {
@@ -220,7 +222,7 @@
 .apple-show-stat-number {
   font-size: 32px;
   font-weight: 700;
-  line-height: 1.0;
+  line-height: 1;
   color: var(--foreground);
   margin-bottom: 12px;
 }
@@ -245,29 +247,29 @@
 
 .apple-show-stat-progress-bar {
   height: 100%;
-  background: linear-gradient(90deg, #007AFF 0%, #5856D6 100%);
+  background: linear-gradient(90deg, #007aff 0%, #5856d6 100%);
   border-radius: 2px;
   transition: width 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 .apple-show-stat-progress-bar.trials {
-  background: linear-gradient(90deg, #007AFF 0%, #00C7BE 100%);
+  background: linear-gradient(90deg, #007aff 0%, #00c7be 100%);
 }
 
 .apple-show-stat-progress-bar.classes {
-  background: linear-gradient(90deg, #5856D6 0%, #AF52DE 100%);
+  background: linear-gradient(90deg, #5856d6 0%, #af52de 100%);
 }
 
 .apple-show-stat-progress-bar.entries {
-  background: linear-gradient(90deg, #34C759 0%, #30D158 100%);
+  background: linear-gradient(90deg, #34c759 0%, #30d158 100%);
 }
 
 .apple-show-stat-progress-bar.judges {
-  background: linear-gradient(90deg, #FF9500 0%, #FF6200 100%);
+  background: linear-gradient(90deg, #ff9500 0%, #ff6200 100%);
 }
 
 .apple-show-stat-progress-bar.qualified {
-  background: linear-gradient(90deg, #FF3B30 0%, #FF375F 100%);
+  background: linear-gradient(90deg, #ff3b30 0%, #ff375f 100%);
 }
 
 /* Show Information Card */
@@ -289,7 +291,9 @@
   border-radius: 20px;
   padding: 0.5px;
   background: linear-gradient(135deg, transparent, rgba(0, 122, 255, 0.1), transparent);
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
   mask-composite: exclude;
   opacity: 0.3;
   pointer-events: none;
@@ -372,7 +376,7 @@
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
+  background: linear-gradient(135deg, #007aff 0%, #5856d6 100%);
   color: white;
   display: flex;
   align-items: center;
@@ -434,17 +438,17 @@
 
 .apple-trial-status-upcoming {
   background: rgba(52, 199, 89, 0.1);
-  color: #34C759;
+  color: #34c759;
 }
 
 .apple-trial-status-in-progress {
   background: rgba(255, 149, 0, 0.1);
-  color: #FF9500;
+  color: #ff9500;
 }
 
 .apple-trial-status-completed {
   background: rgba(88, 86, 214, 0.1);
-  color: #5856D6;
+  color: #5856d6;
 }
 
 .apple-trial-actions {
@@ -479,26 +483,26 @@
 }
 
 .apple-action-button-primary {
-  background: #007AFF;
+  background: #007aff;
   color: white;
-  border-color: #007AFF;
+  border-color: #007aff;
 }
 
 .apple-action-button-primary:hover {
-  background: #0056CC;
-  border-color: #0056CC;
+  background: #0056cc;
+  border-color: #0056cc;
   box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
 }
 
 .apple-action-button-danger {
   background: transparent;
-  color: #FF3B30;
+  color: #ff3b30;
   border-color: rgba(255, 59, 48, 0.3);
 }
 
 .apple-action-button-danger:hover {
   background: rgba(255, 59, 48, 0.1);
-  border-color: #FF3B30;
+  border-color: #ff3b30;
 }
 
 /* Dropdown Menu Styling */
@@ -627,7 +631,7 @@
 
 .apple-sidebar-search-input:focus {
   outline: none;
-  border-color: #007AFF;
+  border-color: #007aff;
   box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
 }
 
@@ -763,7 +767,7 @@
 .apple-show-sidebar-item.selected {
   background: rgba(0, 122, 255, 0.1);
   border-color: rgba(0, 122, 255, 0.3);
-  color: #007AFF;
+  color: #007aff;
 }
 
 .apple-show-sidebar-name {
@@ -818,27 +822,27 @@
   .apple-show-container {
     @apply px-4 py-6;
   }
-  
+
   .apple-show-title {
     font-size: 28px;
   }
-  
+
   .apple-show-subtitle {
     font-size: 17px;
   }
-  
+
   .apple-show-stats-grid {
     @apply grid-cols-1 gap-4;
   }
-  
+
   .apple-show-info-grid {
     @apply grid-cols-1 gap-4;
   }
-  
+
   .apple-trials-grid {
     @apply grid-cols-1;
   }
-  
+
   .apple-show-stat-card:hover,
   .apple-trial-card:hover {
     transform: none;
@@ -852,7 +856,7 @@
 
 /* Focus styles for accessibility */
 .apple-action-button:focus {
-  outline: 2px solid #007AFF;
+  outline: 2px solid #007aff;
   outline-offset: 2px;
 }
 
@@ -902,7 +906,7 @@
 }
 
 .apple-breadcrumb-link:focus {
-  outline: 2px solid #007AFF;
+  outline: 2px solid #007aff;
   outline-offset: 2px;
 }
 
@@ -968,7 +972,9 @@
   border-radius: 20px;
   padding: 0.5px;
   background: linear-gradient(135deg, transparent, rgba(0, 122, 255, 0.1), transparent);
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
   mask-composite: exclude;
   opacity: 0.4;
   pointer-events: none;
@@ -1150,7 +1156,9 @@
   border-radius: 20px;
   padding: 0.5px;
   background: linear-gradient(135deg, transparent, rgba(0, 122, 255, 0.15), transparent);
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
   mask-composite: exclude;
   opacity: 0.6;
   pointer-events: none;
@@ -1241,15 +1249,11 @@
 }
 
 .apple-browse-favorite-btn.favorited {
-  color: #FFD700;
+  color: #ffd700;
 }
 
 .apple-browse-view-details-btn {
-  background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
-  color: white;
-  border: none;
   border-radius: 12px;
-  padding: 10px 16px;
   font-size: 14px;
   font-weight: 590;
   cursor: pointer;
@@ -1261,9 +1265,7 @@
 }
 
 .apple-browse-view-details-btn:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 28px rgba(0, 122, 255, 0.5);
-  background: linear-gradient(135deg, #0056CC 0%, #4A4A9E 100%);
+  transform: translateY(-2px);
 }
 
 .apple-browse-view-details-btn svg {
@@ -1271,11 +1273,12 @@
 }
 
 .apple-browse-view-details-btn:hover svg {
-  transform: translateX(4px);
+  transform: translateX(2px);
 }
 
 .akc-placement-badge {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif !important;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif !important;
   font-weight: 700 !important;
   font-size: 14px !important;
   letter-spacing: -0.01em !important;
@@ -1294,32 +1297,32 @@
 
 /* Specific AKC Ribbon Colors */
 .akc-placement-1st {
-  background: linear-gradient(135deg, #007AFF 0%, #0051D5 100%) !important;
+  background: linear-gradient(135deg, #007aff 0%, #0051d5 100%) !important;
   color: white !important;
   box-shadow: 0 4px 12px rgba(0, 122, 255, 0.4) !important;
 }
 
 .akc-placement-2nd {
-  background: linear-gradient(135deg, #FF3B30 0%, #D70015 100%) !important;
+  background: linear-gradient(135deg, #ff3b30 0%, #d70015 100%) !important;
   color: white !important;
   box-shadow: 0 4px 12px rgba(255, 59, 48, 0.4) !important;
 }
 
 .akc-placement-3rd {
-  background: linear-gradient(135deg, #FFCC00 0%, #E6B800 100%) !important;
+  background: linear-gradient(135deg, #ffcc00 0%, #e6b800 100%) !important;
   color: #1a1a1a !important;
   box-shadow: 0 4px 12px rgba(255, 204, 0, 0.4) !important;
 }
 
 .akc-placement-4th {
-  background: linear-gradient(135deg, #FFFFFF 0%, #F5F5F5 100%) !important;
+  background: linear-gradient(135deg, #ffffff 0%, #f5f5f5 100%) !important;
   color: #1a1a1a !important;
-  border: 2px solid #D1D5DB !important;
+  border: 2px solid #d1d5db !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
 }
 
 .akc-placement-other {
-  background: linear-gradient(135deg, #34C759 0%, #28A745 100%) !important;
+  background: linear-gradient(135deg, #34c759 0%, #28a745 100%) !important;
   color: white !important;
   box-shadow: 0 4px 12px rgba(52, 199, 89, 0.4) !important;
 }
@@ -1376,7 +1379,9 @@
   border-radius: 16px;
   padding: 2px;
   background: linear-gradient(135deg, transparent, rgba(0, 122, 255, 0.1), transparent);
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
   mask-composite: exclude;
   opacity: 0.3;
   pointer-events: none;
@@ -1448,7 +1453,7 @@
 }
 
 .apple-entry-completed-badge {
-  background: #34C759;
+  background: #34c759;
   color: white;
   border-radius: 50%;
   width: 20px;
@@ -1463,7 +1468,7 @@
 }
 
 .apple-entry-placement-badge {
-  background: linear-gradient(135deg, #007AFF 0%, #0051D5 100%);
+  background: linear-gradient(135deg, #007aff 0%, #0051d5 100%);
   color: white;
   border-radius: 12px;
   padding: 4px 8px;
@@ -1478,25 +1483,25 @@
 
 /* Special styling for podium placements */
 .apple-entry-placement-badge.first-place {
-  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+  background: linear-gradient(135deg, #ffd700 0%, #ffa500 100%);
   color: #1a1a1a;
   box-shadow: 0 2px 8px rgba(255, 215, 0, 0.4);
 }
 
 .apple-entry-placement-badge.second-place {
-  background: linear-gradient(135deg, #C0C0C0 0%, #A8A8A8 100%);
+  background: linear-gradient(135deg, #c0c0c0 0%, #a8a8a8 100%);
   color: #1a1a1a;
   box-shadow: 0 2px 8px rgba(192, 192, 192, 0.4);
 }
 
 .apple-entry-placement-badge.third-place {
-  background: linear-gradient(135deg, #CD7F32 0%, #B8860B 100%);
+  background: linear-gradient(135deg, #cd7f32 0%, #b8860b 100%);
   color: white;
   box-shadow: 0 2px 8px rgba(205, 127, 50, 0.4);
 }
 
 .apple-entry-placement-badge.other-place {
-  background: linear-gradient(135deg, #007AFF 0%, #0051D5 100%);
+  background: linear-gradient(135deg, #007aff 0%, #0051d5 100%);
   color: white;
   box-shadow: 0 2px 8px rgba(0, 122, 255, 0.4);
 }
@@ -1515,22 +1520,22 @@
 }
 
 .apple-entry-status-dot.pending {
-  background: #9CA3AF;
+  background: #9ca3af;
 }
 
 .apple-entry-status-dot.in-progress {
-  background: #FF9500;
+  background: #ff9500;
   box-shadow: 0 0 8px rgba(255, 149, 0, 0.4);
   animation: pulse 2s infinite;
 }
 
 .apple-entry-status-dot.completed {
-  background: #34C759;
+  background: #34c759;
   box-shadow: 0 0 8px rgba(52, 199, 89, 0.4);
 }
 
 .apple-entry-status-dot.current {
-  background: #007AFF;
+  background: #007aff;
   box-shadow: 0 0 12px rgba(0, 122, 255, 0.6);
   animation: pulse 2s infinite;
 }
@@ -1562,7 +1567,7 @@
 }
 
 .apple-entry-time {
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, Consolas, monospace;
   font-size: 12px;
   font-weight: 500;
   color: var(--muted-foreground);
@@ -1579,31 +1584,31 @@
 
 .apple-entry-result-qualified {
   background: rgba(52, 199, 89, 0.1);
-  color: #34C759;
+  color: #34c759;
   border: 1px solid rgba(52, 199, 89, 0.2);
 }
 
 .apple-entry-result-nq {
   background: rgba(255, 59, 48, 0.1);
-  color: #FF3B30;
+  color: #ff3b30;
   border: 1px solid rgba(255, 59, 48, 0.2);
 }
 
 .apple-entry-result-absent {
   background: rgba(156, 163, 175, 0.1);
-  color: #9CA3AF;
+  color: #9ca3af;
   border: 1px solid rgba(156, 163, 175, 0.2);
 }
 
 .apple-entry-result-excused {
   background: rgba(245, 158, 11, 0.1);
-  color: #F59E0B;
+  color: #f59e0b;
   border: 1px solid rgba(245, 158, 11, 0.2);
 }
 
 .apple-entry-result-withdrawn {
   background: rgba(139, 92, 246, 0.1);
-  color: #8B5CF6;
+  color: #8b5cf6;
   border: 1px solid rgba(139, 92, 246, 0.2);
 }
 
@@ -1613,7 +1618,7 @@
 }
 
 .apple-entry-status-text.in-progress {
-  color: #FF9500;
+  color: #ff9500;
 }
 
 .apple-entry-status-text.pending {
@@ -1660,7 +1665,7 @@
 
 .apple-judge-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #34C759 0%, #30D158 100%);
+  background: linear-gradient(90deg, #34c759 0%, #30d158 100%);
   border-radius: 3px;
   transition: width 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
@@ -1686,15 +1691,15 @@
 }
 
 .apple-judge-progress-dot.completed {
-  background: #34C759;
+  background: #34c759;
 }
 
 .apple-judge-progress-dot.in-progress {
-  background: #FF9500;
+  background: #ff9500;
 }
 
 .apple-judge-progress-dot.pending {
-  background: #9CA3AF;
+  background: #9ca3af;
 }
 
 /* Quick stats cards */
@@ -1728,11 +1733,11 @@
 }
 
 .apple-judge-stat-number.completed {
-  color: #34C759;
+  color: #34c759;
 }
 
 .apple-judge-stat-number.in-progress {
-  color: #FF9500;
+  color: #ff9500;
 }
 
 .apple-judge-stat-number.pending {
@@ -1747,7 +1752,8 @@
 
 /* Pulse animation for active states */
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -1763,20 +1769,20 @@
     max-width: 120px;
     font-size: 13px;
   }
-  
+
   .apple-breadcrumb-list {
     gap: 4px;
   }
-  
+
   .akc-placement-badge {
     font-size: 12px !important;
     padding: 6px 10px !important;
   }
-  
+
   .apple-entry-armband {
     font-size: 20px;
   }
-  
+
   .apple-entry-card {
     padding: 16px;
     min-height: 140px; /* Ensure 44px minimum touch target */
@@ -1784,35 +1790,35 @@
     border-width: 2px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   }
-  
+
   /* Mobile-specific hover states - only scale, no lift */
   .apple-entry-card:hover {
     transform: none;
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
   }
-  
+
   /* Enhanced mobile active state */
   .apple-entry-card:active {
     transform: scale(0.96);
     transition: transform 0.1s ease;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
   }
-  
+
   .apple-judge-stats-grid {
     grid-template-columns: repeat(3, 1fr);
     gap: 12px;
   }
-  
+
   /* Mobile judge interface optimizations */
   .apple-judge-progress-section {
     padding: 16px;
     border-radius: 12px;
   }
-  
+
   .apple-judge-progress-title {
     font-size: 16px;
   }
-  
+
   .apple-judge-stat-card {
     padding: 12px;
     min-height: 80px;
@@ -1820,34 +1826,34 @@
     flex-direction: column;
     justify-content: center;
   }
-  
+
   .apple-judge-stat-number {
     font-size: 20px;
   }
-  
+
   /* Mobile entry grid - larger touch targets */
   .apple-entry-card {
     min-width: 140px;
     padding: 18px;
   }
-  
+
   .apple-entry-header {
     margin-bottom: 14px;
   }
-  
+
   .apple-entry-dog-info {
     margin-bottom: 14px;
   }
-  
+
   .apple-entry-dog-name {
     font-size: 15px;
     margin-bottom: 4px;
   }
-  
+
   .apple-entry-handler-name {
     font-size: 13px;
   }
-  
+
   .apple-entry-footer {
     margin-top: auto;
   }
@@ -2012,7 +2018,7 @@
 
 .apple-armband-display {
   background: white;
-  color: #007AFF;
+  color: #007aff;
   border-radius: 16px;
   padding: 16px;
   min-width: 80px;
@@ -2087,36 +2093,36 @@
 }
 
 .apple-button-qualified.selected {
-  background: linear-gradient(135deg, #34C759 0%, #30D158 100%);
-  border-color: #34C759;
+  background: linear-gradient(135deg, #34c759 0%, #30d158 100%);
+  border-color: #34c759;
   color: white;
   box-shadow: 0 8px 24px rgba(52, 199, 89, 0.4);
 }
 
 .apple-button-nq.selected {
-  background: linear-gradient(135deg, #FF3B30 0%, #FF375F 100%);
-  border-color: #FF3B30;
+  background: linear-gradient(135deg, #ff3b30 0%, #ff375f 100%);
+  border-color: #ff3b30;
   color: white;
   box-shadow: 0 8px 24px rgba(255, 59, 48, 0.4);
 }
 
 .apple-button-absent.selected {
-  background: linear-gradient(135deg, #9CA3AF 0%, #6B7280 100%);
-  border-color: #9CA3AF;
+  background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+  border-color: #9ca3af;
   color: white;
   box-shadow: 0 8px 24px rgba(156, 163, 175, 0.4);
 }
 
 .apple-button-excused.selected {
-  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
-  border-color: #F59E0B;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  border-color: #f59e0b;
   color: white;
   box-shadow: 0 8px 24px rgba(245, 158, 11, 0.4);
 }
 
 .apple-button-withdrawn.selected {
-  background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
-  border-color: #8B5CF6;
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  border-color: #8b5cf6;
   color: white;
   box-shadow: 0 8px 24px rgba(139, 92, 246, 0.4);
 }
@@ -2217,7 +2223,7 @@
   padding: 12px 24px;
   border: none;
   border-radius: 12px;
-  background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
+  background: linear-gradient(135deg, #007aff 0%, #5856d6 100%);
   color: white;
   font-size: 16px;
   font-weight: 590;
@@ -2229,7 +2235,7 @@
 .apple-button-primary:hover {
   transform: translateY(-4px);
   box-shadow: 0 12px 32px rgba(0, 122, 255, 0.5);
-  background: linear-gradient(135deg, #0056CC 0%, #4A4A9E 100%);
+  background: linear-gradient(135deg, #0056cc 0%, #4a4a9e 100%);
 }
 
 .apple-button-primary:disabled {
@@ -2241,7 +2247,7 @@
 
 .apple-error-text {
   font-size: 14px;
-  color: #FF3B30;
+  color: #ff3b30;
   font-weight: 500;
 }
 
@@ -2260,7 +2266,7 @@
 
 .apple-alert-content {
   font-size: 14px;
-  color: #FF9500;
+  color: #ff9500;
   font-weight: 500;
   margin: 0;
 }
@@ -2344,7 +2350,7 @@
 }
 
 .apple-summary-time {
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, Consolas, monospace;
   font-weight: 600;
 }
 
@@ -2359,13 +2365,13 @@
 
 .apple-summary-badge.qualified {
   background: rgba(52, 199, 89, 0.1);
-  color: #34C759;
+  color: #34c759;
   border: 1px solid rgba(52, 199, 89, 0.2);
 }
 
 .apple-summary-badge.not-qualified {
   background: rgba(255, 59, 48, 0.1);
-  color: #FF3B30;
+  color: #ff3b30;
   border: 1px solid rgba(255, 59, 48, 0.2);
 }
 
@@ -2387,104 +2393,104 @@
     border-radius: 16px;
     margin-bottom: 24px;
   }
-  
+
   .apple-dog-info-content {
     padding: 20px;
   }
-  
+
   .apple-armband-display {
     border-radius: 12px;
     padding: 12px;
     min-width: 72px;
   }
-  
+
   .apple-armband-display .text-3xl {
     font-size: 24px;
   }
-  
+
   .apple-card {
     border-radius: 16px;
   }
-  
+
   .apple-card-header {
     padding: 20px 20px 0 20px;
   }
-  
+
   .apple-card-title {
     font-size: 16px;
     gap: 10px;
   }
-  
+
   .apple-card-content {
     padding: 20px;
   }
-  
+
   .apple-button-qualification {
     min-height: 48px;
     padding: 14px;
     font-size: 15px;
     border-radius: 12px;
   }
-  
+
   .apple-fault-counter {
     gap: 24px;
     padding: 20px;
   }
-  
+
   .apple-fault-button {
     width: 56px;
     height: 56px;
   }
-  
+
   .apple-fault-button-text {
     font-size: 24px;
   }
-  
+
   .apple-fault-number {
     font-size: 40px;
   }
-  
+
   .apple-fault-display {
     min-width: 100px;
   }
-  
+
   .apple-actions-bar {
     padding-top: 20px;
     margin-top: 24px;
   }
-  
+
   .apple-button-cancel,
   .apple-button-primary {
     padding: 10px 20px;
     font-size: 15px;
     border-radius: 10px;
   }
-  
+
   .apple-dialog {
     max-width: 360px;
     border-radius: 20px;
   }
-  
+
   .apple-dialog-header {
     padding: 20px 20px 0 20px;
   }
-  
+
   .apple-dialog-title {
     font-size: 18px;
   }
-  
+
   .apple-dialog-description {
     font-size: 15px;
   }
-  
+
   .apple-dialog-content {
     padding: 20px;
   }
-  
+
   .apple-summary-row {
     padding: 10px 0;
   }
-  
+
   .apple-dialog-actions {
     gap: 12px;
   }

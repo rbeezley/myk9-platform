@@ -80,8 +80,8 @@ export const publicRouteComponents: Record<string, ImportFunction> = {
   '/exhibitor/entries/history': () => import('@/pages/MyEntriesPage'),
   '/exhibitor/results': () => import('@/pages/BrowseShowsPage'),
   '/exhibitor/favorites': () => import('@/pages/BrowseShowsPage'),
-  '/exhibitor/health-records': () => import('@/pages/DogDetailsPage'),
-  '/exhibitor/training': () => import('@/pages/DogDetailsPage'),
+  '/exhibitor/health-records': () => import('@/pages/BrowseDogsPage'),
+  '/exhibitor/training': () => import('@/pages/BrowseDogsPage'),
   '/exhibitor/forms': () => import('@/pages/ExhibitorDashboard'),
   '/exhibitor/standards': () => import('@/pages/ExhibitorDashboard'),
   '/exhibitor/help': () => import('@/pages/ExhibitorDashboard'),
@@ -90,8 +90,8 @@ export const publicRouteComponents: Record<string, ImportFunction> = {
   // Users and dogs management
   '/users': () => import('@/pages/UserDetailsPage'),
   '/users/:id': () => import('@/pages/UserDetailsPage'),
-  '/dogs': () => import('@/pages/DogDetailsPage'),
-  '/dogs/:id': () => import('@/pages/DogDetailsPage'),
+  '/dogs': () => import('@/pages/BrowseDogsPage'),
+  '/dogs/:id': () => import('@/pages/DogDetailPage'),
   '/clubs': () => import('@/pages/BrowseClubsPage'),
   '/clubs/:id': () => import('@/pages/ClubDetailPage'),
 

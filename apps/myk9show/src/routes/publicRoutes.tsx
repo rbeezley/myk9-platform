@@ -12,7 +12,8 @@ import { SuspenseWrapper } from './utils/SuspenseWrapper';
 
 // Public page lazy imports
 const UserDetailsPage = lazy(() => import('@/pages/UserDetailsPage'));
-const DogDetailsPage = lazy(() => import('@/pages/DogDetailsPage'));
+const BrowseDogsPage = lazy(() => import('@/pages/BrowseDogsPage'));
+const DogDetailPage = lazy(() => import('@/pages/DogDetailPage'));
 const BrowseClubsPage = lazy(() => import('@/pages/BrowseClubsPage'));
 const ClubDetailPage = lazy(() => import('@/pages/ClubDetailPage'));
 const ShowDetailsPage = lazy(() => import('@/pages/ShowDetailsPage'));
@@ -250,7 +251,7 @@ export const PublicRoutes = () => (
         <ProtectedRoute>
           <SuspenseWrapper>
             <PageTransition>
-              <DogDetailsPage />
+              <BrowseDogsPage />
             </PageTransition>
           </SuspenseWrapper>
         </ProtectedRoute>
@@ -263,7 +264,7 @@ export const PublicRoutes = () => (
         <ProtectedRoute>
           <SuspenseWrapper>
             <PageTransition>
-              <DogDetailsPage />
+              <BrowseDogsPage />
             </PageTransition>
           </SuspenseWrapper>
         </ProtectedRoute>
@@ -395,7 +396,7 @@ export const PublicRoutes = () => (
         <ProtectedRoute>
           <SuspenseWrapper>
             <PageTransition>
-              <DogDetailsPage />
+              <BrowseDogsPage />
             </PageTransition>
           </SuspenseWrapper>
         </ProtectedRoute>
@@ -408,7 +409,7 @@ export const PublicRoutes = () => (
         <ProtectedRoute>
           <SuspenseWrapper>
             <PageTransition>
-              <DogDetailsPage />
+              <DogDetailPage />
             </PageTransition>
           </SuspenseWrapper>
         </ProtectedRoute>

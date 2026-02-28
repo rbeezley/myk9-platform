@@ -46,14 +46,14 @@ const STORE_IMPORTS: Record<StoreName, () => Promise<Record<string, unknown>>> =
   dogStore: () => import('@/store/dogStore'),
   showStore: () => import('@/store/showStore'),
   clubStore: () => import('@/store/clubStore'),
-  
+
   // Important stores
   navigationStore: () => import('@/store/navigationStore'),
   searchHistoryStore: () => import('@/store/searchHistoryStore'),
   syncStore: () => import('@/store/syncStore'),
   entryStore: () => import('@/store/entryStore'),
   registrationsStore: () => import('@/store/registrationsStore'),
-  
+
   // Feature-specific stores
   templateStore: () => import('@/store/templateStore'),
   classTemplateStore: () => import('@/store/classTemplateStore'),
@@ -70,29 +70,33 @@ const STORE_IMPORTS: Record<StoreName, () => Promise<Record<string, unknown>>> =
   pastResultsStore: () => import('@/store/pastResultsStore'),
   searchAnalyticsStore: () => import('@/store/searchAnalyticsStore'),
   showRegistrationStore: () => import('@/store/showRegistrationStore'),
-  
+
   // UI-specific stores
-  dogSidebarStore: () => import('@/store/dogSidebarStore'),
   userSidebarStore: () => import('@/store/userSidebarStore'),
 };
 
 export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
   const [stores, setStores] = useState<Record<StoreName, StoreLoadingState>>(() => {
     // Initialize all stores as not loaded
-    const initialState: Record<StoreName, StoreLoadingState> = {} as Record<StoreName, StoreLoadingState>;
-    
-    Object.keys(STORE_IMPORTS).forEach((storeName) => {
+    const initialState: Record<StoreName, StoreLoadingState> = {} as Record<
+      StoreName,
+      StoreLoadingState
+    >;
+
+    Object.keys(STORE_IMPORTS).forEach(storeName => {
       initialState[storeName as StoreName] = {
         isLoaded: false,
         isLoading: false,
         error: null,
       };
     });
-    
+
     return initialState;
   });
 
-  const loadingPromises = useRef<Record<StoreName, Promise<void>>>({} as Record<StoreName, Promise<void>>);
+  const loadingPromises = useRef<Record<StoreName, Promise<void>>>(
+    {} as Record<StoreName, Promise<void>>
+  );
 
   // Use a ref to access current stores state without causing dependency changes
   const storesRef = useRef(stores);
@@ -113,7 +117,7 @@ export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
     // Create loading promise
     const loadingPromise = async () => {
       const startTime = performance.now();
-      
+
       try {
         setStores(prev => ({
           ...prev,
@@ -131,26 +135,31 @@ export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
         // await optimizedDependencyManager.loadStoreDependencies(storeName, loadStore);
 
         const storeModule = await STORE_IMPORTS[storeName]();
-        
+
         // Trigger rehydration if the store has persist middleware (non-blocking)
         const storeHookName = `use${storeName.charAt(0).toUpperCase() + storeName.slice(1)}`;
         const storeHook = storeModule[storeHookName];
-        
+
         if (storeHook && typeof storeHook === 'object' && 'persist' in storeHook) {
           const persist = (storeHook as Record<string, { rehydrate?: () => void }>).persist;
           if (persist?.rehydrate) {
             logger.debug('Rehydrating store', 'store', { storeName });
             // Make rehydration non-blocking by not awaiting it
-            Promise.resolve().then(() => persist.rehydrate?.()).catch(err => {
-              logger.warn('Failed to rehydrate store', 'store', { storeName }, err as Error);
-            });
+            Promise.resolve()
+              .then(() => persist.rehydrate?.())
+              .catch(err => {
+                logger.warn('Failed to rehydrate store', 'store', { storeName }, err as Error);
+              });
           }
         }
 
         const loadEndTime = performance.now();
         const loadDuration = loadEndTime - loadStartTime;
-        logger.debug('Store loaded', 'store', { storeName, loadDurationMs: loadDuration.toFixed(2) });
-        
+        logger.debug('Store loaded', 'store', {
+          storeName,
+          loadDurationMs: loadDuration.toFixed(2),
+        });
+
         setStores(prev => ({
           ...prev,
           [storeName]: {
@@ -166,7 +175,10 @@ export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
           storeMetricsCollector.recordLoadTime(storeName, loadTime);
         }
 
-        logger.info('Store loaded successfully', 'store', { storeName, loadTimeMs: loadTime.toFixed(2) });
+        logger.info('Store loaded successfully', 'store', {
+          storeName,
+          loadTimeMs: loadTime.toFixed(2),
+        });
       } catch (error) {
         logger.error('Failed to load store', 'store', { storeName }, error as Error);
         setStores(prev => ({
@@ -188,14 +200,20 @@ export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
 
   const loadStoresByCategory = async (category: StoreCategory): Promise<void> => {
     const storeNames = STORE_CATEGORIES[category];
-    logger.debug('Loading stores by category', 'store', { category, storeCount: storeNames.length });
+    logger.debug('Loading stores by category', 'store', {
+      category,
+      storeCount: storeNames.length,
+    });
     const startTime = performance.now();
 
     // Load stores in parallel for better performance
     await Promise.all(storeNames.map(storeName => loadStore(storeName)));
 
     const endTime = performance.now();
-    logger.info('Category stores loaded', 'store', { category, loadTimeMs: (endTime - startTime).toFixed(2) });
+    logger.info('Category stores loaded', 'store', {
+      category,
+      loadTimeMs: (endTime - startTime).toFixed(2),
+    });
   };
 
   const preloadStore = async (storeName: StoreName): Promise<void> => {
@@ -262,9 +280,5 @@ export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
     getStoreError,
   };
 
-  return (
-    <StoreContext.Provider value={contextValue}>
-      {children}
-    </StoreContext.Provider>
-  );
+  return <StoreContext.Provider value={contextValue}>{children}</StoreContext.Provider>;
 };

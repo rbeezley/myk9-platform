@@ -298,7 +298,9 @@ export function getUserShowContext(
   const userRoles = user.roles || [];
 
   const userEntries = getUserEntries(userId, shows, entries).map(s => s.id);
-  const managedShows = getUserManagedShows(userId, shows, userRoles).map(s => s.id);
+  const directlyManaged = getUserManagedShows(userId, shows, userRoles).map(s => s.id);
+  const adminManaged = getAdminManagedShows(shows, userRoles).map(s => s.id);
+  const managedShows = [...new Set([...directlyManaged, ...adminManaged])];
   const judgeAssignments = getUserJudgeAssignments(userId, shows).map(s => s.id);
 
   return {

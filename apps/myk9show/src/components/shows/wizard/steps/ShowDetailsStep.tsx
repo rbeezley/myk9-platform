@@ -37,16 +37,21 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
   logger.debug('ShowDetailsStep component loaded', 'wizard');
   const { show, updateShowData, addJudgeToShow, removeJudgeFromShow, judgeDetails } =
     useWizardStore();
-  const { clubs, loadClubs } = useClubStore();
+  const { clubs, loadClubs, syncClubs } = useClubStore();
   const { people, loadPeople } = useUserStore();
   const panelManager = usePanelManager();
 
-  // Ensure clubs are loaded (global subscription may not have completed yet)
+  // Ensure clubs are available — try local cache first, then fetch from Supabase
   useEffect(() => {
     if (clubs.length === 0) {
-      loadClubs();
+      loadClubs().then(() => {
+        // If IndexedDB was empty (e.g. after clearing site data), sync from Supabase
+        if (useClubStore.getState().clubs.length === 0) {
+          syncClubs();
+        }
+      });
     }
-  }, [clubs.length, loadClubs]);
+  }, [clubs.length, loadClubs, syncClubs]);
 
   // Search states
   const [clubSearchTerm, setClubSearchTerm] = useState('');

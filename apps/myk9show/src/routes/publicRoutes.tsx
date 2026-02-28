@@ -13,7 +13,8 @@ import { SuspenseWrapper } from './utils/SuspenseWrapper';
 // Public page lazy imports
 const UserDetailsPage = lazy(() => import('@/pages/UserDetailsPage'));
 const DogDetailsPage = lazy(() => import('@/pages/DogDetailsPage'));
-const ClubsPage = lazy(() => import('@/pages/ClubsPage'));
+const BrowseClubsPage = lazy(() => import('@/pages/BrowseClubsPage'));
+const ClubDetailPage = lazy(() => import('@/pages/ClubDetailPage'));
 const ShowDetailsPage = lazy(() => import('@/pages/ShowDetailsPage'));
 const TrialDetailsPage = lazy(() => import('@/pages/TrialDetailsPage'));
 const ClassDetailsPage = lazy(() => import('@/pages/ClassDetailsPage'));
@@ -420,7 +421,7 @@ export const PublicRoutes = () => (
       element={
         <SuspenseWrapper>
           <PageTransition>
-            <ClubsPage />
+            <BrowseClubsPage />
           </PageTransition>
         </SuspenseWrapper>
       }
@@ -431,7 +432,7 @@ export const PublicRoutes = () => (
       element={
         <SuspenseWrapper>
           <PageTransition>
-            <ClubsPage />
+            <ClubDetailPage />
           </PageTransition>
         </SuspenseWrapper>
       }

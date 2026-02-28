@@ -93,8 +93,8 @@ export const publicRouteComponents: Record<string, ImportFunction> = {
   '/users/:id': () => import('@/pages/UserDetailsPage'),
   '/dogs': () => import('@/pages/DogDetailsPage'),
   '/dogs/:id': () => import('@/pages/DogDetailsPage'),
-  '/clubs': () => import('@/pages/ClubsPage'),
-  '/clubs/:id': () => import('@/pages/ClubsPage'),
+  '/clubs': () => import('@/pages/BrowseClubsPage'),
+  '/clubs/:id': () => import('@/pages/ClubDetailPage'),
 
   // Feature pages
   '/calendar': () => import('@/pages/CalendarPage'),

@@ -41,18 +41,20 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
 
   // Create an Owner object from the User object or use a placeholder
   const person = people.find(p => p.id === dog.ownerId);
-  const owner: Owner = person ? {
-    id: person.id,
-    name: `${person.firstName} ${person.lastName}`,
-    email: person.email,
-    phone: person.phone,
-    profileImage: person.profileImage
-  } : {
-    id: 'unknown',
-    name: 'Unknown Owner',
-    email: 'N/A',
-    phone: 'N/A'
-  };
+  const owner: Owner = person
+    ? {
+        id: person.id,
+        name: `${person.firstName} ${person.lastName}`,
+        email: person.email,
+        phone: person.phone,
+        profileImage: person.profileImage,
+      }
+    : {
+        id: 'unknown',
+        name: 'Unknown Owner',
+        email: 'N/A',
+        phone: 'N/A',
+      };
 
   // Panel/dialog state
   const [isEditPanelOpen, setIsEditPanelOpen] = useState(false);
@@ -91,7 +93,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
         return;
       }
       const reader = new FileReader();
-      reader.onload = (ev) => setPhotoPreview(ev.target?.result as string);
+      reader.onload = ev => setPhotoPreview(ev.target?.result as string);
       reader.onerror = () => toast.error('Failed to read the image file');
       reader.readAsDataURL(file);
     }
@@ -117,7 +119,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
         return;
       }
       const reader = new FileReader();
-      reader.onload = (ev) => setPhotoPreview(ev.target?.result as string);
+      reader.onload = ev => setPhotoPreview(ev.target?.result as string);
       reader.onerror = () => toast.error('Failed to read the image file');
       reader.readAsDataURL(file);
     }
@@ -135,11 +137,11 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
   const breadcrumbItems = useBreadcrumb({
     currentPage: 'dog',
     dog: updatedDog,
-    fromPerson
+    fromPerson,
   });
 
   return (
-    <div className="max-w-7xl mx-auto p-8 space-y-8">
+    <div className="max-w-7xl mx-auto px-6 py-20 space-y-8">
       {/* Breadcrumb Navigation */}
       <Breadcrumb items={breadcrumbItems} showHomeIcon={true} className="mb-6" />
 
@@ -155,10 +157,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
       />
 
       {/* Information Grid - About & Physical Characteristics */}
-      <DogInfoCards
-        dog={updatedDog}
-        onEditPanelOpen={() => setIsEditPanelOpen(true)}
-      />
+      <DogInfoCards dog={updatedDog} onEditPanelOpen={() => setIsEditPanelOpen(true)} />
 
       {/* Owner Information Card */}
       <OwnerInfoCard dog={updatedDog} owner={owner} />

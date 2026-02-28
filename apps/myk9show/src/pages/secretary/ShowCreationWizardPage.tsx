@@ -70,6 +70,15 @@ const ShowCreationWizardPage: React.FC = () => {
       setIsLoading,
     });
 
+  // Pre-select club when navigating from a club details page
+  const preselectedClubId = searchParams.get('clubId');
+  const { updateShowData } = useWizardStore();
+  useEffect(() => {
+    if (preselectedClubId && !editMode && !show.clubId) {
+      updateShowData({ clubId: preselectedClubId });
+    }
+  }, [preselectedClubId, editMode, show.clubId, updateShowData]);
+
   // Load people data when page mounts (clubs handled by global store subscriptions)
   useEffect(() => {
     loadPeople();

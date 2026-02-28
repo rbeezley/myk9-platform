@@ -318,10 +318,11 @@ export function useClubDetailsState(selectedClub: Club | null) {
     setSelectedShowForRegistration(null);
   }, []);
 
-  // Add Show handler — navigate to full-page wizard
+  // Add Show handler — navigate to full-page wizard with club pre-selected
   const handleAddShow = useCallback(() => {
-    navigate('/secretary/create-show/wizard');
-  }, [navigate]);
+    const params = selectedClub ? `?clubId=${selectedClub.id}` : '';
+    navigate(`/secretary/create-show/wizard${params}`);
+  }, [navigate, selectedClub]);
 
   // Add Member handler
   const handleAddMember = useCallback(() => {

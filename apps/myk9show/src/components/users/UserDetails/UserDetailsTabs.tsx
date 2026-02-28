@@ -6,8 +6,7 @@ import { Plus } from 'lucide-react';
 import AssociatedDogsSection from '../AssociatedDogsSection';
 import { DogEditPanel } from '@/components/panels/edit/DogEditPanel';
 import type { User, Dog, DogInput } from '@/types/dog-types';
-import { useDogStore } from '@/store/dogStore';
-import { useUserStore } from '@/store/userStore';
+import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 
 interface PeopleDetailsTabsProps {
   selectedUser: User;
@@ -15,10 +14,9 @@ interface PeopleDetailsTabsProps {
 
 const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) => {
   const navigate = useNavigate();
-  const { dogs, updateDog, removeDog } = useDogStore();
-  const { updateUser } = useUserStore();
+  const { dogs, addDog, updateDog, deleteDog } = useDogStoreCompat();
 
-  // Get actual Dog objects from the dog store by owner relationship
+  // Get actual Dog objects by owner relationship
   const userDogs = useMemo(() => {
     return dogs.filter(dog => dog.ownerId === selectedUser.id);
   }, [dogs, selectedUser.id]);
@@ -57,17 +55,10 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
     const isNewDog = !dogToEdit.id;
 
     if (isNewDog) {
-      const tempId = `temp-${Date.now()}`;
-      const mergedDog = { ...dogToEdit, ...updatedDogData, id: tempId, ownerId: selectedUser.id };
-
-      const { addDog } = useDogStore.getState();
-      addDog(dogToDogInput(mergedDog as Dog));
-
-      const currentDogs = selectedUser.dogs || [];
-      updateUser(selectedUser.id, { dogs: [...currentDogs, tempId] });
+      const mergedDog = { ...dogToEdit, ...updatedDogData, ownerId: selectedUser.id };
+      await addDog(dogToDogInput(mergedDog as Dog));
     } else {
-      const { updateDog } = useDogStore.getState();
-      updateDog(dogToEdit.id, dogToDogInput({ ...dogToEdit, ...updatedDogData } as Dog));
+      await updateDog(dogToEdit.id, dogToDogInput({ ...dogToEdit, ...updatedDogData } as Dog));
     }
 
     setIsEditDialogOpen(false);
@@ -76,21 +67,12 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
 
   // Handler for updating dog photo
   const handleUpdateDogPhoto = (dogId: string, newPhotoUrl: string) => {
-    // Update in global dog store
     updateDog(dogId, { imageUrl: newPhotoUrl });
-    // Dogs array contains only IDs, photo data is in dog store
   };
 
   // Handler for deleting a dog
   const handleDeleteDog = (dogId: string) => {
-    removeDog(dogId); // Call removeDog from the store
-
-    // Remove the dog from the selected person's dogs array for local consistency
-    if (selectedUser.dogs) {
-      const updatedDogsForPerson = selectedUser.dogs.filter(dogId2 => dogId2 !== dogId);
-      updateUser(selectedUser.id, { dogs: updatedDogsForPerson });
-    }
-    // Optionally, close any dialogs or navigate if needed, e.g., if on that dog's page
+    deleteDog(dogId);
   };
 
   // Handler for adding a new dog

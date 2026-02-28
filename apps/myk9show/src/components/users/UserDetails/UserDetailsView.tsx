@@ -1,10 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { getErrorMessage } from '@myk9/core';
 import { useUserStore } from '@/store/userStore';
-import { useDogStore } from '@/store/dogStore';
+import { useOwnerDogsWithQuery } from '@/hooks/useDogStoreCompat';
 import { useUpdateUserMutation, useDeleteUserMutation } from '@/hooks/queries/useUsersQuery';
 import UserDetailsTabs from '@/components/users/UserDetails/UserDetailsTabs';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
@@ -32,15 +32,12 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   const { user: currentUser } = useAuthContext();
   const { hasPermission } = useRBAC();
   useUserStore();
-  const dogs = useDogStore(state => state.dogs);
+  const { dogs: ownerDogs } = useOwnerDogsWithQuery(person.id);
   const updateUserMutation = useUpdateUserMutation();
   const deleteUserMutation = useDeleteUserMutation();
   const people = useRoleBasedPeople();
 
-  // Derive associated dog count from the dog store (owner_id relationship)
-  const dogCount = useMemo(() => {
-    return dogs.filter(dog => dog.ownerId === person.id).length;
-  }, [dogs, person.id]);
+  const dogCount = ownerDogs.length;
 
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);

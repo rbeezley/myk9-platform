@@ -31,7 +31,7 @@ const AccountSummaryCard: React.FC<AccountSummaryCardProps> = ({ person, dogCoun
           </h3>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           <div
             className="flex flex-col items-center text-center p-4 bg-gradient-to-br
                          from-muted/30 to-muted/10 rounded-xl apple-subtle-card-border
@@ -48,24 +48,6 @@ const AccountSummaryCard: React.FC<AccountSummaryCardProps> = ({ person, dogCoun
                   })
                 : 'Not available'}
             </span>
-          </div>
-
-          <div
-            className="flex flex-col items-center text-center p-4 bg-gradient-to-br
-                         from-muted/30 to-muted/10 rounded-xl apple-subtle-card-border
-                         hover:scale-105 transition-all duration-300"
-          >
-            <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-2">
-              Account Type
-            </span>
-            <Badge
-              className="bg-gradient-to-r from-primary/10 to-primary/5 text-primary
-                            border border-primary/20 font-medium"
-            >
-              {person.roles && person.roles.length > 0
-                ? person.roles[0].charAt(0).toUpperCase() + person.roles[0].slice(1)
-                : 'Member'}
-            </Badge>
           </div>
 
           <div

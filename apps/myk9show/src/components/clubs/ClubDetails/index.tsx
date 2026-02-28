@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useRef } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -35,6 +35,14 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
   });
 
   const state = useClubDetailsState(selectedClub);
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const handleStatCardClick = useCallback(
+    (tab: ClubTab) => {
+      state.setActiveTab(tab);
+      tabsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    },
+    [state]
+  );
 
   if (!selectedClub) {
     return <div className="flex items-center justify-center text-gray-500">No club selected.</div>;
@@ -62,10 +70,10 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
       />
 
       {/* Statistics Cards */}
-      <ClubStatistics stats={state.stats} onTabChange={state.setActiveTab} />
+      <ClubStatistics stats={state.stats} onTabChange={handleStatCardClick} />
 
       {/* Tabs Section */}
-      <div className="mb-6">
+      <div ref={tabsRef} className="mb-6">
         <Tabs
           value={state.activeTab}
           onValueChange={value => state.setActiveTab(value as ClubTab)}

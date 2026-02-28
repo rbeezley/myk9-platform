@@ -21,7 +21,7 @@ import { LazyDogCard } from '../../dogs/LazyDogCard';
 import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
 import { InfiniteScrollTrigger } from '../../common/InfiniteScrollTrigger';
 import { useDebounce } from '@myk9/scoring-ui';
-import { useDogStore } from '../../../store/dogStore';
+import { useDogStoreCompat } from '../../../hooks/useDogStoreCompat';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../../lib/utils';
 
@@ -55,7 +55,7 @@ export function InfiniteDogSelectionStep({
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [showBackToTop, setShowBackToTop] = useState(false);
 
-  const { dogs: allDogs } = useDogStore();
+  const { dogs: allDogs } = useDogStoreCompat();
   const debouncedSearchQuery = useDebounce(filters.searchQuery || '', 300);
 
   // Create filtered dataset for pagination

@@ -14,7 +14,7 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useDogStore } from '@/store/dogStore';
+import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { Dog, User } from '@/types/dog-types';
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
@@ -129,7 +129,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   selectedDogs,
   onSelectionChange,
 }) => {
-  const { dogs } = useDogStore();
+  const { dogs, isLoading: dogsLoading } = useDogStoreCompat();
   const { filterAccessibleDogs, canBulkOperations, getMaxDogsPerRegistration } =
     useRegistrationPermissions();
   const { workflowConfig } = useRegistrationContext();
@@ -245,6 +245,16 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
       issues,
     };
   };
+
+  // Handle loading state
+  if (dogsLoading) {
+    return (
+      <div className="text-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4" />
+        <p className="text-sm text-muted-foreground">Loading dogs...</p>
+      </div>
+    );
+  }
 
   // Handle no dogs case
   if (accessibleDogs.length === 0) {

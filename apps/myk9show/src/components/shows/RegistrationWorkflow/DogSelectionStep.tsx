@@ -5,7 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useDogStore } from '@/store/dogStore';
+import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { Dog } from '@/types/dog-types';
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 import { cn } from '@/lib/utils';
@@ -20,7 +20,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
   selectedDogs,
   onSelectionChange,
 }) => {
-  const { dogs } = useDogStore();
+  const { dogs, isLoading } = useDogStoreCompat();
 
   // Compute eligible dogs directly from dogs (derived state, no useEffect needed)
   const eligibleDogs = React.useMemo(() => {
@@ -68,6 +68,15 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
       issues,
     };
   };
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4" />
+        <p className="text-sm text-muted-foreground">Loading your dogs...</p>
+      </div>
+    );
+  }
 
   if (eligibleDogs.length === 0) {
     return (

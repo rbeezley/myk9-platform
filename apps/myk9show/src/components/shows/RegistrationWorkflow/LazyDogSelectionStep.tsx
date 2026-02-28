@@ -9,7 +9,7 @@ import { LazyDogCard } from '../../dogs/LazyDogCard';
 import { useLazyLoading } from '../../../hooks/useLazyLoading';
 import { LazyLoadTrigger } from '../../common/LazyLoadTrigger';
 import { useDebounce } from '@myk9/scoring-ui';
-import { useDogStore } from '../../../store/dogStore';
+import { useDogStoreCompat } from '../../../hooks/useDogStoreCompat';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface LazyDogSelectionStepProps {
@@ -38,7 +38,7 @@ export function LazyDogSelectionStep({
   const [showFilters, setShowFilters] = useState(false);
   const [bulkSelectMode, setBulkSelectMode] = useState(false);
 
-  const { dogs: allDogs } = useDogStore();
+  const { dogs: allDogs } = useDogStoreCompat();
   const debouncedSearchQuery = useDebounce(filters.searchQuery || '', 300);
 
   // Create lazy loading data source

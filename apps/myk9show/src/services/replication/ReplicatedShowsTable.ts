@@ -87,6 +87,31 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     return this._lastMutationId;
   }
 
+  /** Map UI show status to DB CHECK constraint values */
+  private mapShowStatusToDb(uiStatus: string | undefined): string {
+    switch (uiStatus) {
+      case 'published':
+        return 'published';
+      case 'accepting_entries':
+        return 'accepting_entries';
+      case 'closed':
+        return 'closed';
+      case 'in_progress':
+      case 'In Progress':
+        return 'in_progress';
+      case 'completed':
+      case 'Completed':
+        return 'completed';
+      case 'cancelled':
+      case 'Cancelled':
+        return 'cancelled';
+      case 'unpublished':
+      case 'draft':
+      default:
+        return 'draft';
+    }
+  }
+
   /**
    * Convert app-level Show to Supabase row format (snake_case).
    * Strips sync metadata fields (_version, _lastModified, etc.)
@@ -99,7 +124,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
       start_date: show.startDate,
       end_date: show.endDate,
       location: show.location ?? null,
-      status: show.status ?? null,
+      status: this.mapShowStatusToDb(show.status),
       entry_open_date: show.entryOpenDate ?? null,
       entry_close_date: show.entryCloseDate ?? null,
       pre_entry_fee: show.preEntryFee ?? null,

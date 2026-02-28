@@ -106,7 +106,7 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
       const metadata = await this.getSyncMetadata();
       const allCached = await this.getAll();
       const isCacheEmpty = allCached.length === 0;
-      const lastSync = isCacheEmpty ? 0 : (metadata?.lastIncrementalSyncAt || 0);
+      const lastSync = isCacheEmpty ? 0 : metadata?.lastIncrementalSyncAt || 0;
 
       logger.log(`[${this.getTableName()}] Starting sync`);
 
@@ -223,10 +223,7 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
    * @param showMutationId - Optional mutation ID of the parent show (for dependency tracking)
    * The mutation ID is available via `lastMutationId` for dependency tracking.
    */
-  async createTrial(
-    trial: ReplicatedTrial,
-    showMutationId?: string,
-  ): Promise<ReplicatedTrial> {
+  async createTrial(trial: ReplicatedTrial, showMutationId?: string): Promise<ReplicatedTrial> {
     const newTrial: ReplicatedTrial = {
       ...trial,
       _version: 1,
@@ -240,7 +237,7 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
       'INSERT',
       trial.id,
       this.toSupabaseRow(newTrial),
-      showMutationId ? [showMutationId] : undefined,
+      showMutationId ? [showMutationId] : undefined
     );
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Created new trial ${trial.id}`);
@@ -251,10 +248,7 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
    * Update trial (marks as dirty for sync)
    * @returns mutation ID if queued, null if no MutationManager
    */
-  async updateTrial(
-    trialId: string,
-    updates: Partial<ReplicatedTrial>,
-  ): Promise<string | null> {
+  async updateTrial(trialId: string, updates: Partial<ReplicatedTrial>): Promise<string | null> {
     const currentTrial = await this.get(trialId);
     if (!currentTrial) {
       throw new Error(`Trial ${trialId} not found`);
@@ -271,10 +265,21 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
     const mutationId = await this.queueMutation(
       'UPDATE',
       trialId,
-      this.toSupabaseRow(updatedTrial),
+      this.toSupabaseRow(updatedTrial)
     );
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated trial ${trialId}`);
+    return mutationId;
+  }
+
+  /**
+   * Delete a trial locally and queue DELETE mutation for Supabase sync
+   */
+  async deleteTrial(trialId: string): Promise<string | null> {
+    await this.delete(trialId);
+    const mutationId = await this.queueMutation('DELETE', trialId, { id: trialId });
+    this._lastMutationId = mutationId;
+    logger.log(`[${this.getTableName()}] Deleted trial ${trialId}`);
     return mutationId;
   }
 }

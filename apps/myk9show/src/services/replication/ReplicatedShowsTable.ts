@@ -133,7 +133,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
       const isCacheEmpty = allCachedShows.length === 0;
 
       // If cache is empty but we have a lastSync timestamp, it means the cache was cleared
-      const lastSync = isCacheEmpty ? 0 : (metadata?.lastIncrementalSyncAt || 0);
+      const lastSync = isCacheEmpty ? 0 : metadata?.lastIncrementalSyncAt || 0;
 
       logger.log(
         `[${this.getTableName()}] Starting ${isCacheEmpty ? 'FULL (empty cache)' : 'incremental'} sync (since ${new Date(lastSync).toISOString()}), cache: ${allCachedShows.length} shows`
@@ -251,8 +251,8 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
    */
   async getAllShows(): Promise<ReplicatedShow[]> {
     const allShows = await this.getAll();
-    return allShows.sort((a, b) =>
-      new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
+    return allShows.sort(
+      (a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime()
     );
   }
 
@@ -345,6 +345,17 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Created new show ${id}`);
     return newShow;
+  }
+
+  /**
+   * Delete a show locally and queue DELETE mutation for Supabase sync
+   */
+  async deleteShow(showId: string): Promise<string | null> {
+    await this.delete(showId);
+    const mutationId = await this.queueMutation('DELETE', showId, { id: showId });
+    this._lastMutationId = mutationId;
+    logger.log(`[${this.getTableName()}] Deleted show ${showId}`);
+    return mutationId;
   }
 }
 

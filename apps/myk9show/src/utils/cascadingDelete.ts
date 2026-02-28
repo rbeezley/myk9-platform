@@ -39,15 +39,11 @@ export function previewCascadingDelete(showId: string, showName: string): Cascad
   const trialIds = trialsToDelete.map(t => t.id);
 
   // Find all classes for those trials
-  const classesToDelete = classStore.classes.filter(cls => 
-    trialIds.includes(cls.trialId)
-  );
+  const classesToDelete = classStore.classes.filter(cls => trialIds.includes(cls.trialId));
   const classIds = classesToDelete.map(c => c.id);
 
   // Find all entries for those classes
-  const entriesToDelete = entryStore.entries.filter(entry => 
-    classIds.includes(entry.classId)
-  );
+  const entriesToDelete = entryStore.entries.filter(entry => classIds.includes(entry.classId));
 
   return {
     showId,
@@ -55,29 +51,31 @@ export function previewCascadingDelete(showId: string, showName: string): Cascad
     trialsToDelete: trialsToDelete.map(t => ({
       id: t.id,
       name: t.name || 'Unnamed Trial',
-      date: t.trialDate
+      date: t.trialDate,
     })),
     classesToDelete: classesToDelete.map(c => ({
       id: c.id,
       name: c.className || c.trial || 'Unnamed Class',
-      trialName: trialsToDelete.find(t => t.id === c.trialId)?.name || 'Unknown Trial'
+      trialName: trialsToDelete.find(t => t.id === c.trialId)?.name || 'Unknown Trial',
     })),
     entriesToDelete: entriesToDelete.map(e => {
       const dog = dogStore.dogs.find(d => d.id === e.dogId);
       return {
         id: e.id,
         dogName: dog?.name || 'Unknown Dog',
-        className: classesToDelete.find(c => c.id === e.classId)?.className || 'Unknown Class'
+        className: classesToDelete.find(c => c.id === e.classId)?.className || 'Unknown Class',
       };
     }),
-    totalToDelete: trialsToDelete.length + classesToDelete.length + entriesToDelete.length
+    totalToDelete: trialsToDelete.length + classesToDelete.length + entriesToDelete.length,
   };
 }
 
 /**
  * Perform cascading delete of show and all related data
+ * Deletes in reverse FK order: entries → classes → trials
+ * Each delete queues a mutation for Supabase sync
  */
-export function performCascadingDelete(showId: string): CascadingDeleteResult {
+export async function performCascadingDelete(showId: string): Promise<CascadingDeleteResult> {
   const trialStore = useTrialStore.getState();
   const classStore = useClassStore.getState();
   const entryStore = useEntryStore.getState();
@@ -86,40 +84,35 @@ export function performCascadingDelete(showId: string): CascadingDeleteResult {
   const trialsToDelete = trialStore.trials.filter(trial => trial.showId === showId);
   const trialIds = trialsToDelete.map(t => t.id);
 
-  const classesToDelete = classStore.classes.filter(cls => 
-    trialIds.includes(cls.trialId)
-  );
+  const classesToDelete = classStore.classes.filter(cls => trialIds.includes(cls.trialId));
   const classIds = classesToDelete.map(c => c.id);
 
-  const entriesToDelete = entryStore.entries.filter(entry => 
-    classIds.includes(entry.classId)
-  );
+  const entriesToDelete = entryStore.entries.filter(entry => classIds.includes(entry.classId));
 
-
-  // Delete in reverse order: entries → classes → trials
+  // Delete in reverse FK order: entries → classes → trials
   // (The show itself is deleted by the caller)
 
   // 1. Delete entries
-  entriesToDelete.forEach(entry => {
-    entryStore.deleteEntry(entry.id);
-  });
+  for (const entry of entriesToDelete) {
+    await entryStore.deleteEntry(entry.id);
+  }
 
   // 2. Delete classes
-  classesToDelete.forEach(cls => {
-    classStore.deleteClass(cls.id);
-  });
+  for (const cls of classesToDelete) {
+    await classStore.deleteClass(cls.id);
+  }
 
   // 3. Delete trials
-  trialsToDelete.forEach(trial => {
-    trialStore.removeTrial(trial.id);
-  });
+  for (const trial of trialsToDelete) {
+    await trialStore.deleteTrial(trial.id);
+  }
 
   const result: CascadingDeleteResult = {
     showId,
     deletedTrials: trialIds,
     deletedClasses: classIds,
     deletedEntries: entriesToDelete.map(e => e.id),
-    totalDeleted: trialsToDelete.length + classesToDelete.length + entriesToDelete.length
+    totalDeleted: trialsToDelete.length + classesToDelete.length + entriesToDelete.length,
   };
 
   return result;

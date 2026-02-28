@@ -1,6 +1,13 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Calendar,
@@ -12,11 +19,20 @@ import {
   CheckCircle,
   Settings,
   Eye,
+  Edit,
+  Trash2,
+  MoreVertical,
   UserCheck,
   Play,
-  Check
+  Check,
 } from 'lucide-react';
-import { formatDistanceToNow, isBefore, isAfter, differenceInDays, differenceInHours } from 'date-fns';
+import {
+  formatDistanceToNow,
+  isBefore,
+  isAfter,
+  differenceInDays,
+  differenceInHours,
+} from 'date-fns';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -27,6 +43,7 @@ import Breadcrumb from '@/components/common/Breadcrumb';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { EntryStatusBadge } from '@/components/shows/EntryStatusBadge';
 import { ClassAvailability } from '@/components/shows/ClassAvailability';
+import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 
 // Types for extracted components
 interface RegistrationState {
@@ -47,71 +64,88 @@ interface ExhibitorViewProps {
   onRegisterForShow?: (() => void) | undefined;
 }
 
-const ExhibitorView = React.memo(({ showData, registrationState, onRegisterForShow }: ExhibitorViewProps) => (
-  <div className="apple-show-info-card">
-    <div className="apple-show-info-header">
-      <div>
-        <div className="apple-show-info-title">Entry Information</div>
-        <div className="apple-show-subtitle">
-          {!registrationState.isPublished ? 'Show not yet published' :
-           !registrationState.entriesOpen ? 'Entries not yet open' :
-           !registrationState.entriesClose ? 'Entries are closed' :
-           registrationState.countdownText}
-        </div>
-      </div>
-      {registrationState.canRegister ? (
-        <Button onClick={onRegisterForShow} className="apple-action-button apple-action-button-primary">
-          <Ticket className="w-4 h-4" />
-          Enter Show
-        </Button>
-      ) : (
-        <Button disabled className="apple-action-button">
-          <Ticket className="w-4 h-4" />
-          {!registrationState.isPublished ? 'Not Published' :
-           !registrationState.entriesOpen ? 'Not Open Yet' : 'Entries Closed'}
-        </Button>
-      )}
-    </div>
-
-    {/* Urgent countdown banner */}
-    {registrationState.isUrgent && registrationState.canRegister && (
-      <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4 mb-4 flex items-center gap-3">
-        <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+const ExhibitorView = React.memo(
+  ({ showData, registrationState, onRegisterForShow }: ExhibitorViewProps) => (
+    <div className="apple-show-info-card">
+      <div className="apple-show-info-header">
         <div>
-          <div className="font-medium text-amber-600">{registrationState.countdownText}</div>
-          <div className="text-sm text-amber-600/80">Don't miss your chance to enter this show!</div>
+          <div className="apple-show-info-title">Entry Information</div>
+          <div className="apple-show-subtitle">
+            {!registrationState.isPublished
+              ? 'Show not yet published'
+              : !registrationState.entriesOpen
+                ? 'Entries not yet open'
+                : !registrationState.entriesClose
+                  ? 'Entries are closed'
+                  : registrationState.countdownText}
+          </div>
         </div>
+        {registrationState.canRegister ? (
+          <Button
+            onClick={onRegisterForShow}
+            className="apple-action-button apple-action-button-primary"
+          >
+            <Ticket className="w-4 h-4" />
+            Enter Show
+          </Button>
+        ) : (
+          <Button disabled className="apple-action-button">
+            <Ticket className="w-4 h-4" />
+            {!registrationState.isPublished
+              ? 'Not Published'
+              : !registrationState.entriesOpen
+                ? 'Not Open Yet'
+                : 'Entries Closed'}
+          </Button>
+        )}
       </div>
-    )}
 
-    <div className="apple-show-info-grid">
-      <div className="apple-show-info-item">
-        <div className="apple-show-info-label">Entries Open</div>
-        <div className="apple-show-info-value">{new Date(showData.entryOpenDate).toLocaleDateString()}</div>
-      </div>
-      <div className="apple-show-info-item">
-        <div className="apple-show-info-label">Entries Close</div>
-        <div className="apple-show-info-value">
-          {new Date(showData.entryCloseDate).toLocaleDateString()}
-          {registrationState.daysUntilClose <= 7 && registrationState.daysUntilClose > 0 && (
-            <span className="apple-show-status apple-show-status-cancelled ml-2">
-              <AlertCircle className="w-3 h-3" />
-              Soon
-            </span>
-          )}
+      {/* Urgent countdown banner */}
+      {registrationState.isUrgent && registrationState.canRegister && (
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4 mb-4 flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+          <div>
+            <div className="font-medium text-amber-600">{registrationState.countdownText}</div>
+            <div className="text-sm text-amber-600/80">
+              Don't miss your chance to enter this show!
+            </div>
+          </div>
         </div>
-      </div>
-      <div className="apple-show-info-item">
-        <div className="apple-show-info-label">Pre-Entry Fee</div>
-        <div className="apple-show-info-value">${showData.preEntryFee}</div>
-      </div>
-      <div className="apple-show-info-item">
-        <div className="apple-show-info-label">Day of Show Fee</div>
-        <div className="apple-show-info-value">${showData.dayOfShowFee || showData.preEntryFee}</div>
+      )}
+
+      <div className="apple-show-info-grid">
+        <div className="apple-show-info-item">
+          <div className="apple-show-info-label">Entries Open</div>
+          <div className="apple-show-info-value">
+            {new Date(showData.entryOpenDate).toLocaleDateString()}
+          </div>
+        </div>
+        <div className="apple-show-info-item">
+          <div className="apple-show-info-label">Entries Close</div>
+          <div className="apple-show-info-value">
+            {new Date(showData.entryCloseDate).toLocaleDateString()}
+            {registrationState.daysUntilClose <= 7 && registrationState.daysUntilClose > 0 && (
+              <span className="apple-show-status apple-show-status-cancelled ml-2">
+                <AlertCircle className="w-3 h-3" />
+                Soon
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="apple-show-info-item">
+          <div className="apple-show-info-label">Pre-Entry Fee</div>
+          <div className="apple-show-info-value">${showData.preEntryFee}</div>
+        </div>
+        <div className="apple-show-info-item">
+          <div className="apple-show-info-label">Day of Show Fee</div>
+          <div className="apple-show-info-value">
+            ${showData.dayOfShowFee || showData.preEntryFee}
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-));
+  )
+);
 ExhibitorView.displayName = 'ExhibitorView';
 
 // Extracted SecretaryView component
@@ -173,7 +207,9 @@ const JudgeView = React.memo(({ assignedJudges }: JudgeViewProps) => {
         <div>
           <div className="apple-show-info-title">My Assignments</div>
           <div className="apple-show-subtitle">
-            {myAssignments.length > 0 ? 'Your judging assignments for this show' : 'No assignments yet'}
+            {myAssignments.length > 0
+              ? 'Your judging assignments for this show'
+              : 'No assignments yet'}
           </div>
         </div>
       </div>
@@ -216,20 +252,21 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
   showData,
   associatedTrials,
   onEditShow,
-  onDeleteShow: _onDeleteShow,
+  onDeleteShow,
   onRegisterForShow,
   onManageEntries,
-  onViewResults: _onViewResults
+  onViewResults: _onViewResults,
 }) => {
   const navigate = useNavigate();
   const { userWithRoles } = useAuthContext();
   const resolvePersonName = useResolvePersonName();
   const [activeTab, setActiveTab] = useState('overview');
+  const { classes: allClasses, entries: allEntries } = useClassStoreCompat();
 
   // Generate breadcrumb items
   const breadcrumbItems = useBreadcrumb({
     currentPage: 'show',
-    show: showData
+    show: showData,
   });
 
   // Extract roles for stable dependency
@@ -246,7 +283,7 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
       UserRole.SECRETARY,
       UserRole.CLUB_ADMIN,
       UserRole.JUDGE,
-      UserRole.EXHIBITOR
+      UserRole.EXHIBITOR,
     ];
 
     // Find first matching role with efficient lookup
@@ -261,7 +298,8 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
 
     const entriesOpen = isAfter(now, openDate);
     const entriesClose = isBefore(now, closeDate);
-    const canRegister = entriesOpen && entriesClose && showData.status?.toLowerCase() === 'published';
+    const canRegister =
+      entriesOpen && entriesClose && showData.status?.toLowerCase() === 'published';
 
     const daysUntilClose = differenceInDays(closeDate, now);
     const hoursUntilClose = differenceInHours(closeDate, now);
@@ -274,7 +312,8 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
       countdownText = daysUntilOpen <= 1 ? 'Opens tomorrow' : `Opens in ${daysUntilOpen} days`;
     } else if (entriesClose) {
       if (hoursUntilClose < 24) {
-        countdownText = hoursUntilClose <= 1 ? 'Closing within an hour!' : `${hoursUntilClose} hours left`;
+        countdownText =
+          hoursUntilClose <= 1 ? 'Closing within an hour!' : `${hoursUntilClose} hours left`;
         isUrgent = true;
       } else if (daysUntilClose <= 3) {
         countdownText = daysUntilClose === 1 ? 'Closes tomorrow' : `${daysUntilClose} days left`;
@@ -303,20 +342,29 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
   // Apple CSS status classes
   const getStatusClass = (status: string) => {
     switch (status?.toLowerCase()) {
-      case 'draft': return 'apple-show-status-draft';
-      case 'unpublished': return 'apple-show-status-unpublished';
-      case 'published': return 'apple-show-status-published';
-      case 'cancelled': return 'apple-show-status-cancelled';
-      default: return 'apple-show-status-published';
+      case 'draft':
+        return 'apple-show-status-draft';
+      case 'unpublished':
+        return 'apple-show-status-unpublished';
+      case 'published':
+        return 'apple-show-status-published';
+      case 'cancelled':
+        return 'apple-show-status-cancelled';
+      default:
+        return 'apple-show-status-published';
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status?.toLowerCase()) {
-      case 'upcoming': return <Clock className="w-3 h-3" />;
-      case 'in progress': return <Play className="w-3 h-3" />;
-      case 'completed': return <Check className="w-3 h-3" />;
-      default: return <Clock className="w-3 h-3" />;
+      case 'upcoming':
+        return <Clock className="w-3 h-3" />;
+      case 'in progress':
+        return <Play className="w-3 h-3" />;
+      case 'completed':
+        return <Check className="w-3 h-3" />;
+      default:
+        return <Clock className="w-3 h-3" />;
     }
   };
 
@@ -328,41 +376,65 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
     return { total, upcoming, completed };
   }, [associatedTrials]);
 
-  const derivedStats = useMemo(() => {
-    const totalClasses = trialStats.total * 8;
-    const totalEntries = trialStats.total * 32;
-    return { totalClasses, totalEntries };
-  }, [trialStats.total]);
+  // Real class/entry statistics from database
+  const classEntryStats = useMemo(() => {
+    const trialIds = new Set(associatedTrials.map(t => t.id));
+    const showClasses = allClasses.filter(c => trialIds.has(c.trialId));
+    const totalClasses = showClasses.length;
+    const completedClasses = showClasses.filter(c => c.status === 'Completed').length;
+    const activeClasses = showClasses.filter(
+      c => c.status === 'In Progress' || c.status === 'Upcoming' || c.status === 'Scheduled'
+    ).length;
 
-  const stats = useMemo(() => [
-    {
-      title: "Total Trials",
-      value: trialStats.total.toString(),
-      trend: "+12%",
-      detail1: `Upcoming: ${trialStats.upcoming}`,
-      detail2: `Completed: ${trialStats.completed}`,
-      progress: trialStats.total > 0 ? Math.round((trialStats.completed / trialStats.total) * 100) : 0,
-      type: "trials"
-    },
-    {
-      title: "Total Classes", 
-      value: derivedStats.totalClasses.toString(),
-      trend: "+8%",
-      detail1: `Active: ${trialStats.upcoming * 8}`,
-      detail2: `Finished: ${trialStats.completed * 8}`,
-      progress: derivedStats.totalClasses > 0 ? Math.round(((trialStats.completed * 8) / derivedStats.totalClasses) * 100) : 0,
-      type: "classes"
-    },
-    {
-      title: "Total Entries",
-      value: derivedStats.totalEntries.toString(),
-      trend: "+15%", 
-      detail1: `Registered: ${trialStats.upcoming * 32}`,
-      detail2: `Judged: ${trialStats.completed * 32}`,
-      progress: derivedStats.totalEntries > 0 ? Math.round(((trialStats.completed * 32) / derivedStats.totalEntries) * 100) : 0,
-      type: "entries"
-    },
-  ], [trialStats, derivedStats]);
+    const classIds = new Set(showClasses.map(c => c.id));
+    const showEntries = allEntries.filter(e => classIds.has(e.classId));
+    const totalEntries = showEntries.length;
+    const completedEntries = showEntries.filter(
+      e => e.status === 'Qualified' || e.status === 'Not Qualified'
+    ).length;
+
+    return { totalClasses, completedClasses, activeClasses, totalEntries, completedEntries };
+  }, [associatedTrials, allClasses, allEntries]);
+
+  const stats = useMemo(
+    () => [
+      {
+        title: 'Total Trials',
+        value: trialStats.total.toString(),
+        trend: '',
+        detail1: `Upcoming: ${trialStats.upcoming}`,
+        detail2: `Completed: ${trialStats.completed}`,
+        progress:
+          trialStats.total > 0 ? Math.round((trialStats.completed / trialStats.total) * 100) : 0,
+        type: 'trials',
+      },
+      {
+        title: 'Total Classes',
+        value: classEntryStats.totalClasses.toString(),
+        trend: '',
+        detail1: `Active: ${classEntryStats.activeClasses}`,
+        detail2: `Finished: ${classEntryStats.completedClasses}`,
+        progress:
+          classEntryStats.totalClasses > 0
+            ? Math.round((classEntryStats.completedClasses / classEntryStats.totalClasses) * 100)
+            : 0,
+        type: 'classes',
+      },
+      {
+        title: 'Total Entries',
+        value: classEntryStats.totalEntries.toString(),
+        trend: '',
+        detail1: `Registered: ${classEntryStats.totalEntries}`,
+        detail2: `Judged: ${classEntryStats.completedEntries}`,
+        progress:
+          classEntryStats.totalEntries > 0
+            ? Math.round((classEntryStats.completedEntries / classEntryStats.totalEntries) * 100)
+            : 0,
+        type: 'entries',
+      },
+    ],
+    [trialStats, classEntryStats]
+  );
 
   // Create tabs configuration based on user role
   const tabsConfig = useMemo(() => {
@@ -384,7 +456,7 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
                         {stat.type === 'classes' && <Trophy className="w-5 h-5" />}
                         {stat.type === 'entries' && <Users className="w-5 h-5" />}
                       </div>
-                      
+
                       <div className="apple-show-stat-content">
                         <div className="apple-show-stat-header">
                           <div className="apple-show-stat-title">{stat.title}</div>
@@ -393,14 +465,14 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
                         <div className="apple-show-stat-number">{stat.value}</div>
                       </div>
                     </div>
-                    
+
                     <div className="apple-show-stat-details">
                       <span>{stat.detail1}</span>
                       <span>{stat.detail2}</span>
                     </div>
-                    
+
                     <div className="apple-show-stat-progress">
-                      <div 
+                      <div
                         className={`apple-show-stat-progress-bar ${stat.type}`}
                         style={{ width: `${stat.progress}%` }}
                       ></div>
@@ -417,7 +489,7 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
                   <div className="apple-show-info-title">Show Details</div>
                 </div>
               </div>
-              
+
               <div className="apple-show-info-grid-4col">
                 <div className="apple-show-info-item">
                   <div className="apple-show-info-label">Show Type</div>
@@ -425,21 +497,27 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
                 </div>
                 <div className="apple-show-info-item">
                   <div className="apple-show-info-label">Chairman</div>
-                  <div className="apple-show-info-value">{resolvePersonName(showData.chairman)}</div>
+                  <div className="apple-show-info-value">
+                    {resolvePersonName(showData.chairman)}
+                  </div>
                 </div>
                 <div className="apple-show-info-item">
                   <div className="apple-show-info-label">Secretary</div>
-                  <div className="apple-show-info-value">{resolvePersonName(showData.secretary)}</div>
+                  <div className="apple-show-info-value">
+                    {resolvePersonName(showData.secretary)}
+                  </div>
                 </div>
                 <div className="apple-show-info-item">
                   <div className="apple-show-info-label">Entry Fees</div>
-                  <div className="apple-show-info-value">${showData.preEntryFee} / ${showData.dayOfShowFee || showData.preEntryFee}</div>
+                  <div className="apple-show-info-value">
+                    ${showData.preEntryFee} / ${showData.dayOfShowFee || showData.preEntryFee}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        )
-      }
+        ),
+      },
     ];
 
     // Add role-specific tabs
@@ -448,16 +526,26 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
         id: 'registration',
         label: 'Registration',
         description: 'Entry information and registration status',
-        content: <ExhibitorView showData={showData} registrationState={registrationState} onRegisterForShow={onRegisterForShow} />
+        content: (
+          <ExhibitorView
+            showData={showData}
+            registrationState={registrationState}
+            onRegisterForShow={onRegisterForShow}
+          />
+        ),
       });
     }
 
-    if (primaryRole === UserRole.SECRETARY || primaryRole === UserRole.CLUB_ADMIN || primaryRole === UserRole.SITE_ADMIN) {
+    if (
+      primaryRole === UserRole.SECRETARY ||
+      primaryRole === UserRole.CLUB_ADMIN ||
+      primaryRole === UserRole.SITE_ADMIN
+    ) {
       tabs.push({
         id: 'management',
         label: 'Management',
         description: 'Show administration and management tools',
-        content: <SecretaryView onManageEntries={onManageEntries} onEditShow={onEditShow} />
+        content: <SecretaryView onManageEntries={onManageEntries} onEditShow={onEditShow} />,
       });
     }
 
@@ -466,7 +554,7 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
         id: 'assignments',
         label: 'My Assignments',
         description: 'Your judging assignments for this show',
-        content: <JudgeView assignedJudges={showData.assignedJudges} />
+        content: <JudgeView assignedJudges={showData.assignedJudges} />,
       });
     }
 
@@ -483,7 +571,10 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
               <div className="apple-show-subtitle">View available classes and entry spots</div>
             </div>
             {registrationState.canRegister && onRegisterForShow && (
-              <Button onClick={onRegisterForShow} className="apple-action-button apple-action-button-primary">
+              <Button
+                onClick={onRegisterForShow}
+                className="apple-action-button apple-action-button-primary"
+              >
                 <Ticket className="w-4 h-4" />
                 Enter Show
               </Button>
@@ -492,11 +583,15 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
           <div className="mt-6">
             <ClassAvailability
               showId={showData.id}
-              onEnterClass={registrationState.canRegister && onRegisterForShow ? () => onRegisterForShow() : undefined}
+              onEnterClass={
+                registrationState.canRegister && onRegisterForShow
+                  ? () => onRegisterForShow()
+                  : undefined
+              }
             />
           </div>
         </div>
-      )
+      ),
     });
 
     // Add trials tab for everyone
@@ -523,25 +618,27 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <div className="apple-trial-title">{trial.type}</div>
-                        <div className={`apple-trial-status apple-trial-status-${trial.status.toLowerCase().replace(' ', '-')}`}>
+                        <div
+                          className={`apple-trial-status apple-trial-status-${trial.status.toLowerCase().replace(' ', '-')}`}
+                        >
                           {getStatusIcon(trial.status)}
                           {trial.status}
                         </div>
                       </div>
                       <div className="apple-trial-date mb-3">
                         <div className="font-medium text-foreground">
-                          {new Date(trial.trialDate).toLocaleDateString('en-US', { 
-                            weekday: 'short', 
-                            year: 'numeric', 
-                            month: 'short', 
-                            day: 'numeric' 
+                          {new Date(trial.trialDate).toLocaleDateString('en-US', {
+                            weekday: 'short',
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
                           })}
                         </div>
                         <div className="text-sm text-muted-foreground">
                           {formatDistanceToNow(new Date(trial.trialDate), { addSuffix: true })}
                         </div>
                       </div>
-                      
+
                       <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                         <div>
                           <div className="apple-show-info-label">Trial Number</div>
@@ -549,16 +646,18 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
                         </div>
                         <div>
                           <div className="apple-show-info-label">Planned Start</div>
-                          <div className="apple-show-info-value text-sm">{trial.plannedStartTime}</div>
+                          <div className="apple-show-info-value text-sm">
+                            {trial.plannedStartTime}
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
 
                   <div className="apple-trial-actions">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => navigate(`/trials/${trial.id}`)}
                       className="h-8 w-8 p-0"
                     >
@@ -578,11 +677,23 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
             </div>
           )}
         </div>
-      )
+      ),
     });
 
     return tabs;
-  }, [primaryRole, stats, showData, registrationState, trialStats.total, associatedTrials, navigate, onRegisterForShow, onManageEntries, onEditShow, resolvePersonName]);
+  }, [
+    primaryRole,
+    stats,
+    showData,
+    registrationState,
+    trialStats.total,
+    associatedTrials,
+    navigate,
+    onRegisterForShow,
+    onManageEntries,
+    onEditShow,
+    resolvePersonName,
+  ]);
 
   // Memoized tab change handler to prevent unnecessary re-renders
   const handleTabChange = useCallback((tabId: string) => {
@@ -616,11 +727,13 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
 
           {/* Entry Deadline Countdown */}
           {registrationState.canRegister && (
-            <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium mb-4 ${
-              registrationState.isUrgent
-                ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20'
-                : 'bg-muted/50 text-muted-foreground'
-            }`}>
+            <div
+              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium mb-4 ${
+                registrationState.isUrgent
+                  ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20'
+                  : 'bg-muted/50 text-muted-foreground'
+              }`}
+            >
               <Clock className="w-4 h-4" />
               <span>{registrationState.countdownText}</span>
             </div>
@@ -629,7 +742,8 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
           <div className="flex items-center gap-6 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4" />
-              {new Date(showData.startDate).toLocaleDateString()} - {new Date(showData.endDate).toLocaleDateString()}
+              {new Date(showData.startDate).toLocaleDateString()} -{' '}
+              {new Date(showData.endDate).toLocaleDateString()}
             </div>
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4" />
@@ -640,8 +754,9 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
 
         {/* Primary Action Button - Role-based */}
         <div className="flex items-center gap-3">
-          {primaryRole === UserRole.EXHIBITOR && onRegisterForShow && (
-            registrationState.canRegister ? (
+          {primaryRole === UserRole.EXHIBITOR &&
+            onRegisterForShow &&
+            (registrationState.canRegister ? (
               <Button
                 onClick={onRegisterForShow}
                 className="apple-action-button apple-action-button-primary"
@@ -651,28 +766,40 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
                 Enter Show
               </Button>
             ) : (
-              <Button
-                disabled
-                className="apple-action-button"
-                variant="outline"
-              >
+              <Button disabled className="apple-action-button" variant="outline">
                 <Ticket className="w-4 h-4" />
-                {!registrationState.isPublished ? 'Not Published' :
-                 !registrationState.entriesOpen ? 'Not Open Yet' : 'Entries Closed'}
+                {!registrationState.isPublished
+                  ? 'Not Published'
+                  : !registrationState.entriesOpen
+                    ? 'Not Open Yet'
+                    : 'Entries Closed'}
               </Button>
-            )
-          )}
-          
-          {(primaryRole === UserRole.SECRETARY || primaryRole === UserRole.CLUB_ADMIN || primaryRole === UserRole.SITE_ADMIN) && (
+            ))}
+
+          {(primaryRole === UserRole.SECRETARY ||
+            primaryRole === UserRole.CLUB_ADMIN ||
+            primaryRole === UserRole.SITE_ADMIN) && (
             <PermissionGuard permission={PERMISSIONS.SHOW_UPDATE}>
-              <Button 
-                onClick={onEditShow} 
-                className="apple-action-button"
-                variant="outline"
-              >
-                <Settings className="w-4 h-4" />
-                Manage Show
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button className="apple-action-button" variant="outline">
+                    <Settings className="w-4 h-4" />
+                    Manage Show
+                    <MoreVertical className="w-4 h-4 ml-1" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={onEditShow}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    Edit Show
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => onDeleteShow()} className="text-red-600">
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete Show
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </PermissionGuard>
           )}
         </div>
@@ -683,9 +810,9 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
         <div className="overflow-x-auto">
           <TabsList
             className="grid w-full bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 h-auto min-w-max"
-            style={{gridTemplateColumns: `repeat(${tabsConfig.length}, minmax(0, 1fr))`}}
+            style={{ gridTemplateColumns: `repeat(${tabsConfig.length}, minmax(0, 1fr))` }}
           >
-            {tabsConfig.map((tab) => (
+            {tabsConfig.map(tab => (
               <TabsTrigger
                 key={tab.id}
                 value={tab.id}
@@ -698,7 +825,7 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
           </TabsList>
         </div>
 
-        {tabsConfig.map((tab) => (
+        {tabsConfig.map(tab => (
           <TabsContent key={tab.id} value={tab.id}>
             {tab.content}
           </TabsContent>

@@ -204,6 +204,8 @@ const ShowDetailsPage: React.FC = () => {
   // Handler for confirming show delete
   const handleConfirmDelete = () => {
     setShowDeleteDialog(false);
+    // Invalidate React Query cache so deleted show disappears from browse
+    queryClient.invalidateQueries({ queryKey: ['shows'] });
     setTimeout(() => {
       navigate('/browse-shows');
     }, 100);

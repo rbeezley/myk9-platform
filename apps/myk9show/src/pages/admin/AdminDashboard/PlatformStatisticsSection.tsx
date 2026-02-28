@@ -2,9 +2,11 @@
  * PlatformStatisticsSection Component
  *
  * Section displaying platform statistics using StatsCard components.
+ * Only shows real data from the database — no simulated metrics.
  */
 
-import { Activity, BarChart3, Calendar, DollarSign, Server, Users } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { BarChart3, Calendar, Dog, Users } from 'lucide-react';
 import { StatsCard } from './StatsCard';
 import type { PlatformStatisticsSectionProps } from './admin-dashboard-types';
 
@@ -16,10 +18,10 @@ export function PlatformStatisticsSection({
   totalUsers,
   activeShows,
   totalShows,
-  systemUptime,
-  totalRecords,
-  totalRevenue,
+  totalDogs,
 }: PlatformStatisticsSectionProps) {
+  const navigate = useNavigate();
+
   return (
     <div className="mb-16">
       <div className="flex items-center gap-4 mb-8" style={{ fontFamily: APPLE_FONT_FAMILY }}>
@@ -31,56 +33,38 @@ export function PlatformStatisticsSection({
             Platform Statistics
           </h2>
           <p className="text-sm text-muted-foreground mt-1" style={{ fontWeight: 500 }}>
-            Key metrics for platform usage and system performance
+            Key metrics from the database
           </p>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatsCard
           title="Total Users"
           value={isLoading ? 'Loading...' : totalUsers.toString()}
           icon={Users}
           subtitle="Platform users"
-          trend="neutral"
-          trendValue="All user types"
-          priority="normal"
           actionable={true}
+          onClick={() => navigate('/admin/users')}
         />
         <StatsCard
           title="Active Shows"
           value={isLoading ? 'Loading...' : activeShows.toString()}
           icon={Calendar}
           subtitle="Currently running"
-          trend="neutral"
           trendValue={`${totalShows} total shows`}
-          priority="normal"
+          trend="neutral"
         />
         <StatsCard
-          title="System Uptime"
-          value={systemUptime}
-          icon={Activity}
-          subtitle="Platform availability"
-          trend="up"
-          trendValue="Last 30 days"
-          priority="normal"
+          title="Total Shows"
+          value={isLoading ? 'Loading...' : totalShows.toString()}
+          icon={Calendar}
+          subtitle="All shows"
         />
         <StatsCard
-          title="Database Records"
-          value={isLoading ? 'Loading...' : totalRecords.toLocaleString()}
-          icon={Server}
-          subtitle="Total data entries"
-          trend="up"
-          trendValue="Growing"
-          priority="normal"
-        />
-        <StatsCard
-          title="Platform Revenue"
-          value={isLoading ? 'Loading...' : `$${totalRevenue.toLocaleString()}`}
-          icon={DollarSign}
-          subtitle="Total collected"
-          trend="up"
-          trendValue="All time"
-          priority="normal"
+          title="Registered Dogs"
+          value={isLoading ? 'Loading...' : totalDogs.toString()}
+          icon={Dog}
+          subtitle="In the system"
         />
       </div>
     </div>

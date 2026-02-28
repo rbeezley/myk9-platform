@@ -192,7 +192,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       const metadata = await this.getSyncMetadata();
       const allCached = await this.getAll();
       const isCacheEmpty = allCached.length === 0;
-      const lastSync = isCacheEmpty ? 0 : (metadata?.lastIncrementalSyncAt || 0);
+      const lastSync = isCacheEmpty ? 0 : metadata?.lastIncrementalSyncAt || 0;
 
       logger.log(`[${this.getTableName()}] Starting sync`);
 
@@ -314,7 +314,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     const mutationId = await this.queueMutation(
       'UPDATE',
       classId,
-      this.toSupabaseRow(updatedClass),
+      this.toSupabaseRow(updatedClass)
     );
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated class ${classId}`);
@@ -329,7 +329,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
    */
   async createClass(
     classData: ReplicatedClass,
-    trialMutationId?: string,
+    trialMutationId?: string
   ): Promise<ReplicatedClass> {
     const newClass: ReplicatedClass = {
       ...classData,
@@ -344,11 +344,22 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       'INSERT',
       classData.id,
       this.toSupabaseRow(newClass),
-      trialMutationId ? [trialMutationId] : undefined,
+      trialMutationId ? [trialMutationId] : undefined
     );
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Created new class ${classData.id}`);
     return newClass;
+  }
+
+  /**
+   * Delete a class locally and queue DELETE mutation for Supabase sync
+   */
+  async deleteClass(classId: string): Promise<string | null> {
+    await this.delete(classId);
+    const mutationId = await this.queueMutation('DELETE', classId, { id: classId });
+    this._lastMutationId = mutationId;
+    logger.log(`[${this.getTableName()}] Deleted class ${classId}`);
+    return mutationId;
   }
 }
 

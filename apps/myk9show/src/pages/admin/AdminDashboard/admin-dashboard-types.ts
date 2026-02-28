@@ -92,9 +92,7 @@ export interface PlatformStatisticsSectionProps {
   totalUsers: number;
   activeShows: number;
   totalShows: number;
-  systemUptime: string;
-  totalRecords: number;
-  totalRevenue: number;
+  totalDogs: number;
 }
 
 // Admin dashboard data from hooks
@@ -102,7 +100,6 @@ export interface AdminDashboardData {
   users: User[];
   shows: Show[];
   dogs: { id: string }[];
-  showStats: { totalRevenue?: number } | undefined;
   isLoading: boolean;
   hasError: boolean;
 }

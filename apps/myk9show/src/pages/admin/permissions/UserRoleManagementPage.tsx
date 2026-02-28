@@ -14,18 +14,16 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Users, 
-  ArrowLeft, 
-  Search, 
+  Users,
+  ArrowLeft,
+  Search,
   Plus,
   UserCheck,
   Calendar,
   AlertTriangle,
   Shield,
   MoreHorizontal,
-  Eye,
-  Edit,
-  Trash2
+  Trash2,
 } from 'lucide-react';
 import {
   Table,
@@ -39,7 +37,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { rbacService } from '@/services/rbac/RBACService';
@@ -53,7 +50,6 @@ const UserRoleManagementPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAssignDialog, setShowAssignDialog] = useState(false);
-  const [_selectedUserRole, setSelectedUserRole] = useState<UserRole | null>(null);
 
   useEffect(() => {
     loadData();
@@ -63,12 +59,12 @@ const UserRoleManagementPage: React.FC = () => {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       const [userRolesData, rolesData] = await Promise.all([
         rbacService.getAllUserRoles(),
-        rbacService.getAllRoles()
+        rbacService.getAllRoles(),
       ]);
-      
+
       setUserRoles(userRolesData);
       setRoles(rolesData);
     } catch (err) {
@@ -104,7 +100,7 @@ const UserRoleManagementPage: React.FC = () => {
         roleId: assignment.roleId,
         ...(assignment.scopeType !== undefined && { scopeType: assignment.scopeType }),
         ...(assignment.scopeId !== undefined && { scopeId: assignment.scopeId }),
-        ...(assignment.expiresAt !== undefined && { expiresAt: assignment.expiresAt })
+        ...(assignment.expiresAt !== undefined && { expiresAt: assignment.expiresAt }),
       });
       await loadData(); // Reload data
       setShowAssignDialog(false);
@@ -134,7 +130,7 @@ const UserRoleManagementPage: React.FC = () => {
       role,
       totalAssignments: assignments.length,
       activeAssignments: activeAssignments.length,
-      inactiveAssignments: assignments.length - activeAssignments.length
+      inactiveAssignments: assignments.length - activeAssignments.length,
     };
   });
 
@@ -202,7 +198,7 @@ const UserRoleManagementPage: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -214,7 +210,7 @@ const UserRoleManagementPage: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -226,7 +222,7 @@ const UserRoleManagementPage: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -256,7 +252,7 @@ const UserRoleManagementPage: React.FC = () => {
                 <Input
                   placeholder="Search by user email, role, or scope..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={e => setSearchTerm(e.target.value)}
                   className="pl-10"
                 />
               </div>
@@ -285,13 +281,11 @@ const UserRoleManagementPage: React.FC = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredUserRoles.map((userRole) => (
+                  {filteredUserRoles.map(userRole => (
                     <TableRow key={userRole.id}>
                       <TableCell>
                         <div>
-                          <div className="font-medium">
-                            {userRole.user_email || 'Unknown User'}
-                          </div>
+                          <div className="font-medium">{userRole.user_email || 'Unknown User'}</div>
                           <div className="text-xs text-muted-foreground font-mono">
                             {userRole.user_id}
                           </div>
@@ -317,7 +311,7 @@ const UserRoleManagementPage: React.FC = () => {
                         )}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={userRole.is_active ? "default" : "secondary"}>
+                        <Badge variant={userRole.is_active ? 'default' : 'secondary'}>
                           {userRole.is_active ? 'Active' : 'Inactive'}
                         </Badge>
                       </TableCell>
@@ -346,22 +340,15 @@ const UserRoleManagementPage: React.FC = () => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setSelectedUserRole(userRole)}>
-                              <Eye className="h-4 w-4 mr-2" />
-                              View Details
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <Edit className="h-4 w-4 mr-2" />
-                              Edit Assignment
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               className="text-destructive focus:text-destructive"
-                              onClick={() => handleRevokeRole(
-                                userRole.id, 
-                                userRole.user_email || 'Unknown User',
-                                userRole.role?.display_name || 'Unknown Role'
-                              )}
+                              onClick={() =>
+                                handleRevokeRole(
+                                  userRole.id,
+                                  userRole.user_email || 'Unknown User',
+                                  userRole.role?.display_name || 'Unknown Role'
+                                )
+                              }
                             >
                               <Trash2 className="h-4 w-4 mr-2" />
                               Revoke Role
@@ -379,10 +366,9 @@ const UserRoleManagementPage: React.FC = () => {
                   <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-medium mb-2">No assignments found</h3>
                   <p className="text-muted-foreground">
-                    {searchTerm 
+                    {searchTerm
                       ? `No assignments match "${searchTerm}"`
-                      : 'No role assignments have been made yet'
-                    }
+                      : 'No role assignments have been made yet'}
                   </p>
                 </div>
               )}
@@ -398,9 +384,7 @@ const UserRoleManagementPage: React.FC = () => {
                 <CardHeader>
                   <CardTitle className="text-lg">{role.display_name}</CardTitle>
                   <CardDescription>
-                    <code className="text-xs bg-muted px-1 py-0.5 rounded">
-                      {role.name}
-                    </code>
+                    <code className="text-xs bg-muted px-1 py-0.5 rounded">{role.name}</code>
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -419,9 +403,7 @@ const UserRoleManagementPage: React.FC = () => {
                     </div>
                   </div>
                   {role.description && (
-                    <p className="text-xs text-muted-foreground mt-3">
-                      {role.description}
-                    </p>
+                    <p className="text-xs text-muted-foreground mt-3">{role.description}</p>
                   )}
                 </CardContent>
               </Card>

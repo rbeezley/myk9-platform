@@ -140,8 +140,12 @@ function rowToEntry(row: EntryRow): ReplicatedEntry {
     level: (dbRow.level as string | undefined) ?? undefined,
     areas: (dbRow.area_count as number | undefined) ?? undefined,
     timeLimit: dbRow.time_limit_seconds ? String(dbRow.time_limit_seconds as number) : undefined,
-    timeLimit2: dbRow.time_limit_area2_seconds ? String(dbRow.time_limit_area2_seconds as number) : undefined,
-    timeLimit3: dbRow.time_limit_area3_seconds ? String(dbRow.time_limit_area3_seconds as number) : undefined,
+    timeLimit2: dbRow.time_limit_area2_seconds
+      ? String(dbRow.time_limit_area2_seconds as number)
+      : undefined,
+    timeLimit3: dbRow.time_limit_area3_seconds
+      ? String(dbRow.time_limit_area3_seconds as number)
+      : undefined,
 
     // Timestamps
     updated_at: row.updated_at ?? undefined,
@@ -202,7 +206,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       const metadata = await this.getSyncMetadata();
       const allCached = await this.getAll();
       const isCacheEmpty = allCached.length === 0;
-      const lastSync = isCacheEmpty ? 0 : (metadata?.lastIncrementalSyncAt || 0);
+      const lastSync = isCacheEmpty ? 0 : metadata?.lastIncrementalSyncAt || 0;
 
       logger.log(`[${this.getTableName()}] Starting sync`);
 
@@ -378,10 +382,7 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    * @param classMutationId - Optional mutation ID of the parent class (for dependency tracking)
    * The mutation ID is available via `lastMutationId` for dependency tracking.
    */
-  async createEntry(
-    entry: ReplicatedEntry,
-    classMutationId?: string,
-  ): Promise<ReplicatedEntry> {
+  async createEntry(entry: ReplicatedEntry, classMutationId?: string): Promise<ReplicatedEntry> {
     const newEntry: ReplicatedEntry = {
       ...entry,
       _version: 1,
@@ -395,11 +396,22 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       'INSERT',
       entry.id,
       this.toSupabaseRow(newEntry),
-      classMutationId ? [classMutationId] : undefined,
+      classMutationId ? [classMutationId] : undefined
     );
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Created new entry ${entry.id}`);
     return newEntry;
+  }
+
+  /**
+   * Delete an entry locally and queue DELETE mutation for Supabase sync
+   */
+  async deleteEntry(entryId: string): Promise<string | null> {
+    await this.delete(entryId);
+    const mutationId = await this.queueMutation('DELETE', entryId, { id: entryId });
+    this._lastMutationId = mutationId;
+    logger.log(`[${this.getTableName()}] Deleted entry ${entryId}`);
+    return mutationId;
   }
 }
 

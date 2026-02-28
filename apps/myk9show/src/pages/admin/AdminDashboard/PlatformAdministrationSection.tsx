@@ -4,6 +4,7 @@
  * Section displaying admin cards for user management, system health, and configuration.
  */
 
+import { Link } from 'react-router-dom';
 import { Activity, ChevronRight, Settings, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +26,7 @@ interface AdminCardProps {
   buttonText: string;
   buttonClassName: string;
   hoverColor: string;
+  href: string;
 }
 
 function AdminCard({
@@ -40,12 +42,14 @@ function AdminCard({
   buttonText,
   buttonClassName,
   hoverColor,
+  href,
 }: AdminCardProps) {
   return (
-    <div
+    <Link
+      to={href}
       className={`group relative overflow-hidden bg-gradient-to-br from-card to-card/80
                   border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl
-                  transition-all duration-300 cursor-pointer hover:shadow-xl hover:-translate-y-1`}
+                  transition-all duration-300 cursor-pointer hover:shadow-xl hover:-translate-y-1 block`}
       style={{
         fontFamily: APPLE_FONT_FAMILY,
         transitionTimingFunction: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
@@ -63,7 +67,11 @@ function AdminCard({
           >
             <Icon className={`h-5 w-5 ${iconColor}`} />
           </div>
-          <Badge variant={badgeVariant} className={`text-xs ${badgeClassName || ''}`} style={{ fontWeight: 590 }}>
+          <Badge
+            variant={badgeVariant}
+            className={`text-xs ${badgeClassName || ''}`}
+            style={{ fontWeight: 590 }}
+          >
             {badgeContent}
           </Badge>
         </div>
@@ -80,8 +88,9 @@ function AdminCard({
           <Button
             size="sm"
             variant="outline"
-            className={`text-xs ${buttonClassName} transition-all duration-300 rounded-lg`}
+            className={`text-xs ${buttonClassName} transition-all duration-300 rounded-lg pointer-events-none`}
             style={{ fontWeight: 500 }}
+            tabIndex={-1}
           >
             {buttonText}
           </Button>
@@ -91,17 +100,14 @@ function AdminCard({
           />
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
 
 export function PlatformAdministrationSection({ userCount }: PlatformAdministrationSectionProps) {
   return (
     <div className="mb-16">
-      <div
-        className="flex items-center gap-4 mb-8"
-        style={{ fontFamily: APPLE_FONT_FAMILY }}
-      >
+      <div className="flex items-center gap-4 mb-8" style={{ fontFamily: APPLE_FONT_FAMILY }}>
         <div className="p-3 bg-gradient-to-br from-primary/20 to-primary/10 rounded-xl shadow-sm">
           <Users className="h-6 w-6 text-primary" />
         </div>
@@ -128,12 +134,13 @@ export function PlatformAdministrationSection({ userCount }: PlatformAdministrat
           buttonText="Manage Users"
           buttonClassName="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40"
           hoverColor="text-primary"
+          href="/admin/users"
         />
 
-        {/* System Health Card */}
+        {/* Alerts & Monitoring Card */}
         <AdminCard
-          title="System Health"
-          description="Monitor performance and system status"
+          title="Alerts & Monitoring"
+          description="View system alerts and notifications"
           icon={Activity}
           iconColor="text-emerald-600"
           iconBgFrom="from-emerald-500/20"
@@ -141,25 +148,27 @@ export function PlatformAdministrationSection({ userCount }: PlatformAdministrat
           badgeContent="Active"
           badgeVariant="secondary"
           badgeClassName="bg-emerald-500/10 text-emerald-700"
-          buttonText="View Status"
+          buttonText="View Alerts"
           buttonClassName="border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/5 hover:border-emerald-500/40"
           hoverColor="text-emerald-600"
+          href="/admin/alerts"
         />
 
-        {/* System Configuration Card */}
+        {/* Permissions Card */}
         <AdminCard
-          title="System Configuration"
-          description="Platform settings and configuration management"
+          title="Roles & Permissions"
+          description="Manage roles, permissions, and access control"
           icon={Settings}
           iconColor="text-slate-600"
           iconBgFrom="from-slate-500/20"
           iconBgTo="to-slate-500/10"
-          badgeContent="Config"
+          badgeContent="RBAC"
           badgeVariant="outline"
           badgeClassName="border-slate-500/20 text-slate-600"
-          buttonText="Configure"
+          buttonText="Manage"
           buttonClassName="border-slate-500/20 text-slate-600 hover:bg-slate-500/5 hover:border-slate-500/40"
           hoverColor="text-slate-600"
+          href="/admin/permissions"
         />
       </div>
     </div>

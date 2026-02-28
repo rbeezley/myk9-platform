@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 import { useShowStore } from '@/store/showStore';
 import { CascadingDeleteDialog } from '@/components/common/CascadingDeleteDialog';
+import { previewCascadingDelete as buildPreview } from '@/utils/cascadingDelete';
 import type { CascadingDeletePreview } from '@/utils/cascadingDelete';
 import { logger } from '@/services/LoggingService';
 
@@ -12,23 +13,25 @@ export interface DeleteShowDialogProps {
   onDelete: () => void;
 }
 
-const DeleteShowDialog: React.FC<DeleteShowDialogProps> = ({ 
-  open, 
-  onOpenChange, 
-  showId, 
-  onDelete 
+const DeleteShowDialog: React.FC<DeleteShowDialogProps> = ({
+  open,
+  onOpenChange,
+  showId,
+  showName,
+  onDelete,
 }) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [preview, setPreview] = useState<CascadingDeletePreview | null>(null);
-  const { previewCascadingDelete, deleteShowCascading } = useShowStore();
+  const { deleteShowCascading } = useShowStore();
 
-  // Load preview when dialog opens
+  // Load preview when dialog opens — use cascadingDelete utility directly
+  // instead of showStore wrapper, since the show may not be in the Zustand store
   useEffect(() => {
     if (open && showId) {
-      const previewData = previewCascadingDelete(showId);
+      const previewData = buildPreview(showId, showName || 'Unnamed Show');
       setPreview(previewData);
     }
-  }, [open, showId, previewCascadingDelete]);
+  }, [open, showId, showName]);
 
   const handleConfirm = async () => {
     setIsDeleting(true);

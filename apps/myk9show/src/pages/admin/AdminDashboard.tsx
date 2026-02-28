@@ -6,15 +6,14 @@
  */
 
 import React from 'react';
-import { AlertCircle, FileText, Settings } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { AlertCircle, Settings, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 // Import from module
 import {
   useAdminDashboardData,
   calculateDashboardStats,
-  useSystemHealthMetrics,
-  CollapsibleSystemHealth,
   PlatformAdministrationSection,
   PlatformStatisticsSection,
 } from './AdminDashboard/index';
@@ -72,9 +71,12 @@ function DashboardHeader() {
             fontWeight: 500,
             transitionTimingFunction: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
           }}
+          asChild
         >
-          <FileText className="h-4 w-4 mr-2" />
-          System Report
+          <Link to="/admin/users">
+            <Users className="h-4 w-4 mr-2" />
+            Manage Users
+          </Link>
         </Button>
         <Button
           className="bg-gradient-to-r from-primary to-secondary text-primary-foreground
@@ -84,9 +86,12 @@ function DashboardHeader() {
             fontWeight: 500,
             transitionTimingFunction: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
           }}
+          asChild
         >
-          <Settings className="h-4 w-4 mr-2" />
-          System Settings
+          <Link to="/admin/permissions">
+            <Settings className="h-4 w-4 mr-2" />
+            Permissions
+          </Link>
         </Button>
       </div>
     </div>
@@ -96,7 +101,6 @@ function DashboardHeader() {
 const AdminDashboard: React.FC = () => {
   // Get dashboard data
   const dashboardData = useAdminDashboardData();
-  const { healthMetrics, systemUptime } = useSystemHealthMetrics();
 
   // Calculate derived statistics
   const stats = calculateDashboardStats(dashboardData);
@@ -121,18 +125,7 @@ const AdminDashboard: React.FC = () => {
           totalUsers={stats.totalUsers}
           activeShows={stats.activeShows}
           totalShows={stats.totalShows}
-          systemUptime={systemUptime}
-          totalRecords={stats.totalRecords}
-          totalRevenue={stats.totalRevenue}
-        />
-
-        {/* Collapsible System Health Section */}
-        <CollapsibleSystemHealth
-          healthMetrics={healthMetrics}
-          hasError={!!dashboardData.hasError}
-          isLoading={dashboardData.isLoading}
-          shows={dashboardData.shows}
-          users={dashboardData.users}
+          totalDogs={stats.totalDogs}
         />
       </div>
     </div>

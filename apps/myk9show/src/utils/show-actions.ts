@@ -11,7 +11,7 @@ export interface ShowAction {
   id: string;
   label: string;
   icon: string;
-  variant: 'default' | 'outline' | 'ghost' | 'destructive';
+  variant: 'default' | 'destructive';
   permission?: Permission;
   requiresRelationship?: ShowRelationship[];
   onClick: (show: Show) => void;
@@ -26,30 +26,24 @@ export function getShowActions(
   user: UserWithRoles | null
 ): ShowAction[] {
   // Audit the action request
-  ShowPermissionValidator.auditAction(
-    'get_show_actions',
-    user,
-    'show',
-    show.id,
-    true
-  );
+  ShowPermissionValidator.auditAction('get_show_actions', user, 'show', show.id, true);
 
   if (!user) {
     // Guest users can only view details if they have permission
     if (!ShowPermissionValidator.canView(user, show)) {
       return [];
     }
-    
+
     return [
       {
         id: 'view',
         label: 'View Details',
         icon: 'Eye',
-        variant: 'outline',
-        onClick: (show) => {
+        variant: 'default',
+        onClick: show => {
           window.location.href = `/shows/${show.id}`;
-        }
-      }
+        },
+      },
     ];
   }
 
@@ -68,8 +62,8 @@ export function getShowActions(
       id: 'view',
       label: 'View Details',
       icon: 'Eye',
-      variant: 'outline',
-      onClick: (show) => window.location.href = `/shows/${show.id}`
+      variant: 'default',
+      onClick: show => (window.location.href = `/shows/${show.id}`),
     });
   }
 
@@ -82,10 +76,10 @@ export function getShowActions(
           label: 'Register',
           icon: 'UserPlus',
           variant: 'default',
-          onClick: (show) => {
+          onClick: show => {
             ShowPermissionValidator.auditAction('register_attempt', user, 'show', show.id, true);
             logger.logUserAction('register', 'show', { showId: show.id });
-          }
+          },
         });
       }
 
@@ -97,13 +91,13 @@ export function getShowActions(
           id: 'quick_edit',
           label: 'Quick Edit',
           icon: 'Edit',
-          variant: 'ghost',
+          variant: 'default',
           permission: PERMISSIONS.SHOW_UPDATE,
           requiresRelationship: ['managing'],
-          onClick: (show) => {
+          onClick: show => {
             ShowPermissionValidator.auditAction('edit_show_attempt', user, 'show', show.id, true);
             logger.logUserAction('quick_edit', 'show', { showId: show.id });
-          }
+          },
         });
       }
       break;
@@ -114,8 +108,8 @@ export function getShowActions(
         id: 'results',
         label: 'View Results',
         icon: 'Trophy',
-        variant: 'outline',
-        onClick: (show) => logger.logUserAction('view_results', 'show', { showId: show.id })
+        variant: 'default',
+        onClick: show => logger.logUserAction('view_results', 'show', { showId: show.id }),
       });
 
       // Export results if user participated
@@ -124,8 +118,8 @@ export function getShowActions(
           id: 'export_results',
           label: 'Export Results',
           icon: 'Download',
-          variant: 'ghost',
-          onClick: (show) => logger.logUserAction('export_results', 'show', { showId: show.id })
+          variant: 'default',
+          onClick: show => logger.logUserAction('export_results', 'show', { showId: show.id }),
         });
       }
       break;
@@ -137,8 +131,8 @@ export function getShowActions(
           id: 'modify_entry',
           label: 'Modify Entry',
           icon: 'Edit',
-          variant: 'outline',
-          onClick: (show) => logger.logUserAction('modify_entry', 'show', { showId: show.id })
+          variant: 'default',
+          onClick: show => logger.logUserAction('modify_entry', 'show', { showId: show.id }),
         });
 
         // Withdraw entry
@@ -147,7 +141,7 @@ export function getShowActions(
           label: 'Withdraw',
           icon: 'UserMinus',
           variant: 'destructive',
-          onClick: (show) => logger.logUserAction('withdraw', 'show', { showId: show.id })
+          onClick: show => logger.logUserAction('withdraw', 'show', { showId: show.id }),
         });
       } else if (isPast) {
         // View results for completed shows
@@ -155,8 +149,8 @@ export function getShowActions(
           id: 'my_results',
           label: 'My Results',
           icon: 'Award',
-          variant: 'outline',
-          onClick: (show) => logger.logUserAction('view_my_results', 'show', { showId: show.id })
+          variant: 'default',
+          onClick: show => logger.logUserAction('view_my_results', 'show', { showId: show.id }),
         });
       }
 
@@ -165,8 +159,8 @@ export function getShowActions(
         id: 'print_confirmation',
         label: 'Print Confirmation',
         icon: 'Printer',
-        variant: 'ghost',
-        onClick: (show) => logger.logUserAction('print_confirmation', 'show', { showId: show.id })
+        variant: 'default',
+        onClick: show => logger.logUserAction('print_confirmation', 'show', { showId: show.id }),
       });
       break;
 
@@ -177,9 +171,9 @@ export function getShowActions(
           id: 'edit_show',
           label: 'Edit Show',
           icon: 'Settings',
-          variant: 'outline',
+          variant: 'default',
           permission: PERMISSIONS.SHOW_UPDATE,
-          onClick: (show) => logger.logUserAction('edit_show', 'show', { showId: show.id })
+          onClick: show => logger.logUserAction('edit_show', 'show', { showId: show.id }),
         });
       }
 
@@ -189,9 +183,9 @@ export function getShowActions(
           id: 'manage_entries',
           label: 'Manage Entries',
           icon: 'Users',
-          variant: 'outline',
+          variant: 'default',
           permission: PERMISSIONS.SHOW_MANAGE_ENTRIES,
-          onClick: (show) => logger.logUserAction('manage_entries', 'show', { showId: show.id })
+          onClick: show => logger.logUserAction('manage_entries', 'show', { showId: show.id }),
         });
       }
 
@@ -200,8 +194,8 @@ export function getShowActions(
         id: 'reports',
         label: 'Reports',
         icon: 'FileText',
-        variant: 'ghost',
-        onClick: (show) => logger.logUserAction('generate_reports', 'show', { showId: show.id })
+        variant: 'default',
+        onClick: show => logger.logUserAction('generate_reports', 'show', { showId: show.id }),
       });
 
       // Manage run order for upcoming/active shows
@@ -210,8 +204,8 @@ export function getShowActions(
           id: 'run_order',
           label: 'Run Order',
           icon: 'List',
-          variant: 'ghost',
-          onClick: (show) => logger.logUserAction('manage_run_order', 'show', { showId: show.id })
+          variant: 'default',
+          onClick: show => logger.logUserAction('manage_run_order', 'show', { showId: show.id }),
         });
       }
       break;
@@ -223,9 +217,9 @@ export function getShowActions(
           id: 'assignment_details',
           label: 'Assignment Details',
           icon: 'ClipboardList',
-          variant: 'outline',
+          variant: 'default',
           permission: PERMISSIONS.JUDGE_VIEW_ASSIGNMENTS,
-          onClick: (show) => logger.logUserAction('view_assignment', 'show', { showId: show.id })
+          onClick: show => logger.logUserAction('view_assignment', 'show', { showId: show.id }),
         });
       }
 
@@ -237,7 +231,7 @@ export function getShowActions(
           icon: 'Edit3',
           variant: 'default',
           permission: PERMISSIONS.JUDGE_ENTER_RESULTS,
-          onClick: (show) => logger.logUserAction('enter_results', 'show', { showId: show.id })
+          onClick: show => logger.logUserAction('enter_results', 'show', { showId: show.id }),
         });
       }
 
@@ -246,8 +240,8 @@ export function getShowActions(
         id: 'schedule',
         label: 'Class Schedule',
         icon: 'Calendar',
-        variant: 'ghost',
-        onClick: (show) => logger.logUserAction('view_schedule', 'show', { showId: show.id })
+        variant: 'default',
+        onClick: show => logger.logUserAction('view_schedule', 'show', { showId: show.id }),
       });
 
       // Generate judge reports
@@ -256,8 +250,9 @@ export function getShowActions(
           id: 'judge_report',
           label: 'Judge Report',
           icon: 'FileOutput',
-          variant: 'ghost',
-          onClick: (show) => logger.logUserAction('generate_judge_report', 'show', { showId: show.id })
+          variant: 'default',
+          onClick: show =>
+            logger.logUserAction('generate_judge_report', 'show', { showId: show.id }),
         });
       }
       break;
@@ -278,10 +273,7 @@ export function getShowActions(
 /**
  * Get quick actions for the top of each tab
  */
-export function getTabQuickActions(
-  currentTab: string,
-  user: UserWithRoles | null
-): ShowAction[] {
+export function getTabQuickActions(currentTab: string, user: UserWithRoles | null): ShowAction[] {
   if (!user) return [];
 
   const userPermissions = user.permissions || [];
@@ -300,7 +292,7 @@ export function getTabQuickActions(
           onClick: () => {
             ShowPermissionValidator.auditAction('create_show_attempt', user, 'show', 'new', true);
             window.location.href = '/secretary/create-show/wizard';
-          }
+          },
         });
       }
 
@@ -310,9 +302,9 @@ export function getTabQuickActions(
           id: 'bulk_register',
           label: 'Bulk Register',
           icon: 'Users',
-          variant: 'outline',
+          variant: 'default',
           permission: PERMISSIONS.REGISTRATION_BULK_OPERATIONS,
-          onClick: () => logger.logUserAction('bulk_register', 'shows', {})
+          onClick: () => logger.logUserAction('bulk_register', 'shows', {}),
         });
       }
       break;
@@ -323,8 +315,8 @@ export function getTabQuickActions(
         id: 'search_entries',
         label: 'Search My Entries',
         icon: 'Search',
-        variant: 'outline',
-        onClick: () => logger.logUserAction('search_entries', 'entries', {})
+        variant: 'default',
+        onClick: () => logger.logUserAction('search_entries', 'entries', {}),
       });
 
       // Export entries
@@ -332,8 +324,8 @@ export function getTabQuickActions(
         id: 'export_entries',
         label: 'Export Entries',
         icon: 'Download',
-        variant: 'ghost',
-        onClick: () => logger.logUserAction('export_entries', 'entries', {})
+        variant: 'default',
+        onClick: () => logger.logUserAction('export_entries', 'entries', {}),
       });
       break;
 
@@ -349,7 +341,7 @@ export function getTabQuickActions(
           onClick: () => {
             ShowPermissionValidator.auditAction('create_show_attempt', user, 'show', 'new', true);
             window.location.href = '/secretary/create-show/wizard';
-          }
+          },
         });
       }
 
@@ -359,9 +351,9 @@ export function getTabQuickActions(
           id: 'bulk_manage',
           label: 'Bulk Actions',
           icon: 'Settings',
-          variant: 'outline',
+          variant: 'default',
           permission: PERMISSIONS.SHOW_MANAGE,
-          onClick: () => logger.logUserAction('bulk_manage', 'shows', {})
+          onClick: () => logger.logUserAction('bulk_manage', 'shows', {}),
         });
       }
 
@@ -370,8 +362,8 @@ export function getTabQuickActions(
         id: 'analytics',
         label: 'Analytics',
         icon: 'BarChart3',
-        variant: 'ghost',
-        onClick: () => logger.logUserAction('view_analytics', 'shows', {})
+        variant: 'default',
+        onClick: () => logger.logUserAction('view_analytics', 'shows', {}),
       });
       break;
 
@@ -381,8 +373,8 @@ export function getTabQuickActions(
         id: 'schedule_overview',
         label: 'Schedule Overview',
         icon: 'Calendar',
-        variant: 'outline',
-        onClick: () => logger.logUserAction('view_schedule_overview', 'judge', {})
+        variant: 'default',
+        onClick: () => logger.logUserAction('view_schedule_overview', 'judge', {}),
       });
 
       // Judging reports
@@ -390,8 +382,8 @@ export function getTabQuickActions(
         id: 'judging_reports',
         label: 'My Reports',
         icon: 'FileText',
-        variant: 'ghost',
-        onClick: () => logger.logUserAction('view_judging_reports', 'judge', {})
+        variant: 'default',
+        onClick: () => logger.logUserAction('view_judging_reports', 'judge', {}),
       });
       break;
   }
@@ -422,12 +414,13 @@ export function getEmptyStateContent(
       return {
         icon: 'Calendar',
         title: 'No upcoming shows',
-        description: 'There are no upcoming shows available at this time. Check back later or create a new show.',
+        description:
+          'There are no upcoming shows available at this time. Check back later or create a new show.',
         actionLabel: userPermissions.includes(PERMISSIONS.SHOW_CREATE) ? 'Create Show' : undefined,
         actionIcon: 'Plus',
-        onAction: userPermissions.includes(PERMISSIONS.SHOW_CREATE) 
-          ? () => window.location.href = '/secretary/create-show/wizard' 
-          : undefined
+        onAction: userPermissions.includes(PERMISSIONS.SHOW_CREATE)
+          ? () => (window.location.href = '/secretary/create-show/wizard')
+          : undefined,
       };
 
     case 'past':
@@ -437,17 +430,17 @@ export function getEmptyStateContent(
         description: 'No completed shows to display yet.',
         actionLabel: 'Browse All Shows',
         actionIcon: 'Eye',
-        onAction: () => logger.logUserAction('navigate', 'shows', { target: 'all' })
+        onAction: () => logger.logUserAction('navigate', 'shows', { target: 'all' }),
       };
 
     case 'entries':
       return {
         icon: 'UserPlus',
         title: 'No entries yet',
-        description: 'You haven\'t entered any shows yet. Browse available shows to get started.',
+        description: "You haven't entered any shows yet. Browse available shows to get started.",
         actionLabel: 'Browse Shows',
         actionIcon: 'Search',
-        onAction: () => logger.logUserAction('navigate', 'shows', { target: 'all' })
+        onAction: () => logger.logUserAction('navigate', 'shows', { target: 'all' }),
       };
 
     case 'managing':
@@ -457,9 +450,9 @@ export function getEmptyStateContent(
         description: 'You are not currently managing any shows.',
         actionLabel: userPermissions.includes(PERMISSIONS.SHOW_CREATE) ? 'Create Show' : undefined,
         actionIcon: 'Plus',
-        onAction: userPermissions.includes(PERMISSIONS.SHOW_CREATE) 
-          ? () => window.location.href = '/secretary/create-show/wizard' 
-          : undefined
+        onAction: userPermissions.includes(PERMISSIONS.SHOW_CREATE)
+          ? () => (window.location.href = '/secretary/create-show/wizard')
+          : undefined,
       };
 
     case 'assignments':
@@ -469,7 +462,7 @@ export function getEmptyStateContent(
         description: 'You are not currently assigned to judge any shows.',
         actionLabel: 'View All Shows',
         actionIcon: 'Eye',
-        onAction: () => logger.logUserAction('navigate', 'shows', { target: 'all' })
+        onAction: () => logger.logUserAction('navigate', 'shows', { target: 'all' }),
       };
 
     default:
@@ -479,7 +472,7 @@ export function getEmptyStateContent(
         description: 'Try adjusting your filters to see more results.',
         actionLabel: 'Clear Filters',
         actionIcon: 'X',
-        onAction: () => logger.logUserAction('clear_filters', 'shows', {})
+        onAction: () => logger.logUserAction('clear_filters', 'shows', {}),
       };
   }
 }

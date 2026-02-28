@@ -179,7 +179,7 @@ const PermissionAuditPage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-6 pt-20 pb-8 max-w-7xl">
+        <div className="container mx-auto px-6 pt-8 pb-8 max-w-7xl">
           <div className="space-y-8">
             {/* Header Skeleton */}
             <div className="space-y-3">
@@ -220,7 +220,7 @@ const PermissionAuditPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-6 pt-20 pb-8 max-w-7xl">
+      <div className="container mx-auto px-6 pt-8 pb-8 max-w-7xl">
         <div className="space-y-8">
           {/* Header */}
           <div className="flex items-center justify-between">

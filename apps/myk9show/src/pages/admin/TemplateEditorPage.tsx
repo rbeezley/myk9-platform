@@ -262,7 +262,7 @@ export const TemplateEditorPage: React.FC = () => {
 
   if (!isNew && !template.templateName) {
     return (
-      <div className="container mx-auto p-6 pt-20">
+      <div className="container mx-auto p-6 pt-8">
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
@@ -274,7 +274,7 @@ export const TemplateEditorPage: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto p-6 max-w-full pt-20">
+    <div className="container mx-auto p-6 max-w-full pt-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">

@@ -5,14 +5,9 @@ import { FeatureGate } from '@/components/subscription/FeatureGate';
 const mockUserPlan = 'premium'; // 'free' | 'basic' | 'premium' | 'enterprise'
 
 export default function AnalyticsPage() {
-
   return (
-    <div className="min-h-screen pt-20 pb-8 px-6 max-w-[90rem] mx-auto">
-      <FeatureGate 
-        feature="analytics" 
-        userPlan={mockUserPlan}
-        showDialog={false}
-      >
+    <div className="min-h-screen pt-8 pb-8 px-6 max-w-[90rem] mx-auto">
+      <FeatureGate feature="analytics" userPlan={mockUserPlan} showDialog={false}>
         <AnalyticsDashboard />
       </FeatureGate>
     </div>

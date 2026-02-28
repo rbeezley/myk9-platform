@@ -226,7 +226,7 @@ const UserManagementPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-8 pt-24 pb-12 max-w-8xl">
+      <div className="container mx-auto px-8 pt-8 pb-12 max-w-8xl">
         {/* Header - Matching Admin Dashboard exactly */}
         <div
           className="flex flex-col md:flex-row md:items-center md:justify-between mb-12"

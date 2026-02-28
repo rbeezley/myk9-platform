@@ -196,7 +196,7 @@ export const RBACTestPage: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto pt-20 px-6 pb-6 max-w-7xl">
+    <div className="container mx-auto pt-8 px-6 pb-6 max-w-7xl">
       <div className="space-y-6">
         {/* Header */}
         <div className="border-b pb-4">

@@ -8,15 +8,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { 
-  ArrowLeft, 
-  Play, 
-  CheckCircle, 
-  AlertTriangle, 
+import {
+  ArrowLeft,
+  Play,
+  CheckCircle,
+  AlertTriangle,
   Download,
   RefreshCw,
   TestTube,
-  FileText
+  FileText,
 } from 'lucide-react';
 
 export const TemplateTestingPage: React.FC = () => {
@@ -24,14 +24,9 @@ export const TemplateTestingPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthContext();
   const { getTemplate } = useTemplateStore();
-  const { 
-    selectTemplate, 
-    selectAllClasses, 
-    createClasses, 
-    validateSelections,
-    resetCreation 
-  } = useClassCreationStore();
-  
+  const { selectTemplate, selectAllClasses, createClasses, validateSelections, resetCreation } =
+    useClassCreationStore();
+
   const [template, setTemplate] = useState<ClassTemplate | null>(null);
   const [testResults, setTestResults] = useState<{
     classes: CreatedClass[];
@@ -55,43 +50,42 @@ export const TemplateTestingPage: React.FC = () => {
 
   const runTest = async () => {
     if (!template) return;
-    
+
     setTesting(true);
     const startTime = Date.now();
-    
+
     try {
       // Reset any previous state
       resetCreation();
-      
+
       // Select the template
       selectTemplate(template.id);
-      
+
       // Select all classes for testing
       selectAllClasses();
-      
+
       // Validate selections
       const validationPassed = validateSelections();
-      
+
       // Create test classes
       const mockTrialId = 'test-trial-' + Date.now();
       const creationResult = createClasses(mockTrialId, user?.id || 'unknown');
-      
+
       const executionTime = Date.now() - startTime;
-      
+
       setTestResults({
         classes: creationResult.classes,
         validationPassed: validationPassed && creationResult.success,
         errors: creationResult.success ? [] : creationResult.errors,
-        executionTime
+        executionTime,
       });
-      
     } catch (error) {
       const executionTime = Date.now() - startTime;
       setTestResults({
         classes: [],
         validationPassed: false,
         errors: [error instanceof Error ? error.message : 'Unknown error occurred'],
-        executionTime
+        executionTime,
       });
     } finally {
       setTesting(false);
@@ -100,14 +94,14 @@ export const TemplateTestingPage: React.FC = () => {
 
   const exportResults = () => {
     if (!testResults || !template) return;
-    
+
     const exportData = {
       template: {
         id: template.id,
         name: template.templateName,
         organization: template.organization,
         showType: template.showType,
-        version: template.version
+        version: template.version,
       },
       testResults: {
         timestamp: new Date().toISOString(),
@@ -120,9 +114,9 @@ export const TemplateTestingPage: React.FC = () => {
           element: cls.element,
           level: cls.level,
           section: cls.section,
-          fieldValues: cls.fieldValues
-        }))
-      }
+          fieldValues: cls.fieldValues,
+        })),
+      },
     };
 
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
@@ -154,7 +148,7 @@ export const TemplateTestingPage: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto p-6 max-w-6xl pt-20">
+    <div className="container mx-auto p-6 max-w-6xl pt-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
@@ -167,7 +161,7 @@ export const TemplateTestingPage: React.FC = () => {
             <h1 className="text-2xl font-bold">Test Template</h1>
             <div className="flex items-center gap-2 mt-1">
               <span className="text-muted-foreground">{template.templateName}</span>
-              <Badge variant={template.isOfficial ? "default" : "secondary"}>
+              <Badge variant={template.isOfficial ? 'default' : 'secondary'}>
                 {template.isOfficial ? 'Official' : 'Custom'}
               </Badge>
             </div>
@@ -205,26 +199,40 @@ export const TemplateTestingPage: React.FC = () => {
             <div>
               <h3 className="font-semibold mb-2">Basic Information</h3>
               <div className="space-y-1 text-sm">
-                <div><strong>Organization:</strong> {template.organization}</div>
-                <div><strong>Show Type:</strong> {template.showType}</div>
-                <div><strong>Version:</strong> {template.version}</div>
-                <div><strong>Status:</strong> {template.isActive ? 'Active' : 'Inactive'}</div>
+                <div>
+                  <strong>Organization:</strong> {template.organization}
+                </div>
+                <div>
+                  <strong>Show Type:</strong> {template.showType}
+                </div>
+                <div>
+                  <strong>Version:</strong> {template.version}
+                </div>
+                <div>
+                  <strong>Status:</strong> {template.isActive ? 'Active' : 'Inactive'}
+                </div>
               </div>
             </div>
-            
+
             <div>
               <h3 className="font-semibold mb-2">Template Structure</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">{template.classDefinitions.length}</div>
+                  <div className="text-2xl font-bold text-blue-600">
+                    {template.classDefinitions.length}
+                  </div>
                   <div className="text-xs text-muted-foreground">Classes</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">{template.fieldSpecifications.length}</div>
+                  <div className="text-2xl font-bold text-green-600">
+                    {template.fieldSpecifications.length}
+                  </div>
                   <div className="text-xs text-muted-foreground">Fields</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-purple-600">{template.validationRules.length}</div>
+                  <div className="text-2xl font-bold text-purple-600">
+                    {template.validationRules.length}
+                  </div>
                   <div className="text-xs text-muted-foreground">Rules</div>
                 </div>
                 <div className="text-center">
@@ -239,10 +247,20 @@ export const TemplateTestingPage: React.FC = () => {
             <div>
               <h3 className="font-semibold mb-2">Default Settings</h3>
               <div className="space-y-1 text-sm">
-                <div><strong>Entry Fee:</strong> ${template.defaults?.entryFees?.preEntry} / ${template.defaults?.entryFees?.dayOfShow}</div>
-                <div><strong>Judging Time:</strong> {template.defaults?.judgingTimeEstimate} min</div>
-                <div><strong>Min Age:</strong> {template.defaults?.minimumAge} months</div>
-                <div><strong>Required Personnel:</strong> {template.defaults?.requiredPersonnel?.length || 0}</div>
+                <div>
+                  <strong>Entry Fee:</strong> ${template.defaults?.entryFees?.preEntry} / $
+                  {template.defaults?.entryFees?.dayOfShow}
+                </div>
+                <div>
+                  <strong>Judging Time:</strong> {template.defaults?.judgingTimeEstimate} min
+                </div>
+                <div>
+                  <strong>Min Age:</strong> {template.defaults?.minimumAge} months
+                </div>
+                <div>
+                  <strong>Required Personnel:</strong>{' '}
+                  {template.defaults?.requiredPersonnel?.length || 0}
+                </div>
               </div>
             </div>
           </div>
@@ -260,9 +278,7 @@ export const TemplateTestingPage: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <p className="text-muted-foreground">
-                This test will validate your template by:
-              </p>
+              <p className="text-muted-foreground">This test will validate your template by:</p>
               <ul className="list-disc list-inside space-y-2 text-sm text-muted-foreground ml-4">
                 <li>Checking all field specifications for completeness</li>
                 <li>Validating all class definitions</li>
@@ -276,7 +292,8 @@ export const TemplateTestingPage: React.FC = () => {
                   <div>
                     <h4 className="font-medium text-blue-900">Ready to Test</h4>
                     <p className="text-sm text-blue-700 mt-1">
-                      Click "Run Test" to start the validation process. This will create a mock trial with all classes from your template.
+                      Click "Run Test" to start the validation process. This will create a mock
+                      trial with all classes from your template.
                     </p>
                   </div>
                 </div>
@@ -304,24 +321,32 @@ export const TemplateTestingPage: React.FC = () => {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="text-center">
-                  <div className={`text-2xl font-bold ${testResults.validationPassed ? 'text-green-600' : 'text-red-600'}`}>
+                  <div
+                    className={`text-2xl font-bold ${testResults.validationPassed ? 'text-green-600' : 'text-red-600'}`}
+                  >
                     {testResults.validationPassed ? 'PASS' : 'FAIL'}
                   </div>
                   <div className="text-sm text-muted-foreground">Validation</div>
                 </div>
-                
+
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">{testResults.classes.length}</div>
+                  <div className="text-2xl font-bold text-blue-600">
+                    {testResults.classes.length}
+                  </div>
                   <div className="text-sm text-muted-foreground">Classes Generated</div>
                 </div>
-                
+
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-purple-600">{testResults.errors.length}</div>
+                  <div className="text-2xl font-bold text-purple-600">
+                    {testResults.errors.length}
+                  </div>
                   <div className="text-sm text-muted-foreground">Errors</div>
                 </div>
-                
+
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-orange-600">{testResults.executionTime}ms</div>
+                  <div className="text-2xl font-bold text-orange-600">
+                    {testResults.executionTime}ms
+                  </div>
                   <div className="text-sm text-muted-foreground">Execution Time</div>
                 </div>
               </div>
@@ -350,14 +375,24 @@ export const TemplateTestingPage: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {testResults.classes.map((cls) => (
+                  {testResults.classes.map(cls => (
                     <div key={cls.id} className="border rounded-lg p-3">
                       <div className="space-y-2">
                         <h4 className="font-medium text-sm">{cls.className}</h4>
                         <div className="flex flex-wrap gap-1">
-                          <Badge variant="outline" className="text-xs">{cls.element}</Badge>
-                          {cls.level && <Badge variant="secondary" className="text-xs">{cls.level}</Badge>}
-                          {cls.section && <Badge variant="outline" className="text-xs">{cls.section}</Badge>}
+                          <Badge variant="outline" className="text-xs">
+                            {cls.element}
+                          </Badge>
+                          {cls.level && (
+                            <Badge variant="secondary" className="text-xs">
+                              {cls.level}
+                            </Badge>
+                          )}
+                          {cls.section && (
+                            <Badge variant="outline" className="text-xs">
+                              {cls.section}
+                            </Badge>
+                          )}
                         </div>
                         <div className="text-xs text-muted-foreground">
                           Run Order: {cls.runOrder} | Status: {cls.status}

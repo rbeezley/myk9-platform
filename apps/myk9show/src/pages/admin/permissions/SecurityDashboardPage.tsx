@@ -10,9 +10,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Shield, 
-  Activity, 
+import {
+  Shield,
+  Activity,
   AlertTriangle,
   TrendingUp,
   Clock,
@@ -21,7 +21,7 @@ import {
   CheckCircle,
   XCircle,
   Info,
-  RefreshCw
+  RefreshCw,
 } from 'lucide-react';
 import { AuditLogViewer } from '@/components/admin/permissions/AuditLogViewer';
 import { rbacService } from '@/services/rbac/RBACService';
@@ -50,14 +50,17 @@ interface SecurityAlert {
 const SecurityDashboardPage: React.FC = () => {
   const [securityMetrics, setSecurityMetrics] = useState<SecurityMetrics | null>(null);
   const [securityAlerts, setSecurityAlerts] = useState<SecurityAlert[]>([]);
-  const [integrityResults, setIntegrityResults] = useState<{ isValid: boolean; issues: string[] } | null>(null);
+  const [integrityResults, setIntegrityResults] = useState<{
+    isValid: boolean;
+    issues: string[];
+  } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedTab, setSelectedTab] = useState('overview');
 
   useEffect(() => {
     loadSecurityData();
-    
+
     // Refresh data every 5 minutes
     const interval = setInterval(loadSecurityData, 5 * 60 * 1000);
     return () => clearInterval(interval);
@@ -72,7 +75,7 @@ const SecurityDashboardPage: React.FC = () => {
       const [auditStats, permissionMetrics, integrityCheck] = await Promise.all([
         auditService.getAuditStatistics(),
         rbacService.getPermissionCheckMetrics(),
-        rbacService.validateRolePermissionIntegrity()
+        rbacService.validateRolePermissionIntegrity(),
       ]);
 
       // Calculate security metrics
@@ -81,9 +84,11 @@ const SecurityDashboardPage: React.FC = () => {
         criticalActions: auditStats.entriesByAction['delete'] || 0,
         failedPermissionChecks: 0, // Would come from error logs
         uniqueUsers: Object.keys(auditStats.entriesByEntityType).length,
-        systemIntegrityScore: integrityCheck.isValid ? 100 : Math.max(0, 100 - (integrityCheck.issues.length * 10)),
+        systemIntegrityScore: integrityCheck.isValid
+          ? 100
+          : Math.max(0, 100 - integrityCheck.issues.length * 10),
         cacheHitRate: permissionMetrics.cacheHitRate,
-        averageResponseTime: permissionMetrics.averageResponseTime
+        averageResponseTime: permissionMetrics.averageResponseTime,
       };
 
       setSecurityMetrics(metrics);
@@ -91,7 +96,7 @@ const SecurityDashboardPage: React.FC = () => {
 
       // Generate security alerts based on data
       const alerts: SecurityAlert[] = [];
-      
+
       if (integrityCheck.issues.length > 0) {
         alerts.push({
           id: 'integrity-issues',
@@ -99,7 +104,7 @@ const SecurityDashboardPage: React.FC = () => {
           message: `Found ${integrityCheck.issues.length} data integrity issues`,
           timestamp: new Date(),
           acknowledged: false,
-          details: { issues: integrityCheck.issues }
+          details: { issues: integrityCheck.issues },
         });
       }
 
@@ -109,7 +114,7 @@ const SecurityDashboardPage: React.FC = () => {
           type: 'warning',
           message: `Low cache hit rate: ${(permissionMetrics.cacheHitRate * 100).toFixed(1)}%`,
           timestamp: new Date(),
-          acknowledged: false
+          acknowledged: false,
         });
       }
 
@@ -119,21 +124,22 @@ const SecurityDashboardPage: React.FC = () => {
           type: 'warning',
           message: `Slow permission checks: ${permissionMetrics.averageResponseTime}ms average`,
           timestamp: new Date(),
-          acknowledged: false
+          acknowledged: false,
         });
       }
 
       // Add alerts for recent critical actions
-      if (auditStats.recentActivity.some(entry => 
-        entry.action === 'delete' && 
-        entry.timestamp > subHours(new Date(), 24)
-      )) {
+      if (
+        auditStats.recentActivity.some(
+          entry => entry.action === 'delete' && entry.timestamp > subHours(new Date(), 24)
+        )
+      ) {
         alerts.push({
           id: 'recent-deletions',
           type: 'info',
           message: 'Critical actions detected in the last 24 hours',
           timestamp: new Date(),
-          acknowledged: false
+          acknowledged: false,
         });
       }
 
@@ -146,9 +152,9 @@ const SecurityDashboardPage: React.FC = () => {
   };
 
   const acknowledgeAlert = (alertId: string) => {
-    setSecurityAlerts(prev => prev.map(alert => 
-      alert.id === alertId ? { ...alert, acknowledged: true } : alert
-    ));
+    setSecurityAlerts(prev =>
+      prev.map(alert => (alert.id === alertId ? { ...alert, acknowledged: true } : alert))
+    );
   };
 
   const getAlertIcon = (type: string) => {
@@ -171,7 +177,7 @@ const SecurityDashboardPage: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto pt-20 px-6 pb-6 max-w-7xl space-y-6">
+    <div className="container mx-auto pt-8 px-6 pb-6 max-w-7xl space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -183,11 +189,7 @@ const SecurityDashboardPage: React.FC = () => {
             Monitor system security, audit trails, and permission integrity
           </p>
         </div>
-        <Button
-          onClick={loadSecurityData}
-          disabled={isLoading}
-          variant="outline"
-        >
+        <Button onClick={loadSecurityData} disabled={isLoading} variant="outline">
           <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
           Refresh
         </Button>
@@ -207,14 +209,15 @@ const SecurityDashboardPage: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {securityAlerts.map((alert) => (
-                <Alert key={alert.id} variant={alert.type === 'critical' ? 'destructive' : 'default'}>
+              {securityAlerts.map(alert => (
+                <Alert
+                  key={alert.id}
+                  variant={alert.type === 'critical' ? 'destructive' : 'default'}
+                >
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2">
                       {getAlertIcon(alert.type)}
-                      <AlertDescription className="font-medium">
-                        {alert.message}
-                      </AlertDescription>
+                      <AlertDescription className="font-medium">{alert.message}</AlertDescription>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground">
@@ -237,9 +240,10 @@ const SecurityDashboardPage: React.FC = () => {
                       <details>
                         <summary className="cursor-pointer">View details</summary>
                         <ul className="mt-1 ml-4 space-y-1">
-                          {Array.isArray(alert.details.issues) && alert.details.issues.map((issue: string, index: number) => (
-                            <li key={index}>• {issue}</li>
-                          ))}
+                          {Array.isArray(alert.details.issues) &&
+                            alert.details.issues.map((issue: string, index: number) => (
+                              <li key={index}>• {issue}</li>
+                            ))}
                         </ul>
                       </details>
                     </div>
@@ -274,40 +278,48 @@ const SecurityDashboardPage: React.FC = () => {
                   <Activity className="h-4 w-4 mx-auto mt-2 text-blue-600" />
                 </CardContent>
               </Card>
-              
+
               <Card>
                 <CardContent className="p-4 text-center">
-                  <div className={`text-2xl font-bold ${
-                    securityMetrics.systemIntegrityScore >= 95 ? 'text-green-600' :
-                    securityMetrics.systemIntegrityScore >= 80 ? 'text-yellow-600' : 'text-red-600'
-                  }`}>
+                  <div
+                    className={`text-2xl font-bold ${
+                      securityMetrics.systemIntegrityScore >= 95
+                        ? 'text-green-600'
+                        : securityMetrics.systemIntegrityScore >= 80
+                          ? 'text-yellow-600'
+                          : 'text-red-600'
+                    }`}
+                  >
                     {securityMetrics.systemIntegrityScore}%
                   </div>
                   <div className="text-sm text-muted-foreground">System Integrity</div>
                   <Database className="h-4 w-4 mx-auto mt-2" />
                 </CardContent>
               </Card>
-              
+
               <Card>
                 <CardContent className="p-4 text-center">
-                  <div className={`text-2xl font-bold ${
-                    getMetricColor(securityMetrics.cacheHitRate * 100, { good: 90, warning: 80 })
-                  }`}>
+                  <div
+                    className={`text-2xl font-bold ${getMetricColor(
+                      securityMetrics.cacheHitRate * 100,
+                      { good: 90, warning: 80 }
+                    )}`}
+                  >
                     {(securityMetrics.cacheHitRate * 100).toFixed(1)}%
                   </div>
                   <div className="text-sm text-muted-foreground">Cache Hit Rate</div>
                   <TrendingUp className="h-4 w-4 mx-auto mt-2" />
                 </CardContent>
               </Card>
-              
+
               <Card>
                 <CardContent className="p-4 text-center">
-                  <div className={`text-2xl font-bold ${
-                    getMetricColor(
-                      100 - securityMetrics.averageResponseTime, 
+                  <div
+                    className={`text-2xl font-bold ${getMetricColor(
+                      100 - securityMetrics.averageResponseTime,
                       { good: 80, warning: 50 }
-                    )
-                  }`}>
+                    )}`}
+                  >
                     {securityMetrics.averageResponseTime}ms
                   </div>
                   <div className="text-sm text-muted-foreground">Avg Response Time</div>
@@ -324,15 +336,10 @@ const SecurityDashboardPage: React.FC = () => {
                 <Activity className="h-5 w-5" />
                 Recent Security Events
               </CardTitle>
-              <CardDescription>
-                Latest audit entries and system events
-              </CardDescription>
+              <CardDescription>Latest audit entries and system events</CardDescription>
             </CardHeader>
             <CardContent>
-              <AuditLogViewer 
-                showFilters={false}
-                maxHeight="400px"
-              />
+              <AuditLogViewer showFilters={false} maxHeight="400px" />
             </CardContent>
           </Card>
         </TabsContent>
@@ -377,13 +384,12 @@ const SecurityDashboardPage: React.FC = () => {
                       <XCircle className="h-5 w-5 text-red-500" />
                     )}
                     <span className="font-medium">
-                      {integrityResults.isValid 
-                        ? 'All integrity checks passed' 
-                        : `${integrityResults.issues.length} integrity issues found`
-                      }
+                      {integrityResults.isValid
+                        ? 'All integrity checks passed'
+                        : `${integrityResults.issues.length} integrity issues found`}
                     </span>
                   </div>
-                  
+
                   {integrityResults.issues.length > 0 && (
                     <Alert variant="destructive">
                       <AlertTriangle className="h-4 w-4" />
@@ -399,12 +405,8 @@ const SecurityDashboardPage: React.FC = () => {
                       </AlertDescription>
                     </Alert>
                   )}
-                  
-                  <Button
-                    onClick={loadSecurityData}
-                    disabled={isLoading}
-                    variant="outline"
-                  >
+
+                  <Button onClick={loadSecurityData} disabled={isLoading} variant="outline">
                     <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                     Re-run Integrity Check
                   </Button>
@@ -445,7 +447,9 @@ const SecurityDashboardPage: React.FC = () => {
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-sm">Average Response Time</span>
-                        <Badge variant={securityMetrics.averageResponseTime < 50 ? 'default' : 'outline'}>
+                        <Badge
+                          variant={securityMetrics.averageResponseTime < 50 ? 'default' : 'outline'}
+                        >
                           {securityMetrics.averageResponseTime}ms
                         </Badge>
                       </div>
@@ -457,27 +461,35 @@ const SecurityDashboardPage: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-4">
                     <h3 className="font-medium">System Health</h3>
                     <div className="space-y-3">
                       <div className="flex justify-between items-center">
                         <span className="text-sm">Integrity Score</span>
-                        <Badge variant={securityMetrics.systemIntegrityScore > 95 ? 'default' : 'destructive'}>
+                        <Badge
+                          variant={
+                            securityMetrics.systemIntegrityScore > 95 ? 'default' : 'destructive'
+                          }
+                        >
                           {securityMetrics.systemIntegrityScore}%
                         </Badge>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-sm">Active Alerts</span>
-                        <Badge variant={securityAlerts.filter(a => !a.acknowledged).length === 0 ? 'default' : 'destructive'}>
+                        <Badge
+                          variant={
+                            securityAlerts.filter(a => !a.acknowledged).length === 0
+                              ? 'default'
+                              : 'destructive'
+                          }
+                        >
                           {securityAlerts.filter(a => !a.acknowledged).length}
                         </Badge>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-sm">Unique Users (24h)</span>
-                        <span className="text-sm font-medium">
-                          {securityMetrics.uniqueUsers}
-                        </span>
+                        <span className="text-sm font-medium">{securityMetrics.uniqueUsers}</span>
                       </div>
                     </div>
                   </div>

@@ -17,10 +17,17 @@ import { RotateCcw } from 'lucide-react';
 import { getArchiveService, type ArchiveStats } from '@/services/data-lifecycle/DataArchiveService';
 import { getArchiveScheduler } from '@/services/data-lifecycle/ArchiveScheduler';
 import { getRetentionPolicyManager } from '@/services/data-lifecycle/DataRetentionPolicy';
-import { getOrphanedRecordsCleaner, type CleanupReport } from '@/services/data-lifecycle/OrphanedRecordsCleaner';
+import {
+  getOrphanedRecordsCleaner,
+  type CleanupReport,
+} from '@/services/data-lifecycle/OrphanedRecordsCleaner';
 import { getDataExportImportService } from '@/services/data-lifecycle/DataExportImport';
 
-import { getDeletedClubs, restoreClub, hardDeleteClub } from '@/services/database/queries/clubQueries';
+import {
+  getDeletedClubs,
+  restoreClub,
+  hardDeleteClub,
+} from '@/services/database/queries/clubQueries';
 import { getDeletedDogs, restoreDog, hardDeleteDog } from '@/services/database/queries/dogQueries';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { logger } from '@/services/LoggingService';
@@ -83,19 +90,26 @@ export function DataLifecycleManagement() {
   const loadDeletedEntities = useCallback(async () => {
     setIsLoadingDeleted(true);
     try {
-      const [clubsResult, dogsResult] = await Promise.all([
-        getDeletedClubs(),
-        getDeletedDogs(),
-      ]);
+      const [clubsResult, dogsResult] = await Promise.all([getDeletedClubs(), getDeletedDogs()]);
 
       if (clubsResult.error) {
-        logger.error('Failed to load deleted clubs', 'data-lifecycle', {}, new Error(clubsResult.error.message));
+        logger.error(
+          'Failed to load deleted clubs',
+          'data-lifecycle',
+          {},
+          new Error(clubsResult.error.message)
+        );
       } else {
         setDeletedClubs(clubsResult.data as DeletedClub[]);
       }
 
       if (dogsResult.error) {
-        logger.error('Failed to load deleted dogs', 'data-lifecycle', {}, new Error(dogsResult.error.message));
+        logger.error(
+          'Failed to load deleted dogs',
+          'data-lifecycle',
+          {},
+          new Error(dogsResult.error.message)
+        );
       } else {
         setDeletedDogs(dogsResult.data as DeletedDog[]);
       }
@@ -112,7 +126,7 @@ export function DataLifecycleManagement() {
 
   useEffect(() => {
     loadDeletedEntities();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run once on mount
 
   // ---- Scheduler handlers ----
@@ -177,14 +191,21 @@ export function DataLifecycleManagement() {
 
   // ---- Soft-delete restore/delete handlers ----
 
-  const handleShowRestoreDialog = (entityId: string, entityName: string, entityType: 'club' | 'dog') => {
+  const handleShowRestoreDialog = (
+    entityId: string,
+    entityName: string,
+    entityType: 'club' | 'dog'
+  ) => {
     setSelectedEntity({ id: entityId, name: entityName, type: entityType });
     setShowRestoreDialog(true);
   };
 
   const handleConfirmRestore = async () => {
     if (!selectedEntity || !userWithRoles?.databaseUserId) {
-      logger.error('No entity selected or user context available for restoration', 'data-lifecycle');
+      logger.error(
+        'No entity selected or user context available for restoration',
+        'data-lifecycle'
+      );
       return;
     }
 
@@ -198,20 +219,38 @@ export function DataLifecycleManagement() {
       }
 
       if (result.error) {
-        logger.error(`Failed to restore ${selectedEntity.type}`, 'data-lifecycle', { entityId: selectedEntity.id }, result.error);
+        logger.error(
+          `Failed to restore ${selectedEntity.type}`,
+          'data-lifecycle',
+          { entityId: selectedEntity.id },
+          result.error
+        );
       } else {
-        logger.info(`${selectedEntity.type === 'club' ? 'Club' : 'Dog'} restored successfully`, 'data-lifecycle', { entityId: selectedEntity.id });
+        logger.info(
+          `${selectedEntity.type === 'club' ? 'Club' : 'Dog'} restored successfully`,
+          'data-lifecycle',
+          { entityId: selectedEntity.id }
+        );
         await loadDeletedEntities();
       }
     } catch (error) {
-      logger.error(`Exception while restoring ${selectedEntity.type}`, 'data-lifecycle', { entityId: selectedEntity.id }, error as Error);
+      logger.error(
+        `Exception while restoring ${selectedEntity.type}`,
+        'data-lifecycle',
+        { entityId: selectedEntity.id },
+        error as Error
+      );
     } finally {
       setIsLoadingDeleted(false);
       setSelectedEntity(null);
     }
   };
 
-  const handleShowDeleteDialog = (entityId: string, entityName: string, entityType: 'club' | 'dog') => {
+  const handleShowDeleteDialog = (
+    entityId: string,
+    entityName: string,
+    entityType: 'club' | 'dog'
+  ) => {
     setSelectedEntity({ id: entityId, name: entityName, type: entityType });
     setShowDeleteDialog(true);
   };
@@ -232,13 +271,27 @@ export function DataLifecycleManagement() {
       }
 
       if (result.error) {
-        logger.error(`Failed to permanently delete ${selectedEntity.type}`, 'data-lifecycle', { entityId: selectedEntity.id }, result.error);
+        logger.error(
+          `Failed to permanently delete ${selectedEntity.type}`,
+          'data-lifecycle',
+          { entityId: selectedEntity.id },
+          result.error
+        );
       } else {
-        logger.info(`${selectedEntity.type === 'club' ? 'Club' : 'Dog'} permanently deleted`, 'data-lifecycle', { entityId: selectedEntity.id });
+        logger.info(
+          `${selectedEntity.type === 'club' ? 'Club' : 'Dog'} permanently deleted`,
+          'data-lifecycle',
+          { entityId: selectedEntity.id }
+        );
         await loadDeletedEntities();
       }
     } catch (error) {
-      logger.error(`Exception while permanently deleting ${selectedEntity.type}`, 'data-lifecycle', { entityId: selectedEntity.id }, error as Error);
+      logger.error(
+        `Exception while permanently deleting ${selectedEntity.type}`,
+        'data-lifecycle',
+        { entityId: selectedEntity.id },
+        error as Error
+      );
     } finally {
       setIsLoadingDeleted(false);
       setSelectedEntity(null);
@@ -250,7 +303,7 @@ export function DataLifecycleManagement() {
   const policies = policyManager.exportPolicies();
 
   return (
-    <div className="min-h-screen pt-20 pb-8 px-6 max-w-[90rem] mx-auto">
+    <div className="min-h-screen pt-8 pb-8 px-6 max-w-[90rem] mx-auto">
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -329,10 +382,7 @@ export function DataLifecycleManagement() {
           </TabsContent>
 
           <TabsContent value="export">
-            <ExportImportTab
-              isLoading={isLoading}
-              onExportData={handleExportData}
-            />
+            <ExportImportTab isLoading={isLoading} onExportData={handleExportData} />
           </TabsContent>
 
           <TabsContent value="deleted">

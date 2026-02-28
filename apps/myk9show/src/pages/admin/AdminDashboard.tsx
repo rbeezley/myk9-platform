@@ -112,7 +112,7 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-8 pt-24 pb-12 max-w-8xl">
+      <div className="container mx-auto px-8 pt-8 pb-12 max-w-8xl">
         {/* Header */}
         <DashboardHeader />
 

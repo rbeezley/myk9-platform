@@ -169,7 +169,7 @@ const UserRoleManagementPage: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto pt-20 px-6 pb-6 max-w-7xl space-y-6">
+    <div className="container mx-auto pt-8 px-6 pb-6 max-w-7xl space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">

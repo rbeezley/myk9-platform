@@ -5,7 +5,7 @@ import { InfoIcon } from 'lucide-react';
 
 export default function PermissionTestPage() {
   return (
-    <div className="container mx-auto pt-20 pb-8 max-w-6xl">
+    <div className="container mx-auto pt-8 pb-8 max-w-6xl">
       <div className="space-y-6">
         {/* Page Header */}
         <div>
@@ -31,9 +31,7 @@ export default function PermissionTestPage() {
         <Card>
           <CardHeader>
             <CardTitle>Phase 1.2 Verification Checklist</CardTitle>
-            <CardDescription>
-              Manual verification steps for secretary permissions
-            </CardDescription>
+            <CardDescription>Manual verification steps for secretary permissions</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">

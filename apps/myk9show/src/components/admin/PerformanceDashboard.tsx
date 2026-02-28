@@ -48,7 +48,9 @@ export function PerformanceDashboard() {
       });
       setBudgetViolations(violations);
       const now = Date.now();
-      setRecentViolationCount(violations.filter(v => now - v.timestamp < 24 * 60 * 60 * 1000).length);
+      setRecentViolationCount(
+        violations.filter(v => now - v.timestamp < 24 * 60 * 60 * 1000).length
+      );
     } catch (error) {
       logger.error('Failed to load performance data:', 'admin', {}, error as Error);
     } finally {
@@ -66,7 +68,7 @@ export function PerformanceDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-6 pt-20 pb-8 max-w-7xl">
+      <div className="container mx-auto px-6 pt-8 pb-8 max-w-7xl">
         {/* Header following dashboard layout pattern */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
           <div>
@@ -125,17 +127,17 @@ export function PerformanceDashboard() {
             <OverviewTab performanceData={performanceData} budgetViolations={budgetViolations} />
           </TabsContent>
 
-        <TabsContent value="core-vitals" className="space-y-4">
+          <TabsContent value="core-vitals" className="space-y-4">
             <CoreVitalsTab performanceData={performanceData} />
-        </TabsContent>
+          </TabsContent>
 
-        <TabsContent value="budgets" className="space-y-4">
+          <TabsContent value="budgets" className="space-y-4">
             <BudgetsTab performanceData={performanceData} budgetViolations={budgetViolations} />
-        </TabsContent>
+          </TabsContent>
 
-        <TabsContent value="diagnostics" className="space-y-4">
+          <TabsContent value="diagnostics" className="space-y-4">
             <DiagnosticsTab performanceData={performanceData} />
-        </TabsContent>
+          </TabsContent>
         </Tabs>
       </div>
     </div>

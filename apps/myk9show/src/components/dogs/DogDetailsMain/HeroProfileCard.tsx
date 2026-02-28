@@ -162,6 +162,17 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
 
             {/* Status badges with glass effect */}
             <div className="flex flex-wrap gap-3">
+              {(!dog.status || dog.status === 'active') && (
+                <Badge
+                  className="px-4 py-2 text-sm font-medium
+                               bg-gradient-to-r from-emerald-500/10 to-emerald-500/5
+                               text-emerald-600 dark:text-emerald-400 border border-emerald-500/20
+                               backdrop-blur-sm"
+                >
+                  <Activity className="w-3 h-3 mr-2" />
+                  Active
+                </Badge>
+              )}
               {dog.status === 'retired' && (
                 <Badge
                   className="px-4 py-2 text-sm font-medium

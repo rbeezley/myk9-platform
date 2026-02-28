@@ -24,7 +24,7 @@ import {
   ClipboardList,
   Edit3,
   FileOutput,
-  Plus
+  Plus,
 } from 'lucide-react';
 import { EntryStatusBadge } from '@/components/shows/EntryStatusBadge';
 import { getShowActions } from '@/utils/show-actions';
@@ -38,7 +38,21 @@ import type { UserWithRoles } from '@/types/auth-types';
  * Icon component map for show actions
  */
 const ICON_COMPONENTS = {
-  Eye, UserPlus, Edit, Trophy, Download, Award, Printer, Settings, Users, FileText, List, ClipboardList, Edit3, FileOutput, Plus
+  Eye,
+  UserPlus,
+  Edit,
+  Trophy,
+  Download,
+  Award,
+  Printer,
+  Settings,
+  Users,
+  FileText,
+  List,
+  ClipboardList,
+  Edit3,
+  FileOutput,
+  Plus,
 } as const;
 
 interface ShowsListViewProps {
@@ -56,26 +70,26 @@ export const ShowsListView: React.FC<ShowsListViewProps> = ({
   shows,
   entries,
   selectedTab,
-  user
+  user,
 }) => {
   const navigate = useNavigate();
 
   return (
     <div className="space-y-4">
-      {shows.map((show) => {
+      {shows.map(show => {
         const showActions = getShowActions(show, selectedTab, user);
         const hasUserEntries = userHasEntriesForShow(show.id, entries);
         const entryStatus = getEntryStatus(show, hasUserEntries);
-        const canEnterShow = entryStatus.status === 'accepting' || entryStatus.status === 'closing_soon';
+        const canEnterShow =
+          entryStatus.status === 'accepting' || entryStatus.status === 'closing_soon';
 
         return (
           <Card
             key={show.id}
             className={cn(
-              "bg-card/95 backdrop-blur-sm border-border/50 hover:shadow-md transition-all duration-200",
-              entryStatus.status === 'closed' && "opacity-60",
-              entryStatus.status === 'closing_soon' && "border-orange-400/50",
-              entryStatus.status === 'submitted' && "border-green-400/50"
+              'bg-card/95 backdrop-blur-sm border-border/50 hover:shadow-md transition-all duration-200',
+              entryStatus.status === 'closing_soon' && 'border-orange-400/50',
+              entryStatus.status === 'submitted' && 'border-green-400/50'
             )}
           >
             <CardContent className="p-6">
@@ -88,17 +102,16 @@ export const ShowsListView: React.FC<ShowsListViewProps> = ({
                         <p className="text-sm text-muted-foreground">{show.events.join(', ')}</p>
                       </div>
                       {/* Urgency indicator inline */}
-                      {entryStatus.status === 'closing_soon' && entryStatus.daysUntilClose !== undefined && (
-                        <Badge className="bg-orange-500 text-white text-xs">
-                          {entryStatus.daysUntilClose === 0
-                            ? 'Closes Today!'
-                            : `${entryStatus.daysUntilClose}d left`}
-                        </Badge>
-                      )}
+                      {entryStatus.status === 'closing_soon' &&
+                        entryStatus.daysUntilClose !== undefined && (
+                          <Badge className="bg-orange-500 text-white text-xs">
+                            {entryStatus.daysUntilClose === 0
+                              ? 'Closes Today!'
+                              : `${entryStatus.daysUntilClose}d left`}
+                          </Badge>
+                        )}
                       {entryStatus.status === 'submitted' && (
-                        <Badge className="bg-green-500 text-white text-xs">
-                          Entered
-                        </Badge>
+                        <Badge className="bg-green-500 text-white text-xs">Entered</Badge>
                       )}
                     </div>
                     <div className="flex gap-2 flex-wrap">
@@ -113,8 +126,7 @@ export const ShowsListView: React.FC<ShowsListViewProps> = ({
                       <span>
                         {new Date(show.startDate).toLocaleDateString()}
                         {show.startDate !== show.endDate &&
-                          ` - ${new Date(show.endDate).toLocaleDateString()}`
-                        }
+                          ` - ${new Date(show.endDate).toLocaleDateString()}`}
                       </span>
                     </div>
 
@@ -147,8 +159,9 @@ export const ShowsListView: React.FC<ShowsListViewProps> = ({
                       Enter Show
                     </Button>
                   )}
-                  {showActions.slice(0, canEnterShow && user ? 2 : 3).map((action) => {
-                    const IconComponent = ICON_COMPONENTS[action.icon as keyof typeof ICON_COMPONENTS] || Eye;
+                  {showActions.slice(0, canEnterShow && user ? 2 : 3).map(action => {
+                    const IconComponent =
+                      ICON_COMPONENTS[action.icon as keyof typeof ICON_COMPONENTS] || Eye;
                     return (
                       <Button
                         key={action.id}

@@ -22,7 +22,7 @@ import {
   ClipboardList,
   Edit3,
   FileOutput,
-  Plus
+  Plus,
 } from 'lucide-react';
 import { EntryStatusBadge } from '@/components/shows/EntryStatusBadge';
 import { getShowActions } from '@/utils/show-actions';
@@ -36,7 +36,21 @@ import type { UserWithRoles } from '@/types/auth-types';
  * Icon component map for show actions
  */
 const ICON_COMPONENTS = {
-  Eye, UserPlus, Edit, Trophy, Download, Award, Printer, Settings, Users, FileText, List, ClipboardList, Edit3, FileOutput, Plus
+  Eye,
+  UserPlus,
+  Edit,
+  Trophy,
+  Download,
+  Award,
+  Printer,
+  Settings,
+  Users,
+  FileText,
+  List,
+  ClipboardList,
+  Edit3,
+  FileOutput,
+  Plus,
 } as const;
 
 interface ShowsGridViewProps {
@@ -54,26 +68,27 @@ export const ShowsGridView: React.FC<ShowsGridViewProps> = ({
   shows,
   entries,
   selectedTab,
-  user
+  user,
 }) => {
   const navigate = useNavigate();
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-      {shows.map((show) => {
+      {shows.map(show => {
         const showActions = getShowActions(show, selectedTab, user);
         const hasUserEntries = userHasEntriesForShow(show.id, entries);
         const entryStatus = getEntryStatus(show, hasUserEntries);
-        const canEnterShow = entryStatus.status === 'accepting' || entryStatus.status === 'closing_soon';
+        const canEnterShow =
+          entryStatus.status === 'accepting' || entryStatus.status === 'closing_soon';
 
         return (
           <div
             key={show.id}
             className={cn(
-              "apple-browse-card relative",
-              entryStatus.status === 'closed' && "opacity-60",
-              entryStatus.status === 'closing_soon' && "ring-2 ring-orange-400/50 shadow-orange-200/30",
-              entryStatus.status === 'submitted' && "ring-2 ring-green-400/50"
+              'apple-browse-card relative',
+              entryStatus.status === 'closing_soon' &&
+                'ring-2 ring-orange-400/50 shadow-orange-200/30',
+              entryStatus.status === 'submitted' && 'ring-2 ring-green-400/50'
             )}
           >
             {/* Urgency ribbon for closing soon */}
@@ -88,7 +103,13 @@ export const ShowsGridView: React.FC<ShowsGridViewProps> = ({
             {/* Submitted checkmark */}
             {entryStatus.status === 'submitted' && (
               <div className="absolute top-3 right-3 z-20 bg-green-500 text-white p-1.5 rounded-full shadow-md">
-                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                <svg
+                  className="h-3.5 w-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={3}
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
               </div>
@@ -103,9 +124,7 @@ export const ShowsGridView: React.FC<ShowsGridViewProps> = ({
 
             <div className="apple-browse-card-content">
               <h3 className="apple-browse-card-title">{show.name}</h3>
-              <p className="apple-browse-card-description">
-                {show.events.join(', ')}
-              </p>
+              <p className="apple-browse-card-description">{show.events.join(', ')}</p>
 
               <div className="apple-browse-card-details">
                 {/* Date and Location grouped */}
@@ -115,8 +134,7 @@ export const ShowsGridView: React.FC<ShowsGridViewProps> = ({
                     <span>
                       {new Date(show.startDate).toLocaleDateString()}
                       {show.startDate !== show.endDate &&
-                        ` - ${new Date(show.endDate).toLocaleDateString()}`
-                      }
+                        ` - ${new Date(show.endDate).toLocaleDateString()}`}
                     </span>
                   </div>
 
@@ -154,8 +172,9 @@ export const ShowsGridView: React.FC<ShowsGridViewProps> = ({
                       Enter Show
                     </Button>
                   )}
-                  {showActions.slice(0, canEnterShow && user ? 1 : 2).map((action) => {
-                    const IconComponent = ICON_COMPONENTS[action.icon as keyof typeof ICON_COMPONENTS] || Eye;
+                  {showActions.slice(0, canEnterShow && user ? 1 : 2).map(action => {
+                    const IconComponent =
+                      ICON_COMPONENTS[action.icon as keyof typeof ICON_COMPONENTS] || Eye;
                     return (
                       <Button
                         key={action.id}

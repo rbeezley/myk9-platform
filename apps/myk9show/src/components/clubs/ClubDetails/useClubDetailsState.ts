@@ -1,6 +1,7 @@
 import { useState, startTransition, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useClubStore } from '@/store/clubStore';
+import { useShowStore } from '@/store/showStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { ClubAdminService } from '@/services/clubAdminService';
 import { ScopeType } from '@/types/auth-types';
@@ -9,7 +10,7 @@ import { RegistrationFormData } from '@/types/show-registration-types';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { getErrorMessage } from '@myk9/core';
-import type { ClubTab, StatCard } from './types';
+import type { ClubTab, ClubShow, StatCard } from './types';
 
 /** Maximum photo file size in bytes (5 MB) */
 const MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024;
@@ -25,7 +26,7 @@ function processPhotoFile(file: File, onResult: (dataUrl: string) => void): void
   }
 
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = e => {
     const result = e.target?.result as string;
     onResult(result);
   };
@@ -35,6 +36,7 @@ function processPhotoFile(file: File, onResult: (dataUrl: string) => void): void
 export function useClubDetailsState(selectedClub: Club | null) {
   const navigate = useNavigate();
   const { updateClub, removeClub } = useClubStore();
+  const shows = useShowStore(s => s.shows);
 
   // Tab state
   const [activeTab, setActiveTab] = useState<ClubTab>('upcoming');
@@ -49,7 +51,9 @@ export function useClubDetailsState(selectedClub: Club | null) {
 
   // Registration dialog state
   const [showRegistrationDialog, setShowRegistrationDialog] = useState(false);
-  const [selectedShowForRegistration, setSelectedShowForRegistration] = useState<string | null>(null);
+  const [selectedShowForRegistration, setSelectedShowForRegistration] = useState<string | null>(
+    null
+  );
 
   // Delete club dialog state
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -72,34 +76,64 @@ export function useClubDetailsState(selectedClub: Club | null) {
     );
   }, [userWithRoles, selectedClub, hasPermission]);
 
+  // Get shows for this club from the show store (club store doesn't populate shows)
+  const now = useMemo(() => new Date(), []);
+  const clubShows = useMemo((): { upcoming: ClubShow[]; past: ClubShow[] } => {
+    if (!selectedClub) return { upcoming: [], past: [] };
+
+    const clubShowsList = shows.filter(s => s.clubId === selectedClub.id);
+    const upcoming: ClubShow[] = [];
+    const past: ClubShow[] = [];
+
+    for (const show of clubShowsList) {
+      const clubShow: ClubShow = {
+        id: show.id,
+        name: show.name,
+        date: show.startDate,
+        location: show.location,
+        description: show.events?.join(', ') || '',
+      };
+      if (new Date(show.endDate) < now) {
+        past.push(clubShow);
+      } else {
+        upcoming.push(clubShow);
+      }
+    }
+
+    return { upcoming, past };
+  }, [selectedClub, shows, now]);
+
   // Stats computation
   const stats: StatCard[] = useMemo(() => {
     if (!selectedClub) return [];
 
-    const totalShows = (selectedClub.upcomingShows?.length || 0) + (selectedClub.pastShows?.length || 0);
-    const upcomingShows = selectedClub.upcomingShows?.length || 0;
-    const pastShows = selectedClub.pastShows?.length || 0;
+    const upcomingCount = clubShows.upcoming.length;
+    const pastCount = clubShows.past.length;
+    const totalShows = upcomingCount + pastCount;
     const memberCount = selectedClub.memberIds?.length || 0;
 
     return [
       {
         title: 'Total Shows',
         value: totalShows.toString(),
-        detail1: totalShows > 0 ? `Upcoming: ${upcomingShows}` : 'No shows scheduled',
-        detail2: totalShows > 0 ? `Completed: ${pastShows}` : 'Add your first show',
+        detail1: totalShows > 0 ? `Upcoming: ${upcomingCount}` : 'No shows scheduled',
+        detail2: totalShows > 0 ? `Completed: ${pastCount}` : 'Add your first show',
         type: 'shows' as const,
         tab: 'upcoming' as const,
       },
       {
         title: 'Active Members',
         value: memberCount.toString(),
-        detail1: memberCount > 0 ? `${memberCount} member${memberCount !== 1 ? 's' : ''}` : 'No members yet',
+        detail1:
+          memberCount > 0
+            ? `${memberCount} member${memberCount !== 1 ? 's' : ''}`
+            : 'No members yet',
         detail2: memberCount > 0 ? 'In club roster' : 'Invite members to join',
         type: 'members' as const,
         tab: 'members' as const,
       },
     ];
-  }, [selectedClub]);
+  }, [selectedClub, clubShows]);
 
   // --- Handlers ---
 
@@ -156,43 +190,64 @@ export function useClubDetailsState(selectedClub: Club | null) {
     }
   }, [selectedClub, userWithRoles, removeClub, navigate]);
 
-  const handleClubEditComplete = useCallback(async (formData: Partial<Club>) => {
-    if (!selectedClub) return;
+  const handleClubEditComplete = useCallback(
+    async (formData: Partial<Club>) => {
+      if (!selectedClub) return;
 
-    logger.debug('Saving club form data', 'clubs', { formData });
+      logger.debug('Saving club form data', 'clubs', { formData });
 
-    const updatedClub: Club = {
-      ...selectedClub,
-      ...formData,
-      id: selectedClub.id,
-      address: formData.address || {
-        street: (formData as Record<string, unknown>).street as string || selectedClub.address?.street || '',
-        city: (formData as Record<string, unknown>).city as string || selectedClub.address?.city || '',
-        state: (formData as Record<string, unknown>).state as string || selectedClub.address?.state || '',
-        zipCode: (formData as Record<string, unknown>).zipCode as string || selectedClub.address?.zipCode || '',
-        country: (formData as Record<string, unknown>).country as string || selectedClub.address?.country || 'US',
-      },
-    };
+      const updatedClub: Club = {
+        ...selectedClub,
+        ...formData,
+        id: selectedClub.id,
+        address: formData.address || {
+          street:
+            ((formData as Record<string, unknown>).street as string) ||
+            selectedClub.address?.street ||
+            '',
+          city:
+            ((formData as Record<string, unknown>).city as string) ||
+            selectedClub.address?.city ||
+            '',
+          state:
+            ((formData as Record<string, unknown>).state as string) ||
+            selectedClub.address?.state ||
+            '',
+          zipCode:
+            ((formData as Record<string, unknown>).zipCode as string) ||
+            selectedClub.address?.zipCode ||
+            '',
+          country:
+            ((formData as Record<string, unknown>).country as string) ||
+            selectedClub.address?.country ||
+            'US',
+        },
+      };
 
-    logger.debug('Updated club object', 'clubs', { updatedClub });
+      logger.debug('Updated club object', 'clubs', { updatedClub });
 
-    try {
-      await updateClub(updatedClub);
-      setShowEditPanel(false);
-      notifications.success('Club updated successfully');
-    } catch (error) {
-      logger.error('Failed to save club', 'clubs', { clubId: selectedClub.id }, error as Error);
-      notifications.error('Failed to save club', {
-        description: getErrorMessage(error),
+      try {
+        await updateClub(updatedClub);
+        setShowEditPanel(false);
+        notifications.success('Club updated successfully');
+      } catch (error) {
+        logger.error('Failed to save club', 'clubs', { clubId: selectedClub.id }, error as Error);
+        notifications.error('Failed to save club', {
+          description: getErrorMessage(error),
+        });
+      }
+    },
+    [selectedClub, updateClub]
+  );
+
+  const handleViewShowDetails = useCallback(
+    (showId: string) => {
+      startTransition(() => {
+        navigate(`/shows/${showId}`);
       });
-    }
-  }, [selectedClub, updateClub]);
-
-  const handleViewShowDetails = useCallback((showId: string) => {
-    startTransition(() => {
-      navigate(`/shows/${showId}`);
-    });
-  }, [navigate]);
+    },
+    [navigate]
+  );
 
   // Photo handlers
   const handleEditPhoto = useCallback(() => {
@@ -230,17 +285,20 @@ export function useClubDetailsState(selectedClub: Club | null) {
     setShowPhotoDialog(false);
   }, []);
 
-  const handlePhotoSave = useCallback(async (savedImage: string | null) => {
-    if (savedImage && selectedClub) {
-      const updatedClub = {
-        ...selectedClub,
-        logo: savedImage,
-      };
-      await updateClub(updatedClub);
-      setPreviewImage(null);
-      setShowPhotoDialog(false);
-    }
-  }, [selectedClub, updateClub]);
+  const handlePhotoSave = useCallback(
+    async (savedImage: string | null) => {
+      if (savedImage && selectedClub) {
+        const updatedClub = {
+          ...selectedClub,
+          logo: savedImage,
+        };
+        await updateClub(updatedClub);
+        setPreviewImage(null);
+        setShowPhotoDialog(false);
+      }
+    },
+    [selectedClub, updateClub]
+  );
 
   // Registration handlers
   const handleRegisterForShow = useCallback((showId: string) => {
@@ -274,6 +332,9 @@ export function useClubDetailsState(selectedClub: Club | null) {
     // Tab
     activeTab,
     setActiveTab,
+    // Shows (from show store, not club model)
+    upcomingShows: clubShows.upcoming,
+    pastShows: clubShows.past,
     // Stats
     stats,
     // Permissions

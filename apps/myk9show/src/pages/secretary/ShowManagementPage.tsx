@@ -1,6 +1,6 @@
 /**
  * ShowManagementPage - Comprehensive show management interface
- * 
+ *
  * Central page for secretaries to manage all aspects of a dog show including:
  * - Show dashboard and overview
  * - Entry management
@@ -35,7 +35,7 @@ import {
   Download,
   Share,
   Archive,
-  Trash2
+  Trash2,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -66,7 +66,7 @@ export function ShowManagementPage({ className }: ShowManagementPageProps) {
   const navigate = useNavigate();
   const { user } = useAuthContext();
   const { getShowById } = useShowStore();
-  
+
   const [activeSection, setActiveSection] = useState('dashboard');
   const [loading, setLoading] = useState(true);
 
@@ -96,7 +96,7 @@ export function ShowManagementPage({ className }: ShowManagementPageProps) {
 
   if (loading) {
     return (
-      <div className={cn("container mx-auto p-6 max-w-7xl", className)}>
+      <div className={cn('container mx-auto p-6 max-w-7xl', className)}>
         <div className="animate-pulse space-y-6">
           <div className="h-8 bg-muted rounded w-1/3"></div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -112,12 +112,12 @@ export function ShowManagementPage({ className }: ShowManagementPageProps) {
 
   if (!show) {
     return (
-      <div className={cn("container mx-auto p-6 max-w-4xl", className)}>
+      <div className={cn('container mx-auto p-6 max-w-4xl', className)}>
         <Alert>
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
             Show not found. Please check the show ID or{' '}
-            <Link to="/secretary/shows" className="underline">
+            <Link to="/browse-shows" className="underline">
               return to the shows list
             </Link>
             .
@@ -135,7 +135,7 @@ export function ShowManagementPage({ className }: ShowManagementPageProps) {
       description: 'Show overview and key metrics',
       icon: Eye,
       href: `/secretary/shows/${showId}`,
-      ...(show.status === 'draft' ? { badge: 'Setup Required' } : {})
+      ...(show.status === 'draft' ? { badge: 'Setup Required' } : {}),
     },
     {
       id: 'entries',
@@ -144,14 +144,14 @@ export function ShowManagementPage({ className }: ShowManagementPageProps) {
       icon: Users,
       href: `/secretary/shows/${showId}/entries`,
       badge: '0', // Would be populated with pending count
-      urgent: false // Would be true if pending entries > 5
+      urgent: false, // Would be true if pending entries > 5
     },
     {
       id: 'classes',
       title: 'Class Management',
       description: 'Set up and configure classes',
       icon: Settings,
-      href: `/secretary/shows/${showId}/classes`
+      href: `/secretary/shows/${showId}/classes`,
     },
     {
       id: 'schedule',
@@ -159,15 +159,15 @@ export function ShowManagementPage({ className }: ShowManagementPageProps) {
       description: 'Manage timing and judge assignments',
       icon: Calendar,
       href: `/secretary/shows/${showId}/run-order`,
-      urgent: false // Would be true if conflicts detected
+      urgent: false, // Would be true if conflicts detected
     },
     {
       id: 'reports',
       title: 'Reports & Export',
       description: 'Generate reports and export data',
       icon: FileText,
-      href: `/secretary/shows/${showId}/reports`
-    }
+      href: `/secretary/shows/${showId}/reports`,
+    },
   ];
 
   // Show actions dropdown items
@@ -188,7 +188,7 @@ export function ShowManagementPage({ className }: ShowManagementPageProps) {
       case 'delete':
         if (confirm('Are you sure you want to delete this show? This action cannot be undone.')) {
           logger.debug('Delete show:', 'secretary', { data: showId });
-          navigate('/secretary/shows');
+          navigate('/browse-shows');
         }
         break;
       default:
@@ -197,11 +197,11 @@ export function ShowManagementPage({ className }: ShowManagementPageProps) {
   };
 
   return (
-    <div className={cn("container mx-auto p-6 max-w-7xl", className)}>
+    <div className={cn('container mx-auto p-6 max-w-7xl', className)}>
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => navigate('/secretary/shows')}>
+          <Button variant="ghost" onClick={() => navigate('/browse-shows')}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Shows
           </Button>
@@ -223,7 +223,7 @@ export function ShowManagementPage({ className }: ShowManagementPageProps) {
             <Eye className="h-4 w-4 mr-2" />
             Public View
           </Button>
-          
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline">
@@ -253,7 +253,7 @@ export function ShowManagementPage({ className }: ShowManagementPageProps) {
                 <Archive className="mr-2 h-4 w-4" />
                 Archive Show
               </DropdownMenuItem>
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 onClick={() => handleShowAction('delete')}
                 className="text-destructive focus:text-destructive"
               >
@@ -270,7 +270,8 @@ export function ShowManagementPage({ className }: ShowManagementPageProps) {
         <Alert className="mb-6">
           <CheckCircle className="h-4 w-4" />
           <AlertDescription>
-            This show is in draft mode. Complete the setup and publish it to make it available for registrations.
+            This show is in draft mode. Complete the setup and publish it to make it available for
+            registrations.
           </AlertDescription>
         </Alert>
       )}
@@ -278,22 +279,16 @@ export function ShowManagementPage({ className }: ShowManagementPageProps) {
       {/* Main Content */}
       <Tabs value={activeSection} onValueChange={setActiveSection}>
         <TabsList className="grid w-full grid-cols-5">
-          {navigationItems.map((item) => (
-            <TabsTrigger 
-              key={item.id} 
+          {navigationItems.map(item => (
+            <TabsTrigger
+              key={item.id}
               value={item.id}
-              className={cn(
-                "flex items-center gap-2",
-                item.urgent && "text-orange-600"
-              )}
+              className={cn('flex items-center gap-2', item.urgent && 'text-orange-600')}
             >
               <item.icon className="h-4 w-4" />
               <span className="hidden sm:inline">{item.title}</span>
               {item.badge && (
-                <Badge 
-                  variant={item.urgent ? "destructive" : "secondary"} 
-                  className="text-xs"
-                >
+                <Badge variant={item.urgent ? 'destructive' : 'secondary'} className="text-xs">
                   {item.badge}
                 </Badge>
               )}
@@ -355,14 +350,18 @@ export function ShowManagementPage({ className }: ShowManagementPageProps) {
                 <Settings className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold mb-2">Class Management</h3>
                 <p className="text-muted-foreground mb-6">
-                  Advanced class management tools are available through the dedicated class management interface.
+                  Advanced class management tools are available through the dedicated class
+                  management interface.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Button onClick={() => navigate(`/secretary/shows/${showId}/classes/create`)}>
                     <Plus className="h-4 w-4 mr-2" />
                     Create Classes
                   </Button>
-                  <Button variant="outline" onClick={() => navigate(`/secretary/shows/${showId}/classes`)}>
+                  <Button
+                    variant="outline"
+                    onClick={() => navigate(`/secretary/shows/${showId}/classes`)}
+                  >
                     <Settings className="h-4 w-4 mr-2" />
                     Manage Existing Classes
                   </Button>
@@ -382,7 +381,8 @@ export function ShowManagementPage({ className }: ShowManagementPageProps) {
                 <Calendar className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold mb-2">Schedule Management</h3>
                 <p className="text-muted-foreground mb-6">
-                  Comprehensive scheduling tools with drag-and-drop interface, conflict detection, and judge assignment.
+                  Comprehensive scheduling tools with drag-and-drop interface, conflict detection,
+                  and judge assignment.
                 </p>
                 <Button onClick={() => navigate(`/secretary/shows/${showId}/run-order`)}>
                   <Calendar className="h-4 w-4 mr-2" />
@@ -410,14 +410,18 @@ export function ShowManagementPage({ className }: ShowManagementPageProps) {
                     <div className="text-center">
                       <FileText className="h-6 w-6 mx-auto mb-2" />
                       <div className="font-medium">Entry Reports</div>
-                      <div className="text-xs text-muted-foreground">Registrations, payments, statistics</div>
+                      <div className="text-xs text-muted-foreground">
+                        Registrations, payments, statistics
+                      </div>
                     </div>
                   </Button>
                   <Button variant="outline" className="h-auto p-4">
                     <div className="text-center">
                       <Calendar className="h-6 w-6 mx-auto mb-2" />
                       <div className="font-medium">Schedule Reports</div>
-                      <div className="text-xs text-muted-foreground">Run orders, judge assignments</div>
+                      <div className="text-xs text-muted-foreground">
+                        Run orders, judge assignments
+                      </div>
                     </div>
                   </Button>
                   <Button variant="outline" className="h-auto p-4">

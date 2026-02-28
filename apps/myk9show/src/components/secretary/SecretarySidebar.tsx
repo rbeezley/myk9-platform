@@ -1,6 +1,6 @@
 /**
  * Secretary Sidebar Navigation Component
- * 
+ *
  * Provides organized navigation for secretary dashboard pages
  * Features grouped navigation with Apple-inspired design
  * Based on the Admin sidebar pattern
@@ -8,7 +8,7 @@
 
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { 
+import {
   LayoutDashboard,
   Calendar,
   Search,
@@ -21,7 +21,7 @@ import {
   Building2,
   Bell,
   X,
-  ClipboardList
+  ClipboardList,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { cn } from '@/lib/utils';
@@ -52,32 +52,32 @@ const navigationGroups: NavGroup[] = [
         title: 'Dashboard',
         href: '/secretary/dashboard',
         icon: LayoutDashboard,
-        description: 'Overview and quick actions'
-      }
-    ]
+        description: 'Overview and quick actions',
+      },
+    ],
   },
   {
     title: 'Show Management',
     items: [
       {
         title: 'My Shows',
-        href: '/secretary/shows',
+        href: '/browse-shows',
         icon: Calendar,
-        description: 'Shows you are managing'
+        description: 'Shows you are managing',
       },
       {
         title: 'Browse Shows',
         href: '/browse-shows',
         icon: Search,
-        description: 'Find and explore shows'
+        description: 'Find and explore shows',
       },
       {
         title: 'Create Show',
         href: '/secretary/create-show',
         icon: Plus,
-        description: 'Start a new show'
-      }
-    ]
+        description: 'Start a new show',
+      },
+    ],
   },
   {
     title: 'Entry Management',
@@ -86,21 +86,21 @@ const navigationGroups: NavGroup[] = [
         title: 'Entries',
         href: '/entries',
         icon: FileText,
-        description: 'Manage show entries'
+        description: 'Manage show entries',
       },
       {
         title: 'Class Creation',
         href: '/secretary/class-creation',
         icon: Grid3X3,
-        description: 'Create and manage classes'
+        description: 'Create and manage classes',
       },
       {
         title: 'Run Orders',
         href: '/secretary/run-order',
         icon: List,
-        description: 'Class scheduling and ordering'
-      }
-    ]
+        description: 'Class scheduling and ordering',
+      },
+    ],
   },
   {
     title: 'Participants',
@@ -109,21 +109,21 @@ const navigationGroups: NavGroup[] = [
         title: 'Users',
         href: '/users',
         icon: Users,
-        description: 'Exhibitors and handlers'
+        description: 'Exhibitors and handlers',
       },
       {
         title: 'Dogs',
         href: '/dogs',
         icon: Heart,
-        description: 'Registered dogs'
+        description: 'Registered dogs',
       },
       {
         title: 'Clubs',
         href: '/clubs',
         icon: Building2,
-        description: 'Club management'
-      }
-    ]
+        description: 'Club management',
+      },
+    ],
   },
   {
     title: 'Tools',
@@ -132,16 +132,16 @@ const navigationGroups: NavGroup[] = [
         title: 'Calendar',
         href: '/calendar',
         icon: Calendar,
-        description: 'Event scheduling'
+        description: 'Event scheduling',
       },
       {
         title: 'Alerts',
         href: '/alerts',
         icon: Bell,
-        description: 'Notifications and updates'
-      }
-    ]
-  }
+        description: 'Notifications and updates',
+      },
+    ],
+  },
 ];
 
 export const SecretarySidebar: React.FC<SecretarySidebarProps> = ({ onCloseMobile }) => {
@@ -152,25 +152,26 @@ export const SecretarySidebar: React.FC<SecretarySidebarProps> = ({ onCloseMobil
     if (location.pathname === href) {
       return true;
     }
-    
+
     // Special handling for routes with sub-routes
     // Don't mark parent routes as active if a more specific child route exists
     const allHrefs = navigationGroups.flatMap(group => group.items.map(item => item.href));
-    const hasMoreSpecificRoute = allHrefs.some(otherHref => 
-      otherHref !== href && 
-      otherHref.startsWith(href + '/') && 
-      location.pathname.startsWith(otherHref)
+    const hasMoreSpecificRoute = allHrefs.some(
+      otherHref =>
+        otherHref !== href &&
+        otherHref.startsWith(href + '/') &&
+        location.pathname.startsWith(otherHref)
     );
-    
+
     if (hasMoreSpecificRoute) {
       return false;
     }
-    
+
     // For other routes, use startsWith logic (but avoid false positives)
     if (href === '/secretary/dashboard') {
       return location.pathname === href;
     }
-    
+
     return location.pathname.startsWith(href + '/') || location.pathname === href;
   };
 
@@ -188,15 +189,10 @@ export const SecretarySidebar: React.FC<SecretarySidebarProps> = ({ onCloseMobil
             </h2>
           </div>
         </div>
-        
+
         {/* Mobile close button */}
         {onCloseMobile && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onCloseMobile}
-            className="md:hidden"
-          >
+          <Button variant="ghost" size="sm" onClick={onCloseMobile} className="md:hidden">
             <X className="h-4 w-4" />
           </Button>
         )}
@@ -211,7 +207,7 @@ export const SecretarySidebar: React.FC<SecretarySidebarProps> = ({ onCloseMobil
                 {group.title}
               </h3>
               <div className="space-y-1">
-                {group.items.map((item) => {
+                {group.items.map(item => {
                   const isActive = isActivePath(item.href);
                   return (
                     <Link
@@ -219,25 +215,28 @@ export const SecretarySidebar: React.FC<SecretarySidebarProps> = ({ onCloseMobil
                       to={item.href}
                       onClick={onCloseMobile}
                       className={cn(
-                        "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200",
+                        'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200',
                         isActive
-                          ? "bg-gradient-to-r from-primary/10 to-primary/5 text-primary shadow-sm border-l-2 border-primary"
-                          : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                          ? 'bg-gradient-to-r from-primary/10 to-primary/5 text-primary shadow-sm border-l-2 border-primary'
+                          : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
                       )}
                     >
                       <item.icon
                         className={cn(
-                          "h-4 w-4 transition-colors",
-                          isActive 
-                            ? "text-primary" 
-                            : "text-muted-foreground group-hover:text-foreground"
+                          'h-4 w-4 transition-colors',
+                          isActive
+                            ? 'text-primary'
+                            : 'text-muted-foreground group-hover:text-foreground'
                         )}
                       />
                       <div className="flex-1 min-w-0">
-                        <div className={cn(
-                          "font-medium transition-colors",
-                          isActive ? "text-primary" : ""
-                        )} style={{ fontWeight: isActive ? 500 : 400 }}>
+                        <div
+                          className={cn(
+                            'font-medium transition-colors',
+                            isActive ? 'text-primary' : ''
+                          )}
+                          style={{ fontWeight: isActive ? 500 : 400 }}
+                        >
                           {item.title}
                         </div>
                         {item.description && (

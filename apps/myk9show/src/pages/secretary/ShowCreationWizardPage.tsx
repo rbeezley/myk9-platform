@@ -208,13 +208,13 @@ const ShowCreationWizardPage: React.FC = () => {
       setShowConfirmDialog(true);
       return;
     }
-    navigate('/secretary/shows');
+    navigate('/browse-shows');
   }, [isDirty, navigate]);
 
   // Handle confirmation dialog result
   const handleConfirmClose = useCallback(() => {
     resetWizard();
-    navigate('/secretary/shows');
+    navigate('/browse-shows');
     setShowConfirmDialog(false);
   }, [resetWizard, navigate]);
 

@@ -43,8 +43,17 @@ const ClassTemplateTestPage = lazy(() =>
 
 export const PublicRoutes = () => (
   <>
-    {/* /shows without an ID redirects to browse page */}
-    <Route path="/shows" element={<Navigate to="/browse-shows" replace />} />
+    {/* Browse Shows - Allow anonymous browsing */}
+    <Route
+      path="/shows"
+      element={
+        <SuspenseWrapper>
+          <PageTransition>
+            <BrowseShowsPage />
+          </PageTransition>
+        </SuspenseWrapper>
+      }
+    />
 
     <Route
       path="/shows/:id"
@@ -112,19 +121,9 @@ export const PublicRoutes = () => (
       }
     />
 
-    {/* Unified Shows Interface - Allow anonymous browsing */}
-    <Route
-      path="/browse-shows"
-      element={
-        <SuspenseWrapper>
-          <PageTransition>
-            <BrowseShowsPage />
-          </PageTransition>
-        </SuspenseWrapper>
-      }
-    />
-
-    <Route path="/shows/browse" element={<Navigate to="/browse-shows" replace />} />
+    {/* Backwards-compat redirects for old URLs */}
+    <Route path="/browse-shows" element={<Navigate to="/shows" replace />} />
+    <Route path="/shows/browse" element={<Navigate to="/shows" replace />} />
 
     {/* My Entries - View and manage exhibitor's entries */}
     <Route

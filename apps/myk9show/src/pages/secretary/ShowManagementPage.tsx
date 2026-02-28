@@ -117,7 +117,7 @@ export function ShowManagementPage({ className }: ShowManagementPageProps) {
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
             Show not found. Please check the show ID or{' '}
-            <Link to="/browse-shows" className="underline">
+            <Link to="/shows" className="underline">
               return to the shows list
             </Link>
             .
@@ -188,7 +188,7 @@ export function ShowManagementPage({ className }: ShowManagementPageProps) {
       case 'delete':
         if (confirm('Are you sure you want to delete this show? This action cannot be undone.')) {
           logger.debug('Delete show:', 'secretary', { data: showId });
-          navigate('/browse-shows');
+          navigate('/shows');
         }
         break;
       default:
@@ -201,7 +201,7 @@ export function ShowManagementPage({ className }: ShowManagementPageProps) {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => navigate('/browse-shows')}>
+          <Button variant="ghost" onClick={() => navigate('/shows')}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Shows
           </Button>

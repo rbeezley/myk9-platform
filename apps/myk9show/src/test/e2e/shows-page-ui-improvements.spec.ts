@@ -33,7 +33,7 @@ async function login(page: Page) {
 
 // Helper to navigate to Browse Shows
 async function navigateToBrowseShows(page: Page) {
-  await page.goto('/browse-shows', { waitUntil: 'networkidle' });
+  await page.goto('/shows', { waitUntil: 'networkidle' });
   // Wait for content to load
   await page.waitForSelector('[role="tablist"]', { timeout: 10000 });
 }

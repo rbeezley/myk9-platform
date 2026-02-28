@@ -185,7 +185,7 @@ const ExhibitorDashboard: React.FC = () => {
 
           <div className="flex flex-wrap items-center gap-3">
             <Button
-              onClick={() => navigate('/browse-shows')}
+              onClick={() => navigate('/shows')}
               variant="outline"
               className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300 shadow-sm"
             >
@@ -426,7 +426,7 @@ const ExhibitorDashboard: React.FC = () => {
                       You don't have any upcoming show entries. Browse shows to find your next
                       competition.
                     </p>
-                    <Button onClick={() => navigate('/browse-shows')}>
+                    <Button onClick={() => navigate('/shows')}>
                       <Search className="h-4 w-4 mr-2" />
                       Browse Shows
                     </Button>
@@ -522,7 +522,7 @@ const ExhibitorDashboard: React.FC = () => {
                 </div>
               </div>
               <Button
-                onClick={() => navigate('/browse-shows')}
+                onClick={() => navigate('/shows')}
                 className="w-full mt-6 font-semibold py-3"
               >
                 <Search className="h-4 w-4 mr-2" />

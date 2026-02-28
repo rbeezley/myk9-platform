@@ -7,7 +7,10 @@ interface ExhibitorNavigationProps {
   onNavigate?: (() => void) | undefined;
 }
 
-const ExhibitorNavigation: React.FC<ExhibitorNavigationProps> = ({ mobile = false, onNavigate }) => {
+const ExhibitorNavigation: React.FC<ExhibitorNavigationProps> = ({
+  mobile = false,
+  onNavigate,
+}) => {
   const location = useLocation();
 
   // Helper function to check if current path matches menu item
@@ -16,12 +19,14 @@ const ExhibitorNavigation: React.FC<ExhibitorNavigationProps> = ({ mobile = fals
   };
 
   return (
-    <div className={mobile ? "flex flex-col gap-2" : "hidden md:flex items-center gap-6"}>
+    <div className={mobile ? 'flex flex-col gap-2' : 'hidden md:flex items-center gap-6'}>
       <Link
         to="/exhibitor/dashboard"
         onClick={onNavigate}
         className={`${buildClasses.button.ghost} font-medium transition-colors ${
-          isActivePath('/exhibitor/dashboard') ? 'text-primary' : 'text-foreground/80 hover:text-primary'
+          isActivePath('/exhibitor/dashboard')
+            ? 'text-primary'
+            : 'text-foreground/80 hover:text-primary'
         }`}
       >
         Dashboard
@@ -36,10 +41,12 @@ const ExhibitorNavigation: React.FC<ExhibitorNavigationProps> = ({ mobile = fals
         My Dogs
       </Link>
       <Link
-        to="/browse-shows"
+        to="/shows"
         onClick={onNavigate}
         className={`${buildClasses.button.ghost} font-medium transition-colors ${
-          isActivePath('/browse-shows') || isActivePath('/shows') || isActivePath('/my-entries') || isActivePath('/entries') ? 'text-primary' : 'text-foreground/80 hover:text-primary'
+          isActivePath('/shows') || isActivePath('/my-entries') || isActivePath('/entries')
+            ? 'text-primary'
+            : 'text-foreground/80 hover:text-primary'
         }`}
       >
         Shows

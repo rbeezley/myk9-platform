@@ -91,7 +91,7 @@ const navigationGroups: NavGroup[] = [
     items: [
       {
         title: 'Browse Shows',
-        href: '/browse-shows',
+        href: '/shows',
         icon: Search,
         description: 'Find and explore shows'
       },

@@ -31,7 +31,7 @@ test.describe('Browse Shows to Show Details Flow', () => {
     
     if (!page.url().includes('sign-up')) {
       console.log('⚠️ Not on sign-up page, trying via sign-in redirect...');
-      await page.goto('http://127.0.0.1:5174/browse-shows');
+      await page.goto('http://127.0.0.1:5174/shows');
       await page.click('a[href*="sign-up"], text="Sign Up"');
       await page.waitForLoadState('networkidle');
     }
@@ -84,7 +84,7 @@ test.describe('Browse Shows to Show Details Flow', () => {
 
     // Step 4: Navigate to Browse Shows
     console.log('📋 Step 4: Navigating to Browse Shows...');
-    await page.goto('http://127.0.0.1:5174/browse-shows');
+    await page.goto('http://127.0.0.1:5174/shows');
     await page.waitForLoadState('networkidle');
     
     // Verify we're not redirected back to sign-in
@@ -226,7 +226,7 @@ test.describe('Browse Shows to Show Details Flow', () => {
     
     // Try accessing a show details page directly
     // We'll need to figure out the URL pattern first
-    await page.goto('http://127.0.0.1:5174/browse-shows');
+    await page.goto('http://127.0.0.1:5174/shows');
     
     if (page.url().includes('sign-in')) {
       console.log('⚠️ Need to authenticate first');

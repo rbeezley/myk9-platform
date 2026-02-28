@@ -60,7 +60,7 @@ export const adminRouteComponents: Record<string, ImportFunction> = {
 // Public/exhibitor route components
 export const publicRouteComponents: Record<string, ImportFunction> = {
   // Show management
-  '/shows': () => import('@/pages/ShowDetailsPage'),
+  '/shows': () => import('@/pages/BrowseShowsPage'),
   '/shows/:id': () => import('@/pages/ShowDetailsPage'),
   '/shows/:showId/trials/:trialId': () => import('@/pages/TrialDetailsPage'),
   '/trials/:trialId': () => import('@/pages/TrialDetailsPage'),
@@ -69,9 +69,8 @@ export const publicRouteComponents: Record<string, ImportFunction> = {
     import('@/pages/ClassDetailsPage'),
   '/classes/:classId': () => import('@/pages/ClassDetailsPage'),
 
-  // Browsing and entries
+  // Backwards-compat redirects (handled in publicRoutes, kept for preloading)
   '/browse-shows': () => import('@/pages/BrowseShowsPage'),
-  '/shows/browse': () => import('@/pages/BrowseShowsPage'),
   '/my-entries': () => import('@/pages/MyEntriesPage'),
 
   // Exhibitor dashboard
@@ -117,7 +116,7 @@ export const publicRouteComponents: Record<string, ImportFunction> = {
 export const secretaryRouteComponents: Record<string, ImportFunction> = {
   // Placeholder for secretary routes - would be populated by actual secretary routes
   '/secretary/dashboard': () => import('@/pages/SecretaryDashboard'),
-  '/browse-shows': () => import('@/pages/BrowseShowsPage'),
+  '/shows': () => import('@/pages/BrowseShowsPage'),
   '/secretary/classes': () => import('@/pages/secretary/ShowCreationWizardPage'),
   // Add more secretary routes as they're defined
 } as const;
@@ -140,7 +139,7 @@ export const fullRouteRegistry: Record<string, ImportFunction> = {
 
 // Route categories for prioritized preloading
 export const routeCategories = {
-  critical: ['/admin/dashboard', '/admin/permissions', '/exhibitor/dashboard', '/browse-shows'],
+  critical: ['/admin/dashboard', '/admin/permissions', '/exhibitor/dashboard', '/shows'],
 
   high: ['/admin/templates', '/admin/sync', '/shows', '/users', '/dogs', '/calendar'],
 
@@ -157,12 +156,12 @@ export const navigationPatterns = {
   permissionManagement: ['/admin/permissions/roles', '/admin/permissions/users'],
 
   // Exhibitor workflow patterns
-  exhibitorDashboard: ['/browse-shows', '/exhibitor/entries', '/dogs'],
+  exhibitorDashboard: ['/shows', '/exhibitor/entries', '/dogs'],
   browseShows: ['/shows/:id', '/exhibitor/dashboard', '/calendar'],
-  showDetails: ['/shows/:showId/trials/:trialId', '/browse-shows'],
+  showDetails: ['/shows/:showId/trials/:trialId', '/shows'],
 
   // Secretary workflow patterns
-  secretaryDashboard: ['/browse-shows', '/secretary/classes'],
+  secretaryDashboard: ['/shows', '/secretary/classes'],
 
   // Judge workflow patterns
   judgeDashboard: ['/judge/assignments'],

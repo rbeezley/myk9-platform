@@ -92,7 +92,7 @@ export default function CartPage() {
     if (cart?.show_id) {
       navigate(`/shows/${cart.show_id}`);
     } else {
-      navigate('/browse-shows');
+      navigate('/shows');
     }
   };
 
@@ -109,7 +109,7 @@ export default function CartPage() {
             <p className="text-muted-foreground mb-6 max-w-md">
               Browse upcoming shows and add entries to your cart to get started.
             </p>
-            <Button onClick={() => navigate('/browse-shows')} size="lg">
+            <Button onClick={() => navigate('/shows')} size="lg">
               Browse Shows
             </Button>
           </div>

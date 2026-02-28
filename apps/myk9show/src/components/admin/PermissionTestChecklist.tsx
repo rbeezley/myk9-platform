@@ -78,7 +78,7 @@ const permissionTests: PermissionTest[] = [
     name: 'Browse Shows Page Actions',
     description: 'Create Show button on Browse Shows page',
     permission: PERMISSIONS.SHOW_CREATE,
-    testPath: '/browse-shows',
+    testPath: '/shows',
     expectedResult: {
       [UserRole.EXHIBITOR]: false,
       [UserRole.SECRETARY]: true,

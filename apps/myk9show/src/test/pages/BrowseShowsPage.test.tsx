@@ -232,7 +232,7 @@ function setupMocks(options: {
   });
 }
 
-const renderWithProviders = (ui: React.ReactElement, { route = '/browse-shows' } = {}) => {
+const renderWithProviders = (ui: React.ReactElement, { route = '/shows' } = {}) => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -484,7 +484,7 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
     });
 
     it('should persist tab selection on page load', async () => {
-      renderWithProviders(<BrowseShowsPage />, { route: '/browse-shows?tab=past' });
+      renderWithProviders(<BrowseShowsPage />, { route: '/shows?tab=past' });
 
       // Base UI tabs use aria-selected for the active state
       await waitFor(() => {
@@ -494,7 +494,7 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
     });
 
     it('should handle invalid tab in URL gracefully', async () => {
-      renderWithProviders(<BrowseShowsPage />, { route: '/browse-shows?tab=invalid' });
+      renderWithProviders(<BrowseShowsPage />, { route: '/shows?tab=invalid' });
 
       // When the tab value is invalid, the component should fall back to the default
       await waitFor(() => {

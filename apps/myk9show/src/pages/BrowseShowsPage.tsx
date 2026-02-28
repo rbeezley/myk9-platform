@@ -191,7 +191,7 @@ const BrowseShowsPage: React.FC = () => {
   // Generate breadcrumb items
   const breadcrumbItems = useMemo(() => {
     const items = [
-      { label: 'Shows', href: '/browse-shows', onClick: () => handleTabChange('all') },
+      { label: 'Shows', href: '/shows', onClick: () => handleTabChange('all') },
     ];
 
     if (selectedTab !== 'all') {

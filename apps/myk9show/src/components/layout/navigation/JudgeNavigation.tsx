@@ -16,21 +16,23 @@ const JudgeNavigation: React.FC<JudgeNavigationProps> = ({ mobile = false, onNav
   };
 
   return (
-    <div className={mobile ? "flex flex-col gap-2" : "hidden md:flex items-center gap-6"}>
+    <div className={mobile ? 'flex flex-col gap-2' : 'hidden md:flex items-center gap-6'}>
       <Link
         to="/judge/dashboard"
         onClick={onNavigate}
         className={`${buildClasses.button.ghost} font-medium transition-colors ${
-          isActivePath('/judge/dashboard') ? 'text-primary' : 'text-foreground/80 hover:text-primary'
+          isActivePath('/judge/dashboard')
+            ? 'text-primary'
+            : 'text-foreground/80 hover:text-primary'
         }`}
       >
         Dashboard
       </Link>
       <Link
-        to="/browse-shows"
+        to="/shows"
         onClick={onNavigate}
         className={`${buildClasses.button.ghost} font-medium transition-colors ${
-          isActivePath('/browse-shows') || isActivePath('/shows') ? 'text-primary' : 'text-foreground/80 hover:text-primary'
+          isActivePath('/shows') ? 'text-primary' : 'text-foreground/80 hover:text-primary'
         }`}
       >
         Shows

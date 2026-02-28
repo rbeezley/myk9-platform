@@ -21,7 +21,7 @@ const deviceConfigs = [
 
 // Helper function to setup page
 async function setupPage(page: Page) {
-  await page.goto('/browse-shows');
+  await page.goto('/shows');
   
   // Wait for the page to be fully loaded
   await page.waitForLoadState('networkidle');
@@ -137,7 +137,7 @@ test.describe('Device Compatibility Tests', () => {
         const context = await browser.newContext(device);
         const devicePage = await context.newPage();
         
-        await devicePage.goto('/browse-shows');
+        await devicePage.goto('/shows');
         await devicePage.waitForLoadState('networkidle');
         await devicePage.waitForSelector('[data-testid="shows-page"]', { timeout: 10000 });
         
@@ -178,7 +178,7 @@ test.describe('Device Compatibility Tests', () => {
         
         const viewport = devicePage.viewportSize();
         if (viewport && viewport.width < 1024) {
-          await devicePage.goto('/browse-shows');
+          await devicePage.goto('/shows');
           await devicePage.waitForLoadState('networkidle');
           await devicePage.waitForSelector('[data-testid="shows-page"]', { timeout: 10000 });
           
@@ -389,7 +389,7 @@ test.describe('Performance Across Browsers', () => {
     test(`should load within acceptable time on ${browser.name}`, async ({ page }) => {
       const startTime = Date.now();
       
-      await page.goto('/browse-shows');
+      await page.goto('/shows');
       await page.waitForSelector('[data-testid="shows-page"]');
       
       const loadTime = Date.now() - startTime;
@@ -440,7 +440,7 @@ test.describe('Error Handling Across Browsers', () => {
     // Simulate network failure
     await page.route('**/api/shows*', route => route.abort());
     
-    await page.goto('/browse-shows');
+    await page.goto('/shows');
     
     // Should show error state
     await expect(page.getByText(/error loading shows/i)).toBeVisible();

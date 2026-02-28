@@ -169,7 +169,7 @@ export default function CheckoutSuccessPage() {
               <h2 className="text-xl font-semibold mb-2">Verification Pending</h2>
               <p className="text-muted-foreground mb-6 max-w-md mx-auto">{error}</p>
               <div className="flex gap-3 justify-center">
-                <Button variant="outline" onClick={() => navigate('/browse-shows')}>
+                <Button variant="outline" onClick={() => navigate('/shows')}>
                   Browse Shows
                 </Button>
                 <Button onClick={() => window.location.reload()}>
@@ -284,7 +284,7 @@ export default function CheckoutSuccessPage() {
             <Button
               variant="ghost"
               className="w-full"
-              onClick={() => navigate('/browse-shows')}
+              onClick={() => navigate('/shows')}
             >
               Browse More Shows
             </Button>

@@ -63,7 +63,7 @@ test.describe('Show Details Sidebar Navigation', () => {
   
   test('should update URL when selecting different shows', async ({ page }) => {
     // Navigate to browse shows first
-    await page.goto('http://localhost:5173/browse-shows');
+    await page.goto('http://localhost:5173/shows');
     await page.waitForLoadState('networkidle');
     
     // Find a "View Details" button and click it

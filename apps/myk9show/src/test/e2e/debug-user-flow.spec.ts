@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Debug User Flow', () => {
   test('should examine sign-in page and try to create account', async ({ page }) => {
     // Navigate to protected route to trigger redirect
-    await page.goto('http://127.0.0.1:5174/browse-shows');
+    await page.goto('http://127.0.0.1:5174/shows');
     
     // Should be on sign-in page
     await expect(page).toHaveURL(/.*sign-in/);
@@ -89,7 +89,7 @@ test.describe('Debug User Flow', () => {
 
   test('should test browse shows with existing session if any', async ({ page }) => {
     // Try to go directly to browse shows
-    await page.goto('http://127.0.0.1:5174/browse-shows');
+    await page.goto('http://127.0.0.1:5174/shows');
     await page.waitForLoadState('networkidle');
     
     const currentUrl = page.url();

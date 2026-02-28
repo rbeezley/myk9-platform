@@ -260,7 +260,7 @@ export class LoadTestService {
    */
   private async measureRenderPerformance() {
     // Trigger re-renders by navigating to data-heavy pages
-    const pages = ['/dogs', '/people', '/browse-shows'];
+    const pages = ['/dogs', '/people', '/shows'];
     let totalFrames = 0;
     let totalTime = 0;
 

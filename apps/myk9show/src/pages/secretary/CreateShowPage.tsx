@@ -73,7 +73,7 @@ const CreateShowPage: React.FC = () => {
               <Button 
                 variant="outline" 
                 className="w-full justify-start"
-                onClick={() => navigate('/browse-shows')}
+                onClick={() => navigate('/shows')}
               >
                 Browse Existing Shows
               </Button>

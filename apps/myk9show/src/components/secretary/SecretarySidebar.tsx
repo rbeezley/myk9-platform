@@ -61,13 +61,13 @@ const navigationGroups: NavGroup[] = [
     items: [
       {
         title: 'My Shows',
-        href: '/browse-shows',
+        href: '/shows',
         icon: Calendar,
         description: 'Shows you are managing',
       },
       {
         title: 'Browse Shows',
-        href: '/browse-shows',
+        href: '/shows',
         icon: Search,
         description: 'Find and explore shows',
       },

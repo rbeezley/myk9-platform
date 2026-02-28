@@ -23,7 +23,7 @@ test.describe('Show Details Issue Investigation', () => {
 
     // Step 1: Go directly to Browse Shows to see what happens
     console.log('📋 Step 1: Testing Browse Shows page access...');
-    await page.goto('http://127.0.0.1:5174/browse-shows');
+    await page.goto('http://127.0.0.1:5174/shows');
     await page.waitForLoadState('networkidle');
     
     const currentUrl = page.url();
@@ -75,7 +75,7 @@ test.describe('Show Details Issue Investigation', () => {
         }
         
         // Try to access Browse Shows again
-        await page.goto('http://127.0.0.1:5174/browse-shows');
+        await page.goto('http://127.0.0.1:5174/shows');
         await page.waitForLoadState('networkidle');
         
       } catch (authError) {

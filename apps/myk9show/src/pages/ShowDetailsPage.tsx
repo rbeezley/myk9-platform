@@ -101,7 +101,7 @@ const ShowDetailsPage: React.FC = () => {
   // Redirect to browse page if no show ID provided
   useEffect(() => {
     if (!id) {
-      navigate('/browse-shows', { replace: true });
+      navigate('/shows', { replace: true });
     }
   }, [id, navigate]);
 
@@ -207,7 +207,7 @@ const ShowDetailsPage: React.FC = () => {
     // Invalidate React Query cache so deleted show disappears from browse
     queryClient.invalidateQueries({ queryKey: ['shows'] });
     setTimeout(() => {
-      navigate('/browse-shows');
+      navigate('/shows');
     }, 100);
   };
 
@@ -241,7 +241,7 @@ const ShowDetailsPage: React.FC = () => {
             <h1 className="text-2xl font-bold text-foreground mb-4">Show Not Found</h1>
             <p className="text-muted-foreground mb-4">The show you're looking for doesn't exist.</p>
             <button
-              onClick={() => startTransition(() => navigate('/browse-shows'))}
+              onClick={() => startTransition(() => navigate('/shows'))}
               className={`${buildClasses.button.primary} px-4 py-2 rounded-lg transition-colors`}
             >
               Back to Shows

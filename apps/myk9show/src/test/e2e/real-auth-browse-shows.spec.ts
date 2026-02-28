@@ -21,7 +21,7 @@ test.describe('Browse Shows with Real Authentication', () => {
 
     console.log('🔒 Navigating to protected Browse Shows page');
     // Step 1: Navigate to protected Browse Shows page (should redirect to sign-in)
-    await page.goto('http://127.0.0.1:5174/browse-shows');
+    await page.goto('http://127.0.0.1:5174/shows');
     
     // Step 2: Should redirect to sign-in page (protected route)
     await expect(page).toHaveURL(/.*sign-in/);
@@ -97,7 +97,7 @@ test.describe('Browse Shows with Real Authentication', () => {
 
   test('should handle authentication state properly', async ({ page }) => {
     // Check if already authenticated (from previous test)
-    await page.goto('http://127.0.0.1:5174/browse-shows');
+    await page.goto('http://127.0.0.1:5174/shows');
     
     // If redirected to sign-in, authenticate
     if (page.url().includes('sign-in')) {

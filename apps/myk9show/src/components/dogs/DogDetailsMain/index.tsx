@@ -6,7 +6,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import Breadcrumb from '@/components/common/Breadcrumb';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { mockPedigreeData } from '@/data/mockPedigreeData';
-import type { Dog, Owner } from '@/types/dog-types';
+import type { Dog, DogStatus, Owner } from '@/types/dog-types';
 import type { ExtendedAncestor } from '@/components/dogs/DogDetails/Pedigree/PedigreeAncestorAddDialog';
 import '@/styles/apple-show-details.css';
 
@@ -16,6 +16,7 @@ import OwnerInfoCard from './OwnerInfoCard';
 import DogSummaryCard from './DogSummaryCard';
 import DogDetailsTabs from './DogDetailsTabs';
 import DogDialogs from './DogDialogs';
+import DogStatusDialog from '@/components/dogs/DogStatusDialog';
 import { validateImageFile } from './utils';
 import type { DogDetailsMainProps } from './types';
 
@@ -59,6 +60,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
   // Panel/dialog state
   const [isEditPanelOpen, setIsEditPanelOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
   const [ancestors, setAncestors] = useState<ExtendedAncestor[]>(mockPedigreeData);
 
   // Photo Dialog State
@@ -133,6 +135,16 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
     setPhotoPreview(null);
   };
 
+  const handleStatusSave = async (status: DogStatus, deceasedDate?: string) => {
+    if (onUpdate) {
+      const result = await onUpdate(updatedDog.id, { status, deceasedDate });
+      if (result) {
+        setUpdatedDog(prev => ({ ...prev, status, deceasedDate }));
+        toast.success(`Status updated to ${status}`);
+      }
+    }
+  };
+
   // Generate breadcrumb items
   const breadcrumbItems = useBreadcrumb({
     currentPage: 'dog',
@@ -154,6 +166,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
         onEditPanelOpen={() => setIsEditPanelOpen(true)}
         onPhotoDialogOpen={() => handlePhotoDialogOpen(true)}
         onDeleteDialogOpen={() => setIsDeleteDialogOpen(true)}
+        onStatusDialogOpen={() => setIsStatusDialogOpen(true)}
       />
 
       {/* Information Grid - About & Physical Characteristics */}
@@ -198,6 +211,16 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
         onSetShowCelebration={setShowCelebration}
         onSetRecentUpdate={setRecentUpdate}
         onSetIsEditPanelOpen={setIsEditPanelOpen}
+      />
+
+      {/* Status Dialog */}
+      <DogStatusDialog
+        open={isStatusDialogOpen}
+        onOpenChange={setIsStatusDialogOpen}
+        dogName={updatedDog.callName || updatedDog.name}
+        currentStatus={updatedDog.status || 'active'}
+        currentDeceasedDate={updatedDog.deceasedDate}
+        onSave={handleStatusSave}
       />
     </div>
   );

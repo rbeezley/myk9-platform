@@ -1,6 +1,8 @@
 // Re-export User type for components that import from dog-types
 export type { User, UserRole, JudgeQualification } from './user-types';
 
+export type DogStatus = 'active' | 'retired' | 'deceased';
+
 // Judge-specific information
 export interface JudgeInfo {
   judgeNumber: string;
@@ -36,7 +38,7 @@ export interface JudgeCertification {
 /**
  * Represents a dog's registration with a kennel club or organization.
  * Contains all official registration information and status.
- * 
+ *
  * @example
  * ```typescript
  * const akcRegistration: Registration = {
@@ -68,7 +70,7 @@ export interface Registration {
 /**
  * Represents a dog owner with contact information.
  * Used for associating dogs with their owners and communication.
- * 
+ *
  * @example
  * ```typescript
  * const owner: Owner = {
@@ -91,7 +93,7 @@ export interface Owner {
 /**
  * Core dog entity representing a dog in the show management system.
  * Contains all essential information including registration, health, and competition data.
- * 
+ *
  * @example
  * ```typescript
  * const dog: Dog = {
@@ -148,40 +150,54 @@ export interface Dog {
   deletedAt?: string | undefined;
   deletedBy?: string | undefined;
 
+  // Lifecycle status
+  status?: DogStatus | undefined;
+  deceasedDate?: string | undefined;
+
   // Health records
-  healthRecords?: {
-    vaccinations?: Array<{
-      id: string;
-      name: string;
-      date: string;
-      nextDue?: string | undefined;
-      veterinarian: string;
-    }> | undefined;
-    medications?: Array<{
-      id: string;
-      name: string;
-      dosage: string;
-      frequency: string;
-      startDate: string;
-      endDate?: string | undefined;
-    }> | undefined;
-    allergies?: Array<{
-      id: string;
-      allergen: string;
-      severity: string;
-      reaction: string;
-      notes?: string | undefined;
-    }> | undefined;
-  } | undefined;
+  healthRecords?:
+    | {
+        vaccinations?:
+          | Array<{
+              id: string;
+              name: string;
+              date: string;
+              nextDue?: string | undefined;
+              veterinarian: string;
+            }>
+          | undefined;
+        medications?:
+          | Array<{
+              id: string;
+              name: string;
+              dosage: string;
+              frequency: string;
+              startDate: string;
+              endDate?: string | undefined;
+            }>
+          | undefined;
+        allergies?:
+          | Array<{
+              id: string;
+              allergen: string;
+              severity: string;
+              reaction: string;
+              notes?: string | undefined;
+            }>
+          | undefined;
+      }
+    | undefined;
 
   // Competition data
   currentLevel?: string | undefined;
-  measurements?: {
-    height?: number | undefined;
-    weight?: number | undefined;
-    measuredAt?: string | undefined;
-    measuredBy?: string | undefined;
-  } | undefined;
+  measurements?:
+    | {
+        height?: number | undefined;
+        weight?: number | undefined;
+        measuredAt?: string | undefined;
+        measuredBy?: string | undefined;
+      }
+    | undefined;
 
   // Sync metadata for Local-First architecture
   _version?: number | undefined;
@@ -190,7 +206,6 @@ export interface Dog {
   _syncStatus?: 'synced' | 'pending' | 'error' | 'conflict' | undefined;
   _localOnly?: boolean | undefined;
 }
-
 
 // User interface now imported from user-types.ts
 
@@ -209,36 +224,48 @@ export interface DogInput {
   microchipNumber?: string | undefined;
   imageUrl?: string | undefined;
   spayedNeutered?: boolean | undefined;
-  registrations?: Array<{
-    organization: string;
-    number: string;
-    type: string;
-    status: string;
-  }> | undefined;
-  healthRecords?: {
-    vaccinations?: Array<{
-      id: string;
-      name: string;
-      date: string;
-      nextDue?: string | undefined;
-      veterinarian: string;
-    }> | undefined;
-    medications?: Array<{
-      id: string;
-      name: string;
-      dosage: string;
-      frequency: string;
-      startDate: string;
-      endDate?: string | undefined;
-    }> | undefined;
-    allergies?: Array<{
-      id: string;
-      allergen: string;
-      severity: string;
-      reaction: string;
-      notes?: string | undefined;
-    }> | undefined;
-  } | undefined;
+  status?: DogStatus | undefined;
+  deceasedDate?: string | undefined;
+  registrations?:
+    | Array<{
+        organization: string;
+        number: string;
+        type: string;
+        status: string;
+      }>
+    | undefined;
+  healthRecords?:
+    | {
+        vaccinations?:
+          | Array<{
+              id: string;
+              name: string;
+              date: string;
+              nextDue?: string | undefined;
+              veterinarian: string;
+            }>
+          | undefined;
+        medications?:
+          | Array<{
+              id: string;
+              name: string;
+              dosage: string;
+              frequency: string;
+              startDate: string;
+              endDate?: string | undefined;
+            }>
+          | undefined;
+        allergies?:
+          | Array<{
+              id: string;
+              allergen: string;
+              severity: string;
+              reaction: string;
+              notes?: string | undefined;
+            }>
+          | undefined;
+      }
+    | undefined;
 }
 
 export interface PersonInput {

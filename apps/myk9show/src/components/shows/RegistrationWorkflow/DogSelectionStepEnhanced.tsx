@@ -6,7 +6,13 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 // import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useDogStore } from '@/store/dogStore';
 import { Dog, User } from '@/types/dog-types';
@@ -45,14 +51,13 @@ interface DogListItemProps {
   };
 }
 
-
 // Virtual list item component
 const DogListItem: React.FC<DogListItemProps> = ({ index, style, data }) => {
   const { dogs, selectedDogs, onToggle, getDogEligibilityStatus } = data;
   const dog = dogs[index];
   const { eligible, issues } = getDogEligibilityStatus(dog);
   const isSelected = selectedDogs.includes(dog.id);
-  
+
   return (
     <div style={style}>
       <Card
@@ -67,22 +72,24 @@ const DogListItem: React.FC<DogListItemProps> = ({ index, style, data }) => {
               checked={isSelected}
               disabled={!eligible}
               onCheckedChange={() => eligible && onToggle(dog.id)}
-              onClick={(e) => e.stopPropagation()}
+              onClick={e => e.stopPropagation()}
               className="mt-1"
             />
-            
+
             <div className="flex-1">
               <div className="flex items-center justify-between">
                 <div>
                   <Label className="text-base font-medium cursor-pointer">
                     {dog.callName || dog.name}
-                    {dog.registrations?.[0]?.registeredName && ` "${dog.registrations[0].registeredName}"`}
+                    {dog.registrations?.[0]?.registeredName &&
+                      ` "${dog.registrations[0].registeredName}"`}
                   </Label>
                   <p className="text-sm text-gray-600 mt-1">
-                    {dog.registrations?.[0]?.breed || 'No breed specified'} • {dog.gender || 'Unknown'} • Born {formatDateMMDDYYYY(dog.dateOfBirth)}
+                    {dog.registrations?.[0]?.breed || 'No breed specified'} •{' '}
+                    {dog.gender || 'Unknown'} • Born {formatDateMMDDYYYY(dog.dateOfBirth)}
                   </p>
                 </div>
-                
+
                 {isSelected && (
                   <Badge variant="default" className="ml-2">
                     <Check className="w-3 h-3 mr-1" />
@@ -90,7 +97,7 @@ const DogListItem: React.FC<DogListItemProps> = ({ index, style, data }) => {
                   </Badge>
                 )}
               </div>
-              
+
               {dog.registrations && dog.registrations.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-2">
                   {dog.registrations.map((reg, idx) => (
@@ -100,7 +107,7 @@ const DogListItem: React.FC<DogListItemProps> = ({ index, style, data }) => {
                   ))}
                 </div>
               )}
-              
+
               {!eligible && (
                 <div className="mt-2">
                   {issues.map((issue, idx) => (
@@ -120,15 +127,16 @@ const DogListItem: React.FC<DogListItemProps> = ({ index, style, data }) => {
 
 export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   selectedDogs,
-  onSelectionChange
+  onSelectionChange,
 }) => {
   const { dogs } = useDogStore();
-  const { filterAccessibleDogs, canBulkOperations, getMaxDogsPerRegistration } = useRegistrationPermissions();
+  const { filterAccessibleDogs, canBulkOperations, getMaxDogsPerRegistration } =
+    useRegistrationPermissions();
   const { workflowConfig } = useRegistrationContext();
-  
+
   // State for filtered dogs from the search interface
   const [filteredDogs, setFilteredDogs] = useState<Dog[]>([]);
-  
+
   // Creation dialog states
   const [showQuickCreateFlow, setShowQuickCreateFlow] = useState(false);
   const [showExhibitorDialog, setShowExhibitorDialog] = useState(false);
@@ -137,7 +145,9 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
 
   // Get role-based accessible dogs for the search interface
   const accessibleDogs = useMemo(() => {
-    return filterAccessibleDogs(dogs).filter(dog => !dog.deletedAt);
+    return filterAccessibleDogs(dogs).filter(
+      dog => !dog.deletedAt && (!dog.status || dog.status === 'active')
+    );
   }, [dogs, filterAccessibleDogs]);
 
   // Check creation permissions
@@ -148,7 +158,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   const handleQuickCreateFlowCompleted = (exhibitor: User, newDogs: Dog[]) => {
     // In real app, these would be saved to the backend/store
     logger.debug('Quick create flow completed:', 'shows', { data: { exhibitor, dogs: newDogs } });
-    
+
     // Auto-select the newly created dogs
     const newDogIds = newDogs.map(dog => dog.id);
     onSelectionChange([...selectedDogs, ...newDogIds]);
@@ -172,7 +182,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
 
   const handleDogToggle = (dogId: string) => {
     const maxDogs = getMaxDogsPerRegistration();
-    
+
     if (selectedDogs.includes(dogId)) {
       onSelectionChange(selectedDogs.filter(id => id !== dogId));
     } else {
@@ -184,10 +194,10 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
       onSelectionChange([...selectedDogs, dogId]);
     }
   };
-  
+
   const handleBulkSelect = (action: 'all' | 'none' | 'eligible') => {
     if (!canBulkOperations) return;
-    
+
     switch (action) {
       case 'all': {
         const maxDogs = getMaxDogsPerRegistration();
@@ -215,7 +225,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   const getDogEligibilityStatus = (dog: Dog) => {
     // Mock eligibility checks
     const issues: string[] = [];
-    
+
     // Check age (example: must be at least 6 months old)
     if (dog.dateOfBirth) {
       const birthDate = new Date(dog.dateOfBirth);
@@ -224,15 +234,15 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
         issues.push('Too young (must be 6+ months)');
       }
     }
-    
+
     // Check registrations
     if (!dog.registrations || dog.registrations.length === 0) {
       issues.push('No registration on file');
     }
-    
+
     return {
       eligible: issues.length === 0,
-      issues
+      issues,
     };
   };
 
@@ -246,13 +256,13 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
             You don't have any dogs available for registration.
           </p>
         </div>
-        
+
         <div className="text-center py-8 space-y-4">
           <p className="text-gray-500">No dogs found.</p>
           <p className="text-sm text-gray-400">
             Make sure you have dogs added and they have up-to-date information.
           </p>
-          
+
           {canCreateNew && (
             <div className="space-y-3">
               <Alert>
@@ -261,7 +271,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
                   As a secretary, you can create new exhibitors and dogs for registration.
                 </AlertDescription>
               </Alert>
-              
+
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <Button
                   onClick={() => setShowQuickCreateFlow(true)}
@@ -270,7 +280,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
                   <UserPlus className="h-4 w-4" />
                   Create Exhibitor & Dog(s)
                 </Button>
-                
+
                 <Button
                   variant="outline"
                   onClick={() => setShowExhibitorDialog(true)}
@@ -292,13 +302,13 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
       <div className="mb-4">
         <h3 className="text-lg font-semibold">Select Dogs to Register</h3>
         <p className="text-sm text-gray-600 mt-1">
-          {workflowConfig.features.advancedSearch 
+          {workflowConfig.features.advancedSearch
             ? 'Search and filter to find dogs, then select which ones to register.'
             : 'Choose which dogs you want to enter in this show.'}
           {` (Max: ${getMaxDogsPerRegistration()} dogs)`}
         </p>
       </div>
-      
+
       {/* Advanced Search Interface */}
       {workflowConfig.features.advancedSearch && (
         <DogSearchInterface
@@ -310,7 +320,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
           className="mb-4"
         />
       )}
-      
+
       {/* Actions Bar - Bulk Actions and Creation Options */}
       <div className="flex flex-wrap gap-2 mb-4">
         {/* Bulk Actions - Only for secretaries */}
@@ -368,33 +378,41 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
           </>
         )}
       </div>
-      
+
       {/* Results Count */}
       {(!workflowConfig.features.advancedSearch || filteredDogs.length > 0) && (
         <div className="text-sm text-gray-600">
-          Showing {workflowConfig.features.advancedSearch ? filteredDogs.length : accessibleDogs.length} dog{(workflowConfig.features.advancedSearch ? filteredDogs.length : accessibleDogs.length) !== 1 ? 's' : ''}
+          Showing{' '}
+          {workflowConfig.features.advancedSearch ? filteredDogs.length : accessibleDogs.length} dog
+          {(workflowConfig.features.advancedSearch
+            ? filteredDogs.length
+            : accessibleDogs.length) !== 1
+            ? 's'
+            : ''}
           {selectedDogs.length > 0 && (
-            <span className="ml-2 font-medium text-primary">
-              • {selectedDogs.length} selected
-            </span>
+            <span className="ml-2 font-medium text-primary">• {selectedDogs.length} selected</span>
           )}
         </div>
       )}
 
       {/* Virtual Scrolling List */}
-      {(workflowConfig.features.advancedSearch ? filteredDogs.length > 0 : accessibleDogs.length > 0) ? (
+      {(
+        workflowConfig.features.advancedSearch ? filteredDogs.length > 0 : accessibleDogs.length > 0
+      ) ? (
         <div className="border rounded-lg">
           <List
             height={400}
             width="100%"
-            itemCount={workflowConfig.features.advancedSearch ? filteredDogs.length : accessibleDogs.length}
+            itemCount={
+              workflowConfig.features.advancedSearch ? filteredDogs.length : accessibleDogs.length
+            }
             itemSize={120}
             itemData={{
               dogs: workflowConfig.features.advancedSearch ? filteredDogs : accessibleDogs,
               selectedDogs,
               onToggle: handleDogToggle,
               getDogEligibilityStatus,
-              canBulkSelect: canBulkOperations
+              canBulkSelect: canBulkOperations,
             }}
           >
             {DogListItem}
@@ -403,20 +421,16 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
       ) : (
         <div className="text-center py-8">
           <p className="text-gray-500">No dogs found matching your criteria.</p>
-          <p className="text-sm text-gray-400 mt-2">
-            Try adjusting your search terms or filters.
-          </p>
+          <p className="text-sm text-gray-400 mt-2">Try adjusting your search terms or filters.</p>
         </div>
       )}
-      
+
       {selectedDogs.length > 0 && (
         <div className="mt-4 p-3 bg-primary/10 rounded-lg">
           <p className="text-sm font-medium">
             {selectedDogs.length} dog{selectedDogs.length > 1 ? 's' : ''} selected
             {selectedDogs.length >= getMaxDogsPerRegistration() && (
-              <span className="ml-2 text-yellow-600">
-                (Maximum reached)
-              </span>
+              <span className="ml-2 text-yellow-600">(Maximum reached)</span>
             )}
           </p>
         </div>

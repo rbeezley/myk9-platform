@@ -45,6 +45,22 @@ export const DogsGridView: React.FC<DogsGridViewProps> = ({ dogs }) => {
                     {sexLabel}
                   </Badge>
                 )}
+                {dog.status === 'retired' && (
+                  <Badge
+                    variant="secondary"
+                    className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                  >
+                    Retired
+                  </Badge>
+                )}
+                {dog.status === 'deceased' && (
+                  <Badge
+                    variant="secondary"
+                    className="text-xs bg-gray-100 text-gray-500 dark:bg-gray-800/30 dark:text-gray-400"
+                  >
+                    Deceased
+                  </Badge>
+                )}
               </div>
             </div>
 

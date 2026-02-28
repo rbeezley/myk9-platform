@@ -1,7 +1,7 @@
 // Type mapping utilities for Dog Store <-> Database integration
 // Phase 2.1: Dog Store Integration
 
-import type { Dog } from '@/types/dog-types';
+import type { Dog, DogStatus } from '@/types/dog-types';
 import type { DbDogInsert, DbDogUpdate } from '@/types/database-mappings';
 import type { DogInput } from '@/store/dogStore';
 
@@ -84,15 +84,20 @@ export const mapDogInputToInsert = (input: DogInput): DbDogInsert => {
     image_url: input.imageUrl || null,
     call_name: input.callName || null, // Use callName from input if provided
     spayed_neutered: input.spayedNeutered ?? null,
+    deceased: input.status === 'deceased',
+    deceased_date: input.deceasedDate || null,
     // Note: registrations and health records are handled in separate tables
     // Note: ID is explicitly omitted to allow database auto-generation
   };
-  
+
+  // status column added via migration 039 — not yet in generated Supabase types
+  (dbInsert as Record<string, unknown>).status = input.status || 'active';
+
   // Defensive programming: Ensure no id field is accidentally included
   if ('id' in dbInsert) {
     delete (dbInsert as Record<string, unknown>)['id'];
   }
-  
+
   return dbInsert;
 };
 
@@ -114,6 +119,11 @@ export const mapDogInputToUpdate = (input: Partial<DogInput>): DbDogUpdate => {
   if (input.microchipNumber !== undefined) update.microchip_number = input.microchipNumber || null;
   if (input.imageUrl !== undefined) update.image_url = input.imageUrl || null;
   if (input.spayedNeutered !== undefined) update.spayed_neutered = input.spayedNeutered;
+  if (input.status !== undefined) {
+    (update as Record<string, unknown>).status = input.status;
+    update.deceased = input.status === 'deceased';
+    update.deceased_date = input.deceasedDate || null;
+  }
 
   return update;
 };
@@ -133,25 +143,29 @@ export const mapDatabaseToDog = (dbDog: Record<string, unknown>): Dog => {
     birthDate: dateOfBirth ?? undefined,
     dateOfBirth: dateOfBirth ?? undefined, // Also set dateOfBirth for backward compatibility
     sex: sex ?? 'male', // Default to male if not set (required field)
-    gender: sex ? (sex.charAt(0).toUpperCase() + sex.slice(1)) as 'Male' | 'Female' : undefined, // Also set gender for backward compatibility
+    gender: sex ? ((sex.charAt(0).toUpperCase() + sex.slice(1)) as 'Male' | 'Female') : undefined, // Also set gender for backward compatibility
     color: dbDog.color as string,
     weight: dbDog.weight ? String(dbDog.weight) : undefined,
     height: dbDog.height ? String(dbDog.height) : undefined,
     ownerId: dbDog.owner_id as string,
-    ownerName: dbDog.owner ?
-      `${(dbDog.owner as Record<string, unknown>).first_name} ${(dbDog.owner as Record<string, unknown>).last_name}`.trim() : '',
+    ownerName: dbDog.owner
+      ? `${(dbDog.owner as Record<string, unknown>).first_name} ${(dbDog.owner as Record<string, unknown>).last_name}`.trim()
+      : '',
     microchipNumber: dbDog.microchip_number as string,
     imageUrl: (dbDog.image_url as string) || undefined,
     spayedNeutered: (dbDog.spayed_neutered as boolean) ?? undefined,
-    registrations: Array.isArray(dbDog.registrations) ? 
-      dbDog.registrations.map((reg: Record<string, unknown>) => ({
-        id: reg.id as string,
-        organization: (reg.organization as string) || '',
-        registeredName: (reg.registered_name as string) || '',
-        breed: (reg.breed as string) || (dbDog.breed as string),
-        registrationNumber: (reg.registration_number as string) || '',
-        status: (reg.status as string) || 'active',
-      })) : [],
+    status: (dbDog.status as string as DogStatus) || 'active',
+    deceasedDate: (dbDog.deceased_date as string) || undefined,
+    registrations: Array.isArray(dbDog.registrations)
+      ? dbDog.registrations.map((reg: Record<string, unknown>) => ({
+          id: reg.id as string,
+          organization: (reg.organization as string) || '',
+          registeredName: (reg.registered_name as string) || '',
+          breed: (reg.breed as string) || (dbDog.breed as string),
+          registrationNumber: (reg.registration_number as string) || '',
+          status: (reg.status as string) || 'active',
+        }))
+      : [],
     healthRecords: mapHealthRecords(dbDog.health_records),
     // Sync metadata - no longer needed with React Query, but kept for compatibility
     _version: 1,
@@ -186,6 +200,8 @@ export const mapDogToDogInput = (dog: Dog): DogInput => {
     microchipNumber: dog.microchipNumber,
     imageUrl: dog.imageUrl,
     spayedNeutered: dog.spayedNeutered,
+    status: dog.status,
+    deceasedDate: dog.deceasedDate,
     registrations: dog.registrations?.map(reg => ({
       organization: reg.organization,
       number: reg.registrationNumber,

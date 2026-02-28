@@ -49,10 +49,12 @@ export const exhibitorService = {
     try {
       const { data, error } = await supabase
         .from('exhibitor_profiles')
-        .select(`
+        .select(
+          `
           *,
           person:people!person_id(*)
-        `)
+        `
+        )
         .eq('auth_user_id', authUserId)
         .maybeSingle();
 
@@ -95,7 +97,10 @@ export const exhibitorService = {
   /**
    * Update exhibitor profile settings
    */
-  async updateProfile(profileId: string, updates: { default_handler_id?: string | null }): Promise<ExhibitorProfile> {
+  async updateProfile(
+    profileId: string,
+    updates: { default_handler_id?: string | null }
+  ): Promise<ExhibitorProfile> {
     try {
       const { data, error } = await supabase
         .from('exhibitor_profiles')
@@ -125,7 +130,7 @@ export const exhibitorService = {
         .from('dogs')
         .select('*')
         .eq('owner_id', personId)
-        .eq('deceased', false)
+        .is('deleted_at', null)
         .order('call_name', { ascending: true });
 
       if (error) {
@@ -176,6 +181,7 @@ export const exhibitorService = {
           owner_id: personId,
           spayed_neutered: dogData.spayed_neutered || false,
           deceased: false,
+          status: 'active',
         })
         .select()
         .single();
@@ -218,13 +224,13 @@ export const exhibitorService = {
   },
 
   /**
-   * Delete a dog (soft delete by marking as deceased)
+   * Delete a dog (soft delete via deleted_at timestamp)
    */
   async deleteDog(dogId: string, personId: string): Promise<void> {
     try {
       const { error } = await supabase
         .from('dogs')
-        .update({ deceased: true, deceased_date: new Date().toISOString().split('T')[0] })
+        .update({ deleted_at: new Date().toISOString() })
         .eq('id', dogId)
         .eq('owner_id', personId);
 

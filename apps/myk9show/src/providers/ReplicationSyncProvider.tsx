@@ -61,7 +61,18 @@ const REPLICATED_TABLES = [
 const replicationLogger = {
   log: (...args: unknown[]) => logger.debug(String(args[0]), 'replication'),
   warn: (...args: unknown[]) => logger.warn(String(args[0]), 'replication'),
-  error: (...args: unknown[]) => logger.error(String(args[0]), 'replication'),
+  error: (...args: unknown[]) => {
+    const msg = String(args[0]);
+    const err = args[1];
+    // Include actual error details (Supabase errors have message/code/details)
+    if (err && typeof err === 'object') {
+      const e = err as Record<string, unknown>;
+      const details = e.message || e.code || e.details || JSON.stringify(err);
+      logger.error(`${msg} ${details}`, 'replication');
+    } else {
+      logger.error(msg, 'replication');
+    }
+  },
   debug: (...args: unknown[]) => logger.debug(String(args[0]), 'replication'),
 };
 
@@ -260,8 +271,12 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
     return undefined;
   }, [isOnline, syncOnReconnect, triggerSync]);
 
-  // Startup: flush pending mutations from previous session
+  // Startup: flush pending mutations from previous session (runs once)
+  const hasStartedFlush = useRef(false);
   useEffect(() => {
+    if (hasStartedFlush.current) return;
+    hasStartedFlush.current = true;
+
     const startupUpload = async () => {
       await mutationManager.restoreMutationsFromLocalStorage();
       const pendingCount = await mutationManager.getPendingCount();
@@ -272,7 +287,8 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
     };
     const startupTimer = setTimeout(startupUpload, 2000);
     return () => clearTimeout(startupTimer);
-  }, [triggerSync]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Listen for sync-requested events (e.g., from wizard after publish)
   useEffect(() => {

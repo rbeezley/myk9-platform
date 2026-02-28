@@ -12,6 +12,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Users,
@@ -42,6 +52,7 @@ import {
 import { rbacService } from '@/services/rbac/RBACService';
 import { UserRole, Role } from '@/types/rbac-types';
 import { UserRoleAssignmentDialog } from '@/components/admin/permissions/UserRoleAssignmentDialog';
+import { notifications } from '@/lib/notifications';
 
 const UserRoleManagementPage: React.FC = () => {
   const [userRoles, setUserRoles] = useState<UserRole[]>([]);
@@ -50,6 +61,11 @@ const UserRoleManagementPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAssignDialog, setShowAssignDialog] = useState(false);
+  const [pendingRevoke, setPendingRevoke] = useState<{
+    id: string;
+    email: string;
+    roleName: string;
+  } | null>(null);
 
   useEffect(() => {
     loadData();
@@ -74,16 +90,18 @@ const UserRoleManagementPage: React.FC = () => {
     }
   };
 
-  const handleRevokeRole = async (userRoleId: string, userEmail: string, roleName: string) => {
-    if (!confirm(`Are you sure you want to revoke the "${roleName}" role from ${userEmail}?`)) {
-      return;
-    }
+  const handleRevokeRole = async () => {
+    if (!pendingRevoke) return;
 
     try {
-      await rbacService.revokeUserRole(userRoleId);
-      await loadData(); // Reload data
+      await rbacService.revokeUserRole(pendingRevoke.id);
+      setPendingRevoke(null);
+      await loadData();
     } catch (err) {
-      alert(`Failed to revoke role: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setPendingRevoke(null);
+      notifications.error(
+        `Failed to revoke role: ${err instanceof Error ? err.message : 'Unknown error'}`
+      );
     }
   };
 
@@ -343,11 +361,11 @@ const UserRoleManagementPage: React.FC = () => {
                             <DropdownMenuItem
                               className="text-destructive focus:text-destructive"
                               onClick={() =>
-                                handleRevokeRole(
-                                  userRole.id,
-                                  userRole.user_email || 'Unknown User',
-                                  userRole.role?.display_name || 'Unknown Role'
-                                )
+                                setPendingRevoke({
+                                  id: userRole.id,
+                                  email: userRole.user_email || 'Unknown User',
+                                  roleName: userRole.role?.display_name || 'Unknown Role',
+                                })
                               }
                             >
                               <Trash2 className="h-4 w-4 mr-2" />
@@ -411,6 +429,28 @@ const UserRoleManagementPage: React.FC = () => {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Revoke Confirmation Dialog */}
+      <AlertDialog open={!!pendingRevoke} onOpenChange={open => !open && setPendingRevoke(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Revoke Role</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to revoke the &quot;{pendingRevoke?.roleName}&quot; role from{' '}
+              {pendingRevoke?.email}?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRevokeRole}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Revoke
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Assignment Dialog */}
       <UserRoleAssignmentDialog

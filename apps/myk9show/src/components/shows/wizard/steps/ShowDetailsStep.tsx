@@ -2,18 +2,19 @@ import React, { useEffect, useState } from 'react';
 import { logger } from '@/services/LoggingService';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { Button } from '@/components/ui/button';
 import { Plus, Search, HelpCircle, X, GraduationCap } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { isAfter, subDays } from 'date-fns';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Label } from '@/components/ui/label';
 import { useWizardStore } from '@/store/wizardStore';
 import { useClubStore } from '@/store/clubStore';
@@ -34,11 +35,19 @@ const SHOW_TYPES = [
 
 export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) => {
   logger.debug('ShowDetailsStep component loaded', 'wizard');
-  const { show, updateShowData, addJudgeToShow, removeJudgeFromShow, judgeDetails } = useWizardStore();
+  const { show, updateShowData, addJudgeToShow, removeJudgeFromShow, judgeDetails } =
+    useWizardStore();
   const { clubs, loadClubs } = useClubStore();
   const { people, loadPeople } = useUserStore();
   const panelManager = usePanelManager();
-  
+
+  // Ensure clubs are loaded (global subscription may not have completed yet)
+  useEffect(() => {
+    if (clubs.length === 0) {
+      loadClubs();
+    }
+  }, [clubs.length, loadClubs]);
+
   // Search states
   const [clubSearchTerm, setClubSearchTerm] = useState('');
   const [showClubSearch, setShowClubSearch] = useState(false);
@@ -48,43 +57,49 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
   // Filter clubs based on search term
   const filteredClubs = React.useMemo(() => {
     if (!clubSearchTerm.trim()) return clubs;
-    return clubs.filter(club =>
-      club.name.toLowerCase().includes(clubSearchTerm.toLowerCase()) ||
-      club.email.toLowerCase().includes(clubSearchTerm.toLowerCase()) ||
-      `${club.address.city}, ${club.address.state}`.toLowerCase().includes(clubSearchTerm.toLowerCase())
+    return clubs.filter(
+      club =>
+        club.name.toLowerCase().includes(clubSearchTerm.toLowerCase()) ||
+        club.email.toLowerCase().includes(clubSearchTerm.toLowerCase()) ||
+        `${club.address.city}, ${club.address.state}`
+          .toLowerCase()
+          .includes(clubSearchTerm.toLowerCase())
     );
   }, [clubs, clubSearchTerm]);
 
   // Filter people for chairman/secretary - only show those with relevant roles
   const filteredPeople = React.useMemo(() => {
-    return people.filter(person =>
-      person.roles?.includes('chairman') ||
-      person.roles?.includes('secretary') ||
-      person.roles?.includes('admin') ||
-      person.roles?.includes('steward')
-    ).sort((a, b) => {
-      const nameA = `${a.firstName} ${a.lastName}`.toLowerCase();
-      const nameB = `${b.firstName} ${b.lastName}`.toLowerCase();
-      return nameA.localeCompare(nameB);
-    });
+    return people
+      .filter(
+        person =>
+          person.roles?.includes('chairman') ||
+          person.roles?.includes('secretary') ||
+          person.roles?.includes('admin') ||
+          person.roles?.includes('steward')
+      )
+      .sort((a, b) => {
+        const nameA = `${a.firstName} ${a.lastName}`.toLowerCase();
+        const nameB = `${b.firstName} ${b.lastName}`.toLowerCase();
+        return nameA.localeCompare(nameB);
+      });
   }, [people]);
 
   // Filter people with judge role, excluding already-selected judges
   const availableJudges = React.useMemo(() => {
-    return people.filter(person =>
-      person.roles?.includes('judge') &&
-      !show.judgeIds.includes(person.id)
-    ).filter(judge => {
-      if (!judgeSearchTerm.trim()) return true;
-      const term = judgeSearchTerm.toLowerCase();
-      const fullName = `${judge.firstName} ${judge.lastName}`.toLowerCase();
-      const judgeNumber = judge.judgeInfo?.judgeNumber?.toLowerCase() || '';
-      return fullName.includes(term) || judgeNumber.includes(term);
-    }).sort((a, b) => {
-      const nameA = `${a.firstName} ${a.lastName}`.toLowerCase();
-      const nameB = `${b.firstName} ${b.lastName}`.toLowerCase();
-      return nameA.localeCompare(nameB);
-    });
+    return people
+      .filter(person => person.roles?.includes('judge') && !show.judgeIds.includes(person.id))
+      .filter(judge => {
+        if (!judgeSearchTerm.trim()) return true;
+        const term = judgeSearchTerm.toLowerCase();
+        const fullName = `${judge.firstName} ${judge.lastName}`.toLowerCase();
+        const judgeNumber = judge.judgeInfo?.judgeNumber?.toLowerCase() || '';
+        return fullName.includes(term) || judgeNumber.includes(term);
+      })
+      .sort((a, b) => {
+        const nameA = `${a.firstName} ${a.lastName}`.toLowerCase();
+        const nameB = `${b.firstName} ${b.lastName}`.toLowerCase();
+        return nameA.localeCompare(nameB);
+      });
   }, [people, show.judgeIds, judgeSearchTerm]);
 
   // Look up a person's display name by ID.
@@ -124,8 +139,8 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
           // Refresh the clubs list so the new club appears in the dropdown
           await loadClubs();
           logger.debug('Club created and selected', 'wizard', { clubName: club.name });
-        }
-      }
+        },
+      },
     });
   };
 
@@ -147,8 +162,8 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
           // Refresh the people list so the new person appears in the dropdown
           await loadPeople();
           logger.debug('Chairman created and selected', 'wizard', { chairmanId: person.id });
-        }
-      }
+        },
+      },
     });
   };
 
@@ -170,8 +185,8 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
           // Refresh the people list so the new person appears in the dropdown
           await loadPeople();
           logger.debug('Secretary created and selected', 'wizard', { secretaryId: person.id });
-        }
-      }
+        },
+      },
     });
   };
 
@@ -184,7 +199,13 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         entityType: 'judge',
         mode: 'create',
         selectionCallback: async (entity: Record<string, unknown>) => {
-          const judge = entity as { id: string; firstName: string; lastName: string; email?: string; phone?: string };
+          const judge = entity as {
+            id: string;
+            firstName: string;
+            lastName: string;
+            email?: string;
+            phone?: string;
+          };
           const judgeName = `${judge.firstName} ${judge.lastName}`;
           addJudgeToShow(judge.id, {
             name: judgeName,
@@ -199,7 +220,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
     });
   };
 
-  const handleAddJudge = (person: typeof people[number]) => {
+  const handleAddJudge = (person: (typeof people)[number]) => {
     addJudgeToShow(person.id, {
       name: `${person.firstName} ${person.lastName}`,
       email: person.email || '',
@@ -241,22 +262,30 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         <div className="group relative bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-lg hover:-translate-y-0.5">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           <div className="relative">
-            <h3 className="text-lg font-semibold mb-4 pl-3 border-l-2 border-primary text-primary transition-colors duration-300">Basic Show Information</h3>
+            <h3 className="text-lg font-semibold mb-4 pl-3 border-l-2 border-primary text-primary transition-colors duration-300">
+              Basic Show Information
+            </h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Show Name <span className="text-destructive">*</span></Label>
+                <Label>
+                  Show Name <span className="text-destructive">*</span>
+                </Label>
                 <Input
                   value={show.name || ''}
-                  onChange={(e) => updateShowData({ name: e.target.value })}
+                  onChange={e => updateShowData({ name: e.target.value })}
                   placeholder="Enter show name"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label>Show Type <span className="text-destructive">*</span></Label>
+                <Label>
+                  Show Type <span className="text-destructive">*</span>
+                </Label>
                 <Select
                   value={show.type || ''}
-                  onValueChange={(value) => updateShowData({ type: value as 'AKC' | 'UKC' | 'NASDA' | 'Other' })}
+                  onValueChange={value =>
+                    updateShowData({ type: value as 'AKC' | 'UKC' | 'NASDA' | 'Other' })
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select show type">
@@ -264,7 +293,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {SHOW_TYPES.map((type) => (
+                    {SHOW_TYPES.map(type => (
                       <SelectItem key={type.value} value={type.value}>
                         {type.label}
                       </SelectItem>
@@ -274,10 +303,12 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
               </div>
 
               <div className="space-y-2">
-                <Label>Start Date <span className="text-destructive">*</span></Label>
+                <Label>
+                  Start Date <span className="text-destructive">*</span>
+                </Label>
                 <DateTimePicker
                   value={show.startDate ? new Date(show.startDate) : undefined}
-                  onChange={(date) => {
+                  onChange={date => {
                     if (date) {
                       updateShowData({ startDate: date.toISOString() });
                     }
@@ -291,10 +322,12 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
               </div>
 
               <div className="space-y-2">
-                <Label>End Date <span className="text-destructive">*</span></Label>
+                <Label>
+                  End Date <span className="text-destructive">*</span>
+                </Label>
                 <DateTimePicker
                   value={show.endDate ? new Date(show.endDate) : undefined}
-                  onChange={(date) => {
+                  onChange={date => {
                     if (date) {
                       updateShowData({ endDate: date.toISOString() });
                     }
@@ -305,10 +338,12 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
               </div>
 
               <div className="space-y-2 col-span-2">
-                <Label>Location <span className="text-destructive">*</span></Label>
+                <Label>
+                  Location <span className="text-destructive">*</span>
+                </Label>
                 <Textarea
                   value={show.location || ''}
-                  onChange={(e) => updateShowData({ location: e.target.value })}
+                  onChange={e => updateShowData({ location: e.target.value })}
                   placeholder="Enter venue name and address"
                   rows={3}
                 />
@@ -321,18 +356,21 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         <div className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-lg hover:-translate-y-0.5">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           <div className="relative">
-            <h3 className="text-lg font-semibold mb-4 pl-3 border-l-2 border-primary text-primary transition-colors duration-300">Club Information</h3>
+            <h3 className="text-lg font-semibold mb-4 pl-3 border-l-2 border-primary text-primary transition-colors duration-300">
+              Club Information
+            </h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2 col-span-2">
-                <Label>Host Club <span className="text-destructive">*</span></Label>
+                <Label>
+                  Host Club <span className="text-destructive">*</span>
+                </Label>
                 <div className="space-y-3">
                   <Popover open={showClubSearch} onOpenChange={setShowClubSearch}>
                     <PopoverTrigger asChild>
                       <Button variant="outline" className="w-full justify-start">
-                        {show.clubId ?
-                          clubs.find(c => c.id === show.clubId)?.name || 'Unknown Club' :
-                          'Select a club'
-                        }
+                        {show.clubId
+                          ? clubs.find(c => c.id === show.clubId)?.name || 'Unknown Club'
+                          : 'Select a club'}
                         <Search className="ml-auto h-4 w-4" />
                       </Button>
                     </PopoverTrigger>
@@ -341,12 +379,12 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                         <Input
                           placeholder="Search clubs..."
                           value={clubSearchTerm}
-                          onChange={(e) => setClubSearchTerm(e.target.value)}
+                          onChange={e => setClubSearchTerm(e.target.value)}
                           className="h-8"
                         />
                       </div>
                       <div className="max-h-60 overflow-auto">
-                        {filteredClubs.map((club) => (
+                        {filteredClubs.map(club => (
                           <div
                             key={club.id}
                             className="p-3 hover:bg-muted cursor-pointer border-b last:border-b-0"
@@ -389,14 +427,18 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         <div className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-lg hover:-translate-y-0.5">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           <div className="relative">
-            <h3 className="text-lg font-semibold mb-4 pl-3 border-l-2 border-primary text-primary transition-colors duration-300">Show Officials</h3>
+            <h3 className="text-lg font-semibold mb-4 pl-3 border-l-2 border-primary text-primary transition-colors duration-300">
+              Show Officials
+            </h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Show Chairman <span className="text-destructive">*</span></Label>
+                <Label>
+                  Show Chairman <span className="text-destructive">*</span>
+                </Label>
                 <div className="space-y-3">
                   <Select
                     value={show.chairman || ''}
-                    onValueChange={(value) => updateShowData({ chairman: value })}
+                    onValueChange={value => updateShowData({ chairman: value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select chairman">
@@ -404,7 +446,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      {filteredPeople.map((person) => (
+                      {filteredPeople.map(person => (
                         <SelectItem key={person.id} value={person.id}>
                           {person.firstName} {person.lastName}
                         </SelectItem>
@@ -424,11 +466,13 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
               </div>
 
               <div className="space-y-2">
-                <Label>Show Secretary <span className="text-destructive">*</span></Label>
+                <Label>
+                  Show Secretary <span className="text-destructive">*</span>
+                </Label>
                 <div className="space-y-3">
                   <Select
                     value={show.secretary || ''}
-                    onValueChange={(value) => updateShowData({ secretary: value })}
+                    onValueChange={value => updateShowData({ secretary: value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select secretary">
@@ -436,7 +480,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      {filteredPeople.map((person) => (
+                      {filteredPeople.map(person => (
                         <SelectItem key={person.id} value={person.id}>
                           {person.firstName} {person.lastName}
                         </SelectItem>
@@ -472,8 +516,12 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
               {/* Selected Judges */}
               {selectedJudges.length > 0 && (
                 <div className="flex flex-wrap gap-2">
-                  {selectedJudges.map((judge) => (
-                    <Badge key={judge.id} variant="secondary" className="flex items-center gap-1.5 py-1.5 px-3 text-sm">
+                  {selectedJudges.map(judge => (
+                    <Badge
+                      key={judge.id}
+                      variant="secondary"
+                      className="flex items-center gap-1.5 py-1.5 px-3 text-sm"
+                    >
                       <span>{judge.name}</span>
                       {judge.judgeNumber && (
                         <span className="text-muted-foreground">#{judge.judgeNumber}</span>
@@ -496,8 +544,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                   <Button variant="outline" className="w-full justify-start">
                     {selectedJudges.length > 0
                       ? `${selectedJudges.length} judge${selectedJudges.length !== 1 ? 's' : ''} selected — add more`
-                      : 'Search and add judges'
-                    }
+                      : 'Search and add judges'}
                     <Search className="ml-auto h-4 w-4" />
                   </Button>
                 </PopoverTrigger>
@@ -506,20 +553,24 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                     <Input
                       placeholder="Search by name or judge number..."
                       value={judgeSearchTerm}
-                      onChange={(e) => setJudgeSearchTerm(e.target.value)}
+                      onChange={e => setJudgeSearchTerm(e.target.value)}
                       className="h-8"
                     />
                   </div>
                   <div className="max-h-60 overflow-auto">
-                    {availableJudges.map((judge) => (
+                    {availableJudges.map(judge => (
                       <div
                         key={judge.id}
                         className="p-3 hover:bg-muted cursor-pointer border-b last:border-b-0"
                         onClick={() => handleAddJudge(judge)}
                       >
-                        <div className="font-medium">{judge.firstName} {judge.lastName}</div>
+                        <div className="font-medium">
+                          {judge.firstName} {judge.lastName}
+                        </div>
                         <div className="text-sm text-muted-foreground">
-                          {judge.judgeInfo?.judgeNumber ? `#${judge.judgeInfo.judgeNumber}` : 'No judge number'}
+                          {judge.judgeInfo?.judgeNumber
+                            ? `#${judge.judgeInfo.judgeNumber}`
+                            : 'No judge number'}
                         </div>
                       </div>
                     ))}
@@ -527,8 +578,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                       <div className="p-3 text-sm text-muted-foreground text-center">
                         {people.some(p => p.roles?.includes('judge'))
                           ? 'No more judges available'
-                          : 'No judges found in the system'
-                        }
+                          : 'No judges found in the system'}
                       </div>
                     )}
                   </div>
@@ -557,13 +607,17 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
         <div className="group relative bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl p-6 shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-lg hover:-translate-y-0.5">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           <div className="relative">
-            <h3 className="text-lg font-semibold mb-4 pl-3 border-l-2 border-primary text-primary transition-colors duration-300">Entry Information</h3>
+            <h3 className="text-lg font-semibold mb-4 pl-3 border-l-2 border-primary text-primary transition-colors duration-300">
+              Entry Information
+            </h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Entry Opens <span className="text-destructive">*</span></Label>
+                <Label>
+                  Entry Opens <span className="text-destructive">*</span>
+                </Label>
                 <DateTimePicker
                   value={show.entryOpenDate ? new Date(show.entryOpenDate) : undefined}
-                  onChange={(date) => {
+                  onChange={date => {
                     if (date) {
                       updateShowData({ entryOpenDate: date.toISOString() });
                     }
@@ -572,15 +626,19 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                   showTime={true}
                 />
                 {!isValidEntryDates() && (
-                  <p className="text-sm text-red-500 mt-1">Entry open date must be before close date</p>
+                  <p className="text-sm text-red-500 mt-1">
+                    Entry open date must be before close date
+                  </p>
                 )}
               </div>
 
               <div className="space-y-2">
-                <Label>Entry Closes <span className="text-destructive">*</span></Label>
+                <Label>
+                  Entry Closes <span className="text-destructive">*</span>
+                </Label>
                 <DateTimePicker
                   value={show.entryCloseDate ? new Date(show.entryCloseDate) : undefined}
-                  onChange={(date) => {
+                  onChange={date => {
                     if (date) {
                       updateShowData({ entryCloseDate: date.toISOString() });
                     }
@@ -599,7 +657,10 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                         <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
                       </TooltipTrigger>
                       <TooltipContent side="top" className="max-w-xs">
-                        <p>Entry fee for registrations submitted before the entry close date. Usually lower than day-of-show fee.</p>
+                        <p>
+                          Entry fee for registrations submitted before the entry close date. Usually
+                          lower than day-of-show fee.
+                        </p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -609,7 +670,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                   min="0"
                   step="0.01"
                   value={show.preEntryFee || ''}
-                  onChange={(e) => updateShowData({ preEntryFee: parseFloat(e.target.value) || 0 })}
+                  onChange={e => updateShowData({ preEntryFee: parseFloat(e.target.value) || 0 })}
                   placeholder="0.00"
                 />
               </div>
@@ -623,7 +684,10 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                         <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
                       </TooltipTrigger>
                       <TooltipContent side="top" className="max-w-xs">
-                        <p>Entry fee for on-site registrations on the day of the show. Usually higher than pre-entry fee.</p>
+                        <p>
+                          Entry fee for on-site registrations on the day of the show. Usually higher
+                          than pre-entry fee.
+                        </p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -633,7 +697,7 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
                   min="0"
                   step="0.01"
                   value={show.dayOfShowFee || ''}
-                  onChange={(e) => updateShowData({ dayOfShowFee: parseFloat(e.target.value) || 0 })}
+                  onChange={e => updateShowData({ dayOfShowFee: parseFloat(e.target.value) || 0 })}
                   placeholder="0.00"
                 />
               </div>

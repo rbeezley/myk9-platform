@@ -240,7 +240,7 @@ export class MutationManager {
             failedMutations.push(mutation);
 
             this.logger.error(
-              `[MutationManager] Mutation ${mutation.id} failed permanently${canRetry ? ' (max retries)' : ' (non-retryable)'}:`,
+              `[MutationManager] Mutation ${mutation.id} (${mutation.tableName}/${mutation.operation}) failed permanently${canRetry ? ' (max retries)' : ' (non-retryable)'}: ${message}`,
               error
             );
             // Remove permanently failed mutations from the queue
@@ -430,23 +430,33 @@ export class MutationManager {
   // BACKUP / RESTORE
   // ========================================
 
+  /** Resolve callback for the pending backup promise (if any) */
+  private backupPendingResolve: (() => void) | null = null;
+
   /**
    * Backup pending mutations to localStorage
    *
    * Prevents data loss if IndexedDB is cleared.
-   * Debounced to prevent race conditions (1 second).
+   * Debounced to coalesce rapid writes — previous callers resolve immediately
+   * when a new call supersedes their timer.
    */
   async backupMutationsToLocalStorage(): Promise<void> {
     if (typeof window === 'undefined') return;
 
-    // Clear existing timer
+    // If a previous debounce is pending, resolve its promise so the caller unblocks
     if (this.backupDebounceTimer) {
       clearTimeout(this.backupDebounceTimer);
+      if (this.backupPendingResolve) {
+        this.backupPendingResolve();
+        this.backupPendingResolve = null;
+      }
     }
 
-    // Debounce for 1 second
     return new Promise(resolve => {
+      this.backupPendingResolve = resolve;
       this.backupDebounceTimer = setTimeout(async () => {
+        this.backupPendingResolve = null;
+
         // Skip if backup already in progress
         if (this.isBackupInProgress) {
           this.logger.log('[MutationManager] Backup already in progress, skipping duplicate call');

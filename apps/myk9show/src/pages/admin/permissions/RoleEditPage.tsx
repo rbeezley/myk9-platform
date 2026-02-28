@@ -12,28 +12,37 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  ArrowLeft, 
-  Shield, 
-  Save, 
+import {
+  ArrowLeft,
+  Shield,
+  Save,
   RotateCcw,
   AlertTriangle,
   CheckCircle,
   Settings,
   Users,
   History,
-  TreePine
+  TreePine,
 } from 'lucide-react';
 import { rbacService } from '@/services/rbac/RBACService';
 import { Role, Permission, RolePermission } from '@/types/rbac-types';
 import { RolePermissionsEditor } from '@/components/admin/permissions/RolePermissionsEditor';
 import { PermissionGrid } from '@/components/admin/permissions/PermissionGrid';
-// import { PermissionInheritanceView } from '@/components/admin/permissions/PermissionInheritanceView'; // Not used
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const RoleEditPage: React.FC = () => {
   const { roleId } = useParams<{ roleId: string }>();
   // const navigate = useNavigate(); // Not used
-  
+
   const [role, setRole] = useState<Role | null>(null);
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [rolePermissions, setRolePermissions] = useState<RolePermission[]>([]);
@@ -41,6 +50,7 @@ const RoleEditPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showResetDialog, setShowResetDialog] = useState(false);
 
   const loadRoleData = useCallback(async () => {
     if (!roleId) return;
@@ -53,7 +63,7 @@ const RoleEditPage: React.FC = () => {
       const [roleData, allPermissions, rolePerms] = await Promise.all([
         rbacService.getRole(roleId),
         rbacService.getAllPermissions(),
-        rbacService.getRolePermissions(roleId)
+        rbacService.getRolePermissions(roleId),
       ]);
 
       setRole(roleData);
@@ -63,7 +73,7 @@ const RoleEditPage: React.FC = () => {
         id: `${roleId}-${rp.permission_id}-${index}`,
         role_id: roleId,
         permission_id: rp.permission_id,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
       }));
       setRolePermissions(transformedRolePerms);
     } catch (err) {
@@ -81,7 +91,7 @@ const RoleEditPage: React.FC = () => {
 
   const handlePermissionChange = (permissionId: string, granted: boolean) => {
     setHasUnsavedChanges(true);
-    
+
     if (granted) {
       // Add permission if not already present
       if (!rolePermissions.find(rp => rp.permission_id === permissionId)) {
@@ -104,17 +114,16 @@ const RoleEditPage: React.FC = () => {
 
     try {
       setIsSaving(true);
-      
+
       // Get current permission IDs
       const currentPermissionIds = rolePermissions.map(rp => rp.permission_id);
-      
+
       // Update role permissions
       await rbacService.updateRolePermissions(roleId, currentPermissionIds);
-      
+
       // Reload data to get updated state
       await loadRoleData();
       setHasUnsavedChanges(false);
-      
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save changes');
     } finally {
@@ -123,10 +132,9 @@ const RoleEditPage: React.FC = () => {
   };
 
   const handleResetChanges = async () => {
-    if (confirm('Are you sure you want to discard all unsaved changes?')) {
-      await loadRoleData();
-      setHasUnsavedChanges(false);
-    }
+    await loadRoleData();
+    setHasUnsavedChanges(false);
+    setShowResetDialog(false);
   };
 
   if (isLoading) {
@@ -187,19 +195,12 @@ const RoleEditPage: React.FC = () => {
         </div>
         <div className="flex items-center gap-2">
           {hasUnsavedChanges && (
-            <Button 
-              variant="outline" 
-              onClick={handleResetChanges}
-              disabled={isSaving}
-            >
+            <Button variant="outline" onClick={() => setShowResetDialog(true)} disabled={isSaving}>
               <RotateCcw className="h-4 w-4 mr-2" />
               Reset
             </Button>
           )}
-          <Button 
-            onClick={handleSaveChanges}
-            disabled={!hasUnsavedChanges || isSaving}
-          >
+          <Button onClick={handleSaveChanges} disabled={!hasUnsavedChanges || isSaving}>
             {isSaving ? (
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
             ) : (
@@ -240,9 +241,7 @@ const RoleEditPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="text-sm font-medium text-muted-foreground">Role Name</label>
-              <p className="font-mono text-sm bg-muted p-2 rounded mt-1">
-                {role.name}
-              </p>
+              <p className="font-mono text-sm bg-muted p-2 rounded mt-1">{role.name}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-muted-foreground">Display Name</label>
@@ -251,7 +250,7 @@ const RoleEditPage: React.FC = () => {
             <div>
               <label className="text-sm font-medium text-muted-foreground">Type</label>
               <div className="mt-1">
-                <Badge variant={role.is_system ? "secondary" : "default"}>
+                <Badge variant={role.is_system ? 'secondary' : 'default'}>
                   {role.is_system ? 'System Role' : 'Custom Role'}
                 </Badge>
               </div>
@@ -309,11 +308,11 @@ const RoleEditPage: React.FC = () => {
                 <Alert>
                   <TreePine className="h-4 w-4" />
                   <AlertDescription>
-                    This view shows how permissions from this role would appear to users. 
-                    Manage permissions (like "show:manage") automatically grant related CRUD permissions.
+                    This view shows how permissions from this role would appear to users. Manage
+                    permissions (like "show:manage") automatically grant related CRUD permissions.
                   </AlertDescription>
                 </Alert>
-                
+
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <h4 className="font-medium">Direct Permissions</h4>
@@ -322,7 +321,10 @@ const RoleEditPage: React.FC = () => {
                         const permission = permissions.find(p => p.id === permId);
                         if (!permission) return null;
                         return (
-                          <div key={permId} className="flex items-center gap-2 p-2 bg-blue-50 rounded">
+                          <div
+                            key={permId}
+                            className="flex items-center gap-2 p-2 bg-blue-50 rounded"
+                          >
                             <Shield className="h-3 w-3 text-blue-600" />
                             <span className="text-sm">{permission.display_name}</span>
                           </div>
@@ -330,7 +332,7 @@ const RoleEditPage: React.FC = () => {
                       })}
                     </div>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <h4 className="font-medium">Implied Permissions</h4>
                     <div className="space-y-1 max-h-64 overflow-y-auto">
@@ -341,10 +343,17 @@ const RoleEditPage: React.FC = () => {
                           if (!permission) return null;
                           const baseActions = ['create', 'read', 'update', 'delete'];
                           return baseActions.map(action => (
-                            <div key={`${permission.id}-${action}`} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                            <div
+                              key={`${permission.id}-${action}`}
+                              className="flex items-center gap-2 p-2 bg-gray-50 rounded"
+                            >
                               <TreePine className="h-3 w-3 text-gray-600" />
-                              <span className="text-sm">{permission.resource}:{action}</span>
-                              <Badge variant="outline" className="text-xs">implied</Badge>
+                              <span className="text-sm">
+                                {permission.resource}:{action}
+                              </span>
+                              <Badge variant="outline" className="text-xs">
+                                implied
+                              </Badge>
                             </div>
                           ));
                         })}
@@ -427,6 +436,22 @@ const RoleEditPage: React.FC = () => {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Reset Confirmation Dialog */}
+      <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard Changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to discard all unsaved changes? This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleResetChanges}>Discard Changes</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

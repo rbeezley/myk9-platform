@@ -6,24 +6,33 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-// useNavigate not used in current implementation
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-  Shield, 
-  Plus, 
-  Search, 
-  Edit, 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Shield,
+  Plus,
+  Search,
+  Edit,
   Users,
   Settings,
   ArrowLeft,
   MoreHorizontal,
   Eye,
   Copy,
-  Trash2
+  Trash2,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -34,12 +43,14 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { rbacService } from '@/services/rbac/RBACService';
 import { Role } from '@/types/rbac-types';
+import { notifications } from '@/lib/notifications';
 
 const RoleListPage: React.FC = () => {
   const [roles, setRoles] = useState<Role[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     loadRoles();
@@ -58,22 +69,25 @@ const RoleListPage: React.FC = () => {
     }
   };
 
-  const filteredRoles = roles.filter(role =>
-    role.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (role.display_name || role.name).toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (role.description || '').toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredRoles = roles.filter(
+    role =>
+      role.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (role.display_name || role.name).toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (role.description || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleDeleteRole = async (roleId: string, roleName: string) => {
-    if (!confirm(`Are you sure you want to delete the role "${roleName}"? This action cannot be undone.`)) {
-      return;
-    }
+  const handleDeleteRole = async () => {
+    if (!pendingDelete) return;
 
     try {
-      await rbacService.deleteRole(roleId);
-      await loadRoles(); // Reload the list
+      await rbacService.deleteRole(pendingDelete.id);
+      setPendingDelete(null);
+      await loadRoles();
     } catch (err) {
-      alert(`Failed to delete role: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setPendingDelete(null);
+      notifications.error(
+        `Failed to delete role: ${err instanceof Error ? err.message : 'Unknown error'}`
+      );
     }
   };
 
@@ -104,9 +118,7 @@ const RoleListPage: React.FC = () => {
               <Shield className="h-8 w-8 text-primary" />
               Role Management
             </h1>
-            <p className="text-muted-foreground mt-1">
-              Manage system roles and their permissions
-            </p>
+            <p className="text-muted-foreground mt-1">Manage system roles and their permissions</p>
           </div>
         </div>
         <Button asChild>
@@ -133,7 +145,7 @@ const RoleListPage: React.FC = () => {
               <Input
                 placeholder="Search roles by name, display name, or description..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={e => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
             </div>
@@ -146,16 +158,14 @@ const RoleListPage: React.FC = () => {
 
       {/* Roles Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredRoles.map((role) => (
+        {filteredRoles.map(role => (
           <Card key={role.id} className="hover:shadow-md transition-shadow">
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <CardTitle className="text-lg">{role.display_name || role.name}</CardTitle>
                   <CardDescription className="mt-1">
-                    <code className="text-xs bg-muted px-1 py-0.5 rounded">
-                      {role.name}
-                    </code>
+                    <code className="text-xs bg-muted px-1 py-0.5 rounded">{role.name}</code>
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
@@ -191,9 +201,14 @@ const RoleListPage: React.FC = () => {
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       {!role.is_system && (
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           className="text-destructive focus:text-destructive"
-                          onClick={() => handleDeleteRole(role.id, role.display_name || role.name)}
+                          onClick={() =>
+                            setPendingDelete({
+                              id: role.id,
+                              name: role.display_name || role.name,
+                            })
+                          }
                         >
                           <Trash2 className="h-4 w-4 mr-2" />
                           Delete Role
@@ -208,9 +223,7 @@ const RoleListPage: React.FC = () => {
               <div className="space-y-4">
                 {/* Description */}
                 {role.description && (
-                  <p className="text-sm text-muted-foreground">
-                    {role.description}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{role.description}</p>
                 )}
 
                 {/* Stats */}
@@ -233,12 +246,7 @@ const RoleListPage: React.FC = () => {
 
                 {/* Actions */}
                 <div className="pt-2 border-t">
-                  <Button 
-                    asChild 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full"
-                  >
+                  <Button asChild variant="outline" size="sm" className="w-full">
                     <Link to={`/admin/permissions/roles/${role.id}`}>
                       <Edit className="h-4 w-4 mr-2" />
                       Manage Permissions
@@ -248,7 +256,10 @@ const RoleListPage: React.FC = () => {
 
                 {/* Metadata */}
                 <div className="text-xs text-muted-foreground space-y-1">
-                  <div>Created: {role.created_at ? new Date(role.created_at).toLocaleDateString() : 'N/A'}</div>
+                  <div>
+                    Created:{' '}
+                    {role.created_at ? new Date(role.created_at).toLocaleDateString() : 'N/A'}
+                  </div>
                   {/* Note: roles table has no updated_at column */}
                 </div>
               </div>
@@ -266,10 +277,9 @@ const RoleListPage: React.FC = () => {
               {searchTerm ? 'No roles found' : 'No roles available'}
             </h3>
             <p className="text-muted-foreground mb-4">
-              {searchTerm 
+              {searchTerm
                 ? `No roles match your search term "${searchTerm}"`
-                : 'Get started by creating your first custom role'
-              }
+                : 'Get started by creating your first custom role'}
             </p>
             {searchTerm ? (
               <Button variant="outline" onClick={() => setSearchTerm('')}>
@@ -287,6 +297,28 @@ const RoleListPage: React.FC = () => {
         </Card>
       )}
 
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!pendingDelete} onOpenChange={open => !open && setPendingDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Role</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the role &quot;{pendingDelete?.name}&quot;? This
+              action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteRole}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Summary Stats */}
       <Card>
         <CardHeader>
@@ -295,15 +327,11 @@ const RoleListPage: React.FC = () => {
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div className="text-center p-3 border rounded">
-              <div className="font-semibold text-lg">
-                {roles.filter(r => r.is_system).length}
-              </div>
+              <div className="font-semibold text-lg">{roles.filter(r => r.is_system).length}</div>
               <div className="text-muted-foreground">System Roles</div>
             </div>
             <div className="text-center p-3 border rounded">
-              <div className="font-semibold text-lg">
-                {roles.filter(r => !r.is_system).length}
-              </div>
+              <div className="font-semibold text-lg">{roles.filter(r => !r.is_system).length}</div>
               <div className="text-muted-foreground">Custom Roles</div>
             </div>
             <div className="text-center p-3 border rounded">

@@ -14,39 +14,47 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useRBAC, useIsAdmin } from '@/hooks/useRBAC';
 // usePermission not used
-import { PermissionGuard, IfPermission, IfAdmin, PermissionDebugger } from '@/components/rbac/PermissionGuard';
+import {
+  PermissionGuard,
+  IfPermission,
+  IfAdmin,
+  PermissionDebugger,
+} from '@/components/rbac/PermissionGuard';
 import { rbacService } from '@/services/rbac/RBACService';
 import { logger } from '@/services/LoggingService';
+import { notifications } from '@/lib/notifications';
 import {
-  CheckCircle, 
-  XCircle, 
-  AlertTriangle, 
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
   Loader2,
   Database,
   Shield,
   Settings,
-  TestTube
+  TestTube,
 } from 'lucide-react';
 
 export const RBACTestPage: React.FC = () => {
-  const { 
-    userRoles, 
-    userPermissions, 
-    effectivePermissions, 
-    isLoading, 
+  const {
+    userRoles,
+    userPermissions,
+    effectivePermissions,
+    isLoading,
     error,
     hasPermission,
     checkPermission,
-    refresh 
+    refresh,
   } = useRBAC();
-  
+
   const { isAdmin } = useIsAdmin();
-  const [testResults, setTestResults] = useState<Array<{
-    test: string;
-    result: boolean;
-    details?: string;
-  }>>([]);
-  
+  const [testResults, setTestResults] = useState<
+    Array<{
+      test: string;
+      result: boolean;
+      details?: string;
+    }>
+  >([]);
+
   const [isRunningTests, setIsRunningTests] = useState(false);
   const [permissionToTest, setPermissionToTest] = useState('show:create');
   const [roleToAssign, setRoleToAssign] = useState('secretary');
@@ -90,7 +98,7 @@ export const RBACTestPage: React.FC = () => {
       results.push({
         test: 'Synchronous permission check (show:create)',
         result: hasShowCreate,
-        details: hasShowCreate ? 'Permission granted' : 'Permission denied'
+        details: hasShowCreate ? 'Permission granted' : 'Permission denied',
       });
 
       // Test 2: Async permission check
@@ -98,7 +106,7 @@ export const RBACTestPage: React.FC = () => {
       results.push({
         test: 'Asynchronous permission check (show:create)',
         result: hasShowCreateAsync,
-        details: hasShowCreateAsync ? 'Permission granted' : 'Permission denied'
+        details: hasShowCreateAsync ? 'Permission granted' : 'Permission denied',
       });
 
       // Test 3: Admin permission check
@@ -106,7 +114,7 @@ export const RBACTestPage: React.FC = () => {
       results.push({
         test: 'Admin permission check (admin:manage)',
         result: hasAdminManage,
-        details: hasAdminManage ? 'Is admin' : 'Not admin'
+        details: hasAdminManage ? 'Is admin' : 'Not admin',
       });
 
       // Test 4: Role checking
@@ -114,19 +122,24 @@ export const RBACTestPage: React.FC = () => {
       results.push({
         test: 'Role checking (secretary)',
         result: hasSecretaryRole,
-        details: hasSecretaryRole ? 'Has secretary role' : 'No secretary role'
+        details: hasSecretaryRole ? 'Has secretary role' : 'No secretary role',
       });
 
       // Test 5: Permission inheritance
       const hasShowManage = hasPermission('show:manage');
-      const hasShowCRUD = hasPermission('show:create') && 
-                          hasPermission('show:read') && 
-                          hasPermission('show:update') && 
-                          hasPermission('show:delete');
+      const hasShowCRUD =
+        hasPermission('show:create') &&
+        hasPermission('show:read') &&
+        hasPermission('show:update') &&
+        hasPermission('show:delete');
       results.push({
         test: 'Permission inheritance (show:manage → CRUD)',
         result: hasShowManage || hasShowCRUD,
-        details: hasShowManage ? 'Has manage permission' : hasShowCRUD ? 'Has individual CRUD permissions' : 'No show permissions'
+        details: hasShowManage
+          ? 'Has manage permission'
+          : hasShowCRUD
+            ? 'Has individual CRUD permissions'
+            : 'No show permissions',
       });
 
       // Test 6: Custom permission test
@@ -135,15 +148,14 @@ export const RBACTestPage: React.FC = () => {
         results.push({
           test: `Custom permission test (${permissionToTest})`,
           result: hasCustomPermission,
-          details: hasCustomPermission ? 'Permission granted' : 'Permission denied'
+          details: hasCustomPermission ? 'Permission granted' : 'Permission denied',
         });
       }
-
     } catch (error) {
       results.push({
         test: 'Error during testing',
         result: false,
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
       });
     }
 
@@ -153,20 +165,22 @@ export const RBACTestPage: React.FC = () => {
 
   const testRoleAssignment = async () => {
     if (!isAdmin || !testUserId || !roleToAssign) {
-      alert('Need admin permissions and valid user ID and role');
+      notifications.warning('Need admin permissions and valid user ID and role');
       return;
     }
 
     try {
       await rbacService.assignRole({
         userId: testUserId,
-        roleName: roleToAssign
+        roleName: roleToAssign,
       });
-      
-      alert(`Successfully assigned ${roleToAssign} role to user ${testUserId}`);
+
+      notifications.success(`Successfully assigned ${roleToAssign} role to user ${testUserId}`);
       await refresh();
     } catch (error) {
-      alert(`Role assignment failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      notifications.error(
+        `Role assignment failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   };
 
@@ -208,31 +222,30 @@ export const RBACTestPage: React.FC = () => {
               {dbStatus === 'testing' && <Loader2 className="h-4 w-4 animate-spin" />}
               {dbStatus === 'connected' && <CheckCircle className="h-4 w-4 text-green-600" />}
               {dbStatus === 'error' && <XCircle className="h-4 w-4 text-red-600" />}
-              
-              <span className={`font-medium ${
-                dbStatus === 'connected' ? 'text-green-600' : 
-                dbStatus === 'error' ? 'text-red-600' : 
-                'text-yellow-600'
-              }`}>
+
+              <span
+                className={`font-medium ${
+                  dbStatus === 'connected'
+                    ? 'text-green-600'
+                    : dbStatus === 'error'
+                      ? 'text-red-600'
+                      : 'text-yellow-600'
+                }`}
+              >
                 {dbStatus === 'testing' && 'Testing connection...'}
                 {dbStatus === 'connected' && 'Connected to RBAC database'}
                 {dbStatus === 'error' && 'Database connection failed'}
               </span>
             </div>
-            
+
             {dbError && (
               <Alert variant="destructive" className="mt-2">
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>{dbError}</AlertDescription>
               </Alert>
             )}
-            
-            <Button 
-              onClick={testDatabaseConnection} 
-              variant="outline" 
-              size="sm" 
-              className="mt-2"
-            >
+
+            <Button onClick={testDatabaseConnection} variant="outline" size="sm" className="mt-2">
               Retry Connection
             </Button>
           </CardContent>
@@ -265,10 +278,7 @@ export const RBACTestPage: React.FC = () => {
                   <div className="space-y-2">
                     {userRoles.length > 0 ? (
                       userRoles.map(ur => (
-                        <Badge 
-                          key={ur.id} 
-                          variant={ur.is_active ? "default" : "secondary"}
-                        >
+                        <Badge key={ur.id} variant={ur.is_active ? 'default' : 'secondary'}>
                           {ur.role?.display_name || ur.role?.name}
                           {ur.scope_type && ` (${ur.scope_type})`}
                         </Badge>
@@ -349,9 +359,7 @@ export const RBACTestPage: React.FC = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Permission Testing</CardTitle>
-                <CardDescription>
-                  Test various permission checking scenarios
-                </CardDescription>
+                <CardDescription>Test various permission checking scenarios</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex gap-4 items-end">
@@ -360,14 +368,11 @@ export const RBACTestPage: React.FC = () => {
                     <Input
                       id="permission-test"
                       value={permissionToTest}
-                      onChange={(e) => setPermissionToTest(e.target.value)}
+                      onChange={e => setPermissionToTest(e.target.value)}
                       placeholder="e.g., show:create, admin:manage"
                     />
                   </div>
-                  <Button 
-                    onClick={runPermissionTests}
-                    disabled={isRunningTests}
-                  >
+                  <Button onClick={runPermissionTests} disabled={isRunningTests}>
                     {isRunningTests && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                     Run Tests
                   </Button>
@@ -397,20 +402,20 @@ export const RBACTestPage: React.FC = () => {
 
           {/* Role Management Tab */}
           <TabsContent value="roles" className="space-y-4">
-            <IfAdmin fallback={
-              <Alert>
-                <Shield className="h-4 w-4" />
-                <AlertDescription>
-                  Admin permissions required to test role management features.
-                </AlertDescription>
-              </Alert>
-            }>
+            <IfAdmin
+              fallback={
+                <Alert>
+                  <Shield className="h-4 w-4" />
+                  <AlertDescription>
+                    Admin permissions required to test role management features.
+                  </AlertDescription>
+                </Alert>
+              }
+            >
               <Card>
                 <CardHeader>
                   <CardTitle>Role Assignment Testing</CardTitle>
-                  <CardDescription>
-                    Test role assignment functionality (Admin only)
-                  </CardDescription>
+                  <CardDescription>Test role assignment functionality (Admin only)</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -419,7 +424,7 @@ export const RBACTestPage: React.FC = () => {
                       <Input
                         id="test-user-id"
                         value={testUserId}
-                        onChange={(e) => setTestUserId(e.target.value)}
+                        onChange={e => setTestUserId(e.target.value)}
                         placeholder="Enter user UUID"
                       />
                     </div>
@@ -428,14 +433,12 @@ export const RBACTestPage: React.FC = () => {
                       <Input
                         id="role-to-assign"
                         value={roleToAssign}
-                        onChange={(e) => setRoleToAssign(e.target.value)}
+                        onChange={e => setRoleToAssign(e.target.value)}
                         placeholder="e.g., secretary, judge"
                       />
                     </div>
                   </div>
-                  <Button onClick={testRoleAssignment}>
-                    Assign Role
-                  </Button>
+                  <Button onClick={testRoleAssignment}>Assign Role</Button>
                 </CardContent>
               </Card>
             </IfAdmin>
@@ -454,7 +457,7 @@ export const RBACTestPage: React.FC = () => {
                 {/* Permission Guard Examples */}
                 <div className="space-y-2">
                   <h3 className="font-medium">PermissionGuard Examples</h3>
-                  
+
                   <PermissionGuard permission="show:create">
                     <Alert>
                       <CheckCircle className="h-4 w-4" />
@@ -475,9 +478,7 @@ export const RBACTestPage: React.FC = () => {
 
                   <PermissionGuard permission="nonexistent:permission">
                     <Alert variant="destructive">
-                      <AlertDescription>
-                        You should NOT see this message
-                      </AlertDescription>
+                      <AlertDescription>You should NOT see this message</AlertDescription>
                     </Alert>
                   </PermissionGuard>
                 </div>
@@ -485,7 +486,7 @@ export const RBACTestPage: React.FC = () => {
                 {/* Inline Permission Checks */}
                 <div className="space-y-2">
                   <h3 className="font-medium">Inline Permission Checks</h3>
-                  
+
                   <IfPermission permission="show:create">
                     <Badge>You have show:create permission</Badge>
                   </IfPermission>

@@ -15,8 +15,20 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { logger } from '@/services/LoggingService';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import {
@@ -28,8 +40,18 @@ import {
   TestTube,
   AlertTriangle,
   Layers,
-  Plus
+  Plus,
 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export const TemplateEditorPage: React.FC = () => {
   const { templateId } = useParams<{ templateId: string }>();
@@ -37,40 +59,48 @@ export const TemplateEditorPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthContext();
   const { getTemplate, createTemplate, updateTemplate, createEditableCopy } = useTemplateStore();
-  
+
   const isNew = location.pathname.endsWith('/new');
-  
+
   const [template, setTemplate] = useState<Partial<ClassTemplate>>(
-    isNew ? {
-      templateName: 'New Template',
-      organization: Organization.AKC,
-      showType: ShowType.SCENT_WORK,
-      version: '1.0.0',
-      description: '',
-      isActive: true,
-      isOfficial: false,
-      isCustom: true,
-      fieldConfigurations: [],
-      fieldSpecifications: [],
-      classDefinitions: [],
-      validationRules: [],
-      defaults: {
-        entryFees: {
-          preEntry: 25,
-          dayOfShow: 30
+    isNew
+      ? {
+          templateName: 'New Template',
+          organization: Organization.AKC,
+          showType: ShowType.SCENT_WORK,
+          version: '1.0.0',
+          description: '',
+          isActive: true,
+          isOfficial: false,
+          isCustom: true,
+          fieldConfigurations: [],
+          fieldSpecifications: [],
+          classDefinitions: [],
+          validationRules: [],
+          defaults: {
+            entryFees: {
+              preEntry: 25,
+              dayOfShow: 30,
+            },
+          },
         }
-      }
-    } : {}
+      : {}
   );
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState('basic');
-  const [editingClass, setEditingClass] = useState<{index: number, class: ClassDefinition} | null>(null);
+  const [editingClass, setEditingClass] = useState<{
+    index: number;
+    class: ClassDefinition;
+  } | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [showLeaveDialog, setShowLeaveDialog] = useState(false);
 
   // Check if template can be edited using new flexible system
-  const editability = template.id ? useTemplateStore.getState().canEdit(template as ClassTemplate) : { canEdit: true };
+  const editability = template.id
+    ? useTemplateStore.getState().canEdit(template as ClassTemplate)
+    : { canEdit: true };
   const canEdit = editability.canEdit;
   const editWarning = editability.reason || template.editWarning;
 
@@ -107,9 +137,10 @@ export const TemplateEditorPage: React.FC = () => {
     }
 
     // Check for either new field configurations or legacy field specifications
-    const hasFields = (template.fieldConfigurations && template.fieldConfigurations.length > 0) ||
-                     (template.fieldSpecifications && template.fieldSpecifications.length > 0);
-    
+    const hasFields =
+      (template.fieldConfigurations && template.fieldConfigurations.length > 0) ||
+      (template.fieldSpecifications && template.fieldSpecifications.length > 0);
+
     if (!hasFields) {
       errors.push('At least one field must be configured');
     }
@@ -131,7 +162,10 @@ export const TemplateEditorPage: React.FC = () => {
     setSaving(true);
     try {
       if (isNew) {
-        const created = createTemplate(template as Omit<ClassTemplate, 'id' | 'createdAt' | 'createdBy'>, user?.id || 'unknown');
+        const created = createTemplate(
+          template as Omit<ClassTemplate, 'id' | 'createdAt' | 'createdBy'>,
+          user?.id || 'unknown'
+        );
         navigate(`/admin/templates/${created.id}/edit`);
       } else if (templateId) {
         updateTemplate(templateId, template, user?.id || 'unknown');
@@ -152,8 +186,8 @@ export const TemplateEditorPage: React.FC = () => {
 
   const handleBack = () => {
     if (hasChanges) {
-      const confirmed = window.confirm('You have unsaved changes. Are you sure you want to leave?');
-      if (!confirmed) return;
+      setShowLeaveDialog(true);
+      return;
     }
     navigate('/admin/templates');
   };
@@ -175,23 +209,26 @@ export const TemplateEditorPage: React.FC = () => {
 
   const handleSaveClass = () => {
     if (!editingClass) return;
-    
+
     const updatedClasses = [...(template.classDefinitions || [])];
     updatedClasses[editingClass.index] = editingClass.class;
-    
+
     handleTemplateChange({ classDefinitions: updatedClasses });
     setEditDialogOpen(false);
     setEditingClass(null);
   };
 
-  const handleClassFieldChange = (field: keyof ClassDefinition, value: string | number | boolean) => {
+  const handleClassFieldChange = (
+    field: keyof ClassDefinition,
+    value: string | number | boolean
+  ) => {
     if (!editingClass) return;
-    
+
     const updatedClass = {
       ...editingClass.class,
-      [field]: value
+      [field]: value,
     };
-    
+
     // Auto-generate class name when element, level, or section changes
     if (field === 'element' || field === 'level' || field === 'section') {
       const parts = [updatedClass.element];
@@ -199,21 +236,27 @@ export const TemplateEditorPage: React.FC = () => {
       if (updatedClass.section) parts.push(updatedClass.section);
       updatedClass.className = parts.join(' ').trim();
     }
-    
+
     setEditingClass({
       ...editingClass,
-      class: updatedClass
+      class: updatedClass,
     });
   };
 
   const getTabIcon = (tab: string) => {
     switch (tab) {
-      case 'basic': return <FileText className="h-4 w-4" />;
-      case 'fields': return <Settings className="h-4 w-4" />;
-      case 'classes': return <Layers className="h-4 w-4" />;
-      case 'rules': return <AlertTriangle className="h-4 w-4" />;
-      case 'preview': return <Eye className="h-4 w-4" />;
-      default: return null;
+      case 'basic':
+        return <FileText className="h-4 w-4" />;
+      case 'fields':
+        return <Settings className="h-4 w-4" />;
+      case 'classes':
+        return <Layers className="h-4 w-4" />;
+      case 'rules':
+        return <AlertTriangle className="h-4 w-4" />;
+      case 'preview':
+        return <Eye className="h-4 w-4" />;
+      default:
+        return null;
     }
   };
 
@@ -244,12 +287,8 @@ export const TemplateEditorPage: React.FC = () => {
             <h1 className="text-2xl font-bold">{isNew ? 'Create' : 'Edit'} Template</h1>
             <div className="flex items-center gap-2 mt-1">
               <span className="text-muted-foreground">{template.templateName}</span>
-              {template.isOfficial && (
-                <Badge variant="default">Official</Badge>
-              )}
-              {template.isCustom && (
-                <Badge variant="secondary">Custom</Badge>
-              )}
+              {template.isOfficial && <Badge variant="default">Official</Badge>}
+              {template.isCustom && <Badge variant="secondary">Custom</Badge>}
               {hasChanges && (
                 <Badge variant="outline" className="text-orange-600">
                   Unsaved Changes
@@ -266,8 +305,8 @@ export const TemplateEditorPage: React.FC = () => {
               Test Template
             </Button>
           )}
-          <Button 
-            onClick={handleSave} 
+          <Button
+            onClick={handleSave}
             disabled={saving || (!canEdit && !isNew)}
             className="min-w-[100px]"
           >
@@ -294,19 +333,21 @@ export const TemplateEditorPage: React.FC = () => {
                   <h3 className="font-semibold text-amber-800 dark:text-amber-200 mb-2">
                     {template.type === 'official' ? 'Official Template' : 'Template Notice'}
                   </h3>
-                  <p className="text-amber-700 dark:text-amber-300 text-sm">
-                    {editWarning}
-                  </p>
+                  <p className="text-amber-700 dark:text-amber-300 text-sm">{editWarning}</p>
                 </div>
               </div>
-              
+
               {template.type === 'official' && templateId && (
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      const copy = createEditableCopy(templateId, user?.id || 'unknown', `${template.templateName} (My Copy)`);
+                      const copy = createEditableCopy(
+                        templateId,
+                        user?.id || 'unknown',
+                        `${template.templateName} (My Copy)`
+                      );
                       if (copy) {
                         navigate(`/admin/templates/${copy.id}/edit`);
                       }
@@ -329,7 +370,9 @@ export const TemplateEditorPage: React.FC = () => {
             <div className="flex items-start gap-2">
               <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5" />
               <div>
-                <h3 className="font-semibold text-red-800 mb-2">Please fix the following errors:</h3>
+                <h3 className="font-semibold text-red-800 mb-2">
+                  Please fix the following errors:
+                </h3>
                 <ul className="list-disc list-inside space-y-1 text-red-700">
                   {validationErrors.map((error, index) => (
                     <li key={index}>{error}</li>
@@ -367,27 +410,19 @@ export const TemplateEditorPage: React.FC = () => {
         </TabsList>
 
         <TabsContent value="basic" className="space-y-6">
-          <TemplateForm 
-            template={template}
-            onChange={handleTemplateChange}
-            readOnly={!canEdit}
-          />
+          <TemplateForm template={template} onChange={handleTemplateChange} readOnly={!canEdit} />
         </TabsContent>
 
         <TabsContent value="fields" className="space-y-6">
           {/* Use new structured field configurator for supported show types */}
           {template.showType && Object.values(ShowType).includes(template.showType as ShowType) ? (
-            <FieldConfigurator 
+            <FieldConfigurator
               template={template}
               onChange={handleTemplateChange}
               readOnly={!canEdit}
             />
           ) : (
-            <FieldBuilder 
-              template={template}
-              onChange={handleTemplateChange}
-              readOnly={!canEdit}
-            />
+            <FieldBuilder template={template} onChange={handleTemplateChange} readOnly={!canEdit} />
           )}
         </TabsContent>
 
@@ -399,7 +434,7 @@ export const TemplateEditorPage: React.FC = () => {
             <CardContent className="pt-0">
               <ClassDefinitionTable
                 classes={template.classDefinitions || []}
-                onChange={(classes) => handleTemplateChange({ classDefinitions: classes })}
+                onChange={classes => handleTemplateChange({ classDefinitions: classes })}
                 onEdit={handleEditClass}
                 readOnly={!canEdit}
               />
@@ -408,11 +443,7 @@ export const TemplateEditorPage: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="rules" className="space-y-6">
-          <RuleBuilder 
-            template={template}
-            onChange={handleTemplateChange}
-            readOnly={!canEdit}
-          />
+          <RuleBuilder template={template} onChange={handleTemplateChange} readOnly={!canEdit} />
         </TabsContent>
 
         <TabsContent value="preview" className="space-y-6">
@@ -430,9 +461,9 @@ export const TemplateEditorPage: React.FC = () => {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="element">Element</Label>
-                <Select 
-                  value={editingClass.class.element || ''} 
-                  onValueChange={(value) => handleClassFieldChange('element', value)}
+                <Select
+                  value={editingClass.class.element || ''}
+                  onValueChange={value => handleClassFieldChange('element', value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select element" />
@@ -455,9 +486,9 @@ export const TemplateEditorPage: React.FC = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="level">Level</Label>
-                <Select 
-                  value={editingClass.class.level || ''} 
-                  onValueChange={(value) => handleClassFieldChange('level', value)}
+                <Select
+                  value={editingClass.class.level || ''}
+                  onValueChange={value => handleClassFieldChange('level', value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select level" />
@@ -475,9 +506,11 @@ export const TemplateEditorPage: React.FC = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="section">Section (Optional)</Label>
-                <Select 
-                  value={editingClass.class.section || 'none'} 
-                  onValueChange={(value) => handleClassFieldChange('section', value === 'none' ? '' : value)}
+                <Select
+                  value={editingClass.class.section || 'none'}
+                  onValueChange={value =>
+                    handleClassFieldChange('section', value === 'none' ? '' : value)
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select section" />
@@ -496,7 +529,7 @@ export const TemplateEditorPage: React.FC = () => {
                 <Input
                   id="description"
                   value={editingClass.class.description || ''}
-                  onChange={(e) => handleClassFieldChange('description', e.target.value)}
+                  onChange={e => handleClassFieldChange('description', e.target.value)}
                   placeholder="Additional notes about this class"
                 />
               </div>
@@ -506,12 +539,28 @@ export const TemplateEditorPage: React.FC = () => {
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSaveClass}>
-              Save Changes
-            </Button>
+            <Button onClick={handleSaveClass}>Save Changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Leave Confirmation Dialog */}
+      <AlertDialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes. Are you sure you want to leave? Your changes will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Stay</AlertDialogCancel>
+            <AlertDialogAction onClick={() => navigate('/admin/templates')}>
+              Leave
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

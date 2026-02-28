@@ -15,7 +15,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   Users,
-  Loader2
+  Loader2,
 } from 'lucide-react';
 import { useWizardStore } from '@/store/wizardStore';
 import { useClubStore } from '@/store/clubStore';
@@ -37,15 +37,9 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
   onSaveDraft,
   onCreateShow,
   onCreateAndPublish,
-  onBack
+  onBack,
 }) => {
-  const { 
-    show, 
-    trials, 
-    judgeDetails,
-    markStepCompleted,
-    setCurrentStep
-  } = useWizardStore();
+  const { show, trials, judgeDetails, markStepCompleted, setCurrentStep } = useWizardStore();
   const { clubs } = useClubStore();
   const resolvePersonName = useResolvePersonName();
 
@@ -90,7 +84,16 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
 
     setErrors(newErrors);
     return newErrors.length === 0;
-  }, [show.name, show.startDate, show.endDate, show.location, show.clubId, show.chairman, show.secretary, trials]);
+  }, [
+    show.name,
+    show.startDate,
+    show.endDate,
+    show.location,
+    show.clubId,
+    show.chairman,
+    show.secretary,
+    trials,
+  ]);
 
   // Auto-validate and mark step complete
   useEffect(() => {
@@ -116,7 +119,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
     });
     return assignedCount;
   };
-  
+
   const actualAssignedJudges = getAssignedJudgesCount();
 
   return (
@@ -130,10 +133,14 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                 <div className="flex gap-3">
                   <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
                   <div>
-                    <h4 className="font-medium text-red-900 mb-2">Please address the following issues:</h4>
+                    <h4 className="font-medium text-red-900 mb-2">
+                      Please address the following issues:
+                    </h4>
                     <ul className="space-y-1">
                       {errors.map((error, index) => (
-                        <li key={index} className="text-sm text-red-700">• {error}</li>
+                        <li key={index} className="text-sm text-red-700">
+                          • {error}
+                        </li>
                       ))}
                     </ul>
                   </div>
@@ -177,7 +184,10 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
               <Users className="absolute -right-3 -bottom-3 h-20 w-20 text-white/10" />
               <div className="relative">
                 <p className="text-sm font-medium text-white/80">Judges Assigned</p>
-                <p className="text-4xl font-bold mt-1">{actualAssignedJudges}<span className="text-2xl text-white/60">/{totalClasses}</span></p>
+                <p className="text-4xl font-bold mt-1">
+                  {actualAssignedJudges}
+                  <span className="text-2xl text-white/60">/{totalClasses}</span>
+                </p>
               </div>
             </div>
           </div>
@@ -192,7 +202,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                 </div>
                 <Button variant="ghost" size="sm" onClick={() => setCurrentStep(0)}>
                   <Edit className="h-4 w-4 mr-1" />
-                  Show Details
+                  Edit
                 </Button>
               </CardTitle>
             </CardHeader>
@@ -202,7 +212,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                   <div className="text-sm text-muted-foreground">Show Name</div>
                   <div className="text-foreground font-medium">{show.name}</div>
                 </div>
-                
+
                 <div>
                   <div className="text-sm text-muted-foreground">Show Type</div>
                   <div className="text-foreground font-medium">{show.type}</div>
@@ -211,48 +221,58 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                 <div>
                   <div className="text-sm text-muted-foreground">Start Date</div>
                   <div className="text-foreground font-medium">
-                    {show.startDate && format(new Date(show.startDate), 'MMM d, yyyy \'at\' h:mm a')}
+                    {show.startDate && format(new Date(show.startDate), "MMM d, yyyy 'at' h:mm a")}
                   </div>
                 </div>
 
                 <div>
                   <div className="text-sm text-muted-foreground">End Date</div>
                   <div className="text-foreground font-medium">
-                    {show.endDate && format(new Date(show.endDate), 'MMM d, yyyy \'at\' h:mm a')}
+                    {show.endDate && format(new Date(show.endDate), "MMM d, yyyy 'at' h:mm a")}
                   </div>
                 </div>
 
                 <div>
                   <div className="text-sm text-muted-foreground">Location</div>
-                  <div className="text-foreground font-medium">{show.location || 'Not specified'}</div>
+                  <div className="text-foreground font-medium">
+                    {show.location || 'Not specified'}
+                  </div>
                 </div>
 
                 <div>
                   <div className="text-sm text-muted-foreground">Chairman</div>
-                  <div className="text-foreground font-medium">{resolvePersonName(show.chairman)}</div>
+                  <div className="text-foreground font-medium">
+                    {resolvePersonName(show.chairman)}
+                  </div>
                 </div>
 
                 <div>
                   <div className="text-sm text-muted-foreground">Secretary</div>
-                  <div className="text-foreground font-medium">{resolvePersonName(show.secretary)}</div>
+                  <div className="text-foreground font-medium">
+                    {resolvePersonName(show.secretary)}
+                  </div>
                 </div>
 
                 <div>
                   <div className="text-sm text-muted-foreground">Host Club</div>
-                  <div className="text-foreground font-medium">{clubs.find(c => c.id === show.clubId)?.name || 'Not specified'}</div>
+                  <div className="text-foreground font-medium">
+                    {clubs.find(c => c.id === show.clubId)?.name || 'Not specified'}
+                  </div>
                 </div>
 
                 <div>
                   <div className="text-sm text-muted-foreground">Entry Open</div>
                   <div className="text-foreground font-medium">
-                    {show.entryOpenDate && format(new Date(show.entryOpenDate), 'MMM d, yyyy \'at\' h:mm a')}
+                    {show.entryOpenDate &&
+                      format(new Date(show.entryOpenDate), "MMM d, yyyy 'at' h:mm a")}
                   </div>
                 </div>
 
                 <div>
                   <div className="text-sm text-muted-foreground">Entry Close</div>
                   <div className="text-foreground font-medium">
-                    {show.entryCloseDate && format(new Date(show.entryCloseDate), 'MMM d, yyyy \'at\' h:mm a')}
+                    {show.entryCloseDate &&
+                      format(new Date(show.entryCloseDate), "MMM d, yyyy 'at' h:mm a")}
                   </div>
                 </div>
 
@@ -280,11 +300,11 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                 <div className="flex gap-2">
                   <Button variant="ghost" size="sm" onClick={() => setCurrentStep(1)}>
                     <Edit className="h-4 w-4 mr-1" />
-                    Trials
+                    Edit Trials
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => setCurrentStep(2)}>
                     <Edit className="h-4 w-4 mr-1" />
-                    Classes
+                    Edit Classes
                   </Button>
                 </div>
               </CardTitle>
@@ -292,7 +312,10 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
             <CardContent>
               <div className="space-y-6">
                 {trials.map((trial, trialIndex) => (
-                  <div key={trial.id} className="border rounded-lg p-5 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 dark:border-blue-800">
+                  <div
+                    key={trial.id}
+                    className="border rounded-lg p-5 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 dark:border-blue-800"
+                  >
                     {/* Trial Header */}
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
@@ -302,12 +325,14 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                         <h4 className="font-semibold text-lg">{trial.name}</h4>
                       </div>
                     </div>
-                    
+
                     {/* Trial Details */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
                       <div>
                         <div className="text-sm text-muted-foreground">Date & Time</div>
-                        <div className="text-foreground font-medium">{format(new Date(trial.dateTime), 'MMM d, yyyy \'at\' h:mm a')}</div>
+                        <div className="text-foreground font-medium">
+                          {format(new Date(trial.dateTime), "MMM d, yyyy 'at' h:mm a")}
+                        </div>
                       </div>
                       <div>
                         <div className="text-sm text-muted-foreground">Event Number</div>
@@ -318,17 +343,20 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                         <div className="text-foreground font-medium">{trial.classes.length}</div>
                       </div>
                     </div>
-                    
+
                     {/* Classes Grid */}
                     {trial.classes.length > 0 ? (
                       <div className="space-y-3">
-                        <h5 className="font-medium text-sm text-gray-700">Classes & Judge Assignments</h5>
+                        <h5 className="font-medium text-sm text-gray-700">
+                          Classes & Judge Assignments
+                        </h5>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                           {trial.classes.map((cls, index) => {
                             const judgeId = cls.judgeId;
-                            const judge = judgeId && judgeDetails[judgeId] ? judgeDetails[judgeId] : null;
+                            const judge =
+                              judgeId && judgeDetails[judgeId] ? judgeDetails[judgeId] : null;
                             const isUnassigned = !judge;
-                            
+
                             return (
                               <div key={index} className="bg-card border p-3 rounded-lg shadow-sm">
                                 <div className="space-y-2">
@@ -337,7 +365,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                                   </div>
                                   <div className="flex items-center justify-between">
                                     <span className="text-xs text-muted-foreground">Judge:</span>
-                                    <Badge 
+                                    <Badge
                                       variant={isUnassigned ? 'destructive' : 'default'}
                                       className="text-xs"
                                     >
@@ -353,32 +381,40 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                     ) : (
                       <div className="text-center py-6 bg-card rounded-lg border">
                         <Trophy className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                        <p className="text-sm text-muted-foreground">No classes configured for this trial</p>
+                        <p className="text-sm text-muted-foreground">
+                          No classes configured for this trial
+                        </p>
                       </div>
                     )}
-                    
+
                     {/* Trial Summary */}
                     <div className="mt-4 pt-3 border-t border-border">
                       <div className="grid grid-cols-3 gap-4 text-center">
                         <div>
-                          <div className="text-lg font-semibold text-blue-600">{trial.classes.length}</div>
+                          <div className="text-lg font-semibold text-blue-600">
+                            {trial.classes.length}
+                          </div>
                           <div className="text-xs text-muted-foreground">Classes</div>
                         </div>
                         <div>
                           <div className="text-lg font-semibold text-green-600">
-                            {trial.classes.filter(cls => cls.judgeId && judgeDetails[cls.judgeId]).length}
+                            {
+                              trial.classes.filter(cls => cls.judgeId && judgeDetails[cls.judgeId])
+                                .length
+                            }
                           </div>
                           <div className="text-xs text-muted-foreground">Assigned</div>
                         </div>
                         <div>
-                          <div className="text-lg font-semibold text-purple-600">{trial.classes.length * 15}</div>
+                          <div className="text-lg font-semibold text-purple-600">
+                            {trial.classes.length * 15}
+                          </div>
                           <div className="text-xs text-muted-foreground">Minutes</div>
                         </div>
                       </div>
                     </div>
                   </div>
                 ))}
-                
               </div>
             </CardContent>
           </Card>
@@ -389,65 +425,87 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
             <div className="space-y-2">
               {/* Success Status */}
               <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/50 rounded-lg p-3">
-                    <div className="flex items-start gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
-                      <div className="flex-1">
-                        <div className="font-medium text-green-800 dark:text-green-200 text-sm">
-                          Show Configuration Complete
-                        </div>
-                        <p className="text-xs text-green-700 dark:text-green-300 mt-0.5">
-                          "{show.name}" ready with {trials.length} trials and {totalClasses} classes
-                        </p>
+                <div className="flex items-start gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <div className="font-medium text-green-800 dark:text-green-200 text-sm">
+                      Show Configuration Complete
+                    </div>
+                    <p className="text-xs text-green-700 dark:text-green-300 mt-0.5">
+                      "{show.name}" ready with {trials.length} trials and {totalClasses} classes
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Warning if judges not fully assigned */}
+              {totalJudges > 0 && actualAssignedJudges < totalClasses && (
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800/50 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <div className="font-medium text-yellow-800 dark:text-yellow-200 text-sm">
+                        Incomplete Judge Assignments
                       </div>
+                      <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-0.5">
+                        {totalClasses - actualAssignedJudges} of {totalClasses} classes need judges
+                      </p>
                     </div>
                   </div>
-                  
-                  {/* Warning if judges not fully assigned */}
-                  {totalJudges > 0 && actualAssignedJudges < totalClasses && (
-                    <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800/50 rounded-lg p-3">
-                      <div className="flex items-start gap-2">
-                        <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
-                        <div className="flex-1">
-                          <div className="font-medium text-yellow-800 dark:text-yellow-200 text-sm">
-                            Incomplete Judge Assignments
-                          </div>
-                          <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-0.5">
-                            {totalClasses - actualAssignedJudges} of {totalClasses} classes need judges
-                          </p>
-                        </div>
-                      </div>
-                    </div>
+                </div>
+              )}
+            </div>
+
+            {/* Navigation and Actions */}
+            <div className="space-y-4">
+              {/* Back Button */}
+              <div className="flex justify-start">
+                <Button variant="outline" onClick={onBack}>
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to Classes
+                </Button>
+              </div>
+
+              {/* Main Actions */}
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button
+                  variant="outline"
+                  onClick={onSaveDraft}
+                  disabled={isLoading}
+                  className="flex-1"
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4 mr-2" />
                   )}
-                </div>
+                  Save as Draft
+                </Button>
 
-                {/* Navigation and Actions */}
-                <div className="space-y-4">
-                  {/* Back Button */}
-                  <div className="flex justify-start">
-                    <Button variant="outline" onClick={onBack}>
-                      <ArrowLeft className="h-4 w-4 mr-2" />
-                      Back to Classes
-                    </Button>
-                  </div>
-                  
-                  {/* Main Actions */}
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <Button variant="outline" onClick={onSaveDraft} disabled={isLoading} className="flex-1">
-                      {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                      Save as Draft
-                    </Button>
+                <Button
+                  variant="secondary"
+                  onClick={onCreateShow}
+                  disabled={isLoading}
+                  className="flex-1"
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <FileText className="h-4 w-4 mr-2" />
+                  )}
+                  Create Show (Unpublished)
+                </Button>
 
-                    <Button variant="secondary" onClick={onCreateShow} disabled={isLoading} className="flex-1">
-                      {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
-                      Create Show (Unpublished)
-                    </Button>
-
-                    <Button onClick={onCreateAndPublish} disabled={isLoading} className="flex-1">
-                      {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Eye className="h-4 w-4 mr-2" />}
-                      {isLoading ? 'Creating...' : 'Create & Publish Show'}
-                    </Button>
-                  </div>
-                </div>
+                <Button onClick={onCreateAndPublish} disabled={isLoading} className="flex-1">
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Eye className="h-4 w-4 mr-2" />
+                  )}
+                  {isLoading ? 'Creating...' : 'Create & Publish Show'}
+                </Button>
+              </div>
+            </div>
 
             <div className="text-xs text-muted-foreground text-center">
               <p>Draft: Save progress and continue later</p>

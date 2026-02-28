@@ -83,23 +83,6 @@ export function getShowActions(
         });
       }
 
-      // Create show action removed - this should be at page level only
-
-      // Quick actions for show managers
-      if (ShowPermissionValidator.canEdit(user, show)) {
-        actions.push({
-          id: 'quick_edit',
-          label: 'Quick Edit',
-          icon: 'Edit',
-          variant: 'default',
-          permission: PERMISSIONS.SHOW_UPDATE,
-          requiresRelationship: ['managing'],
-          onClick: show => {
-            ShowPermissionValidator.auditAction('edit_show_attempt', user, 'show', show.id, true);
-            logger.logUserAction('quick_edit', 'show', { showId: show.id });
-          },
-        });
-      }
       break;
 
     case 'past':

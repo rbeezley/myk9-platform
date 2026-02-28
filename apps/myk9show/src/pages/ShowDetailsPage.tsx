@@ -14,7 +14,7 @@ import { useTrialStore, type TrialInput } from '@/store/trialStore';
 import { useShowStore, type ShowInput } from '@/store/showStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useCompleteShowData } from '@/hooks/useShowScopedData';
-import { useShowsQuery } from '@/hooks/queries/useShowsDatabase';
+import { useShowsQuery, showQueryKeys } from '@/hooks/queries/useShowsDatabase';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useNavigationPerformance } from '@/hooks/useNavigationPerformance';
 import type { Trial } from '@/components/trials/types/trial.types';
@@ -367,9 +367,16 @@ const ShowDetailsPage: React.FC = () => {
         initialShowData={actualCurrentShow || {}}
         onSave={async showData => {
           if (actualCurrentShow?.id) {
-            await useShowStore
+            const updatedShow = await useShowStore
               .getState()
               .updateShow(actualCurrentShow.id, showData as Partial<ShowInput>);
+            // Sync React Query cache so the details page reflects changes immediately
+            if (updatedShow) {
+              queryClient.setQueryData(showQueryKeys.detail(actualCurrentShow.id), updatedShow);
+              queryClient.setQueryData<Show[]>(showQueryKeys.lists(), old =>
+                old ? old.map(s => (s.id === updatedShow.id ? updatedShow : s)) : [updatedShow]
+              );
+            }
           }
           setShowEditPanel(false);
         }}

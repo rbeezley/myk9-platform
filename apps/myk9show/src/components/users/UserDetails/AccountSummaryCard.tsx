@@ -6,15 +6,20 @@ import type { User as UserType } from '@/types/dog-types';
 
 interface AccountSummaryCardProps {
   person: UserType;
+  dogCount: number;
 }
 
-const AccountSummaryCard: React.FC<AccountSummaryCardProps> = ({ person }) => {
+const AccountSummaryCard: React.FC<AccountSummaryCardProps> = ({ person, dogCount }) => {
   return (
-    <Card className="group bg-gradient-to-br from-card/95 to-card/80 apple-subtle-card-border
+    <Card
+      className="group bg-gradient-to-br from-card/95 to-card/80 apple-subtle-card-border
                      rounded-2xl p-6 shadow-md backdrop-blur-xl transition-all duration-500
-                     hover:shadow-xl hover:-translate-y-1 hover:border-primary/20">
-      <div className="absolute inset-0 bg-gradient-to-br from-purple-500/[0.02] to-transparent
-                      opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-2xl" />
+                     hover:shadow-xl hover:-translate-y-1 hover:border-primary/20"
+    >
+      <div
+        className="absolute inset-0 bg-gradient-to-br from-purple-500/[0.02] to-transparent
+                      opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-2xl"
+      />
 
       <div className="relative space-y-6">
         <div className="flex items-center gap-3 mb-6">
@@ -27,44 +32,52 @@ const AccountSummaryCard: React.FC<AccountSummaryCardProps> = ({ person }) => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="flex flex-col items-center text-center p-4 bg-gradient-to-br
+          <div
+            className="flex flex-col items-center text-center p-4 bg-gradient-to-br
                          from-muted/30 to-muted/10 rounded-xl apple-subtle-card-border
-                         hover:scale-105 transition-all duration-300">
+                         hover:scale-105 transition-all duration-300"
+          >
             <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-2">
               Member Since
             </span>
             <span className="text-lg font-semibold text-foreground">
               {person.createdAt
-                ? new Date(person.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+                ? new Date(person.createdAt).toLocaleDateString('en-US', {
+                    month: 'long',
+                    year: 'numeric',
+                  })
                 : 'Not available'}
             </span>
           </div>
 
-          <div className="flex flex-col items-center text-center p-4 bg-gradient-to-br
+          <div
+            className="flex flex-col items-center text-center p-4 bg-gradient-to-br
                          from-muted/30 to-muted/10 rounded-xl apple-subtle-card-border
-                         hover:scale-105 transition-all duration-300">
+                         hover:scale-105 transition-all duration-300"
+          >
             <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-2">
               Account Type
             </span>
-            <Badge className="bg-gradient-to-r from-primary/10 to-primary/5 text-primary
-                            border border-primary/20 font-medium">
+            <Badge
+              className="bg-gradient-to-r from-primary/10 to-primary/5 text-primary
+                            border border-primary/20 font-medium"
+            >
               {person.roles && person.roles.length > 0
                 ? person.roles[0].charAt(0).toUpperCase() + person.roles[0].slice(1)
                 : 'Member'}
             </Badge>
           </div>
 
-          <div className="flex flex-col items-center text-center p-4 bg-gradient-to-br
+          <div
+            className="flex flex-col items-center text-center p-4 bg-gradient-to-br
                          from-muted/30 to-muted/10 rounded-xl apple-subtle-card-border
-                         hover:scale-105 transition-all duration-300">
+                         hover:scale-105 transition-all duration-300"
+          >
             <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-2">
               Dogs Registered
             </span>
-            <span className="text-lg font-semibold text-foreground">
-              {person.dogs?.length || 0} dogs
-            </span>
+            <span className="text-lg font-semibold text-foreground">{dogCount} dogs</span>
           </div>
-
         </div>
       </div>
     </Card>

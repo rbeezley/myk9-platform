@@ -17,14 +17,11 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
   const navigate = useNavigate();
   const { dogs, updateDog, removeDog } = useDogStore();
   const { updateUser } = useUserStore();
-  
-  // Get actual Dog objects from the dog store using the IDs
+
+  // Get actual Dog objects from the dog store by owner relationship
   const userDogs = useMemo(() => {
-    if (!selectedUser.dogs) return [];
-    return selectedUser.dogs
-      .map(dogId => dogs.find(dog => dog.id === dogId))
-      .filter((dog): dog is Dog => dog !== undefined);
-  }, [selectedUser.dogs, dogs]);
+    return dogs.filter(dog => dog.ownerId === selectedUser.id);
+  }, [dogs, selectedUser.id]);
 
   // Helper function to convert Dog to DogInput
   const dogToDogInput = (dog: Dog): DogInput => ({
@@ -43,8 +40,8 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
       organization: reg.organization,
       number: reg.registrationNumber,
       type: reg.status,
-      status: reg.status
-    }))
+      status: reg.status,
+    })),
   });
 
   // Edit dialog state
@@ -111,7 +108,7 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
         name: `${selectedUser.firstName} ${selectedUser.lastName}`,
         email: selectedUser.email,
         phone: selectedUser.phone,
-        profileImage: selectedUser.profileImage
+        profileImage: selectedUser.profileImage,
       }, // Convert User to Owner format
       registrations: [],
       spayedNeutered: false,
@@ -125,7 +122,7 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
       color: '',
       microchip: '',
     };
-    
+
     setDogToEdit(newDog);
     setIsEditDialogOpen(true);
   };
@@ -150,11 +147,11 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
           </div>
           <AssociatedDogsSection
             dogs={userDogs}
-            onViewDogDetails={(dogId) => {
+            onViewDogDetails={dogId => {
               // Navigate with person context for breadcrumbs: People > John Smith > Max
               navigate(`/dogs/${dogId}?fromPerson=${selectedUser.id}`);
             }}
-            onEditDog={(dogId) => {
+            onEditDog={dogId => {
               const dog = userDogs.find(d => d.id === dogId);
               if (dog) {
                 setDogToEdit(dog);
@@ -163,14 +160,14 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
             }}
             onUpdateDogPhoto={handleUpdateDogPhoto}
             onDeleteDog={handleDeleteDog}
-            onAddRegistration={(dogId) => {
+            onAddRegistration={dogId => {
               // Navigate to the dog's details page with a query parameter to open the add registration dialog
               navigate(`/dogs/${dogId}?addRegistration=true&fromPerson=${selectedUser.id}`);
             }}
           />
         </div>
-      )
-    }
+      ),
+    },
   ];
 
   return (
@@ -179,9 +176,9 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
         <div className="overflow-x-auto">
           <TabsList
             className="grid w-full bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 h-auto min-w-max"
-            style={{gridTemplateColumns: `repeat(${tabsConfig.length}, minmax(0, 1fr))`}}
+            style={{ gridTemplateColumns: `repeat(${tabsConfig.length}, minmax(0, 1fr))` }}
           >
-            {tabsConfig.map((tab) => (
+            {tabsConfig.map(tab => (
               <TabsTrigger
                 key={tab.id}
                 value={tab.id}
@@ -193,7 +190,7 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
           </TabsList>
         </div>
 
-        {tabsConfig.map((tab) => (
+        {tabsConfig.map(tab => (
           <TabsContent key={tab.id} value={tab.id}>
             {tab.content}
           </TabsContent>

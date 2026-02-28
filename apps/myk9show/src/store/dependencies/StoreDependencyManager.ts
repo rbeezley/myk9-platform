@@ -198,14 +198,6 @@ export class StoreDependencyManager {
       canLazyLoad: true,
     });
 
-    // UI stores
-    this.addDependency('userSidebarStore', {
-      requiredStores: ['userStore'],
-      optionalStores: [],
-      loadPriority: 4,
-      canLazyLoad: true,
-    });
-
     // Calculate load order after all dependencies are added
     this.calculateLoadOrder();
   }

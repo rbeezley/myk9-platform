@@ -70,9 +70,6 @@ const STORE_IMPORTS: Record<StoreName, () => Promise<Record<string, unknown>>> =
   pastResultsStore: () => import('@/store/pastResultsStore'),
   searchAnalyticsStore: () => import('@/store/searchAnalyticsStore'),
   showRegistrationStore: () => import('@/store/showRegistrationStore'),
-
-  // UI-specific stores
-  userSidebarStore: () => import('@/store/userSidebarStore'),
 };
 
 export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {

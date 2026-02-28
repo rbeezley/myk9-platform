@@ -41,9 +41,7 @@ export const STORE_CATEGORIES = {
   ],
 
   // Tier 4: UI-specific stores - Load when UI component is used
-  UI_SPECIFIC: [
-    'userSidebarStore', // Users sidebar state
-  ],
+  UI_SPECIFIC: [] as string[],
 } as const;
 
 export type StoreName =

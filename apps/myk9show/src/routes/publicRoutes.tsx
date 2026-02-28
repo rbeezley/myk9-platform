@@ -11,7 +11,8 @@ import { PageTransition } from '@/components/common/PageTransition';
 import { SuspenseWrapper } from './utils/SuspenseWrapper';
 
 // Public page lazy imports
-const UserDetailsPage = lazy(() => import('@/pages/UserDetailsPage'));
+const BrowsePeoplePage = lazy(() => import('@/pages/BrowsePeoplePage'));
+const PersonDetailPage = lazy(() => import('@/pages/PersonDetailPage'));
 const BrowseDogsPage = lazy(() => import('@/pages/BrowseDogsPage'));
 const DogDetailPage = lazy(() => import('@/pages/DogDetailPage'));
 const BrowseClubsPage = lazy(() => import('@/pages/BrowseClubsPage'));
@@ -370,7 +371,7 @@ export const PublicRoutes = () => (
         <ProtectedRoute>
           <SuspenseWrapper>
             <PageTransition>
-              <UserDetailsPage />
+              <BrowsePeoplePage />
             </PageTransition>
           </SuspenseWrapper>
         </ProtectedRoute>
@@ -383,7 +384,7 @@ export const PublicRoutes = () => (
         <ProtectedRoute>
           <SuspenseWrapper>
             <PageTransition>
-              <UserDetailsPage />
+              <PersonDetailPage />
             </PageTransition>
           </SuspenseWrapper>
         </ProtectedRoute>

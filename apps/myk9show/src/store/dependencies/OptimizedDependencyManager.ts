@@ -228,15 +228,6 @@ export class OptimizedDependencyManager {
       canLazyLoad: true,
       parallelGroup: 'utility',
     });
-
-    // UI stores - can load in parallel
-    this.addDependency('userSidebarStore', {
-      requiredStores: ['userStore'],
-      optionalStores: [],
-      loadPriority: 13,
-      canLazyLoad: true,
-      parallelGroup: 'ui',
-    });
   }
 
   private addDependency(storeName: StoreName, config: Omit<StoreDependency, 'storeName'>) {

@@ -88,8 +88,8 @@ export const publicRouteComponents: Record<string, ImportFunction> = {
   '/exhibitor/check-in/:entryId': () => import('@/components/exhibitor/ClassCheckIn'),
 
   // Users and dogs management
-  '/users': () => import('@/pages/UserDetailsPage'),
-  '/users/:id': () => import('@/pages/UserDetailsPage'),
+  '/users': () => import('@/pages/BrowsePeoplePage'),
+  '/users/:id': () => import('@/pages/PersonDetailPage'),
   '/dogs': () => import('@/pages/BrowseDogsPage'),
   '/dogs/:id': () => import('@/pages/DogDetailPage'),
   '/clubs': () => import('@/pages/BrowseClubsPage'),

@@ -378,11 +378,17 @@ export class MutationManager {
     const queue: string[] = [];
     const sorted: PendingMutation[] = [];
 
-    // Find all nodes with no dependencies
+    // Find all nodes with no dependencies, sorted by timestamp
+    // (ensures parent records like shows are uploaded before children like trials/classes)
+    const roots: PendingMutation[] = [];
     for (const [id, degree] of inDegree) {
       if (degree === 0) {
-        queue.push(id);
+        roots.push(mutationMap.get(id)!);
       }
+    }
+    roots.sort((a, b) => a.timestamp - b.timestamp);
+    for (const m of roots) {
+      queue.push(m.id);
     }
 
     // Process queue

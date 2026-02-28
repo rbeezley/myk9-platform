@@ -1140,7 +1140,6 @@
   margin-bottom: 24px;
   backdrop-filter: blur(20px);
   transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  min-height: 380px;
 }
 
 .apple-browse-card:hover {
@@ -1262,10 +1261,14 @@
   align-items: center;
   gap: 8px;
   text-decoration: none;
+  border-color: hsl(var(--primary) / 0.3);
+  color: hsl(var(--primary));
 }
 
 .apple-browse-view-details-btn:hover {
   transform: translateY(-2px);
+  background: hsl(var(--primary) / 0.1);
+  border-color: hsl(var(--primary) / 0.5);
 }
 
 .apple-browse-view-details-btn svg {

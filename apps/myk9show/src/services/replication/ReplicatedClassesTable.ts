@@ -145,6 +145,22 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     return this._lastMutationId;
   }
 
+  /** Map UI class status to DB CHECK constraint values */
+  private mapClassStatusToDb(uiStatus: string | undefined): string {
+    switch (uiStatus) {
+      case 'In Progress':
+        return 'in-progress';
+      case 'Completed':
+        return 'completed';
+      case 'Cancelled':
+        return 'cancelled';
+      case 'Scheduled':
+      case 'Upcoming':
+      default:
+        return 'no-status';
+    }
+  }
+
   /**
    * Convert app-level Class to Supabase row format (snake_case).
    * Strips sync metadata fields and compatibility snake_case aliases.
@@ -176,7 +192,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       timer_mode: cls.timerMode ?? null,
       hides_known: cls.hidesKnown ?? null,
       distraction_count: cls.distractionCount ?? null,
-      status: cls.classStatus ?? null,
+      status: this.mapClassStatusToDb(cls.classStatus),
       actual_start_time: cls.actual_start_time ?? null,
       actual_end_time: cls.actual_end_time ?? null,
       updated_at: new Date().toISOString(),

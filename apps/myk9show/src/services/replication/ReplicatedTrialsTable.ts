@@ -77,6 +77,22 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
     return this._lastMutationId;
   }
 
+  /** Map UI trial status to DB CHECK constraint values */
+  private mapTrialStatusToDb(uiStatus: string | undefined): string {
+    switch (uiStatus) {
+      case 'In Progress':
+        return 'in_progress';
+      case 'Completed':
+        return 'completed';
+      case 'Cancelled':
+        return 'cancelled';
+      case 'Scheduled':
+      case 'Upcoming':
+      default:
+        return 'planned';
+    }
+  }
+
   /**
    * Convert app-level Trial to Supabase row format (snake_case).
    * Strips sync metadata fields (_version, _lastModified, etc.)
@@ -88,7 +104,7 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
       name: trial.name,
       date: trial.date,
       trial_number: trial.trialNumber ?? null,
-      status: trial.status ?? null,
+      status: this.mapTrialStatusToDb(trial.status),
       max_entries_per_dog: trial.maxEntriesPerDog ?? null,
       max_total_entries: trial.maxTotalEntries ?? null,
       max_entries_per_handler: trial.maxEntriesPerHandler ?? null,

@@ -32,7 +32,15 @@ describe('Button', () => {
   it('should handle click events', async () => {
     const user = userEvent.setup();
     let clicked = false;
-    render(<Button onClick={() => { clicked = true; }}>Click</Button>);
+    render(
+      <Button
+        onClick={() => {
+          clicked = true;
+        }}
+      >
+        Click
+      </Button>
+    );
     await user.click(screen.getByRole('button'));
     expect(clicked).toBe(true);
   });
@@ -47,35 +55,28 @@ describe('Button', () => {
   });
 
   it('should pass through HTML button attributes', () => {
-    render(<Button type="submit" aria-label="Submit form">Submit</Button>);
+    render(
+      <Button type="submit" aria-label="Submit form">
+        Submit
+      </Button>
+    );
     const button = screen.getByRole('button');
     expect(button).toHaveAttribute('type', 'submit');
     expect(button).toHaveAttribute('aria-label', 'Submit form');
   });
 
   describe('variants', () => {
-    it.each([
-      'default',
-      'destructive',
-      'outline',
-      'secondary',
-      'ghost',
-      'link',
-      'premium',
-    ] as const)('should render %s variant', (variant) => {
-      render(<Button variant={variant}>Variant</Button>);
-      expect(screen.getByRole('button')).toBeInTheDocument();
-    });
+    it.each(['default', 'destructive', 'outline', 'secondary', 'ghost', 'link'] as const)(
+      'should render %s variant',
+      variant => {
+        render(<Button variant={variant}>Variant</Button>);
+        expect(screen.getByRole('button')).toBeInTheDocument();
+      }
+    );
   });
 
   describe('sizes', () => {
-    it.each([
-      'default',
-      'sm',
-      'lg',
-      'icon',
-      'icon-lg',
-    ] as const)('should render %s size', (size) => {
+    it.each(['default', 'sm', 'lg', 'icon', 'icon-lg'] as const)('should render %s size', size => {
       render(<Button size={size}>Size</Button>);
       expect(screen.getByRole('button')).toBeInTheDocument();
     });

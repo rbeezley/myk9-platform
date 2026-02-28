@@ -167,13 +167,7 @@ const PermissionManagementPage: React.FC = () => {
                   Test Permissions
                 </Link>
               </Button>
-              <Button
-                asChild
-                className="bg-gradient-to-r from-primary to-secondary 
-                                     text-primary-foreground hover:shadow-xl 
-                                     hover:-translate-y-1 hover:scale-[1.02] 
-                                     transition-all duration-300 shadow-sm"
-              >
+              <Button asChild>
                 <Link to="/admin/permissions/roles">
                   <Plus className="h-4 w-4 mr-2" />
                   Manage Roles

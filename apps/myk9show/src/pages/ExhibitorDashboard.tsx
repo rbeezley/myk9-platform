@@ -1,6 +1,6 @@
 /**
  * Exhibitor Dashboard Page
- * 
+ *
  * Main dashboard for exhibitors with entry management, show discovery,
  * and dog portfolio features focused on exhibitor workflow
  */
@@ -14,9 +14,9 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { 
+import {
   Heart,
-  FileText, 
+  FileText,
   TrendingUp,
   Calendar,
   Trophy,
@@ -29,7 +29,7 @@ import {
   Bell,
   ChevronRight,
   FolderOpen,
-  Sparkles
+  Sparkles,
 } from 'lucide-react';
 import { ExhibitorLayout } from '@/components/exhibitor/ExhibitorLayout';
 import { useShowStore } from '@/store/showStore';
@@ -53,44 +53,47 @@ const ExhibitorDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [selectedTab, setSelectedTab] = useState('entries');
   const [hasNewNotifications] = useState(true);
-  
+
   // Redirect if user switches to a different role while on this dashboard
-  useRoleRedirect({ 
+  useRoleRedirect({
     enabled: false, // Don't redirect on page load
-    redirectOnRoleChange: true // Only redirect when roles change
+    redirectOnRoleChange: true, // Only redirect when roles change
   });
-  
+
   // Get real data from stores
   const { shows } = useShowStore();
   const { dogs } = useDogStore();
-  
+
   // Mock exhibitor entries (in real app, this would come from an entries store)
-  const mockEntries: ExhibitorEntry[] = useMemo(() => [
-    {
-      id: '1',
-      showId: shows[0]?.id || '1',
-      showName: shows[0]?.name || 'Spring Specialty Show',
-      dogId: dogs[0]?.id || '1',
-      dogName: dogs[0]?.name || 'Bella',
-      class: 'Open Bitches',
-      entryFee: 35,
-      status: 'confirmed',
-      showDate: new Date('2024-03-15'),
-      location: 'Springfield, IL'
-    },
-    {
-      id: '2',
-      showId: shows[1]?.id || '2',
-      showName: shows[1]?.name || 'Regional Championship',
-      dogId: dogs[1]?.id || '2',
-      dogName: dogs[1]?.name || 'Max',
-      class: 'Champion Dogs',
-      entryFee: 40,
-      status: 'pending',
-      showDate: new Date('2024-03-22'),
-      location: 'Chicago, IL'
-    }
-  ], [shows, dogs]);
+  const mockEntries: ExhibitorEntry[] = useMemo(
+    () => [
+      {
+        id: '1',
+        showId: shows[0]?.id || '1',
+        showName: shows[0]?.name || 'Spring Specialty Show',
+        dogId: dogs[0]?.id || '1',
+        dogName: dogs[0]?.name || 'Bella',
+        class: 'Open Bitches',
+        entryFee: 35,
+        status: 'confirmed',
+        showDate: new Date('2024-03-15'),
+        location: 'Springfield, IL',
+      },
+      {
+        id: '2',
+        showId: shows[1]?.id || '2',
+        showName: shows[1]?.name || 'Regional Championship',
+        dogId: dogs[1]?.id || '2',
+        dogName: dogs[1]?.name || 'Max',
+        class: 'Champion Dogs',
+        entryFee: 40,
+        status: 'pending',
+        showDate: new Date('2024-03-22'),
+        location: 'Chicago, IL',
+      },
+    ],
+    [shows, dogs]
+  );
 
   // Calculate statistics
   const statistics = useMemo(() => {
@@ -105,18 +108,28 @@ const ExhibitorDashboard: React.FC = () => {
       totalFees,
       upcomingShows,
       totalDogs: dogs.length,
-      winRate: 78 // Mock win rate
+      winRate: 78, // Mock win rate
     };
   }, [mockEntries, dogs]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'confirmed':
-        return <Badge className="bg-success-green/10 text-success-green border-success-green/20">Confirmed</Badge>;
+        return (
+          <Badge className="bg-success-green/10 text-success-green border-success-green/20">
+            Confirmed
+          </Badge>
+        );
       case 'pending':
-        return <Badge className="bg-warning-orange/10 text-warning-orange border-warning-orange/20">Pending</Badge>;
+        return (
+          <Badge className="bg-warning-orange/10 text-warning-orange border-warning-orange/20">
+            Pending
+          </Badge>
+        );
       case 'cancelled':
-        return <Badge className="bg-error-red/10 text-error-red border-error-red/20">Cancelled</Badge>;
+        return (
+          <Badge className="bg-error-red/10 text-error-red border-error-red/20">Cancelled</Badge>
+        );
       default:
         return <Badge className="bg-muted text-muted-foreground border-border">Unknown</Badge>;
     }
@@ -169,20 +182,17 @@ const ExhibitorDashboard: React.FC = () => {
               )}
             </div>
           </div>
-          
+
           <div className="flex flex-wrap items-center gap-3">
-            <Button 
-              onClick={() => navigate('/browse-shows')} 
-              variant="outline" 
+            <Button
+              onClick={() => navigate('/browse-shows')}
+              variant="outline"
               className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300 shadow-sm"
             >
               <Search className="h-4 w-4 mr-2" />
               Browse Shows
             </Button>
-            <Button 
-              onClick={() => navigate('/dogs')}
-              className="bg-gradient-to-r from-primary to-secondary text-primary-foreground hover:shadow-xl hover:-translate-y-1 hover:scale-[1.02] transition-all duration-300 shadow-sm"
-            >
+            <Button onClick={() => navigate('/dogs')}>
               <Heart className="h-4 w-4 mr-2" />
               Manage Dogs
             </Button>
@@ -239,7 +249,14 @@ const ExhibitorDashboard: React.FC = () => {
               </div>
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground font-medium">
-                  Next in {upcomingEntries[0] ? Math.ceil((upcomingEntries[0].showDate.getTime() - new Date().getTime()) / (1000 * 3600 * 24)) : 0} days
+                  Next in{' '}
+                  {upcomingEntries[0]
+                    ? Math.ceil(
+                        (upcomingEntries[0].showDate.getTime() - new Date().getTime()) /
+                          (1000 * 3600 * 24)
+                      )
+                    : 0}{' '}
+                  days
                 </p>
               </div>
             </CardContent>
@@ -291,9 +308,7 @@ const ExhibitorDashboard: React.FC = () => {
                 ${statistics.totalFees}
               </div>
               <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground font-medium">
-                  This month's entries
-                </p>
+                <p className="text-sm text-muted-foreground font-medium">This month's entries</p>
               </div>
             </CardContent>
           </Card>
@@ -310,13 +325,13 @@ const ExhibitorDashboard: React.FC = () => {
           <CardContent className="p-6">
             <Tabs value={selectedTab} onValueChange={setSelectedTab}>
               <TabsList className="grid w-full grid-cols-2 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1">
-                <TabsTrigger 
-                  value="entries" 
+                <TabsTrigger
+                  value="entries"
                   className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
                 >
                   Upcoming Entries
                 </TabsTrigger>
-                <TabsTrigger 
+                <TabsTrigger
                   value="recent"
                   className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
                 >
@@ -325,13 +340,13 @@ const ExhibitorDashboard: React.FC = () => {
               </TabsList>
 
               <TabsContent value="entries" className="space-y-6 mt-6">
-                {upcomingEntries.map((entry) => (
+                {upcomingEntries.map(entry => (
                   <div
                     key={entry.id}
                     className="group relative overflow-hidden p-6 border border-border rounded-2xl bg-gradient-to-r from-card to-card/80 hover:from-card/95 hover:to-card/90 transition-all duration-500 hover:shadow-xl hover:-translate-y-1"
                   >
                     <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                    
+
                     <div className="relative flex items-center justify-between">
                       <div className="flex-grow space-y-4">
                         <div className="flex items-center gap-3 mb-4">
@@ -358,7 +373,7 @@ const ExhibitorDashboard: React.FC = () => {
                             </div>
                           </div>
                         </div>
-                        
+
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                           <div className="space-y-1">
                             <p className="text-sm font-medium text-muted-foreground">Dog</p>
@@ -375,21 +390,22 @@ const ExhibitorDashboard: React.FC = () => {
                           <div className="space-y-1">
                             <p className="text-sm font-medium text-muted-foreground">Days Until</p>
                             <p className="font-semibold text-primary">
-                              {Math.ceil((entry.showDate.getTime() - new Date().getTime()) / (1000 * 3600 * 24))} days
+                              {Math.ceil(
+                                (entry.showDate.getTime() - new Date().getTime()) /
+                                  (1000 * 3600 * 24)
+                              )}{' '}
+                              days
                             </p>
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="ml-8 flex flex-col gap-3">
-                        <Button 
-                          onClick={() => handleViewEntry(entry)}
-                          className="bg-gradient-to-r from-primary to-secondary text-primary-foreground hover:shadow-xl hover:-translate-y-1 hover:scale-105 transition-all duration-300"
-                        >
+                        <Button onClick={() => handleViewEntry(entry)}>
                           View Details
                           <ChevronRight className="h-4 w-4 ml-2" />
                         </Button>
-                        <Button 
+                        <Button
                           variant="outline"
                           className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300"
                         >
@@ -399,7 +415,7 @@ const ExhibitorDashboard: React.FC = () => {
                     </div>
                   </div>
                 ))}
-              
+
                 {upcomingEntries.length === 0 && (
                   <div className="flex flex-col items-center justify-center py-12">
                     <div className="bg-muted/50 rounded-full p-6 mb-4">
@@ -407,12 +423,10 @@ const ExhibitorDashboard: React.FC = () => {
                     </div>
                     <h3 className="text-lg font-semibold mb-2">No Upcoming Entries</h3>
                     <p className="text-muted-foreground mb-6 max-w-sm text-center">
-                      You don't have any upcoming show entries. Browse shows to find your next competition.
+                      You don't have any upcoming show entries. Browse shows to find your next
+                      competition.
                     </p>
-                    <Button 
-                      onClick={() => navigate('/browse-shows')}
-                      className="bg-gradient-to-r from-primary to-secondary text-primary-foreground hover:shadow-lg"
-                    >
+                    <Button onClick={() => navigate('/browse-shows')}>
                       <Search className="h-4 w-4 mr-2" />
                       Browse Shows
                     </Button>
@@ -421,13 +435,13 @@ const ExhibitorDashboard: React.FC = () => {
               </TabsContent>
 
               <TabsContent value="recent" className="space-y-6 mt-6">
-                {recentEntries.map((entry) => (
+                {recentEntries.map(entry => (
                   <div
                     key={entry.id}
                     className="group relative overflow-hidden p-6 border border-border rounded-2xl bg-gradient-to-r from-card to-card/80 hover:from-card/95 hover:to-card/90 transition-all duration-500 hover:shadow-xl hover:-translate-y-1"
                   >
                     <div className="absolute inset-0 bg-gradient-to-r from-success-green/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                    
+
                     <div className="relative flex items-center justify-between">
                       <div className="flex items-center gap-4">
                         <div className="p-3 bg-success-green/10 rounded-xl group-hover:bg-success-green/20 transition-colors duration-300">
@@ -438,7 +452,9 @@ const ExhibitorDashboard: React.FC = () => {
                             {entry.showName}
                           </h3>
                           <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                            <span>{entry.dogName} • {entry.class}</span>
+                            <span>
+                              {entry.dogName} • {entry.class}
+                            </span>
                             <span>•</span>
                             <span>{format(entry.showDate, 'MMM d, yyyy')}</span>
                             <Badge className="bg-success-green/10 text-success-green border-success-green/20">
@@ -448,7 +464,7 @@ const ExhibitorDashboard: React.FC = () => {
                         </div>
                       </div>
                       <div className="flex gap-3">
-                        <Button 
+                        <Button
                           variant="outline"
                           className="border-success-green/20 text-success-green hover:bg-success-green/5 hover:border-success-green/40"
                         >
@@ -458,14 +474,18 @@ const ExhibitorDashboard: React.FC = () => {
                     </div>
                   </div>
                 ))}
-                
+
                 {recentEntries.length === 0 && (
                   <div className="text-center py-16">
                     <div className="mx-auto w-24 h-24 bg-gradient-to-br from-success-green/20 to-success-green/10 rounded-full flex items-center justify-center mb-6">
                       <Trophy className="h-12 w-12 text-success-green" />
                     </div>
-                    <h3 className="text-lg font-semibold text-foreground mb-2">No Recent Results</h3>
-                    <p className="text-muted-foreground mb-6">Your competition results will appear here after shows.</p>
+                    <h3 className="text-lg font-semibold text-foreground mb-2">
+                      No Recent Results
+                    </h3>
+                    <p className="text-muted-foreground mb-6">
+                      Your competition results will appear here after shows.
+                    </p>
                   </div>
                 )}
               </TabsContent>
@@ -483,8 +503,12 @@ const ExhibitorDashboard: React.FC = () => {
                   <Search className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <div className="text-foreground group-hover:text-primary transition-colors duration-300">Find Shows</div>
-                  <div className="text-sm font-normal text-muted-foreground mt-1">Discover upcoming competitions</div>
+                  <div className="text-foreground group-hover:text-primary transition-colors duration-300">
+                    Find Shows
+                  </div>
+                  <div className="text-sm font-normal text-muted-foreground mt-1">
+                    Discover upcoming competitions
+                  </div>
                 </div>
               </CardTitle>
             </CardHeader>
@@ -497,10 +521,9 @@ const ExhibitorDashboard: React.FC = () => {
                   </Badge>
                 </div>
               </div>
-              <Button 
+              <Button
                 onClick={() => navigate('/browse-shows')}
-                className="w-full mt-6 bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20 text-primary hover:bg-gradient-to-r hover:from-primary hover:to-secondary hover:text-white hover:shadow-xl hover:-translate-y-1 transition-all duration-300 font-semibold py-3" 
-                variant="outline"
+                className="w-full mt-6 font-semibold py-3"
               >
                 <Search className="h-4 w-4 mr-2" />
                 Browse Shows
@@ -516,8 +539,12 @@ const ExhibitorDashboard: React.FC = () => {
                   <Heart className="h-6 w-6 text-blue-500" />
                 </div>
                 <div>
-                  <div className="text-foreground group-hover:text-blue-600 transition-colors duration-300">My Dogs</div>
-                  <div className="text-sm font-normal text-muted-foreground mt-1">Manage dog profiles and health</div>
+                  <div className="text-foreground group-hover:text-blue-600 transition-colors duration-300">
+                    My Dogs
+                  </div>
+                  <div className="text-sm font-normal text-muted-foreground mt-1">
+                    Manage dog profiles and health
+                  </div>
                 </div>
               </CardTitle>
             </CardHeader>
@@ -530,11 +557,7 @@ const ExhibitorDashboard: React.FC = () => {
                   </Badge>
                 </div>
               </div>
-              <Button 
-                onClick={() => navigate('/dogs')}
-                className="w-full mt-6 bg-gradient-to-r from-blue-500/10 to-blue-500/5 border-blue-500/20 text-blue-600 hover:bg-gradient-to-r hover:from-blue-500 hover:to-blue-600 hover:text-white hover:shadow-xl hover:-translate-y-1 transition-all duration-300 font-semibold py-3" 
-                variant="outline"
-              >
+              <Button onClick={() => navigate('/dogs')} className="w-full mt-6 font-semibold py-3">
                 <Heart className="h-4 w-4 mr-2" />
                 Manage Dogs
               </Button>
@@ -552,8 +575,12 @@ const ExhibitorDashboard: React.FC = () => {
                   </div>
                 </div>
                 <div>
-                  <div className="text-foreground group-hover:text-warning-orange transition-colors duration-300">Favorites</div>
-                  <div className="text-sm font-normal text-muted-foreground mt-1">Saved shows and events</div>
+                  <div className="text-foreground group-hover:text-warning-orange transition-colors duration-300">
+                    Favorites
+                  </div>
+                  <div className="text-sm font-normal text-muted-foreground mt-1">
+                    Saved shows and events
+                  </div>
                 </div>
               </CardTitle>
             </CardHeader>
@@ -566,10 +593,9 @@ const ExhibitorDashboard: React.FC = () => {
                   </Badge>
                 </div>
               </div>
-              <Button 
+              <Button
                 onClick={() => navigate('/exhibitor/favorites')}
-                className="w-full mt-6 bg-gradient-to-r from-warning-orange/10 to-warning-orange/5 border-warning-orange/20 text-warning-orange hover:bg-gradient-to-r hover:from-warning-orange hover:to-warning-orange hover:text-white hover:shadow-xl hover:-translate-y-1 transition-all duration-300 font-semibold py-3" 
-                variant="outline"
+                className="w-full mt-6 font-semibold py-3"
               >
                 <Star className="h-4 w-4 mr-2" />
                 View Favorites

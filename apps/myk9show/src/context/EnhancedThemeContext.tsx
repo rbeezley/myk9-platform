@@ -1,7 +1,7 @@
 /**
  * Enhanced Theme Context
  * Phase 6.4: User Preferences & UI State
- * 
+ *
  * Extended theme context that integrates with user preferences system
  */
 
@@ -16,14 +16,14 @@ interface EnhancedThemeContextType {
   theme: 'light' | 'dark';
   themeMode: ThemeMode;
   preferences: ThemePreferences | null;
-  
+
   // Theme actions
   setThemeMode: (mode: ThemeMode) => void;
   toggleTheme: () => void;
-  
+
   // Loading state
   loading: boolean;
-  
+
   // Utility functions
   applyThemePreferences: (prefs: ThemePreferences) => void;
   resetTheme: () => void;
@@ -35,7 +35,7 @@ export const EnhancedThemeContext = createContext<EnhancedThemeContextType | und
 export function EnhancedThemeProvider({ children }: { children: ReactNode }) {
   const user = useAuthUser();
   const { preferences: userPreferences, updatePreferences } = useUserPreferences(user?.id || null);
-  
+
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [themeMode, setThemeModeState] = useState<ThemeMode>('system');
   const [loading, setLoading] = useState(true);
@@ -47,7 +47,9 @@ export function EnhancedThemeProvider({ children }: { children: ReactNode }) {
    * Apply system theme based on media query
    */
   const applySystemTheme = () => {
-    const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches
+      ? 'dark'
+      : 'light';
     setTheme(systemTheme);
     return systemTheme;
   };
@@ -57,7 +59,7 @@ export function EnhancedThemeProvider({ children }: { children: ReactNode }) {
    */
   const applyThemeMode = useCallback((mode: ThemeMode) => {
     let effectiveTheme: 'light' | 'dark';
-    
+
     switch (mode) {
       case 'dark':
         effectiveTheme = 'dark';
@@ -70,14 +72,14 @@ export function EnhancedThemeProvider({ children }: { children: ReactNode }) {
         effectiveTheme = applySystemTheme();
         break;
     }
-    
+
     setTheme(effectiveTheme);
     setThemeModeState(mode);
-    
+
     // Update DOM
     const root = document.documentElement;
     root.classList.toggle('dark', effectiveTheme === 'dark');
-    
+
     return effectiveTheme;
   }, []);
 
@@ -86,7 +88,7 @@ export function EnhancedThemeProvider({ children }: { children: ReactNode }) {
    */
   const setThemeMode = async (mode: ThemeMode) => {
     if (!user || !userPreferences) return;
-    
+
     try {
       await updatePreferences({
         theme: {
@@ -120,71 +122,64 @@ export function EnhancedThemeProvider({ children }: { children: ReactNode }) {
   /**
    * Apply complete theme preferences
    */
-  const applyThemePreferences = useCallback(async (prefs: ThemePreferences) => {
-    if (!user) return;
-    
-    try {
-      // Apply theme mode
-      applyThemeMode(prefs.mode);
-      
-      // Apply other visual preferences
-      const root = document.documentElement;
-      
-      // Color scheme
-      const colorSchemes = {
-        blue: '#007AFF',
-        purple: '#5856D6',
-        green: '#34C759',
-        orange: '#FF9500',
-      };
-      root.style.setProperty('--theme-primary', colorSchemes[prefs.colorScheme]);
-      
-      // Layout density
-      document.body.className = document.body.className
-        .replace(/\bdensity-\w+\b/g, '')
-        .concat(` density-${prefs.layoutDensity}`);
-      
-      // Font size
-      const fontScales = {
-        'small': '0.9',
-        'medium': '1.0',
-        'large': '1.2',
-        'extra-large': '1.4',
-      };
-      root.style.setProperty('--font-scale', fontScales[prefs.fontSize]);
-      
-      // Accessibility
-      root.classList.toggle('reduce-motion', prefs.reduceMotion);
-      root.classList.toggle('high-contrast', prefs.highContrast);
-      
-      // Save to preferences if needed
-      if (userPreferences) {
-        await updatePreferences({ theme: prefs });
+  const applyThemePreferences = useCallback(
+    async (prefs: ThemePreferences) => {
+      if (!user) return;
+
+      try {
+        // Apply theme mode
+        applyThemeMode(prefs.mode);
+
+        // Apply other visual preferences
+        const root = document.documentElement;
+
+        // Layout density
+        document.body.className = document.body.className
+          .replace(/\bdensity-\w+\b/g, '')
+          .concat(` density-${prefs.layoutDensity}`);
+
+        // Font size
+        const fontScales = {
+          small: '0.9',
+          medium: '1.0',
+          large: '1.2',
+          'extra-large': '1.4',
+        };
+        root.style.setProperty('--font-scale', fontScales[prefs.fontSize]);
+
+        // Accessibility
+        root.classList.toggle('reduce-motion', prefs.reduceMotion);
+        root.classList.toggle('high-contrast', prefs.highContrast);
+
+        // Save to preferences if needed
+        if (userPreferences) {
+          await updatePreferences({ theme: prefs });
+        }
+      } catch (error) {
+        logger.error('Failed to apply theme preferences:', 'app', {}, error as Error);
       }
-    } catch (error) {
-      logger.error('Failed to apply theme preferences:', 'app', {}, error as Error);
-    }
-  }, [user, userPreferences, updatePreferences, applyThemeMode]);
+    },
+    [user, userPreferences, updatePreferences, applyThemeMode]
+  );
 
   /**
    * Reset theme to defaults
    */
   const resetTheme = () => {
     setThemeMode('system');
-    
+
     // Reset CSS custom properties
     const root = document.documentElement;
-    root.style.removeProperty('--theme-primary');
     root.style.removeProperty('--font-scale');
     root.classList.remove('reduce-motion', 'high-contrast');
-    
+
     // Reset body classes
     document.body.className = document.body.className.replace(/\bdensity-\w+\b/g, '');
   };
 
   // Initialize theme on mount and when preferences change using render-time sync
   const preferencesKey = themePreferences ? JSON.stringify(themePreferences) : 'none';
-  const userKey = user === null ? 'no-user' : (user?.id || 'loading');
+  const userKey = user === null ? 'no-user' : user?.id || 'loading';
   const themeKey = `${preferencesKey}-${userKey}`;
   const [prevThemeKey, setPrevThemeKey] = useState(themeKey);
   if (themeKey !== prevThemeKey) {
@@ -228,10 +223,5 @@ export function EnhancedThemeProvider({ children }: { children: ReactNode }) {
     resetTheme,
   };
 
-  return (
-    <EnhancedThemeContext.Provider value={value}>
-      {children}
-    </EnhancedThemeContext.Provider>
-  );
+  return <EnhancedThemeContext.Provider value={value}>{children}</EnhancedThemeContext.Provider>;
 }
-

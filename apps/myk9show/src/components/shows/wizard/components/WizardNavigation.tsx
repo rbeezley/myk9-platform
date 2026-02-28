@@ -35,10 +35,12 @@ export const WizardNavigation: React.FC<WizardNavigationProps> = ({
   const defaultBackLabel = 'Back';
 
   return (
-    <div className={cn(
-      "flex justify-between items-center pt-8 border-t border-border mt-8",
-      className
-    )}>
+    <div
+      className={cn(
+        'flex justify-between items-center pt-8 border-t border-border mt-8',
+        className
+      )}
+    >
       {/* Left side - Back/Cancel button */}
       <Button
         variant="outline"
@@ -47,7 +49,7 @@ export const WizardNavigation: React.FC<WizardNavigationProps> = ({
         className="gap-2 px-6 py-3 hover:-translate-y-0.5 transition-all duration-200"
       >
         <ArrowLeft className="h-4 w-4" />
-        {currentStep === 0 ? 'Cancel' : (backLabel || defaultBackLabel)}
+        {currentStep === 0 ? 'Cancel' : backLabel || defaultBackLabel}
       </Button>
 
       {/* Center - Save Draft and Step indicator */}
@@ -77,10 +79,7 @@ export const WizardNavigation: React.FC<WizardNavigationProps> = ({
         <Button
           onClick={onNext}
           disabled={!canGoNext || isLoading}
-          className={cn(
-            "relative gap-2 px-6 py-3 bg-gradient-to-r from-primary to-blue-600 shadow-md transition-all duration-200",
-            canGoNext && !isLoading && "hover:shadow-lg hover:-translate-y-0.5 shadow-primary/20"
-          )}
+          className="relative gap-2 px-6 py-3"
         >
           {isLoading ? (
             <>

@@ -1,6 +1,6 @@
 /**
  * StandardPageLayout Component
- * 
+ *
  * Apple-inspired standard page layout for non-dashboard pages.
  * Provides consistent structure, spacing, and navigation clearance.
  */
@@ -49,20 +49,20 @@ export function StandardPageLayout({
   backHref,
   className,
   maxWidth = '6xl',
-  centered = false
+  centered = false,
 }: StandardPageLayoutProps) {
   const navigate = useNavigate();
-  
+
   const maxWidthClass = {
-    'sm': 'max-w-sm',
-    'md': 'max-w-md',
-    'lg': 'max-w-lg', 
-    'xl': 'max-w-xl',
+    sm: 'max-w-sm',
+    md: 'max-w-md',
+    lg: 'max-w-lg',
+    xl: 'max-w-xl',
     '2xl': 'max-w-2xl',
     '4xl': 'max-w-4xl',
     '6xl': 'max-w-6xl',
     '7xl': 'max-w-7xl',
-    'full': 'max-w-full'
+    full: 'max-w-full',
   }[maxWidth];
 
   const handleBack = () => {
@@ -74,13 +74,15 @@ export function StandardPageLayout({
   };
 
   return (
-    <div className={cn(
-      "min-h-screen pt-20 pb-12 px-6",
-      maxWidthClass,
-      "mx-auto",
-      centered && "text-center",
-      className
-    )}>
+    <div
+      className={cn(
+        'min-h-screen pt-20 pb-12 px-6',
+        maxWidthClass,
+        'mx-auto',
+        centered && 'text-center',
+        className
+      )}
+    >
       {/* Breadcrumbs */}
       {breadcrumbs && breadcrumbs.length > 0 && (
         <nav className="flex items-center space-x-2 text-sm text-muted-foreground mb-6">
@@ -88,14 +90,16 @@ export function StandardPageLayout({
             <React.Fragment key={index}>
               {index > 0 && <span className="text-muted-foreground/50">/</span>}
               {item.href ? (
-                <button 
+                <button
                   onClick={() => navigate(item.href!)}
                   className="hover:text-foreground transition-colors"
                 >
                   {item.label}
                 </button>
               ) : (
-                <span className={index === breadcrumbs.length - 1 ? "text-foreground font-medium" : ""}>
+                <span
+                  className={index === breadcrumbs.length - 1 ? 'text-foreground font-medium' : ''}
+                >
                   {item.label}
                 </span>
               )}
@@ -106,7 +110,7 @@ export function StandardPageLayout({
 
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 mb-8">
-        <div className={cn("space-y-3", centered && "mx-auto text-center")}>
+        <div className={cn('space-y-3', centered && 'mx-auto text-center')}>
           {showBackButton && (
             <Button
               variant="ghost"
@@ -118,22 +122,14 @@ export function StandardPageLayout({
               Back
             </Button>
           )}
-          
+
           <div className="space-y-2">
-            <h1 className="text-4xl font-bold tracking-tight">
-              {title}
-            </h1>
-            
-            {subtitle && (
-              <h2 className="text-xl font-medium text-muted-foreground">
-                {subtitle}
-              </h2>
-            )}
-            
+            <h1 className="text-4xl font-bold tracking-tight">{title}</h1>
+
+            {subtitle && <h2 className="text-xl font-medium text-muted-foreground">{subtitle}</h2>}
+
             {description && (
-              <p className="text-lg text-muted-foreground max-w-3xl">
-                {description}
-              </p>
+              <p className="text-lg text-muted-foreground max-w-3xl">{description}</p>
             )}
           </div>
         </div>
@@ -148,12 +144,9 @@ export function StandardPageLayout({
                 onClick={action.onClick}
                 disabled={action.disabled}
                 className={cn(
-                  "transition-all duration-300 shadow-sm",
-                  action.variant === 'default' 
-                    ? "bg-gradient-to-r from-primary to-secondary text-primary-foreground hover:shadow-xl hover:-translate-y-1 hover:scale-[1.02]"
-                    : action.variant === 'destructive'
-                    ? "hover:shadow-lg hover:-translate-y-0.5"
-                    : "border-border/50 text-muted-foreground hover:text-foreground hover:border-primary/30 hover:-translate-y-0.5"
+                  action.variant !== 'default' &&
+                    action.variant !== 'destructive' &&
+                    'border-border/50 text-muted-foreground hover:text-foreground hover:border-primary/30'
                 )}
               >
                 {action.icon && <action.icon className="h-4 w-4 mr-2" />}
@@ -165,9 +158,7 @@ export function StandardPageLayout({
       </div>
 
       {/* Page Content */}
-      <div className="space-y-8">
-        {children}
-      </div>
+      <div className="space-y-8">{children}</div>
     </div>
   );
 }
@@ -192,32 +183,15 @@ export function DetailPageLayout({
   return (
     <StandardPageLayout {...pageProps}>
       {/* Entity Header (e.g., dog photo and basic info) */}
-      {header && (
-        <div className="mb-8">
-          {header}
-        </div>
-      )}
+      {header && <div className="mb-8">{header}</div>}
 
       {/* Tabs Navigation */}
-      {tabs && (
-        <div className="mb-8">
-          {tabs}
-        </div>
-      )}
+      {tabs && <div className="mb-8">{tabs}</div>}
 
       {/* Content with Optional Sidebar */}
-      <div className={cn(
-        "grid gap-8",
-        sidebar ? "grid-cols-1 lg:grid-cols-4" : "grid-cols-1"
-      )}>
-        <div className={sidebar ? "lg:col-span-3" : "col-span-1"}>
-          {content}
-        </div>
-        {sidebar && (
-          <div className="lg:col-span-1">
-            {sidebar}
-          </div>
-        )}
+      <div className={cn('grid gap-8', sidebar ? 'grid-cols-1 lg:grid-cols-4' : 'grid-cols-1')}>
+        <div className={sidebar ? 'lg:col-span-3' : 'col-span-1'}>{content}</div>
+        {sidebar && <div className="lg:col-span-1">{sidebar}</div>}
       </div>
     </StandardPageLayout>
   );
@@ -249,16 +223,10 @@ export function ListPageLayout({
       )}
 
       {/* List Content */}
-      <div className="space-y-6">
-        {content}
-      </div>
+      <div className="space-y-6">{content}</div>
 
       {/* Pagination */}
-      {pagination && (
-        <div className="mt-8">
-          {pagination}
-        </div>
-      )}
+      {pagination && <div className="mt-8">{pagination}</div>}
     </StandardPageLayout>
   );
 }
@@ -277,18 +245,9 @@ export function FormPageLayout({
 }: FormPageLayoutProps) {
   return (
     <StandardPageLayout maxWidth={maxWidth} {...pageProps}>
-      <div className={cn(
-        "grid gap-8",
-        sidebar ? "grid-cols-1 lg:grid-cols-3" : "grid-cols-1"
-      )}>
-        <div className={sidebar ? "lg:col-span-2" : "col-span-1"}>
-          {form}
-        </div>
-        {sidebar && (
-          <div className="lg:col-span-1">
-            {sidebar}
-          </div>
-        )}
+      <div className={cn('grid gap-8', sidebar ? 'grid-cols-1 lg:grid-cols-3' : 'grid-cols-1')}>
+        <div className={sidebar ? 'lg:col-span-2' : 'col-span-1'}>{form}</div>
+        {sidebar && <div className="lg:col-span-1">{sidebar}</div>}
       </div>
     </StandardPageLayout>
   );

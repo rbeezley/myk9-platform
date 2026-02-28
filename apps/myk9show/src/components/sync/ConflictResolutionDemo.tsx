@@ -4,26 +4,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  AlertTriangle,
-  Lightbulb,
-  Play,
-  RefreshCw,
-  Shuffle,
-  Zap,
-} from 'lucide-react';
+import { AlertTriangle, Lightbulb, Play, RefreshCw, Shuffle, Zap } from 'lucide-react';
 import { ConflictResolutionManager } from './ConflictResolutionManager';
 import { SyncConflictResolver } from '@/services/sync/SyncConflictResolver';
 import { EventEmitter } from '@/services/sync/eventEmitter';
-import { 
-  Conflict, 
-  EnhancedConflictResolution, 
-  ResolutionStrategy 
-} from '@/types/sync-types';
-import {
-  ConflictPriority,
-  ConflictType
-} from '@/types/conflict-types';
+import { Conflict, EnhancedConflictResolution, ResolutionStrategy } from '@/types/sync-types';
+import { ConflictPriority, ConflictType } from '@/types/conflict-types';
 import type { SyncEventMap } from '@/services/sync/types';
 
 export const ConflictResolutionDemo: React.FC = () => {
@@ -37,7 +23,7 @@ export const ConflictResolutionDemo: React.FC = () => {
   // Generate sample conflicts for demonstration
   const generateSampleConflicts = () => {
     setIsGenerating(true);
-    
+
     setTimeout(() => {
       const sampleConflicts: Conflict[] = [
         {
@@ -106,7 +92,7 @@ export const ConflictResolutionDemo: React.FC = () => {
             armband: '42',
             exhibitor: 'John Smith',
             entryStatus: 'confirmed',
-            fees: 35.00,
+            fees: 35.0,
           },
           remoteData: {
             dogName: 'Rex',
@@ -115,7 +101,7 @@ export const ConflictResolutionDemo: React.FC = () => {
             armband: '42',
             exhibitor: 'John Smith',
             entryStatus: 'confirmed',
-            fees: 50.00, // Different fee structure
+            fees: 50.0, // Different fee structure
           },
           serverData: {
             dogName: 'Rex',
@@ -124,7 +110,7 @@ export const ConflictResolutionDemo: React.FC = () => {
             armband: '42',
             exhibitor: 'John Smith',
             entryStatus: 'confirmed',
-            fees: 50.00, // Different fee structure
+            fees: 50.0, // Different fee structure
           },
           priority: 'medium' as ConflictPriority,
           conflictFields: ['class', 'fees'],
@@ -243,10 +229,10 @@ export const ConflictResolutionDemo: React.FC = () => {
           id: 'conflict-5',
           entityType: 'dog',
           entityId: 'dog-654',
-          entityName: 'Golden Glory\'s Champion',
+          entityName: "Golden Glory's Champion",
           status: 'pending',
           localData: {
-            name: 'Golden Glory\'s Champion',
+            name: "Golden Glory's Champion",
             callName: 'Glory',
             breed: 'Golden Retriever',
             sex: 'Female',
@@ -256,7 +242,7 @@ export const ConflictResolutionDemo: React.FC = () => {
             owner: 'Jane Doe',
           },
           remoteData: {
-            name: 'Golden Glory\'s Champion',
+            name: "Golden Glory's Champion",
             callName: 'Glory',
             breed: 'Golden Retriever',
             sex: 'Female',
@@ -266,7 +252,7 @@ export const ConflictResolutionDemo: React.FC = () => {
             owner: 'Jane Doe Smith', // Updated owner name
           },
           serverData: {
-            name: 'Golden Glory\'s Champion',
+            name: "Golden Glory's Champion",
             callName: 'Glory',
             breed: 'Golden Retriever',
             sex: 'Female',
@@ -302,20 +288,20 @@ export const ConflictResolutionDemo: React.FC = () => {
 
   const handleConflictResolve = async (resolution: EnhancedConflictResolution) => {
     logger.debug('Resolving conflict:', 'sync', { data: resolution });
-    
+
     // Simulate resolution processing
     await new Promise(resolve => setTimeout(resolve, 500));
-    
+
     // Remove resolved conflict from demo
     setDemoConflicts(prev => prev.filter(c => c.id !== resolution.conflictId));
   };
 
   const handleBulkResolve = async (conflictIds: string[], strategy: ResolutionStrategy) => {
     logger.debug('Bulk resolving conflicts:', 'sync', { conflictIds, strategy });
-    
+
     // Simulate bulk resolution
     await new Promise(resolve => setTimeout(resolve, 1000));
-    
+
     // Remove resolved conflicts from demo
     setDemoConflicts(prev => prev.filter(c => !conflictIds.includes(c.id)));
   };
@@ -332,8 +318,12 @@ export const ConflictResolutionDemo: React.FC = () => {
   const addRandomConflict = () => {
     const entityTypes = ['show', 'entry', 'judge', 'class', 'dog'];
     const priorities: ConflictPriority[] = ['low', 'medium', 'high', 'critical'];
-    const conflictTypes: ConflictType[] = 
-      ['version_mismatch', 'concurrent_edit', 'delete_update', 'constraint_violation'];
+    const conflictTypes: ConflictType[] = [
+      'version_mismatch',
+      'concurrent_edit',
+      'delete_update',
+      'constraint_violation',
+    ];
 
     const randomConflict: Conflict = {
       id: `conflict-${Date.now()}`,
@@ -374,8 +364,9 @@ export const ConflictResolutionDemo: React.FC = () => {
             Conflict Resolution System Demo
           </CardTitle>
           <CardDescription>
-            Interactive demonstration of the comprehensive conflict resolution UI components.
-            This showcases real-world scenarios for resolving data conflicts in a dog show management system.
+            Interactive demonstration of the comprehensive conflict resolution UI components. This
+            showcases real-world scenarios for resolving data conflicts in a dog show management
+            system.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -390,7 +381,7 @@ export const ConflictResolutionDemo: React.FC = () => {
               <Alert>
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>
-                  This demo showcases Phase 4 conflict resolution UI components designed for 
+                  This demo showcases Phase 4 conflict resolution UI components designed for
                   handling data conflicts in distributed, real-time collaborative environments.
                 </AlertDescription>
               </Alert>
@@ -402,7 +393,8 @@ export const ConflictResolutionDemo: React.FC = () => {
                   </CardHeader>
                   <CardContent className="space-y-2">
                     <div className="text-sm">
-                      <strong>ConflictResolutionDialog:</strong> Main dialog with multiple resolution modes
+                      <strong>ConflictResolutionDialog:</strong> Main dialog with multiple
+                      resolution modes
                     </div>
                     <div className="text-sm">
                       <strong>ConflictComparison:</strong> Side-by-side diff visualization
@@ -425,23 +417,33 @@ export const ConflictResolutionDemo: React.FC = () => {
                   </CardHeader>
                   <CardContent className="space-y-2">
                     <div className="text-sm">
-                      <Badge variant="outline" className="mr-2">Show</Badge>
+                      <Badge variant="outline" className="mr-2">
+                        Show
+                      </Badge>
                       Scheduling conflicts with multiple field changes
                     </div>
                     <div className="text-sm">
-                      <Badge variant="outline" className="mr-2">Entry</Badge>
+                      <Badge variant="outline" className="mr-2">
+                        Entry
+                      </Badge>
                       Class reassignment and fee structure conflicts
                     </div>
                     <div className="text-sm">
-                      <Badge variant="outline" className="mr-2">Judge</Badge>
+                      <Badge variant="outline" className="mr-2">
+                        Judge
+                      </Badge>
                       Assignment and availability conflicts
                     </div>
                     <div className="text-sm">
-                      <Badge variant="outline" className="mr-2">Class</Badge>
+                      <Badge variant="outline" className="mr-2">
+                        Class
+                      </Badge>
                       Capacity and scheduling adjustments
                     </div>
                     <div className="text-sm">
-                      <Badge variant="outline" className="mr-2">Dog</Badge>
+                      <Badge variant="outline" className="mr-2">
+                        Dog
+                      </Badge>
                       Registration and title updates
                     </div>
                   </CardContent>
@@ -456,10 +458,18 @@ export const ConflictResolutionDemo: React.FC = () => {
                     <CardTitle className="text-lg">Resolution Modes</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2 text-sm">
-                    <div>• <strong>Quick Resolve:</strong> One-click strategy selection</div>
-                    <div>• <strong>Detailed Review:</strong> Field-by-field comparison</div>
-                    <div>• <strong>Merge Wizard:</strong> Guided step-by-step resolution</div>
-                    <div>• <strong>History Review:</strong> Learn from past decisions</div>
+                    <div>
+                      • <strong>Quick Resolve:</strong> One-click strategy selection
+                    </div>
+                    <div>
+                      • <strong>Detailed Review:</strong> Field-by-field comparison
+                    </div>
+                    <div>
+                      • <strong>Merge Wizard:</strong> Guided step-by-step resolution
+                    </div>
+                    <div>
+                      • <strong>History Review:</strong> Learn from past decisions
+                    </div>
                   </CardContent>
                 </Card>
 
@@ -468,10 +478,18 @@ export const ConflictResolutionDemo: React.FC = () => {
                     <CardTitle className="text-lg">Smart Features</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2 text-sm">
-                    <div>• <strong>Auto-Resolution:</strong> AI-powered conflict suggestions</div>
-                    <div>• <strong>Confidence Scoring:</strong> Resolution quality indicators</div>
-                    <div>• <strong>Business Rules:</strong> Domain-specific validation</div>
-                    <div>• <strong>Bulk Operations:</strong> Resolve multiple conflicts</div>
+                    <div>
+                      • <strong>Auto-Resolution:</strong> AI-powered conflict suggestions
+                    </div>
+                    <div>
+                      • <strong>Confidence Scoring:</strong> Resolution quality indicators
+                    </div>
+                    <div>
+                      • <strong>Business Rules:</strong> Domain-specific validation
+                    </div>
+                    <div>
+                      • <strong>Bulk Operations:</strong> Resolve multiple conflicts
+                    </div>
                   </CardContent>
                 </Card>
 
@@ -480,10 +498,18 @@ export const ConflictResolutionDemo: React.FC = () => {
                     <CardTitle className="text-lg">User Experience</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2 text-sm">
-                    <div>• <strong>Visual Diffs:</strong> Clear change highlighting</div>
-                    <div>• <strong>Priority Indicators:</strong> Urgency-based sorting</div>
-                    <div>• <strong>Real-time Notifications:</strong> Instant conflict alerts</div>
-                    <div>• <strong>Mobile Responsive:</strong> Touch-friendly interface</div>
+                    <div>
+                      • <strong>Visual Diffs:</strong> Clear change highlighting
+                    </div>
+                    <div>
+                      • <strong>Priority Indicators:</strong> Urgency-based sorting
+                    </div>
+                    <div>
+                      • <strong>Real-time Notifications:</strong> Instant conflict alerts
+                    </div>
+                    <div>
+                      • <strong>Mobile Responsive:</strong> Touch-friendly interface
+                    </div>
                   </CardContent>
                 </Card>
               </div>
@@ -492,11 +518,7 @@ export const ConflictResolutionDemo: React.FC = () => {
             <TabsContent value="demo" className="space-y-4">
               <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
                 <div className="flex items-center gap-2">
-                  <Button
-                    onClick={generateSampleConflicts}
-                    disabled={isGenerating}
-                    className="bg-gradient-to-r from-primary to-secondary"
-                  >
+                  <Button onClick={generateSampleConflicts} disabled={isGenerating}>
                     {isGenerating ? (
                       <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                     ) : (
@@ -504,16 +526,12 @@ export const ConflictResolutionDemo: React.FC = () => {
                     )}
                     {isGenerating ? 'Generating...' : 'Load Sample Conflicts'}
                   </Button>
-                  
-                  <Button
-                    variant="outline"
-                    onClick={addRandomConflict}
-                    disabled={isGenerating}
-                  >
+
+                  <Button variant="outline" onClick={addRandomConflict} disabled={isGenerating}>
                     <Shuffle className="h-4 w-4 mr-2" />
                     Add Random
                   </Button>
-                  
+
                   <Button
                     variant="outline"
                     onClick={clearConflicts}
@@ -522,14 +540,15 @@ export const ConflictResolutionDemo: React.FC = () => {
                     Clear All
                   </Button>
                 </div>
-                
+
                 <div className="flex items-center gap-2 text-sm text-muted-foreground ml-auto">
                   <span>{demoConflicts.length} active conflicts</span>
                   {demoConflicts.filter(c => c.metadata?.autoResolvable).length > 0 && (
                     <>
                       <span>•</span>
                       <span className="text-success">
-                        {demoConflicts.filter(c => c.metadata?.autoResolvable).length} auto-resolvable
+                        {demoConflicts.filter(c => c.metadata?.autoResolvable).length}{' '}
+                        auto-resolvable
                       </span>
                     </>
                   )}

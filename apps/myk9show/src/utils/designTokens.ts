@@ -27,7 +27,7 @@ export const colors = {
 export const typography = {
   ...designTokens.typography,
   // Helper to get font size object
-  getFontSize: (size: keyof typeof designTokens.typography.fontSize) => 
+  getFontSize: (size: keyof typeof designTokens.typography.fontSize) =>
     designTokens.typography.fontSize[size],
 };
 
@@ -59,21 +59,23 @@ export const componentTokens = {
 // Common CSS class builders
 export const buildClasses = {
   card: {
-    base: "bg-card border border-border/50 rounded-xl shadow-sm backdrop-blur-sm transition-all duration-300",
-    hover: "hover:shadow-md hover:-translate-y-0.5 hover:border-primary/20",
-    standard: "bg-card border border-border/50 rounded-xl p-6 shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 hover:border-primary/20",
+    base: 'bg-card border border-border/50 rounded-xl shadow-sm backdrop-blur-sm transition-all duration-300',
+    hover: 'hover:shadow-md hover:-translate-y-0.5 hover:border-primary/20',
+    standard:
+      'bg-card border border-border/50 rounded-xl p-6 shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 hover:border-primary/20',
   },
   button: {
-    primary: "bg-gradient-to-r from-primary to-secondary text-primary-foreground hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200",
-    secondary: "border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40",
-    ghost: "text-primary hover:bg-primary/10",
+    primary:
+      'bg-primary text-primary-foreground hover:opacity-90 hover:-translate-y-0.5 transition-all duration-200',
+    secondary: 'border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40',
+    ghost: 'text-primary hover:bg-primary/10',
   },
   emptyState: {
-    container: "flex flex-col items-center justify-center py-12 text-center",
-    icon: "bg-muted/50 rounded-full p-6 mb-4",
-    iconSize: "h-12 w-12",
-    title: "text-lg font-semibold mb-2",
-    description: "text-muted-foreground mb-6 max-w-sm",
+    container: 'flex flex-col items-center justify-center py-12 text-center',
+    icon: 'bg-muted/50 rounded-full p-6 mb-4',
+    iconSize: 'h-12 w-12',
+    title: 'text-lg font-semibold mb-2',
+    description: 'text-muted-foreground mb-6 max-w-sm',
   },
 };
 
@@ -83,18 +85,18 @@ export const statusColors = designTokens.statusColors;
 export const getStatusClasses = (status: keyof typeof designTokens.statusColors) => {
   const statusColor = designTokens.statusColors[status];
   if (!statusColor) return '';
-  
+
   return `inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border`;
 };
 
 // Layout helpers
 export const layout = {
-  container: "container mx-auto px-6 max-w-7xl",
-  page: "min-h-screen bg-background py-20",
-  section: "space-y-8",
+  container: 'container mx-auto px-6 max-w-7xl',
+  page: 'min-h-screen bg-background py-20',
+  section: 'space-y-8',
   grid: {
-    responsive: "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3",
-    two: "grid grid-cols-1 lg:grid-cols-2",
+    responsive: 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3',
+    two: 'grid grid-cols-1 lg:grid-cols-2',
   },
 };
 

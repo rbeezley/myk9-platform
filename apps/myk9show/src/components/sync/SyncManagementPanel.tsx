@@ -7,17 +7,9 @@ import { logger } from '@/services/LoggingService';
 import {
   SyncStatusIndicator,
   ConflictResolutionDialog,
-  SyncHistoryViewer 
+  SyncHistoryViewer,
 } from '@/components/sync';
-import { 
-  RefreshCw,
-  History,
-  AlertTriangle,
-  Wifi,
-  WifiOff,
-  Database,
-  Clock
-} from 'lucide-react';
+import { RefreshCw, History, AlertTriangle, Wifi, WifiOff, Database, Clock } from 'lucide-react';
 
 interface SyncEntity {
   id: string;
@@ -43,7 +35,7 @@ export function SyncManagementPanel({
   pendingChanges = 0,
   onSyncAll,
   onResolveConflict,
-  className = ''
+  className = '',
 }: SyncManagementPanelProps) {
   const [showHistory, setShowHistory] = React.useState(false);
   const [conflictEntity, setConflictEntity] = React.useState<SyncEntity | null>(null);
@@ -72,41 +64,45 @@ export function SyncManagementPanel({
     resolution: 'local' | 'remote' | 'merge',
     mergedData?: Record<string, unknown>
   ) => {
-    logger.debug('Resolving conflict:', 'sync', { data: { resolution, mergedData, entity: conflictEntity } });
-    
+    logger.debug('Resolving conflict:', 'sync', {
+      data: { resolution, mergedData, entity: conflictEntity },
+    });
+
     // In a real implementation, this would call the sync service
     if (onResolveConflict && conflictEntity) {
       onResolveConflict(conflictEntity.id);
     }
-    
+
     setShowConflictDialog(false);
     setConflictEntity(null);
   };
 
-  const mockConflictData = conflictEntity ? {
-    entityType: conflictEntity.type,
-    entityId: conflictEntity.id,
-    entityName: conflictEntity.name,
-    local: {
-      name: conflictEntity.name,
-      lastModified: new Date(),
-      version: 1
-    },
-    remote: {
-      name: `${conflictEntity.name} (Server)`,
-      lastModified: new Date(now + 1000 * 60 * 5),
-      version: 2
-    },
-    conflictFields: ['name', 'lastModified'],
-    lastModified: {
-      local: new Date(),
-      remote: new Date(now + 1000 * 60 * 5)
-    },
-    lastModifiedBy: {
-      local: 'Current User',
-      remote: 'Remote User'
-    }
-  } : null;
+  const mockConflictData = conflictEntity
+    ? {
+        entityType: conflictEntity.type,
+        entityId: conflictEntity.id,
+        entityName: conflictEntity.name,
+        local: {
+          name: conflictEntity.name,
+          lastModified: new Date(),
+          version: 1,
+        },
+        remote: {
+          name: `${conflictEntity.name} (Server)`,
+          lastModified: new Date(now + 1000 * 60 * 5),
+          version: 2,
+        },
+        conflictFields: ['name', 'lastModified'],
+        lastModified: {
+          local: new Date(),
+          remote: new Date(now + 1000 * 60 * 5),
+        },
+        lastModifiedBy: {
+          local: 'Current User',
+          remote: 'Remote User',
+        },
+      }
+    : null;
 
   return (
     <div className={`space-y-6 ${className}`}>
@@ -120,20 +116,24 @@ export function SyncManagementPanel({
               </div>
               <div>
                 <CardTitle className="text-lg">Sync Status</CardTitle>
-                <CardDescription>
-                  Data synchronization overview and controls
-                </CardDescription>
+                <CardDescription>Data synchronization overview and controls</CardDescription>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-2">
               {isOnline ? (
-                <Badge variant="outline" className="bg-success-green/10 text-success-green border-success-green/20">
+                <Badge
+                  variant="outline"
+                  className="bg-success-green/10 text-success-green border-success-green/20"
+                >
                   <Wifi className="h-3 w-3 mr-1" />
                   Online
                 </Badge>
               ) : (
-                <Badge variant="outline" className="bg-muted text-muted-foreground border-border/50">
+                <Badge
+                  variant="outline"
+                  className="bg-muted text-muted-foreground border-border/50"
+                >
                   <WifiOff className="h-3 w-3 mr-1" />
                   Offline
                 </Badge>
@@ -141,7 +141,7 @@ export function SyncManagementPanel({
             </div>
           </div>
         </CardHeader>
-        
+
         <CardContent className="space-y-6">
           {/* Statistics Grid */}
           <div className="grid grid-cols-5 gap-4">
@@ -171,13 +171,16 @@ export function SyncManagementPanel({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               {pendingChanges > 0 && (
-                <Badge variant="outline" className="bg-warning-orange/10 text-warning-orange border-warning-orange/20">
+                <Badge
+                  variant="outline"
+                  className="bg-warning-orange/10 text-warning-orange border-warning-orange/20"
+                >
                   <Clock className="h-3 w-3 mr-1" />
                   {pendingChanges} pending changes
                 </Badge>
               )}
             </div>
-            
+
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -188,13 +191,9 @@ export function SyncManagementPanel({
                 <History className="h-4 w-4 mr-2" />
                 View History
               </Button>
-              
+
               {onSyncAll && (
-                <Button
-                  onClick={onSyncAll}
-                  disabled={!isOnline || pendingChanges === 0}
-                  className="bg-gradient-to-r from-primary to-secondary-purple text-white hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
-                >
+                <Button onClick={onSyncAll} disabled={!isOnline || pendingChanges === 0}>
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Sync All
                 </Button>
@@ -214,7 +213,7 @@ export function SyncManagementPanel({
                   <p>No entities to sync</p>
                 </div>
               ) : (
-                entities.map((entity) => (
+                entities.map(entity => (
                   <div
                     key={entity.id}
                     className="flex items-center justify-between p-3 border border-border/50 rounded-lg hover:bg-muted/20 transition-colors"
@@ -238,7 +237,7 @@ export function SyncManagementPanel({
                         entityId={entity.id}
                         compact
                       />
-                      
+
                       {entity.syncStatus === 'conflict' && (
                         <Button
                           variant="outline"
@@ -263,7 +262,7 @@ export function SyncManagementPanel({
       <SyncHistoryViewer
         open={showHistory}
         onOpenChange={setShowHistory}
-        onRetrySync={(entryId) => {
+        onRetrySync={entryId => {
           logger.debug('Retry sync for entry:', 'sync', { data: entryId });
           // In real implementation, would retry specific sync operation
         }}

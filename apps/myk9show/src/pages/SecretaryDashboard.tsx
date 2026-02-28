@@ -2,14 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import {
-  Settings,
-  Calendar,
-  Plus,
-  Copy,
-  Bell,
-  Activity,
-} from 'lucide-react';
+import { Settings, Calendar, Plus, Copy, Bell, Activity } from 'lucide-react';
 import { ShowCloneDialog } from '@/components/shows/cloning';
 import { SecretaryLayout } from '@/components/secretary/SecretaryLayout';
 
@@ -30,14 +23,8 @@ const SecretaryDashboard: React.FC = () => {
   const [hasNewActivity] = useState(false);
 
   // Get data from extracted hook
-  const {
-    shows,
-    allTrials,
-    activeTrials,
-    upcomingTrials,
-    completedTrials,
-    statistics,
-  } = useSecretaryDashboardData();
+  const { shows, allTrials, activeTrials, upcomingTrials, completedTrials, statistics } =
+    useSecretaryDashboardData();
 
   const handleManageTrial = (trial: TrialOverview) => {
     navigate(`/shows/${trial.showId}/trials/${trial.id}`);
@@ -97,10 +84,7 @@ const SecretaryDashboard: React.FC = () => {
               <Copy className="h-4 w-4 mr-2" />
               Clone Show
             </Button>
-            <Button
-              onClick={handleCreateShow}
-              className="bg-gradient-to-r from-primary to-secondary text-primary-foreground hover:shadow-xl hover:-translate-y-1 hover:scale-[1.02] transition-all duration-300 shadow-sm"
-            >
+            <Button onClick={handleCreateShow}>
               <Plus className="h-4 w-4 mr-2" />
               Create New Show
             </Button>
@@ -122,10 +106,7 @@ const SecretaryDashboard: React.FC = () => {
         </div>
 
         {/* Statistics Cards */}
-        <StatisticsCards
-          statistics={statistics}
-          totalTrialsCount={allTrials.length}
-        />
+        <StatisticsCards statistics={statistics} totalTrialsCount={allTrials.length} />
 
         {/* Trials Management */}
         <TrialManagementTabs

@@ -27,8 +27,13 @@ import type { BaseConflict, BaseConflictResolution } from '@/types/conflict-type
 interface ConflictResolutionWizardProps {
   conflict: Conflict | BaseConflict<Record<string, unknown>>;
   conflictResolver?: {
-    getResolutionHistory?: (entityType: string, entityId: string) => Promise<BaseConflictResolution[]>;
-    suggestResolution?: (conflict: BaseConflict<Record<string, unknown>>) => { strategy: string; confidence: number } | null;
+    getResolutionHistory?: (
+      entityType: string,
+      entityId: string
+    ) => Promise<BaseConflictResolution[]>;
+    suggestResolution?: (
+      conflict: BaseConflict<Record<string, unknown>>
+    ) => { strategy: string; confidence: number } | null;
   };
   onComplete: (resolution: {
     strategy: 'local' | 'remote' | 'merge' | 'custom';
@@ -74,9 +79,10 @@ export const ConflictResolutionWizard: React.FC<ConflictResolutionWizardProps> =
   const baseConflict = conflict as unknown as BaseConflict<Record<string, unknown>>;
   const localData = baseConflict.localData || {};
   const remoteData = baseConflict.remoteData || {};
-  const conflictFields: string[] = baseConflict.conflictFields || Object.keys({ ...localData, ...remoteData });
-  const conflictingFields = conflictFields.filter((field: string) => 
-    JSON.stringify(localData[field]) !== JSON.stringify(remoteData[field])
+  const conflictFields: string[] =
+    baseConflict.conflictFields || Object.keys({ ...localData, ...remoteData });
+  const conflictingFields = conflictFields.filter(
+    (field: string) => JSON.stringify(localData[field]) !== JSON.stringify(remoteData[field])
   );
 
   const steps: WizardStep[] = [
@@ -131,8 +137,8 @@ export const ConflictResolutionWizard: React.FC<ConflictResolutionWizardProps> =
         <Alert>
           <Info className="h-4 w-4" />
           <AlertDescription>
-            This wizard will guide you through resolving the data conflict step by step.
-            You can choose different strategies for different types of conflicts.
+            This wizard will guide you through resolving the data conflict step by step. You can
+            choose different strategies for different types of conflicts.
           </AlertDescription>
         </Alert>
 
@@ -183,13 +189,21 @@ export const ConflictResolutionWizard: React.FC<ConflictResolutionWizardProps> =
                   <div className="text-sm text-muted-foreground">
                     <div className="flex items-center gap-2">
                       <Clock className="h-3 w-3" />
-                      Modified: {conflict.lastModified?.local ? new Date(conflict.lastModified.local).toLocaleString() : 'Unknown'}
+                      Modified:{' '}
+                      {conflict.lastModified?.local
+                        ? new Date(conflict.lastModified.local).toLocaleString()
+                        : 'Unknown'}
                     </div>
-                    <div>By: {conflict.lastModifiedBy?.local ? String(conflict.lastModifiedBy.local) : 'Unknown'}</div>
+                    <div>
+                      By:{' '}
+                      {conflict.lastModifiedBy?.local
+                        ? String(conflict.lastModifiedBy.local)
+                        : 'Unknown'}
+                    </div>
                   </div>
                 )}
               </div>
-              
+
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <GitBranch className="h-4 w-4 text-secondary" />
@@ -199,9 +213,17 @@ export const ConflictResolutionWizard: React.FC<ConflictResolutionWizardProps> =
                   <div className="text-sm text-muted-foreground">
                     <div className="flex items-center gap-2">
                       <Clock className="h-3 w-3" />
-                      Modified: {conflict.lastModified?.remote ? new Date(conflict.lastModified.remote).toLocaleString() : 'Unknown'}
+                      Modified:{' '}
+                      {conflict.lastModified?.remote
+                        ? new Date(conflict.lastModified.remote).toLocaleString()
+                        : 'Unknown'}
                     </div>
-                    <div>By: {conflict.lastModifiedBy?.remote ? String(conflict.lastModifiedBy.remote) : 'Unknown'}</div>
+                    <div>
+                      By:{' '}
+                      {conflict.lastModifiedBy?.remote
+                        ? String(conflict.lastModifiedBy.remote)
+                        : 'Unknown'}
+                    </div>
                   </div>
                 )}
               </div>
@@ -221,7 +243,10 @@ export const ConflictResolutionWizard: React.FC<ConflictResolutionWizardProps> =
             <CardContent>
               <div className="space-y-3">
                 {conflictingFields.slice(0, 3).map((field: string) => (
-                  <div key={field} className="flex items-center justify-between p-2 bg-muted/30 rounded">
+                  <div
+                    key={field}
+                    className="flex items-center justify-between p-2 bg-muted/30 rounded"
+                  >
                     <span className="font-medium">{field}</span>
                     <Badge variant="outline" className="text-warning">
                       Needs Resolution
@@ -288,12 +313,13 @@ export const ConflictResolutionWizard: React.FC<ConflictResolutionWizardProps> =
         <Alert>
           <Lightbulb className="h-4 w-4" />
           <AlertDescription>
-            Choose how you want to resolve this conflict. You can change your approach later if needed.
+            Choose how you want to resolve this conflict. You can change your approach later if
+            needed.
           </AlertDescription>
         </Alert>
 
         <div className="grid gap-4">
-          {strategies.map((strategy) => (
+          {strategies.map(strategy => (
             <motion.div
               key={strategy.id}
               initial={{ opacity: 0, y: 10 }}
@@ -310,14 +336,18 @@ export const ConflictResolutionWizard: React.FC<ConflictResolutionWizardProps> =
                 onClick={() => setSelectedStrategy(strategy.id)}
               >
                 <div className="flex items-start gap-4 w-full">
-                  <div className={cn(
-                    'p-3 rounded-lg',
-                    selectedStrategy === strategy.id ? 'bg-primary/10' : 'bg-muted'
-                  )}>
-                    <strategy.icon className={cn(
-                      'h-6 w-6',
-                      selectedStrategy === strategy.id ? 'text-primary' : 'text-muted-foreground'
-                    )} />
+                  <div
+                    className={cn(
+                      'p-3 rounded-lg',
+                      selectedStrategy === strategy.id ? 'bg-primary/10' : 'bg-muted'
+                    )}
+                  >
+                    <strategy.icon
+                      className={cn(
+                        'h-6 w-6',
+                        selectedStrategy === strategy.id ? 'text-primary' : 'text-muted-foreground'
+                      )}
+                    />
                   </div>
                   <div className="flex-1 text-left">
                     <div className="flex items-center gap-2 mb-2">
@@ -331,9 +361,7 @@ export const ConflictResolutionWizard: React.FC<ConflictResolutionWizardProps> =
                         <CheckCircle className="h-4 w-4 text-primary ml-auto" />
                       )}
                     </div>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      {strategy.description}
-                    </p>
+                    <p className="text-sm text-muted-foreground mb-3">{strategy.description}</p>
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground">Confidence:</span>
                       <Progress value={strategy.confidence} className="h-1.5 w-24" />
@@ -350,8 +378,8 @@ export const ConflictResolutionWizard: React.FC<ConflictResolutionWizardProps> =
           <Alert>
             <Info className="h-4 w-4" />
             <AlertDescription>
-              Automatic resolution will analyze timestamps, data types, and business rules 
-              to make intelligent choices for each conflicting field.
+              Automatic resolution will analyze timestamps, data types, and business rules to make
+              intelligent choices for each conflicting field.
             </AlertDescription>
           </Alert>
         )}
@@ -381,10 +409,7 @@ export const ConflictResolutionWizard: React.FC<ConflictResolutionWizardProps> =
         value: resolvedValue,
       };
 
-      setFieldResolutions(prev => [
-        ...prev.filter(r => r.field !== currentField),
-        resolution,
-      ]);
+      setFieldResolutions(prev => [...prev.filter(r => r.field !== currentField), resolution]);
 
       if (isLastField) {
         setCurrentStep(currentStep + 1);
@@ -480,9 +505,7 @@ export const ConflictResolutionWizard: React.FC<ConflictResolutionWizardProps> =
         <Card>
           <CardHeader>
             <CardTitle>Resolution Summary</CardTitle>
-            <CardDescription>
-              Your chosen strategy and field-level decisions
-            </CardDescription>
+            <CardDescription>Your chosen strategy and field-level decisions</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
@@ -494,8 +517,11 @@ export const ConflictResolutionWizard: React.FC<ConflictResolutionWizardProps> =
               <div className="space-y-2">
                 <span className="font-medium">Field Resolutions:</span>
                 <div className="space-y-1">
-                  {fieldResolutions.map((resolution) => (
-                    <div key={resolution.field} className="flex items-center justify-between text-sm">
+                  {fieldResolutions.map(resolution => (
+                    <div
+                      key={resolution.field}
+                      className="flex items-center justify-between text-sm"
+                    >
                       <span>{resolution.field}</span>
                       <Badge variant="outline" className="text-xs">
                         {resolution.source}
@@ -517,11 +543,7 @@ export const ConflictResolutionWizard: React.FC<ConflictResolutionWizardProps> =
           </CardContent>
         </Card>
 
-        <Button
-          onClick={handleComplete}
-          className="w-full bg-gradient-to-r from-primary to-secondary"
-          size="lg"
-        >
+        <Button onClick={handleComplete} className="w-full" size="lg">
           <Merge className="h-4 w-4 mr-2" />
           Apply Resolution
         </Button>
@@ -554,15 +576,13 @@ export const ConflictResolutionWizard: React.FC<ConflictResolutionWizardProps> =
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-semibold">{steps[currentStep].title}</h2>
-            <p className="text-sm text-muted-foreground">
-              {steps[currentStep].description}
-            </p>
+            <p className="text-sm text-muted-foreground">{steps[currentStep].description}</p>
           </div>
           <Badge variant="outline">
             Step {currentStep + 1} of {steps.length}
           </Badge>
         </div>
-        
+
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
             <span>Progress</span>
@@ -587,20 +607,13 @@ export const ConflictResolutionWizard: React.FC<ConflictResolutionWizardProps> =
 
       {/* Navigation */}
       <div className="flex items-center justify-between pt-6 border-t">
-        <Button
-          variant="outline"
-          onClick={prevStep}
-          disabled={currentStep === 0}
-        >
+        <Button variant="outline" onClick={prevStep} disabled={currentStep === 0}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Previous
         </Button>
 
         {currentStep < steps.length - 1 ? (
-          <Button
-            onClick={nextStep}
-            disabled={!wizardData.strategy && currentStep === 1}
-          >
+          <Button onClick={nextStep} disabled={!wizardData.strategy && currentStep === 1}>
             Next
             <ArrowRight className="h-4 w-4 ml-2" />
           </Button>

@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Button } from "@/components/ui/button";
+import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { ShowCard } from './ShowCard';
 
@@ -59,7 +59,9 @@ const EmptyState = ({ onAddShow }: EmptyStateProps) => (
       <span className="text-2xl text-muted-foreground">📅</span>
     </div>
     <h3 className="text-lg font-medium text-foreground mb-2">No shows scheduled</h3>
-    <p className="text-muted-foreground mb-4">There are no upcoming shows to display at the moment.</p>
+    <p className="text-muted-foreground mb-4">
+      There are no upcoming shows to display at the moment.
+    </p>
     {onAddShow && (
       <button
         onClick={onAddShow}
@@ -105,10 +107,10 @@ export const UpcomingShows: React.FC<UpcomingShowsProps> = ({
     updateScrollButtons();
     const ref = scrollRef.current;
     if (!ref) return;
-    
+
     ref.addEventListener('scroll', updateScrollButtons);
     window.addEventListener('resize', updateScrollButtons);
-    
+
     return () => {
       ref.removeEventListener('scroll', updateScrollButtons);
       window.removeEventListener('resize', updateScrollButtons);
@@ -116,27 +118,30 @@ export const UpcomingShows: React.FC<UpcomingShowsProps> = ({
   }, [shows.length]);
 
   // Memoized scroll function to prevent useEffect dependency issues
-  const scroll = useCallback((direction: 'left' | 'right', fromAuto = false) => {
-    if (!scrollRef.current) return;
-    
-    const scrollAmount = CARD_WIDTH;
-    if (direction === 'left') {
-      scrollRef.current.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
-    } else {
-      scrollRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
-    }
-    
-    if (!fromAuto) setAutoScrollPaused(true);
-  }, [setAutoScrollPaused]);
+  const scroll = useCallback(
+    (direction: 'left' | 'right', fromAuto = false) => {
+      if (!scrollRef.current) return;
+
+      const scrollAmount = CARD_WIDTH;
+      if (direction === 'left') {
+        scrollRef.current.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+      } else {
+        scrollRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+      }
+
+      if (!fromAuto) setAutoScrollPaused(true);
+    },
+    [setAutoScrollPaused]
+  );
 
   // Auto-scroll logic for carousel
   useEffect(() => {
     if (variant !== 'carousel' || autoScrollPaused || !canScrollRight) return;
-    
+
     const interval = setInterval(() => {
       scroll('right', true);
     }, AUTO_SCROLL_INTERVAL);
-    
+
     return () => clearInterval(interval);
   }, [autoScrollPaused, canScrollRight, variant, scroll]);
 
@@ -158,7 +163,7 @@ export const UpcomingShows: React.FC<UpcomingShowsProps> = ({
   if (variant === 'grid') {
     return (
       <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ${className}`}>
-        {shows.map((show) => (
+        {shows.map(show => (
           <ShowCard
             key={show.id}
             {...show}
@@ -176,14 +181,7 @@ export const UpcomingShows: React.FC<UpcomingShowsProps> = ({
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-3xl font-bold">Upcoming Shows</h2>
         <div className="flex gap-2">
-          {onAddShow && (
-            <Button 
-              className="bg-gradient-to-r from-primary to-secondary text-primary-foreground hover:shadow-xl hover:-translate-y-1 hover:scale-[1.02] transition-all duration-300 shadow-sm" 
-              onClick={onAddShow}
-            >
-              + Create New Show
-            </Button>
-          )}
+          {onAddShow && <Button onClick={onAddShow}>+ Create New Show</Button>}
           {canScrollLeft && (
             <Button
               variant="outline"
@@ -216,12 +214,9 @@ export const UpcomingShows: React.FC<UpcomingShowsProps> = ({
         onMouseDown={handleUserScroll}
         onTouchStart={handleUserScroll}
       >
-        {shows.map((show) => (
+        {shows.map(show => (
           <div key={show.id} className="min-w-[320px] max-w-[340px] flex-shrink-0 snap-start">
-            <ShowCard
-              {...show}
-              onViewDetails={() => handleViewDetails(show.id)}
-            />
+            <ShowCard {...show} onViewDetails={() => handleViewDetails(show.id)} />
           </div>
         ))}
       </div>

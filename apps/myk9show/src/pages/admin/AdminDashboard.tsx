@@ -79,9 +79,7 @@ function DashboardHeader() {
           </Link>
         </Button>
         <Button
-          className="bg-gradient-to-r from-primary to-secondary text-primary-foreground
-                     hover:shadow-xl hover:-translate-y-1 hover:scale-[1.02]
-                     transition-all duration-300 shadow-sm px-6 py-2.5 rounded-xl"
+          className="px-6 py-2.5"
           style={{
             fontWeight: 500,
             transitionTimingFunction: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',

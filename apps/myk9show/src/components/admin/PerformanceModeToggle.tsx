@@ -426,11 +426,7 @@ export const PerformanceModeToggle: React.FC = () => {
 
             {/* Action Buttons */}
             <div className="flex gap-4 pt-2">
-              <Button
-                onClick={applySettings}
-                disabled={isApplying}
-                className="flex-1 bg-gradient-to-r from-primary to-secondary text-primary-foreground hover:shadow-xl hover:-translate-y-1 hover:scale-[1.02] transition-all duration-300 shadow-sm"
-              >
+              <Button onClick={applySettings} disabled={isApplying} className="flex-1">
                 {isApplying && <RefreshCw className="h-4 w-4 mr-2 animate-spin" />}
                 {isApplying ? 'Applying...' : 'Apply Settings'}
               </Button>

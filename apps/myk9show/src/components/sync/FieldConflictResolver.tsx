@@ -92,17 +92,17 @@ export const FieldConflictResolver: React.FC<FieldConflictResolverProps> = ({
           if (isNaN(num)) throw new Error('Invalid number');
           return num;
         }
-        
+
         case 'boolean':
           return rawValue.toLowerCase() === 'true' || rawValue === '1';
-        
+
         case 'date':
           return new Date(rawValue);
-        
+
         case 'object':
         case 'array':
           return JSON.parse(rawValue);
-        
+
         default:
           return rawValue;
       }
@@ -179,9 +179,7 @@ export const FieldConflictResolver: React.FC<FieldConflictResolverProps> = ({
           </div>
         </div>
         <div className="bg-background border rounded-md p-3 text-sm font-mono max-h-24 overflow-auto">
-          <pre className="whitespace-pre-wrap">
-            {formatValue(localValue)}
-          </pre>
+          <pre className="whitespace-pre-wrap">{formatValue(localValue)}</pre>
         </div>
       </div>
 
@@ -213,9 +211,7 @@ export const FieldConflictResolver: React.FC<FieldConflictResolverProps> = ({
           </div>
         </div>
         <div className="bg-background border rounded-md p-3 text-sm font-mono max-h-24 overflow-auto">
-          <pre className="whitespace-pre-wrap">
-            {formatValue(remoteValue)}
-          </pre>
+          <pre className="whitespace-pre-wrap">{formatValue(remoteValue)}</pre>
         </div>
       </div>
     </div>
@@ -228,23 +224,20 @@ export const FieldConflictResolver: React.FC<FieldConflictResolverProps> = ({
           Custom Value ({fieldType})
         </Label>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setMode('select')}
-          >
+          <Button variant="outline" size="sm" onClick={() => setMode('select')}>
             <RotateCcw className="h-4 w-4 mr-1" />
             Back to Selection
           </Button>
         </div>
       </div>
 
-      {fieldType === 'object' || fieldType === 'array' || 
-       (typeof localValue === 'object' && localValue !== null) ? (
+      {fieldType === 'object' ||
+      fieldType === 'array' ||
+      (typeof localValue === 'object' && localValue !== null) ? (
         <Textarea
           id="custom-value"
           value={customValue}
-          onChange={(e) => setCustomValue(e.target.value)}
+          onChange={e => setCustomValue(e.target.value)}
           placeholder={`Enter ${fieldType} as JSON...`}
           className="font-mono text-sm min-h-[120px]"
         />
@@ -253,7 +246,7 @@ export const FieldConflictResolver: React.FC<FieldConflictResolverProps> = ({
           id="custom-value"
           type={fieldType === 'number' ? 'number' : fieldType === 'date' ? 'date' : 'text'}
           value={customValue}
-          onChange={(e) => setCustomValue(e.target.value)}
+          onChange={e => setCustomValue(e.target.value)}
           placeholder={`Enter custom ${fieldType}...`}
           className={fieldType !== 'string' ? 'font-mono' : ''}
         />
@@ -305,9 +298,7 @@ export const FieldConflictResolver: React.FC<FieldConflictResolverProps> = ({
                   Apply
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground mb-2">
-                {suggestion.reason}
-              </p>
+              <p className="text-xs text-muted-foreground mb-2">{suggestion.reason}</p>
               <div className="bg-background/50 border rounded p-2 text-xs font-mono">
                 {formatValue(suggestion.value)}
               </div>
@@ -317,9 +308,7 @@ export const FieldConflictResolver: React.FC<FieldConflictResolverProps> = ({
       ) : (
         <Alert>
           <Info className="h-4 w-4" />
-          <AlertDescription>
-            No smart suggestions available for this field type.
-          </AlertDescription>
+          <AlertDescription>No smart suggestions available for this field type.</AlertDescription>
         </Alert>
       )}
     </div>
@@ -334,7 +323,8 @@ export const FieldConflictResolver: React.FC<FieldConflictResolverProps> = ({
           <h3 className="text-lg font-semibold">Resolve Field Conflict</h3>
         </div>
         <p className="text-sm text-muted-foreground">
-          Field "{getFieldDisplayName()}" has conflicting values. Choose how to resolve this conflict.
+          Field "{getFieldDisplayName()}" has conflicting values. Choose how to resolve this
+          conflict.
         </p>
       </div>
 
@@ -401,13 +391,15 @@ export const FieldConflictResolver: React.FC<FieldConflictResolverProps> = ({
           <Label className="text-sm font-medium">Preview</Label>
           <div className="bg-muted/50 border rounded-md p-3 text-sm">
             <pre className="whitespace-pre-wrap">
-              {formatValue((() => {
-                try {
-                  return parseCustomValue(customValue);
-                } catch {
-                  return 'Invalid format';
-                }
-              })())}
+              {formatValue(
+                (() => {
+                  try {
+                    return parseCustomValue(customValue);
+                  } catch {
+                    return 'Invalid format';
+                  }
+                })()
+              )}
             </pre>
           </div>
         </div>
@@ -420,18 +412,14 @@ export const FieldConflictResolver: React.FC<FieldConflictResolverProps> = ({
           {selectedValue === 'remote' && 'Using remote value'}
           {selectedValue === 'custom' && 'Using custom value'}
         </div>
-        
+
         <div className="flex items-center gap-2">
           {onCancel && (
             <Button variant="outline" onClick={onCancel}>
               Cancel
             </Button>
           )}
-          <Button
-            onClick={handleResolve}
-            disabled={selectedValue === 'custom' && !customValue}
-            className="bg-gradient-to-r from-primary to-secondary"
-          >
+          <Button onClick={handleResolve} disabled={selectedValue === 'custom' && !customValue}>
             <Check className="h-4 w-4 mr-2" />
             Resolve Field
           </Button>

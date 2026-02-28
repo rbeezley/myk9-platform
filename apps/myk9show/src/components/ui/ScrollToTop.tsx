@@ -26,10 +26,10 @@ const ScrollToTop: React.FC = () => {
   // Scroll to top smoothly with celebration
   const scrollToTop = () => {
     setIsClicked(true);
-    
+
     window.scrollTo({
       top: 0,
-      behavior: 'smooth'
+      behavior: 'smooth',
     });
 
     // Reset click animation after scroll completes
@@ -45,18 +45,15 @@ const ScrollToTop: React.FC = () => {
           <Button
             onClick={scrollToTop}
             size="icon"
-            className={`
-              bg-gradient-to-r from-primary to-secondary text-primary-foreground
-              shadow-lg hover:shadow-xl transition-all duration-300
-              hover:scale-110 hover:-translate-y-1 rounded-full
-              ${isClicked ? 'animate-bounce scale-125' : ''}
-            `}
+            className={`rounded-full ${isClicked ? 'animate-bounce scale-125' : ''}`}
             title="Back to top"
             aria-label="Scroll to top"
           >
             <div className="relative">
-              <ArrowUp className={`w-5 h-5 transition-transform duration-300 ${isClicked ? 'scale-110' : ''}`} />
-              
+              <ArrowUp
+                className={`w-5 h-5 transition-transform duration-300 ${isClicked ? 'scale-110' : ''}`}
+              />
+
               {/* Celebration sparkles when clicked */}
               {isClicked && (
                 <>
@@ -67,7 +64,7 @@ const ScrollToTop: React.FC = () => {
               )}
             </div>
           </Button>
-          
+
           {/* Floating paw print */}
           <div className="absolute -top-8 -left-2 opacity-60 animate-bounce pointer-events-none">
             <PawPrint className="h-4 w-4 text-primary" />

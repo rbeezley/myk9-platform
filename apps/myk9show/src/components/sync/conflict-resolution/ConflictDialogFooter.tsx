@@ -18,11 +18,7 @@ export function ConflictDialogFooter({
 }: ConflictDialogFooterProps) {
   return (
     <DialogFooter className="gap-3">
-      <Button
-        variant="outline"
-        onClick={onDismiss}
-        className="border-border/50"
-      >
+      <Button variant="outline" onClick={onDismiss} className="border-border/50">
         Cancel
       </Button>
 
@@ -44,12 +40,7 @@ export function ConflictDialogFooter({
             Keep All Server
           </Button>
 
-          <Button
-            onClick={onMergeResolve}
-            className="bg-gradient-to-r from-primary to-secondary-purple text-white hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
-          >
-            Apply Selected Changes
-          </Button>
+          <Button onClick={onMergeResolve}>Apply Selected Changes</Button>
         </div>
       )}
     </DialogFooter>

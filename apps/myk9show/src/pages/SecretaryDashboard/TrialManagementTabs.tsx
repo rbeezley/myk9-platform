@@ -78,15 +78,11 @@ export const TrialManagementTabs: React.FC<TrialManagementTabsProps> = ({
 
           {/* Active Trials Tab */}
           <TabsContent value="active" className="space-y-6 mt-6">
-            {activeTrials.map((trial) => {
+            {activeTrials.map(trial => {
               const progressPercentage =
-                trial.totalClasses > 0
-                  ? (trial.completedClasses / trial.totalClasses) * 100
-                  : 0;
+                trial.totalClasses > 0 ? (trial.completedClasses / trial.totalClasses) * 100 : 0;
               const entriesProgressPercentage =
-                trial.totalEntries > 0
-                  ? (trial.processedEntries / trial.totalEntries) * 100
-                  : 0;
+                trial.totalEntries > 0 ? (trial.processedEntries / trial.totalEntries) * 100 : 0;
 
               return (
                 <div
@@ -160,17 +156,13 @@ export const TrialManagementTabs: React.FC<TrialManagementTabsProps> = ({
                         <div className="space-y-3">
                           <div className="flex items-center gap-2">
                             <Target className="h-4 w-4 text-muted-foreground" />
-                            <p className="text-sm font-medium text-muted-foreground">
-                              Efficiency
-                            </p>
+                            <p className="text-sm font-medium text-muted-foreground">Efficiency</p>
                           </div>
                           <div>
                             <p className="text-2xl font-bold text-success-green">94%</p>
                             <div className="flex items-center gap-1 mt-1">
                               <TrendingUp className="h-3 w-3 text-success-green" />
-                              <span className="text-xs text-success-green font-medium">
-                                +12%
-                              </span>
+                              <span className="text-xs text-success-green font-medium">+12%</span>
                             </div>
                           </div>
                         </div>
@@ -195,7 +187,7 @@ export const TrialManagementTabs: React.FC<TrialManagementTabsProps> = ({
                     <div className="ml-8 flex flex-col gap-3">
                       <Button
                         onClick={() => onManageTrial(trial)}
-                        className="bg-gradient-to-r from-primary to-secondary text-primary-foreground hover:shadow-xl hover:-translate-y-1 hover:scale-105 transition-all duration-300 px-6 py-3 text-base font-semibold"
+                        className="px-6 py-3 text-base font-semibold"
                       >
                         Manage Trial
                         <ChevronRight className="h-5 w-5 ml-2" />
@@ -219,13 +211,9 @@ export const TrialManagementTabs: React.FC<TrialManagementTabsProps> = ({
                 </div>
                 <h3 className="text-lg font-semibold mb-2">No Active Trials</h3>
                 <p className="text-muted-foreground mb-6 max-w-sm text-center">
-                  You don't have any active trials at the moment. Create a new show to
-                  get started.
+                  You don't have any active trials at the moment. Create a new show to get started.
                 </p>
-                <Button
-                  onClick={onCreateShow}
-                  className="bg-gradient-to-r from-primary to-secondary text-primary-foreground hover:shadow-lg"
-                >
+                <Button onClick={onCreateShow}>
                   <Plus className="h-4 w-4 mr-2" />
                   Create New Show
                 </Button>
@@ -235,7 +223,7 @@ export const TrialManagementTabs: React.FC<TrialManagementTabsProps> = ({
 
           {/* Upcoming Trials Tab */}
           <TabsContent value="upcoming" className="space-y-6 mt-6">
-            {upcomingTrials.map((trial) => (
+            {upcomingTrials.map(trial => (
               <div
                 key={trial.id}
                 className="group relative overflow-hidden p-6 border border-border rounded-2xl bg-gradient-to-r from-card to-card/80 hover:from-card/95 hover:to-card/90 transition-all duration-500 hover:shadow-sm hover:-translate-y-1"
@@ -282,10 +270,7 @@ export const TrialManagementTabs: React.FC<TrialManagementTabsProps> = ({
                       <Settings className="h-4 w-4 mr-2" />
                       Prepare Trial
                     </Button>
-                    <Button
-                      onClick={() => onManageTrial(trial)}
-                      className="bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:shadow-sm hover:-translate-y-0.5 transition-all duration-300"
-                    >
+                    <Button onClick={() => onManageTrial(trial)}>
                       Start Setup
                       <ChevronRight className="h-4 w-4 ml-2" />
                     </Button>
@@ -301,13 +286,10 @@ export const TrialManagementTabs: React.FC<TrialManagementTabsProps> = ({
                 </div>
                 <h3 className="text-lg font-semibold mb-2">No Upcoming Trials</h3>
                 <p className="text-muted-foreground mb-6 max-w-sm text-center">
-                  You don't have any trials scheduled for the future. Schedule a new
-                  show to see it here.
+                  You don't have any trials scheduled for the future. Schedule a new show to see it
+                  here.
                 </p>
-                <Button
-                  onClick={onCreateShow}
-                  className="bg-gradient-to-r from-primary to-secondary text-primary-foreground hover:shadow-lg"
-                >
+                <Button onClick={onCreateShow}>
                   <Plus className="h-4 w-4 mr-2" />
                   Create New Show
                 </Button>
@@ -317,7 +299,7 @@ export const TrialManagementTabs: React.FC<TrialManagementTabsProps> = ({
 
           {/* Completed Trials Tab */}
           <TabsContent value="completed" className="space-y-6 mt-6">
-            {completedTrials.map((trial) => (
+            {completedTrials.map(trial => (
               <div
                 key={trial.id}
                 className="group relative overflow-hidden p-6 border border-border rounded-2xl bg-gradient-to-r from-card to-card/80 hover:from-card/95 hover:to-card/90 transition-all duration-500 hover:shadow-sm hover:-translate-y-1"
@@ -365,16 +347,11 @@ export const TrialManagementTabs: React.FC<TrialManagementTabsProps> = ({
                 <div className="mx-auto w-24 h-24 bg-gradient-to-br from-success-green/20 to-success-green/10 rounded-full flex items-center justify-center mb-6">
                   <CheckCircle2 className="h-12 w-12 text-success-green" />
                 </div>
-                <h3 className="text-lg font-semibold text-foreground mb-2">
-                  All caught up!
-                </h3>
+                <h3 className="text-lg font-semibold text-foreground mb-2">All caught up!</h3>
                 <p className="text-muted-foreground mb-6">
                   No completed trials to display at the moment.
                 </p>
-                <Button
-                  onClick={onCreateShow}
-                  className="bg-gradient-to-r from-primary to-secondary text-primary-foreground hover:shadow-sm hover:-translate-y-0.5 transition-all duration-300"
-                >
+                <Button onClick={onCreateShow}>
                   <Plus className="h-4 w-4 mr-2" />
                   Create New Show
                 </Button>

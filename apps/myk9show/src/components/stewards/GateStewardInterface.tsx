@@ -1,6 +1,6 @@
 /**
  * Gate Steward Interface
- * 
+ *
  * Enhanced interface for gate stewards with offline-first check-in support,
  * QR scanning, and comprehensive conflict resolution.
  */
@@ -11,26 +11,35 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 // import { Alert, AlertDescription } from '@/components/ui/alert';
-import { 
-  CheckInStatus, 
-  requiresAction
-} from '@/types/check-in-types';
-import { 
-  CheckInStatusIndicator, 
-  CheckInQuickActions 
+import { CheckInStatus, requiresAction } from '@/types/check-in-types';
+import {
+  CheckInStatusIndicator,
+  CheckInQuickActions,
 } from '@/components/common/CheckInStatusIndicator';
 import { CheckInStatusDialog } from '@/components/common/CheckInStatusDialog';
 import { OfflineCheckInInterface } from '@/components/offline-checkin/OfflineCheckInInterface';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { auditService } from '@/services/AuditService';
 import { AuditAction } from '@/types/audit-types';
-import { 
-  Search, 
-  Users, 
+import {
+  Search,
+  Users,
   CheckCircle2,
   AlertTriangle,
   RefreshCw,
@@ -75,7 +84,7 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
   assignedRings = ['1', '2', '3', '4'],
   className,
   gateId = 'gate-1',
-  showId = 'current-show'
+  showId = 'current-show',
 }) => {
   const { user } = useAuthContext();
   const [entries, setEntries] = useState<GateEntry[]>([]);
@@ -128,7 +137,7 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
           runOrder: 1,
           estimatedRunTime: new Date(2024, 6, 15, 9, 0),
           judgeAssigned: 'Judge Smith',
-          isUrgent: true
+          isUrgent: true,
         },
         {
           id: 'entry_2',
@@ -144,7 +153,7 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
           runOrder: 2,
           estimatedRunTime: new Date(2024, 6, 15, 9, 10),
           judgeAssigned: 'Judge Smith',
-          isUrgent: false
+          isUrgent: false,
         },
         {
           id: 'entry_3',
@@ -160,7 +169,7 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
           runOrder: 1,
           estimatedRunTime: new Date(2024, 6, 15, 9, 0),
           judgeAssigned: 'Judge Brown',
-          isUrgent: false
+          isUrgent: false,
         },
         {
           id: 'entry_4',
@@ -176,7 +185,7 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
           runOrder: 3,
           estimatedRunTime: new Date(2024, 6, 15, 9, 15),
           judgeAssigned: 'Judge Smith',
-          isUrgent: true
+          isUrgent: true,
         },
         {
           id: 'entry_5',
@@ -192,8 +201,8 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
           runOrder: 8,
           estimatedRunTime: new Date(2024, 6, 15, 9, 20),
           judgeAssigned: 'Judge Davis',
-          isUrgent: false
-        }
+          isUrgent: false,
+        },
       ];
 
       setEntries(mockEntries);
@@ -206,11 +215,8 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
 
   const initializeOfflineServices = useCallback(async () => {
     try {
-      await Promise.all([
-        offlineCheckInService.initialize(),
-        gateCoordinator.initialize()
-      ]);
-      
+      await Promise.all([offlineCheckInService.initialize(), gateCoordinator.initialize()]);
+
       setServicesInitialized(true);
       await loadOfflineStats();
     } catch (error) {
@@ -218,13 +224,16 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
     }
   }, [loadOfflineStats]);
 
-  const handleOfflineCheckInEvent = useCallback((event: unknown) => {
-    logger.debug('Offline check-in event', 'steward', { event });
-    if ((event as { type: string }).type === 'check_in_completed') {
-      loadGateEntries();
-      loadOfflineStats();
-    }
-  }, [loadGateEntries, loadOfflineStats]);
+  const handleOfflineCheckInEvent = useCallback(
+    (event: unknown) => {
+      logger.debug('Offline check-in event', 'steward', { event });
+      if ((event as { type: string }).type === 'check_in_completed') {
+        loadGateEntries();
+        loadOfflineStats();
+      }
+    },
+    [loadGateEntries, loadOfflineStats]
+  );
 
   const handleGateEvent = (event: unknown) => {
     logger.debug('Gate event', 'steward', { event });
@@ -239,7 +248,7 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
     initializeOfflineServices();
     loadGateEntries();
     setupEventListeners();
-    
+
     return () => {
       cleanupServices();
     };
@@ -249,10 +258,10 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
-    
+
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-    
+
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
@@ -274,12 +283,13 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
     // Search filter
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
-      filtered = filtered.filter(entry =>
-        entry.dogName.toLowerCase().includes(searchLower) ||
-        entry.handlerName.toLowerCase().includes(searchLower) ||
-        entry.armband.includes(searchLower) ||
-        entry.entryNumber.toLowerCase().includes(searchLower) ||
-        entry.ring.includes(searchLower)
+      filtered = filtered.filter(
+        entry =>
+          entry.dogName.toLowerCase().includes(searchLower) ||
+          entry.handlerName.toLowerCase().includes(searchLower) ||
+          entry.armband.includes(searchLower) ||
+          entry.entryNumber.toLowerCase().includes(searchLower) ||
+          entry.ring.includes(searchLower)
       );
     }
 
@@ -296,27 +306,21 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
     // Tab filter
     switch (selectedTab) {
       case 'needs-attention':
-        filtered = filtered.filter(entry => 
-          requiresAction(entry.checkInStatus) || 
-          entry.checkInStatus === 'none' ||
-          entry.isUrgent
+        filtered = filtered.filter(
+          entry =>
+            requiresAction(entry.checkInStatus) || entry.checkInStatus === 'none' || entry.isUrgent
         );
         break;
       case 'at-gate':
-        filtered = filtered.filter(entry => 
-          entry.checkInStatus === 'at-gate' ||
-          entry.checkInStatus === 'go-to-gate'
+        filtered = filtered.filter(
+          entry => entry.checkInStatus === 'at-gate' || entry.checkInStatus === 'go-to-gate'
         );
         break;
       case 'conflicts':
-        filtered = filtered.filter(entry => 
-          entry.checkInStatus === 'conflict'
-        );
+        filtered = filtered.filter(entry => entry.checkInStatus === 'conflict');
         break;
       case 'ready':
-        filtered = filtered.filter(entry => 
-          entry.checkInStatus === 'checked-in'
-        );
+        filtered = filtered.filter(entry => entry.checkInStatus === 'checked-in');
         break;
       default:
         // 'all' - no additional filtering
@@ -338,19 +342,18 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
     applyFilters();
   }, [applyFilters]);
 
-
   const handleCheckInStatusUpdate = async (status: CheckInStatus, notes?: string) => {
     if (!checkInDialog.entry) return;
 
     const entry = checkInDialog.entry;
-    
+
     try {
       // Optimistic update
-      setEntries(prev => prev.map(e => 
-        e.id === entry.id 
-          ? { ...e, checkInStatus: status, checkInTime: new Date() }
-          : e
-      ));
+      setEntries(prev =>
+        prev.map(e =>
+          e.id === entry.id ? { ...e, checkInStatus: status, checkInTime: new Date() } : e
+        )
+      );
 
       // Log the check-in status change
       await auditService.log({
@@ -358,7 +361,7 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
         entityType: 'gate_entry',
         entityId: entry.id,
         changes: {
-          checkInStatus: { from: entry.checkInStatus, to: status }
+          checkInStatus: { from: entry.checkInStatus, to: status },
         },
         metadata: {
           action: 'gate_steward_check_in_update',
@@ -367,29 +370,32 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
           armband: entry.armband,
           dogName: entry.dogName,
           handlerName: entry.handlerName,
-          notes
-        }
+          notes,
+        },
       });
 
       // Close dialog
       setCheckInDialog({ open: false, entry: null });
     } catch (error) {
-      logger.error('Failed to update check-in status', 'steward', { entryId: entry.id }, error as Error);
+      logger.error(
+        'Failed to update check-in status',
+        'steward',
+        { entryId: entry.id },
+        error as Error
+      );
       // Revert optimistic update
-      setEntries(prev => prev.map(e =>
-        e.id === entry.id ? entry : e
-      ));
+      setEntries(prev => prev.map(e => (e.id === entry.id ? entry : e)));
     }
   };
 
   const handleQuickStatusUpdate = async (entry: GateEntry, status: CheckInStatus) => {
     try {
       // Optimistic update
-      setEntries(prev => prev.map(e => 
-        e.id === entry.id 
-          ? { ...e, checkInStatus: status, checkInTime: new Date() }
-          : e
-      ));
+      setEntries(prev =>
+        prev.map(e =>
+          e.id === entry.id ? { ...e, checkInStatus: status, checkInTime: new Date() } : e
+        )
+      );
 
       // Log the quick action
       await auditService.log({
@@ -397,18 +403,23 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
         entityType: 'gate_entry',
         entityId: entry.id,
         changes: {
-          checkInStatus: { from: entry.checkInStatus, to: status }
+          checkInStatus: { from: entry.checkInStatus, to: status },
         },
         metadata: {
           action: 'gate_steward_quick_update',
           stewardId: user?.id,
           ring: entry.ring,
           armband: entry.armband,
-          dogName: entry.dogName
-        }
+          dogName: entry.dogName,
+        },
       });
     } catch (error) {
-      logger.error('Failed to update check-in status', 'steward', { entryId: entry.id, status }, error as Error);
+      logger.error(
+        'Failed to update check-in status',
+        'steward',
+        { entryId: entry.id, status },
+        error as Error
+      );
     }
   };
 
@@ -421,14 +432,13 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
   // Calculate stats
   const stats = {
     total: entries.length,
-    needsAttention: entries.filter(e => 
-      requiresAction(e.checkInStatus) || e.checkInStatus === 'none' || e.isUrgent
+    needsAttention: entries.filter(
+      e => requiresAction(e.checkInStatus) || e.checkInStatus === 'none' || e.isUrgent
     ).length,
-    atGate: entries.filter(e => 
-      e.checkInStatus === 'at-gate' || e.checkInStatus === 'go-to-gate'
-    ).length,
+    atGate: entries.filter(e => e.checkInStatus === 'at-gate' || e.checkInStatus === 'go-to-gate')
+      .length,
     conflicts: entries.filter(e => e.checkInStatus === 'conflict').length,
-    ready: entries.filter(e => e.checkInStatus === 'checked-in').length
+    ready: entries.filter(e => e.checkInStatus === 'checked-in').length,
   };
 
   if (isLoading) {
@@ -450,15 +460,13 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
       {/* Header */}
       <div className="flex justify-between items-start">
         <div className="space-y-2">
-          <h2 className="text-2xl font-bold tracking-tight">
-            Gate Steward Dashboard
-          </h2>
+          <h2 className="text-2xl font-bold tracking-tight">Gate Steward Dashboard</h2>
           <p className="text-muted-foreground">
             Managing Rings {assignedRings.join(', ')} • {entries.length} total entries
             {offlineStats && ` • ${offlineStats.checkedInCount} checked in`}
           </p>
         </div>
-        
+
         <div className="flex items-center gap-2">
           {/* Online Status */}
           {isOnline ? (
@@ -476,10 +484,7 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
           {/* Offline Check-In Interface */}
           <Dialog open={showOfflineInterface} onOpenChange={setShowOfflineInterface}>
             <DialogTrigger asChild>
-              <Button
-                variant="default"
-                className="bg-gradient-to-r from-primary to-secondary"
-              >
+              <Button>
                 <QrCode className="h-4 w-4 mr-2" />
                 Check-In Interface
               </Button>
@@ -514,7 +519,7 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className={stats.needsAttention > 0 ? "border-orange-200 bg-orange-50/50" : ""}>
+        <Card className={stats.needsAttention > 0 ? 'border-orange-200 bg-orange-50/50' : ''}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Needs Attention</CardTitle>
             <AlertTriangle className="h-4 w-4 text-orange-500" />
@@ -536,7 +541,7 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
           </CardContent>
         </Card>
 
-        <Card className={stats.conflicts > 0 ? "border-red-200 bg-red-50/50" : ""}>
+        <Card className={stats.conflicts > 0 ? 'border-red-200 bg-red-50/50' : ''}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Conflicts</CardTitle>
             <AlertTriangle className="h-4 w-4 text-red-500" />
@@ -568,7 +573,7 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
               <Input
                 placeholder="Search entries..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={e => setSearchTerm(e.target.value)}
                 className="pl-9"
               />
             </div>
@@ -580,12 +585,17 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
               <SelectContent>
                 <SelectItem value="all">All Rings</SelectItem>
                 {assignedRings.map(ring => (
-                  <SelectItem key={ring} value={ring}>Ring {ring}</SelectItem>
+                  <SelectItem key={ring} value={ring}>
+                    Ring {ring}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
 
-            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as CheckInStatus | 'all')}>
+            <Select
+              value={statusFilter}
+              onValueChange={value => setStatusFilter(value as CheckInStatus | 'all')}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
@@ -620,31 +630,24 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
           <TabsTrigger value="needs-attention">
             Needs Attention ({stats.needsAttention})
           </TabsTrigger>
-          <TabsTrigger value="at-gate">
-            At Gate ({stats.atGate})
-          </TabsTrigger>
-          <TabsTrigger value="conflicts">
-            Conflicts ({stats.conflicts})
-          </TabsTrigger>
-          <TabsTrigger value="ready">
-            Ready ({stats.ready})
-          </TabsTrigger>
-          <TabsTrigger value="all">
-            All ({entries.length})
-          </TabsTrigger>
+          <TabsTrigger value="at-gate">At Gate ({stats.atGate})</TabsTrigger>
+          <TabsTrigger value="conflicts">Conflicts ({stats.conflicts})</TabsTrigger>
+          <TabsTrigger value="ready">Ready ({stats.ready})</TabsTrigger>
+          <TabsTrigger value="all">All ({entries.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value={selectedTab} className="space-y-4">
           <Card>
             <CardContent className="p-0">
               <div className="space-y-1">
-                {filteredEntries.map((entry) => (
-                  <div 
-                    key={entry.id} 
+                {filteredEntries.map(entry => (
+                  <div
+                    key={entry.id}
                     className={cn(
                       'border-b last:border-b-0 p-4 hover:bg-muted/50 transition-colors',
                       entry.isUrgent && 'bg-orange-50 dark:bg-orange-950/20 border-orange-200',
-                      entry.checkInStatus === 'conflict' && 'bg-red-50 dark:bg-red-950/20 border-red-200'
+                      entry.checkInStatus === 'conflict' &&
+                        'bg-red-50 dark:bg-red-950/20 border-red-200'
                     )}
                   >
                     <div className="flex items-center justify-between">
@@ -653,16 +656,14 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
                           <Badge variant="outline" className="font-mono">
                             #{entry.armband}
                           </Badge>
-                          <Badge variant="secondary">
-                            Ring {entry.ring}
-                          </Badge>
+                          <Badge variant="secondary">Ring {entry.ring}</Badge>
                           {entry.isUrgent && (
                             <Badge variant="destructive" className="animate-pulse">
                               URGENT
                             </Badge>
                           )}
                         </div>
-                        
+
                         <div>
                           <div className="font-medium">{entry.dogName}</div>
                           <div className="text-sm text-muted-foreground">
@@ -682,17 +683,17 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
                           onClick={() => setCheckInDialog({ open: true, entry })}
                           className="hover:scale-105 transition-transform"
                         >
-                          <CheckInStatusIndicator 
-                            status={entry.checkInStatus} 
+                          <CheckInStatusIndicator
+                            status={entry.checkInStatus}
                             size="md"
                             showLabel={true}
                             showTooltip={true}
                           />
                         </button>
-                        
+
                         <CheckInQuickActions
                           currentStatus={entry.checkInStatus}
-                          onUpdateStatus={(status) => handleQuickStatusUpdate(entry, status)}
+                          onUpdateStatus={status => handleQuickStatusUpdate(entry, status)}
                         />
                       </div>
                     </div>
@@ -715,7 +716,7 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
       {checkInDialog.entry && (
         <CheckInStatusDialog
           open={checkInDialog.open}
-          onOpenChange={(open) => {
+          onOpenChange={open => {
             if (!open) {
               setCheckInDialog({ open: false, entry: null });
             }
@@ -726,7 +727,7 @@ export const GateStewardInterface: React.FC<GateStewardInterfaceProps> = ({
             dogName: checkInDialog.entry.dogName,
             handlerName: checkInDialog.entry.handlerName,
             className: checkInDialog.entry.className,
-            classNumber: checkInDialog.entry.classNumber
+            classNumber: checkInDialog.entry.classNumber,
           }}
           onUpdateStatus={handleCheckInStatusUpdate}
           readOnly={false}

@@ -2,19 +2,19 @@ import { UserRole, PERMISSIONS, UserWithRoles } from '@/types/auth-types';
 import { Show } from '@/types/show-types';
 import { SyncableShowEntry } from '@/store/entryStore';
 import { logger } from '@/services/LoggingService';
-import { 
-  ShowTab, 
-  TabConfiguration, 
-  UserShowContext, 
+import {
+  ShowTab,
+  TabConfiguration,
+  UserShowContext,
   ShowWithRelationship,
   ShowRelationship,
-  TabAction
+  TabAction,
 } from '@/types/unified-shows-types';
-import { 
+import {
   getUserEntries,
   getUserManagedShows,
   getUserJudgeAssignments,
-  getAdminManagedShows
+  getAdminManagedShows,
 } from './show-relationships';
 import { ShowPermissionValidator } from './permissionValidation';
 
@@ -23,13 +23,7 @@ import { ShowPermissionValidator } from './permissionValidation';
  */
 export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
   // Audit tab access request
-  ShowPermissionValidator.auditAction(
-    'get_tabs_for_user',
-    user,
-    'interface',
-    'browse_shows',
-    true
-  );
+  ShowPermissionValidator.auditAction('get_tabs_for_user', user, 'interface', 'browse_shows', true);
 
   if (!user) {
     // Guest user - only show public tabs with permission filtering
@@ -39,31 +33,25 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
           id: 'all',
           label: 'All Shows',
           description: 'Browse all available shows',
-          getCount: (shows) => shows.filter(s => 
-            new Date(s.startDate) >= new Date() && 
-            ShowPermissionValidator.canView(null, s)
-          ).length,
-          filterShows: (shows) => shows.filter(s => 
-            new Date(s.startDate) >= new Date() && 
-            ShowPermissionValidator.canView(null, s)
-          )
+          getCount: shows => shows.filter(s => ShowPermissionValidator.canView(null, s)).length,
+          filterShows: shows => shows.filter(s => ShowPermissionValidator.canView(null, s)),
         },
         {
           id: 'past',
           label: 'Past Shows',
           description: 'Historical shows for reference',
-          getCount: (shows) => shows.filter(s => 
-            new Date(s.endDate) < new Date() && 
-            ShowPermissionValidator.canView(null, s)
-          ).length,
-          filterShows: (shows) => shows.filter(s => 
-            new Date(s.endDate) < new Date() && 
-            ShowPermissionValidator.canView(null, s)
-          )
-        }
+          getCount: shows =>
+            shows.filter(
+              s => new Date(s.endDate) < new Date() && ShowPermissionValidator.canView(null, s)
+            ).length,
+          filterShows: shows =>
+            shows.filter(
+              s => new Date(s.endDate) < new Date() && ShowPermissionValidator.canView(null, s)
+            ),
+        },
       ],
       defaultTab: 'all',
-      actions: {}
+      actions: {},
     };
   }
 
@@ -77,33 +65,27 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
       id: 'all',
       label: 'All Shows',
       description: 'Browse and register for available shows',
-      getCount: (shows) => shows.filter(s => 
-        new Date(s.startDate) >= new Date() && 
-        ShowPermissionValidator.canView(user, s)
-      ).length,
-      filterShows: (shows) => shows.filter(s => 
-        new Date(s.startDate) >= new Date() && 
-        ShowPermissionValidator.canView(user, s)
-      )
+      getCount: shows => shows.filter(s => ShowPermissionValidator.canView(user, s)).length,
+      filterShows: shows => shows.filter(s => ShowPermissionValidator.canView(user, s)),
     });
   }
-  
+
   if (accessibleTabs.includes('past')) {
     tabs.push({
       id: 'past',
       label: 'Past Shows',
       description: 'Historical shows for reference',
-      getCount: (shows) => shows.filter(s => 
-        new Date(s.endDate) < new Date() && 
-        ShowPermissionValidator.canView(user, s)
-      ).length,
-      filterShows: (shows) => shows.filter(s => 
-        new Date(s.endDate) < new Date() && 
-        ShowPermissionValidator.canView(user, s)
-      )
+      getCount: shows =>
+        shows.filter(
+          s => new Date(s.endDate) < new Date() && ShowPermissionValidator.canView(user, s)
+        ).length,
+      filterShows: shows =>
+        shows.filter(
+          s => new Date(s.endDate) < new Date() && ShowPermissionValidator.canView(user, s)
+        ),
     });
   }
-  
+
   if (accessibleTabs.includes('entries')) {
     tabs.push({
       id: 'entries',
@@ -118,7 +100,7 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
         if (!userId || !entries) return [];
         const userEntries = getUserEntries(userId, shows, entries);
         return userEntries.filter(s => ShowPermissionValidator.canView(user, s));
-      }
+      },
     });
   }
 
@@ -137,7 +119,7 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
       filterShows: (shows, _entries, userId) => {
         if (!userId) return [];
         return getUserManagedShows(userId, shows, userRoles);
-      }
+      },
     });
   }
 
@@ -155,7 +137,7 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
       filterShows: (shows, _entries, userId) => {
         if (!userId) return [];
         return getUserJudgeAssignments(userId, shows);
-      }
+      },
     });
   }
 
@@ -172,7 +154,7 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
         },
         filterShows: (shows, _entries, _userId) => {
           return getAdminManagedShows(shows, userRoles);
-        }
+        },
       };
     } else {
       tabs.push({
@@ -186,7 +168,7 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
         },
         filterShows: (shows, _entries, _userId) => {
           return getAdminManagedShows(shows, userRoles);
-        }
+        },
       });
     }
   }
@@ -194,7 +176,7 @@ export function getTabsForUser(user: UserWithRoles | null): TabConfiguration {
   return {
     tabs,
     defaultTab: 'all',
-    actions: generateTabActions(userRoles)
+    actions: generateTabActions(userRoles),
   };
 }
 
@@ -208,41 +190,48 @@ function generateTabActions(userRoles: UserRole[]) {
         id: 'register',
         label: 'Register',
         variant: 'default',
-        onClick: (showId: string) => logger.debug('Register for show action', 'shows', { showId })
-      }
+        onClick: (showId: string) => logger.debug('Register for show action', 'shows', { showId }),
+      },
     ],
     past: [
       {
         id: 'view_results',
         label: 'View Results',
         variant: 'outline',
-        onClick: (showId: string) => logger.debug('View results for show action', 'shows', { showId })
-      }
+        onClick: (showId: string) =>
+          logger.debug('View results for show action', 'shows', { showId }),
+      },
     ],
     entries: [
       {
         id: 'view_entry',
         label: 'View Entry',
         variant: 'outline',
-        onClick: (showId: string) => logger.debug('View entry for show action', 'shows', { showId })
+        onClick: (showId: string) =>
+          logger.debug('View entry for show action', 'shows', { showId }),
       },
       {
         id: 'modify_entry',
         label: 'Modify',
         variant: 'outline',
-        onClick: (showId: string) => logger.debug('Modify entry for show action', 'shows', { showId })
-      }
-    ]
+        onClick: (showId: string) =>
+          logger.debug('Modify entry for show action', 'shows', { showId }),
+      },
+    ],
   };
 
   // Add role-specific actions
-  if (userRoles.includes(UserRole.SECRETARY) || userRoles.includes(UserRole.CLUB_ADMIN) || userRoles.includes(UserRole.SITE_ADMIN)) {
+  if (
+    userRoles.includes(UserRole.SECRETARY) ||
+    userRoles.includes(UserRole.CLUB_ADMIN) ||
+    userRoles.includes(UserRole.SITE_ADMIN)
+  ) {
     actions.all.unshift({
       id: 'create_show',
       label: 'Create Show',
       variant: 'default',
       requiredPermissions: [PERMISSIONS.SHOW_CREATE],
-      onClick: () => logger.debug('Create new show action', 'shows')
+      onClick: () => logger.debug('Create new show action', 'shows'),
     });
 
     actions.managing = [
@@ -251,21 +240,23 @@ function generateTabActions(userRoles: UserRole[]) {
         label: 'Edit Show',
         variant: 'outline',
         requiredPermissions: [PERMISSIONS.SHOW_UPDATE],
-        onClick: (showId: string) => logger.debug('Edit show action', 'shows', { showId })
+        onClick: (showId: string) => logger.debug('Edit show action', 'shows', { showId }),
       },
       {
         id: 'manage_entries',
         label: 'Manage Entries',
         variant: 'outline',
         requiredPermissions: [PERMISSIONS.SHOW_MANAGE_ENTRIES],
-        onClick: (showId: string) => logger.debug('Manage entries for show action', 'shows', { showId })
+        onClick: (showId: string) =>
+          logger.debug('Manage entries for show action', 'shows', { showId }),
       },
       {
         id: 'view_reports',
         label: 'Reports',
         variant: 'ghost',
-        onClick: (showId: string) => logger.debug('View reports for show action', 'shows', { showId })
-      }
+        onClick: (showId: string) =>
+          logger.debug('View reports for show action', 'shows', { showId }),
+      },
     ];
   }
 
@@ -276,15 +267,17 @@ function generateTabActions(userRoles: UserRole[]) {
         label: 'View Assignment',
         variant: 'outline',
         requiredPermissions: [PERMISSIONS.JUDGE_VIEW_ASSIGNMENTS],
-        onClick: (showId: string) => logger.debug('View assignment for show action', 'shows', { showId })
+        onClick: (showId: string) =>
+          logger.debug('View assignment for show action', 'shows', { showId }),
       },
       {
         id: 'enter_results',
         label: 'Enter Results',
         variant: 'default',
         requiredPermissions: [PERMISSIONS.JUDGE_ENTER_RESULTS],
-        onClick: (showId: string) => logger.debug('Enter results for show action', 'shows', { showId })
-      }
+        onClick: (showId: string) =>
+          logger.debug('Enter results for show action', 'shows', { showId }),
+      },
     ];
   }
 
@@ -303,7 +296,7 @@ export function getUserShowContext(
 
   const userId = user.id;
   const userRoles = user.roles || [];
-  
+
   const userEntries = getUserEntries(userId, shows, entries).map(s => s.id);
   const managedShows = getUserManagedShows(userId, shows, userRoles).map(s => s.id);
   const judgeAssignments = getUserJudgeAssignments(userId, shows).map(s => s.id);
@@ -314,7 +307,7 @@ export function getUserShowContext(
     permissions: user.permissions || [],
     managedShows,
     judgeAssignments,
-    entries: userEntries
+    entries: userEntries,
   };
 }
 
@@ -331,17 +324,17 @@ export function enhanceShowsWithRelationships(
       relationship: ['all'] as ShowRelationship[],
       userCanManage: false,
       userIsJudging: false,
-      userHasEntries: false
+      userHasEntries: false,
     }));
   }
 
   return shows.map(show => {
     const relationships: ShowRelationship[] = ['all'];
-    
+
     if (new Date(show.endDate) < new Date()) {
       relationships.push('past');
     }
-    
+
     const userCanManage = context.managedShows.includes(show.id);
     const userIsJudging = context.judgeAssignments.includes(show.id);
     const userHasEntries = context.entries.includes(show.id);
@@ -355,7 +348,7 @@ export function enhanceShowsWithRelationships(
       relationship: relationships,
       userCanManage,
       userIsJudging,
-      userHasEntries
+      userHasEntries,
     };
   });
 }
@@ -376,7 +369,7 @@ export function filterShowsForTab(
         return shows.filter(s => new Date(s.endDate) < new Date());
       case 'all':
       default:
-        return shows.filter(s => new Date(s.startDate) >= new Date());
+        return shows;
     }
   }
 
@@ -393,6 +386,6 @@ export function filterShowsForTab(
       return enhancedShows.filter(s => s.relationship.includes('assignments'));
     case 'all':
     default:
-      return enhancedShows.filter(s => new Date(s.startDate) >= new Date());
+      return enhancedShows;
   }
 }

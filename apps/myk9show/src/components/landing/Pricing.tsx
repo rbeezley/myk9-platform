@@ -17,7 +17,7 @@ const tiers = [
       'Basic notifications',
       'Community access',
       'Email support',
-      'Show calendar'
+      'Show calendar',
     ],
     buttonText: 'Get Started',
     buttonVariant: 'outline',
@@ -37,7 +37,7 @@ const tiers = [
       'Training journal',
       'Advanced entry statistics',
       'Priority support',
-      'Premium notifications'
+      'Premium notifications',
     ],
     buttonText: 'Subscribe Now',
     buttonVariant: 'solid',
@@ -57,14 +57,14 @@ const tiers = [
       'Priority messaging system',
       'Custom branding options',
       'VIP support',
-      'API access'
+      'API access',
     ],
     buttonText: 'Subscribe Now',
     buttonVariant: 'outline',
     popular: true,
     label: 'Organizers',
     priceId: 'price_excellent',
-  }
+  },
 ];
 
 export default function Pricing() {
@@ -103,56 +103,42 @@ export default function Pricing() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto">
-          {tiers.map((tier) => (
+          {tiers.map(tier => (
             <div
               key={tier.name}
-              className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-lg border border-blue-500 dark:border-blue-400"
+              className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-lg border border-primary"
             >
               <div className="absolute -top-4 left-0 right-0 flex justify-center">
-                <span className="bg-blue-500 text-white px-4 py-1 rounded-full text-sm font-medium">
+                <span className="bg-primary text-primary-foreground px-4 py-1 rounded-full text-sm font-medium">
                   {tier.label}
                 </span>
               </div>
 
               <div className="p-8">
-                <h3 className="text-2xl font-bold text-foreground mb-2">
-                  {tier.name}
-                </h3>
+                <h3 className="text-2xl font-bold text-foreground mb-2">{tier.name}</h3>
                 <div className="flex items-baseline mb-2">
-                  <span className="text-4xl font-bold text-foreground">
-                    {tier.price}
-                  </span>
+                  <span className="text-4xl font-bold text-foreground">{tier.price}</span>
                   {tier.period && (
-                    <span className="ml-1 text-gray-500 dark:text-gray-400">
-                      {tier.period}
-                    </span>
+                    <span className="ml-1 text-gray-500 dark:text-gray-400">{tier.period}</span>
                   )}
                 </div>
-                <p className="text-gray-600 dark:text-gray-400 mb-6">
-                  {tier.description}
-                </p>
+                <p className="text-gray-600 dark:text-gray-400 mb-6">{tier.description}</p>
 
                 <button
                   onClick={() => handleSubscribe(tier.priceId)}
                   className={`w-full py-3 px-6 rounded-xl font-medium transition-colors ${
                     tier.buttonVariant === 'solid'
-                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                      : 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50'
+                      ? 'bg-primary hover:opacity-90 text-primary-foreground'
+                      : 'bg-primary/10 text-primary hover:bg-primary/20'
                   }`}
                 >
                   {tier.buttonText}
                 </button>
 
                 <ul className="mt-8 space-y-4">
-                  {tier.features.map((feature) => (
-                    <li
-                      key={feature}
-                      className="flex items-start text-gray-600 dark:text-gray-400"
-                    >
-                      <Check
-                        size={20}
-                        className="mr-2 flex-shrink-0 text-blue-500 dark:text-blue-400"
-                      />
+                  {tier.features.map(feature => (
+                    <li key={feature} className="flex items-start text-gray-600 dark:text-gray-400">
+                      <Check size={20} className="mr-2 flex-shrink-0 text-primary" />
                       <span>{feature}</span>
                     </li>
                   ))}

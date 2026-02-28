@@ -8,7 +8,13 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useStatusUpdates } from '@/services/NotificationService';
 import { useRealTimeUpdates } from '@/hooks/useRealTimeUpdates';
@@ -31,7 +37,7 @@ import {
   BarChart3,
   X,
   Ticket,
-  ChevronDown
+  ChevronDown,
 } from 'lucide-react';
 import { ShowCalendar } from '@/components/common/LazyComponents';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
@@ -40,7 +46,7 @@ import '@/styles/apple-show-details.css';
 import {
   ShowsPageSkeleton,
   TabContentSkeleton,
-  ShowCalendarSkeleton
+  ShowCalendarSkeleton,
 } from '@/components/common/SkeletonLoaders';
 import { EnhancedEmptyState } from '@/components/shows/EnhancedEmptyStates';
 import { ShowPermissionValidator } from '@/utils/permissionValidation';
@@ -53,7 +59,7 @@ import {
   DISCIPLINE_LABELS,
   ENTRY_STATUS_LABELS,
   LOCATION_LABELS,
-  DATE_RANGE_LABELS
+  DATE_RANGE_LABELS,
 } from '@/utils/browseShowsUtils';
 
 type ViewMode = 'grid' | 'list' | 'calendar';
@@ -85,7 +91,7 @@ const BrowseShowsPage: React.FC = () => {
     userContext,
     tabQuickActions,
     quickStats,
-    handleRetry
+    handleRetry,
   } = useBrowseShowsData({ filteredShows: [], selectedTab });
 
   // Use extracted filter hook
@@ -95,7 +101,7 @@ const BrowseShowsPage: React.FC = () => {
     filteredShows,
     hasActiveFilters,
     clearAllFilters,
-    activeFilterCount
+    activeFilterCount,
   } = useBrowseShowsFilters({ shows, entries, userContext, selectedTab });
 
   // Get enhanced shows from data hook with actual filtered shows
@@ -113,52 +119,61 @@ const BrowseShowsPage: React.FC = () => {
   useRealTimeUpdates();
 
   // Update URL params when tab or view mode changes
-  const updateUrlParams = useCallback((newTab?: string, newViewMode?: ViewMode) => {
-    const params = new URLSearchParams(searchParams);
+  const updateUrlParams = useCallback(
+    (newTab?: string, newViewMode?: ViewMode) => {
+      const params = new URLSearchParams(searchParams);
 
-    if (newTab !== undefined) {
-      if (newTab === 'all') {
-        params.delete('tab');
-      } else {
-        params.set('tab', newTab);
+      if (newTab !== undefined) {
+        if (newTab === 'all') {
+          params.delete('tab');
+        } else {
+          params.set('tab', newTab);
+        }
       }
-    }
 
-    if (newViewMode !== undefined) {
-      if (newViewMode === 'grid') {
-        params.delete('view');
-      } else {
-        params.set('view', newViewMode);
+      if (newViewMode !== undefined) {
+        if (newViewMode === 'grid') {
+          params.delete('view');
+        } else {
+          params.set('view', newViewMode);
+        }
       }
-    }
 
-    setSearchParams(params, { replace: true });
-  }, [searchParams, setSearchParams]);
+      setSearchParams(params, { replace: true });
+    },
+    [searchParams, setSearchParams]
+  );
 
   // Handle tab change with URL update and loading state
-  const handleTabChange = useCallback((newTab: string) => {
-    if (newTab === selectedTab) return;
+  const handleTabChange = useCallback(
+    (newTab: string) => {
+      if (newTab === selectedTab) return;
 
-    if (!ShowPermissionValidator.canAccessTab(user, newTab)) {
-      logger.warn(`Access denied to tab: ${newTab}`, 'shows', { tab: newTab, userId: user?.id });
-      return;
-    }
+      if (!ShowPermissionValidator.canAccessTab(user, newTab)) {
+        logger.warn(`Access denied to tab: ${newTab}`, 'shows', { tab: newTab, userId: user?.id });
+        return;
+      }
 
-    setIsTabSwitching(true);
-    setSelectedTab(newTab);
-    updateUrlParams(newTab, undefined);
-    setTimeout(() => setIsTabSwitching(false), 300);
-  }, [updateUrlParams, selectedTab, user]);
+      setIsTabSwitching(true);
+      setSelectedTab(newTab);
+      updateUrlParams(newTab, undefined);
+      setTimeout(() => setIsTabSwitching(false), 300);
+    },
+    [updateUrlParams, selectedTab, user]
+  );
 
   // Handle view mode change with URL update and loading state
-  const handleViewModeChange = useCallback((newViewMode: ViewMode) => {
-    if (newViewMode === viewMode) return;
+  const handleViewModeChange = useCallback(
+    (newViewMode: ViewMode) => {
+      if (newViewMode === viewMode) return;
 
-    setIsViewModeChanging(true);
-    setViewMode(newViewMode);
-    updateUrlParams(undefined, newViewMode);
-    setTimeout(() => setIsViewModeChanging(false), 200);
-  }, [updateUrlParams, viewMode]);
+      setIsViewModeChanging(true);
+      setViewMode(newViewMode);
+      updateUrlParams(undefined, newViewMode);
+      setTimeout(() => setIsViewModeChanging(false), 200);
+    },
+    [updateUrlParams, viewMode]
+  );
 
   // Sync state with URL params on mount and param changes
   useEffect(() => {
@@ -175,7 +190,9 @@ const BrowseShowsPage: React.FC = () => {
 
   // Generate breadcrumb items
   const breadcrumbItems = useMemo(() => {
-    const items = [{ label: 'Shows', href: '/browse-shows', onClick: () => handleTabChange('all') }];
+    const items = [
+      { label: 'Shows', href: '/browse-shows', onClick: () => handleTabChange('all') },
+    ];
 
     if (selectedTab !== 'all') {
       const currentTab = tabConfig.tabs.find(tab => tab.id === selectedTab);
@@ -197,8 +214,8 @@ const BrowseShowsPage: React.FC = () => {
         page: 'browse_shows',
         loadTime: new Date().toISOString(),
         userRoles: user?.roles || [],
-        accessibleTabs: ShowPermissionValidator.getAccessibleTabs(user)
-      }
+        accessibleTabs: ShowPermissionValidator.getAccessibleTabs(user),
+      },
     });
   }, [user]);
 
@@ -225,7 +242,9 @@ const BrowseShowsPage: React.FC = () => {
             if (ShowPermissionValidator.canCreate(user)) {
               navigate('/secretary/create-show/wizard');
             } else {
-              logger.warn('User does not have permission to create shows', 'shows', { userId: user?.id });
+              logger.warn('User does not have permission to create shows', 'shows', {
+                userId: user?.id,
+              });
             }
           }}
           onRegisterShow={() => logger.debug('Open registration clicked', 'shows')}
@@ -243,7 +262,7 @@ const BrowseShowsPage: React.FC = () => {
           <div className="mt-4">
             <Suspense fallback={<ShowCalendarSkeleton />}>
               <ShowCalendar
-                onShowRegister={(showId) => logger.debug('Register for show', 'shows', { showId })}
+                onShowRegister={showId => logger.debug('Register for show', 'shows', { showId })}
                 shows={enhancedShows}
               />
             </Suspense>
@@ -251,11 +270,25 @@ const BrowseShowsPage: React.FC = () => {
         );
 
       case 'list':
-        return <ShowsListView shows={enhancedShows} entries={entries} selectedTab={selectedTab} user={user} />;
+        return (
+          <ShowsListView
+            shows={enhancedShows}
+            entries={entries}
+            selectedTab={selectedTab}
+            user={user}
+          />
+        );
 
       case 'grid':
       default:
-        return <ShowsGridView shows={enhancedShows} entries={entries} selectedTab={selectedTab} user={user} />;
+        return (
+          <ShowsGridView
+            shows={enhancedShows}
+            entries={entries}
+            selectedTab={selectedTab}
+            user={user}
+          />
+        );
     }
   };
 
@@ -268,7 +301,9 @@ const BrowseShowsPage: React.FC = () => {
         </div>
         <h3 className="text-lg font-semibold mb-2 text-error-red">Error Loading Shows</h3>
         <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-          {showsError?.message || entriesError || "There was a problem loading the shows data. Please try again."}
+          {showsError?.message ||
+            entriesError ||
+            'There was a problem loading the shows data. Please try again.'}
         </p>
         <Button onClick={handleRetry} variant="outline">
           <Download className="h-4 w-4 mr-2" />
@@ -299,30 +334,48 @@ const BrowseShowsPage: React.FC = () => {
           {/* Normal content */}
           {!isLoading && !hasError && (
             <>
-              <Breadcrumb items={breadcrumbItems} showHomeIcon={true} className="text-sm text-muted-foreground" />
+              <Breadcrumb
+                items={breadcrumbItems}
+                showHomeIcon={true}
+                className="text-sm text-muted-foreground"
+              />
 
               {/* Header */}
               <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
                 <div className="space-y-2 flex-1">
                   <h1 className="text-3xl lg:text-4xl font-bold tracking-tight">Shows</h1>
                   <p className="text-muted-foreground text-base lg:text-lg">
-                    {user ? "Discover shows, manage entries, and track your competition schedule" : "Discover and register for upcoming dog shows"}
+                    {user
+                      ? 'Discover shows, manage entries, and track your competition schedule'
+                      : 'Discover and register for upcoming dog shows'}
                   </p>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  {tabQuickActions.map((action) => {
-                    const IconComponent = { Plus, Users, Search, Download, Settings, BarChart3, Calendar, FileText }[action.icon] || Plus;
+                  {tabQuickActions.map(action => {
+                    const IconComponent =
+                      { Plus, Users, Search, Download, Settings, BarChart3, Calendar, FileText }[
+                        action.icon
+                      ] || Plus;
                     return action.permission ? (
                       <PermissionGuard key={action.id} permission={action.permission}>
-                        <Button variant={action.variant} size="sm" onClick={() => action.onClick({} as Show)}>
+                        <Button
+                          variant={action.variant}
+                          size="sm"
+                          onClick={() => action.onClick({} as Show)}
+                        >
                           <IconComponent className="h-4 w-4 mr-2" />
                           <span className="hidden sm:inline">{action.label}</span>
                           <span className="sm:hidden">Create</span>
                         </Button>
                       </PermissionGuard>
                     ) : (
-                      <Button key={action.id} variant={action.variant} size="sm" onClick={() => action.onClick({} as Show)}>
+                      <Button
+                        key={action.id}
+                        variant={action.variant}
+                        size="sm"
+                        onClick={() => action.onClick({} as Show)}
+                      >
                         <IconComponent className="h-4 w-4 mr-2" />
                         <span className="hidden sm:inline">{action.label}</span>
                         <span className="sm:hidden">Create</span>
@@ -333,7 +386,11 @@ const BrowseShowsPage: React.FC = () => {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Link to="/calendar">
-                        <Button variant="outline" size="sm" className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300 shadow-sm rounded-full">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300 shadow-sm rounded-full"
+                        >
                           <Calendar className="h-4 w-4 mr-2" />
                           <span className="hidden sm:inline">Full Calendar</span>
                           <span className="sm:hidden">Calendar</span>
@@ -354,17 +411,29 @@ const BrowseShowsPage: React.FC = () => {
                       <Input
                         placeholder="Search shows..."
                         value={filters.search}
-                        onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                        onChange={e => setFilters(prev => ({ ...prev, search: e.target.value }))}
                         className="pl-9 h-10 bg-background border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-lg transition-all duration-200"
                       />
                     </div>
                     <Collapsible open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
                       <CollapsibleTrigger asChild>
-                        <Button variant="outline" className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 transition-all duration-200 gap-2">
+                        <Button
+                          variant="outline"
+                          className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 transition-all duration-200 gap-2"
+                        >
                           <Filter className="h-4 w-4" />
                           <span>Filters</span>
-                          {hasActiveFilters && <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">{activeFilterCount}</Badge>}
-                          <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", isFiltersOpen && "rotate-180")} />
+                          {hasActiveFilters && (
+                            <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">
+                              {activeFilterCount}
+                            </Badge>
+                          )}
+                          <ChevronDown
+                            className={cn(
+                              'h-4 w-4 transition-transform duration-200',
+                              isFiltersOpen && 'rotate-180'
+                            )}
+                          />
                         </Button>
                       </CollapsibleTrigger>
                     </Collapsible>
@@ -374,36 +443,61 @@ const BrowseShowsPage: React.FC = () => {
                   {hasActiveFilters && (
                     <div className="flex flex-wrap gap-2 mt-3">
                       {filters.discipline !== 'all' && (
-                        <Badge variant="secondary" className="pl-2 pr-1 py-1 flex items-center gap-1 cursor-pointer hover:bg-destructive/10 transition-colors" onClick={() => setFilters(prev => ({ ...prev, discipline: 'all' }))}>
+                        <Badge
+                          variant="secondary"
+                          className="pl-2 pr-1 py-1 flex items-center gap-1 cursor-pointer hover:bg-destructive/10 transition-colors"
+                          onClick={() => setFilters(prev => ({ ...prev, discipline: 'all' }))}
+                        >
                           {DISCIPLINE_LABELS[filters.discipline] || filters.discipline}
                           <X className="h-3 w-3 ml-1" />
                         </Badge>
                       )}
                       {filters.entryStatus !== 'all' && (
-                        <Badge variant="secondary" className="pl-2 pr-1 py-1 flex items-center gap-1 cursor-pointer hover:bg-destructive/10 transition-colors" onClick={() => setFilters(prev => ({ ...prev, entryStatus: 'all' }))}>
+                        <Badge
+                          variant="secondary"
+                          className="pl-2 pr-1 py-1 flex items-center gap-1 cursor-pointer hover:bg-destructive/10 transition-colors"
+                          onClick={() => setFilters(prev => ({ ...prev, entryStatus: 'all' }))}
+                        >
                           {ENTRY_STATUS_LABELS[filters.entryStatus] || filters.entryStatus}
                           <X className="h-3 w-3 ml-1" />
                         </Badge>
                       )}
-                      {filters.dateRange !== 'upcoming' && filters.dateRange !== 'all' && (
-                        <Badge variant="secondary" className="pl-2 pr-1 py-1 flex items-center gap-1 cursor-pointer hover:bg-destructive/10 transition-colors" onClick={() => setFilters(prev => ({ ...prev, dateRange: 'upcoming' }))}>
+                      {filters.dateRange !== 'all' && (
+                        <Badge
+                          variant="secondary"
+                          className="pl-2 pr-1 py-1 flex items-center gap-1 cursor-pointer hover:bg-destructive/10 transition-colors"
+                          onClick={() => setFilters(prev => ({ ...prev, dateRange: 'all' }))}
+                        >
                           {DATE_RANGE_LABELS[filters.dateRange] || filters.dateRange}
                           <X className="h-3 w-3 ml-1" />
                         </Badge>
                       )}
                       {filters.location !== 'all' && (
-                        <Badge variant="secondary" className="pl-2 pr-1 py-1 flex items-center gap-1 cursor-pointer hover:bg-destructive/10 transition-colors" onClick={() => setFilters(prev => ({ ...prev, location: 'all' }))}>
+                        <Badge
+                          variant="secondary"
+                          className="pl-2 pr-1 py-1 flex items-center gap-1 cursor-pointer hover:bg-destructive/10 transition-colors"
+                          onClick={() => setFilters(prev => ({ ...prev, location: 'all' }))}
+                        >
                           {LOCATION_LABELS[filters.location] || filters.location}
                           <X className="h-3 w-3 ml-1" />
                         </Badge>
                       )}
                       {filters.search && (
-                        <Badge variant="secondary" className="pl-2 pr-1 py-1 flex items-center gap-1 cursor-pointer hover:bg-destructive/10 transition-colors" onClick={() => setFilters(prev => ({ ...prev, search: '' }))}>
+                        <Badge
+                          variant="secondary"
+                          className="pl-2 pr-1 py-1 flex items-center gap-1 cursor-pointer hover:bg-destructive/10 transition-colors"
+                          onClick={() => setFilters(prev => ({ ...prev, search: '' }))}
+                        >
                           "{filters.search}"
                           <X className="h-3 w-3 ml-1" />
                         </Badge>
                       )}
-                      <Button variant="ghost" size="sm" onClick={clearAllFilters} className="h-6 px-2 text-xs text-muted-foreground hover:text-primary">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={clearAllFilters}
+                        className="h-6 px-2 text-xs text-muted-foreground hover:text-primary"
+                      >
                         Clear all
                       </Button>
                     </div>
@@ -413,8 +507,15 @@ const BrowseShowsPage: React.FC = () => {
                   <Collapsible open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
                     <CollapsibleContent>
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-4 mt-4 border-t border-border/50">
-                        <Select value={filters.discipline} onValueChange={(value) => setFilters(prev => ({ ...prev, discipline: value }))}>
-                          <SelectTrigger><SelectValue placeholder="Discipline" /></SelectTrigger>
+                        <Select
+                          value={filters.discipline}
+                          onValueChange={value =>
+                            setFilters(prev => ({ ...prev, discipline: value }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Discipline" />
+                          </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="all">All Disciplines</SelectItem>
                             <SelectItem value="agility">Agility</SelectItem>
@@ -424,8 +525,15 @@ const BrowseShowsPage: React.FC = () => {
                           </SelectContent>
                         </Select>
 
-                        <Select value={filters.entryStatus} onValueChange={(value) => setFilters(prev => ({ ...prev, entryStatus: value }))}>
-                          <SelectTrigger><SelectValue placeholder="Entry Status" /></SelectTrigger>
+                        <Select
+                          value={filters.entryStatus}
+                          onValueChange={value =>
+                            setFilters(prev => ({ ...prev, entryStatus: value }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Entry Status" />
+                          </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="all">All Status</SelectItem>
                             <SelectItem value="open">Open</SelectItem>
@@ -435,8 +543,15 @@ const BrowseShowsPage: React.FC = () => {
                           </SelectContent>
                         </Select>
 
-                        <Select value={filters.dateRange} onValueChange={(value) => setFilters(prev => ({ ...prev, dateRange: value }))}>
-                          <SelectTrigger><SelectValue placeholder="Date Range" /></SelectTrigger>
+                        <Select
+                          value={filters.dateRange}
+                          onValueChange={value =>
+                            setFilters(prev => ({ ...prev, dateRange: value }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Date Range" />
+                          </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="upcoming">Upcoming</SelectItem>
                             <SelectItem value="this_month">This Month</SelectItem>
@@ -445,8 +560,15 @@ const BrowseShowsPage: React.FC = () => {
                           </SelectContent>
                         </Select>
 
-                        <Select value={filters.location} onValueChange={(value) => setFilters(prev => ({ ...prev, location: value }))}>
-                          <SelectTrigger><SelectValue placeholder="Location" /></SelectTrigger>
+                        <Select
+                          value={filters.location}
+                          onValueChange={value =>
+                            setFilters(prev => ({ ...prev, location: value }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Location" />
+                          </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="all">All Locations</SelectItem>
                             <SelectItem value="local">Within 50 miles</SelectItem>
@@ -465,7 +587,7 @@ const BrowseShowsPage: React.FC = () => {
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-medium text-muted-foreground">View:</span>
                   <div className="flex bg-muted/50 rounded-lg p-1">
-                    {(['grid', 'list', 'calendar'] as const).map((mode) => {
+                    {(['grid', 'list', 'calendar'] as const).map(mode => {
                       const Icon = { grid: Grid3X3, list: List, calendar: CalendarDays }[mode];
                       const label = mode.charAt(0).toUpperCase() + mode.slice(1);
                       return (
@@ -482,7 +604,9 @@ const BrowseShowsPage: React.FC = () => {
                               <span className="hidden sm:inline">{label}</span>
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent side="bottom" className="sm:hidden">{label} View</TooltipContent>
+                          <TooltipContent side="bottom" className="sm:hidden">
+                            {label} View
+                          </TooltipContent>
                         </Tooltip>
                       );
                     })}
@@ -505,14 +629,18 @@ const BrowseShowsPage: React.FC = () => {
                       {quickStats.userEntries > 0 && (
                         <span className="flex items-center gap-1.5 px-2 py-0.5 bg-green-500/10 rounded-full">
                           <Ticket className="h-3 w-3 text-green-600" />
-                          <span className="font-medium text-green-600">{quickStats.userEntries}</span>
+                          <span className="font-medium text-green-600">
+                            {quickStats.userEntries}
+                          </span>
                           <span className="text-green-600/70">entered</span>
                         </span>
                       )}
                       {quickStats.closingSoon > 0 && (
                         <span className="flex items-center gap-1.5 px-2 py-0.5 bg-orange-500/10 rounded-full">
                           <Clock className="h-3 w-3 text-orange-600" />
-                          <span className="font-medium text-orange-600">{quickStats.closingSoon}</span>
+                          <span className="font-medium text-orange-600">
+                            {quickStats.closingSoon}
+                          </span>
                           <span className="text-orange-600/70">closing soon</span>
                         </span>
                       )}
@@ -524,8 +652,13 @@ const BrowseShowsPage: React.FC = () => {
               {/* Tabs */}
               <Tabs value={selectedTab} onValueChange={handleTabChange} className="space-y-6">
                 <div className="overflow-x-auto">
-                  <TabsList className="grid w-full bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 h-auto min-w-max" style={{ gridTemplateColumns: `repeat(${tabConfig.tabs.length}, minmax(0, 1fr))` }}>
-                    {tabConfig.tabs.map((tab) => {
+                  <TabsList
+                    className="grid w-full bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 h-auto min-w-max"
+                    style={{
+                      gridTemplateColumns: `repeat(${tabConfig.tabs.length}, minmax(0, 1fr))`,
+                    }}
+                  >
+                    {tabConfig.tabs.map(tab => {
                       const count = tab.getCount ? tab.getCount(shows, entries, user?.id) : 0;
                       return (
                         <TabsTrigger
@@ -537,7 +670,10 @@ const BrowseShowsPage: React.FC = () => {
                         >
                           <span className="flex items-center gap-2">
                             {tab.label}
-                            <Badge variant={selectedTab === tab.id ? 'default' : 'secondary'} className="text-xs px-1.5 py-0.5 min-w-[20px] justify-center">
+                            <Badge
+                              variant={selectedTab === tab.id ? 'default' : 'secondary'}
+                              className="text-xs px-1.5 py-0.5 min-w-[20px] justify-center"
+                            >
                               {count}
                             </Badge>
                           </span>
@@ -548,7 +684,11 @@ const BrowseShowsPage: React.FC = () => {
                 </div>
 
                 <TabsContent value={selectedTab}>
-                  {isTabSwitching || isViewModeChanging ? <TabContentSkeleton viewMode={viewMode} count={4} /> : renderShowsView()}
+                  {isTabSwitching || isViewModeChanging ? (
+                    <TabContentSkeleton viewMode={viewMode} count={4} />
+                  ) : (
+                    renderShowsView()
+                  )}
                 </TabsContent>
               </Tabs>
             </>

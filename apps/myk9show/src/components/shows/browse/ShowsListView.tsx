@@ -99,6 +99,9 @@ export const ShowsListView: React.FC<ShowsListViewProps> = ({
                     <div className="flex items-center gap-3">
                       <div>
                         <h3 className="text-lg font-semibold">{show.name}</h3>
+                        {show.clubName && (
+                          <p className="text-sm text-muted-foreground">{show.clubName}</p>
+                        )}
                         <p className="text-sm text-muted-foreground">{show.events.join(', ')}</p>
                       </div>
                       {/* Urgency indicator inline */}

@@ -124,6 +124,7 @@ export const ShowsGridView: React.FC<ShowsGridViewProps> = ({
 
             <div className="apple-browse-card-content">
               <h3 className="apple-browse-card-title">{show.name}</h3>
+              {show.clubName && <p className="text-sm text-muted-foreground">{show.clubName}</p>}
               <p className="apple-browse-card-description">{show.events.join(', ')}</p>
 
               <div className="apple-browse-card-details">

@@ -61,9 +61,7 @@ export const ShowEditForm: React.FC = () => {
   // Handle date picker changes (DateTimePicker returns Date | undefined)
   const handleDateChange = useCallback(
     (field: keyof ShowEditFormData) => (date: Date | undefined) => {
-      if (date) {
-        updateData({ [field]: date.toISOString() });
-      }
+      updateData({ [field]: date ? date.toISOString() : '' });
     },
     [updateData]
   );

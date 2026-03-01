@@ -1,6 +1,6 @@
 /**
  * SuspenseWrapper - Enhanced suspense wrapper with loading boundaries
- * 
+ *
  * Provides consistent loading states, error boundaries, and retry logic
  * for lazy-loaded components
  */
@@ -9,7 +9,11 @@ import React, { Suspense, useState, useEffect } from 'react';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, RefreshCw } from 'lucide-react';
-import { trackLazyComponentStart, trackLazyComponentEnd, trackLazyComponentRetry } from '@/utils/lazyLoadingMetrics';
+import {
+  trackLazyComponentStart,
+  trackLazyComponentEnd,
+  trackLazyComponentRetry,
+} from '@/utils/lazyLoadingMetrics';
 import { logger } from '@/services/LoggingService';
 
 interface SuspenseWrapperProps {
@@ -27,14 +31,18 @@ interface ErrorBoundaryState {
 }
 
 class LoadingErrorBoundary extends React.Component<
-  { 
+  {
     children: React.ReactNode;
     errorFallback?: (error: Error, retry: () => void) => React.ReactNode;
     componentName?: string;
   },
   ErrorBoundaryState
 > {
-  constructor(props: { children: React.ReactNode; errorFallback?: (error: Error, retry: () => void) => React.ReactNode; componentName?: string }) {
+  constructor(props: {
+    children: React.ReactNode;
+    errorFallback?: (error: Error, retry: () => void) => React.ReactNode;
+    componentName?: string;
+  }) {
     super(props);
     this.state = { hasError: false, error: null, retryCount: 0 };
   }
@@ -45,7 +53,7 @@ class LoadingErrorBoundary extends React.Component<
 
   override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     logger.error('LoadingErrorBoundary caught an error:', 'utils', { data: error, errorInfo });
-    
+
     // Track error in metrics
     if (this.props.componentName) {
       trackLazyComponentEnd(this.props.componentName, false, error.message);
@@ -57,11 +65,11 @@ class LoadingErrorBoundary extends React.Component<
     if (componentName) {
       trackLazyComponentRetry(componentName);
     }
-    
+
     this.setState(prevState => ({
       hasError: false,
       error: null,
-      retryCount: prevState.retryCount + 1
+      retryCount: prevState.retryCount + 1,
     }));
   };
 
@@ -123,14 +131,8 @@ const LoadingFallback: React.FC<{ timeout?: number }> = ({ timeout = 10000 }) =>
       <p className="text-sm text-muted-foreground mt-4">Loading...</p>
       {showSlowWarning && (
         <div className="mt-4 text-center">
-          <p className="text-xs text-muted-foreground mb-2">
-            This is taking longer than expected
-          </p>
-          <Button 
-            onClick={() => window.location.reload()} 
-            variant="outline" 
-            size="sm"
-          >
+          <p className="text-xs text-muted-foreground mb-2">This is taking longer than expected</p>
+          <Button onClick={() => window.location.reload()} variant="outline" size="sm">
             <RefreshCw className="h-4 w-4 mr-2" />
             Reload Page
           </Button>
@@ -145,7 +147,7 @@ export const SuspenseWrapper: React.FC<SuspenseWrapperProps> = ({
   fallback,
   errorFallback,
   timeout = 10000,
-  componentName
+  componentName,
 }) => {
   useEffect(() => {
     if (componentName) {
@@ -166,9 +168,7 @@ export const SuspenseWrapper: React.FC<SuspenseWrapperProps> = ({
       {...(errorFallback !== undefined && { errorFallback })}
       {...(componentName !== undefined && { componentName })}
     >
-      <Suspense fallback={fallback || <LoadingFallback timeout={timeout} />}>
-        {children}
-      </Suspense>
+      <Suspense fallback={fallback || <LoadingFallback timeout={timeout} />}>{children}</Suspense>
     </LoadingErrorBoundary>
   );
 };

@@ -1,12 +1,12 @@
 import { createContext, useState, ReactNode } from 'react';
 import { RegistrationContext as RegistrationContextType } from '../types/show-registration-types';
-import { 
-  UserRole, 
-  UserWithRoles, 
-  PERMISSIONS, 
+import {
+  UserRole,
+  UserWithRoles,
+  PERMISSIONS,
   Permission,
   Scope,
-  ScopeType 
+  ScopeType,
 } from '../types/auth-types';
 import { useAuthContext } from '@/hooks/useAuthContext';
 
@@ -22,10 +22,10 @@ interface EnhancedRegistrationContext extends RegistrationContextType {
   canAssignArmbands: boolean;
   canManageStatus: boolean;
   canBulkOperations: boolean;
-  
+
   // Role-based workflow configurations
   workflowConfig: WorkflowConfig;
-  
+
   // Context management
   setContextForShow: (showId: string, clubId?: string) => void;
   switchRole: (role: UserRole) => void;
@@ -35,7 +35,9 @@ interface EnhancedRegistrationContext extends RegistrationContextType {
 import { WorkflowConfig, WORKFLOW_CONFIGS } from './registrationUtils';
 
 // eslint-disable-next-line react-refresh/only-export-components
-export const RegistrationContextProvider = createContext<EnhancedRegistrationContext | undefined>(undefined);
+export const RegistrationContextProvider = createContext<EnhancedRegistrationContext | undefined>(
+  undefined
+);
 
 interface RegistrationProviderProps {
   children: ReactNode;
@@ -54,19 +56,17 @@ export function RegistrationProvider({ children }: RegistrationProviderProps) {
    */
   const can = (permission: Permission, scope?: Scope): boolean => {
     if (!userWithRoles || !userWithRoles.permissions) return false;
-    
+
     // Check if user has the permission
     if (!userWithRoles.permissions.includes(permission)) {
       return false;
     }
-    
+
     // For scoped permissions, check if user has access to the scope
     if (scope && userWithRoles.scopes && userWithRoles.scopes.length > 0) {
-      return userWithRoles.scopes.some(s => 
-        s.scopeType === scope.type && s.scopeId === scope.id
-      );
+      return userWithRoles.scopes.some(s => s.scopeType === scope.type && s.scopeId === scope.id);
     }
-    
+
     return true;
   };
 
@@ -75,7 +75,7 @@ export function RegistrationProvider({ children }: RegistrationProviderProps) {
    */
   const getRegistrationMode = (): RegistrationContextType['mode'] => {
     if (!userWithRoles || !currentRole) return 'exhibitor';
-    
+
     switch (currentRole) {
       case UserRole.SITE_ADMIN:
       case UserRole.CLUB_ADMIN:
@@ -101,19 +101,19 @@ export function RegistrationProvider({ children }: RegistrationProviderProps) {
    */
   const setContextForShow = (showId: string, clubId?: string) => {
     if (!userWithRoles) return;
-    
+
     const mode = getRegistrationMode();
     const permissions = userWithRoles.permissions;
-    const scopedClubs = clubId ? [clubId] : userWithRoles.scopes
-      .filter(s => s.scopeType === ScopeType.CLUB)
-      .map(s => s.scopeId);
-    
+    const scopedClubs = clubId
+      ? [clubId]
+      : userWithRoles.scopes.filter(s => s.scopeType === ScopeType.CLUB).map(s => s.scopeId);
+
     setContext({
       mode,
       permissions,
       scopedClubs,
       showId,
-      userId: userWithRoles.id
+      userId: userWithRoles.id,
     });
   };
 
@@ -139,7 +139,12 @@ export function RegistrationProvider({ children }: RegistrationProviderProps) {
     setPrevRolesKey(rolesKey);
     if (userWithRoles?.roles && userWithRoles.roles.length > 0) {
       // Default to the highest privilege role
-      const roleHierarchy = [UserRole.SITE_ADMIN, UserRole.CLUB_ADMIN, UserRole.SECRETARY, UserRole.EXHIBITOR];
+      const roleHierarchy = [
+        UserRole.SITE_ADMIN,
+        UserRole.CLUB_ADMIN,
+        UserRole.SECRETARY,
+        UserRole.EXHIBITOR,
+      ];
       const highestRole = roleHierarchy.find(role => userWithRoles.roles.includes(role));
       setCurrentRole(highestRole || UserRole.EXHIBITOR);
     } else {
@@ -160,12 +165,12 @@ export function RegistrationProvider({ children }: RegistrationProviderProps) {
 
   const value: EnhancedRegistrationContext = {
     // Base context
-    mode: context?.mode || 'exhibitor',
+    mode: context?.mode || getRegistrationMode(),
     permissions: context?.permissions || [],
     scopedClubs: context?.scopedClubs || [],
     showId: context?.showId || '',
     userId: context?.userId || '',
-    
+
     // Permission checks
     canViewAllDogs,
     canRegisterAnyDog,
@@ -174,14 +179,14 @@ export function RegistrationProvider({ children }: RegistrationProviderProps) {
     canAssignArmbands,
     canManageStatus,
     canBulkOperations,
-    
+
     // Workflow configuration
     workflowConfig,
-    
+
     // Context management
     setContextForShow,
     switchRole,
-    resetContext
+    resetContext,
   };
 
   return (
@@ -190,5 +195,3 @@ export function RegistrationProvider({ children }: RegistrationProviderProps) {
     </RegistrationContextProvider.Provider>
   );
 }
-
-

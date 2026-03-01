@@ -14,26 +14,9 @@ import { addDays, format, isWithinInterval, parseISO } from 'date-fns';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useWizardStore } from '@/store/wizardStore';
+import { TrialType } from '@/types/template.types';
 
-const TRIAL_TYPE_OPTIONS = [
-  'Scent Work',
-  'Nosework',
-  'Scent Detection',
-  'Agility',
-  'Obedience',
-  'Rally',
-  'Conformation',
-  'FastCAT',
-  'Barn Hunt',
-  'Tracking',
-  'Field Trial',
-  'Hunt Test',
-  'Herding',
-  'Lure Coursing',
-  'Dock Diving',
-  'Weight Pull',
-  'Other',
-];
+const TRIAL_TYPE_OPTIONS = Object.values(TrialType);
 
 interface TrialConfigurationStepProps {
   className?: string;

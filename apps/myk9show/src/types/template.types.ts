@@ -17,6 +17,7 @@ export enum Organization {
 export enum TrialType {
   SCENT_WORK = 'Scent Work',
   NOSEWORK = 'Nosework',
+  SCENT_DETECTION = 'Scent Detection',
   AGILITY = 'Agility',
   CONFORMATION = 'Conformation',
   OBEDIENCE = 'Obedience',

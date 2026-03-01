@@ -88,7 +88,7 @@ const ORG_MAP: Record<string, Organization> = {
 const TRIAL_TYPE_MAP: Record<string, TrialType> = {
   'akc-scent-work': TrialType.SCENT_WORK,
   'ukc-nosework': TrialType.NOSEWORK,
-  'asca-scent-detection': TrialType.SCENT_WORK,
+  'asca-scent-detection': TrialType.SCENT_DETECTION,
 };
 
 function formatTimeRange(fixed: number | null, min: number | null, max: number | null): string {

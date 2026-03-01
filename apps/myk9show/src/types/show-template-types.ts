@@ -4,10 +4,13 @@ export type Organization = 'AKC' | 'UKC' | 'NACSW' | 'CPE' | 'USDAA' | 'NADAC' |
 
 export type TrialType =
   | 'Scent Work'
+  | 'Nosework'
+  | 'Scent Detection'
   | 'Agility'
   | 'Conformation'
   | 'Obedience'
   | 'Rally'
+  | 'Obedience & Rally'
   | 'FastCAT'
   | 'Coursing Ability Test'
   | 'Barn Hunt'

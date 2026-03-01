@@ -9,7 +9,7 @@ import type { JudgeDetailsMap, ShowStatus, EditMode } from './show-creation-wiza
 
 interface WizardShowData {
   name: string;
-  organization: 'AKC' | 'UKC' | 'NASDA' | 'Other';
+  organization: string;
   startDate: string;
   endDate: string;
   location: string;

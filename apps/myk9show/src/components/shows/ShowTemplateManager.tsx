@@ -132,10 +132,13 @@ export const ShowTemplateManager: React.FC<ShowTemplateManagerProps> = ({
 
   const trialTypeColors: Record<TrialType, string> = {
     'Scent Work': 'bg-blue-100 text-blue-800',
+    Nosework: 'bg-blue-100 text-blue-800',
+    'Scent Detection': 'bg-blue-100 text-blue-800',
     Agility: 'bg-green-100 text-green-800',
     Conformation: 'bg-purple-100 text-purple-800',
     Obedience: 'bg-orange-100 text-orange-800',
     Rally: 'bg-yellow-100 text-yellow-800',
+    'Obedience & Rally': 'bg-orange-100 text-orange-800',
     FastCAT: 'bg-red-100 text-red-800',
     'Coursing Ability Test': 'bg-pink-100 text-pink-800',
     'Barn Hunt': 'bg-brown-100 text-brown-800',

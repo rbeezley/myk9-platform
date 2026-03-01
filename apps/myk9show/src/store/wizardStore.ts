@@ -10,7 +10,7 @@ const SPORT_TYPE_MAP: Record<string, string> = {
 };
 
 /** Maps show organization to a default trial type (discipline). */
-const DEFAULT_TRIAL_TYPE: Record<string, string> = {
+const DEFAULT_TRIAL_TYPE: Partial<Record<string, string>> = {
   AKC: 'Scent Work',
   UKC: 'Nosework',
   NACSW: 'Nosework',
@@ -26,7 +26,7 @@ interface WizardState {
   // Show data
   show: {
     name: string;
-    organization: 'AKC' | 'UKC' | 'NASDA' | 'Other';
+    organization: string;
     startDate: string; // ISO datetime string
     endDate: string; // ISO datetime string
     location: string;
@@ -164,8 +164,7 @@ export const useWizardStore = create<WizardState & WizardActions>()(
               id: `trial-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
               sportType:
                 trial.sportType ?? SPORT_TYPE_MAP[state.show.organization] ?? 'akc-scent-work',
-              trialType:
-                trial.trialType ?? DEFAULT_TRIAL_TYPE[state.show.organization] ?? undefined,
+              trialType: trial.trialType ?? DEFAULT_TRIAL_TYPE[state.show.organization],
             },
           ],
           isDirty: true,

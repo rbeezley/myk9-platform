@@ -1,13 +1,6 @@
 import { createContext, useState, ReactNode } from 'react';
 import { RegistrationContext as RegistrationContextType } from '../types/show-registration-types';
-import {
-  UserRole,
-  UserWithRoles,
-  PERMISSIONS,
-  Permission,
-  Scope,
-  ScopeType,
-} from '../types/auth-types';
+import { UserRole, PERMISSIONS, Permission, Scope, ScopeType } from '../types/auth-types';
 import { useAuthContext } from '@/hooks/useAuthContext';
 
 /**
@@ -44,12 +37,9 @@ interface RegistrationProviderProps {
 }
 
 export function RegistrationProvider({ children }: RegistrationProviderProps) {
-  const { user } = useAuthContext();
+  const { userWithRoles } = useAuthContext();
   const [context, setContext] = useState<RegistrationContextType | null>(null);
   const [currentRole, setCurrentRole] = useState<UserRole | null>(null);
-
-  // Get user with roles (mock for now, will integrate with RBAC later)
-  const userWithRoles = user as UserWithRoles | null;
 
   /**
    * Permission checker function
@@ -74,9 +64,20 @@ export function RegistrationProvider({ children }: RegistrationProviderProps) {
    * Get the appropriate workflow mode based on user role and context
    */
   const getRegistrationMode = (): RegistrationContextType['mode'] => {
-    if (!userWithRoles || !currentRole) return 'exhibitor';
+    if (!userWithRoles) return 'exhibitor';
 
-    switch (currentRole) {
+    // Use currentRole if set, otherwise derive from user's highest role
+    const roleHierarchy = [
+      UserRole.SITE_ADMIN,
+      UserRole.CLUB_ADMIN,
+      UserRole.SECRETARY,
+      UserRole.EXHIBITOR,
+    ];
+    const effectiveRole =
+      currentRole || roleHierarchy.find(r => userWithRoles.roles?.includes(r)) || null;
+    if (!effectiveRole) return 'exhibitor';
+
+    switch (effectiveRole) {
       case UserRole.SITE_ADMIN:
       case UserRole.CLUB_ADMIN:
         return 'secretary_new'; // Full capabilities

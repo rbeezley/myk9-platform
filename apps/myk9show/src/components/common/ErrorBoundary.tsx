@@ -20,7 +20,9 @@ interface ErrorBoundaryState {
   error: Error | null;
   errorInfo: ErrorInfo | null;
   errorId: string;
-  classifiedError?: import('@/services/error/ErrorClassificationService').ClassifiedError | undefined;
+  classifiedError?:
+    | import('@/services/error/ErrorClassificationService').ClassifiedError
+    | undefined;
 }
 
 /**
@@ -37,7 +39,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     error: null,
     errorInfo: null,
     errorId: '',
-    classifiedError: undefined
+    classifiedError: undefined,
   };
 
   public static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
@@ -45,7 +47,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     return {
       hasError: true,
       error,
-      errorId: `error-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      errorId: `error-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     };
   }
 
@@ -59,18 +61,18 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       url: window.location.href,
       sessionId: `session_${Date.now()}`,
       errorType: 'javascript',
-      severity: 'high'
+      severity: 'high',
     };
 
     const classifiedError = this.errorClassificationService.classifyError(errorDetails);
 
     // Log the error to our monitoring service
     this.logErrorToService(error, errorInfo);
-    
+
     this.setState({
       error,
       errorInfo,
-      classifiedError
+      classifiedError,
     });
 
     // Call the optional onError callback
@@ -88,11 +90,11 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       timestamp: new Date().toISOString(),
       errorId: this.state.errorId,
       userAgent: navigator.userAgent,
-      url: window.location.href
+      url: window.location.href,
     };
 
     logger.error('Error Boundary Caught Error:', 'components', {}, new Error(errorReport.message));
-    
+
     // Store in localStorage for debugging
     try {
       const existingErrors = JSON.parse(localStorage.getItem('errorBoundaryLogs') || '[]');
@@ -112,7 +114,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         hasError: false,
         error: null,
         errorInfo: null,
-        errorId: ''
+        errorId: '',
       });
     }
   };
@@ -127,7 +129,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   private renderErrorDetails = () => {
     const { error, errorInfo } = this.state;
-    const isDevelopment = process.env.NODE_ENV === 'development';
+    const isDevelopment = import.meta.env.DEV;
 
     if (!isDevelopment) return null;
 
@@ -159,7 +161,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       if (this.props.fallback) {
         return this.props.fallback({
           error: this.state.error,
-          resetErrorBoundary: () => this.setState({ hasError: false, error: null, errorInfo: null, errorId: '' })
+          resetErrorBoundary: () =>
+            this.setState({ hasError: false, error: null, errorInfo: null, errorId: '' }),
         });
       }
 
@@ -179,9 +182,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-gray-600">
-                  We encountered an error while loading this page. This has been reported to our team.
+                  We encountered an error while loading this page. This has been reported to our
+                  team.
                 </p>
-                
+
                 <Alert>
                   <Bug className="h-4 w-4" />
                   <AlertDescription>
@@ -226,7 +230,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               <p className="text-sm text-gray-600">
                 The {context.toLowerCase()} section encountered an error and couldn't load.
               </p>
-              
+
               <div className="flex gap-2">
                 {canRetry && (
                   <Button size="sm" variant="outline" onClick={this.handleRetry}>
@@ -253,9 +257,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             <AlertTriangle className="h-4 w-4" />
             Component Error
           </div>
-          <p className="text-xs text-gray-600 mt-1">
-            Unable to render {context.toLowerCase()}
-          </p>
+          <p className="text-xs text-gray-600 mt-1">Unable to render {context.toLowerCase()}</p>
           <div className="flex gap-2 mt-2">
             {canRetry && (
               <button
@@ -277,8 +279,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
 // Specialized error boundaries for different contexts
 export const RegistrationErrorBoundary: React.FC<{ children: ReactNode }> = ({ children }) => (
-  <ErrorBoundary 
-    level="section" 
+  <ErrorBoundary
+    level="section"
     context="Registration Wizard"
     onError={(error, errorInfo) => {
       // Specific logging for registration errors
@@ -290,8 +292,8 @@ export const RegistrationErrorBoundary: React.FC<{ children: ReactNode }> = ({ c
 );
 
 export const SearchErrorBoundary: React.FC<{ children: ReactNode }> = ({ children }) => (
-  <ErrorBoundary 
-    level="component" 
+  <ErrorBoundary
+    level="component"
     context="Search Interface"
     onError={(error, errorInfo) => {
       // Specific logging for search errors
@@ -303,8 +305,8 @@ export const SearchErrorBoundary: React.FC<{ children: ReactNode }> = ({ childre
 );
 
 export const PaymentErrorBoundary: React.FC<{ children: ReactNode }> = ({ children }) => (
-  <ErrorBoundary 
-    level="section" 
+  <ErrorBoundary
+    level="section"
     context="Payment Processing"
     onError={(error, errorInfo) => {
       // Critical logging for payment errors
@@ -322,14 +324,14 @@ export function withErrorBoundary<T extends Record<string, unknown>>(
   Component: React.ComponentType<T>,
   errorBoundaryProps?: Omit<ErrorBoundaryProps, 'children'>
 ) {
-  const WrappedComponent: React.FC<T> = (props) => (
+  const WrappedComponent: React.FC<T> = props => (
     <ErrorBoundary {...errorBoundaryProps}>
       <Component {...props} />
     </ErrorBoundary>
   );
 
   WrappedComponent.displayName = `withErrorBoundary(${Component.displayName || Component.name})`;
-  
+
   return WrappedComponent;
 }
 

@@ -80,7 +80,7 @@ class LoadingErrorBoundary extends React.Component<
       }
 
       return (
-        <div className="flex flex-col items-center justify-center min-h-[200px] p-6">
+        <div className="flex flex-col items-center justify-center min-h-[200px] p-6 pt-24">
           <div className="text-center max-w-md">
             <div className="flex justify-center mb-4">
               <div className="p-3 bg-destructive/10 rounded-full">

@@ -39,6 +39,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { joinWaitlist } from '@/services/database/queries/waitlistQueries';
 import { toast } from 'sonner';
+import { getShowEntryFee } from './PaymentStep/utils';
 import '@/styles/apple-registration-workflow.css';
 
 interface ClassSelectionStepProps {
@@ -289,8 +290,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   };
 
   const getClassFee = (classData: ClassWithTrial['classData']): number => {
-    // Mock fee calculation
-    return classData.entryFee || 25;
+    return getShowEntryFee(show, classData.entryFee);
   };
 
   const getTotalFeesForDog = (dogId: string): number => {

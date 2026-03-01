@@ -29,8 +29,44 @@ interface ClassLike {
   entryFee?: number | undefined;
 }
 
-/** Default entry fee when a class has no explicit fee set. */
+/**
+ * Minimal subset of Show used by fee calculation.
+ */
+export interface ShowFeeInfo {
+  preEntryFee: string;
+  dayOfShowFee?: string | undefined;
+  startDate: string;
+}
+
+/** Default entry fee when neither show nor class has a fee set. */
 const DEFAULT_ENTRY_FEE = 25;
+
+/**
+ * Determine the entry fee based on show-level fee tiers and current date.
+ * Before show start date → pre-entry fee; on/after → day-of-show fee.
+ * Falls back to class-level entryFee, then DEFAULT_ENTRY_FEE.
+ */
+export function getShowEntryFee(
+  show: ShowFeeInfo | undefined,
+  classEntryFee?: number | undefined
+): number {
+  if (show) {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const showStart = new Date(show.startDate);
+    showStart.setHours(0, 0, 0, 0);
+
+    if (now >= showStart && show.dayOfShowFee) {
+      const dayFee = parseFloat(show.dayOfShowFee);
+      if (!isNaN(dayFee) && dayFee > 0) return dayFee;
+    }
+
+    const preFee = parseFloat(show.preEntryFee);
+    if (!isNaN(preFee) && preFee > 0) return preFee;
+  }
+
+  return classEntryFee || DEFAULT_ENTRY_FEE;
+}
 
 /** Multi-dog discount threshold (number of dogs). */
 const MULTI_DOG_THRESHOLD = 3;
@@ -43,12 +79,15 @@ const EARLY_BIRD_DISCOUNT_RATE = 0.05;
 
 /**
  * Calculate the total fees, discounts, and per-dog breakdown for a registration.
+ * When show info is provided, uses show-level fee tiers (pre-entry vs day-of-show)
+ * based on current date. Falls back to class-level entryFee otherwise.
  */
 export function calculateTotalFees(
   selectedDogs: string[],
   classSelections: ClassSelectionData[],
   dogs: DogLike[],
-  classes: ClassLike[]
+  classes: ClassLike[],
+  show?: ShowFeeInfo
 ): FeeCalculationResult {
   let subtotal = 0;
   const breakdown: FeeBreakdownItem[] = [];
@@ -62,7 +101,7 @@ export function calculateTotalFees(
         const classData = classes.find(c => c.id === sc.classId);
         return {
           className: classData?.className || 'Unknown Class',
-          fee: classData?.entryFee || DEFAULT_ENTRY_FEE,
+          fee: getShowEntryFee(show, classData?.entryFee),
         };
       });
 

@@ -4,6 +4,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PaymentStatus, EntryStatus } from '@/types/show-registration-types';
 import { useDogStore } from '@/store/dogStore';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
+import { useShowStore } from '@/store/showStore';
 import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
 import { calculateTotalFees } from './utils';
 import { RegistrationSummary } from './RegistrationSummary';
@@ -25,24 +26,26 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
   onPaymentMethodChange,
   onPaymentStatusChange,
   onEntryStatusChange,
+  showId,
 }) => {
   const { dogs } = useDogStore();
   const { classes = [] } = useClassStoreCompat();
+  const { shows = [] } = useShowStore();
   useRegistrationPermissions();
+
+  const show = showId ? shows.find(s => s.id === showId) : undefined;
 
   // Shared state: fee override and waiver (used by both SecretaryPaymentManagement and PaymentSummaryCard)
   const [feeOverride, setFeeOverride] = useState<number | null>(null);
   const [waiveFees, setWaiveFees] = useState(false);
 
-  const feeCalculation = calculateTotalFees(selectedDogs, classSelections, dogs, classes);
+  const feeCalculation = calculateTotalFees(selectedDogs, classSelections, dogs, classes, show);
 
   return (
     <div className="space-y-4">
       <div className="mb-4">
         <h3 className="text-lg font-semibold">Payment Information</h3>
-        <p className="text-sm text-gray-600 mt-1">
-          Review your fees and select a payment method.
-        </p>
+        <p className="text-sm text-gray-600 mt-1">Review your fees and select a payment method.</p>
       </div>
 
       {/* Fee Summary */}

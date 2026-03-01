@@ -56,6 +56,7 @@ interface ClassWithTrial {
     fee?: number | undefined;
     entryFee?: number | undefined;
     className?: string | undefined;
+    requiresJumpHeight?: boolean | undefined;
   } & Record<string, unknown>;
   trial: {
     id: string;
@@ -113,10 +114,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
         grouped.push({
           classData: {
             ...classData,
-            name:
-              (classData as unknown as { name?: string }).name ||
-              classData.className ||
-              'Unnamed Class',
+            name: classData.className || 'Unnamed Class',
           },
           trial: {
             id: trial.id,
@@ -750,30 +748,28 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                           </div>
                                         )}
 
-                                        {isSelected &&
-                                          (classData as unknown as { requiresJumpHeight?: boolean })
-                                            .requiresJumpHeight && (
-                                            <div className="mt-2 ml-9">
-                                              <Label className="text-sm">Jump Height</Label>
-                                              <Select
-                                                value={selectedClass?.jumpHeight || ''}
-                                                onValueChange={value =>
-                                                  handleJumpHeightChange(dogId, classData.id, value)
-                                                }
-                                              >
-                                                <SelectTrigger className="w-32 h-8 mt-1">
-                                                  <SelectValue placeholder="Select..." />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                  <SelectItem value="8">8"</SelectItem>
-                                                  <SelectItem value="12">12"</SelectItem>
-                                                  <SelectItem value="16">16"</SelectItem>
-                                                  <SelectItem value="20">20"</SelectItem>
-                                                  <SelectItem value="24">24"</SelectItem>
-                                                </SelectContent>
-                                              </Select>
-                                            </div>
-                                          )}
+                                        {isSelected && classData.requiresJumpHeight && (
+                                          <div className="mt-2 ml-9">
+                                            <Label className="text-sm">Jump Height</Label>
+                                            <Select
+                                              value={selectedClass?.jumpHeight || ''}
+                                              onValueChange={value =>
+                                                handleJumpHeightChange(dogId, classData.id, value)
+                                              }
+                                            >
+                                              <SelectTrigger className="w-32 h-8 mt-1">
+                                                <SelectValue placeholder="Select..." />
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                <SelectItem value="8">8"</SelectItem>
+                                                <SelectItem value="12">12"</SelectItem>
+                                                <SelectItem value="16">16"</SelectItem>
+                                                <SelectItem value="20">20"</SelectItem>
+                                                <SelectItem value="24">24"</SelectItem>
+                                              </SelectContent>
+                                            </Select>
+                                          </div>
+                                        )}
                                       </div>
                                     </div>
                                   );

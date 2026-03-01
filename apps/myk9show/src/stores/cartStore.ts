@@ -82,7 +82,6 @@ interface CartState {
   lastSyncedAt: string | null;
 
   // Expiration tracking
-  expiresAt: string | null;
   expirationWarning: boolean;
 
   // Actions
@@ -127,7 +126,6 @@ export const useCartStore = create<CartState>()(
         isLoading: false,
         error: null,
         lastSyncedAt: null,
-        expiresAt: null,
         expirationWarning: false,
 
         // Load existing cart for a show
@@ -156,7 +154,7 @@ export const useCartStore = create<CartState>()(
             }
 
             if (!cartData) {
-              set({ cart: null, isLoading: false, expiresAt: null });
+              set({ cart: null, isLoading: false });
               return null;
             }
 
@@ -192,12 +190,17 @@ export const useCartStore = create<CartState>()(
             set({
               cart: cartWithDetails,
               isLoading: false,
-              expiresAt: cartData.expires_at,
               lastSyncedAt: new Date().toISOString(),
-              expirationWarning:
-                get().getTimeUntilExpiration() !== null &&
-                (get().getTimeUntilExpiration() || 0) < EXPIRATION_WARNING_MINUTES * 60 * 1000,
             });
+
+            // Compute expiration warning after cart is set
+            const timeUntilExpiry = get().getTimeUntilExpiration();
+            if (
+              timeUntilExpiry !== null &&
+              timeUntilExpiry < EXPIRATION_WARNING_MINUTES * 60 * 1000
+            ) {
+              set({ expirationWarning: true });
+            }
 
             return cartWithDetails;
           } catch (error) {
@@ -257,7 +260,6 @@ export const useCartStore = create<CartState>()(
             set({
               cart: cartWithDetails,
               isLoading: false,
-              expiresAt: cartData.expires_at,
               lastSyncedAt: new Date().toISOString(),
               expirationWarning: false,
             });
@@ -609,7 +611,6 @@ export const useCartStore = create<CartState>()(
 
             set({
               cart: { ...cart, expires_at: newExpiresAt },
-              expiresAt: newExpiresAt,
               expirationWarning: false,
               lastSyncedAt: new Date().toISOString(),
             });
@@ -643,7 +644,6 @@ export const useCartStore = create<CartState>()(
 
             set({
               cart: null,
-              expiresAt: null,
               expirationWarning: false,
               lastSyncedAt: new Date().toISOString(),
             });
@@ -683,7 +683,7 @@ export const useCartStore = create<CartState>()(
 
         // Computed: Time until expiration in milliseconds
         getTimeUntilExpiration: () => {
-          const { expiresAt } = get();
+          const expiresAt = get().cart?.expires_at;
           if (!expiresAt) return null;
 
           const expirationTime = new Date(expiresAt).getTime();
@@ -709,7 +709,6 @@ export const useCartStore = create<CartState>()(
             isLoading: false,
             error: null,
             lastSyncedAt: null,
-            expiresAt: null,
             expirationWarning: false,
           });
         },
@@ -742,7 +741,7 @@ export const useCartItems = () => useCartStore(state => state.cart?.items ?? EMP
 export const useCartItemCount = () => useCartStore(state => state.getItemCount());
 export const useCartTotal = () => useCartStore(state => state.getTotalAmount());
 export const useCartExpiration = () => {
-  const expiresAt = useCartStore(state => state.expiresAt);
+  const expiresAt = useCartStore(state => state.cart?.expires_at ?? null);
   const timeRemaining = useCartStore(state => state.getTimeUntilExpiration());
   const isExpired = useCartStore(state => state.isExpired());
   const isWarning = useCartStore(state => state.expirationWarning);

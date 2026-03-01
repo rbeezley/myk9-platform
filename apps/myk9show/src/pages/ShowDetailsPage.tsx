@@ -11,10 +11,10 @@ import { RegistrationWorkflow } from '@/components/shows/RegistrationWorkflow';
 import { RegistrationProvider } from '@/context/RegistrationContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useTrialStore, type TrialInput } from '@/store/trialStore';
-import { useShowStore, type ShowInput } from '@/store/showStore';
+import type { ShowInput } from '@/store/showStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useCompleteShowData } from '@/hooks/useShowScopedData';
-import { useShowsQuery, showQueryKeys } from '@/hooks/queries/useShowsDatabase';
+import { useShowsQuery, useUpdateShowMutation } from '@/hooks/queries/useShowsDatabase';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useNavigationPerformance } from '@/hooks/useNavigationPerformance';
 import type { Trial } from '@/components/trials/types/trial.types';
@@ -62,6 +62,7 @@ const ShowDetailsPage: React.FC = () => {
     deleteTrial: deleteTrialFromStore,
   } = useTrialStore();
   const { user } = useAuthContext();
+  const updateShowMutation = useUpdateShowMutation();
 
   // Auto-open edit panel when redirected from /secretary/shows/:id/edit
   const [searchParams, setSearchParams] = useSearchParams();
@@ -367,28 +368,10 @@ const ShowDetailsPage: React.FC = () => {
         initialShowData={actualCurrentShow || {}}
         onSave={async showData => {
           if (actualCurrentShow?.id) {
-            const updatedShow = await useShowStore
-              .getState()
-              .updateShow(actualCurrentShow.id, showData as Partial<ShowInput>);
-
-            // Sync React Query cache so the details page reflects changes immediately
-            if (updatedShow) {
-              queryClient.setQueryData(showQueryKeys.detail(actualCurrentShow.id), updatedShow);
-              queryClient.setQueryData<Show[]>(showQueryKeys.lists(), old =>
-                old ? old.map(s => (s.id === updatedShow.id ? updatedShow : s)) : [updatedShow]
-              );
-              if (updatedShow.clubId) {
-                queryClient.setQueryData<Show[]>(showQueryKeys.byClub(updatedShow.clubId), old =>
-                  old ? old.map(s => (s.id === updatedShow.id ? updatedShow : s)) : [updatedShow]
-                );
-              }
-              queryClient.setQueryData<Show[]>(showQueryKeys.byStatus(updatedShow.status), old =>
-                old ? old.map(s => (s.id === updatedShow.id ? updatedShow : s)) : [updatedShow]
-              );
-              queryClient.invalidateQueries({ queryKey: showQueryKeys.statistics() });
-              queryClient.invalidateQueries({ queryKey: showQueryKeys.upcoming() });
-              queryClient.invalidateQueries({ queryKey: showQueryKeys.withEntryCounts() });
-            }
+            await updateShowMutation.mutateAsync({
+              id: actualCurrentShow.id,
+              updates: showData as Partial<ShowInput>,
+            });
           }
           setShowEditPanel(false);
         }}

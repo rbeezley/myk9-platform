@@ -40,9 +40,9 @@ export function useCartExpirationTimer(options?: {
   onWarning?: () => void;
   onUrgentWarning?: () => void;
 }): CartExpirationState {
-  const expiresAt = useCartStore((state) => state.expiresAt);
-  const cart = useCartStore((state) => state.cart);
-  const extendExpirationAction = useCartStore((state) => state.extendExpiration);
+  const cart = useCartStore(state => state.cart);
+  const expiresAt = cart?.expires_at ?? null;
+  const extendExpirationAction = useCartStore(state => state.extendExpiration);
 
   const [timeRemainingMs, setTimeRemainingMs] = useState<number | null>(null);
 
@@ -97,13 +97,21 @@ export function useCartExpirationTimer(options?: {
       // Trigger callbacks
       if (remaining !== null) {
         // Warning callback (5 minutes)
-        if (remaining <= WARNING_THRESHOLD_MS && remaining > URGENT_WARNING_THRESHOLD_MS && !hasTriggeredWarningRef.current) {
+        if (
+          remaining <= WARNING_THRESHOLD_MS &&
+          remaining > URGENT_WARNING_THRESHOLD_MS &&
+          !hasTriggeredWarningRef.current
+        ) {
           hasTriggeredWarningRef.current = true;
           optionsRef.current?.onWarning?.();
         }
 
         // Urgent warning callback (1 minute)
-        if (remaining <= URGENT_WARNING_THRESHOLD_MS && remaining > 0 && !hasTriggeredUrgentRef.current) {
+        if (
+          remaining <= URGENT_WARNING_THRESHOLD_MS &&
+          remaining > 0 &&
+          !hasTriggeredUrgentRef.current
+        ) {
           hasTriggeredUrgentRef.current = true;
           optionsRef.current?.onUrgentWarning?.();
         }
@@ -164,8 +172,12 @@ export function useCartExpirationTimer(options?: {
     timeRemainingMs,
     timeRemainingFormatted: formatTimeRemaining(timeRemainingMs),
     isExpired: timeRemainingMs !== null && timeRemainingMs <= 0,
-    showWarning: timeRemainingMs !== null && timeRemainingMs <= WARNING_THRESHOLD_MS && timeRemainingMs > 0,
-    showUrgentWarning: timeRemainingMs !== null && timeRemainingMs <= URGENT_WARNING_THRESHOLD_MS && timeRemainingMs > 0,
+    showWarning:
+      timeRemainingMs !== null && timeRemainingMs <= WARNING_THRESHOLD_MS && timeRemainingMs > 0,
+    showUrgentWarning:
+      timeRemainingMs !== null &&
+      timeRemainingMs <= URGENT_WARNING_THRESHOLD_MS &&
+      timeRemainingMs > 0,
     extendExpiration,
     percentRemaining,
   };

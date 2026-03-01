@@ -34,7 +34,7 @@ export const WORKFLOW_CONFIGS: Record<WorkflowMode, WorkflowConfig> = {
       statusManagement: true,
     },
     smartDefaults: {
-      autoAssignHandler: false,
+      autoAssignHandler: true,
       autoCalculateFees: true,
       delayRegistrationCreation: true,
     },
@@ -50,7 +50,7 @@ export const WORKFLOW_CONFIGS: Record<WorkflowMode, WorkflowConfig> = {
       statusManagement: true,
     },
     smartDefaults: {
-      autoAssignHandler: false,
+      autoAssignHandler: true,
       autoCalculateFees: true,
       delayRegistrationCreation: true,
     },
@@ -66,7 +66,7 @@ export const WORKFLOW_CONFIGS: Record<WorkflowMode, WorkflowConfig> = {
       statusManagement: true,
     },
     smartDefaults: {
-      autoAssignHandler: false,
+      autoAssignHandler: true,
       autoCalculateFees: false,
       delayRegistrationCreation: true,
     },
@@ -82,7 +82,7 @@ export const WORKFLOW_CONFIGS: Record<WorkflowMode, WorkflowConfig> = {
       statusManagement: true,
     },
     smartDefaults: {
-      autoAssignHandler: false,
+      autoAssignHandler: true,
       autoCalculateFees: false,
       delayRegistrationCreation: true,
     },

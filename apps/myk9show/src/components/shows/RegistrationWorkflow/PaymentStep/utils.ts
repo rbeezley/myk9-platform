@@ -65,11 +65,11 @@ export function getShowEntryFee(
     showStart.setHours(0, 0, 0, 0);
 
     if (now >= showStart && show.dayOfShowFee) {
-      const dayFee = parseFloat(show.dayOfShowFee);
+      const dayFee = parseFloat(show.dayOfShowFee.replace(/[$,]/g, ''));
       if (!isNaN(dayFee) && dayFee > 0) return dayFee;
     }
 
-    const preFee = parseFloat(show.preEntryFee);
+    const preFee = parseFloat(show.preEntryFee.replace(/[$,]/g, ''));
     if (!isNaN(preFee) && preFee > 0) return preFee;
   }
 

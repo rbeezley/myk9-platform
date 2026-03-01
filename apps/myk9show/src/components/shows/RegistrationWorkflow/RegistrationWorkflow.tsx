@@ -121,15 +121,16 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
 
   // Merge local state into optimistic state. The optimistic layer captures
   // initialData on first render only; local state (registrationData,
-  // handlerAssignments) is always more current for fields updated outside
-  // the optimistic update methods (e.g. payment method, auto-assigned handlers).
+  // handlerAssignments, classSelections) is always more current for fields
+  // updated outside the optimistic update methods.
   const effectiveOptimisticState = useMemo(
     () => ({
       ...optimisticState,
       formData: registrationData,
       handlerAssignments,
+      classSelections,
     }),
-    [optimisticState, registrationData, handlerAssignments]
+    [optimisticState, registrationData, handlerAssignments, classSelections]
   );
 
   // Define helper functions first

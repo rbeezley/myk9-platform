@@ -4,7 +4,13 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Dog } from '@/types/dog-types';
 import { useDebounce } from '@myk9/scoring-ui';
 import { useRecentSearches } from '@/hooks/useRecentSearches';
@@ -43,11 +49,11 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
   dogs,
   onDogsFiltered,
   onSearchQueryChange,
-  placeholder = "Search by name, registered name, breed, or registration number...",
+  placeholder = 'Search by name, registered name, breed, or registration number...',
   showQuickFilters = true,
   showAdvancedFilters = true,
   enablePersistence = true,
-  className = ""
+  className = '',
 }) => {
   // Recent searches hook
   const {
@@ -56,7 +62,7 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
     removeSearch,
     clearSearches,
     getSuggestions,
-    getFrequentSearches
+    getFrequentSearches,
   } = useRecentSearches({ context: 'dogs' });
 
   // Search and filter state
@@ -66,17 +72,17 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
     genderFilter: '',
     registrationFilter: '',
     ageFilter: '',
-    quickFilter: ''
+    quickFilter: '',
   });
 
   // Advanced filters visibility
   const [showAdvanced, setShowAdvanced] = useState(false);
-  
+
   // Search suggestions state
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showRecentSearches, setShowRecentSearches] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Performance tracking
   const searchStartTimeRef = useRef(0);
   const [searchResponseTime, setSearchResponseTime] = useState(0);
@@ -85,61 +91,88 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
   const debouncedSearchQuery = useDebounce(filters.searchQuery, 300);
 
   // Derive isSearching from query state - searching when there's a pending debounced query
-  const isSearching = filters.searchQuery.trim() !== '' && filters.searchQuery !== debouncedSearchQuery;
+  const isSearching =
+    filters.searchQuery.trim() !== '' && filters.searchQuery !== debouncedSearchQuery;
 
   // Quick filters for common use cases
-  const quickFilters: QuickFilter[] = useMemo(() => [
-    {
-      id: 'recent',
-      label: 'Recent',
-      icon: <Calendar className="h-4 w-4" />,
-      description: 'Dogs with recent registrations',
-      filter: (dogs) => {
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        return dogs.filter(dog => 
-          dog.registrations?.some(reg => 
-            reg.registrationDate && new Date(reg.registrationDate) > thirtyDaysAgo
-          )
-        );
-      }
-    },
-    {
-      id: 'registered',
-      label: 'Registered',
-      icon: <Award className="h-4 w-4" />,
-      description: 'Dogs with active registrations',
-      filter: (dogs) => dogs.filter(dog => 
-        dog.registrations?.some(reg => reg.status === 'Active')
-      )
-    },
-    {
-      id: 'puppies',
-      label: 'Puppies',
-      icon: <Users className="h-4 w-4" />,
-      description: 'Dogs under 18 months old',
-      filter: (dogs) => dogs.filter(dog => {
-        if (!dog.dateOfBirth) return false;
-        const ageInMonths = (new Date().getTime() - new Date(dog.dateOfBirth).getTime()) / (1000 * 60 * 60 * 24 * 30);
-        return ageInMonths < 18;
-      })
-    }
-  ], []);
+  const quickFilters: QuickFilter[] = useMemo(
+    () => [
+      {
+        id: 'recent',
+        label: 'Recent',
+        icon: <Calendar className="h-4 w-4" />,
+        description: 'Dogs with recent registrations',
+        filter: dogs => {
+          const thirtyDaysAgo = new Date();
+          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+          return dogs.filter(dog =>
+            dog.registrations?.some(
+              reg => reg.registrationDate && new Date(reg.registrationDate) > thirtyDaysAgo
+            )
+          );
+        },
+      },
+      {
+        id: 'registered',
+        label: 'Registered',
+        icon: <Award className="h-4 w-4" />,
+        description: 'Dogs with active registrations',
+        filter: dogs => dogs.filter(dog => dog.registrations?.some(reg => reg.status === 'Active')),
+      },
+      {
+        id: 'puppies',
+        label: 'Puppies',
+        icon: <Users className="h-4 w-4" />,
+        description: 'Dogs under 18 months old',
+        filter: dogs =>
+          dogs.filter(dog => {
+            if (!dog.dateOfBirth) return false;
+            const ageInMonths =
+              (new Date().getTime() - new Date(dog.dateOfBirth).getTime()) /
+              (1000 * 60 * 60 * 24 * 30);
+            return ageInMonths < 18;
+          }),
+      },
+    ],
+    []
+  );
+
+  // Normalize org names like "AKC (American Kennel Club)" → "AKC"
+  const normalizeOrg = (org: string): string => {
+    const match = org.match(/^(\w+)\s*\(/);
+    return match ? match[1] : org;
+  };
 
   // Get unique filter options from the dog data
   const filterOptions = useMemo(() => {
     return {
-      breeds: [...new Set(dogs.map(dog => dog.registrations?.[0]?.breed).filter((breed): breed is string => Boolean(breed)))].sort(),
-      genders: [...new Set(dogs.map(dog => dog.gender).filter((gender): gender is 'Male' | 'Female' => Boolean(gender) && gender !== ''))].sort(),
-      organizations: [...new Set(dogs.flatMap(dog => 
-        dog.registrations?.map(reg => reg.organization) || []
-      ).filter((org): org is string => Boolean(org)))].sort(),
+      breeds: [
+        ...new Set(
+          dogs
+            .map(dog => dog.registrations?.[0]?.breed)
+            .filter((breed): breed is string => Boolean(breed))
+        ),
+      ].sort(),
+      genders: [
+        ...new Set(
+          dogs
+            .map(dog => dog.gender)
+            .filter((gender): gender is 'Male' | 'Female' => Boolean(gender) && gender !== '')
+        ),
+      ].sort(),
+      organizations: [
+        ...new Set(
+          dogs
+            .flatMap(dog => dog.registrations?.map(reg => normalizeOrg(reg.organization)) || [])
+            .filter((org): org is string => Boolean(org))
+        ),
+      ].sort(),
       ageGroups: [
         { value: 'puppy', label: 'Puppy (0-18 months)' },
         { value: 'young', label: 'Young Adult (18 months - 5 years)' },
         { value: 'adult', label: 'Adult (5-7 years)' },
-        { value: 'senior', label: 'Senior (7+ years)' }
-      ]
+        { value: 'senior', label: 'Senior (7+ years)' },
+      ],
     };
   }, [dogs]);
 
@@ -162,9 +195,10 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
         return (
           dog.callName?.toLowerCase().includes(query) ||
           dog.name?.toLowerCase().includes(query) ||
-          dog.registrations?.some(reg => 
-            reg.registeredName?.toLowerCase().includes(query) ||
-            reg.registrationNumber?.toLowerCase().includes(query)
+          dog.registrations?.some(
+            reg =>
+              reg.registeredName?.toLowerCase().includes(query) ||
+              reg.registrationNumber?.toLowerCase().includes(query)
           ) ||
           dog.registrations?.[0]?.breed?.toLowerCase().includes(query) ||
           (dog.microchip && dog.microchip.toLowerCase().includes(query))
@@ -182,10 +216,12 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
       filtered = filtered.filter(dog => dog.gender === filters.genderFilter);
     }
 
-    // Apply registration filter
+    // Apply registration filter (normalize to match both "AKC" and "AKC (American Kennel Club)")
     if (filters.registrationFilter) {
-      filtered = filtered.filter(dog => 
-        dog.registrations?.some(reg => reg.organization === filters.registrationFilter)
+      filtered = filtered.filter(dog =>
+        dog.registrations?.some(
+          reg => normalizeOrg(reg.organization) === filters.registrationFilter
+        )
       );
     }
 
@@ -193,13 +229,19 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
     if (filters.ageFilter) {
       filtered = filtered.filter(dog => {
         if (!dog.dateOfBirth) return false;
-        const ageInMonths = (new Date().getTime() - new Date(dog.dateOfBirth).getTime()) / (1000 * 60 * 60 * 24 * 30);
+        const ageInMonths =
+          (new Date().getTime() - new Date(dog.dateOfBirth).getTime()) / (1000 * 60 * 60 * 24 * 30);
         switch (filters.ageFilter) {
-          case 'puppy': return ageInMonths < 18;
-          case 'young': return ageInMonths >= 18 && ageInMonths < 60;
-          case 'adult': return ageInMonths >= 60 && ageInMonths < 84;
-          case 'senior': return ageInMonths >= 84;
-          default: return true;
+          case 'puppy':
+            return ageInMonths < 18;
+          case 'young':
+            return ageInMonths >= 18 && ageInMonths < 60;
+          case 'adult':
+            return ageInMonths >= 60 && ageInMonths < 84;
+          case 'senior':
+            return ageInMonths >= 84;
+          default:
+            return true;
         }
       });
     }
@@ -223,10 +265,15 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
   const searchKey = `${debouncedSearchQuery}-${filteredDogs.length}`;
   const prevSearchKeyRef = useRef(searchKey);
   useEffect(() => {
-    if (searchKey !== prevSearchKeyRef.current && debouncedSearchQuery.trim() && enablePersistence) {
+    if (
+      searchKey !== prevSearchKeyRef.current &&
+      debouncedSearchQuery.trim() &&
+      enablePersistence
+    ) {
       prevSearchKeyRef.current = searchKey;
       const endTime = Date.now();
-      const responseTime = searchStartTimeRef.current > 0 ? endTime - searchStartTimeRef.current : 0;
+      const responseTime =
+        searchStartTimeRef.current > 0 ? endTime - searchStartTimeRef.current : 0;
 
       // Use queueMicrotask to defer state update (avoids synchronous setState in effect)
       queueMicrotask(() => {
@@ -240,8 +287,8 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
           gender: filters.genderFilter,
           registration: filters.registrationFilter,
           age: filters.ageFilter,
-          quick: filters.quickFilter
-        }
+          quick: filters.quickFilter,
+        },
       });
     }
   }, [searchKey, debouncedSearchQuery, enablePersistence, filteredDogs.length, addSearch, filters]);
@@ -265,7 +312,7 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
       genderFilter: '',
       registrationFilter: '',
       ageFilter: '',
-      quickFilter: ''
+      quickFilter: '',
     });
     onSearchQueryChange?.('');
   };
@@ -292,7 +339,7 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
           <Input
             placeholder={placeholder}
             value={filters.searchQuery}
-            onChange={(e) => {
+            onChange={e => {
               const newQuery = e.target.value;
               setFilters(prev => ({ ...prev, searchQuery: newQuery }));
               onSearchQueryChange?.(newQuery);
@@ -315,16 +362,18 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
               <X className="h-4 w-4" />
             </Button>
           )}
-          
+
           {/* Search Suggestions */}
-          {showSuggestions && (currentSuggestions.length > 0 || (!filters.searchQuery && frequentSearches.length > 0)) && (
-            <SearchSuggestions
-              suggestions={currentSuggestions}
-              currentQuery={filters.searchQuery}
-              onSuggestionSelect={handleSearchSelect}
-              frequentSearches={frequentSearches}
-            />
-          )}
+          {showSuggestions &&
+            (currentSuggestions.length > 0 ||
+              (!filters.searchQuery && frequentSearches.length > 0)) && (
+              <SearchSuggestions
+                suggestions={currentSuggestions}
+                currentQuery={filters.searchQuery}
+                onSuggestionSelect={handleSearchSelect}
+                frequentSearches={frequentSearches}
+              />
+            )}
         </div>
 
         {/* Quick Filters */}
@@ -333,12 +382,14 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
             {quickFilters.map(quickFilter => (
               <Button
                 key={quickFilter.id}
-                variant={filters.quickFilter === quickFilter.id ? "default" : "outline"}
+                variant={filters.quickFilter === quickFilter.id ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setFilters(prev => ({ 
-                  ...prev, 
-                  quickFilter: prev.quickFilter === quickFilter.id ? '' : quickFilter.id 
-                }))}
+                onClick={() =>
+                  setFilters(prev => ({
+                    ...prev,
+                    quickFilter: prev.quickFilter === quickFilter.id ? '' : quickFilter.id,
+                  }))
+                }
                 className="flex items-center gap-2"
                 title={quickFilter.description}
               >
@@ -366,7 +417,7 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
                 </Badge>
               )}
             </Button>
-            
+
             {hasActiveFilters && (
               <Button
                 variant="ghost"
@@ -388,7 +439,7 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
               <label className="text-sm font-medium">Breed</label>
               <Select
                 value={filters.breedFilter}
-                onValueChange={(value) => setFilters(prev => ({ ...prev, breedFilter: value }))}
+                onValueChange={value => setFilters(prev => ({ ...prev, breedFilter: value }))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="All Breeds" />
@@ -409,7 +460,7 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
               <label className="text-sm font-medium">Gender</label>
               <Select
                 value={filters.genderFilter}
-                onValueChange={(value) => setFilters(prev => ({ ...prev, genderFilter: value }))}
+                onValueChange={value => setFilters(prev => ({ ...prev, genderFilter: value }))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="All Genders" />
@@ -430,7 +481,9 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
               <label className="text-sm font-medium">Registry</label>
               <Select
                 value={filters.registrationFilter}
-                onValueChange={(value) => setFilters(prev => ({ ...prev, registrationFilter: value }))}
+                onValueChange={value =>
+                  setFilters(prev => ({ ...prev, registrationFilter: value }))
+                }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="All Registries" />
@@ -451,7 +504,7 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
               <label className="text-sm font-medium">Age Group</label>
               <Select
                 value={filters.ageFilter}
-                onValueChange={(value) => setFilters(prev => ({ ...prev, ageFilter: value }))}
+                onValueChange={value => setFilters(prev => ({ ...prev, ageFilter: value }))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="All Ages" />
@@ -475,8 +528,8 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
             {filters.searchQuery && (
               <Badge variant="secondary" className="flex items-center gap-1">
                 Search: "{filters.searchQuery}"
-                <X 
-                  className="h-3 w-3 cursor-pointer" 
+                <X
+                  className="h-3 w-3 cursor-pointer"
                   onClick={() => {
                     setFilters(prev => ({ ...prev, searchQuery: '' }));
                     onSearchQueryChange?.('');
@@ -487,8 +540,8 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
             {filters.quickFilter && (
               <Badge variant="secondary" className="flex items-center gap-1">
                 {quickFilters.find(qf => qf.id === filters.quickFilter)?.label}
-                <X 
-                  className="h-3 w-3 cursor-pointer" 
+                <X
+                  className="h-3 w-3 cursor-pointer"
                   onClick={() => setFilters(prev => ({ ...prev, quickFilter: '' }))}
                 />
               </Badge>
@@ -496,8 +549,8 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
             {filters.breedFilter && (
               <Badge variant="secondary" className="flex items-center gap-1">
                 Breed: {filters.breedFilter}
-                <X 
-                  className="h-3 w-3 cursor-pointer" 
+                <X
+                  className="h-3 w-3 cursor-pointer"
                   onClick={() => setFilters(prev => ({ ...prev, breedFilter: '' }))}
                 />
               </Badge>
@@ -505,8 +558,8 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
             {filters.genderFilter && (
               <Badge variant="secondary" className="flex items-center gap-1">
                 Gender: {filters.genderFilter}
-                <X 
-                  className="h-3 w-3 cursor-pointer" 
+                <X
+                  className="h-3 w-3 cursor-pointer"
                   onClick={() => setFilters(prev => ({ ...prev, genderFilter: '' }))}
                 />
               </Badge>
@@ -514,8 +567,8 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
             {filters.registrationFilter && (
               <Badge variant="secondary" className="flex items-center gap-1">
                 Registry: {filters.registrationFilter}
-                <X 
-                  className="h-3 w-3 cursor-pointer" 
+                <X
+                  className="h-3 w-3 cursor-pointer"
                   onClick={() => setFilters(prev => ({ ...prev, registrationFilter: '' }))}
                 />
               </Badge>
@@ -523,8 +576,8 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
             {filters.ageFilter && (
               <Badge variant="secondary" className="flex items-center gap-1">
                 Age: {filterOptions.ageGroups.find(ag => ag.value === filters.ageFilter)?.label}
-                <X 
-                  className="h-3 w-3 cursor-pointer" 
+                <X
+                  className="h-3 w-3 cursor-pointer"
                   onClick={() => setFilters(prev => ({ ...prev, ageFilter: '' }))}
                 />
               </Badge>
@@ -538,9 +591,9 @@ export const DogSearchInterface: React.FC<DogSearchInterfaceProps> = ({
             Showing {filteredDogs.length} of {dogs.length} dog{dogs.length !== 1 ? 's' : ''}
           </span>
           {enablePersistence && recentSearches.length > 0 && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               className="text-xs"
               onClick={() => setShowRecentSearches(!showRecentSearches)}
             >

@@ -119,6 +119,16 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
     stepCompletionState,
   });
 
+  // Merge local handler assignments into optimistic state so auto-assigned
+  // handlers appear immediately (the optimistic layer doesn't track them).
+  const effectiveOptimisticState = useMemo(
+    () => ({
+      ...optimisticState,
+      handlerAssignments,
+    }),
+    [optimisticState, handlerAssignments]
+  );
+
   // Define helper functions first
   const isStepCompleted = (stepIndex: number) => {
     const stepId = currentWorkflowConfig.steps[stepIndex];
@@ -440,7 +450,7 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
                   currentStepId={currentStepId}
                   currentWorkflowConfig={currentWorkflowConfig}
                   registrationData={registrationData}
-                  optimisticState={optimisticState}
+                  optimisticState={effectiveOptimisticState}
                   showId={showId}
                   registrationId={registrationId}
                   registrationNumber={registrationNumber}

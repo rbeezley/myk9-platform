@@ -102,7 +102,7 @@ export const HandlerAssignmentStep: React.FC<HandlerAssignmentStepProps> = ({
                     </Badge>
                   </div>
                 ) : (
-                  <span className="text-sm text-muted-foreground">Assigning...</span>
+                  <span className="text-sm text-muted-foreground">Not assigned</span>
                 )}
 
                 <Button variant="ghost" size="sm" onClick={() => setEditingDogId(dog.id)}>

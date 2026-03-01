@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { Search, AlertCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { RotateCcw } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -10,14 +10,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Card, CardContent } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { HandlerInfo } from '@/types/show-registration-types';
-import { useDebounce } from '@myk9/scoring-ui';
-import { checkHandlerConflicts as checkConflictsLib } from '@/lib/handlerValidation';
 import { getDogDisplayName, type Dog } from '@/types/dog-types';
 
 interface HandlerSelectionDialogProps {
@@ -30,148 +26,61 @@ interface HandlerSelectionDialogProps {
   initialAssignments?: Record<string, HandlerInfo>;
 }
 
-interface HandlerOption {
-  id: string;
-  name: string;
-  email?: string | undefined;
-  isOwner: boolean;
-  isProfessionalHandler: boolean;
-  conflictInfo?:
-    | {
-        hasConflict: boolean;
-        conflictingClasses?: string[] | undefined;
-        message?: string | undefined;
-      }
-    | undefined;
-}
-
 export const HandlerSelectionDialog: React.FC<HandlerSelectionDialogProps> = ({
   open,
   onOpenChange,
   selectedDogs,
-  showId,
   dogs,
   onHandlerAssignment,
   initialAssignments = {},
 }) => {
-  // Local state initialized from parent's assignments. The dialog is conditionally
-  // rendered (unmounts on close), so useState captures fresh props on each open.
-  const [searchQuery, setSearchQuery] = useState('');
-  const [handlerAssignments, setHandlerAssignments] =
-    useState<Record<string, HandlerInfo>>(initialAssignments);
-  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  // Build initial handler name from existing assignment or owner
+  const getInitialName = (dogId: string): string => {
+    const existing = initialAssignments[dogId];
+    if (existing?.handlerName) return existing.handlerName;
+    const dog = dogs.find(d => d.id === dogId);
+    return dog?.ownerName || '';
+  };
 
-  const debouncedSearchQuery = useDebounce(searchQuery, 300);
-
-  // Resolve selected dog IDs to dog objects with owner info
-  const dogsWithOwners = useMemo(() => {
-    return selectedDogs
-      .map(dogId => {
-        const dog = dogs.find(d => d.id === dogId);
-        if (!dog) return null;
-
-        return {
-          dog,
-          ownerName: dog.ownerName || 'Unknown Owner',
-          ownerId: dog.ownerId,
-        };
-      })
-      .filter(Boolean) as { dog: Dog; ownerName: string; ownerId: string }[];
-  }, [selectedDogs, dogs]);
-
-  // Conflict checker depends on current handler assignments
-  const checkHandlerConflicts = useCallback(
-    (handlerId: string): HandlerOption['conflictInfo'] => {
-      const conflicts = checkConflictsLib(handlerId, showId, '', [], handlerAssignments);
-      if (conflicts.length === 0) {
-        return { hasConflict: false };
-      }
-      const errorConflicts = conflicts.filter(c => c.severity === 'error');
-      const descriptions = conflicts.map(c => c.description);
-      return {
-        hasConflict: errorConflicts.length > 0,
-        conflictingClasses: conflicts.flatMap(c => c.affectedClassIds || []),
-        message: descriptions.join('; '),
-      };
-    },
-    [showId, handlerAssignments]
-  );
-
-  // Build handler options from dog owner data
-  const availableHandlers = useMemo((): HandlerOption[] => {
-    const handlers: HandlerOption[] = [];
-
-    // Add unique dog owners as handler options
-    dogsWithOwners.forEach(({ ownerId, ownerName }) => {
-      if (ownerId && !handlers.find(h => h.id === ownerId)) {
-        handlers.push({
-          id: ownerId,
-          name: ownerName,
-          isOwner: true,
-          isProfessionalHandler: false,
-          conflictInfo: checkHandlerConflicts(ownerId),
-        });
-      }
-    });
-
-    // Filter by search query
-    if (debouncedSearchQuery) {
-      const query = debouncedSearchQuery.toLowerCase();
-      return handlers.filter(
-        h =>
-          h.name.toLowerCase().includes(query) || (h.email && h.email.toLowerCase().includes(query))
-      );
-    }
-
-    return handlers;
-  }, [dogsWithOwners, debouncedSearchQuery, checkHandlerConflicts]);
-
-  const validateAssignments = (): boolean => {
-    const errors: Record<string, string> = {};
-    let isValid = true;
-
+  const [handlerNames, setHandlerNames] = useState<Record<string, string>>(() => {
+    const names: Record<string, string> = {};
     selectedDogs.forEach(dogId => {
-      const assignment = handlerAssignments[dogId];
-      if (!assignment || !assignment.handlerId) {
-        errors[dogId] = 'Handler is required';
-        isValid = false;
-      } else {
-        const handler = availableHandlers.find(h => h.id === assignment.handlerId);
-        if (handler?.conflictInfo?.hasConflict) {
-          errors[dogId] = handler.conflictInfo.message || 'Handler has conflicts';
-          isValid = false;
-        }
-      }
+      names[dogId] = getInitialName(dogId);
     });
-
-    setValidationErrors(errors);
-    return isValid;
-  };
-
-  const handleIndividualAssignment = (dogId: string, handlerId: string) => {
-    const handler = availableHandlers.find(h => h.id === handlerId);
-    if (handler) {
-      setHandlerAssignments(prev => ({
-        ...prev,
-        [dogId]: {
-          handlerId: handler.id,
-          handlerName: handler.name,
-          isOwner: handler.isOwner,
-        },
-      }));
-
-      // Clear validation error for this dog
-      setValidationErrors(prev => {
-        const { [dogId]: _removed, ...rest } = prev;
-        return rest;
-      });
-    }
-  };
+    return names;
+  });
+  const [hasError, setHasError] = useState(false);
 
   const handleSubmit = () => {
-    if (validateAssignments()) {
-      onHandlerAssignment(handlerAssignments);
-      onOpenChange(false);
+    // Validate: all dogs must have a handler name
+    const allFilled = selectedDogs.every(dogId => handlerNames[dogId]?.trim());
+    if (!allFilled) {
+      setHasError(true);
+      return;
+    }
+
+    const assignments: Record<string, HandlerInfo> = {};
+    selectedDogs.forEach(dogId => {
+      const dog = dogs.find(d => d.id === dogId);
+      const name = handlerNames[dogId].trim();
+      const isOwner = !!dog?.ownerName && name === dog.ownerName;
+
+      assignments[dogId] = {
+        handlerId: isOwner && dog?.ownerId ? dog.ownerId : 'custom',
+        handlerName: name,
+        isOwner,
+      };
+    });
+
+    onHandlerAssignment(assignments);
+    onOpenChange(false);
+  };
+
+  const resetToOwner = (dogId: string) => {
+    const dog = dogs.find(d => d.id === dogId);
+    if (dog?.ownerName) {
+      setHandlerNames(prev => ({ ...prev, [dogId]: dog.ownerName || '' }));
+      setHasError(false);
     }
   };
 
@@ -181,86 +90,64 @@ export const HandlerSelectionDialog: React.FC<HandlerSelectionDialogProps> = ({
         <DialogHeader>
           <DialogTitle>Change Handler</DialogTitle>
           <DialogDescription>
-            Select a handler for this dog. The owner is assigned by default.
+            Enter the name of the person who will handle this dog in the ring.
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto space-y-4">
-          {/* Search Bar (show only if there are multiple handler options) */}
-          {availableHandlers.length > 3 && (
-            <div className="relative">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search handlers..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="pl-8"
-              />
-            </div>
-          )}
-
-          {/* Handler Selection */}
           {selectedDogs.map(dogId => {
-            const dogData = dogsWithOwners.find(({ dog }) => dog.id === dogId);
-            if (!dogData) return null;
+            const dog = dogs.find(d => d.id === dogId);
+            if (!dog) return null;
 
-            const { dog } = dogData;
-            const currentHandler = handlerAssignments[dogId];
-            const error = validationErrors[dogId];
+            const ownerName = dog.ownerName;
+            const currentName = handlerNames[dogId] || '';
+            const isModified = !!ownerName && currentName !== ownerName;
+            const isEmpty = !currentName.trim();
 
             return (
-              <Card key={dogId} className={error ? 'border-destructive' : ''}>
+              <Card key={dogId} className={hasError && isEmpty ? 'border-destructive' : ''}>
                 <CardContent className="pt-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
                       <h4 className="font-semibold">{getDogDisplayName(dog)}</h4>
                       <p className="text-sm text-muted-foreground">{dog.breed}</p>
                     </div>
-                    {currentHandler && (
-                      <Badge variant={currentHandler.isOwner ? 'secondary' : 'outline'}>
-                        {currentHandler.isOwner ? 'Owner' : 'Handler'}
+                    {ownerName && (
+                      <Badge variant="secondary" className="text-xs">
+                        Owner: {ownerName}
                       </Badge>
                     )}
                   </div>
 
-                  <div>
-                    <Label>Handler</Label>
-                    <RadioGroup
-                      value={currentHandler?.handlerId || ''}
-                      onValueChange={handlerId => handleIndividualAssignment(dogId, handlerId)}
-                    >
-                      {availableHandlers.map(handler => (
-                        <div key={handler.id} className="flex items-center space-x-2 p-2">
-                          <RadioGroupItem value={handler.id} id={`${dogId}-${handler.id}`} />
-                          <Label
-                            htmlFor={`${dogId}-${handler.id}`}
-                            className="flex-1 cursor-pointer flex items-center justify-between"
-                          >
-                            <span className="font-medium">{handler.name}</span>
-                            <div className="flex items-center gap-2">
-                              {handler.isOwner && (
-                                <Badge variant="secondary" className="text-xs">
-                                  Owner
-                                </Badge>
-                              )}
-                              {handler.conflictInfo?.hasConflict && (
-                                <Badge variant="destructive" className="text-xs">
-                                  Conflict
-                                </Badge>
-                              )}
-                            </div>
-                          </Label>
-                        </div>
-                      ))}
-                    </RadioGroup>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`handler-${dogId}`}>Handler name</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id={`handler-${dogId}`}
+                        value={currentName}
+                        onChange={e => {
+                          setHandlerNames(prev => ({ ...prev, [dogId]: e.target.value }));
+                          setHasError(false);
+                        }}
+                        placeholder="Enter handler name"
+                        className={hasError && isEmpty ? 'border-destructive' : ''}
+                      />
+                      {isModified && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => resetToOwner(dogId)}
+                          title="Reset to owner"
+                          className="shrink-0"
+                        >
+                          <RotateCcw className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    {hasError && isEmpty && (
+                      <p className="text-sm text-destructive">Handler name is required</p>
+                    )}
                   </div>
-
-                  {error && (
-                    <Alert variant="destructive">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>{error}</AlertDescription>
-                    </Alert>
-                  )}
                 </CardContent>
               </Card>
             );

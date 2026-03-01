@@ -155,8 +155,7 @@ export function useEntryEligibility({
           breed,
           height,
           date_of_birth,
-          akc_number,
-          ukc_number
+          registrations:dog_registrations(registration_number, organization)
         `
         )
         .in('id', dogIds);
@@ -166,8 +165,9 @@ export function useEntryEligibility({
         return [];
       }
 
-      return (data || []).map(
-        (d): DogData => ({
+      return (data || []).map((d): DogData => {
+        const firstReg = d.registrations?.[0];
+        return {
           id: d.id,
           name: d.name || 'Unknown',
           callName: d.call_name,
@@ -175,10 +175,10 @@ export function useEntryEligibility({
           heightInches: d.height ? parseFloat(d.height) : null,
           dateOfBirth: d.date_of_birth,
           titles: [], // Not stored in dogs table
-          registrationNumber: d.akc_number || d.ukc_number,
-          registrationOrganization: d.akc_number ? 'AKC' : d.ukc_number ? 'UKC' : null,
-        })
-      );
+          registrationNumber: firstReg?.registration_number ?? null,
+          registrationOrganization: firstReg?.organization ?? null,
+        };
+      });
     },
     enabled: dogIds.length > 0,
     staleTime: 5 * 60 * 1000, // 5 minutes

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Search, AlertCircle } from 'lucide-react';
 import {
   Dialog,
@@ -15,18 +15,17 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
-import { useShowQuery } from '@/hooks/queries/useShowsDatabase';
 import { HandlerInfo } from '@/types/show-registration-types';
 import { useDebounce } from '@myk9/scoring-ui';
 import { checkHandlerConflicts as checkConflictsLib } from '@/lib/handlerValidation';
-import type { Show } from '@/types/show-types';
+import type { Dog } from '@/types/dog-types';
 
 interface HandlerSelectionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedDogs: string[];
   showId: string;
+  dogs: Dog[];
   onHandlerAssignment: (assignments: Record<string, HandlerInfo>) => void;
   initialAssignments?: Record<string, HandlerInfo>;
 }
@@ -51,13 +50,12 @@ export const HandlerSelectionDialog: React.FC<HandlerSelectionDialogProps> = ({
   onOpenChange,
   selectedDogs,
   showId,
+  dogs,
   onHandlerAssignment,
   initialAssignments = {},
 }) => {
-  const { dogs } = useDogStoreCompat();
-  const showQuery = useShowQuery(showId);
-  const show = showQuery.data as Show | undefined;
-
+  // Local state initialized from parent's assignments. The dialog is conditionally
+  // rendered (unmounts on close), so useState captures fresh props on each open.
   const [searchQuery, setSearchQuery] = useState('');
   const [handlerAssignments, setHandlerAssignments] =
     useState<Record<string, HandlerInfo>>(initialAssignments);
@@ -65,7 +63,7 @@ export const HandlerSelectionDialog: React.FC<HandlerSelectionDialogProps> = ({
 
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
-  // Get dogs with their owners (derived from dog data, not from separate people store)
+  // Resolve selected dog IDs to dog objects with owner info
   const dogsWithOwners = useMemo(() => {
     return selectedDogs
       .map(dogId => {
@@ -78,13 +76,13 @@ export const HandlerSelectionDialog: React.FC<HandlerSelectionDialogProps> = ({
           ownerId: dog.ownerId,
         };
       })
-      .filter(Boolean) as { dog: (typeof dogs)[number]; ownerName: string; ownerId: string }[];
+      .filter(Boolean) as { dog: Dog; ownerName: string; ownerId: string }[];
   }, [selectedDogs, dogs]);
 
   // Conflict checker depends on current handler assignments
   const checkHandlerConflicts = useCallback(
-    (handlerId: string, targetShowId: string): HandlerOption['conflictInfo'] => {
-      const conflicts = checkConflictsLib(handlerId, targetShowId, '', [], handlerAssignments);
+    (handlerId: string): HandlerOption['conflictInfo'] => {
+      const conflicts = checkConflictsLib(handlerId, showId, '', [], handlerAssignments);
       if (conflicts.length === 0) {
         return { hasConflict: false };
       }
@@ -96,7 +94,7 @@ export const HandlerSelectionDialog: React.FC<HandlerSelectionDialogProps> = ({
         message: descriptions.join('; '),
       };
     },
-    [handlerAssignments]
+    [showId, handlerAssignments]
   );
 
   // Build handler options from dog owner data
@@ -106,13 +104,12 @@ export const HandlerSelectionDialog: React.FC<HandlerSelectionDialogProps> = ({
     // Add unique dog owners as handler options
     dogsWithOwners.forEach(({ ownerId, ownerName }) => {
       if (ownerId && !handlers.find(h => h.id === ownerId)) {
-        const conflictInfo = show ? checkHandlerConflicts(ownerId, show.id) : undefined;
         handlers.push({
           id: ownerId,
           name: ownerName,
           isOwner: true,
           isProfessionalHandler: false,
-          conflictInfo,
+          conflictInfo: checkHandlerConflicts(ownerId),
         });
       }
     });
@@ -127,26 +124,7 @@ export const HandlerSelectionDialog: React.FC<HandlerSelectionDialogProps> = ({
     }
 
     return handlers;
-  }, [dogsWithOwners, show, debouncedSearchQuery, checkHandlerConflicts]);
-
-  // Initialize default handlers (dog owners)
-  useEffect(() => {
-    if (Object.keys(initialAssignments).length === 0) {
-      const defaultAssignments: Record<string, HandlerInfo> = {};
-
-      dogsWithOwners.forEach(({ dog, ownerId, ownerName }) => {
-        if (ownerId) {
-          defaultAssignments[dog.id] = {
-            handlerId: ownerId,
-            handlerName: ownerName,
-            isOwner: true,
-          };
-        }
-      });
-
-      setHandlerAssignments(defaultAssignments);
-    }
-  }, [dogsWithOwners, initialAssignments]);
+  }, [dogsWithOwners, debouncedSearchQuery, checkHandlerConflicts]);
 
   const validateAssignments = (): boolean => {
     const errors: Record<string, string> = {};

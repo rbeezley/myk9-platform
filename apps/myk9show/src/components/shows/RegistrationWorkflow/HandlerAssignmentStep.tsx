@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import { UserCheck, Edit2, CheckCircle, AlertCircle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,7 +25,9 @@ export const HandlerAssignmentStep: React.FC<HandlerAssignmentStepProps> = ({
 }) => {
   const { dogs, isLoading } = useDogStoreCompat();
   const [editingDogId, setEditingDogId] = useState<string | null>(null);
-  const hasAutoAssigned = useRef(false);
+
+  // Auto-assign is handled by RegistrationWorkflow (render-time sync when dogs are selected).
+  // This component only displays and allows overriding assignments.
 
   // Get dogs with their information
   const dogsWithInfo = useMemo(() => {
@@ -46,36 +48,6 @@ export const HandlerAssignmentStep: React.FC<HandlerAssignmentStepProps> = ({
       })
       .filter((item): item is NonNullable<typeof item> => item !== null);
   }, [selectedDogs, dogs, handlerAssignments, classSelections]);
-
-  // Auto-assign owners as handlers when dogs load
-  useEffect(() => {
-    if (hasAutoAssigned.current || dogsWithInfo.length === 0) return;
-
-    const needsAssignment = dogsWithInfo.some(({ dog }) => !handlerAssignments[dog.id]);
-    if (!needsAssignment) {
-      hasAutoAssigned.current = true;
-      return;
-    }
-
-    const newAssignments: Record<string, HandlerInfo> = { ...handlerAssignments };
-    let hasChanges = false;
-
-    dogsWithInfo.forEach(({ dog }) => {
-      if (!newAssignments[dog.id] && dog.ownerId) {
-        newAssignments[dog.id] = {
-          handlerId: dog.ownerId,
-          handlerName: dog.ownerName || 'Owner',
-          isOwner: true,
-        };
-        hasChanges = true;
-      }
-    });
-
-    if (hasChanges) {
-      hasAutoAssigned.current = true;
-      onHandlerAssignmentChange(newAssignments);
-    }
-  }, [dogsWithInfo, handlerAssignments, onHandlerAssignmentChange]);
 
   const allAssigned = selectedDogs.every(dogId => handlerAssignments[dogId]?.handlerId);
 
@@ -120,12 +92,12 @@ export const HandlerAssignmentStep: React.FC<HandlerAssignmentStepProps> = ({
               </div>
 
               <div className="flex items-center gap-3 shrink-0">
-                {hasHandler ? (
+                {hasHandler && handlerInfo ? (
                   <div className="flex items-center gap-2">
                     <UserCheck className="h-4 w-4 text-green-600" />
-                    <span className="text-sm font-medium">{handlerInfo!.handlerName}</span>
+                    <span className="text-sm font-medium">{handlerInfo.handlerName}</span>
                     <Badge variant="secondary" className="text-xs">
-                      {handlerInfo!.isOwner ? 'Owner' : 'Handler'}
+                      {handlerInfo.isOwner ? 'Owner' : 'Handler'}
                     </Badge>
                   </div>
                 ) : (
@@ -157,6 +129,7 @@ export const HandlerAssignmentStep: React.FC<HandlerAssignmentStepProps> = ({
           }}
           selectedDogs={[editingDogId]}
           showId={showId}
+          dogs={dogs}
           onHandlerAssignment={assignments => {
             onHandlerAssignmentChange({ ...handlerAssignments, ...assignments });
           }}

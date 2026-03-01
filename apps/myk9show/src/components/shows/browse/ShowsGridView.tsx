@@ -166,7 +166,7 @@ export const ShowsGridView: React.FC<ShowsGridViewProps> = ({
                     <Button
                       variant="default"
                       size="sm"
-                      onClick={() => navigate(`/shows/${show.id}/enter`)}
+                      onClick={() => navigate(`/shows/${show.id}?register=true`)}
                       className="bg-primary hover:bg-primary/90"
                     >
                       <Ticket className="h-4 w-4 mr-1" />

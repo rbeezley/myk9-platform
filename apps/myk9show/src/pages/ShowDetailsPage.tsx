@@ -73,8 +73,9 @@ const ShowDetailsPage: React.FC = () => {
 
   // Clean up the ?edit param from the URL after using it on mount
   useEffect(() => {
-    if (searchParams.get('edit') === 'true') {
+    if (searchParams.get('edit') === 'true' || searchParams.get('register') === 'true') {
       searchParams.delete('edit');
+      searchParams.delete('register');
       setSearchParams(searchParams, { replace: true });
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- run once on mount
@@ -83,7 +84,9 @@ const ShowDetailsPage: React.FC = () => {
   const [showDeleteTrialDialog, setShowDeleteTrialDialog] = useState(false);
   const [showEditTrialPanel, setShowEditTrialPanel] = useState(false);
   const [selectedTrial, setSelectedTrial] = useState<Trial | null>(null);
-  const [showRegistration, setShowRegistration] = useState(false);
+  const [showRegistration, setShowRegistration] = useState(
+    () => new URLSearchParams(window.location.search).get('register') === 'true'
+  );
 
   // Fallback: Find current show from database if scoped data doesn't have it
   const actualCurrentShow = React.useMemo(() => {

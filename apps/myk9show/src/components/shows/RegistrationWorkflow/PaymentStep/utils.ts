@@ -42,14 +42,22 @@ export interface ShowFeeInfo {
 const DEFAULT_ENTRY_FEE = 25;
 
 /**
- * Determine the entry fee based on show-level fee tiers and current date.
- * Before show start date → pre-entry fee; on/after → day-of-show fee.
- * Falls back to class-level entryFee, then DEFAULT_ENTRY_FEE.
+ * Determine the entry fee for a class.
+ *
+ * Priority:
+ * 1. Show-level fee tier based on date (pre-entry vs day-of-show)
+ * 2. Class-level entryFee (fallback when show has no fees)
+ * 3. DEFAULT_ENTRY_FEE ($25 fallback)
+ *
+ * Note: per-class fee overrides (e.g. detective costs more) require a
+ * separate `feeOverride` flag on the class so template defaults don't
+ * accidentally override show-level fees.
  */
 export function getShowEntryFee(
   show: ShowFeeInfo | undefined,
   classEntryFee?: number | undefined
 ): number {
+  // Show-level fee with date-based tier
   if (show) {
     const now = new Date();
     now.setHours(0, 0, 0, 0);
@@ -65,6 +73,7 @@ export function getShowEntryFee(
     if (!isNaN(preFee) && preFee > 0) return preFee;
   }
 
+  // Class-level fee as fallback
   return classEntryFee || DEFAULT_ENTRY_FEE;
 }
 

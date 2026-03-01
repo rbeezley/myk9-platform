@@ -12,8 +12,7 @@ import {
 } from '@/types/show-registration-types';
 import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
 import { useRegistrationContext } from '@/hooks/useRegistrationContext';
-import { useDogStore } from '@/store/dogStore';
-import { useUserStore } from '@/store/userStore';
+import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useShowStore } from '@/store/showStore';
 import { RegistrationErrorBoundary } from '@/components/common/ErrorBoundary';
 import { DraftManager } from './DraftManager';
@@ -44,8 +43,7 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
   const { user } = useAuthContext();
 
   // Get data stores
-  const { dogs = [] } = useDogStore();
-  const { people = [] } = useUserStore();
+  const { dogs } = useDogStoreCompat();
   const { shows = [] } = useShowStore();
 
   // Determine workflow mode based on permissions
@@ -204,16 +202,13 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
     registrationData.selectedDogs.forEach(dogId => {
       if (!newAssignments[dogId]) {
         const dog = dogs.find(d => d.id === dogId);
-        if (dog) {
-          const owner = people.find(p => p.id === dog.ownerId);
-          if (owner) {
-            newAssignments[dogId] = {
-              handlerId: owner.id,
-              handlerName: `${owner.firstName} ${owner.lastName}`,
-              isOwner: true,
-            };
-            hasNewAssignments = true;
-          }
+        if (dog && dog.ownerId) {
+          newAssignments[dogId] = {
+            handlerId: dog.ownerId,
+            handlerName: dog.ownerName || 'Owner',
+            isOwner: true,
+          };
+          hasNewAssignments = true;
         }
       }
     });

@@ -1,12 +1,10 @@
-import React, { useState, useMemo } from 'react';
-import { User, UserCheck, Plus, Edit2, CheckCircle, AlertCircle } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { UserCheck, Edit2, CheckCircle, AlertCircle } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { useDogStore } from '@/store/dogStore';
-import { useUserStore } from '@/store/userStore';
+import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { ClassSelectionData, HandlerInfo } from '@/types/show-registration-types';
 import { HandlerSelectionDialog } from './HandlerSelectionDialog';
 
@@ -23,216 +21,152 @@ export const HandlerAssignmentStep: React.FC<HandlerAssignmentStepProps> = ({
   classSelections,
   handlerAssignments,
   onHandlerAssignmentChange,
-  showId
+  showId,
 }) => {
-  const { dogs = [] } = useDogStore();
-  const { people = [] } = useUserStore();
-  const [showHandlerDialog, setShowHandlerDialog] = useState(false);
+  const { dogs, isLoading } = useDogStoreCompat();
   const [editingDogId, setEditingDogId] = useState<string | null>(null);
+  const hasAutoAssigned = useRef(false);
 
   // Get dogs with their information
   const dogsWithInfo = useMemo(() => {
-    return selectedDogs.map(dogId => {
-      const dog = dogs.find(d => d.id === dogId);
-      if (!dog) return null;
-      
-      const owner = people.find(p => p.id === dog.ownerId);
-      const handlerInfo = handlerAssignments[dogId];
-      const dogClasses = classSelections.filter(c => c.dogId === dogId);
-      
-      return {
-        dog,
-        owner,
-        handlerInfo,
-        classCount: dogClasses.length,
-        hasHandler: !!handlerInfo?.handlerId
-      };
-    }).filter((item): item is NonNullable<typeof item> => item !== null);
-  }, [selectedDogs, dogs, people, handlerAssignments, classSelections]);
-  
-  // Calculate assignment statistics
-  const stats = useMemo(() => {
-    const totalDogs = selectedDogs.length;
-    const assignedDogs = Object.keys(handlerAssignments).length;
-    const ownerHandled = Object.values(handlerAssignments).filter(h => h.isOwner).length;
-    const professionalHandled = assignedDogs - ownerHandled;
-    
-    return {
-      totalDogs,
-      assignedDogs,
-      unassignedDogs: totalDogs - assignedDogs,
-      ownerHandled,
-      professionalHandled,
-      isComplete: assignedDogs === totalDogs
-    };
-  }, [selectedDogs.length, handlerAssignments]);
-  
-  const handleSingleDogEdit = (dogId: string) => {
-    setEditingDogId(dogId);
-    setShowHandlerDialog(true);
-  };
-  
-  return (
-    <div className="space-y-6">
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{stats.totalDogs}</div>
-            <p className="text-xs text-muted-foreground">Total Dogs</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-green-600">{stats.assignedDogs}</div>
-            <p className="text-xs text-muted-foreground">Assigned</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{stats.ownerHandled}</div>
-            <p className="text-xs text-muted-foreground">Owner Handled</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{stats.professionalHandled}</div>
-            <p className="text-xs text-muted-foreground">Professional</p>
-          </CardContent>
-        </Card>
+    return selectedDogs
+      .map(dogId => {
+        const dog = dogs.find(d => d.id === dogId);
+        if (!dog) return null;
+
+        const handlerInfo = handlerAssignments[dogId];
+        const dogClasses = classSelections.filter(c => c.dogId === dogId);
+
+        return {
+          dog,
+          handlerInfo,
+          classCount: dogClasses.length,
+          hasHandler: !!handlerInfo?.handlerId,
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
+  }, [selectedDogs, dogs, handlerAssignments, classSelections]);
+
+  // Auto-assign owners as handlers when dogs load
+  useEffect(() => {
+    if (hasAutoAssigned.current || dogsWithInfo.length === 0) return;
+
+    const needsAssignment = dogsWithInfo.some(({ dog }) => !handlerAssignments[dog.id]);
+    if (!needsAssignment) {
+      hasAutoAssigned.current = true;
+      return;
+    }
+
+    const newAssignments: Record<string, HandlerInfo> = { ...handlerAssignments };
+    let hasChanges = false;
+
+    dogsWithInfo.forEach(({ dog }) => {
+      if (!newAssignments[dog.id] && dog.ownerId) {
+        newAssignments[dog.id] = {
+          handlerId: dog.ownerId,
+          handlerName: dog.ownerName || 'Owner',
+          isOwner: true,
+        };
+        hasChanges = true;
+      }
+    });
+
+    if (hasChanges) {
+      hasAutoAssigned.current = true;
+      onHandlerAssignmentChange(newAssignments);
+    }
+  }, [dogsWithInfo, handlerAssignments, onHandlerAssignmentChange]);
+
+  const allAssigned = selectedDogs.every(dogId => handlerAssignments[dogId]?.handlerId);
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        <p>Loading dog information...</p>
       </div>
-      
-      {/* Assignment Status */}
-      {stats.isComplete ? (
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Status */}
+      {allAssigned ? (
         <Alert>
           <CheckCircle className="h-4 w-4" />
           <AlertDescription>
-            All dogs have been assigned handlers. You can proceed to the payment step.
+            All dogs are assigned to their owners as handlers. You can proceed or change individual
+            assignments below.
           </AlertDescription>
         </Alert>
       ) : (
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            {stats.unassignedDogs} dog(s) still need handler assignments.
+            Some dogs still need handler assignments. Owners are assigned by default.
           </AlertDescription>
         </Alert>
       )}
-      
-      {/* Bulk Actions */}
-      <div className="flex flex-wrap gap-2">
-        <Button 
-          onClick={() => setShowHandlerDialog(true)}
-          className="flex items-center gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          Assign Handlers
-        </Button>
-        {stats.assignedDogs > 0 && (
-          <Button 
-            variant="outline"
-            onClick={() => setShowHandlerDialog(true)}
-            className="flex items-center gap-2"
-          >
-            <Edit2 className="h-4 w-4" />
-            Edit Assignments
-          </Button>
+
+      {/* Dog Handler List */}
+      <div className="space-y-3">
+        {dogsWithInfo.map(({ dog, handlerInfo, classCount, hasHandler }) => (
+          <Card key={dog.id}>
+            <CardContent className="py-4 flex items-center justify-between">
+              <div className="flex-1 min-w-0">
+                <h4 className="font-semibold">{dog.callName || dog.name}</h4>
+                <p className="text-sm text-muted-foreground truncate">
+                  {dog.breed} &bull; {classCount} {classCount === 1 ? 'class' : 'classes'}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3 shrink-0">
+                {hasHandler ? (
+                  <div className="flex items-center gap-2">
+                    <UserCheck className="h-4 w-4 text-green-600" />
+                    <span className="text-sm font-medium">{handlerInfo!.handlerName}</span>
+                    <Badge variant="secondary" className="text-xs">
+                      {handlerInfo!.isOwner ? 'Owner' : 'Handler'}
+                    </Badge>
+                  </div>
+                ) : (
+                  <span className="text-sm text-muted-foreground">Assigning...</span>
+                )}
+
+                <Button variant="ghost" size="sm" onClick={() => setEditingDogId(dog.id)}>
+                  <Edit2 className="h-3 w-3 mr-1" />
+                  Change
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+
+        {dogsWithInfo.length === 0 && selectedDogs.length > 0 && (
+          <div className="text-center py-8 text-muted-foreground">
+            <p>No dog information found. Please go back and select dogs.</p>
+          </div>
         )}
       </div>
-      
-      {/* Dog Handler Assignments */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Handler Assignments</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ScrollArea className="h-[400px]">
-            <div className="space-y-4">
-              {dogsWithInfo.map(({ dog, owner, handlerInfo, classCount, hasHandler }) => (
-                <div key={dog.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      <div>
-                        <h4 className="font-semibold">{dog.callName}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          {dog.registrations?.[0]?.breed || 'No breed specified'} • {classCount} {classCount === 1 ? 'class' : 'classes'}
-                        </p>
-                        {owner && (
-                          <p className="text-xs text-muted-foreground">
-                            Owner: {owner.firstName} {owner.lastName}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-3">
-                    {hasHandler ? (
-                      <div className="text-right">
-                        <div className="flex items-center gap-2">
-                          <UserCheck className="h-4 w-4 text-green-600" />
-                          <span className="font-medium">{handlerInfo!.handlerName}</span>
-                        </div>
-                        <div className="flex items-center gap-1 mt-1">
-                          <Badge variant={handlerInfo!.isOwner ? 'secondary' : 'outline'} className="text-xs">
-                            {handlerInfo!.isOwner ? 'Owner' : 'Professional'}
-                          </Badge>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-right">
-                        <span className="text-sm text-muted-foreground">No handler assigned</span>
-                        <Badge variant="outline" className="ml-2">Unassigned</Badge>
-                      </div>
-                    )}
-                    
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleSingleDogEdit(dog.id)}
-                      className="flex items-center gap-1"
-                    >
-                      <Edit2 className="h-3 w-3" />
-                      {hasHandler ? 'Edit' : 'Assign'}
-                    </Button>
-                  </div>
-                </div>
-              ))}
-              
-              {dogsWithInfo.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  <User className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No dogs selected for registration.</p>
-                  <p className="text-sm">Go back to select dogs first.</p>
-                </div>
-              )}
-            </div>
-          </ScrollArea>
-        </CardContent>
-      </Card>
-      
-      {/* Handler Selection Dialog */}
-      <HandlerSelectionDialog
-        open={showHandlerDialog}
-        onOpenChange={(open) => {
-          setShowHandlerDialog(open);
-          if (!open) setEditingDogId(null);
-        }}
-        selectedDogs={editingDogId ? [editingDogId] : selectedDogs}
-        showId={showId}
-        onHandlerAssignment={(assignments) => {
-          if (editingDogId) {
-            // Merge single-dog assignment into full assignments
+
+      {/* Handler Selection Dialog (only for override) */}
+      {editingDogId && (
+        <HandlerSelectionDialog
+          open={!!editingDogId}
+          onOpenChange={open => {
+            if (!open) setEditingDogId(null);
+          }}
+          selectedDogs={[editingDogId]}
+          showId={showId}
+          onHandlerAssignment={assignments => {
             onHandlerAssignmentChange({ ...handlerAssignments, ...assignments });
-          } else {
-            onHandlerAssignmentChange(assignments);
+          }}
+          initialAssignments={
+            handlerAssignments[editingDogId]
+              ? { [editingDogId]: handlerAssignments[editingDogId] }
+              : {}
           }
-        }}
-        initialAssignments={editingDogId
-          ? (handlerAssignments[editingDogId] ? { [editingDogId]: handlerAssignments[editingDogId] } : {})
-          : handlerAssignments
-        }
-      />
+        />
+      )}
     </div>
   );
 };

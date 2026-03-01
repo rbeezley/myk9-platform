@@ -11,8 +11,7 @@ import { RegistrationWorkflow } from '@/components/shows/RegistrationWorkflow';
 import { RegistrationProvider } from '@/context/RegistrationContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useTrialStore, type TrialInput } from '@/store/trialStore';
-import { useShowStore } from '@/store/showStore';
-import { replicatedShowsTable, type ReplicatedShow } from '@/services/replication';
+import { useShowStore, type ShowInput } from '@/store/showStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useCompleteShowData } from '@/hooks/useShowScopedData';
 import { useShowsQuery, showQueryKeys } from '@/hooks/queries/useShowsDatabase';
@@ -368,48 +367,27 @@ const ShowDetailsPage: React.FC = () => {
         initialShowData={actualCurrentShow || {}}
         onSave={async showData => {
           if (actualCurrentShow?.id) {
-            // Build replication-layer update from form data
-            const replicatedUpdates: Partial<ReplicatedShow> = {};
-            const d = showData as Partial<Show>;
-            if (d.name !== undefined) replicatedUpdates.name = d.name;
-            if (d.type !== undefined) replicatedUpdates.type = d.type;
-            if (d.startDate !== undefined) replicatedUpdates.startDate = d.startDate;
-            if (d.endDate !== undefined) replicatedUpdates.endDate = d.endDate;
-            if (d.location !== undefined) replicatedUpdates.location = d.location;
-            if (d.status !== undefined) replicatedUpdates.status = d.status;
-            if (d.entryOpenDate !== undefined) replicatedUpdates.entryOpenDate = d.entryOpenDate;
-            if (d.entryCloseDate !== undefined) replicatedUpdates.entryCloseDate = d.entryCloseDate;
-            if (d.preEntryFee !== undefined)
-              replicatedUpdates.preEntryFee = parseFloat(d.preEntryFee);
-            if (d.dayOfShowFee !== undefined)
-              replicatedUpdates.dayOfShowFee = parseFloat(d.dayOfShowFee);
-            if (d.clubId !== undefined) replicatedUpdates.clubId = d.clubId;
-            if (d.chairman !== undefined) replicatedUpdates.chairman = d.chairman;
-            if (d.secretary !== undefined) replicatedUpdates.secretary = d.secretary;
-            if (d.chiefSteward !== undefined) replicatedUpdates.chiefSteward = d.chiefSteward;
-
-            // Save directly via replication layer (reads from IndexedDB, not Zustand)
-            await replicatedShowsTable.updateShow(actualCurrentShow.id, replicatedUpdates);
+            const updatedShow = await useShowStore
+              .getState()
+              .updateShow(actualCurrentShow.id, showData as Partial<ShowInput>);
 
             // Sync React Query cache so the details page reflects changes immediately
-            const updatedShow: Show = {
-              ...actualCurrentShow,
-              ...d,
-              _version: actualCurrentShow._version ? actualCurrentShow._version + 1 : 1,
-              _lastModified: new Date(),
-              _syncStatus: 'pending' as const,
-            };
-            queryClient.setQueryData(showQueryKeys.detail(actualCurrentShow.id), updatedShow);
-            queryClient.setQueryData<Show[]>(showQueryKeys.lists(), old =>
-              old ? old.map(s => (s.id === updatedShow.id ? updatedShow : s)) : [updatedShow]
-            );
-
-            // Also update Zustand store if it has the show (for other consumers)
-            const storeShows = useShowStore.getState().shows;
-            if (storeShows.some(s => s.id === actualCurrentShow.id)) {
-              useShowStore.setState(state => ({
-                shows: state.shows.map(s => (s.id === actualCurrentShow.id ? updatedShow : s)),
-              }));
+            if (updatedShow) {
+              queryClient.setQueryData(showQueryKeys.detail(actualCurrentShow.id), updatedShow);
+              queryClient.setQueryData<Show[]>(showQueryKeys.lists(), old =>
+                old ? old.map(s => (s.id === updatedShow.id ? updatedShow : s)) : [updatedShow]
+              );
+              if (updatedShow.clubId) {
+                queryClient.setQueryData<Show[]>(showQueryKeys.byClub(updatedShow.clubId), old =>
+                  old ? old.map(s => (s.id === updatedShow.id ? updatedShow : s)) : [updatedShow]
+                );
+              }
+              queryClient.setQueryData<Show[]>(showQueryKeys.byStatus(updatedShow.status), old =>
+                old ? old.map(s => (s.id === updatedShow.id ? updatedShow : s)) : [updatedShow]
+              );
+              queryClient.invalidateQueries({ queryKey: showQueryKeys.statistics() });
+              queryClient.invalidateQueries({ queryKey: showQueryKeys.upcoming() });
+              queryClient.invalidateQueries({ queryKey: showQueryKeys.withEntryCounts() });
             }
           }
           setShowEditPanel(false);

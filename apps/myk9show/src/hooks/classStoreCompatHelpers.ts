@@ -43,7 +43,7 @@ export function buildClassFromTemplate(
   trialId: string,
   index: number,
   trialDate: string,
-  trialNumber: string,
+  trialNumber: string
 ): ClassInput {
   return {
     trialId,
@@ -58,7 +58,6 @@ export function buildClassFromTemplate(
     element: genClass.element,
     level: genClass.level,
     section: genClass.section,
-    entryFee: genClass.entryFee || 25,
     maxEntries: genClass.maxEntries || 40,
     requiresJumpHeight: genClass.requiresJumpHeight || false,
     customFields: genClass.customFields,
@@ -79,7 +78,7 @@ export function buildClassFromTemplate(
 export async function addClassesFromTemplateHelper(
   trialId: string,
   generatedClasses: GeneratedClass[],
-  addClass: (classData: ClassInput) => Promise<SyncableClassData>,
+  addClass: (classData: ClassInput) => Promise<SyncableClassData>
 ): Promise<SyncableClassData[]> {
   const currentDate = new Date().toISOString().split('T')[0];
   const trialNumber = `TRL-${Date.now()}`;
@@ -91,7 +90,7 @@ export async function addClassesFromTemplateHelper(
       trialId,
       index,
       currentDate,
-      trialNumber,
+      trialNumber
     );
     const createdClass = await addClass(classInput);
     newClasses.push(createdClass);

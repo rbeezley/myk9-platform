@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
-import { Dog, User } from '@/types/dog-types';
+import { getDogDisplayName, Dog, User } from '@/types/dog-types';
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
 import { useRegistrationContext } from '@/hooks/useRegistrationContext';
@@ -80,7 +80,7 @@ const DogListItem: React.FC<DogListItemProps> = ({ index, style, data }) => {
               <div className="flex items-center justify-between">
                 <div>
                   <Label className="text-base font-medium cursor-pointer">
-                    {dog.callName || dog.name}
+                    {getDogDisplayName(dog)}
                     {dog.registrations?.[0]?.registeredName &&
                       ` "${dog.registrations[0].registeredName}"`}
                   </Label>

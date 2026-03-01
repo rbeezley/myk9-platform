@@ -18,7 +18,7 @@ import { Separator } from '@/components/ui/separator';
 import { HandlerInfo } from '@/types/show-registration-types';
 import { useDebounce } from '@myk9/scoring-ui';
 import { checkHandlerConflicts as checkConflictsLib } from '@/lib/handlerValidation';
-import type { Dog } from '@/types/dog-types';
+import { getDogDisplayName, type Dog } from '@/types/dog-types';
 
 interface HandlerSelectionDialogProps {
   open: boolean;
@@ -213,7 +213,7 @@ export const HandlerSelectionDialog: React.FC<HandlerSelectionDialogProps> = ({
                 <CardContent className="pt-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="font-semibold">{dog.callName || dog.name}</h4>
+                      <h4 className="font-semibold">{getDogDisplayName(dog)}</h4>
                       <p className="text-sm text-muted-foreground">{dog.breed}</p>
                     </div>
                     {currentHandler && (

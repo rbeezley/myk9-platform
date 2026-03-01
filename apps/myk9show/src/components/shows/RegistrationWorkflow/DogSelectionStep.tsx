@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
-import { Dog } from '@/types/dog-types';
+import { getDogDisplayName, Dog } from '@/types/dog-types';
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 import { cn } from '@/lib/utils';
 import '@/styles/apple-registration-workflow.css';
@@ -128,7 +128,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                       <div className="flex items-center justify-between">
                         <div>
                           <Label className="text-base font-medium cursor-pointer">
-                            {dog.callName || dog.name}
+                            {getDogDisplayName(dog)}
                             {dog.registrations?.[0]?.registeredName &&
                               ` "${dog.registrations[0].registeredName}"`}
                           </Label>

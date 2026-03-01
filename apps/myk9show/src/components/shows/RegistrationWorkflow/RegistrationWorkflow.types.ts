@@ -17,8 +17,15 @@ export type WorkflowMode =
   | 'club_admin'
   | 'site_admin';
 
+export type StepId =
+  | 'dog-selection'
+  | 'class-selection'
+  | 'handler-assignment'
+  | 'payment'
+  | 'confirmation';
+
 export interface WorkflowConfig {
-  steps: string[];
+  steps: StepId[];
   features: {
     bulkSelection: boolean;
     createNew: boolean;

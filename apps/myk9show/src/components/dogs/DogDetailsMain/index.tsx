@@ -6,7 +6,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import Breadcrumb from '@/components/common/Breadcrumb';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { mockPedigreeData } from '@/data/mockPedigreeData';
-import type { Dog, DogStatus, Owner } from '@/types/dog-types';
+import { getDogDisplayName, type Dog, type DogStatus, type Owner } from '@/types/dog-types';
 import type { ExtendedAncestor } from '@/components/dogs/DogDetails/Pedigree/PedigreeAncestorAddDialog';
 import '@/styles/apple-show-details.css';
 
@@ -217,7 +217,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({ dog, fromPerson, onDele
       <DogStatusDialog
         open={isStatusDialogOpen}
         onOpenChange={setIsStatusDialogOpen}
-        dogName={updatedDog.callName || updatedDog.name}
+        dogName={getDogDisplayName(updatedDog)}
         currentStatus={updatedDog.status || 'active'}
         currentDeceasedDate={updatedDog.deceasedDate}
         onSave={handleStatusSave}

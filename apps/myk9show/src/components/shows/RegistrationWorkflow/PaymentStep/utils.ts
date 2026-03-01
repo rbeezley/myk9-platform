@@ -1,6 +1,14 @@
-import type { ClassSelectionData, PaymentStatus, EntryStatus } from '@/types/show-registration-types';
-import { PaymentStatus as PaymentStatusEnum, EntryStatus as EntryStatusEnum } from '@/types/show-registration-types';
+import type {
+  ClassSelectionData,
+  PaymentStatus,
+  EntryStatus,
+} from '@/types/show-registration-types';
+import {
+  PaymentStatus as PaymentStatusEnum,
+  EntryStatus as EntryStatusEnum,
+} from '@/types/show-registration-types';
 import type { FeeCalculationResult, FeeBreakdownItem } from './types';
+import { getDogDisplayName } from '@/types/dog-types';
 
 /**
  * Minimal subset of Dog used by fee calculation.
@@ -63,7 +71,7 @@ export function calculateTotalFees(
 
       breakdown.push({
         dogId,
-        dogName: dog.callName || dog.name,
+        dogName: getDogDisplayName(dog),
         classes: dogClasses,
         subtotal: dogSubtotal,
       });

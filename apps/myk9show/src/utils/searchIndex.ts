@@ -3,6 +3,8 @@
  * Supports fuzzy search, ranking, and fast lookups for thousands of records
  */
 
+import { getDogDisplayName } from '@/types/dog-types';
+
 export interface SearchableItem {
   id: string;
   type: 'dog' | 'person' | 'show' | 'club';
@@ -75,41 +77,34 @@ class SearchIndex {
       return [];
     }
 
-    const {
-      maxResults = 50,
-      fuzzyThreshold = 0.6,
-      categories = [],
-      minScore = 0.1
-    } = options;
+    const { maxResults = 50, fuzzyThreshold = 0.6, categories = [], minScore = 0.1 } = options;
 
     const normalizedQuery = this.normalizeText(query);
     const queryTerms = this.tokenize(normalizedQuery);
 
     // Find candidate items
     const candidates = this.findCandidates(queryTerms);
-    
+
     // Score and rank results
     const scoredResults: SearchResult[] = [];
-    
+
     for (const itemId of candidates) {
       const item = this.items.get(itemId);
       if (!item) continue;
-      
+
       // Filter by category if specified
       if (categories.length > 0 && !categories.includes(item.type)) {
         continue;
       }
-      
+
       const result = this.scoreItem(item, queryTerms, fuzzyThreshold);
       if (result.score >= minScore) {
         scoredResults.push(result);
       }
     }
-    
+
     // Sort by score (descending) and return top results
-    return scoredResults
-      .sort((a, b) => b.score - a.score)
-      .slice(0, maxResults);
+    return scoredResults.sort((a, b) => b.score - a.score).slice(0, maxResults);
   }
 
   /**
@@ -118,7 +113,7 @@ class SearchIndex {
   getSuggestions(partialQuery: string, limit = 5): string[] {
     const normalized = this.normalizeText(partialQuery);
     const suggestions = new Set<string>();
-    
+
     // Find terms that start with the partial query
     for (const [term] of this.invertedIndex) {
       if (term.startsWith(normalized) && term !== normalized) {
@@ -126,7 +121,7 @@ class SearchIndex {
         if (suggestions.size >= limit) break;
       }
     }
-    
+
     return Array.from(suggestions);
   }
 
@@ -145,7 +140,7 @@ class SearchIndex {
       totalItems: this.items.size,
       indexedTerms: this.invertedIndex.size,
       ngramTerms: this.ngramIndex.size,
-      ready: this.ready
+      ready: this.ready,
     };
   }
 
@@ -163,7 +158,7 @@ class SearchIndex {
 
   private indexItem(item: SearchableItem): void {
     const tokens = this.tokenize(item.searchText);
-    
+
     // Add to inverted index
     tokens.forEach(token => {
       if (!this.invertedIndex.has(token)) {
@@ -171,7 +166,7 @@ class SearchIndex {
       }
       this.invertedIndex.get(token)!.add(item.id);
     });
-    
+
     // Add to n-gram index for fuzzy search
     const ngrams = this.generateNgrams(item.searchText, 2);
     ngrams.forEach(ngram => {
@@ -184,7 +179,7 @@ class SearchIndex {
 
   private removeFromIndex(item: SearchableItem): void {
     const tokens = this.tokenize(item.searchText);
-    
+
     // Remove from inverted index
     tokens.forEach(token => {
       const itemSet = this.invertedIndex.get(token);
@@ -195,7 +190,7 @@ class SearchIndex {
         }
       }
     });
-    
+
     // Remove from n-gram index
     const ngrams = this.generateNgrams(item.searchText, 2);
     ngrams.forEach(ngram => {
@@ -234,15 +229,19 @@ class SearchIndex {
     return candidates;
   }
 
-  private scoreItem(item: SearchableItem, queryTerms: string[], fuzzyThreshold: number): SearchResult {
+  private scoreItem(
+    item: SearchableItem,
+    queryTerms: string[],
+    fuzzyThreshold: number
+  ): SearchResult {
     const itemTokens = this.tokenize(item.searchText);
     const matchedTerms: string[] = [];
     let totalScore = 0;
-    
+
     queryTerms.forEach(queryTerm => {
       let bestMatch = 0;
       let bestMatchTerm = '';
-      
+
       itemTokens.forEach(itemToken => {
         // Exact match
         if (itemToken === queryTerm) {
@@ -268,26 +267,24 @@ class SearchIndex {
           }
         }
       });
-      
+
       if (bestMatch > 0) {
         totalScore += bestMatch;
         matchedTerms.push(bestMatchTerm);
       }
     });
-    
+
     // Normalize score
     const normalizedScore = totalScore / queryTerms.length;
-    
+
     // Boost score for title matches
-    const titleMatch = queryTerms.some(term => 
-      item.title.toLowerCase().includes(term)
-    );
+    const titleMatch = queryTerms.some(term => item.title.toLowerCase().includes(term));
     const finalScore = titleMatch ? normalizedScore * 1.2 : normalizedScore;
-    
+
     return {
       ...item,
       score: Math.min(finalScore, 1.0),
-      matchedTerms
+      matchedTerms,
     };
   }
 
@@ -304,29 +301,29 @@ class SearchIndex {
   private generateNgrams(text: string, n: number): string[] {
     const normalized = this.normalizeText(text);
     const ngrams: string[] = [];
-    
+
     for (let i = 0; i <= normalized.length - n; i++) {
       ngrams.push(normalized.slice(i, i + n));
     }
-    
+
     return ngrams;
   }
 
   private calculateSimilarity(str1: string, str2: string): number {
     if (str1 === str2) return 1.0;
     if (str1.length === 0 || str2.length === 0) return 0.0;
-    
+
     // Use Levenshtein distance for similarity
     const matrix: number[][] = [];
-    
+
     for (let i = 0; i <= str2.length; i++) {
       matrix[i] = [i];
     }
-    
+
     for (let j = 0; j <= str1.length; j++) {
       matrix[0][j] = j;
     }
-    
+
     for (let i = 1; i <= str2.length; i++) {
       for (let j = 1; j <= str1.length; j++) {
         if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
@@ -340,9 +337,9 @@ class SearchIndex {
         }
       }
     }
-    
+
     const maxLength = Math.max(str1.length, str2.length);
-    return 1 - (matrix[str2.length][str1.length] / maxLength);
+    return 1 - matrix[str2.length][str1.length] / maxLength;
   }
 }
 
@@ -359,7 +356,10 @@ export function createSearchableItem(
       return {
         id: `dog-${data.id}`,
         type: 'dog',
-        title: String(data.callName || data.name || ''),
+        title: getDogDisplayName({
+          callName: data.callName as string | undefined,
+          name: String(data.name || ''),
+        }),
         subtitle: `${data.breed} • ${data.gender || ''}`,
         searchText: [
           data.name,
@@ -368,59 +368,51 @@ export function createSearchableItem(
           data.color,
           data.gender,
           // Include registration numbers from registrations array
-          ...(data.registrations as Array<{ registrationNumber?: string }> || []).map((reg) => reg.registrationNumber)
-        ].filter(Boolean).join(' '),
+          ...((data.registrations as Array<{ registrationNumber?: string }>) || []).map(
+            reg => reg.registrationNumber
+          ),
+        ]
+          .filter(Boolean)
+          .join(' '),
         metadata: data,
-        route: `/dogs/${data.id}`
+        route: `/dogs/${data.id}`,
       };
-      
+
     case 'person':
       return {
         id: `person-${data.id}`,
         type: 'person',
         title: `${String(data.firstName || '')} ${String(data.lastName || '')}`,
         subtitle: String(data.email || 'User'),
-        searchText: [
-          data.firstName,
-          data.lastName,
-          data.email,
-          data.phone
-        ].filter(Boolean).join(' '),
+        searchText: [data.firstName, data.lastName, data.email, data.phone]
+          .filter(Boolean)
+          .join(' '),
         metadata: data,
-        route: `/users/${data.id}`
+        route: `/users/${data.id}`,
       };
-      
+
     case 'show':
       return {
         id: `show-${data.id}`,
         type: 'show',
         title: String(data.name || ''),
         subtitle: `${data.location} • ${data.type}`,
-        searchText: [
-          data.name,
-          data.location,
-          data.type,
-          data.clubName
-        ].filter(Boolean).join(' '),
+        searchText: [data.name, data.location, data.type, data.clubName].filter(Boolean).join(' '),
         metadata: data,
-        route: `/shows/${data.id}`
+        route: `/shows/${data.id}`,
       };
-      
+
     case 'club':
       return {
         id: `club-${data.id}`,
         type: 'club',
         title: String(data.name || ''),
         subtitle: String(data.location || 'Club'),
-        searchText: [
-          data.name,
-          data.location,
-          data.abbreviation
-        ].filter(Boolean).join(' '),
+        searchText: [data.name, data.location, data.abbreviation].filter(Boolean).join(' '),
         metadata: data,
-        route: `/clubs/${data.id}`
+        route: `/clubs/${data.id}`,
       };
-      
+
     default:
       throw new Error(`Unknown searchable item type: ${type}`);
   }

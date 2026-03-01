@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useRoleBasedDogs } from '@/hooks/useRoleBasedData';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
-import type { Dog } from '@/types/dog-types';
+import { getDogDisplayName, type Dog } from '@/types/dog-types';
 
 export interface DogFilters {
   search: string;
@@ -69,7 +69,7 @@ export function useBrowseDogsData(): BrowseDogsData {
 
     // Sort alphabetically by call name
     return [...result].sort((a, b) =>
-      (a.callName || a.name || '').localeCompare(b.callName || b.name || '')
+      (getDogDisplayName(a) || '').localeCompare(getDogDisplayName(b) || '')
     );
   }, [dogs, filters]);
 

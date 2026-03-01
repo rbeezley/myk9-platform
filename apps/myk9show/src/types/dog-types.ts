@@ -268,6 +268,13 @@ export interface DogInput {
     | undefined;
 }
 
+/**
+ * Get the display name for a dog (call name preferred, falls back to registered name).
+ */
+export function getDogDisplayName(dog: Pick<Dog, 'callName' | 'name'>): string {
+  return dog.callName || dog.name;
+}
+
 export interface PersonInput {
   firstName: string;
   lastName: string;

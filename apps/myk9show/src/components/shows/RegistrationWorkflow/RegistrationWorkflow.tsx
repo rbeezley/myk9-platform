@@ -19,13 +19,11 @@ import { DraftManager } from './DraftManager';
 import { useDraftPersistence, type SavedDraft } from '@/hooks/useDraftPersistence';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useOptimisticRegistration } from '@/hooks/useOptimisticRegistration';
-import { useRegistrationConflicts } from '@/hooks/useRegistrationConflicts';
-import { ConflictResolutionDialog } from '@/components/sync/ConflictResolutionDialog';
 import { toast } from 'sonner';
 import ProgressIndicator from '../wizard/components/ProgressIndicator';
 import WizardNavigation from '../wizard/components/WizardNavigation';
 import '@/styles/apple-registration-workflow.css';
-import type { WorkflowMode, RegistrationWorkflowProps } from './RegistrationWorkflow.types';
+import type { WorkflowMode, RegistrationWorkflowProps, StepId } from './RegistrationWorkflow.types';
 import {
   WORKFLOW_CONFIGS,
   ALL_STEP_DEFINITIONS,
@@ -96,7 +94,7 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
 
   // Draft persistence
   const userId = user?.id || 'anonymous';
-  const currentStepId = currentWorkflowConfig.steps[currentStep] || 'unknown';
+  const currentStepId: StepId = currentWorkflowConfig.steps[currentStep] ?? 'dog-selection';
 
   useDraftPersistence(showId, userId, currentStepId, {
     autoSaveInterval: 30000, // 30 seconds
@@ -120,16 +118,6 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
     entryStatus,
     stepCompletionState,
   });
-
-  // Conflict resolution
-  const { selectedConflict, setSelectedConflictId } = useRegistrationConflicts(
-    showId,
-    registrationId
-  );
-
-  // Define unused but required function to satisfy hook requirements
-  const resolveRegistrationConflict = () => {};
-  const dismissConflict = () => {};
 
   // Define helper functions first
   const isStepCompleted = (stepIndex: number) => {
@@ -489,15 +477,6 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
           </CardContent>
         </Card>
       </div>
-
-      {/* Conflict Resolution Dialog */}
-      <ConflictResolutionDialog
-        conflict={selectedConflict}
-        isOpen={!!selectedConflict}
-        onClose={() => setSelectedConflictId(null)}
-        onResolve={resolveRegistrationConflict}
-        onDismiss={dismissConflict}
-      />
     </RegistrationErrorBoundary>
   );
 }

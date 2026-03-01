@@ -1,5 +1,10 @@
 import { Dog, Trophy, CreditCard, CheckSquare, UserCheck } from 'lucide-react';
-import type { WorkflowConfig, WorkflowMode, RegistrationStep } from './RegistrationWorkflow.types';
+import type {
+  WorkflowConfig,
+  WorkflowMode,
+  StepId,
+  RegistrationStep,
+} from './RegistrationWorkflow.types';
 
 export const WORKFLOW_CONFIGS: Record<WorkflowMode, WorkflowConfig> = {
   exhibitor: {
@@ -84,7 +89,7 @@ export const WORKFLOW_CONFIGS: Record<WorkflowMode, WorkflowConfig> = {
   },
 };
 
-export const ALL_STEP_DEFINITIONS: Record<string, Omit<RegistrationStep, 'completed'>> = {
+export const ALL_STEP_DEFINITIONS: Record<StepId, Omit<RegistrationStep, 'completed'>> = {
   'dog-selection': {
     id: 0,
     label: 'Select Dogs',

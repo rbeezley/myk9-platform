@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { ClassSelectionData, HandlerInfo } from '@/types/show-registration-types';
+import { getDogDisplayName } from '@/types/dog-types';
 import { HandlerSelectionDialog } from './HandlerSelectionDialog';
 
 interface HandlerAssignmentStepProps {
@@ -85,7 +86,7 @@ export const HandlerAssignmentStep: React.FC<HandlerAssignmentStepProps> = ({
           <Card key={dog.id}>
             <CardContent className="py-4 flex items-center justify-between">
               <div className="flex-1 min-w-0">
-                <h4 className="font-semibold">{dog.callName || dog.name}</h4>
+                <h4 className="font-semibold">{getDogDisplayName(dog)}</h4>
                 <p className="text-sm text-muted-foreground truncate">
                   {dog.breed} &bull; {classCount} {classCount === 1 ? 'class' : 'classes'}
                 </p>

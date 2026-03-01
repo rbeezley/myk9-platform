@@ -2,19 +2,19 @@ import React, { useState, useMemo, useCallback, startTransition } from 'react';
 import { Command } from 'cmdk';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Search, 
-  Dog, 
-  Users, 
-  Calendar, 
-  Building, 
+import {
+  Search,
+  Dog,
+  Users,
+  Calendar,
+  Building,
   Plus,
   Filter,
   X,
   Clock,
   Settings,
   FileText,
-  MapPin
+  MapPin,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDogStore } from '@/store/dogStore';
@@ -23,6 +23,7 @@ import { useShowStore } from '@/store/showStore';
 import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
 import { useDebounce } from '@myk9/scoring-ui';
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
+import { getDogDisplayName } from '@/types/dog-types';
 
 interface CommandPaletteProps {
   open: boolean;
@@ -77,17 +78,21 @@ export function CommandPaletteEnhanced({ open, onOpenChange }: CommandPalettePro
   const dogs = useDogStore(state => state.dogs);
   const people = useUserStore(state => state.people);
   const shows = useShowStore(state => state.shows);
-  
+
   // Get user permissions
-  const { canViewAllDogs, canCreateExhibitor, isSecretary, isSiteAdmin } = useRegistrationPermissions();
+  const { canViewAllDogs, canCreateExhibitor, isSecretary, isSiteAdmin } =
+    useRegistrationPermissions();
 
   // Memoized navigation and close handler to prevent infinite re-renders
-  const handleNavigateAndClose = useCallback((path: string) => {
-    startTransition(() => {
-      navigate(path);
-      onOpenChange(false);
-    });
-  }, [navigate, onOpenChange]);
+  const handleNavigateAndClose = useCallback(
+    (path: string) => {
+      startTransition(() => {
+        navigate(path);
+        onOpenChange(false);
+      });
+    },
+    [navigate, onOpenChange]
+  );
 
   // Track open state to clear search when dialog closes
   const [wasOpen, setWasOpen] = useState(open);
@@ -112,7 +117,7 @@ export function CommandPaletteEnhanced({ open, onOpenChange }: CommandPalettePro
         keywords: ['dogs', 'pets', 'animals', 'breeds'],
         category: 'navigation',
         type: 'dog',
-        priority: 10
+        priority: 10,
       },
       {
         id: 'nav-people',
@@ -123,7 +128,7 @@ export function CommandPaletteEnhanced({ open, onOpenChange }: CommandPalettePro
         keywords: ['people', 'contacts', 'owners', 'exhibitors'],
         category: 'navigation',
         type: 'person',
-        priority: 9
+        priority: 9,
       },
       {
         id: 'nav-shows',
@@ -134,7 +139,7 @@ export function CommandPaletteEnhanced({ open, onOpenChange }: CommandPalettePro
         keywords: ['shows', 'events', 'competitions', 'trials'],
         category: 'navigation',
         type: 'show',
-        priority: 8
+        priority: 8,
       },
       {
         id: 'nav-clubs',
@@ -145,8 +150,8 @@ export function CommandPaletteEnhanced({ open, onOpenChange }: CommandPalettePro
         keywords: ['clubs', 'organizations'],
         category: 'navigation',
         type: 'club',
-        priority: 7
-      }
+        priority: 7,
+      },
     ];
 
     // Add admin-only navigation
@@ -159,7 +164,7 @@ export function CommandPaletteEnhanced({ open, onOpenChange }: CommandPalettePro
         action: () => handleNavigateAndClose('/admin'),
         keywords: ['admin', 'administration', 'settings', 'system'],
         category: 'navigation',
-        priority: 5
+        priority: 5,
       });
     }
 
@@ -172,10 +177,13 @@ export function CommandPaletteEnhanced({ open, onOpenChange }: CommandPalettePro
     const searchTerm = debouncedSearch.toLowerCase();
 
     // Get accessible dogs based on RBAC
-    const accessibleDogs = canViewAllDogs ? dogs : dogs.filter(() => 
-      // Add your own dog filtering logic here based on ownership
-      true // Placeholder - should filter by user's dogs
-    );
+    const accessibleDogs = canViewAllDogs
+      ? dogs
+      : dogs.filter(
+          () =>
+            // Add your own dog filtering logic here based on ownership
+            true // Placeholder - should filter by user's dogs
+        );
 
     // Add dogs with enhanced metadata
     accessibleDogs
@@ -185,20 +193,21 @@ export function CommandPaletteEnhanced({ open, onOpenChange }: CommandPalettePro
         const dogKeywords = [
           dog.name,
           dog.callName,
-          dog.registrations?.[0]?.breed || "No breed specified",
+          dog.registrations?.[0]?.breed || 'No breed specified',
           dog.microchip,
-          ...(dog.registrations?.map(reg => [reg.registeredName, reg.registrationNumber, reg.organization]).flat() || [])
+          ...(dog.registrations
+            ?.map(reg => [reg.registeredName, reg.registrationNumber, reg.organization])
+            .flat() || []),
         ].filter(Boolean) as string[];
 
         // Enhanced matching for better search results
-        const matchesSearch = !searchTerm || dogKeywords.some(keyword => 
-          keyword?.toLowerCase().includes(searchTerm)
-        );
+        const matchesSearch =
+          !searchTerm || dogKeywords.some(keyword => keyword?.toLowerCase().includes(searchTerm));
 
         if (matchesSearch) {
           commands.push({
             id: `dog-${dog.id}`,
-            title: dog.callName || dog.name,
+            title: getDogDisplayName(dog),
             subtitle: `${dog.registrations?.[0]?.breed || 'No breed specified'} • ${dog.gender || 'Unknown'} • Born ${dog.dateOfBirth ? formatDateMMDDYYYY(dog.dateOfBirth) : 'Unknown'}`,
             icon: <Dog className="h-4 w-4" />,
             action: () => handleNavigateAndClose(`/dogs/${dog.id}`),
@@ -206,88 +215,91 @@ export function CommandPaletteEnhanced({ open, onOpenChange }: CommandPalettePro
             category: 'data',
             type: 'dog',
             metadata: {
-              breed: dog.registrations?.[0]?.breed || "No breed specified",
+              breed: dog.registrations?.[0]?.breed || 'No breed specified',
               gender: dog.gender,
               age: dog.dateOfBirth,
-              registrations: dog.registrations?.length || 0
+              registrations: dog.registrations?.length || 0,
             },
-            priority: searchTerm ? (dogKeywords.findIndex(k => k?.toLowerCase().startsWith(searchTerm)) !== -1 ? 10 : 5) : 3
+            priority: searchTerm
+              ? dogKeywords.findIndex(k => k?.toLowerCase().startsWith(searchTerm)) !== -1
+                ? 10
+                : 5
+              : 3,
           });
         }
       });
 
     // Add people with enhanced search
-    people
-      .slice(0, 10)
-      .forEach(person => {
-        const name = `${person.firstName} ${person.lastName}`;
-        const personKeywords = [
-          person.firstName,
-          person.lastName,
-          name,
-          person.email,
-          person.phone
-        ].filter(Boolean) as string[];
+    people.slice(0, 10).forEach(person => {
+      const name = `${person.firstName} ${person.lastName}`;
+      const personKeywords = [
+        person.firstName,
+        person.lastName,
+        name,
+        person.email,
+        person.phone,
+      ].filter(Boolean) as string[];
 
-        const matchesSearch = !searchTerm || personKeywords.some(keyword => 
-          keyword?.toLowerCase().includes(searchTerm)
-        );
+      const matchesSearch =
+        !searchTerm || personKeywords.some(keyword => keyword?.toLowerCase().includes(searchTerm));
 
-        if (matchesSearch) {
-          commands.push({
-            id: `person-${person.id}`,
-            title: name,
-            subtitle: `${person.email || person.phone || 'Contact'} • View profile`,
-            icon: <Users className="h-4 w-4" />,
-            action: () => handleNavigateAndClose(`/people/${person.id}`),
-            keywords: personKeywords,
-            category: 'data',
-            type: 'person',
-            metadata: {
-              email: person.email,
-              phone: person.phone,
-              dogsCount: person.dogs?.length || 0
-            },
-            priority: searchTerm ? (personKeywords.findIndex(k => k?.toLowerCase().startsWith(searchTerm)) !== -1 ? 10 : 5) : 3
-          });
-        }
-      });
+      if (matchesSearch) {
+        commands.push({
+          id: `person-${person.id}`,
+          title: name,
+          subtitle: `${person.email || person.phone || 'Contact'} • View profile`,
+          icon: <Users className="h-4 w-4" />,
+          action: () => handleNavigateAndClose(`/people/${person.id}`),
+          keywords: personKeywords,
+          category: 'data',
+          type: 'person',
+          metadata: {
+            email: person.email,
+            phone: person.phone,
+            dogsCount: person.dogs?.length || 0,
+          },
+          priority: searchTerm
+            ? personKeywords.findIndex(k => k?.toLowerCase().startsWith(searchTerm)) !== -1
+              ? 10
+              : 5
+            : 3,
+        });
+      }
+    });
 
     // Add shows with location and date info
-    shows
-      .slice(0, 10)
-      .forEach(show => {
-        const showKeywords = [
-          show.name,
-          show.location,
-          show.type,
-          show.clubName
-        ].filter(Boolean) as string[];
+    shows.slice(0, 10).forEach(show => {
+      const showKeywords = [show.name, show.location, show.type, show.clubName].filter(
+        Boolean
+      ) as string[];
 
-        const matchesSearch = !searchTerm || showKeywords.some(keyword => 
-          keyword?.toLowerCase().includes(searchTerm)
-        );
+      const matchesSearch =
+        !searchTerm || showKeywords.some(keyword => keyword?.toLowerCase().includes(searchTerm));
 
-        if (matchesSearch) {
-          commands.push({
-            id: `show-${show.id}`,
-            title: show.name,
-            subtitle: `${show.location} • ${formatDateMMDDYYYY(show.startDate)} • ${show.type}`,
-            icon: <Calendar className="h-4 w-4" />,
-            action: () => handleNavigateAndClose(`/shows/${show.id}`),
-            keywords: showKeywords,
-            category: 'data',
-            type: 'show',
-            metadata: {
-              location: show.location,
-              date: show.startDate,
-              type: show.type,
-              status: show.status
-            },
-            priority: searchTerm ? (showKeywords.findIndex(k => k?.toLowerCase().startsWith(searchTerm)) !== -1 ? 10 : 5) : 3
-          });
-        }
-      });
+      if (matchesSearch) {
+        commands.push({
+          id: `show-${show.id}`,
+          title: show.name,
+          subtitle: `${show.location} • ${formatDateMMDDYYYY(show.startDate)} • ${show.type}`,
+          icon: <Calendar className="h-4 w-4" />,
+          action: () => handleNavigateAndClose(`/shows/${show.id}`),
+          keywords: showKeywords,
+          category: 'data',
+          type: 'show',
+          metadata: {
+            location: show.location,
+            date: show.startDate,
+            type: show.type,
+            status: show.status,
+          },
+          priority: searchTerm
+            ? showKeywords.findIndex(k => k?.toLowerCase().startsWith(searchTerm)) !== -1
+              ? 10
+              : 5
+            : 3,
+        });
+      }
+    });
 
     return commands.sort((a, b) => (b.priority || 0) - (a.priority || 0));
   }, [dogs, people, shows, handleNavigateAndClose, canViewAllDogs, debouncedSearch]);
@@ -304,8 +316,8 @@ export function CommandPaletteEnhanced({ open, onOpenChange }: CommandPalettePro
         keywords: ['add', 'new', 'create', 'dog', 'register'],
         category: 'actions',
         type: 'dog',
-        priority: 8
-      }
+        priority: 8,
+      },
     ];
 
     // Add people creation for secretaries and above
@@ -319,7 +331,7 @@ export function CommandPaletteEnhanced({ open, onOpenChange }: CommandPalettePro
         keywords: ['add', 'new', 'create', 'person', 'contact', 'exhibitor'],
         category: 'actions',
         type: 'person',
-        priority: 7
+        priority: 7,
       });
     }
 
@@ -334,7 +346,7 @@ export function CommandPaletteEnhanced({ open, onOpenChange }: CommandPalettePro
         keywords: ['add', 'new', 'create', 'show', 'event', 'competition'],
         category: 'actions',
         type: 'show',
-        priority: 6
+        priority: 6,
       });
     }
 
@@ -361,7 +373,7 @@ export function CommandPaletteEnhanced({ open, onOpenChange }: CommandPalettePro
   // Group commands by category
   const groupedCommands = useMemo(() => {
     const groups: Record<string, CommandAction[]> = {};
-    
+
     allCommands.forEach(command => {
       if (!groups[command.category]) {
         groups[command.category] = [];
@@ -380,7 +392,7 @@ export function CommandPaletteEnhanced({ open, onOpenChange }: CommandPalettePro
   const toggleFilter = (filterType: 'category' | 'type', value: string) => {
     setActiveFilters(prev => ({
       ...prev,
-      [filterType]: prev[filterType] === value ? undefined : value
+      [filterType]: prev[filterType] === value ? undefined : value,
     }));
   };
 
@@ -392,11 +404,16 @@ export function CommandPaletteEnhanced({ open, onOpenChange }: CommandPalettePro
 
   const getGroupTitle = (category: string) => {
     switch (category) {
-      case 'navigation': return 'Navigate';
-      case 'data': return 'Search Results';
-      case 'actions': return 'Quick Actions';
-      case 'recent': return 'Recent';
-      default: return category;
+      case 'navigation':
+        return 'Navigate';
+      case 'data':
+        return 'Search Results';
+      case 'actions':
+        return 'Quick Actions';
+      case 'recent':
+        return 'Recent';
+      default:
+        return category;
     }
   };
 
@@ -405,7 +422,10 @@ export function CommandPaletteEnhanced({ open, onOpenChange }: CommandPalettePro
       <DialogContent className="max-w-3xl p-0 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
         <Command className="rounded-lg border-none shadow-none bg-white dark:bg-gray-900">
           {/* Search Input */}
-          <div className="flex items-center border-b border-gray-200 dark:border-gray-700 px-3" cmdk-input-wrapper="">
+          <div
+            className="flex items-center border-b border-gray-200 dark:border-gray-700 px-3"
+            cmdk-input-wrapper=""
+          >
             <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
             <Command.Input
               placeholder="Search dogs, people, shows, or type a command..."
@@ -428,7 +448,9 @@ export function CommandPaletteEnhanced({ open, onOpenChange }: CommandPalettePro
               <div className="space-y-3">
                 {/* Category Filters */}
                 <div>
-                  <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Category</div>
+                  <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
+                    Category
+                  </div>
                   <div className="flex flex-wrap gap-1">
                     {FACET_CATEGORIES.map(facet => (
                       <button
@@ -449,7 +471,9 @@ export function CommandPaletteEnhanced({ open, onOpenChange }: CommandPalettePro
 
                 {/* Type Filters */}
                 <div>
-                  <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Type</div>
+                  <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
+                    Type
+                  </div>
                   <div className="flex flex-wrap gap-1">
                     {FACET_TYPES.map(facet => (
                       <button
@@ -472,7 +496,8 @@ export function CommandPaletteEnhanced({ open, onOpenChange }: CommandPalettePro
                 {hasActiveFilters && (
                   <div className="flex justify-between items-center">
                     <div className="text-xs text-gray-500 dark:text-gray-400">
-                      {Object.values(activeFilters).filter(v => v && v !== 'all').length} filter(s) active
+                      {Object.values(activeFilters).filter(v => v && v !== 'all').length} filter(s)
+                      active
                     </div>
                     <button
                       onClick={clearAllFilters}
@@ -494,47 +519,50 @@ export function CommandPaletteEnhanced({ open, onOpenChange }: CommandPalettePro
             </Command.Empty>
 
             {/* Grouped Commands */}
-            {Object.entries(groupedCommands).map(([category, commands]) => (
-              commands.length > 0 && (
-                <Command.Group 
-                  key={category}
-                  heading={getGroupTitle(category)} 
-                  className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-gray-500 dark:[&_[cmdk-group-heading]]:text-gray-400"
-                >
-                  {commands.map((command) => (
-                    <Command.Item
-                      key={command.id}
-                      value={`${command.title} ${command.subtitle} ${command.keywords?.join(' ')}`}
-                      onSelect={() => handleSelect(command.id)}
-                      className="flex items-center px-2 py-2 text-sm rounded-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 aria-selected:bg-gray-100 dark:aria-selected:bg-gray-800 text-gray-900 dark:text-gray-100"
-                    >
-                      <div className={`mr-3 flex h-8 w-8 items-center justify-center rounded-md ${
-                        command.category === 'actions' 
-                          ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300'
-                          : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300'
-                      }`}>
-                        {command.icon}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-gray-900 dark:text-gray-100 truncate">
-                          {command.title}
+            {Object.entries(groupedCommands).map(
+              ([category, commands]) =>
+                commands.length > 0 && (
+                  <Command.Group
+                    key={category}
+                    heading={getGroupTitle(category)}
+                    className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-gray-500 dark:[&_[cmdk-group-heading]]:text-gray-400"
+                  >
+                    {commands.map(command => (
+                      <Command.Item
+                        key={command.id}
+                        value={`${command.title} ${command.subtitle} ${command.keywords?.join(' ')}`}
+                        onSelect={() => handleSelect(command.id)}
+                        className="flex items-center px-2 py-2 text-sm rounded-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 aria-selected:bg-gray-100 dark:aria-selected:bg-gray-800 text-gray-900 dark:text-gray-100"
+                      >
+                        <div
+                          className={`mr-3 flex h-8 w-8 items-center justify-center rounded-md ${
+                            command.category === 'actions'
+                              ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300'
+                              : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300'
+                          }`}
+                        >
+                          {command.icon}
                         </div>
-                        {command.subtitle && (
-                          <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                            {command.subtitle}
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-gray-900 dark:text-gray-100 truncate">
+                            {command.title}
                           </div>
+                          {command.subtitle && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                              {command.subtitle}
+                            </div>
+                          )}
+                        </div>
+                        {command.type && (
+                          <Badge variant="outline" className="ml-2 text-xs">
+                            {command.type}
+                          </Badge>
                         )}
-                      </div>
-                      {command.type && (
-                        <Badge variant="outline" className="ml-2 text-xs">
-                          {command.type}
-                        </Badge>
-                      )}
-                    </Command.Item>
-                  ))}
-                </Command.Group>
-              )
-            ))}
+                      </Command.Item>
+                    ))}
+                  </Command.Group>
+                )
+            )}
           </Command.List>
         </Command>
       </DialogContent>

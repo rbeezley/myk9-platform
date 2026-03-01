@@ -110,9 +110,9 @@ export const ShowTemplateTestPage: React.FC = () => {
                           
                           <div className="space-y-2">
                             <Badge 
-                              className={`text-xs ${showTypeColors[preset.showType as keyof typeof showTypeColors] || 'bg-gray-100 text-gray-800'}`}
+                              className={`text-xs ${showTypeColors[preset.trialType as keyof typeof showTypeColors] || 'bg-gray-100 text-gray-800'}`}
                             >
-                              {preset.showType}
+                              {preset.trialType}
                             </Badge>
                             
                             <div className="text-xs space-y-1">

@@ -205,7 +205,7 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
       exportedAt: new Date().toISOString(),
       templateName: selectedTemplate?.templateName,
       organization: selectedTemplate?.organization,
-      showType: selectedTemplate?.showType,
+      trialType: selectedTemplate?.trialType,
       trialId: effectiveTrialId,
       classes: selected.map(item => {
         const cls = item.classDefinition;
@@ -413,7 +413,7 @@ export const ClassCreationPage: React.FC<ClassCreationPageProps> = ({ trialId })
                       </Badge>
                     </div>
                     <div className="text-sm text-muted-foreground mt-1">
-                      {selectedTemplate.organization} • {selectedTemplate.showType} • v{selectedTemplate.version}
+                      {selectedTemplate.organization} • {selectedTemplate.trialType} • v{selectedTemplate.version}
                     </div>
                   </div>
                 </div>

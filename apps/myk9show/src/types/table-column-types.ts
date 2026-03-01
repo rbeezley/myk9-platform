@@ -3,9 +3,17 @@
  * Defines column configurations for entry tables based on show type and template settings
  */
 
-import { ShowType } from './template.types';
+import { TrialType } from './template.types';
 
-export type ColumnDataType = 'string' | 'number' | 'time' | 'score' | 'status' | 'placement' | 'boolean' | 'armband';
+export type ColumnDataType =
+  | 'string'
+  | 'number'
+  | 'time'
+  | 'score'
+  | 'status'
+  | 'placement'
+  | 'boolean'
+  | 'armband';
 
 export type ColumnAlignment = 'left' | 'center' | 'right';
 
@@ -14,63 +22,63 @@ export type ColumnFieldSource = 'registration' | 'competition' | 'calculated' | 
 export interface TableColumn {
   /** Unique identifier for the column */
   id: string;
-  
+
   /** Display name in table header */
   label: string;
-  
+
   /** Field name to extract data from entry object */
   fieldName: string;
-  
+
   /** Where the data comes from in the entry object */
   fieldSource: ColumnFieldSource;
-  
+
   /** Data type for formatting and validation */
   dataType: ColumnDataType;
-  
+
   /** Column alignment */
   align: ColumnAlignment;
-  
+
   /** Column width (CSS width value) */
   width?: string;
-  
+
   /** Whether column is sortable */
   sortable: boolean;
-  
+
   /** Whether column is always visible */
   required: boolean;
-  
+
   /** Display order (lower numbers appear first) */
   displayOrder: number;
-  
+
   /** Show types this column applies to */
-  showTypes: ShowType[];
-  
+  trialTypes: TrialType[];
+
   /** Whether column is visible by default */
   defaultVisible: boolean;
-  
+
   /** Format string or function for displaying values */
   format?: string | ((value: unknown) => string);
-  
+
   /** CSS classes for styling */
   className?: string;
-  
+
   /** Help text for column header */
   helpText?: string;
 }
 
-export interface ShowTypeColumnConfig {
+export interface TrialTypeColumnConfig {
   /** Show type this configuration applies to */
-  showType: ShowType;
-  
+  trialType: TrialType;
+
   /** Required columns that must always be shown */
   requiredColumns: string[];
-  
+
   /** Default visible columns */
   defaultColumns: string[];
-  
+
   /** All available columns for this show type */
   availableColumns: string[];
-  
+
   /** Special formatting rules */
   formatRules?: {
     timeFormat?: 'MM:SS' | 'MM:SS.HH';
@@ -82,25 +90,25 @@ export interface ShowTypeColumnConfig {
 export interface TableColumnConfiguration {
   /** Configuration name/identifier */
   name: string;
-  
+
   /** Show type this configuration is for */
-  showType: ShowType;
-  
+  trialType: TrialType;
+
   /** Organization (AKC, UKC, etc.) */
   organization?: string;
-  
+
   /** Column configurations */
   columns: TableColumn[];
-  
+
   /** Show type specific settings */
-  showTypeConfig: ShowTypeColumnConfig;
-  
+  trialTypeConfig: TrialTypeColumnConfig;
+
   /** Whether this is the default configuration for the show type */
   isDefault: boolean;
-  
+
   /** Template ID this configuration is associated with */
   templateId?: string;
-  
+
   /** Version for configuration management */
   version: string;
 }
@@ -118,10 +126,16 @@ export const STANDARD_COLUMNS: TableColumn[] = [
     sortable: true,
     required: true,
     displayOrder: 1,
-    showTypes: [ShowType.SCENT_WORK, ShowType.AGILITY, ShowType.OBEDIENCE, ShowType.RALLY, ShowType.CONFORMATION],
+    trialTypes: [
+      TrialType.SCENT_WORK,
+      TrialType.AGILITY,
+      TrialType.OBEDIENCE,
+      TrialType.RALLY,
+      TrialType.CONFORMATION,
+    ],
     defaultVisible: true,
-    format: (value: unknown) => value ? `#${value}` : '',
-    className: 'font-medium'
+    format: (value: unknown) => (value ? `#${value}` : ''),
+    className: 'font-medium',
   },
   {
     id: 'handler',
@@ -133,9 +147,15 @@ export const STANDARD_COLUMNS: TableColumn[] = [
     sortable: true,
     required: true,
     displayOrder: 2,
-    showTypes: [ShowType.SCENT_WORK, ShowType.AGILITY, ShowType.OBEDIENCE, ShowType.RALLY, ShowType.CONFORMATION],
+    trialTypes: [
+      TrialType.SCENT_WORK,
+      TrialType.AGILITY,
+      TrialType.OBEDIENCE,
+      TrialType.RALLY,
+      TrialType.CONFORMATION,
+    ],
     defaultVisible: true,
-    className: 'font-medium'
+    className: 'font-medium',
   },
   {
     id: 'dog',
@@ -147,9 +167,15 @@ export const STANDARD_COLUMNS: TableColumn[] = [
     sortable: true,
     required: true,
     displayOrder: 3,
-    showTypes: [ShowType.SCENT_WORK, ShowType.AGILITY, ShowType.OBEDIENCE, ShowType.RALLY, ShowType.CONFORMATION],
+    trialTypes: [
+      TrialType.SCENT_WORK,
+      TrialType.AGILITY,
+      TrialType.OBEDIENCE,
+      TrialType.RALLY,
+      TrialType.CONFORMATION,
+    ],
     defaultVisible: true,
-    className: 'font-medium text-muted-foreground'
+    className: 'font-medium text-muted-foreground',
   },
   {
     id: 'status',
@@ -161,8 +187,14 @@ export const STANDARD_COLUMNS: TableColumn[] = [
     sortable: true,
     required: true,
     displayOrder: 4,
-    showTypes: [ShowType.SCENT_WORK, ShowType.AGILITY, ShowType.OBEDIENCE, ShowType.RALLY, ShowType.CONFORMATION],
-    defaultVisible: true
+    trialTypes: [
+      TrialType.SCENT_WORK,
+      TrialType.AGILITY,
+      TrialType.OBEDIENCE,
+      TrialType.RALLY,
+      TrialType.CONFORMATION,
+    ],
+    defaultVisible: true,
   },
   {
     id: 'time',
@@ -175,9 +207,9 @@ export const STANDARD_COLUMNS: TableColumn[] = [
     sortable: true,
     required: false,
     displayOrder: 5,
-    showTypes: [ShowType.SCENT_WORK, ShowType.AGILITY, ShowType.RALLY],
+    trialTypes: [TrialType.SCENT_WORK, TrialType.AGILITY, TrialType.RALLY],
     defaultVisible: true,
-    className: 'font-mono'
+    className: 'font-mono',
   },
   {
     id: 'score',
@@ -190,9 +222,9 @@ export const STANDARD_COLUMNS: TableColumn[] = [
     sortable: true,
     required: false,
     displayOrder: 6,
-    showTypes: [ShowType.OBEDIENCE, ShowType.RALLY, ShowType.CONFORMATION],
+    trialTypes: [TrialType.OBEDIENCE, TrialType.RALLY, TrialType.CONFORMATION],
     defaultVisible: true,
-    className: 'font-mono'
+    className: 'font-mono',
   },
   {
     id: 'faults',
@@ -205,9 +237,9 @@ export const STANDARD_COLUMNS: TableColumn[] = [
     sortable: true,
     required: false,
     displayOrder: 7,
-    showTypes: [ShowType.SCENT_WORK, ShowType.AGILITY],
+    trialTypes: [TrialType.SCENT_WORK, TrialType.AGILITY],
     defaultVisible: true,
-    className: 'font-mono'
+    className: 'font-mono',
   },
   {
     id: 'qualification',
@@ -219,8 +251,8 @@ export const STANDARD_COLUMNS: TableColumn[] = [
     sortable: true,
     required: false,
     displayOrder: 8,
-    showTypes: [ShowType.SCENT_WORK, ShowType.AGILITY, ShowType.OBEDIENCE, ShowType.RALLY],
-    defaultVisible: false // Usually shown as status instead
+    trialTypes: [TrialType.SCENT_WORK, TrialType.AGILITY, TrialType.OBEDIENCE, TrialType.RALLY],
+    defaultVisible: false, // Usually shown as status instead
   },
   {
     id: 'placement',
@@ -233,8 +265,14 @@ export const STANDARD_COLUMNS: TableColumn[] = [
     sortable: true,
     required: false,
     displayOrder: 9,
-    showTypes: [ShowType.SCENT_WORK, ShowType.AGILITY, ShowType.OBEDIENCE, ShowType.RALLY, ShowType.CONFORMATION],
-    defaultVisible: true
+    trialTypes: [
+      TrialType.SCENT_WORK,
+      TrialType.AGILITY,
+      TrialType.OBEDIENCE,
+      TrialType.RALLY,
+      TrialType.CONFORMATION,
+    ],
+    defaultVisible: true,
   },
   {
     id: 'notes',
@@ -246,62 +284,107 @@ export const STANDARD_COLUMNS: TableColumn[] = [
     sortable: false,
     required: false,
     displayOrder: 10,
-    showTypes: [ShowType.SCENT_WORK, ShowType.AGILITY, ShowType.OBEDIENCE, ShowType.RALLY, ShowType.CONFORMATION],
-    defaultVisible: false // Usually hidden in quick view tables
-  }
+    trialTypes: [
+      TrialType.SCENT_WORK,
+      TrialType.AGILITY,
+      TrialType.OBEDIENCE,
+      TrialType.RALLY,
+      TrialType.CONFORMATION,
+    ],
+    defaultVisible: false, // Usually hidden in quick view tables
+  },
 ];
 
 // Predefined configurations for different show types
-export const SHOW_TYPE_COLUMN_CONFIGS: ShowTypeColumnConfig[] = [
+export const SHOW_TYPE_COLUMN_CONFIGS: TrialTypeColumnConfig[] = [
   {
-    showType: ShowType.SCENT_WORK,
+    trialType: TrialType.SCENT_WORK,
     requiredColumns: ['armband', 'handler', 'dog', 'status'],
     defaultColumns: ['armband', 'handler', 'dog', 'status', 'time', 'faults', 'placement'],
-    availableColumns: ['armband', 'handler', 'dog', 'status', 'time', 'faults', 'qualification', 'placement', 'notes'],
+    availableColumns: [
+      'armband',
+      'handler',
+      'dog',
+      'status',
+      'time',
+      'faults',
+      'qualification',
+      'placement',
+      'notes',
+    ],
     formatRules: {
       timeFormat: 'MM:SS.HH',
-      placementFormat: 'ordinal'
-    }
+      placementFormat: 'ordinal',
+    },
   },
   {
-    showType: ShowType.AGILITY,
+    trialType: TrialType.AGILITY,
     requiredColumns: ['armband', 'handler', 'dog', 'status'],
     defaultColumns: ['armband', 'handler', 'dog', 'status', 'time', 'faults', 'placement'],
-    availableColumns: ['armband', 'handler', 'dog', 'status', 'time', 'faults', 'qualification', 'placement', 'notes'],
+    availableColumns: [
+      'armband',
+      'handler',
+      'dog',
+      'status',
+      'time',
+      'faults',
+      'qualification',
+      'placement',
+      'notes',
+    ],
     formatRules: {
       timeFormat: 'MM:SS',
-      placementFormat: 'ordinal'
-    }
+      placementFormat: 'ordinal',
+    },
   },
   {
-    showType: ShowType.OBEDIENCE,
+    trialType: TrialType.OBEDIENCE,
     requiredColumns: ['armband', 'handler', 'dog', 'status'],
     defaultColumns: ['armband', 'handler', 'dog', 'status', 'score', 'placement'],
-    availableColumns: ['armband', 'handler', 'dog', 'status', 'score', 'qualification', 'placement', 'notes'],
+    availableColumns: [
+      'armband',
+      'handler',
+      'dog',
+      'status',
+      'score',
+      'qualification',
+      'placement',
+      'notes',
+    ],
     formatRules: {
       scoreFormat: 'points',
-      placementFormat: 'ordinal'
-    }
+      placementFormat: 'ordinal',
+    },
   },
   {
-    showType: ShowType.RALLY,
+    trialType: TrialType.RALLY,
     requiredColumns: ['armband', 'handler', 'dog', 'status'],
     defaultColumns: ['armband', 'handler', 'dog', 'status', 'score', 'time', 'placement'],
-    availableColumns: ['armband', 'handler', 'dog', 'status', 'score', 'time', 'qualification', 'placement', 'notes'],
+    availableColumns: [
+      'armband',
+      'handler',
+      'dog',
+      'status',
+      'score',
+      'time',
+      'qualification',
+      'placement',
+      'notes',
+    ],
     formatRules: {
       timeFormat: 'MM:SS',
       scoreFormat: 'points',
-      placementFormat: 'ordinal'
-    }
+      placementFormat: 'ordinal',
+    },
   },
   {
-    showType: ShowType.CONFORMATION,
+    trialType: TrialType.CONFORMATION,
     requiredColumns: ['armband', 'handler', 'dog', 'status'],
     defaultColumns: ['armband', 'handler', 'dog', 'status', 'placement'],
     availableColumns: ['armband', 'handler', 'dog', 'status', 'score', 'placement', 'notes'],
     formatRules: {
       scoreFormat: 'raw',
-      placementFormat: 'ordinal'
-    }
-  }
+      placementFormat: 'ordinal',
+    },
+  },
 ];

@@ -2,11 +2,38 @@ import React, { useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { DateTimePicker } from '@/components/ui/date-time-picker';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Plus, Trash2, GripVertical, CalendarPlus, HelpCircle } from 'lucide-react';
 import { addDays, format, isWithinInterval, parseISO } from 'date-fns';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useWizardStore } from '@/store/wizardStore';
+
+const TRIAL_TYPE_OPTIONS = [
+  'Scent Work',
+  'Nosework',
+  'Scent Detection',
+  'Agility',
+  'Obedience',
+  'Rally',
+  'Conformation',
+  'FastCAT',
+  'Barn Hunt',
+  'Tracking',
+  'Field Trial',
+  'Hunt Test',
+  'Herding',
+  'Lure Coursing',
+  'Dock Diving',
+  'Weight Pull',
+  'Other',
+];
 
 interface TrialConfigurationStepProps {
   className?: string;
@@ -160,7 +187,7 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({ 
                     </Button>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label>
                         Trial Name <span className="text-destructive">*</span>
@@ -174,6 +201,25 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({ 
                       {errors[`trial-${index}-name`] && (
                         <p className="text-sm text-destructive">{errors[`trial-${index}-name`]}</p>
                       )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Trial Type</Label>
+                      <Select
+                        value={trial.trialType ?? ''}
+                        onValueChange={value => updateTrial(trial.id, { trialType: value })}
+                      >
+                        <SelectTrigger className="h-10">
+                          <SelectValue placeholder="Select discipline" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TRIAL_TYPE_OPTIONS.map(type => (
+                            <SelectItem key={type} value={type}>
+                              {type}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     <div className="space-y-2">

@@ -10,11 +10,11 @@ export enum Organization {
   USDAA = 'USDAA',
   NADAC = 'NADAC',
   ASCA = 'ASCA',
-  OTHER = 'OTHER'
+  OTHER = 'OTHER',
 }
 
-// Show types across all organizations
-export enum ShowType {
+// Trial types (disciplines) across all organizations
+export enum TrialType {
   SCENT_WORK = 'Scent Work',
   NOSEWORK = 'Nosework',
   AGILITY = 'Agility',
@@ -32,7 +32,7 @@ export enum ShowType {
   LURE_COURSING = 'Lure Coursing',
   DOCK_DIVING = 'Dock Diving',
   WEIGHT_PULL = 'Weight Pull',
-  OTHER = 'Other'
+  OTHER = 'Other',
 }
 
 // Class status tracking - aligned with @myk9/core CLASS_STATUS constants
@@ -43,7 +43,17 @@ export type ClassStatus = 'Scheduled' | 'Upcoming' | 'In Progress' | 'Completed'
 export type FieldSource = 'rule-based' | 'judge-set' | 'admin-set' | 'calculated' | 'fixed';
 
 // Field data types
-export type FieldDataType = 'string' | 'number' | 'boolean' | 'date' | 'time' | 'datetime' | 'select' | 'multi-select' | 'text' | 'rich-text';
+export type FieldDataType =
+  | 'string'
+  | 'number'
+  | 'boolean'
+  | 'date'
+  | 'time'
+  | 'datetime'
+  | 'select'
+  | 'multi-select'
+  | 'text'
+  | 'rich-text';
 
 // Conditional display rules
 export interface ConditionalRule {
@@ -58,18 +68,18 @@ export interface FieldSpecification {
   fieldName: string;
   displayName: string;
   description?: string;
-  
+
   // Field behavior
   fieldSource: FieldSource;
   dataType: FieldDataType;
   required: boolean;
   editable: boolean;
-  
+
   // Value configuration
   defaultValue?: string | number | boolean | Date | string[];
   ruleValue?: string | number | boolean | Date | string[]; // For rule-based fields
   calculationFormula?: string; // For calculated fields
-  
+
   // Constraints and options
   options?: string[] | { label: string; value: string }[]; // For select fields
   allowedRange?: {
@@ -77,10 +87,10 @@ export interface FieldSpecification {
     max?: number | string;
   };
   pattern?: string; // Regex validation
-  
+
   // Conditional display
   showWhen?: ConditionalRule | ConditionalRule[]; // Can have multiple conditions
-  
+
   // UI hints
   helpText?: string;
   placeholder?: string;
@@ -115,29 +125,33 @@ export interface ClassDefinition {
   fieldOverrides?: Record<string, Partial<FieldSpecification>> | undefined;
 
   // Class-specific default values for fields marked as defaultVariesByClass
-  classSpecificDefaults?: Record<string, string | number | boolean | Date | string[] | number[]> | undefined;
+  classSpecificDefaults?:
+    | Record<string, string | number | boolean | Date | string[] | number[]>
+    | undefined;
 
   // Class-specific settings
-  settings?: {
-    maxEntries?: number | undefined;
-    minEntries?: number | undefined;
-    allowWaitlist?: boolean | undefined;
-    requiresQualification?: boolean | undefined;
-  } | undefined;
+  settings?:
+    | {
+        maxEntries?: number | undefined;
+        minEntries?: number | undefined;
+        allowWaitlist?: boolean | undefined;
+        requiresQualification?: boolean | undefined;
+      }
+    | undefined;
 }
 
 // Template status and lifecycle
 export enum TemplateStatus {
-  DRAFT = 'draft',           // Work in progress
-  ACTIVE = 'active',         // Available for use
+  DRAFT = 'draft', // Work in progress
+  ACTIVE = 'active', // Available for use
   DEPRECATED = 'deprecated', // Old version, still usable but not recommended
-  ARCHIVED = 'archived'      // No longer available for new use
+  ARCHIVED = 'archived', // No longer available for new use
 }
 
 export enum TemplateType {
-  OFFICIAL = 'official',     // Official organization template
-  CUSTOM = 'custom',         // User/club created template
-  FORK = 'fork'             // Copy of an official template
+  OFFICIAL = 'official', // Official organization template
+  CUSTOM = 'custom', // User/club created template
+  FORK = 'fork', // Copy of an official template
 }
 
 // Complete template definition
@@ -145,7 +159,7 @@ export interface ClassTemplate {
   // Identity
   id: string;
   organization: Organization;
-  showType: ShowType;
+  trialType: TrialType;
   templateName: string;
   version: string;
 
@@ -166,28 +180,30 @@ export interface ClassTemplate {
 
   // NEW: Template relationships and versioning
   sourceTemplateId?: string | undefined; // If this is a copy/fork of another template
-  parentVersion?: string | undefined;     // Version of source template this was forked from
-  successorId?: string | undefined;       // ID of newer version that replaces this one
-  isLatestVersion?: boolean | undefined;  // True if this is the current version
+  parentVersion?: string | undefined; // Version of source template this was forked from
+  successorId?: string | undefined; // ID of newer version that replaces this one
+  isLatestVersion?: boolean | undefined; // True if this is the current version
 
   // NEW: Edit permissions and warnings
-  allowEditing?: boolean | undefined;     // Can this template be edited?
-  editWarning?: string | undefined;       // Warning message when editing
+  allowEditing?: boolean | undefined; // Can this template be edited?
+  editWarning?: string | undefined; // Warning message when editing
 
   // NEW: Field configurations - references predefined fields with visibility/requirement settings
   fieldConfigurations?: TemplateFieldConfiguration[] | undefined;
 
   // NEW: Table column configuration for entry tables
-  tableColumnConfig?: {
-    /** Custom column configuration for this template */
-    customColumns?: string[] | undefined; // Column IDs to show
-    /** Whether to use default columns for the show type */
-    useDefaults?: boolean | undefined;
-    /** Hide specific columns that would normally be shown */
-    hiddenColumns?: string[] | undefined;
-    /** Custom column ordering */
-    columnOrder?: string[] | undefined;
-  } | undefined;
+  tableColumnConfig?:
+    | {
+        /** Custom column configuration for this template */
+        customColumns?: string[] | undefined; // Column IDs to show
+        /** Whether to use default columns for the show type */
+        useDefaults?: boolean | undefined;
+        /** Hide specific columns that would normally be shown */
+        hiddenColumns?: string[] | undefined;
+        /** Custom column ordering */
+        columnOrder?: string[] | undefined;
+      }
+    | undefined;
 
   // DEPRECATED: Field definitions - defines all possible fields (kept for backward compatibility)
   fieldSpecifications: FieldSpecification[];
@@ -200,10 +216,12 @@ export interface ClassTemplate {
 
   // Template-wide defaults
   defaults: {
-    entryFees?: {
-      preEntry: number;
-      dayOfShow: number;
-    } | undefined;
+    entryFees?:
+      | {
+          preEntry: number;
+          dayOfShow: number;
+        }
+      | undefined;
     judgingTimeEstimate?: number | undefined; // minutes
     requiredPersonnel?: string[] | undefined;
     minimumAge?: number | undefined; // months
@@ -226,13 +244,13 @@ export interface CreatedClass {
 
   // Class identity (from template)
   organization: Organization;
-  showType: ShowType;
+  trialType: TrialType;
   element: string;
   level?: string | undefined;
   section?: string | undefined;
   className: string;
   classNumber: string;
-  
+
   // Status and scheduling
   status: ClassStatus;
   runOrder: number;
@@ -275,7 +293,7 @@ export interface CreatedClass {
 // Template management
 export interface TemplateFilter {
   organization?: Organization;
-  showType?: ShowType;
+  trialType?: TrialType;
   isActive?: boolean;
   isOfficial?: boolean;
   searchTerm?: string;

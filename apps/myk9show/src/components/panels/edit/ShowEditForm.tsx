@@ -81,15 +81,15 @@ export const ShowEditForm: React.FC = () => {
     templates
       .filter(template => template.isActive)
       .forEach(template => {
-        let showType: string;
-        if (typeof template.showType === 'object') {
-          showType = String(Object.values(template.showType)[0] || '');
+        let trialType: string;
+        if (typeof template.trialType === 'object') {
+          trialType = String(Object.values(template.trialType)[0] || '');
         } else {
-          showType = String(template.showType || '');
+          trialType = String(template.trialType || '');
         }
 
-        if (showType && showType.trim() !== '') {
-          showTypesSet.add(showType);
+        if (trialType && trialType.trim() !== '') {
+          showTypesSet.add(trialType);
         }
       });
 

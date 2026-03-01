@@ -23,7 +23,7 @@ export const FieldConfiguratorWorking: React.FC<FieldConfiguratorProps> = ({
         <CardHeader>
           <CardTitle>Field Configuration</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Configure fields for {template.showType} templates
+            Configure fields for {template.trialType} templates
           </p>
         </CardHeader>
         <CardContent>

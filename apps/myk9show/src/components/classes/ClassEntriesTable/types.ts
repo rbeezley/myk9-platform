@@ -3,7 +3,7 @@
  */
 
 import { EntryData } from '../types/classTypes';
-import { ShowType, ClassTemplate } from '@/types/template.types';
+import { TrialType, ClassTemplate } from '@/types/template.types';
 import { UserPermissions } from '@/types/user-permissions';
 import { FieldValidationError } from '@/utils/entryValidation';
 
@@ -12,7 +12,7 @@ import { FieldValidationError } from '@/utils/entryValidation';
  */
 export interface ClassEntriesTableProps {
   entries: EntryData[];
-  showType: ShowType;
+  trialType: TrialType;
   template?: ClassTemplate;
   onViewEntry?: (id: string) => void;
   onEditEntry: (id: string) => void;
@@ -89,5 +89,5 @@ export const DEFAULT_PERMISSIONS: UserPermissions = {
   canAccessAdvancedFeatures: true,
   canManageClass: true,
   canViewStatistics: true,
-  role: 'admin' as const
+  role: 'admin' as const,
 };

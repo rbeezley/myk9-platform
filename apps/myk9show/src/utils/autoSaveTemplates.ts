@@ -17,22 +17,22 @@ export const autoSaveTemplatesToMockData = (): SaveTemplatesResult => {
     // Get templates from localStorage
     const storage = JSON.parse(localStorage.getItem('template-storage') || '{}');
     const templates: ClassTemplate[] = storage?.state?.templates || [];
-    
+
     if (templates.length === 0) {
       return {
         success: false,
         message: 'No templates found in localStorage',
-        templatesCount: 0
+        templatesCount: 0,
       };
     }
 
     // Generate the updated mock data file content
     const mockDataContent = generateMockDataFileContent(templates);
-    
+
     // Create a downloadable file
     const blob = new Blob([mockDataContent], { type: 'text/typescript' });
     const url = URL.createObjectURL(blob);
-    
+
     // Auto-download the file
     const link = document.createElement('a');
     link.href = url;
@@ -46,22 +46,22 @@ export const autoSaveTemplatesToMockData = (): SaveTemplatesResult => {
     return {
       success: true,
       message: `Successfully exported ${templates.length} templates. Replace src/data/mockTemplatesWithFields.ts with the downloaded file.`,
-      templatesCount: templates.length
+      templatesCount: templates.length,
     };
-
   } catch (error) {
     return {
       success: false,
-      message: 'Failed to export templates: ' + (error instanceof Error ? error.message : 'Unknown error'),
+      message:
+        'Failed to export templates: ' + (error instanceof Error ? error.message : 'Unknown error'),
       templatesCount: 0,
-      errors: [String(error)]
+      errors: [String(error)],
     };
   }
 };
 
 const generateMockDataFileContent = (templates: ClassTemplate[]): string => {
-  let content = `import { ClassTemplate, Organization, ShowType, TemplateStatus, TemplateType } from '@/types/template.types';
-import { TemplateFieldConfiguration, ShowTypeField } from '@/types/field-definition-types';
+  let content = `import { ClassTemplate, Organization, TrialType, TemplateStatus, TemplateType } from '@/types/template.types';
+import { TemplateFieldConfiguration, TrialTypeField } from '@/types/field-definition-types';
 
 // Auto-generated from localStorage templates
 // Generated at: ${new Date().toISOString()}
@@ -71,10 +71,10 @@ import { TemplateFieldConfiguration, ShowTypeField } from '@/types/field-definit
   const exportNames: string[] = [];
 
   // Generate individual template exports
-  templates.forEach((template) => {
+  templates.forEach(template => {
     const safeName = generateSafeConstantName(template.templateName);
     exportNames.push(safeName);
-    
+
     content += `export const ${safeName}: ClassTemplate = ${formatTemplateForTypeScript(template)};
 
 `;
@@ -94,10 +94,12 @@ export const STRUCTURED_TEMPLATES = [
 };
 
 const generateSafeConstantName = (templateName: string): string => {
-  return templateName
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '') + '_TEMPLATE';
+  return (
+    templateName
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '') + '_TEMPLATE'
+  );
 };
 
 const formatTemplateForTypeScript = (template: ClassTemplate): string => {
@@ -106,30 +108,36 @@ const formatTemplateForTypeScript = (template: ClassTemplate): string => {
     ...template,
     // Convert string enums to proper enum references
     organization: `Organization.${template.organization.toUpperCase().replace(/\s+/g, '_')}`,
-    showType: `ShowType.${template.showType.toUpperCase().replace(/\s+/g, '_')}`,
-    status: template.status ? `TemplateStatus.${template.status.toUpperCase()}` : 'TemplateStatus.ACTIVE',
+    trialType: `TrialType.${template.trialType.toUpperCase().replace(/\s+/g, '_')}`,
+    status: template.status
+      ? `TemplateStatus.${template.status.toUpperCase()}`
+      : 'TemplateStatus.ACTIVE',
     type: template.type ? `TemplateType.${template.type.toUpperCase()}` : 'TemplateType.CUSTOM',
     // Format dates
     createdAt: `new Date('${template.createdAt}')`,
-    updatedAt: `new Date('${template.updatedAt}')`
+    updatedAt: `new Date('${template.updatedAt}')`,
   };
 
   // Convert to JSON string and then fix enum references and strings
   let jsonString = JSON.stringify(formatted, null, 2);
-  
+
   // Fix enum references (remove quotes)
-  jsonString = jsonString.replace(/"(Organization|ShowType|TemplateStatus|TemplateType)\.[A-Z_]+"/g, '$1');
-  
+  jsonString = jsonString.replace(
+    /"(Organization|TrialType|TemplateStatus|TemplateType)\.[A-Z_]+"/g,
+    '$1'
+  );
+
   // Fix date objects (remove quotes)
   jsonString = jsonString.replace(/"new Date\('([^']+)'\)"/g, "new Date('$1')");
-  
+
   // Fix string escaping for apostrophes
   jsonString = jsonString.replace(/([^\\])'/g, "$1\\'");
-  
+
   return jsonString;
 };
 
 // Browser console helper
 if (typeof window !== 'undefined') {
-  (window as unknown as Record<string, unknown>).autoSaveTemplatesToMockData = autoSaveTemplatesToMockData;
+  (window as unknown as Record<string, unknown>).autoSaveTemplatesToMockData =
+    autoSaveTemplatesToMockData;
 }

@@ -24,7 +24,7 @@ import { Label } from '@/components/ui/label';
 import { useShowTemplateStore } from '@/store/showTemplateStore';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import type { GeneratedClass } from '@/types/class-template-types';
-import type { Organization, ShowType } from '@/types/show-template-types';
+import type { Organization, TrialType } from '@/types/show-template-types';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { getErrorMessage } from '@myk9/core';
@@ -40,7 +40,7 @@ export const ShowTemplateManager: React.FC<ShowTemplateManagerProps> = ({
 }) => {
   const [selectedPreset, setSelectedPreset] = useState<string>('');
   const [selectedOrganization, setSelectedOrganization] = useState<Organization | 'ALL'>('ALL');
-  const [selectedShowType, setSelectedShowType] = useState<ShowType | 'ALL'>('ALL');
+  const [selectedTrialType, setSelectedTrialType] = useState<TrialType | 'ALL'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [previewClasses, setPreviewClasses] = useState<GeneratedClass[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -61,8 +61,8 @@ export const ShowTemplateManager: React.FC<ShowTemplateManagerProps> = ({
     }
 
     // Filter by show type
-    if (selectedShowType !== 'ALL') {
-      filtered = filtered.filter(([, preset]) => preset.showType === selectedShowType);
+    if (selectedTrialType !== 'ALL') {
+      filtered = filtered.filter(([, preset]) => preset.trialType === selectedTrialType);
     }
 
     // Filter by search query
@@ -71,13 +71,13 @@ export const ShowTemplateManager: React.FC<ShowTemplateManagerProps> = ({
       filtered = filtered.filter(
         ([, preset]) =>
           preset.name.toLowerCase().includes(query) ||
-          preset.showType.toLowerCase().includes(query) ||
+          preset.trialType.toLowerCase().includes(query) ||
           preset.description?.toLowerCase().includes(query)
       );
     }
 
     return filtered;
-  }, [allPresets, selectedOrganization, selectedShowType, searchQuery]);
+  }, [allPresets, selectedOrganization, selectedTrialType, searchQuery]);
 
   // Get unique organizations and show types for filters
   const organizations = useMemo(() => {
@@ -85,8 +85,8 @@ export const ShowTemplateManager: React.FC<ShowTemplateManagerProps> = ({
     return Array.from(orgs).sort();
   }, [allPresets]);
 
-  const showTypes = useMemo(() => {
-    const types = new Set(Object.values(allPresets).map(p => p.showType));
+  const trialTypes = useMemo(() => {
+    const types = new Set(Object.values(allPresets).map(p => p.trialType));
     return Array.from(types).sort();
   }, [allPresets]);
 
@@ -130,7 +130,7 @@ export const ShowTemplateManager: React.FC<ShowTemplateManagerProps> = ({
     OTHER: '📋',
   };
 
-  const showTypeColors: Record<ShowType, string> = {
+  const trialTypeColors: Record<TrialType, string> = {
     'Scent Work': 'bg-blue-100 text-blue-800',
     Agility: 'bg-green-100 text-green-800',
     Conformation: 'bg-purple-100 text-purple-800',
@@ -196,15 +196,15 @@ export const ShowTemplateManager: React.FC<ShowTemplateManagerProps> = ({
                   <div className="flex-1">
                     <Label className="text-xs">Show Type</Label>
                     <Select
-                      value={selectedShowType}
-                      onValueChange={(value: ShowType | 'ALL') => setSelectedShowType(value)}
+                      value={selectedTrialType}
+                      onValueChange={(value: TrialType | 'ALL') => setSelectedTrialType(value)}
                     >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="ALL">All Show Types</SelectItem>
-                        {showTypes.map(type => (
+                        {trialTypes.map(type => (
                           <SelectItem key={type} value={type}>
                             {type}
                           </SelectItem>
@@ -259,9 +259,9 @@ export const ShowTemplateManager: React.FC<ShowTemplateManagerProps> = ({
                                 <div className="flex gap-1 mt-1">
                                   <Badge
                                     variant="secondary"
-                                    className={`text-xs ${showTypeColors[preset.showType]}`}
+                                    className={`text-xs ${trialTypeColors[preset.trialType]}`}
                                   >
-                                    {preset.showType}
+                                    {preset.trialType}
                                   </Badge>
                                 </div>
                               </div>

@@ -340,9 +340,9 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
                                       ? String(Object.values(template.organization)[0] || 'Unknown')
                                       : String(template.organization || 'Unknown');
                                   const showTypeValue =
-                                    typeof template.showType === 'object'
-                                      ? String(Object.values(template.showType)[0] || 'Unknown')
-                                      : String(template.showType || 'Unknown');
+                                    typeof template.trialType === 'object'
+                                      ? String(Object.values(template.trialType)[0] || 'Unknown')
+                                      : String(template.trialType || 'Unknown');
                                   const templateName = template.templateName || 'Unnamed Template';
 
                                   return (

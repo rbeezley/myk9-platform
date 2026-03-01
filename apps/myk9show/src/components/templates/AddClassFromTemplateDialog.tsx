@@ -118,7 +118,7 @@ export const AddClassFromTemplateDialog: React.FC<AddClassFromTemplateDialogProp
                         {template.organization}
                       </Badge>
                       <Badge variant="secondary" className="text-xs">
-                        {template.showType}
+                        {template.trialType}
                       </Badge>
                     </div>
                   </SelectItem>
@@ -145,7 +145,7 @@ export const AddClassFromTemplateDialog: React.FC<AddClassFromTemplateDialogProp
                   <div>
                     <span className="font-medium">Show Type:</span>
                     <br />
-                    {selectedTemplate.showType}
+                    {selectedTemplate.trialType}
                   </div>
                   <div>
                     <span className="font-medium">Version:</span>

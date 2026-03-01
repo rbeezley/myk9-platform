@@ -9,7 +9,7 @@ export interface ClassTemplate {
   id: string;
   name: string;
   organization: 'AKC' | 'UKC' | 'NACSW' | 'CPE' | 'USDAA' | 'NADAC' | 'OTHER';
-  showType: string; // e.g., 'Scent Work', 'Agility', 'Obedience', etc.
+  trialType: string; // e.g., 'Scent Work', 'Agility', 'Obedience', etc.
   description?: string;
   fields: ClassTemplateField[];
   classPattern: string; // Pattern for generating class names, e.g., "{element} {level} {section}"
@@ -52,7 +52,7 @@ export const AKC_SCENT_WORK_TEMPLATE: ClassTemplatePreset = {
   template: {
     name: 'AKC Scent Work',
     organization: 'AKC',
-    showType: 'Scent Work',
+    trialType: 'Scent Work',
     description: 'Standard AKC Scent Work trial classes',
     fields: [
       {
@@ -134,7 +134,7 @@ export const CLASS_TEMPLATE_PRESETS: Record<string, ClassTemplatePreset> = {
     template: {
       name: 'AKC Agility',
       organization: 'AKC',
-      showType: 'Agility',
+      trialType: 'Agility',
       description: 'Standard AKC Agility trial classes',
       fields: [
         {

@@ -9,6 +9,14 @@ const SPORT_TYPE_MAP: Record<string, string> = {
   ASCA: 'asca-scent-detection',
 };
 
+/** Maps show organization to a default trial type (discipline). */
+const DEFAULT_TRIAL_TYPE: Record<string, string> = {
+  AKC: 'Scent Work',
+  UKC: 'Nosework',
+  NACSW: 'Nosework',
+  ASCA: 'Scent Detection',
+};
+
 interface WizardState {
   currentStep: number;
   completedSteps: number[];
@@ -156,6 +164,8 @@ export const useWizardStore = create<WizardState & WizardActions>()(
               id: `trial-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
               sportType:
                 trial.sportType ?? SPORT_TYPE_MAP[state.show.organization] ?? 'akc-scent-work',
+              trialType:
+                trial.trialType ?? DEFAULT_TRIAL_TYPE[state.show.organization] ?? undefined,
             },
           ],
           isDirty: true,

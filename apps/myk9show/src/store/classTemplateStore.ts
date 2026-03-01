@@ -17,7 +17,7 @@ interface ClassTemplateStore {
   deleteTemplate: (id: string) => void;
   getTemplate: (id: string) => ClassTemplate | undefined;
   getTemplatesByOrganization: (organization: string) => ClassTemplate[];
-  getTemplatesByShowType: (showType: string) => ClassTemplate[];
+  getTemplatesByTrialType: (trialType: string) => ClassTemplate[];
 
   // Preset management
   getPresets: () => Record<string, ClassTemplatePreset>;
@@ -33,7 +33,7 @@ interface LegacyTemplate {
   id?: string;
   name?: string;
   organization?: string;
-  showType?: string;
+  trialType?: string;
   createdAt?: string | Date;
   updatedAt?: string | Date;
   fields?: unknown[];
@@ -88,8 +88,8 @@ export const useClassTemplateStore = create<ClassTemplateStore>()(
         return get().templates.filter(template => template.organization === organization);
       },
 
-      getTemplatesByShowType: showType => {
-        return get().templates.filter(template => template.showType === showType);
+      getTemplatesByTrialType: trialType => {
+        return get().templates.filter(template => template.trialType === trialType);
       },
 
       getPresets: () => {

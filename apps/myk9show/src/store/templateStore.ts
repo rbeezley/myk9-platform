@@ -3,13 +3,13 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { getOptimalStorage } from '@/services/database/storage-adapter';
 import { logger } from '@/services/LoggingService';
 import {
-  ClassTemplate, 
-  TemplateFilter, 
-  Organization, 
-  ShowType,
+  ClassTemplate,
+  TemplateFilter,
+  Organization,
+  TrialType,
   TemplateImportExport,
   TemplateStatus,
-  TemplateType
+  TemplateType,
 } from '@/types/template.types';
 import { AKC_SCENT_WORK_TEMPLATE } from '@/data/templates/akcScentWorkTemplate';
 import { STRUCTURED_TEMPLATES } from '@/data/mockTemplatesWithFields';
@@ -25,11 +25,14 @@ interface TemplateStore {
   error: string | null;
   searchQuery: string;
   filterOrganization: Organization | null;
-  filterShowType: ShowType | null;
+  filterTrialType: TrialType | null;
   isInitialized: boolean;
 
   // CRUD Operations
-  createTemplate: (template: Omit<ClassTemplate, 'id' | 'createdAt' | 'createdBy'>, userId: string) => ClassTemplate;
+  createTemplate: (
+    template: Omit<ClassTemplate, 'id' | 'createdAt' | 'createdBy'>,
+    userId: string
+  ) => ClassTemplate;
   updateTemplate: (id: string, updates: Partial<ClassTemplate>, userId: string) => boolean;
   deleteTemplate: (id: string) => boolean;
   duplicateTemplate: (id: string, newName: string, userId: string) => ClassTemplate | null;
@@ -40,39 +43,39 @@ interface TemplateStore {
   deprecateTemplate: (id: string, userId: string, successorId?: string) => boolean;
   createNewVersion: (id: string, versionNumber: string, userId: string) => ClassTemplate | null;
   canEdit: (template: ClassTemplate) => { canEdit: boolean; reason?: string };
-  
+
   // Queries
   getTemplate: (id: string) => ClassTemplate | undefined;
   getTemplatesByOrganization: (org: Organization) => ClassTemplate[];
-  getTemplatesByShowType: (type: ShowType) => ClassTemplate[];
-  getTemplatesByOrgAndType: (org: Organization, type: ShowType) => ClassTemplate[];
+  getTemplatesByTrialType: (type: TrialType) => ClassTemplate[];
+  getTemplatesByOrgAndType: (org: Organization, type: TrialType) => ClassTemplate[];
   getOfficialTemplates: () => ClassTemplate[];
   getCustomTemplates: () => ClassTemplate[];
   searchTemplates: (filter: TemplateFilter) => ClassTemplate[];
   setSearchQuery: (query: string) => void;
   setFilterOrganization: (org: Organization | null) => void;
-  setFilterShowType: (type: ShowType | null) => void;
+  setFilterTrialType: (type: TrialType | null) => void;
   getFilteredTemplates: () => ClassTemplate[];
   clearFilters: () => void;
-  
+
   // Active template management
   setActiveTemplate: (id: string | null) => void;
   clearActiveTemplate: () => void;
-  
+
   // Import/Export
   exportTemplate: (id: string, userId: string) => TemplateImportExport | null;
   importTemplate: (data: TemplateImportExport, userId: string) => ClassTemplate | null;
-  
+
   // Utility
   clearError: () => void;
   resetStore: () => void;
-  
+
   // Initialize with default templates
   initializeDefaultTemplates: (force?: boolean) => void;
-  
+
   // Lazy loading method
   ensureTemplatesLoaded: () => Promise<void>;
-  
+
   // Emergency function to clear corrupted data
   clearCorruptedData: () => Promise<void>;
 }
@@ -84,8 +87,8 @@ const initialState = {
   error: null,
   searchQuery: '',
   filterOrganization: null,
-  filterShowType: null,
-  isInitialized: false
+  filterTrialType: null,
+  isInitialized: false,
 };
 
 export const useTemplateStore = create<TemplateStore>()(
@@ -100,12 +103,12 @@ export const useTemplateStore = create<TemplateStore>()(
           id: `template-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
           createdAt: new Date(),
           createdBy: userId,
-          updatedAt: new Date()
+          updatedAt: new Date(),
         };
 
         set(state => ({
           templates: [...state.templates, newTemplate],
-          error: null
+          error: null,
         }));
 
         return newTemplate;
@@ -132,20 +135,21 @@ export const useTemplateStore = create<TemplateStore>()(
                   ...t,
                   ...updates,
                   updatedAt: new Date(),
-                  updatedBy: userId
+                  updatedBy: userId,
                 }
               : t
           ),
-          activeTemplate: state.activeTemplate?.id === id
-            ? { ...state.activeTemplate, ...updates, updatedAt: new Date() }
-            : state.activeTemplate,
-          error: null
+          activeTemplate:
+            state.activeTemplate?.id === id
+              ? { ...state.activeTemplate, ...updates, updatedAt: new Date() }
+              : state.activeTemplate,
+          error: null,
         }));
 
         return true;
       },
 
-      deleteTemplate: (id) => {
+      deleteTemplate: id => {
         const template = get().templates.find(t => t.id === id);
         if (!template) {
           set({ error: `Template with id ${id} not found` });
@@ -161,7 +165,7 @@ export const useTemplateStore = create<TemplateStore>()(
         set(state => ({
           templates: state.templates.filter(t => t.id !== id),
           activeTemplate: state.activeTemplate?.id === id ? null : state.activeTemplate,
-          error: null
+          error: null,
         }));
 
         return true;
@@ -182,12 +186,12 @@ export const useTemplateStore = create<TemplateStore>()(
           isCustom: true,
           createdAt: new Date(),
           createdBy: userId,
-          updatedAt: new Date()
+          updatedAt: new Date(),
         };
 
         set(state => ({
           templates: [...state.templates, duplicatedTemplate],
-          error: null
+          error: null,
         }));
 
         return duplicatedTemplate;
@@ -218,12 +222,12 @@ export const useTemplateStore = create<TemplateStore>()(
           createdAt: new Date(),
           createdBy: userId,
           updatedAt: new Date(),
-          updatedBy: userId
+          updatedBy: userId,
         };
 
         set(state => ({
           templates: [...state.templates, editableCopy],
-          error: null
+          error: null,
         }));
 
         return editableCopy;
@@ -251,11 +255,11 @@ export const useTemplateStore = create<TemplateStore>()(
                   isOfficial: true,
                   isCustom: false,
                   updatedAt: new Date(),
-                  updatedBy: userId
+                  updatedBy: userId,
                 }
               : t
           ),
-          error: null
+          error: null,
         }));
 
         return true;
@@ -277,11 +281,11 @@ export const useTemplateStore = create<TemplateStore>()(
                   successorId,
                   isLatestVersion: false,
                   updatedAt: new Date(),
-                  updatedBy: userId
+                  updatedBy: userId,
                 }
               : t
           ),
-          error: null
+          error: null,
         }));
 
         return true;
@@ -305,26 +309,24 @@ export const useTemplateStore = create<TemplateStore>()(
           createdAt: new Date(),
           createdBy: userId,
           updatedAt: new Date(),
-          updatedBy: userId
+          updatedBy: userId,
         };
 
         // Mark old version as no longer latest
         set(state => ({
           templates: [
             ...state.templates.map(t =>
-              t.id === id
-                ? { ...t, isLatestVersion: false, successorId: newVersion.id }
-                : t
+              t.id === id ? { ...t, isLatestVersion: false, successorId: newVersion.id } : t
             ),
-            newVersion
+            newVersion,
           ],
-          error: null
+          error: null,
         }));
 
         return newVersion;
       },
 
-      canEdit: (template) => {
+      canEdit: template => {
         // Allow editing if explicitly allowed
         if (template.allowEditing) {
           return { canEdit: true };
@@ -342,17 +344,17 @@ export const useTemplateStore = create<TemplateStore>()(
 
         // Official templates can be edited but with warning
         if (template.type === TemplateType.OFFICIAL) {
-          return { 
-            canEdit: true, 
-            reason: 'This is an official template. Changes will affect all users of this template.' 
+          return {
+            canEdit: true,
+            reason: 'This is an official template. Changes will affect all users of this template.',
           };
         }
 
         // Archived templates cannot be edited
         if (template.status === TemplateStatus.ARCHIVED) {
-          return { 
-            canEdit: false, 
-            reason: 'Archived templates cannot be edited. Please create a new version or copy.' 
+          return {
+            canEdit: false,
+            reason: 'Archived templates cannot be edited. Please create a new version or copy.',
           };
         }
 
@@ -361,37 +363,35 @@ export const useTemplateStore = create<TemplateStore>()(
       },
 
       // Queries
-      getTemplate: (id) => {
+      getTemplate: id => {
         return get().templates.find(t => t.id === id);
       },
 
-      getTemplatesByOrganization: (org) => {
+      getTemplatesByOrganization: org => {
         return get().templates.filter(t => t.organization === org && t.isActive);
       },
 
-      getTemplatesByShowType: (type) => {
-        return get().templates.filter(t => t.showType === type && t.isActive);
+      getTemplatesByTrialType: type => {
+        return get().templates.filter(t => t.trialType === type && t.isActive);
       },
 
       getTemplatesByOrgAndType: (org, type) => {
-        return get().templates.filter(t => 
-          t.organization === org && 
-          t.showType === type && 
-          t.isActive
+        return get().templates.filter(
+          t => t.organization === org && t.trialType === type && t.isActive
         );
       },
 
       // Lazy loading method - ensures templates are initialized when needed
       ensureTemplatesLoaded: async () => {
         const { templates, isInitialized } = get();
-        
+
         // If templates are already loaded, return immediately
         if (isInitialized && templates.length > 0) {
           return;
         }
 
         // Initialize templates asynchronously to avoid blocking
-        return new Promise<void>((resolve) => {
+        return new Promise<void>(resolve => {
           // Use setTimeout to allow React to continue rendering
           setTimeout(() => {
             try {
@@ -412,28 +412,30 @@ export const useTemplateStore = create<TemplateStore>()(
         return get().templates.filter(t => t.isCustom && t.isActive);
       },
 
-      searchTemplates: (filter) => {
+      searchTemplates: filter => {
         const { templates } = get();
         let filtered = templates; // Show all templates, not just active ones
 
         if (filter.organization) {
           filtered = filtered.filter(t => {
             // Handle enum comparison properly
-            const templateOrg = typeof t.organization === 'object' 
-              ? String(Object.values(t.organization)[0] || '')
-              : String(t.organization || '');
+            const templateOrg =
+              typeof t.organization === 'object'
+                ? String(Object.values(t.organization)[0] || '')
+                : String(t.organization || '');
             const filterOrg = String(filter.organization);
             return templateOrg === filterOrg;
           });
         }
 
-        if (filter.showType) {
+        if (filter.trialType) {
           filtered = filtered.filter(t => {
             // Handle enum comparison properly
-            const templateType = typeof t.showType === 'object'
-              ? String(Object.values(t.showType)[0] || '')
-              : String(t.showType || '');
-            const filterType = String(filter.showType);
+            const templateType =
+              typeof t.trialType === 'object'
+                ? String(Object.values(t.trialType)[0] || '')
+                : String(t.trialType || '');
+            const filterType = String(filter.trialType);
             return templateType === filterType;
           });
         }
@@ -448,11 +450,12 @@ export const useTemplateStore = create<TemplateStore>()(
 
         if (filter.searchTerm) {
           const term = filter.searchTerm.toLowerCase();
-          filtered = filtered.filter(t =>
-            t.templateName.toLowerCase().includes(term) ||
-            t.description?.toLowerCase().includes(term) ||
-            t.organization.toLowerCase().includes(term) ||
-            t.showType.toLowerCase().includes(term)
+          filtered = filtered.filter(
+            t =>
+              t.templateName.toLowerCase().includes(term) ||
+              t.description?.toLowerCase().includes(term) ||
+              t.organization.toLowerCase().includes(term) ||
+              t.trialType.toLowerCase().includes(term)
           );
         }
 
@@ -460,37 +463,38 @@ export const useTemplateStore = create<TemplateStore>()(
       },
 
       // Search and filtering
-      setSearchQuery: (query) => {
+      setSearchQuery: query => {
         set({ searchQuery: query });
       },
 
-      setFilterOrganization: (org) => {
+      setFilterOrganization: org => {
         set({ filterOrganization: org });
       },
 
-      setFilterShowType: (type) => {
-        set({ filterShowType: type });
+      setFilterTrialType: type => {
+        set({ filterTrialType: type });
       },
 
       getFilteredTemplates: () => {
-        const { templates, searchQuery, filterOrganization, filterShowType } = get();
+        const { templates, searchQuery, filterOrganization, filterTrialType } = get();
         let filtered = templates.filter(t => t.isActive);
 
         if (filterOrganization) {
           filtered = filtered.filter(t => t.organization === filterOrganization);
         }
 
-        if (filterShowType) {
-          filtered = filtered.filter(t => t.showType === filterShowType);
+        if (filterTrialType) {
+          filtered = filtered.filter(t => t.trialType === filterTrialType);
         }
 
         if (searchQuery) {
           const term = searchQuery.toLowerCase();
-          filtered = filtered.filter(t =>
-            t.templateName.toLowerCase().includes(term) ||
-            t.description?.toLowerCase().includes(term) ||
-            t.organization.toLowerCase().includes(term) ||
-            t.showType.toLowerCase().includes(term)
+          filtered = filtered.filter(
+            t =>
+              t.templateName.toLowerCase().includes(term) ||
+              t.description?.toLowerCase().includes(term) ||
+              t.organization.toLowerCase().includes(term) ||
+              t.trialType.toLowerCase().includes(term)
           );
         }
 
@@ -501,12 +505,12 @@ export const useTemplateStore = create<TemplateStore>()(
         set({
           searchQuery: '',
           filterOrganization: null,
-          filterShowType: null
+          filterTrialType: null,
         });
       },
 
       // Active template management
-      setActiveTemplate: (id) => {
+      setActiveTemplate: id => {
         if (id === null) {
           set({ activeTemplate: null });
           return;
@@ -532,14 +536,21 @@ export const useTemplateStore = create<TemplateStore>()(
           return null;
         }
 
-        const { id: _templateId, createdAt: _createdAt, createdBy: _createdBy, ...exportData } = template;
-        void _templateId; void _createdAt; void _createdBy; // Suppress unused variable warnings
+        const {
+          id: _templateId,
+          createdAt: _createdAt,
+          createdBy: _createdBy,
+          ...exportData
+        } = template;
+        void _templateId;
+        void _createdAt;
+        void _createdBy; // Suppress unused variable warnings
 
         return {
           template: exportData,
           exportedAt: new Date(),
           exportedBy: userId,
-          exportFormat: '1.0'
+          exportFormat: '1.0',
         };
       },
 
@@ -558,12 +569,12 @@ export const useTemplateStore = create<TemplateStore>()(
             isCustom: true,
             createdAt: new Date(),
             createdBy: userId,
-            updatedAt: new Date()
+            updatedAt: new Date(),
           };
 
           set(state => ({
             templates: [...state.templates, importedTemplate],
-            error: null
+            error: null,
           }));
 
           return importedTemplate;
@@ -595,14 +606,14 @@ export const useTemplateStore = create<TemplateStore>()(
         const loadFromDB = async () => {
           try {
             const rows = await fetchAllSportTemplatesWithRules();
-            const dbTemplates = rows.map((row) =>
-              mapSportTemplateToClassTemplate(row, row.sport_class_rules),
+            const dbTemplates = rows.map(row =>
+              mapSportTemplateToClassTemplate(row, row.sport_class_rules)
             );
 
             if (dbTemplates.length > 0) {
-              set((state) => {
-                const existingIds = new Set(state.templates.map((t) => t.id));
-                const newTemplates = dbTemplates.filter((t) => !existingIds.has(t.id));
+              set(state => {
+                const existingIds = new Set(state.templates.map(t => t.id));
+                const newTemplates = dbTemplates.filter(t => !existingIds.has(t.id));
                 return {
                   templates: [...state.templates, ...newTemplates],
                   isInitialized: true,
@@ -623,7 +634,7 @@ export const useTemplateStore = create<TemplateStore>()(
             const templatesToAdd: ClassTemplate[] = [];
             const currentTemplates = get().templates;
 
-            if (force || !currentTemplates.some((t) => t.id === 'akc-scent-work-official-2024')) {
+            if (force || !currentTemplates.some(t => t.id === 'akc-scent-work-official-2024')) {
               templatesToAdd.push({
                 ...AKC_SCENT_WORK_TEMPLATE,
                 id: 'akc-scent-work-official-2024',
@@ -632,8 +643,8 @@ export const useTemplateStore = create<TemplateStore>()(
               });
             }
 
-            STRUCTURED_TEMPLATES.forEach((template) => {
-              if (force || !currentTemplates.some((t) => t.id === template.id)) {
+            STRUCTURED_TEMPLATES.forEach(template => {
+              if (force || !currentTemplates.some(t => t.id === template.id)) {
                 templatesToAdd.push({
                   ...template,
                   createdAt: template.createdAt || new Date(),
@@ -643,9 +654,9 @@ export const useTemplateStore = create<TemplateStore>()(
               }
             });
 
-            set((state) => {
-              const existingIds = new Set(state.templates.map((t) => t.id));
-              const newTemplates = templatesToAdd.filter((t) => !existingIds.has(t.id));
+            set(state => {
+              const existingIds = new Set(state.templates.map(t => t.id));
+              const newTemplates = templatesToAdd.filter(t => !existingIds.has(t.id));
               return {
                 templates: [...state.templates, ...newTemplates],
                 isInitialized: true,
@@ -666,7 +677,7 @@ export const useTemplateStore = create<TemplateStore>()(
         // Non-blocking: kick off the async load
         loadFromDB();
       },
-      
+
       // Emergency function to clear corrupted data
       clearCorruptedData: async () => {
         set({ templates: [], isInitialized: false });
@@ -684,16 +695,16 @@ export const useTemplateStore = create<TemplateStore>()(
         } catch {
           // Failed to clear IndexedDB silently
         }
-      }
+      },
     }),
     {
       name: 'myk9show-template-storage',
       storage: createJSONStorage(() => getOptimalStorage('templates')),
       version: 1,
       // Only persist templates and initialization flag, not UI state
-      partialize: (state) => ({
+      partialize: state => ({
         templates: state.templates,
-        isInitialized: state.isInitialized
+        isInitialized: state.isInitialized,
       }),
       migrate: (persistedState: unknown, version: number) => {
         // Handle version migrations for templates
@@ -711,7 +722,7 @@ export const useTemplateStore = create<TemplateStore>()(
                   status: t.status || 'active',
                   type: t.type || (t.isOfficial ? 'official' : 'custom'),
                   isLatestVersion: t.isLatestVersion !== false,
-                  allowEditing: t.allowEditing || !t.isOfficial
+                  allowEditing: t.allowEditing || !t.isOfficial,
                 };
               });
             }
@@ -724,7 +735,7 @@ export const useTemplateStore = create<TemplateStore>()(
           // PERFORMANCE OPTIMIZATION: Skip automatic template initialization
           // Templates will be loaded on-demand when template features are accessed
         };
-      }
+      },
     }
   )
 );

@@ -88,9 +88,9 @@ export const AddClassesToTrialDialog: React.FC<AddClassesToTrialDialogProps> = (
         // If trial has a show type, only show matching templates
         if (trialOrganization) {
           const templateShowType =
-            typeof template.showType === 'object'
-              ? String(Object.values(template.showType)[0] || '')
-              : String(template.showType || '');
+            typeof template.trialType === 'object'
+              ? String(Object.values(template.trialType)[0] || '')
+              : String(template.trialType || '');
 
           // Normalize comparison (case-insensitive, handle variations)
           const normalizedTrialType = (trialOrganization || '').toLowerCase().trim();
@@ -280,9 +280,9 @@ export const AddClassesToTrialDialog: React.FC<AddClassesToTrialDialogProps> = (
                         ? String(Object.values(template.organization)[0] || 'Unknown')
                         : String(template.organization || 'Unknown');
                     const showTypeValue =
-                      typeof template.showType === 'object'
-                        ? String(Object.values(template.showType)[0] || 'Unknown')
-                        : String(template.showType || 'Unknown');
+                      typeof template.trialType === 'object'
+                        ? String(Object.values(template.trialType)[0] || 'Unknown')
+                        : String(template.trialType || 'Unknown');
                     const templateName = template.templateName || 'Unnamed Template';
 
                     return (
@@ -320,9 +320,9 @@ export const AddClassesToTrialDialog: React.FC<AddClassesToTrialDialogProps> = (
                   <div className="apple-template-detail-item">
                     <span className="apple-template-label">Show Type:</span>
                     <span className="apple-template-value">
-                      {typeof selectedTemplate.showType === 'object'
-                        ? String(Object.values(selectedTemplate.showType)[0] || 'Unknown')
-                        : String(selectedTemplate.showType || 'Unknown')}
+                      {typeof selectedTemplate.trialType === 'object'
+                        ? String(Object.values(selectedTemplate.trialType)[0] || 'Unknown')
+                        : String(selectedTemplate.trialType || 'Unknown')}
                     </span>
                   </div>
                   <div className="apple-template-detail-item">

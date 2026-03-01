@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { logger } from '@/services/LoggingService';
 import { useTemplateStore } from '@/store/templateStore';
 import { useTemplates } from '@/hooks/useTemplates';
-import { Organization, ShowType, TemplateFilter } from '@/types/template.types';
+import { Organization, TrialType, TemplateFilter } from '@/types/template.types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -124,7 +124,7 @@ const TemplateManagementPage: React.FC = () => {
 
   const handleFilterChange = (
     key: keyof TemplateFilter,
-    value: string | boolean | Organization | ShowType | undefined
+    value: string | boolean | Organization | TrialType | undefined
   ) => {
     setFilter(prev => ({
       ...prev,
@@ -187,7 +187,7 @@ const TemplateManagementPage: React.FC = () => {
   };
 
   const organizations: Organization[] = Object.values(Organization);
-  const showTypes: ShowType[] = Object.values(ShowType);
+  const trialTypes: TrialType[] = Object.values(TrialType);
 
   const officialCount = templates.filter(t => t.isOfficial && t.isActive).length;
   const customCount = templates.filter(t => t.isCustom && t.isActive).length;
@@ -199,9 +199,9 @@ const TemplateManagementPage: React.FC = () => {
       count: templates.length,
     });
     logger.debug('Templates by show type', 'templates', {
-      byShowType: templates.reduce(
+      byTrialType: templates.reduce(
         (acc, t) => {
-          const type = String(t.showType);
+          const type = String(t.trialType);
           acc[type] = (acc[type] || 0) + 1;
           return acc;
         },
@@ -336,15 +336,15 @@ const TemplateManagementPage: React.FC = () => {
 
             {/* Show Type */}
             <Select
-              value={filter.showType}
-              onValueChange={value => handleFilterChange('showType', value as ShowType)}
+              value={filter.trialType}
+              onValueChange={value => handleFilterChange('trialType', value as TrialType)}
             >
               <SelectTrigger className="apple-filter-input">
                 <SelectValue placeholder="Show Type" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Show Types</SelectItem>
-                {showTypes.map(type => (
+                {trialTypes.map(type => (
                   <SelectItem key={type} value={type}>
                     {type}
                   </SelectItem>
@@ -390,7 +390,7 @@ const TemplateManagementPage: React.FC = () => {
           {/* Active Filters */}
           {(filter.searchTerm ||
             filter.organization ||
-            filter.showType ||
+            filter.trialType ||
             filter.isActive !== undefined ||
             filter.isOfficial !== undefined) && (
             <div className="flex gap-2 mt-4 flex-wrap">
@@ -417,11 +417,11 @@ const TemplateManagementPage: React.FC = () => {
                   </button>
                 </Badge>
               )}
-              {filter.showType && (
+              {filter.trialType && (
                 <Badge variant="secondary" className="flex items-center gap-1">
-                  Type: {filter.showType}
+                  Type: {filter.trialType}
                   <button
-                    onClick={() => handleFilterChange('showType', undefined)}
+                    onClick={() => handleFilterChange('trialType', undefined)}
                     className="ml-1 hover:bg-red-100 rounded-full"
                   >
                     ×
@@ -529,7 +529,7 @@ const TemplateManagementPage: React.FC = () => {
                     <h3 className="apple-template-card-title">{template.templateName}</h3>
                     <p className="apple-template-card-organization">{template.organization}</p>
                     <p className="apple-template-card-showtype">
-                      {template.showType.replace('_', ' ')}
+                      {template.trialType.replace('_', ' ')}
                     </p>
 
                     <div className="apple-template-card-meta">

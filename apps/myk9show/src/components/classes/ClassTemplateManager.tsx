@@ -120,7 +120,7 @@ export const ClassTemplateManager: React.FC<ClassTemplateManagerProps> = ({
                             <div>
                               <p className="font-medium text-sm">{preset.template.name}</p>
                               <p className="text-xs text-gray-600">
-                                {preset.template.organization} • {preset.template.showType}
+                                {preset.template.organization} • {preset.template.trialType}
                               </p>
                             </div>
                           </div>
@@ -152,7 +152,7 @@ export const ClassTemplateManager: React.FC<ClassTemplateManagerProps> = ({
                               <div>
                                 <p className="font-medium text-sm">{template.name}</p>
                                 <p className="text-xs text-gray-600">
-                                  {template.organization} • {template.showType}
+                                  {template.organization} • {template.trialType}
                                 </p>
                               </div>
                             </div>

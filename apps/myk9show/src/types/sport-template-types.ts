@@ -3,7 +3,7 @@ import type { ClassDefinition, FieldSpecification } from './template.types';
 import {
   type ClassTemplate,
   Organization,
-  ShowType,
+  TrialType,
   TemplateStatus,
   TemplateType,
 } from './template.types';
@@ -85,10 +85,10 @@ const ORG_MAP: Record<string, Organization> = {
   NADAC: Organization.NADAC,
 };
 
-const SHOW_TYPE_MAP: Record<string, ShowType> = {
-  'akc-scent-work': ShowType.SCENT_WORK,
-  'ukc-nosework': ShowType.NOSEWORK,
-  'asca-scent-detection': ShowType.SCENT_WORK,
+const TRIAL_TYPE_MAP: Record<string, TrialType> = {
+  'akc-scent-work': TrialType.SCENT_WORK,
+  'ukc-nosework': TrialType.NOSEWORK,
+  'asca-scent-detection': TrialType.SCENT_WORK,
 };
 
 function formatTimeRange(fixed: number | null, min: number | null, max: number | null): string {
@@ -120,19 +120,19 @@ function formatHideDescription(rule: SportClassRuleRow): string {
 
 export function mapSportTemplateToClassTemplate(
   template: SportTemplateRow,
-  rules: SportClassRuleRow[],
+  rules: SportClassRuleRow[]
 ): ClassTemplate {
   const org = ORG_MAP[template.organization] ?? Organization.OTHER;
-  const showType = SHOW_TYPE_MAP[template.sport_code] ?? ShowType.OTHER;
+  const trialType = TRIAL_TYPE_MAP[template.sport_code] ?? TrialType.OTHER;
 
-  const classDefinitions: ClassDefinition[] = rules.map((rule) => {
+  const classDefinitions: ClassDefinition[] = rules.map(rule => {
     const fieldOverrides: Record<string, Partial<FieldSpecification>> = {};
 
     // Time limits
     const timeStr = formatTimeRange(
       rule.max_time_seconds_fixed,
       rule.max_time_seconds_min,
-      rule.max_time_seconds_max,
+      rule.max_time_seconds_max
     );
     if (timeStr) {
       const isFixed = rule.max_time_seconds_fixed != null;
@@ -194,7 +194,7 @@ export function mapSportTemplateToClassTemplate(
   return {
     id: template.id,
     organization: org,
-    showType,
+    trialType,
     templateName: `${template.organization} ${template.sport_name} - Official`,
     version: '1.0.0',
 

@@ -141,7 +141,7 @@ export const TemplateList: React.FC<TemplateListProps> = ({
                     {String(template.organization)}
                   </span>
                   <span className="apple-badge apple-badge-outline">
-                    {String(template.showType)}
+                    {String(template.trialType)}
                   </span>
                 </div>
               </div>

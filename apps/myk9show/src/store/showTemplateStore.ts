@@ -7,7 +7,7 @@ import {
   SHOW_TEMPLATE_PRESETS,
   UKC_TEMPLATE_PRESETS,
   Organization,
-  ShowType,
+  TrialType,
 } from '@/types/show-template-types';
 import { GeneratedClass } from '@/types/class-template-types';
 import { generateAKCScentWorkClasses } from '@/types/akc-scent-work-generator';
@@ -25,7 +25,7 @@ interface ShowTemplateStore {
 
   // Template queries
   getTemplatesByOrganization: (organization: Organization) => ShowTemplateDefinition[];
-  getTemplatesByShowType: (showType: ShowType) => ShowTemplateDefinition[];
+  getTemplatesByTrialType: (trialType: TrialType) => ShowTemplateDefinition[];
   searchTemplates: (query: string) => ShowTemplateDefinition[];
 
   // Preset management
@@ -97,8 +97,8 @@ export const useShowTemplateStore = create<ShowTemplateStore>()(
         return get().templates.filter(template => template.organization === organization);
       },
 
-      getTemplatesByShowType: showType => {
-        return get().templates.filter(template => template.showType === showType);
+      getTemplatesByTrialType: trialType => {
+        return get().templates.filter(template => template.trialType === trialType);
       },
 
       searchTemplates: query => {
@@ -107,7 +107,7 @@ export const useShowTemplateStore = create<ShowTemplateStore>()(
           template =>
             template.name.toLowerCase().includes(lowerQuery) ||
             template.organization.toLowerCase().includes(lowerQuery) ||
-            template.showType.toLowerCase().includes(lowerQuery) ||
+            template.trialType.toLowerCase().includes(lowerQuery) ||
             template.description?.toLowerCase().includes(lowerQuery)
         );
       },

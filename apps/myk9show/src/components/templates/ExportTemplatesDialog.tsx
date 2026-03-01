@@ -16,7 +16,7 @@ export const ExportTemplatesDialog: React.FC<ExportTemplatesDialogProps> = ({ op
   
   const generateExportCode = () => {
     let output = '// Exported Templates from localStorage\n// Add this to /src/data/mockTemplatesWithFields.ts\n\n';
-    output += `import { ClassTemplate, Organization, ShowType, TemplateStatus, TemplateType } from '@/types/template.types';\n\n`;
+    output += `import { ClassTemplate, Organization, TrialType, TemplateStatus, TemplateType } from '@/types/template.types';\n\n`;
     
     const exportNames: string[] = [];
     
@@ -110,7 +110,7 @@ export const ExportTemplatesDialog: React.FC<ExportTemplatesDialogProps> = ({ op
                     <div className="flex-1">
                       <div className="font-medium">{template.templateName}</div>
                       <div className="text-sm text-muted-foreground">
-                        {template.organization} • {template.showType} • v{template.version}
+                        {template.organization} • {template.trialType} • v{template.version}
                       </div>
                     </div>
                     <div className="text-sm text-muted-foreground">

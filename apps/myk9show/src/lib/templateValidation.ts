@@ -26,7 +26,7 @@ export const validateTemplate = (template: ClassTemplate): ValidationResult => {
     errors.push('Organization is required');
   }
 
-  if (!template.showType) {
+  if (!template.trialType) {
     errors.push('Show type is required');
   }
 

@@ -147,7 +147,7 @@ export const TemplatePreview: React.FC<TemplatePreviewProps> = ({ template }) =>
             <div>
               <h3 className="font-semibold mb-2">{template.templateName}</h3>
               <div className="space-y-1 text-sm text-muted-foreground">
-                <div>{template.organization} • {template.showType}</div>
+                <div>{template.organization} • {template.trialType}</div>
                 <div>Version {template.version}</div>
                 {template.description && <div>{template.description}</div>}
               </div>

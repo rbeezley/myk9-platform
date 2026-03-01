@@ -3,20 +3,20 @@
  */
 
 import { useMemo } from 'react';
-import { ShowType, ClassTemplate } from '@/types/template.types';
+import { TrialType, ClassTemplate } from '@/types/template.types';
 import { TableColumnConfiguration, TableColumn } from '@/types/table-column-types';
-import { 
+import {
   createTableConfigurationFromTemplate,
   createDefaultTableConfiguration,
   transformEntryForTable,
   formatColumnValue,
   getColumnValueClassName,
-  getAvailableColumns
+  getAvailableColumns,
 } from '@/lib/tableColumnConfig';
 import { UnifiedEntryData } from '@/types/unified-entry-types';
 
 export interface UseTableConfigurationProps {
-  showType: ShowType;
+  trialType: TrialType;
   template?: ClassTemplate | undefined;
   customColumns?: string[] | undefined;
 }
@@ -38,9 +38,9 @@ export interface UseTableConfigurationReturn {
  * Hook to get table configuration for entry tables
  */
 export function useTableConfiguration({
-  showType,
+  trialType,
   template,
-  customColumns
+  customColumns,
 }: UseTableConfigurationProps): UseTableConfigurationReturn {
   const config = useMemo(() => {
     if (template) {
@@ -49,21 +49,21 @@ export function useTableConfiguration({
       return createTableConfigurationFromTemplate(template, templateColumns);
     } else {
       // Use default configuration for show type
-      return createDefaultTableConfiguration(showType);
+      return createDefaultTableConfiguration(trialType);
     }
-  }, [showType, template, customColumns]);
+  }, [trialType, template, customColumns]);
 
   const columns = useMemo(() => {
     if (template?.tableColumnConfig) {
       let selectedColumns = config.columns;
-      
+
       // Apply hidden columns
       if (template.tableColumnConfig.hiddenColumns) {
-        selectedColumns = selectedColumns.filter(col => 
-          !template.tableColumnConfig!.hiddenColumns!.includes(col.id)
+        selectedColumns = selectedColumns.filter(
+          col => !template.tableColumnConfig!.hiddenColumns!.includes(col.id)
         );
       }
-      
+
       // Apply custom ordering
       if (template.tableColumnConfig.columnOrder) {
         const orderMap = new Map(
@@ -75,33 +75,33 @@ export function useTableConfiguration({
           return orderA - orderB;
         });
       }
-      
+
       return selectedColumns;
     }
-    
+
     return config.columns;
   }, [config, template]);
 
   const transformEntry = useMemo(() => {
     return (entry: UnifiedEntryData) => {
-      return transformEntryForTable(entry, columns, config.showTypeConfig.formatRules);
+      return transformEntryForTable(entry, columns, config.trialTypeConfig.formatRules);
     };
-  }, [columns, config.showTypeConfig.formatRules]);
+  }, [columns, config.trialTypeConfig.formatRules]);
 
   const formatValue = useMemo(() => {
     return (value: unknown, columnId: string) => {
       const column = columns.find(col => col.id === columnId);
       if (!column) return String(value || '--');
-      
-      return formatColumnValue(value, column, config.showTypeConfig.formatRules);
+
+      return formatColumnValue(value, column, config.trialTypeConfig.formatRules);
     };
-  }, [columns, config.showTypeConfig.formatRules]);
+  }, [columns, config.trialTypeConfig.formatRules]);
 
   const getValueClassName = useMemo(() => {
     return (value: unknown, columnId: string) => {
       const column = columns.find(col => col.id === columnId);
       if (!column) return '';
-      
+
       return getColumnValueClassName(column, value);
     };
   }, [columns]);
@@ -111,24 +111,24 @@ export function useTableConfiguration({
     columns,
     transformEntry,
     formatValue,
-    getValueClassName
+    getValueClassName,
   };
 }
 
 /**
  * Hook to get available columns for a show type (for configuration UI)
  */
-export function useAvailableColumns(showType: ShowType): TableColumn[] {
+export function useAvailableColumns(trialType: TrialType): TableColumn[] {
   return useMemo(() => {
-    return getAvailableColumns(showType);
-  }, [showType]);
+    return getAvailableColumns(trialType);
+  }, [trialType]);
 }
 
 /**
  * Hook to get default column configuration for a show type
  */
-export function useDefaultTableConfiguration(showType: ShowType): TableColumnConfiguration {
+export function useDefaultTableConfiguration(trialType: TrialType): TableColumnConfiguration {
   return useMemo(() => {
-    return createDefaultTableConfiguration(showType);
-  }, [showType]);
+    return createDefaultTableConfiguration(trialType);
+  }, [trialType]);
 }

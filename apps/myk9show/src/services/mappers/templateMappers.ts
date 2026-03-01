@@ -14,7 +14,7 @@ import type {
   ShowTemplateDefinition,
   ShowFieldDefinition,
   Organization,
-  ShowType,
+  TrialType,
 } from '@/types/show-template-types';
 import type {
   DbClassTemplate,
@@ -42,7 +42,7 @@ interface ClassTemplateData {
 /** Shape of the `template_data` JSONB column in `show_templates` */
 interface ShowTemplateData {
   organization?: Organization;
-  showType?: ShowType;
+  showType?: TrialType;
   version?: string;
   classFields?: ShowFieldDefinition[];
   classNamePattern?: string;
@@ -102,7 +102,7 @@ export const mapClassTemplateToInsert = (
     template_data: JSON.parse(
       JSON.stringify({
         organization: template.organization,
-        showType: template.showType,
+        showType: template.trialType,
         fields: template.fields,
         classPattern: template.classPattern,
         requiresJumpHeight: template.requiresJumpHeight,
@@ -127,7 +127,7 @@ export const mapClassTemplateToUpdate = (
   // Store structured updates in template_data
   const hasTemplateDataUpdates =
     updates.organization !== undefined ||
-    updates.showType !== undefined ||
+    updates.trialType !== undefined ||
     updates.fields !== undefined ||
     updates.classPattern !== undefined ||
     updates.requiresJumpHeight !== undefined;
@@ -135,7 +135,7 @@ export const mapClassTemplateToUpdate = (
   if (hasTemplateDataUpdates) {
     const templateData: ClassTemplateData = {};
     if (updates.organization !== undefined) templateData.organization = updates.organization;
-    if (updates.showType !== undefined) templateData.showType = updates.showType;
+    if (updates.trialType !== undefined) templateData.showType = updates.trialType;
     if (updates.fields !== undefined) templateData.fields = updates.fields;
     if (updates.classPattern !== undefined) templateData.classPattern = updates.classPattern;
     if (updates.requiresJumpHeight !== undefined)
@@ -165,7 +165,7 @@ export const mapDatabaseToClassTemplate = (
     id: dbTemplate.id,
     name: dbTemplate.name,
     organization: templateData.organization ?? 'OTHER',
-    showType: templateData.showType ?? '',
+    trialType: templateData.showType ?? '',
     fields: templateFields,
     classPattern: templateData.classPattern ?? '{name}',
     requiresJumpHeight:
@@ -237,7 +237,7 @@ export const mapShowTemplateToInsert = (
 ): DbShowTemplateInsert => {
   return {
     name: template.name,
-    show_type: template.showType ?? 'Other',
+    show_type: template.trialType ?? 'Other',
     description: template.description ?? null,
     template_data: JSON.parse(
       JSON.stringify({
@@ -267,7 +267,7 @@ export const mapShowTemplateToUpdate = (
 
   if (updates.name !== undefined) update.name = updates.name;
   if (updates.description !== undefined) update.description = updates.description ?? null;
-  if (updates.showType !== undefined) update.show_type = updates.showType;
+  if (updates.trialType !== undefined) update.show_type = updates.trialType;
 
   // Handle template_data updates
   if (
@@ -283,7 +283,7 @@ export const mapShowTemplateToUpdate = (
 
     if (updates.organization !== undefined) templateData.organization = updates.organization;
     if (updates.version !== undefined) templateData.version = updates.version;
-    if (updates.showType !== undefined) templateData.showType = updates.showType;
+    if (updates.trialType !== undefined) templateData.showType = updates.trialType;
     if (updates.classFields !== undefined) templateData.classFields = updates.classFields;
     if (updates.classNamePattern !== undefined)
       templateData.classNamePattern = updates.classNamePattern;
@@ -314,7 +314,7 @@ export const mapDatabaseToShowTemplate = (dbTemplate: DbShowTemplate): ShowTempl
     id: dbTemplate.id,
     name: dbTemplate.name,
     organization: templateData.organization ?? 'OTHER',
-    showType: (dbTemplate.show_type as ShowType) ?? templateData.showType ?? 'Other',
+    trialType: (dbTemplate.show_type as TrialType) ?? templateData.showType ?? 'Other',
     version: templateData.version ?? '1.0',
     classFields: templateData.classFields ?? [],
     classNamePattern: templateData.classNamePattern ?? '{name}',

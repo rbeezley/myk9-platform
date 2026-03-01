@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { ClassTemplate } from '@/types/template.types';
-import { 
-  TemplateFieldConfiguration, 
-  FieldDefinition, 
+import {
+  TemplateFieldConfiguration,
+  FieldDefinition,
   ClassFieldValues,
   FieldDataType,
-  ShowTypeField
+  TrialTypeField,
 } from '@/types/field-definition-types';
 import {
   getConfiguredFieldsWithDefinitions,
@@ -14,7 +14,7 @@ import {
   generateClassName,
   groupFieldsByCategory,
   formatRangeConstraint,
-  hasValueConstraints
+  hasValueConstraints,
 } from '@/lib/fieldUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,7 +24,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { DatePicker } from '@/components/ui/date-picker';
 import { AlertCircle, Save, RefreshCw, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -46,21 +52,21 @@ export const DynamicClassForm: React.FC<DynamicClassFormProps> = ({
   onSave,
   onCancel,
   readOnly = false,
-  className = ''
+  className = '',
 }) => {
   // Get configured fields with definitions
   const configuredFields = getConfiguredFieldsWithDefinitions(template);
   const visibleFields = configuredFields.filter(field => field.visible);
-  
+
   // Initialize form values
   const [values, setValues] = useState<ClassFieldValues>(() => {
     const defaults = getDefaultFieldValues(template);
     return { ...defaults, ...initialValues };
   });
-  
+
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isValidating, setIsValidating] = useState(false);
-  
+
   // Auto-generate class name when relevant fields change
   useEffect(() => {
     if (!values.className && (values.element || values.level || values.section)) {
@@ -69,16 +75,16 @@ export const DynamicClassForm: React.FC<DynamicClassFormProps> = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [values.element, values.level, values.section, values.division, values.className]);
-  
+
   // Auto-calculate estimated duration based on entries × judging time + setup time
   useEffect(() => {
     const currentEntries = Number(values.currentEntries) || 0;
     const judgingTime = values.estimatedJudgingTime;
     const setupTime = Number(values.classSetupTime) || 0;
-    
+
     if ((currentEntries > 0 && judgingTime) || setupTime > 0) {
       let totalMinutes = setupTime; // Start with setup time
-      
+
       if (currentEntries > 0 && judgingTime) {
         // Convert judging time to minutes
         if (typeof judgingTime === 'string' && judgingTime.includes(':')) {
@@ -91,17 +97,22 @@ export const DynamicClassForm: React.FC<DynamicClassFormProps> = ({
           totalMinutes += currentEntries * (judgingTime / 60);
         }
       }
-      
+
       // Round to nearest 5 minutes for cleaner display
       const roundedMinutes = Math.ceil(totalMinutes / 5) * 5;
-      
+
       // Update estimated duration if it's different
       if (values.estimatedDuration !== roundedMinutes) {
         setValues(prev => ({ ...prev, estimatedDuration: roundedMinutes }));
       }
     }
-  }, [values.currentEntries, values.estimatedJudgingTime, values.classSetupTime, values.estimatedDuration]);
-  
+  }, [
+    values.currentEntries,
+    values.estimatedJudgingTime,
+    values.classSetupTime,
+    values.estimatedDuration,
+  ]);
+
   // Validate form
   const validateForm = () => {
     setIsValidating(true);
@@ -110,13 +121,13 @@ export const DynamicClassForm: React.FC<DynamicClassFormProps> = ({
     setIsValidating(false);
     return validation.isValid;
   };
-  
+
   // Handle field value change
   const handleFieldChange = (fieldName: string, value: unknown) => {
     if (readOnly) return;
-    
+
     setValues(prev => ({ ...prev, [fieldName]: value }));
-    
+
     // Clear error for this field
     if (errors[fieldName]) {
       setErrors(prev => {
@@ -126,14 +137,14 @@ export const DynamicClassForm: React.FC<DynamicClassFormProps> = ({
       });
     }
   };
-  
+
   // Handle form submission
   const handleSave = () => {
     if (validateForm()) {
       onSave(values);
     }
   };
-  
+
   // Reset form to defaults
   const handleReset = () => {
     if (readOnly) return;
@@ -141,25 +152,26 @@ export const DynamicClassForm: React.FC<DynamicClassFormProps> = ({
     setValues({ ...defaults, ...initialValues });
     setErrors({});
   };
-  
+
   // Render field based on type
   const renderField = (field: FieldDefinition & TemplateFieldConfiguration) => {
     const value = values[field.fieldName];
     const error = errors[field.fieldName];
-    
+
     // Make estimatedDuration read-only when currentEntries > 0 or setupTime > 0
-    const isCalculatedDuration = field.fieldName === ShowTypeField.ESTIMATED_DURATION && 
-                                (Number(values.currentEntries) > 0 || Number(values.classSetupTime) > 0);
+    const isCalculatedDuration =
+      field.fieldName === TrialTypeField.ESTIMATED_DURATION &&
+      (Number(values.currentEntries) > 0 || Number(values.classSetupTime) > 0);
     const disabled = readOnly || !field.editable || isCalculatedDuration;
-    
+
     const fieldId = `field-${field.fieldName}`;
-    
+
     const commonProps = {
       id: fieldId,
       disabled,
-      className: error ? 'border-red-500' : undefined
+      className: error ? 'border-red-500' : undefined,
     };
-    
+
     const renderFieldInput = () => {
       switch (field.dataType) {
         case FieldDataType.STRING:
@@ -167,11 +179,11 @@ export const DynamicClassForm: React.FC<DynamicClassFormProps> = ({
             <Input
               {...commonProps}
               value={String(value || '')}
-              onChange={(e) => handleFieldChange(field.fieldName, e.target.value)}
+              onChange={e => handleFieldChange(field.fieldName, e.target.value)}
               placeholder={String(field.defaultValue || `Enter ${field.displayName.toLowerCase()}`)}
             />
           );
-          
+
         case FieldDataType.NUMBER:
         case FieldDataType.CURRENCY:
           return (
@@ -179,59 +191,63 @@ export const DynamicClassForm: React.FC<DynamicClassFormProps> = ({
               {...commonProps}
               type="number"
               value={String(value || '')}
-              onChange={(e) => handleFieldChange(field.fieldName, e.target.value ? Number(e.target.value) : undefined)}
+              onChange={e =>
+                handleFieldChange(
+                  field.fieldName,
+                  e.target.value ? Number(e.target.value) : undefined
+                )
+              }
               placeholder={String(field.defaultValue) || '0'}
               min={field.minValue}
               max={field.maxValue}
               step={field.dataType === FieldDataType.CURRENCY ? '0.01' : '1'}
             />
           );
-          
+
         case FieldDataType.BOOLEAN:
           return (
             <div className="flex items-center space-x-2">
               <Switch
                 {...commonProps}
                 checked={Boolean(value)}
-                onCheckedChange={(checked) => handleFieldChange(field.fieldName, checked)}
+                onCheckedChange={checked => handleFieldChange(field.fieldName, checked)}
               />
               <Label htmlFor={fieldId} className="text-sm font-normal">
                 {value ? 'Yes' : 'No'}
               </Label>
             </div>
           );
-          
+
         case FieldDataType.DATE:
           return (
             <DatePicker
               date={value ? new Date(value as string | number | Date) : undefined}
-              setDate={(date) => handleFieldChange(field.fieldName, date)}
+              setDate={date => handleFieldChange(field.fieldName, date)}
               disabled={disabled}
             />
           );
-          
+
         case FieldDataType.TIME:
           return (
             <Input
               {...commonProps}
               type="time"
               value={String(value || '')}
-              onChange={(e) => handleFieldChange(field.fieldName, e.target.value)}
+              onChange={e => handleFieldChange(field.fieldName, e.target.value)}
             />
           );
-          
+
         case FieldDataType.DURATION: {
           // Handle time duration in MM:SS format, stored as milliseconds
-          const currentDurationValue = typeof value === 'number' 
-            ? msToDisplay(value, 'seconds') 
-            : String(value || '');
-            
+          const currentDurationValue =
+            typeof value === 'number' ? msToDisplay(value, 'seconds') : String(value || '');
+
           return (
             <Input
               {...commonProps}
               type="text"
               value={currentDurationValue}
-              onChange={(e) => {
+              onChange={e => {
                 const parsed = parseTimeInput(e.target.value);
                 if (parsed.isValid && parsed.ms !== undefined) {
                   handleFieldChange(field.fieldName, parsed.ms);
@@ -244,41 +260,41 @@ export const DynamicClassForm: React.FC<DynamicClassFormProps> = ({
             />
           );
         }
-          
+
         case FieldDataType.DURATION_ARRAY: {
           // Handle array of time durations for multiple search areas
-          const searchAreasCount = Number(values[ShowTypeField.SEARCH_AREAS]) || 1;
-          const currentTimeLimits = Array.isArray(value) ? value as number[] : [180000]; // Default 3:00
-          
+          const searchAreasCount = Number(values[TrialTypeField.SEARCH_AREAS]) || 1;
+          const currentTimeLimits = Array.isArray(value) ? (value as number[]) : [180000]; // Default 3:00
+
           return (
             <DynamicSearchTimeLimits
               searchAreasCount={searchAreasCount}
               timeLimits={currentTimeLimits}
-              onChange={(newTimeLimits) => handleFieldChange(field.fieldName, newTimeLimits)}
+              onChange={newTimeLimits => handleFieldChange(field.fieldName, newTimeLimits)}
               readOnly={disabled}
               {...(field.minValue !== undefined && { minTime: field.minValue })}
               {...(field.maxValue !== undefined && { maxTime: field.maxValue })}
             />
           );
         }
-          
+
         case FieldDataType.TEXT:
           return (
             <Textarea
               {...commonProps}
               value={String(value || '')}
-              onChange={(e) => handleFieldChange(field.fieldName, e.target.value)}
+              onChange={e => handleFieldChange(field.fieldName, e.target.value)}
               placeholder={String(field.defaultValue || `Enter ${field.displayName.toLowerCase()}`)}
               rows={3}
             />
           );
-          
+
         case FieldDataType.SELECT: {
           const selectOptions = field.overrideOptions || field.options || [];
           return (
             <Select
               value={String(value || '')}
-              onValueChange={(newValue) => handleFieldChange(field.fieldName, newValue)}
+              onValueChange={newValue => handleFieldChange(field.fieldName, newValue)}
               disabled={disabled}
             >
               <SelectTrigger className={error ? 'border-red-500' : ''}>
@@ -298,10 +314,10 @@ export const DynamicClassForm: React.FC<DynamicClassFormProps> = ({
             </Select>
           );
         }
-          
+
         case FieldDataType.MULTI_SELECT: {
           const multiSelectOptions = field.overrideOptions || field.options || [];
-          const selectedValues = Array.isArray(value) ? value as string[] : [];
+          const selectedValues = Array.isArray(value) ? (value as string[]) : [];
 
           const toggleOption = (optionValue: string) => {
             if (disabled) return;
@@ -326,11 +342,11 @@ export const DynamicClassForm: React.FC<DynamicClassFormProps> = ({
                         disabled={disabled}
                         onClick={() => toggleOption(optionValue)}
                         className={cn(
-                          "px-2.5 py-1 text-xs font-medium rounded-full border transition-colors",
+                          'px-2.5 py-1 text-xs font-medium rounded-full border transition-colors',
                           isSelected
-                            ? "bg-primary text-primary-foreground border-primary"
-                            : "bg-background hover:bg-muted border-border text-foreground",
-                          disabled && "opacity-50 cursor-not-allowed"
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-background hover:bg-muted border-border text-foreground',
+                          disabled && 'opacity-50 cursor-not-allowed'
                         )}
                       >
                         {optionLabel}
@@ -352,19 +368,19 @@ export const DynamicClassForm: React.FC<DynamicClassFormProps> = ({
             </div>
           );
         }
-          
+
         default:
           return (
             <Input
               {...commonProps}
               value={String(value || '')}
-              onChange={(e) => handleFieldChange(field.fieldName, e.target.value)}
+              onChange={e => handleFieldChange(field.fieldName, e.target.value)}
               placeholder={String(field.defaultValue || `Enter ${field.displayName.toLowerCase()}`)}
             />
           );
       }
     };
-    
+
     return (
       <div key={field.fieldName} className="space-y-2">
         <div className="flex items-center gap-2">
@@ -393,18 +409,17 @@ export const DynamicClassForm: React.FC<DynamicClassFormProps> = ({
             </Badge>
           )}
         </div>
-        
+
         {renderFieldInput()}
-        
+
         {/* Field description or constraint hint */}
         {(field.description || hasValueConstraints(field)) && (
           <div className="space-y-1">
             {field.description && (
               <p className="text-xs text-muted-foreground">
-                {isCalculatedDuration 
+                {isCalculatedDuration
                   ? `Calculated as: (${values.currentEntries || 0} entries × ${values.estimatedJudgingTime || '0:00'} per entry) + ${values.classSetupTime || 0} min setup`
-                  : field.description
-                }
+                  : field.description}
               </p>
             )}
             {hasValueConstraints(field) && field.valueConstraints && (
@@ -414,7 +429,7 @@ export const DynamicClassForm: React.FC<DynamicClassFormProps> = ({
             )}
           </div>
         )}
-        
+
         {error && (
           <p className="text-xs text-red-500 flex items-center gap-1">
             <AlertCircle className="h-3 w-3" />
@@ -424,22 +439,23 @@ export const DynamicClassForm: React.FC<DynamicClassFormProps> = ({
       </div>
     );
   };
-  
+
   // Group fields by category
   const groupedFields = groupFieldsByCategory(visibleFields);
-  
+
   // Show message if no fields configured
   if (visibleFields.length === 0) {
     return (
       <Alert>
         <AlertCircle className="h-4 w-4" />
         <AlertDescription>
-          No fields have been configured for this template. Please configure fields in the template editor.
+          No fields have been configured for this template. Please configure fields in the template
+          editor.
         </AlertDescription>
       </Alert>
     );
   }
-  
+
   return (
     <div className={`space-y-6 ${className}`}>
       {/* Form Header */}
@@ -447,10 +463,10 @@ export const DynamicClassForm: React.FC<DynamicClassFormProps> = ({
         <div>
           <h3 className="text-lg font-semibold">Class Information</h3>
           <p className="text-sm text-muted-foreground">
-            {template.templateName} - {template.showType}
+            {template.templateName} - {template.trialType}
           </p>
         </div>
-        
+
         {!readOnly && (
           <div className="flex gap-2">
             <Button variant="outline" onClick={handleReset} size="sm">
@@ -460,17 +476,18 @@ export const DynamicClassForm: React.FC<DynamicClassFormProps> = ({
           </div>
         )}
       </div>
-      
+
       {/* Validation Summary */}
       {Object.keys(errors).length > 0 && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            Please correct {Object.keys(errors).length} error{Object.keys(errors).length > 1 ? 's' : ''} below.
+            Please correct {Object.keys(errors).length} error
+            {Object.keys(errors).length > 1 ? 's' : ''} below.
           </AlertDescription>
         </Alert>
       )}
-      
+
       {/* Form Fields */}
       <div className="space-y-6">
         {Object.entries(groupedFields).map(([categoryName, categoryFields]) => (
@@ -488,7 +505,7 @@ export const DynamicClassForm: React.FC<DynamicClassFormProps> = ({
           </Card>
         ))}
       </div>
-      
+
       {/* Form Actions */}
       {!readOnly && (
         <div className="flex justify-end gap-2 pt-4">

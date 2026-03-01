@@ -179,7 +179,7 @@ export const ShowsGridView: React.FC<ShowsGridViewProps> = ({
                     return (
                       <Button
                         key={action.id}
-                        variant={action.variant}
+                        variant="outline"
                         size="sm"
                         onClick={() => action.onClick(show)}
                         className="apple-browse-view-details-btn"

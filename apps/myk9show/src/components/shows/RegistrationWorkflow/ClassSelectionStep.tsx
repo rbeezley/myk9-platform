@@ -96,7 +96,10 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     useClassAvailability(showId);
 
   const show = shows.find(s => s.id === showId);
-  const showTrials = (trials || []).filter(t => t.showId === showId);
+  const showTrials = useMemo(
+    () => (trials || []).filter(t => t.showId === showId),
+    [trials, showId]
+  );
 
   // Compute classesWithTrials using useMemo (derived state, not useEffect) - must be before allClassIds
   const classesWithTrials = useMemo(() => {
@@ -332,6 +335,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
             const dog = getDogById(dogId);
             const isActive = activeTab === dogId;
             const existingEntriesForDog = getEntriesForDog(dogId);
+            const cartCount = getCartCountForDog(dogId);
 
             return (
               <TabsTrigger
@@ -368,15 +372,15 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                       {existingEntriesForDog.length}
                     </Badge>
                   )}
-                  {getCartCountForDog(dogId) > 0 && (
+                  {cartCount > 0 && (
                     <Badge
                       variant={isActive ? 'default' : 'secondary'}
                       className="h-5 px-1.5 text-xs flex items-center gap-0.5"
                       style={isActive ? { backgroundColor: '#007AFF' } : {}}
-                      title={`${getCartCountForDog(dogId)} class${getCartCountForDog(dogId) !== 1 ? 'es' : ''} in cart`}
+                      title={`${cartCount} class${cartCount !== 1 ? 'es' : ''} in cart`}
                     >
                       <ShoppingCart className="h-3 w-3" />
-                      {getCartCountForDog(dogId)}
+                      {cartCount}
                     </Badge>
                   )}
                 </div>
@@ -388,6 +392,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
         {selectedDogs.map(dogId => {
           const dog = getDogById(dogId);
           const selection = getSelectionForDog(dogId);
+          const dogCartCount = getCartCountForDog(dogId);
 
           return (
             <TabsContent key={dogId} value={dogId}>
@@ -781,13 +786,13 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                     </div>
                   </ScrollArea>
 
-                  {getCartCountForDog(dogId) > 0 && (
+                  {dogCartCount > 0 && (
                     <div className="mt-4 p-3 bg-primary/10 rounded-lg flex justify-between items-center">
                       <div className="flex items-center gap-2">
                         <ShoppingCart className="h-4 w-4" />
                         <span className="text-sm font-medium">
-                          {getCartCountForDog(dogId)} class
-                          {getCartCountForDog(dogId) > 1 ? 'es' : ''} in cart
+                          {dogCartCount} class
+                          {dogCartCount > 1 ? 'es' : ''} in cart
                         </span>
                       </div>
                       <span className="text-sm font-semibold">

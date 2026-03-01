@@ -38,8 +38,7 @@ export type EligibilityReasonCode =
   | 'LEVEL_INELIGIBLE'
   | 'AGE_RESTRICTED'
   | 'HANDLER_REQUIRED'
-  | 'ALREADY_ENTERED'
-  | 'REGISTRATION_REQUIRED';
+  | 'ALREADY_ENTERED';
 
 export type EligibilityWarningCode =
   | 'JUMP_HEIGHT_MISMATCH'
@@ -59,7 +58,6 @@ interface ClassRequirements {
   minAgeMonths: number | null;
   maxAgeMonths: number | null;
   requiresHandler: boolean;
-  requiresRegistration: boolean;
 }
 
 // Dog data for eligibility checking
@@ -134,7 +132,6 @@ export function useEntryEligibility({
           minAgeMonths: c.age_min,
           maxAgeMonths: c.age_max,
           requiresHandler: false, // Not stored in classes table
-          requiresRegistration: false, // No column in classes table; don't block entry by default
         })
       );
     },
@@ -323,14 +320,8 @@ function validateEligibility(dog: DogData, classReq: ClassRequirements): Eligibi
     }
   }
 
-  // Check registration requirement
-  if (classReq.requiresRegistration && !dog.registrationNumber) {
-    reasons.push({
-      code: 'REGISTRATION_REQUIRED',
-      message: 'Dog registration number required',
-      details: 'Please add registration number to dog profile',
-    });
-  } else if (!dog.registrationNumber) {
+  // Warn if no registration number on file (informational only)
+  if (!dog.registrationNumber) {
     warnings.push({
       code: 'MISSING_REGISTRATION_NUMBER',
       message: 'No registration number on file',

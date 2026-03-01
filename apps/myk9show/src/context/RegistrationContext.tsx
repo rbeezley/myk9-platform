@@ -1,6 +1,13 @@
 import { createContext, useState, ReactNode } from 'react';
 import { RegistrationContext as RegistrationContextType } from '../types/show-registration-types';
-import { UserRole, PERMISSIONS, Permission, Scope, ScopeType } from '../types/auth-types';
+import {
+  UserRole,
+  USER_ROLE_HIERARCHY,
+  PERMISSIONS,
+  Permission,
+  Scope,
+  ScopeType,
+} from '../types/auth-types';
 import { useAuthContext } from '@/hooks/useAuthContext';
 
 /**
@@ -67,14 +74,8 @@ export function RegistrationProvider({ children }: RegistrationProviderProps) {
     if (!userWithRoles) return 'exhibitor';
 
     // Use currentRole if set, otherwise derive from user's highest role
-    const roleHierarchy = [
-      UserRole.SITE_ADMIN,
-      UserRole.CLUB_ADMIN,
-      UserRole.SECRETARY,
-      UserRole.EXHIBITOR,
-    ];
     const effectiveRole =
-      currentRole || roleHierarchy.find(r => userWithRoles.roles?.includes(r)) || null;
+      currentRole || USER_ROLE_HIERARCHY.find(r => userWithRoles.roles?.includes(r)) || null;
     if (!effectiveRole) return 'exhibitor';
 
     switch (effectiveRole) {
@@ -140,13 +141,7 @@ export function RegistrationProvider({ children }: RegistrationProviderProps) {
     setPrevRolesKey(rolesKey);
     if (userWithRoles?.roles && userWithRoles.roles.length > 0) {
       // Default to the highest privilege role
-      const roleHierarchy = [
-        UserRole.SITE_ADMIN,
-        UserRole.CLUB_ADMIN,
-        UserRole.SECRETARY,
-        UserRole.EXHIBITOR,
-      ];
-      const highestRole = roleHierarchy.find(role => userWithRoles.roles.includes(role));
+      const highestRole = USER_ROLE_HIERARCHY.find(role => userWithRoles.roles.includes(role));
       setCurrentRole(highestRole || UserRole.EXHIBITOR);
     } else {
       setCurrentRole(null);

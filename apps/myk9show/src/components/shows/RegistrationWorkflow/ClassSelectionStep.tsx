@@ -24,7 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useDogStore } from '@/store/dogStore';
+import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
@@ -70,7 +70,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   onSelectionChange,
   showId,
 }) => {
-  const { dogs } = useDogStore();
+  const { dogs } = useDogStoreCompat();
   const { shows = [] } = useShowStore();
   const { trials = [] } = useTrialStore();
   const { classes = [] } = useClassStoreCompat();

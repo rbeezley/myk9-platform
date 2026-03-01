@@ -93,7 +93,7 @@ interface UseEntryEligibilityReturn {
 export function useEntryEligibility({
   showId,
   dogIds,
-  classIds
+  classIds,
 }: UseEntryEligibilityOptions): UseEntryEligibilityReturn {
   // Fetch class requirements
   const { data: classRequirements, isLoading: loadingClasses } = useQuery({
@@ -103,7 +103,8 @@ export function useEntryEligibility({
 
       const { data, error } = await supabase
         .from('classes')
-        .select(`
+        .select(
+          `
           id,
           name,
           level,
@@ -112,7 +113,8 @@ export function useEntryEligibility({
           height_max,
           age_min,
           age_max
-        `)
+        `
+        )
         .in('id', classIds);
 
       if (error) {
@@ -120,22 +122,24 @@ export function useEntryEligibility({
         return [];
       }
 
-      return (data || []).map((c): ClassRequirements => ({
-        classId: c.id,
-        className: c.name || 'Unknown',
-        level: c.level,
-        breedRestrictions: c.breed_restrictions || [],
-        minHeightInches: c.height_min,
-        maxHeightInches: c.height_max,
-        requiredTitles: [], // Not stored in classes table
-        minAgeMonths: c.age_min,
-        maxAgeMonths: c.age_max,
-        requiresHandler: false, // Not stored in classes table
-        requiresRegistration: true // Default to true
-      }));
+      return (data || []).map(
+        (c): ClassRequirements => ({
+          classId: c.id,
+          className: c.name || 'Unknown',
+          level: c.level,
+          breedRestrictions: c.breed_restrictions || [],
+          minHeightInches: c.height_min,
+          maxHeightInches: c.height_max,
+          requiredTitles: [], // Not stored in classes table
+          minAgeMonths: c.age_min,
+          maxAgeMonths: c.age_max,
+          requiresHandler: false, // Not stored in classes table
+          requiresRegistration: false, // No column in classes table; don't block entry by default
+        })
+      );
     },
     enabled: classIds.length > 0,
-    staleTime: 5 * 60 * 1000 // 5 minutes
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   // Fetch dog data
@@ -146,7 +150,8 @@ export function useEntryEligibility({
 
       const { data, error } = await supabase
         .from('dogs')
-        .select(`
+        .select(
+          `
           id,
           name,
           call_name,
@@ -155,7 +160,8 @@ export function useEntryEligibility({
           date_of_birth,
           akc_number,
           ukc_number
-        `)
+        `
+        )
         .in('id', dogIds);
 
       if (error) {
@@ -163,20 +169,22 @@ export function useEntryEligibility({
         return [];
       }
 
-      return (data || []).map((d): DogData => ({
-        id: d.id,
-        name: d.name || 'Unknown',
-        callName: d.call_name,
-        breed: d.breed || 'Unknown',
-        heightInches: d.height ? parseFloat(d.height) : null,
-        dateOfBirth: d.date_of_birth,
-        titles: [], // Not stored in dogs table
-        registrationNumber: d.akc_number || d.ukc_number,
-        registrationOrganization: d.akc_number ? 'AKC' : d.ukc_number ? 'UKC' : null
-      }));
+      return (data || []).map(
+        (d): DogData => ({
+          id: d.id,
+          name: d.name || 'Unknown',
+          callName: d.call_name,
+          breed: d.breed || 'Unknown',
+          heightInches: d.height ? parseFloat(d.height) : null,
+          dateOfBirth: d.date_of_birth,
+          titles: [], // Not stored in dogs table
+          registrationNumber: d.akc_number || d.ukc_number,
+          registrationOrganization: d.akc_number ? 'AKC' : d.ukc_number ? 'UKC' : null,
+        })
+      );
     },
     enabled: dogIds.length > 0,
-    staleTime: 5 * 60 * 1000 // 5 minutes
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   // Calculate eligibility for all dog/class combinations
@@ -213,13 +221,15 @@ export function useEntryEligibility({
     return eligible;
   };
 
-  const getIneligibleClasses = (dogId: string): { classId: string; reasons: EligibilityReason[] }[] => {
+  const getIneligibleClasses = (
+    dogId: string
+  ): { classId: string; reasons: EligibilityReason[] }[] => {
     const ineligible: { classId: string; reasons: EligibilityReason[] }[] = [];
     eligibility.forEach((result, key) => {
       if (key.startsWith(`${dogId}-`) && !result.isEligible) {
         ineligible.push({
           classId: result.classId,
-          reasons: result.reasons
+          reasons: result.reasons,
         });
       }
     });
@@ -232,7 +242,7 @@ export function useEntryEligibility({
     error: null,
     checkEligibility,
     getEligibleClasses,
-    getIneligibleClasses
+    getIneligibleClasses,
   };
 }
 
@@ -243,14 +253,14 @@ function validateEligibility(dog: DogData, classReq: ClassRequirements): Eligibi
 
   // Check breed restrictions
   if (classReq.breedRestrictions.length > 0) {
-    const isBreedAllowed = classReq.breedRestrictions.some(
-      br => dog.breed.toLowerCase().includes(br.toLowerCase())
+    const isBreedAllowed = classReq.breedRestrictions.some(br =>
+      dog.breed.toLowerCase().includes(br.toLowerCase())
     );
     if (!isBreedAllowed) {
       reasons.push({
         code: 'BREED_RESTRICTED',
         message: 'Breed not allowed in this class',
-        details: `This class is restricted to: ${classReq.breedRestrictions.join(', ')}`
+        details: `This class is restricted to: ${classReq.breedRestrictions.join(', ')}`,
       });
     }
   }
@@ -261,36 +271,34 @@ function validateEligibility(dog: DogData, classReq: ClassRequirements): Eligibi
       reasons.push({
         code: 'HEIGHT_INELIGIBLE',
         message: 'Dog does not meet minimum height requirement',
-        details: `Minimum height: ${classReq.minHeightInches}" (Dog: ${dog.heightInches}")`
+        details: `Minimum height: ${classReq.minHeightInches}" (Dog: ${dog.heightInches}")`,
       });
     }
     if (classReq.maxHeightInches !== null && dog.heightInches > classReq.maxHeightInches) {
       reasons.push({
         code: 'HEIGHT_INELIGIBLE',
         message: 'Dog exceeds maximum height requirement',
-        details: `Maximum height: ${classReq.maxHeightInches}" (Dog: ${dog.heightInches}")`
+        details: `Maximum height: ${classReq.maxHeightInches}" (Dog: ${dog.heightInches}")`,
       });
     }
   } else if (classReq.minHeightInches !== null || classReq.maxHeightInches !== null) {
     warnings.push({
       code: 'JUMP_HEIGHT_MISMATCH',
       message: 'Dog height not recorded',
-      details: 'Please update dog profile with height measurement'
+      details: 'Please update dog profile with height measurement',
     });
   }
 
   // Check title requirements
   if (classReq.requiredTitles.length > 0) {
-    const hasTitles = classReq.requiredTitles.every(
-      reqTitle => dog.titles.some(
-        dogTitle => dogTitle.toLowerCase().includes(reqTitle.toLowerCase())
-      )
+    const hasTitles = classReq.requiredTitles.every(reqTitle =>
+      dog.titles.some(dogTitle => dogTitle.toLowerCase().includes(reqTitle.toLowerCase()))
     );
     if (!hasTitles) {
       reasons.push({
         code: 'TITLE_REQUIRED',
         message: 'Required title(s) not found',
-        details: `Required: ${classReq.requiredTitles.join(', ')}`
+        details: `Required: ${classReq.requiredTitles.join(', ')}`,
       });
     }
   }
@@ -303,14 +311,14 @@ function validateEligibility(dog: DogData, classReq: ClassRequirements): Eligibi
       reasons.push({
         code: 'AGE_RESTRICTED',
         message: 'Dog does not meet minimum age requirement',
-        details: `Minimum age: ${classReq.minAgeMonths} months (Dog: ${ageInMonths} months)`
+        details: `Minimum age: ${classReq.minAgeMonths} months (Dog: ${ageInMonths} months)`,
       });
     }
     if (classReq.maxAgeMonths !== null && ageInMonths > classReq.maxAgeMonths) {
       reasons.push({
         code: 'AGE_RESTRICTED',
         message: 'Dog exceeds maximum age requirement',
-        details: `Maximum age: ${classReq.maxAgeMonths} months (Dog: ${ageInMonths} months)`
+        details: `Maximum age: ${classReq.maxAgeMonths} months (Dog: ${ageInMonths} months)`,
       });
     }
   }
@@ -320,13 +328,13 @@ function validateEligibility(dog: DogData, classReq: ClassRequirements): Eligibi
     reasons.push({
       code: 'REGISTRATION_REQUIRED',
       message: 'Dog registration number required',
-      details: 'Please add registration number to dog profile'
+      details: 'Please add registration number to dog profile',
     });
   } else if (!dog.registrationNumber) {
     warnings.push({
       code: 'MISSING_REGISTRATION_NUMBER',
       message: 'No registration number on file',
-      details: 'Consider adding registration for official records'
+      details: 'Consider adding registration for official records',
     });
   }
 
@@ -335,7 +343,7 @@ function validateEligibility(dog: DogData, classReq: ClassRequirements): Eligibi
     classId: classReq.classId,
     isEligible: reasons.length === 0,
     reasons,
-    warnings
+    warnings,
   };
 }
 

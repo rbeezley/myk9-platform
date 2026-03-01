@@ -23,7 +23,7 @@ describe('Phase 3 Store Configuration Tests', () => {
   describe('Store Configuration Verification', () => {
     it('should have properly configured registrations store', () => {
       const store = useRegistrationsStore.getState();
-      
+
       // Verify store structure
       expect(typeof store.addRegistration).toBe('function');
       expect(typeof store.updateRegistration).toBe('function');
@@ -33,7 +33,7 @@ describe('Phase 3 Store Configuration Tests', () => {
 
     it('should have properly configured competition store', () => {
       const store = useCompetitionStore.getState();
-      
+
       expect(typeof store.addCompetition).toBe('function');
       expect(typeof store.editCompetition).toBe('function');
       expect(typeof store.deleteCompetition).toBe('function');
@@ -42,7 +42,7 @@ describe('Phase 3 Store Configuration Tests', () => {
 
     it('should have properly configured achievements store', () => {
       const store = useAchievementsStore.getState();
-      
+
       expect(typeof store.addAchievement).toBe('function');
       expect(typeof store.editAchievement).toBe('function');
       expect(typeof store.deleteAchievement).toBe('function');
@@ -51,7 +51,7 @@ describe('Phase 3 Store Configuration Tests', () => {
 
     it('should have properly configured past results store', () => {
       const store = usePastResultsStore.getState();
-      
+
       expect(typeof store.addResult).toBe('function');
       expect(typeof store.editResult).toBe('function');
       expect(typeof store.deleteResult).toBe('function');
@@ -60,7 +60,7 @@ describe('Phase 3 Store Configuration Tests', () => {
 
     it('should have properly configured show registration store', () => {
       const store = useShowRegistrationStore.getState();
-      
+
       expect(typeof store.createRegistration).toBe('function');
       expect(typeof store.updateRegistration).toBe('function');
       expect(typeof store.deleteRegistration).toBe('function');
@@ -69,7 +69,7 @@ describe('Phase 3 Store Configuration Tests', () => {
 
     it('should have properly configured armband store', () => {
       const store = useArmbandStore.getState();
-      
+
       expect(typeof store.assignArmband).toBe('function');
       expect(typeof store.unassignArmband).toBe('function');
       expect(typeof store.createRange).toBe('function');
@@ -88,23 +88,29 @@ describe('Phase 3 Store Configuration Tests', () => {
         registeredName: 'Test Dog',
         registrationDate: new Date(),
         expirationDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
-        isActive: true
+        isActive: true,
       };
 
       // Test add
       useRegistrationsStore.getState().addRegistration(testRegistration);
-      const foundReg = useRegistrationsStore.getState().registrations.find(r => r.id === 'test-reg-1');
+      const foundReg = useRegistrationsStore
+        .getState()
+        .registrations.find(r => r.id === 'test-reg-1');
       expect(foundReg).toEqual(testRegistration);
-      
+
       // Test update
       const updatedReg = { ...testRegistration, registeredName: 'Updated Name' };
       useRegistrationsStore.getState().updateRegistration(updatedReg);
-      const updatedFound = useRegistrationsStore.getState().registrations.find(r => r.id === 'test-reg-1');
+      const updatedFound = useRegistrationsStore
+        .getState()
+        .registrations.find(r => r.id === 'test-reg-1');
       expect(updatedFound?.registeredName).toBe('Updated Name');
-      
+
       // Test remove
       useRegistrationsStore.getState().removeRegistration('test-reg-1');
-      const removedFound = useRegistrationsStore.getState().registrations.find(r => r.id === 'test-reg-1');
+      const removedFound = useRegistrationsStore
+        .getState()
+        .registrations.find(r => r.id === 'test-reg-1');
       expect(removedFound).toBeUndefined();
     });
 
@@ -114,8 +120,8 @@ describe('Phase 3 Store Configuration Tests', () => {
         name: 'Test Competition',
         date: new Date(),
         location: 'Test Location',
-        type: 'Conformation',
-        status: 'upcoming'
+        organization: 'Conformation',
+        status: 'upcoming',
       };
 
       useCompetitionStore.getState().addCompetition(testCompetition);
@@ -132,7 +138,7 @@ describe('Phase 3 Store Configuration Tests', () => {
         event: 'Test Show',
         category: 'conformation',
         level: 'major',
-        points: 10
+        points: 10,
       };
 
       useAchievementsStore.getState().addAchievement(testAchievement);
@@ -151,7 +157,7 @@ describe('Phase 3 Store Configuration Tests', () => {
         totalEntries: 10,
         className: 'Open Dog',
         judgeName: 'Test Judge',
-        points: 5
+        points: 5,
       };
 
       usePastResultsStore.getState().addResult(testResult);
@@ -161,28 +167,28 @@ describe('Phase 3 Store Configuration Tests', () => {
 
     it('should handle show registration operations', () => {
       const store = useShowRegistrationStore.getState();
-      
+
       const registration = store.createRegistration('test-show-1', 'test-user-1');
       expect(registration.showId).toBe('test-show-1');
       expect(registration.userId).toBe('test-user-1');
-      
+
       const found = store.getRegistration(registration.id);
       expect(found).toEqual(registration);
     });
 
     it('should handle armband operations', () => {
       const store = useArmbandStore.getState();
-      
+
       const assignment = store.assignArmband({
         showId: 'test-show-1',
         dogId: 'test-dog-1',
         armbandNumber: '101',
-        assignedBy: 'test-user-1'
+        assignedBy: 'test-user-1',
       });
-      
+
       expect(assignment.armbandNumber).toBe('101');
       expect(assignment.dogId).toBe('test-dog-1');
-      
+
       const foundAssignments = store.getAssignmentsByShow('test-show-1');
       expect(foundAssignments).toHaveLength(1);
       expect(foundAssignments[0].armbandNumber).toBe('101');
@@ -194,7 +200,7 @@ describe('Phase 3 Store Configuration Tests', () => {
       // This test verifies that the stores are configured to use the optimal storage
       // We can't easily test actual IndexedDB behavior in this environment,
       // but we can verify the stores are properly configured
-      
+
       const stores = [
         { name: 'registrations', store: useRegistrationsStore },
         { name: 'competition', store: useCompetitionStore },
@@ -203,7 +209,7 @@ describe('Phase 3 Store Configuration Tests', () => {
         { name: 'showRegistration', store: useShowRegistrationStore },
         { name: 'armband', store: useArmbandStore },
       ];
-      
+
       stores.forEach(({ store }) => {
         const state = store.getState();
         // Verify the store is functional (basic smoke test)

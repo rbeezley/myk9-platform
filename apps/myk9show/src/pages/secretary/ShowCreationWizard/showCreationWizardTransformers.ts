@@ -9,7 +9,7 @@ import type { JudgeDetailsMap, ShowStatus, EditMode } from './show-creation-wiza
 
 interface WizardShowData {
   name: string;
-  type: 'AKC' | 'UKC' | 'NASDA' | 'Other';
+  organization: 'AKC' | 'UKC' | 'NASDA' | 'Other';
   startDate: string;
   endDate: string;
   location: string;
@@ -166,7 +166,7 @@ export function createClassDataFromWizard(
 export function showToShowInput(show: Show): ShowInput {
   return {
     name: show.name,
-    type: show.type,
+    organization: show.organization,
     startDate: show.startDate,
     endDate: show.endDate,
     location: show.location,
@@ -236,7 +236,7 @@ export function transformWizardDataToShow(
   return {
     id: showId,
     name: show.name,
-    type: show.type,
+    organization: show.organization,
     startDate: show.startDate,
     endDate: show.endDate,
     location: show.location,

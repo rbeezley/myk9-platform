@@ -14,11 +14,11 @@ interface WizardState {
   completedSteps: number[];
   isDirty: boolean;
   lastSaved: Date | null;
-  
+
   // Show data
   show: {
     name: string;
-    type: 'AKC' | 'UKC' | 'NASDA' | 'Other';
+    organization: 'AKC' | 'UKC' | 'NASDA' | 'Other';
     startDate: string; // ISO datetime string
     endDate: string; // ISO datetime string
     location: string;
@@ -31,7 +31,7 @@ interface WizardState {
     secretary: string;
     judgeIds: string[]; // Judges assigned to the show
   };
-  
+
   // Trials data
   trials: Array<{
     id: string; // temp ID for wizard
@@ -39,6 +39,7 @@ interface WizardState {
     dateTime: string; // ISO datetime string
     eventNumber: string;
     sportType?: string | undefined; // e.g. 'akc-scent-work', 'ukc-nosework'
+    trialType?: string | undefined; // e.g. 'Scent Work', 'Agility', 'Obedience'
     classes: Array<{
       templateId: string;
       customizations: Record<string, unknown>;
@@ -50,13 +51,16 @@ interface WizardState {
   judgeAssignments: Record<string, string>; // classId -> judgeId
 
   // Judge metadata
-  judgeDetails: Record<string, {
-    name: string;
-    email: string;
-    phone: string;
-    certifications?: string[] | undefined;
-    notes?: string | undefined;
-  }>;
+  judgeDetails: Record<
+    string,
+    {
+      name: string;
+      email: string;
+      phone: string;
+      certifications?: string[] | undefined;
+      notes?: string | undefined;
+    }
+  >;
 }
 
 interface WizardActions {
@@ -64,21 +68,21 @@ interface WizardActions {
   setCurrentStep: (step: number) => void;
   markStepCompleted: (step: number) => void;
   goToStep: (step: number) => void;
-  
+
   // Show data
   updateShowData: (data: Partial<WizardState['show']>) => void;
-  
+
   // Trial management
   addTrial: (trial: Omit<WizardState['trials'][0], 'id'>) => void;
   updateTrial: (id: string, data: Partial<WizardState['trials'][0]>) => void;
   removeTrial: (id: string) => void;
   reorderTrials: (startIndex: number, endIndex: number) => void;
-  
+
   // Judge management
   addJudgeToShow: (judgeId: string, details: WizardState['judgeDetails'][string]) => void;
   removeJudgeFromShow: (judgeId: string) => void;
   assignJudgeToClass: (classId: string, judgeId: string) => void;
-  
+
   // State management
   setDirty: (isDirty: boolean) => void;
   saveProgress: () => void;
@@ -93,7 +97,7 @@ const initialState: WizardState = {
   lastSaved: null,
   show: {
     name: '',
-    type: 'AKC',
+    organization: 'AKC',
     startDate: '',
     endDate: '',
     location: '',
@@ -117,20 +121,18 @@ export const useWizardStore = create<WizardState & WizardActions>()(
       ...initialState,
 
       // Navigation
-      setCurrentStep: (step) => set({ currentStep: step }),
+      setCurrentStep: step => set({ currentStep: step }),
 
-      markStepCompleted: (step) => {
+      markStepCompleted: step => {
         const { completedSteps } = get();
         if (completedSteps.includes(step)) return;
         set({ completedSteps: [...completedSteps, step].sort((a, b) => a - b) });
       },
 
-      goToStep: (step) => {
+      goToStep: step => {
         const { completedSteps } = get();
         // Only allow navigation to completed steps or the next step
-        const maxAllowedStep = completedSteps.length > 0
-          ? Math.max(...completedSteps) + 1
-          : 0;
+        const maxAllowedStep = completedSteps.length > 0 ? Math.max(...completedSteps) + 1 : 0;
 
         if (step <= maxAllowedStep) {
           set({ currentStep: step });
@@ -138,92 +140,104 @@ export const useWizardStore = create<WizardState & WizardActions>()(
       },
 
       // Show data
-      updateShowData: (data) => set((state) => ({
-        show: { ...state.show, ...data },
-        isDirty: true
-      })),
+      updateShowData: data =>
+        set(state => ({
+          show: { ...state.show, ...data },
+          isDirty: true,
+        })),
 
       // Trial management
-      addTrial: (trial) => set((state) => ({
-        trials: [...state.trials, {
-          ...trial,
-          id: `trial-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-          sportType: trial.sportType ?? SPORT_TYPE_MAP[state.show.type] ?? 'akc-scent-work',
-        }],
-        isDirty: true
-      })),
-      
-      updateTrial: (id, data) => set((state) => ({
-        trials: state.trials.map(trial => 
-          trial.id === id ? { ...trial, ...data } : trial
-        ),
-        isDirty: true
-      })),
-      
-      removeTrial: (id) => set((state) => ({
-        trials: state.trials.filter(trial => trial.id !== id),
-        isDirty: true
-      })),
-      
-      reorderTrials: (startIndex, endIndex) => set((state) => {
-        const trials = Array.from(state.trials);
-        const [removed] = trials.splice(startIndex, 1);
-        trials.splice(endIndex, 0, removed);
-        return { trials, isDirty: true };
-      }),
+      addTrial: trial =>
+        set(state => ({
+          trials: [
+            ...state.trials,
+            {
+              ...trial,
+              id: `trial-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+              sportType:
+                trial.sportType ?? SPORT_TYPE_MAP[state.show.organization] ?? 'akc-scent-work',
+            },
+          ],
+          isDirty: true,
+        })),
+
+      updateTrial: (id, data) =>
+        set(state => ({
+          trials: state.trials.map(trial => (trial.id === id ? { ...trial, ...data } : trial)),
+          isDirty: true,
+        })),
+
+      removeTrial: id =>
+        set(state => ({
+          trials: state.trials.filter(trial => trial.id !== id),
+          isDirty: true,
+        })),
+
+      reorderTrials: (startIndex, endIndex) =>
+        set(state => {
+          const trials = Array.from(state.trials);
+          const [removed] = trials.splice(startIndex, 1);
+          trials.splice(endIndex, 0, removed);
+          return { trials, isDirty: true };
+        }),
 
       // Judge management
-      addJudgeToShow: (judgeId, details) => set((state) => ({
-        show: { 
-          ...state.show, 
-          judgeIds: [...new Set([...state.show.judgeIds, judgeId])] 
-        },
-        judgeDetails: { ...state.judgeDetails, [judgeId]: details },
-        isDirty: true
-      })),
-      
-      removeJudgeFromShow: (judgeId) => set((state) => {
-        const { [judgeId]: _removed, ...remainingDetails } = state.judgeDetails;
-        const newAssignments = Object.entries(state.judgeAssignments)
-          .filter(([, jId]) => jId !== judgeId)
-          .reduce((acc, [classId, jId]) => ({ ...acc, [classId]: jId }), {});
-        
-        return {
-          show: { 
-            ...state.show, 
-            judgeIds: state.show.judgeIds.filter(id => id !== judgeId) 
+      addJudgeToShow: (judgeId, details) =>
+        set(state => ({
+          show: {
+            ...state.show,
+            judgeIds: [...new Set([...state.show.judgeIds, judgeId])],
           },
-          judgeDetails: remainingDetails,
-          judgeAssignments: newAssignments,
-          isDirty: true
-        };
-      }),
-      
-      assignJudgeToClass: (classId, judgeId) => set((state) => ({
-        judgeAssignments: { ...state.judgeAssignments, [classId]: judgeId },
-        isDirty: true
-      })),
+          judgeDetails: { ...state.judgeDetails, [judgeId]: details },
+          isDirty: true,
+        })),
+
+      removeJudgeFromShow: judgeId =>
+        set(state => {
+          const { [judgeId]: _removed, ...remainingDetails } = state.judgeDetails;
+          const newAssignments = Object.entries(state.judgeAssignments)
+            .filter(([, jId]) => jId !== judgeId)
+            .reduce((acc, [classId, jId]) => ({ ...acc, [classId]: jId }), {});
+
+          return {
+            show: {
+              ...state.show,
+              judgeIds: state.show.judgeIds.filter(id => id !== judgeId),
+            },
+            judgeDetails: remainingDetails,
+            judgeAssignments: newAssignments,
+            isDirty: true,
+          };
+        }),
+
+      assignJudgeToClass: (classId, judgeId) =>
+        set(state => ({
+          judgeAssignments: { ...state.judgeAssignments, [classId]: judgeId },
+          isDirty: true,
+        })),
 
       // State management
-      setDirty: (isDirty) => set({ isDirty }),
-      
-      saveProgress: () => set({ 
-        lastSaved: new Date(), 
-        isDirty: false 
-      }),
-      
+      setDirty: isDirty => set({ isDirty }),
+
+      saveProgress: () =>
+        set({
+          lastSaved: new Date(),
+          isDirty: false,
+        }),
+
       resetWizard: () => set(initialState),
-      
-      loadDraft: (draft) => set((state) => ({
-        ...state,
-        ...draft,
-        isDirty: false
-      })),
+
+      loadDraft: draft =>
+        set(state => ({
+          ...state,
+          ...draft,
+          isDirty: false,
+        })),
     }),
     {
       name: 'myk9show-wizard-storage',
       storage: createJSONStorage(() => getOptimalStorage('wizard')),
-      partialize: (state) => ({
+      partialize: state => ({
         currentStep: state.currentStep,
         completedSteps: state.completedSteps,
         lastSaved: state.lastSaved,

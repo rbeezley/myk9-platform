@@ -269,7 +269,7 @@ export function CommandPaletteEnhanced({ open, onOpenChange }: CommandPalettePro
 
     // Add shows with location and date info
     shows.slice(0, 10).forEach(show => {
-      const showKeywords = [show.name, show.location, show.type, show.clubName].filter(
+      const showKeywords = [show.name, show.location, show.organization, show.clubName].filter(
         Boolean
       ) as string[];
 
@@ -280,7 +280,7 @@ export function CommandPaletteEnhanced({ open, onOpenChange }: CommandPalettePro
         commands.push({
           id: `show-${show.id}`,
           title: show.name,
-          subtitle: `${show.location} • ${formatDateMMDDYYYY(show.startDate)} • ${show.type}`,
+          subtitle: `${show.location} • ${formatDateMMDDYYYY(show.startDate)} • ${show.organization}`,
           icon: <Calendar className="h-4 w-4" />,
           action: () => handleNavigateAndClose(`/shows/${show.id}`),
           keywords: showKeywords,
@@ -289,7 +289,7 @@ export function CommandPaletteEnhanced({ open, onOpenChange }: CommandPalettePro
           metadata: {
             location: show.location,
             date: show.startDate,
-            type: show.type,
+            type: show.organization,
             status: show.status,
           },
           priority: searchTerm

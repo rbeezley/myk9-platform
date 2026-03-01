@@ -10,7 +10,12 @@ interface jsPDFWithAutoTable extends jsPDF {
   lastAutoTable: { finalY: number };
 }
 
-export type ReportType = 'entry-list' | 'class-schedule' | 'judge-book' | 'results' | 'show-summary';
+export type ReportType =
+  | 'entry-list'
+  | 'class-schedule'
+  | 'judge-book'
+  | 'results'
+  | 'show-summary';
 
 export interface ReportOptions {
   type: ReportType;
@@ -46,14 +51,15 @@ export interface ReportData {
 }
 
 class OfflineReportService {
-
   /**
    * Generate a comprehensive report based on type and options
    */
-  async generateReport(options: ReportOptions): Promise<{ success: boolean; filename?: string; error?: string }> {
+  async generateReport(
+    options: ReportOptions
+  ): Promise<{ success: boolean; filename?: string; error?: string }> {
     try {
       const reportData = await this.gatherReportData(options);
-      
+
       switch (options.type) {
         case 'entry-list':
           return await this.generateEntryListReport(reportData);
@@ -71,7 +77,7 @@ class OfflineReportService {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
   }
@@ -84,28 +90,28 @@ class OfflineReportService {
       {
         key: 'entry-list',
         label: 'Entry List',
-        description: 'Complete list of show entries with dog and exhibitor details'
+        description: 'Complete list of show entries with dog and exhibitor details',
       },
       {
         key: 'class-schedule',
         label: 'Class Schedule',
-        description: 'Ring assignments and timing for all classes'
+        description: 'Ring assignments and timing for all classes',
       },
       {
         key: 'judge-book',
         label: 'Judge Book',
-        description: 'Complete judging assignments and class information'
+        description: 'Complete judging assignments and class information',
       },
       {
         key: 'results',
         label: 'Results',
-        description: 'Placement lists and awards for completed classes'
+        description: 'Placement lists and awards for completed classes',
       },
       {
         key: 'show-summary',
         label: 'Show Summary',
-        description: 'Statistics and overview of the entire show'
-      }
+        description: 'Statistics and overview of the entire show',
+      },
     ];
   }
 
@@ -134,7 +140,7 @@ class OfflineReportService {
     const entries = classes.flatMap((cls: ShowClass) => cls.entries || []);
 
     // Get judges
-    const judges = people.filter((p: User) => 
+    const judges = people.filter((p: User) =>
       show.judges?.some((judgeAssignment: { judgeId: string }) => judgeAssignment.judgeId === p.id)
     );
 
@@ -144,11 +150,13 @@ class OfflineReportService {
       entries,
       dogs,
       people,
-      judges
+      judges,
     };
   }
 
-  private async generateEntryListReport(data: ReportData): Promise<{ success: boolean; filename: string }> {
+  private async generateEntryListReport(
+    data: ReportData
+  ): Promise<{ success: boolean; filename: string }> {
     const doc = new jsPDF();
     let yPosition = 20;
 
@@ -184,9 +192,13 @@ class OfflineReportService {
       doc.setFontSize(12);
       doc.text(`CLASS ${classItem.id}: ${classItem.name}`, 20, yPosition);
       yPosition += 5;
-      
+
       doc.setFontSize(10);
-      doc.text(`Judge: ${classItem.judgeName || 'TBD'} | Ring: ${classItem.ringNumber || 'TBD'}`, 20, yPosition);
+      doc.text(
+        `Judge: ${classItem.judgeName || 'TBD'} | Ring: ${classItem.ringNumber || 'TBD'}`,
+        20,
+        yPosition
+      );
       yPosition += 10;
 
       // Entries table
@@ -200,7 +212,7 @@ class OfflineReportService {
             dog?.name || '',
             dog?.breed || '',
             exhibitor ? `${exhibitor.firstName} ${exhibitor.lastName}` : '',
-            entry.catalog || ''
+            entry.catalog || '',
           ];
         });
 
@@ -210,7 +222,7 @@ class OfflineReportService {
           startY: yPosition,
           styles: { fontSize: 8 },
           headStyles: { fillColor: [66, 139, 202] },
-          margin: { left: 20 }
+          margin: { left: 20 },
         });
 
         yPosition = (doc as jsPDFWithAutoTable).lastAutoTable.finalY + 10;
@@ -226,7 +238,9 @@ class OfflineReportService {
     return { success: true, filename };
   }
 
-  private async generateClassScheduleReport(data: ReportData): Promise<{ success: boolean; filename: string }> {
+  private async generateClassScheduleReport(
+    data: ReportData
+  ): Promise<{ success: boolean; filename: string }> {
     const doc = new jsPDF();
     let yPosition = 20;
 
@@ -245,7 +259,7 @@ class OfflineReportService {
       cls.ring || 'TBD',
       cls.judgeName || 'TBD',
       cls.scheduledTime || 'TBD',
-      (cls.entries || []).length.toString()
+      (cls.entries || []).length.toString(),
     ]);
 
     (doc as jsPDFWithAutoTable).autoTable({
@@ -254,7 +268,7 @@ class OfflineReportService {
       startY: yPosition,
       styles: { fontSize: 9 },
       headStyles: { fillColor: [66, 139, 202] },
-      margin: { left: 20 }
+      margin: { left: 20 },
     });
 
     yPosition = (doc as jsPDFWithAutoTable).lastAutoTable.finalY + 15;
@@ -279,7 +293,10 @@ class OfflineReportService {
     return { success: true, filename };
   }
 
-  private async generateJudgeBookReport(data: ReportData, options: ReportOptions): Promise<{ success: boolean; filename: string }> {
+  private async generateJudgeBookReport(
+    data: ReportData,
+    options: ReportOptions
+  ): Promise<{ success: boolean; filename: string }> {
     const doc = new jsPDF();
     let yPosition = 20;
 
@@ -288,7 +305,7 @@ class OfflineReportService {
     yPosition += 30;
 
     // Judge-specific classes
-    const judgeClasses = options.judgeId 
+    const judgeClasses = options.judgeId
       ? data.classes.filter(cls => cls.judgeId === options.judgeId)
       : data.classes;
 
@@ -322,22 +339,22 @@ class OfflineReportService {
             return person ? `${person.firstName} ${person.lastName}` : '';
           })(),
           '', // Placement
-          ''  // Notes
+          '', // Notes
         ]);
 
         (doc as jsPDFWithAutoTable).autoTable({
           head: [['Armband', 'Dog', 'Exhibitor', 'Placement', 'Notes']],
           body: judgingRows,
           startY: yPosition,
-          styles: { 
+          styles: {
             fontSize: 8,
-            cellPadding: { top: 5, bottom: 5 }
+            cellPadding: { top: 5, bottom: 5 },
           },
           headStyles: { fillColor: [66, 139, 202] },
           columnStyles: {
             3: { minCellWidth: 20 },
-            4: { minCellWidth: 30 }
-          }
+            4: { minCellWidth: 30 },
+          },
         });
 
         yPosition = (doc as jsPDFWithAutoTable).lastAutoTable.finalY + 15;
@@ -350,7 +367,9 @@ class OfflineReportService {
     return { success: true, filename };
   }
 
-  private async generateResultsReport(data: ReportData): Promise<{ success: boolean; filename: string }> {
+  private async generateResultsReport(
+    data: ReportData
+  ): Promise<{ success: boolean; filename: string }> {
     const doc = new jsPDF();
     let yPosition = 20;
 
@@ -373,7 +392,7 @@ class OfflineReportService {
       doc.setFontSize(12);
       doc.text(`CLASS ${classItem.id}: ${classItem.name}`, 20, yPosition);
       yPosition += 5;
-      
+
       doc.setFontSize(10);
       doc.text(`Judge: ${classItem.judgeName}`, 20, yPosition);
       yPosition += 10;
@@ -395,7 +414,7 @@ class OfflineReportService {
               entry.armband || '',
               dog?.name || '',
               exhibitor ? `${exhibitor.firstName} ${exhibitor.lastName}` : '',
-              entry.points || '0'
+              entry.points || '0',
             ];
           });
 
@@ -404,7 +423,7 @@ class OfflineReportService {
           body: resultRows,
           startY: yPosition,
           styles: { fontSize: 8 },
-          headStyles: { fillColor: [66, 139, 202] }
+          headStyles: { fillColor: [66, 139, 202] },
         });
 
         yPosition = (doc as jsPDFWithAutoTable).lastAutoTable.finalY + 10;
@@ -417,7 +436,9 @@ class OfflineReportService {
     return { success: true, filename };
   }
 
-  private async generateShowSummaryReport(data: ReportData): Promise<{ success: boolean; filename: string }> {
+  private async generateShowSummaryReport(
+    data: ReportData
+  ): Promise<{ success: boolean; filename: string }> {
     const doc = new jsPDF();
     let yPosition = 20;
 
@@ -435,7 +456,7 @@ class OfflineReportService {
     yPosition += 15;
 
     const stats = this.calculateShowStatistics(data);
-    
+
     doc.setFontSize(10);
     const statLines = [
       `Total Classes: ${stats.totalClasses}`,
@@ -444,7 +465,7 @@ class OfflineReportService {
       `Total Exhibitors: ${stats.totalExhibitors}`,
       `Average Entries per Class: ${stats.avgEntriesPerClass}`,
       `Largest Class: ${stats.largestClass.name} (${stats.largestClass.entries} entries)`,
-      `Most Popular Breed: ${stats.mostPopularBreed.name} (${stats.mostPopularBreed.count} entries)`
+      `Most Popular Breed: ${stats.mostPopularBreed.name} (${stats.mostPopularBreed.count} entries)`,
     ];
 
     statLines.forEach(line => {
@@ -460,7 +481,7 @@ class OfflineReportService {
     yPosition += 10;
 
     const breedRows = Object.entries(stats.breedBreakdown)
-      .sort(([,a], [,b]) => b - a)
+      .sort(([, a], [, b]) => b - a)
       .slice(0, 15) // Top 15 breeds
       .map(([breed, count]) => [breed, count.toString()]);
 
@@ -469,7 +490,7 @@ class OfflineReportService {
       body: breedRows,
       startY: yPosition,
       styles: { fontSize: 9 },
-      headStyles: { fillColor: [66, 139, 202] }
+      headStyles: { fillColor: [66, 139, 202] },
     });
 
     yPosition = (doc as jsPDFWithAutoTable).lastAutoTable.finalY + 15;
@@ -483,7 +504,11 @@ class OfflineReportService {
       const judgeStats = this.calculateJudgeStatistics(data);
       judgeStats.forEach(judge => {
         doc.setFontSize(10);
-        doc.text(`${judge.name}: ${judge.classes} classes, ${judge.entries} entries`, 20, yPosition);
+        doc.text(
+          `${judge.name}: ${judge.classes} classes, ${judge.entries} entries`,
+          20,
+          yPosition
+        );
         yPosition += 5;
       });
     }
@@ -497,13 +522,13 @@ class OfflineReportService {
   private addReportHeader(doc: jsPDF, title: string, show: Show, yPosition: number): number {
     doc.setFontSize(18);
     doc.text(title, 20, yPosition);
-    
+
     doc.setFontSize(14);
     doc.text(show.name, 20, yPosition + 8);
-    
+
     doc.setFontSize(10);
     doc.text(`Generated: ${new Date().toLocaleString()}`, 20, yPosition + 16);
-    
+
     return yPosition + 20;
   }
 
@@ -518,7 +543,7 @@ class OfflineReportService {
       `Location: ${show.location}`,
       `Club: ${show.clubName}`,
       `Secretary: ${resolvePersonNameFromStore(show.secretary) || 'N/A'}`,
-      `Show Type: ${show.type || 'Conformation'}`
+      `Organization: ${show.organization || 'AKC'}`,
     ];
 
     showInfo.forEach(info => {
@@ -530,14 +555,17 @@ class OfflineReportService {
   }
 
   private groupClassesByRing(classes: ShowClass[]): Record<string, ShowClass[]> {
-    return classes.reduce((acc, cls) => {
-      const ring = cls.ring || 'Unassigned';
-      if (!acc[ring]) {
-        acc[ring] = [];
-      }
-      acc[ring].push(cls);
-      return acc;
-    }, {} as Record<string, ShowClass[]>);
+    return classes.reduce(
+      (acc, cls) => {
+        const ring = cls.ring || 'Unassigned';
+        if (!acc[ring]) {
+          acc[ring] = [];
+        }
+        acc[ring].push(cls);
+        return acc;
+      },
+      {} as Record<string, ShowClass[]>
+    );
   }
 
   private calculateShowStatistics(data: ReportData) {
@@ -550,10 +578,12 @@ class OfflineReportService {
     // Find largest class
     const classEntryCounts = data.classes.map(cls => ({
       name: cls.className,
-      entries: data.entries.filter(e => e.classId === cls.id).length
+      entries: data.entries.filter(e => e.classId === cls.id).length,
     }));
-    const largestClass = classEntryCounts.reduce((max, cls) => 
-      cls.entries > max.entries ? cls : max, { name: '', entries: 0 });
+    const largestClass = classEntryCounts.reduce(
+      (max, cls) => (cls.entries > max.entries ? cls : max),
+      { name: '', entries: 0 }
+    );
 
     // Breed breakdown
     const breedBreakdown: Record<string, number> = {};
@@ -564,9 +594,10 @@ class OfflineReportService {
       }
     });
 
-    const mostPopularBreed = Object.entries(breedBreakdown)
-      .reduce((max, [breed, count]) => 
-        count > max.count ? { name: breed, count } : max, { name: '', count: 0 });
+    const mostPopularBreed = Object.entries(breedBreakdown).reduce(
+      (max, [breed, count]) => (count > max.count ? { name: breed, count } : max),
+      { name: '', count: 0 }
+    );
 
     return {
       totalClasses,
@@ -576,7 +607,7 @@ class OfflineReportService {
       avgEntriesPerClass,
       largestClass,
       mostPopularBreed,
-      breedBreakdown
+      breedBreakdown,
     };
   }
 

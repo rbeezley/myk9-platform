@@ -86,7 +86,11 @@ export function useShowCreationWizardActions({
    * Returns a map from wizard trial ID to actual DB UUID
    */
   const createTrials = useCallback(
-    async (showId: string, showName: string, showType: string): Promise<Record<string, string>> => {
+    async (
+      showId: string,
+      showName: string,
+      showOrganization: string
+    ): Promise<Record<string, string>> => {
       const trialIdMap: Record<string, string> = {};
 
       // In edit mode, only add trials that don't already exist
@@ -120,7 +124,7 @@ export function useShowCreationWizardActions({
           status: 'Upcoming',
           eventNumber: wizardTrial.eventNumber || '',
           type: trialName,
-          trialType: showType,
+          trialType: showOrganization,
           plannedStartTime: wizardTrial.dateTime
             ? format(new Date(wizardTrial.dateTime), 'h:mm a')
             : '09:00 AM',
@@ -227,7 +231,7 @@ export function useShowCreationWizardActions({
         const realShowId = savedShow.id;
 
         // Create trials (awaited) and get wizard-ID → real-UUID mapping
-        const trialIdMap = await createTrials(realShowId, savedShow.name, savedShow.type);
+        const trialIdMap = await createTrials(realShowId, savedShow.name, savedShow.organization);
 
         // Create classes using the real trial UUIDs (await for offline-first storage)
         await createClasses(realShowId, trialIdMap);

@@ -1,14 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Calendar,
-  Users,
-  Trophy,
-  DollarSign,
-  Eye,
-  UserCheck,
-  Mail,
-} from 'lucide-react';
+import { Calendar, Users, Trophy, DollarSign, Eye, UserCheck, Mail } from 'lucide-react';
 import { useResolvePersonName } from '@/hooks/useResolvePersonName';
 import type { OverviewTabProps } from './types';
 
@@ -26,7 +18,9 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ showData, associatedTr
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <div className="text-3xl font-bold text-gray-900">{associatedTrials.length}</div>
-                <div className="text-sm font-medium text-gray-500 uppercase tracking-wide">Total Trials</div>
+                <div className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                  Total Trials
+                </div>
               </div>
               <div className="p-3 bg-gradient-to-br from-slate-500 to-gray-600 rounded-xl text-white shadow-lg group-hover:scale-110 transition-transform duration-300">
                 <Calendar className="w-8 h-8" />
@@ -40,7 +34,9 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ showData, associatedTr
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <div className="text-3xl font-bold text-orange-900">{classesEstimate}</div>
-                <div className="text-sm font-medium text-orange-600 uppercase tracking-wide">Classes</div>
+                <div className="text-sm font-medium text-orange-600 uppercase tracking-wide">
+                  Classes
+                </div>
               </div>
               <div className="p-3 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-xl text-white shadow-lg group-hover:scale-110 transition-transform duration-300">
                 <Trophy className="w-8 h-8" />
@@ -54,7 +50,9 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ showData, associatedTr
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <div className="text-3xl font-bold text-purple-900">{entriesEstimate}</div>
-                <div className="text-sm font-medium text-primary uppercase tracking-wide">Est. Entries</div>
+                <div className="text-sm font-medium text-primary uppercase tracking-wide">
+                  Est. Entries
+                </div>
               </div>
               <div className="p-3 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl text-white shadow-lg group-hover:scale-110 transition-transform duration-300">
                 <Users className="w-8 h-8" />
@@ -77,9 +75,11 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ showData, associatedTr
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 gap-4">
             <div className="space-y-2">
-              <div className="text-sm font-medium text-gray-500 uppercase tracking-wide">Show Type</div>
+              <div className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                Organization
+              </div>
               <div className="text-base font-semibold text-gray-900 bg-gray-50 rounded-lg px-3 py-2">
-                {showData.type}
+                {showData.organization}
               </div>
             </div>
             {showData.chairman && (
@@ -88,7 +88,9 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ showData, associatedTr
                   <UserCheck className="w-3 h-3" />
                   Chairman
                 </div>
-                <div className="text-base font-semibold text-gray-900">{resolvePersonName(showData.chairman)}</div>
+                <div className="text-base font-semibold text-gray-900">
+                  {resolvePersonName(showData.chairman)}
+                </div>
               </div>
             )}
             <div className="space-y-2">
@@ -96,7 +98,9 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({ showData, associatedTr
                 <Mail className="w-3 h-3" />
                 Secretary
               </div>
-              <div className="text-base font-semibold text-gray-900">{resolvePersonName(showData.secretary)}</div>
+              <div className="text-base font-semibold text-gray-900">
+                {resolvePersonName(showData.secretary)}
+              </div>
             </div>
             <div className="space-y-2">
               <div className="text-sm font-medium text-gray-500 uppercase tracking-wide flex items-center gap-2">

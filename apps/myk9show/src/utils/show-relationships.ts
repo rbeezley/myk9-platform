@@ -21,9 +21,11 @@ export function getUserEntries(
   const userEntryShowIds = entries
     .filter(entry => {
       // Check if user is the handler or owner of the dog
-      return entry.registrationData.handler === userId || 
-             entry.registrationData.handlerId === userId ||
-             entry.dogId.includes(userId); // Assuming dogId contains owner info
+      return (
+        entry.registrationData.handler === userId ||
+        entry.registrationData.handlerId === userId ||
+        entry.dogId.includes(userId)
+      ); // Assuming dogId contains owner info
     })
     .map(entry => entry.showId);
 
@@ -71,10 +73,7 @@ export function getUserManagedShows(
 /**
  * Get shows where the user is assigned as a judge
  */
-export function getUserJudgeAssignments(
-  userId: string,
-  shows: Show[]
-): Show[] {
+export function getUserJudgeAssignments(userId: string, shows: Show[]): Show[] {
   if (!userId) return [];
 
   return shows.filter(show => {
@@ -86,15 +85,12 @@ export function getUserJudgeAssignments(
 /**
  * Get all shows for site admin (global view)
  */
-export function getAdminManagedShows(
-  shows: Show[],
-  userRoles: string[] = []
-): Show[] {
+export function getAdminManagedShows(shows: Show[], userRoles: string[] = []): Show[] {
   // Site admins can see all shows
   if (userRoles.includes('site_admin')) {
     return shows;
   }
-  
+
   return [];
 }
 
@@ -108,11 +104,11 @@ export function getUserEntriesByStatus(
   status?: 'upcoming' | 'past' | 'active'
 ): Show[] {
   const userEntryShows = getUserEntries(userId, shows, entries);
-  
+
   if (!status) return userEntryShows;
-  
+
   const now = new Date();
-  
+
   switch (status) {
     case 'upcoming':
       return userEntryShows.filter(show => new Date(show.startDate) > now);
@@ -133,12 +129,12 @@ export function getUserEntriesByStatus(
  * Get comprehensive show relationships for a user
  */
 export interface UserShowRelationships {
-  entries: Show[];           // Shows user has entered
-  managing: Show[];          // Shows user manages (secretary/admin)
-  judging: Show[];          // Shows user is judging
-  adminView: Show[];        // All shows (if site admin)
-  upcomingEntries: Show[];  // Upcoming shows with user entries
-  pastEntries: Show[];      // Past shows with user entries
+  entries: Show[]; // Shows user has entered
+  managing: Show[]; // Shows user manages (secretary/admin)
+  judging: Show[]; // Shows user is judging
+  adminView: Show[]; // All shows (if site admin)
+  upcomingEntries: Show[]; // Upcoming shows with user entries
+  pastEntries: Show[]; // Past shows with user entries
 }
 
 export function getUserShowRelationships(
@@ -153,7 +149,7 @@ export function getUserShowRelationships(
       judging: [],
       adminView: [],
       upcomingEntries: [],
-      pastEntries: []
+      pastEntries: [],
     };
   }
 
@@ -172,7 +168,7 @@ export function getUserShowRelationships(
     judging: judgeAssignments,
     adminView: adminShows,
     upcomingEntries: getUserEntriesByStatus(userId, shows, entries, 'upcoming'),
-    pastEntries: getUserEntriesByStatus(userId, shows, entries, 'past')
+    pastEntries: getUserEntriesByStatus(userId, shows, entries, 'past'),
   };
 }
 
@@ -191,7 +187,7 @@ export function getTabCounts(
       past: shows.filter(show => new Date(show.endDate) < now).length,
       entries: 0,
       managing: 0,
-      assignments: 0
+      assignments: 0,
     };
   }
 
@@ -203,7 +199,7 @@ export function getTabCounts(
     past: shows.filter(show => new Date(show.endDate) < now).length,
     entries: relationships.entries.length,
     managing: relationships.managing.length,
-    assignments: relationships.judging.length
+    assignments: relationships.judging.length,
   };
 }
 
@@ -236,7 +232,7 @@ export class ShowRelationshipCache {
 
     // Calculate fresh relationships
     const relationships = getUserShowRelationships(user, shows, entries);
-    
+
     // Update cache
     this.cache.set(cacheKey, relationships);
     this.lastUpdate.set(cacheKey, now);
@@ -299,7 +295,7 @@ export function filterShowsEfficiently(
   // Filter by type
   if (filters.type && filters.type.length > 0) {
     const typeSet = new Set(filters.type);
-    result = result.filter(show => typeSet.has(show.type));
+    result = result.filter(show => typeSet.has(show.organization));
   }
 
   return result;

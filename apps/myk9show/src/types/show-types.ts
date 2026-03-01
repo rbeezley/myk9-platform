@@ -56,7 +56,7 @@ export interface Class {
 export interface Show {
   id: string;
   name: string;
-  type: string;
+  organization: string;
   startDate: string;
   endDate: string;
   location: string;
@@ -105,7 +105,7 @@ export type Trial = ShowTrial;
 // Input types for creating/updating shows
 export interface ShowInput {
   name: string;
-  type: string;
+  organization: string;
   startDate: string;
   endDate: string;
   location: string;

@@ -17,7 +17,12 @@ interface ExternalShowsSectionProps {
   deleteShow: (id: string) => void;
 }
 
-export default function ExternalShowsSection({ shows, addShow, editShow, deleteShow }: ExternalShowsSectionProps) {
+export default function ExternalShowsSection({
+  shows,
+  addShow,
+  editShow,
+  deleteShow,
+}: ExternalShowsSectionProps) {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
@@ -38,7 +43,10 @@ export default function ExternalShowsSection({ shows, addShow, editShow, deleteS
         </Button>
       </div>
       {(shows || []).map((show, idx) => (
-        <div key={show.id || idx} className="bg-muted p-5 rounded-lg border flex flex-col gap-2 relative">
+        <div
+          key={show.id || idx}
+          className="bg-muted p-5 rounded-lg border flex flex-col gap-2 relative"
+        >
           <div className="absolute top-4 right-4 z-10">
             <ThreeDotMenu
               items={[
@@ -82,7 +90,7 @@ export default function ExternalShowsSection({ shows, addShow, editShow, deleteS
           // Convert Competition to ExternalShow format
           const show = {
             name: competition.name,
-            type: 'Competition',
+            organization: 'Competition',
             startDate: competition.date,
             endDate: competition.date,
             location: competition.location || '',
@@ -104,13 +112,13 @@ export default function ExternalShowsSection({ shows, addShow, editShow, deleteS
             trials: [],
             totalShows: 0,
             totalEntries: 0,
-            totalEarnings: 0
+            totalEarnings: 0,
           };
           addShow(show);
           setAddDialogOpen(false);
         }}
       />
-      
+
       {/* Edit External Show Dialog */}
       <EditExternalShowDialog
         open={editDialogOpen}
@@ -121,7 +129,7 @@ export default function ExternalShowsSection({ shows, addShow, editShow, deleteS
           setEditDialogOpen(false);
         }}
       />
-      
+
       {/* View Show Details Dialog */}
       <ShowDetailsDialog
         open={viewDialogOpen}

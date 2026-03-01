@@ -1,9 +1,30 @@
-import React, { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Calendar, Users, Trophy, Plus, Edit, Trash2, MoreVertical, Play, Check, Clock, Eye, UserPlus, Wand2, Copy } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Calendar,
+  Users,
+  Trophy,
+  Plus,
+  Edit,
+  Trash2,
+  MoreVertical,
+  Play,
+  Check,
+  Clock,
+  Eye,
+  UserPlus,
+  Wand2,
+  Copy,
+} from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 import { clearMyK9ShowStorage } from '@/utils/clearStorage';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
@@ -45,7 +66,7 @@ const ShowDetailsMain: React.FC<ShowDetailsMainProps> = ({
   // Generate breadcrumb items
   const breadcrumbItems = useBreadcrumb({
     currentPage: 'show',
-    show: showData
+    show: showData,
   });
 
   const handleViewTrial = (trial: Trial) => {
@@ -73,41 +94,45 @@ const ShowDetailsMain: React.FC<ShowDetailsMainProps> = ({
     const showClasses = allClasses.filter(c => trialIds.has(c.trialId));
     const totalClasses = showClasses.length;
     const completedClasses = showClasses.filter(c => c.status === 'Completed').length;
-    const activeClasses = showClasses.filter(c => c.status === 'In Progress' || c.status === 'Upcoming' || c.status === 'Scheduled').length;
+    const activeClasses = showClasses.filter(
+      c => c.status === 'In Progress' || c.status === 'Upcoming' || c.status === 'Scheduled'
+    ).length;
 
     // Count real entries belonging to this show's classes
     const classIds = new Set(showClasses.map(c => c.id));
     const showEntries = allEntries.filter(e => classIds.has(e.classId));
     const totalEntries = showEntries.length;
-    const completedEntries = showEntries.filter(e => e.status === 'Qualified' || e.status === 'Not Qualified').length;
+    const completedEntries = showEntries.filter(
+      e => e.status === 'Qualified' || e.status === 'Not Qualified'
+    ).length;
 
     return [
       {
-        title: "Total Trials",
+        title: 'Total Trials',
         value: totalTrials.toString(),
-        trend: "",
+        trend: '',
         detail1: `Upcoming: ${upcomingTrials}`,
         detail2: `Completed: ${completedTrials}`,
         progress: totalTrials > 0 ? Math.round((completedTrials / totalTrials) * 100) : 0,
-        type: "trials"
+        type: 'trials',
       },
       {
-        title: "Total Classes",
+        title: 'Total Classes',
         value: totalClasses.toString(),
-        trend: "",
+        trend: '',
         detail1: `Active: ${activeClasses}`,
         detail2: `Finished: ${completedClasses}`,
         progress: totalClasses > 0 ? Math.round((completedClasses / totalClasses) * 100) : 0,
-        type: "classes"
+        type: 'classes',
       },
       {
-        title: "Total Entries",
+        title: 'Total Entries',
         value: totalEntries.toString(),
-        trend: "",
+        trend: '',
         detail1: `Registered: ${totalEntries}`,
         detail2: `Judged: ${completedEntries}`,
         progress: totalEntries > 0 ? Math.round((completedEntries / totalEntries) * 100) : 0,
-        type: "entries"
+        type: 'entries',
       },
     ];
   }, [associatedTrials, allClasses, allEntries]);
@@ -131,29 +156,42 @@ const ShowDetailsMain: React.FC<ShowDetailsMainProps> = ({
 
   const getStatusClass = (status: string) => {
     switch (status?.toLowerCase()) {
-      case 'draft': return 'apple-show-status-draft';
-      case 'unpublished': return 'apple-show-status-unpublished';
-      case 'published': return 'apple-show-status-published';
-      case 'cancelled': return 'apple-show-status-cancelled';
-      default: return 'apple-show-status-published';
+      case 'draft':
+        return 'apple-show-status-draft';
+      case 'unpublished':
+        return 'apple-show-status-unpublished';
+      case 'published':
+        return 'apple-show-status-published';
+      case 'cancelled':
+        return 'apple-show-status-cancelled';
+      default:
+        return 'apple-show-status-published';
     }
   };
 
   const getTrialStatusClass = (status: string) => {
     switch (status?.toLowerCase()) {
-      case 'upcoming': return 'apple-trial-status-upcoming';
-      case 'in progress': return 'apple-trial-status-in-progress';
-      case 'completed': return 'apple-trial-status-completed';
-      default: return 'apple-trial-status-upcoming';
+      case 'upcoming':
+        return 'apple-trial-status-upcoming';
+      case 'in progress':
+        return 'apple-trial-status-in-progress';
+      case 'completed':
+        return 'apple-trial-status-completed';
+      default:
+        return 'apple-trial-status-upcoming';
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status?.toLowerCase()) {
-      case 'upcoming': return <Clock className="w-3 h-3" />;
-      case 'in progress': return <Play className="w-3 h-3" />;
-      case 'completed': return <Check className="w-3 h-3" />;
-      default: return <Clock className="w-3 h-3" />;
+      case 'upcoming':
+        return <Clock className="w-3 h-3" />;
+      case 'in progress':
+        return <Play className="w-3 h-3" />;
+      case 'completed':
+        return <Check className="w-3 h-3" />;
+      default:
+        return <Clock className="w-3 h-3" />;
     }
   };
 
@@ -174,12 +212,9 @@ const ShowDetailsMain: React.FC<ShowDetailsMainProps> = ({
             navigate('/results/dashboard', { state: { showId: showData.id } });
           }}
         />
-        
+
         {/* Show Clone Dialog */}
-        <ShowCloneDialog
-          open={showCloneDialog}
-          onOpenChange={setShowCloneDialog}
-        />
+        <ShowCloneDialog open={showCloneDialog} onOpenChange={setShowCloneDialog} />
       </>
     );
   }
@@ -211,16 +246,19 @@ const ShowDetailsMain: React.FC<ShowDetailsMainProps> = ({
                 {showData.status || 'Upcoming'}
               </div>
             </div>
-            
+
             {/* Show Description/Events - matching Browse Shows cards */}
-            <div className="apple-browse-card-description" style={{ 
-              fontSize: '15px', 
-              lineHeight: '1.5', 
-              color: 'var(--muted-foreground)',
-              marginBottom: '24px',
-              maxWidth: '600px'
-            }}>
-              {showData.events && showData.events.length > 0 
+            <div
+              className="apple-browse-card-description"
+              style={{
+                fontSize: '15px',
+                lineHeight: '1.5',
+                color: 'var(--muted-foreground)',
+                marginBottom: '24px',
+                maxWidth: '600px',
+              }}
+            >
+              {showData.events && showData.events.length > 0
                 ? showData.events.join(', ')
                 : 'Dog show competition with various events and classes.'}
             </div>
@@ -262,16 +300,13 @@ const ShowDetailsMain: React.FC<ShowDetailsMainProps> = ({
                 </PermissionGuard>
                 <PermissionGuard permission={PERMISSIONS.SHOW_DELETE}>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem 
-                    onClick={onDeleteShow}
-                    className="text-red-600"
-                  >
+                  <DropdownMenuItem onClick={onDeleteShow} className="text-red-600">
                     <Trash2 className="mr-2 h-4 w-4" />
                     Delete Show
                   </DropdownMenuItem>
                 </PermissionGuard>
                 <PermissionGuard permission={PERMISSIONS.SYSTEM_ADMIN}>
-                  <DropdownMenuItem 
+                  <DropdownMenuItem
                     onClick={() => {
                       clearMyK9ShowStorage();
                       window.location.reload();
@@ -286,19 +321,23 @@ const ShowDetailsMain: React.FC<ShowDetailsMainProps> = ({
             </DropdownMenu>
           </PermissionGuard>
         </div>
-        
+
         <div className="apple-show-info-grid-4col">
           <div className="apple-show-info-item">
-            <div className="apple-show-info-label">Show Type</div>
-            <div className="apple-show-info-value">{showData.type}</div>
+            <div className="apple-show-info-label">Organization</div>
+            <div className="apple-show-info-value">{showData.organization}</div>
           </div>
           <div className="apple-show-info-item">
             <div className="apple-show-info-label">Start Date</div>
-            <div className="apple-show-info-value">{new Date(showData.startDate).toLocaleDateString()}</div>
+            <div className="apple-show-info-value">
+              {new Date(showData.startDate).toLocaleDateString()}
+            </div>
           </div>
           <div className="apple-show-info-item">
             <div className="apple-show-info-label">End Date</div>
-            <div className="apple-show-info-value">{new Date(showData.endDate).toLocaleDateString()}</div>
+            <div className="apple-show-info-value">
+              {new Date(showData.endDate).toLocaleDateString()}
+            </div>
           </div>
           <div className="apple-show-info-item">
             <div className="apple-show-info-label">Host Club</div>
@@ -310,17 +349,21 @@ const ShowDetailsMain: React.FC<ShowDetailsMainProps> = ({
           </div>
           <div className="apple-show-info-item">
             <div className="apple-show-info-label">Entries Open</div>
-            <div className="apple-show-info-value">{new Date(showData.entryOpenDate).toLocaleDateString()}</div>
+            <div className="apple-show-info-value">
+              {new Date(showData.entryOpenDate).toLocaleDateString()}
+            </div>
           </div>
           <div className="apple-show-info-item">
             <div className="apple-show-info-label">Entries Close</div>
-            <div className="apple-show-info-value">{new Date(showData.entryCloseDate).toLocaleDateString()}</div>
+            <div className="apple-show-info-value">
+              {new Date(showData.entryCloseDate).toLocaleDateString()}
+            </div>
           </div>
           {showData.assignedJudges && showData.assignedJudges.length > 0 ? (
             <div className="apple-show-info-item">
               <div className="apple-show-info-label">Assigned Judges</div>
               <div className="apple-show-info-value">
-                {showData.assignedJudges.map((judge) => (
+                {showData.assignedJudges.map(judge => (
                   <div key={judge.judgeId} className="mb-1">
                     {judge.judgeName}
                     {judge.assignedClasses && judge.assignedClasses.length > 0 && (
@@ -348,7 +391,9 @@ const ShowDetailsMain: React.FC<ShowDetailsMainProps> = ({
           </div>
           <div className="apple-show-info-item">
             <div className="apple-show-info-label">Day of Show Fee</div>
-            <div className="apple-show-info-value">${showData.dayOfShowFee || showData.preEntryFee}</div>
+            <div className="apple-show-info-value">
+              ${showData.dayOfShowFee || showData.preEntryFee}
+            </div>
           </div>
         </div>
       </div>
@@ -364,7 +409,7 @@ const ShowDetailsMain: React.FC<ShowDetailsMainProps> = ({
                   {stat.type === 'classes' && <Trophy className="w-5 h-5" />}
                   {stat.type === 'entries' && <Users className="w-5 h-5" />}
                 </div>
-                
+
                 <div className="apple-show-stat-content">
                   <div className="apple-show-stat-header">
                     <div className="apple-show-stat-title">{stat.title}</div>
@@ -373,14 +418,14 @@ const ShowDetailsMain: React.FC<ShowDetailsMainProps> = ({
                   <div className="apple-show-stat-number">{stat.value}</div>
                 </div>
               </div>
-              
+
               <div className="apple-show-stat-details">
                 <span>{stat.detail1}</span>
                 <span>{stat.detail2}</span>
               </div>
-              
+
               <div className="apple-show-stat-progress">
-                <div 
+                <div
                   className={`apple-show-stat-progress-bar ${stat.type}`}
                   style={{ width: `${stat.progress}%` }}
                 ></div>
@@ -425,18 +470,18 @@ const ShowDetailsMain: React.FC<ShowDetailsMainProps> = ({
                     </div>
                     <div className="apple-trial-date mb-3">
                       <div className="font-medium text-foreground">
-                        {new Date(trial.trialDate).toLocaleDateString('en-US', { 
-                          weekday: 'short', 
-                          year: 'numeric', 
-                          month: 'short', 
-                          day: 'numeric' 
+                        {new Date(trial.trialDate).toLocaleDateString('en-US', {
+                          weekday: 'short',
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
                         })}
                       </div>
                       <div className="text-sm text-muted-foreground">
                         {formatDistanceToNow(new Date(trial.trialDate), { addSuffix: true })}
                       </div>
                     </div>
-                    
+
                     {/* Trial Details Grid */}
                     <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                       <div>
@@ -449,7 +494,9 @@ const ShowDetailsMain: React.FC<ShowDetailsMainProps> = ({
                       </div>
                       <div>
                         <div className="apple-show-info-label">Planned Start</div>
-                        <div className="apple-show-info-value text-sm">{trial.plannedStartTime}</div>
+                        <div className="apple-show-info-value text-sm">
+                          {trial.plannedStartTime}
+                        </div>
                       </div>
                       <div>
                         <div className="apple-show-info-label">Order</div>
@@ -471,9 +518,11 @@ const ShowDetailsMain: React.FC<ShowDetailsMainProps> = ({
                           variant="outline"
                           size="sm"
                           className="h-7 text-xs"
-                          onClick={(e) => {
+                          onClick={e => {
                             e.stopPropagation();
-                            navigate(`/secretary/create-show/wizard?showId=${showData.id}&mode=add-classes`);
+                            navigate(
+                              `/secretary/create-show/wizard?showId=${showData.id}&mode=add-classes`
+                            );
                           }}
                         >
                           <Plus className="w-3 h-3 mr-1" />
@@ -483,7 +532,7 @@ const ShowDetailsMain: React.FC<ShowDetailsMainProps> = ({
                           variant="outline"
                           size="sm"
                           className="h-7 text-xs"
-                          onClick={(e) => {
+                          onClick={e => {
                             e.stopPropagation();
                             navigate(`/trials/${trial.id}/classes`);
                           }}
@@ -513,7 +562,7 @@ const ShowDetailsMain: React.FC<ShowDetailsMainProps> = ({
                           Edit Trial
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           onClick={() => onDeleteTrial(trial)}
                           className="text-red-600"
                         >
@@ -548,10 +597,7 @@ const ShowDetailsMain: React.FC<ShowDetailsMainProps> = ({
       </div>
 
       {/* Show Clone Dialog */}
-      <ShowCloneDialog
-        open={showCloneDialog}
-        onOpenChange={setShowCloneDialog}
-      />
+      <ShowCloneDialog open={showCloneDialog} onOpenChange={setShowCloneDialog} />
     </div>
   );
 };

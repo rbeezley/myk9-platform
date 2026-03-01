@@ -162,7 +162,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
             onOpenChange(false);
           });
         },
-        keywords: [show.name, show.location, show.type],
+        keywords: [show.name, show.location, show.organization],
         category: 'data',
       });
     });

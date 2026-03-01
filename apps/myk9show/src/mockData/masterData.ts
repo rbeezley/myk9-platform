@@ -1,12 +1,12 @@
 /**
  * Master Mock Data - Single Source of Truth
- * 
+ *
  * This file contains all mock data with standardized descriptive IDs
  * and proper referential integrity between entities.
- * 
+ *
  * ID Format Convention:
  * - Users: person-{firstName}-{lastName} (e.g., 'person-jane-doe')
- * - Dogs: dog-{name}-{breed} (e.g., 'dog-bella-beagle')  
+ * - Dogs: dog-{name}-{breed} (e.g., 'dog-bella-beagle')
  * - Clubs: club-{name-slug} (e.g., 'club-border-collie-society')
  * - Shows: show-{name-slug} (e.g., 'show-spring-classic')
  */
@@ -41,8 +41,8 @@ export const masterPeople: User[] = [
         level: 'Senior',
         disciplines: ['Scent Work'],
         dateObtained: new Date('2022-03-15'),
-        expirationDate: new Date('2025-03-15')
-      }
+        expirationDate: new Date('2025-03-15'),
+      },
     ],
     deletedAt: undefined,
   },
@@ -68,8 +68,8 @@ export const masterPeople: User[] = [
         level: 'Senior',
         disciplines: ['Agility'],
         dateObtained: new Date('2021-09-10'),
-        expirationDate: new Date('2024-09-10')
-      }
+        expirationDate: new Date('2024-09-10'),
+      },
     ],
     deletedAt: undefined,
   },
@@ -95,7 +95,7 @@ export const masterPeople: User[] = [
         level: 'Senior',
         disciplines: ['Scent Work', 'Obedience'],
         dateObtained: new Date('2020-01-20'),
-        expirationDate: new Date('2023-01-20')
+        expirationDate: new Date('2023-01-20'),
       },
       {
         judgeNumber: 'UKC-NW-001',
@@ -106,8 +106,8 @@ export const masterPeople: User[] = [
         level: 'Apprentice',
         disciplines: ['Nosework'],
         dateObtained: new Date('2021-06-15'),
-        expirationDate: new Date('2024-06-15')
-      }
+        expirationDate: new Date('2024-06-15'),
+      },
     ],
     deletedAt: undefined,
   },
@@ -195,7 +195,7 @@ export const masterPeople: User[] = [
     profileImage: 'https://randomuser.me/api/portraits/women/4.jpg',
     dogs: [],
     deletedAt: undefined,
-  }
+  },
 ];
 
 // ===== MASTER DOGS DATA =====
@@ -208,7 +208,8 @@ export const masterDogs: Dog[] = [
     breed: 'Beagle',
     sex: 'female' as const,
     description: 'A friendly and energetic Beagle who loves to play fetch and go on long walks.',
-    imageUrl: 'https://readdy.ai/api/search-image?query=A%20professional%20portrait%20of%20a%20beagle%20dog%20with%20tri-color%20coat%2C%20white%20chest%2C%20and%20expressive%20brown%20eyes%20looking%20directly%20at%20camera.%20Clean%20studio%20background%20with%20soft%20lighting%20to%20highlight%20the%20dogs%20features.%20The%20image%20has%20high%20resolution%20and%20sharp%20details%20of%20the%20dogs%20face%20and%20ears.&width=300&height=300&seq=dog1&orientation=squarish',
+    imageUrl:
+      'https://readdy.ai/api/search-image?query=A%20professional%20portrait%20of%20a%20beagle%20dog%20with%20tri-color%20coat%2C%20white%20chest%2C%20and%20expressive%20brown%20eyes%20looking%20directly%20at%20camera.%20Clean%20studio%20background%20with%20soft%20lighting%20to%20highlight%20the%20dogs%20features.%20The%20image%20has%20high%20resolution%20and%20sharp%20details%20of%20the%20dogs%20face%20and%20ears.&width=300&height=300&seq=dog1&orientation=squarish',
     registrations: [
       {
         id: 'reg-bella-beagle',
@@ -218,7 +219,7 @@ export const masterDogs: Dog[] = [
         variety: 'Standard',
         registrationNumber: 'AKC123456',
         status: 'Active',
-      }
+      },
     ],
     gender: 'Female' as const,
     ownerId: 'person-jane-doe',
@@ -236,8 +237,10 @@ export const masterDogs: Dog[] = [
     age: 3,
     breed: 'Labrador Retriever',
     sex: 'female' as const,
-    description: 'A friendly and energetic Labrador Retriever who loves to play fetch and go swimming.',
-    imageUrl: 'https://readdy.ai/api/search-image?query=A%20professional%20portrait%20of%20a%20labrador%20retriever%20dog%20with%20chocolate%20coat%20and%20friendly%20expression%20looking%20directly%20at%20camera.%20Clean%20studio%20background%20with%20soft%20lighting%20to%20highlight%20the%20dogs%20features.%20The%20image%20has%20high%20resolution%20and%20sharp%20details%20of%20the%20dogs%20face%20and%20ears.&width=300&height=300&seq=dog6&orientation=squarish',
+    description:
+      'A friendly and energetic Labrador Retriever who loves to play fetch and go swimming.',
+    imageUrl:
+      'https://readdy.ai/api/search-image?query=A%20professional%20portrait%20of%20a%20labrador%20retriever%20dog%20with%20chocolate%20coat%20and%20friendly%20expression%20looking%20directly%20at%20camera.%20Clean%20studio%20background%20with%20soft%20lighting%20to%20highlight%20the%20dogs%20features.%20The%20image%20has%20high%20resolution%20and%20sharp%20details%20of%20the%20dogs%20face%20and%20ears.&width=300&height=300&seq=dog6&orientation=squarish',
     registrations: [
       {
         id: 'reg-lucy-lab',
@@ -247,7 +250,7 @@ export const masterDogs: Dog[] = [
         variety: 'Chocolate',
         registrationNumber: 'AKC234567',
         status: 'Active',
-      }
+      },
     ],
     gender: 'Female' as const,
     ownerId: 'person-jane-doe',
@@ -265,8 +268,10 @@ export const masterDogs: Dog[] = [
     age: 3,
     breed: 'Golden Retriever',
     sex: 'male' as const,
-    description: 'A friendly and energetic Golden Retriever who loves to play fetch and go swimming.',
-    imageUrl: 'https://readdy.ai/api/search-image?query=A%20professional%20portrait%20of%20a%20golden%20retriever%20dog%20with%20golden%20fur%20coat%20and%20friendly%20expression%20looking%20directly%20at%20camera.%20Clean%20studio%20background%20with%20soft%20lighting%20to%20highlight%20the%20dogs%20features.%20The%20image%20has%20high%20resolution%20and%20sharp%20details%20of%20the%20dogs%20face%20and%20ears.&width=300&height=300&seq=dog2&orientation=squarish',
+    description:
+      'A friendly and energetic Golden Retriever who loves to play fetch and go swimming.',
+    imageUrl:
+      'https://readdy.ai/api/search-image?query=A%20professional%20portrait%20of%20a%20golden%20retriever%20dog%20with%20golden%20fur%20coat%20and%20friendly%20expression%20looking%20directly%20at%20camera.%20Clean%20studio%20background%20with%20soft%20lighting%20to%20highlight%20the%20dogs%20features.%20The%20image%20has%20high%20resolution%20and%20sharp%20details%20of%20the%20dogs%20face%20and%20ears.&width=300&height=300&seq=dog2&orientation=squarish',
     registrations: [
       {
         id: 'reg-max-golden',
@@ -276,7 +281,7 @@ export const masterDogs: Dog[] = [
         variety: 'Standard',
         registrationNumber: 'AKC234567',
         status: 'Active',
-      }
+      },
     ],
     gender: 'Male' as const,
     ownerId: 'person-john-smith',
@@ -295,7 +300,8 @@ export const masterDogs: Dog[] = [
     breed: 'Poodle',
     sex: 'male' as const,
     description: 'An intelligent and elegant Standard Poodle who excels in obedience and agility.',
-    imageUrl: 'https://readdy.ai/api/search-image?query=A%20professional%20portrait%20of%20a%20standard%20poodle%20with%20curly%20coat%20and%20intelligent%20expression%20looking%20directly%20at%20camera.%20Clean%20studio%20background%20with%20soft%20lighting%20to%20highlight%20the%20dogs%20features.%20The%20image%20has%20high%20resolution%20and%20sharp%20details%20of%20the%20dogs%20face%20and%20ears.&width=300&height=300&seq=dog3&orientation=squarish',
+    imageUrl:
+      'https://readdy.ai/api/search-image?query=A%20professional%20portrait%20of%20a%20standard%20poodle%20with%20curly%20coat%20and%20intelligent%20expression%20looking%20directly%20at%20camera.%20Clean%20studio%20background%20with%20soft%20lighting%20to%20highlight%20the%20dogs%20features.%20The%20image%20has%20high%20resolution%20and%20sharp%20details%20of%20the%20dogs%20face%20and%20ears.&width=300&height=300&seq=dog3&orientation=squarish',
     registrations: [
       {
         id: 'reg-charlie-poodle',
@@ -305,7 +311,7 @@ export const masterDogs: Dog[] = [
         variety: 'Standard',
         registrationNumber: 'AKC345678',
         status: 'Active',
-      }
+      },
     ],
     gender: 'Male' as const,
     ownerId: 'person-michael-johnson',
@@ -324,7 +330,8 @@ export const masterDogs: Dog[] = [
     breed: 'Border Collie',
     sex: 'female' as const,
     description: 'An energetic and intelligent Border Collie who excels in agility and herding.',
-    imageUrl: 'https://readdy.ai/api/search-image?query=A%20professional%20portrait%20of%20a%20border%20collie%20dog%20with%20black%20and%20white%20coat%20and%20alert%20expression%20looking%20directly%20at%20camera.%20Clean%20studio%20background%20with%20soft%20lighting%20to%20highlight%20the%20dogs%20features.%20The%20image%20has%20high%20resolution%20and%20sharp%20details%20of%20the%20dogs%20face%20and%20ears.&width=300&height=300&seq=dog4&orientation=squarish',
+    imageUrl:
+      'https://readdy.ai/api/search-image?query=A%20professional%20portrait%20of%20a%20border%20collie%20dog%20with%20black%20and%20white%20coat%20and%20alert%20expression%20looking%20directly%20at%20camera.%20Clean%20studio%20background%20with%20soft%20lighting%20to%20highlight%20the%20dogs%20features.%20The%20image%20has%20high%20resolution%20and%20sharp%20details%20of%20the%20dogs%20face%20and%20ears.&width=300&height=300&seq=dog4&orientation=squarish',
     registrations: [
       {
         id: 'reg-luna-border-collie',
@@ -334,7 +341,7 @@ export const masterDogs: Dog[] = [
         variety: 'Standard',
         registrationNumber: 'AKC901234',
         status: 'Active',
-      }
+      },
     ],
     gender: 'Female' as const,
     ownerId: 'person-sarah-garcia',
@@ -353,7 +360,8 @@ export const masterDogs: Dog[] = [
     breed: 'Welsh Corgi',
     sex: 'male' as const,
     description: 'A happy and friendly Corgi',
-    imageUrl: 'https://readdy.ai/api/search-image?query=A%20professional%20portrait%20of%20a%20corgi%20dog%20with%20red%20and%20white%20coat%20and%20happy%20expression%20looking%20directly%20at%20camera.%20Clean%20studio%20background%20with%20soft%20lighting%20to%20highlight%20the%20dogs%20features.%20The%20image%20has%20high%20resolution%20and%20sharp%20details%20of%20the%20dogs%20face%20and%20ears.&width=300&height=300&seq=dog5&orientation=squarish',
+    imageUrl:
+      'https://readdy.ai/api/search-image?query=A%20professional%20portrait%20of%20a%20corgi%20dog%20with%20red%20and%20white%20coat%20and%20happy%20expression%20looking%20directly%20at%20camera.%20Clean%20studio%20background%20with%20soft%20lighting%20to%20highlight%20the%20dogs%20features.%20The%20image%20has%20high%20resolution%20and%20sharp%20details%20of%20the%20dogs%20face%20and%20ears.&width=300&height=300&seq=dog5&orientation=squarish',
     registrations: [
       {
         id: 'reg-cooper-corgi',
@@ -363,7 +371,7 @@ export const masterDogs: Dog[] = [
         variety: 'Pembroke',
         registrationNumber: 'AKC567890',
         status: 'Active',
-      }
+      },
     ],
     gender: 'Male' as const,
     ownerId: 'person-david-williams',
@@ -373,7 +381,7 @@ export const masterDogs: Dog[] = [
     color: 'Red and White',
     height: '14',
     weight: '18',
-  }
+  },
 ];
 
 // ===== MASTER CLUBS DATA =====
@@ -391,19 +399,38 @@ export const masterClubs: Club[] = [
       city: 'Shepherd',
       state: 'MT',
       zipCode: '59451',
-      country: 'US'
+      country: 'US',
     },
-    description: 'Dedicated to the promotion, preservation, and responsible breeding of Border Collies. We organize events, competitions, and educational programs for Border Collie enthusiasts.',
+    description:
+      'Dedicated to the promotion, preservation, and responsible breeding of Border Collies. We organize events, competitions, and educational programs for Border Collie enthusiasts.',
     founded: new Date('1985-03-15'),
     clubType: 'specialty',
     // Membership data
     memberIds: ['person-john-smith', 'person-sarah-johnson'],
     upcomingShows: [
-      { id: 'show-spring-classic', name: 'Spring Classic', date: '2025-06-15', location: 'Springfield', description: 'Annual spring show.' },
-      { id: 'show-summer-agility-cup', name: 'Summer Agility Cup', date: '2025-07-20', location: 'Lakeside', description: 'Agility competition for all levels.' },
+      {
+        id: 'show-spring-classic',
+        name: 'Spring Classic',
+        date: '2025-06-15',
+        location: 'Springfield',
+        description: 'Annual spring show.',
+      },
+      {
+        id: 'show-summer-agility-cup',
+        name: 'Summer Agility Cup',
+        date: '2025-07-20',
+        location: 'Lakeside',
+        description: 'Agility competition for all levels.',
+      },
     ],
     pastShows: [
-      { id: 'show-winter-invitational', name: 'Winter Invitational', date: '2024-12-10', location: 'River City', description: 'End-of-year invitational.' },
+      {
+        id: 'show-winter-invitational',
+        name: 'Winter Invitational',
+        date: '2024-12-10',
+        location: 'River City',
+        description: 'End-of-year invitational.',
+      },
     ],
   },
   {
@@ -419,7 +446,7 @@ export const masterClubs: Club[] = [
       city: 'Berlin',
       state: 'Berlin',
       zipCode: '10115',
-      country: 'DE'
+      country: 'DE',
     },
     description: 'A club for German Shepherd enthusiasts and breeders.',
     founded: new Date('1978-09-20'),
@@ -442,7 +469,7 @@ export const masterClubs: Club[] = [
       city: 'Denver',
       state: 'CO',
       zipCode: '80202',
-      country: 'US'
+      country: 'US',
     },
     description: 'Promoting the Golden Retriever breed through events and education.',
     founded: new Date('1992-11-08'),
@@ -459,7 +486,7 @@ export const masterShows: Show[] = [
   {
     id: 'show-spring-classic',
     name: 'Spring Classic',
-    type: 'Scent Work',
+    organization: 'AKC',
     startDate: '2025-06-15',
     endDate: '2025-06-15',
     location: 'Springfield',
@@ -483,23 +510,23 @@ export const masterShows: Show[] = [
         judgeName: 'Jane Doe',
         assignedDate: '2025-05-01',
         availableStartTime: 'Full Day',
-        availableEndTime: 'Full Day'
+        availableEndTime: 'Full Day',
       },
       {
         judgeId: 'person-michael-johnson',
         judgeName: 'Michael Johnson',
         assignedDate: '2025-05-01',
         availableStartTime: 'Full Day',
-        availableEndTime: 'Full Day'
-      }
+        availableEndTime: 'Full Day',
+      },
     ],
     stats: [],
-    trials: []
+    trials: [],
   },
   {
     id: 'show-summer-agility-cup',
     name: 'Summer Agility Cup',
-    type: 'Agility',
+    organization: 'AKC',
     startDate: '2025-07-20',
     endDate: '2025-07-20',
     location: 'Lakeside',
@@ -523,16 +550,16 @@ export const masterShows: Show[] = [
         judgeName: 'John Smith',
         assignedDate: '2025-06-15',
         availableStartTime: 'Full Day',
-        availableEndTime: 'Full Day'
-      }
+        availableEndTime: 'Full Day',
+      },
     ],
     stats: [],
-    trials: []
+    trials: [],
   },
   {
     id: 'show-winter-invitational',
     name: 'Winter Invitational',
-    type: 'Scent Work',
+    organization: 'AKC',
     startDate: '2024-12-10',
     endDate: '2024-12-10',
     location: 'River City',
@@ -556,12 +583,12 @@ export const masterShows: Show[] = [
         judgeName: 'Michael Johnson',
         assignedDate: '2024-11-01',
         availableStartTime: 'Full Day',
-        availableEndTime: 'Full Day'
-      }
+        availableEndTime: 'Full Day',
+      },
     ],
     stats: [],
-    trials: []
-  }
+    trials: [],
+  },
 ];
 
 // ===== EXPORT ALL DATA =====
@@ -569,7 +596,7 @@ export const masterMockData = {
   people: masterPeople,
   dogs: masterDogs,
   clubs: masterClubs,
-  shows: masterShows
+  shows: masterShows,
 };
 
 // ===== HELPER FUNCTIONS =====
@@ -594,7 +621,7 @@ export const getPersonDogs = (personId: string) => {
 export const getClubMembers = (clubId: string) => {
   const club = masterClubs.find(c => c.id === clubId);
   if (!club || !club.memberIds) return [];
-  
+
   return club.memberIds.map(id => getPerson(id)).filter(Boolean) as User[];
 };
 
@@ -603,6 +630,10 @@ export const getClubMembers = (clubId: string) => {
  */
 export const getClubAdmin = (): User | undefined => {
   // This function is deprecated. Use ClubAdminService.getClubAdmins() for RBAC-based admin retrieval.
-  logger.warn('getClubAdmin is deprecated. Use ClubAdminService.getClubAdmins() instead.', 'app', {});
+  logger.warn(
+    'getClubAdmin is deprecated. Use ClubAdminService.getClubAdmins() instead.',
+    'app',
+    {}
+  );
   return undefined;
 };

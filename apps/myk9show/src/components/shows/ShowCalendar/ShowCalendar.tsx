@@ -40,7 +40,12 @@ interface ShowCalendarProps {
   shows?: Show[]; // Optional shows prop for filtering support
 }
 
-function ShowCalendarComponent({ className, height = 600, onShowRegister, shows: propShows }: ShowCalendarProps) {
+function ShowCalendarComponent({
+  className,
+  height = 600,
+  onShowRegister,
+  shows: propShows,
+}: ShowCalendarProps) {
   const { shows: storeShows } = useShowStore();
   const shows = propShows || storeShows;
   const navigate = useNavigate();
@@ -52,21 +57,21 @@ function ShowCalendarComponent({ className, height = 600, onShowRegister, shows:
   const events = useMemo<CalendarEvent[]>(() => {
     // Pre-cache date objects to avoid repeated Date() constructor calls
     const dateCache = new Map<string, Date>();
-    
+
     const getDate = (dateString: string): Date => {
       if (!dateCache.has(dateString)) {
         dateCache.set(dateString, new Date(dateString));
       }
       return dateCache.get(dateString)!;
     };
-    
+
     return shows.map(show => ({
       id: show.id,
       title: show.name,
       start: getDate(show.startDate),
       end: getDate(show.endDate || show.startDate),
       resource: show as Show & Record<string, unknown>,
-      allDay: true
+      allDay: true,
     }));
   }, [shows]);
 
@@ -74,7 +79,7 @@ function ShowCalendarComponent({ className, height = 600, onShowRegister, shows:
   const eventStyleGetter = useCallback((event: CalendarEvent) => {
     const show = event.resource;
     let backgroundColor = '#3b82f6'; // Default blue
-    
+
     // Color code by show type or status
     if (show.status === 'cancelled') {
       backgroundColor = '#ef4444'; // Red
@@ -93,41 +98,37 @@ function ShowCalendarComponent({ className, height = 600, onShowRegister, shows:
         border: '0px',
         display: 'block',
         fontSize: '12px',
-        fontWeight: '500'
-      }
+        fontWeight: '500',
+      },
     };
   }, []);
 
-  const CustomToolbar = ({ label, onNavigate, onView }: { 
-    label: string; 
-    onNavigate: (action: "PREV" | "NEXT" | "TODAY" | "DATE") => void; 
-    onView: (view: ViewName) => void; 
+  const CustomToolbar = ({
+    label,
+    onNavigate,
+    onView,
+  }: {
+    label: string;
+    onNavigate: (action: 'PREV' | 'NEXT' | 'TODAY' | 'DATE') => void;
+    onView: (view: ViewName) => void;
   }) => (
     <div className="flex flex-col sm:flex-row items-center justify-between mb-4 gap-4">
       <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onNavigate('PREV')}
-        >
+        <Button variant="outline" size="sm" onClick={() => onNavigate('PREV')}>
           ←
         </Button>
         <h3 className="text-lg font-semibold min-w-[200px] text-center">{label}</h3>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onNavigate('NEXT')}
-        >
+        <Button variant="outline" size="sm" onClick={() => onNavigate('NEXT')}>
           →
         </Button>
       </div>
-      
+
       <div className="flex gap-2">
         {[
           { key: 'month' as ViewName, label: 'Month' },
           { key: 'week' as ViewName, label: 'Week' },
           { key: 'day' as ViewName, label: 'Day' },
-          { key: 'agenda' as ViewName, label: 'Agenda' }
+          { key: 'agenda' as ViewName, label: 'Agenda' },
         ].map(({ key, label }) => (
           <Button
             key={key}
@@ -149,7 +150,7 @@ function ShowCalendarComponent({ className, height = 600, onShowRegister, shows:
       <span className="truncate text-xs">{event.title}</span>
     </div>
   ));
-  
+
   // Memoize calendar event handlers to prevent recreating on every render
   const handleViewChange = useCallback((newView: ViewName) => setView(newView), []);
   const handleNavigate = useCallback((newDate: Date) => setDate(newDate), []);
@@ -158,7 +159,7 @@ function ShowCalendarComponent({ className, height = 600, onShowRegister, shows:
   }, []);
 
   return (
-    <motion.div 
+    <motion.div
       className={`calendar-motion-container ${className}`}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -183,12 +184,14 @@ function ShowCalendarComponent({ className, height = 600, onShowRegister, shows:
               onView={handleViewChange}
               date={date}
               onNavigate={handleNavigate}
-              eventPropGetter={(event: Event) => eventStyleGetter(event as unknown as CalendarEvent)}
+              eventPropGetter={(event: Event) =>
+                eventStyleGetter(event as unknown as CalendarEvent)
+              }
               onSelectEvent={handleSelectEvent}
               popup
               components={{
                 toolbar: CustomToolbar,
-                event: CustomEvent
+                event: CustomEvent,
               }}
               className="custom-calendar"
             />
@@ -207,39 +210,46 @@ function ShowCalendarComponent({ className, height = 600, onShowRegister, shows:
                   {selectedEvent.resource.name}
                 </DialogTitle>
               </DialogHeader>
-              
+
               <div className="space-y-4">
                 <div className="flex items-center gap-2 text-sm">
                   <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                   <span className="text-gray-900 dark:text-gray-100">
                     {format(selectedEvent.start, 'MMMM do, yyyy')}
-                    {selectedEvent.resource.endDate && selectedEvent.end instanceof Date &&
-                      ` - ${format(selectedEvent.end, 'MMMM do, yyyy')}`
-                    }
+                    {selectedEvent.resource.endDate &&
+                      selectedEvent.end instanceof Date &&
+                      ` - ${format(selectedEvent.end, 'MMMM do, yyyy')}`}
                   </span>
                 </div>
-                
+
                 {selectedEvent.resource.location && (
                   <div className="flex items-center gap-2 text-sm">
                     <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-gray-900 dark:text-gray-100">{selectedEvent.resource.location}</span>
+                    <span className="text-gray-900 dark:text-gray-100">
+                      {selectedEvent.resource.location}
+                    </span>
                   </div>
                 )}
-                
+
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {selectedEvent.resource.type} - {selectedEvent.resource.location}
+                  {selectedEvent.resource.organization} - {selectedEvent.resource.location}
                 </p>
-                
+
                 <div className="flex items-center gap-2">
-                  <Badge variant={
-                    selectedEvent.resource.status === 'completed' ? 'default' :
-                    selectedEvent.resource.status === 'active' ? 'secondary' :
-                    selectedEvent.resource.status === 'cancelled' ? 'destructive' :
-                    'outline'
-                  }>
+                  <Badge
+                    variant={
+                      selectedEvent.resource.status === 'completed'
+                        ? 'default'
+                        : selectedEvent.resource.status === 'active'
+                          ? 'secondary'
+                          : selectedEvent.resource.status === 'cancelled'
+                            ? 'destructive'
+                            : 'outline'
+                    }
+                  >
                     {selectedEvent.resource.status || 'Scheduled'}
                   </Badge>
-                  
+
                   {selectedEvent.resource.trials && (
                     <div className="flex items-center gap-1 text-sm text-muted-foreground">
                       <Users className="h-4 w-4" />
@@ -247,10 +257,10 @@ function ShowCalendarComponent({ className, height = 600, onShowRegister, shows:
                     </div>
                   )}
                 </div>
-                
+
                 <div className="flex gap-2 pt-4">
                   {onShowRegister && (
-                    <Button 
+                    <Button
                       size="sm"
                       onClick={() => {
                         onShowRegister(selectedEvent.resource.id);
@@ -261,9 +271,9 @@ function ShowCalendarComponent({ className, height = 600, onShowRegister, shows:
                       Register for This Show
                     </Button>
                   )}
-                  <Button 
+                  <Button
                     variant="outline"
-                    size="sm" 
+                    size="sm"
                     onClick={() => {
                       startTransition(() => {
                         navigate(`/shows/${selectedEvent.resource.id}`);
@@ -273,11 +283,7 @@ function ShowCalendarComponent({ className, height = 600, onShowRegister, shows:
                   >
                     View Details
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => setSelectedEvent(null)}
-                  >
+                  <Button variant="outline" size="sm" onClick={() => setSelectedEvent(null)}>
                     Close
                   </Button>
                 </div>

@@ -118,7 +118,7 @@ export const ShowsListView: React.FC<ShowsListViewProps> = ({
                       )}
                     </div>
                     <div className="flex gap-2 flex-wrap">
-                      {getTypeBadge(show.type)}
+                      {getTypeBadge(show.organization)}
                       <EntryStatusBadge show={show} userHasEntries={hasUserEntries} size="sm" />
                     </div>
                   </div>

@@ -12,7 +12,7 @@ import { ShowWithRelationship } from '@/types/unified-shows-types';
 describe('Permission Validation Security Tests', () => {
   // Mock audit function to capture security events
   const mockAuditAction = vi.fn();
-  
+
   beforeEach(() => {
     vi.clearAllMocks();
     // Mock the audit function by replacing it
@@ -23,7 +23,7 @@ describe('Permission Validation Security Tests', () => {
   const createMockShow = (overrides: Partial<Show> = {}): Show => ({
     id: 'test-show-1',
     name: 'Test Show',
-    type: 'Agility',
+    organization: 'Agility',
     startDate: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
     endDate: new Date(Date.now() + 172800000).toISOString(), // Day after tomorrow
     location: 'Test Location',
@@ -41,32 +41,41 @@ describe('Permission Validation Security Tests', () => {
     chairman: 'chairman-user-id',
     secretary: 'secretary-user-id',
     chiefSteward: 'steward-user-id',
-    assignedJudges: [{
-      judgeId: 'judge-user-id',
-      assignedDate: new Date().toISOString(),
-      breed: 'All Breeds'
-    }],
+    assignedJudges: [
+      {
+        judgeId: 'judge-user-id',
+        assignedDate: new Date().toISOString(),
+        breed: 'All Breeds',
+      },
+    ],
     stats: [],
     trials: [],
-    ...overrides
+    ...overrides,
   });
 
-  const createMockUser = (role: string, permissions: string[] = [], id: string = 'test-user'): UserWithRoles => ({
+  const createMockUser = (
+    role: string,
+    permissions: string[] = [],
+    id: string = 'test-user'
+  ): UserWithRoles => ({
     id,
     roles: [role],
     permissions,
     email: `${role}@test.com`,
     firstName: 'Test',
-    lastName: 'User'
+    lastName: 'User',
   });
 
-  const createShowWithRelationship = (show: Show, relationships: Partial<ShowWithRelationship> = {}): ShowWithRelationship => ({
+  const createShowWithRelationship = (
+    show: Show,
+    relationships: Partial<ShowWithRelationship> = {}
+  ): ShowWithRelationship => ({
     ...show,
     relationship: ['all'],
     userCanManage: false,
     userIsJudging: false,
     userHasEntries: false,
-    ...relationships
+    ...relationships,
   });
 
   describe('Role-Based Access Tests', () => {
@@ -103,7 +112,7 @@ describe('Permission Validation Security Tests', () => {
 
     it('should restrict exhibitors from management actions', () => {
       const show = createShowWithRelationship(createMockShow());
-      
+
       expect(ShowPermissionValidator.canCreate(exhibitor)).toBe(false);
       expect(ShowPermissionValidator.canEdit(exhibitor, show)).toBe(false);
       expect(ShowPermissionValidator.canDelete(exhibitor, show)).toBe(false);
@@ -119,7 +128,7 @@ describe('Permission Validation Security Tests', () => {
     const secretary = createMockUser('secretary', [
       PERMISSIONS.SHOW_CREATE,
       PERMISSIONS.SHOW_UPDATE,
-      PERMISSIONS.SHOW_MANAGE_ENTRIES
+      PERMISSIONS.SHOW_MANAGE_ENTRIES,
     ]);
 
     it('should allow secretaries to create shows', () => {
@@ -128,25 +137,25 @@ describe('Permission Validation Security Tests', () => {
 
     it('should allow secretaries to edit shows they manage', () => {
       const show = createShowWithRelationship(createMockShow({ secretary: secretary.id }), {
-        userCanManage: true
+        userCanManage: true,
       });
-      
+
       expect(ShowPermissionValidator.canEdit(secretary, show)).toBe(true);
     });
 
-    it('should restrict secretaries from editing shows they don\'t manage', () => {
+    it("should restrict secretaries from editing shows they don't manage", () => {
       const show = createShowWithRelationship(createMockShow({ secretary: 'other-user' }), {
-        userCanManage: false
+        userCanManage: false,
       });
-      
+
       expect(ShowPermissionValidator.canEdit(secretary, show)).toBe(false);
     });
 
     it('should allow secretaries to manage entries for their shows', () => {
       const show = createShowWithRelationship(createMockShow({ secretary: secretary.id }), {
-        userCanManage: true
+        userCanManage: true,
       });
-      
+
       expect(ShowPermissionValidator.canManageEntries(secretary, show)).toBe(true);
     });
 
@@ -161,27 +170,32 @@ describe('Permission Validation Security Tests', () => {
 
     it('should allow judges to view their assignments', () => {
       const show = createShowWithRelationship(createMockShow(), {
-        userIsJudging: true
+        userIsJudging: true,
       });
-      
+
       expect(ShowPermissionValidator.canViewJudgeAssignments(judge, show)).toBe(true);
     });
 
     it('should allow judges to enter results for assigned shows', () => {
       const show = createShowWithRelationship(createMockShow(), {
-        userIsJudging: true
+        userIsJudging: true,
       });
-      
+
       expect(ShowPermissionValidator.canEnterResults(judge, show)).toBe(true);
     });
 
-    it('should restrict judges from shows they\'re not assigned to', () => {
-      const show = createShowWithRelationship(createMockShow({ 
-        assignedJudges: [{ judgeId: 'other-judge', assignedDate: new Date().toISOString(), breed: 'All Breeds' }]
-      }), {
-        userIsJudging: false
-      });
-      
+    it("should restrict judges from shows they're not assigned to", () => {
+      const show = createShowWithRelationship(
+        createMockShow({
+          assignedJudges: [
+            { judgeId: 'other-judge', assignedDate: new Date().toISOString(), breed: 'All Breeds' },
+          ],
+        }),
+        {
+          userIsJudging: false,
+        }
+      );
+
       expect(ShowPermissionValidator.canEnterResults(judge, show)).toBe(false);
     });
 
@@ -196,12 +210,12 @@ describe('Permission Validation Security Tests', () => {
       PERMISSIONS.SHOW_CREATE,
       PERMISSIONS.SHOW_UPDATE,
       PERMISSIONS.SHOW_DELETE,
-      PERMISSIONS.SHOW_MANAGE_ENTRIES
+      PERMISSIONS.SHOW_MANAGE_ENTRIES,
     ]);
 
     it('should allow site admins to perform all actions', () => {
       const show = createShowWithRelationship(createMockShow());
-      
+
       expect(ShowPermissionValidator.canCreate(siteAdmin)).toBe(true);
       expect(ShowPermissionValidator.canEdit(siteAdmin, show)).toBe(true);
       expect(ShowPermissionValidator.canDelete(siteAdmin, show)).toBe(true);
@@ -224,13 +238,13 @@ describe('Permission Validation Security Tests', () => {
       const exhibitorSecretary = createMockUser('secretary', [
         PERMISSIONS.SHOW_CREATE,
         PERMISSIONS.SHOW_UPDATE,
-        PERMISSIONS.SHOW_MANAGE_ENTRIES
+        PERMISSIONS.SHOW_MANAGE_ENTRIES,
       ]);
       exhibitorSecretary.roles = ['exhibitor', 'secretary'];
 
       const accessibleTabs = ShowPermissionValidator.getAccessibleTabs(exhibitorSecretary);
       expect(accessibleTabs).toEqual(['all', 'past', 'entries', 'managing']);
-      
+
       expect(ShowPermissionValidator.canCreate(exhibitorSecretary)).toBe(true);
     });
 
@@ -246,7 +260,7 @@ describe('Permission Validation Security Tests', () => {
       const secretaryJudge = createMockUser('secretary', [
         PERMISSIONS.SHOW_CREATE,
         PERMISSIONS.SHOW_UPDATE,
-        PERMISSIONS.SHOW_MANAGE_ENTRIES
+        PERMISSIONS.SHOW_MANAGE_ENTRIES,
       ]);
       secretaryJudge.roles = ['secretary', 'judge'];
 
@@ -258,7 +272,7 @@ describe('Permission Validation Security Tests', () => {
   describe('Permission Auditing Tests', () => {
     it('should audit permission checks correctly', () => {
       const user = createMockUser('secretary');
-      
+
       // Test that permission check works correctly
       const result = ShowPermissionValidator.checkPermissionWithAudit(
         PERMISSIONS.SHOW_CREATE,
@@ -273,7 +287,7 @@ describe('Permission Validation Security Tests', () => {
 
     it('should audit role checks correctly', () => {
       const user = createMockUser('secretary');
-      
+
       // Test that role check works correctly
       const result = ShowPermissionValidator.checkRoleWithAudit(
         'secretary',
@@ -304,7 +318,7 @@ describe('Permission Validation Security Tests', () => {
     const shows = [
       createMockShow({ id: 'show-1', status: 'Upcoming' }),
       createMockShow({ id: 'show-2', status: 'Completed' }),
-      createMockShow({ id: 'show-3', status: 'Draft' })
+      createMockShow({ id: 'show-3', status: 'Draft' }),
     ];
 
     it('should filter shows for guests', () => {
@@ -328,16 +342,18 @@ describe('Permission Validation Security Tests', () => {
   describe('Security Edge Cases', () => {
     it('should handle null/undefined users gracefully', () => {
       const show = createMockShow();
-      
+
       expect(() => ShowPermissionValidator.canView(null, show)).not.toThrow();
-      expect(() => ShowPermissionValidator.canCreate(undefined as UserWithRoles | null)).not.toThrow();
+      expect(() =>
+        ShowPermissionValidator.canCreate(undefined as UserWithRoles | null)
+      ).not.toThrow();
       expect(() => ShowPermissionValidator.getAccessibleTabs(null)).not.toThrow();
     });
 
     it('should handle users without roles', () => {
       const userWithoutRoles = createMockUser('exhibitor');
       userWithoutRoles.roles = [];
-      
+
       const accessibleTabs = ShowPermissionValidator.getAccessibleTabs(userWithoutRoles);
       expect(accessibleTabs).toEqual(['all', 'past', 'entries']);
     });
@@ -345,14 +361,14 @@ describe('Permission Validation Security Tests', () => {
     it('should handle users without permissions', () => {
       const userWithoutPermissions = createMockUser('secretary');
       userWithoutPermissions.permissions = [];
-      
+
       expect(ShowPermissionValidator.canCreate(userWithoutPermissions)).toBe(true); // Role-based access
     });
 
     it('should handle malformed show data', () => {
       const malformedShow = {} as Show;
       const user = createMockUser('exhibitor');
-      
+
       expect(() => ShowPermissionValidator.canView(user, malformedShow)).not.toThrow();
     });
   });
@@ -361,25 +377,25 @@ describe('Permission Validation Security Tests', () => {
     it('should prevent registration for past shows', () => {
       const pastShow = createMockShow({
         startDate: new Date(Date.now() - 86400000).toISOString(), // Yesterday
-        endDate: new Date(Date.now() - 43200000).toISOString() // 12 hours ago
+        endDate: new Date(Date.now() - 43200000).toISOString(), // 12 hours ago
       });
-      
+
       const user = createMockUser('exhibitor');
       expect(ShowPermissionValidator.canRegister(user, pastShow)).toBe(false);
     });
 
     it('should prevent registration after entry close date', () => {
       const closedShow = createMockShow({
-        entryCloseDate: new Date(Date.now() - 3600000).toISOString() // 1 hour ago
+        entryCloseDate: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
       });
-      
+
       const user = createMockUser('exhibitor');
       expect(ShowPermissionValidator.canRegister(user, closedShow)).toBe(false);
     });
 
     it('should prevent registration for non-upcoming shows', () => {
       const draftShow = createMockShow({ status: 'Draft' });
-      
+
       const user = createMockUser('exhibitor');
       expect(ShowPermissionValidator.canRegister(user, draftShow)).toBe(false);
     });

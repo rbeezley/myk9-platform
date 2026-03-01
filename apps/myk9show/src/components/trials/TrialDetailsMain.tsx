@@ -3,8 +3,26 @@ import { useNavigate } from 'react-router-dom';
 import { Trial, TrialClass } from './types/trial.types';
 import { TrialStatisticsData } from './TrialDetail/TrialStatistics';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Users, Trophy, Edit, Trash2, MoreVertical, Play, Check, Clock, Gavel, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Users,
+  Trophy,
+  Edit,
+  Trash2,
+  MoreVertical,
+  Play,
+  Check,
+  Clock,
+  Gavel,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
 import { TrialClassesTable } from './TrialDetail/TrialClassesTable';
 import Breadcrumb from '@/components/common/Breadcrumb';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
@@ -14,7 +32,9 @@ import '@/styles/apple-show-details.css';
 interface TrialDetailsMainProps {
   trial: Trial & { classes?: TrialClass[] };
   statistics: TrialStatisticsData;
-  parentShow?: { id: string; name: string; type: string } & Record<string, unknown> | undefined;
+  parentShow?:
+    | ({ id: string; name: string; organization: string } & Record<string, unknown>)
+    | undefined;
   onEdit: () => void;
   onDelete: () => void;
   onAddClassesFromTemplate?: () => void;
@@ -46,25 +66,25 @@ const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
   totalTrials,
 }) => {
   const navigate = useNavigate();
-  
+
   // Generate breadcrumb items
   const breadcrumbItems = useBreadcrumb({
     currentPage: 'trial',
     show: parentShow as unknown as Show | undefined,
-    trial: trial
+    trial: trial,
   });
   const getStatusClass = (status: string) => {
     switch (status?.toLowerCase()) {
-      case 'upcoming': 
-      case 'scheduled': 
+      case 'upcoming':
+      case 'scheduled':
         return 'apple-show-status-upcoming';
-      case 'in progress': 
+      case 'in progress':
         return 'apple-show-status-in-progress';
-      case 'completed': 
+      case 'completed':
         return 'apple-show-status-completed';
       case 'cancelled':
         return 'apple-show-status-cancelled';
-      default: 
+      default:
         return 'apple-show-status-upcoming';
     }
   };
@@ -72,13 +92,13 @@ const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
   const getStatusIcon = (status: string) => {
     switch (status?.toLowerCase()) {
       case 'upcoming':
-      case 'scheduled': 
+      case 'scheduled':
         return <Clock className="w-3 h-3" />;
-      case 'in progress': 
+      case 'in progress':
         return <Play className="w-3 h-3" />;
-      case 'completed': 
+      case 'completed':
         return <Check className="w-3 h-3" />;
-      default: 
+      default:
         return <Clock className="w-3 h-3" />;
     }
   };
@@ -86,55 +106,63 @@ const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
   // Build stats array with contextual subtitles (not misleading percent changes)
   const baseStats = [
     {
-      title: "Judges",
+      title: 'Judges',
       value: statistics.judges.total.toString(),
-      subtitle: statistics.judges.active > 0
-        ? `${statistics.judges.active} active`
-        : "None active",
+      subtitle: statistics.judges.active > 0 ? `${statistics.judges.active} active` : 'None active',
       detail1: `Active: ${statistics.judges.active}`,
       detail2: `On Break: ${statistics.judges.onBreak}`,
-      progress: statistics.judges.total > 0 ? Math.round((statistics.judges.active / statistics.judges.total) * 100) : 0,
-      type: "judges"
+      progress:
+        statistics.judges.total > 0
+          ? Math.round((statistics.judges.active / statistics.judges.total) * 100)
+          : 0,
+      type: 'judges',
     },
     {
-      title: "Total Classes",
+      title: 'Total Classes',
       value: statistics.classes.total.toString(),
-      subtitle: statistics.classes.total > 0
-        ? `${statistics.classes.completed} of ${statistics.classes.total} completed`
-        : "No classes",
+      subtitle:
+        statistics.classes.total > 0
+          ? `${statistics.classes.completed} of ${statistics.classes.total} completed`
+          : 'No classes',
       detail1: `Upcoming: ${statistics.classes.upcoming}`,
       detail2: `Completed: ${statistics.classes.completed}`,
-      progress: statistics.classes.total > 0 ? Math.round((statistics.classes.completed / statistics.classes.total) * 100) : 0,
-      type: "classes"
+      progress:
+        statistics.classes.total > 0
+          ? Math.round((statistics.classes.completed / statistics.classes.total) * 100)
+          : 0,
+      type: 'classes',
     },
     {
-      title: "Total Entries",
+      title: 'Total Entries',
       value: statistics.entries.total.toString(),
-      subtitle: statistics.entries.total > 0
-        ? `${statistics.entries.completed} scored`
-        : "No entries",
+      subtitle:
+        statistics.entries.total > 0 ? `${statistics.entries.completed} scored` : 'No entries',
       detail1: `Upcoming: ${statistics.entries.upcoming}`,
       detail2: `Completed: ${statistics.entries.completed}`,
-      progress: statistics.entries.total > 0 ? Math.round((statistics.entries.completed / statistics.entries.total) * 100) : 0,
-      type: "entries"
+      progress:
+        statistics.entries.total > 0
+          ? Math.round((statistics.entries.completed / statistics.entries.total) * 100)
+          : 0,
+      type: 'entries',
     },
   ];
 
   // Only show Qualified Rate when there are completed entries
-  const stats = statistics.classes.completed > 0
-    ? [
-        ...baseStats,
-        {
-          title: "Qualified Rate",
-          value: `${statistics.qualifiedRate.percent}%`,
-          subtitle: `${statistics.qualifiedRate.qualified} of ${statistics.qualifiedRate.total} qualified`,
-          detail1: `Qualified: ${statistics.qualifiedRate.qualified}`,
-          detail2: `Total: ${statistics.qualifiedRate.total}`,
-          progress: statistics.qualifiedRate.percent,
-          type: "qualified"
-        },
-      ]
-    : baseStats;
+  const stats =
+    statistics.classes.completed > 0
+      ? [
+          ...baseStats,
+          {
+            title: 'Qualified Rate',
+            value: `${statistics.qualifiedRate.percent}%`,
+            subtitle: `${statistics.qualifiedRate.qualified} of ${statistics.qualifiedRate.total} qualified`,
+            detail1: `Qualified: ${statistics.qualifiedRate.qualified}`,
+            detail2: `Total: ${statistics.qualifiedRate.total}`,
+            progress: statistics.qualifiedRate.percent,
+            type: 'qualified',
+          },
+        ]
+      : baseStats;
 
   return (
     <div className="apple-show-container">
@@ -207,10 +235,7 @@ const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
                   Edit Trial
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={onDelete}
-                  className="text-destructive"
-                >
+                <DropdownMenuItem onClick={onDelete} className="text-destructive">
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete Trial
                 </DropdownMenuItem>
@@ -218,11 +243,13 @@ const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
             </DropdownMenu>
           </div>
         </div>
-        
+
         <div className="apple-show-info-grid">
           <div className="apple-show-info-item">
             <div className="apple-show-info-label">Trial Date</div>
-            <div className="apple-show-info-value">{new Date(trial.trialDate).toLocaleDateString()}</div>
+            <div className="apple-show-info-value">
+              {new Date(trial.trialDate).toLocaleDateString()}
+            </div>
           </div>
           <div className="apple-show-info-item">
             <div className="apple-show-info-label">Trial Number</div>
@@ -270,7 +297,7 @@ const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
                   {stat.type === 'entries' && <Users className="w-5 h-5" />}
                   {stat.type === 'qualified' && <Trophy className="w-5 h-5" />}
                 </div>
-                
+
                 <div className="apple-show-stat-content">
                   <div className="apple-show-stat-header">
                     <div className="apple-show-stat-title">{stat.title}</div>
@@ -279,14 +306,14 @@ const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
                   <div className="apple-show-stat-number">{stat.value}</div>
                 </div>
               </div>
-              
+
               <div className="apple-show-stat-details">
                 <span>{stat.detail1}</span>
                 <span>{stat.detail2}</span>
               </div>
-              
+
               <div className="apple-show-stat-progress">
-                <div 
+                <div
                   className={`apple-show-stat-progress-bar ${stat.type}`}
                   style={{ width: `${stat.progress}%` }}
                 ></div>
@@ -306,7 +333,7 @@ const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
             Classes
           </div>
         </div>
-        
+
         <TrialClassesTable
           classes={trial.classes || []}
           trialId={trial.id}

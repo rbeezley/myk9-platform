@@ -10,7 +10,7 @@ export interface Show {
   date: string;
   location: string;
   imageUrl: string;
-  type?: string | undefined;
+  organization?: string | undefined;
 }
 
 export type UpcomingShowsVariant = 'carousel' | 'grid';

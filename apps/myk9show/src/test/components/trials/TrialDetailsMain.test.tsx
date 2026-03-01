@@ -26,7 +26,7 @@ const renderWithRouter = (ui: React.ReactElement) => {
 const mockTrial: Trial & { classes?: TrialClass[] } = {
   id: 'trial-1',
   showId: 'show-1',
-  type: 'Scent Work',
+  organization: 'Scent Work',
   status: 'Upcoming',
   trialDate: '2024-06-15',
   trialNumber: 'T001',
@@ -93,11 +93,7 @@ describe('TrialDetailsMain', () => {
   describe('Statistics Cards - Contextual Subtitles', () => {
     it('displays contextual subtitle instead of percent change for judges', () => {
       renderWithRouter(
-        <TrialDetailsMain
-          trial={mockTrial}
-          statistics={mockStatistics}
-          {...mockHandlers}
-        />
+        <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
       );
 
       // Should show "1 active" instead of "+50%"
@@ -107,11 +103,7 @@ describe('TrialDetailsMain', () => {
 
     it('shows progress text for classes card', () => {
       renderWithRouter(
-        <TrialDetailsMain
-          trial={mockTrial}
-          statistics={mockStatistics}
-          {...mockHandlers}
-        />
+        <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
       );
 
       // Should show "3 of 12 completed"
@@ -120,11 +112,7 @@ describe('TrialDetailsMain', () => {
 
     it('shows scored count for entries card', () => {
       renderWithRouter(
-        <TrialDetailsMain
-          trial={mockTrial}
-          statistics={mockStatistics}
-          {...mockHandlers}
-        />
+        <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
       );
 
       // Should show "24 scored"
@@ -146,11 +134,7 @@ describe('TrialDetailsMain', () => {
 
     it('shows Qualified Rate card when classes are completed', () => {
       renderWithRouter(
-        <TrialDetailsMain
-          trial={mockTrial}
-          statistics={mockStatistics}
-          {...mockHandlers}
-        />
+        <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
       );
 
       // Should show Qualified Rate
@@ -174,11 +158,7 @@ describe('TrialDetailsMain', () => {
   describe('Trial Info Card', () => {
     it('does not display Order field', () => {
       renderWithRouter(
-        <TrialDetailsMain
-          trial={mockTrial}
-          statistics={mockStatistics}
-          {...mockHandlers}
-        />
+        <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
       );
 
       // Should not show "Order" label
@@ -188,11 +168,7 @@ describe('TrialDetailsMain', () => {
 
     it('displays Total Classes field instead of Order', () => {
       renderWithRouter(
-        <TrialDetailsMain
-          trial={mockTrial}
-          statistics={mockStatistics}
-          {...mockHandlers}
-        />
+        <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
       );
 
       // Should have Total Classes label in the info card
@@ -204,11 +180,7 @@ describe('TrialDetailsMain', () => {
 
     it('displays Trial Number and Event Number', () => {
       renderWithRouter(
-        <TrialDetailsMain
-          trial={mockTrial}
-          statistics={mockStatistics}
-          {...mockHandlers}
-        />
+        <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
       );
 
       expect(screen.getByText('Trial Number')).toBeInTheDocument();
@@ -219,11 +191,7 @@ describe('TrialDetailsMain', () => {
   describe('Action Buttons', () => {
     it('displays Edit button visibly (not hidden in dropdown)', async () => {
       renderWithRouter(
-        <TrialDetailsMain
-          trial={mockTrial}
-          statistics={mockStatistics}
-          {...mockHandlers}
-        />
+        <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
       );
 
       // Find the visible edit button by its title
@@ -234,11 +202,7 @@ describe('TrialDetailsMain', () => {
     it('calls onEdit when Edit button is clicked', async () => {
       const user = userEvent.setup();
       renderWithRouter(
-        <TrialDetailsMain
-          trial={mockTrial}
-          statistics={mockStatistics}
-          {...mockHandlers}
-        />
+        <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
       );
 
       const editButton = screen.getByTitle('Edit Trial');
@@ -249,11 +213,7 @@ describe('TrialDetailsMain', () => {
 
     it('keeps Delete in dropdown menu', () => {
       renderWithRouter(
-        <TrialDetailsMain
-          trial={mockTrial}
-          statistics={mockStatistics}
-          {...mockHandlers}
-        />
+        <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
       );
 
       // Delete should not be immediately visible (it's in the dropdown)
@@ -262,11 +222,7 @@ describe('TrialDetailsMain', () => {
 
     it('has a dropdown menu trigger button', () => {
       renderWithRouter(
-        <TrialDetailsMain
-          trial={mockTrial}
-          statistics={mockStatistics}
-          {...mockHandlers}
-        />
+        <TrialDetailsMain trial={mockTrial} statistics={mockStatistics} {...mockHandlers} />
       );
 
       // The dropdown menu trigger should exist in the DOM

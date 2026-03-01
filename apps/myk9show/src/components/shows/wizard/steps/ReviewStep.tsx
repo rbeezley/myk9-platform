@@ -214,8 +214,8 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                 </div>
 
                 <div>
-                  <div className="text-sm text-muted-foreground">Show Type</div>
-                  <div className="text-foreground font-medium">{show.type}</div>
+                  <div className="text-sm text-muted-foreground">Organization</div>
+                  <div className="text-foreground font-medium">{show.organization}</div>
                 </div>
 
                 <div>

@@ -69,7 +69,7 @@ export const showToFormData = (show: Partial<Show>): ShowEditFormData => {
   return {
     name: show.name || '',
     status: show.status || 'draft',
-    type: show.type || '',
+    organization: show.organization || '',
     clubId: show.clubId || '',
     startDate: show.startDate || '',
     endDate: show.endDate || '',
@@ -96,7 +96,7 @@ export const showToFormData = (show: Partial<Show>): ShowEditFormData => {
 export const formDataToShow = (formData: ShowEditFormData): Partial<Show> => ({
   name: formData.name,
   status: formData.status,
-  type: formData.type,
+  organization: formData.organization,
   clubId: formData.clubId,
   startDate: formData.startDate,
   endDate: formData.endDate,

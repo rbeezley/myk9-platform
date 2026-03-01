@@ -492,8 +492,8 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
 
               <div className="apple-show-info-grid-4col">
                 <div className="apple-show-info-item">
-                  <div className="apple-show-info-label">Show Type</div>
-                  <div className="apple-show-info-value">{showData.type}</div>
+                  <div className="apple-show-info-label">Organization</div>
+                  <div className="apple-show-info-value">{showData.organization}</div>
                 </div>
                 <div className="apple-show-info-item">
                   <div className="apple-show-info-label">Chairman</div>

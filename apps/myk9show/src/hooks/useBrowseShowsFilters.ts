@@ -106,7 +106,7 @@ export function useBrowseShowsFilters({
         show =>
           show.name.toLowerCase().includes(searchLower) ||
           show.location.toLowerCase().includes(searchLower) ||
-          show.type.toLowerCase().includes(searchLower)
+          show.organization.toLowerCase().includes(searchLower)
       );
     }
 
@@ -114,7 +114,7 @@ export function useBrowseShowsFilters({
     if (filters.discipline !== 'all') {
       const showType = DISCIPLINE_MAP[filters.discipline];
       if (showType) {
-        filtered = filtered.filter(show => show.type.includes(showType));
+        filtered = filtered.filter(show => show.organization.includes(showType));
       }
     }
 

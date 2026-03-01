@@ -87,8 +87,8 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
     return initialStates;
   });
 
-  // Extract show type for stable dependency
-  const showType = show?.type;
+  // Extract show organization for stable dependency
+  const showType = show?.organization;
 
   // Filter templates to active ones matching the show organization
   const activeTemplates = useMemo(() => {
@@ -259,8 +259,8 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
             <Alert>
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
-                {show?.type
-                  ? `No active templates found for "${show.type}" organization. Please create a template for this organization or ensure your templates are activated.`
+                {show?.organization
+                  ? `No active templates found for "${show.organization}" organization. Please create a template for this organization or ensure your templates are activated.`
                   : 'No active templates are available. Please create a template first or ensure your templates are activated.'}
               </AlertDescription>
             </Alert>

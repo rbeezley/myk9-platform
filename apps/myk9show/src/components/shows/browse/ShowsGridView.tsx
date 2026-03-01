@@ -117,7 +117,7 @@ export const ShowsGridView: React.FC<ShowsGridViewProps> = ({
 
             <div className="apple-browse-card-header">
               <div className="apple-browse-card-badges">
-                {getTypeBadge(show.type)}
+                {getTypeBadge(show.organization)}
                 <EntryStatusBadge show={show} userHasEntries={hasUserEntries} size="sm" />
               </div>
             </div>

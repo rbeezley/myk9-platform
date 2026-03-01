@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
-import { 
+import {
   Calendar,
   MapPin,
   DollarSign,
@@ -12,7 +12,7 @@ import {
   AlertTriangle,
   CheckCircle,
   Clock,
-  Star
+  Star,
 } from 'lucide-react';
 import { format, parseISO, addYears } from 'date-fns';
 
@@ -29,7 +29,7 @@ interface CloneTransformation {
 interface CloneableShow {
   id: string;
   name: string;
-  type: string;
+  organization: string;
   startDate: string;
   endDate: string;
   location: string;
@@ -51,7 +51,7 @@ export const CloneReviewStep: React.FC<CloneReviewStepProps> = ({
   originalShow,
   transformation,
   onTransformationChange,
-  className
+  className,
 }) => {
   if (!originalShow) return null;
 
@@ -59,7 +59,7 @@ export const CloneReviewStep: React.FC<CloneReviewStepProps> = ({
   const originalStartDate = parseISO(originalShow.startDate);
   const originalEndDate = parseISO(originalShow.endDate);
   const originalDeadline = parseISO(originalShow.entryDeadline);
-  
+
   const newStartDate = addYears(originalStartDate, transformation.dateShift);
   const newEndDate = addYears(originalEndDate, transformation.dateShift);
   const newDeadline = addYears(originalDeadline, transformation.dateShift);
@@ -69,7 +69,7 @@ export const CloneReviewStep: React.FC<CloneReviewStepProps> = ({
     const trialCount = show.trials?.length || 0;
     const classCount = show.classes?.length || 0;
     const judgeCount = show.judgeIds?.length || 0;
-    
+
     return { trialCount, classCount, judgeCount };
   };
 
@@ -99,14 +99,17 @@ export const CloneReviewStep: React.FC<CloneReviewStepProps> = ({
             <CardContent className="space-y-4">
               <div>
                 <h4 className="font-medium">{originalShow.name}</h4>
-                <Badge variant="outline" className="mt-1">{originalShow.type}</Badge>
+                <Badge variant="outline" className="mt-1">
+                  {originalShow.organization}
+                </Badge>
               </div>
 
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                   <span>
-                    {format(originalStartDate, 'MMM d, yyyy')} - {format(originalEndDate, 'MMM d, yyyy')}
+                    {format(originalStartDate, 'MMM d, yyyy')} -{' '}
+                    {format(originalEndDate, 'MMM d, yyyy')}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -152,10 +155,10 @@ export const CloneReviewStep: React.FC<CloneReviewStepProps> = ({
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <h4 className="font-medium">
-                  {transformation.newName || originalShow.name}
-                </h4>
-                <Badge variant="outline" className="mt-1">{originalShow.type}</Badge>
+                <h4 className="font-medium">{transformation.newName || originalShow.name}</h4>
+                <Badge variant="outline" className="mt-1">
+                  {originalShow.organization}
+                </Badge>
               </div>
 
               <div className="space-y-2 text-sm">
@@ -213,23 +216,25 @@ export const CloneReviewStep: React.FC<CloneReviewStepProps> = ({
             {/* Basic Details */}
             <div className="space-y-4">
               <h4 className="font-medium text-sm">Basic Details</h4>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium">Show Name</label>
                   <Input
                     value={transformation.newName || ''}
-                    onChange={(e) => onTransformationChange({ newName: e.target.value })}
+                    onChange={e => onTransformationChange({ newName: e.target.value })}
                     placeholder={originalShow.name}
                   />
                 </div>
-                
+
                 <div>
                   <label className="text-sm font-medium">Date Shift (Years)</label>
                   <Input
                     type="number"
                     value={transformation.dateShift}
-                    onChange={(e) => onTransformationChange({ dateShift: parseInt(e.target.value) || 1 })}
+                    onChange={e =>
+                      onTransformationChange({ dateShift: parseInt(e.target.value) || 1 })
+                    }
                     min="0"
                     max="10"
                   />
@@ -242,7 +247,7 @@ export const CloneReviewStep: React.FC<CloneReviewStepProps> = ({
             {/* Update Options */}
             <div className="space-y-4">
               <h4 className="font-medium text-sm">Update Options</h4>
-              
+
               <div className="space-y-4">
                 {/* Update Fees */}
                 <div className="flex items-center justify-between">
@@ -254,7 +259,7 @@ export const CloneReviewStep: React.FC<CloneReviewStepProps> = ({
                   </div>
                   <Switch
                     checked={transformation.updateFees}
-                    onCheckedChange={(checked) => onTransformationChange({ updateFees: checked })}
+                    onCheckedChange={checked => onTransformationChange({ updateFees: checked })}
                   />
                 </div>
 
@@ -264,7 +269,11 @@ export const CloneReviewStep: React.FC<CloneReviewStepProps> = ({
                     <Input
                       type="number"
                       value={transformation.newEntryFee || ''}
-                      onChange={(e) => onTransformationChange({ newEntryFee: parseFloat(e.target.value) || undefined })}
+                      onChange={e =>
+                        onTransformationChange({
+                          newEntryFee: parseFloat(e.target.value) || undefined,
+                        })
+                      }
                       placeholder={originalShow.entryFee.toString()}
                       min="0"
                       step="0.01"
@@ -282,7 +291,7 @@ export const CloneReviewStep: React.FC<CloneReviewStepProps> = ({
                   </div>
                   <Switch
                     checked={transformation.updateLocation}
-                    onCheckedChange={(checked) => onTransformationChange({ updateLocation: checked })}
+                    onCheckedChange={checked => onTransformationChange({ updateLocation: checked })}
                   />
                 </div>
 
@@ -291,7 +300,7 @@ export const CloneReviewStep: React.FC<CloneReviewStepProps> = ({
                     <label className="text-sm font-medium">New Location</label>
                     <Input
                       value={transformation.newLocation || ''}
-                      onChange={(e) => onTransformationChange({ newLocation: e.target.value })}
+                      onChange={e => onTransformationChange({ newLocation: e.target.value })}
                       placeholder={originalShow.location}
                     />
                   </div>
@@ -307,7 +316,7 @@ export const CloneReviewStep: React.FC<CloneReviewStepProps> = ({
                   </div>
                   <Switch
                     checked={transformation.updateJudges}
-                    onCheckedChange={(checked) => onTransformationChange({ updateJudges: checked })}
+                    onCheckedChange={checked => onTransformationChange({ updateJudges: checked })}
                   />
                 </div>
 
@@ -317,7 +326,9 @@ export const CloneReviewStep: React.FC<CloneReviewStepProps> = ({
                       <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
                       <div className="text-sm text-yellow-800">
                         <div className="font-medium">Judge Assignments Will Be Cleared</div>
-                        <div>You'll need to reassign judges for all classes in the cloned show.</div>
+                        <div>
+                          You'll need to reassign judges for all classes in the cloned show.
+                        </div>
                       </div>
                     </div>
                   </div>

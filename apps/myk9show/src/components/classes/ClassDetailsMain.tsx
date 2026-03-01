@@ -1,9 +1,27 @@
 import React, { useState, useCallback } from 'react';
-import { Users, Calendar, Trophy, Edit, Trash2, MoreVertical, Clock, UserCheck, ClipboardList, DollarSign, Settings } from 'lucide-react';
+import {
+  Users,
+  Calendar,
+  Trophy,
+  Edit,
+  Trash2,
+  MoreVertical,
+  Clock,
+  UserCheck,
+  ClipboardList,
+  DollarSign,
+  Settings,
+} from 'lucide-react';
 import { CLASS_STATUS, getNextClassStatus, type ClassStatusValue } from '@myk9/core';
 import { ClassData, EntryData } from './types/classTypes';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { ClassResultsTable } from './ClassResultsTable';
 import ExpandableSection from './ExpandableSection';
 import SectionToggleControls from './SectionToggleControls';
@@ -17,11 +35,11 @@ import { createUserPermissions, UserPermissions } from '@/types/user-permissions
 import { useDogStore } from '@/store/dogStore';
 import { logger } from '@/services/LoggingService';
 import type {
-  ScentWorkEntry, 
-  ScentWorkResult, 
+  ScentWorkEntry,
+  ScentWorkResult,
   MultiAreaScentWorkResult,
   ScentWorkClassConfig,
-  QualificationStatus 
+  QualificationStatus,
 } from '@/types/scent-work-types';
 import '@/styles/apple-show-details.css';
 
@@ -54,7 +72,7 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
   onAddEntry,
   onDeleteEntry,
   onStatusChange,
-  onResultUpdate
+  onResultUpdate,
 }) => {
   // Generate breadcrumb items
   const breadcrumbItems = useBreadcrumb({
@@ -62,17 +80,18 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
     show: parentShow,
     trial: parentTrial,
     classId: classData.id,
-    className: isResultsView ? `${classData.className} - Results` : classData.className
+    className: isResultsView ? `${classData.className} - Results` : classData.className,
   });
 
   // Helper function to count populated fields
   const countPopulatedFields = (fields: (string | number | boolean | undefined)[]): number => {
-    return fields.filter(field => 
-      field !== undefined && 
-      field !== null && 
-      field !== '' && 
-      // For booleans, only count 'true' values since we only show them when true
-      (typeof field === 'boolean' ? field === true : field !== 0)
+    return fields.filter(
+      field =>
+        field !== undefined &&
+        field !== null &&
+        field !== '' &&
+        // For booleans, only count 'true' values since we only show them when true
+        (typeof field === 'boolean' ? field === true : field !== 0)
     ).length;
   };
 
@@ -83,9 +102,8 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
     classData.timeLimit2,
     classData.timeLimit3,
     classData.startTime,
-    classData.endTime
+    classData.endTime,
   ]);
-  
 
   const officialsFieldsCount = countPopulatedFields([
     classData.gateSteward,
@@ -93,24 +111,23 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
     classData.timerSteward,
     classData.ringSteward1,
     classData.ringSteward2,
-    classData.ringSteward3
+    classData.ringSteward3,
   ]);
 
   const requirementsFieldsCount = countPopulatedFields([
     classData.hidesUsed,
     classData.distractionsUsed,
     classData.itemsUsed,
-    classData.requiresJumpHeight
+    classData.requiresJumpHeight,
   ]);
 
   const feesFieldsCount = countPopulatedFields([
     classData.preEntryFee,
     classData.dayOfShowFee,
-    classData.entryFee
+    classData.entryFee,
   ]);
 
   const customFieldsCount = classData.customFields ? Object.keys(classData.customFields).length : 0;
-
 
   // State for section controls
   const [forceExpandAll, setForceExpandAll] = useState<boolean | undefined>(undefined);
@@ -138,57 +155,62 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
   const excused = classEntries.filter(entry => entry.status === 'Excused').length;
   const withdrawn = classEntries.filter(entry => entry.status === 'Withdrawn').length;
   const absent = classEntries.filter(entry => entry.status === 'Absent').length;
-  
+
   // Calculate completed vs pending
-  const completedEntries = classEntries.filter(entry => 
-    entry.time || entry.score || ['Qualified', 'Not Qualified', 'Excused', 'Withdrawn', 'Absent'].includes(entry.status)
+  const completedEntries = classEntries.filter(
+    entry =>
+      entry.time ||
+      entry.score ||
+      ['Qualified', 'Not Qualified', 'Excused', 'Withdrawn', 'Absent'].includes(entry.status)
   ).length;
   const pendingEntries = totalEntries - completedEntries;
-  
+
   // Check if this is a Scent Work show
-  const isScentWork = parentShow?.type?.toLowerCase().includes('scent work') || 
-                       parentShow?.type?.toLowerCase().includes('scentwork') ||
-                       parentShow?.type?.toLowerCase().includes('nosework');
+  const isScentWork =
+    parentShow?.organization?.toLowerCase().includes('scent work') ||
+    parentShow?.organization?.toLowerCase().includes('scentwork') ||
+    parentShow?.organization?.toLowerCase().includes('nosework');
 
   // Build stats array conditionally
   const stats = [
     {
-      title: "Total Entries",
+      title: 'Total Entries',
       value: totalEntries.toString(),
-      trend: "",  // Removed misleading hardcoded trend
+      trend: '', // Removed misleading hardcoded trend
       detail1: `${completedEntries} completed`,
       detail2: `${pendingEntries} pending`,
       progress: totalEntries > 0 ? Math.round((completedEntries / totalEntries) * 100) : 0,
-      type: "entries"
+      type: 'entries',
     },
     {
-      title: "Qualified Rate", 
+      title: 'Qualified Rate',
       value: `${totalEntries > 0 ? Math.round((qualified / totalEntries) * 100) : 0}%`,
-      trend: "",  // Removed misleading hardcoded trend
+      trend: '', // Removed misleading hardcoded trend
       detail1: `${qualified} Qualified`,
       detail2: `${notQualified} NQ`,
-      detail3: excused + withdrawn + absent > 0 
-        ? `${excused + withdrawn + absent} Other` 
-        : undefined, // New detail line for other statuses
+      detail3:
+        excused + withdrawn + absent > 0 ? `${excused + withdrawn + absent} Other` : undefined, // New detail line for other statuses
       progress: totalEntries > 0 ? Math.round((qualified / totalEntries) * 100) : 0,
-      type: "classes"
-    }
+      type: 'classes',
+    },
   ];
-  
+
   // Only add average score for non-scent work shows
   if (!isScentWork) {
-    const avgScore = classEntries.length > 0 
-      ? classEntries.reduce((sum, entry) => sum + (parseFloat(entry.score) || 0), 0) / classEntries.length
-      : 0;
-      
+    const avgScore =
+      classEntries.length > 0
+        ? classEntries.reduce((sum, entry) => sum + (parseFloat(entry.score) || 0), 0) /
+          classEntries.length
+        : 0;
+
     stats.push({
-      title: "Avg Score",
-      value: avgScore > 0 ? avgScore.toFixed(1) : "0",
-      trend: "",  // Removed misleading hardcoded trend
+      title: 'Avg Score',
+      value: avgScore > 0 ? avgScore.toFixed(1) : '0',
+      trend: '', // Removed misleading hardcoded trend
       detail1: `Out of 100 points`,
       detail2: `Class average`,
       progress: avgScore > 0 ? Math.round(avgScore) : 0,
-      type: "trials"
+      type: 'trials',
     });
   }
 
@@ -201,19 +223,27 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
 
   const getStatusClass = useCallback((status: string) => {
     switch (status) {
-      case CLASS_STATUS.SCHEDULED: return 'apple-show-status-upcoming';
-      case CLASS_STATUS.IN_PROGRESS: return 'apple-show-status-in-progress';
-      case CLASS_STATUS.COMPLETED: return 'apple-show-status-completed';
-      default: return 'apple-show-status-upcoming';
+      case CLASS_STATUS.SCHEDULED:
+        return 'apple-show-status-upcoming';
+      case CLASS_STATUS.IN_PROGRESS:
+        return 'apple-show-status-in-progress';
+      case CLASS_STATUS.COMPLETED:
+        return 'apple-show-status-completed';
+      default:
+        return 'apple-show-status-upcoming';
     }
   }, []);
 
   const getStatusIcon = useCallback((status: string) => {
     switch (status) {
-      case CLASS_STATUS.SCHEDULED: return <Calendar className="w-3 h-3" />;
-      case CLASS_STATUS.IN_PROGRESS: return <Users className="w-3 h-3" />;
-      case CLASS_STATUS.COMPLETED: return <Trophy className="w-3 h-3" />;
-      default: return <Calendar className="w-3 h-3" />;
+      case CLASS_STATUS.SCHEDULED:
+        return <Calendar className="w-3 h-3" />;
+      case CLASS_STATUS.IN_PROGRESS:
+        return <Users className="w-3 h-3" />;
+      case CLASS_STATUS.COMPLETED:
+        return <Trophy className="w-3 h-3" />;
+      default:
+        return <Calendar className="w-3 h-3" />;
     }
   }, []);
 
@@ -230,7 +260,7 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
   // Create user permissions based on role
   const userPermissions: UserPermissions = React.useMemo(() => {
     const displayName = user?.email || 'Unknown User';
-    
+
     if (hasRole(UserRole.SITE_ADMIN)) {
       return createUserPermissions('admin', user?.id, displayName);
     } else if (hasRole(UserRole.SECRETARY)) {
@@ -243,24 +273,29 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
   }, [user, hasRole]);
 
   // Create class configuration for BulkResultEntry
-  const classConfig: ScentWorkClassConfig = React.useMemo(() => ({
-    element: (classData.element as 'Interior' | 'Exterior' | 'Container' | 'Buried') || 'Interior',
-    level: (classData.level as 'Novice' | 'Advanced' | 'Excellent' | 'Masters') || 'Novice',
-    timeLimit: (classData.timeLimit1 && parseInt(classData.timeLimit1) * 1000) || 180000, // Convert to milliseconds
-    multiArea: false,
-    warningsEnabled: true
-  }), [classData.element, classData.level, classData.timeLimit1]);
+  const classConfig: ScentWorkClassConfig = React.useMemo(
+    () => ({
+      element:
+        (classData.element as 'Interior' | 'Exterior' | 'Container' | 'Buried') || 'Interior',
+      level: (classData.level as 'Novice' | 'Advanced' | 'Excellent' | 'Masters') || 'Novice',
+      timeLimit: (classData.timeLimit1 && parseInt(classData.timeLimit1) * 1000) || 180000, // Convert to milliseconds
+      multiArea: false,
+      warningsEnabled: true,
+    }),
+    [classData.element, classData.level, classData.timeLimit1]
+  );
 
   // Transform classEntries to ScentWorkEntry format for BulkResultEntry
   const scentWorkEntries: ScentWorkEntry[] = React.useMemo(() => {
     return classEntries.map(entry => {
       // Find dog by name since EntryData uses dog name as string
-      const dog = dogs.find(d => 
-        d.name === entry.dog || 
-        d.callName === entry.dog ||
-        d.name.toLowerCase() === entry.dog.toLowerCase()
+      const dog = dogs.find(
+        d =>
+          d.name === entry.dog ||
+          d.callName === entry.dog ||
+          d.name.toLowerCase() === entry.dog.toLowerCase()
       );
-      
+
       return {
         id: entry.id,
         showId: classData.id, // Use classId as showId for now
@@ -274,17 +309,25 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
           paymentStatus: 'paid' as const,
           armband: entry.armband || '',
         },
-        competitionData: entry.time || entry.score || entry.status ? {
-          time: entry.time || '',
-          score: entry.score || '',
-          qualified: entry.status === 'Qualified' ? true : entry.status === 'Not Qualified' ? false : undefined,
-          qualification: entry.status || '',
-          qualificationReason: entry.qualificationReason || '',
-          placement: entry.placement || '',
-          judgeNotes: '',
-          recordedBy: 'Secretary',
-          recordedAt: new Date().toISOString()
-        } : undefined,
+        competitionData:
+          entry.time || entry.score || entry.status
+            ? {
+                time: entry.time || '',
+                score: entry.score || '',
+                qualified:
+                  entry.status === 'Qualified'
+                    ? true
+                    : entry.status === 'Not Qualified'
+                      ? false
+                      : undefined,
+                qualification: entry.status || '',
+                qualificationReason: entry.qualificationReason || '',
+                placement: entry.placement || '',
+                judgeNotes: '',
+                recordedBy: 'Secretary',
+                recordedAt: new Date().toISOString(),
+              }
+            : undefined,
         statusHistory: [],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -296,29 +339,30 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
           dogName: entry.dog || 'Unknown Dog',
           dogBreed: dog?.registrations?.[0]?.breed || 'Unknown Breed',
           handlerName: entry.handler || 'Unknown Handler',
-          dogId: dog?.id || '', 
-          handlerId: ''
+          dogId: dog?.id || '',
+          handlerId: '',
         },
         judgingState: {
           isInProgress: false,
-          currentResult: entry.time || entry.score || entry.status ? {
-            entryId: entry.id,
-            classId: classData.id,
-            searchTime: entry.score ? parseFloat(entry.score) * 1000 : 0,
-            maxTimeAllowed: classConfig.timeLimit,
-            qualification: entry.status as QualificationStatus,
-            qualificationReason: entry.qualificationReason,
-            faults: 0,
-            judgeNotes: '',
-            recordedBy: 'System',
-            recordedAt: new Date()
-          } : undefined
-        }
+          currentResult:
+            entry.time || entry.score || entry.status
+              ? {
+                  entryId: entry.id,
+                  classId: classData.id,
+                  searchTime: entry.score ? parseFloat(entry.score) * 1000 : 0,
+                  maxTimeAllowed: classConfig.timeLimit,
+                  qualification: entry.status as QualificationStatus,
+                  qualificationReason: entry.qualificationReason,
+                  faults: 0,
+                  judgeNotes: '',
+                  recordedBy: 'System',
+                  recordedAt: new Date(),
+                }
+              : undefined,
+        },
       };
     });
   }, [classEntries, dogs, classData, classConfig]);
-
-
 
   // Helper function to format time from milliseconds to MM:SS.HH format
   const formatTime = React.useCallback((ms: number): string => {
@@ -330,29 +374,35 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
   }, []);
 
   // Handle results submission from BulkResultEntry
-  const handleResultsSubmit = React.useCallback(async (results: (ScentWorkResult | MultiAreaScentWorkResult)[]) => {
-    if (!onResultUpdate) return;
+  const handleResultsSubmit = React.useCallback(
+    async (results: (ScentWorkResult | MultiAreaScentWorkResult)[]) => {
+      if (!onResultUpdate) return;
 
-    try {
-      for (const result of results) {
-        // Check if it's a ScentWorkResult (has searchTime) or MultiAreaScentWorkResult (has totalSearchTime)
-        const searchTime = 'searchTime' in result ? result.searchTime : result.totalSearchTime;
+      try {
+        for (const result of results) {
+          // Check if it's a ScentWorkResult (has searchTime) or MultiAreaScentWorkResult (has totalSearchTime)
+          const searchTime = 'searchTime' in result ? result.searchTime : result.totalSearchTime;
 
-        // Transform ScentWorkResult back to EntryData format for onResultUpdate
-        const entryUpdate: Partial<EntryData> = {
-          time: searchTime ? formatTime(searchTime) : '',
-          status: result.qualification, // Don't cast - preserve all qualification values
-          qualificationReason: (result as ScentWorkResult).qualificationReason || undefined,
-          score: searchTime ? (searchTime / 1000).toString() : '',
-          placement: (result as ScentWorkResult & { placementCalculated?: number }).placementCalculated?.toString() || ''
-        };
+          // Transform ScentWorkResult back to EntryData format for onResultUpdate
+          const entryUpdate: Partial<EntryData> = {
+            time: searchTime ? formatTime(searchTime) : '',
+            status: result.qualification, // Don't cast - preserve all qualification values
+            qualificationReason: (result as ScentWorkResult).qualificationReason || undefined,
+            score: searchTime ? (searchTime / 1000).toString() : '',
+            placement:
+              (
+                result as ScentWorkResult & { placementCalculated?: number }
+              ).placementCalculated?.toString() || '',
+          };
 
-        await onResultUpdate(result.entryId, entryUpdate);
+          await onResultUpdate(result.entryId, entryUpdate);
+        }
+      } catch (error) {
+        logger.error('❌ Error submitting results:', 'classes', {}, error as Error);
       }
-    } catch (error) {
-      logger.error('❌ Error submitting results:', 'classes', {}, error as Error);
-    }
-  }, [onResultUpdate, formatTime]);
+    },
+    [onResultUpdate, formatTime]
+  );
 
   return (
     <div className="apple-show-container">
@@ -389,10 +439,7 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
                   Edit Class
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem 
-                  onClick={onDeleteClass}
-                  className="text-red-600"
-                >
+                <DropdownMenuItem onClick={onDeleteClass} className="text-red-600">
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete Class
                 </DropdownMenuItem>
@@ -400,7 +447,7 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
             </DropdownMenu>
           )}
         </div>
-        
+
         {/* Essential Information - Always Visible */}
         <div className="apple-show-info-grid">
           <div className="apple-show-info-item">
@@ -409,7 +456,9 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
           </div>
           <div className="apple-show-info-item">
             <div className="apple-show-info-label">Trial Date</div>
-            <div className="apple-show-info-value">{new Date(classData.trialDate).toLocaleDateString()}</div>
+            <div className="apple-show-info-value">
+              {new Date(classData.trialDate).toLocaleDateString()}
+            </div>
           </div>
           <div className="apple-show-info-item">
             <div className="apple-show-info-label">Judge</div>
@@ -439,10 +488,7 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
 
         {/* Section Controls */}
         <div className="mt-6 flex justify-end">
-          <SectionToggleControls
-            onExpandAll={handleExpandAll}
-            onCollapseAll={handleCollapseAll}
-          />
+          <SectionToggleControls onExpandAll={handleExpandAll} onCollapseAll={handleCollapseAll} />
         </div>
 
         {/* Expandable Sections for Additional Details */}
@@ -484,13 +530,17 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
             {classData.startTime && (
               <div className="apple-show-info-item">
                 <div className="apple-show-info-label">Start Time</div>
-                <div className="apple-show-info-value">{new Date(classData.startTime).toLocaleTimeString()}</div>
+                <div className="apple-show-info-value">
+                  {new Date(classData.startTime).toLocaleTimeString()}
+                </div>
               </div>
             )}
             {classData.endTime && (
               <div className="apple-show-info-item">
                 <div className="apple-show-info-label">End Time</div>
-                <div className="apple-show-info-value">{new Date(classData.endTime).toLocaleTimeString()}</div>
+                <div className="apple-show-info-value">
+                  {new Date(classData.endTime).toLocaleTimeString()}
+                </div>
               </div>
             )}
           </ExpandableSection>
@@ -620,12 +670,15 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
               forceExpanded={forceExpandAll}
               forceCollapsed={forceCollapseAll}
             >
-              {classData.customFields && Object.entries(classData.customFields).map(([key, value]) => (
-                <div key={key} className="apple-show-info-item">
-                  <div className="apple-show-info-label">{key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}</div>
-                  <div className="apple-show-info-value">{value}</div>
-                </div>
-              ))}
+              {classData.customFields &&
+                Object.entries(classData.customFields).map(([key, value]) => (
+                  <div key={key} className="apple-show-info-item">
+                    <div className="apple-show-info-label">
+                      {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                    </div>
+                    <div className="apple-show-info-value">{value}</div>
+                  </div>
+                ))}
             </ExpandableSection>
           )}
         </div>
@@ -642,7 +695,7 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
                   {stat.type === 'classes' && <Trophy className="w-5 h-5" />}
                   {stat.type === 'entries' && <Users className="w-5 h-5" />}
                 </div>
-                
+
                 <div className="apple-show-stat-content">
                   <div className="apple-show-stat-header">
                     <div className="apple-show-stat-title">{stat.title}</div>
@@ -651,15 +704,17 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
                   <div className="apple-show-stat-number">{stat.value}</div>
                 </div>
               </div>
-              
+
               <div className="apple-show-stat-details">
                 <span>{stat.detail1}</span>
                 <span>{stat.detail2}</span>
-                {stat.detail3 && <span className="text-xs text-muted-foreground">{stat.detail3}</span>}
+                {stat.detail3 && (
+                  <span className="text-xs text-muted-foreground">{stat.detail3}</span>
+                )}
               </div>
-              
+
               <div className="apple-show-stat-progress">
-                <div 
+                <div
                   className={`apple-show-stat-progress-bar ${stat.type}`}
                   style={{ width: `${stat.progress}%` }}
                 ></div>
@@ -668,7 +723,6 @@ const ClassDetailsMain: React.FC<ClassDetailsMainProps> = ({
           ))}
         </div>
       </div>
-
 
       {/* ENTRIES Section (not Trials) */}
       <ClassResultsTable

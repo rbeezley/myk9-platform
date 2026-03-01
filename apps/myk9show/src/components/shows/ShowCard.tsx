@@ -11,7 +11,7 @@ export interface ShowCardProps {
   date: string;
   location: string;
   imageUrl: string;
-  type?: string | undefined;
+  organization?: string | undefined;
   className?: string | undefined;
   syncStatus?: SyncStatus | undefined;
   lastSyncAt?: Date | undefined;
@@ -27,7 +27,7 @@ export const ShowCard: React.FC<ShowCardProps> = ({
   date,
   location,
   imageUrl,
-  type,
+  organization,
   className = '',
   syncStatus = 'synced',
   lastSyncAt,
@@ -55,9 +55,9 @@ export const ShowCard: React.FC<ShowCardProps> = ({
             className="bg-card/90 backdrop-blur-sm rounded-full p-1.5 shadow-sm border border-border/50"
           />
         )}
-        {type && (
+        {organization && (
           <div className="bg-primary text-primary-foreground text-xs font-semibold px-3 py-1 rounded-lg shadow-sm">
-            {type}
+            {organization}
           </div>
         )}
       </div>

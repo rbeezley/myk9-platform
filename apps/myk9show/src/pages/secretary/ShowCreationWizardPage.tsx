@@ -188,7 +188,7 @@ const ShowCreationWizardPage: React.FC = () => {
         loadDraft({
           show: {
             name: existingShow.name,
-            type: existingShow.type as 'AKC' | 'UKC' | 'Other',
+            organization: existingShow.organization as 'AKC' | 'UKC' | 'Other',
             startDate: existingShow.startDate,
             endDate: existingShow.endDate,
             location: existingShow.location,

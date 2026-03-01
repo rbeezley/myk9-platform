@@ -18,24 +18,24 @@ import { getTabQuickActions } from '@/utils/show-actions';
 // Mock the data hook - this is the primary data source for the page
 const mockUseBrowseShowsData = vi.fn();
 vi.mock('@/hooks/useBrowseShowsData', () => ({
-  useBrowseShowsData: (...args: unknown[]) => mockUseBrowseShowsData(...args)
+  useBrowseShowsData: (...args: unknown[]) => mockUseBrowseShowsData(...args),
 }));
 
 // Mock the filter hook
 const mockUseBrowseShowsFilters = vi.fn();
 vi.mock('@/hooks/useBrowseShowsFilters', () => ({
-  useBrowseShowsFilters: (...args: unknown[]) => mockUseBrowseShowsFilters(...args)
+  useBrowseShowsFilters: (...args: unknown[]) => mockUseBrowseShowsFilters(...args),
 }));
 
 // Mock services
 vi.mock('@/services/NotificationService', () => ({
-  useStatusUpdates: () => ({ subscribe: vi.fn(), unsubscribe: vi.fn() })
+  useStatusUpdates: () => ({ subscribe: vi.fn(), unsubscribe: vi.fn() }),
 }));
 vi.mock('@/hooks/useRealTimeUpdates', () => ({
-  useRealTimeUpdates: () => ({ subscribe: vi.fn(), unsubscribe: vi.fn() })
+  useRealTimeUpdates: () => ({ subscribe: vi.fn(), unsubscribe: vi.fn() }),
 }));
 vi.mock('@/services/AuditService', () => ({
-  auditService: { log: vi.fn(), logAction: vi.fn() }
+  auditService: { log: vi.fn(), logAction: vi.fn() },
 }));
 vi.mock('@/services/LoggingService', () => ({
   logger: {
@@ -43,37 +43,37 @@ vi.mock('@/services/LoggingService', () => ({
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
-    logUserAction: vi.fn()
-  }
+    logUserAction: vi.fn(),
+  },
 }));
 
 // Mock UI components that have deep dependency trees
 vi.mock('@/components/common/LazyComponents', () => ({
-  ShowCalendar: () => <div data-testid="show-calendar">Calendar</div>
+  ShowCalendar: () => <div data-testid="show-calendar">Calendar</div>,
 }));
 vi.mock('@/components/common/Breadcrumb', () => ({
-  Breadcrumb: () => <nav data-testid="breadcrumb">Breadcrumb</nav>
+  Breadcrumb: () => <nav data-testid="breadcrumb">Breadcrumb</nav>,
 }));
 vi.mock('@/components/common/SkeletonLoaders', () => ({
   ShowsPageSkeleton: () => <div data-testid="shows-page-skeleton">Loading...</div>,
   TabContentSkeleton: () => <div data-testid="tab-content-skeleton">Tab loading...</div>,
-  ShowCalendarSkeleton: () => <div data-testid="show-calendar-skeleton">Calendar loading...</div>
+  ShowCalendarSkeleton: () => <div data-testid="show-calendar-skeleton">Calendar loading...</div>,
 }));
 vi.mock('@/components/shows/EnhancedEmptyStates', () => ({
-  EnhancedEmptyState: () => <div data-testid="empty-state">No shows</div>
+  EnhancedEmptyState: () => <div data-testid="empty-state">No shows</div>,
 }));
 vi.mock('@/components/shows/browse', () => ({
   ShowsGridView: () => <div data-testid="shows-grid">Grid</div>,
-  ShowsListView: () => <div data-testid="shows-list">List</div>
+  ShowsListView: () => <div data-testid="shows-list">List</div>,
 }));
 vi.mock('@/components/auth/PermissionGuard', () => ({
-  PermissionGuard: ({ children }: { children: React.ReactNode }) => <>{children}</>
+  PermissionGuard: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 vi.mock('@/utils/browseShowsUtils', () => ({
   DISCIPLINE_LABELS: {} as Record<string, string>,
   ENTRY_STATUS_LABELS: {} as Record<string, string>,
   LOCATION_LABELS: {} as Record<string, string>,
-  DATE_RANGE_LABELS: {} as Record<string, string>
+  DATE_RANGE_LABELS: {} as Record<string, string>,
 }));
 vi.mock('@/styles/apple-show-details.css', () => ({}));
 
@@ -84,7 +84,7 @@ const mockShows: Show[] = [
   {
     id: 'show-1',
     name: 'Spring Agility Trial',
-    type: 'Agility',
+    organization: 'Agility',
     startDate: new Date(Date.now() + 86400000).toISOString(),
     endDate: new Date(Date.now() + 172800000).toISOString(),
     location: 'Test Location 1',
@@ -104,12 +104,12 @@ const mockShows: Show[] = [
     chiefSteward: 'steward-1',
     assignedJudges: [],
     stats: [],
-    trials: []
+    trials: [],
   },
   {
     id: 'show-2',
     name: 'Fall Obedience Trial',
-    type: 'Obedience',
+    organization: 'Obedience',
     startDate: new Date(Date.now() - 172800000).toISOString(),
     endDate: new Date(Date.now() - 86400000).toISOString(),
     location: 'Test Location 2',
@@ -129,8 +129,8 @@ const mockShows: Show[] = [
     chiefSteward: 'steward-2',
     assignedJudges: [],
     stats: [],
-    trials: []
-  }
+    trials: [],
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -138,10 +138,7 @@ const mockShows: Show[] = [
 // ---------------------------------------------------------------------------
 
 /** Create a mock UserWithRoles with all required Supabase User fields */
-const createMockUser = (
-  roles: UserRole | UserRole[],
-  id: string = 'test-user'
-): UserWithRoles => {
+const createMockUser = (roles: UserRole | UserRole[], id: string = 'test-user'): UserWithRoles => {
   const roleArray = Array.isArray(roles) ? roles : [roles];
   // Merge permissions for all roles
   const permissions = roleArray.flatMap(r => DEFAULT_ROLE_PERMISSIONS[r] || []);
@@ -160,7 +157,7 @@ const createMockUser = (
     updated_at: new Date().toISOString(),
     roles: roleArray,
     permissions,
-    scopes: []
+    scopes: [],
   };
 };
 
@@ -172,7 +169,7 @@ const defaultFilters: ShowFilters = {
   entryStatus: 'all',
   dateRange: 'upcoming',
   location: 'all',
-  organization: 'all'
+  organization: 'all',
 };
 
 /** Set up the mock hooks for a specific user scenario */
@@ -190,7 +187,7 @@ function setupMocks(options: {
     isLoading = false,
     hasError = false,
     showsError = null,
-    enhancedShows
+    enhancedShows,
   } = options;
 
   const tabConfig = getTabsForUser(user);
@@ -202,7 +199,7 @@ function setupMocks(options: {
     relationship: ['all' as const],
     userCanManage: false,
     userIsJudging: false,
-    userHasEntries: false
+    userHasEntries: false,
   }));
 
   mockUseBrowseShowsData.mockReturnValue({
@@ -215,11 +212,20 @@ function setupMocks(options: {
     entries: [],
     enhancedShows: enhancedShows ?? defaultEnhanced,
     tabConfig,
-    userContext: user ? { userId: user.id, roles: user.roles, permissions: user.permissions, managedShows: [], judgeAssignments: [], entries: [] } : null,
+    userContext: user
+      ? {
+          userId: user.id,
+          roles: user.roles,
+          permissions: user.permissions,
+          managedShows: [],
+          judgeAssignments: [],
+          entries: [],
+        }
+      : null,
     tabQuickActions,
     quickStats: defaultQuickStats,
     handleRetry: vi.fn(),
-    loadEntries: vi.fn()
+    loadEntries: vi.fn(),
   });
 
   mockUseBrowseShowsFilters.mockReturnValue({
@@ -228,7 +234,7 @@ function setupMocks(options: {
     filteredShows: shows,
     hasActiveFilters: false,
     clearAllFilters: vi.fn(),
-    activeFilterCount: 0
+    activeFilterCount: 0,
   });
 }
 
@@ -236,15 +242,13 @@ const renderWithProviders = (ui: React.ReactElement, { route = '/shows' } = {}) 
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
-      mutations: { retry: false }
-    }
+      mutations: { retry: false },
+    },
   });
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[route]}>
-        {ui}
-      </MemoryRouter>
+      <MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>
     </QueryClientProvider>
   );
 };
@@ -360,11 +364,13 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       const showsWithJudge = [...mockShows];
       showsWithJudge[0] = {
         ...showsWithJudge[0],
-        assignedJudges: [{
-          judgeId: 'judge-1',
-          assignedDate: new Date().toISOString(),
-          breed: 'All Breeds'
-        }]
+        assignedJudges: [
+          {
+            judgeId: 'judge-1',
+            assignedDate: new Date().toISOString(),
+            breed: 'All Breeds',
+          },
+        ],
       };
 
       setupMocks({ user: judgeUser, shows: showsWithJudge });
@@ -423,10 +429,7 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
 
   describe('Multi-Role User Tab Rendering', () => {
     it('should render combined tabs for exhibitor + secretary', async () => {
-      const multiRoleUser = createMockUser(
-        [UserRole.EXHIBITOR, UserRole.SECRETARY],
-        'multi-user'
-      );
+      const multiRoleUser = createMockUser([UserRole.EXHIBITOR, UserRole.SECRETARY], 'multi-user');
       setupMocks({ user: multiRoleUser });
 
       renderWithProviders(<BrowseShowsPage />);
@@ -441,10 +444,7 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
     });
 
     it('should render all tabs for secretary + judge combination', async () => {
-      const multiRoleUser = createMockUser(
-        [UserRole.SECRETARY, UserRole.JUDGE],
-        'multi-user'
-      );
+      const multiRoleUser = createMockUser([UserRole.SECRETARY, UserRole.JUDGE], 'multi-user');
       setupMocks({ user: multiRoleUser });
 
       renderWithProviders(<BrowseShowsPage />);
@@ -509,7 +509,7 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       setupMocks({
         user: createMockUser(UserRole.EXHIBITOR),
         isLoading: true,
-        shows: [] // Empty shows during loading so skeleton renders
+        shows: [], // Empty shows during loading so skeleton renders
       });
 
       renderWithProviders(<BrowseShowsPage />);
@@ -521,7 +521,7 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       setupMocks({
         user: createMockUser(UserRole.EXHIBITOR),
         hasError: true,
-        showsError: new Error('Failed to load shows')
+        showsError: new Error('Failed to load shows'),
       });
 
       renderWithProviders(<BrowseShowsPage />);

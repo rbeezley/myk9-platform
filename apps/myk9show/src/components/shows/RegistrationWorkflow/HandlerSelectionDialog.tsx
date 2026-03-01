@@ -20,7 +20,6 @@ interface HandlerSelectionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedDogs: string[];
-  showId: string;
   dogs: Dog[];
   onHandlerAssignment: (assignments: Record<string, HandlerInfo>) => void;
   initialAssignments?: Record<string, HandlerInfo>;
@@ -63,10 +62,12 @@ export const HandlerSelectionDialog: React.FC<HandlerSelectionDialogProps> = ({
     selectedDogs.forEach(dogId => {
       const dog = dogs.find(d => d.id === dogId);
       const name = handlerNames[dogId].trim();
-      const isOwner = !!dog?.ownerName && name === dog.ownerName;
+      const isOwner = !!dog?.ownerName && name.toLowerCase() === dog.ownerName.trim().toLowerCase();
 
       assignments[dogId] = {
-        handlerId: isOwner && dog?.ownerId ? dog.ownerId : 'custom',
+        // Always use ownerId when available (FK safety); handler name
+        // captures who is actually handling regardless of isOwner flag.
+        handlerId: dog?.ownerId || '',
         handlerName: name,
         isOwner,
       };

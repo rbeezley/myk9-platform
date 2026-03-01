@@ -14,7 +14,6 @@ interface HandlerAssignmentStepProps {
   classSelections: ClassSelectionData[];
   handlerAssignments: Record<string, HandlerInfo>;
   onHandlerAssignmentChange: (assignments: Record<string, HandlerInfo>) => void;
-  showId: string;
 }
 
 export const HandlerAssignmentStep: React.FC<HandlerAssignmentStepProps> = ({
@@ -22,7 +21,6 @@ export const HandlerAssignmentStep: React.FC<HandlerAssignmentStepProps> = ({
   classSelections,
   handlerAssignments,
   onHandlerAssignmentChange,
-  showId,
 }) => {
   const { dogs, isLoading } = useDogStoreCompat();
   const [editingDogId, setEditingDogId] = useState<string | null>(null);
@@ -129,7 +127,6 @@ export const HandlerAssignmentStep: React.FC<HandlerAssignmentStepProps> = ({
             if (!open) setEditingDogId(null);
           }}
           selectedDogs={[editingDogId]}
-          showId={showId}
           dogs={dogs}
           onHandlerAssignment={assignments => {
             onHandlerAssignmentChange({ ...handlerAssignments, ...assignments });

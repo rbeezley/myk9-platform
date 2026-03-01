@@ -98,7 +98,6 @@ export function WorkflowStepContent({
           classSelections={optimisticState.classSelections}
           handlerAssignments={optimisticState.handlerAssignments}
           onHandlerAssignmentChange={onHandlerAssignmentChange}
-          showId={showId}
         />
       )}
 

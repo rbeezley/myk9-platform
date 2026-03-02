@@ -20,6 +20,37 @@ import {
   getContextualStatusMessage,
 } from './myEntriesUtils';
 
+/** Compact result badge: green Q, red NQ, gray ABS/EX/WD */
+const ResultBadge: React.FC<{ resultStatus: string }> = ({ resultStatus }) => {
+  const label =
+    resultStatus === 'qualified'
+      ? 'Q'
+      : resultStatus === 'nq'
+        ? 'NQ'
+        : resultStatus === 'absent'
+          ? 'ABS'
+          : resultStatus === 'excused'
+            ? 'EX'
+            : resultStatus === 'withdrawn'
+              ? 'WD'
+              : resultStatus.toUpperCase();
+
+  const colorClass =
+    resultStatus === 'qualified'
+      ? 'bg-success-green/15 text-success-green border-success-green/30'
+      : resultStatus === 'nq'
+        ? 'bg-error-red/15 text-error-red border-error-red/30'
+        : 'bg-muted text-muted-foreground border-border';
+
+  return (
+    <span
+      className={`inline-flex items-center px-2 py-0.5 text-xs font-bold rounded border ${colorClass}`}
+    >
+      {label}
+    </span>
+  );
+};
+
 interface MyEntryCardProps {
   entry: MyEntry;
   onCheckInClick: (entry: MyEntry, classEntry: EntryClass) => void;
@@ -111,20 +142,37 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
                   {cls.jumpHeight && ` (${cls.jumpHeight})`}
                 </span>
 
+                {/* Result badge for scored entries */}
+                {cls.isScored && cls.resultStatus && (
+                  <ResultBadge resultStatus={cls.resultStatus} />
+                )}
+
                 {/* Check-in Status Controls */}
-                <button
-                  onClick={() => onCheckInClick(entry, cls)}
-                  className="hover:scale-105 active:scale-95 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded transition-transform"
-                >
-                  <CheckInStatusIndicator
-                    status={cls.checkInStatus || 'none'}
-                    size="sm"
-                    showLabel={true}
-                    showTooltip={true}
-                  />
-                </button>
+                {!cls.isScored && (
+                  <button
+                    onClick={() => onCheckInClick(entry, cls)}
+                    className="hover:scale-105 active:scale-95 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded transition-transform"
+                  >
+                    <CheckInStatusIndicator
+                      status={cls.checkInStatus || 'none'}
+                      size="sm"
+                      showLabel={true}
+                      showTooltip={true}
+                    />
+                  </button>
+                )}
               </div>
-              <span className="myk9-entries-class-fee">${cls.fee}</span>
+              <div className="flex items-center gap-2">
+                {cls.isScored && cls.searchTimeSeconds != null && (
+                  <span className="text-xs text-muted-foreground">
+                    {cls.searchTimeSeconds.toFixed(1)}s
+                  </span>
+                )}
+                {cls.isScored && cls.totalFaults != null && cls.totalFaults > 0 && (
+                  <span className="text-xs text-warning-orange">{cls.totalFaults}F</span>
+                )}
+                <span className="myk9-entries-class-fee">${cls.fee}</span>
+              </div>
             </div>
           ))}
         </div>

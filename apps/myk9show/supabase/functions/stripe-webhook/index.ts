@@ -20,7 +20,7 @@ const stripe = new Stripe(stripeSecret, {
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-Deno.serve(async (req) => {
+Deno.serve(async req => {
   try {
     if (req.method === 'OPTIONS') {
       return new Response(null, { status: 204 });
@@ -43,7 +43,9 @@ Deno.serve(async (req) => {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error(`Webhook signature verification failed: ${errorMessage}`);
-      return new Response(`Webhook signature verification failed: ${errorMessage}`, { status: 400 });
+      return new Response(`Webhook signature verification failed: ${errorMessage}`, {
+        status: 400,
+      });
     }
 
     // Process event asynchronously
@@ -119,7 +121,8 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
   // Get cart with items
   const { data: cart, error: cartError } = await supabase
     .from('entry_carts')
-    .select(`
+    .select(
+      `
       *,
       exhibitor:exhibitor_profiles(id, person_id),
       items:entry_cart_items(
@@ -131,7 +134,8 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
         jump_height,
         special_requests
       )
-    `)
+    `
+    )
     .eq('id', cartId)
     .single();
 
@@ -191,24 +195,23 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
   }
 
   // Create stripe_orders record
-  const { error: orderError } = await supabase
-    .from('stripe_orders')
-    .insert({
-      customer_id: stripeCustomer?.id || null,
-      stripe_payment_intent_id: typeof session.payment_intent === 'string' ? session.payment_intent : null,
-      stripe_checkout_session_id: session.id,
-      amount_cents: session.amount_total || 0,
-      currency: session.currency || 'usd',
-      status: 'succeeded',
-      order_type: 'entry',
-      metadata: {
-        cart_id: cartId,
-        entry_count: entryIds.length,
-      },
-      show_id: cart.show_id,
-      entry_ids: entryIds,
-      paid_at: new Date().toISOString(),
-    });
+  const { error: orderError } = await supabase.from('stripe_orders').insert({
+    customer_id: stripeCustomer?.id || null,
+    stripe_payment_intent_id:
+      typeof session.payment_intent === 'string' ? session.payment_intent : null,
+    stripe_checkout_session_id: session.id,
+    amount_cents: session.amount_total || 0,
+    currency: session.currency || 'usd',
+    status: 'succeeded',
+    order_type: 'entry',
+    metadata: {
+      cart_id: cartId,
+      entry_count: entryIds.length,
+    },
+    show_id: cart.show_id,
+    entry_ids: entryIds,
+    paid_at: new Date().toISOString(),
+  });
 
   if (orderError) {
     console.error('Error creating stripe_orders record:', orderError);
@@ -267,12 +270,14 @@ async function sendEntryConfirmationEmail(
     // Get entry details with dog and class info
     const { data: entries } = await supabase
       .from('entries')
-      .select(`
+      .select(
+        `
         id,
         entry_fee_cents,
         dogs:dog_id (name, call_name),
         classes:class_id (name, level)
-      `)
+      `
+      )
       .in('id', entryIds);
 
     if (!entries || entries.length === 0) {
@@ -299,9 +304,7 @@ async function sendEntryConfirmationEmail(
     }
 
     // Format location
-    const showLocation = [show.venue_name, show.city, show.state]
-      .filter(Boolean)
-      .join(', ');
+    const showLocation = [show.venue_name, show.city, show.state].filter(Boolean).join(', ');
 
     // Build email payload
     const emailData = {
@@ -311,9 +314,11 @@ async function sendEntryConfirmationEmail(
       showName: show.name,
       showDate,
       showLocation: showLocation || undefined,
-      entries: entries.map((e) => ({
-        dogName: (e.dogs as { call_name?: string; name: string })?.call_name ||
-          (e.dogs as { name: string })?.name || 'Unknown',
+      entries: entries.map(e => ({
+        dogName:
+          (e.dogs as { call_name?: string; name: string })?.call_name ||
+          (e.dogs as { name: string })?.name ||
+          'Unknown',
         className: (e.classes as { name: string })?.name || 'Unknown',
         classLevel: (e.classes as { level?: string })?.level || undefined,
         entryFee: e.entry_fee_cents,
@@ -374,19 +379,18 @@ async function handleOneTimePaymentCompleted(session: Stripe.Checkout.Session) {
     .single();
 
   // Create stripe_orders record
-  const { error: orderError } = await supabase
-    .from('stripe_orders')
-    .insert({
-      customer_id: stripeCustomer?.id || null,
-      stripe_payment_intent_id: typeof session.payment_intent === 'string' ? session.payment_intent : null,
-      stripe_checkout_session_id: session.id,
-      amount_cents: session.amount_total || 0,
-      currency: session.currency || 'usd',
-      status: 'succeeded',
-      order_type: 'payment',
-      metadata: session.metadata || {},
-      paid_at: new Date().toISOString(),
-    });
+  const { error: orderError } = await supabase.from('stripe_orders').insert({
+    customer_id: stripeCustomer?.id || null,
+    stripe_payment_intent_id:
+      typeof session.payment_intent === 'string' ? session.payment_intent : null,
+    stripe_checkout_session_id: session.id,
+    amount_cents: session.amount_total || 0,
+    currency: session.currency || 'usd',
+    status: 'succeeded',
+    order_type: 'payment',
+    metadata: session.metadata || {},
+    paid_at: new Date().toISOString(),
+  });
 
   if (orderError) {
     console.error('Error creating stripe_orders record:', orderError);
@@ -457,15 +461,16 @@ async function syncSubscriptionFromStripe(stripeCustomerId: string) {
       console.log(`No subscriptions found for customer: ${stripeCustomerId}`);
 
       // Update to no subscription state
-      await supabase
-        .from('stripe_subscriptions')
-        .upsert({
+      await supabase.from('stripe_subscriptions').upsert(
+        {
           customer_id: stripeCustomer.id,
           stripe_subscription_id: `none_${stripeCustomerId}`,
           status: 'none',
-        }, {
+        },
+        {
           onConflict: 'customer_id',
-        });
+        }
+      );
 
       // Reset exhibitor profile subscription
       await supabase
@@ -486,9 +491,8 @@ async function syncSubscriptionFromStripe(stripeCustomerId: string) {
     const subscriptionTier = mapPriceToTier(priceId);
 
     // Upsert stripe_subscriptions
-    const { error: subError } = await supabase
-      .from('stripe_subscriptions')
-      .upsert({
+    const { error: subError } = await supabase.from('stripe_subscriptions').upsert(
+      {
         customer_id: stripeCustomer.id,
         stripe_subscription_id: subscription.id,
         stripe_price_id: priceId,
@@ -499,9 +503,11 @@ async function syncSubscriptionFromStripe(stripeCustomerId: string) {
         cancelled_at: subscription.canceled_at
           ? new Date(subscription.canceled_at * 1000).toISOString()
           : null,
-      }, {
+      },
+      {
         onConflict: 'stripe_subscription_id',
-      });
+      }
+    );
 
     if (subError) {
       console.error('Error syncing subscription:', subError);
@@ -524,7 +530,9 @@ async function syncSubscriptionFromStripe(stripeCustomerId: string) {
       console.error('Error updating exhibitor profile:', profileError);
     }
 
-    console.log(`Synced subscription for customer ${stripeCustomerId}: ${subscription.status}, tier: ${subscriptionTier}`);
+    console.log(
+      `Synced subscription for customer ${stripeCustomerId}: ${subscription.status}, tier: ${subscriptionTier}`
+    );
   } catch (error) {
     console.error(`Failed to sync subscription for customer ${stripeCustomerId}:`, error);
     throw error;
@@ -534,14 +542,14 @@ async function syncSubscriptionFromStripe(stripeCustomerId: string) {
 /**
  * Map Stripe price ID to subscription tier
  */
-function mapPriceToTier(priceId: string | undefined): 'free' | 'premium' | 'pro' {
+// INTENT: Two tiers only — Free and Premium. Both Stripe price IDs map to 'premium'.
+function mapPriceToTier(priceId: string | undefined): 'free' | 'premium' {
   if (!priceId) return 'free';
 
-  // Map based on known price IDs from stripe-config.ts
-  const priceMapping: Record<string, 'premium' | 'pro'> = {
-    'price_1RHz4VAtHgBcw875bF7McPNd': 'pro',      // Excellent (clubs)
-    'price_1RHz3bAtHgBcw875o2gdNaYW': 'premium',  // Advanced (exhibitors)
-  };
+  const knownPriceIds = [
+    'price_1RHz4VAtHgBcw875bF7McPNd', // Was "Excellent" (clubs) — now Premium
+    'price_1RHz3bAtHgBcw875o2gdNaYW', // Was "Advanced" (exhibitors) — now Premium
+  ];
 
-  return priceMapping[priceId] || 'premium';
+  return knownPriceIds.includes(priceId) ? 'premium' : 'premium';
 }

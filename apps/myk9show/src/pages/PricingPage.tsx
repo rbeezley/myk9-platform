@@ -8,91 +8,76 @@ import AppHeader from '../components/layout/AppHeader';
 import Footer from '../components/layout/Footer';
 import { logger } from '@/services/LoggingService';
 
+// INTENT: Two tiers only — Free (results log) and Premium ($4.99/mo, all capabilities).
+// Per-person subscription, not per-dog.
 const tiers = [
   {
-    name: 'Novice',
+    name: 'Free',
     price: 'Free',
     period: '',
-    description: 'Perfect for getting started with myK9Show',
+    description: 'Competition results log — see what happened at every trial',
     features: [
-      'Basic show listings',
-      'Entry management',
+      'Show browsing & entry',
+      'Competition results log',
+      'Dog profiles',
       'Digital scorecards',
-      'Basic notifications',
-      'Community access',
+      'Show calendar',
       'Email support',
-      'Show calendar'
     ],
     buttonText: 'Get Started',
     buttonVariant: 'outline',
     popular: false,
-    label: 'Free',
+    label: 'Everyone',
     priceId: null,
   },
   {
-    name: 'Advanced',
+    name: 'Premium',
     price: '$4.99',
     period: '/month',
-    description: 'Enhanced features for serious exhibitors',
+    description: 'Intelligence layer — track titles, health, training, and more',
     features: [
-      'All Novice features',
-      'Competition history tracking',
-      'Title progression tracking',
+      'Everything in Free',
+      'Title tracking engine',
+      'Historical result entry',
+      'Health records & vaccinations',
       'Training journal',
-      'Advanced entry statistics',
+      'Pedigree management',
+      'Performance statistics',
       'Priority support',
-      'Premium notifications'
     ],
     buttonText: 'Subscribe Now',
     buttonVariant: 'solid',
     popular: true,
     label: 'Exhibitors',
-    priceId: products.advanced.priceId,
+    priceId: products.premium.priceId,
   },
-  {
-    name: 'Excellent',
-    price: '$9.99',
-    period: '/month',
-    description: 'Premium features for professional organizers',
-    features: [
-      'All Advanced features',
-      'Premium show creation',
-      'Advanced analytics & reporting',
-      'Priority messaging system',
-      'Custom branding options',
-      'VIP support',
-      'API access'
-    ],
-    buttonText: 'Subscribe Now',
-    buttonVariant: 'outline',
-    popular: true,
-    label: 'Organizers',
-    priceId: products.excellent.priceId,
-  }
 ];
 
 export default function PricingPage() {
   const { user } = useAuthContext();
   const navigate = useNavigate();
 
-  const handleSubscribe = useCallback(async (priceId: string | null) => {
-    if (!priceId) {
-      // Handle free tier signup
-      return;
-    }
+  const handleSubscribe = useCallback(
+    async (priceId: string | null) => {
+      if (!priceId) {
+        // Handle free tier signup
+        return;
+      }
 
-    if (!user) {
-      // Redirect to sign-in page using navigate instead of window.location
-      navigate('/signin');
-      return;
-    }
+      if (!user) {
+        // Redirect to sign-in page using navigate instead of window.location
+        navigate('/signin');
+        return;
+      }
 
-    try {
-      await createCheckoutSession(priceId, 'subscription');
-    } catch (error) {
-      logger.error('Failed to create checkout session:', 'pages', {}, error as Error);
-    }
-  }, [user, navigate]);
+      try {
+        await createCheckoutSession(priceId, 'subscription');
+      } catch (error) {
+        logger.error('Failed to create checkout session:', 'pages', {}, error as Error);
+      }
+    },
+    [user, navigate]
+  );
 
   return (
     <>
@@ -111,8 +96,8 @@ export default function PricingPage() {
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto">
-                {tiers.map((tier) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                {tiers.map(tier => (
                   <div
                     key={tier.name}
                     className="relative bg-card rounded-2xl shadow-lg border border-primary"
@@ -124,22 +109,14 @@ export default function PricingPage() {
                     </div>
 
                     <div className="p-8">
-                      <h3 className="text-2xl font-bold text-foreground mb-2">
-                        {tier.name}
-                      </h3>
+                      <h3 className="text-2xl font-bold text-foreground mb-2">{tier.name}</h3>
                       <div className="flex items-baseline mb-2">
-                        <span className="text-4xl font-bold text-foreground">
-                          {tier.price}
-                        </span>
+                        <span className="text-4xl font-bold text-foreground">{tier.price}</span>
                         {tier.period && (
-                          <span className="ml-1 text-muted-foreground">
-                            {tier.period}
-                          </span>
+                          <span className="ml-1 text-muted-foreground">{tier.period}</span>
                         )}
                       </div>
-                      <p className="text-muted-foreground mb-6">
-                        {tier.description}
-                      </p>
+                      <p className="text-muted-foreground mb-6">{tier.description}</p>
 
                       <button
                         onClick={() => handleSubscribe(tier.priceId)}
@@ -153,11 +130,8 @@ export default function PricingPage() {
                       </button>
 
                       <ul className="mt-8 space-y-4">
-                        {tier.features.map((feature) => (
-                          <li
-                            key={feature}
-                            className="flex items-start text-muted-foreground"
-                          >
+                        {tier.features.map(feature => (
+                          <li key={feature} className="flex items-start text-muted-foreground">
                             <Check
                               size={20}
                               className="mr-2 flex-shrink-0 text-blue-500 dark:text-blue-400"

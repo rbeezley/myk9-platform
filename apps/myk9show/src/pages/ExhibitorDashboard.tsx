@@ -28,8 +28,10 @@ import {
 import { ExhibitorLayout } from '@/components/exhibitor/ExhibitorLayout';
 import { useEntriesQuery, useEntryStatisticsQuery } from '@/hooks/queries/useEntriesDatabase';
 import { useDogsQuery } from '@/hooks/queries/useDogsDatabase';
+import { useExhibitorResults, type ExhibitorResult } from '@/hooks/queries/useExhibitorResults';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { format } from 'date-fns';
+import { Clock, AlertTriangle } from 'lucide-react';
 
 interface DashboardEntry {
   id: string;
@@ -64,6 +66,7 @@ const ExhibitorDashboard: React.FC = () => {
   } = useEntriesQuery();
   const { data: stats } = useEntryStatisticsQuery();
   const { data: dogs = [] } = useDogsQuery();
+  const { data: recentResults = [] } = useExhibitorResults();
 
   const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Exhibitor';
 
@@ -136,6 +139,29 @@ const ExhibitorDashboard: React.FC = () => {
     }
   };
 
+  const getResultBadge = (resultText: ExhibitorResult['resultText']) => {
+    switch (resultText) {
+      case 'Q':
+        return (
+          <Badge className="bg-success-green/10 text-success-green border-success-green/20 font-bold text-base px-3 py-1">
+            Q
+          </Badge>
+        );
+      case 'NQ':
+        return (
+          <Badge className="bg-error-red/10 text-error-red border-error-red/20 font-bold text-base px-3 py-1">
+            NQ
+          </Badge>
+        );
+      default:
+        return (
+          <Badge className="bg-muted text-muted-foreground border-border font-bold text-base px-3 py-1">
+            {resultText}
+          </Badge>
+        );
+    }
+  };
+
   const handleViewEntry = (entry: DashboardEntry) => {
     navigate(`/shows/${entry.showId}`);
   };
@@ -144,12 +170,7 @@ const ExhibitorDashboard: React.FC = () => {
     navigate(`/shows/${entry.showId}`);
   };
 
-  const handleViewResults = (entry: DashboardEntry) => {
-    navigate(entry.classId ? `/classes/${entry.classId}` : `/shows/${entry.showId}`);
-  };
-
   const upcomingEntries = entries.filter(e => e.showDate && e.showDate > new Date());
-  const recentEntries = entries.filter(e => e.showDate && e.showDate <= new Date());
 
   // Loading state
   if (entriesLoading) {
@@ -467,47 +488,78 @@ const ExhibitorDashboard: React.FC = () => {
               </TabsContent>
 
               <TabsContent value="recent" className="space-y-6 mt-6">
-                {recentEntries.map(entry => (
+                {recentResults.map(result => (
                   <div
-                    key={entry.id}
+                    key={result.id}
                     className="group relative overflow-hidden p-6 border border-border rounded-2xl bg-gradient-to-r from-card to-card/80 hover:from-card/95 hover:to-card/90 transition-all duration-500 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]"
                   >
-                    <div className="absolute inset-0 bg-gradient-to-r from-success-green/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    <div
+                      className={`absolute inset-0 bg-gradient-to-r ${result.resultText === 'Q' ? 'from-success-green/5' : 'from-error-red/5'} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500`}
+                    />
 
                     <div className="relative flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="p-3 bg-success-green/10 rounded-xl group-hover:bg-success-green/20 transition-colors duration-300">
-                          <Award className="h-6 w-6 text-success-green" />
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-lg text-foreground group-hover:text-success-green transition-colors duration-300">
-                            {entry.showName}
-                          </h3>
-                          <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                            <span>
-                              {entry.dogName} • {entry.className}
+                      <div className="flex items-center gap-4 flex-1">
+                        {getResultBadge(result.resultText)}
+                        <div className="flex-1">
+                          <h3 className="font-bold text-lg text-foreground">{result.showName}</h3>
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-muted-foreground">
+                            <span className="font-medium text-foreground">
+                              {result.dogCallName}
                             </span>
-                            <span>•</span>
                             <span>
-                              {entry.showDate ? format(entry.showDate, 'MMM d, yyyy') : 'TBD'}
+                              {result.className}
+                              {result.classElement ? ` — ${result.classElement}` : ''}
+                              {result.classLevel ? ` ${result.classLevel}` : ''}
                             </span>
+                            <span>
+                              {result.showDate
+                                ? format(new Date(result.showDate), 'MMM d, yyyy')
+                                : ''}
+                            </span>
+                          </div>
+                          {/* Result details row */}
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm">
+                            {result.searchTimeSeconds != null && (
+                              <span className="flex items-center gap-1 text-muted-foreground">
+                                <Clock className="h-3.5 w-3.5" />
+                                {result.searchTimeSeconds.toFixed(1)}s
+                              </span>
+                            )}
+                            {result.totalFaults != null && result.totalFaults > 0 && (
+                              <span className="flex items-center gap-1 text-warning-orange">
+                                <AlertTriangle className="h-3.5 w-3.5" />
+                                {result.totalFaults} fault
+                                {result.totalFaults !== 1 ? 's' : ''}
+                              </span>
+                            )}
+                            {result.finalPlacement != null && result.finalPlacement > 0 && (
+                              <span className="text-muted-foreground">
+                                Placement: {result.finalPlacement}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
-                      <div className="flex gap-3">
+                      <div className="flex gap-3 ml-4">
                         <Button
                           variant="outline"
-                          className="border-success-green/20 text-success-green hover:bg-success-green/5 hover:border-success-green/40"
-                          onClick={() => handleViewResults(entry)}
+                          className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40"
+                          onClick={() =>
+                            navigate(
+                              result.classId
+                                ? `/classes/${result.classId}`
+                                : `/shows/${result.showId}`
+                            )
+                          }
                         >
-                          View Results
+                          View Details
                         </Button>
                       </div>
                     </div>
                   </div>
                 ))}
 
-                {recentEntries.length === 0 && (
+                {recentResults.length === 0 && (
                   <div className="text-center py-16">
                     <div className="mx-auto w-24 h-24 bg-gradient-to-br from-success-green/20 to-success-green/10 rounded-full flex items-center justify-center mb-6">
                       <Award className="h-12 w-12 text-success-green" />

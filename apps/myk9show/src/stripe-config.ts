@@ -1,14 +1,8 @@
 export const products = {
-  excellent: {
-    priceId: 'price_1RHz4VAtHgBcw875bF7McPNd',
-    name: 'myK9Show Excellent Subscription',
-    description: 'myK9Show Excellent Subscription for Clubs',
-    mode: 'subscription' as const,
-  },
-  advanced: {
+  premium: {
     priceId: 'price_1RHz3bAtHgBcw875o2gdNaYW',
-    name: 'myK9Show Advanced Subscription',
-    description: 'myK9Show Advanced Subscription for Exhibitors',
+    name: 'myK9Show Premium Subscription',
+    description: 'myK9Show Premium — title tracking, health records, training journal, and more',
     mode: 'subscription' as const,
   },
 };

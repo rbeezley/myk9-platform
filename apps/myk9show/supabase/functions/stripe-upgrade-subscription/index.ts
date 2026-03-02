@@ -26,9 +26,8 @@ const ALLOWED_ORIGINS = [
 ];
 
 function getCorsHeaders(requestOrigin: string | null): Record<string, string> {
-  const origin = requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin)
-    ? requestOrigin
-    : ALLOWED_ORIGINS[0];
+  const origin =
+    requestOrigin && ALLOWED_ORIGINS.includes(requestOrigin) ? requestOrigin : ALLOWED_ORIGINS[0];
   return {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -48,18 +47,18 @@ function corsResponse(body: string | object | null, status = 200) {
   });
 }
 
-// Valid price IDs — must match stripe-config.ts
+// Valid price IDs — both map to premium tier now
 const VALID_PRICE_IDS = new Set([
-  'price_1RHz4VAtHgBcw875bF7McPNd', // excellent (clubs)
-  'price_1RHz3bAtHgBcw875o2gdNaYW', // advanced (exhibitors)
+  'price_1RHz4VAtHgBcw875bF7McPNd', // legacy "excellent" — now premium
+  'price_1RHz3bAtHgBcw875o2gdNaYW', // premium (exhibitors)
 ]);
 
 interface UpgradeRequest {
   subscriptionId: string; // Stripe subscription ID (sub_xxx)
-  newPlanId: string;      // Stripe price ID
+  newPlanId: string; // Stripe price ID
 }
 
-Deno.serve(async (req) => {
+Deno.serve(async req => {
   _corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
   try {
@@ -78,7 +77,10 @@ Deno.serve(async (req) => {
     }
 
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser(token);
 
     if (authError || !user) {
       console.error('Authentication failed:', authError);
@@ -141,10 +143,12 @@ Deno.serve(async (req) => {
 
     // Update subscription with new price (prorated immediately)
     await stripe.subscriptions.update(subscriptionId, {
-      items: [{
-        id: currentItem.id,
-        price: newPlanId,
-      }],
+      items: [
+        {
+          id: currentItem.id,
+          price: newPlanId,
+        },
+      ],
       proration_behavior: 'create_prorations',
     });
 
@@ -154,8 +158,11 @@ Deno.serve(async (req) => {
     return corsResponse({ success: true });
   } catch (error: unknown) {
     console.error('Upgrade subscription error:', error);
-    return corsResponse({
-      error: error instanceof Error ? error.message : 'Unknown error',
-    }, 502);
+    return corsResponse(
+      {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      },
+      502
+    );
   }
 });

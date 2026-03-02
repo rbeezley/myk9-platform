@@ -1,5 +1,14 @@
-export type PlanType = 'free' | 'basic' | 'premium' | 'enterprise';
-export type FeatureType = 'shows' | 'dogs' | 'reports' | 'analytics' | 'api' | 'support';
+// INTENT: Two tiers only — Free (results log) and Premium ($4.99/mo, all 5 capabilities).
+// Per-person subscription, not per-dog. Matches exhibitor_profiles.subscription_tier in DB.
+export type PlanType = 'free' | 'premium';
+
+export type FeatureType =
+  | 'title_tracking'
+  | 'health_records'
+  | 'training_journal'
+  | 'pedigree'
+  | 'manual_results'
+  | 'performance_stats';
 
 export interface Feature {
   id: FeatureType;
@@ -10,73 +19,87 @@ export interface Feature {
 }
 
 export const features: Record<FeatureType, Feature> = {
-  shows: {
-    id: 'shows',
-    name: 'Unlimited Shows',
-    description: 'Create and manage unlimited dog shows',
-    requiredPlan: 'premium'
+  title_tracking: {
+    id: 'title_tracking',
+    name: 'Title Tracking',
+    description: 'Track title progress across AKC, UKC, and ASCA competitions',
+    requiredPlan: 'premium',
   },
-  dogs: {
-    id: 'dogs',
-    name: 'Unlimited Dogs',
-    description: 'Register unlimited dogs in your account',
-    requiredPlan: 'basic'
+  health_records: {
+    id: 'health_records',
+    name: 'Health Records',
+    description: 'Manage vaccinations, health screenings, and genetic tests',
+    requiredPlan: 'premium',
   },
-  reports: {
-    id: 'reports',
-    name: 'Advanced Reports',
-    description: 'Generate detailed analytics and custom reports',
-    requiredPlan: 'premium'
+  training_journal: {
+    id: 'training_journal',
+    name: 'Training Journal',
+    description: "Log training sessions and track your dog's progress",
+    requiredPlan: 'premium',
   },
-  analytics: {
-    id: 'analytics',
-    name: 'Analytics Dashboard',
-    description: 'Track performance metrics and insights',
-    requiredPlan: 'premium'
+  pedigree: {
+    id: 'pedigree',
+    name: 'Pedigree',
+    description: "View and manage your dog's three-generation pedigree",
+    requiredPlan: 'premium',
   },
-  api: {
-    id: 'api',
-    name: 'API Access',
-    description: 'Integrate with third-party applications',
-    requiredPlan: 'enterprise'
+  manual_results: {
+    id: 'manual_results',
+    name: 'Historical Results',
+    description: 'Enter results from trials not run on the platform',
+    requiredPlan: 'premium',
   },
-  support: {
-    id: 'support',
-    name: 'Priority Support',
-    description: '24/7 priority customer support',
-    requiredPlan: 'enterprise'
-  }
+  performance_stats: {
+    id: 'performance_stats',
+    name: 'Performance Statistics',
+    description: 'View Q rates, time trends, and element breakdowns',
+    requiredPlan: 'premium',
+  },
 };
 
 export const planHierarchy: Record<PlanType, number> = {
   free: 0,
-  basic: 1,
-  premium: 2,
-  enterprise: 3
+  premium: 1,
 };
 
-export const planDetails = {
-  basic: {
-    name: 'Basic',
-    price: '$9/month',
-    features: ['Up to 5 shows', 'Up to 50 dogs', 'Basic reports', 'Email support'],
-    color: 'blue'
+export const planDetails: Record<
+  PlanType,
+  {
+    name: string;
+    price: string;
+    features: string[];
+    color: string;
+  }
+> = {
+  free: {
+    name: 'Free',
+    price: '$0',
+    features: [
+      'Competition results log',
+      'Show browsing & entry',
+      'Dog profiles',
+      'Digital scorecards',
+      'Show calendar',
+    ],
+    color: 'gray',
   },
   premium: {
     name: 'Premium',
-    price: '$29/month',
-    features: ['Unlimited shows', 'Unlimited dogs', 'Advanced reports', 'Analytics dashboard', 'Priority support'],
-    color: 'amber'
+    price: '$4.99/month',
+    features: [
+      'Everything in Free',
+      'Title tracking engine',
+      'Historical result entry',
+      'Health records & vaccinations',
+      'Training journal',
+      'Pedigree management',
+      'Performance statistics',
+      'Priority support',
+    ],
+    color: 'amber',
   },
-  enterprise: {
-    name: 'Enterprise',
-    price: '$99/month',
-    features: ['Everything in Premium', 'API access', 'Custom integrations', '24/7 support', 'Dedicated account manager'],
-    color: 'purple'
-  }
 };
 
-// Hook for easy feature checking
 export function useFeatureAccess(userPlan: PlanType = 'free') {
   const hasFeature = (feature: FeatureType) => {
     const featureConfig = features[feature];
@@ -92,7 +115,7 @@ export function useFeatureAccess(userPlan: PlanType = 'free') {
     return {
       hasAccess,
       requiredPlan: getRequiredPlan(feature),
-      showUpgrade: !hasAccess && showUpgrade
+      showUpgrade: !hasAccess && showUpgrade,
     };
   };
 
@@ -101,6 +124,6 @@ export function useFeatureAccess(userPlan: PlanType = 'free') {
     getRequiredPlan,
     canUseFeature,
     planHierarchy,
-    userPlan
+    userPlan,
   };
 }

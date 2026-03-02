@@ -119,6 +119,11 @@ export function useMyEntriesData(): UseMyEntriesDataReturn {
             runOrder: (entry.run_order as number) || undefined,
             status: mapClassEntryStatus(entry.entry_status as string),
             checkInStatus: undefined,
+            isScored: (entry.is_scored as boolean) || false,
+            resultStatus: (entry.result_status as string) || undefined,
+            searchTimeSeconds: (entry.search_time_seconds as number) || undefined,
+            totalFaults: (entry.total_faults as number) || undefined,
+            finalPlacement: (entry.final_placement as number) || undefined,
           },
         ]
       : [];
@@ -168,7 +173,7 @@ export function useMyEntriesData(): UseMyEntriesDataReturn {
         return;
       }
 
-      const userEntries = data.map((entry) => transformEntry(entry));
+      const userEntries = data.map(entry => transformEntry(entry));
       setEntries(userEntries);
     } catch (error) {
       logger.error('Failed to load entries:', 'pages', {}, error as Error);
@@ -183,8 +188,8 @@ export function useMyEntriesData(): UseMyEntriesDataReturn {
    */
   const handleEntryUpdate = useCallback((update: EntryUpdateEvent) => {
     if (update.type === 'entry_status_change' || update.type === 'payment_status_change') {
-      setEntries((prev) =>
-        prev.map((entry) =>
+      setEntries(prev =>
+        prev.map(entry =>
           entry.id === update.entryId
             ? { ...entry, ...update.changes, lastUpdated: new Date() }
             : entry
@@ -231,8 +236,8 @@ export function useMyEntriesData(): UseMyEntriesDataReturn {
    */
   const updateEntryCheckIn = useCallback(
     async (entryId: string, classId: string, status: CheckInStatus, notes?: string) => {
-      const entry = entries.find((e) => e.id === entryId);
-      const classEntry = entry?.classes.find((c) => c.id === classId);
+      const entry = entries.find(e => e.id === entryId);
+      const classEntry = entry?.classes.find(c => c.id === classId);
 
       if (!entry || !classEntry) return;
 
@@ -241,13 +246,14 @@ export function useMyEntriesData(): UseMyEntriesDataReturn {
 
       try {
         // Optimistic update
-        setEntries((prev) =>
+        setEntries(prev =>
           prev.map((e): MyEntry => {
             if (e.id === entryId) {
               return {
                 ...e,
-                classes: e.classes.map((c): EntryClass =>
-                  c.id === classId ? { ...c, checkInStatus: status, checkInTime: new Date() } : c
+                classes: e.classes.map(
+                  (c): EntryClass =>
+                    c.id === classId ? { ...c, checkInStatus: status, checkInTime: new Date() } : c
                 ),
               };
             }
@@ -281,15 +287,16 @@ export function useMyEntriesData(): UseMyEntriesDataReturn {
       } catch (error) {
         logger.error('Failed to update check-in status:', 'pages', {}, error as Error);
         // Revert optimistic update
-        setEntries((prev) =>
+        setEntries(prev =>
           prev.map((e): MyEntry => {
             if (e.id === entryId) {
               return {
                 ...e,
-                classes: e.classes.map((c): EntryClass =>
-                  c.id === classId
-                    ? { ...c, checkInStatus: previousStatus, checkInTime: previousTime }
-                    : c
+                classes: e.classes.map(
+                  (c): EntryClass =>
+                    c.id === classId
+                      ? { ...c, checkInStatus: previousStatus, checkInTime: previousTime }
+                      : c
                 ),
               };
             }

@@ -4,16 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import {
-  CreditCard,
-  Calendar,
-  Star,
-  Settings,
-  Download,
-  AlertCircle,
-  Crown,
-  Zap
-} from 'lucide-react';
+import { CreditCard, Calendar, Settings, Download, AlertCircle, Crown, Zap } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
@@ -22,7 +13,7 @@ interface Subscription {
   id: string;
   status: 'active' | 'past_due' | 'canceled' | 'unpaid';
   planName: string;
-  planType: 'basic' | 'premium' | 'enterprise';
+  planType: 'free' | 'premium';
   amount: number;
   currency: string;
   interval: 'month' | 'year';
@@ -53,26 +44,34 @@ export function SubscriptionManager() {
   const fetchSubscriptionData = useCallback(async () => {
     try {
       setLoading(true);
-      
+
       // Fetch subscription from Supabase
       const { data: subData, error: subError } = await supabase
         .from('stripe_subscriptions')
-        .select('stripe_subscription_id, status, stripe_price_id, current_period_start, current_period_end, cancel_at_period_end, customer_id')
+        .select(
+          'stripe_subscription_id, status, stripe_price_id, current_period_start, current_period_end, cancel_at_period_end, customer_id'
+        )
         .eq('customer_id', user?.id || '')
         .single();
 
-      if (subError && subError.code !== 'PGRST116') { // PGRST116 = no rows returned
+      if (subError && subError.code !== 'PGRST116') {
+        // PGRST116 = no rows returned
         throw subError;
       }
 
       if (subData) {
         setSubscription({
           id: subData.stripe_subscription_id || '',
-          status: subData.status === 'active' ? 'active' :
-                  subData.status === 'canceled' ? 'canceled' :
-                  subData.status === 'past_due' ? 'past_due' : 'unpaid',
-          planName: 'Plan', // Not available in view
-          planType: 'basic', // Default value
+          status:
+            subData.status === 'active'
+              ? 'active'
+              : subData.status === 'canceled'
+                ? 'canceled'
+                : subData.status === 'past_due'
+                  ? 'past_due'
+                  : 'unpaid',
+          planName: 'Premium', // Default for active subscriptions
+          planType: 'premium' as const, // All paid subscriptions are premium
           amount: 0, // Not available in view
           currency: 'usd',
           interval: 'month' as const,
@@ -80,7 +79,7 @@ export function SubscriptionManager() {
           currentPeriodEnd: new Date(subData.current_period_end || new Date().toISOString()),
           cancelAtPeriodEnd: subData.cancel_at_period_end || false,
           stripeCustomerId: subData.customer_id || '',
-          stripeSubscriptionId: subData.stripe_subscription_id || ''
+          stripeSubscriptionId: subData.stripe_subscription_id || '',
         });
 
         // Fetch invoices
@@ -93,15 +92,17 @@ export function SubscriptionManager() {
 
         if (invoiceError) throw invoiceError;
 
-        setInvoices(invoiceData?.map(inv => ({
-          id: inv.id.toString(),
-          amount: inv.amount_cents,
-          currency: inv.currency || 'usd',
-          status: inv.status || 'unknown',
-          created: new Date(inv.created_at || ''),
-          invoiceUrl: '#', // Not available in orders
-          invoicePdf: '#' // Not available in orders
-        })) || []);
+        setInvoices(
+          invoiceData?.map(inv => ({
+            id: inv.id.toString(),
+            amount: inv.amount_cents,
+            currency: inv.currency || 'usd',
+            status: inv.status || 'unknown',
+            created: new Date(inv.created_at || ''),
+            invoiceUrl: '#', // Not available in orders
+            invoicePdf: '#', // Not available in orders
+          })) || []
+        );
       }
     } catch (err) {
       logger.error('Error fetching subscription:', 'components', {}, err as Error);
@@ -120,10 +121,10 @@ export function SubscriptionManager() {
   const openCustomerPortal = async () => {
     try {
       const { data, error } = await supabase.functions.invoke('stripe-customer-portal', {
-        body: { 
+        body: {
           customerId: subscription?.stripeCustomerId,
-          returnUrl: window.location.origin + '/pricing-page'
-        }
+          returnUrl: window.location.origin + '/pricing-page',
+        },
       });
 
       if (error) throw error;
@@ -134,25 +135,6 @@ export function SubscriptionManager() {
     } catch (err) {
       logger.error('Error opening customer portal:', 'components', {}, err as Error);
       setError('Failed to open customer portal');
-    }
-  };
-
-
-  const upgradeSubscription = async (newPlanId: string) => {
-    try {
-      const { error } = await supabase.functions.invoke('stripe-upgrade-subscription', {
-        body: { 
-          subscriptionId: subscription?.stripeSubscriptionId,
-          newPlanId 
-        }
-      });
-
-      if (error) throw error;
-
-      await fetchSubscriptionData(); // Refresh data
-    } catch (err) {
-      logger.error('Error upgrading subscription:', 'components', {}, err as Error);
-      setError('Failed to upgrade subscription');
     }
   };
 
@@ -168,23 +150,20 @@ export function SubscriptionManager() {
   }
 
   const getPlanIcon = (planType: string) => {
-    switch (planType) {
-      case 'enterprise': {
-        return <Crown className="h-5 w-5 text-purple-500" />;
-      }
-      case 'premium': {
-        return <Star className="h-5 w-5 text-amber-500" />;
-      }
-      default: {
-        return <Zap className="h-5 w-5 text-blue-500" />;
-      }
+    if (planType === 'premium') {
+      return <Crown className="h-5 w-5 text-amber-500" />;
     }
+    return <Zap className="h-5 w-5 text-blue-500" />;
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'active': {
-        return <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Active</Badge>;
+        return (
+          <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+            Active
+          </Badge>
+        );
       }
       case 'past_due': {
         return <Badge variant="destructive">Past Due</Badge>;
@@ -199,7 +178,7 @@ export function SubscriptionManager() {
   };
 
   return (
-    <motion.div 
+    <motion.div
       className="space-y-6"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -242,16 +221,16 @@ export function SubscriptionManager() {
                 <div>
                   <p className="text-muted-foreground">Current Period</p>
                   <p className="font-medium">
-                    {subscription.currentPeriodStart.toLocaleDateString()} - {subscription.currentPeriodEnd.toLocaleDateString()}
+                    {subscription.currentPeriodStart.toLocaleDateString()} -{' '}
+                    {subscription.currentPeriodEnd.toLocaleDateString()}
                   </p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Next Billing</p>
                   <p className="font-medium">
-                    {subscription.cancelAtPeriodEnd ? 
-                      'Subscription will cancel' : 
-                      subscription.currentPeriodEnd.toLocaleDateString()
-                    }
+                    {subscription.cancelAtPeriodEnd
+                      ? 'Subscription will cancel'
+                      : subscription.currentPeriodEnd.toLocaleDateString()}
                   </p>
                 </div>
               </div>
@@ -270,25 +249,12 @@ export function SubscriptionManager() {
                   <Settings className="h-4 w-4" />
                   Manage Subscription
                 </Button>
-                
-                {subscription.planType === 'basic' && (
-                  <Button 
-                    variant="outline"
-                    onClick={() => upgradeSubscription('premium')}
-                    className="flex items-center gap-2"
-                  >
-                    <Star className="h-4 w-4" />
-                    Upgrade to Premium
-                  </Button>
-                )}
               </div>
             </div>
           ) : (
             <div className="text-center py-8">
               <p className="text-muted-foreground mb-4">No active subscription</p>
-              <Button onClick={() => window.location.href = '/pricing-page'}>
-                View Plans
-              </Button>
+              <Button onClick={() => (window.location.href = '/pricing-page')}>View Plans</Button>
             </div>
           )}
         </CardContent>
@@ -306,7 +272,10 @@ export function SubscriptionManager() {
           {invoices.length > 0 ? (
             <div className="space-y-3">
               {invoices.map(invoice => (
-                <div key={invoice.id} className="flex items-center justify-between p-3 border rounded-lg">
+                <div
+                  key={invoice.id}
+                  className="flex items-center justify-between p-3 border rounded-lg"
+                >
                   <div>
                     <p className="font-medium">
                       ${invoice.amount / 100} {invoice.currency.toUpperCase()}
@@ -319,8 +288,8 @@ export function SubscriptionManager() {
                     <Badge variant={invoice.status === 'paid' ? 'default' : 'destructive'}>
                       {invoice.status}
                     </Badge>
-                    <Button 
-                      size="sm" 
+                    <Button
+                      size="sm"
                       variant="outline"
                       onClick={() => window.open(invoice.invoicePdf, '_blank')}
                     >

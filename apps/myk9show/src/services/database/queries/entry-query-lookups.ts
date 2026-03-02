@@ -13,7 +13,8 @@ export const getAllEntries = async () => {
   try {
     const { data, error } = await supabase
       .from('entries')
-      .select(`
+      .select(
+        `
         *,
         dog:dog_id (
           id,
@@ -43,7 +44,8 @@ export const getAllEntries = async () => {
           location,
           status
         )
-      `)
+      `
+      )
       .is('deleted_at', null)
       .order('created_at', { ascending: false });
 
@@ -70,7 +72,8 @@ export const getEntryById = async (id: string) => {
   try {
     const { data, error } = await supabase
       .from('entries')
-      .select(`
+      .select(
+        `
         *,
         dog:dog_id (
           id,
@@ -107,7 +110,8 @@ export const getEntryById = async (id: string) => {
           location,
           status
         )
-      `)
+      `
+      )
       .eq('id', id)
       .single();
 
@@ -134,7 +138,8 @@ export const getEntriesByShow = async (showId: string) => {
   try {
     const { data, error } = await supabase
       .from('entries')
-      .select(`
+      .select(
+        `
         *,
         dog:dog_id (
           id,
@@ -154,7 +159,8 @@ export const getEntriesByShow = async (showId: string) => {
           class_number,
           entry_fee
         )
-      `)
+      `
+      )
       .eq('show_id', showId)
       .is('deleted_at', null)
       .order('created_at', { ascending: false });
@@ -182,7 +188,8 @@ export const getEntriesByClass = async (classId: string) => {
   try {
     const { data, error } = await supabase
       .from('entries')
-      .select(`
+      .select(
+        `
         *,
         dog:dog_id (
           id,
@@ -196,7 +203,8 @@ export const getEntriesByClass = async (classId: string) => {
             email
           )
         )
-      `)
+      `
+      )
       .eq('class_id', classId)
       .is('deleted_at', null)
       .order('armband', { ascending: true });
@@ -224,7 +232,8 @@ export const getEntriesByDog = async (dogId: string) => {
   try {
     const { data, error } = await supabase
       .from('entries')
-      .select(`
+      .select(
+        `
         *,
         class:class_id (
           id,
@@ -239,7 +248,8 @@ export const getEntriesByDog = async (dogId: string) => {
           end_date,
           location
         )
-      `)
+      `
+      )
       .eq('dog_id', dogId)
       .is('deleted_at', null)
       .order('created_at', { ascending: false });
@@ -267,7 +277,8 @@ export const getEntriesByStatus = async (status: string) => {
   try {
     const { data, error } = await supabase
       .from('entries')
-      .select(`
+      .select(
+        `
         *,
         dog:dog_id (
           id,
@@ -293,7 +304,8 @@ export const getEntriesByStatus = async (status: string) => {
           start_date,
           end_date
         )
-      `)
+      `
+      )
       .eq('entry_status', status)
       .is('deleted_at', null)
       .order('created_at', { ascending: false });
@@ -347,7 +359,7 @@ export const getEntryStatistics = async (showId?: string) => {
     };
 
     if (data) {
-      data.forEach((entry) => {
+      data.forEach(entry => {
         // Count by status
         const status = entry.entry_status || 'unknown';
         stats.byStatus[status] = (stats.byStatus[status] || 0) + 1;
@@ -363,7 +375,7 @@ export const getEntryStatistics = async (showId?: string) => {
 
       // Calculate completion rate
       const completedEntries = stats.byStatus['completed'] || 0;
-      const paidEntries = data.filter((e) => e.payment_status === 'paid').length;
+      const paidEntries = data.filter(e => e.payment_status === 'paid').length;
       stats.completionRate = paidEntries > 0 ? (completedEntries / paidEntries) * 100 : 0;
     }
 
@@ -392,7 +404,8 @@ export const getUserEntries = async (userId: string) => {
   try {
     const { data, error } = await supabase
       .from('entries')
-      .select(`
+      .select(
+        `
         id,
         dog_id,
         show_id,
@@ -407,6 +420,11 @@ export const getUserEntries = async (userId: string) => {
         run_order,
         jump_height,
         special_requests,
+        is_scored,
+        result_status,
+        search_time_seconds,
+        total_faults,
+        final_placement,
         submitted_at,
         created_at,
         updated_at,
@@ -430,7 +448,8 @@ export const getUserEntries = async (userId: string) => {
           name,
           class_number
         )
-      `)
+      `
+      )
       .eq('handler_id', userId)
       .is('deleted_at', null)
       .order('created_at', { ascending: false });
@@ -458,7 +477,8 @@ export const searchEntries = async (searchTerm: string) => {
   try {
     const { data, error } = await supabase
       .from('entries')
-      .select(`
+      .select(
+        `
         *,
         dog:dog_id (
           id,
@@ -484,7 +504,8 @@ export const searchEntries = async (searchTerm: string) => {
           start_date,
           end_date
         )
-      `)
+      `
+      )
       .or(`armband.ilike.%${searchTerm}%,handler.ilike.%${searchTerm}%`)
       .is('deleted_at', null)
       .order('created_at', { ascending: false })

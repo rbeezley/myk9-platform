@@ -7,14 +7,22 @@ import RegistrationsSection from '@/components/dogs/DogDetails/Registrations/Reg
 import { PremiumGate } from '@/components/common/PremiumGate';
 import { mockPedigreeData } from '@/data/mockPedigreeData';
 import { TabContentSkeleton } from './Skeletons';
-import { useAuthContext } from '@/hooks/useAuthContext';
+import { useSubscriptionGate } from '@/hooks/useSubscriptionGate';
 import type { DogDetailsTabsProps } from './types';
 
 // Lazy load heavy components
-const TrainingSection = lazy(() => import('@/components/dogs/DogDetails/TrainingJournal/TrainingSection'));
-const HealthRecordsSection = lazy(() => import('@/components/dogs/DogDetails/HealthRecords/HealthRecordsSection'));
-const CompetitionsTabs = lazy(() => import('@/components/dogs/DogDetails/Competitions/CompetitionsTabs'));
-const TitleProgressSection = lazy(() => import('@/components/dogs/DogDetails/TitleTracking/TitleProgressSection'));
+const TrainingSection = lazy(
+  () => import('@/components/dogs/DogDetails/TrainingJournal/TrainingSection')
+);
+const HealthRecordsSection = lazy(
+  () => import('@/components/dogs/DogDetails/HealthRecords/HealthRecordsSection')
+);
+const CompetitionsTabs = lazy(
+  () => import('@/components/dogs/DogDetails/Competitions/CompetitionsTabs')
+);
+const TitleProgressSection = lazy(
+  () => import('@/components/dogs/DogDetails/TitleTracking/TitleProgressSection')
+);
 const PedigreeSection = lazy(() => import('@/components/dogs/DogDetails/Pedigree/PedigreeSection'));
 
 const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
@@ -23,10 +31,7 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
   ancestors,
   onSetAncestors,
 }) => {
-  const { user } = useAuthContext();
-  // Premium gating: currently all authenticated users have access.
-  // Replace with subscription check when premium tier is implemented.
-  const isPremium = !!user;
+  const { isPremium } = useSubscriptionGate();
 
   const handlePremiumTabClick = (e: React.MouseEvent) => {
     if (!isPremium) {
@@ -157,7 +162,7 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
           <TabsContent value="health-records" className="pt-6">
             {isPremium ? (
               <Suspense fallback={<TabContentSkeleton />}>
-                <HealthRecordsSection user={{ isPremium }} />
+                <HealthRecordsSection user={{ isPremium }} dogId={dog.id} />
               </Suspense>
             ) : (
               <PremiumGate
@@ -188,9 +193,15 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
                 <PedigreeSection
                   header={<h2 className="text-lg font-semibold flex items-center">Pedigree</h2>}
                   pedigree={ancestors.length > 0 ? ancestors : mockPedigreeData}
-                  addAncestor={(ancestor) => onSetAncestors(prev => [...prev, { ...ancestor, id: String(Date.now()) }])}
-                  editAncestor={(id, updated) => onSetAncestors(prev => prev.map(a => String(a.id) === id ? updated : a))}
-                  deleteAncestor={(id) => onSetAncestors(prev => prev.filter(a => String(a.id) !== id))}
+                  addAncestor={ancestor =>
+                    onSetAncestors(prev => [...prev, { ...ancestor, id: String(Date.now()) }])
+                  }
+                  editAncestor={(id, updated) =>
+                    onSetAncestors(prev => prev.map(a => (String(a.id) === id ? updated : a)))
+                  }
+                  deleteAncestor={id =>
+                    onSetAncestors(prev => prev.filter(a => String(a.id) !== id))
+                  }
                 />
               </Suspense>
             ) : (

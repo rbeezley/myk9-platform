@@ -81,7 +81,7 @@ export default function CartPage() {
       // This will redirect to Stripe Checkout
       await createEntryCheckoutSession(cart.id);
       // If we get here, the redirect didn't happen (shouldn't normally occur)
-    } catch (err) {
+    } catch (_err) {
       setError('Something went wrong starting checkout. Please try again.');
       setIsCheckingOut(false);
     }

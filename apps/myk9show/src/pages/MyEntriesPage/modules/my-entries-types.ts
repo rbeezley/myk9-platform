@@ -19,6 +19,16 @@ export interface EntryClass {
   status: 'entered' | 'scratched' | 'moved' | 'absent';
   checkInStatus?: CheckInStatus | undefined;
   checkInTime?: Date | undefined;
+  /** Whether this entry has been scored */
+  isScored?: boolean | undefined;
+  /** Result status: qualified, nq, absent, excused, withdrawn */
+  resultStatus?: string | undefined;
+  /** Search time in seconds */
+  searchTimeSeconds?: number | undefined;
+  /** Total faults */
+  totalFaults?: number | undefined;
+  /** Final placement */
+  finalPlacement?: number | undefined;
 }
 
 /**

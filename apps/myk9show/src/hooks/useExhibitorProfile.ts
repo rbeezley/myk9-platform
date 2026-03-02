@@ -13,7 +13,7 @@ export interface ExhibitorProfile {
   person_id: string;
   auth_user_id: string;
   default_handler_id: string | null;
-  subscription_tier: 'free' | 'premium' | 'pro';
+  subscription_tier: 'free' | 'premium';
   subscription_expires_at: string | null;
   stripe_customer_id: string | null;
   created_at: string;
@@ -37,16 +37,21 @@ export interface CreateExhibitorProfileData {
 
 // Helper to map database result to ExhibitorProfile type
 function mapToExhibitorProfile(data: Record<string, unknown>): ExhibitorProfile {
-  const personData = data.person && typeof data.person === 'object' && !('error' in (data.person as object))
-    ? data.person as ExhibitorProfile['person']
-    : undefined;
+  const personData =
+    data.person && typeof data.person === 'object' && !('error' in (data.person as object))
+      ? (data.person as ExhibitorProfile['person'])
+      : undefined;
 
   return {
     id: data.id as string,
     person_id: data.person_id as string,
     auth_user_id: data.auth_user_id as string,
     default_handler_id: data.default_handler_id as string | null,
-    subscription_tier: (data.subscription_tier as 'free' | 'premium' | 'pro') || 'free',
+    // DB may still have 'pro' from old data — treat as 'premium'
+    subscription_tier:
+      (((data.subscription_tier as string) === 'pro'
+        ? 'premium'
+        : (data.subscription_tier as string)) as 'free' | 'premium') || 'free',
     subscription_expires_at: data.subscription_expires_at as string | null,
     stripe_customer_id: data.stripe_customer_id as string | null,
     created_at: (data.created_at as string) || new Date().toISOString(),
@@ -75,7 +80,8 @@ export function useExhibitorProfile() {
 
       const { data, error } = await supabase
         .from('exhibitor_profiles')
-        .select(`
+        .select(
+          `
           *,
           person:people!person_id(
             id,
@@ -85,7 +91,8 @@ export function useExhibitorProfile() {
             phone,
             profile_image
           )
-        `)
+        `
+        )
         .eq('auth_user_id', user.id)
         .maybeSingle();
 
@@ -178,12 +185,10 @@ export function useExhibitorProfile() {
         .single();
 
       if (exhibitorRole) {
-        await supabase
-          .from('user_roles')
-          .insert({
-            user_id: person.id,
-            role_id: exhibitorRole.id,
-          });
+        await supabase.from('user_roles').insert({
+          user_id: person.id,
+          role_id: exhibitorRole.id,
+        });
       }
 
       return mapToExhibitorProfile(profile as Record<string, unknown>);

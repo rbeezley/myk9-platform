@@ -83,7 +83,7 @@
 }
 
 .myk9-stat-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 590;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -100,7 +100,7 @@
 }
 
 .myk9-stat-description {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 400;
   color: var(--muted-foreground);
   line-height: 1.38;
@@ -220,7 +220,7 @@
   align-items: center;
   padding: 4px 10px;
   border-radius: 8px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 590;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -266,7 +266,7 @@
 
 .myk9-metadata-item {
   @apply flex items-center gap-2;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--muted-foreground);
 }
 
@@ -278,7 +278,7 @@
 }
 
 .myk9-template-timestamp {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--muted-foreground);
   display: flex;
   align-items: center;
@@ -407,7 +407,7 @@
 }
 
 .myk9-template-card-showtype {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--muted-foreground);
   margin-bottom: 12px;
   text-transform: capitalize;
@@ -418,7 +418,7 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--muted-foreground);
 }
 
@@ -442,7 +442,7 @@
 .myk9-template-badge {
   padding: 4px 8px;
   border-radius: 6px;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;

@@ -159,7 +159,7 @@
   color: #34C759;
   border: 1px solid rgba(52, 199, 89, 0.2);
   border-radius: 50px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 590;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -305,7 +305,7 @@
   gap: 4px;
   padding: 4px 10px;
   border-radius: 50px;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 590;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -332,7 +332,7 @@
 }
 
 .myk9-club-show-meta {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--muted-foreground);
   margin-bottom: 12px;
   display: flex;
@@ -372,7 +372,7 @@
   padding: 12px;
   background: rgba(0, 0, 0, 0.03);
   border-radius: 8px;
-  font-size: 12px;
+  font-size: 14px;
   border: 1px solid var(--border);
 }
 
@@ -631,7 +631,7 @@
     grid-template-columns: repeat(2, 1fr);
     gap: 6px;
     padding: 10px;
-    font-size: 11px;
+    font-size: 14px;
   }
   
   .myk9-club-show-title-row {
@@ -658,7 +658,7 @@
   }
   
   .myk9-club-empty-text {
-    font-size: 13px;
+    font-size: 14px;
   }
   
   .myk9-club-contact-actions {
@@ -765,7 +765,7 @@
 }
 
 .myk9-club-stat-trend {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 590;
   padding: 4px 8px;
   border-radius: 8px;
@@ -779,7 +779,7 @@
 }
 
 .myk9-club-stat-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 590;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -798,7 +798,7 @@
 .myk9-club-stat-details {
   display: flex;
   justify-content: space-between;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--muted-foreground);
   margin-bottom: 12px;
 }

@@ -1,4 +1,4 @@
-import { cva } from "class-variance-authority";
+import { cva } from 'class-variance-authority';
 
 export const buttonVariants = cva(
   // myK9Q-consistent button styling
@@ -38,33 +38,29 @@ export const buttonVariants = cva(
       variant: {
         default:
           // Primary button - teal with white text, matches myK9Q
-          "bg-primary text-primary-foreground hover:opacity-90",
-        destructive:
-          "bg-destructive text-destructive-foreground hover:opacity-90",
+          'bg-primary text-primary-foreground hover:opacity-90',
+        destructive: 'bg-destructive text-destructive-foreground hover:opacity-90',
         outline:
           // Secondary outline button - matches myK9Q dialog-button-secondary
-          "border border-border bg-secondary text-secondary-foreground hover:bg-muted",
+          'border border-border bg-secondary text-secondary-foreground hover:bg-muted',
         secondary:
           // Muted background button - matches myK9Q cancel button style
-          "bg-muted-foreground text-white hover:opacity-90",
-        ghost:
-          "hover:bg-muted hover:text-accent-foreground",
-        link:
-          "text-primary underline-offset-4 hover:underline",
-        premium:
-          "bg-yellow-500 hover:bg-yellow-600 text-primary-foreground font-bold",
+          'bg-muted-foreground text-white hover:opacity-90',
+        ghost: 'hover:bg-muted hover:text-accent-foreground',
+        link: 'text-primary underline-offset-4 hover:underline',
+        premium: 'bg-yellow-500 hover:bg-yellow-600 text-primary-foreground font-bold',
       },
       size: {
-        // Sizes matching myK9Q spacing tokens
-        default: "h-10 px-6 py-2", // Comfortable touch target
-        sm: "h-8 px-4 text-xs", // Compact areas
-        lg: "h-11 px-8 text-base", // Full touch compliance (44px)
-        icon: "h-10 w-10", // Square touch target
+        // INTENT: 44px minimum touch targets for exhibitor-facing UI
+        default: 'h-11 px-6 py-2', // 44px — full touch compliance
+        sm: 'h-10 px-4 text-xs', // 40px — compact but still accessible
+        lg: 'h-12 px-8 text-base', // 48px — prominent actions
+        icon: 'h-11 w-11', // 44px — square touch target
       },
     },
     defaultVariants: {
-      variant: "default",
-      size: "default",
+      variant: 'default',
+      size: 'default',
     },
   }
 );

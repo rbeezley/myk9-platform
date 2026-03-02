@@ -121,7 +121,7 @@
 }
 
 .myk9-registration-label {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 590;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -296,7 +296,7 @@
 /* Error States */
 .myk9-registration-error {
   color: #FF3B30;
-  font-size: 13px;
+  font-size: 14px;
   margin-top: 4px;
   font-weight: 500;
 }

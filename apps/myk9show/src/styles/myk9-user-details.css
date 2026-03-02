@@ -94,7 +94,7 @@
   align-items: center;
   padding: 4px 12px;
   border-radius: 50px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 590;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -164,7 +164,7 @@
 
 .myk9-people-photo-edit-btn {
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 590;
   transition: all 0.2s ease;
 }
@@ -231,7 +231,7 @@
 }
 
 .myk9-people-contact-label {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 590;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -323,7 +323,7 @@
   gap: 6px;
   padding: 6px 12px;
   border-radius: 50px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 590;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -418,7 +418,7 @@
 }
 
 .myk9-people-dog-breed {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--muted-foreground);
   margin-bottom: 8px;
 }
@@ -426,7 +426,7 @@
 .myk9-people-dog-stats {
   display: flex;
   gap: 12px;
-  font-size: 11px;
+  font-size: 14px;
   color: var(--muted-foreground);
 }
 
@@ -468,7 +468,7 @@
 }
 
 .myk9-people-sidebar-email {
-  font-size: 11px;
+  font-size: 14px;
   color: var(--muted-foreground);
   margin-bottom: 1px;
   line-height: 1.2;
@@ -476,7 +476,7 @@
 }
 
 .myk9-people-sidebar-role {
-  font-size: 10px;
+  font-size: 14px;
   color: var(--muted-foreground);
   text-transform: uppercase;
   letter-spacing: 0.02em;

@@ -152,7 +152,7 @@
   gap: 6px;
   padding: 8px 14px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 590;
   background: var(--background);
   border: 1px solid var(--border);
@@ -172,7 +172,7 @@
   justify-content: space-between;
   align-items: center;
   margin-top: 12px;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--muted-foreground);
 }
 
@@ -266,7 +266,7 @@
 .myk9-class-element-checkbox.checked::after {
   content: '✓';
   color: white;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -291,7 +291,7 @@
   align-items: center;
   padding: 4px 10px;
   border-radius: 12px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 590;
   background: color-mix(in srgb, var(--primary) 15%, transparent);
   color: var(--primary);
@@ -429,7 +429,7 @@
 .myk9-class-card.selected .myk9-class-card-checkbox::after {
   content: '✓';
   color: white;
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -466,7 +466,7 @@
 }
 
 .myk9-class-card-order {
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--muted-foreground);
   text-transform: uppercase;
@@ -510,7 +510,7 @@
 }
 
 .myk9-class-card-existing-badge {
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--muted-foreground);
   background: var(--muted/40);
@@ -645,7 +645,7 @@
   align-items: center;
   gap: 4px;
   margin-top: 4px;
-  font-size: 11px;
+  font-size: 14px;
   color: var(--muted-foreground);
 }
 
@@ -733,7 +733,7 @@
 }
 
 .myk9-template-label {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 590;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -753,7 +753,7 @@
 }
 
 .myk9-template-description-label {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 590;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -908,7 +908,7 @@
 }
 
 .myk9-summary-label {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -916,7 +916,7 @@
 }
 
 .myk9-summary-note {
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 400;
   color: var(--muted-foreground);
   opacity: 0.8;
@@ -1015,7 +1015,7 @@
 }
 
 .myk9-element-count {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--muted-foreground);
 }
@@ -1065,7 +1065,7 @@
 }
 
 .myk9-class-section {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--muted-foreground);
   background: transparent;

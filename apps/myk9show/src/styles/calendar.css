@@ -99,7 +99,7 @@
   border-radius: 4px;
   padding: 2px 6px;
   margin: 1px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -121,7 +121,7 @@
   border: 1px solid var(--border);
   border-radius: 4px;
   padding: 2px 6px;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   margin: 1px;
@@ -185,7 +185,7 @@
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .custom-calendar .rbc-event {
-    font-size: 11px;
+    font-size: 14px;
     padding: 1px 4px;
   }
 
@@ -195,6 +195,6 @@
 
   .custom-calendar .rbc-header {
     padding: 6px 8px;
-    font-size: 12px;
+    font-size: 14px;
   }
 }

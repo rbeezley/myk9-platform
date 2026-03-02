@@ -94,7 +94,7 @@ export interface ReceiptDialogState {
 /**
  * Tab filter options
  */
-export type EntryTabFilter = 'all' | 'pending' | 'accepted' | 'waitlist' | 'upcoming';
+export type EntryTabFilter = 'all' | 'pending' | 'accepted' | 'waitlist' | 'upcoming' | 'completed';
 
 /**
  * Entry update event from real-time subscription

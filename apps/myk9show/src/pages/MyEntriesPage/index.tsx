@@ -78,12 +78,7 @@ const MyEntriesPage: React.FC = () => {
     if (!checkInDialog.entry || !checkInDialog.classEntry) return;
 
     try {
-      await updateEntryCheckIn(
-        checkInDialog.entry.id,
-        checkInDialog.classEntry.id,
-        status,
-        notes
-      );
+      await updateEntryCheckIn(checkInDialog.entry.id, checkInDialog.classEntry.id, status, notes);
       setCheckInDialog({ open: false, entry: null, classEntry: null });
     } catch {
       // Error handled in hook
@@ -99,7 +94,7 @@ const MyEntriesPage: React.FC = () => {
             <div className="h-8 bg-muted/50 rounded-lg animate-pulse" />
             <div className="h-12 bg-muted/50 rounded-lg animate-pulse" />
             <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
+              {[1, 2, 3].map(i => (
                 <div key={i} className="h-32 bg-muted/50 rounded-xl animate-pulse" />
               ))}
             </div>
@@ -150,11 +145,11 @@ const MyEntriesPage: React.FC = () => {
           {/* Entries List */}
           <Tabs
             value={selectedTab}
-            onValueChange={(value) => setSelectedTab(value as EntryTabFilter)}
+            onValueChange={value => setSelectedTab(value as EntryTabFilter)}
             className="space-y-6"
           >
             <TabsList className="flex w-full overflow-x-auto scrollbar-hide bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 h-auto gap-1">
-              {['all', 'pending', 'accepted', 'waitlist', 'upcoming'].map((tab) => (
+              {['all', 'pending', 'accepted', 'waitlist', 'upcoming', 'completed'].map(tab => (
                 <TabsTrigger
                   key={tab}
                   value={tab}
@@ -169,7 +164,7 @@ const MyEntriesPage: React.FC = () => {
               {filteredEntries.length === 0 ? (
                 <EmptyState selectedTab={selectedTab} />
               ) : (
-                filteredEntries.map((entry) => (
+                filteredEntries.map(entry => (
                   <MyEntryCard
                     key={entry.id}
                     entry={entry}
@@ -201,7 +196,11 @@ const MyEntriesPage: React.FC = () => {
         }}
       />
 
-      <ReceiptEntryDialog dialog={receiptDialog} user={user} onClose={() => setReceiptDialog({ open: false, entry: null })} />
+      <ReceiptEntryDialog
+        dialog={receiptDialog}
+        user={user}
+        onClose={() => setReceiptDialog({ open: false, entry: null })}
+      />
     </div>
   );
 };
@@ -245,7 +244,7 @@ const CheckInDialog: React.FC<CheckInDialogProps> = ({ dialog, user, onClose, on
   return (
     <CheckInStatusDialog
       open={dialog.open}
-      onOpenChange={(open) => !open && onClose()}
+      onOpenChange={open => !open && onClose()}
       currentStatus={dialog.classEntry.checkInStatus || 'none'}
       entryInfo={{
         armband: dialog.entry.confirmationNumber || dialog.entry.id,
@@ -271,7 +270,7 @@ const EditEntryDialog: React.FC<EditEntryDialogProps> = ({ dialog, onClose, onUp
   if (!dialog.entry) return null;
 
   // Map classes to match EntryEditDialog's expected type
-  const mappedClasses = dialog.entry.classes.map((c) => ({
+  const mappedClasses = dialog.entry.classes.map(c => ({
     id: c.id,
     name: c.name,
     number: c.number,
@@ -284,7 +283,7 @@ const EditEntryDialog: React.FC<EditEntryDialogProps> = ({ dialog, onClose, onUp
   return (
     <EntryEditDialog
       open={dialog.open}
-      onOpenChange={(open) => !open && onClose()}
+      onOpenChange={open => !open && onClose()}
       entry={{
         id: dialog.entry.id,
         showId: dialog.entry.showId,
@@ -316,7 +315,7 @@ const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({ dialog, user, o
   const exhibitorEmail = user?.email;
 
   // Map classes to match EntryReceipt's expected type
-  const mappedClasses = entry.classes.map((c) => ({
+  const mappedClasses = entry.classes.map(c => ({
     id: c.id,
     name: c.name,
     number: c.number,
@@ -329,7 +328,7 @@ const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({ dialog, user, o
   return (
     <EntryReceipt
       open={dialog.open}
-      onOpenChange={(open) => !open && onClose()}
+      onOpenChange={open => !open && onClose()}
       entry={{
         id: entry.id,
         confirmationNumber: entry.confirmationNumber || entry.id.slice(0, 8).toUpperCase(),

@@ -22,7 +22,9 @@ interface UseMyEntriesFiltersReturn {
 /**
  * Hook for filtering and computing statistics on entries
  */
-export function useMyEntriesFilters({ entries }: UseMyEntriesFiltersProps): UseMyEntriesFiltersReturn {
+export function useMyEntriesFilters({
+  entries,
+}: UseMyEntriesFiltersProps): UseMyEntriesFiltersReturn {
   const [selectedTab, setSelectedTab] = useState<EntryTabFilter>('all');
   // Derive filtered and sorted entries from current tab and entries
   const filteredEntries = useMemo(() => {
@@ -31,22 +33,27 @@ export function useMyEntriesFilters({ entries }: UseMyEntriesFiltersProps): UseM
     switch (selectedTab) {
       case 'pending':
         filtered = filtered.filter(
-          (entry) =>
+          entry =>
             entry.entryStatus === EntryStatus.PENDING ||
             entry.paymentStatus === PaymentStatus.PENDING
         );
         break;
       case 'accepted':
-        filtered = filtered.filter((entry) => entry.entryStatus === EntryStatus.ACCEPTED);
+        filtered = filtered.filter(entry => entry.entryStatus === EntryStatus.ACCEPTED);
         break;
       case 'waitlist':
-        filtered = filtered.filter((entry) => entry.entryStatus === EntryStatus.WAITLIST);
+        filtered = filtered.filter(entry => entry.entryStatus === EntryStatus.WAITLIST);
         break;
       case 'upcoming': {
         const now = new Date();
         filtered = filtered.filter(
-          (entry) => entry.showDate >= now && entry.entryStatus === EntryStatus.ACCEPTED
+          entry => entry.showDate >= now && entry.entryStatus === EntryStatus.ACCEPTED
         );
+        break;
+      }
+      case 'completed': {
+        const now = new Date();
+        filtered = filtered.filter(entry => entry.showDate < now);
         break;
       }
       default:
@@ -65,15 +72,15 @@ export function useMyEntriesFilters({ entries }: UseMyEntriesFiltersProps): UseM
    */
   const entryStats = useMemo<EntryStats>(() => {
     const now = new Date();
-    const accepted = entries.filter((e) => e.entryStatus === EntryStatus.ACCEPTED);
-    const pending = entries.filter((e) => e.entryStatus === EntryStatus.PENDING);
-    const upcoming = entries.filter((e) => e.showDate >= now);
-    const paidEntries = entries.filter((e) => e.paymentStatus !== PaymentStatus.PENDING);
-    const unpaidEntries = entries.filter((e) => e.paymentStatus === PaymentStatus.PENDING);
-    const acceptedPaid = accepted.filter((e) => e.paymentStatus !== PaymentStatus.PENDING);
-    const acceptedUnpaid = accepted.filter((e) => e.paymentStatus === PaymentStatus.PENDING);
+    const accepted = entries.filter(e => e.entryStatus === EntryStatus.ACCEPTED);
+    const pending = entries.filter(e => e.entryStatus === EntryStatus.PENDING);
+    const upcoming = entries.filter(e => e.showDate >= now);
+    const paidEntries = entries.filter(e => e.paymentStatus !== PaymentStatus.PENDING);
+    const unpaidEntries = entries.filter(e => e.paymentStatus === PaymentStatus.PENDING);
+    const acceptedPaid = accepted.filter(e => e.paymentStatus !== PaymentStatus.PENDING);
+    const acceptedUnpaid = accepted.filter(e => e.paymentStatus === PaymentStatus.PENDING);
     const needsAction = entries.filter(
-      (e) => e.entryStatus === EntryStatus.PENDING || e.paymentStatus === PaymentStatus.PENDING
+      e => e.entryStatus === EntryStatus.PENDING || e.paymentStatus === PaymentStatus.PENDING
     );
 
     const totalFees = entries.reduce((sum, entry) => sum + entry.totalFee, 0);
@@ -91,7 +98,8 @@ export function useMyEntriesFilters({ entries }: UseMyEntriesFiltersProps): UseM
       totalFees,
       paidFees,
       unpaidFees,
-      acceptedPercent: entries.length > 0 ? Math.round((accepted.length / entries.length) * 100) : 0,
+      acceptedPercent:
+        entries.length > 0 ? Math.round((accepted.length / entries.length) * 100) : 0,
       paidPercent: totalFees > 0 ? Math.round((paidFees / totalFees) * 100) : 0,
       needsActionPercent:
         entries.length > 0 ? Math.round((needsAction.length / entries.length) * 100) : 0,

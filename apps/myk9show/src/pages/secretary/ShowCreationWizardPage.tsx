@@ -18,6 +18,7 @@ import { useShowStore } from '@/store/showStore';
 import { useTrialStore } from '@/store/trialStore';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useUserStore } from '@/store/userStore';
+import { useShowsQuery } from '@/hooks/queries/useShowsDatabase';
 import VerticalProgressIndicator from '@/components/shows/wizard/components/VerticalProgressIndicator';
 import WizardNavigation from '@/components/shows/wizard/components/WizardNavigation';
 import ShowDetailsStep from '@/components/shows/wizard/steps/ShowDetailsStep';
@@ -37,6 +38,7 @@ const ShowCreationWizardPage: React.FC = () => {
   const [validationExpanded, setValidationExpanded] = useState(false);
   const [hasAttemptedNext, setHasAttemptedNext] = useState(false);
   const stepContentRef = useRef<HTMLDivElement>(null);
+  const editModeInitializedRef = useRef<string | null>(null);
 
   // Extract edit mode from URL params
   const editMode: EditMode | undefined = (() => {
@@ -58,7 +60,8 @@ const ShowCreationWizardPage: React.FC = () => {
     trials,
   } = useWizardStore();
 
-  const { shows } = useShowStore();
+  const { shows: zustandShows } = useShowStore();
+  const { data: queryShows = [] } = useShowsQuery();
   const { trials: existingTrials } = useTrialStore();
   const { classes: existingClasses } = useClassStoreCompat();
   const { people, loadPeople } = useUserStore();
@@ -118,13 +121,25 @@ const ShowCreationWizardPage: React.FC = () => {
     return () => clearTimeout(timer);
   }, [currentStep]);
 
-  // Initialize wizard with existing show data in edit mode
+  // Merge Zustand and React Query show sources for lookups
+  const allShows = React.useMemo(() => {
+    const seen = new Set<string>();
+    const merged = [...zustandShows];
+    for (const s of merged) seen.add(s.id);
+    for (const s of queryShows) {
+      if (!seen.has(s.id)) merged.push(s);
+    }
+    return merged;
+  }, [zustandShows, queryShows]);
+
+  // Initialize wizard with existing show data in edit mode (once per showId)
   useEffect(() => {
-    if (editMode) {
-      const existingShow = shows.find(s => s.id === editMode.showId);
+    if (editMode && editModeInitializedRef.current !== editMode.showId) {
+      const existingShow = allShows.find(s => s.id === editMode.showId);
       const showTrials = existingTrials.filter(t => t.showId === editMode.showId);
 
       if (existingShow) {
+        editModeInitializedRef.current = editMode.showId;
         // Transform existing trials to wizard format
         const wizardTrials = showTrials.map(trial => {
           const trialClasses = existingClasses.filter(c => c.trialId === trial.id);
@@ -209,7 +224,7 @@ const ShowCreationWizardPage: React.FC = () => {
         });
       }
     }
-  }, [editMode, shows, existingTrials, loadDraft, people, existingClasses]);
+  }, [editMode, allShows, existingTrials, loadDraft, people, existingClasses]);
 
   // Handle wizard close
   const handleClose = useCallback(() => {

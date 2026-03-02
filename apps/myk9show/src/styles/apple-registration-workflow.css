@@ -2,7 +2,8 @@
 
 /* Main workflow container */
 .apple-registration-workflow {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
   letter-spacing: -0.01em;
   background: var(--background);
 }
@@ -26,8 +27,15 @@
   inset: 0;
   border-radius: 20px;
   padding: 0.5px;
-  background: linear-gradient(135deg, transparent, rgba(0, 122, 255, 0.1), transparent);
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  background: linear-gradient(
+    135deg,
+    transparent,
+    color-mix(in srgb, var(--primary) 10%, transparent),
+    transparent
+  );
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
   mask-composite: exclude;
   opacity: 0.3;
   pointer-events: none;
@@ -52,17 +60,17 @@
 }
 
 .apple-registration-step.completed {
-  background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%) !important;
+  background: linear-gradient(135deg, var(--primary) 0%, #5856d6 100%) !important;
   border-color: transparent !important;
   color: white !important;
-  box-shadow: 0 4px 20px rgba(0, 122, 255, 0.3) !important;
+  box-shadow: 0 4px 20px color-mix(in srgb, var(--primary) 30%, transparent) !important;
 }
 
 .apple-registration-step.active {
   background: var(--background) !important;
-  border-color: #007AFF !important;
-  color: #007AFF !important;
-  box-shadow: 0 4px 20px rgba(0, 122, 255, 0.2) !important;
+  border-color: var(--primary) !important;
+  color: var(--primary) !important;
+  box-shadow: 0 4px 20px color-mix(in srgb, var(--primary) 20%, transparent) !important;
   transform: scale(1.05) !important;
 }
 
@@ -83,8 +91,8 @@
 }
 
 .apple-registration-connector.completed {
-  background: linear-gradient(90deg, #007AFF 0%, #5856D6 100%) !important;
-  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.2) !important;
+  background: linear-gradient(90deg, var(--primary) 0%, #5856d6 100%) !important;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--primary) 20%, transparent) !important;
 }
 
 /* Step Content Area */
@@ -135,15 +143,15 @@
 }
 
 .apple-dog-card:hover {
-  border-color: rgba(0, 122, 255, 0.3) !important;
+  border-color: color-mix(in srgb, var(--primary) 30%, transparent) !important;
   transform: translateY(-1px) !important;
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1) !important;
 }
 
 .apple-dog-card.selected {
-  border-color: #007AFF !important;
-  background: rgba(0, 122, 255, 0.05) !important;
-  box-shadow: 0 8px 25px rgba(0, 122, 255, 0.15) !important;
+  border-color: var(--primary) !important;
+  background: color-mix(in srgb, var(--primary) 5%, transparent) !important;
+  box-shadow: 0 8px 25px color-mix(in srgb, var(--primary) 15%, transparent) !important;
 }
 
 .apple-dog-card::before {
@@ -153,7 +161,7 @@
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, #007AFF 0%, #5856D6 100%);
+  background: linear-gradient(90deg, var(--primary) 0%, #5856d6 100%);
   opacity: 0;
   transition: opacity 0.2s ease;
 }
@@ -182,15 +190,15 @@
 }
 
 .apple-class-card:hover {
-  border-color: rgba(0, 122, 255, 0.3) !important;
+  border-color: color-mix(in srgb, var(--primary) 30%, transparent) !important;
   transform: translateY(-2px) !important;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1) !important;
 }
 
 .apple-class-card.selected {
-  border-color: #007AFF !important;
-  background: rgba(0, 122, 255, 0.05) !important;
-  box-shadow: 0 12px 40px rgba(0, 122, 255, 0.15) !important;
+  border-color: var(--primary) !important;
+  background: color-mix(in srgb, var(--primary) 5%, transparent) !important;
+  box-shadow: 0 12px 40px color-mix(in srgb, var(--primary) 15%, transparent) !important;
 }
 
 .apple-class-card-header {
@@ -211,8 +219,8 @@
 .apple-class-card-price {
   font-size: 16px !important;
   font-weight: 650 !important;
-  color: #007AFF !important;
-  background: rgba(0, 122, 255, 0.1) !important;
+  color: var(--primary) !important;
+  background: color-mix(in srgb, var(--primary) 10%, transparent) !important;
   padding: 4px 12px !important;
   border-radius: 12px !important;
 }
@@ -239,8 +247,8 @@
 .apple-class-card-price-compact {
   font-size: 14px !important;
   font-weight: 650 !important;
-  color: #007AFF !important;
-  background: rgba(0, 122, 255, 0.1) !important;
+  color: var(--primary) !important;
+  background: color-mix(in srgb, var(--primary) 10%, transparent) !important;
   padding: 4px 10px !important;
   border-radius: 8px !important;
   white-space: nowrap !important;
@@ -279,14 +287,14 @@
 }
 
 .apple-nav-button.primary {
-  background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%) !important;
+  background: linear-gradient(135deg, var(--primary) 0%, #5856d6 100%) !important;
   color: white !important;
-  box-shadow: 0 4px 20px rgba(0, 122, 255, 0.3) !important;
+  box-shadow: 0 4px 20px color-mix(in srgb, var(--primary) 30%, transparent) !important;
 }
 
 .apple-nav-button.primary:hover {
   transform: translateY(-1px) !important;
-  box-shadow: 0 6px 25px rgba(0, 122, 255, 0.4) !important;
+  box-shadow: 0 6px 25px color-mix(in srgb, var(--primary) 40%, transparent) !important;
 }
 
 .apple-nav-button.secondary {
@@ -335,27 +343,27 @@
     padding: 24px !important;
     border-radius: 16px !important;
   }
-  
+
   .apple-registration-step {
     width: 48px !important;
     height: 48px !important;
     font-size: 14px !important;
   }
-  
+
   .apple-registration-step-title {
     font-size: 24px !important;
   }
-  
+
   .apple-class-grid {
     grid-template-columns: 1fr !important;
     gap: 16px !important;
   }
-  
+
   .apple-registration-nav {
     flex-direction: column !important;
     gap: 16px !important;
   }
-  
+
   .apple-nav-button {
     width: 100% !important;
     justify-content: center !important;
@@ -367,14 +375,14 @@
   .apple-registration-card {
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
   }
-  
+
   .apple-dog-card:hover,
   .apple-class-card:hover {
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2) !important;
   }
-  
+
   .apple-dog-card.selected,
   .apple-class-card.selected {
-    box-shadow: 0 8px 25px rgba(0, 122, 255, 0.25) !important;
+    box-shadow: 0 8px 25px color-mix(in srgb, var(--primary) 25%, transparent) !important;
   }
 }

@@ -36,6 +36,56 @@ export enum TrialType {
   OTHER = 'Other',
 }
 
+/** Trial types offered by each organization. "Other" org shows all types. */
+export const TRIAL_TYPES_BY_ORGANIZATION: Record<string, TrialType[]> = {
+  [Organization.AKC]: [
+    TrialType.SCENT_WORK,
+    TrialType.AGILITY,
+    TrialType.CONFORMATION,
+    TrialType.OBEDIENCE,
+    TrialType.RALLY,
+    TrialType.OBEDIENCE_RALLY,
+    TrialType.FASTCAT,
+    TrialType.COURSING_ABILITY_TEST,
+    TrialType.BARN_HUNT,
+    TrialType.TRACKING,
+    TrialType.FIELD_TRIAL,
+    TrialType.HUNT_TEST,
+    TrialType.HERDING,
+    TrialType.LURE_COURSING,
+    TrialType.DOCK_DIVING,
+  ],
+  [Organization.UKC]: [
+    TrialType.NOSEWORK,
+    TrialType.AGILITY,
+    TrialType.CONFORMATION,
+    TrialType.OBEDIENCE,
+    TrialType.RALLY,
+    TrialType.DOCK_DIVING,
+    TrialType.WEIGHT_PULL,
+    TrialType.LURE_COURSING,
+    TrialType.BARN_HUNT,
+  ],
+  [Organization.NACSW]: [TrialType.NOSEWORK],
+  [Organization.ASCA]: [
+    TrialType.SCENT_DETECTION,
+    TrialType.AGILITY,
+    TrialType.OBEDIENCE,
+    TrialType.RALLY,
+    TrialType.CONFORMATION,
+  ],
+  [Organization.CPE]: [TrialType.AGILITY],
+  [Organization.USDAA]: [TrialType.AGILITY],
+  [Organization.NADAC]: [TrialType.AGILITY],
+};
+
+/** Returns the trial types available for a given organization, with "Other" always appended. */
+export function getTrialTypesForOrganization(organization: string): TrialType[] {
+  const types = TRIAL_TYPES_BY_ORGANIZATION[organization];
+  if (!types) return Object.values(TrialType); // Unknown org → show all
+  return [...types, TrialType.OTHER];
+}
+
 // Class status tracking - aligned with @myk9/core CLASS_STATUS constants
 // Includes 'Upcoming' as a valid alias for 'Scheduled' for backward compatibility
 export type ClassStatus = 'Scheduled' | 'Upcoming' | 'In Progress' | 'Completed' | 'Cancelled';

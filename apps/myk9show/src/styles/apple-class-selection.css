@@ -2,7 +2,8 @@
 
 /* Typography - San Francisco inspired */
 .apple-class-selector {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
   letter-spacing: -0.01em;
   background: var(--background);
   min-height: 100vh;
@@ -62,9 +63,9 @@
   border-radius: 50px;
   font-size: 14px;
   font-weight: 590;
-  background: rgba(0, 122, 255, 0.1);
-  color: #007AFF;
-  border: 1px solid rgba(0, 122, 255, 0.2);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  color: var(--primary);
+  border: 1px solid color-mix(in srgb, var(--primary) 20%, transparent);
 }
 
 /* Streamlined Filters Section */
@@ -101,8 +102,8 @@
 
 .apple-class-search-input:focus {
   outline: none;
-  border-color: #007AFF;
-  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 10%, transparent);
 }
 
 .apple-class-search-wrapper {
@@ -136,8 +137,8 @@
 }
 
 .apple-class-filter-select .select-trigger:focus {
-  border-color: #007AFF;
-  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 10%, transparent);
 }
 
 .apple-class-bulk-actions {
@@ -198,8 +199,15 @@
   inset: 0;
   border-radius: 16px;
   padding: 0.5px;
-  background: linear-gradient(135deg, transparent, rgba(0, 122, 255, 0.05), transparent);
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  background: linear-gradient(
+    135deg,
+    transparent,
+    color-mix(in srgb, var(--primary) 5%, transparent),
+    transparent
+  );
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
   mask-composite: exclude;
   opacity: 0.5;
 }
@@ -241,18 +249,18 @@
 }
 
 .apple-class-element-checkbox:hover {
-  border-color: #007AFF;
+  border-color: var(--primary);
   transform: scale(1.05);
 }
 
 .apple-class-element-checkbox.checked {
-  background: #007AFF;
-  border-color: #007AFF;
+  background: var(--primary);
+  border-color: var(--primary);
 }
 
 .apple-class-element-checkbox.indeterminate {
-  background: rgba(0, 122, 255, 0.1);
-  border-color: #007AFF;
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  border-color: var(--primary);
 }
 
 .apple-class-element-checkbox.checked::after {
@@ -264,7 +272,7 @@
 
 .apple-class-element-checkbox.indeterminate::after {
   content: '−';
-  color: #007AFF;
+  color: var(--primary);
   font-size: 14px;
   font-weight: 700;
 }
@@ -285,15 +293,15 @@
   border-radius: 12px;
   font-size: 12px;
   font-weight: 590;
-  background: rgba(0, 122, 255, 0.15);
-  color: #007AFF;
-  border: 1px solid rgba(0, 122, 255, 0.2);
+  background: color-mix(in srgb, var(--primary) 15%, transparent);
+  color: var(--primary);
+  border: 1px solid color-mix(in srgb, var(--primary) 20%, transparent);
 }
 
 .dark .apple-class-element-count {
-  background: rgba(0, 122, 255, 0.2);
-  color: #4A9EFF;
-  border-color: rgba(0, 122, 255, 0.3);
+  background: color-mix(in srgb, var(--primary) 20%, transparent);
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 30%, transparent);
 }
 
 .apple-class-element-select-all {
@@ -327,7 +335,7 @@
   .apple-class-selector {
     container-type: inline-size;
   }
-  
+
   /* Container-based responsive grid */
   @container (min-width: 1100px) {
     .apple-class-cards-grid {
@@ -337,7 +345,7 @@
       grid-template-columns: repeat(4, 1fr);
     }
   }
-  
+
   @container (min-width: 850px) and (max-width: 1099px) {
     .apple-class-cards-grid {
       grid-template-columns: repeat(4, 1fr);
@@ -346,7 +354,7 @@
       grid-template-columns: repeat(3, 1fr);
     }
   }
-  
+
   @container (min-width: 600px) and (max-width: 849px) {
     .apple-class-cards-grid {
       grid-template-columns: repeat(3, 1fr);
@@ -355,7 +363,7 @@
       grid-template-columns: repeat(2, 1fr);
     }
   }
-  
+
   @container (max-width: 599px) {
     .apple-class-cards-grid {
       grid-template-columns: repeat(2, 1fr);
@@ -383,13 +391,13 @@
 .apple-class-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
-  border-color: rgba(0, 122, 255, 0.3);
+  border-color: color-mix(in srgb, var(--primary) 30%, transparent);
 }
 
 .apple-class-card.selected {
-  background: rgba(0, 122, 255, 0.05);
-  border-color: #007AFF;
-  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.2);
+  background: color-mix(in srgb, var(--primary) 5%, transparent);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 20%, transparent);
 }
 
 .apple-class-card-checkbox {
@@ -409,13 +417,13 @@
 }
 
 .apple-class-card-checkbox:hover {
-  border-color: #007AFF;
+  border-color: var(--primary);
   transform: scale(1.1);
 }
 
 .apple-class-card.selected .apple-class-card-checkbox {
-  background: #007AFF;
-  border-color: #007AFF;
+  background: var(--primary);
+  border-color: var(--primary);
 }
 
 .apple-class-card.selected .apple-class-card-checkbox::after {
@@ -589,7 +597,7 @@
 }
 
 .dark .apple-class-card.selected {
-  background: rgba(0, 122, 255, 0.1);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
 }
 
 /* Responsive Design */
@@ -599,29 +607,29 @@
     gap: 12px;
     align-items: flex-start;
   }
-  
+
   .apple-class-filters-row {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .apple-class-search {
     min-width: 100%;
   }
-  
+
   .apple-class-filter-select {
     min-width: 100%;
   }
-  
+
   .apple-class-cards-grid {
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: 8px;
   }
-  
+
   .apple-class-element-section {
     padding: 16px;
   }
-  
+
   /* Disable hover effects on mobile */
   .apple-class-card:hover,
   .apple-class-bulk-button:hover,
@@ -666,8 +674,15 @@
   inset: 0;
   border-radius: 16px;
   padding: 0.5px;
-  background: linear-gradient(135deg, transparent, rgba(0, 122, 255, 0.05), transparent);
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  background: linear-gradient(
+    135deg,
+    transparent,
+    color-mix(in srgb, var(--primary) 5%, transparent),
+    transparent
+  );
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
   mask-composite: exclude;
   opacity: 0.3;
 }
@@ -687,7 +702,7 @@
 .apple-template-icon {
   width: 20px;
   height: 20px;
-  color: #007AFF;
+  color: var(--primary);
   flex-shrink: 0;
 }
 
@@ -766,11 +781,11 @@
     grid-template-columns: 1fr;
     gap: 12px;
   }
-  
+
   .apple-template-card {
     padding: 20px;
   }
-  
+
   .apple-template-title {
     font-size: 18px;
   }
@@ -781,7 +796,7 @@
 .apple-class-card-checkbox:focus,
 .apple-class-bulk-button:focus,
 .apple-class-clear-filters:focus {
-  outline: 2px solid #007AFF;
+  outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
 
@@ -792,7 +807,8 @@
 
 /* Apple-Inspired Confirmation Step */
 .apple-confirmation-container {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
   letter-spacing: -0.01em;
   display: flex;
   flex-direction: column;
@@ -826,8 +842,15 @@
   inset: 0;
   border-radius: 16px;
   padding: 0.5px;
-  background: linear-gradient(135deg, transparent, rgba(0, 122, 255, 0.05), transparent);
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  background: linear-gradient(
+    135deg,
+    transparent,
+    color-mix(in srgb, var(--primary) 5%, transparent),
+    transparent
+  );
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
   mask-composite: exclude;
   opacity: 0.3;
 }
@@ -851,15 +874,15 @@
 }
 
 .apple-summary-icon-classes {
-  background: linear-gradient(135deg, #34C759 0%, #30D158 100%);
+  background: linear-gradient(135deg, #34c759 0%, #30d158 100%);
 }
 
 .apple-summary-icon-time {
-  background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, #5856d6 100%);
 }
 
 .apple-summary-icon-template {
-  background: linear-gradient(135deg, #FF9500 0%, #FF6200 100%);
+  background: linear-gradient(135deg, #ff9500 0%, #ff6200 100%);
 }
 
 .apple-summary-content {
@@ -871,7 +894,7 @@
 .apple-summary-number {
   font-size: 28px;
   font-weight: 700;
-  line-height: 1.0;
+  line-height: 1;
   color: var(--foreground);
   margin-bottom: 4px;
 }
@@ -918,8 +941,15 @@
   inset: 0;
   border-radius: 16px;
   padding: 0.5px;
-  background: linear-gradient(135deg, transparent, rgba(0, 122, 255, 0.05), transparent);
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  background: linear-gradient(
+    135deg,
+    transparent,
+    color-mix(in srgb, var(--primary) 5%, transparent),
+    transparent
+  );
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
   mask-composite: exclude;
   opacity: 0.3;
 }
@@ -973,15 +1003,15 @@
   border-radius: 12px;
   font-size: 14px;
   font-weight: 590;
-  background: rgba(0, 122, 255, 0.15);
-  color: #007AFF;
-  border: 1px solid rgba(0, 122, 255, 0.2);
+  background: color-mix(in srgb, var(--primary) 15%, transparent);
+  color: var(--primary);
+  border: 1px solid color-mix(in srgb, var(--primary) 20%, transparent);
 }
 
 .dark .apple-element-badge {
-  background: rgba(0, 122, 255, 0.2);
-  color: #4A9EFF;
-  border-color: rgba(0, 122, 255, 0.3);
+  background: color-mix(in srgb, var(--primary) 20%, transparent);
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 30%, transparent);
 }
 
 .apple-element-count {
@@ -1015,7 +1045,7 @@
 }
 
 .apple-class-check {
-  color: #34C759;
+  color: #34c759;
   flex-shrink: 0;
 }
 
@@ -1063,32 +1093,32 @@
     grid-template-columns: 1fr;
     gap: 12px;
   }
-  
+
   .apple-summary-card {
     padding: 16px;
   }
-  
+
   .apple-summary-number {
     font-size: 24px;
   }
-  
+
   .apple-confirmation-classes {
     padding: 20px;
   }
-  
+
   .apple-confirmation-title {
     font-size: 18px;
   }
-  
+
   .apple-classes-grid {
     grid-template-columns: 1fr;
     gap: 6px;
   }
-  
+
   .apple-class-item {
     padding: 10px 12px;
   }
-  
+
   /* Disable hover effects on mobile */
   .apple-summary-card:hover,
   .apple-class-item:hover {

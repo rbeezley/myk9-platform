@@ -14,9 +14,8 @@ import { addDays, format, isWithinInterval, parseISO } from 'date-fns';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useWizardStore } from '@/store/wizardStore';
-import { TrialType } from '@/types/template.types';
-
-const TRIAL_TYPE_OPTIONS = Object.values(TrialType);
+import { useTemplates } from '@/hooks/useTemplates';
+import { TrialType, getTrialTypesForOrganization } from '@/types/template.types';
 
 interface TrialConfigurationStepProps {
   className?: string;
@@ -24,6 +23,23 @@ interface TrialConfigurationStepProps {
 
 export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({ className }) => {
   const { show, trials, addTrial, updateTrial, removeTrial } = useWizardStore();
+  const { templates } = useTemplates();
+
+  // Derive trial types from active templates for this org.
+  // Falls back to the static mapping if no templates exist yet.
+  const trialTypeOptions = useMemo(() => {
+    const fromTemplates = Array.from(
+      new Set(
+        templates
+          .filter(t => t.isActive && t.organization === show.organization)
+          .map(t => t.trialType as TrialType)
+      )
+    );
+    if (fromTemplates.length > 0) {
+      return [...fromTemplates, TrialType.OTHER];
+    }
+    return getTrialTypesForOrganization(show.organization);
+  }, [show.organization, templates]);
 
   // Derive errors using useMemo instead of useState + effect
   const errors = useMemo(() => {
@@ -196,7 +212,7 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({ 
                           <SelectValue placeholder="Select discipline" />
                         </SelectTrigger>
                         <SelectContent>
-                          {TRIAL_TYPE_OPTIONS.map(type => (
+                          {trialTypeOptions.map(type => (
                             <SelectItem key={type} value={type}>
                               {type}
                             </SelectItem>

@@ -4,20 +4,15 @@ import { useQueryClient } from '@tanstack/react-query';
 import ShowDetailsMain from '@/components/shows/ShowDetailsMain';
 import { ShowEditPanel } from '@/components/panels/edit/ShowEditPanel';
 import DeleteShowDialog from '@/components/shows/ShowDetails/dialogs/DeleteShowDialog';
-import AddTrialDialog from '@/components/trials/AddTrialDialog';
-import StandardDialog from '@/components/common/StandardDialog';
-import { TrialEditPanel } from '@/components/panels/edit/TrialEditPanel';
 import { RegistrationWorkflow } from '@/components/shows/RegistrationWorkflow';
 import { RegistrationProvider } from '@/context/RegistrationContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useTrialStore, type TrialInput } from '@/store/trialStore';
+import { useTrialStore } from '@/store/trialStore';
 import type { ShowInput } from '@/store/showStore';
-import { useAuthContext } from '@/hooks/useAuthContext';
 import { useCompleteShowData } from '@/hooks/useShowScopedData';
 import { useShowsQuery, useUpdateShowMutation } from '@/hooks/queries/useShowsDatabase';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useNavigationPerformance } from '@/hooks/useNavigationPerformance';
-import type { Trial } from '@/components/trials/types/trial.types';
 import type { Show } from '@/types/show-types';
 import type { RegistrationFormData } from '@/types/show-registration-types';
 import { buildClasses } from '@/utils/designTokens';
@@ -54,14 +49,8 @@ const ShowDetailsPage: React.FC = () => {
   const cachedShows = queryClient.getQueryData<Show[]>(['shows', 'list']) || [];
   const { data: shows = cachedShows } = useShowsQuery();
 
-  // Get trials and actions from the store
-  const {
-    trials,
-    addTrial: addTrialToStore,
-    updateTrial: updateTrialInStore,
-    deleteTrial: deleteTrialFromStore,
-  } = useTrialStore();
-  const { user } = useAuthContext();
+  // Get trials from the store
+  const { trials } = useTrialStore();
   const updateShowMutation = useUpdateShowMutation();
 
   // Auto-open edit panel when redirected from /secretary/shows/:id/edit
@@ -80,10 +69,6 @@ const ShowDetailsPage: React.FC = () => {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- run once on mount
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [showAddTrialDialog, setShowAddTrialDialog] = useState(false);
-  const [showDeleteTrialDialog, setShowDeleteTrialDialog] = useState(false);
-  const [showEditTrialPanel, setShowEditTrialPanel] = useState(false);
-  const [selectedTrial, setSelectedTrial] = useState<Trial | null>(null);
   const [showRegistration, setShowRegistration] = useState(
     () => new URLSearchParams(window.location.search).get('register') === 'true'
   );
@@ -126,74 +111,6 @@ const ShowDetailsPage: React.FC = () => {
 
     return storeTrials.length > 0 ? storeTrials : scopedTrialsFromShow;
   }, [trials, showId, showTrials, actualCurrentShow]);
-
-  // Handler for adding a new trial
-  const handleAddTrial = (newTrialDialogData: {
-    name: string;
-    date: string;
-    trialNumber: string;
-    status: string;
-    eventNumber: string;
-    plannedStartTime: string;
-    order: string;
-    showName: string;
-    description?: string;
-  }) => {
-    const validStatus = newTrialDialogData.status as
-      | 'Upcoming'
-      | 'In Progress'
-      | 'Completed'
-      | 'Cancelled';
-
-    const newTrialForStore: TrialInput = {
-      showId: showId || '',
-      showName: newTrialDialogData.showName || actualCurrentShow?.name || 'Default Show Name',
-      name: newTrialDialogData.name,
-      trialDate: newTrialDialogData.date,
-      trialNumber: newTrialDialogData.trialNumber,
-      status: validStatus,
-      type: newTrialDialogData.name,
-      eventNumber: newTrialDialogData.eventNumber,
-      plannedStartTime: newTrialDialogData.plannedStartTime,
-      order: newTrialDialogData.order,
-    };
-    addTrialToStore(newTrialForStore, user?.id || 'unknown');
-    setShowAddTrialDialog(false);
-  };
-
-  // Handler for editing a trial
-  const handleEditTrial = (trial: Trial) => {
-    const associatedShow = shows.find(show => show.id === trial.showId);
-    const enrichedTrial = {
-      ...trial,
-      showName: associatedShow?.name || trial.showName || 'Unknown Show',
-    };
-
-    setSelectedTrial(enrichedTrial);
-    setShowEditTrialPanel(true);
-  };
-
-  // Handler for deleting a trial
-  const handleDeleteTrial = (trial: Trial) => {
-    setSelectedTrial(trial);
-    setShowDeleteTrialDialog(true);
-  };
-
-  const handleConfirmDeleteTrial = async () => {
-    if (selectedTrial) {
-      await deleteTrialFromStore(selectedTrial.id);
-      if (selectedTrial.showId) {
-        navigate(`/shows/${selectedTrial.showId}`);
-      }
-    }
-    setShowDeleteTrialDialog(false);
-    setSelectedTrial(null);
-  };
-
-  const handleCancelDeleteTrial = () => {
-    setShowDeleteTrialDialog(false);
-    setSelectedTrial(null);
-  };
 
   // Handler to open Edit panel
   const handleEditShow = () => {
@@ -272,8 +189,6 @@ const ShowDetailsPage: React.FC = () => {
             associatedTrials={combinedTrials}
             onEditShow={handleEditShow}
             onDeleteShow={handleDeleteShow}
-            onEditTrial={handleEditTrial}
-            onDeleteTrial={handleDeleteTrial}
             onRegisterForShow={handleRegisterForShow}
           />
         </Suspense>
@@ -316,53 +231,6 @@ const ShowDetailsPage: React.FC = () => {
       {renderContent()}
 
       {/* Dialogs */}
-      <AddTrialDialog
-        open={showAddTrialDialog}
-        onOpenChange={setShowAddTrialDialog}
-        onSave={handleAddTrial}
-        currentShowName={actualCurrentShow?.name}
-      />
-      <StandardDialog
-        open={showDeleteTrialDialog}
-        onClose={handleCancelDeleteTrial}
-        onSave={handleConfirmDeleteTrial}
-        title="Delete Trial"
-        description={null}
-        saveLabel="Delete"
-        cancelLabel="Cancel"
-        saveButtonProps={{
-          variant: 'destructive',
-          className: '!rounded-button whitespace-nowrap',
-        }}
-        hideSave={false}
-      >
-        <div className="py-2 text-foreground">
-          <p>
-            Are you sure you want to delete{' '}
-            <b>{selectedTrial?.type || selectedTrial?.trialNumber}</b>?
-          </p>
-          <p className="mt-2 text-destructive">This action cannot be undone.</p>
-        </div>
-      </StandardDialog>
-      <TrialEditPanel
-        open={showEditTrialPanel}
-        onClose={() => setShowEditTrialPanel(false)}
-        trialId={selectedTrial?.id || ''}
-        trialName={selectedTrial?.name || selectedTrial?.type || ''}
-        initialTrialData={selectedTrial || {}}
-        onSave={async trialData => {
-          if (selectedTrial?.id) {
-            const updatedTrial = { ...selectedTrial, ...trialData };
-            updateTrialInStore(
-              selectedTrial.id,
-              updatedTrial as Partial<TrialInput>,
-              user?.id || 'unknown'
-            );
-            setShowEditTrialPanel(false);
-            setSelectedTrial(null);
-          }
-        }}
-      />
       <ShowEditPanel
         open={showEditPanel}
         onClose={() => setShowEditPanel(false)}

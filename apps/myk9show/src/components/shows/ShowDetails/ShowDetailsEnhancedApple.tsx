@@ -22,6 +22,8 @@ import {
   Edit,
   Trash2,
   MoreVertical,
+  Plus,
+  Wand2,
   UserCheck,
   Play,
   Check,
@@ -791,6 +793,33 @@ const ShowDetailsEnhancedApple: React.FC<ShowDetailsEnhancedAppleProps> = ({
                     <Edit className="mr-2 h-4 w-4" />
                     Edit Show
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/secretary/create-show/wizard')}>
+                    <Wand2 className="mr-2 h-4 w-4" />
+                    Show Creation Wizard
+                  </DropdownMenuItem>
+                  <PermissionGuard permission={PERMISSIONS.SHOW_MANAGE}>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() =>
+                        navigate(
+                          `/secretary/create-show/wizard?showId=${showData.id}&mode=add-trials`
+                        )
+                      }
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Trials (Wizard)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() =>
+                        navigate(
+                          `/secretary/create-show/wizard?showId=${showData.id}&mode=add-classes`
+                        )
+                      }
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Classes (Wizard)
+                    </DropdownMenuItem>
+                  </PermissionGuard>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => onDeleteShow()} className="text-red-600">
                     <Trash2 className="mr-2 h-4 w-4" />

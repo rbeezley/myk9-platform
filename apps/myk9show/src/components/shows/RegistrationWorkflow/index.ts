@@ -1,1 +1,0 @@
-export { RegistrationWorkflow } from './RegistrationWorkflow';

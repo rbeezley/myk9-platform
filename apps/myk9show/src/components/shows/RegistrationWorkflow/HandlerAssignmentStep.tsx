@@ -6,14 +6,13 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
-import {
-  ClassSelectionData,
-  HandlerInfo,
-  makeHandlerKey,
-  parseHandlerKey,
-} from '@/types/show-registration-types';
+import { ClassSelectionData, HandlerInfo, makeHandlerKey } from '@/types/show-registration-types';
 import { getDogDisplayName } from '@/types/dog-types';
 import { HandlerSelectionDialog } from './HandlerSelectionDialog';
+
+type EditingTarget =
+  | { kind: 'single'; entryKey: string; dogId: string }
+  | { kind: 'all'; dogId: string };
 
 interface HandlerAssignmentStepProps {
   selectedDogs: string[];
@@ -30,8 +29,7 @@ export const HandlerAssignmentStep: React.FC<HandlerAssignmentStepProps> = ({
 }) => {
   const { dogs, isLoading } = useDogStoreCompat();
   const { classes } = useClassStoreCompat();
-  // editingKey: handler key (dogId|classId) for single entry, or "all|dogId" for set-all
-  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [editingTarget, setEditingTarget] = useState<EditingTarget | null>(null);
 
   // Pre-build lookup maps for O(1) access
   const classMap = useMemo(() => new Map(classes.map(c => [c.id, c])), [classes]);
@@ -74,42 +72,35 @@ export const HandlerAssignmentStep: React.FC<HandlerAssignmentStepProps> = ({
 
   // When the dialog saves, apply the handler to the appropriate key(s)
   const handleDialogSave = (assignments: Record<string, HandlerInfo>) => {
-    if (!editingKey) return;
+    if (!editingTarget) return;
 
     const newAssignments = { ...handlerAssignments };
+    const dogId = editingTarget.dogId;
+    const handler = assignments[dogId];
 
-    if (editingKey.startsWith('all|')) {
-      // "Set all for dog" — apply the handler to all of this dog's entries
-      const dogId = editingKey.slice(4);
-      // The dialog returns { [dogId]: HandlerInfo } — extract the handler
-      const handler = assignments[dogId];
-      if (handler) {
-        const dogClassSelections = classSelections.filter(s => s.dogId === dogId);
-        dogClassSelections.forEach(s => {
-          s.selectedClasses.forEach(cls => {
-            newAssignments[makeHandlerKey(dogId, cls.classId)] = handler;
-          });
+    if (!handler) {
+      setEditingTarget(null);
+      return;
+    }
+
+    if (editingTarget.kind === 'all') {
+      // Apply handler to all of this dog's entries
+      const dogClassSelections = classSelections.filter(s => s.dogId === dogId);
+      dogClassSelections.forEach(s => {
+        s.selectedClasses.forEach(cls => {
+          newAssignments[makeHandlerKey(dogId, cls.classId)] = handler;
         });
-      }
+      });
     } else {
-      // Single entry — the dialog returns { [dogId]: HandlerInfo }
-      const dogId = Object.keys(assignments)[0];
-      const handler = assignments[dogId];
-      if (handler) {
-        newAssignments[editingKey] = handler;
-      }
+      // Single entry
+      newAssignments[editingTarget.entryKey] = handler;
     }
 
     onHandlerAssignmentChange(newAssignments);
-    setEditingKey(null);
+    setEditingTarget(null);
   };
 
-  // Get the dogId for the currently editing key
-  const editingDogId = useMemo(() => {
-    if (!editingKey) return null;
-    if (editingKey.startsWith('all|')) return editingKey.slice(4);
-    return parseHandlerKey(editingKey).dogId;
-  }, [editingKey]);
+  const editingDogId = editingTarget?.dogId ?? null;
 
   if (isLoading) {
     return (
@@ -157,7 +148,7 @@ export const HandlerAssignmentStep: React.FC<HandlerAssignmentStepProps> = ({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setEditingKey(`all|${dog.id}`)}
+                    onClick={() => setEditingTarget({ kind: 'all', dogId: dog.id })}
                     className="gap-1.5"
                   >
                     <Users className="h-3.5 w-3.5" />
@@ -193,7 +184,9 @@ export const HandlerAssignmentStep: React.FC<HandlerAssignmentStepProps> = ({
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setEditingKey(entry.key)}
+                        onClick={() =>
+                          setEditingTarget({ kind: 'single', entryKey: entry.key, dogId: dog.id })
+                        }
                         className="h-7 px-2"
                       >
                         <Edit2 className="h-3 w-3 mr-1" />
@@ -219,15 +212,15 @@ export const HandlerAssignmentStep: React.FC<HandlerAssignmentStepProps> = ({
         <HandlerSelectionDialog
           open={!!editingDogId}
           onOpenChange={open => {
-            if (!open) setEditingKey(null);
+            if (!open) setEditingTarget(null);
           }}
           selectedDogs={[editingDogId]}
           dogs={dogs}
           onHandlerAssignment={handleDialogSave}
           initialAssignments={
-            editingKey && !editingKey.startsWith('all|') && handlerAssignments[editingKey]
+            editingTarget?.kind === 'single' && handlerAssignments[editingTarget.entryKey]
               ? {
-                  [editingDogId]: handlerAssignments[editingKey],
+                  [editingDogId]: handlerAssignments[editingTarget.entryKey],
                 }
               : {}
           }

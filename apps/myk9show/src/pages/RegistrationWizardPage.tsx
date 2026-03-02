@@ -20,6 +20,7 @@ import {
   EntryStatus,
   makeHandlerKey,
 } from '@/types/show-registration-types';
+import type { PaymentMethod } from '@/types/show-registration-types';
 import { useRegistrationPermissions } from '@/hooks/useRegistrationPermissions';
 import { useRegistrationContext } from '@/hooks/useRegistrationContext';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
@@ -194,7 +195,8 @@ function RegistrationWizardContent() {
     setDraftData,
   ]);
 
-  // Auto-assign handlers for each entry (dog+class) when class selections change
+  // Auto-assign dog owners as handlers for each entry (dog+class) when class selections change.
+  // Derived key tracks the set of entries; useEffect fires only when entries change.
   const classSelectionsKey = useMemo(
     () =>
       classSelections
@@ -203,37 +205,38 @@ function RegistrationWizardContent() {
         .join(','),
     [classSelections]
   );
-  const [prevClassSelectionsKey, setPrevClassSelectionsKey] = useState(classSelectionsKey);
-  if (
-    classSelectionsKey !== prevClassSelectionsKey &&
-    classSelections.length > 0 &&
-    currentWorkflowConfig.smartDefaults.autoAssignHandler
-  ) {
-    setPrevClassSelectionsKey(classSelectionsKey);
-    const newAssignments: Record<string, HandlerInfo> = { ...handlerAssignments };
-    let hasNewAssignments = false;
 
-    classSelections.forEach(selection => {
-      const dog = dogs.find(d => d.id === selection.dogId);
-      if (!dog || !dog.ownerId) return;
-
-      selection.selectedClasses.forEach(cls => {
-        const key = makeHandlerKey(selection.dogId, cls.classId);
-        if (!newAssignments[key]) {
-          newAssignments[key] = {
-            handlerId: dog.ownerId!,
-            handlerName: dog.ownerName || 'Owner',
-            isOwner: true,
-          };
-          hasNewAssignments = true;
-        }
-      });
-    });
-
-    if (hasNewAssignments) {
-      setHandlerAssignments(newAssignments);
+  useEffect(() => {
+    if (classSelections.length === 0 || !currentWorkflowConfig.smartDefaults.autoAssignHandler) {
+      return;
     }
-  }
+
+    setHandlerAssignments(prev => {
+      const newAssignments = { ...prev };
+      let hasNewAssignments = false;
+
+      classSelections.forEach(selection => {
+        const dog = dogs.find(d => d.id === selection.dogId);
+        if (!dog || !dog.ownerId) return;
+
+        selection.selectedClasses.forEach(cls => {
+          const key = makeHandlerKey(selection.dogId, cls.classId);
+          if (!newAssignments[key]) {
+            newAssignments[key] = {
+              handlerId: dog.ownerId!,
+              handlerName: dog.ownerName || 'Owner',
+              isOwner: true,
+            };
+            hasNewAssignments = true;
+          }
+        });
+      });
+
+      return hasNewAssignments ? newAssignments : prev;
+    });
+    // classSelectionsKey is derived from classSelections — captures entry changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classSelectionsKey, dogs, currentWorkflowConfig.smartDefaults.autoAssignHandler]);
 
   // Validation
   const canProceed = () => {
@@ -468,10 +471,10 @@ function RegistrationWizardContent() {
                     onDogSelectionChange={handleDogSelectionChange}
                     onClassSelectionChange={handleClassSelectionChange}
                     onHandlerAssignmentChange={handleHandlerAssignmentChange}
-                    onPaymentMethodChange={method =>
+                    onPaymentMethodChange={(method: PaymentMethod) =>
                       setRegistrationData(prev => ({
                         ...prev,
-                        paymentMethod: method as 'credit_card' | 'check' | 'cash',
+                        paymentMethod: method,
                       }))
                     }
                     onPaymentStatusChange={updatePaymentStatusOptimistic}

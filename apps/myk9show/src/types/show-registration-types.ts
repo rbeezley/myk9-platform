@@ -20,6 +20,15 @@ export enum PaymentStatus {
   PARTIAL_REFUND = 'partial_refund',
 }
 
+// Payment method options (exhibitor + secretary/admin options)
+export type PaymentMethod =
+  | 'credit_card'
+  | 'check'
+  | 'cash'
+  | 'secretary_paid'
+  | 'group_payment'
+  | 'waived';
+
 // Registration context for role-based workflows
 export interface RegistrationContext {
   mode: 'exhibitor' | 'secretary_existing' | 'secretary_new';
@@ -38,7 +47,7 @@ export interface ShowRegistration {
   entryStatus?: EntryStatus | undefined; // New field for entry acceptance status
   totalFees: number;
   paymentStatus: 'pending' | 'paid' | 'refunded' | PaymentStatus; // Backward compatible
-  paymentMethod?: 'credit_card' | 'check' | 'cash' | undefined;
+  paymentMethod?: PaymentMethod | undefined;
   paymentReference?: string | undefined;
   createdAt: Date;
   updatedAt: Date;
@@ -156,7 +165,7 @@ export interface RegistrationFormData {
   selectedDogs: string[];
   entries: Omit<ShowEntry, 'id' | 'registrationId'>[];
   documents: File[];
-  paymentMethod?: 'credit_card' | 'check' | 'cash' | undefined;
+  paymentMethod?: PaymentMethod | undefined;
   specialRequests?: string | undefined;
   registrationNumber?: string | undefined;
   // Optional workflow state for draft persistence

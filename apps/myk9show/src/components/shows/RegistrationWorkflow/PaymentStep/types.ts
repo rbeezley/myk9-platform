@@ -1,13 +1,18 @@
-import type { ClassSelectionData, PaymentStatus, EntryStatus } from '@/types/show-registration-types';
+import type {
+  ClassSelectionData,
+  PaymentMethod,
+  PaymentStatus,
+  EntryStatus,
+} from '@/types/show-registration-types';
 
 /** Props for the top-level PaymentStep component. */
 export interface PaymentStepProps {
   selectedDogs: string[];
   classSelections: ClassSelectionData[];
-  paymentMethod: string;
+  paymentMethod: PaymentMethod | '';
   paymentStatus?: PaymentStatus | undefined;
   entryStatus?: EntryStatus | undefined;
-  onPaymentMethodChange: (method: string) => void;
+  onPaymentMethodChange: (method: PaymentMethod) => void;
   onPaymentStatusChange?: ((status: PaymentStatus) => void) | undefined;
   onEntryStatusChange?: ((status: EntryStatus, reason?: string) => void) | undefined;
   showId?: string | undefined;
@@ -51,8 +56,8 @@ export interface RegistrationSummaryProps {
 
 /** Props for the PaymentMethodSelector sub-component. */
 export interface PaymentMethodSelectorProps {
-  paymentMethod: string;
-  onPaymentMethodChange: (method: string) => void;
+  paymentMethod: PaymentMethod | '';
+  onPaymentMethodChange: (method: PaymentMethod) => void;
 }
 
 /** Props for the SecretaryPaymentManagement sub-component. */
@@ -65,14 +70,14 @@ export interface SecretaryPaymentManagementProps {
   feeOverride: number | null;
   onWaiveFeesChange: (waived: boolean) => void;
   onFeeOverrideChange: (override: number | null) => void;
-  onPaymentMethodChange: (method: string) => void;
+  onPaymentMethodChange: (method: PaymentMethod) => void;
   onPaymentStatusChange?: ((status: PaymentStatus) => void) | undefined;
   onEntryStatusChange?: ((status: EntryStatus, reason?: string) => void) | undefined;
 }
 
 /** Props for the PaymentSummaryCard sub-component. */
 export interface PaymentSummaryCardProps {
-  paymentMethod: string;
+  paymentMethod: PaymentMethod | '';
   feeCalculation: FeeCalculationResult;
   waiveFees: boolean;
   feeOverride: number | null;

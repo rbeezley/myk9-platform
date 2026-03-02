@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import SectionCard from '@/components/common/SectionCard';
 import AddAchievementDialog from './AddAchievementDialog';
 import EditAchievementDialog from './EditAchievementDialog';
 import AchievementDetailsDialog from './AchievementDetailsDialog';
 import ThreeDotMenu from '@/components/ui/ThreeDotMenu';
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
+import { getInitials } from '@/lib/utils';
 import type { Achievement as SimpleAchievement } from '@/types/achievement-types';
 import type { Achievement as DbAchievement } from '@/types/achievement';
 import {
@@ -40,7 +41,7 @@ const AchievementsSection: React.FC<AchievementsSectionProps> = ({ dogId }) => {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedAchievement, setSelectedAchievement] = useState<SimpleAchievement | null>(null);
 
-  const achievements = dbAchievements.map(toSimple);
+  const achievements = useMemo(() => dbAchievements.map(toSimple), [dbAchievements]);
 
   const handleAdd = (data: Omit<SimpleAchievement, 'id'>) => {
     createMutation.mutate({
@@ -120,14 +121,7 @@ const AchievementsSection: React.FC<AchievementsSectionProps> = ({ dogId }) => {
             </div>
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                <span className="text-xs font-medium text-primary">
-                  {ach.title
-                    .split(' ')
-                    .map(w => w[0])
-                    .join('')
-                    .toUpperCase()
-                    .substring(0, 2)}
-                </span>
+                <span className="text-xs font-medium text-primary">{getInitials(ach.title)}</span>
               </div>
               <h3 className="font-medium">{ach.title}</h3>
             </div>

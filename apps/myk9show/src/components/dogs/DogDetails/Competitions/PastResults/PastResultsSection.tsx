@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import ShowSourceBadge from '../ShowSourceBadge';
 import ThreeDotMenu from '@/components/ui/ThreeDotMenu';
 import PastResultViewDialog from './PastResultViewDialog';
@@ -64,7 +64,10 @@ const PastResultsSection: React.FC<PastResultsSectionProps> = ({
 
   // Platform-scored results
   const { data: exhibitorResults = [] } = useExhibitorResults();
-  const platformResults = exhibitorResults.filter(r => r.dogId === dogId);
+  const platformResults = useMemo(
+    () => exhibitorResults.filter(r => r.dogId === dogId),
+    [exhibitorResults, dogId]
+  );
 
   const handleAdd = () => {
     setSelectedResult(null);

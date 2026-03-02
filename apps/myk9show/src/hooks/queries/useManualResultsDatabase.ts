@@ -1,5 +1,5 @@
 // React Query hooks for manual results database operations
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import {
   getAllManualResults,
   getQualifyingManualResults,
@@ -12,6 +12,7 @@ import {
   mapAppManualResultToDbInsert,
   mapAppManualResultToDbUpdate,
 } from '@/services/mappers/manualResultMappers';
+import { cacheStrategies } from '@/lib/queryClient';
 import type { ManualResult } from '@/types/manual-result-types';
 
 // Query key factory
@@ -21,9 +22,11 @@ export const manualResultQueryKeys = {
   qualifying: (dogId: string) => [...manualResultQueryKeys.all, 'qualifying', dogId] as const,
 };
 
-const cacheStrategies = {
-  moderate: { staleTime: 1000 * 60 * 5, gcTime: 1000 * 60 * 10 },
-};
+/** Invalidate both dog and qualifying caches for a given dog */
+function invalidateManualResultCaches(queryClient: QueryClient, dogId: string) {
+  queryClient.invalidateQueries({ queryKey: manualResultQueryKeys.dog(dogId) });
+  queryClient.invalidateQueries({ queryKey: manualResultQueryKeys.qualifying(dogId) });
+}
 
 // ========================================
 // QUERY HOOKS
@@ -70,12 +73,7 @@ export const useCreateManualResultMutation = () => {
       return data ? mapDbManualResultToApp(data) : null;
     },
     onSuccess: data => {
-      if (data) {
-        queryClient.invalidateQueries({ queryKey: manualResultQueryKeys.dog(data.dog_id) });
-        queryClient.invalidateQueries({
-          queryKey: manualResultQueryKeys.qualifying(data.dog_id),
-        });
-      }
+      if (data) invalidateManualResultCaches(queryClient, data.dog_id);
     },
   });
 };
@@ -91,12 +89,7 @@ export const useUpdateManualResultMutation = () => {
       return data ? mapDbManualResultToApp(data) : null;
     },
     onSuccess: data => {
-      if (data) {
-        queryClient.invalidateQueries({ queryKey: manualResultQueryKeys.dog(data.dog_id) });
-        queryClient.invalidateQueries({
-          queryKey: manualResultQueryKeys.qualifying(data.dog_id),
-        });
-      }
+      if (data) invalidateManualResultCaches(queryClient, data.dog_id);
     },
   });
 };
@@ -111,10 +104,7 @@ export const useDeleteManualResultMutation = () => {
       return { id, dogId };
     },
     onSuccess: result => {
-      queryClient.invalidateQueries({ queryKey: manualResultQueryKeys.dog(result.dogId) });
-      queryClient.invalidateQueries({
-        queryKey: manualResultQueryKeys.qualifying(result.dogId),
-      });
+      invalidateManualResultCaches(queryClient, result.dogId);
     },
   });
 };

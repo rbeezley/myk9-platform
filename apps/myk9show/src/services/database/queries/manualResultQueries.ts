@@ -1,9 +1,6 @@
 // Manual results database queries
 import { supabase, logQuery, createDatabaseError } from '../supabaseClient';
-import type { Database } from '@/types/supabase';
-
-export type DbManualResultInsert = Database['public']['Tables']['manual_results']['Insert'];
-export type DbManualResultUpdate = Database['public']['Tables']['manual_results']['Update'];
+import type { DbManualResultInsert, DbManualResultUpdate } from '@/types/database-mappings';
 
 export const getAllManualResults = async (dogId: string) => {
   const startTime = Date.now();

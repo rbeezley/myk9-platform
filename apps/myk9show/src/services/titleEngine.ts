@@ -80,12 +80,10 @@ export function mapManualResultToLeg(result: ManualResult): QualifyingLeg | null
  * E.g. "Scent Work Container Novice" with levels ["Novice","Advanced","Excellent","Master"]
  * returns "Novice".
  */
-export function inferLevelFromTitle(title: SportTitleRow, levels: string[]): string | null {
+export function inferLevelFromTitle(title: SportTitleRow, sortedLevels: string[]): string | null {
   const name = title.full_name;
-  // Check levels from longest to shortest to avoid partial matches
-  // (e.g., "Advanced" before "Novice" if both appear in different places)
-  const sorted = [...levels].sort((a, b) => b.length - a.length);
-  for (const level of sorted) {
+  // sortedLevels should already be sorted longest-first by the caller
+  for (const level of sortedLevels) {
     if (name.includes(level)) return level;
   }
   return null;
@@ -100,6 +98,9 @@ export function computeTitleProgress(
   titles: SportTitleRow[],
   levels: string[]
 ): TitleProgressResult[] {
+  // Pre-sort levels longest-first once (avoids re-sorting per inferLevelFromTitle call)
+  const sortedLevels = [...levels].sort((a, b) => b.length - a.length);
+
   // Step 1: Index legs by element::level
   const legIndex = new Map<string, QualifyingLeg[]>();
   for (const leg of legs) {
@@ -120,7 +121,7 @@ export function computeTitleProgress(
   for (const title of titles) {
     if (title.required_legs <= 0) continue;
 
-    const inferredLevel = inferLevelFromTitle(title, levels);
+    const inferredLevel = inferLevelFromTitle(title, sortedLevels);
     const isMultiElement = title.required_elements.length > 1;
 
     let matchingLegs: QualifyingLeg[] = [];
@@ -172,16 +173,18 @@ export function computeTitleProgress(
   for (const title of titles) {
     if (title.required_legs !== 0) continue;
 
-    const inferredLevel = inferLevelFromTitle(title, levels);
+    const inferredLevel = inferLevelFromTitle(title, sortedLevels);
 
     // Find the element titles that correspond to each required_element at this level
+    // Cache sub-title lookups to avoid calling findMatchingSubTitle twice per element
     const requiredElementTitleIds: string[] = [];
     const earnedElementTitleIds: string[] = [];
+    const subTitleByElement = new Map<string, SportTitleRow>();
 
     for (const element of title.required_elements) {
-      // Find the matching element-level title at the same level and same title_type tier
-      const subTitle = findMatchingSubTitle(title, element, inferredLevel, titles, levels);
+      const subTitle = findMatchingSubTitle(title, element, inferredLevel, titles, sortedLevels);
       if (subTitle) {
+        subTitleByElement.set(element, subTitle);
         requiredElementTitleIds.push(subTitle.abbreviation);
         const subProgress = progressMap.get(subTitle.id);
         if (subProgress?.isEarned) {
@@ -198,7 +201,7 @@ export function computeTitleProgress(
     let earnedDate: string | null = null;
     if (allEarned) {
       for (const element of title.required_elements) {
-        const subTitle = findMatchingSubTitle(title, element, inferredLevel, titles, levels);
+        const subTitle = subTitleByElement.get(element);
         if (subTitle) {
           const subProgress = progressMap.get(subTitle.id);
           if (subProgress?.earnedDate) {
@@ -286,9 +289,8 @@ function findMatchingSubTitle(
   element: string,
   inferredLevel: string | null,
   allTitles: SportTitleRow[],
-  levels: string[]
+  sortedLevels: string[]
 ): SportTitleRow | undefined {
-  // Determine which sub-title type to look for
   const subTitleType = getSubTitleType(parentTitle.title_type);
 
   return allTitles.find(t => {
@@ -296,12 +298,12 @@ function findMatchingSubTitle(
     if (t.title_type !== subTitleType) return false;
     if (t.required_elements.length !== 1) return false;
     if (t.required_elements[0] !== element) return false;
-    const tLevel = inferLevelFromTitle(t, levels);
+    const tLevel = inferLevelFromTitle(t, sortedLevels);
     return tLevel === inferredLevel;
   });
 }
 
-function getSubTitleType(parentType: string): string {
+function getSubTitleType(parentType: SportTitleRow['title_type']): string {
   switch (parentType) {
     case 'level':
       return 'element';

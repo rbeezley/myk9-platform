@@ -21,11 +21,9 @@ export function useTitleProgress(dogId: string) {
   const { data: allTitles = [], isLoading: loadingTitles } = useAllSportTitlesQuery();
 
   const isLoading = loadingResults || loadingManual || loadingTemplates || loadingTitles;
-  const allDataLoaded =
-    !isLoading && !!exhibitorResults && !!manualResults && !!templates && !!allTitles;
 
   const progressBySport = useMemo(() => {
-    if (!allDataLoaded) return {};
+    if (isLoading) return {};
 
     // Build legs for this specific dog
     const platformLegs: QualifyingLeg[] = exhibitorResults
@@ -54,7 +52,7 @@ export function useTitleProgress(dogId: string) {
     }
 
     return result;
-  }, [allDataLoaded, exhibitorResults, manualResults, templates, allTitles, dogId]);
+  }, [isLoading, exhibitorResults, manualResults, templates, allTitles, dogId]);
 
   return {
     progressBySport,

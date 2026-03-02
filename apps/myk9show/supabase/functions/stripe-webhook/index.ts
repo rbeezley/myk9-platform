@@ -551,5 +551,5 @@ function mapPriceToTier(priceId: string | undefined): 'free' | 'premium' {
     'price_1RHz3bAtHgBcw875o2gdNaYW', // Was "Advanced" (exhibitors) — now Premium
   ];
 
-  return knownPriceIds.includes(priceId) ? 'premium' : 'premium';
+  return knownPriceIds.includes(priceId) ? 'premium' : 'free';
 }

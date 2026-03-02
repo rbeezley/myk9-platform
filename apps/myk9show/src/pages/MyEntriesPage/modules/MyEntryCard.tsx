@@ -12,6 +12,7 @@ import { CheckInStatusIndicator } from '@/components/common/CheckInStatusIndicat
 import { EntryStatusStepper } from '@/components/entries/EntryStatusStepper';
 import { Calendar, MapPin, DollarSign, Eye, Edit, Download } from 'lucide-react';
 import { formatDistanceToNow, format, isToday, isTomorrow, differenceInDays } from 'date-fns';
+import { ResultBadge } from '@/components/common/ResultBadge';
 import type { MyEntry, EntryClass } from './my-entries-types';
 import {
   getEntryStatusBadge,
@@ -19,37 +20,6 @@ import {
   getStatusIcon,
   getContextualStatusMessage,
 } from './myEntriesUtils';
-
-/** Compact result badge: green Q, red NQ, gray ABS/EX/WD */
-const ResultBadge: React.FC<{ resultStatus: string }> = ({ resultStatus }) => {
-  const label =
-    resultStatus === 'qualified'
-      ? 'Q'
-      : resultStatus === 'nq'
-        ? 'NQ'
-        : resultStatus === 'absent'
-          ? 'ABS'
-          : resultStatus === 'excused'
-            ? 'EX'
-            : resultStatus === 'withdrawn'
-              ? 'WD'
-              : resultStatus.toUpperCase();
-
-  const colorClass =
-    resultStatus === 'qualified'
-      ? 'bg-success-green/15 text-success-green border-success-green/30'
-      : resultStatus === 'nq'
-        ? 'bg-error-red/15 text-error-red border-error-red/30'
-        : 'bg-muted text-muted-foreground border-border';
-
-  return (
-    <span
-      className={`inline-flex items-center px-2 py-0.5 text-xs font-bold rounded border ${colorClass}`}
-    >
-      {label}
-    </span>
-  );
-};
 
 interface MyEntryCardProps {
   entry: MyEntry;

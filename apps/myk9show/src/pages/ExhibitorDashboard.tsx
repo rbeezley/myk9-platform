@@ -24,14 +24,16 @@ import {
   Award,
   ChevronRight,
   FolderOpen,
+  Clock,
+  AlertTriangle,
 } from 'lucide-react';
 import { ExhibitorLayout } from '@/components/exhibitor/ExhibitorLayout';
+import { ResultBadge } from '@/components/common/ResultBadge';
 import { useEntriesQuery, useEntryStatisticsQuery } from '@/hooks/queries/useEntriesDatabase';
 import { useDogsQuery } from '@/hooks/queries/useDogsDatabase';
-import { useExhibitorResults, type ExhibitorResult } from '@/hooks/queries/useExhibitorResults';
+import { useExhibitorResults } from '@/hooks/queries/useExhibitorResults';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { format } from 'date-fns';
-import { Clock, AlertTriangle } from 'lucide-react';
 
 interface DashboardEntry {
   id: string;
@@ -139,29 +141,6 @@ const ExhibitorDashboard: React.FC = () => {
     }
   };
 
-  const getResultBadge = (resultText: ExhibitorResult['resultText']) => {
-    switch (resultText) {
-      case 'Q':
-        return (
-          <Badge className="bg-success-green/10 text-success-green border-success-green/20 font-bold text-base px-3 py-1">
-            Q
-          </Badge>
-        );
-      case 'NQ':
-        return (
-          <Badge className="bg-error-red/10 text-error-red border-error-red/20 font-bold text-base px-3 py-1">
-            NQ
-          </Badge>
-        );
-      default:
-        return (
-          <Badge className="bg-muted text-muted-foreground border-border font-bold text-base px-3 py-1">
-            {resultText}
-          </Badge>
-        );
-    }
-  };
-
   const handleViewEntry = (entry: DashboardEntry) => {
     navigate(`/shows/${entry.showId}`);
   };
@@ -170,7 +149,10 @@ const ExhibitorDashboard: React.FC = () => {
     navigate(`/shows/${entry.showId}`);
   };
 
-  const upcomingEntries = entries.filter(e => e.showDate && e.showDate > new Date());
+  const upcomingEntries = useMemo(
+    () => entries.filter(e => e.showDate && e.showDate > new Date()),
+    [entries]
+  );
 
   // Loading state
   if (entriesLoading) {
@@ -499,7 +481,7 @@ const ExhibitorDashboard: React.FC = () => {
 
                     <div className="relative flex items-center justify-between">
                       <div className="flex items-center gap-4 flex-1">
-                        {getResultBadge(result.resultText)}
+                        <ResultBadge resultStatus={result.resultStatus} variant="large" />
                         <div className="flex-1">
                           <h3 className="font-bold text-lg text-foreground">{result.showName}</h3>
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-muted-foreground">

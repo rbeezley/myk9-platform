@@ -120,10 +120,10 @@ export function useMyEntriesData(): UseMyEntriesDataReturn {
             status: mapClassEntryStatus(entry.entry_status as string),
             checkInStatus: undefined,
             isScored: (entry.is_scored as boolean) || false,
-            resultStatus: (entry.result_status as string) || undefined,
-            searchTimeSeconds: (entry.search_time_seconds as number) || undefined,
-            totalFaults: (entry.total_faults as number) || undefined,
-            finalPlacement: (entry.final_placement as number) || undefined,
+            resultStatus: (entry.result_status as EntryClass['resultStatus']) ?? undefined,
+            searchTimeSeconds: (entry.search_time_seconds as number) ?? undefined,
+            totalFaults: (entry.total_faults as number) ?? undefined,
+            finalPlacement: (entry.final_placement as number) ?? undefined,
           },
         ]
       : [];

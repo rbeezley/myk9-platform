@@ -5,6 +5,7 @@
 
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import { CheckInStatus } from '@/types/check-in-types';
+import type { ResultStatus } from '@/components/common/ResultBadge';
 
 /**
  * Represents a class entry within a show registration
@@ -22,7 +23,7 @@ export interface EntryClass {
   /** Whether this entry has been scored */
   isScored?: boolean | undefined;
   /** Result status: qualified, nq, absent, excused, withdrawn */
-  resultStatus?: string | undefined;
+  resultStatus?: ResultStatus | undefined;
   /** Search time in seconds */
   searchTimeSeconds?: number | undefined;
   /** Total faults */

@@ -476,7 +476,6 @@ export const useClassStore = create<ClassStoreState>()(
           element: genClass.element,
           level: genClass.level,
           section: genClass.section,
-          entryFee: genClass.entryFee || 25,
           maxEntries: genClass.maxEntries || 40,
           requiresJumpHeight: genClass.requiresJumpHeight || false,
           customFields: genClass.customFields,

@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { REGISTRATION_PERMISSIONS } from '@/hooks/useRegistrationPermissions';
 import { formatCardNumber, formatExpiryDate, stripNonDigits } from './utils';
+import type { PaymentMethod } from '@/types/show-registration-types';
 import type { PaymentMethodSelectorProps } from './types';
 
 /**
@@ -34,7 +35,10 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
         <CardTitle className="text-base">Payment Method</CardTitle>
       </CardHeader>
       <CardContent>
-        <RadioGroup value={paymentMethod} onValueChange={onPaymentMethodChange}>
+        <RadioGroup
+          value={paymentMethod}
+          onValueChange={v => onPaymentMethodChange(v as PaymentMethod)}
+        >
           <div className="space-y-4">
             {/* Credit/Debit Card */}
             <div className="flex items-start space-x-3">
@@ -55,7 +59,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                   <Input
                     id="cardholder"
                     value={cardholderName}
-                    onChange={(e) => setCardholderName(e.target.value)}
+                    onChange={e => setCardholderName(e.target.value)}
                     placeholder="John Doe"
                   />
                 </div>
@@ -65,7 +69,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                   <Input
                     id="cardnumber"
                     value={cardNumber}
-                    onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
+                    onChange={e => setCardNumber(formatCardNumber(e.target.value))}
                     placeholder="1234 5678 9012 3456"
                     maxLength={19}
                   />
@@ -77,7 +81,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                     <Input
                       id="expiry"
                       value={expiryDate}
-                      onChange={(e) => setExpiryDate(formatExpiryDate(e.target.value))}
+                      onChange={e => setExpiryDate(formatExpiryDate(e.target.value))}
                       placeholder="MM/YY"
                       maxLength={5}
                     />
@@ -87,7 +91,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                     <Input
                       id="cvv"
                       value={cvv}
-                      onChange={(e) => setCvv(stripNonDigits(e.target.value))}
+                      onChange={e => setCvv(stripNonDigits(e.target.value))}
                       placeholder="123"
                       maxLength={4}
                     />
@@ -104,7 +108,9 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                   <Check className="h-4 w-4" />
                   Check (pay at show)
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Bring check made payable to hosting club</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Bring check made payable to hosting club
+                </p>
               </Label>
             </div>
 
@@ -120,7 +126,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                   <Input
                     id="checknumber"
                     value={checkNumber}
-                    onChange={(e) => setCheckNumber(e.target.value)}
+                    onChange={e => setCheckNumber(e.target.value)}
                     placeholder="1234"
                   />
                 </div>
@@ -148,7 +154,9 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                     <Receipt className="h-4 w-4" />
                     Secretary Payment (Already Received)
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">Payment received outside of online system</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Payment received outside of online system
+                  </p>
                 </Label>
               </div>
             </PermissionGuard>
@@ -162,7 +170,9 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                     <Users className="h-4 w-4" />
                     Group/Club Payment
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">Payment handled by club or group organizer</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Payment handled by club or group organizer
+                  </p>
                 </Label>
               </div>
             </PermissionGuard>
@@ -176,7 +186,9 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                     <Tag className="h-4 w-4" />
                     Fees Waived
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">Administrative waiver of registration fees</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Administrative waiver of registration fees
+                  </p>
                 </Label>
               </div>
             </PermissionGuard>
@@ -197,7 +209,8 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
               <div className="ml-6 space-y-3">
                 <Alert>
                   <AlertDescription>
-                    Mark this registration as paid when payment has been received outside the online system.
+                    Mark this registration as paid when payment has been received outside the online
+                    system.
                   </AlertDescription>
                 </Alert>
                 <div className="grid grid-cols-2 gap-3">
@@ -207,7 +220,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                       id="payment-date"
                       type="date"
                       value={paymentDate}
-                      onChange={(e) => setPaymentDate(e.target.value)}
+                      onChange={e => setPaymentDate(e.target.value)}
                     />
                   </div>
                   <div>
@@ -215,7 +228,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                     <Input
                       id="payment-reference"
                       value={paymentReference}
-                      onChange={(e) => setPaymentReference(e.target.value)}
+                      onChange={e => setPaymentReference(e.target.value)}
                       placeholder="Receipt #123"
                     />
                   </div>
@@ -225,7 +238,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                   <Textarea
                     id="payment-notes"
                     value={paymentNotes}
-                    onChange={(e) => setPaymentNotes(e.target.value)}
+                    onChange={e => setPaymentNotes(e.target.value)}
                     placeholder="Additional details about payment..."
                     rows={2}
                   />
@@ -246,7 +259,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                   <Input
                     id="group-reference"
                     value={paymentReference}
-                    onChange={(e) => setPaymentReference(e.target.value)}
+                    onChange={e => setPaymentReference(e.target.value)}
                     placeholder="Club payment batch #123"
                   />
                 </div>
@@ -259,7 +272,8 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                 <Alert>
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription>
-                    This will waive all registration fees for this entry. This action requires admin approval.
+                    This will waive all registration fees for this entry. This action requires admin
+                    approval.
                   </AlertDescription>
                 </Alert>
                 <div>
@@ -267,7 +281,7 @@ export const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
                   <Textarea
                     id="waiver-reason"
                     value={paymentNotes}
-                    onChange={(e) => setPaymentNotes(e.target.value)}
+                    onChange={e => setPaymentNotes(e.target.value)}
                     placeholder="Explain the reason for waiving fees..."
                     required
                   />

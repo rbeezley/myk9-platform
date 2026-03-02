@@ -243,12 +243,7 @@ const PermissionAuditPage: React.FC = () => {
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Refresh
               </Button>
-              <Button
-                onClick={handleExport}
-                className="bg-gradient-to-r from-primary to-secondary text-primary-foreground 
-                           hover:shadow-xl hover:-translate-y-1 hover:scale-[1.02] 
-                           transition-all duration-300 shadow-sm"
-              >
+              <Button onClick={handleExport}>
                 <Download className="h-4 w-4 mr-2" />
                 Export
               </Button>

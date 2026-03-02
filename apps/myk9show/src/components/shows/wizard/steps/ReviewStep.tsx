@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,7 +8,6 @@ import {
   CheckCircle,
   Edit,
   Building2,
-  Timer,
   Save,
   FileText,
   Eye,
@@ -43,47 +42,24 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
   const { clubs } = useClubStore();
   const resolvePersonName = useResolvePersonName();
 
-  const [errors, setErrors] = useState<string[]>([]);
+  // Calculate summary stats
+  const totalClasses = trials.reduce((sum, trial) => sum + trial.classes.length, 0);
+  const totalJudges = show.judgeIds.length;
 
-  // Validation — check all required fields, not just a subset
-  const validateReview = useCallback(() => {
-    const newErrors: string[] = [];
+  // Derive validation errors from current state (no useState needed)
+  const errors = useMemo(() => {
+    const result: string[] = [];
 
-    if (!show.name.trim()) {
-      newErrors.push('Show name is required');
-    }
+    if (!show.name.trim()) result.push('Show name is required');
+    if (!show.startDate || !show.endDate) result.push('Show dates are required');
+    if (!show.location?.trim()) result.push('Location is required');
+    if (!show.clubId) result.push('Club selection is required');
+    if (!show.chairman?.trim()) result.push('Show chairman is required');
+    if (!show.secretary?.trim()) result.push('Show secretary is required');
+    if (trials.length === 0) result.push('At least one trial is required');
+    if (totalClasses === 0) result.push('At least one class must be configured');
 
-    if (!show.startDate || !show.endDate) {
-      newErrors.push('Show dates are required');
-    }
-
-    if (!show.location?.trim()) {
-      newErrors.push('Location is required');
-    }
-
-    if (!show.clubId) {
-      newErrors.push('Club selection is required');
-    }
-
-    if (!show.chairman?.trim()) {
-      newErrors.push('Show chairman is required');
-    }
-
-    if (!show.secretary?.trim()) {
-      newErrors.push('Show secretary is required');
-    }
-
-    if (trials.length === 0) {
-      newErrors.push('At least one trial is required');
-    }
-
-    const totalClasses = trials.reduce((sum, trial) => sum + trial.classes.length, 0);
-    if (totalClasses === 0) {
-      newErrors.push('At least one class must be configured');
-    }
-
-    setErrors(newErrors);
-    return newErrors.length === 0;
+    return result;
   }, [
     show.name,
     show.startDate,
@@ -93,34 +69,22 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
     show.chairman,
     show.secretary,
     trials,
+    totalClasses,
   ]);
 
-  // Auto-validate and mark step complete
+  // Mark step complete when valid
   useEffect(() => {
-    if (validateReview()) {
+    if (errors.length === 0) {
       markStepCompleted(3);
     }
-  }, [show, trials, markStepCompleted, validateReview]);
+  }, [errors.length, markStepCompleted]);
 
-  // Calculate summary stats
-  const totalClasses = trials.reduce((sum, trial) => sum + trial.classes.length, 0);
-  const totalJudgingTime = totalClasses * 15; // 15 min per class estimate
-  const totalJudges = show.judgeIds.length;
-
-  // Calculate assigned judges across all trials
-  const getAssignedJudgesCount = () => {
-    let assignedCount = 0;
-    trials.forEach(trial => {
-      trial.classes.forEach(cls => {
-        if (cls.judgeId && judgeDetails[cls.judgeId]) {
-          assignedCount++;
-        }
-      });
-    });
-    return assignedCount;
-  };
-
-  const actualAssignedJudges = getAssignedJudgesCount();
+  // Count unique judges assigned across all trials
+  const assignedJudgeIds = trials.flatMap(trial =>
+    trial.classes.map(cls => cls.judgeId).filter(Boolean)
+  );
+  const uniqueAssignedJudges = new Set(assignedJudgeIds).size;
+  const classesWithJudges = assignedJudgeIds.length;
 
   return (
     <div className={className}>
@@ -150,7 +114,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
           )}
 
           {/* Overview Stats - Enhanced with gradients */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             {/* Trials Card */}
             <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 p-6 text-white shadow-lg">
               <Calendar className="absolute -right-3 -bottom-3 h-20 w-20 text-white/10" />
@@ -169,13 +133,31 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
               </div>
             </div>
 
-            {/* Duration Card */}
+            {/* Show Dates Card */}
             <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 p-6 text-white shadow-lg">
-              <Timer className="absolute -right-3 -bottom-3 h-20 w-20 text-white/10" />
+              <Calendar className="absolute -right-3 -bottom-3 h-20 w-20 text-white/10" />
               <div className="relative">
-                <p className="text-sm font-medium text-white/80">Est. Duration</p>
-                <p className="text-4xl font-bold mt-1">{totalJudgingTime}</p>
-                <p className="text-xs text-white/60">minutes</p>
+                <p className="text-sm font-medium text-white/80">Show Dates</p>
+                <p className="text-lg font-bold mt-1">
+                  {show.startDate ? format(new Date(show.startDate), 'MMM d') : 'TBD'}
+                  {show.endDate && show.endDate !== show.startDate && (
+                    <span> – {format(new Date(show.endDate), 'MMM d')}</span>
+                  )}
+                </p>
+              </div>
+            </div>
+
+            {/* Entry Window Card */}
+            <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-cyan-500 to-teal-600 p-6 text-white shadow-lg">
+              <FileText className="absolute -right-3 -bottom-3 h-20 w-20 text-white/10" />
+              <div className="relative">
+                <p className="text-sm font-medium text-white/80">Entry Window</p>
+                <p className="text-lg font-bold mt-1">
+                  {show.entryOpenDate ? format(new Date(show.entryOpenDate), 'MMM d') : 'TBD'}
+                  {show.entryCloseDate && (
+                    <span> – {format(new Date(show.entryCloseDate), 'MMM d')}</span>
+                  )}
+                </p>
               </div>
             </div>
 
@@ -185,8 +167,8 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
               <div className="relative">
                 <p className="text-sm font-medium text-white/80">Judges Assigned</p>
                 <p className="text-4xl font-bold mt-1">
-                  {actualAssignedJudges}
-                  <span className="text-2xl text-white/60">/{totalClasses}</span>
+                  {uniqueAssignedJudges}
+                  <span className="text-2xl text-white/60">/{totalJudges}</span>
                 </p>
               </div>
             </div>
@@ -214,8 +196,8 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                 </div>
 
                 <div>
-                  <div className="text-sm text-muted-foreground">Show Type</div>
-                  <div className="text-foreground font-medium">{show.type}</div>
+                  <div className="text-sm text-muted-foreground">Organization</div>
+                  <div className="text-foreground font-medium">{show.organization}</div>
                 </div>
 
                 <div>
@@ -439,7 +421,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
               </div>
 
               {/* Warning if judges not fully assigned */}
-              {totalJudges > 0 && actualAssignedJudges < totalClasses && (
+              {totalJudges > 0 && classesWithJudges < totalClasses && (
                 <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800/50 rounded-lg p-3">
                   <div className="flex items-start gap-2">
                     <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
@@ -448,7 +430,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                         Incomplete Judge Assignments
                       </div>
                       <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-0.5">
-                        {totalClasses - actualAssignedJudges} of {totalClasses} classes need judges
+                        {totalClasses - classesWithJudges} of {totalClasses} classes need judges
                       </p>
                     </div>
                   </div>

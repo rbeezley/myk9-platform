@@ -10,7 +10,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
 import { cn } from '@/lib/utils';
-import '@/styles/apple-show-details.css';
+import '@/styles/myk9-show-details.css';
 
 // UI Components
 import { Alert, AlertDescription } from '@/components/ui/alert';

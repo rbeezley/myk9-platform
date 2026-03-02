@@ -2,7 +2,7 @@ import { test } from '@playwright/test';
 import { TestSetup } from './helpers/testSetup';
 
 test.describe('UserEditPanel Authentication Tests', () => {
-  test('should display UserEditPanel with Apple styling after authentication', async ({ page }) => {
+  test('should display UserEditPanel with premium styling after authentication', async ({ page }) => {
     const testSetup = new TestSetup(page);
     
     try {
@@ -105,7 +105,7 @@ test.describe('UserEditPanel Authentication Tests', () => {
         'button:has([data-testid="more-vertical"])',
         'button:has(.lucide-more-vertical)',
         'button:has-text("⋮")',
-        '.apple-people-actions button',
+        '.myk9-people-actions button',
         '[class*="dropdown"] button'
       ];
       
@@ -176,7 +176,7 @@ test.describe('UserEditPanel Authentication Tests', () => {
         basicInfoTab: await page.locator('text="Basic Info"').count() > 0,
         contactTab: await page.locator('text="Contact"').count() > 0,
         qualificationsTab: await page.locator('text="Qualifications"').count() > 0,
-        applePanel: await page.locator('[class*="apple-"], [class*="gradient"]').count() > 0
+        designPanel: await page.locator('[class*="myk9-"], [class*="gradient"]').count() > 0
       };
       
       console.log('🔍 UserEditPanel Elements Check:');
@@ -196,14 +196,14 @@ test.describe('UserEditPanel Authentication Tests', () => {
       await page.screenshot({ path: 'screenshots/debug-final-edit-panel.png', fullPage: true });
       console.log('📸 Screenshot saved: debug-final-edit-panel.png');
       
-      // Check for Apple design elements
+      // Check for design system elements
       const appleDesignElements = {
         solidBackground: await page.locator('[style*="background"], [class*="bg-"]').count() > 0,
         gradientTabs: await page.locator('[style*="gradient"], [class*="gradient"]').count() > 0,
-        appleClasses: await page.locator('[class*="apple-"]').count() > 0
+        designClasses: await page.locator('[class*="myk9-"]').count() > 0
       };
       
-      console.log('🍎 Apple Design Elements Check:');
+      console.log('🍎 Design System Elements Check:');
       Object.entries(appleDesignElements).forEach(([key, found]) => {
         console.log(`  ${found ? '✅' : '❌'} ${key}: ${found}`);
       });

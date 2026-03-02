@@ -77,7 +77,12 @@ export const ExhibitorDashboard: React.FC<ExhibitorDashboardProps> = ({ show, on
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             ) : (
-              <Button disabled size="lg" variant="outline" className="bg-gray-50 border-gray-200 text-gray-500">
+              <Button
+                disabled
+                size="lg"
+                variant="outline"
+                className="bg-gray-50 border-gray-200 text-gray-500"
+              >
                 <UserPlus className="w-4 h-4 mr-2" />
                 {disabledButtonLabel}
               </Button>
@@ -87,7 +92,9 @@ export const ExhibitorDashboard: React.FC<ExhibitorDashboardProps> = ({ show, on
         <CardContent className="relative pt-0">
           <div className="grid grid-cols-2 gap-6">
             <div className="space-y-2">
-              <div className="text-sm font-medium text-gray-500 uppercase tracking-wide">Entries Open</div>
+              <div className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                Entries Open
+              </div>
               <div className="text-lg font-semibold text-gray-900">
                 {new Date(show.entryOpenDate).toLocaleDateString('en-US', {
                   weekday: 'short',
@@ -97,7 +104,9 @@ export const ExhibitorDashboard: React.FC<ExhibitorDashboardProps> = ({ show, on
               </div>
             </div>
             <div className="space-y-2">
-              <div className="text-sm font-medium text-gray-500 uppercase tracking-wide">Entries Close</div>
+              <div className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                Entries Close
+              </div>
               <div className="flex items-center gap-3">
                 <div className="text-lg font-semibold text-gray-900">
                   {new Date(show.entryCloseDate).toLocaleDateString('en-US', {
@@ -195,15 +204,19 @@ export const ExhibitorDashboard: React.FC<ExhibitorDashboardProps> = ({ show, on
               <div className="text-base font-semibold text-gray-900">{show.clubName}</div>
             </div>
             <div className="space-y-2">
-              <div className="text-sm font-medium text-gray-500 uppercase tracking-wide">Show Type</div>
-              <div className="text-base font-semibold text-gray-900">{show.type}</div>
+              <div className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                Show Type
+              </div>
+              <div className="text-base font-semibold text-gray-900">{show.organization}</div>
             </div>
             <div className="space-y-2">
               <div className="text-sm font-medium text-gray-500 uppercase tracking-wide flex items-center gap-2">
                 <Mail className="w-3 h-3" />
                 Secretary
               </div>
-              <div className="text-base font-semibold text-gray-900">{resolvePersonName(show.secretary)}</div>
+              <div className="text-base font-semibold text-gray-900">
+                {resolvePersonName(show.secretary)}
+              </div>
             </div>
           </div>
         </CardContent>

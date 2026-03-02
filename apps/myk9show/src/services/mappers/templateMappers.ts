@@ -8,13 +8,13 @@
 import type {
   ClassTemplate,
   ClassTemplateField,
-  GeneratedClass
+  GeneratedClass,
 } from '@/types/class-template-types';
 import type {
   ShowTemplateDefinition,
   ShowFieldDefinition,
   Organization,
-  ShowType
+  TrialType,
 } from '@/types/show-template-types';
 import type {
   DbClassTemplate,
@@ -42,7 +42,7 @@ interface ClassTemplateData {
 /** Shape of the `template_data` JSONB column in `show_templates` */
 interface ShowTemplateData {
   organization?: Organization;
-  showType?: ShowType;
+  showType?: TrialType;
   version?: string;
   classFields?: ShowFieldDefinition[];
   classNamePattern?: string;
@@ -85,42 +85,49 @@ function parseShowTemplateData(data: Json | null): ShowTemplateData {
  * default_entry_fee, default_max_entries, default_time_limit_seconds, description,
  * element, id, is_public, level, name, template_data, updated_at
  */
-export const mapClassTemplateToInsert = (template: Omit<ClassTemplate, 'id' | 'createdAt' | 'updatedAt'>): DbClassTemplateInsert => {
+export const mapClassTemplateToInsert = (
+  template: Omit<ClassTemplate, 'id' | 'createdAt' | 'updatedAt'>
+): DbClassTemplateInsert => {
   return {
     name: template.name,
     description: template.description ?? null,
     element: template.fields.find(f => f.type === 'element')?.values[0] ?? null,
     level: template.fields.find(f => f.type === 'level')?.values[0] ?? null,
-    default_entry_fee: template.entryFeeDefault ?? null,
+    default_entry_fee: null,
     default_max_entries: template.maxEntriesDefault ?? null,
     default_time_limit_seconds: null,
     is_public: false,
     created_by: null,
     // Store structured template data (organization, showType, fields, classPattern) in JSON
-    template_data: JSON.parse(JSON.stringify({
-      organization: template.organization,
-      showType: template.showType,
-      fields: template.fields,
-      classPattern: template.classPattern,
-      requiresJumpHeight: template.requiresJumpHeight,
-    })) as Json,
+    template_data: JSON.parse(
+      JSON.stringify({
+        organization: template.organization,
+        showType: template.trialType,
+        fields: template.fields,
+        classPattern: template.classPattern,
+        requiresJumpHeight: template.requiresJumpHeight,
+      })
+    ) as Json,
   };
 };
 
 /**
  * Convert ClassTemplate updates to DbClassTemplateUpdate
  */
-export const mapClassTemplateToUpdate = (updates: Partial<ClassTemplate>): DbClassTemplateUpdate => {
+export const mapClassTemplateToUpdate = (
+  updates: Partial<ClassTemplate>
+): DbClassTemplateUpdate => {
   const update: DbClassTemplateUpdate = {};
 
   if (updates.name !== undefined) update.name = updates.name;
   if (updates.description !== undefined) update.description = updates.description ?? null;
-  if (updates.entryFeeDefault !== undefined) update.default_entry_fee = updates.entryFeeDefault ?? null;
-  if (updates.maxEntriesDefault !== undefined) update.default_max_entries = updates.maxEntriesDefault ?? null;
+  if (updates.maxEntriesDefault !== undefined)
+    update.default_max_entries = updates.maxEntriesDefault ?? null;
 
   // Store structured updates in template_data
-  const hasTemplateDataUpdates = updates.organization !== undefined ||
-    updates.showType !== undefined ||
+  const hasTemplateDataUpdates =
+    updates.organization !== undefined ||
+    updates.trialType !== undefined ||
     updates.fields !== undefined ||
     updates.classPattern !== undefined ||
     updates.requiresJumpHeight !== undefined;
@@ -128,10 +135,11 @@ export const mapClassTemplateToUpdate = (updates: Partial<ClassTemplate>): DbCla
   if (hasTemplateDataUpdates) {
     const templateData: ClassTemplateData = {};
     if (updates.organization !== undefined) templateData.organization = updates.organization;
-    if (updates.showType !== undefined) templateData.showType = updates.showType;
+    if (updates.trialType !== undefined) templateData.showType = updates.trialType;
     if (updates.fields !== undefined) templateData.fields = updates.fields;
     if (updates.classPattern !== undefined) templateData.classPattern = updates.classPattern;
-    if (updates.requiresJumpHeight !== undefined) templateData.requiresJumpHeight = updates.requiresJumpHeight;
+    if (updates.requiresJumpHeight !== undefined)
+      templateData.requiresJumpHeight = updates.requiresJumpHeight;
     update.template_data = JSON.parse(JSON.stringify(templateData)) as Json;
   }
 
@@ -141,7 +149,9 @@ export const mapClassTemplateToUpdate = (updates: Partial<ClassTemplate>): DbCla
 /**
  * Convert database class template result to ClassTemplate type
  */
-export const mapDatabaseToClassTemplate = (dbTemplate: DbClassTemplateWithFields): ClassTemplate => {
+export const mapDatabaseToClassTemplate = (
+  dbTemplate: DbClassTemplateWithFields
+): ClassTemplate => {
   const templateData = parseClassTemplateData(dbTemplate.template_data);
 
   // Fields can come from template_fields relation or template_data JSON
@@ -155,15 +165,17 @@ export const mapDatabaseToClassTemplate = (dbTemplate: DbClassTemplateWithFields
     id: dbTemplate.id,
     name: dbTemplate.name,
     organization: templateData.organization ?? 'OTHER',
-    showType: templateData.showType ?? '',
+    trialType: templateData.showType ?? '',
     fields: templateFields,
     classPattern: templateData.classPattern ?? '{name}',
-    requiresJumpHeight: templateData.requiresJumpHeight ?? templateFields.some(field => field.name === 'jumpHeight'),
+    requiresJumpHeight:
+      templateData.requiresJumpHeight ?? templateFields.some(field => field.name === 'jumpHeight'),
     createdAt: new Date(dbTemplate.created_at ?? new Date().toISOString()),
     updatedAt: new Date(dbTemplate.updated_at ?? new Date().toISOString()),
     ...(dbTemplate.description != null ? { description: dbTemplate.description } : {}),
-    ...(dbTemplate.default_entry_fee != null ? { entryFeeDefault: dbTemplate.default_entry_fee } : {}),
-    ...(dbTemplate.default_max_entries != null ? { maxEntriesDefault: dbTemplate.default_max_entries } : {}),
+    ...(dbTemplate.default_max_entries != null
+      ? { maxEntriesDefault: dbTemplate.default_max_entries }
+      : {}),
   };
 };
 
@@ -173,7 +185,9 @@ export const mapDatabaseToClassTemplate = (dbTemplate: DbClassTemplateWithFields
 export const mapDatabaseToClassTemplateField = (dbField: DbTemplateField): ClassTemplateField => {
   // Field values may be stored in validation_rules JSON
   const validationRules = dbField.validation_rules as Record<string, Json | undefined> | null;
-  const fieldValues = (Array.isArray(validationRules?.options) ? validationRules.options : []) as string[];
+  const fieldValues = (
+    Array.isArray(validationRules?.options) ? validationRules.options : []
+  ) as string[];
 
   return {
     name: dbField.field_name,
@@ -218,20 +232,24 @@ export const mapClassTemplateFieldToInsert = (
  * default_pre_entry_fee, description, id, is_public, name, show_type,
  * template_data, updated_at
  */
-export const mapShowTemplateToInsert = (template: Omit<ShowTemplateDefinition, 'id' | 'createdAt' | 'updatedAt'>): DbShowTemplateInsert => {
+export const mapShowTemplateToInsert = (
+  template: Omit<ShowTemplateDefinition, 'id' | 'createdAt' | 'updatedAt'>
+): DbShowTemplateInsert => {
   return {
     name: template.name,
-    show_type: template.showType ?? 'Other',
+    show_type: template.trialType ?? 'Other',
     description: template.description ?? null,
-    template_data: JSON.parse(JSON.stringify({
-      organization: template.organization,
-      version: template.version,
-      classFields: template.classFields,
-      classNamePattern: template.classNamePattern,
-      defaults: template.defaults,
-      validation: template.validation,
-      customFields: template.customFields,
-    })) as Json,
+    template_data: JSON.parse(
+      JSON.stringify({
+        organization: template.organization,
+        version: template.version,
+        classFields: template.classFields,
+        classNamePattern: template.classNamePattern,
+        defaults: template.defaults,
+        validation: template.validation,
+        customFields: template.customFields,
+      })
+    ) as Json,
     default_pre_entry_fee: template.defaults.entryFee ?? null,
     default_max_entries_per_dog: template.defaults.maxEntries ?? null,
     created_by: null,
@@ -242,29 +260,33 @@ export const mapShowTemplateToInsert = (template: Omit<ShowTemplateDefinition, '
 /**
  * Convert ShowTemplateDefinition updates to DbShowTemplateUpdate
  */
-export const mapShowTemplateToUpdate = (updates: Partial<ShowTemplateDefinition>): DbShowTemplateUpdate => {
+export const mapShowTemplateToUpdate = (
+  updates: Partial<ShowTemplateDefinition>
+): DbShowTemplateUpdate => {
   const update: DbShowTemplateUpdate = {};
 
   if (updates.name !== undefined) update.name = updates.name;
   if (updates.description !== undefined) update.description = updates.description ?? null;
-  if (updates.showType !== undefined) update.show_type = updates.showType;
+  if (updates.trialType !== undefined) update.show_type = updates.trialType;
 
   // Handle template_data updates
-  if (updates.organization !== undefined ||
-      updates.version !== undefined ||
-      updates.classFields !== undefined ||
-      updates.classNamePattern !== undefined ||
-      updates.defaults !== undefined ||
-      updates.validation !== undefined ||
-      updates.customFields !== undefined) {
-
+  if (
+    updates.organization !== undefined ||
+    updates.version !== undefined ||
+    updates.classFields !== undefined ||
+    updates.classNamePattern !== undefined ||
+    updates.defaults !== undefined ||
+    updates.validation !== undefined ||
+    updates.customFields !== undefined
+  ) {
     const templateData: ShowTemplateData = {};
 
     if (updates.organization !== undefined) templateData.organization = updates.organization;
     if (updates.version !== undefined) templateData.version = updates.version;
-    if (updates.showType !== undefined) templateData.showType = updates.showType;
+    if (updates.trialType !== undefined) templateData.showType = updates.trialType;
     if (updates.classFields !== undefined) templateData.classFields = updates.classFields;
-    if (updates.classNamePattern !== undefined) templateData.classNamePattern = updates.classNamePattern;
+    if (updates.classNamePattern !== undefined)
+      templateData.classNamePattern = updates.classNamePattern;
     if (updates.defaults !== undefined) templateData.defaults = updates.defaults;
     if (updates.validation !== undefined) templateData.validation = updates.validation;
     if (updates.customFields !== undefined) templateData.customFields = updates.customFields;
@@ -272,8 +294,10 @@ export const mapShowTemplateToUpdate = (updates: Partial<ShowTemplateDefinition>
     update.template_data = JSON.parse(JSON.stringify(templateData)) as Json;
   }
 
-  if (updates.defaults?.entryFee !== undefined) update.default_pre_entry_fee = updates.defaults.entryFee;
-  if (updates.defaults?.maxEntries !== undefined) update.default_max_entries_per_dog = updates.defaults.maxEntries;
+  if (updates.defaults?.entryFee !== undefined)
+    update.default_pre_entry_fee = updates.defaults.entryFee;
+  if (updates.defaults?.maxEntries !== undefined)
+    update.default_max_entries_per_dog = updates.defaults.maxEntries;
 
   return update;
 };
@@ -290,14 +314,18 @@ export const mapDatabaseToShowTemplate = (dbTemplate: DbShowTemplate): ShowTempl
     id: dbTemplate.id,
     name: dbTemplate.name,
     organization: templateData.organization ?? 'OTHER',
-    showType: (dbTemplate.show_type as ShowType) ?? templateData.showType ?? 'Other',
+    trialType: (dbTemplate.show_type as TrialType) ?? templateData.showType ?? 'Other',
     version: templateData.version ?? '1.0',
     classFields: templateData.classFields ?? [],
     classNamePattern: templateData.classNamePattern ?? '{name}',
     defaults: {
       ...parsedDefaults,
-      ...(dbTemplate.default_pre_entry_fee != null ? { entryFee: dbTemplate.default_pre_entry_fee } : {}),
-      ...(dbTemplate.default_max_entries_per_dog != null ? { maxEntries: dbTemplate.default_max_entries_per_dog } : {}),
+      ...(dbTemplate.default_pre_entry_fee != null
+        ? { entryFee: dbTemplate.default_pre_entry_fee }
+        : {}),
+      ...(dbTemplate.default_max_entries_per_dog != null
+        ? { maxEntries: dbTemplate.default_max_entries_per_dog }
+        : {}),
     },
     createdAt: new Date(dbTemplate.created_at ?? new Date().toISOString()),
     updatedAt: new Date(dbTemplate.updated_at ?? new Date().toISOString()),
@@ -346,7 +374,9 @@ export const mapTemplateFieldToShowField = (dbField: DbTemplateField): ShowField
     ...(validationRules?.options ? { options: validationRules.options as string[] } : {}),
     ...(dbField.default_value != null ? { defaultValue: dbField.default_value } : {}),
     ...(dbField.field_label != null ? { description: dbField.field_label } : {}),
-    ...(validationRules?.showWhen ? { showWhen: validationRules.showWhen as NonNullable<ShowFieldDefinition['showWhen']> } : {}),
+    ...(validationRules?.showWhen
+      ? { showWhen: validationRules.showWhen as NonNullable<ShowFieldDefinition['showWhen']> }
+      : {}),
   };
 };
 
@@ -355,14 +385,18 @@ export const mapTemplateFieldToShowField = (dbField: DbTemplateField): ShowField
 /**
  * Convert array of database class templates to ClassTemplate array
  */
-export const mapDatabaseClassTemplatesArray = (dbTemplates: DbClassTemplateWithFields[]): ClassTemplate[] => {
+export const mapDatabaseClassTemplatesArray = (
+  dbTemplates: DbClassTemplateWithFields[]
+): ClassTemplate[] => {
   return dbTemplates.map(mapDatabaseToClassTemplate);
 };
 
 /**
  * Convert array of database show templates to ShowTemplateDefinition array
  */
-export const mapDatabaseShowTemplatesArray = (dbTemplates: DbShowTemplate[]): ShowTemplateDefinition[] => {
+export const mapDatabaseShowTemplatesArray = (
+  dbTemplates: DbShowTemplate[]
+): ShowTemplateDefinition[] => {
   return dbTemplates.map(mapDatabaseToShowTemplate);
 };
 
@@ -401,7 +435,6 @@ export const generateClassesFromTemplate = (template: ClassTemplate): GeneratedC
             element: element || undefined,
             level: level || undefined,
             section: section || undefined,
-            entryFee: template.entryFeeDefault,
             maxEntries: template.maxEntriesDefault,
             requiresJumpHeight: template.requiresJumpHeight,
             customFields: {},
@@ -425,10 +458,7 @@ export const mergeTemplateFields = (
     ...parentTemplate,
     ...childFields,
     id: childFields.id ?? parentTemplate.id,
-    fields: [
-      ...parentTemplate.fields,
-      ...(childFields.fields ?? [])
-    ],
+    fields: [...parentTemplate.fields, ...(childFields.fields ?? [])],
     createdAt: childFields.createdAt ?? parentTemplate.createdAt,
     updatedAt: new Date(),
   };

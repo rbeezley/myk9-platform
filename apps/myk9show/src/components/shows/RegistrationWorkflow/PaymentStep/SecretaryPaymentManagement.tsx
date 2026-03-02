@@ -4,13 +4,20 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PermissionGuard } from '@/components/auth/PermissionGuard';
 import { PaymentStatus, EntryStatus } from '@/types/show-registration-types';
+import type { PaymentMethod } from '@/types/show-registration-types';
 import { getPaymentStatusBadgeColor, getEntryStatusBadgeColor } from './utils';
 import type { SecretaryPaymentManagementProps } from './types';
 
@@ -43,7 +50,7 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
   const [bulkPaymentMode, setBulkPaymentMode] = useState(false);
   const [selectedEntriesForBulk, setSelectedEntriesForBulk] = useState<string[]>([]);
 
-  const handleSecretaryPaymentMarking = (method: string, status: PaymentStatus) => {
+  const handleSecretaryPaymentMarking = (method: PaymentMethod, status: PaymentStatus) => {
     onPaymentMethodChange(method);
     if (onPaymentStatusChange) {
       onPaymentStatusChange(status);
@@ -105,7 +112,9 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
                 <div className="grid grid-cols-2 gap-3">
                   <Button
                     variant="outline"
-                    onClick={() => handleSecretaryPaymentMarking('check', PaymentStatus.PAID_BY_CHECK)}
+                    onClick={() =>
+                      handleSecretaryPaymentMarking('check', PaymentStatus.PAID_BY_CHECK)
+                    }
                     className="justify-start"
                   >
                     <Check className="h-4 w-4 mr-2" />
@@ -113,7 +122,9 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => handleSecretaryPaymentMarking('cash', PaymentStatus.PAID_BY_CASH)}
+                    onClick={() =>
+                      handleSecretaryPaymentMarking('cash', PaymentStatus.PAID_BY_CASH)
+                    }
                     className="justify-start"
                   >
                     <DollarSign className="h-4 w-4 mr-2" />
@@ -130,7 +141,7 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
                         id="payment-date"
                         type="date"
                         value={paymentDate}
-                        onChange={(e) => setPaymentDate(e.target.value)}
+                        onChange={e => setPaymentDate(e.target.value)}
                       />
                     </div>
                     <div>
@@ -139,7 +150,7 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
                         id="payment-reference"
                         placeholder="Check number or reference"
                         value={paymentReference}
-                        onChange={(e) => setPaymentReference(e.target.value)}
+                        onChange={e => setPaymentReference(e.target.value)}
                       />
                     </div>
                   </div>
@@ -150,7 +161,7 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
                       id="payment-notes"
                       placeholder="Additional payment notes..."
                       value={paymentNotes}
-                      onChange={(e) => setPaymentNotes(e.target.value)}
+                      onChange={e => setPaymentNotes(e.target.value)}
                       rows={2}
                     />
                   </div>
@@ -168,9 +179,7 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
                 {/* Current Entry Status */}
                 <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                   <span className="text-sm font-medium">Current Status:</span>
-                  <Badge className={getEntryStatusBadgeColor(entryStatus)}>
-                    {entryStatus}
-                  </Badge>
+                  <Badge className={getEntryStatusBadgeColor(entryStatus)}>{entryStatus}</Badge>
                 </div>
 
                 {/* Entry Status Actions */}
@@ -219,7 +228,9 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="class-full">Class is full</SelectItem>
-                        <SelectItem value="eligibility">Eligibility requirements not met</SelectItem>
+                        <SelectItem value="eligibility">
+                          Eligibility requirements not met
+                        </SelectItem>
                         <SelectItem value="documentation">Missing documentation</SelectItem>
                         <SelectItem value="payment">Payment issues</SelectItem>
                         <SelectItem value="technical">Technical issues</SelectItem>
@@ -234,7 +245,7 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
                       id="status-notes"
                       placeholder="Additional notes for the exhibitor..."
                       value={statusChangeNotes}
-                      onChange={(e) => setStatusChangeNotes(e.target.value)}
+                      onChange={e => setStatusChangeNotes(e.target.value)}
                       rows={3}
                     />
                   </div>
@@ -251,7 +262,7 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
                 <Checkbox
                   id="waive-fees"
                   checked={waiveFees}
-                  onCheckedChange={(checked) => onWaiveFeesChange(checked === true)}
+                  onCheckedChange={checked => onWaiveFeesChange(checked === true)}
                 />
                 <Label htmlFor="waive-fees">Waive all fees</Label>
               </div>
@@ -264,7 +275,9 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
                     step="0.01"
                     min="0"
                     value={feeOverride || ''}
-                    onChange={(e) => onFeeOverrideChange(e.target.value ? parseFloat(e.target.value) : null)}
+                    onChange={e =>
+                      onFeeOverrideChange(e.target.value ? parseFloat(e.target.value) : null)
+                    }
                     placeholder={`$${feeCalculation.total.toFixed(2)}`}
                   />
                 </div>
@@ -283,7 +296,7 @@ export const SecretaryPaymentManagement: React.FC<SecretaryPaymentManagementProp
                   <Checkbox
                     id="bulk-payment-mode"
                     checked={bulkPaymentMode}
-                    onCheckedChange={(checked) => setBulkPaymentMode(checked === true)}
+                    onCheckedChange={checked => setBulkPaymentMode(checked === true)}
                   />
                   <Label htmlFor="bulk-payment-mode">Enable bulk payment operations</Label>
                 </div>

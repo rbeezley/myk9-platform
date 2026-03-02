@@ -139,7 +139,7 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({ user, dogId
 
   if (isLoading) {
     return (
-      <div className="apple-section-card">
+      <div className="myk9-section-card">
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
@@ -152,7 +152,7 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({ user, dogId
 
   if (isError) {
     return (
-      <div className="apple-section-card">
+      <div className="myk9-section-card">
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
             <Heart className="h-12 w-12 text-muted-foreground mb-4 mx-auto" />
@@ -170,11 +170,11 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({ user, dogId
   }
 
   return (
-    <div className="apple-section-card">
+    <div className="myk9-section-card">
       {/* View Toggle */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="apple-section-title flex items-center gap-2">
+          <h2 className="myk9-section-title flex items-center gap-2">
             <Heart className="h-5 w-5" />
             Health Records
           </h2>
@@ -212,17 +212,17 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({ user, dogId
         />
       ) : (
         <Tabs defaultValue="vetVisits" className="w-full">
-          <TabsList className="apple-sub-tabs">
-            <TabsTrigger value="vetVisits" className="apple-sub-tab">Vet Visits</TabsTrigger>
-            <TabsTrigger value="vaccinations" className="apple-sub-tab">Vaccinations</TabsTrigger>
-            <TabsTrigger value="medications" className="apple-sub-tab">Medications</TabsTrigger>
-            <TabsTrigger value="allergies" className="apple-sub-tab">Allergies</TabsTrigger>
+          <TabsList className="myk9-sub-tabs">
+            <TabsTrigger value="vetVisits" className="myk9-sub-tab">Vet Visits</TabsTrigger>
+            <TabsTrigger value="vaccinations" className="myk9-sub-tab">Vaccinations</TabsTrigger>
+            <TabsTrigger value="medications" className="myk9-sub-tab">Medications</TabsTrigger>
+            <TabsTrigger value="allergies" className="myk9-sub-tab">Allergies</TabsTrigger>
           </TabsList>
           
           <TabsContent value="vetVisits" className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-semibold">Vet Visits</h3>
-              <button className="apple-add-button">
+              <button className="myk9-add-button">
                 <Plus className="h-4 w-4" />
                 Add Vet Visit
               </button>
@@ -252,7 +252,7 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({ user, dogId
           <TabsContent value="vaccinations" className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-semibold">Vaccinations</h3>
-              <button className="apple-add-button">
+              <button className="myk9-add-button">
                 <Plus className="h-4 w-4" />
                 Add Vaccination
               </button>
@@ -284,7 +284,7 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({ user, dogId
           <TabsContent value="medications" className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-semibold">Medications</h3>
-              <button className="apple-add-button">
+              <button className="myk9-add-button">
                 <Plus className="h-4 w-4" />
                 Add Medication
               </button>
@@ -314,7 +314,7 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({ user, dogId
           <TabsContent value="allergies" className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-semibold">Allergies</h3>
-              <button className="apple-add-button">
+              <button className="myk9-add-button">
                 <Plus className="h-4 w-4" />
                 Add Allergy
               </button>

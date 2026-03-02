@@ -80,7 +80,7 @@ const generateSingleClass = (
     templateVersion: template.version,
     trialId: options.trialId,
     organization: template.organization,
-    showType: template.showType,
+    trialType: template.trialType,
     className,
     classNumber,
     element: classDef.element,

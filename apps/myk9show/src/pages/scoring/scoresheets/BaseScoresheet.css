@@ -1,4 +1,4 @@
-/* Apple-Inspired Scoresheet Base Styles - myK9Show Design System */
+/* myK9 Scoresheet Base Styles - myK9Show Design System */
 
 /* REMOVED GLOBAL CSS VARIABLE OVERRIDES - they were contaminating other pages!
    All design tokens now inherited from global design-tokens.css */
@@ -46,7 +46,7 @@
   gap: var(--token-space-md);
 }
 
-/* Apple-style Back Button */
+/* Back Button */
 .back-button {
   background: var(--secondary);
   border: 1px solid var(--border);

@@ -127,7 +127,7 @@ export const TrialClassesTable = ({
         </div>
         <div className="flex items-center justify-center gap-3">
           {onAddClassesFromTemplate && (
-            <Button onClick={onAddClassesFromTemplate} className="apple-action-button apple-action-button-primary">
+            <Button onClick={onAddClassesFromTemplate} className="myk9-action-button myk9-action-button-primary">
               <FileText className="h-4 w-4" />
               Add Classes
             </Button>
@@ -179,7 +179,7 @@ export const TrialClassesTable = ({
             </button>
           </div>
           {onAddClassesFromTemplate && (
-            <Button onClick={onAddClassesFromTemplate} className="apple-action-button apple-action-button-primary">
+            <Button onClick={onAddClassesFromTemplate} className="myk9-action-button myk9-action-button-primary">
               <FileText className="h-4 w-4" />
               Add Classes
             </Button>

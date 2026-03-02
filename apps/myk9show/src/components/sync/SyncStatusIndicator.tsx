@@ -37,7 +37,7 @@ interface SyncStatusIndicatorProps {
 }
 
 /**
- * SyncStatusIndicator - Reusable component showing sync status with Apple-inspired design
+ * SyncStatusIndicator - Reusable component showing sync status with Premium design
  * 
  * Displays sync status with appropriate colors, icons, and optional actions.
  * Supports tooltips with detailed information and quick actions.
@@ -54,7 +54,7 @@ export const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({
   className = '',
   onRetry
 }) => {
-  // Status configuration with Apple design tokens
+  // Status configuration with design tokens
   const statusConfig = {
     synced: {
       icon: CheckCircle,

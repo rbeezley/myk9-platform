@@ -15,7 +15,7 @@ import { SyncAnalyticsService } from '../services/analytics/SyncAnalyticsService
  * - Conflict resolution tracking
  * - Network usage analytics
  * - Export capabilities
- * - Apple-inspired design
+ * - Premium design
  */
 const SyncDashboardDemoPage: React.FC = () => {
   useEffect(() => {

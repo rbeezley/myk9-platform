@@ -2518,7 +2518,7 @@ export type Database = {
           start_date: string;
           state: string | null;
           status: string | null;
-          type: string;
+          organization: string;
           updated_at: string | null;
           venue_name: string | null;
           zip_code: string | null;
@@ -2551,7 +2551,7 @@ export type Database = {
           start_date: string;
           state?: string | null;
           status?: string | null;
-          type: string;
+          organization: string;
           updated_at?: string | null;
           venue_name?: string | null;
           zip_code?: string | null;
@@ -2584,7 +2584,7 @@ export type Database = {
           start_date?: string;
           state?: string | null;
           status?: string | null;
-          type?: string;
+          organization?: string;
           updated_at?: string | null;
           venue_name?: string | null;
           zip_code?: string | null;
@@ -3090,6 +3090,7 @@ export type Database = {
           sport_type: string | null;
           status: string | null;
           trial_number: string | null;
+          trial_type: string | null;
           updated_at: string | null;
         };
         Insert: {
@@ -3110,6 +3111,7 @@ export type Database = {
           sport_type?: string | null;
           status?: string | null;
           trial_number?: string | null;
+          trial_type?: string | null;
           updated_at?: string | null;
         };
         Update: {
@@ -3130,6 +3132,7 @@ export type Database = {
           sport_type?: string | null;
           status?: string | null;
           trial_number?: string | null;
+          trial_type?: string | null;
           updated_at?: string | null;
         };
         Relationships: [

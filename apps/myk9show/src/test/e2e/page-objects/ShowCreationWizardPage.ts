@@ -3,7 +3,7 @@ import { format, addDays, addMonths } from 'date-fns';
 
 export interface ShowDetails {
   name: string;
-  type: 'AKC' | 'UKC' | 'NASDA' | 'Other';
+  organization: 'AKC' | 'UKC' | 'NASDA' | 'Other';
   startDate: Date;
   endDate: Date;
   location: string;
@@ -39,9 +39,13 @@ export class ShowCreationWizardPage {
   // Find input field by its label text
   private getFieldByLabel(labelText: string): Locator {
     // Find the parent container that has the label, then find the input/select inside
-    return this.page.locator(`div.space-y-2:has(label:text-is("${labelText}")) input,
+    return this.page
+      .locator(
+        `div.space-y-2:has(label:text-is("${labelText}")) input,
                               div.space-y-2:has(label:text-is("${labelText}")) textarea,
-                              div.space-y-2:has(label:text-is("${labelText}")) button[role="combobox"]`).first();
+                              div.space-y-2:has(label:text-is("${labelText}")) button[role="combobox"]`
+      )
+      .first();
   }
 
   // Find date picker button by label
@@ -73,7 +77,10 @@ export class ShowCreationWizardPage {
       await this.page.waitForSelector('text=Basic Show Information', { timeout: 15000 });
     } catch {
       // Fallback: wait for the form elements instead
-      await this.page.waitForSelector('label:has-text("SHOW NAME"), input[placeholder*="show"], h2:has-text("Create")', { timeout: 10000 });
+      await this.page.waitForSelector(
+        'label:has-text("SHOW NAME"), input[placeholder*="show"], h2:has-text("Create")',
+        { timeout: 10000 }
+      );
     }
   }
 
@@ -102,7 +109,9 @@ export class ShowCreationWizardPage {
     const alertDialog = this.page.locator('[role="alertdialog"]');
     if (await alertDialog.isVisible().catch(() => false)) {
       // Click "Keep Editing" to stay in the wizard and continue
-      const keepEditingButton = this.page.locator('[role="alertdialog"] button:has-text("Keep Editing")');
+      const keepEditingButton = this.page.locator(
+        '[role="alertdialog"] button:has-text("Keep Editing")'
+      );
       if (await keepEditingButton.isVisible().catch(() => false)) {
         await keepEditingButton.click();
         await this.page.waitForTimeout(200);
@@ -140,7 +149,7 @@ export class ShowCreationWizardPage {
     await this.closeAnyOpenOverlays();
     const showTypeSelect = this.page.locator('button[role="combobox"]').first();
     await showTypeSelect.click();
-    await this.page.locator(`[role="option"]:has-text("${details.type}")`).click();
+    await this.page.locator(`[role="option"]:has-text("${details.organization}")`).click();
     await this.page.waitForTimeout(300); // Wait for dropdown to close
 
     // Start Date
@@ -202,7 +211,7 @@ export class ShowCreationWizardPage {
       'Start Date': 'Select start date',
       'End Date': 'Select end date',
       'Entry Opens': 'Select entry open date',
-      'Entry Closes': 'Select entry close date'
+      'Entry Closes': 'Select entry close date',
     };
 
     const placeholderText = buttonTextMap[labelText] || `Select ${labelText.toLowerCase()}`;
@@ -218,7 +227,11 @@ export class ShowCreationWizardPage {
 
       // Or try finding button with calendar icon near the label
       if (!(await dateButton.isVisible({ timeout: 500 }).catch(() => false))) {
-        dateButton = this.page.locator(`text="${labelText}"`).locator('xpath=../..').locator('button').first();
+        dateButton = this.page
+          .locator(`text="${labelText}"`)
+          .locator('xpath=../..')
+          .locator('button')
+          .first();
       }
     }
 
@@ -234,13 +247,25 @@ export class ShowCreationWizardPage {
   }
 
   private async navigateToDateInCalendar(date: Date) {
-    const targetMonth = date.getMonth();  // 0-11
+    const targetMonth = date.getMonth(); // 0-11
     const targetYear = date.getFullYear();
     const dayOfMonth = date.getDate();
 
     // Month names for matching
-    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                        'July', 'August', 'September', 'October', 'November', 'December'];
+    const monthNames = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
 
     // Wait for the calendar to be visible
     await this.page.waitForSelector('[role="grid"]', { timeout: 5000 });
@@ -248,15 +273,20 @@ export class ShowCreationWizardPage {
     // Navigate to the correct month using Next Month button
     for (let attempts = 0; attempts < 24; attempts++) {
       const grid = this.page.locator('[role="grid"]').first();
-      const gridLabel = await grid.getAttribute('aria-label').catch(() => '') || '';
+      const gridLabel = (await grid.getAttribute('aria-label').catch(() => '')) || '';
 
       // Check if we're on the right month
-      if (gridLabel.includes(monthNames[targetMonth]) && gridLabel.includes(targetYear.toString())) {
+      if (
+        gridLabel.includes(monthNames[targetMonth]) &&
+        gridLabel.includes(targetYear.toString())
+      ) {
         break;
       }
 
       // Click Next Month button - try different possible labels
-      const nextButton = this.page.locator('button[aria-label="Next Month"], button:has-text("Next Month")').first();
+      const nextButton = this.page
+        .locator('button[aria-label="Next Month"], button:has-text("Next Month")')
+        .first();
       if (await nextButton.isVisible().catch(() => false)) {
         await nextButton.click();
         await this.page.waitForTimeout(150);
@@ -294,12 +324,14 @@ export class ShowCreationWizardPage {
 
     for (let i = 0; i < count; i++) {
       const button = gridcellButtons.nth(i);
-      const buttonText = await button.textContent().catch(() => '') || '';
-      const ariaLabel = await button.getAttribute('aria-label').catch(() => '') || '';
+      const buttonText = (await button.textContent().catch(() => '')) || '';
+      const ariaLabel = (await button.getAttribute('aria-label').catch(() => '')) || '';
 
       // Check if this button is for our target day and month
-      if (buttonText.trim() === dayOfMonth.toString() &&
-          ariaLabel.includes(monthNames[targetMonth])) {
+      if (
+        buttonText.trim() === dayOfMonth.toString() &&
+        ariaLabel.includes(monthNames[targetMonth])
+      ) {
         await button.click();
         await this.page.waitForTimeout(200);
         return;
@@ -336,11 +368,16 @@ export class ShowCreationWizardPage {
     }
 
     await clubButton.click();
-    await this.page.waitForTimeout(500);  // Wait for popover and data to load
+    await this.page.waitForTimeout(500); // Wait for popover and data to load
 
     // Wait for club list to appear
-    const clubList = this.page.locator('.p-3.hover\\:bg-muted, [class*="hover:bg-muted"].cursor-pointer');
-    await clubList.first().waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+    const clubList = this.page.locator(
+      '.p-3.hover\\:bg-muted, [class*="hover:bg-muted"].cursor-pointer'
+    );
+    await clubList
+      .first()
+      .waitFor({ state: 'visible', timeout: 5000 })
+      .catch(() => {});
 
     if (clubName) {
       // Search for the club
@@ -350,7 +387,9 @@ export class ShowCreationWizardPage {
         await this.page.waitForTimeout(300);
       }
       // Click the matching club
-      const matchingClub = this.page.locator(`.p-3.hover\\:bg-muted:has-text("${clubName}")`).first();
+      const matchingClub = this.page
+        .locator(`.p-3.hover\\:bg-muted:has-text("${clubName}")`)
+        .first();
       if (await matchingClub.isVisible().catch(() => false)) {
         await matchingClub.click();
         await this.page.waitForTimeout(200);
@@ -359,7 +398,9 @@ export class ShowCreationWizardPage {
     }
 
     // Just select the first available club from the list
-    const firstClub = this.page.locator('.p-3.hover\\:bg-muted.cursor-pointer, .p-3[class*="hover:bg-muted"]').first();
+    const firstClub = this.page
+      .locator('.p-3.hover\\:bg-muted.cursor-pointer, .p-3[class*="hover:bg-muted"]')
+      .first();
     if (await firstClub.isVisible().catch(() => false)) {
       await firstClub.click();
       await this.page.waitForTimeout(200);
@@ -407,12 +448,16 @@ export class ShowCreationWizardPage {
     // Scroll to bottom of panel to find save button
     const panelContent = this.page.locator('.overflow-y-auto').first();
     if (await panelContent.isVisible().catch(() => false)) {
-      await panelContent.evaluate(el => el.scrollTop = el.scrollHeight);
+      await panelContent.evaluate(el => (el.scrollTop = el.scrollHeight));
       await this.page.waitForTimeout(300);
     }
 
     // Look for save/create button - should be at the bottom
-    const saveButton = this.page.locator('button:has-text("Save Club"), button:has-text("Create Club"), button[type="submit"]:has-text("Save")').first();
+    const saveButton = this.page
+      .locator(
+        'button:has-text("Save Club"), button:has-text("Create Club"), button[type="submit"]:has-text("Save")'
+      )
+      .first();
     if (await saveButton.isVisible().catch(() => false)) {
       await saveButton.scrollIntoViewIfNeeded();
       await this.page.waitForTimeout(200);
@@ -425,7 +470,9 @@ export class ShowCreationWizardPage {
   }
 
   private async selectFromDropdownByPlaceholder(placeholderText: string, value?: string) {
-    const selectTrigger = this.page.locator(`button[role="combobox"]:has-text("${placeholderText}")`);
+    const selectTrigger = this.page.locator(
+      `button[role="combobox"]:has-text("${placeholderText}")`
+    );
     if (!(await selectTrigger.isVisible().catch(() => false))) {
       // Try alternative selector - combobox with child text
       const altTrigger = this.page.locator(`[role="combobox"]:has-text("${placeholderText}")`);
@@ -442,7 +489,10 @@ export class ShowCreationWizardPage {
 
     // Wait for options to appear
     const optionsLocator = this.page.locator('[role="option"], [role="listbox"] > *');
-    await optionsLocator.first().waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
+    await optionsLocator
+      .first()
+      .waitFor({ state: 'visible', timeout: 3000 })
+      .catch(() => {});
 
     if (value) {
       // Find and click the option - partial match since names might vary
@@ -490,8 +540,16 @@ export class ShowCreationWizardPage {
     await panel.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
 
     // Fill in basic person details
-    const firstNameInput = panel.locator('input[placeholder*="First"], input[name="firstName"], label:has-text("First Name") + input, label:has-text("First Name") ~ input').first();
-    const lastNameInput = panel.locator('input[placeholder*="Last"], input[name="lastName"], label:has-text("Last Name") + input, label:has-text("Last Name") ~ input').first();
+    const firstNameInput = panel
+      .locator(
+        'input[placeholder*="First"], input[name="firstName"], label:has-text("First Name") + input, label:has-text("First Name") ~ input'
+      )
+      .first();
+    const lastNameInput = panel
+      .locator(
+        'input[placeholder*="Last"], input[name="lastName"], label:has-text("Last Name") + input, label:has-text("Last Name") ~ input'
+      )
+      .first();
 
     if (await firstNameInput.isVisible().catch(() => false)) {
       await firstNameInput.fill(`Test ${role}`);
@@ -501,7 +559,9 @@ export class ShowCreationWizardPage {
     }
 
     // Look for save/create button
-    const saveButton = panel.locator('button:has-text("Save"), button:has-text("Create"), button[type="submit"]').first();
+    const saveButton = panel
+      .locator('button:has-text("Save"), button:has-text("Create"), button[type="submit"]')
+      .first();
     if (await saveButton.isVisible().catch(() => false)) {
       await saveButton.click();
       await this.page.waitForTimeout(1000);
@@ -517,7 +577,9 @@ export class ShowCreationWizardPage {
     await this.page.waitForTimeout(300);
 
     // Get the last trial card - look for cards with Trial headers
-    const trialCards = this.page.locator('[class*="rounded"]').filter({ has: this.page.locator('h4:has-text("Trial")') });
+    const trialCards = this.page
+      .locator('[class*="rounded"]')
+      .filter({ has: this.page.locator('h4:has-text("Trial")') });
     const lastTrialCard = trialCards.last();
 
     // Fill trial name - first input in the card
@@ -533,7 +595,10 @@ export class ShowCreationWizardPage {
     }
 
     // Set date/time - click the button with calendar icon
-    const dateTimeButton = lastTrialCard.locator('button').filter({ has: this.page.locator('svg') }).first();
+    const dateTimeButton = lastTrialCard
+      .locator('button')
+      .filter({ has: this.page.locator('svg') })
+      .first();
     if (await dateTimeButton.isVisible()) {
       await dateTimeButton.click();
       await this.page.waitForSelector('[role="grid"]', { timeout: 5000 });
@@ -549,7 +614,10 @@ export class ShowCreationWizardPage {
 
   // ========== Step 3 Actions ==========
   async selectTemplate(templateName?: string) {
-    const templateSelect = this.page.locator('button[role="combobox"]').filter({ hasText: /Select a template|template/i }).first();
+    const templateSelect = this.page
+      .locator('button[role="combobox"]')
+      .filter({ hasText: /Select a template|template/i })
+      .first();
 
     if (await templateSelect.isVisible().catch(() => false)) {
       await templateSelect.click();
@@ -585,9 +653,10 @@ export class ShowCreationWizardPage {
       // Check all visible checkboxes
       const checkboxes = this.page.locator('input[type="checkbox"]');
       const count = await checkboxes.count();
-      for (let i = 0; i < Math.min(count, 20); i++) {  // Limit to prevent hanging
+      for (let i = 0; i < Math.min(count, 20); i++) {
+        // Limit to prevent hanging
         const checkbox = checkboxes.nth(i);
-        if (await checkbox.isVisible() && !(await checkbox.isChecked())) {
+        if ((await checkbox.isVisible()) && !(await checkbox.isChecked())) {
           await checkbox.check();
         }
       }
@@ -603,7 +672,9 @@ export class ShowCreationWizardPage {
   }
 
   async createAndPublishShow() {
-    const publishButton = this.page.locator('button:has-text("Create & Publish"), button:has-text("Publish")').first();
+    const publishButton = this.page
+      .locator('button:has-text("Create & Publish"), button:has-text("Publish")')
+      .first();
     await publishButton.click();
     await this.page.waitForURL(/\/secretary\/dashboard/, { timeout: 15000 });
   }
@@ -614,17 +685,23 @@ export class ShowCreationWizardPage {
       1: 'Basic Show Information',
       2: 'Trial',
       3: 'Class',
-      4: 'Review'
+      4: 'Review',
     };
 
     // Look for step-specific content
     await expect(
-      this.page.locator(`h3:has-text("${stepIndicators[stepNumber]}"), h2:has-text("${stepIndicators[stepNumber]}")`)
+      this.page.locator(
+        `h3:has-text("${stepIndicators[stepNumber]}"), h2:has-text("${stepIndicators[stepNumber]}")`
+      )
     ).toBeVisible({ timeout: 5000 });
   }
 
   async expectValidationError(errorText: string) {
-    await expect(this.page.locator(`.text-destructive:has-text("${errorText}"), .text-red-500:has-text("${errorText}")`)).toBeVisible();
+    await expect(
+      this.page.locator(
+        `.text-destructive:has-text("${errorText}"), .text-red-500:has-text("${errorText}")`
+      )
+    ).toBeVisible();
   }
 
   async expectNoValidationErrors() {
@@ -645,7 +722,7 @@ export class ShowCreationWizardPage {
     const count = await inputs.count();
     for (let i = 0; i < count; i++) {
       const input = inputs.nth(i);
-      const name = await input.getAttribute('name') || `input_${i}`;
+      const name = (await input.getAttribute('name')) || `input_${i}`;
       const value = await input.inputValue();
       state[name] = value;
     }
@@ -661,7 +738,7 @@ export function generateTestShowData(overrides: Partial<ShowDetails> = {}): Show
 
   return {
     name: `E2E Test Show ${format(new Date(), 'yyyy-MM-dd-HHmmss')}`,
-    type: 'AKC',
+    organization: 'AKC',
     startDate,
     endDate,
     location: '123 Test Venue\nTest City, TS 12345',
@@ -669,7 +746,7 @@ export function generateTestShowData(overrides: Partial<ShowDetails> = {}): Show
     entryCloseDate: addDays(startDate, -3),
     preEntryFee: 35,
     dayOfShowFee: 40,
-    ...overrides
+    ...overrides,
   };
 }
 
@@ -680,6 +757,6 @@ export function generateTestTrialData(showStartDate: Date, index: number = 0): T
   return {
     name: `Trial ${index + 1}`,
     dateTime: trialDate,
-    eventNumber: (index + 1).toString()
+    eventNumber: (index + 1).toString(),
   };
 }

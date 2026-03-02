@@ -3,7 +3,7 @@
  * 
  * Handles conflicts between judges/scores in multi-judge scenarios.
  * Provides resolution interfaces and conflict management workflows
- * with Apple-inspired design for clear decision making.
+ * with Premium design for clear decision making.
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';

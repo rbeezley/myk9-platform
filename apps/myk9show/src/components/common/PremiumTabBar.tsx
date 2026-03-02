@@ -1,7 +1,7 @@
 /**
  * PremiumTabBar Component
  * 
- * Apple-inspired tab navigation with gradient backgrounds, rounded pills,
+ * Premium tab navigation with gradient backgrounds, rounded pills,
  * and sophisticated active states. Automatically follows design system.
  */
 

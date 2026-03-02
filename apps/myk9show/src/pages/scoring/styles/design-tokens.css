@@ -5,9 +5,9 @@
 
 :root {
   /* ===== FOUNDATION COLORS ===== */
-  /* Apple System Colors */
-  --apple-pure-black: #000000;
-  --apple-pure-white: #ffffff;
+  /* System Colors */
+  --myk9-pure-black: #000000;
+  --myk9-pure-white: #ffffff;
   --apple-system-gray: #8e8e93;
 
   /* Brand Colors */
@@ -294,8 +294,8 @@
   --token-transition-fast: 0.15s ease;
   --token-transition-normal: 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   --token-transition-slow: 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  --apple-ease: cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  --apple-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --myk9-ease: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --myk9-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
 
   /* ===== TYPOGRAPHY ===== */
   /* Primary: Montserrat (loaded via Google Fonts in index.html) */

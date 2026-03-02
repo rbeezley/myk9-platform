@@ -4,6 +4,7 @@ import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { getErrorMessage } from '@myk9/core';
 import { useUserStore } from '@/store/userStore';
+import { useOwnerDogsWithQuery } from '@/hooks/useDogStoreCompat';
 import { useUpdateUserMutation, useDeleteUserMutation } from '@/hooks/queries/useUsersQuery';
 import UserDetailsTabs from '@/components/users/UserDetails/UserDetailsTabs';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
@@ -16,11 +17,11 @@ import { extractPersonName, buildFormData } from './userDetailsTypes';
 import HeroProfileCard from './HeroProfileCard';
 import ContactInformationCard from './ContactInformationCard';
 import AccountSummaryCard from './AccountSummaryCard';
-import SystemInformationCard from './SystemInformationCard';
+
 import JudgeQualificationsCard from './JudgeQualificationsCard';
 import UserDetailsDialogs from './UserDetailsDialogs';
-import '@/styles/apple-user-details.css';
-import '@/styles/apple-show-details.css';
+import '@/styles/myk9-user-details.css';
+import '@/styles/myk9-show-details.css';
 
 interface UserDetailsViewProps {
   person: UserType;
@@ -31,9 +32,12 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   const { user: currentUser } = useAuthContext();
   const { hasPermission } = useRBAC();
   useUserStore();
+  const { dogs: ownerDogs } = useOwnerDogsWithQuery(person.id);
   const updateUserMutation = useUpdateUserMutation();
   const deleteUserMutation = useDeleteUserMutation();
   const people = useRoleBasedPeople();
+
+  const dogCount = ownerDogs.length;
 
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -88,28 +92,44 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   const handleQualificationsSave = async (qualifications: JudgeQualification[]) => {
     setFormData(prev => ({
       ...prev,
-      judgeQualifications: qualifications
+      judgeQualifications: qualifications,
     }));
 
     try {
-      const { judgeQualificationQueries } = await import('@/services/database/queries/judgeQueries');
+      const { judgeQualificationQueries } =
+        await import('@/services/database/queries/judgeQueries');
       const existing = await judgeQualificationQueries.getByJudgeId(person.id);
 
       await Promise.all(existing.map(q => judgeQualificationQueries.delete(q.id)));
 
-      await Promise.all(qualifications.map(qual =>
-        judgeQualificationQueries.create({
-          person_id: person.id,
-          organization: qual.organization,
-          qualification_level: qual.level || 'Regular',
-          disciplines: qual.disciplines || qual.showTypes || [],
-          date_obtained: qual.certificationDate || (qual.dateObtained ? new Date(qual.dateObtained as unknown as string).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]),
-          ...(qual.expirationDate ? { expiration_date: new Date(qual.expirationDate as unknown as string).toISOString().split('T')[0] } : {}),
-          is_active: qual.status === 'Active',
-        })
-      ));
+      await Promise.all(
+        qualifications.map(qual =>
+          judgeQualificationQueries.create({
+            person_id: person.id,
+            organization: qual.organization,
+            qualification_level: qual.level || 'Regular',
+            disciplines: qual.disciplines || qual.showTypes || [],
+            date_obtained:
+              qual.certificationDate ||
+              (qual.dateObtained
+                ? new Date(qual.dateObtained as unknown as string).toISOString().split('T')[0]
+                : new Date().toISOString().split('T')[0]),
+            ...(qual.expirationDate
+              ? {
+                  expiration_date: new Date(qual.expirationDate as unknown as string)
+                    .toISOString()
+                    .split('T')[0],
+                }
+              : {}),
+            is_active: qual.status === 'Active',
+          })
+        )
+      );
 
-      logger.info('Qualifications saved successfully', 'users', { userId: person.id, count: qualifications.length });
+      logger.info('Qualifications saved successfully', 'users', {
+        userId: person.id,
+        count: qualifications.length,
+      });
     } catch (error) {
       logger.error('Failed to save qualifications', 'users', { userId: person.id }, error as Error);
       notifications.error('Failed to save qualifications', {
@@ -123,7 +143,8 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
       // UserEditPanel outputs `address` (flat string), map it for local form state
       const addressValue = userData.address || userData.streetAddress || '';
       const definedUpdates: Partial<typeof formData> = {};
-      if (userData.firstName !== undefined) definedUpdates.name = `${userData.firstName} ${userData.lastName || ''}`.trim();
+      if (userData.firstName !== undefined)
+        definedUpdates.name = `${userData.firstName} ${userData.lastName || ''}`.trim();
       if (userData.email !== undefined) definedUpdates.email = userData.email;
       if (userData.phone !== undefined) definedUpdates.phone = userData.phone;
       if (addressValue) definedUpdates.address = addressValue;
@@ -145,12 +166,12 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
         address: addressValue,
         city: userData.city || '',
         state: userData.state || '',
-        zipCode: userData.zipCode || ''
+        zipCode: userData.zipCode || '',
       };
 
       await updateUserMutation.mutateAsync({
         id: person.id,
-        updates
+        updates,
       });
 
       notifications.success('User updated successfully');
@@ -166,7 +187,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   const handleFileUpload = (file: File) => {
     if (file.type.startsWith('image/')) {
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = e => {
         const result = e.target?.result as string;
         setPreviewImage(result);
       };
@@ -194,13 +215,13 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-8 space-y-8">
+    <div className="max-w-7xl mx-auto px-6 py-20 space-y-8">
       {/* Breadcrumb Navigation */}
       <Breadcrumb
         showHomeIcon
         items={[
           { label: 'People', href: '/users' },
-          { label: fullName, isCurrentPage: true }
+          { label: fullName, isCurrentPage: true },
         ]}
         className="mb-2"
       />
@@ -227,12 +248,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
       />
 
       {/* Account Summary Card */}
-      <AccountSummaryCard person={person} />
-
-      {/* System Information Card - Admin only */}
-      {(hasPermission('admin:manage') || hasPermission('user:manage')) && (
-        <SystemInformationCard person={person} />
-      )}
+      <AccountSummaryCard person={person} dogCount={dogCount} />
 
       {/* Judge Qualifications Card */}
       {(person.roles?.includes('judge') ||
@@ -244,9 +260,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
         />
       )}
 
-      <UserDetailsTabs
-        selectedUser={person}
-      />
+      <UserDetailsTabs selectedUser={person} />
 
       {/* Dialogs and Panels */}
       <UserDetailsDialogs
@@ -280,11 +294,11 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
           setIsPhotoModalOpen(false);
           setPreviewImage(null);
         }}
-        onFileInput={(e) => {
+        onFileInput={e => {
           const file = e.target.files?.[0];
           if (file) {
             const reader = new FileReader();
-            reader.onload = (ev) => {
+            reader.onload = ev => {
               const result = ev.target?.result as string;
               setPreviewImage(result);
             };

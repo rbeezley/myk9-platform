@@ -52,14 +52,14 @@ async function login(page: Page, user: typeof users.exhibitor) {
 // Helper function to navigate to Browse Shows
 async function navigateToBrowseShows(page: Page) {
   await page.click('a:has-text("Shows")');
-  await page.waitForURL('/browse-shows', { timeout: 10000 });
+  await page.waitForURL('/shows', { timeout: 10000 });
   await page.waitForLoadState('networkidle');
 }
 
 test.describe('Guest User Workflow', () => {
   test('should redirect to sign-in when accessing protected routes', async ({ page }) => {
-    // Guests trying to access /browse-shows should be redirected to sign-in
-    await page.goto('/browse-shows');
+    // Guests trying to access /shows should be redirected to sign-in
+    await page.goto('/shows');
     
     // Should redirect to sign-in page
     await expect(page).toHaveURL(/\/sign-in/);
@@ -371,7 +371,7 @@ test.describe('Multi-Role User Workflow', () => {
 
 test.describe('Tab Navigation and URL Persistence', () => {
   test('should persist tab selection in URL', async ({ page }) => {
-    await page.goto('/browse-shows');
+    await page.goto('/shows');
 
     // Click Past Shows tab
     await page.getByRole('tab', { name: /past shows/i }).click();
@@ -387,7 +387,7 @@ test.describe('Tab Navigation and URL Persistence', () => {
   });
 
   test('should persist view mode in URL', async ({ page }) => {
-    await page.goto('/browse-shows');
+    await page.goto('/shows');
 
     // Switch to calendar view
     await page.getByRole('button', { name: /calendar view/i }).click();
@@ -401,7 +401,7 @@ test.describe('Tab Navigation and URL Persistence', () => {
 
   test('should handle direct URL navigation', async ({ page }) => {
     // Navigate directly to specific tab
-    await page.goto('/browse-shows?tab=past&view=list');
+    await page.goto('/shows?tab=past&view=list');
 
     // Verify correct tab and view
     await expect(page.getByRole('tab', { name: /past shows/i })).toHaveAttribute('data-state', 'active');
@@ -413,7 +413,7 @@ test.describe('Responsive Design', () => {
   test.use({ viewport: { width: 375, height: 667 } }); // iPhone SE
 
   test('should show mobile-optimized layout', async ({ page }) => {
-    await page.goto('/browse-shows');
+    await page.goto('/shows');
 
     // Tabs should be scrollable on mobile
     const tabsList = page.getByRole('tablist');
@@ -432,7 +432,7 @@ test.describe('Responsive Design', () => {
   });
 
   test('should have touch-friendly action buttons', async ({ page }) => {
-    await page.goto('/browse-shows');
+    await page.goto('/shows');
 
     const actionButtons = page.locator('button').filter({ hasText: /register|view details/i });
     const firstButton = actionButtons.first();
@@ -455,7 +455,7 @@ test.describe('Performance and Loading', () => {
       await route.continue();
     });
 
-    await page.goto('/browse-shows');
+    await page.goto('/shows');
 
     // Should show skeleton loaders
     await expect(page.locator('[data-testid="shows-page-skeleton"]')).toBeVisible();
@@ -476,7 +476,7 @@ test.describe('Performance and Loading', () => {
       });
     });
 
-    await page.goto('/browse-shows');
+    await page.goto('/shows');
 
     // Should show appropriate empty state
     await expect(page.getByText(/no shows available/i)).toBeVisible();

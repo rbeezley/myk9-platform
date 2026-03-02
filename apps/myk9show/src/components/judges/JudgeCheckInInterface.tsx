@@ -36,7 +36,7 @@ import {
   Users
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import '@/styles/apple-show-details.css';
+import '@/styles/myk9-show-details.css';
 
 interface RingEntry {
   id: string;

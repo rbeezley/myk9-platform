@@ -41,28 +41,17 @@ export const buttonVariants = cva(
     variants: {
       variant: {
         // Primary button - uses accent color from CSS variables (teal by default)
-        default:
-          'bg-primary text-primary-foreground hover:opacity-90',
+        default: 'bg-primary text-primary-foreground hover:opacity-90',
         // Destructive action
-        destructive:
-          'bg-destructive text-destructive-foreground hover:opacity-90',
+        destructive: 'bg-destructive text-destructive-foreground hover:opacity-90',
         // Outline button - matches myK9Q dialog-button-secondary
-        outline:
-          'border border-border bg-secondary text-secondary-foreground hover:bg-muted',
+        outline: 'border border-border bg-secondary text-secondary-foreground hover:bg-muted',
         // Secondary button - muted background
-        secondary:
-          'bg-muted text-muted-foreground hover:bg-muted/80',
+        secondary: 'bg-muted text-muted-foreground hover:bg-muted/80',
         // Ghost button
-        ghost:
-          'hover:bg-muted hover:text-accent-foreground',
+        ghost: 'hover:bg-muted hover:text-accent-foreground',
         // Link button
         link: 'text-primary underline-offset-4 hover:underline',
-        // Premium/highlight button
-        premium:
-          'bg-yellow-500 hover:bg-yellow-600 text-primary-foreground font-bold',
-        // Gradient button (brand blue → purple)
-        gradient:
-          'bg-gradient-to-r from-brand-blue to-brand-purple text-white hover:opacity-90',
       },
       size: {
         // Sizes matching myK9Q spacing tokens

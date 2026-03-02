@@ -22,10 +22,10 @@ export const EntriesTableHeader: React.FC<EntriesTableHeaderProps> = ({
   onAddEntry
 }) => {
   return (
-    <div className="apple-show-info-card">
-      <div className="apple-show-info-header">
+    <div className="myk9-show-info-card">
+      <div className="myk9-show-info-header">
         <div>
-          <div className="apple-show-info-title">Class Entries</div>
+          <div className="myk9-show-info-title">Class Entries</div>
           <p className="text-sm text-muted-foreground mt-1">
             {enableInlineEditing
               ? 'Edit results directly in the table'
@@ -38,7 +38,7 @@ export const EntriesTableHeader: React.FC<EntriesTableHeaderProps> = ({
             <Button
               variant="outline"
               onClick={onExportCSV}
-              className="apple-action-button"
+              className="myk9-action-button"
             >
               <Download className="h-4 w-4" />
               <span>Export CSV</span>
@@ -48,7 +48,7 @@ export const EntriesTableHeader: React.FC<EntriesTableHeaderProps> = ({
           {canAddEntries && (
             <Button
               onClick={onAddEntry}
-              className="apple-action-button apple-action-button-primary"
+              className="myk9-action-button myk9-action-button-primary"
             >
               <Plus className="h-4 w-4" />
               <span>Add Entry</span>

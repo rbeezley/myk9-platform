@@ -84,7 +84,7 @@ describe('Phase 3 Integration Tests - Registration & Competition Stores', () => 
         name: 'Test Competition',
         date: new Date(),
         location: 'Test Location',
-        type: 'Conformation',
+        organization: 'Conformation',
         status: 'upcoming',
       };
 

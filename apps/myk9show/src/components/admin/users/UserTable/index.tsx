@@ -1,16 +1,16 @@
 /**
- * UserTable Component - Apple-inspired premium data table for user management
+ * UserTable Component - Premium premium data table for user management
  *
  * Features:
- * - Apple-quality visual design with smooth animations
+ * - Premium visual design with smooth animations
  * - Premium user avatars with gradient fallbacks
  * - Sophisticated sorting with visual indicators
  * - Multi-select with enhanced checkboxes
- * - Three-dot menus following Apple patterns
- * - Advanced hover states with Apple easing
+ * - Three-dot menus following standard patterns
+ * - Advanced hover states with standard easing
  * - Responsive design with mobile adaptation
  * - Loading skeletons matching table structure
- * - Empty states with Apple-style messaging
+ * - Empty states with Premium messaging
  * - Column density controls
  * - Search result highlighting
  * - Accessibility compliant (WCAG 2.1 AA)
@@ -22,7 +22,7 @@ import { toast } from 'sonner';
 import { Table, TableBody } from '@/components/ui/table';
 import { DeleteConfirmationDialog } from '@/components/base/DeleteConfirmationDialog';
 import { useUserStore } from '@/store/userStore';
-import '@/styles/apple-table.css';
+import '@/styles/myk9-table.css';
 
 import { User } from '@/types/user-types';
 import { DENSITY_CONFIG, APPLE_FONT_STYLE } from './types';
@@ -162,10 +162,10 @@ export const UserTable: React.FC<UserTableProps> = ({
   return (
     <div className="space-y-6" style={APPLE_FONT_STYLE}>
       {/* Enhanced Table Container */}
-      <div className="apple-table-container">
+      <div className="myk9-table-container">
         {/* Table Wrapper */}
         <div className="overflow-x-auto">
-          <Table className="apple-table">
+          <Table className="myk9-table">
             <UserTableHeader
               sortField={sortField}
               sortDirection={sortDirection}
@@ -174,7 +174,7 @@ export const UserTable: React.FC<UserTableProps> = ({
               someSelected={someSelected}
               onSelectAll={onSelectAll}
             />
-            <TableBody className="apple-table-body">
+            <TableBody className="myk9-table-body">
               {sortedUsers.map((user) => (
                 <UserTableRowComponent
                   key={user.id}

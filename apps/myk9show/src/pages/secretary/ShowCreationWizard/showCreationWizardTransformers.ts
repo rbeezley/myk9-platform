@@ -9,7 +9,7 @@ import type { JudgeDetailsMap, ShowStatus, EditMode } from './show-creation-wiza
 
 interface WizardShowData {
   name: string;
-  type: 'AKC' | 'UKC' | 'NASDA' | 'Other';
+  organization: string;
   startDate: string;
   endDate: string;
   location: string;
@@ -105,13 +105,15 @@ export function createClassDataFromWizard(
 ): ClassData[] {
   const classes: ClassData[] = [];
 
-  // In edit mode, only create classes for NEW trials
-  const trialsToProcess = editMode
-    ? (() => {
-        const existingTrialIds = existingTrials.filter(t => t.showId === showId).map(t => t.id);
-        return wizardTrials.filter(wizardTrial => !existingTrialIds.includes(wizardTrial.id));
-      })()
-    : wizardTrials;
+  // In add-classes mode, process ALL trials (we're adding classes to existing trials).
+  // In other edit modes, only create classes for NEW trials.
+  const trialsToProcess =
+    editMode && editMode.mode !== 'add-classes'
+      ? (() => {
+          const existingTrialIds = existingTrials.filter(t => t.showId === showId).map(t => t.id);
+          return wizardTrials.filter(wizardTrial => !existingTrialIds.includes(wizardTrial.id));
+        })()
+      : wizardTrials;
 
   trialsToProcess.forEach(wizardTrial => {
     const trialId = trialIdMap[wizardTrial.id];
@@ -166,7 +168,7 @@ export function createClassDataFromWizard(
 export function showToShowInput(show: Show): ShowInput {
   return {
     name: show.name,
-    type: show.type,
+    organization: show.organization,
     startDate: show.startDate,
     endDate: show.endDate,
     location: show.location,
@@ -236,7 +238,7 @@ export function transformWizardDataToShow(
   return {
     id: showId,
     name: show.name,
-    type: show.type,
+    organization: show.organization,
     startDate: show.startDate,
     endDate: show.endDate,
     location: show.location,

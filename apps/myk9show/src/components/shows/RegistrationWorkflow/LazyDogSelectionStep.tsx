@@ -4,21 +4,12 @@ import { Input } from '../../ui/input';
 import { Button } from '../../ui/button';
 import { Badge } from '../../ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select';
-import { 
-  Search, 
-  Filter, 
-  X, 
-  Dog, 
-  Users, 
-  Loader2,
-  AlertCircle,
-  CheckCircle
-} from 'lucide-react';
+import { Search, Filter, X, Dog, Users, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import { LazyDogCard } from '../../dogs/LazyDogCard';
 import { useLazyLoading } from '../../../hooks/useLazyLoading';
 import { LazyLoadTrigger } from '../../common/LazyLoadTrigger';
 import { useDebounce } from '@myk9/scoring-ui';
-import { useDogStore } from '../../../store/dogStore';
+import { useDogStoreCompat } from '../../../hooks/useDogStoreCompat';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface LazyDogSelectionStepProps {
@@ -41,71 +32,82 @@ export function LazyDogSelectionStep({
   selectedDogs,
   onSelectionChange,
   maxSelections = 10,
-  allowBulkOperations = false
+  allowBulkOperations = false,
 }: LazyDogSelectionStepProps) {
   const [filters, setFilters] = useState<DogFilters>({});
   const [showFilters, setShowFilters] = useState(false);
   const [bulkSelectMode, setBulkSelectMode] = useState(false);
 
-  const { dogs: allDogs } = useDogStore();
+  const { dogs: allDogs } = useDogStoreCompat();
   const debouncedSearchQuery = useDebounce(filters.searchQuery || '', 300);
 
   // Create lazy loading data source
-  const dogDataSource = useMemo(() => ({
-    fetchBatch: async (offset: number, limit: number) => {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Apply filters to all dogs
-      let filteredDogs = allDogs;
+  const dogDataSource = useMemo(
+    () => ({
+      fetchBatch: async (offset: number, limit: number) => {
+        // Simulate API delay
+        await new Promise(resolve => setTimeout(resolve, 500));
 
-      if (debouncedSearchQuery) {
-        const query = debouncedSearchQuery.toLowerCase();
-        filteredDogs = filteredDogs.filter(dog =>
-          dog.callName?.toLowerCase().includes(query) ||
-          dog.name.toLowerCase().includes(query) ||
-          dog.registrations?.[0]?.breed?.toLowerCase().includes(query)
-        );
-      }
+        // Apply filters to all dogs
+        let filteredDogs = allDogs.filter(dog => !dog.status || dog.status === 'active');
 
-      if (filters.breed) {
-        filteredDogs = filteredDogs.filter(dog => dog.registrations?.[0]?.breed === filters.breed);
-      }
+        if (debouncedSearchQuery) {
+          const query = debouncedSearchQuery.toLowerCase();
+          filteredDogs = filteredDogs.filter(
+            dog =>
+              dog.callName?.toLowerCase().includes(query) ||
+              dog.name.toLowerCase().includes(query) ||
+              dog.registrations?.[0]?.breed?.toLowerCase().includes(query)
+          );
+        }
 
-      if (filters.gender) {
-        filteredDogs = filteredDogs.filter(dog => dog.gender === filters.gender);
-      }
+        if (filters.breed) {
+          filteredDogs = filteredDogs.filter(
+            dog => dog.registrations?.[0]?.breed === filters.breed
+          );
+        }
 
-      if (filters.ageGroup) {
-        const today = new Date();
-        filteredDogs = filteredDogs.filter(dog => {
-          const age = today.getFullYear() - new Date(dog.dateOfBirth || '1990-01-01').getFullYear();
-          switch (filters.ageGroup) {
-            case 'puppy': return age < 2;
-            case 'adult': return age >= 2 && age < 8;
-            case 'senior': return age >= 8;
-            default: return true;
-          }
-        });
-      }
+        if (filters.gender) {
+          filteredDogs = filteredDogs.filter(dog => dog.gender === filters.gender);
+        }
 
-      // Simulate pagination
-      const startIndex = offset;
-      const endIndex = Math.min(offset + limit, filteredDogs.length);
-      const items = filteredDogs.slice(startIndex, endIndex);
+        if (filters.ageGroup) {
+          const today = new Date();
+          filteredDogs = filteredDogs.filter(dog => {
+            const age =
+              today.getFullYear() - new Date(dog.dateOfBirth || '1990-01-01').getFullYear();
+            switch (filters.ageGroup) {
+              case 'puppy':
+                return age < 2;
+              case 'adult':
+                return age >= 2 && age < 8;
+              case 'senior':
+                return age >= 8;
+              default:
+                return true;
+            }
+          });
+        }
 
-      return {
-        items,
-        totalCount: filteredDogs.length
-      };
-    },
-    getItemById: async (id: string) => {
-      // Simulate API call for individual dog
-      await new Promise(resolve => setTimeout(resolve, 200));
-      return allDogs.find(dog => dog.id === id) || null;
-    },
-    cacheKey: `dogs-${JSON.stringify(filters)}`
-  }), [allDogs, filters, debouncedSearchQuery]);
+        // Simulate pagination
+        const startIndex = offset;
+        const endIndex = Math.min(offset + limit, filteredDogs.length);
+        const items = filteredDogs.slice(startIndex, endIndex);
+
+        return {
+          items,
+          totalCount: filteredDogs.length,
+        };
+      },
+      getItemById: async (id: string) => {
+        // Simulate API call for individual dog
+        await new Promise(resolve => setTimeout(resolve, 200));
+        return allDogs.find(dog => dog.id === id) || null;
+      },
+      cacheKey: `dogs-${JSON.stringify(filters)}`,
+    }),
+    [allDogs, filters, debouncedSearchQuery]
+  );
 
   // Use lazy loading hook
   const {
@@ -118,39 +120,56 @@ export function LazyDogSelectionStep({
     isEmpty,
     isInitialLoad,
     totalCount,
-    loadedCount
+    loadedCount,
   } = useLazyLoading(dogDataSource, {
     batchSize: 20,
     prefetch: true,
     enableCache: true,
-    debug: process.env.NODE_ENV === 'development'
+    debug: process.env.NODE_ENV === 'development',
   });
 
   // Get unique filter options from all dogs
   const filterOptions = useMemo(() => {
-    const breeds = [...new Set(allDogs.map(dog => dog.registrations?.[0]?.breed).filter((breed): breed is string => Boolean(breed)))].sort();
-    const genders = [...new Set(allDogs.map(dog => dog.gender).filter((gender): gender is 'Male' | 'Female' => Boolean(gender) && gender !== ''))].sort();
-    
+    const breeds = [
+      ...new Set(
+        allDogs
+          .map(dog => dog.registrations?.[0]?.breed)
+          .filter((breed): breed is string => Boolean(breed))
+      ),
+    ].sort();
+    const genders = [
+      ...new Set(
+        allDogs
+          .map(dog => dog.gender)
+          .filter((gender): gender is 'Male' | 'Female' => Boolean(gender) && gender !== '')
+      ),
+    ].sort();
+
     return { breeds, genders };
   }, [allDogs]);
 
   // Handle dog selection
-  const handleDogSelect = useCallback((dogId: string) => {
-    if (selectedDogs.length >= maxSelections) {
-      return; // Don't allow more selections
-    }
-    onSelectionChange([...selectedDogs, dogId]);
-  }, [selectedDogs, maxSelections, onSelectionChange]);
+  const handleDogSelect = useCallback(
+    (dogId: string) => {
+      if (selectedDogs.length >= maxSelections) {
+        return; // Don't allow more selections
+      }
+      onSelectionChange([...selectedDogs, dogId]);
+    },
+    [selectedDogs, maxSelections, onSelectionChange]
+  );
 
-  const handleDogDeselect = useCallback((dogId: string) => {
-    onSelectionChange(selectedDogs.filter(id => id !== dogId));
-  }, [selectedDogs, onSelectionChange]);
+  const handleDogDeselect = useCallback(
+    (dogId: string) => {
+      onSelectionChange(selectedDogs.filter(id => id !== dogId));
+    },
+    [selectedDogs, onSelectionChange]
+  );
 
   // Handle bulk operations
   const handleSelectAll = () => {
     const visibleDogIds = lazyDogs.map(dog => dog.id);
-    const newSelections = [...new Set([...selectedDogs, ...visibleDogIds])]
-      .slice(0, maxSelections);
+    const newSelections = [...new Set([...selectedDogs, ...visibleDogIds])].slice(0, maxSelections);
     onSelectionChange(newSelections);
   };
 
@@ -187,20 +206,16 @@ export function LazyDogSelectionStep({
             Choose dogs to register for this show ({selectedCount}/{maxSelections} selected)
           </p>
         </div>
-        
+
         <div className="flex items-center gap-2">
           {totalCount > 0 && (
             <Badge variant="outline">
               Showing {loadedCount} of {totalCount} dogs
             </Badge>
           )}
-          
+
           {allowBulkOperations && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setBulkSelectMode(!bulkSelectMode)}
-            >
+            <Button variant="outline" size="sm" onClick={() => setBulkSelectMode(!bulkSelectMode)}>
               {bulkSelectMode ? 'Exit Bulk Mode' : 'Bulk Select'}
             </Button>
           )}
@@ -212,17 +227,13 @@ export function LazyDogSelectionStep({
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg">Search & Filter</CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowFilters(!showFilters)}
-            >
+            <Button variant="ghost" size="sm" onClick={() => setShowFilters(!showFilters)}>
               <Filter className="h-4 w-4 mr-2" />
               Filters {hasFilters && `(${Object.values(filters).filter(Boolean).length})`}
             </Button>
           </div>
         </CardHeader>
-        
+
         <CardContent className="space-y-4">
           {/* Search */}
           <div className="relative">
@@ -230,7 +241,7 @@ export function LazyDogSelectionStep({
             <Input
               placeholder="Search by name, breed, or registration..."
               value={filters.searchQuery || ''}
-              onChange={(e) => handleFilterChange('searchQuery', e.target.value)}
+              onChange={e => handleFilterChange('searchQuery', e.target.value)}
               className="pl-10"
             />
           </div>
@@ -250,7 +261,7 @@ export function LazyDogSelectionStep({
                     <label className="text-sm font-medium mb-1 block">Breed</label>
                     <Select
                       value={filters.breed || ''}
-                      onValueChange={(value) => handleFilterChange('breed', value || undefined)}
+                      onValueChange={value => handleFilterChange('breed', value || undefined)}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Any breed" />
@@ -258,7 +269,9 @@ export function LazyDogSelectionStep({
                       <SelectContent>
                         <SelectItem value="">Any breed</SelectItem>
                         {filterOptions.breeds.map(breed => (
-                          <SelectItem key={breed} value={breed}>{breed}</SelectItem>
+                          <SelectItem key={breed} value={breed}>
+                            {breed}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -268,7 +281,7 @@ export function LazyDogSelectionStep({
                     <label className="text-sm font-medium mb-1 block">Gender</label>
                     <Select
                       value={filters.gender || ''}
-                      onValueChange={(value) => handleFilterChange('gender', value || undefined)}
+                      onValueChange={value => handleFilterChange('gender', value || undefined)}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Any gender" />
@@ -276,7 +289,9 @@ export function LazyDogSelectionStep({
                       <SelectContent>
                         <SelectItem value="">Any gender</SelectItem>
                         {filterOptions.genders.map(gender => (
-                          <SelectItem key={gender} value={gender || 'Unknown'}>{gender}</SelectItem>
+                          <SelectItem key={gender} value={gender || 'Unknown'}>
+                            {gender}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -286,7 +301,7 @@ export function LazyDogSelectionStep({
                     <label className="text-sm font-medium mb-1 block">Age Group</label>
                     <Select
                       value={filters.ageGroup || ''}
-                      onValueChange={(value) => handleFilterChange('ageGroup', value || undefined)}
+                      onValueChange={value => handleFilterChange('ageGroup', value || undefined)}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Any age" />
@@ -340,11 +355,7 @@ export function LazyDogSelectionStep({
                   <CheckCircle className="h-4 w-4 mr-2" />
                   Select Visible
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleDeselectAll}
-                >
+                <Button variant="outline" size="sm" onClick={handleDeselectAll}>
                   <X className="h-4 w-4 mr-2" />
                   Deselect Visible
                 </Button>
@@ -375,12 +386,7 @@ export function LazyDogSelectionStep({
                 <span className="font-medium">Failed to load dogs</span>
               </div>
               <p className="text-sm text-muted-foreground mt-1">{error}</p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={refresh}
-                className="mt-3"
-              >
+              <Button variant="outline" size="sm" onClick={refresh} className="mt-3">
                 Try Again
               </Button>
             </CardContent>
@@ -395,10 +401,9 @@ export function LazyDogSelectionStep({
                 <Dog className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
                 <h3 className="font-medium mb-2">No dogs found</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  {hasFilters 
-                    ? 'Try adjusting your search filters' 
-                    : 'No dogs are available for registration'
-                  }
+                  {hasFilters
+                    ? 'Try adjusting your search filters'
+                    : 'No dogs are available for registration'}
                 </p>
                 {hasFilters && (
                   <Button variant="outline" onClick={clearFilters}>
@@ -415,7 +420,7 @@ export function LazyDogSelectionStep({
         {lazyDogs.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <AnimatePresence>
-              {lazyDogs.map((dog) => (
+              {lazyDogs.map(dog => (
                 <LazyDogCard
                   key={dog.id}
                   dogId={dog.id}
@@ -431,11 +436,7 @@ export function LazyDogSelectionStep({
         )}
 
         {/* Load More Trigger */}
-        <LazyLoadTrigger
-          onLoadMore={loadMore}
-          hasMore={hasMore}
-          loading={loading}
-        />
+        <LazyLoadTrigger onLoadMore={loadMore} hasMore={hasMore} loading={loading} />
       </div>
 
       {/* Selection Summary */}
@@ -449,12 +450,8 @@ export function LazyDogSelectionStep({
                   {selectedCount} dog{selectedCount !== 1 ? 's' : ''} selected
                 </span>
               </div>
-              
-              {selectedCount >= maxSelections && (
-                <Badge variant="secondary">
-                  Maximum reached
-                </Badge>
-              )}
+
+              {selectedCount >= maxSelections && <Badge variant="secondary">Maximum reached</Badge>}
             </div>
           </CardContent>
         </Card>

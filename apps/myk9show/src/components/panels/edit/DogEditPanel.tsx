@@ -9,10 +9,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Dog, FileText, Camera, Heart } from 'lucide-react';
 import PhotoDialog from '@/components/common/PhotoDialog';
-import type { Dog as DogType, Registration } from '@/types/dog-types';
+import { getDogDisplayName, type Dog as DogType, type Registration } from '@/types/dog-types';
 import type { User as PersonType } from '@/types/user-types';
 import { UserRole } from '@/types/auth-types';
 import { cn } from '@/lib/utils';
@@ -101,24 +107,25 @@ const dogToFormData = (dog: Partial<DogType>): DogFormData => {
   const registeredName = dog.registrations?.[0]?.registeredName || dog.name || '';
 
   // Derive gender from sex if not set (use lowercase to match Select values)
-  const gender = dog.gender?.toLowerCase() ||
+  const gender =
+    dog.gender?.toLowerCase() ||
     (dog.sex === 'male' ? 'male' : dog.sex === 'female' ? 'female' : '');
 
   return {
-    callName: dog.callName || dog.name || '',
+    callName: getDogDisplayName({ callName: dog.callName, name: dog.name || '' }),
     registeredName,
     gender,
     dateOfBirth: dog.dateOfBirth || dog.birthDate || '',
     color: dog.color || '',
-    weight: dog.weight || (dog.measurements?.weight?.toString()) || '',
-    height: dog.height || (dog.measurements?.height?.toString()) || '',
+    weight: dog.weight || dog.measurements?.weight?.toString() || '',
+    height: dog.height || dog.measurements?.height?.toString() || '',
     microchip: dog.microchip || dog.microchipNumber || '',
     imageUrl: dog.imageUrl || '',
     ownerId: dog.ownerId || '',
     registrations: (dog.registrations as Registration[]) || [],
     healthRecords: dog.healthRecords || {},
-    notes: (dog as Record<string, unknown>).notes as string || '',
-    specialNeeds: (dog as Record<string, unknown>).specialNeeds as string || '',
+    notes: ((dog as Record<string, unknown>).notes as string) || '',
+    specialNeeds: ((dog as Record<string, unknown>).specialNeeds as string) || '',
     spayedNeutered: dog.spayedNeutered ?? false,
   };
 };
@@ -137,14 +144,16 @@ const formDataToDog = (formData: DogFormData): Partial<DogType> => {
     } else {
       // Create a new registration if none exist but user entered a registered name
       // Use a temporary ID - the database will generate the real one on save
-      registrations = [{
-        id: `temp-${Date.now()}`,
-        organization: 'AKC', // Default organization
-        registeredName: formData.registeredName,
-        registrationNumber: '',
-        breed: '',
-        status: 'pending',
-      }];
+      registrations = [
+        {
+          id: `temp-${Date.now()}`,
+          organization: 'AKC', // Default organization
+          registeredName: formData.registeredName,
+          registrationNumber: '',
+          breed: '',
+          status: 'pending',
+        },
+      ];
     }
   }
 
@@ -169,7 +178,8 @@ const formDataToDog = (formData: DogFormData): Partial<DogType> => {
     registrations,
     healthRecords: formData.healthRecords,
     ...(formData.notes && ({ notes: formData.notes } as Record<string, unknown>)),
-    ...(formData.specialNeeds && ({ specialNeeds: formData.specialNeeds } as Record<string, unknown>)),
+    ...(formData.specialNeeds &&
+      ({ specialNeeds: formData.specialNeeds } as Record<string, unknown>)),
     spayedNeutered: formData.spayedNeutered,
   };
 };
@@ -198,40 +208,40 @@ const OwnerSelectionField: React.FC = () => {
         <Label className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
           Owner
         </Label>
-        <div className="text-sm text-muted-foreground py-2">
-          {displayText}
-        </div>
-        <p className="text-xs text-muted-foreground/60">
-          No people available to assign as owner
-        </p>
+        <div className="text-sm text-muted-foreground py-2">{displayText}</div>
+        <p className="text-xs text-muted-foreground/60">No people available to assign as owner</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-2 pt-4 border-t border-border/30">
-      <Label htmlFor="ownerId" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
+      <Label
+        htmlFor="ownerId"
+        className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+      >
         Owner ({people.length} available)
       </Label>
       <select
         id="ownerId"
         value={data.ownerId || ''}
-        onChange={(e) => updateData({ ownerId: e.target.value })}
+        onChange={e => updateData({ ownerId: e.target.value })}
         className="w-full border-0 bg-input rounded-xl px-3.5 py-3 text-base font-medium transition-all duration-200 focus:bg-background focus:ring-2 focus:ring-primary/20 focus:ring-offset-1 focus:outline-none"
       >
-        <option value="" disabled>Select owner</option>
+        <option value="" disabled>
+          Select owner
+        </option>
         {data.ownerId && !currentOwner && (
           <option value={data.ownerId}>Unknown Owner (ID: {data.ownerId.slice(0, 8)}...)</option>
         )}
-        {people.map((person) => (
+        {people.map(person => (
           <option key={person.id} value={person.id}>
-            {person.firstName} {person.lastName}{person.email ? ` (${person.email})` : ''}
+            {person.firstName} {person.lastName}
+            {person.email ? ` (${person.email})` : ''}
           </option>
         ))}
       </select>
-      <p className="text-xs text-muted-foreground/60">
-        Change the owner of this dog (admin only)
-      </p>
+      <p className="text-xs text-muted-foreground/60">Change the owner of this dog (admin only)</p>
     </div>
   );
 };
@@ -239,28 +249,33 @@ const OwnerSelectionField: React.FC = () => {
 // Form content component
 const DogEditForm: React.FC = () => {
   const { data, updateData, errors } = useEditPanel<DogFormData>();
-  
+
   // Photo dialog state
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   // Handle input changes
-  const handleInputChange = useCallback((field: keyof DogFormData) => (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-  ) => {
-    updateData({ [field]: e.target.value });
-  }, [updateData]);
+  const handleInputChange = useCallback(
+    (field: keyof DogFormData) =>
+      (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+        updateData({ [field]: e.target.value });
+      },
+    [updateData]
+  );
 
   // Handle select changes
-  const handleSelectChange = useCallback((field: keyof DogFormData) => (value: string) => {
-    updateData({ [field]: value });
-  }, [updateData]);
+  const handleSelectChange = useCallback(
+    (field: keyof DogFormData) => (value: string) => {
+      updateData({ [field]: value });
+    },
+    [updateData]
+  );
 
   // Handle file upload (shared logic for drag & drop and file input)
   const handleFileUpload = useCallback((file: File) => {
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = ev => {
       const result = ev.target?.result as string;
       setPreviewImage(result);
     };
@@ -272,57 +287,66 @@ const DogEditForm: React.FC = () => {
     e.preventDefault();
     setIsDragging(true);
   }, []);
-  
+
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
   }, []);
-  
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file) {
-      handleFileUpload(file);
-    }
-  }, [handleFileUpload]);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+      const file = e.dataTransfer.files[0];
+      if (file) {
+        handleFileUpload(file);
+      }
+    },
+    [handleFileUpload]
+  );
 
   // File input handler
-  const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      handleFileUpload(file);
-    }
-  }, [handleFileUpload]);
+  const handleFileInput = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        handleFileUpload(file);
+      }
+    },
+    [handleFileUpload]
+  );
 
-  const handlePhotoSave = useCallback((preview: string | null) => {
-    if (preview) {
-      updateData({ imageUrl: preview });
-    }
-    setIsPhotoModalOpen(false);
-    setPreviewImage(null);
-  }, [updateData]);
-  
+  const handlePhotoSave = useCallback(
+    (preview: string | null) => {
+      if (preview) {
+        updateData({ imageUrl: preview });
+      }
+      setIsPhotoModalOpen(false);
+      setPreviewImage(null);
+    },
+    [updateData]
+  );
+
   return (
     <div className="space-y-6 p-6">
       <Tabs defaultValue="basic" className="w-full">
         <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 transition-all duration-300 ease-out">
-          <TabsTrigger 
-            value="basic" 
+          <TabsTrigger
+            value="basic"
             className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
           >
             <Dog className="h-4 w-4" />
             Basic Info
           </TabsTrigger>
-          <TabsTrigger 
-            value="registrations" 
+          <TabsTrigger
+            value="registrations"
             className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
           >
             <FileText className="h-4 w-4" />
             Registrations
           </TabsTrigger>
-          <TabsTrigger 
-            value="health" 
+          <TabsTrigger
+            value="health"
             className="gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/10 data-[state=active]:to-primary/5 data-[state=active]:text-primary data-[state=active]:shadow-sm rounded-lg transition-all duration-300"
           >
             <Heart className="h-4 w-4" />
@@ -331,7 +355,10 @@ const DogEditForm: React.FC = () => {
         </TabsList>
 
         {/* Basic Information Tab */}
-        <TabsContent value="basic" className="space-y-6 animate-in slide-in-from-bottom-2 duration-300 ease-out">
+        <TabsContent
+          value="basic"
+          className="space-y-6 animate-in slide-in-from-bottom-2 duration-300 ease-out"
+        >
           <Card className="transition-all duration-200 hover:shadow-md hover:shadow-primary/5">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -349,7 +376,9 @@ const DogEditForm: React.FC = () => {
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 space-y-2">
-                  <Label className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Dog Photo</Label>
+                  <Label className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
+                    Dog Photo
+                  </Label>
                   <div className="flex gap-2">
                     <Button
                       type="button"
@@ -375,10 +404,15 @@ const DogEditForm: React.FC = () => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="callName" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Call Name *</Label>
+                  <Label
+                    htmlFor="callName"
+                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+                  >
+                    Call Name *
+                  </Label>
                   <Input
                     id="callName"
                     value={data.callName}
@@ -389,9 +423,14 @@ const DogEditForm: React.FC = () => {
                     )}
                   />
                 </div>
-                
+
                 <div className="space-y-2">
-                  <Label htmlFor="registeredName" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Registered Name *</Label>
+                  <Label
+                    htmlFor="registeredName"
+                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+                  >
+                    Registered Name *
+                  </Label>
                   <Input
                     id="registeredName"
                     value={data.registeredName}
@@ -406,11 +445,16 @@ const DogEditForm: React.FC = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="gender" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Gender *</Label>
+                  <Label
+                    htmlFor="gender"
+                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+                  >
+                    Gender *
+                  </Label>
                   <Select value={data.gender} onValueChange={handleSelectChange('gender')}>
-                    <SelectTrigger className={cn(
-                      errors.some(e => e.includes('Gender')) && 'border-destructive'
-                    )}>
+                    <SelectTrigger
+                      className={cn(errors.some(e => e.includes('Gender')) && 'border-destructive')}
+                    >
                       <SelectValue placeholder="Select gender" />
                     </SelectTrigger>
                     <SelectContent>
@@ -419,9 +463,14 @@ const DogEditForm: React.FC = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div className="space-y-2">
-                  <Label htmlFor="dateOfBirth" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Date of Birth *</Label>
+                  <Label
+                    htmlFor="dateOfBirth"
+                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+                  >
+                    Date of Birth *
+                  </Label>
                   <Input
                     id="dateOfBirth"
                     type="date"
@@ -436,7 +485,12 @@ const DogEditForm: React.FC = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="color" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Color</Label>
+                  <Label
+                    htmlFor="color"
+                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+                  >
+                    Color
+                  </Label>
                   <Input
                     id="color"
                     value={data.color}
@@ -444,9 +498,14 @@ const DogEditForm: React.FC = () => {
                     placeholder="Enter color"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
-                  <Label htmlFor="weight" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Weight (lbs)</Label>
+                  <Label
+                    htmlFor="weight"
+                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+                  >
+                    Weight (lbs)
+                  </Label>
                   <Input
                     id="weight"
                     type="number"
@@ -455,9 +514,14 @@ const DogEditForm: React.FC = () => {
                     placeholder="Enter weight"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
-                  <Label htmlFor="height" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Height (inches)</Label>
+                  <Label
+                    htmlFor="height"
+                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+                  >
+                    Height (inches)
+                  </Label>
                   <Input
                     id="height"
                     type="number"
@@ -469,7 +533,12 @@ const DogEditForm: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="microchip" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Microchip Number</Label>
+                <Label
+                  htmlFor="microchip"
+                  className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+                >
+                  Microchip Number
+                </Label>
                 <Input
                   id="microchip"
                   value={data.microchip}
@@ -483,7 +552,7 @@ const DogEditForm: React.FC = () => {
                   type="checkbox"
                   id="spayedNeutered"
                   checked={data.spayedNeutered ?? false}
-                  onChange={(e) => updateData({ spayedNeutered: e.target.checked })}
+                  onChange={e => updateData({ spayedNeutered: e.target.checked })}
                   className="h-4 w-4 rounded border-input accent-primary"
                 />
                 <Label htmlFor="spayedNeutered" className="text-sm font-medium cursor-pointer">
@@ -495,14 +564,19 @@ const DogEditForm: React.FC = () => {
               <OwnerSelectionField />
 
               <Separator />
-              
+
               <div className="space-y-4">
                 <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
                   Additional Information
                 </h4>
-                
+
                 <div className="space-y-2">
-                  <Label htmlFor="notes" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Notes</Label>
+                  <Label
+                    htmlFor="notes"
+                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+                  >
+                    Notes
+                  </Label>
                   <textarea
                     id="notes"
                     value={data.notes || ''}
@@ -511,9 +585,14 @@ const DogEditForm: React.FC = () => {
                     className="min-h-[80px] w-full rounded-xl border-0 bg-input px-3.5 py-2.5 text-sm font-medium tracking-tight placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:bg-background focus-visible:shadow-sm transition-all duration-200"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
-                  <Label htmlFor="specialNeeds" className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">Special Needs</Label>
+                  <Label
+                    htmlFor="specialNeeds"
+                    className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
+                  >
+                    Special Needs
+                  </Label>
                   <textarea
                     id="specialNeeds"
                     value={data.specialNeeds || ''}
@@ -528,7 +607,10 @@ const DogEditForm: React.FC = () => {
         </TabsContent>
 
         {/* Registrations Tab */}
-        <TabsContent value="registrations" className="space-y-6 animate-in slide-in-from-bottom-2 duration-300 ease-out">
+        <TabsContent
+          value="registrations"
+          className="space-y-6 animate-in slide-in-from-bottom-2 duration-300 ease-out"
+        >
           <Card className="transition-all duration-200 hover:shadow-md hover:shadow-primary/5">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -543,9 +625,7 @@ const DogEditForm: React.FC = () => {
                     <div key={index} className="border-l-4 border-primary pl-4 space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <Badge variant="default">
-                            {reg.organization}
-                          </Badge>
+                          <Badge variant="default">{reg.organization}</Badge>
                           <span className="font-medium">#{reg.registrationNumber}</span>
                         </div>
                         <Badge variant={reg.status === 'Active' ? 'default' : 'secondary'}>
@@ -575,7 +655,10 @@ const DogEditForm: React.FC = () => {
         </TabsContent>
 
         {/* Health Records Tab */}
-        <TabsContent value="health" className="space-y-6 animate-in slide-in-from-bottom-2 duration-300 ease-out">
+        <TabsContent
+          value="health"
+          className="space-y-6 animate-in slide-in-from-bottom-2 duration-300 ease-out"
+        >
           <Card className="transition-all duration-200 hover:shadow-md hover:shadow-primary/5">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -584,10 +667,15 @@ const DogEditForm: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {data.healthRecords?.vaccinations?.length || data.healthRecords?.medications?.length || data.healthRecords?.allergies?.length ? (
+              {data.healthRecords?.vaccinations?.length ||
+              data.healthRecords?.medications?.length ||
+              data.healthRecords?.allergies?.length ? (
                 <div className="space-y-4">
                   {data.healthRecords?.vaccinations?.map((record, index) => (
-                    <div key={`vax-${index}`} className="border-l-4 border-green-500 pl-4 space-y-2">
+                    <div
+                      key={`vax-${index}`}
+                      className="border-l-4 border-green-500 pl-4 space-y-2"
+                    >
                       <div className="flex items-center justify-between">
                         <span className="font-medium">{record.name}</span>
                         <span className="text-sm text-muted-foreground">
@@ -595,7 +683,9 @@ const DogEditForm: React.FC = () => {
                         </span>
                       </div>
                       {record.nextDue && (
-                        <p className="text-sm text-muted-foreground">Next due: {new Date(record.nextDue).toLocaleDateString()}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Next due: {new Date(record.nextDue).toLocaleDateString()}
+                        </p>
                       )}
                     </div>
                   ))}
@@ -609,7 +699,8 @@ const DogEditForm: React.FC = () => {
                       </div>
                       <p className="text-sm text-muted-foreground">
                         Started: {new Date(record.startDate).toLocaleDateString()}
-                        {record.endDate && ` - Ended: ${new Date(record.endDate).toLocaleDateString()}`}
+                        {record.endDate &&
+                          ` - Ended: ${new Date(record.endDate).toLocaleDateString()}`}
                       </p>
                     </div>
                   ))}
@@ -653,9 +744,9 @@ const DogEditForm: React.FC = () => {
 
 // Helper to check if user has admin privileges
 const isAdminRole = (role?: UserRole): boolean => {
-  return role === UserRole.SITE_ADMIN ||
-         role === UserRole.CLUB_ADMIN ||
-         role === UserRole.SECRETARY;
+  return (
+    role === UserRole.SITE_ADMIN || role === UserRole.CLUB_ADMIN || role === UserRole.SECRETARY
+  );
 };
 
 // Main component
@@ -676,18 +767,24 @@ export const DogEditPanel: React.FC<DogEditPanelProps> = ({
   const isAdmin = isAdminRole(userRole);
 
   // Context value for passing to form components
-  const contextValue = useMemo(() => ({
-    isAdmin,
-    people,
-  }), [isAdmin, people]);
+  const contextValue = useMemo(
+    () => ({
+      isAdmin,
+      people,
+    }),
+    [isAdmin, people]
+  );
 
   // Handle save
-  const handleSave = useCallback(async (formData: DogFormData) => {
-    const dogData = formDataToDog(formData);
-    if (onSave) {
-      await onSave(dogData);
-    }
-  }, [onSave]);
+  const handleSave = useCallback(
+    async (formData: DogFormData) => {
+      const dogData = formDataToDog(formData);
+      if (onSave) {
+        await onSave(dogData);
+      }
+    },
+    [onSave]
+  );
 
   return (
     <DogEditContext.Provider value={contextValue}>

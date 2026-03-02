@@ -72,6 +72,10 @@ export class MutationManager {
   private backupDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   private isBackupInProgress: boolean = false;
 
+  // Auto-upload: flush mutations to server shortly after queuing
+  private uploadDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private isUploading: boolean = false;
+
   constructor(supabaseClient: SupabaseClient, options: MutationManagerOptions = {}) {
     this.supabase = supabaseClient;
     this.maxRetries = options.maxRetries ?? 3;
@@ -136,6 +140,10 @@ export class MutationManager {
     await db.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation);
     this.logger.log(`[MutationManager] Queued ${operation} for ${tableName}/${rowId}`);
     await this.backupMutationsToLocalStorage();
+
+    // Auto-upload: schedule immediate flush to server
+    this.scheduleUpload();
+
     return id;
   }
 
@@ -152,12 +160,44 @@ export class MutationManager {
   // ========================================
 
   /**
+   * Schedule an upload attempt shortly after a mutation is queued.
+   *
+   * Debounced at 100ms so rapid mutations (e.g. batch inserts) are
+   * coalesced into a single upload pass. Skips if offline.
+   */
+  private scheduleUpload(): void {
+    if (this.uploadDebounceTimer) {
+      clearTimeout(this.uploadDebounceTimer);
+    }
+
+    this.uploadDebounceTimer = setTimeout(() => {
+      this.uploadDebounceTimer = null;
+
+      // Skip if offline
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        this.logger.log('[MutationManager] Offline, deferring auto-upload');
+        return;
+      }
+
+      this.uploadPendingMutations().catch(err => {
+        this.logger.error('[MutationManager] Auto-upload failed:', err);
+      });
+    }, 100);
+  }
+
+  /**
    * Upload pending mutations (offline changes) to server
    *
    * Processes mutations in topological order to respect causal dependencies.
    * Warns when mutation queue size approaches capacity.
    */
   async uploadPendingMutations(): Promise<SyncResult[]> {
+    // Prevent concurrent upload runs
+    if (this.isUploading) {
+      this.logger.log('[MutationManager] Upload already in progress, skipping');
+      return [];
+    }
+    this.isUploading = true;
     const startTime = Date.now();
 
     try {
@@ -288,6 +328,8 @@ export class MutationManager {
     } catch (error) {
       this.logger.error('[MutationManager] Failed to upload mutations:', error);
       return [];
+    } finally {
+      this.isUploading = false;
     }
   }
 
@@ -607,6 +649,10 @@ export class MutationManager {
     if (this.backupDebounceTimer) {
       clearTimeout(this.backupDebounceTimer);
       this.backupDebounceTimer = null;
+    }
+    if (this.uploadDebounceTimer) {
+      clearTimeout(this.uploadDebounceTimer);
+      this.uploadDebounceTimer = null;
     }
 
     this.logger.log('[MutationManager] Destroyed');

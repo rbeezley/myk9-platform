@@ -2,7 +2,7 @@
  * Exhibitor Sidebar Navigation Component
  * 
  * Provides organized navigation for exhibitor dashboard pages
- * Features grouped navigation with Apple-inspired design
+ * Features grouped navigation with Premium design
  * Based on the Admin sidebar pattern
  */
 
@@ -91,7 +91,7 @@ const navigationGroups: NavGroup[] = [
     items: [
       {
         title: 'Browse Shows',
-        href: '/browse-shows',
+        href: '/shows',
         icon: Search,
         description: 'Find and explore shows'
       },

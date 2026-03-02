@@ -151,7 +151,6 @@ describe('Phase 4 Template System Tests', () => {
         showType: 'Agility',
         description: 'Test class template',
         fields: [],
-        entryFeeDefault: 30,
         maxEntriesDefault: 40,
         requiresJumpHeight: true,
       };
@@ -166,9 +165,9 @@ describe('Phase 4 Template System Tests', () => {
       expect(retrieved).toEqual(added);
 
       // Test update
-      store.updateTemplate(added.id, { entryFeeDefault: 35 });
+      store.updateTemplate(added.id, { maxEntriesDefault: 50 });
       const updated = store.getTemplate(added.id);
-      expect(updated?.entryFeeDefault).toBe(35);
+      expect(updated?.maxEntriesDefault).toBe(50);
     });
 
     it('should generate classes from presets', () => {
@@ -311,7 +310,6 @@ describe('Phase 4 Template System Tests', () => {
         showType: 'Agility',
         description: 'Integration class test',
         fields: [],
-        entryFeeDefault: 30,
         maxEntriesDefault: 40,
         requiresJumpHeight: true,
       });

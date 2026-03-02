@@ -28,7 +28,7 @@ describe('Template Validation', () => {
       const template = createMockTemplate({
         templateName: '',
         organization: undefined as unknown as Organization,
-        showType: undefined as unknown as ShowType
+        trialType: undefined as unknown as TrialType
       });
       
       const result = validateTemplate(template);

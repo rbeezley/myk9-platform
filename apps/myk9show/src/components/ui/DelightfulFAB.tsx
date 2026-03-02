@@ -24,7 +24,7 @@ const DelightfulFAB: React.FC<DelightfulFABProps> = ({
   onCreateShow,
   onQuickEntry,
   onViewCalendar,
-  className = ''
+  className = '',
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showSparkles, setShowSparkles] = useState(false);
@@ -45,49 +45,54 @@ const DelightfulFAB: React.FC<DelightfulFABProps> = ({
   };
 
   // Memoize actions to prevent recreating on every render
-  const actions: FABAction[] = useMemo(() => [
-    {
-      icon: <Calendar className="w-4 h-4" />,
-      label: "Create Show",
-      action: () => {
-        onCreateShow?.();
-        setIsOpen(false);
+  const actions: FABAction[] = useMemo(
+    () => [
+      {
+        icon: <Calendar className="w-4 h-4" />,
+        label: 'Create Show',
+        action: () => {
+          onCreateShow?.();
+          setIsOpen(false);
+        },
+        color: 'bg-blue-500 hover:bg-blue-600',
       },
-      color: "bg-blue-500 hover:bg-blue-600"
-    },
-    {
-      icon: <PawPrint className="w-4 h-4" />,
-      label: "Quick Entry",
-      action: () => {
-        onQuickEntry?.();
-        setIsOpen(false);
+      {
+        icon: <PawPrint className="w-4 h-4" />,
+        label: 'Quick Entry',
+        action: () => {
+          onQuickEntry?.();
+          setIsOpen(false);
+        },
+        color: 'bg-green-500 hover:bg-green-600',
       },
-      color: "bg-green-500 hover:bg-green-600"
-    },
-    {
-      icon: <Heart className="w-4 h-4" />,
-      label: "View Calendar",
-      action: () => {
-        onViewCalendar?.();
-        setIsOpen(false);
+      {
+        icon: <Heart className="w-4 h-4" />,
+        label: 'View Calendar',
+        action: () => {
+          onViewCalendar?.();
+          setIsOpen(false);
+        },
+        color: 'bg-pink-500 hover:bg-pink-600',
       },
-      color: "bg-pink-500 hover:bg-pink-600"
-    }
-  ], [onCreateShow, onQuickEntry, onViewCalendar]);
+    ],
+    [onCreateShow, onQuickEntry, onViewCalendar]
+  );
 
   // Memoize transition delay styles to avoid creating new objects on each render
-  const actionStyles = useMemo(() =>
-    actions.map((_, index) => ({ transitionDelay: `${index * 50}ms` })),
+  const actionStyles = useMemo(
+    () => actions.map((_, index) => ({ transitionDelay: `${index * 50}ms` })),
     [actions]
   );
 
   return (
     <div className={`fixed bottom-20 right-6 z-40 ${className}`}>
       {/* Action buttons */}
-      <div className={`
+      <div
+        className={`
         flex flex-col-reverse gap-3 mb-3 transition-all duration-300 ease-out
         ${isOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}
-      `}>
+      `}
+      >
         {actions.map((action, index) => (
           <div
             key={index}
@@ -103,7 +108,7 @@ const DelightfulFAB: React.FC<DelightfulFABProps> = ({
                 {action.label}
               </span>
             </div>
-            
+
             {/* Action button */}
             <Button
               size="icon"
@@ -127,37 +132,42 @@ const DelightfulFAB: React.FC<DelightfulFABProps> = ({
         {(showSparkles || isHovered) && (
           <div className="absolute inset-0 pointer-events-none">
             <Sparkles className="absolute -top-2 -right-2 w-4 h-4 text-yellow-400 animate-pulse" />
-            <Sparkles className="absolute -bottom-2 -left-2 w-3 h-3 text-pink-400 animate-pulse" style={SPARKLE_STYLE_DELAY_500} />
-            <Sparkles className="absolute -top-2 -left-2 w-3 h-3 text-purple-400 animate-pulse" style={SPARKLE_STYLE_DELAY_1000} />
+            <Sparkles
+              className="absolute -bottom-2 -left-2 w-3 h-3 text-pink-400 animate-pulse"
+              style={SPARKLE_STYLE_DELAY_500}
+            />
+            <Sparkles
+              className="absolute -top-2 -left-2 w-3 h-3 text-purple-400 animate-pulse"
+              style={SPARKLE_STYLE_DELAY_1000}
+            />
           </div>
         )}
 
         {/* Pulsing ring effect */}
-        <div className={`
+        <div
+          className={`
           absolute inset-0 rounded-full bg-gradient-to-r from-primary to-secondary
           transition-all duration-1000 ease-out
           ${isHovered ? 'scale-150 opacity-20' : 'scale-100 opacity-0'}
-        `} />
+        `}
+        />
 
         <Button
           size="icon"
           onClick={toggleOpen}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
-          className={`
-            bg-gradient-to-r from-primary to-secondary text-primary-foreground
-            shadow-lg hover:shadow-xl transition-all duration-300
-            hover:scale-110 rounded-full w-14 h-14 relative z-10
-            ${isOpen ? 'rotate-45' : 'rotate-0'}
-          `}
-          title={isOpen ? "Close menu" : "Quick actions"}
-          aria-label={isOpen ? "Close menu" : "Quick actions"}
+          className={`rounded-full w-14 h-14 relative z-10 ${isOpen ? 'rotate-45' : 'rotate-0'}`}
+          title={isOpen ? 'Close menu' : 'Quick actions'}
+          aria-label={isOpen ? 'Close menu' : 'Quick actions'}
         >
           <div className="relative">
             {isOpen ? (
               <X className="w-6 h-6" />
             ) : (
-              <Plus className={`w-6 h-6 transition-transform duration-300 ${isHovered ? 'rotate-90' : ''}`} />
+              <Plus
+                className={`w-6 h-6 transition-transform duration-300 ${isHovered ? 'rotate-90' : ''}`}
+              />
             )}
           </div>
         </Button>

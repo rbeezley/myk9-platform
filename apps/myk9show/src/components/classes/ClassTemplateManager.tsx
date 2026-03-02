@@ -1,9 +1,15 @@
-import { Zap, ChevronRight, Settings, Plus } from "lucide-react";
+import { Zap, ChevronRight, Settings, Plus } from 'lucide-react';
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useClassTemplateStore } from '@/store/classTemplateStore';
@@ -19,12 +25,12 @@ interface ClassTemplateManagerProps {
 
 export const ClassTemplateManager: React.FC<ClassTemplateManagerProps> = ({
   trialId,
-  onClassesCreated
+  onClassesCreated,
 }) => {
   const [selectedPreset, setSelectedPreset] = useState<string>('');
   const [previewClasses, setPreviewClasses] = useState<GeneratedClass[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  
+
   const {
     templates,
     getPresets,
@@ -32,7 +38,7 @@ export const ClassTemplateManager: React.FC<ClassTemplateManagerProps> = ({
     generateClassesFromTemplate,
     createClassesFromPreset,
   } = useClassTemplateStore();
-  
+
   const presets = getPresets();
 
   const handlePresetSelect = (presetKey: string) => {
@@ -64,13 +70,13 @@ export const ClassTemplateManager: React.FC<ClassTemplateManagerProps> = ({
   };
 
   const organizationIcons = {
-    'AKC': '🏆',
-    'UKC': '🥇',
-    'NACSW': '👃',
-    'CPE': '🎯',
-    'USDAA': '🚀',
-    'NADAC': '⚡',
-    'OTHER': '📋'
+    AKC: '🏆',
+    UKC: '🥇',
+    NACSW: '👃',
+    CPE: '🎯',
+    USDAA: '🚀',
+    NADAC: '⚡',
+    OTHER: '📋',
   };
 
   return (
@@ -81,18 +87,18 @@ export const ClassTemplateManager: React.FC<ClassTemplateManagerProps> = ({
           Add Classes from Template
         </Button>
       </DialogTrigger>
-      
+
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle>Class Template Manager</DialogTitle>
         </DialogHeader>
-        
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[60vh]">
           {/* Left Panel: Template Selection */}
           <div className="space-y-4">
             <div>
               <h3 className="text-lg font-semibold mb-3">Select Template</h3>
-              
+
               {/* Preset Templates */}
               <div className="space-y-3">
                 <h4 className="text-sm font-medium text-gray-700">Preset Templates</h4>
@@ -114,7 +120,7 @@ export const ClassTemplateManager: React.FC<ClassTemplateManagerProps> = ({
                             <div>
                               <p className="font-medium text-sm">{preset.template.name}</p>
                               <p className="text-xs text-gray-600">
-                                {preset.template.organization} • {preset.template.showType}
+                                {preset.template.organization} • {preset.template.trialType}
                               </p>
                             </div>
                           </div>
@@ -125,7 +131,7 @@ export const ClassTemplateManager: React.FC<ClassTemplateManagerProps> = ({
                   ))}
                 </div>
               </div>
-              
+
               {/* Custom Templates */}
               {templates.length > 0 && (
                 <div className="space-y-3 mt-6">
@@ -146,12 +152,14 @@ export const ClassTemplateManager: React.FC<ClassTemplateManagerProps> = ({
                               <div>
                                 <p className="font-medium text-sm">{template.name}</p>
                                 <p className="text-xs text-gray-600">
-                                  {template.organization} • {template.showType}
+                                  {template.organization} • {template.trialType}
                                 </p>
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
-                              <Badge variant="outline" className="text-xs">Custom</Badge>
+                              <Badge variant="outline" className="text-xs">
+                                Custom
+                              </Badge>
                               <ChevronRight className="h-4 w-4 text-gray-400" />
                             </div>
                           </div>
@@ -163,18 +171,16 @@ export const ClassTemplateManager: React.FC<ClassTemplateManagerProps> = ({
               )}
             </div>
           </div>
-          
+
           {/* Right Panel: Preview */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold">Preview Classes</h3>
               {previewClasses.length > 0 && (
-                <Badge variant="secondary">
-                  {previewClasses.length} classes
-                </Badge>
+                <Badge variant="secondary">{previewClasses.length} classes</Badge>
               )}
             </div>
-            
+
             {previewClasses.length === 0 ? (
               <div className="flex items-center justify-center h-64 text-gray-500 border-2 border-dashed border-gray-200 rounded-lg">
                 <div className="text-center">
@@ -195,20 +201,23 @@ export const ClassTemplateManager: React.FC<ClassTemplateManagerProps> = ({
                           <p className="font-medium text-sm">{cls.className}</p>
                           <div className="flex gap-2 mt-1">
                             {cls.element && (
-                              <Badge variant="outline" className="text-xs">{cls.element}</Badge>
+                              <Badge variant="outline" className="text-xs">
+                                {cls.element}
+                              </Badge>
                             )}
                             {cls.level && (
-                              <Badge variant="outline" className="text-xs">{cls.level}</Badge>
+                              <Badge variant="outline" className="text-xs">
+                                {cls.level}
+                              </Badge>
                             )}
                             {cls.section && (
-                              <Badge variant="outline" className="text-xs">Section {cls.section}</Badge>
+                              <Badge variant="outline" className="text-xs">
+                                Section {cls.section}
+                              </Badge>
                             )}
                           </div>
                         </div>
                         <div className="text-right">
-                          {cls.entryFee && (
-                            <p className="text-sm font-medium">${cls.entryFee}</p>
-                          )}
                           {cls.maxEntries && (
                             <p className="text-xs text-gray-600">Max: {cls.maxEntries}</p>
                           )}
@@ -217,13 +226,14 @@ export const ClassTemplateManager: React.FC<ClassTemplateManagerProps> = ({
                     ))}
                   </div>
                 </ScrollArea>
-                
+
                 <Alert>
                   <AlertDescription>
-                    These classes will be added to the trial. You can modify individual classes after creation.
+                    These classes will be added to the trial. You can modify individual classes
+                    after creation.
                   </AlertDescription>
                 </Alert>
-                
+
                 <div className="flex gap-2">
                   <Button
                     onClick={handleCreateClasses}

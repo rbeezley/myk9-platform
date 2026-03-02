@@ -4,12 +4,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { 
- 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import {
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
   LineChart,
   Line,
@@ -17,14 +16,13 @@ import {
   Pie,
   Cell,
   Area,
-  AreaChart
+  AreaChart,
 } from 'recharts';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Activity, 
- 
-  Clock, 
+import {
+  TrendingUp,
+  TrendingDown,
+  Activity,
+  Clock,
   AlertTriangle,
   CheckCircle2,
   XCircle,
@@ -61,7 +59,13 @@ export const SyncAnalyticsDashboard: React.FC<SyncAnalyticsDashboardProps> = ({ 
 
   // Generate mock analytics data with deterministic values
   const generateTimeSeriesData = (days: number, type: 'success' | 'error' | 'performance') => {
-    type DataPoint = { date: string; value: number; success: number; error: number; performance: number };
+    type DataPoint = {
+      date: string;
+      value: number;
+      success: number;
+      error: number;
+      performance: number;
+    };
     const data: DataPoint[] = [];
     const now = new Date();
 
@@ -71,16 +75,15 @@ export const SyncAnalyticsDashboard: React.FC<SyncAnalyticsDashboardProps> = ({ 
     for (let i = days - 1; i >= 0; i--) {
       const date = subDays(now, i);
       const seed = i + days * (type === 'success' ? 1 : type === 'error' ? 2 : 3);
-      const baseValue = type === 'performance' ?
-        seededRandom(seed, 1000) + 200 :
-        seededRandom(seed, 50) + 10;
+      const baseValue =
+        type === 'performance' ? seededRandom(seed, 1000) + 200 : seededRandom(seed, 50) + 10;
 
       data.push({
         date: format(date, 'MMM dd'),
         value: baseValue,
         success: type === 'success' ? baseValue : seededRandom(seed + 100, 40) + 20,
         error: type === 'error' ? baseValue : seededRandom(seed + 200, 5) + 1,
-        performance: type === 'performance' ? baseValue : seededRandom(seed + 300, 800) + 100
+        performance: type === 'performance' ? baseValue : seededRandom(seed + 300, 800) + 100,
       });
     }
 
@@ -105,7 +108,7 @@ export const SyncAnalyticsDashboard: React.FC<SyncAnalyticsDashboardProps> = ({ 
       change: 12.5,
       trend: 'up',
       icon: Activity,
-      color: 'text-blue-500'
+      color: 'text-blue-500',
     },
     {
       title: 'Success Rate',
@@ -113,7 +116,7 @@ export const SyncAnalyticsDashboard: React.FC<SyncAnalyticsDashboardProps> = ({ 
       change: 3.2,
       trend: 'up',
       icon: CheckCircle2,
-      color: 'text-green-500'
+      color: 'text-green-500',
     },
     {
       title: 'Avg Response Time',
@@ -121,7 +124,7 @@ export const SyncAnalyticsDashboard: React.FC<SyncAnalyticsDashboardProps> = ({ 
       change: -8.1,
       trend: 'down',
       icon: Clock,
-      color: 'text-orange-500'
+      color: 'text-orange-500',
     },
     {
       title: 'Active Conflicts',
@@ -129,8 +132,8 @@ export const SyncAnalyticsDashboard: React.FC<SyncAnalyticsDashboardProps> = ({ 
       change: conflicts.length > 0 ? 25.0 : -15.0,
       trend: conflicts.length > 0 ? 'up' : 'down',
       icon: AlertTriangle,
-      color: 'text-red-500'
-    }
+      color: 'text-red-500',
+    },
   ];
 
   // Sync type distribution
@@ -138,7 +141,7 @@ export const SyncAnalyticsDashboard: React.FC<SyncAnalyticsDashboardProps> = ({ 
     { name: 'Shows', value: 35, color: '#3b82f6' },
     { name: 'Entries', value: 28, color: '#10b981' },
     { name: 'Scoring', value: 22, color: '#f59e0b' },
-    { name: 'Other', value: 15, color: '#8b5cf6' }
+    { name: 'Other', value: 15, color: '#8b5cf6' },
   ];
 
   const exportData = () => {
@@ -147,9 +150,9 @@ export const SyncAnalyticsDashboard: React.FC<SyncAnalyticsDashboardProps> = ({ 
       operations: operations.slice(0, 100), // Limit for export
       syncStats,
       conflicts,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
-    
+
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -160,7 +163,7 @@ export const SyncAnalyticsDashboard: React.FC<SyncAnalyticsDashboardProps> = ({ 
   };
 
   return (
-    <div className={cn("space-y-6", className)}>
+    <div className={cn('space-y-6', className)}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -168,7 +171,10 @@ export const SyncAnalyticsDashboard: React.FC<SyncAnalyticsDashboardProps> = ({ 
           <p className="text-muted-foreground">Performance insights and system metrics</p>
         </div>
         <div className="flex items-center gap-2">
-          <Select value={timeRange} onValueChange={(value: string) => setTimeRange(value as '24h' | '7d' | '30d')}>
+          <Select
+            value={timeRange}
+            onValueChange={(value: string) => setTimeRange(value as '24h' | '7d' | '30d')}
+          >
             <SelectTrigger className="w-32">
               <SelectValue />
             </SelectTrigger>
@@ -198,9 +204,7 @@ export const SyncAnalyticsDashboard: React.FC<SyncAnalyticsDashboardProps> = ({ 
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div className="space-y-2">
-                    <p className="text-sm font-medium text-muted-foreground">
-                      {metric.title}
-                    </p>
+                    <p className="text-sm font-medium text-muted-foreground">{metric.title}</p>
                     <div className="flex items-baseline gap-2">
                       <span className="text-2xl font-bold">{metric.value}</span>
                       <div className="flex items-center gap-1">
@@ -209,18 +213,23 @@ export const SyncAnalyticsDashboard: React.FC<SyncAnalyticsDashboardProps> = ({ 
                         ) : metric.trend === 'down' ? (
                           <TrendingDown className="h-4 w-4 text-red-500" />
                         ) : null}
-                        <span className={cn(
-                          "text-xs font-medium",
-                          metric.trend === 'up' ? 'text-green-500' : 
-                          metric.trend === 'down' ? 'text-red-500' : 
-                          'text-muted-foreground'
-                        )}>
-                          {metric.change > 0 ? '+' : ''}{metric.change}%
+                        <span
+                          className={cn(
+                            'text-xs font-medium',
+                            metric.trend === 'up'
+                              ? 'text-green-500'
+                              : metric.trend === 'down'
+                                ? 'text-red-500'
+                                : 'text-muted-foreground'
+                          )}
+                        >
+                          {metric.change > 0 ? '+' : ''}
+                          {metric.change}%
                         </span>
                       </div>
                     </div>
                   </div>
-                  <div className={cn("p-3 rounded-full bg-muted", metric.color)}>
+                  <div className={cn('p-3 rounded-full bg-muted', metric.color)}>
                     <metric.icon className="h-6 w-6" />
                   </div>
                 </div>
@@ -252,30 +261,30 @@ export const SyncAnalyticsDashboard: React.FC<SyncAnalyticsDashboardProps> = ({ 
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                     <XAxis dataKey="date" stroke="#6b7280" />
                     <YAxis stroke="#6b7280" />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'hsl(var(--card))', 
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px'
-                      }} 
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'var(--card)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '8px',
+                      }}
                     />
-                    <Area 
-                      type="monotone" 
-                      dataKey="success" 
+                    <Area
+                      type="monotone"
+                      dataKey="success"
                       stackId="1"
-                      stroke="#10b981" 
-                      fill="#10b981" 
+                      stroke="#10b981"
+                      fill="#10b981"
                       fillOpacity={0.3}
-                      name="Successful" 
+                      name="Successful"
                     />
-                    <Area 
-                      type="monotone" 
-                      dataKey="error" 
+                    <Area
+                      type="monotone"
+                      dataKey="error"
                       stackId="1"
-                      stroke="#ef4444" 
-                      fill="#ef4444" 
+                      stroke="#ef4444"
+                      fill="#ef4444"
                       fillOpacity={0.3}
-                      name="Failed" 
+                      name="Failed"
                     />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -297,20 +306,20 @@ export const SyncAnalyticsDashboard: React.FC<SyncAnalyticsDashboardProps> = ({ 
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                     <XAxis dataKey="date" stroke="#6b7280" />
                     <YAxis stroke="#6b7280" />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'hsl(var(--card))', 
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px'
-                      }} 
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'var(--card)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '8px',
+                      }}
                     />
-                    <Line 
-                      type="monotone" 
-                      dataKey="performance" 
-                      stroke="#3b82f6" 
+                    <Line
+                      type="monotone"
+                      dataKey="performance"
+                      stroke="#3b82f6"
                       strokeWidth={2}
                       dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
-                      name="Response Time (ms)" 
+                      name="Response Time (ms)"
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -336,7 +345,9 @@ export const SyncAnalyticsDashboard: React.FC<SyncAnalyticsDashboardProps> = ({ 
                         cy="50%"
                         outerRadius={80}
                         dataKey="value"
-                        label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
+                        label={({ name, percent }) =>
+                          `${name} ${((percent ?? 0) * 100).toFixed(0)}%`
+                        }
                       >
                         {syncTypeData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
@@ -354,12 +365,12 @@ export const SyncAnalyticsDashboard: React.FC<SyncAnalyticsDashboardProps> = ({ 
                 <CardTitle>Sync Statistics</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {syncTypeData.map((item) => (
+                {syncTypeData.map(item => (
                   <div key={item.name} className="space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <div 
-                          className="w-3 h-3 rounded-full" 
+                        <div
+                          className="w-3 h-3 rounded-full"
                           style={{ backgroundColor: item.color }}
                         />
                         <span className="text-sm font-medium">{item.name}</span>
@@ -390,7 +401,7 @@ export const SyncAnalyticsDashboard: React.FC<SyncAnalyticsDashboardProps> = ({ 
                     </div>
                     <p className="text-2xl font-bold text-red-600 mt-2">{conflicts.length}</p>
                   </div>
-                  
+
                   <div className="p-4 bg-green-50 dark:bg-green-950/20 rounded-lg">
                     <div className="flex items-center gap-2">
                       <CheckCircle2 className="h-5 w-5 text-green-500" />
@@ -398,10 +409,10 @@ export const SyncAnalyticsDashboard: React.FC<SyncAnalyticsDashboardProps> = ({ 
                     </div>
                     <p className="text-2xl font-bold text-green-600 mt-2">
                       {/* Deterministic value based on conflicts count */}
-                      {(conflicts.length * 3 + 15) % 50 + 10}
+                      {((conflicts.length * 3 + 15) % 50) + 10}
                     </p>
                   </div>
-                  
+
                   <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
                     <div className="flex items-center gap-2">
                       <Clock className="h-5 w-5 text-blue-500" />
@@ -418,11 +429,14 @@ export const SyncAnalyticsDashboard: React.FC<SyncAnalyticsDashboardProps> = ({ 
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {conflicts.slice(0, 5).map((conflict) => (
+                    {conflicts.slice(0, 5).map(conflict => (
                       <div key={conflict.id} className="p-3 border rounded-lg">
                         <div className="flex items-center justify-between">
                           <div className="space-y-1">
-                            <p className="font-medium">{(conflict as { entityType?: string }).entityType || 'Unknown'} Conflict</p>
+                            <p className="font-medium">
+                              {(conflict as { entityType?: string }).entityType || 'Unknown'}{' '}
+                              Conflict
+                            </p>
                             <p className="text-sm text-muted-foreground">
                               Field: {(conflict as { field?: string }).field || 'Unknown'}
                             </p>

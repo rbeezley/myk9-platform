@@ -3,32 +3,41 @@
  * Manages column configurations for entry tables based on show type and template settings
  */
 
-import { 
-  TableColumn, 
-  ShowTypeColumnConfig, 
+import {
+  TableColumn,
+  TrialTypeColumnConfig,
   TableColumnConfiguration,
   STANDARD_COLUMNS,
-  SHOW_TYPE_COLUMN_CONFIGS
+  SHOW_TYPE_COLUMN_CONFIGS,
 } from '@/types/table-column-types';
-import { ShowType, ClassTemplate } from '@/types/template.types';
+import { TrialType, ClassTemplate } from '@/types/template.types';
 
 /**
  * Get column configuration for a show type
  */
-export function getShowTypeColumnConfig(showType: ShowType): ShowTypeColumnConfig {
-  const config = SHOW_TYPE_COLUMN_CONFIGS.find(c => c.showType === showType);
+export function getTrialTypeColumnConfig(trialType: TrialType): TrialTypeColumnConfig {
+  const config = SHOW_TYPE_COLUMN_CONFIGS.find(c => c.trialType === trialType);
   if (!config) {
     // Return a default configuration if not found
     return {
-      showType,
+      trialType,
       requiredColumns: ['armband', 'handler', 'dog', 'status'],
       defaultColumns: ['armband', 'handler', 'dog', 'status', 'placement'],
-      availableColumns: ['armband', 'handler', 'dog', 'status', 'score', 'time', 'placement', 'notes'],
+      availableColumns: [
+        'armband',
+        'handler',
+        'dog',
+        'status',
+        'score',
+        'time',
+        'placement',
+        'notes',
+      ],
       formatRules: {
         timeFormat: 'MM:SS',
         scoreFormat: 'points',
-        placementFormat: 'ordinal'
-      }
+        placementFormat: 'ordinal',
+      },
     };
   }
   return config;
@@ -37,19 +46,17 @@ export function getShowTypeColumnConfig(showType: ShowType): ShowTypeColumnConfi
 /**
  * Get available columns for a show type
  */
-export function getAvailableColumns(showType: ShowType): TableColumn[] {
-  return STANDARD_COLUMNS.filter(column => 
-    column.showTypes.includes(showType)
-  );
+export function getAvailableColumns(trialType: TrialType): TableColumn[] {
+  return STANDARD_COLUMNS.filter(column => column.trialTypes.includes(trialType));
 }
 
 /**
  * Get default visible columns for a show type
  */
-export function getDefaultColumns(showType: ShowType): TableColumn[] {
-  const config = getShowTypeColumnConfig(showType);
-  const availableColumns = getAvailableColumns(showType);
-  
+export function getDefaultColumns(trialType: TrialType): TableColumn[] {
+  const config = getTrialTypeColumnConfig(trialType);
+  const availableColumns = getAvailableColumns(trialType);
+
   return availableColumns
     .filter(column => config.defaultColumns.includes(column.id))
     .sort((a, b) => a.displayOrder - b.displayOrder);
@@ -58,10 +65,10 @@ export function getDefaultColumns(showType: ShowType): TableColumn[] {
 /**
  * Get required columns for a show type (cannot be hidden)
  */
-export function getRequiredColumns(showType: ShowType): TableColumn[] {
-  const config = getShowTypeColumnConfig(showType);
-  const availableColumns = getAvailableColumns(showType);
-  
+export function getRequiredColumns(trialType: TrialType): TableColumn[] {
+  const config = getTrialTypeColumnConfig(trialType);
+  const availableColumns = getAvailableColumns(trialType);
+
   return availableColumns
     .filter(column => config.requiredColumns.includes(column.id))
     .sort((a, b) => a.displayOrder - b.displayOrder);
@@ -74,58 +81,58 @@ export function createTableConfigurationFromTemplate(
   template: ClassTemplate,
   customColumns?: string[]
 ): TableColumnConfiguration {
-  const showType = template.showType;
-  const config = getShowTypeColumnConfig(showType);
-  const availableColumns = getAvailableColumns(showType);
-  
+  const trialType = template.trialType;
+  const config = getTrialTypeColumnConfig(trialType);
+  const availableColumns = getAvailableColumns(trialType);
+
   // Determine which columns to show
   const columnsToShow = customColumns || config.defaultColumns;
-  
+
   // Get the actual column definitions
   const selectedColumns = availableColumns
     .filter(column => columnsToShow.includes(column.id))
     .sort((a, b) => a.displayOrder - b.displayOrder);
-  
+
   // Ensure required columns are always included
-  const requiredColumns = getRequiredColumns(showType);
+  const requiredColumns = getRequiredColumns(trialType);
   const finalColumns = [...requiredColumns];
-  
+
   // Add non-required selected columns
   selectedColumns.forEach(column => {
     if (!requiredColumns.find(req => req.id === column.id)) {
       finalColumns.push(column);
     }
   });
-  
+
   // Sort by display order
   finalColumns.sort((a, b) => a.displayOrder - b.displayOrder);
-  
+
   return {
-    name: `${template.organization}_${template.showType}_${template.version}`,
-    showType: template.showType,
+    name: `${template.organization}_${template.trialType}_${template.version}`,
+    trialType: template.trialType,
     organization: template.organization,
     columns: finalColumns,
-    showTypeConfig: config,
+    trialTypeConfig: config,
     isDefault: template.isOfficial,
     templateId: template.id,
-    version: template.version
+    version: template.version,
   };
 }
 
 /**
  * Create a table configuration for a show type without a specific template
  */
-export function createDefaultTableConfiguration(showType: ShowType): TableColumnConfiguration {
-  const config = getShowTypeColumnConfig(showType);
-  const columns = getDefaultColumns(showType);
-  
+export function createDefaultTableConfiguration(trialType: TrialType): TableColumnConfiguration {
+  const config = getTrialTypeColumnConfig(trialType);
+  const columns = getDefaultColumns(trialType);
+
   return {
-    name: `default_${showType}`,
-    showType,
+    name: `default_${trialType}`,
+    trialType,
     columns,
-    showTypeConfig: config,
+    trialTypeConfig: config,
     isDefault: true,
-    version: '1.0.0'
+    version: '1.0.0',
   };
 }
 
@@ -133,29 +140,29 @@ export function createDefaultTableConfiguration(showType: ShowType): TableColumn
  * Format a value according to the column configuration
  */
 export function formatColumnValue(
-  value: unknown, 
-  column: TableColumn, 
-  formatRules?: ShowTypeColumnConfig['formatRules']
+  value: unknown,
+  column: TableColumn,
+  formatRules?: TrialTypeColumnConfig['formatRules']
 ): string {
   if (value === null || value === undefined || value === '') {
     return '--';
   }
-  
+
   // Use custom format function if provided
   if (column.format && typeof column.format === 'function') {
     return column.format(value);
   }
-  
+
   // Use format string if provided
   if (column.format && typeof column.format === 'string') {
     return column.format.replace('{value}', String(value));
   }
-  
+
   // Apply data type specific formatting
   switch (column.dataType) {
     case 'armband':
       return value ? `#${value}` : '';
-    
+
     case 'time': {
       const timeStr = String(value || '');
       if (formatRules?.timeFormat === 'MM:SS.HH') {
@@ -166,7 +173,7 @@ export function formatColumnValue(
         return timeStr.replace(/\\.\\d{2}$/, '');
       }
     }
-    
+
     case 'score':
       if (formatRules?.scoreFormat === 'points') {
         return `${value} pts`;
@@ -174,7 +181,7 @@ export function formatColumnValue(
         return `${value}%`;
       }
       return value.toString();
-    
+
     case 'placement':
       if (formatRules?.placementFormat === 'ordinal') {
         const num = parseInt(String(value || ''));
@@ -184,16 +191,16 @@ export function formatColumnValue(
         return num + (suffix[(mod - 20) % 10] || suffix[mod] || suffix[0]);
       }
       return value.toString();
-    
+
     case 'status':
       return value.toString();
-    
+
     case 'number':
       return value.toString();
-    
+
     case 'boolean':
       return value ? 'Yes' : 'No';
-    
+
     default:
       return value.toString();
   }
@@ -204,7 +211,7 @@ export function formatColumnValue(
  */
 export function getColumnValueClassName(column: TableColumn, value: unknown): string {
   const baseClasses = column.className || '';
-  
+
   // Add data type specific classes
   switch (column.dataType) {
     case 'status':
@@ -251,24 +258,36 @@ function getPlacementClassName(placement: string): string {
  */
 export function extractFieldValue(entry: unknown, column: TableColumn): unknown {
   const entryData = entry as Record<string, unknown>;
-  
+
   switch (column.fieldSource) {
     case 'registration':
-      return (entryData.registrationData as Record<string, unknown>)?.[column.fieldName] || entryData[column.fieldName];
-    
+      return (
+        (entryData.registrationData as Record<string, unknown>)?.[column.fieldName] ||
+        entryData[column.fieldName]
+      );
+
     case 'competition':
-      return (entryData.competitionData as Record<string, unknown>)?.[column.fieldName] || entryData[column.fieldName];
-    
+      return (
+        (entryData.competitionData as Record<string, unknown>)?.[column.fieldName] ||
+        entryData[column.fieldName]
+      );
+
     case 'calculated':
       // For calculated fields, we might need special logic
-      if (column.fieldName === 'qualification' && !(entryData.competitionData as Record<string, unknown>)?.qualification) {
+      if (
+        column.fieldName === 'qualification' &&
+        !(entryData.competitionData as Record<string, unknown>)?.qualification
+      ) {
         // Calculate qualification from qualified boolean
         const competitionData = entryData.competitionData as Record<string, unknown>;
-        return competitionData?.qualified === true ? 'Qualified' : 
-               competitionData?.qualified === false ? 'Not Qualified' : '';
+        return competitionData?.qualified === true
+          ? 'Qualified'
+          : competitionData?.qualified === false
+            ? 'Not Qualified'
+            : '';
       }
       return entryData[column.fieldName];
-    
+
     case 'display':
     default:
       return entryData[column.fieldName];
@@ -279,20 +298,20 @@ export function extractFieldValue(entry: unknown, column: TableColumn): unknown 
  * Transform entry data to match column configuration
  */
 export function transformEntryForTable(
-  entry: unknown, 
-  columns: TableColumn[], 
-  formatRules?: ShowTypeColumnConfig['formatRules']
+  entry: unknown,
+  columns: TableColumn[],
+  formatRules?: TrialTypeColumnConfig['formatRules']
 ): Record<string, unknown> {
   const transformed: Record<string, unknown> = { ...(entry as Record<string, unknown>) };
-  
+
   columns.forEach(column => {
     const rawValue = extractFieldValue(entry, column);
     transformed[column.id] = {
       raw: rawValue,
       formatted: formatColumnValue(rawValue, column, formatRules),
-      className: getColumnValueClassName(column, rawValue)
+      className: getColumnValueClassName(column, rawValue),
     };
   });
-  
+
   return transformed;
 }

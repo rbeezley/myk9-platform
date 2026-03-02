@@ -34,6 +34,25 @@ vi.mock('@/store/userStore', () => ({
   useUserStore: () => ({}),
 }));
 
+vi.mock('@/hooks/useDogStoreCompat', () => ({
+  useOwnerDogsWithQuery: () => ({
+    dogs: [],
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+    isStale: false,
+  }),
+  useDogStoreCompat: () => ({
+    dogs: [],
+    addDog: vi.fn(),
+    updateDog: vi.fn(),
+    deleteDog: vi.fn(),
+    getDogsByOwner: () => [],
+    isLoading: false,
+    error: null,
+  }),
+}));
+
 const createMockUser = (overrides: Partial<User> = {}): User => ({
   id: 'user-123',
   firstName: 'John',

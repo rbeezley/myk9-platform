@@ -1,14 +1,19 @@
 import { Dog, Trophy, CreditCard, CheckSquare, UserCheck } from 'lucide-react';
-import type { WorkflowConfig, WorkflowMode, RegistrationStep } from './RegistrationWorkflow.types';
+import type {
+  WorkflowConfig,
+  WorkflowMode,
+  StepId,
+  RegistrationStep,
+} from './RegistrationWorkflow.types';
 
 export const WORKFLOW_CONFIGS: Record<WorkflowMode, WorkflowConfig> = {
   exhibitor: {
-    steps: ['dog-selection', 'class-selection', 'payment', 'confirmation'],
+    steps: ['dog-selection', 'class-selection', 'handler-assignment', 'payment', 'confirmation'],
     features: {
       bulkSelection: false,
       createNew: false,
       advancedSearch: false,
-      handlerAssignment: false,
+      handlerAssignment: true,
       paymentOverride: false,
       statusManagement: false,
     },
@@ -29,7 +34,7 @@ export const WORKFLOW_CONFIGS: Record<WorkflowMode, WorkflowConfig> = {
       statusManagement: true,
     },
     smartDefaults: {
-      autoAssignHandler: false,
+      autoAssignHandler: true,
       autoCalculateFees: true,
       delayRegistrationCreation: true,
     },
@@ -45,7 +50,7 @@ export const WORKFLOW_CONFIGS: Record<WorkflowMode, WorkflowConfig> = {
       statusManagement: true,
     },
     smartDefaults: {
-      autoAssignHandler: false,
+      autoAssignHandler: true,
       autoCalculateFees: true,
       delayRegistrationCreation: true,
     },
@@ -61,7 +66,7 @@ export const WORKFLOW_CONFIGS: Record<WorkflowMode, WorkflowConfig> = {
       statusManagement: true,
     },
     smartDefaults: {
-      autoAssignHandler: false,
+      autoAssignHandler: true,
       autoCalculateFees: false,
       delayRegistrationCreation: true,
     },
@@ -77,14 +82,14 @@ export const WORKFLOW_CONFIGS: Record<WorkflowMode, WorkflowConfig> = {
       statusManagement: true,
     },
     smartDefaults: {
-      autoAssignHandler: false,
+      autoAssignHandler: true,
       autoCalculateFees: false,
       delayRegistrationCreation: true,
     },
   },
 };
 
-export const ALL_STEP_DEFINITIONS: Record<string, Omit<RegistrationStep, 'completed'>> = {
+export const ALL_STEP_DEFINITIONS: Record<StepId, Omit<RegistrationStep, 'completed'>> = {
   'dog-selection': {
     id: 0,
     label: 'Select Dogs',
@@ -102,7 +107,7 @@ export const ALL_STEP_DEFINITIONS: Record<string, Omit<RegistrationStep, 'comple
     label: 'Handlers',
     description: 'Assign handlers for entries',
     icon: <UserCheck className="h-5 w-5" />,
-    requiredForRole: ['secretary_existing', 'secretary_new', 'club_admin', 'site_admin'],
+    // Visible to all roles — everyone can assign a different handler per entry
   },
   payment: {
     id: 3,

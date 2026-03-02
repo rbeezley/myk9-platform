@@ -26,7 +26,7 @@ const sizeClasses = {
   xl: 'max-w-4xl w-full',
 };
 
-// Apple-inspired design constants - solid, consistent with our design system
+// Premium design constants - solid, consistent with our design system
 const appleDesign = {
   // Backdrop with subtle blur but solid panel
   backdropBlur: 'backdrop-blur-sm', // Lighter backdrop blur
@@ -39,11 +39,11 @@ const appleDesign = {
   footerBorder: 'border-t border-border', // Clean separator
   border: 'border-l border-border', // Subtle left border
   animation: {
-    duration: 'duration-300', // Apple's preferred timing
-    easing: 'ease-apple', // Apple's easing
+    duration: 'duration-300', // Preferred timing
+    easing: 'ease-apple', // standard easing
   },
   typography: {
-    title: 'text-lg font-semibold tracking-tight', // Apple typography
+    title: 'text-lg font-semibold tracking-tight', // clean typography
     subtitle: 'text-sm font-medium text-muted-foreground',
   },
 };
@@ -167,7 +167,7 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
         // Clean backdrop - consistent with our design system
         'fixed inset-0 z-50 bg-black/50',
         appleDesign.backdropBlur,
-        // Apple's signature animation timing
+        // Signature animation timing
         `transition-all ${appleDesign.animation.duration} ${appleDesign.animation.easing}`,
         open ? 'opacity-100' : 'opacity-0'
       )}
@@ -183,7 +183,7 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
           'fixed inset-y-0 right-0 flex flex-col slide-over-panel',
           // Solid background matching our card system
           appleDesign.panelBackground,
-          // Apple-style border and shadow
+          // Premium border and shadow
           appleDesign.border,
           appleDesign.shadow,
           // Corner radius for visual polish
@@ -207,7 +207,7 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
           appleDesign.headerBackground,
           appleDesign.headerBorder
         )}>
-          <div className="flex items-center justify-between px-6 py-5"> {/* Increased padding for Apple spacing */}
+          <div className="flex items-center justify-between px-6 py-5"> {/* Increased padding for proper spacing */}
             <div className="flex items-center gap-3 min-w-0 flex-1">
               {showBackButton && onBack && (
                 <Button

@@ -3,29 +3,36 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { logger } from '@/services/LoggingService';
 import {
-  CloudOff, 
-  Wifi, 
+  CloudOff,
+  Wifi,
   WifiOff,
-  Save, 
-  Clock, 
+  Save,
+  Clock,
   AlertTriangle,
   CheckCircle,
   User,
   DollarSign,
   FileText,
   Upload,
-  RefreshCw
+  RefreshCw,
 } from 'lucide-react';
 import { useEntryStoreCompat } from '@/hooks/useEntryStoreCompat';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useShowStoreCompat } from '@/hooks/useShowStoreCompat';
 import type { ShowEntryInput, RegistrationData } from '@/store/entryStore';
+import { getDogDisplayName } from '@/types/dog-types';
 
 interface NetworkStatus {
   isOnline: boolean;
@@ -50,8 +57,8 @@ interface OfflineEntryFormProps {
 }
 
 /**
- * OfflineEntryForm - Optimized entry creation form for offline use with Apple-inspired design
- * 
+ * OfflineEntryForm - Optimized entry creation form for offline use with Premium design
+ *
  * Provides robust offline functionality with local storage, validation, and queue management.
  * Automatically syncs when network becomes available and provides clear offline indicators.
  */
@@ -62,12 +69,12 @@ export const OfflineEntryForm: React.FC<OfflineEntryFormProps> = ({
   editingEntryId,
   onSave,
   onCancel,
-  className = ''
+  className = '',
 }) => {
   // Network status simulation (in real app, this would come from a network monitor)
   const [networkStatus, setNetworkStatus] = useState<NetworkStatus>({
     isOnline: navigator.onLine,
-    quality: navigator.onLine ? 'good' : 'offline'
+    quality: navigator.onLine ? 'good' : 'offline',
   });
 
   // Form state
@@ -84,8 +91,8 @@ export const OfflineEntryForm: React.FC<OfflineEntryFormProps> = ({
       specialRequests: '',
       jumpHeight: '',
       preferredJudge: '',
-      moveUpRequested: false
-    }
+      moveUpRequested: false,
+    },
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -109,7 +116,7 @@ export const OfflineEntryForm: React.FC<OfflineEntryFormProps> = ({
           showId: existingEntry.showId,
           classId: existingEntry.classId,
           dogId: existingEntry.dogId,
-          registrationData: existingEntry.registrationData
+          registrationData: existingEntry.registrationData,
         });
       }
     }
@@ -151,7 +158,7 @@ export const OfflineEntryForm: React.FC<OfflineEntryFormProps> = ({
   useEffect(() => {
     const draftKey = `entry-draft-${editingEntryId || 'new'}`;
     const savedDraft = localStorage.getItem(draftKey);
-    
+
     if (savedDraft && !editingEntryId) {
       try {
         const parsedDraft = JSON.parse(savedDraft);
@@ -167,8 +174,8 @@ export const OfflineEntryForm: React.FC<OfflineEntryFormProps> = ({
   const availableDogs = useMemo(() => {
     return dogs.map(dog => ({
       id: dog.id,
-      name: dog.callName || dog.name,
-      breed: dog.breed
+      name: getDogDisplayName(dog),
+      breed: dog.breed,
     }));
   }, [dogs]);
 
@@ -176,7 +183,7 @@ export const OfflineEntryForm: React.FC<OfflineEntryFormProps> = ({
     return shows.map(show => ({
       id: show.id,
       name: show.name,
-      date: show.startDate
+      date: show.startDate,
     }));
   }, [shows]);
 
@@ -201,7 +208,7 @@ export const OfflineEntryForm: React.FC<OfflineEntryFormProps> = ({
   const updateRegistrationField = (field: keyof RegistrationData, value: unknown) => {
     setFormData(prev => ({
       ...prev,
-      registrationData: { ...prev.registrationData, [field]: value }
+      registrationData: { ...prev.registrationData, [field]: value },
     }));
     setHasUnsavedChanges(true);
     setSaveError(null);
@@ -233,10 +240,10 @@ export const OfflineEntryForm: React.FC<OfflineEntryFormProps> = ({
 
       setLastSaved(new Date());
       setHasUnsavedChanges(false);
-      
+
       // Clear draft from localStorage
       localStorage.removeItem(`entry-draft-${editingEntryId || 'new'}`);
-      
+
       onSave?.(entryId);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to save entry';
@@ -266,8 +273,10 @@ export const OfflineEntryForm: React.FC<OfflineEntryFormProps> = ({
   return (
     <div className={`space-y-6 ${className}`}>
       {/* Header with network status */}
-      <div className="flex items-center justify-between p-4 bg-card/50 backdrop-blur-sm 
-                      border border-border/50 rounded-xl">
+      <div
+        className="flex items-center justify-between p-4 bg-card/50 backdrop-blur-sm 
+                      border border-border/50 rounded-xl"
+      >
         <div className="flex items-center gap-3">
           <div className="p-2 bg-primary/10 rounded-lg">
             <FileText className="h-5 w-5 text-primary" />
@@ -277,11 +286,13 @@ export const OfflineEntryForm: React.FC<OfflineEntryFormProps> = ({
               {editingEntryId ? 'Edit Entry' : 'New Entry'}
             </h2>
             <p className="text-sm text-muted-foreground">
-              {networkStatus.isOnline ? 'Auto-sync enabled' : 'Working offline - will sync when reconnected'}
+              {networkStatus.isOnline
+                ? 'Auto-sync enabled'
+                : 'Working offline - will sync when reconnected'}
             </p>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-3">
           <NetworkIndicator />
           {hasUnsavedChanges && (
@@ -304,7 +315,8 @@ export const OfflineEntryForm: React.FC<OfflineEntryFormProps> = ({
         <Alert className="bg-orange-50 border-orange-200">
           <CloudOff className="h-4 w-4 text-orange-600" />
           <AlertDescription className="text-orange-800">
-            You're working offline. Your entry will be saved locally and synced automatically when you reconnect.
+            You're working offline. Your entry will be saved locally and synced automatically when
+            you reconnect.
           </AlertDescription>
         </Alert>
       )}
@@ -313,9 +325,7 @@ export const OfflineEntryForm: React.FC<OfflineEntryFormProps> = ({
       {hasSubmitted && saveError && (
         <Alert className="bg-red-50 border-red-200">
           <AlertTriangle className="h-4 w-4 text-red-600" />
-          <AlertDescription className="text-red-800">
-            {saveError}
-          </AlertDescription>
+          <AlertDescription className="text-red-800">{saveError}</AlertDescription>
         </Alert>
       )}
 
@@ -336,13 +346,13 @@ export const OfflineEntryForm: React.FC<OfflineEntryFormProps> = ({
               </Label>
               <Select
                 value={formData.showId}
-                onValueChange={(value) => updateFormField('showId', value)}
+                onValueChange={value => updateFormField('showId', value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select a show" />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableShows.map((show) => (
+                  {availableShows.map(show => (
                     <SelectItem key={show.id} value={show.id}>
                       {show.name} - {new Date(show.date).toLocaleDateString()}
                     </SelectItem>
@@ -359,7 +369,7 @@ export const OfflineEntryForm: React.FC<OfflineEntryFormProps> = ({
               <Input
                 id="classId"
                 value={formData.classId}
-                onChange={(e) => updateFormField('classId', e.target.value)}
+                onChange={e => updateFormField('classId', e.target.value)}
                 placeholder="Enter class ID or name"
               />
             </div>
@@ -371,13 +381,13 @@ export const OfflineEntryForm: React.FC<OfflineEntryFormProps> = ({
               </Label>
               <Select
                 value={formData.dogId}
-                onValueChange={(value) => updateFormField('dogId', value)}
+                onValueChange={value => updateFormField('dogId', value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select a dog" />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableDogs.map((dog) => (
+                  {availableDogs.map(dog => (
                     <SelectItem key={dog.id} value={dog.id}>
                       {dog.name} ({dog.breed})
                     </SelectItem>
@@ -405,7 +415,7 @@ export const OfflineEntryForm: React.FC<OfflineEntryFormProps> = ({
               <Input
                 id="handler"
                 value={formData.registrationData.handler}
-                onChange={(e) => updateRegistrationField('handler', e.target.value)}
+                onChange={e => updateRegistrationField('handler', e.target.value)}
                 placeholder="Handler name"
               />
             </div>
@@ -423,7 +433,9 @@ export const OfflineEntryForm: React.FC<OfflineEntryFormProps> = ({
                   min="0"
                   step="0.01"
                   value={formData.registrationData.entryFee}
-                  onChange={(e) => updateRegistrationField('entryFee', parseFloat(e.target.value) || 0)}
+                  onChange={e =>
+                    updateRegistrationField('entryFee', parseFloat(e.target.value) || 0)
+                  }
                   placeholder="0.00"
                   className="pl-10"
                 />
@@ -437,7 +449,7 @@ export const OfflineEntryForm: React.FC<OfflineEntryFormProps> = ({
               </Label>
               <Select
                 value={formData.registrationData.jumpHeight || ''}
-                onValueChange={(value) => updateRegistrationField('jumpHeight', value)}
+                onValueChange={value => updateRegistrationField('jumpHeight', value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select jump height" />
@@ -460,7 +472,7 @@ export const OfflineEntryForm: React.FC<OfflineEntryFormProps> = ({
               <Input
                 id="preferredJudge"
                 value={formData.registrationData.preferredJudge || ''}
-                onChange={(e) => updateRegistrationField('preferredJudge', e.target.value)}
+                onChange={e => updateRegistrationField('preferredJudge', e.target.value)}
                 placeholder="Judge name (if preference allowed)"
               />
             </div>
@@ -479,7 +491,7 @@ export const OfflineEntryForm: React.FC<OfflineEntryFormProps> = ({
         <CardContent>
           <Textarea
             value={formData.registrationData.specialRequests || ''}
-            onChange={(e) => updateRegistrationField('specialRequests', e.target.value)}
+            onChange={e => updateRegistrationField('specialRequests', e.target.value)}
             placeholder="Any special handling requests or notes..."
             rows={3}
           />
@@ -487,8 +499,10 @@ export const OfflineEntryForm: React.FC<OfflineEntryFormProps> = ({
       </Card>
 
       {/* Form Actions */}
-      <div className="flex items-center justify-between p-4 bg-card/50 backdrop-blur-sm 
-                      border border-border/50 rounded-xl">
+      <div
+        className="flex items-center justify-between p-4 bg-card/50 backdrop-blur-sm 
+                      border border-border/50 rounded-xl"
+      >
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           {networkStatus.isOnline ? (
             <>
@@ -505,20 +519,12 @@ export const OfflineEntryForm: React.FC<OfflineEntryFormProps> = ({
 
         <div className="flex items-center gap-3">
           {onCancel && (
-            <Button
-              variant="outline"
-              onClick={onCancel}
-              disabled={isSaving}
-            >
+            <Button variant="outline" onClick={onCancel} disabled={isSaving}>
               Cancel
             </Button>
           )}
-          
-          <Button
-            onClick={handleSave}
-            disabled={isSaving}
-            className="min-w-[120px]"
-          >
+
+          <Button onClick={handleSave} disabled={isSaving} className="min-w-[120px]">
             {isSaving ? (
               <>
                 <RefreshCw className="h-4 w-4 mr-2 animate-spin" />

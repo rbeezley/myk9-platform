@@ -1,17 +1,14 @@
 import React, { useState, useMemo } from 'react';
-import { ClassTemplate, ShowType } from '@/types/template.types';
-import { 
-  TemplateFieldConfiguration, 
-  FieldDefinition, 
+import { ClassTemplate, TrialType } from '@/types/template.types';
+import {
+  TemplateFieldConfiguration,
+  FieldDefinition,
   FieldCategory,
-  ShowTypeField,
-  FieldDataType
+  TrialTypeField,
+  FieldDataType,
 } from '@/types/field-definition-types';
-import { getFieldsForShowType } from '@/data/fieldDefinitions';
-import { 
-  msToDisplay, 
-  parseTimeInput 
-} from '@/lib/timeUtils';
+import { getFieldsForTrialType } from '@/data/fieldDefinitions';
+import { msToDisplay, parseTimeInput } from '@/lib/timeUtils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,19 +16,15 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
-  EyeOff,
-  Settings,
-  Lock,
-  Search
-} from 'lucide-react';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { EyeOff, Settings, Lock, Search } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface FieldConfiguratorProps {
@@ -43,7 +36,7 @@ interface FieldConfiguratorProps {
 export const FieldConfigurator: React.FC<FieldConfiguratorProps> = ({
   template,
   onChange,
-  readOnly = false
+  readOnly = false,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<FieldCategory | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -55,9 +48,9 @@ export const FieldConfigurator: React.FC<FieldConfiguratorProps> = ({
 
   // Get available fields for this show type
   const availableFields = useMemo(() => {
-    if (!template.showType) return [];
-    return getFieldsForShowType(template.showType as ShowType);
-  }, [template.showType]);
+    if (!template.trialType) return [];
+    return getFieldsForTrialType(template.trialType as TrialType);
+  }, [template.trialType]);
 
   // Filter fields by category and search
   const filteredFields = useMemo(() => {
@@ -69,10 +62,11 @@ export const FieldConfigurator: React.FC<FieldConfiguratorProps> = ({
 
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      fields = fields.filter(f => 
-        f.displayName.toLowerCase().includes(term) ||
-        f.fieldName.toLowerCase().includes(term) ||
-        f.description?.toLowerCase().includes(term)
+      fields = fields.filter(
+        f =>
+          f.displayName.toLowerCase().includes(term) ||
+          f.fieldName.toLowerCase().includes(term) ||
+          f.description?.toLowerCase().includes(term)
       );
     }
 
@@ -87,7 +81,7 @@ export const FieldConfigurator: React.FC<FieldConfiguratorProps> = ({
       [FieldCategory.COMPETITION]: [],
       [FieldCategory.PERSONNEL]: [],
       [FieldCategory.FINANCIAL]: [],
-      [FieldCategory.ADMINISTRATIVE]: []
+      [FieldCategory.ADMINISTRATIVE]: [],
     };
 
     filteredFields.forEach(field => {
@@ -98,12 +92,12 @@ export const FieldConfigurator: React.FC<FieldConfiguratorProps> = ({
   }, [filteredFields]);
 
   // Check if a field is configured
-  const isFieldConfigured = (fieldName: ShowTypeField): boolean => {
+  const isFieldConfigured = (fieldName: TrialTypeField): boolean => {
     return fieldConfigs.some(config => config.fieldName === fieldName);
   };
 
   // Get field configuration
-  const getFieldConfig = (fieldName: ShowTypeField): TemplateFieldConfiguration | undefined => {
+  const getFieldConfig = (fieldName: TrialTypeField): TemplateFieldConfiguration | undefined => {
     return fieldConfigs.find(config => config.fieldName === fieldName);
   };
 
@@ -112,7 +106,7 @@ export const FieldConfigurator: React.FC<FieldConfiguratorProps> = ({
     if (readOnly) return;
 
     const existingConfig = getFieldConfig(field.fieldName);
-    
+
     if (existingConfig) {
       // Remove field
       const newConfigs = fieldConfigs.filter(c => c.fieldName !== field.fieldName);
@@ -125,7 +119,7 @@ export const FieldConfigurator: React.FC<FieldConfiguratorProps> = ({
         visible: true,
         editable: true,
         displayOrder: fieldConfigs.length + 1,
-        defaultValue: field.defaultValue
+        defaultValue: field.defaultValue,
       };
       onChange({ fieldConfigurations: [...fieldConfigs, newConfig] });
     }
@@ -139,11 +133,12 @@ export const FieldConfigurator: React.FC<FieldConfiguratorProps> = ({
   };
 
   // Update field configuration
-  const updateFieldConfig = (fieldName: ShowTypeField, updates: Partial<TemplateFieldConfiguration>) => {
-    const newConfigs = fieldConfigs.map(config => 
-      config.fieldName === fieldName 
-        ? { ...config, ...updates }
-        : config
+  const updateFieldConfig = (
+    fieldName: TrialTypeField,
+    updates: Partial<TemplateFieldConfiguration>
+  ) => {
+    const newConfigs = fieldConfigs.map(config =>
+      config.fieldName === fieldName ? { ...config, ...updates } : config
     );
     onChange({ fieldConfigurations: newConfigs });
   };
@@ -157,8 +152,8 @@ export const FieldConfigurator: React.FC<FieldConfiguratorProps> = ({
       <div
         key={field.id}
         className={`relative p-4 rounded-lg border transition-all cursor-pointer ${
-          isConfigured 
-            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
+          isConfigured
+            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
             : 'border-gray-200 hover:border-gray-300'
         }`}
         onClick={() => toggleField(field)}
@@ -174,30 +169,32 @@ export const FieldConfigurator: React.FC<FieldConfiguratorProps> = ({
             {isConfigured && (
               <>
                 {config?.required && (
-                  <Badge variant="destructive" className="text-xs">Required</Badge>
+                  <Badge variant="destructive" className="text-xs">
+                    Required
+                  </Badge>
                 )}
-                {!config?.visible && (
-                  <EyeOff className="h-4 w-4 text-muted-foreground" />
-                )}
-                {!config?.editable && (
-                  <Lock className="h-4 w-4 text-muted-foreground" />
-                )}
+                {!config?.visible && <EyeOff className="h-4 w-4 text-muted-foreground" />}
+                {!config?.editable && <Lock className="h-4 w-4 text-muted-foreground" />}
               </>
             )}
-            <div className={`w-5 h-5 rounded border-2 transition-colors ${
-              isConfigured 
-                ? 'bg-blue-500 border-blue-500' 
-                : 'border-gray-300'
-            }`}>
+            <div
+              className={`w-5 h-5 rounded border-2 transition-colors ${
+                isConfigured ? 'bg-blue-500 border-blue-500' : 'border-gray-300'
+              }`}
+            >
               {isConfigured && (
                 <svg className="w-3 h-3 text-white m-auto" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  <path
+                    fillRule="evenodd"
+                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                    clipRule="evenodd"
+                  />
                 </svg>
               )}
             </div>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-2 mt-3">
           <Badge variant="outline" className="text-xs">
             {field.dataType}
@@ -212,7 +209,7 @@ export const FieldConfigurator: React.FC<FieldConfiguratorProps> = ({
               variant="ghost"
               size="sm"
               className="h-6 px-2 ml-auto"
-              onClick={(e) => {
+              onClick={e => {
                 e.stopPropagation();
                 openFieldConfig(field);
               }}
@@ -230,8 +227,7 @@ export const FieldConfigurator: React.FC<FieldConfiguratorProps> = ({
   const getConfiguredCount = (category: FieldCategory): number => {
     return availableFields
       .filter(f => f.category === category)
-      .filter(f => isFieldConfigured(f.fieldName))
-      .length;
+      .filter(f => isFieldConfigured(f.fieldName)).length;
   };
 
   // Get total fields by category
@@ -257,9 +253,7 @@ export const FieldConfigurator: React.FC<FieldConfiguratorProps> = ({
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
             <div>
-              <div className="text-2xl font-bold text-blue-600">
-                {fieldConfigs.length}
-              </div>
+              <div className="text-2xl font-bold text-blue-600">{fieldConfigs.length}</div>
               <div className="text-sm text-muted-foreground">Selected Fields</div>
             </div>
             <div>
@@ -275,9 +269,7 @@ export const FieldConfigurator: React.FC<FieldConfiguratorProps> = ({
               <div className="text-sm text-muted-foreground">Conditional</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-orange-600">
-                {availableFields.length}
-              </div>
+              <div className="text-2xl font-bold text-orange-600">{availableFields.length}</div>
               <div className="text-sm text-muted-foreground">Available</div>
             </div>
           </div>
@@ -291,18 +283,19 @@ export const FieldConfigurator: React.FC<FieldConfiguratorProps> = ({
           <Input
             placeholder="Search fields..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={e => setSearchTerm(e.target.value)}
             className="pl-10"
           />
         </div>
       </div>
 
       {/* Category Tabs */}
-      <Tabs value={selectedCategory} onValueChange={(v) => setSelectedCategory(v as FieldCategory | 'all')}>
+      <Tabs
+        value={selectedCategory}
+        onValueChange={v => setSelectedCategory(v as FieldCategory | 'all')}
+      >
         <TabsList className="grid grid-cols-4 lg:grid-cols-7 w-full">
-          <TabsTrigger value="all">
-            All ({availableFields.length})
-          </TabsTrigger>
+          <TabsTrigger value="all">All ({availableFields.length})</TabsTrigger>
           {Object.values(FieldCategory).map(category => (
             <TabsTrigger key={category} value={category}>
               <span className="hidden lg:inline">{category}</span>
@@ -317,24 +310,26 @@ export const FieldConfigurator: React.FC<FieldConfiguratorProps> = ({
         <TabsContent value={selectedCategory} className="mt-6">
           {selectedCategory === 'all' ? (
             <div className="space-y-6">
-              {Object.entries(fieldsByCategory).map(([category, fields]) => 
-                fields.length > 0 && (
-                  <Card key={category}>
-                    <CardHeader>
-                      <CardTitle className="text-base flex items-center justify-between">
-                        <span>{category}</span>
-                        <Badge variant="outline">
-                          {fields.filter(f => isFieldConfigured(f.fieldName)).length} / {fields.length}
-                        </Badge>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid gap-3">
-                        {fields.map(field => renderFieldCard(field))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
+              {Object.entries(fieldsByCategory).map(
+                ([category, fields]) =>
+                  fields.length > 0 && (
+                    <Card key={category}>
+                      <CardHeader>
+                        <CardTitle className="text-base flex items-center justify-between">
+                          <span>{category}</span>
+                          <Badge variant="outline">
+                            {fields.filter(f => isFieldConfigured(f.fieldName)).length} /{' '}
+                            {fields.length}
+                          </Badge>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid gap-3">
+                          {fields.map(field => renderFieldCard(field))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
               )}
             </div>
           ) : (
@@ -342,7 +337,7 @@ export const FieldConfigurator: React.FC<FieldConfiguratorProps> = ({
               <CardContent className="pt-6">
                 <div className="grid gap-3">
                   {fieldsByCategory[selectedCategory as FieldCategory].length > 0 ? (
-                    fieldsByCategory[selectedCategory as FieldCategory].map(field => 
+                    fieldsByCategory[selectedCategory as FieldCategory].map(field =>
                       renderFieldCard(field)
                     )
                   ) : (
@@ -364,7 +359,7 @@ export const FieldConfigurator: React.FC<FieldConfiguratorProps> = ({
           config={getFieldConfig(selectedField.fieldName)}
           open={configDialogOpen}
           onOpenChange={setConfigDialogOpen}
-          onSave={(updates) => {
+          onSave={updates => {
             updateFieldConfig(selectedField.fieldName, updates);
             setConfigDialogOpen(false);
           }}
@@ -388,7 +383,7 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
   config,
   open,
   onOpenChange,
-  onSave
+  onSave,
 }) => {
   const [localConfig, setLocalConfig] = useState<Partial<TemplateFieldConfiguration>>({
     required: config?.required ?? field.required ?? false,
@@ -397,7 +392,7 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
     defaultValue: config?.defaultValue ?? field.defaultValue,
     displayOrder: config?.displayOrder ?? 1,
     defaultVariesByClass: config?.defaultVariesByClass ?? false,
-    valueConstraints: config?.valueConstraints
+    valueConstraints: config?.valueConstraints,
   });
 
   // Reset local config when field changes
@@ -410,7 +405,7 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
         defaultValue: config?.defaultValue ?? field.defaultValue,
         displayOrder: config?.displayOrder ?? 1,
         defaultVariesByClass: config?.defaultVariesByClass ?? false,
-        valueConstraints: config?.valueConstraints
+        valueConstraints: config?.valueConstraints,
       });
     }
   }, [field, config, open]);
@@ -425,7 +420,7 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
         <DialogHeader>
           <DialogTitle>Configure {field.displayName}</DialogTitle>
         </DialogHeader>
-        
+
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -433,9 +428,7 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
               <Switch
                 id="required"
                 checked={localConfig.required}
-                onCheckedChange={(checked) => 
-                  setLocalConfig({ ...localConfig, required: checked })
-                }
+                onCheckedChange={checked => setLocalConfig({ ...localConfig, required: checked })}
               />
             </div>
             <p className="text-sm text-muted-foreground">
@@ -451,14 +444,10 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
               <Switch
                 id="visible"
                 checked={localConfig.visible}
-                onCheckedChange={(checked) => 
-                  setLocalConfig({ ...localConfig, visible: checked })
-                }
+                onCheckedChange={checked => setLocalConfig({ ...localConfig, visible: checked })}
               />
             </div>
-            <p className="text-sm text-muted-foreground">
-              Show this field in the form
-            </p>
+            <p className="text-sm text-muted-foreground">Show this field in the form</p>
           </div>
 
           <div className="space-y-2">
@@ -467,14 +456,10 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
               <Switch
                 id="editable"
                 checked={localConfig.editable}
-                onCheckedChange={(checked) => 
-                  setLocalConfig({ ...localConfig, editable: checked })
-                }
+                onCheckedChange={checked => setLocalConfig({ ...localConfig, editable: checked })}
               />
             </div>
-            <p className="text-sm text-muted-foreground">
-              Allow users to modify this field
-            </p>
+            <p className="text-sm text-muted-foreground">Allow users to modify this field</p>
           </div>
 
           <Separator />
@@ -484,8 +469,11 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
             {field.dataType === FieldDataType.SELECT && field.options ? (
               <Select
                 value={String(localConfig.defaultValue || '__none__')}
-                onValueChange={(value) => 
-                  setLocalConfig({ ...localConfig, defaultValue: value === '__none__' ? undefined : value })
+                onValueChange={value =>
+                  setLocalConfig({
+                    ...localConfig,
+                    defaultValue: value === '__none__' ? undefined : value,
+                  })
                 }
               >
                 <SelectTrigger>
@@ -507,7 +495,7 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
             ) : field.dataType === FieldDataType.BOOLEAN ? (
               <Select
                 value={String(localConfig.defaultValue || 'false')}
-                onValueChange={(value) => 
+                onValueChange={value =>
                   setLocalConfig({ ...localConfig, defaultValue: value === 'true' })
                 }
               >
@@ -523,10 +511,12 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
               <Input
                 id="defaultValue"
                 type="text"
-                value={typeof localConfig.defaultValue === 'number' 
-                  ? msToDisplay(localConfig.defaultValue, 'seconds') 
-                  : String(localConfig.defaultValue || '')}
-                onChange={(e) => {
+                value={
+                  typeof localConfig.defaultValue === 'number'
+                    ? msToDisplay(localConfig.defaultValue, 'seconds')
+                    : String(localConfig.defaultValue || '')
+                }
+                onChange={e => {
                   const parsed = parseTimeInput(e.target.value);
                   if (parsed.isValid && parsed.ms !== undefined) {
                     setLocalConfig({ ...localConfig, defaultValue: parsed.ms });
@@ -539,19 +529,24 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
             ) : field.dataType === FieldDataType.DURATION_ARRAY ? (
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">
-                  Default time limits for multiple search areas. Actual count will be set by "Number of Search Areas" field.
+                  Default time limits for multiple search areas. Actual count will be set by "Number
+                  of Search Areas" field.
                 </p>
                 <Input
                   id="defaultValue"
                   type="text"
-                  value={Array.isArray(localConfig.defaultValue) 
-                    ? localConfig.defaultValue.map(ms => msToDisplay(ms as number, 'seconds')).join(', ')
-                    : String(localConfig.defaultValue || '3:00')}
-                  onChange={(e) => {
+                  value={
+                    Array.isArray(localConfig.defaultValue)
+                      ? localConfig.defaultValue
+                          .map(ms => msToDisplay(ms as number, 'seconds'))
+                          .join(', ')
+                      : String(localConfig.defaultValue || '3:00')
+                  }
+                  onChange={e => {
                     const timeStrings = e.target.value.split(',').map(s => s.trim());
                     const timesMs: number[] = [];
                     let allValid = true;
-                    
+
                     for (const timeStr of timeStrings) {
                       if (timeStr) {
                         const parsed = parseTimeInput(timeStr);
@@ -563,7 +558,7 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
                         }
                       }
                     }
-                    
+
                     if (allValid && timesMs.length > 0) {
                       setLocalConfig({ ...localConfig, defaultValue: timesMs });
                     } else {
@@ -573,13 +568,17 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
                   placeholder="3:00, 4:00, 2:30 (comma-separated)"
                 />
               </div>
-            ) : field.dataType === FieldDataType.NUMBER || field.dataType === FieldDataType.CURRENCY ? (
+            ) : field.dataType === FieldDataType.NUMBER ||
+              field.dataType === FieldDataType.CURRENCY ? (
               <Input
                 id="defaultValue"
                 type="number"
                 value={String(localConfig.defaultValue || '')}
-                onChange={(e) => 
-                  setLocalConfig({ ...localConfig, defaultValue: e.target.value ? Number(e.target.value) : undefined })
+                onChange={e =>
+                  setLocalConfig({
+                    ...localConfig,
+                    defaultValue: e.target.value ? Number(e.target.value) : undefined,
+                  })
                 }
                 placeholder={`Default: ${field.defaultValue || '0'}`}
                 step={field.dataType === FieldDataType.CURRENCY ? '0.01' : '1'}
@@ -590,9 +589,7 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
               <Input
                 id="defaultValue"
                 value={String(localConfig.defaultValue || '')}
-                onChange={(e) => 
-                  setLocalConfig({ ...localConfig, defaultValue: e.target.value })
-                }
+                onChange={e => setLocalConfig({ ...localConfig, defaultValue: e.target.value })}
                 placeholder={`Default: ${field.defaultValue || 'None'}`}
               />
             )}
@@ -612,7 +609,7 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
               <Switch
                 id="defaultVariesByClass"
                 checked={localConfig.defaultVariesByClass}
-                onCheckedChange={(checked) => 
+                onCheckedChange={checked =>
                   setLocalConfig({ ...localConfig, defaultVariesByClass: checked })
                 }
               />
@@ -623,24 +620,48 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
           </div>
 
           {/* Value Constraints Section */}
-          {(field.dataType === FieldDataType.NUMBER || field.dataType === FieldDataType.CURRENCY || field.dataType === FieldDataType.DURATION || field.dataType === FieldDataType.DURATION_ARRAY) && (
+          {(field.dataType === FieldDataType.NUMBER ||
+            field.dataType === FieldDataType.CURRENCY ||
+            field.dataType === FieldDataType.DURATION ||
+            field.dataType === FieldDataType.DURATION_ARRAY) && (
             <div className="space-y-2">
               <Label>Value Constraints (Optional)</Label>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <Label htmlFor="minValue" className="text-xs">
-                    Minimum {(field.dataType === FieldDataType.DURATION || field.dataType === FieldDataType.DURATION_ARRAY) ? '(MM:SS)' : ''}
+                    Minimum{' '}
+                    {field.dataType === FieldDataType.DURATION ||
+                    field.dataType === FieldDataType.DURATION_ARRAY
+                      ? '(MM:SS)'
+                      : ''}
                   </Label>
                   <Input
                     id="minValue"
-                    type={(field.dataType === FieldDataType.DURATION || field.dataType === FieldDataType.DURATION_ARRAY) ? "text" : "number"}
-                    placeholder={(field.dataType === FieldDataType.DURATION || field.dataType === FieldDataType.DURATION_ARRAY) ? "0:30" : "No limit"}
-                    value={(field.dataType === FieldDataType.DURATION || field.dataType === FieldDataType.DURATION_ARRAY) && localConfig.valueConstraints?.min
-                      ? msToDisplay(localConfig.valueConstraints.min, 'seconds')
-                      : (localConfig.valueConstraints?.min || '')}
-                    onChange={(e) => {
+                    type={
+                      field.dataType === FieldDataType.DURATION ||
+                      field.dataType === FieldDataType.DURATION_ARRAY
+                        ? 'text'
+                        : 'number'
+                    }
+                    placeholder={
+                      field.dataType === FieldDataType.DURATION ||
+                      field.dataType === FieldDataType.DURATION_ARRAY
+                        ? '0:30'
+                        : 'No limit'
+                    }
+                    value={
+                      (field.dataType === FieldDataType.DURATION ||
+                        field.dataType === FieldDataType.DURATION_ARRAY) &&
+                      localConfig.valueConstraints?.min
+                        ? msToDisplay(localConfig.valueConstraints.min, 'seconds')
+                        : localConfig.valueConstraints?.min || ''
+                    }
+                    onChange={e => {
                       let minValue: number | undefined;
-                      if (field.dataType === FieldDataType.DURATION || field.dataType === FieldDataType.DURATION_ARRAY) {
+                      if (
+                        field.dataType === FieldDataType.DURATION ||
+                        field.dataType === FieldDataType.DURATION_ARRAY
+                      ) {
                         if (e.target.value) {
                           const parsed = parseTimeInput(e.target.value);
                           minValue = parsed.ms;
@@ -648,32 +669,53 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
                       } else {
                         minValue = e.target.value ? Number(e.target.value) : undefined;
                       }
-                      
-                      setLocalConfig({ 
-                        ...localConfig, 
+
+                      setLocalConfig({
+                        ...localConfig,
                         valueConstraints: {
                           ...localConfig.valueConstraints,
                           type: 'range',
-                          min: minValue
-                        }
+                          min: minValue,
+                        },
                       });
                     }}
                   />
                 </div>
                 <div>
                   <Label htmlFor="maxValue" className="text-xs">
-                    Maximum {(field.dataType === FieldDataType.DURATION || field.dataType === FieldDataType.DURATION_ARRAY) ? '(MM:SS)' : ''}
+                    Maximum{' '}
+                    {field.dataType === FieldDataType.DURATION ||
+                    field.dataType === FieldDataType.DURATION_ARRAY
+                      ? '(MM:SS)'
+                      : ''}
                   </Label>
                   <Input
                     id="maxValue"
-                    type={(field.dataType === FieldDataType.DURATION || field.dataType === FieldDataType.DURATION_ARRAY) ? "text" : "number"}
-                    placeholder={(field.dataType === FieldDataType.DURATION || field.dataType === FieldDataType.DURATION_ARRAY) ? "3:00" : "No limit"}
-                    value={(field.dataType === FieldDataType.DURATION || field.dataType === FieldDataType.DURATION_ARRAY) && localConfig.valueConstraints?.max
-                      ? msToDisplay(localConfig.valueConstraints.max, 'seconds')
-                      : (localConfig.valueConstraints?.max || '')}
-                    onChange={(e) => {
+                    type={
+                      field.dataType === FieldDataType.DURATION ||
+                      field.dataType === FieldDataType.DURATION_ARRAY
+                        ? 'text'
+                        : 'number'
+                    }
+                    placeholder={
+                      field.dataType === FieldDataType.DURATION ||
+                      field.dataType === FieldDataType.DURATION_ARRAY
+                        ? '3:00'
+                        : 'No limit'
+                    }
+                    value={
+                      (field.dataType === FieldDataType.DURATION ||
+                        field.dataType === FieldDataType.DURATION_ARRAY) &&
+                      localConfig.valueConstraints?.max
+                        ? msToDisplay(localConfig.valueConstraints.max, 'seconds')
+                        : localConfig.valueConstraints?.max || ''
+                    }
+                    onChange={e => {
                       let maxValue: number | undefined;
-                      if (field.dataType === FieldDataType.DURATION || field.dataType === FieldDataType.DURATION_ARRAY) {
+                      if (
+                        field.dataType === FieldDataType.DURATION ||
+                        field.dataType === FieldDataType.DURATION_ARRAY
+                      ) {
                         if (e.target.value) {
                           const parsed = parseTimeInput(e.target.value);
                           maxValue = parsed.ms;
@@ -681,33 +723,35 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
                       } else {
                         maxValue = e.target.value ? Number(e.target.value) : undefined;
                       }
-                      
-                      setLocalConfig({ 
-                        ...localConfig, 
+
+                      setLocalConfig({
+                        ...localConfig,
                         valueConstraints: {
                           ...localConfig.valueConstraints,
                           type: 'range',
-                          max: maxValue
-                        }
+                          max: maxValue,
+                        },
                       });
                     }}
                   />
                 </div>
               </div>
               <div>
-                <Label htmlFor="constraintHint" className="text-xs">Helper Text</Label>
+                <Label htmlFor="constraintHint" className="text-xs">
+                  Helper Text
+                </Label>
                 <Input
                   id="constraintHint"
                   placeholder="e.g., 'Judge sets within 1-3 minutes'"
                   value={localConfig.valueConstraints?.hint || ''}
-                  onChange={(e) => 
-                    setLocalConfig({ 
-                      ...localConfig, 
+                  onChange={e =>
+                    setLocalConfig({
+                      ...localConfig,
                       valueConstraints: {
                         ...localConfig.valueConstraints,
                         type: 'range',
-                        hint: e.target.value
-                      }
+                        hint: e.target.value,
+                      },
                     })
                   }
                 />
@@ -723,7 +767,7 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
               id="displayOrder"
               type="number"
               value={localConfig.displayOrder || 1}
-              onChange={(e) => 
+              onChange={e =>
                 setLocalConfig({ ...localConfig, displayOrder: parseInt(e.target.value) })
               }
               min={1}
@@ -735,9 +779,7 @@ const FieldConfigDialog: React.FC<FieldConfigDialogProps> = ({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSave}>
-            Save Configuration
-          </Button>
+          <Button onClick={handleSave}>Save Configuration</Button>
         </div>
       </DialogContent>
     </Dialog>

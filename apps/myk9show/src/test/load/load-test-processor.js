@@ -11,7 +11,7 @@ const performanceMetrics = {
   searchRequests: [],
   authRequests: [],
   entryCreations: [],
-  websocketConnections: []
+  websocketConnections: [],
 };
 
 // Test data generation
@@ -20,8 +20,15 @@ function generateTestUser(context, ee, next) {
   context.vars.user_password = 'test123';
   context.vars.dog_name = faker.person.firstName();
   context.vars.show_id = faker.string.uuid();
-  context.vars.entry_class = faker.helpers.arrayElement(['Novice A', 'Novice B', 'Open A', 'Open B', 'Excellent A', 'Excellent B']);
-  
+  context.vars.entry_class = faker.helpers.arrayElement([
+    'Novice A',
+    'Novice B',
+    'Open A',
+    'Open B',
+    'Excellent A',
+    'Excellent B',
+  ]);
+
   return next();
 }
 
@@ -31,7 +38,7 @@ function setAuthHeaders(requestParams, context, ee, next) {
   requestParams.headers['Content-Type'] = 'application/json';
   requestParams.headers['Accept'] = 'application/json';
   requestParams.headers['User-Agent'] = faker.internet.userAgent();
-  
+
   return next();
 }
 
@@ -45,10 +52,10 @@ function recordDatabaseQuery(requestParams, response, context, ee, next) {
   if (context.vars.dbQueryStart) {
     const duration = Date.now() - context.vars.dbQueryStart;
     performanceMetrics.databaseQueries.push(duration);
-    
+
     // Emit custom metric
     ee.emit('customStat', 'database_query_time', duration);
-    
+
     // Log slow queries
     if (duration > 1000) {
       console.log(`⚠️ Slow database query detected: ${duration}ms`);
@@ -67,9 +74,9 @@ function recordSearchTime(requestParams, response, context, ee, next) {
   if (context.vars.searchStart) {
     const duration = Date.now() - context.vars.searchStart;
     performanceMetrics.searchRequests.push(duration);
-    
+
     ee.emit('customStat', 'search_response_time', duration);
-    
+
     // Validate search response
     if (response.statusCode === 200) {
       try {
@@ -95,9 +102,9 @@ function recordAuthTime(requestParams, response, context, ee, next) {
   if (context.vars.authStart) {
     const duration = Date.now() - context.vars.authStart;
     performanceMetrics.authRequests.push(duration);
-    
+
     ee.emit('customStat', 'auth_response_time', duration);
-    
+
     // Check for successful authentication
     if (response.statusCode === 200) {
       try {
@@ -116,14 +123,14 @@ function recordAuthTime(requestParams, response, context, ee, next) {
 // Entry creation performance measurement
 function measureEntryCreation(requestParams, context, ee, next) {
   context.vars.entryStart = Date.now();
-  
+
   // Enhance entry data with realistic information
   if (requestParams.json) {
     requestParams.json.confirmationNumber = `CONF${faker.number.int({ min: 1000, max: 9999 })}`;
     requestParams.json.createdAt = new Date().toISOString();
     requestParams.json.paymentAmount = faker.number.int({ min: 25, max: 50 });
   }
-  
+
   return next();
 }
 
@@ -131,9 +138,9 @@ function recordEntryCreation(requestParams, response, context, ee, next) {
   if (context.vars.entryStart) {
     const duration = Date.now() - context.vars.entryStart;
     performanceMetrics.entryCreations.push(duration);
-    
+
     ee.emit('customStat', 'entry_creation_time', duration);
-    
+
     // Track entry creation success rate
     if (response.statusCode === 201) {
       ee.emit('customStat', 'entry_creation_success', 1);
@@ -155,9 +162,9 @@ function recordWebSocketConnection(context, ee, next) {
   if (context.vars.wsStart) {
     const duration = Date.now() - context.vars.wsStart;
     performanceMetrics.websocketConnections.push(duration);
-    
+
     ee.emit('customStat', 'websocket_connection_time', duration);
-    
+
     if (duration > 1000) {
       console.log(`⚠️ Slow WebSocket connection: ${duration}ms`);
     }
@@ -168,8 +175,10 @@ function recordWebSocketConnection(context, ee, next) {
 // Error handling and logging
 function handleError(requestParams, response, context, ee, next) {
   if (response.statusCode >= 400) {
-    console.log(`❌ Request failed: ${requestParams.url} - ${response.statusCode} ${response.statusMessage}`);
-    
+    console.log(
+      `❌ Request failed: ${requestParams.url} - ${response.statusCode} ${response.statusMessage}`
+    );
+
     // Log specific error details
     if (response.body) {
       try {
@@ -188,10 +197,10 @@ function validateShowData(requestParams, response, context, ee, next) {
   if (response.statusCode === 200) {
     try {
       const shows = JSON.parse(response.body);
-      
+
       if (Array.isArray(shows)) {
         shows.forEach(show => {
-          if (!show.id || !show.name || !show.type) {
+          if (!show.id || !show.name || !show.organization) {
             console.log('⚠️ Invalid show data structure:', show);
           }
         });
@@ -207,7 +216,7 @@ function validateEntryData(requestParams, response, context, ee, next) {
   if (response.statusCode === 201) {
     try {
       const entry = JSON.parse(response.body);
-      
+
       if (!entry.id || !entry.showId || !entry.dogId) {
         console.log('⚠️ Invalid entry data structure:', entry);
       }
@@ -222,14 +231,14 @@ function validateEntryData(requestParams, response, context, ee, next) {
 function generatePerformanceReport() {
   const report = {
     timestamp: new Date().toISOString(),
-    metrics: {}
+    metrics: {},
   };
-  
+
   // Calculate statistics for each metric type
   Object.entries(performanceMetrics).forEach(([key, values]) => {
     if (values.length > 0) {
       const sorted = [...values].sort((a, b) => a - b);
-      
+
       report.metrics[key] = {
         count: values.length,
         min: Math.min(...values),
@@ -241,7 +250,7 @@ function generatePerformanceReport() {
       };
     }
   });
-  
+
   return report;
 }
 
@@ -249,9 +258,9 @@ function generatePerformanceReport() {
 function simulateThinkTime(context, ee, next) {
   // Simulate realistic user think time based on action type
   const action = context.vars.currentAction || 'default';
-  
+
   let thinkTime = 1000; // Default 1 second
-  
+
   switch (action) {
     case 'browse':
       thinkTime = faker.number.int({ min: 2000, max: 5000 }); // 2-5 seconds browsing
@@ -266,30 +275,30 @@ function simulateThinkTime(context, ee, next) {
       thinkTime = faker.number.int({ min: 15000, max: 45000 }); // 15-45 seconds payment process
       break;
   }
-  
+
   setTimeout(() => next(), thinkTime);
 }
 
 // Load balancer simulation
 function setLoadBalancerHeaders(requestParams, context, ee, next) {
   requestParams.headers = requestParams.headers || {};
-  
+
   // Simulate load balancer headers
   requestParams.headers['X-Forwarded-For'] = faker.internet.ip();
   requestParams.headers['X-Real-IP'] = faker.internet.ip();
   requestParams.headers['X-Request-ID'] = faker.string.uuid();
-  
+
   return next();
 }
 
 // Cache control simulation
 function setCacheHeaders(requestParams, context, ee, next) {
   requestParams.headers = requestParams.headers || {};
-  
+
   // Simulate different cache behaviors
   const cacheType = faker.helpers.arrayElement(['no-cache', 'max-age=300', 'must-revalidate']);
   requestParams.headers['Cache-Control'] = cacheType;
-  
+
   return next();
 }
 
@@ -299,33 +308,36 @@ const maxConnections = 50;
 
 function checkConnectionPool(context, ee, next) {
   connectionCount++;
-  
+
   if (connectionCount > maxConnections) {
     console.log(`⚠️ Connection pool limit exceeded: ${connectionCount}/${maxConnections}`);
     ee.emit('customStat', 'connection_pool_exceeded', 1);
   }
-  
+
   // Simulate connection cleanup
-  setTimeout(() => {
-    connectionCount--;
-  }, faker.number.int({ min: 1000, max: 10000 }));
-  
+  setTimeout(
+    () => {
+      connectionCount--;
+    },
+    faker.number.int({ min: 1000, max: 10000 })
+  );
+
   return next();
 }
 
 // Memory usage simulation
 function trackMemoryUsage(context, ee, next) {
   const memoryUsage = process.memoryUsage();
-  
+
   ee.emit('customStat', 'memory_heap_used', memoryUsage.heapUsed);
   ee.emit('customStat', 'memory_heap_total', memoryUsage.heapTotal);
-  
+
   // Warn if memory usage is high
   const heapUsedMB = memoryUsage.heapUsed / 1024 / 1024;
   if (heapUsedMB > 500) {
     console.log(`⚠️ High memory usage: ${heapUsedMB.toFixed(2)} MB`);
   }
-  
+
   return next();
 }
 
@@ -335,11 +347,11 @@ function cleanup(context, ee, next) {
   const report = generatePerformanceReport();
   console.log('\n📊 Final Performance Report:');
   console.log(JSON.stringify(report, null, 2));
-  
+
   // Save report to file
   const fs = require('fs');
   fs.writeFileSync('./artillery-performance-report.json', JSON.stringify(report, null, 2));
-  
+
   return next();
 }
 
@@ -364,5 +376,5 @@ module.exports = {
   setCacheHeaders,
   checkConnectionPool,
   trackMemoryUsage,
-  cleanup
+  cleanup,
 };

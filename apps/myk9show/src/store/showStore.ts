@@ -27,7 +27,7 @@ function replicatedToShow(replicated: ReplicatedShow): Show {
   return {
     id: replicated.id,
     name: replicated.name,
-    type: replicated.type,
+    organization: replicated.organization,
     startDate: replicated.startDate,
     endDate: replicated.endDate,
     location: replicated.location || '',
@@ -82,7 +82,7 @@ function mergeShowData(replicated: ReplicatedShow, existing: Show | undefined): 
 // Input types for creating/updating shows
 export interface ShowInput {
   name: string;
-  type: string;
+  organization: string;
   startDate: string;
   endDate: string;
   location: string;
@@ -164,7 +164,7 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       // Create show in replicated table (handles ID generation and sync metadata)
       const replicatedShow = await replicatedShowsTable.createShow({
         name: showData.name,
-        type: showData.type,
+        organization: showData.organization,
         startDate: showData.startDate,
         endDate: showData.endDate,
         location: showData.location || undefined,
@@ -224,7 +224,7 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
                   name: newShow.name,
                   date: newShow.startDate,
                   location: newShow.location,
-                  description: `${newShow.type} show hosted by ${newShow.clubName}`,
+                  description: `${newShow.organization} show hosted by ${newShow.clubName}`,
                 },
               ],
               pastShows: club.pastShows || [],
@@ -286,7 +286,7 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       // Build update object with only defined values to satisfy exactOptionalPropertyTypes
       const replicatedUpdates: Partial<ReplicatedShow> = {};
       if (updates.name !== undefined) replicatedUpdates.name = updates.name;
-      if (updates.type !== undefined) replicatedUpdates.type = updates.type;
+      if (updates.organization !== undefined) replicatedUpdates.organization = updates.organization;
       if (updates.startDate !== undefined) replicatedUpdates.startDate = updates.startDate;
       if (updates.endDate !== undefined) replicatedUpdates.endDate = updates.endDate;
       if (updates.location !== undefined) replicatedUpdates.location = updates.location;
@@ -310,7 +310,7 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
       // Filter out undefined values from updates to satisfy exactOptionalPropertyTypes
       const definedUpdates: Partial<Show> = {};
       if (updates.name !== undefined) definedUpdates.name = updates.name;
-      if (updates.type !== undefined) definedUpdates.type = updates.type;
+      if (updates.organization !== undefined) definedUpdates.organization = updates.organization;
       if (updates.startDate !== undefined) definedUpdates.startDate = updates.startDate;
       if (updates.endDate !== undefined) definedUpdates.endDate = updates.endDate;
       if (updates.location !== undefined) definedUpdates.location = updates.location;

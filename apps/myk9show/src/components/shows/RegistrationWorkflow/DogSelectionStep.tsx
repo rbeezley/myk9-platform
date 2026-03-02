@@ -5,11 +5,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useDogStore } from '@/store/dogStore';
-import { Dog } from '@/types/dog-types';
+import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
+import { getDogDisplayName, Dog } from '@/types/dog-types';
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
 import { cn } from '@/lib/utils';
-import '@/styles/apple-registration-workflow.css';
+import '@/styles/myk9-registration-workflow.css';
 
 interface DogSelectionStepProps {
   selectedDogs: string[];
@@ -18,15 +18,18 @@ interface DogSelectionStepProps {
 
 export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
   selectedDogs,
-  onSelectionChange
+  onSelectionChange,
 }) => {
-  const { dogs } = useDogStore();
+  const { dogs, isLoading } = useDogStoreCompat();
 
   // Compute eligible dogs directly from dogs (derived state, no useEffect needed)
   const eligibleDogs = React.useMemo(() => {
     return dogs.filter(dog => {
       // Check if dog is not deleted
       if (dog.deletedAt) return false;
+
+      // Exclude non-active dogs (retired/deceased)
+      if (dog.status && dog.status !== 'active') return false;
 
       // Check if dog has required vaccinations (mock check)
       // In real app, would validate against show requirements
@@ -45,7 +48,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
   const getDogEligibilityStatus = (dog: Dog) => {
     // Mock eligibility checks
     const issues: string[] = [];
-    
+
     // Check age (example: must be at least 6 months old)
     if (dog.dateOfBirth) {
       const birthDate = new Date(dog.dateOfBirth);
@@ -54,17 +57,26 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
         issues.push('Too young (must be 6+ months)');
       }
     }
-    
+
     // Check registrations
     if (!dog.registrations || dog.registrations.length === 0) {
       issues.push('No registration on file');
     }
-    
+
     return {
       eligible: issues.length === 0,
-      issues
+      issues,
     };
   };
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4" />
+        <p className="text-sm text-muted-foreground">Loading your dogs...</p>
+      </div>
+    );
+  }
 
   if (eligibleDogs.length === 0) {
     return (
@@ -91,14 +103,14 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
           {eligibleDogs.map(dog => {
             const { eligible, issues } = getDogEligibilityStatus(dog);
             const isSelected = selectedDogs.includes(dog.id);
-            
+
             return (
               <Card
                 key={dog.id}
                 className={cn(
-                  "apple-dog-card cursor-pointer",
-                  isSelected && "selected",
-                  !eligible && "opacity-60"
+                  'myk9-dog-card cursor-pointer',
+                  isSelected && 'selected',
+                  !eligible && 'opacity-60'
                 )}
                 onClick={() => eligible && handleDogToggle(dog.id)}
               >
@@ -108,22 +120,24 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                       checked={isSelected}
                       disabled={!eligible}
                       onCheckedChange={() => eligible && handleDogToggle(dog.id)}
-                      onClick={(e) => e.stopPropagation()}
+                      onClick={e => e.stopPropagation()}
                       className="mt-1"
                     />
-                    
+
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
                         <div>
                           <Label className="text-base font-medium cursor-pointer">
-                            {dog.callName || dog.name}
-                            {dog.registrations?.[0]?.registeredName && ` "${dog.registrations[0].registeredName}"`}
+                            {getDogDisplayName(dog)}
+                            {dog.registrations?.[0]?.registeredName &&
+                              ` "${dog.registrations[0].registeredName}"`}
                           </Label>
                           <p className="text-sm text-gray-600 mt-1">
-                            {dog.registrations?.[0]?.breed || 'No breed specified'} • {dog.gender || 'Unknown'} • Born {formatDateMMDDYYYY(dog.dateOfBirth)}
+                            {dog.registrations?.[0]?.breed || 'No breed specified'} •{' '}
+                            {dog.gender || 'Unknown'} • Born {formatDateMMDDYYYY(dog.dateOfBirth)}
                           </p>
                         </div>
-                        
+
                         {isSelected && (
                           <Badge variant="default" className="ml-2">
                             <Check className="w-3 h-3 mr-1" />
@@ -131,7 +145,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                           </Badge>
                         )}
                       </div>
-                      
+
                       {dog.registrations && dog.registrations.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-2">
                           {dog.registrations.map((reg, idx) => (
@@ -141,7 +155,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                           ))}
                         </div>
                       )}
-                      
+
                       {!eligible && (
                         <div className="mt-2">
                           {issues.map((issue, idx) => (
@@ -159,7 +173,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
           })}
         </div>
       </ScrollArea>
-      
+
       {selectedDogs.length > 0 && (
         <div className="mt-4 p-3 bg-primary/10 rounded-lg">
           <p className="text-sm font-medium">

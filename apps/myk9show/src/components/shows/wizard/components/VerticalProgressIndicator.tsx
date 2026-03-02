@@ -39,11 +39,7 @@ export const VerticalProgressIndicator: React.FC<VerticalProgressIndicatorProps>
   }, [steps.length, completedSteps, currentStep]);
 
   return (
-    <nav
-      className={cn("w-full", className)}
-      role="navigation"
-      aria-label="Wizard progress"
-    >
+    <nav className={cn('w-full', className)} role="navigation" aria-label="Wizard progress">
       <ol className="relative space-y-0">
         {steps.map((step, index) => {
           const isCompleted = isStepCompleted(step.id);
@@ -55,16 +51,16 @@ export const VerticalProgressIndicator: React.FC<VerticalProgressIndicatorProps>
             <li key={step.id} className="relative">
               {/* Connecting line (not on last item) */}
               {!isLast && (
-                <div className="absolute left-4 top-8 w-0.5 h-full -translate-x-1/2">
+                <div className="absolute left-4 top-8 bottom-0 w-0.5 -translate-x-1/2">
                   {/* Background line */}
                   <div className="absolute inset-0 bg-border/40 rounded-full" />
                   {/* Filled progress line */}
                   <div
                     className={cn(
-                      "absolute top-0 left-0 w-full rounded-full transition-all duration-500 ease-out",
-                      (isCompleted || (isCurrent && completedSteps.includes(step.id)))
-                        ? "bg-primary"
-                        : "bg-transparent"
+                      'absolute top-0 left-0 w-full rounded-full transition-all duration-500 ease-out',
+                      isCompleted || (isCurrent && completedSteps.includes(step.id))
+                        ? 'bg-primary'
+                        : 'bg-transparent'
                     )}
                     style={{
                       height: isCompleted ? '100%' : '0%',
@@ -82,12 +78,14 @@ export const VerticalProgressIndicator: React.FC<VerticalProgressIndicatorProps>
                   aria-current={isCurrent ? 'step' : undefined}
                   aria-label={`${step.label}${isCompleted ? ' (completed)' : isCurrent ? ' (current)' : ''}`}
                   className={cn(
-                    "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-300",
-                    isCompleted && "bg-primary border-primary text-primary-foreground shadow-md",
-                    isCurrent && !isCompleted && "bg-primary/10 border-primary text-primary shadow-sm ring-4 ring-primary/20",
-                    !isCompleted && !isCurrent && "bg-muted/50 border-border text-muted-foreground",
-                    isClickable && "cursor-pointer hover:scale-110 hover:shadow-lg",
-                    !isClickable && "cursor-default"
+                    'relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-300',
+                    isCompleted && 'bg-primary border-primary text-primary-foreground shadow-md',
+                    isCurrent &&
+                      !isCompleted &&
+                      'bg-primary/10 border-primary text-primary shadow-sm ring-4 ring-primary/20',
+                    !isCompleted && !isCurrent && 'bg-muted/50 border-border text-muted-foreground',
+                    isClickable && 'cursor-pointer hover:scale-110 hover:shadow-lg',
+                    !isClickable && 'cursor-default'
                   )}
                 >
                   {isCompleted ? (
@@ -109,10 +107,10 @@ export const VerticalProgressIndicator: React.FC<VerticalProgressIndicatorProps>
                 <div className="flex-1 min-w-0 pt-0.5">
                   <div
                     className={cn(
-                      "text-sm font-medium transition-colors duration-200",
-                      isCurrent && "text-primary",
-                      isCompleted && "text-foreground",
-                      !isCompleted && !isCurrent && "text-muted-foreground"
+                      'text-sm font-medium transition-colors duration-200',
+                      isCurrent && 'text-primary',
+                      isCompleted && 'text-foreground',
+                      !isCompleted && !isCurrent && 'text-muted-foreground'
                     )}
                   >
                     {step.label}
@@ -120,8 +118,8 @@ export const VerticalProgressIndicator: React.FC<VerticalProgressIndicatorProps>
                   {step.description && (
                     <p
                       className={cn(
-                        "text-xs mt-0.5 transition-colors duration-200",
-                        isCurrent ? "text-primary/70" : "text-muted-foreground"
+                        'text-xs mt-0.5 transition-colors duration-200',
+                        isCurrent ? 'text-primary/70' : 'text-muted-foreground'
                       )}
                     >
                       {step.description}

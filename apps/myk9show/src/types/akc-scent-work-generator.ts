@@ -3,10 +3,10 @@ import { GeneratedClass } from './class-template-types';
 // Official AKC Scent Work class generator based on 2024 rules
 export function generateAKCScentWorkClasses(): GeneratedClass[] {
   const classes: GeneratedClass[] = [];
-  
+
   // Standard elements that have all levels
   const standardElements = ['Interior', 'Exterior', 'Container', 'Buried'];
-  
+
   // Generate standard element classes
   standardElements.forEach(element => {
     // NOVICE A & B (known 1 hide, basic search)
@@ -16,67 +16,64 @@ export function generateAKCScentWorkClasses(): GeneratedClass[] {
         element,
         level: 'Novice',
         section: division,
-        entryFee: 30,
+
         maxEntries: 40,
         customFields: {
           searchType: 'Known number',
           hideCount: '1',
           difficulty: 'Basic search - straightforward placement, no air movement challenges',
           distractionsRequired: 'Per regulations (varies by element)',
-          offLeashOption: 'true'
-        }
+          offLeashOption: 'true',
+        },
       });
     });
-    
+
     // ADVANCED (known 2 hides, multiple hide challenge)
     classes.push({
       className: `${element} Advanced`,
       element,
       level: 'Advanced',
-      entryFee: 30,
       maxEntries: 40,
       customFields: {
         searchType: 'Known number',
         hideCount: '2',
         difficulty: 'Two relatively simple hides, minimal converging odor',
         distractionsRequired: 'Per regulations (varies by element)',
-        offLeashOption: 'true'
-      }
+        offLeashOption: 'true',
+      },
     });
-    
+
     // EXCELLENT (complex search, at least 1 difficult hide)
     classes.push({
       className: `${element} Excellent`,
       element,
       level: 'Excellent',
-      entryFee: 30,
       maxEntries: 40,
       customFields: {
         searchType: element === 'Interior' ? 'Unknown number' : 'Known number',
         hideCount: element === 'Interior' ? 'Unknown (1-3)' : 'Variable',
         difficulty: 'Complex search, inaccessible hides introduced, basic converging odor',
         distractionsRequired: 'Per regulations (varies by element)',
-        offLeashOption: 'true'
-      }
+        offLeashOption: 'true',
+      },
     });
-    
+
     // MASTERS (ultimate teamwork test)
     classes.push({
       className: `${element} Masters`,
       element,
       level: 'Masters',
-      entryFee: 30,
       maxEntries: 40,
       customFields: {
         searchType: 'Unknown number',
         hideCount: 'Unknown',
         difficulty: 'Complex search testing teamwork, time management, efficiency',
         distractionsRequired: 'Per regulations (varies by element)',
-        offLeashOption: 'true'
-      }
+        offLeashOption: 'true',
+      },
     });
   });
-  
+
   // HANDLER DISCRIMINATION classes (all levels)
   ['Novice A', 'Novice B', 'Advanced', 'Excellent', 'Masters'].forEach(levelDiv => {
     const [level, division] = levelDiv.split(' ');
@@ -85,7 +82,6 @@ export function generateAKCScentWorkClasses(): GeneratedClass[] {
       element: 'Handler Discrimination',
       level,
       section: division || undefined,
-      entryFee: 30,
       maxEntries: 40,
       customFields: {
         searchType: level === 'Novice' || level === 'Advanced' ? 'Known number' : 'Unknown number',
@@ -93,16 +89,15 @@ export function generateAKCScentWorkClasses(): GeneratedClass[] {
         difficulty: 'Handler scent discrimination challenge',
         distractionsRequired: 'Per regulations',
         offLeashOption: 'true',
-        special: 'Hide location changes between competitors'
-      }
+        special: 'Hide location changes between competitors',
+      },
     });
   });
-  
+
   // DETECTIVE class (standalone complex search)
   classes.push({
     className: 'Detective',
     element: 'Detective',
-    entryFee: 35, // Often higher fee for Detective
     maxEntries: 30, // Usually smaller entry limit
     customFields: {
       searchType: 'Unknown number',
@@ -110,21 +105,21 @@ export function generateAKCScentWorkClasses(): GeneratedClass[] {
       difficulty: 'Ultimate challenge - large search area incorporating interiors AND exteriors',
       distractionsRequired: 'Complex odor problems allowed',
       offLeashOption: 'true',
-      special: 'Combines interior and exterior elements in one large search area'
-    }
+      special: 'Combines interior and exterior elements in one large search area',
+    },
   });
-  
+
   return classes;
 }
 
 // Validation function for AKC Scent Work classes
 export function validateAKCScentWorkClass(
-  element: string, 
-  level?: string, 
+  element: string,
+  level?: string,
   division?: string
 ): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
-  
+
   // Detective validation
   if (element === 'Detective') {
     if (level || division) {
@@ -132,7 +127,7 @@ export function validateAKCScentWorkClass(
     }
     return { valid: errors.length === 0, errors };
   }
-  
+
   // Handler Discrimination validation
   if (element === 'Handler Discrimination') {
     if (!level) {
@@ -145,7 +140,7 @@ export function validateAKCScentWorkClass(
       errors.push('Only Novice level has divisions A and B');
     }
   }
-  
+
   // Standard element validation
   const standardElements = ['Interior', 'Exterior', 'Container', 'Buried'];
   if (standardElements.includes(element)) {
@@ -159,7 +154,7 @@ export function validateAKCScentWorkClass(
       errors.push('Only Novice level has divisions A and B');
     }
   }
-  
+
   return { valid: errors.length === 0, errors };
 }
 
@@ -177,9 +172,9 @@ export function getAKCScentWorkClassRequirements(
     hideCount: '1',
     searchType: 'Known' as const,
     difficulty: 'Basic',
-    specialRules: [] as string[]
+    specialRules: [] as string[],
   };
-  
+
   if (element === 'Detective') {
     return {
       hideCount: 'Unknown',
@@ -189,11 +184,11 @@ export function getAKCScentWorkClassRequirements(
         'Large search area incorporating interiors AND exteriors',
         'Complex odor problems allowed (converging, elevation, eddying, pooling, channeling)',
         'No demo dog used - time limit set prior to first competitor',
-        'Showcases ultimate teamwork between handler and dog'
-      ]
+        'Showcases ultimate teamwork between handler and dog',
+      ],
     };
   }
-  
+
   switch (level) {
     case 'Novice':
       return {
@@ -204,10 +199,10 @@ export function getAKCScentWorkClassRequirements(
           'Basic odor obedience and understanding of driving to source',
           'Straightforward placement - no tricks',
           'No significant air movement, complex placement, or pooling',
-          'Accessible location only'
-        ]
+          'Accessible location only',
+        ],
       };
-      
+
     case 'Advanced':
       return {
         hideCount: '2',
@@ -217,10 +212,10 @@ export function getAKCScentWorkClassRequirements(
           'Two relatively simple hides',
           'Tests simple multiple hide detection',
           'Converging odor should be minimized',
-          'Fairly simple airflow puzzles'
-        ]
+          'Fairly simple airflow puzzles',
+        ],
       };
-      
+
     case 'Excellent':
       return {
         hideCount: element === 'Interior' ? 'Unknown (1-3)' : 'Variable',
@@ -231,10 +226,10 @@ export function getAKCScentWorkClassRequirements(
           'Unknown number of hides (for Interior)',
           'Inaccessible hides introduced',
           'Basic converging odor and elevation allowed',
-          'No blank search areas (Interior)'
-        ]
+          'No blank search areas (Interior)',
+        ],
       };
-      
+
     case 'Masters':
       return {
         hideCount: 'Unknown',
@@ -246,10 +241,10 @@ export function getAKCScentWorkClassRequirements(
           'Time management and efficiency challenged',
           'Converging, pooling, eddying, channeling odor allowed',
           'Inaccessible hides allowed',
-          'Maximum one blank area (Interior)'
-        ]
+          'Maximum one blank area (Interior)',
+        ],
       };
-      
+
     default:
       return requirements;
   }

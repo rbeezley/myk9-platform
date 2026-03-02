@@ -81,7 +81,7 @@ export function smartCacheInvalidation(queryClient: QueryClient) {
  * Preload data for likely navigation targets
  */
 export function preloadNavigationTargets(queryClient: QueryClient, currentRoute: string) {
-  if (currentRoute === '/browse-shows') {
+  if (currentRoute === '/shows') {
     // User is likely to navigate to show details, prefetch popular shows
     const showsList = queryClient.getQueryData(showQueryKeys.lists()) as unknown[];
     

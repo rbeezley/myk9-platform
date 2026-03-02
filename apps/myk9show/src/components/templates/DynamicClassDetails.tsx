@@ -220,7 +220,7 @@ export const DynamicClassDetails: React.FC<DynamicClassDetailsProps> = ({
         <div>
           <h3 className="text-lg font-semibold">Class Details</h3>
           <p className="text-sm text-muted-foreground">
-            {template.templateName} - {template.showType}
+            {template.templateName} - {template.trialType}
           </p>
         </div>
         

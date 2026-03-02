@@ -11,13 +11,17 @@ import { PageTransition } from '@/components/common/PageTransition';
 import { SuspenseWrapper } from './utils/SuspenseWrapper';
 
 // Public page lazy imports
-const UserDetailsPage = lazy(() => import('@/pages/UserDetailsPage'));
-const DogDetailsPage = lazy(() => import('@/pages/DogDetailsPage'));
-const ClubsPage = lazy(() => import('@/pages/ClubsPage'));
+const BrowsePeoplePage = lazy(() => import('@/pages/BrowsePeoplePage'));
+const PersonDetailPage = lazy(() => import('@/pages/PersonDetailPage'));
+const BrowseDogsPage = lazy(() => import('@/pages/BrowseDogsPage'));
+const DogDetailPage = lazy(() => import('@/pages/DogDetailPage'));
+const BrowseClubsPage = lazy(() => import('@/pages/BrowseClubsPage'));
+const ClubDetailPage = lazy(() => import('@/pages/ClubDetailPage'));
 const ShowDetailsPage = lazy(() => import('@/pages/ShowDetailsPage'));
 const TrialDetailsPage = lazy(() => import('@/pages/TrialDetailsPage'));
 const ClassDetailsPage = lazy(() => import('@/pages/ClassDetailsPage'));
 const CalendarPage = lazy(() => import('@/pages/CalendarPage'));
+const RegistrationWizardPage = lazy(() => import('@/pages/RegistrationWizardPage'));
 const SubscriptionPage = lazy(() => import('@/pages/SubscriptionPage'));
 const PreferencesPage = lazy(() => import('@/pages/PreferencesPage'));
 
@@ -42,8 +46,17 @@ const ClassTemplateTestPage = lazy(() =>
 
 export const PublicRoutes = () => (
   <>
-    {/* /shows without an ID redirects to browse page */}
-    <Route path="/shows" element={<Navigate to="/browse-shows" replace />} />
+    {/* Browse Shows - Allow anonymous browsing */}
+    <Route
+      path="/shows"
+      element={
+        <SuspenseWrapper>
+          <PageTransition>
+            <BrowseShowsPage />
+          </PageTransition>
+        </SuspenseWrapper>
+      }
+    />
 
     <Route
       path="/shows/:id"
@@ -53,6 +66,19 @@ export const PublicRoutes = () => (
             <ShowDetailsPage />
           </PageTransition>
         </SuspenseWrapper>
+      }
+    />
+
+    <Route
+      path="/shows/:showId/register"
+      element={
+        <ProtectedRoute>
+          <SuspenseWrapper>
+            <PageTransition>
+              <RegistrationWizardPage />
+            </PageTransition>
+          </SuspenseWrapper>
+        </ProtectedRoute>
       }
     />
 
@@ -111,19 +137,9 @@ export const PublicRoutes = () => (
       }
     />
 
-    {/* Unified Shows Interface - Allow anonymous browsing */}
-    <Route
-      path="/browse-shows"
-      element={
-        <SuspenseWrapper>
-          <PageTransition>
-            <BrowseShowsPage />
-          </PageTransition>
-        </SuspenseWrapper>
-      }
-    />
-
-    <Route path="/shows/browse" element={<Navigate to="/browse-shows" replace />} />
+    {/* Backwards-compat redirects for old URLs */}
+    <Route path="/browse-shows" element={<Navigate to="/shows" replace />} />
+    <Route path="/shows/browse" element={<Navigate to="/shows" replace />} />
 
     {/* My Entries - View and manage exhibitor's entries */}
     <Route
@@ -250,7 +266,7 @@ export const PublicRoutes = () => (
         <ProtectedRoute>
           <SuspenseWrapper>
             <PageTransition>
-              <DogDetailsPage />
+              <BrowseDogsPage />
             </PageTransition>
           </SuspenseWrapper>
         </ProtectedRoute>
@@ -263,7 +279,7 @@ export const PublicRoutes = () => (
         <ProtectedRoute>
           <SuspenseWrapper>
             <PageTransition>
-              <DogDetailsPage />
+              <BrowseDogsPage />
             </PageTransition>
           </SuspenseWrapper>
         </ProtectedRoute>
@@ -369,7 +385,7 @@ export const PublicRoutes = () => (
         <ProtectedRoute>
           <SuspenseWrapper>
             <PageTransition>
-              <UserDetailsPage />
+              <BrowsePeoplePage />
             </PageTransition>
           </SuspenseWrapper>
         </ProtectedRoute>
@@ -382,7 +398,7 @@ export const PublicRoutes = () => (
         <ProtectedRoute>
           <SuspenseWrapper>
             <PageTransition>
-              <UserDetailsPage />
+              <PersonDetailPage />
             </PageTransition>
           </SuspenseWrapper>
         </ProtectedRoute>
@@ -395,7 +411,7 @@ export const PublicRoutes = () => (
         <ProtectedRoute>
           <SuspenseWrapper>
             <PageTransition>
-              <DogDetailsPage />
+              <BrowseDogsPage />
             </PageTransition>
           </SuspenseWrapper>
         </ProtectedRoute>
@@ -408,7 +424,7 @@ export const PublicRoutes = () => (
         <ProtectedRoute>
           <SuspenseWrapper>
             <PageTransition>
-              <DogDetailsPage />
+              <DogDetailPage />
             </PageTransition>
           </SuspenseWrapper>
         </ProtectedRoute>
@@ -420,7 +436,7 @@ export const PublicRoutes = () => (
       element={
         <SuspenseWrapper>
           <PageTransition>
-            <ClubsPage />
+            <BrowseClubsPage />
           </PageTransition>
         </SuspenseWrapper>
       }
@@ -431,7 +447,7 @@ export const PublicRoutes = () => (
       element={
         <SuspenseWrapper>
           <PageTransition>
-            <ClubsPage />
+            <ClubDetailPage />
           </PageTransition>
         </SuspenseWrapper>
       }

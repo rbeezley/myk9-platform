@@ -8,7 +8,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
-import '@/styles/apple-show-details.css';
+import '@/styles/myk9-show-details.css';
 
 interface TrialHeaderProps {
   trial: Trial;
@@ -25,11 +25,11 @@ export const TrialHeader = ({
 }: TrialHeaderProps) => {
   const getStatusClass = (status: string) => {
     switch (status?.toLowerCase()) {
-      case 'upcoming': return 'apple-show-status-upcoming';
-      case 'in progress': return 'apple-show-status-in-progress';
-      case 'completed': return 'apple-show-status-completed';
-      case 'cancelled': return 'apple-show-status-cancelled';
-      default: return 'apple-show-status-upcoming';
+      case 'upcoming': return 'myk9-show-status-upcoming';
+      case 'in progress': return 'myk9-show-status-in-progress';
+      case 'completed': return 'myk9-show-status-completed';
+      case 'cancelled': return 'myk9-show-status-cancelled';
+      default: return 'myk9-show-status-upcoming';
     }
   };
 
@@ -39,7 +39,7 @@ export const TrialHeader = ({
       <div className="flex justify-between items-start mb-6">
         <div className="flex items-center gap-4">
           <h1 className="text-2xl font-semibold text-foreground">{trial.showName}</h1>
-          <span className={`apple-show-status ${getStatusClass(trial.status)}`}>
+          <span className={`myk9-show-status ${getStatusClass(trial.status)}`}>
             {trial.status}
           </span>
         </div>
@@ -64,45 +64,45 @@ export const TrialHeader = ({
       </div>
 
       {/* Trial Details Grid */}
-      <div className="apple-show-info-grid">
-        <div className="apple-show-info-item">
-          <div className="apple-show-info-label">Trial Date</div>
-          <div className="apple-show-info-value flex items-center gap-2">
+      <div className="myk9-show-info-grid">
+        <div className="myk9-show-info-item">
+          <div className="myk9-show-info-label">Trial Date</div>
+          <div className="myk9-show-info-value flex items-center gap-2">
             <Calendar className="w-4 h-4 text-muted-foreground" />
             {trial.trialDate ? formatDateMMDDYYYY(trial.trialDate) : 'N/A'}
           </div>
         </div>
-        <div className="apple-show-info-item">
-          <div className="apple-show-info-label">Type</div>
-          <div className="apple-show-info-value flex items-center gap-2">
+        <div className="myk9-show-info-item">
+          <div className="myk9-show-info-label">Type</div>
+          <div className="myk9-show-info-value flex items-center gap-2">
             <User className="w-4 h-4 text-muted-foreground" />
             {trial.type || 'Obedience'}
           </div>
         </div>
-        <div className="apple-show-info-item">
-          <div className="apple-show-info-label">Trial Number</div>
-          <div className="apple-show-info-value flex items-center gap-2">
+        <div className="myk9-show-info-item">
+          <div className="myk9-show-info-label">Trial Number</div>
+          <div className="myk9-show-info-value flex items-center gap-2">
             <MapPin className="w-4 h-4 text-muted-foreground" />
             {trial.trialNumber || 'T-2025-001'}
           </div>
         </div>
-        <div className="apple-show-info-item">
-          <div className="apple-show-info-label">Planned Start</div>
-          <div className="apple-show-info-value flex items-center gap-2">
+        <div className="myk9-show-info-item">
+          <div className="myk9-show-info-label">Planned Start</div>
+          <div className="myk9-show-info-value flex items-center gap-2">
             <Clock className="w-4 h-4 text-muted-foreground" />
             {trial.plannedStartTime || '09:00 AM'}
           </div>
         </div>
-        <div className="apple-show-info-item">
-          <div className="apple-show-info-label">Order</div>
-          <div className="apple-show-info-value flex items-center gap-2">
+        <div className="myk9-show-info-item">
+          <div className="myk9-show-info-label">Order</div>
+          <div className="myk9-show-info-value flex items-center gap-2">
             <MapPin className="w-4 h-4 text-muted-foreground" />
             {trial.order || '1'}
           </div>
         </div>
-        <div className="apple-show-info-item">
-          <div className="apple-show-info-label">Event Number</div>
-          <div className="apple-show-info-value flex items-center gap-2">
+        <div className="myk9-show-info-item">
+          <div className="myk9-show-info-label">Event Number</div>
+          <div className="myk9-show-info-value flex items-center gap-2">
             <User className="w-4 h-4 text-muted-foreground" />
             {trial.eventNumber || 'EV-2025-001'}
           </div>

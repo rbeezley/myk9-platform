@@ -19,7 +19,7 @@ import {
 /**
  * SyncDemoPage - Demonstration page showcasing all Phase 3 sync components
  * 
- * This component demonstrates the comprehensive sync UI system with Apple-inspired design,
+ * This component demonstrates the comprehensive sync UI system with Premium design,
  * real-time updates, and interactive controls for managing show synchronization.
  */
 const SyncDemoPage: React.FC = () => {
@@ -41,7 +41,7 @@ const SyncDemoPage: React.FC = () => {
               </h1>
             </div>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              Comprehensive show synchronization with Apple-inspired design, real-time updates, 
+              Comprehensive show synchronization with Premium design, real-time updates, 
               and intelligent conflict resolution for seamless dog show management.
             </p>
             <div className="flex items-center justify-center gap-4 pt-4">
@@ -262,7 +262,7 @@ const SyncDemoPage: React.FC = () => {
           <div className="text-center">
             <h2 className="text-2xl font-bold mb-4">Key Features</h2>
             <p className="text-muted-foreground">
-              Built with Apple's design principles and modern web technologies
+              Built with modern design principles and modern web technologies
             </p>
           </div>
           

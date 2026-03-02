@@ -73,7 +73,7 @@ describe('ReplicatedShowsTable', () => {
         const show: ReplicatedShow = {
           id: 'show-1',
           name: 'Annual Dog Show 2024',
-          type: 'Obedience',
+          organization: 'Obedience',
           startDate: '2024-06-15',
           endDate: '2024-06-16',
           location: 'Central Park',
@@ -88,7 +88,7 @@ describe('ReplicatedShowsTable', () => {
         expect(result).not.toBeNull();
         expect(result?.id).toBe('show-1');
         expect(result?.name).toBe('Annual Dog Show 2024');
-        expect(result?.type).toBe('Obedience');
+        expect(result?.organization).toBe('Obedience');
         expect(result?.status).toBe('active');
       });
 
@@ -101,7 +101,7 @@ describe('ReplicatedShowsTable', () => {
         const show: ReplicatedShow = {
           id: 'show-1',
           name: 'Test Show',
-          type: 'Obedience',
+          organization: 'Obedience',
           startDate: '2024-06-15',
           endDate: '2024-06-16',
           status: 'draft',
@@ -118,7 +118,7 @@ describe('ReplicatedShowsTable', () => {
         const show: ReplicatedShow = {
           id: 'show-1',
           name: 'Premium Dog Show',
-          type: 'Agility',
+          organization: 'Agility',
           startDate: '2024-08-01',
           endDate: '2024-08-02',
           location: 'Fairgrounds Arena',
@@ -153,7 +153,7 @@ describe('ReplicatedShowsTable', () => {
         const show: ReplicatedShow = {
           id: 'show-1',
           name: 'Minimal Show',
-          type: 'Obedience',
+          organization: 'Obedience',
           startDate: '2024-06-15',
           endDate: '2024-06-16',
         };
@@ -180,21 +180,21 @@ describe('ReplicatedShowsTable', () => {
           {
             id: 'show-1',
             name: 'Show 1',
-            type: 'Obedience',
+            organization: 'Obedience',
             startDate: '2024-06-15',
             endDate: '2024-06-16',
           },
           {
             id: 'show-2',
             name: 'Show 2',
-            type: 'Agility',
+            organization: 'Agility',
             startDate: '2024-07-15',
             endDate: '2024-07-16',
           },
           {
             id: 'show-3',
             name: 'Show 3',
-            type: 'Rally',
+            organization: 'Rally',
             startDate: '2024-08-15',
             endDate: '2024-08-16',
           },
@@ -214,7 +214,7 @@ describe('ReplicatedShowsTable', () => {
         const show: ReplicatedShow = {
           id: 'show-1',
           name: 'Test Show',
-          type: 'Obedience',
+          organization: 'Obedience',
           startDate: '2024-06-15',
           endDate: '2024-06-16',
         };
@@ -237,7 +237,7 @@ describe('ReplicatedShowsTable', () => {
       const show: ReplicatedShow = {
         id: 'show-1',
         name: 'Test Show',
-        type: 'Obedience',
+        organization: 'Obedience',
         startDate: '2024-06-15',
         endDate: '2024-06-16',
         status: 'draft',
@@ -254,7 +254,7 @@ describe('ReplicatedShowsTable', () => {
       const show: ReplicatedShow = {
         id: 'show-1',
         name: 'Test Show',
-        type: 'Obedience',
+        organization: 'Obedience',
         startDate: '2024-06-15',
         endDate: '2024-06-16',
         status: 'active',
@@ -271,7 +271,7 @@ describe('ReplicatedShowsTable', () => {
       const show: ReplicatedShow = {
         id: 'show-1',
         name: 'Test Show',
-        type: 'Obedience',
+        organization: 'Obedience',
         startDate: '2024-06-15',
         endDate: '2024-06-16',
         status: 'completed',
@@ -288,7 +288,7 @@ describe('ReplicatedShowsTable', () => {
       const show: ReplicatedShow = {
         id: 'show-1',
         name: 'Test Show',
-        type: 'Obedience',
+        organization: 'Obedience',
         startDate: '2024-06-15',
         endDate: '2024-06-16',
         status: 'draft',
@@ -309,7 +309,7 @@ describe('ReplicatedShowsTable', () => {
         {
           id: 'show-1',
           name: 'Past Show',
-          type: 'Obedience',
+          organization: 'Obedience',
           startDate: '2024-01-15',
           endDate: '2024-01-16',
           status: 'completed',
@@ -318,7 +318,7 @@ describe('ReplicatedShowsTable', () => {
         {
           id: 'show-2',
           name: 'Current Show',
-          type: 'Agility',
+          organization: 'Agility',
           startDate: new Date(Date.now() - 86400000).toISOString().split('T')[0], // Yesterday
           endDate: new Date(Date.now() + 86400000).toISOString().split('T')[0], // Tomorrow
           status: 'active',
@@ -327,7 +327,7 @@ describe('ReplicatedShowsTable', () => {
         {
           id: 'show-3',
           name: 'Future Show 1',
-          type: 'Rally',
+          organization: 'Rally',
           startDate: '2026-06-15',
           endDate: '2026-06-16',
           status: 'draft',
@@ -336,7 +336,7 @@ describe('ReplicatedShowsTable', () => {
         {
           id: 'show-4',
           name: 'Future Show 2',
-          type: 'Obedience',
+          organization: 'Obedience',
           startDate: '2026-08-15',
           endDate: '2026-08-16',
           status: 'active',
@@ -505,7 +505,7 @@ describe('ReplicatedShowsTable', () => {
       const show: ReplicatedShow = {
         id: 'show-1',
         name: 'Original Show',
-        type: 'Obedience',
+        organization: 'Obedience',
         startDate: '2024-06-15',
         endDate: '2024-06-16',
         location: 'Original Location',
@@ -520,7 +520,7 @@ describe('ReplicatedShowsTable', () => {
       const result = await table.get('show-1');
       expect(result?.name).toBe('Updated Show');
       expect(result?.location).toBe('New Location');
-      expect(result?.type).toBe('Obedience'); // Unchanged
+      expect(result?.organization).toBe('Obedience'); // Unchanged
       expect(result?.startDate).toBe('2024-06-15'); // Unchanged
     });
 
@@ -528,7 +528,7 @@ describe('ReplicatedShowsTable', () => {
       const show: ReplicatedShow = {
         id: 'show-1',
         name: 'Test Show',
-        type: 'Obedience',
+        organization: 'Obedience',
         startDate: '2024-06-15',
         endDate: '2024-06-16',
       };
@@ -550,7 +550,7 @@ describe('ReplicatedShowsTable', () => {
       const show: ReplicatedShow = {
         id: 'show-1',
         name: 'Test Show',
-        type: 'Obedience',
+        organization: 'Obedience',
         startDate: '2024-06-15',
         endDate: '2024-06-16',
       };
@@ -572,7 +572,7 @@ describe('ReplicatedShowsTable', () => {
       const show: ReplicatedShow = {
         id: 'show-1',
         name: 'Test Show',
-        type: 'Obedience',
+        organization: 'Obedience',
         startDate: '2024-06-15',
         endDate: '2024-06-16',
         preEntryFee: 30.0,
@@ -598,7 +598,7 @@ describe('ReplicatedShowsTable', () => {
       const show: ReplicatedShow = {
         id: 'show-1',
         name: 'Test Show',
-        type: 'Obedience',
+        organization: 'Obedience',
         startDate: '2024-06-15',
         endDate: '2024-06-16',
       };
@@ -620,7 +620,7 @@ describe('ReplicatedShowsTable', () => {
       const show: ReplicatedShow = {
         id: 'show-1',
         name: 'Test Show',
-        type: 'Obedience',
+        organization: 'Obedience',
         startDate: '2024-06-15',
         endDate: '2024-06-16',
       };
@@ -643,7 +643,7 @@ describe('ReplicatedShowsTable', () => {
     it('should create new show with generated ID', async () => {
       const newShowData: Omit<ReplicatedShow, 'id'> = {
         name: 'New Show',
-        type: 'Agility',
+        organization: 'Agility',
         startDate: '2024-09-15',
         endDate: '2024-09-16',
         location: 'Event Center',
@@ -654,7 +654,7 @@ describe('ReplicatedShowsTable', () => {
 
       expect(result.id).toBeDefined();
       expect(result.name).toBe('New Show');
-      expect(result.type).toBe('Agility');
+      expect(result.organization).toBe('Agility');
       expect(result._version).toBe(1);
       expect(result._syncStatus).toBe('pending');
       expect(result._localOnly).toBe(true);
@@ -668,7 +668,7 @@ describe('ReplicatedShowsTable', () => {
     it('should set metadata fields on creation', async () => {
       const result = await table.createShow({
         name: 'Test Show',
-        type: 'Obedience',
+        organization: 'Obedience',
         startDate: '2024-06-15',
         endDate: '2024-06-16',
       });
@@ -682,7 +682,7 @@ describe('ReplicatedShowsTable', () => {
     it('should create show with full metadata', async () => {
       const result = await table.createShow({
         name: 'Premium Show',
-        type: 'Rally',
+        organization: 'Rally',
         startDate: '2024-10-15',
         endDate: '2024-10-16',
         location: 'Outdoor Arena',
@@ -747,7 +747,7 @@ describe('ReplicatedShowsTable', () => {
         {
           id: 'show-1',
           name: 'Remote Show',
-          type: 'Obedience',
+          organization: 'Obedience',
           start_date: '2024-06-15',
           end_date: '2024-06-16',
           location: 'Remote Location',
@@ -791,7 +791,7 @@ describe('ReplicatedShowsTable', () => {
       const show = await table.get('show-1');
       expect(show).not.toBeNull();
       expect(show?.name).toBe('Remote Show');
-      expect(show?.type).toBe('Obedience');
+      expect(show?.organization).toBe('Obedience');
       expect(show?.startDate).toBe('2024-06-15');
       expect(show?.endDate).toBe('2024-06-16');
       expect(show?.chairman).toBe('John Doe');
@@ -804,7 +804,7 @@ describe('ReplicatedShowsTable', () => {
       const localShow: ReplicatedShow = {
         id: 'show-1',
         name: 'Local Show',
-        type: 'Obedience',
+        organization: 'Obedience',
         startDate: '2024-06-15',
         endDate: '2024-06-16',
         location: 'Local Location',
@@ -816,7 +816,7 @@ describe('ReplicatedShowsTable', () => {
         {
           id: 'show-1',
           name: 'Remote Show',
-          type: 'Agility',
+          organization: 'Agility',
           start_date: '2024-06-20',
           end_date: '2024-06-21',
           location: 'Remote Location',
@@ -846,7 +846,7 @@ describe('ReplicatedShowsTable', () => {
       // Server wins - remote data should be in cache
       const show = await table.get('show-1');
       expect(show?.name).toBe('Remote Show');
-      expect(show?.type).toBe('Agility');
+      expect(show?.organization).toBe('Agility');
       expect(show?.startDate).toBe('2024-06-20');
       expect(show?.location).toBe('Remote Location');
     });
@@ -984,7 +984,7 @@ describe('ReplicatedShowsTable', () => {
         {
           id: 'show-1',
           name: 'Show 1',
-          type: 'Obedience',
+          organization: 'Obedience',
           start_date: '2024-06-15',
           end_date: '2024-06-16',
           updated_at: '2024-01-01T10:00:00Z',
@@ -992,7 +992,7 @@ describe('ReplicatedShowsTable', () => {
         {
           id: 'show-2',
           name: 'Show 2',
-          type: 'Agility',
+          organization: 'Agility',
           start_date: '2024-07-15',
           end_date: '2024-07-16',
           updated_at: '2024-01-01T11:00:00Z',
@@ -1000,7 +1000,7 @@ describe('ReplicatedShowsTable', () => {
         {
           id: 'show-3',
           name: 'Show 3',
-          type: 'Rally',
+          organization: 'Rally',
           start_date: '2024-08-15',
           end_date: '2024-08-16',
           updated_at: '2024-01-01T12:00:00Z',
@@ -1042,7 +1042,7 @@ describe('ReplicatedShowsTable', () => {
       const localShow: ReplicatedShow = {
         id: 'show-1',
         name: 'Local Name',
-        type: 'Obedience',
+        organization: 'Obedience',
         startDate: '2024-06-15',
         endDate: '2024-06-16',
         location: 'Local Location',
@@ -1052,7 +1052,7 @@ describe('ReplicatedShowsTable', () => {
       const remoteShow: ReplicatedShow = {
         id: 'show-1',
         name: 'Remote Name',
-        type: 'Agility',
+        organization: 'Agility',
         startDate: '2024-06-20',
         endDate: '2024-06-21',
         location: 'Remote Location',
@@ -1070,7 +1070,7 @@ describe('ReplicatedShowsTable', () => {
       // Server wins - remote show should be returned
       expect(resolved).toBe(remoteShow);
       expect(resolved.name).toBe('Remote Name');
-      expect(resolved.type).toBe('Agility');
+      expect(resolved.organization).toBe('Agility');
       expect(resolved.location).toBe('Remote Location');
       expect(resolved.preEntryFee).toBe(40.0);
     });
@@ -1079,7 +1079,7 @@ describe('ReplicatedShowsTable', () => {
       const local: ReplicatedShow = {
         id: 'show-1',
         name: 'Local Show',
-        type: 'Obedience',
+        organization: 'Obedience',
         startDate: '2024-06-15',
         endDate: '2024-06-16',
         maxTotalEntries: 100,
@@ -1088,7 +1088,7 @@ describe('ReplicatedShowsTable', () => {
       const remote: ReplicatedShow = {
         id: 'show-1',
         name: 'Remote Show',
-        type: 'Agility',
+        organization: 'Agility',
         startDate: '2024-07-15',
         endDate: '2024-07-16',
         maxTotalEntries: 200,
@@ -1103,7 +1103,7 @@ describe('ReplicatedShowsTable', () => {
 
       expect(resolved).toBe(remote);
       expect(resolved.name).toBe('Remote Show');
-      expect(resolved.type).toBe('Agility');
+      expect(resolved.organization).toBe('Agility');
       expect(resolved.maxTotalEntries).toBe(200);
     });
   });
@@ -1113,7 +1113,7 @@ describe('ReplicatedShowsTable', () => {
       const remoteShow = {
         id: 'show-1',
         name: 'Test Show',
-        type: 'Obedience',
+        organization: 'Obedience',
         start_date: '2024-06-15',
         end_date: '2024-06-16',
         location: 'Test Location',
@@ -1167,7 +1167,7 @@ describe('ReplicatedShowsTable', () => {
       const remoteShow = {
         id: 'show-1',
         name: 'Minimal Show',
-        type: 'Obedience',
+        organization: 'Obedience',
         start_date: '2024-06-15',
         end_date: '2024-06-16',
         location: null,
@@ -1205,7 +1205,7 @@ describe('ReplicatedShowsTable', () => {
 
       const show = await table.get('show-1');
       expect(show?.name).toBe('Minimal Show');
-      expect(show?.type).toBe('Obedience');
+      expect(show?.organization).toBe('Obedience');
       expect(show?.location).toBeUndefined();
       expect(show?.status).toBeUndefined();
       expect(show?.entryOpenDate).toBeUndefined();
@@ -1220,21 +1220,21 @@ describe('ReplicatedShowsTable', () => {
         {
           id: 'show-1',
           name: 'Show 1',
-          type: 'Obedience',
+          organization: 'Obedience',
           startDate: '2024-06-15',
           endDate: '2024-06-16',
         },
         {
           id: 'show-2',
           name: 'Show 2',
-          type: 'Agility',
+          organization: 'Agility',
           startDate: '2024-07-15',
           endDate: '2024-07-16',
         },
         {
           id: 'show-3',
           name: 'Show 3',
-          type: 'Rally',
+          organization: 'Rally',
           startDate: '2024-08-15',
           endDate: '2024-08-16',
         },
@@ -1256,14 +1256,14 @@ describe('ReplicatedShowsTable', () => {
         {
           id: 'show-1',
           name: 'Show 1',
-          type: 'Obedience',
+          organization: 'Obedience',
           startDate: '2024-06-15',
           endDate: '2024-06-16',
         },
         {
           id: 'show-2',
           name: 'Show 2',
-          type: 'Agility',
+          organization: 'Agility',
           startDate: '2024-07-15',
           endDate: '2024-07-16',
         },
@@ -1283,7 +1283,7 @@ describe('ReplicatedShowsTable', () => {
       const show: ReplicatedShow = {
         id: 'show-1',
         name: 'Test Show',
-        type: 'Obedience',
+        organization: 'Obedience',
         startDate: '2024-06-15',
         endDate: '2024-06-16',
       };
@@ -1310,7 +1310,7 @@ describe('ReplicatedShowsTable', () => {
       await table.set('show-1', {
         id: 'show-1',
         name: 'Test Show',
-        type: 'Obedience',
+        organization: 'Obedience',
         startDate: '2024-06-15',
         endDate: '2024-06-16',
       });
@@ -1335,7 +1335,7 @@ describe('ReplicatedShowsTable', () => {
       await table.set('show-1', {
         id: 'show-1',
         name: 'Test Show',
-        type: 'Obedience',
+        organization: 'Obedience',
         startDate: '2024-06-15',
         endDate: '2024-06-16',
       });
@@ -1352,7 +1352,7 @@ describe('ReplicatedShowsTable', () => {
       const minimalShow: ReplicatedShow = {
         id: 'show-1',
         name: 'Minimal Show',
-        type: 'Obedience',
+        organization: 'Obedience',
         startDate: '2024-06-15',
         endDate: '2024-06-16',
       };
@@ -1370,7 +1370,7 @@ describe('ReplicatedShowsTable', () => {
       const show: ReplicatedShow = {
         id: 'show-1',
         name: 'Test Show',
-        type: 'Obedience',
+        organization: 'Obedience',
         startDate: '2024-06-15',
         endDate: '2024-06-16',
       };
@@ -1394,7 +1394,7 @@ describe('ReplicatedShowsTable', () => {
       const show: ReplicatedShow = {
         id: 'show-1',
         name: "Annual Show <2024> & Dog's Day",
-        type: 'Obedience',
+        organization: 'Obedience',
         startDate: '2024-06-15',
         endDate: '2024-06-16',
         location: 'Park "North" & Recreation Center',
@@ -1413,7 +1413,7 @@ describe('ReplicatedShowsTable', () => {
       const show: ReplicatedShow = {
         id: 'show-1',
         name: 'Large Show',
-        type: 'Obedience',
+        organization: 'Obedience',
         startDate: '2024-06-15',
         endDate: '2024-06-16',
         maxEntriesPerDog: 999,
@@ -1431,7 +1431,7 @@ describe('ReplicatedShowsTable', () => {
       const show: ReplicatedShow = {
         id: 'show-1',
         name: 'Free Show',
-        type: 'Obedience',
+        organization: 'Obedience',
         startDate: '2024-06-15',
         endDate: '2024-06-16',
         preEntryFee: 0,
@@ -1449,7 +1449,7 @@ describe('ReplicatedShowsTable', () => {
       const show: ReplicatedShow = {
         id: 'show-1',
         name: 'One Day Show',
-        type: 'Obedience',
+        organization: 'Obedience',
         startDate: '2024-06-15',
         endDate: '2024-06-15', // Same as start date
       };
@@ -1467,7 +1467,7 @@ describe('ReplicatedShowsTable', () => {
       // 1. Create draft show
       const show = await table.createShow({
         name: 'Annual Show 2024',
-        type: 'Obedience',
+        organization: 'Obedience',
         startDate: '2024-06-15',
         endDate: '2024-06-16',
         status: 'draft',
@@ -1510,7 +1510,7 @@ describe('ReplicatedShowsTable', () => {
       // Create multiple shows
       const showData = Array.from({ length: 5 }, (_, i) => ({
         name: `Show ${i + 1}`,
-        type: 'Obedience',
+        organization: 'Obedience',
         startDate: `2024-0${i + 6}-15`,
         endDate: `2024-0${i + 6}-16`,
         clubId: 'club-123',
@@ -1530,7 +1530,7 @@ describe('ReplicatedShowsTable', () => {
         {
           id: 'show-1',
           name: 'Show 1',
-          type: 'Obedience',
+          organization: 'Obedience',
           startDate: '2024-06-15',
           endDate: '2024-06-16',
           status: 'active',
@@ -1539,7 +1539,7 @@ describe('ReplicatedShowsTable', () => {
         {
           id: 'show-2',
           name: 'Show 2',
-          type: 'Agility',
+          organization: 'Agility',
           startDate: '2026-07-15',
           endDate: '2026-07-16',
           status: 'draft',
@@ -1548,7 +1548,7 @@ describe('ReplicatedShowsTable', () => {
         {
           id: 'show-3',
           name: 'Show 3',
-          type: 'Rally',
+          organization: 'Rally',
           startDate: '2026-08-15',
           endDate: '2026-08-16',
           status: 'active',
@@ -1582,7 +1582,7 @@ describe('ReplicatedShowsTable', () => {
       const localShow: ReplicatedShow = {
         id: 'show-1',
         name: 'Local Show Name',
-        type: 'Obedience',
+        organization: 'Obedience',
         startDate: '2024-06-15',
         endDate: '2024-06-16',
         location: 'Local Location',
@@ -1595,7 +1595,7 @@ describe('ReplicatedShowsTable', () => {
       const remoteShow = {
         id: 'show-1',
         name: 'Server Show Name',
-        type: 'Agility',
+        organization: 'Agility',
         start_date: '2024-06-20',
         end_date: '2024-06-21',
         location: 'Server Location',
@@ -1625,7 +1625,7 @@ describe('ReplicatedShowsTable', () => {
       // Server wins
       const show = await table.get('show-1');
       expect(show?.name).toBe('Server Show Name');
-      expect(show?.type).toBe('Agility');
+      expect(show?.organization).toBe('Agility');
       expect(show?.location).toBe('Server Location');
     });
   });

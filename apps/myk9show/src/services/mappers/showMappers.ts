@@ -9,7 +9,7 @@ import { logger } from '@/services/LoggingService';
 export const mapShowInputToInsert = (input: ShowInput): DbShowInsert => {
   return {
     name: input.name,
-    type: input.type,
+    organization: input.organization,
     start_date: input.startDate,
     end_date: input.endDate,
     location: input.location,
@@ -25,7 +25,7 @@ export const mapShowInputToInsert = (input: ShowInput): DbShowInsert => {
     max_entries_per_dog: null, // Will be set from trials
     max_total_entries: null, // Will be set from trials
     allow_non_owner_handlers: true, // Default to true
-    
+
     // Note: events, source, club_name, club_address, club_email do NOT exist in the
     // database schema. These are app-only fields derived from the club relation or
     // computed locally. Sending them to Supabase would cause insert errors.
@@ -40,7 +40,7 @@ export const mapShowInputToUpdate = (input: Partial<ShowInput>): DbShowUpdate =>
   const update: Record<string, unknown> = {};
 
   if (input.name !== undefined) update.name = input.name;
-  if (input.type !== undefined) update.type = input.type;
+  if (input.organization !== undefined) update.organization = input.organization;
   if (input.startDate !== undefined) update.start_date = input.startDate;
   if (input.endDate !== undefined) update.end_date = input.endDate;
   if (input.location !== undefined) update.location = input.location;
@@ -48,12 +48,13 @@ export const mapShowInputToUpdate = (input: Partial<ShowInput>): DbShowUpdate =>
   if (input.entryOpenDate !== undefined) update.entry_open_date = input.entryOpenDate;
   if (input.entryCloseDate !== undefined) update.entry_close_date = input.entryCloseDate;
   if (input.preEntryFee !== undefined) update.pre_entry_fee = parseFloat(input.preEntryFee) || null;
-  if (input.dayOfShowFee !== undefined) update.day_of_show_fee = input.dayOfShowFee ? parseFloat(input.dayOfShowFee) : null;
+  if (input.dayOfShowFee !== undefined)
+    update.day_of_show_fee = input.dayOfShowFee ? parseFloat(input.dayOfShowFee) : null;
   if (input.clubId !== undefined) update.club_id = input.clubId;
   if (input.chairman !== undefined) update.chairman = input.chairman;
   if (input.secretary !== undefined) update.secretary = input.secretary;
   if (input.chiefSteward !== undefined) update.chief_steward = input.chiefSteward;
-  
+
   // Note: events, source, club_name, club_address, club_email do NOT exist in the
   // database schema. These are app-only fields derived from the club relation or
   // computed locally. assignedJudges are stored in the separate judge_assignments table.
@@ -64,7 +65,15 @@ export const mapShowInputToUpdate = (input: Partial<ShowInput>): DbShowUpdate =>
 /**
  * Maps DbShow (from Supabase) to Show (for Zustand store)
  */
-export const mapDatabaseToShow = (dbShow: DbShow & { trial?: unknown[], trials?: unknown[], club?: unknown, judge_assignment?: unknown[], judge_assignments?: unknown[] }): Show => {
+export const mapDatabaseToShow = (
+  dbShow: DbShow & {
+    trial?: unknown[];
+    trials?: unknown[];
+    club?: unknown;
+    judge_assignment?: unknown[];
+    judge_assignments?: unknown[];
+  }
+): Show => {
   // Map trials from database format (if available)
   // Supabase returns the key matching the table name ("trials", plural) or the alias ("trial", singular)
   const rawTrials = dbShow.trials || dbShow.trial || [];
@@ -89,25 +98,31 @@ export const mapDatabaseToShow = (dbShow: DbShow & { trial?: unknown[], trials?:
           maxDogsPerHandler: classObj.max_dogs_per_handler as number | undefined,
           level: classObj.level as string | undefined,
           breedRestrictions: (classObj.breed_restrictions || []) as string[],
-          ageRestrictions: classObj.age_restrictions ? {
-            min: (classObj.age_restrictions as Record<string, unknown>).min as number,
-            max: (classObj.age_restrictions as Record<string, unknown>).max as number
-          } : undefined,
-          heightRestrictions: classObj.height_restrictions ? {
-            min: (classObj.height_restrictions as Record<string, unknown>).min as number,
-            max: (classObj.height_restrictions as Record<string, unknown>).max as number
-          } : undefined,
-          handlerAgeRestrictions: classObj.handler_age_restrictions ? {
-            min: (classObj.handler_age_restrictions as Record<string, unknown>).min as number,
-            max: (classObj.handler_age_restrictions as Record<string, unknown>).max as number
-          } : undefined,
+          ageRestrictions: classObj.age_restrictions
+            ? {
+                min: (classObj.age_restrictions as Record<string, unknown>).min as number,
+                max: (classObj.age_restrictions as Record<string, unknown>).max as number,
+              }
+            : undefined,
+          heightRestrictions: classObj.height_restrictions
+            ? {
+                min: (classObj.height_restrictions as Record<string, unknown>).min as number,
+                max: (classObj.height_restrictions as Record<string, unknown>).max as number,
+              }
+            : undefined,
+          handlerAgeRestrictions: classObj.handler_age_restrictions
+            ? {
+                min: (classObj.handler_age_restrictions as Record<string, unknown>).min as number,
+                max: (classObj.handler_age_restrictions as Record<string, unknown>).max as number,
+              }
+            : undefined,
           startTime: classObj.start_time as string | undefined,
-          estimatedDuration: classObj.estimated_duration as number | undefined
+          estimatedDuration: classObj.estimated_duration as number | undefined,
         };
       }),
       maxEntriesPerDog: trialObj.max_entries_per_dog as number | undefined,
       maxTotalEntries: trialObj.max_total_entries as number | undefined,
-      maxEntriesPerHandler: trialObj.max_entries_per_handler as number | undefined
+      maxEntriesPerHandler: trialObj.max_entries_per_handler as number | undefined,
     };
   });
 
@@ -122,45 +137,61 @@ export const mapDatabaseToShow = (dbShow: DbShow & { trial?: unknown[], trials?:
     .map((assignment: unknown) => {
       const assignmentObj = assignment as Record<string, unknown>;
       const judge = assignmentObj.judge as Record<string, unknown>;
-      
+
       return {
         judgeId: assignmentObj.judge_id as string,
         judgeName: `${judge?.first_name || ''} ${judge?.last_name || ''}`.trim(),
-        assignedDate: (assignmentObj.assignment_date as string) || new Date().toISOString().split('T')[0],
-        availableStartTime: (assignmentObj.special_requirements as string)?.includes('morning') ? 'Morning' : 'Full Day',
-        availableEndTime: (assignmentObj.special_requirements as string)?.includes('afternoon') ? 'Afternoon' : 'Full Day',
+        assignedDate:
+          (assignmentObj.assignment_date as string) || new Date().toISOString().split('T')[0],
+        availableStartTime: (assignmentObj.special_requirements as string)?.includes('morning')
+          ? 'Morning'
+          : 'Full Day',
+        availableEndTime: (assignmentObj.special_requirements as string)?.includes('afternoon')
+          ? 'Afternoon'
+          : 'Full Day',
         // Additional fields from judge_assignment table
-        assignmentStatus: assignmentObj.assignment_status as string || 'confirmed',
-        compensationAmount: assignmentObj.compensation_amount as number || undefined,
-        expensesCovered: assignmentObj.expenses_covered as boolean || false,
-        travelProvided: assignmentObj.travel_provided as boolean || false,
-        specialRequirements: assignmentObj.special_requirements as string || undefined,
-        notes: assignmentObj.notes as string || undefined,
-        confirmedBy: assignmentObj.confirmed_by as string || undefined,
-        confirmedAt: assignmentObj.confirmed_at as string || undefined
+        assignmentStatus: (assignmentObj.assignment_status as string) || 'confirmed',
+        compensationAmount: (assignmentObj.compensation_amount as number) || undefined,
+        expensesCovered: (assignmentObj.expenses_covered as boolean) || false,
+        travelProvided: (assignmentObj.travel_provided as boolean) || false,
+        specialRequirements: (assignmentObj.special_requirements as string) || undefined,
+        notes: (assignmentObj.notes as string) || undefined,
+        confirmedBy: (assignmentObj.confirmed_by as string) || undefined,
+        confirmedAt: (assignmentObj.confirmed_at as string) || undefined,
       };
     });
 
   return {
     id: dbShow.id,
     name: dbShow.name,
-    type: dbShow.type,
+    organization: dbShow.organization,
     startDate: dbShow.start_date,
     endDate: dbShow.end_date,
     location: dbShow.location || '',
     status: dbShow.status || 'upcoming',
-    events: [dbShow.type], // Convert the type to an events array
+    events: [dbShow.organization], // Convert the organization to an events array
     source: ((dbShow as Record<string, unknown>).source as 'myK9Show' | 'external') || 'myK9Show', // Use source from database or default
     entryOpenDate: dbShow.entry_open_date || '',
     entryCloseDate: dbShow.entry_close_date || '',
     preEntryFee: dbShow.pre_entry_fee?.toString() || '0',
     dayOfShowFee: dbShow.day_of_show_fee?.toString() || undefined,
     entryDeadline: (dbShow as Record<string, unknown>).entry_deadline as string | undefined,
-    lateEntryDeadline: (dbShow as Record<string, unknown>).late_entry_deadline as string | undefined,
+    lateEntryDeadline: (dbShow as Record<string, unknown>).late_entry_deadline as
+      | string
+      | undefined,
     clubId: dbShow.club_id || '',
-    clubName: (dbShow as Record<string, unknown>).club_name as string || (dbShow.club as Record<string, unknown>)?.name as string || '', // Direct field or relation
-    clubAddress: (dbShow as Record<string, unknown>).club_address as string || (dbShow.club as Record<string, unknown>)?.address as string || '', // Direct field or relation
-    clubEmail: (dbShow as Record<string, unknown>).club_email as string || (dbShow.club as Record<string, unknown>)?.email as string || '', // Direct field or relation
+    clubName:
+      ((dbShow as Record<string, unknown>).club_name as string) ||
+      ((dbShow.club as Record<string, unknown>)?.name as string) ||
+      '', // Direct field or relation
+    clubAddress:
+      ((dbShow as Record<string, unknown>).club_address as string) ||
+      ((dbShow.club as Record<string, unknown>)?.address as string) ||
+      '', // Direct field or relation
+    clubEmail:
+      ((dbShow as Record<string, unknown>).club_email as string) ||
+      ((dbShow.club as Record<string, unknown>)?.email as string) ||
+      '', // Direct field or relation
     chairman: dbShow.chairman || '',
     secretary: dbShow.secretary || '',
     chiefSteward: dbShow.chief_steward || '',
@@ -176,14 +207,22 @@ export const mapDatabaseToShow = (dbShow: DbShow & { trial?: unknown[], trials?:
     _lastModified: new Date(dbShow.updated_at || dbShow.created_at || new Date().toISOString()),
     _lastModifiedBy: 'system', // Default value
     _syncStatus: 'synced',
-    _localOnly: false
+    _localOnly: false,
   };
 };
 
 /**
  * Maps array of DbShow to array of Show
  */
-export const mapDatabaseShowsArray = (dbShows: (DbShow & { trial?: unknown[], trials?: unknown[], club?: unknown, judge_assignment?: unknown[], judge_assignments?: unknown[] })[]): Show[] => {
+export const mapDatabaseShowsArray = (
+  dbShows: (DbShow & {
+    trial?: unknown[];
+    trials?: unknown[];
+    club?: unknown;
+    judge_assignment?: unknown[];
+    judge_assignments?: unknown[];
+  })[]
+): Show[] => {
   return dbShows.map(mapDatabaseToShow);
 };
 
@@ -193,7 +232,7 @@ export const mapDatabaseShowsArray = (dbShows: (DbShow & { trial?: unknown[], tr
 export const mapShowToShowInput = (show: Show): ShowInput => {
   return {
     name: show.name,
-    type: show.type,
+    organization: show.organization,
     startDate: show.startDate,
     endDate: show.endDate,
     location: show.location,
@@ -212,7 +251,7 @@ export const mapShowToShowInput = (show: Show): ShowInput => {
     secretary: show.secretary,
     chiefSteward: show.chiefSteward,
     assignedJudges: show.assignedJudges,
-    trials: show.trials
+    trials: show.trials,
   };
 };
 
@@ -221,7 +260,7 @@ export const mapShowToShowInput = (show: Show): ShowInput => {
  */
 export const safeParseJson = <T>(jsonString: string | null | undefined, fallback: T): T => {
   if (!jsonString) return fallback;
-  
+
   try {
     return JSON.parse(jsonString) as T;
   } catch (error) {
@@ -240,8 +279,8 @@ export const validateShowData = (show: Show | ShowInput): string[] => {
     errors.push('Show name is required');
   }
 
-  if (!show.type?.trim()) {
-    errors.push('Show type is required');
+  if (!show.organization?.trim()) {
+    errors.push('Organization is required');
   }
 
   if (!show.startDate) {
@@ -280,7 +319,11 @@ export const validateShowData = (show: Show | ShowInput): string[] => {
     errors.push('Entry close date is required');
   }
 
-  if (show.entryOpenDate && show.entryCloseDate && new Date(show.entryOpenDate) > new Date(show.entryCloseDate)) {
+  if (
+    show.entryOpenDate &&
+    show.entryCloseDate &&
+    new Date(show.entryOpenDate) > new Date(show.entryCloseDate)
+  ) {
     errors.push('Entry open date must be before entry close date');
   }
 
@@ -309,7 +352,7 @@ export const createDefaultShowInput = (): Partial<ShowInput> => {
 
   return {
     name: '',
-    type: 'Agility Trial',
+    organization: 'AKC',
     startDate: startDate.toISOString(),
     endDate: endDate.toISOString(),
     location: '',
@@ -328,6 +371,6 @@ export const createDefaultShowInput = (): Partial<ShowInput> => {
     secretary: '',
     chiefSteward: '',
     assignedJudges: [],
-    trials: []
+    trials: [],
   };
 };

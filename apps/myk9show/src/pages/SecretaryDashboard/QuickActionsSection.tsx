@@ -52,15 +52,10 @@ export const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Active trials</span>
-              <span className="font-medium text-success-green">
-                {statistics.activeTrials || 0}
-              </span>
+              <span className="font-medium text-success-green">{statistics.activeTrials || 0}</span>
             </div>
           </div>
-          <Button
-            className="w-full mt-6 bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20 text-primary hover:bg-gradient-to-r hover:from-primary hover:to-secondary hover:text-white hover:shadow-sm hover:-translate-y-1 transition-all duration-300 font-semibold py-3"
-            variant="outline"
-          >
+          <Button className="w-full mt-6 font-semibold py-3">
             <FileText className="h-4 w-4 mr-2" />
             Enter Results
           </Button>
@@ -98,10 +93,7 @@ export const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
               <span className="font-medium">{showsCount || 0}</span>
             </div>
           </div>
-          <Button
-            className="w-full mt-6 bg-gradient-to-r from-blue-500/10 to-blue-500/5 border-blue-500/20 text-blue-600 hover:bg-gradient-to-r hover:from-blue-500 hover:to-blue-600 hover:text-white hover:shadow-sm hover:-translate-y-1 transition-all duration-300 font-semibold py-3"
-            variant="outline"
-          >
+          <Button className="w-full mt-6 font-semibold py-3">
             <Download className="h-4 w-4 mr-2" />
             Export Data
           </Button>
@@ -143,15 +135,10 @@ export const QuickActionsSection: React.FC<QuickActionsSectionProps> = ({
           ) : (
             <div className="py-8 text-center">
               <p className="text-sm text-muted-foreground">No pending actions</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                All trials are up to date
-              </p>
+              <p className="text-xs text-muted-foreground mt-1">All trials are up to date</p>
             </div>
           )}
-          <Button
-            className="w-full mt-6 bg-gradient-to-r from-warning-orange/10 to-error-red/5 border-warning-orange/20 text-warning-orange hover:bg-gradient-to-r hover:from-warning-orange hover:to-error-red hover:text-white hover:shadow-sm hover:-translate-y-1 transition-all duration-300 font-semibold py-3"
-            variant="outline"
-          >
+          <Button className="w-full mt-6 font-semibold py-3">
             <AlertCircle className="h-4 w-4 mr-2" />
             View All Issues
           </Button>

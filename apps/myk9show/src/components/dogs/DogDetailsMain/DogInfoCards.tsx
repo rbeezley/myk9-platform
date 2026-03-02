@@ -9,16 +9,22 @@ const DogInfoCards: React.FC<DogInfoCardsProps> = ({ dog, onEditPanelOpen }) => 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Basic Dog Information Card */}
-      <Card className="group bg-gradient-to-br from-card/95 to-card/80 apple-subtle-card-border
+      <Card
+        className="group bg-gradient-to-br from-card/95 to-card/80 myk9-subtle-card-border
                        rounded-2xl p-6 shadow-md backdrop-blur-xl transition-all duration-500
-                       hover:shadow-xl hover:-translate-y-1 hover:border-primary/20">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/[0.02] to-transparent
-                        opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-2xl" />
+                       hover:shadow-xl hover:-translate-y-1 hover:border-primary/20"
+      >
+        <div
+          className="absolute inset-0 bg-gradient-to-br from-blue-500/[0.02] to-transparent
+                        opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-2xl"
+        />
 
         <div className="relative space-y-6">
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-2.5 bg-gradient-to-br from-pink-500/10 to-rose-500/5 rounded-xl
-                           hover:scale-110 transition-transform duration-200">
+            <div
+              className="p-2.5 bg-gradient-to-br from-pink-500/10 to-rose-500/5 rounded-xl
+                           hover:scale-110 transition-transform duration-200"
+            >
               <Heart className="h-5 w-5 text-pink-500 hover:text-rose-500 transition-colors duration-200" />
             </div>
             <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
@@ -26,19 +32,19 @@ const DogInfoCards: React.FC<DogInfoCardsProps> = ({ dog, onEditPanelOpen }) => 
             </h3>
           </div>
 
-          <div className="space-y-4">
-            <div className="flex items-center justify-between py-3" style={{ borderBottom: '0.5px solid rgba(128, 128, 128, 0.2)' }}>
-              <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
+          <div className="grid grid-cols-2 gap-x-8 gap-y-5">
+            <div className="flex flex-col pb-3 border-b border-border/30">
+              <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-1">
                 Sex
               </span>
               <EditableValue
                 value={dog.gender}
                 onEdit={onEditPanelOpen}
-                formatFn={(val) => val.charAt(0).toUpperCase() + val.slice(1)}
+                formatFn={val => val.charAt(0).toUpperCase() + val.slice(1)}
               />
             </div>
-            <div className="flex items-center justify-between py-3">
-              <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
+            <div className="flex flex-col pb-3 border-b border-border/30">
+              <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-1">
                 Date of Birth
               </span>
               <EditableValue
@@ -52,11 +58,15 @@ const DogInfoCards: React.FC<DogInfoCardsProps> = ({ dog, onEditPanelOpen }) => 
       </Card>
 
       {/* Physical Characteristics Card */}
-      <Card className="group bg-gradient-to-br from-card/95 to-card/80 apple-subtle-card-border
+      <Card
+        className="group bg-gradient-to-br from-card/95 to-card/80 myk9-subtle-card-border
                        rounded-2xl p-6 shadow-md backdrop-blur-xl transition-all duration-500
-                       hover:shadow-xl hover:-translate-y-1 hover:border-primary/20">
-        <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/[0.02] to-transparent
-                        opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-2xl" />
+                       hover:shadow-xl hover:-translate-y-1 hover:border-primary/20"
+      >
+        <div
+          className="absolute inset-0 bg-gradient-to-br from-emerald-500/[0.02] to-transparent
+                        opacity-0 group-hover:opacity-100 transition-opacity duration-700 rounded-2xl"
+        />
 
         <div className="relative space-y-6">
           <div className="flex items-center gap-3 mb-6">
@@ -68,44 +78,30 @@ const DogInfoCards: React.FC<DogInfoCardsProps> = ({ dog, onEditPanelOpen }) => 
             </h3>
           </div>
 
-          <div className="space-y-4">
-            <div className="flex items-center justify-between py-3" style={{ borderBottom: '0.5px solid rgba(128, 128, 128, 0.2)' }}>
-              <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
+          <div className="grid grid-cols-2 gap-x-8 gap-y-5">
+            <div className="flex flex-col pb-3 border-b border-border/30">
+              <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-1">
                 Height
               </span>
-              <EditableValue
-                value={dog.height}
-                onEdit={onEditPanelOpen}
-                suffix='"'
-              />
+              <EditableValue value={dog.height} onEdit={onEditPanelOpen} suffix='"' />
             </div>
-            <div className="flex items-center justify-between py-3" style={{ borderBottom: '0.5px solid rgba(128, 128, 128, 0.2)' }}>
-              <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
+            <div className="flex flex-col pb-3 border-b border-border/30">
+              <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-1">
                 Weight
               </span>
-              <EditableValue
-                value={dog.weight}
-                onEdit={onEditPanelOpen}
-                suffix=" lbs"
-              />
+              <EditableValue value={dog.weight} onEdit={onEditPanelOpen} suffix=" lbs" />
             </div>
-            <div className="flex items-center justify-between py-3" style={{ borderBottom: '0.5px solid rgba(128, 128, 128, 0.2)' }}>
-              <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
+            <div className="flex flex-col pb-3 border-b border-border/30">
+              <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-1">
                 Color
               </span>
-              <EditableValue
-                value={dog.color}
-                onEdit={onEditPanelOpen}
-              />
+              <EditableValue value={dog.color} onEdit={onEditPanelOpen} />
             </div>
-            <div className="flex items-center justify-between py-3">
-              <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase">
+            <div className="flex flex-col pb-3 border-b border-border/30">
+              <span className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase mb-1">
                 Microchip
               </span>
-              <EditableValue
-                value={dog.microchipNumber}
-                onEdit={onEditPanelOpen}
-              />
+              <EditableValue value={dog.microchipNumber} onEdit={onEditPanelOpen} />
             </div>
           </div>
         </div>

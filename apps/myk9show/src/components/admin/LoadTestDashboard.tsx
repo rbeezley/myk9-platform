@@ -313,9 +313,6 @@ export function LoadTestDashboard() {
                               size="sm"
                               onClick={() => runSingleTest(scenario)}
                               disabled={isRunning}
-                              className="bg-gradient-to-r from-primary to-secondary text-primary-foreground 
-                                     hover:shadow-xl hover:-translate-y-1 hover:scale-[1.02] 
-                                     transition-all duration-300 shadow-sm"
                             >
                               <Play className="h-3 w-3 mr-1" />
                               Run

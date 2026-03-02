@@ -208,7 +208,7 @@ export class LoadTestService {
       shows.push({
         id: `load-test-show-${i}`,
         name: `${faker.location.city()} Dog Show ${i + 1}`,
-        type: 'Conformation',
+        organization: 'AKC',
         startDate: faker.date.future().toISOString(),
         endDate: faker.date.future().toISOString(),
         location: `${faker.company.name()}, ${faker.location.streetAddress()}, ${faker.location.city()}, ${faker.location.state()} ${faker.location.zipCode()}`,
@@ -260,7 +260,7 @@ export class LoadTestService {
    */
   private async measureRenderPerformance() {
     // Trigger re-renders by navigating to data-heavy pages
-    const pages = ['/dogs', '/people', '/browse-shows'];
+    const pages = ['/dogs', '/people', '/shows'];
     let totalFrames = 0;
     let totalTime = 0;
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useTemplateStore } from '@/store/templateStore';
-import { ClassTemplate, ClassDefinition, Organization, ShowType } from '@/types/template.types';
+import { ClassTemplate, ClassDefinition, Organization, TrialType } from '@/types/template.types';
 import { TemplateForm } from '@/components/templates/admin/TemplateForm';
 import { TemplatePreview } from '@/components/templates/admin/TemplatePreview';
 import { FieldBuilder } from '@/components/templates/admin/FieldBuilder';
@@ -67,7 +67,7 @@ export const TemplateEditorPage: React.FC = () => {
       ? {
           templateName: 'New Template',
           organization: Organization.AKC,
-          showType: ShowType.SCENT_WORK,
+          trialType: TrialType.SCENT_WORK,
           version: '1.0.0',
           description: '',
           isActive: true,
@@ -132,7 +132,7 @@ export const TemplateEditorPage: React.FC = () => {
       errors.push('Organization is required');
     }
 
-    if (!template.showType) {
+    if (!template.trialType) {
       errors.push('Show type is required');
     }
 
@@ -415,7 +415,8 @@ export const TemplateEditorPage: React.FC = () => {
 
         <TabsContent value="fields" className="space-y-6">
           {/* Use new structured field configurator for supported show types */}
-          {template.showType && Object.values(ShowType).includes(template.showType as ShowType) ? (
+          {template.trialType &&
+          Object.values(TrialType).includes(template.trialType as TrialType) ? (
             <FieldConfigurator
               template={template}
               onChange={handleTemplateChange}

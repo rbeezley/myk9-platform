@@ -93,7 +93,7 @@ export class PredictiveLoader {
         frequency: 1,
         avgLoadTime: loadTime,
         lastAccessed: new Date(),
-        confidence: 0.1
+        confidence: 0.1,
       });
     }
 
@@ -106,7 +106,7 @@ export class PredictiveLoader {
    */
   preloadLikelyViews(currentRoute: string): void {
     const likelyRoutes = this.getLikelyNextRoutes(currentRoute);
-    
+
     for (const route of likelyRoutes) {
       if (route.confidence > 0.3) {
         this.addPreloadTask({
@@ -118,7 +118,7 @@ export class PredictiveLoader {
           confidence: route.confidence,
           createdAt: new Date(),
           status: 'pending',
-          retries: 0
+          retries: 0,
         });
       }
     }
@@ -129,10 +129,13 @@ export class PredictiveLoader {
    */
   generateShowEntryPredictions(dogId?: string): ShowEntryPrediction[] {
     const predictions: ShowEntryPrediction[] = [];
-    const dogs = dogId ? [useDogStore.getState().getDogById(dogId)].filter(Boolean) : useDogStore.getState().dogs;
-    const upcomingShows = useShowStore.getState().shows.filter(show => 
-      new Date(show.startDate) > new Date() && 
-      new Date(show.startDate) < new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) // Next 90 days
+    const dogs = dogId
+      ? [useDogStore.getState().getDogById(dogId)].filter(Boolean)
+      : useDogStore.getState().dogs;
+    const upcomingShows = useShowStore.getState().shows.filter(
+      show =>
+        new Date(show.startDate) > new Date() &&
+        new Date(show.startDate) < new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) // Next 90 days
     );
 
     for (const dog of dogs) {
@@ -179,7 +182,7 @@ export class PredictiveLoader {
         relatedType,
         relatedIds,
         strength: 0.3,
-        lastAccessed: new Date()
+        lastAccessed: new Date(),
       });
     }
 
@@ -214,14 +217,15 @@ export class PredictiveLoader {
         pending: this.preloadQueue.filter(task => task.status === 'pending').length,
         loading: this.preloadQueue.filter(task => task.status === 'loading').length,
         completed: completedTasks.length,
-        failed: failedTasks.length
+        failed: failedTasks.length,
       },
-      successRate: this.preloadQueue.length > 0 
-        ? completedTasks.length / this.preloadQueue.length 
-        : 0,
-      avgConfidence: this.preloadQueue.length > 0
-        ? this.preloadQueue.reduce((sum, task) => sum + task.confidence, 0) / this.preloadQueue.length
-        : 0
+      successRate:
+        this.preloadQueue.length > 0 ? completedTasks.length / this.preloadQueue.length : 0,
+      avgConfidence:
+        this.preloadQueue.length > 0
+          ? this.preloadQueue.reduce((sum, task) => sum + task.confidence, 0) /
+            this.preloadQueue.length
+          : 0,
     };
   }
 
@@ -233,7 +237,7 @@ export class PredictiveLoader {
     this.preloadQueue = [];
     this.relationshipHints.clear();
     this.showEntryPredictions = [];
-    
+
     localStorage.removeItem('myk9show-nav-patterns');
     localStorage.removeItem('myk9show-relationship-hints');
   }
@@ -243,7 +247,7 @@ export class PredictiveLoader {
    */
   private getLikelyNextRoutes(currentRoute: string): NavigationPattern[] {
     const patterns: NavigationPattern[] = [];
-    
+
     for (const [, pattern] of this.navigationPatterns) {
       if (pattern.fromRoute === currentRoute && pattern.confidence > 0.2) {
         patterns.push(pattern);
@@ -267,7 +271,10 @@ export class PredictiveLoader {
     const entityMatch = currentRoute.match(/\/(clubs|people|dogs|shows)\/([^/]+)/);
     if (entityMatch) {
       const [, entityType, entityId] = entityMatch;
-      this.preloadRelatedEntitiesForEntity(entityType as 'clubs' | 'people' | 'dogs' | 'shows', entityId);
+      this.preloadRelatedEntitiesForEntity(
+        entityType as 'clubs' | 'people' | 'dogs' | 'shows',
+        entityId
+      );
     }
   }
 
@@ -286,14 +293,32 @@ export class PredictiveLoader {
   /**
    * Private: Predict entry for specific dog and show
    */
-  private predictEntryForDogAndShow(dog: { id: string; name: string; breed?: string | undefined; ownerId?: string | undefined; isActive?: boolean | undefined; sex?: string | undefined; dateOfBirth?: string | undefined }, show: { id: string; name: string; type?: string | undefined; location?: string | undefined }): ShowEntryPrediction | null {
+  private predictEntryForDogAndShow(
+    dog: {
+      id: string;
+      name: string;
+      breed?: string | undefined;
+      ownerId?: string | undefined;
+      isActive?: boolean | undefined;
+      sex?: string | undefined;
+      dateOfBirth?: string | undefined;
+    },
+    show: {
+      id: string;
+      name: string;
+      organization?: string | undefined;
+      location?: string | undefined;
+    }
+  ): ShowEntryPrediction | null {
     const reasoning: string[] = [];
     let confidence = 0.1;
 
     // Check if dog's breed matches show types
-    if (show.type && dog.breed) {
-      if (show.type.toLowerCase().includes('all breed') || 
-          show.type.toLowerCase().includes(dog.breed.toLowerCase())) {
+    if (show.organization && dog.breed) {
+      if (
+        show.organization.toLowerCase().includes('all breed') ||
+        show.organization.toLowerCase().includes(dog.breed.toLowerCase())
+      ) {
         confidence += 0.3;
         reasoning.push('Breed matches show type');
       }
@@ -304,7 +329,7 @@ export class PredictiveLoader {
       const ownerLocation = useUserStore.getState().people.find(p => p.id === dog.ownerId)?.city;
       if (ownerLocation && show.location.includes(ownerLocation)) {
         confidence += 0.4;
-        reasoning.push('Show in owner\'s city');
+        reasoning.push("Show in owner's city");
       }
     }
 
@@ -323,10 +348,13 @@ export class PredictiveLoader {
       showName: show.name,
       dogId: dog.id,
       dogName: dog.name,
-      classes: this.predictLikelyClasses({ ...(dog.sex !== undefined && { sex: dog.sex }), ...(dog.dateOfBirth !== undefined && { dateOfBirth: dog.dateOfBirth }) }),
+      classes: this.predictLikelyClasses({
+        ...(dog.sex !== undefined && { sex: dog.sex }),
+        ...(dog.dateOfBirth !== undefined && { dateOfBirth: dog.dateOfBirth }),
+      }),
       confidence: Math.min(0.9, confidence),
       reasoning,
-      estimatedEntryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // Estimate 1 week before show
+      estimatedEntryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Estimate 1 week before show
     };
   }
 
@@ -365,7 +393,12 @@ export class PredictiveLoader {
       .slice(0, 3);
 
     for (const hint of hints) {
-      this.preloadRelatedEntities(hint.entityType, hint.entityId, hint.relatedType, hint.relatedIds);
+      this.preloadRelatedEntities(
+        hint.entityType,
+        hint.entityId,
+        hint.relatedType,
+        hint.relatedIds
+      );
     }
   }
 
@@ -373,12 +406,13 @@ export class PredictiveLoader {
    * Private: Preload related entities
    */
   private preloadRelatedEntities(
-    _entityType: string, 
-    _entityId: string, 
-    relatedType: string, 
+    _entityType: string,
+    _entityId: string,
+    relatedType: string,
     relatedIds: string[]
   ): void {
-    for (const relatedId of relatedIds.slice(0, 5)) { // Limit to 5 entities
+    for (const relatedId of relatedIds.slice(0, 5)) {
+      // Limit to 5 entities
       this.addPreloadTask({
         id: `rel-${Date.now()}-${Math.random()}`,
         type: 'relationship',
@@ -388,7 +422,7 @@ export class PredictiveLoader {
         confidence: 0.6,
         createdAt: new Date(),
         status: 'pending',
-        retries: 0
+        retries: 0,
       });
     }
   }
@@ -399,10 +433,10 @@ export class PredictiveLoader {
   private estimateEntitySize(entityType: string): number {
     const sizes = {
       person: 3, // 3KB
-      dog: 5,    // 5KB
-      show: 10,  // 10KB
-      club: 2,   // 2KB
-      entry: 1   // 1KB
+      dog: 5, // 5KB
+      show: 10, // 10KB
+      club: 2, // 2KB
+      entry: 1, // 1KB
     };
     return sizes[entityType as keyof typeof sizes] || 1;
   }
@@ -412,10 +446,8 @@ export class PredictiveLoader {
    */
   private addPreloadTask(task: PreloadTask): void {
     // Check if similar task already exists
-    const existing = this.preloadQueue.find(t => 
-      t.type === task.type && 
-      t.target === task.target && 
-      t.status !== 'failed'
+    const existing = this.preloadQueue.find(
+      t => t.type === task.type && t.target === task.target && t.status !== 'failed'
     );
 
     if (!existing) {
@@ -425,7 +457,7 @@ export class PredictiveLoader {
         const priorityWeight = { high: 3, medium: 2, low: 1 };
         const aPriority = priorityWeight[a.priority];
         const bPriority = priorityWeight[b.priority];
-        
+
         if (aPriority !== bPriority) return bPriority - aPriority;
         return b.confidence - a.confidence;
       });
@@ -462,7 +494,12 @@ export class PredictiveLoader {
     } catch (error) {
       pendingTask.status = 'failed';
       pendingTask.retries += 1;
-      logger.warn('Preload failed', 'prefetch', { type: pendingTask.type, target: pendingTask.target }, error as Error);
+      logger.warn(
+        'Preload failed',
+        'prefetch',
+        { type: pendingTask.type, target: pendingTask.target },
+        error as Error
+      );
 
       // Retry with lower priority if retries < 3
       if (pendingTask.retries < 3) {
@@ -524,7 +561,7 @@ export class PredictiveLoader {
    */
   private async preloadEntity(target: string): Promise<void> {
     const [type, id] = target.split(':');
-    
+
     switch (type) {
       case 'dog':
         void useDogStore.getState().getDogById(id);
@@ -565,9 +602,9 @@ export class PredictiveLoader {
    */
   private cleanupOldTasks(): void {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-    this.preloadQueue = this.preloadQueue.filter(task => 
-      task.createdAt > oneHourAgo && 
-      (task.status === 'pending' || task.status === 'loading')
+    this.preloadQueue = this.preloadQueue.filter(
+      task =>
+        task.createdAt > oneHourAgo && (task.status === 'pending' || task.status === 'loading')
     );
   }
 
@@ -576,11 +613,14 @@ export class PredictiveLoader {
    */
   private setupCleanup(): void {
     // Clean up old data every 30 minutes
-    setInterval(() => {
-      this.cleanupOldTasks();
-      this.cleanupOldPatterns();
-      this.cleanupOldRelationshipHints();
-    }, 30 * 60 * 1000);
+    setInterval(
+      () => {
+        this.cleanupOldTasks();
+        this.cleanupOldPatterns();
+        this.cleanupOldRelationshipHints();
+      },
+      30 * 60 * 1000
+    );
   }
 
   /**
@@ -588,7 +628,7 @@ export class PredictiveLoader {
    */
   private cleanupOldPatterns(): void {
     const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    
+
     for (const [key, pattern] of this.navigationPatterns) {
       if (pattern.lastAccessed < oneWeekAgo && pattern.frequency < 3) {
         this.navigationPatterns.delete(key);
@@ -601,7 +641,7 @@ export class PredictiveLoader {
    */
   private cleanupOldRelationshipHints(): void {
     const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    
+
     for (const [key, hint] of this.relationshipHints) {
       if (hint.lastAccessed < oneWeekAgo && hint.strength < 0.3) {
         this.relationshipHints.delete(key);

@@ -22,9 +22,9 @@ const ClassInfo: React.FC<ClassInfoProps> = ({
 }) => {
   if (!classData) {
     return (
-      <div className="apple-class-info-card">
+      <div className="myk9-class-info-card">
         <div className="text-center py-12">
-          <h2 className="apple-class-info-title">Class Not Found</h2>
+          <h2 className="myk9-class-info-title">Class Not Found</h2>
           <p className="text-muted-foreground">The class you're looking for doesn't exist.</p>
         </div>
       </div>
@@ -34,13 +34,13 @@ const ClassInfo: React.FC<ClassInfoProps> = ({
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Scheduled':
-        return 'apple-class-status-scheduled';
+        return 'myk9-class-status-scheduled';
       case 'In Progress':
-        return 'apple-class-status-in-progress';
+        return 'myk9-class-status-in-progress';
       case 'Completed':
-        return 'apple-class-status-completed';
+        return 'myk9-class-status-completed';
       default:
-        return 'apple-class-status-scheduled';
+        return 'myk9-class-status-scheduled';
     }
   };
 
@@ -52,8 +52,8 @@ const ClassInfo: React.FC<ClassInfoProps> = ({
   };
 
   return (
-    <div className="apple-class-info-card">
-      <div className="apple-class-info-header">
+    <div className="myk9-class-info-card">
+      <div className="myk9-class-info-header">
         <div>
           {onViewTrial && (
             <Button
@@ -66,9 +66,9 @@ const ClassInfo: React.FC<ClassInfoProps> = ({
               Back to {classData.trial}
             </Button>
           )}
-          <h1 className="apple-class-info-title">{formatClassTitle()}</h1>
-          <p className="apple-class-info-subtitle">{classData.className}</p>
-          <div className={`apple-class-status-badge ${getStatusColor(classData.status)}`}>
+          <h1 className="myk9-class-info-title">{formatClassTitle()}</h1>
+          <p className="myk9-class-info-subtitle">{classData.className}</p>
+          <div className={`myk9-class-status-badge ${getStatusColor(classData.status)}`}>
             {classData.status}
           </div>
         </div>
@@ -105,8 +105,8 @@ const ClassInfo: React.FC<ClassInfoProps> = ({
       </div>
 
       {/* Photo Section */}
-      <div className="apple-class-photo-section">
-        <div className="apple-class-photo">
+      <div className="myk9-class-photo-section">
+        <div className="myk9-class-photo">
           {classData.photoUrl ? (
             <img 
               src={classData.photoUrl} 
@@ -119,7 +119,7 @@ const ClassInfo: React.FC<ClassInfoProps> = ({
         </div>
         {onEditPhoto && (
           <button
-            className="apple-class-photo-button"
+            className="myk9-class-photo-button"
             onClick={onEditPhoto}
           >
             {classData.photoUrl ? 'Change Photo' : 'Add Photo'}
@@ -128,73 +128,73 @@ const ClassInfo: React.FC<ClassInfoProps> = ({
       </div>
 
       {/* Information Grid */}
-      <div className="apple-class-info-grid">
-        <div className="apple-class-info-item">
-          <div className="apple-class-info-label">Trial</div>
-          <div className="apple-class-info-value">{classData.trial}</div>
+      <div className="myk9-class-info-grid">
+        <div className="myk9-class-info-item">
+          <div className="myk9-class-info-label">Trial</div>
+          <div className="myk9-class-info-value">{classData.trial}</div>
         </div>
 
-        <div className="apple-class-info-item">
-          <div className="apple-class-info-label">Trial Number</div>
-          <div className="apple-class-info-value">{classData.trialNumber}</div>
+        <div className="myk9-class-info-item">
+          <div className="myk9-class-info-label">Trial Number</div>
+          <div className="myk9-class-info-value">{classData.trialNumber}</div>
         </div>
 
-        <div className="apple-class-info-item">
-          <div className="apple-class-info-label">
+        <div className="myk9-class-info-item">
+          <div className="myk9-class-info-label">
             <Calendar className="h-3 w-3 inline mr-1" />
             Trial Date
           </div>
-          <div className="apple-class-info-value">
+          <div className="myk9-class-info-value">
             {new Date(classData.trialDate).toLocaleDateString()}
           </div>
         </div>
 
-        <div className="apple-class-info-item">
-          <div className="apple-class-info-label">
+        <div className="myk9-class-info-item">
+          <div className="myk9-class-info-label">
             <User className="h-3 w-3 inline mr-1" />
             Judge
           </div>
-          <div className="apple-class-info-value">{classData.judge}</div>
+          <div className="myk9-class-info-value">{classData.judge}</div>
         </div>
 
-        <div className="apple-class-info-item">
-          <div className="apple-class-info-label">Class Order</div>
-          <div className="apple-class-info-value">#{classData.classOrder}</div>
+        <div className="myk9-class-info-item">
+          <div className="myk9-class-info-label">Class Order</div>
+          <div className="myk9-class-info-value">#{classData.classOrder}</div>
         </div>
 
-        <div className="apple-class-info-item">
-          <div className="apple-class-info-label">Entry Fee</div>
-          <div className="apple-class-info-value">${classData.entryFee}</div>
+        <div className="myk9-class-info-item">
+          <div className="myk9-class-info-label">Entry Fee</div>
+          <div className="myk9-class-info-value">${classData.entryFee}</div>
         </div>
 
-        <div className="apple-class-info-item">
-          <div className="apple-class-info-label">Max Entries</div>
-          <div className="apple-class-info-value">{classData.maxEntries}</div>
+        <div className="myk9-class-info-item">
+          <div className="myk9-class-info-label">Max Entries</div>
+          <div className="myk9-class-info-value">{classData.maxEntries}</div>
         </div>
 
-        <div className="apple-class-info-item">
-          <div className="apple-class-info-label">Time Limit</div>
-          <div className="apple-class-info-value">{classData.timeLimit1}</div>
+        <div className="myk9-class-info-item">
+          <div className="myk9-class-info-label">Time Limit</div>
+          <div className="myk9-class-info-value">{classData.timeLimit1}</div>
         </div>
 
         {classData.hidesUsed && (
-          <div className="apple-class-info-item">
-            <div className="apple-class-info-label">Hides Used</div>
-            <div className="apple-class-info-value">{classData.hidesUsed}</div>
+          <div className="myk9-class-info-item">
+            <div className="myk9-class-info-label">Hides Used</div>
+            <div className="myk9-class-info-value">{classData.hidesUsed}</div>
           </div>
         )}
 
         {classData.distractionsUsed && (
-          <div className="apple-class-info-item">
-            <div className="apple-class-info-label">Distractions</div>
-            <div className="apple-class-info-value">{classData.distractionsUsed}</div>
+          <div className="myk9-class-info-item">
+            <div className="myk9-class-info-label">Distractions</div>
+            <div className="myk9-class-info-value">{classData.distractionsUsed}</div>
           </div>
         )}
 
         {classData.itemsUsed && (
-          <div className="apple-class-info-item">
-            <div className="apple-class-info-label">Items Used</div>
-            <div className="apple-class-info-value">{classData.itemsUsed}</div>
+          <div className="myk9-class-info-item">
+            <div className="myk9-class-info-label">Items Used</div>
+            <div className="myk9-class-info-value">{classData.itemsUsed}</div>
           </div>
         )}
       </div>

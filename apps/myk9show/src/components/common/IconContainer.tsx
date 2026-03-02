@@ -1,7 +1,7 @@
 /**
  * IconContainer Component
  * 
- * Apple-inspired icon containers with gradient backgrounds, rounded corners,
+ * Premium icon containers with gradient backgrounds, rounded corners,
  * and sophisticated hover effects. Automatically follows design system.
  */
 

@@ -1,4 +1,4 @@
-import type { Dog, DogInput } from '@/types/dog-types';
+import { getDogDisplayName, type Dog, type DogInput } from '@/types/dog-types';
 
 // Constants
 export const CELEBRATION_DURATION_MS = 3000;
@@ -38,9 +38,8 @@ export function validateImageFile(file: File): { valid: boolean; error?: string 
  */
 export function convertDogToDogInput(dogData: Partial<Dog>, currentDog: Dog): Partial<DogInput> {
   // Extract breed from registrations or use existing dog breed
-  const breed = dogData.registrations?.[0]?.breed ||
-                currentDog.registrations?.[0]?.breed ||
-                'Unknown';
+  const breed =
+    dogData.registrations?.[0]?.breed || currentDog.registrations?.[0]?.breed || 'Unknown';
 
   // Build result object conditionally to comply with exactOptionalPropertyTypes
   const result: Partial<DogInput> = {
@@ -50,7 +49,8 @@ export function convertDogToDogInput(dogData: Partial<Dog>, currentDog: Dog): Pa
   };
 
   // Only add optional properties if they have defined values
-  const name = dogData.callName || dogData.name;
+  const name =
+    getDogDisplayName({ callName: dogData.callName, name: dogData.name || '' }) || undefined;
   if (name !== undefined) result.name = name;
   if (dogData.callName !== undefined) result.callName = dogData.callName;
   const birthDate = dogData.dateOfBirth || dogData.birthDate;
@@ -70,7 +70,7 @@ export function convertDogToDogInput(dogData: Partial<Dog>, currentDog: Dog): Pa
       number: reg.registrationNumber,
       registeredName: reg.registeredName,
       type: reg.breed || 'Unknown',
-      status: reg.status
+      status: reg.status,
     }));
   }
   if (dogData.healthRecords !== undefined) result.healthRecords = dogData.healthRecords;

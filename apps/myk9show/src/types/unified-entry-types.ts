@@ -3,7 +3,7 @@
  * These types ensure consistent data structure between ClassEntriesTable and BulkResultEntry
  */
 
-import { ShowType } from './template.types';
+import { TrialType } from './template.types';
 
 export interface UnifiedEntryData {
   // Core identity
@@ -18,7 +18,14 @@ export interface UnifiedEntryData {
   handlerId?: string | undefined;
 
   // Competition results
-  status: 'Qualified' | 'Not Qualified' | 'Absent' | 'Withdrawn' | 'Excused' | 'Pending' | 'Eliminated';
+  status:
+    | 'Qualified'
+    | 'Not Qualified'
+    | 'Absent'
+    | 'Withdrawn'
+    | 'Excused'
+    | 'Pending'
+    | 'Eliminated';
   time?: string | undefined; // Formatted time string (MM:SS.HH or MM:SS)
   score?: string | undefined; // Score as string (could be points, percentage, etc.)
   faults?: number | undefined;
@@ -27,7 +34,7 @@ export interface UnifiedEntryData {
   notes?: string | undefined;
 
   // Metadata
-  showType?: ShowType | undefined;
+  trialType?: TrialType | undefined;
   updatedAt?: string | undefined;
   recordedBy?: string | undefined;
 
@@ -46,15 +53,15 @@ export interface UnifiedEntryData {
  */
 export function transformShowEntryToUnified(
   entry: unknown, // ShowEntry type - keeping as unknown for now to access properties
-  dogs: unknown[], // Dog array - keeping as unknown for now to access properties  
-  showType?: ShowType
+  dogs: unknown[], // Dog array - keeping as unknown for now to access properties
+  trialType?: TrialType
 ): UnifiedEntryData {
   const entryData = entry as Record<string, unknown>;
   const dogsData = dogs as Record<string, unknown>[];
   const dog = dogsData.find(d => d.id === entryData.dogId) as Record<string, unknown> | undefined;
   const registrationData = (entryData.registrationData || {}) as Record<string, unknown>;
   const competitionData = (entryData.competitionData || {}) as Record<string, unknown>;
-  
+
   // Determine status from competition data
   let status: UnifiedEntryData['status'] = 'Pending';
   if (competitionData.qualification) {
@@ -62,7 +69,7 @@ export function transformShowEntryToUnified(
   } else if (competitionData.qualified !== undefined) {
     status = competitionData.qualified ? 'Qualified' : 'Not Qualified';
   }
-  
+
   return {
     id: entryData.id as string,
     classId: entryData.classId as string,
@@ -78,12 +85,12 @@ export function transformShowEntryToUnified(
     placement: (competitionData.placement as string) || '',
     qualification: (competitionData.qualification as string) || '',
     notes: (competitionData.judgeNotes as string) || '',
-    showType,
+    trialType,
     updatedAt: entryData.updatedAt as string,
     recordedBy: competitionData.recordedBy as string,
     rawTimeMs: competitionData.time ? parseTimeToMs(competitionData.time as string) : undefined,
     rawScore: competitionData.score ? parseFloat(competitionData.score as string) : undefined,
-    isProvisional: true // Most entries start as provisional
+    isProvisional: true, // Most entries start as provisional
   };
 }
 
@@ -92,18 +99,21 @@ export function transformShowEntryToUnified(
  */
 export function transformScentWorkEntryToUnified(
   entry: unknown, // ScentWorkEntry type - keeping as unknown for now to access properties
-  showType?: ShowType
+  trialType?: TrialType
 ): UnifiedEntryData {
   const entryData = entry as Record<string, unknown>;
   const displayInfo = (entryData.displayInfo || {}) as Record<string, unknown>;
   const judgingState = (entryData.judgingState || {}) as Record<string, unknown>;
   const currentResult = (judgingState.currentResult || {}) as Record<string, unknown>;
   const competitionData = (entryData.competitionData || {}) as Record<string, unknown>;
-  
+
   // Prioritize saved competition data over judging state
-  const time = (competitionData.time as string) || (currentResult.searchTime ? formatMsToTime(currentResult.searchTime as number) : '');
-  const qualification = (competitionData.qualification as string) || (currentResult.qualification as string) || '';
-  
+  const time =
+    (competitionData.time as string) ||
+    (currentResult.searchTime ? formatMsToTime(currentResult.searchTime as number) : '');
+  const qualification =
+    (competitionData.qualification as string) || (currentResult.qualification as string) || '';
+
   return {
     id: entryData.id as string,
     classId: (entryData.classId as string) || '',
@@ -119,12 +129,12 @@ export function transformScentWorkEntryToUnified(
     placement: (competitionData.placement as string) || '',
     qualification,
     notes: (competitionData.judgeNotes as string) || (currentResult.judgeNotes as string) || '',
-    showType: showType || ShowType.SCENT_WORK,
+    trialType: trialType || TrialType.SCENT_WORK,
     updatedAt: entryData.updatedAt as string,
     recordedBy: (competitionData.recordedBy as string) || (currentResult.recordedBy as string),
     rawTimeMs: (currentResult.searchTime as number) || (time ? parseTimeToMs(time) : undefined),
     rawScore: competitionData.score ? parseFloat(competitionData.score as string) : undefined,
-    isProvisional: true
+    isProvisional: true,
   };
 }
 
@@ -142,7 +152,7 @@ export function transformUnifiedToBulkEntryData(entry: UnifiedEntryData): Record
     faults: entry.faults?.toString() || '0',
     notes: entry.notes || '',
     isValid: !!(entry.time && entry.qualification),
-    hasChanges: entry.hasChanges || false
+    hasChanges: entry.hasChanges || false,
   };
 }
 
@@ -151,7 +161,7 @@ export function transformUnifiedToBulkEntryData(entry: UnifiedEntryData): Record
  */
 function parseTimeToMs(timeStr: string): number {
   if (!timeStr) return 0;
-  
+
   // Handle MM:SS.HH format
   const hhMatch = timeStr.match(/^(\d{1,2}):([0-5]\d)\.(\d{2})$/);
   if (hhMatch) {
@@ -160,7 +170,7 @@ function parseTimeToMs(timeStr: string): number {
     const hundredths = parseInt(hhMatch[3]);
     return (minutes * 60 + seconds) * 1000 + hundredths * 10;
   }
-  
+
   // Handle MM:SS format
   const ssMatch = timeStr.match(/^(\d{1,2}):([0-5]\d)$/);
   if (ssMatch) {
@@ -168,7 +178,7 @@ function parseTimeToMs(timeStr: string): number {
     const seconds = parseInt(ssMatch[2]);
     return (minutes * 60 + seconds) * 1000;
   }
-  
+
   return 0;
 }
 

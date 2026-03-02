@@ -6,12 +6,12 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const labelVariants = cva(
-  // Apple-inspired label styling from design tokens
+  // Premium label styling from design tokens
   [
-    // Typography matching Apple's label standards
+    // Typography matching label standards
     'text-xs font-medium', // Smaller, less prominent labels
     'leading-tight', // Tighter leading for labels
-    'tracking-wide uppercase', // Apple's preferred spacing with uppercase
+    'tracking-wide uppercase', // Preferred spacing with uppercase
     'text-muted-foreground/80', // Much more muted foreground
 
     // Interaction states

@@ -3,7 +3,7 @@
  * 
  * Real-time score display with sync status for live scoring sessions.
  * Provides visual feedback on score submission, sync status, and placement changes.
- * Optimized for judge workflow with Apple-inspired design.
+ * Optimized for judge workflow with Premium design.
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react';

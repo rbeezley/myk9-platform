@@ -25,34 +25,42 @@ export type CartStatus = 'active' | 'submitted' | 'abandoned' | 'expired';
 
 // Extended cart item with related data
 export interface CartItemWithDetails extends EntryCartItem {
-  dog?: {
-    id: string;
-    name: string;
-    call_name: string | null;
-    breed: string;
-  } | undefined;
-  class?: {
-    id: string;
-    name: string;
-    level: string | null;
-    trial_id: string;
-  } | undefined;
-  handler?: {
-    id: string;
-    first_name: string;
-    last_name: string;
-  } | undefined;
+  dog?:
+    | {
+        id: string;
+        name: string;
+        call_name: string | null;
+        breed: string;
+      }
+    | undefined;
+  class?:
+    | {
+        id: string;
+        name: string;
+        level: string | null;
+        trial_id: string;
+      }
+    | undefined;
+  handler?:
+    | {
+        id: string;
+        first_name: string;
+        last_name: string;
+      }
+    | undefined;
 }
 
 // Extended cart with related data
 export interface CartWithDetails extends EntryCart {
   items: CartItemWithDetails[];
-  show?: {
-    id: string;
-    name: string;
-    start_date: string;
-    entry_close_date: string;
-  } | undefined;
+  show?:
+    | {
+        id: string;
+        name: string;
+        start_date: string;
+        entry_close_date: string;
+      }
+    | undefined;
 }
 
 // New item input type
@@ -74,7 +82,6 @@ interface CartState {
   lastSyncedAt: string | null;
 
   // Expiration tracking
-  expiresAt: string | null;
   expirationWarning: boolean;
 
   // Actions
@@ -119,7 +126,6 @@ export const useCartStore = create<CartState>()(
         isLoading: false,
         error: null,
         lastSyncedAt: null,
-        expiresAt: null,
         expirationWarning: false,
 
         // Load existing cart for a show
@@ -130,10 +136,12 @@ export const useCartStore = create<CartState>()(
             // Look for an active cart for this show
             const { data: cartData, error: cartError } = await supabase
               .from('entry_carts')
-              .select(`
+              .select(
+                `
                 *,
                 show:shows(id, name, start_date, entry_close_date)
-              `)
+              `
+              )
               .eq('show_id', showId)
               .eq('exhibitor_id', exhibitorId)
               .eq('status', 'active')
@@ -146,23 +154,30 @@ export const useCartStore = create<CartState>()(
             }
 
             if (!cartData) {
-              set({ cart: null, isLoading: false, expiresAt: null });
+              set({ cart: null, isLoading: false });
               return null;
             }
 
             // Load cart items with related data
             const { data: itemsData, error: itemsError } = await supabase
               .from('entry_cart_items')
-              .select(`
+              .select(
+                `
                 *,
                 dog:dogs(id, name, call_name, breed),
                 class:classes(id, name, level, trial_id),
                 handler:people(id, first_name, last_name)
-              `)
+              `
+              )
               .eq('cart_id', cartData.id);
 
             if (itemsError) {
-              logger.error('Error loading cart items', 'cartStore', { cartId: cartData.id }, itemsError);
+              logger.error(
+                'Error loading cart items',
+                'cartStore',
+                { cartId: cartData.id },
+                itemsError
+              );
               throw itemsError;
             }
 
@@ -175,17 +190,28 @@ export const useCartStore = create<CartState>()(
             set({
               cart: cartWithDetails,
               isLoading: false,
-              expiresAt: cartData.expires_at,
               lastSyncedAt: new Date().toISOString(),
-              expirationWarning: get().getTimeUntilExpiration() !== null &&
-                (get().getTimeUntilExpiration() || 0) < EXPIRATION_WARNING_MINUTES * 60 * 1000,
             });
+
+            // Compute expiration warning after cart is set
+            const timeUntilExpiry = get().getTimeUntilExpiration();
+            if (
+              timeUntilExpiry !== null &&
+              timeUntilExpiry < EXPIRATION_WARNING_MINUTES * 60 * 1000
+            ) {
+              set({ expirationWarning: true });
+            }
 
             return cartWithDetails;
           } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to load cart';
             set({ error: message, isLoading: false });
-            logger.error('Failed to load cart', 'cartStore', { showId, exhibitorId }, ensureError(error));
+            logger.error(
+              'Failed to load cart',
+              'cartStore',
+              { showId, exhibitorId },
+              ensureError(error)
+            );
             return null;
           }
         },
@@ -195,7 +221,9 @@ export const useCartStore = create<CartState>()(
           set({ isLoading: true, error: null });
 
           try {
-            const expiresAt = new Date(Date.now() + CART_EXPIRATION_MINUTES * 60 * 1000).toISOString();
+            const expiresAt = new Date(
+              Date.now() + CART_EXPIRATION_MINUTES * 60 * 1000
+            ).toISOString();
 
             const cartInsert: EntryCartInsert = {
               show_id: showId,
@@ -210,10 +238,12 @@ export const useCartStore = create<CartState>()(
             const { data: cartData, error: cartError } = await supabase
               .from('entry_carts')
               .insert(cartInsert)
-              .select(`
+              .select(
+                `
                 *,
                 show:shows(id, name, start_date, entry_close_date)
-              `)
+              `
+              )
               .single();
 
             if (cartError) {
@@ -230,7 +260,6 @@ export const useCartStore = create<CartState>()(
             set({
               cart: cartWithDetails,
               isLoading: false,
-              expiresAt: cartData.expires_at,
               lastSyncedAt: new Date().toISOString(),
               expirationWarning: false,
             });
@@ -239,7 +268,12 @@ export const useCartStore = create<CartState>()(
           } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to create cart';
             set({ error: message, isLoading: false });
-            logger.error('Failed to create cart', 'cartStore', { showId, exhibitorId }, ensureError(error));
+            logger.error(
+              'Failed to create cart',
+              'cartStore',
+              { showId, exhibitorId },
+              ensureError(error)
+            );
             return null;
           }
         },
@@ -266,16 +300,23 @@ export const useCartStore = create<CartState>()(
             const { data: newItem, error: insertError } = await supabase
               .from('entry_cart_items')
               .insert(itemInsert)
-              .select(`
+              .select(
+                `
                 *,
                 dog:dogs(id, name, call_name, breed),
                 class:classes(id, name, level, trial_id),
                 handler:people(id, first_name, last_name)
-              `)
+              `
+              )
               .single();
 
             if (insertError) {
-              logger.error('Error adding cart item', 'cartStore', { cartId: cart.id, item }, insertError);
+              logger.error(
+                'Error adding cart item',
+                'cartStore',
+                { cartId: cart.id, item },
+                insertError
+              );
               throw insertError;
             }
 
@@ -295,7 +336,12 @@ export const useCartStore = create<CartState>()(
               .eq('id', cart.id);
 
             if (updateError) {
-              logger.warn('Error updating cart totals', 'cartStore', { cartId: cart.id }, updateError);
+              logger.warn(
+                'Error updating cart totals',
+                'cartStore',
+                { cartId: cart.id },
+                updateError
+              );
             }
 
             set({
@@ -353,7 +399,12 @@ export const useCartStore = create<CartState>()(
               .eq('id', cart.id);
 
             if (updateError) {
-              logger.warn('Error updating cart totals', 'cartStore', { cartId: cart.id }, updateError);
+              logger.warn(
+                'Error updating cart totals',
+                'cartStore',
+                { cartId: cart.id },
+                updateError
+              );
             }
 
             set({
@@ -387,9 +438,12 @@ export const useCartStore = create<CartState>()(
           try {
             const updateData: Partial<EntryCartItem> = {};
             if (updates.handlerId !== undefined) updateData.handler_id = updates.handlerId || null;
-            if (updates.jumpHeight !== undefined) updateData.jump_height = updates.jumpHeight || null;
-            if (updates.specialRequests !== undefined) updateData.special_requests = updates.specialRequests || null;
-            if (updates.entryFeeCents !== undefined) updateData.entry_fee_cents = updates.entryFeeCents;
+            if (updates.jumpHeight !== undefined)
+              updateData.jump_height = updates.jumpHeight || null;
+            if (updates.specialRequests !== undefined)
+              updateData.special_requests = updates.specialRequests || null;
+            if (updates.entryFeeCents !== undefined)
+              updateData.entry_fee_cents = updates.entryFeeCents;
 
             const { error: updateError } = await supabase
               .from('entry_cart_items')
@@ -397,7 +451,12 @@ export const useCartStore = create<CartState>()(
               .eq('id', itemId);
 
             if (updateError) {
-              logger.error('Error updating cart item', 'cartStore', { itemId, updates }, updateError);
+              logger.error(
+                'Error updating cart item',
+                'cartStore',
+                { itemId, updates },
+                updateError
+              );
               throw updateError;
             }
 
@@ -442,7 +501,12 @@ export const useCartStore = create<CartState>()(
           } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to update item';
             set({ error: message });
-            logger.error('Failed to update cart item', 'cartStore', { itemId, updates }, ensureError(error));
+            logger.error(
+              'Failed to update cart item',
+              'cartStore',
+              { itemId, updates },
+              ensureError(error)
+            );
             return false;
           }
         },
@@ -462,7 +526,12 @@ export const useCartStore = create<CartState>()(
               .eq('cart_id', cart.id);
 
             if (deleteError) {
-              logger.error('Error clearing cart items', 'cartStore', { cartId: cart.id }, deleteError);
+              logger.error(
+                'Error clearing cart items',
+                'cartStore',
+                { cartId: cart.id },
+                deleteError
+              );
               throw deleteError;
             }
 
@@ -476,7 +545,12 @@ export const useCartStore = create<CartState>()(
               .eq('id', cart.id);
 
             if (updateError) {
-              logger.warn('Error updating cart totals', 'cartStore', { cartId: cart.id }, updateError);
+              logger.warn(
+                'Error updating cart totals',
+                'cartStore',
+                { cartId: cart.id },
+                updateError
+              );
             }
 
             set({
@@ -516,7 +590,9 @@ export const useCartStore = create<CartState>()(
           }
 
           try {
-            const newExpiresAt = new Date(Date.now() + CART_EXPIRATION_MINUTES * 60 * 1000).toISOString();
+            const newExpiresAt = new Date(
+              Date.now() + CART_EXPIRATION_MINUTES * 60 * 1000
+            ).toISOString();
 
             const { error: updateError } = await supabase
               .from('entry_carts')
@@ -524,13 +600,17 @@ export const useCartStore = create<CartState>()(
               .eq('id', cart.id);
 
             if (updateError) {
-              logger.error('Error extending cart expiration', 'cartStore', { cartId: cart.id }, updateError);
+              logger.error(
+                'Error extending cart expiration',
+                'cartStore',
+                { cartId: cart.id },
+                updateError
+              );
               throw updateError;
             }
 
             set({
               cart: { ...cart, expires_at: newExpiresAt },
-              expiresAt: newExpiresAt,
               expirationWarning: false,
               lastSyncedAt: new Date().toISOString(),
             });
@@ -564,7 +644,6 @@ export const useCartStore = create<CartState>()(
 
             set({
               cart: null,
-              expiresAt: null,
               expirationWarning: false,
               lastSyncedAt: new Date().toISOString(),
             });
@@ -604,7 +683,7 @@ export const useCartStore = create<CartState>()(
 
         // Computed: Time until expiration in milliseconds
         getTimeUntilExpiration: () => {
-          const { expiresAt } = get();
+          const expiresAt = get().cart?.expires_at;
           if (!expiresAt) return null;
 
           const expirationTime = new Date(expiresAt).getTime();
@@ -630,7 +709,6 @@ export const useCartStore = create<CartState>()(
             isLoading: false,
             error: null,
             lastSyncedAt: null,
-            expiresAt: null,
             expirationWarning: false,
           });
         },
@@ -638,14 +716,16 @@ export const useCartStore = create<CartState>()(
       {
         name: 'myk9-cart-storage',
         // Only persist cart ID for recovery, not full cart data
-        partialize: (state) => ({
+        partialize: state => ({
           lastSyncedAt: state.lastSyncedAt,
           // Store minimal cart info for recovery
-          cartRecoveryInfo: state.cart ? {
-            id: state.cart.id,
-            showId: state.cart.show_id,
-            exhibitorId: state.cart.exhibitor_id,
-          } : null,
+          cartRecoveryInfo: state.cart
+            ? {
+                id: state.cart.id,
+                showId: state.cart.show_id,
+                exhibitorId: state.cart.exhibitor_id,
+              }
+            : null,
         }),
       }
     ),
@@ -653,13 +733,17 @@ export const useCartStore = create<CartState>()(
   )
 );
 
+// Stable empty references to prevent infinite re-render loops in Zustand selectors
+const EMPTY_ITEMS: CartItemWithDetails[] = [];
+
 // Selector hooks for common patterns
-export const useCartItems = () => useCartStore((state) => state.cart?.items || []);
-export const useCartItemCount = () => useCartStore((state) => state.getItemCount());
-export const useCartTotal = () => useCartStore((state) => state.getTotalAmount());
-export const useCartExpiration = () => useCartStore((state) => ({
-  expiresAt: state.expiresAt,
-  timeRemaining: state.getTimeUntilExpiration(),
-  isExpired: state.isExpired(),
-  isWarning: state.expirationWarning,
-}));
+export const useCartItems = () => useCartStore(state => state.cart?.items ?? EMPTY_ITEMS);
+export const useCartItemCount = () => useCartStore(state => state.getItemCount());
+export const useCartTotal = () => useCartStore(state => state.getTotalAmount());
+export const useCartExpiration = () => {
+  const expiresAt = useCartStore(state => state.cart?.expires_at ?? null);
+  const timeRemaining = useCartStore(state => state.getTimeUntilExpiration());
+  const isExpired = useCartStore(state => state.isExpired());
+  const isWarning = useCartStore(state => state.expirationWarning);
+  return { expiresAt, timeRemaining, isExpired, isWarning };
+};

@@ -40,7 +40,7 @@ export const mapDatabaseToTrial = (dbTrial: DbTrialWithShow): Trial => {
     eventNumber: undefined, // Not in current database schema
     type: undefined, // Not in current database schema
     order: undefined, // Not in current database schema
-    trialType: undefined, // Not in current database schema
+    trialType: dbTrial.trial_type ?? undefined,
     image: undefined, // Not in current database schema
   };
 };
@@ -63,6 +63,7 @@ export const mapTrialInputToInsert = (trialInput: TrialInput): DbTrialInsert => 
     trial_number: trialInput.trialNumber,
     status: trialInput.status,
     planned_start_time: trialInput.plannedStartTime || null,
+    trial_type: trialInput.trialType || null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
@@ -93,6 +94,9 @@ export const mapTrialInputToUpdate = (updates: Partial<TrialInput>): DbTrialUpda
   }
   if (updates.plannedStartTime !== undefined) {
     updateData.planned_start_time = updates.plannedStartTime;
+  }
+  if (updates.trialType !== undefined) {
+    updateData.trial_type = updates.trialType;
   }
 
   return updateData;

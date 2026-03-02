@@ -23,7 +23,7 @@ export const FieldConfiguratorSimple: React.FC<FieldConfiguratorProps> = ({
             This is a simplified field configurator. Template: {template.templateName}
           </p>
           <p className="text-sm text-muted-foreground">
-            Show Type: {template.showType} | Organization: {template.organization}
+            Show Type: {template.trialType} | Organization: {template.organization}
           </p>
           <p className="text-sm text-muted-foreground">
             Read Only: {readOnly ? 'Yes' : 'No'}

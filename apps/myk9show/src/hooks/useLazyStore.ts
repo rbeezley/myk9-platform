@@ -121,7 +121,7 @@ export function useRouteLazyLoading(currentRoute: string) {
     if (route === '/' || route === '') return 'home';
     if (route.startsWith('/people')) return route.includes('details') ? 'people-details' : 'people';
     if (route.startsWith('/dogs')) return route.includes('details') ? 'dog-details' : 'dogs';
-    if (route.startsWith('/browse-shows')) return 'shows';
+    if (route.startsWith('/shows')) return 'shows';
     if (route.startsWith('/show/')) return 'show-details';
     if (route.startsWith('/admin/templates')) return 'admin-templates';
     if (route.startsWith('/admin')) return 'admin-dashboard';

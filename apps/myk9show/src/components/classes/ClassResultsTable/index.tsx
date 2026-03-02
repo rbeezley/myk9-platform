@@ -23,8 +23,8 @@ import {
 } from '@/components/ui/table';
 import { TooltipProvider } from '@/components/ui/tooltip/tooltip';
 
-// Apple-inspired styling
-import '@/styles/apple-show-details.css';
+// Premium styling
+import '@/styles/myk9-show-details.css';
 
 // Local modules
 import type { ClassResultsTableProps } from './types';
@@ -65,10 +65,10 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
     <TooltipProvider>
       <div className={cn('space-y-6', className)}>
         {/* Header with actions */}
-        <div className="apple-show-info-card">
-          <div className="apple-show-info-header">
+        <div className="myk9-show-info-card">
+          <div className="myk9-show-info-header">
             <div>
-              <div className="apple-show-info-title">
+              <div className="myk9-show-info-title">
                 Class Entries and Results
               </div>
               <p className="text-sm text-muted-foreground mt-1">
@@ -81,7 +81,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
             {onAddEntry && userPermissions.canEditEntries && (
               <Button
                 onClick={onAddEntry}
-                className="apple-action-button apple-action-button-primary"
+                className="myk9-action-button myk9-action-button-primary"
                 size="sm"
               >
                 + Add Entry
@@ -109,7 +109,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
         )}
 
         {/* Data Entry Table */}
-        <div className="apple-show-info-card">
+        <div className="myk9-show-info-card">
           <Table>
             <TableHeader>
               <TableRow>
@@ -152,7 +152,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
 
         {/* Submit Actions */}
         {userPermissions.canEditEntries && (
-          <div className="apple-show-info-card">
+          <div className="myk9-show-info-card">
             <div className="flex items-center justify-between">
               <div className="text-sm text-muted-foreground">
                 Press Enter or Tab to move between fields quickly &bull;
@@ -162,7 +162,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
               <Button
                 onClick={handleSubmit}
                 disabled={!summary.canSubmit || isSubmitting}
-                className="apple-action-button apple-action-button-primary"
+                className="myk9-action-button myk9-action-button-primary"
               >
                 <Save className="h-4 w-4" />
                 <span>

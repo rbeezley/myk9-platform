@@ -7,8 +7,7 @@
 
 /* Font Scale Custom Property */
 :root {
-  --font-scale: 1.0;
-  --theme-primary: #007AFF;
+  --font-scale: 1;
 }
 
 /* Font scaling application */
@@ -16,63 +15,147 @@ body {
   font-size: calc(1rem * var(--font-scale));
 }
 
-h1 { font-size: calc(1.875rem * var(--font-scale)); }
-h2 { font-size: calc(1.5rem * var(--font-scale)); }
-h3 { font-size: calc(1.25rem * var(--font-scale)); }
-h4 { font-size: calc(1.125rem * var(--font-scale)); }
-h5 { font-size: calc(1rem * var(--font-scale)); }
-h6 { font-size: calc(0.875rem * var(--font-scale)); }
+h1 {
+  font-size: calc(1.875rem * var(--font-scale));
+}
+h2 {
+  font-size: calc(1.5rem * var(--font-scale));
+}
+h3 {
+  font-size: calc(1.25rem * var(--font-scale));
+}
+h4 {
+  font-size: calc(1.125rem * var(--font-scale));
+}
+h5 {
+  font-size: calc(1rem * var(--font-scale));
+}
+h6 {
+  font-size: calc(0.875rem * var(--font-scale));
+}
 
 /* Layout Density Classes */
 .density-compact {
   --spacing-scale: 0.75;
 }
 
-.density-compact .p-1 { padding: calc(0.25rem * 0.75); }
-.density-compact .p-2 { padding: calc(0.5rem * 0.75); }
-.density-compact .p-3 { padding: calc(0.75rem * 0.75); }
-.density-compact .p-4 { padding: calc(1rem * 0.75); }
-.density-compact .p-5 { padding: calc(1.25rem * 0.75); }
-.density-compact .p-6 { padding: calc(1.5rem * 0.75); }
+.density-compact .p-1 {
+  padding: calc(0.25rem * 0.75);
+}
+.density-compact .p-2 {
+  padding: calc(0.5rem * 0.75);
+}
+.density-compact .p-3 {
+  padding: calc(0.75rem * 0.75);
+}
+.density-compact .p-4 {
+  padding: calc(1rem * 0.75);
+}
+.density-compact .p-5 {
+  padding: calc(1.25rem * 0.75);
+}
+.density-compact .p-6 {
+  padding: calc(1.5rem * 0.75);
+}
 
-.density-compact .m-1 { margin: calc(0.25rem * 0.75); }
-.density-compact .m-2 { margin: calc(0.5rem * 0.75); }
-.density-compact .m-3 { margin: calc(0.75rem * 0.75); }
-.density-compact .m-4 { margin: calc(1rem * 0.75); }
-.density-compact .m-5 { margin: calc(1.25rem * 0.75); }
-.density-compact .m-6 { margin: calc(1.5rem * 0.75); }
+.density-compact .m-1 {
+  margin: calc(0.25rem * 0.75);
+}
+.density-compact .m-2 {
+  margin: calc(0.5rem * 0.75);
+}
+.density-compact .m-3 {
+  margin: calc(0.75rem * 0.75);
+}
+.density-compact .m-4 {
+  margin: calc(1rem * 0.75);
+}
+.density-compact .m-5 {
+  margin: calc(1.25rem * 0.75);
+}
+.density-compact .m-6 {
+  margin: calc(1.5rem * 0.75);
+}
 
-.density-compact .gap-1 { gap: calc(0.25rem * 0.75); }
-.density-compact .gap-2 { gap: calc(0.5rem * 0.75); }
-.density-compact .gap-3 { gap: calc(0.75rem * 0.75); }
-.density-compact .gap-4 { gap: calc(1rem * 0.75); }
-.density-compact .gap-5 { gap: calc(1.25rem * 0.75); }
-.density-compact .gap-6 { gap: calc(1.5rem * 0.75); }
+.density-compact .gap-1 {
+  gap: calc(0.25rem * 0.75);
+}
+.density-compact .gap-2 {
+  gap: calc(0.5rem * 0.75);
+}
+.density-compact .gap-3 {
+  gap: calc(0.75rem * 0.75);
+}
+.density-compact .gap-4 {
+  gap: calc(1rem * 0.75);
+}
+.density-compact .gap-5 {
+  gap: calc(1.25rem * 0.75);
+}
+.density-compact .gap-6 {
+  gap: calc(1.5rem * 0.75);
+}
 
 .density-spacious {
   --spacing-scale: 1.25;
 }
 
-.density-spacious .p-1 { padding: calc(0.25rem * 1.25); }
-.density-spacious .p-2 { padding: calc(0.5rem * 1.25); }
-.density-spacious .p-3 { padding: calc(0.75rem * 1.25); }
-.density-spacious .p-4 { padding: calc(1rem * 1.25); }
-.density-spacious .p-5 { padding: calc(1.25rem * 1.25); }
-.density-spacious .p-6 { padding: calc(1.5rem * 1.25); }
+.density-spacious .p-1 {
+  padding: calc(0.25rem * 1.25);
+}
+.density-spacious .p-2 {
+  padding: calc(0.5rem * 1.25);
+}
+.density-spacious .p-3 {
+  padding: calc(0.75rem * 1.25);
+}
+.density-spacious .p-4 {
+  padding: calc(1rem * 1.25);
+}
+.density-spacious .p-5 {
+  padding: calc(1.25rem * 1.25);
+}
+.density-spacious .p-6 {
+  padding: calc(1.5rem * 1.25);
+}
 
-.density-spacious .m-1 { margin: calc(0.25rem * 1.25); }
-.density-spacious .m-2 { margin: calc(0.5rem * 1.25); }
-.density-spacious .m-3 { margin: calc(0.75rem * 1.25); }
-.density-spacious .m-4 { margin: calc(1rem * 1.25); }
-.density-spacious .m-5 { margin: calc(1.25rem * 1.25); }
-.density-spacious .m-6 { margin: calc(1.5rem * 1.25); }
+.density-spacious .m-1 {
+  margin: calc(0.25rem * 1.25);
+}
+.density-spacious .m-2 {
+  margin: calc(0.5rem * 1.25);
+}
+.density-spacious .m-3 {
+  margin: calc(0.75rem * 1.25);
+}
+.density-spacious .m-4 {
+  margin: calc(1rem * 1.25);
+}
+.density-spacious .m-5 {
+  margin: calc(1.25rem * 1.25);
+}
+.density-spacious .m-6 {
+  margin: calc(1.5rem * 1.25);
+}
 
-.density-spacious .gap-1 { gap: calc(0.25rem * 1.25); }
-.density-spacious .gap-2 { gap: calc(0.5rem * 1.25); }
-.density-spacious .gap-3 { gap: calc(0.75rem * 1.25); }
-.density-spacious .gap-4 { gap: calc(1rem * 1.25); }
-.density-spacious .gap-5 { gap: calc(1.25rem * 1.25); }
-.density-spacious .gap-6 { gap: calc(1.5rem * 1.25); }
+.density-spacious .gap-1 {
+  gap: calc(0.25rem * 1.25);
+}
+.density-spacious .gap-2 {
+  gap: calc(0.5rem * 1.25);
+}
+.density-spacious .gap-3 {
+  gap: calc(0.75rem * 1.25);
+}
+.density-spacious .gap-4 {
+  gap: calc(1rem * 1.25);
+}
+.density-spacious .gap-5 {
+  gap: calc(1.25rem * 1.25);
+}
+.density-spacious .gap-6 {
+  gap: calc(1.5rem * 1.25);
+}
 
 /* Accessibility Classes */
 .reduce-motion * {
@@ -113,50 +196,12 @@ h6 { font-size: calc(0.875rem * var(--font-scale)); }
   --destructive-foreground: #000000;
 }
 
-/* Color Scheme Custom Properties */
-:root[data-color-scheme="blue"] {
-  --theme-primary: #007AFF;
-  --theme-primary-rgb: 0, 122, 255;
-}
-
-:root[data-color-scheme="purple"] {
-  --theme-primary: #5856D6;
-  --theme-primary-rgb: 88, 86, 214;
-}
-
-:root[data-color-scheme="green"] {
-  --theme-primary: #34C759;
-  --theme-primary-rgb: 52, 199, 89;
-}
-
-:root[data-color-scheme="orange"] {
-  --theme-primary: #FF9500;
-  --theme-primary-rgb: 255, 149, 0;
-}
-
-/* Apply theme primary to components */
-.text-primary {
-  color: var(--theme-primary);
-}
-
-.bg-primary {
-  background-color: var(--theme-primary);
-}
-
-.border-primary {
-  border-color: var(--theme-primary);
-}
-
-.fill-primary {
-  fill: var(--theme-primary);
-}
-
 /* Responsive font scaling */
 @media (max-width: 640px) {
   .density-compact {
     --font-scale: calc(var(--font-scale) * 0.9);
   }
-  
+
   .density-spacious {
     --font-scale: calc(var(--font-scale) * 1.1);
   }

@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import type { User } from '@/types/user-types';
-import type { Dog } from '@/types/dog-types';
+import { getDogDisplayName, type Dog } from '@/types/dog-types';
 
 interface BreadcrumbItem {
   label: string;
@@ -12,7 +12,17 @@ interface BreadcrumbItem {
 }
 
 interface UseBreadcrumbProps {
-  currentPage: 'club' | 'show' | 'trial' | 'class' | 'entries' | 'my-entries' | 'people' | 'person' | 'dogs' | 'dog';
+  currentPage:
+    | 'club'
+    | 'show'
+    | 'trial'
+    | 'class'
+    | 'entries'
+    | 'my-entries'
+    | 'people'
+    | 'person'
+    | 'dogs'
+    | 'dog';
   club?: { id: string; name: string } | undefined; // Club type
   show?: Show | undefined;
   trial?: Trial | undefined;
@@ -34,7 +44,7 @@ export const useBreadcrumb = ({
   person,
   dog,
   fromPerson,
-  fromDog
+  fromDog,
 }: UseBreadcrumbProps): BreadcrumbItem[] => {
   return useMemo(() => {
     const items: BreadcrumbItem[] = [];
@@ -45,14 +55,14 @@ export const useBreadcrumb = ({
         label: club.name,
         ...(currentPage !== 'club' && { href: `/clubs/${club.id}` }),
         id: club.id,
-        isCurrentPage: currentPage === 'club'
+        isCurrentPage: currentPage === 'club',
       });
     } else if (show?.clubName) {
       // Fallback to show's club info if no direct club provided
       items.push({
         label: show.clubName,
         href: `/clubs/${show.clubId}`,
-        id: show.clubId
+        id: show.clubId,
       });
     }
 
@@ -62,7 +72,7 @@ export const useBreadcrumb = ({
         label: show.name,
         ...(currentPage !== 'show' && { href: `/shows/${show.id}` }),
         id: show.id,
-        isCurrentPage: currentPage === 'show'
+        isCurrentPage: currentPage === 'show',
       });
     }
 
@@ -72,7 +82,7 @@ export const useBreadcrumb = ({
         label: trial.type || trial.trialNumber || 'Trial',
         ...(currentPage !== 'trial' && { href: `/trials/${trial.id}` }),
         id: trial.id,
-        isCurrentPage: currentPage === 'trial'
+        isCurrentPage: currentPage === 'trial',
       });
     }
 
@@ -82,7 +92,7 @@ export const useBreadcrumb = ({
         label: className,
         ...(currentPage !== 'class' && { href: `/classes/${classId}` }),
         id: classId,
-        isCurrentPage: currentPage === 'class'
+        isCurrentPage: currentPage === 'class',
       });
     }
 
@@ -90,7 +100,7 @@ export const useBreadcrumb = ({
     if (currentPage === 'entries') {
       items.push({
         label: 'Entries',
-        isCurrentPage: true
+        isCurrentPage: true,
       });
     }
 
@@ -98,7 +108,7 @@ export const useBreadcrumb = ({
     if (currentPage === 'my-entries') {
       items.push({
         label: 'My Entries',
-        isCurrentPage: true
+        isCurrentPage: true,
       });
     }
 
@@ -109,80 +119,81 @@ export const useBreadcrumb = ({
       const personRecord = fromPerson as unknown as Record<string, unknown>;
       const firstName = fromPerson.firstName || (personRecord.first_name as string) || '';
       const lastName = fromPerson.lastName || (personRecord.last_name as string) || '';
-      const fullName = firstName && lastName ? `${firstName} ${lastName}` : fromPerson.email || 'Unknown User';
-      
+      const fullName =
+        firstName && lastName ? `${firstName} ${lastName}` : fromPerson.email || 'Unknown User';
+
       items.push({
         label: 'Users',
-        href: '/users'
+        href: '/users',
       });
       items.push({
         label: fullName,
-        href: `/users/${fromPerson.id}`
+        href: `/users/${fromPerson.id}`,
       });
       items.push({
-        label: dog.callName || dog.name,
-        isCurrentPage: true
+        label: getDogDisplayName(dog),
+        isCurrentPage: true,
       });
     }
-    // If viewing a person from a dog's page: Dogs > Max > John Smith  
+    // If viewing a person from a dog's page: Dogs > Max > John Smith
     else if (fromDog && person) {
       // Handle both camelCase and snake_case field names
       const personRecord = person as unknown as Record<string, unknown>;
       const firstName = person.firstName || (personRecord.first_name as string) || '';
       const lastName = person.lastName || (personRecord.last_name as string) || '';
-      const fullName = firstName && lastName ? `${firstName} ${lastName}` : person.email || 'Unknown User';
-      
+      const fullName =
+        firstName && lastName ? `${firstName} ${lastName}` : person.email || 'Unknown User';
+
       items.push({
         label: 'Dogs',
-        href: '/dogs'
+        href: '/dogs',
       });
       items.push({
-        label: fromDog.callName || fromDog.name,
-        href: `/dogs/${fromDog.id}`
+        label: getDogDisplayName(fromDog),
+        href: `/dogs/${fromDog.id}`,
       });
       items.push({
         label: fullName,
-        isCurrentPage: true
+        isCurrentPage: true,
       });
     }
     // Standard people page navigation
     else if (currentPage === 'people') {
       items.push({
         label: 'Users',
-        isCurrentPage: true
+        isCurrentPage: true,
       });
-    }
-    else if (currentPage === 'person' && person) {
+    } else if (currentPage === 'person' && person) {
       // Handle both camelCase and snake_case field names
       const personRecord = person as unknown as Record<string, unknown>;
       const firstName = person.firstName || (personRecord.first_name as string) || '';
       const lastName = person.lastName || (personRecord.last_name as string) || '';
-      const fullName = firstName && lastName ? `${firstName} ${lastName}` : person.email || 'Unknown User';
-      
+      const fullName =
+        firstName && lastName ? `${firstName} ${lastName}` : person.email || 'Unknown User';
+
       items.push({
         label: 'Users',
-        href: '/users'
+        href: '/users',
       });
       items.push({
         label: fullName,
-        isCurrentPage: true
+        isCurrentPage: true,
       });
     }
     // Standard dogs page navigation
     else if (currentPage === 'dogs') {
       items.push({
         label: 'Dogs',
-        isCurrentPage: true
+        isCurrentPage: true,
       });
-    }
-    else if (currentPage === 'dog' && dog) {
+    } else if (currentPage === 'dog' && dog) {
       items.push({
         label: 'Dogs',
-        href: '/dogs'
+        href: '/dogs',
       });
       items.push({
-        label: dog.callName || dog.name,
-        isCurrentPage: true
+        label: getDogDisplayName(dog),
+        isCurrentPage: true,
       });
     }
 

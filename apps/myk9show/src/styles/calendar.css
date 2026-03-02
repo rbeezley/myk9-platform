@@ -4,14 +4,14 @@
 }
 
 .custom-calendar .rbc-calendar {
-  color: hsl(var(--foreground));
+  color: var(--foreground);
 }
 
 .custom-calendar .rbc-header {
   background: linear-gradient(135deg, rgba(248, 250, 252, 0.95) 0%, rgba(241, 245, 249, 0.9) 100%);
-  color: hsl(var(--foreground));
-  border-bottom: 1px solid hsl(var(--border));
-  border-right: 1px solid hsl(var(--border) / 0.5);
+  color: var(--foreground);
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
   padding: 12px 8px;
   font-weight: 600;
   font-size: 14px;
@@ -47,48 +47,52 @@
 
 .custom-calendar .rbc-month-view,
 .custom-calendar .rbc-time-view {
-  border: 1px solid hsl(var(--border));
+  border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
-  background-color: hsl(var(--card));
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  background-color: var(--card);
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 .dark .custom-calendar .rbc-month-view,
 .dark .custom-calendar .rbc-time-view {
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.3),
+    0 2px 4px -1px rgba(0, 0, 0, 0.2);
 }
 
 .custom-calendar .rbc-date-cell {
   padding: 8px;
-  border-right: 1px solid hsl(var(--border));
+  border-right: 1px solid var(--border);
 }
 
 .custom-calendar .rbc-date-cell > a {
-  color: hsl(var(--foreground));
+  color: var(--foreground);
   text-decoration: none;
   font-weight: 500;
 }
 
 .custom-calendar .rbc-date-cell > a:hover {
-  color: hsl(var(--primary));
+  color: var(--primary);
 }
 
 .custom-calendar .rbc-off-range {
-  color: hsl(var(--muted-foreground));
+  color: var(--muted-foreground);
 }
 
 .custom-calendar .rbc-off-range-bg {
-  background-color: hsl(var(--muted) / 0.5);
+  background-color: color-mix(in srgb, var(--muted) 50%, transparent);
 }
 
 .custom-calendar .rbc-today {
-  background-color: hsl(var(--primary) / 0.1);
+  background-color: color-mix(in srgb, var(--primary) 10%, transparent);
 }
 
 .custom-calendar .rbc-day-bg {
-  border-right: 1px solid hsl(var(--border));
-  border-bottom: 1px solid hsl(var(--border));
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
 }
 
 .custom-calendar .rbc-event {
@@ -107,14 +111,14 @@
 }
 
 .custom-calendar .rbc-event.rbc-selected {
-  outline: 2px solid hsl(var(--ring));
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
 
 .custom-calendar .rbc-show-more {
-  color: hsl(var(--primary));
-  background-color: hsl(var(--background));
-  border: 1px solid hsl(var(--border));
+  color: var(--primary);
+  background-color: var(--background);
+  border: 1px solid var(--border);
   border-radius: 4px;
   padding: 2px 6px;
   font-size: 11px;
@@ -124,7 +128,7 @@
 }
 
 .custom-calendar .rbc-show-more:hover {
-  background-color: hsl(var(--muted));
+  background-color: var(--muted);
 }
 
 .custom-calendar .rbc-row-segment {
@@ -132,7 +136,7 @@
 }
 
 .custom-calendar .rbc-agenda-view {
-  border: 1px solid hsl(var(--border));
+  border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -140,34 +144,34 @@
 .custom-calendar .rbc-agenda-view .rbc-agenda-date-cell,
 .custom-calendar .rbc-agenda-view .rbc-agenda-time-cell,
 .custom-calendar .rbc-agenda-view .rbc-agenda-event-cell {
-  border-bottom: 1px solid hsl(var(--border));
+  border-bottom: 1px solid var(--border);
   padding: 12px;
 }
 
 .custom-calendar .rbc-agenda-view .rbc-agenda-date-cell {
-  background-color: hsl(var(--muted));
+  background-color: var(--muted);
   font-weight: 600;
 }
 
 /* Week and Day view styles */
 .custom-calendar .rbc-time-header {
-  border-bottom: 1px solid hsl(var(--border));
+  border-bottom: 1px solid var(--border);
 }
 
 .custom-calendar .rbc-time-content {
-  border-top: 1px solid hsl(var(--border));
+  border-top: 1px solid var(--border);
 }
 
 .custom-calendar .rbc-time-slot {
-  border-top: 1px solid hsl(var(--border) / 0.3);
+  border-top: 1px solid color-mix(in srgb, var(--border) 30%, transparent);
 }
 
 .custom-calendar .rbc-timeslot-group {
-  border-bottom: 1px solid hsl(var(--border));
+  border-bottom: 1px solid var(--border);
 }
 
 .custom-calendar .rbc-current-time-indicator {
-  background-color: hsl(var(--primary));
+  background-color: var(--primary);
   height: 2px;
 }
 
@@ -184,11 +188,11 @@
     font-size: 11px;
     padding: 1px 4px;
   }
-  
+
   .custom-calendar .rbc-date-cell {
     padding: 4px;
   }
-  
+
   .custom-calendar .rbc-header {
     padding: 6px 8px;
     font-size: 12px;

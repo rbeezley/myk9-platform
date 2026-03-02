@@ -51,19 +51,19 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
   const canShowReceipt = entry.confirmationNumber && isPaid;
 
   return (
-    <div className="apple-entries-card">
+    <div className="myk9-entries-card">
       {/* Header */}
-      <div className="apple-entries-card-header">
+      <div className="myk9-entries-card-header">
         <div>
-          <div className="apple-entries-card-title">
+          <div className="myk9-entries-card-title">
             {getStatusIcon(entry.entryStatus, entry.paymentStatus)}
             {entry.showName}
           </div>
-          <div className="apple-entries-card-subtitle">
+          <div className="myk9-entries-card-subtitle">
             {entry.dogName} • Registration #{entry.registrationNumber || 'Pending'}
           </div>
         </div>
-        <div className="apple-entries-badges">
+        <div className="myk9-entries-badges">
           {getEntryStatusBadge(entry.entryStatus)}
           {getPaymentStatusBadge(entry.paymentStatus)}
         </div>
@@ -75,33 +75,33 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
       </div>
 
       {/* Show Details */}
-      <div className="apple-entries-details-grid">
-        <div className="apple-entries-detail-item">
+      <div className="myk9-entries-details-grid">
+        <div className="myk9-entries-detail-item">
           <Calendar className="h-4 w-4" />
           <span>{entry.showDate.toLocaleDateString()}</span>
         </div>
 
-        <div className="apple-entries-detail-item">
+        <div className="myk9-entries-detail-item">
           <MapPin className="h-4 w-4" />
           <span>
             {entry.location.city}, {entry.location.state}
           </span>
         </div>
 
-        <div className="apple-entries-detail-item">
+        <div className="myk9-entries-detail-item">
           <DollarSign className="h-4 w-4" />
           <span>${entry.totalFee} total</span>
         </div>
       </div>
 
       {/* Classes */}
-      <div className="apple-entries-classes-section">
-        <h5 className="apple-entries-classes-title">Classes Entered:</h5>
-        <div className="apple-entries-classes-grid">
+      <div className="myk9-entries-classes-section">
+        <h5 className="myk9-entries-classes-title">Classes Entered:</h5>
+        <div className="myk9-entries-classes-grid">
           {entry.classes.map((cls) => (
-            <div key={cls.id} className="apple-entries-class-item">
+            <div key={cls.id} className="myk9-entries-class-item">
               <div className="flex items-center gap-2 flex-1">
-                <span className="apple-entries-class-name">
+                <span className="myk9-entries-class-name">
                   {cls.name} #{cls.number}
                   {cls.jumpHeight && ` (${cls.jumpHeight})`}
                 </span>
@@ -119,18 +119,18 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
                   />
                 </button>
               </div>
-              <span className="apple-entries-class-fee">${cls.fee}</span>
+              <span className="myk9-entries-class-fee">${cls.fee}</span>
             </div>
           ))}
         </div>
       </div>
 
       {/* Actions */}
-      <div className="apple-entries-actions">
-        <div className="apple-entries-last-updated">
+      <div className="myk9-entries-actions">
+        <div className="myk9-entries-last-updated">
           <span className={statusMessage.className}>{statusMessage.message}</span>
         </div>
-        <div className="apple-entries-action-buttons">
+        <div className="myk9-entries-action-buttons">
           <Button
             variant="outline"
             asChild

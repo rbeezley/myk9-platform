@@ -26,9 +26,14 @@ interface ShowDetailsStepProps {
   className?: string;
 }
 
-const SHOW_TYPES = [
+const ORGANIZATIONS = [
   { value: 'AKC', label: 'AKC (American Kennel Club)' },
   { value: 'UKC', label: 'UKC (United Kennel Club)' },
+  { value: 'NACSW', label: 'NACSW (National Association of Canine Scent Work)' },
+  { value: 'CPE', label: 'CPE (Canine Performance Events)' },
+  { value: 'USDAA', label: 'USDAA (United States Dog Agility Association)' },
+  { value: 'NADAC', label: 'NADAC (North American Dog Agility Council)' },
+  { value: 'ASCA', label: 'ASCA (Australian Shepherd Club of America)' },
   { value: 'NASDA', label: 'NASDA (North American Sport Dog Association)' },
   { value: 'Other', label: 'Other' },
 ];
@@ -284,23 +289,25 @@ export const ShowDetailsStep: React.FC<ShowDetailsStepProps> = ({ className }) =
 
               <div className="space-y-2">
                 <Label>
-                  Show Type <span className="text-destructive">*</span>
+                  Organization <span className="text-destructive">*</span>
                 </Label>
                 <Select
-                  value={show.type || ''}
+                  value={show.organization || ''}
                   onValueChange={value =>
-                    updateShowData({ type: value as 'AKC' | 'UKC' | 'NASDA' | 'Other' })
+                    updateShowData({ organization: value as 'AKC' | 'UKC' | 'NASDA' | 'Other' })
                   }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select show type">
-                      {show.type ? SHOW_TYPES.find(t => t.value === show.type)?.label : undefined}
+                    <SelectValue placeholder="Select organization">
+                      {show.organization
+                        ? ORGANIZATIONS.find(t => t.value === show.organization)?.label
+                        : undefined}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {SHOW_TYPES.map(type => (
-                      <SelectItem key={type.value} value={type.value}>
-                        {type.label}
+                    {ORGANIZATIONS.map(org => (
+                      <SelectItem key={org.value} value={org.value}>
+                        {org.label}
                       </SelectItem>
                     ))}
                   </SelectContent>

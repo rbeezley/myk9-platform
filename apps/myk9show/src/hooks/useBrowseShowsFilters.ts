@@ -24,19 +24,19 @@ const DEFAULT_FILTERS: ShowFilters = {
   search: '',
   discipline: 'all',
   entryStatus: 'all',
-  dateRange: 'upcoming',
+  dateRange: 'all',
   location: 'all',
-  organization: 'all'
+  organization: 'all',
 };
 
 /**
  * Discipline to show type mapping
  */
 const DISCIPLINE_MAP: Record<string, string> = {
-  'agility': 'Agility',
-  'scent_work': 'Scent Work',
-  'rally': 'Rally',
-  'obedience': 'Obedience'
+  agility: 'Agility',
+  scent_work: 'Scent Work',
+  rally: 'Rally',
+  obedience: 'Obedience',
 };
 
 interface UseBrowseShowsFiltersProps {
@@ -63,19 +63,21 @@ export function useBrowseShowsFilters({
   shows,
   entries,
   userContext,
-  selectedTab
+  selectedTab,
 }: UseBrowseShowsFiltersProps): UseBrowseShowsFiltersReturn {
   const [filters, setFilters] = useState<ShowFilters>(DEFAULT_FILTERS);
   const [filteredShows, setFilteredShows] = useState<Show[]>([]);
 
   // Check if filters are active (different from defaults)
   const hasActiveFilters = useMemo(() => {
-    return filters.search !== '' ||
-           filters.discipline !== 'all' ||
-           filters.entryStatus !== 'all' ||
-           filters.dateRange !== 'upcoming' ||
-           filters.location !== 'all' ||
-           filters.organization !== 'all';
+    return (
+      filters.search !== '' ||
+      filters.discipline !== 'all' ||
+      filters.entryStatus !== 'all' ||
+      filters.dateRange !== 'all' ||
+      filters.location !== 'all' ||
+      filters.organization !== 'all'
+    );
   }, [filters]);
 
   // Count active filters for badge display
@@ -100,10 +102,11 @@ export function useBrowseShowsFilters({
     // Search filter
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
-      filtered = filtered.filter(show =>
-        show.name.toLowerCase().includes(searchLower) ||
-        show.location.toLowerCase().includes(searchLower) ||
-        show.type.toLowerCase().includes(searchLower)
+      filtered = filtered.filter(
+        show =>
+          show.name.toLowerCase().includes(searchLower) ||
+          show.location.toLowerCase().includes(searchLower) ||
+          show.organization.toLowerCase().includes(searchLower)
       );
     }
 
@@ -111,7 +114,7 @@ export function useBrowseShowsFilters({
     if (filters.discipline !== 'all') {
       const showType = DISCIPLINE_MAP[filters.discipline];
       if (showType) {
-        filtered = filtered.filter(show => show.type.includes(showType));
+        filtered = filtered.filter(show => show.organization.includes(showType));
       }
     }
 
@@ -172,6 +175,6 @@ export function useBrowseShowsFilters({
     filteredShows,
     hasActiveFilters,
     clearAllFilters,
-    activeFilterCount
+    activeFilterCount,
   };
 }

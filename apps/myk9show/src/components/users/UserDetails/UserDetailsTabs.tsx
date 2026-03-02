@@ -6,8 +6,7 @@ import { Plus } from 'lucide-react';
 import AssociatedDogsSection from '../AssociatedDogsSection';
 import { DogEditPanel } from '@/components/panels/edit/DogEditPanel';
 import type { User, Dog, DogInput } from '@/types/dog-types';
-import { useDogStore } from '@/store/dogStore';
-import { useUserStore } from '@/store/userStore';
+import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 
 interface PeopleDetailsTabsProps {
   selectedUser: User;
@@ -15,16 +14,12 @@ interface PeopleDetailsTabsProps {
 
 const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) => {
   const navigate = useNavigate();
-  const { dogs, updateDog, removeDog } = useDogStore();
-  const { updateUser } = useUserStore();
-  
-  // Get actual Dog objects from the dog store using the IDs
+  const { dogs, addDog, updateDog, deleteDog } = useDogStoreCompat();
+
+  // Get actual Dog objects by owner relationship
   const userDogs = useMemo(() => {
-    if (!selectedUser.dogs) return [];
-    return selectedUser.dogs
-      .map(dogId => dogs.find(dog => dog.id === dogId))
-      .filter((dog): dog is Dog => dog !== undefined);
-  }, [selectedUser.dogs, dogs]);
+    return dogs.filter(dog => dog.ownerId === selectedUser.id);
+  }, [dogs, selectedUser.id]);
 
   // Helper function to convert Dog to DogInput
   const dogToDogInput = (dog: Dog): DogInput => ({
@@ -43,8 +38,8 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
       organization: reg.organization,
       number: reg.registrationNumber,
       type: reg.status,
-      status: reg.status
-    }))
+      status: reg.status,
+    })),
   });
 
   // Edit dialog state
@@ -60,17 +55,10 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
     const isNewDog = !dogToEdit.id;
 
     if (isNewDog) {
-      const tempId = `temp-${Date.now()}`;
-      const mergedDog = { ...dogToEdit, ...updatedDogData, id: tempId, ownerId: selectedUser.id };
-
-      const { addDog } = useDogStore.getState();
-      addDog(dogToDogInput(mergedDog as Dog));
-
-      const currentDogs = selectedUser.dogs || [];
-      updateUser(selectedUser.id, { dogs: [...currentDogs, tempId] });
+      const mergedDog = { ...dogToEdit, ...updatedDogData, ownerId: selectedUser.id };
+      await addDog(dogToDogInput(mergedDog as Dog));
     } else {
-      const { updateDog } = useDogStore.getState();
-      updateDog(dogToEdit.id, dogToDogInput({ ...dogToEdit, ...updatedDogData } as Dog));
+      await updateDog(dogToEdit.id, dogToDogInput({ ...dogToEdit, ...updatedDogData } as Dog));
     }
 
     setIsEditDialogOpen(false);
@@ -79,21 +67,12 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
 
   // Handler for updating dog photo
   const handleUpdateDogPhoto = (dogId: string, newPhotoUrl: string) => {
-    // Update in global dog store
     updateDog(dogId, { imageUrl: newPhotoUrl });
-    // Dogs array contains only IDs, photo data is in dog store
   };
 
   // Handler for deleting a dog
   const handleDeleteDog = (dogId: string) => {
-    removeDog(dogId); // Call removeDog from the store
-
-    // Remove the dog from the selected person's dogs array for local consistency
-    if (selectedUser.dogs) {
-      const updatedDogsForPerson = selectedUser.dogs.filter(dogId2 => dogId2 !== dogId);
-      updateUser(selectedUser.id, { dogs: updatedDogsForPerson });
-    }
-    // Optionally, close any dialogs or navigate if needed, e.g., if on that dog's page
+    deleteDog(dogId);
   };
 
   // Handler for adding a new dog
@@ -111,7 +90,7 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
         name: `${selectedUser.firstName} ${selectedUser.lastName}`,
         email: selectedUser.email,
         phone: selectedUser.phone,
-        profileImage: selectedUser.profileImage
+        profileImage: selectedUser.profileImage,
       }, // Convert User to Owner format
       registrations: [],
       spayedNeutered: false,
@@ -125,7 +104,7 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
       color: '',
       microchip: '',
     };
-    
+
     setDogToEdit(newDog);
     setIsEditDialogOpen(true);
   };
@@ -150,11 +129,11 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
           </div>
           <AssociatedDogsSection
             dogs={userDogs}
-            onViewDogDetails={(dogId) => {
+            onViewDogDetails={dogId => {
               // Navigate with person context for breadcrumbs: People > John Smith > Max
               navigate(`/dogs/${dogId}?fromPerson=${selectedUser.id}`);
             }}
-            onEditDog={(dogId) => {
+            onEditDog={dogId => {
               const dog = userDogs.find(d => d.id === dogId);
               if (dog) {
                 setDogToEdit(dog);
@@ -163,14 +142,14 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
             }}
             onUpdateDogPhoto={handleUpdateDogPhoto}
             onDeleteDog={handleDeleteDog}
-            onAddRegistration={(dogId) => {
+            onAddRegistration={dogId => {
               // Navigate to the dog's details page with a query parameter to open the add registration dialog
               navigate(`/dogs/${dogId}?addRegistration=true&fromPerson=${selectedUser.id}`);
             }}
           />
         </div>
-      )
-    }
+      ),
+    },
   ];
 
   return (
@@ -179,9 +158,9 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
         <div className="overflow-x-auto">
           <TabsList
             className="grid w-full bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 h-auto min-w-max"
-            style={{gridTemplateColumns: `repeat(${tabsConfig.length}, minmax(0, 1fr))`}}
+            style={{ gridTemplateColumns: `repeat(${tabsConfig.length}, minmax(0, 1fr))` }}
           >
-            {tabsConfig.map((tab) => (
+            {tabsConfig.map(tab => (
               <TabsTrigger
                 key={tab.id}
                 value={tab.id}
@@ -193,7 +172,7 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
           </TabsList>
         </div>
 
-        {tabsConfig.map((tab) => (
+        {tabsConfig.map(tab => (
           <TabsContent key={tab.id} value={tab.id}>
             {tab.content}
           </TabsContent>

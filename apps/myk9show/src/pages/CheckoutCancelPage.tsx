@@ -75,7 +75,7 @@ export default function CheckoutCancelPage() {
                 )}
               </>
             ) : (
-              <Button className="w-full" onClick={() => navigate('/browse-shows')}>
+              <Button className="w-full" onClick={() => navigate('/shows')}>
                 Browse Shows
               </Button>
             )}

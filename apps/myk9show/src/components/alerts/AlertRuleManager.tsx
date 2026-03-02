@@ -12,7 +12,7 @@ import {
   Clock,
   MoreHorizontal,
   Save,
-  X
+  X,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -20,26 +20,14 @@ import { Label } from '../ui/label';
 import { Badge } from '../ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Textarea } from '../ui/textarea';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter
-} from '../ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '../ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
 import { Switch } from '../ui/switch';
 import { ScrollArea } from '../ui/scroll-area';
@@ -49,7 +37,7 @@ import {
   AlertType,
   AlertSeverity,
   NotificationChannel,
-  AlertThreshold
+  AlertThreshold,
 } from '../../types/alert-types';
 import { cn } from '../../lib/utils';
 
@@ -78,7 +66,7 @@ const defaultFormData: RuleFormData = {
   thresholds: [],
   channels: [NotificationChannel.IN_APP],
   cooldown: 300000, // 5 minutes
-  groupBy: []
+  groupBy: [],
 };
 
 export const AlertRuleManager: React.FC<AlertRuleManagerProps> = ({ className }) => {
@@ -88,7 +76,7 @@ export const AlertRuleManager: React.FC<AlertRuleManagerProps> = ({ className })
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [formData, setFormData] = useState<RuleFormData>(defaultFormData);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  
+
   const alertingService = AlertingService.getInstance();
 
   const loadRules = useCallback(async () => {
@@ -127,7 +115,7 @@ export const AlertRuleManager: React.FC<AlertRuleManagerProps> = ({ className })
       thresholds: rule.thresholds,
       channels: rule.channels,
       cooldown: rule.cooldown || 300000,
-      groupBy: rule.groupBy || []
+      groupBy: rule.groupBy || [],
     });
     setEditingRule(rule);
     setShowCreateDialog(true);
@@ -140,7 +128,7 @@ export const AlertRuleManager: React.FC<AlertRuleManagerProps> = ({ className })
     try {
       const ruleData = {
         ...formData,
-        metadata: {}
+        metadata: {},
       };
 
       if (editingRule) {
@@ -210,9 +198,9 @@ export const AlertRuleManager: React.FC<AlertRuleManagerProps> = ({ className })
           metric: '',
           operator: 'gt',
           value: 0,
-          window: 300000
-        }
-      ]
+          window: 300000,
+        },
+      ],
     }));
   };
 
@@ -221,14 +209,14 @@ export const AlertRuleManager: React.FC<AlertRuleManagerProps> = ({ className })
       ...prev,
       thresholds: prev.thresholds.map((threshold, i) =>
         i === index ? { ...threshold, ...updates } : threshold
-      )
+      ),
     }));
   };
 
   const removeThreshold = (index: number) => {
     setFormData(prev => ({
       ...prev,
-      thresholds: prev.thresholds.filter((_, i) => i !== index)
+      thresholds: prev.thresholds.filter((_, i) => i !== index),
     }));
   };
 
@@ -291,19 +279,17 @@ export const AlertRuleManager: React.FC<AlertRuleManagerProps> = ({ className })
   }
 
   return (
-    <div className={cn("space-y-6", className)}>
+    <div className={cn('space-y-6', className)}>
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight" style={{ fontWeight: 650 }}>Alert Rules</h2>
+          <h2 className="text-2xl font-bold tracking-tight" style={{ fontWeight: 650 }}>
+            Alert Rules
+          </h2>
           <p className="text-muted-foreground" style={{ fontWeight: 400 }}>
             Configure alert rules to monitor system health and performance
           </p>
         </div>
-        <Button 
-          onClick={handleCreateRule}
-          className="bg-gradient-to-r from-primary to-secondary text-primary-foreground 
-                     hover:shadow-xl hover:-translate-y-1 hover:scale-[1.02] 
-                     transition-all duration-300 shadow-sm">
+        <Button onClick={handleCreateRule}>
           <Plus className="mr-2 h-4 w-4" />
           Create Rule
         </Button>
@@ -312,10 +298,12 @@ export const AlertRuleManager: React.FC<AlertRuleManagerProps> = ({ className })
       {rules.length === 0 ? (
         <div className="text-center py-16">
           <div className="mb-6">
-            <div className="w-32 h-32 bg-gradient-to-br from-primary/10 to-secondary/10 
+            <div
+              className="w-32 h-32 bg-gradient-to-br from-primary/10 to-secondary/10 
                              rounded-full mx-auto flex items-center justify-center 
                              shadow-sm hover:shadow-xl hover:scale-105 
-                             transition-all duration-300">
+                             transition-all duration-300"
+            >
               <Bell className="h-16 w-16 text-primary" />
             </div>
           </div>
@@ -325,19 +313,15 @@ export const AlertRuleManager: React.FC<AlertRuleManagerProps> = ({ className })
           <p className="text-muted-foreground mb-8 max-w-md mx-auto">
             Create your first alert rule to start monitoring system health
           </p>
-          <Button 
-            onClick={handleCreateRule}
-            className="bg-gradient-to-r from-primary to-secondary text-primary-foreground 
-                       hover:shadow-xl hover:-translate-y-1 hover:scale-[1.02] 
-                       transition-all duration-300 shadow-sm">
+          <Button onClick={handleCreateRule}>
             <Plus className="mr-2 h-4 w-4" />
             Create Your First Rule
           </Button>
         </div>
       ) : (
         <div className="grid gap-4">
-          {rules.map((rule) => (
-            <Card key={rule.id} className={cn(!rule.enabled && "opacity-60")}>
+          {rules.map(rule => (
+            <Card key={rule.id} className={cn(!rule.enabled && 'opacity-60')}>
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="space-y-2">
@@ -345,7 +329,7 @@ export const AlertRuleManager: React.FC<AlertRuleManagerProps> = ({ className })
                       <CardTitle className="text-lg">{rule.name}</CardTitle>
                       <Badge
                         variant="outline"
-                        className={cn("text-xs", getSeverityColor(rule.severity))}
+                        className={cn('text-xs', getSeverityColor(rule.severity))}
                       >
                         {rule.severity.toUpperCase()}
                       </Badge>
@@ -353,31 +337,33 @@ export const AlertRuleManager: React.FC<AlertRuleManagerProps> = ({ className })
                         {getTypeLabel(rule.type)}
                       </Badge>
                       {rule.enabled ? (
-                        <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                        <Badge
+                          variant="outline"
+                          className="text-xs bg-green-50 text-green-700 border-green-200"
+                        >
                           Active
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="text-xs bg-gray-50 text-gray-700 border-gray-200">
+                        <Badge
+                          variant="outline"
+                          className="text-xs bg-gray-50 text-gray-700 border-gray-200"
+                        >
                           Disabled
                         </Badge>
                       )}
                     </div>
                     <p className="text-sm text-muted-foreground">{rule.description}</p>
                   </div>
-                  
+
                   <div className="flex items-center space-x-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleToggleRule(rule)}
-                    >
+                    <Button variant="ghost" size="sm" onClick={() => handleToggleRule(rule)}>
                       {rule.enabled ? (
                         <ToggleRight className="h-4 w-4 text-green-600" />
                       ) : (
                         <ToggleLeft className="h-4 w-4 text-gray-400" />
                       )}
                     </Button>
-                    
+
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="sm">
@@ -402,7 +388,7 @@ export const AlertRuleManager: React.FC<AlertRuleManagerProps> = ({ className })
                   </div>
                 </div>
               </CardHeader>
-              
+
               <CardContent>
                 <div className="space-y-4">
                   <div>
@@ -420,20 +406,20 @@ export const AlertRuleManager: React.FC<AlertRuleManagerProps> = ({ className })
                       ))}
                     </div>
                   </div>
-                  
+
                   <div>
                     <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                       Notification Channels
                     </Label>
                     <div className="mt-1 flex flex-wrap gap-1">
-                      {rule.channels.map((channel) => (
+                      {rule.channels.map(channel => (
                         <Badge key={channel} variant="outline" className="text-xs">
                           {getChannelLabel(channel)}
                         </Badge>
                       ))}
                     </div>
                   </div>
-                  
+
                   {rule.cooldown && (
                     <div>
                       <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -456,11 +442,9 @@ export const AlertRuleManager: React.FC<AlertRuleManagerProps> = ({ className })
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent className="max-w-2xl max-h-[90vh]">
           <DialogHeader>
-            <DialogTitle>
-              {editingRule ? 'Edit Alert Rule' : 'Create Alert Rule'}
-            </DialogTitle>
+            <DialogTitle>{editingRule ? 'Edit Alert Rule' : 'Create Alert Rule'}</DialogTitle>
           </DialogHeader>
-          
+
           <ScrollArea className="max-h-[60vh] pr-4">
             <div className="space-y-6">
               {errors.general && (
@@ -468,24 +452,26 @@ export const AlertRuleManager: React.FC<AlertRuleManagerProps> = ({ className })
                   <p className="text-sm text-red-600">{errors.general}</p>
                 </div>
               )}
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Rule Name *</Label>
                   <Input
                     id="name"
                     value={formData.name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
                     className={errors.name ? 'border-red-500' : ''}
                   />
                   {errors.name && <p className="text-sm text-red-600">{errors.name}</p>}
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="type">Alert Type</Label>
                   <Select
                     value={formData.type}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, type: value as AlertType }))}
+                    onValueChange={value =>
+                      setFormData(prev => ({ ...prev, type: value as AlertType }))
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -501,24 +487,26 @@ export const AlertRuleManager: React.FC<AlertRuleManagerProps> = ({ className })
                   </Select>
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="description">Description *</Label>
                 <Textarea
                   id="description"
                   value={formData.description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
                   className={errors.description ? 'border-red-500' : ''}
                 />
                 {errors.description && <p className="text-sm text-red-600">{errors.description}</p>}
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="severity">Severity</Label>
                   <Select
                     value={formData.severity}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, severity: value as AlertSeverity }))}
+                    onValueChange={value =>
+                      setFormData(prev => ({ ...prev, severity: value as AlertSeverity }))
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -531,45 +519,42 @@ export const AlertRuleManager: React.FC<AlertRuleManagerProps> = ({ className })
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="cooldown">Cooldown (minutes)</Label>
                   <Input
                     id="cooldown"
                     type="number"
                     value={formData.cooldown / 60000}
-                    onChange={(e) => setFormData(prev => ({ 
-                      ...prev, 
-                      cooldown: parseInt(e.target.value) * 60000 
-                    }))}
+                    onChange={e =>
+                      setFormData(prev => ({
+                        ...prev,
+                        cooldown: parseInt(e.target.value) * 60000,
+                      }))
+                    }
                   />
                 </div>
               </div>
-              
+
               <div className="flex items-center space-x-2">
                 <Switch
                   id="enabled"
                   checked={formData.enabled}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, enabled: checked }))}
+                  onCheckedChange={checked => setFormData(prev => ({ ...prev, enabled: checked }))}
                 />
                 <Label htmlFor="enabled">Enable this rule</Label>
               </div>
-              
+
               {/* Thresholds Section */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <Label>Thresholds *</Label>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={addThreshold}
-                  >
+                  <Button type="button" variant="outline" size="sm" onClick={addThreshold}>
                     <Plus className="h-4 w-4 mr-1" />
                     Add Threshold
                   </Button>
                 </div>
-                
+
                 {formData.thresholds.map((threshold, index) => (
                   <Card key={index} className="p-4">
                     <div className="grid grid-cols-12 gap-2 items-end">
@@ -577,18 +562,20 @@ export const AlertRuleManager: React.FC<AlertRuleManagerProps> = ({ className })
                         <Label>Metric</Label>
                         <Input
                           value={threshold.metric}
-                          onChange={(e) => updateThreshold(index, { metric: e.target.value })}
+                          onChange={e => updateThreshold(index, { metric: e.target.value })}
                           placeholder="e.g., sync.failureRate"
                         />
                       </div>
-                      
+
                       <div className="col-span-2">
                         <Label>Operator</Label>
                         <Select
                           value={threshold.operator}
-                          onValueChange={(value) => updateThreshold(index, { 
-                            operator: value as 'gt' | 'lt' | 'gte' | 'lte' | 'eq' | 'neq'
-                          })}
+                          onValueChange={value =>
+                            updateThreshold(index, {
+                              operator: value as 'gt' | 'lt' | 'gte' | 'lte' | 'eq' | 'neq',
+                            })
+                          }
                         >
                           <SelectTrigger>
                             <SelectValue />
@@ -603,28 +590,32 @@ export const AlertRuleManager: React.FC<AlertRuleManagerProps> = ({ className })
                           </SelectContent>
                         </Select>
                       </div>
-                      
+
                       <div className="col-span-2">
                         <Label>Value</Label>
                         <Input
                           type="number"
                           value={threshold.value}
-                          onChange={(e) => updateThreshold(index, { value: parseFloat(e.target.value) })}
+                          onChange={e =>
+                            updateThreshold(index, { value: parseFloat(e.target.value) })
+                          }
                         />
                       </div>
-                      
+
                       <div className="col-span-3">
                         <Label>Window (seconds)</Label>
                         <Input
                           type="number"
                           value={threshold.window ? threshold.window / 1000 : ''}
-                          onChange={(e) => updateThreshold(index, { 
-                            window: e.target.value ? parseInt(e.target.value) * 1000 : undefined 
-                          })}
+                          onChange={e =>
+                            updateThreshold(index, {
+                              window: e.target.value ? parseInt(e.target.value) * 1000 : undefined,
+                            })
+                          }
                           placeholder="Optional"
                         />
                       </div>
-                      
+
                       <div className="col-span-1">
                         <Button
                           type="button"
@@ -638,30 +629,30 @@ export const AlertRuleManager: React.FC<AlertRuleManagerProps> = ({ className })
                     </div>
                   </Card>
                 ))}
-                
+
                 {errors.thresholds && <p className="text-sm text-red-600">{errors.thresholds}</p>}
               </div>
-              
+
               {/* Notification Channels */}
               <div className="space-y-2">
                 <Label>Notification Channels *</Label>
                 <div className="grid grid-cols-2 gap-2">
-                  {Object.values(NotificationChannel).map((channel) => (
+                  {Object.values(NotificationChannel).map(channel => (
                     <div key={channel} className="flex items-center space-x-2">
                       <input
                         type="checkbox"
                         id={channel}
                         checked={formData.channels.includes(channel)}
-                        onChange={(e) => {
+                        onChange={e => {
                           if (e.target.checked) {
                             setFormData(prev => ({
                               ...prev,
-                              channels: [...prev.channels, channel]
+                              channels: [...prev.channels, channel],
                             }));
                           } else {
                             setFormData(prev => ({
                               ...prev,
-                              channels: prev.channels.filter(c => c !== channel)
+                              channels: prev.channels.filter(c => c !== channel),
                             }));
                           }
                         }}
@@ -674,7 +665,7 @@ export const AlertRuleManager: React.FC<AlertRuleManagerProps> = ({ className })
               </div>
             </div>
           </ScrollArea>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
               Cancel

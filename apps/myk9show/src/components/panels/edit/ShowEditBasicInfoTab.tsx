@@ -73,12 +73,12 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
 
             <div className="space-y-2">
               <Label
-                htmlFor="type"
+                htmlFor="organization"
                 className="text-xs font-medium text-muted-foreground/80 tracking-wide uppercase"
               >
-                Show Type
+                Organization
               </Label>
-              <Select value={data.type} onValueChange={handleSelectChange('type')}>
+              <Select value={data.organization} onValueChange={handleSelectChange('organization')}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>

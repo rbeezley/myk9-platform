@@ -44,7 +44,7 @@ interface EntryStats {
 }
 
 /**
- * EntrySyncStatusBar - Displays comprehensive sync status for entries with Apple-inspired design
+ * EntrySyncStatusBar - Displays comprehensive sync status for entries with Premium design
  * 
  * Shows real-time sync status, payment status, and provides quick actions for batch operations.
  * Integrates with entryStore for live updates and supports filtering by show/class/entry IDs.

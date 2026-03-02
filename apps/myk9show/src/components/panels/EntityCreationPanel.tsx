@@ -45,7 +45,9 @@ export const EntityCreationPanel: React.FC<EntityCreationPanelProps> = ({
 
     try {
       // Check if specific entity panel has a save handler
-      const entitySaveHandler = ((window as unknown) as Window & { [key: string]: unknown })[`handleSave_${panelId}`] as ((action: string) => void) | undefined;
+      const entitySaveHandler = (window as unknown as Window & { [key: string]: unknown })[
+        `handleSave_${panelId}`
+      ] as ((action: string) => void) | undefined;
       if (entitySaveHandler) {
         entitySaveHandler(action);
       } else {
@@ -58,9 +60,9 @@ export const EntityCreationPanel: React.FC<EntityCreationPanelProps> = ({
         onResult(result);
       }
     } catch (error) {
-      updateState({ 
+      updateState({
         error: error instanceof Error ? error.message : 'An error occurred',
-        isLoading: false 
+        isLoading: false,
       });
     }
   };
@@ -68,7 +70,9 @@ export const EntityCreationPanel: React.FC<EntityCreationPanelProps> = ({
   const handleCancel = () => {
     if (state.isDirty) {
       // Could show confirmation dialog here
-      const confirmed = window.confirm('You have unsaved changes. Are you sure you want to cancel?');
+      const confirmed = window.confirm(
+        'You have unsaved changes. Are you sure you want to cancel?'
+      );
       if (!confirmed) return;
     }
 
@@ -84,7 +88,6 @@ export const EntityCreationPanel: React.FC<EntityCreationPanelProps> = ({
       onClose,
       onStateChange: updateState,
     };
-
 
     switch (context.entityType) {
       case 'club':
@@ -122,9 +125,7 @@ export const EntityCreationPanel: React.FC<EntityCreationPanelProps> = ({
       )}
 
       {/* Entity-specific content */}
-      <div className="flex-1 overflow-auto">
-        {renderEntityPanel()}
-      </div>
+      <div className="flex-1 overflow-auto">{renderEntityPanel()}</div>
 
       {/* Action Footer */}
       <div className="flex-shrink-0 border-t bg-muted/5 p-6">
@@ -145,11 +146,7 @@ export const EntityCreationPanel: React.FC<EntityCreationPanelProps> = ({
           </div>
 
           <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              onClick={handleCancel}
-              disabled={state.isLoading}
-            >
+            <Button variant="outline" onClick={handleCancel} disabled={state.isLoading}>
               Cancel
             </Button>
 
@@ -165,7 +162,6 @@ export const EntityCreationPanel: React.FC<EntityCreationPanelProps> = ({
                 <Button
                   onClick={() => handleSave('save_and_close')}
                   disabled={!state.isValid || state.isLoading}
-                  className="bg-gradient-to-r from-primary to-secondary"
                 >
                   {state.isLoading ? (
                     <>
@@ -183,7 +179,6 @@ export const EntityCreationPanel: React.FC<EntityCreationPanelProps> = ({
               <Button
                 onClick={() => handleSave('save_and_close')}
                 disabled={!state.isValid || state.isLoading}
-                className="bg-gradient-to-r from-primary to-secondary"
               >
                 {state.isLoading ? (
                   <>

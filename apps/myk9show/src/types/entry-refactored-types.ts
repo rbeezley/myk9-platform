@@ -1,104 +1,107 @@
 /**
  * Refactored Entry Types
- * 
+ *
  * New split-table design following e-commerce pattern:
  * - Entry: Order-level data (payment, submission, dog/handler)
  * - ClassEntry: Product-level data (class-specific details)
  */
 
-import { BaseEntity, SyncableEntity } from './core-types'
+import { BaseEntity, SyncableEntity } from './core-types';
 
 // ============================================================================
 // Core Entry Types (Order-level)
 // ============================================================================
 
-export type EntryStatus = 
-  | 'draft'        // Being created/edited
-  | 'submitted'    // Submitted for review
-  | 'accepted'     // Entry accepted (all classes processed)
-  | 'rejected'     // Entry rejected
-  | 'withdrawn';   // Withdrawn by handler
+export type EntryStatus =
+  | 'draft' // Being created/edited
+  | 'submitted' // Submitted for review
+  | 'accepted' // Entry accepted (all classes processed)
+  | 'rejected' // Entry rejected
+  | 'withdrawn'; // Withdrawn by handler
 
-export type PaymentStatus = 
-  | 'pending'      // Payment not yet made
-  | 'paid'         // Payment completed
-  | 'partial'      // Partial payment made
-  | 'refunded'     // Payment refunded
-  | 'failed';      // Payment failed
+export type PaymentStatus =
+  | 'pending' // Payment not yet made
+  | 'paid' // Payment completed
+  | 'partial' // Partial payment made
+  | 'refunded' // Payment refunded
+  | 'failed'; // Payment failed
 
 export interface Entry extends BaseEntity, SyncableEntity {
   // Core Relationships
   dogId: string;
   handlerId: string;
-  showId: string;              // Keep for performance queries
-  
+  showId: string; // Keep for performance queries
+
   // Entry-level Status
   entryStatus: EntryStatus;
   paymentStatus: PaymentStatus;
-  
+
   // Entry-level Data
-  totalFees: number;           // Calculated from class entries
-  specialRequests?: string;    // Overall requests for this entry
-  moveUpRequested: boolean;    // Handler wants to move up if possible
-  submittedAt?: Date;         // When entry was submitted
-  
+  totalFees: number; // Calculated from class entries
+  specialRequests?: string; // Overall requests for this entry
+  moveUpRequested: boolean; // Handler wants to move up if possible
+  submittedAt?: Date; // When entry was submitted
+
   // Computed/Related Data (not in database)
   classEntries?: ClassEntry[]; // Associated class entries
-  classCount?: number;         // Number of classes entered
-  acceptedClasses?: number;    // Number of accepted classes
-  rejectedClasses?: number;    // Number of rejected classes
-  waitlistedClasses?: number;  // Number of waitlisted classes
+  classCount?: number; // Number of classes entered
+  acceptedClasses?: number; // Number of accepted classes
+  rejectedClasses?: number; // Number of rejected classes
+  waitlistedClasses?: number; // Number of waitlisted classes
 }
 
 // ============================================================================
 // Class Entry Types (Product-level)
 // ============================================================================
 
-export type ClassEntryStatus = 
-  | 'pending'      // Awaiting review
-  | 'accepted'     // Accepted into class
-  | 'rejected'     // Rejected from class
-  | 'waitlisted'   // On waiting list
-  | 'withdrawn'    // Withdrawn from class
-  | 'moved';       // Moved to different class
+export type ClassEntryStatus =
+  | 'pending' // Awaiting review
+  | 'accepted' // Accepted into class
+  | 'rejected' // Rejected from class
+  | 'waitlisted' // On waiting list
+  | 'withdrawn' // Withdrawn from class
+  | 'moved'; // Moved to different class
 
 export interface ClassEntry extends BaseEntity, SyncableEntity {
   // Core Relationships
   entryId: string;
   classId: string;
-  trialId: string;             // Denormalized for performance
-  
+  trialId: string; // Denormalized for performance
+
   // Class-specific Competition Data
-  armband?: string;            // Assigned armband number
-  runOrder?: number;           // Running order within class
-  jumpHeight?: string;         // Jump height for this class
-  entryFee?: number;          // Fee for this specific class
-  preferredJudge?: string;     // Judge preference for this class
-  
+  armband?: string; // Assigned armband number
+  runOrder?: number; // Running order within class
+  jumpHeight?: string; // Jump height for this class
+  entryFee?: number; // Fee for this specific class
+  preferredJudge?: string; // Judge preference for this class
+
   // Class-specific Status
   status: ClassEntryStatus;
-  
+
   // Class-specific Metadata
-  notes?: string | undefined;              // Class-specific notes
+  notes?: string | undefined; // Class-specific notes
   qualifiedForFinals: boolean; // Whether qualified for finals
-  movedFromClassId?: string;   // If moved from another class
-  movedToClassId?: string;     // If moved to another class
-  
+  movedFromClassId?: string; // If moved from another class
+  movedToClassId?: string; // If moved to another class
+
   // Related Data (not in database, populated by joins)
-  entry?: Entry;              // Parent entry
-  class?: {                   // Class details
+  entry?: Entry; // Parent entry
+  class?: {
+    // Class details
     id: string;
     name: string;
     division?: string;
     level?: string;
     maxEntries?: number;
   };
-  trial?: {                   // Trial details
+  trial?: {
+    // Trial details
     id: string;
     name: string;
     date: string;
   };
-  show?: {                    // Show details
+  show?: {
+    // Show details
     id: string;
     name: string;
   };
@@ -115,7 +118,7 @@ export interface CreateEntryInput {
   showId: string;
   specialRequests?: string;
   moveUpRequested?: boolean;
-  classIds: string[];          // Classes to enter initially
+  classIds: string[]; // Classes to enter initially
 }
 
 // Entry Update (updating entry-level data)
@@ -165,7 +168,6 @@ export interface ClassEntryWithContext extends ClassEntry {
     division: string;
     level: string;
     maxEntries?: number;
-    entryFeeDefault?: number;
   };
   trial: {
     id: string;
@@ -251,22 +253,22 @@ export interface ClassEntryFilters {
   qualifiedForFinals?: boolean;
 }
 
-export type EntrySortField = 
-  | 'dogName' 
-  | 'handlerName' 
-  | 'entryStatus' 
-  | 'paymentStatus' 
-  | 'totalFees' 
+export type EntrySortField =
+  | 'dogName'
+  | 'handlerName'
+  | 'entryStatus'
+  | 'paymentStatus'
+  | 'totalFees'
   | 'classCount'
-  | 'submittedAt' 
+  | 'submittedAt'
   | 'createdAt';
 
-export type ClassEntrySortField = 
-  | 'dogName' 
-  | 'handlerName' 
-  | 'armband' 
-  | 'runOrder' 
-  | 'status' 
+export type ClassEntrySortField =
+  | 'dogName'
+  | 'handlerName'
+  | 'armband'
+  | 'runOrder'
+  | 'status'
   | 'jumpHeight'
   | 'entryFee';
 
@@ -337,7 +339,7 @@ export interface LegacyEntry {
   id: string;
   dogId: string;
   handlerId: string;
-  classId: string;             // Old: single class per entry
+  classId: string; // Old: single class per entry
   showId: string;
   armband?: string;
   runOrder?: number;
@@ -345,7 +347,7 @@ export interface LegacyEntry {
   entryFee?: number;
   preferredJudge?: string;
   paymentStatus: PaymentStatus;
-  status?: string;             // Old status field
+  status?: string; // Old status field
   specialRequests?: string;
   moveUpRequested: boolean;
   submittedAt?: Date;
@@ -392,7 +394,7 @@ export const ENTRY_STATUS_LABELS: Record<EntryStatus, string> = {
   submitted: 'Submitted',
   accepted: 'Accepted',
   rejected: 'Rejected',
-  withdrawn: 'Withdrawn'
+  withdrawn: 'Withdrawn',
 };
 
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
@@ -400,7 +402,7 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   paid: 'Paid',
   partial: 'Partial',
   refunded: 'Refunded',
-  failed: 'Failed'
+  failed: 'Failed',
 };
 
 export const CLASS_ENTRY_STATUS_LABELS: Record<ClassEntryStatus, string> = {
@@ -409,7 +411,7 @@ export const CLASS_ENTRY_STATUS_LABELS: Record<ClassEntryStatus, string> = {
   rejected: 'Rejected',
   waitlisted: 'Waitlisted',
   withdrawn: 'Withdrawn',
-  moved: 'Moved'
+  moved: 'Moved',
 };
 
 export const ENTRY_STATUS_COLORS: Record<EntryStatus, string> = {
@@ -417,7 +419,7 @@ export const ENTRY_STATUS_COLORS: Record<EntryStatus, string> = {
   submitted: 'blue',
   accepted: 'green',
   rejected: 'red',
-  withdrawn: 'orange'
+  withdrawn: 'orange',
 };
 
 export const PAYMENT_STATUS_COLORS: Record<PaymentStatus, string> = {
@@ -425,7 +427,7 @@ export const PAYMENT_STATUS_COLORS: Record<PaymentStatus, string> = {
   paid: 'green',
   partial: 'orange',
   refunded: 'purple',
-  failed: 'red'
+  failed: 'red',
 };
 
 export const CLASS_ENTRY_STATUS_COLORS: Record<ClassEntryStatus, string> = {
@@ -434,5 +436,5 @@ export const CLASS_ENTRY_STATUS_COLORS: Record<ClassEntryStatus, string> = {
   rejected: 'red',
   waitlisted: 'orange',
   withdrawn: 'gray',
-  moved: 'blue'
+  moved: 'blue',
 };

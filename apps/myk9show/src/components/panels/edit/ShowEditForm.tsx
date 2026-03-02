@@ -61,9 +61,7 @@ export const ShowEditForm: React.FC = () => {
   // Handle date picker changes (DateTimePicker returns Date | undefined)
   const handleDateChange = useCallback(
     (field: keyof ShowEditFormData) => (date: Date | undefined) => {
-      if (date) {
-        updateData({ [field]: date.toISOString() });
-      }
+      updateData({ [field]: date ? date.toISOString() : '' });
     },
     [updateData]
   );
@@ -83,15 +81,15 @@ export const ShowEditForm: React.FC = () => {
     templates
       .filter(template => template.isActive)
       .forEach(template => {
-        let showType: string;
-        if (typeof template.showType === 'object') {
-          showType = String(Object.values(template.showType)[0] || '');
+        let trialType: string;
+        if (typeof template.trialType === 'object') {
+          trialType = String(Object.values(template.trialType)[0] || '');
         } else {
-          showType = String(template.showType || '');
+          trialType = String(template.trialType || '');
         }
 
-        if (showType && showType.trim() !== '') {
-          showTypesSet.add(showType);
+        if (trialType && trialType.trim() !== '') {
+          showTypesSet.add(trialType);
         }
       });
 
@@ -109,12 +107,12 @@ export const ShowEditForm: React.FC = () => {
 
   // Filter people who have judge qualifications for the selected show type
   const availableJudges = useMemo(() => {
-    if (!data.type) return [];
+    if (!data.organization) return [];
 
     const filtered = people.filter(person => {
       return person.judgeQualifications?.some(
         qualification =>
-          qualification.status === 'Active' && qualification.showTypes.includes(data.type)
+          qualification.status === 'Active' && qualification.showTypes.includes(data.organization)
       );
     });
 
@@ -123,7 +121,7 @@ export const ShowEditForm: React.FC = () => {
       name: `${person.firstName} ${person.lastName}`,
       qualifications: person.judgeQualifications || [],
     }));
-  }, [people, data.type]);
+  }, [people, data.organization]);
 
   // Handle judge assignment toggle
   const handleJudgeToggle = useCallback(
@@ -330,11 +328,11 @@ export const ShowEditForm: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {data.type ? (
+              {data.organization ? (
                 availableJudges.length > 0 ? (
                   <div className="space-y-4">
                     <p className="text-sm text-muted-foreground">
-                      Select judges qualified for {data.type} shows:
+                      Select judges qualified for {data.organization} shows:
                     </p>
                     {availableJudges.map(judge => {
                       const isAssigned = data.assignedJudges.some(aj => aj.judgeId === judge.id);
@@ -362,7 +360,9 @@ export const ShowEditForm: React.FC = () => {
                               <div className="text-sm text-muted-foreground mt-1">
                                 {judge.qualifications
                                   .filter(
-                                    q => q.showTypes.includes(data.type) && q.status === 'Active'
+                                    q =>
+                                      q.showTypes.includes(data.organization) &&
+                                      q.status === 'Active'
                                   )
                                   .map(q => `${q.organization} Judge #${q.judgeNumber}`)
                                   .join(', ')}
@@ -388,7 +388,7 @@ export const ShowEditForm: React.FC = () => {
                   </div>
                 ) : (
                   <div className="text-sm text-muted-foreground bg-amber-50 dark:bg-amber-950/30 p-4 rounded-xl">
-                    <p className="mb-2">No qualified judges found for {data.type} shows.</p>
+                    <p className="mb-2">No qualified judges found for {data.organization} shows.</p>
                     <p className="text-xs">
                       You can assign judges later or add judge qualifications to people in the Users
                       section.

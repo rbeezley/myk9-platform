@@ -10,7 +10,7 @@ import { useState, useCallback } from 'react';
 import { Clock, User, Dog, Award } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import '@/styles/apple-show-details.css';
+import '@/styles/myk9-show-details.css';
 
 // UI Components
 import { Button } from '@/components/ui/button';
@@ -216,13 +216,13 @@ export function ScentWorkScoresheet({
   return (
     <div className={cn('min-h-screen bg-background', className)}>
       <div className="container mx-auto px-6 pt-6 pb-8 max-w-4xl space-y-8">
-        {/* Dog Information Card - Apple Design */}
-        <div className="apple-dog-info-card">
-          <div className="apple-dog-info-content">
+        {/* Dog Information Card - Design System */}
+        <div className="myk9-dog-info-card">
+          <div className="myk9-dog-info-content">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-6">
                 {/* Large Armband Number */}
-                <div className="apple-armband-display">
+                <div className="myk9-armband-display">
                   <div className="text-3xl font-bold">#{displayInfo.armband}</div>
                 </div>
                 
@@ -259,17 +259,17 @@ export function ScentWorkScoresheet({
         </div>
 
         {/* Timer Section */}
-        <div className="apple-card">
-          <div className="apple-card-header">
-            <div className="apple-card-title">
+        <div className="myk9-card">
+          <div className="myk9-card-header">
+            <div className="myk9-card-title">
               <Clock className="h-5 w-5 text-primary" />
               <span>Timer</span>
             </div>
-            <p className="apple-card-description">
+            <p className="myk9-card-description">
               Start timer when dog begins search. Time will auto-populate when stopped.
             </p>
           </div>
-          <div className="apple-card-content">
+          <div className="myk9-card-content">
             <DualTimerDisplay
               maxTimeMs={maxTimeMs}
               level={classConfig.level as 'Novice' | 'Advanced' | 'Excellent' | 'Masters'}
@@ -283,17 +283,17 @@ export function ScentWorkScoresheet({
         </div>
 
         {/* Qualification Selection */}
-        <div className="apple-card">
-          <div className="apple-card-header">
-            <div className="apple-card-title">
+        <div className="myk9-card">
+          <div className="myk9-card-header">
+            <div className="myk9-card-title">
               <Award className="h-5 w-5 text-primary" />
               <span>Qualification</span>
             </div>
-            <p className="apple-card-description">
+            <p className="myk9-card-description">
               Select the result for this run
             </p>
           </div>
-          <div className="apple-card-content">
+          <div className="myk9-card-content">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {qualificationOptions.map((option) => {
                 const isSelected = result.qualification === option.value;
@@ -301,20 +301,20 @@ export function ScentWorkScoresheet({
                   if (isSelected) {
                     switch (option.value) {
                       case 'Qualified':
-                        return 'apple-button-qualified selected';
+                        return 'myk9-button-qualified selected';
                       case 'Not Qualified':
-                        return 'apple-button-nq selected';
+                        return 'myk9-button-nq selected';
                       case 'Absent':
-                        return 'apple-button-absent selected';
+                        return 'myk9-button-absent selected';
                       case 'Excused':
-                        return 'apple-button-excused selected';
+                        return 'myk9-button-excused selected';
                       case 'Withdrawn':
-                        return 'apple-button-withdrawn selected';
+                        return 'myk9-button-withdrawn selected';
                       default:
-                        return 'apple-button-default selected';
+                        return 'myk9-button-default selected';
                     }
                   }
-                  return 'apple-button-qualification';
+                  return 'myk9-button-qualification';
                 };
                 
                 return (
@@ -331,8 +331,8 @@ export function ScentWorkScoresheet({
 
             {/* Time exceeded warning */}
             {(result.searchTime ?? 0) > 0 && isTimeExpired(result.searchTime ?? 0, maxTimeMs) && (
-              <div className="apple-alert apple-alert-warning mt-6">
-                <div className="apple-alert-content">
+              <div className="myk9-alert myk9-alert-warning mt-6">
+                <div className="myk9-alert-content">
                   Time limit exceeded. Dog automatically Not Qualified.
                 </div>
               </div>
@@ -342,39 +342,39 @@ export function ScentWorkScoresheet({
 
         {/* Progressive Fault Counter - Only shown if Qualified */}
         {result.qualification === 'Qualified' && (
-          <div className="apple-card">
-            <div className="apple-card-header">
-              <div className="apple-card-title">
+          <div className="myk9-card">
+            <div className="myk9-card-header">
+              <div className="myk9-card-title">
                 <span>Faults</span>
               </div>
-              <p className="apple-card-description">
+              <p className="myk9-card-description">
                 Number of faults observed during the search
               </p>
             </div>
-            <div className="apple-card-content">
-              <div className="apple-fault-counter">
+            <div className="myk9-card-content">
+              <div className="myk9-fault-counter">
                 <button
                   onClick={handleFaultDecrement}
                   disabled={result.faults === 0}
-                  className="apple-fault-button apple-fault-button-decrement"
+                  className="myk9-fault-button myk9-fault-button-decrement"
                 >
-                  <span className="apple-fault-button-text">−</span>
+                  <span className="myk9-fault-button-text">−</span>
                 </button>
                 
-                <div className="apple-fault-display">
-                  <div className="apple-fault-number">
+                <div className="myk9-fault-display">
+                  <div className="myk9-fault-number">
                     {result.faults}
                   </div>
-                  <div className="apple-fault-label">
+                  <div className="myk9-fault-label">
                     fault{result.faults !== 1 ? 's' : ''}
                   </div>
                 </div>
                 
                 <button
                   onClick={handleFaultIncrement}
-                  className="apple-fault-button apple-fault-button-increment"
+                  className="myk9-fault-button myk9-fault-button-increment"
                 >
-                  <span className="apple-fault-button-text">+</span>
+                  <span className="myk9-fault-button-text">+</span>
                 </button>
               </div>
             </div>
@@ -382,24 +382,24 @@ export function ScentWorkScoresheet({
         )}
 
         {/* Save/Cancel Actions */}
-        <div className="apple-actions-bar">
+        <div className="myk9-actions-bar">
           <Button
             variant="outline"
             onClick={onCancel}
             disabled={isSaving}
-            className="apple-button-cancel"
+            className="myk9-button-cancel"
           >
             Cancel
           </Button>
           
           <div className="flex items-center space-x-3">
             {saveError && (
-              <span className="apple-error-text">{saveError}</span>
+              <span className="myk9-error-text">{saveError}</span>
             )}
             <Button
               onClick={handleSaveClick}
               disabled={!isResultComplete || isSaving}
-              className="apple-button-primary min-w-[120px]"
+              className="myk9-button-primary min-w-[120px]"
             >
               {isSaving ? 'Saving...' : 'Save Result'}
             </Button>
@@ -443,65 +443,65 @@ function SaveConfirmationDialog({
   isLoading
 }: SaveConfirmationDialogProps) {
   return (
-    <div className="apple-dialog-overlay">
-      <div className="apple-dialog">
-        <div className="apple-dialog-header">
-          <h3 className="apple-dialog-title">Confirm Result</h3>
-          <p className="apple-dialog-description">
+    <div className="myk9-dialog-overlay">
+      <div className="myk9-dialog">
+        <div className="myk9-dialog-header">
+          <h3 className="myk9-dialog-title">Confirm Result</h3>
+          <p className="myk9-dialog-description">
             Please review the result before saving
           </p>
         </div>
         
-        <div className="apple-dialog-content">
+        <div className="myk9-dialog-content">
           {/* Summary */}
-          <div className="apple-result-summary">
-            <div className="apple-summary-row">
-              <span className="apple-summary-label">Armband:</span>
-              <span className="apple-summary-value">#{entry.displayInfo.armband}</span>
+          <div className="myk9-result-summary">
+            <div className="myk9-summary-row">
+              <span className="myk9-summary-label">Armband:</span>
+              <span className="myk9-summary-value">#{entry.displayInfo.armband}</span>
             </div>
-            <div className="apple-summary-row">
-              <span className="apple-summary-label">Dog:</span>
-              <span className="apple-summary-value">{entry.displayInfo.dogName}</span>
+            <div className="myk9-summary-row">
+              <span className="myk9-summary-label">Dog:</span>
+              <span className="myk9-summary-value">{entry.displayInfo.dogName}</span>
             </div>
-            <div className="apple-summary-row">
-              <span className="apple-summary-label">Time:</span>
-              <span className="apple-summary-value apple-summary-time">
+            <div className="myk9-summary-row">
+              <span className="myk9-summary-label">Time:</span>
+              <span className="myk9-summary-value myk9-summary-time">
                 {msToDisplay(result.searchTime, 'hundredths')}
               </span>
             </div>
-            <div className="apple-summary-row">
-              <span className="apple-summary-label">Result:</span>
+            <div className="myk9-summary-row">
+              <span className="myk9-summary-label">Result:</span>
               <div className={cn(
-                'apple-summary-badge',
+                'myk9-summary-badge',
                 result.qualification === 'Qualified' ? 'qualified' : 'not-qualified'
               )}>
                 {result.qualification}
               </div>
             </div>
             {result.qualification === 'Qualified' && result.faults > 0 && (
-              <div className="apple-summary-row">
-                <span className="apple-summary-label">Faults:</span>
-                <span className="apple-summary-value">{result.faults}</span>
+              <div className="myk9-summary-row">
+                <span className="myk9-summary-label">Faults:</span>
+                <span className="myk9-summary-value">{result.faults}</span>
               </div>
             )}
           </div>
 
-          <div className="apple-dialog-separator"></div>
+          <div className="myk9-dialog-separator"></div>
 
           {/* Actions */}
-          <div className="apple-dialog-actions">
+          <div className="myk9-dialog-actions">
             <Button
               variant="outline"
               onClick={onCancel}
               disabled={isLoading}
-              className="apple-button-cancel"
+              className="myk9-button-cancel"
             >
               Cancel
             </Button>
             <Button
               onClick={onConfirm}
               disabled={isLoading}
-              className="apple-button-primary"
+              className="myk9-button-primary"
             >
               {isLoading ? 'Saving...' : 'Confirm'}
             </Button>

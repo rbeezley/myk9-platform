@@ -23,7 +23,7 @@ test.describe('Complete User Journey - Real World Flow', () => {
 
     // Step 1: Navigate to a protected route (Browse Shows)
     console.log('🌐 Navigating to Browse Shows (protected route)...');
-    await page.goto('http://127.0.0.1:5174/browse-shows');
+    await page.goto('http://127.0.0.1:5174/shows');
     
     // Step 2: Should redirect to sign-in (protected route)
     await expect(page).toHaveURL(/.*sign-in/);
@@ -66,7 +66,7 @@ test.describe('Complete User Journey - Real World Flow', () => {
     
     // Step 6: Should now be authenticated - navigate to Browse Shows
     console.log('📋 Navigating to Browse Shows...');
-    await page.goto('http://127.0.0.1:5174/browse-shows');
+    await page.goto('http://127.0.0.1:5174/shows');
     
     // Should not redirect to sign-in if properly authenticated
     await page.waitForLoadState('networkidle');
@@ -171,7 +171,7 @@ test.describe('Complete User Journey - Real World Flow', () => {
     console.log('🧪 Testing navigation flow specifically...');
     
     // Start at browse shows (assuming user is already authenticated from previous test)
-    await page.goto('http://127.0.0.1:5174/browse-shows');
+    await page.goto('http://127.0.0.1:5174/shows');
     
     // If redirected to sign-in, authenticate first
     if (page.url().includes('sign-in')) {
@@ -179,7 +179,7 @@ test.describe('Complete User Journey - Real World Flow', () => {
       await page.fill('input[type="password"]', TEST_USER.password);
       await page.click('button[type="submit"]');
       await page.waitForLoadState('networkidle');
-      await page.goto('http://127.0.0.1:5174/browse-shows');
+      await page.goto('http://127.0.0.1:5174/shows');
     }
     
     await page.waitForLoadState('networkidle');

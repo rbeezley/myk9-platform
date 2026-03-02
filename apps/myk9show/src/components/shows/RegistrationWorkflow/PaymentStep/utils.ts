@@ -1,6 +1,14 @@
-import type { ClassSelectionData, PaymentStatus, EntryStatus } from '@/types/show-registration-types';
-import { PaymentStatus as PaymentStatusEnum, EntryStatus as EntryStatusEnum } from '@/types/show-registration-types';
+import type {
+  ClassSelectionData,
+  PaymentStatus,
+  EntryStatus,
+} from '@/types/show-registration-types';
+import {
+  PaymentStatus as PaymentStatusEnum,
+  EntryStatus as EntryStatusEnum,
+} from '@/types/show-registration-types';
 import type { FeeCalculationResult, FeeBreakdownItem } from './types';
+import { getDogDisplayName } from '@/types/dog-types';
 
 /**
  * Minimal subset of Dog used by fee calculation.
@@ -21,8 +29,53 @@ interface ClassLike {
   entryFee?: number | undefined;
 }
 
-/** Default entry fee when a class has no explicit fee set. */
+/**
+ * Minimal subset of Show used by fee calculation.
+ */
+export interface ShowFeeInfo {
+  preEntryFee: string;
+  dayOfShowFee?: string | undefined;
+  startDate: string;
+}
+
+/** Default entry fee when neither show nor class has a fee set. */
 const DEFAULT_ENTRY_FEE = 25;
+
+/**
+ * Determine the entry fee for a class.
+ *
+ * Priority:
+ * 1. Show-level fee tier based on date (pre-entry vs day-of-show)
+ * 2. Class-level entryFee (fallback when show has no fees)
+ * 3. DEFAULT_ENTRY_FEE ($25 fallback)
+ *
+ * Note: per-class fee overrides (e.g. detective costs more) require a
+ * separate `feeOverride` flag on the class so template defaults don't
+ * accidentally override show-level fees.
+ */
+export function getShowEntryFee(
+  show: ShowFeeInfo | undefined,
+  classEntryFee?: number | undefined
+): number {
+  // Show-level fee with date-based tier
+  if (show) {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const showStart = new Date(show.startDate);
+    showStart.setHours(0, 0, 0, 0);
+
+    if (now >= showStart && show.dayOfShowFee) {
+      const dayFee = parseFloat(show.dayOfShowFee.replace(/[$,]/g, ''));
+      if (!isNaN(dayFee) && dayFee > 0) return dayFee;
+    }
+
+    const preFee = parseFloat(show.preEntryFee.replace(/[$,]/g, ''));
+    if (!isNaN(preFee) && preFee > 0) return preFee;
+  }
+
+  // Class-level fee as fallback
+  return classEntryFee || DEFAULT_ENTRY_FEE;
+}
 
 /** Multi-dog discount threshold (number of dogs). */
 const MULTI_DOG_THRESHOLD = 3;
@@ -35,12 +88,15 @@ const EARLY_BIRD_DISCOUNT_RATE = 0.05;
 
 /**
  * Calculate the total fees, discounts, and per-dog breakdown for a registration.
+ * When show info is provided, uses show-level fee tiers (pre-entry vs day-of-show)
+ * based on current date. Falls back to class-level entryFee otherwise.
  */
 export function calculateTotalFees(
   selectedDogs: string[],
   classSelections: ClassSelectionData[],
   dogs: DogLike[],
-  classes: ClassLike[]
+  classes: ClassLike[],
+  show?: ShowFeeInfo
 ): FeeCalculationResult {
   let subtotal = 0;
   const breakdown: FeeBreakdownItem[] = [];
@@ -54,7 +110,7 @@ export function calculateTotalFees(
         const classData = classes.find(c => c.id === sc.classId);
         return {
           className: classData?.className || 'Unknown Class',
-          fee: classData?.entryFee || DEFAULT_ENTRY_FEE,
+          fee: getShowEntryFee(show, classData?.entryFee),
         };
       });
 
@@ -63,7 +119,7 @@ export function calculateTotalFees(
 
       breakdown.push({
         dogId,
-        dogName: dog.callName || dog.name,
+        dogName: getDogDisplayName(dog),
         classes: dogClasses,
         subtotal: dogSubtotal,
       });

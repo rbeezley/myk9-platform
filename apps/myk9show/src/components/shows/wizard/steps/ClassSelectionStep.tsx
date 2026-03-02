@@ -17,8 +17,18 @@ import { useWizardStore } from '@/store/wizardStore';
 import { useTemplates } from '@/hooks/useTemplates';
 import { ClassTemplate, ClassDefinition } from '@/types/template.types';
 
+interface ExistingClassInfo {
+  trialId: string;
+  className: string;
+  element: string;
+  level: string;
+  section: string;
+}
+
 interface ClassSelectionStepProps {
   className?: string;
+  /** Classes that already exist in the DB (for add-classes mode). */
+  existingDBClasses?: ExistingClassInfo[] | undefined;
 }
 
 interface TrialClassState {
@@ -26,7 +36,10 @@ interface TrialClassState {
   selectedClasses: ClassDefinition[];
 }
 
-export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ className }) => {
+export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
+  className,
+  existingDBClasses = [],
+}) => {
   const { trials, updateTrial, show, judgeDetails, judgeAssignments, assignJudgeToClass } =
     useWizardStore(
       useShallow(state => ({
@@ -87,8 +100,8 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
     return initialStates;
   });
 
-  // Extract show type for stable dependency
-  const showType = show?.type;
+  // Extract show organization for stable dependency
+  const showType = show?.organization;
 
   // Filter templates to active ones matching the show organization
   const activeTemplates = useMemo(() => {
@@ -147,6 +160,19 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
     selectedTemplate: null,
     selectedClasses: [],
   };
+
+  // Filter DB existing classes to the current trial for the SimpleClassSelector prop
+  const existingClassesForTrial = useMemo(() => {
+    if (existingDBClasses.length === 0 || !currentTrialId) return [];
+    return existingDBClasses
+      .filter(c => c.trialId === currentTrialId)
+      .map(c => ({
+        className: c.className,
+        element: c.element,
+        level: c.level,
+        section: c.section,
+      }));
+  }, [existingDBClasses, currentTrialId]);
 
   // Get total classes across all trials
   const totalClasses = trials.reduce((sum, trial) => sum + trial.classes.length, 0);
@@ -259,8 +285,8 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
             <Alert>
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
-                {show?.type
-                  ? `No active templates found for "${show.type}" organization. Please create a template for this organization or ensure your templates are activated.`
+                {show?.organization
+                  ? `No active templates found for "${show.organization}" organization. Please create a template for this organization or ensure your templates are activated.`
                   : 'No active templates are available. Please create a template first or ensure your templates are activated.'}
               </AlertDescription>
             </Alert>
@@ -340,9 +366,9 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
                                       ? String(Object.values(template.organization)[0] || 'Unknown')
                                       : String(template.organization || 'Unknown');
                                   const showTypeValue =
-                                    typeof template.showType === 'object'
-                                      ? String(Object.values(template.showType)[0] || 'Unknown')
-                                      : String(template.showType || 'Unknown');
+                                    typeof template.trialType === 'object'
+                                      ? String(Object.values(template.trialType)[0] || 'Unknown')
+                                      : String(template.trialType || 'Unknown');
                                   const templateName = template.templateName || 'Unnamed Template';
 
                                   return (
@@ -356,22 +382,22 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
                           </div>
 
                           {currentTrialState.selectedTemplate && (
-                            <div className="apple-template-card">
-                              <div className="apple-template-header">
-                                <div className="apple-template-title-section">
-                                  <FileText className="apple-template-icon" />
-                                  <h3 className="apple-template-title">
+                            <div className="myk9-template-card">
+                              <div className="myk9-template-header">
+                                <div className="myk9-template-title-section">
+                                  <FileText className="myk9-template-icon" />
+                                  <h3 className="myk9-template-title">
                                     {currentTrialState.selectedTemplate.templateName ||
                                       'Unnamed Template'}
                                   </h3>
                                 </div>
                               </div>
 
-                              <div className="apple-template-content">
-                                <div className="apple-template-details">
-                                  <div className="apple-template-detail-item">
-                                    <span className="apple-template-label">Classes Available:</span>
-                                    <span className="apple-template-value">
+                              <div className="myk9-template-content">
+                                <div className="myk9-template-details">
+                                  <div className="myk9-template-detail-item">
+                                    <span className="myk9-template-label">Classes Available:</span>
+                                    <span className="myk9-template-value">
                                       {currentTrialState.selectedTemplate.classDefinitions
                                         ?.length || 0}{' '}
                                       classes
@@ -397,7 +423,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({ classNam
                           template={currentTrialState.selectedTemplate}
                           selectedClasses={currentTrialState.selectedClasses}
                           onSelectionChange={handleClassSelectionChange}
-                          existingClasses={[]} // No existing classes in wizard
+                          existingClasses={existingClassesForTrial}
                           availableJudges={availableJudges}
                           judgeAssignments={judgeAssignments}
                           onJudgeAssignmentChange={handleJudgeAssignmentChange}

@@ -74,13 +74,6 @@ export const TrendChart = lazy(
   () => import('@/components/shows/ShowDetails/ShowStatistics/TrendChart')
 );
 
-// Registration Workflow (complex multi-step form)
-export const RegistrationWorkflow = lazy(() =>
-  import('@/components/shows/RegistrationWorkflow').then(m => ({
-    default: m.RegistrationWorkflow,
-  }))
-);
-
 // ============================================================================
 // ENHANCED LOADING WRAPPERS
 // ============================================================================
@@ -104,7 +97,6 @@ export function preloadHeavyComponents(): void {
       () => AnalyticsDashboard,
       () => ShowCalendar,
       () => TrendChart,
-      () => RegistrationWorkflow,
       () => PrintManager,
     ];
 
@@ -131,9 +123,9 @@ export function preloadByRole(userRole?: string): void {
 
   const roleComponents = {
     admin: [AnalyticsDashboard, SyncMonitoringDashboard],
-    secretary: [ShowCalendar, RegistrationWorkflow, PrintManager],
+    secretary: [ShowCalendar, PrintManager],
     judge: [ClassEntriesTable, ClassResultsTable],
-    exhibitor: [ShowCalendar, RegistrationWorkflow],
+    exhibitor: [ShowCalendar],
   };
 
   const components = roleComponents[userRole as keyof typeof roleComponents] || [];

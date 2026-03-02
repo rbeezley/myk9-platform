@@ -23,7 +23,6 @@ export interface DialogState {
   editEntryDialogOpen: boolean;
   deleteDialogOpen: boolean;
   editEntryId: string | null;
-  addEntryDialogOpen: boolean;
   deleteEntryDialogOpen: boolean;
   entryToDelete: string | null;
 }

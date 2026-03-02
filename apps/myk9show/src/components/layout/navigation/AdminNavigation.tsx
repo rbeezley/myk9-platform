@@ -16,7 +16,7 @@ const AdminNavigation: React.FC<AdminNavigationProps> = ({ mobile = false, onNav
   };
 
   return (
-    <div className={mobile ? "flex flex-col gap-2" : "hidden md:flex items-center gap-6"}>
+    <div className={mobile ? 'flex flex-col gap-2' : 'hidden md:flex items-center gap-6'}>
       <Link
         to="/admin/dashboard"
         onClick={onNavigate}
@@ -27,10 +27,10 @@ const AdminNavigation: React.FC<AdminNavigationProps> = ({ mobile = false, onNav
         Admin Console
       </Link>
       <Link
-        to="/browse-shows"
+        to="/shows"
         onClick={onNavigate}
         className={`${buildClasses.button.ghost} font-medium transition-colors ${
-          isActivePath('/browse-shows') || isActivePath('/shows') ? 'text-primary' : 'text-foreground/80 hover:text-primary'
+          isActivePath('/shows') ? 'text-primary' : 'text-foreground/80 hover:text-primary'
         }`}
       >
         Shows

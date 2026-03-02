@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { Dog } from '@/types/dog-types';
+import type { Dog, DogStatus } from '@/types/dog-types';
 import { getOptimalStorage } from '@/services/database/storage-adapter';
 import { logger } from '@/services/LoggingService';
 
@@ -23,37 +23,49 @@ export interface DogInput {
   microchipNumber?: string | undefined;
   imageUrl?: string | undefined;
   spayedNeutered?: boolean | undefined;
-  registrations?: Array<{
-    organization: string;
-    number: string;
-    registeredName?: string | undefined;
-    type: string;
-    status: string;
-  }> | undefined;
-  healthRecords?: {
-    vaccinations?: Array<{
-      id: string;
-      name: string;
-      date: string;
-      nextDue?: string | undefined;
-      veterinarian: string;
-    }> | undefined;
-    medications?: Array<{
-      id: string;
-      name: string;
-      dosage: string;
-      frequency: string;
-      startDate: string;
-      endDate?: string | undefined;
-    }> | undefined;
-    allergies?: Array<{
-      id: string;
-      allergen: string;
-      severity: string;
-      reaction: string;
-      notes?: string | undefined;
-    }> | undefined;
-  } | undefined;
+  status?: DogStatus | undefined;
+  deceasedDate?: string | undefined;
+  registrations?:
+    | Array<{
+        organization: string;
+        number: string;
+        registeredName?: string | undefined;
+        type: string;
+        status: string;
+      }>
+    | undefined;
+  healthRecords?:
+    | {
+        vaccinations?:
+          | Array<{
+              id: string;
+              name: string;
+              date: string;
+              nextDue?: string | undefined;
+              veterinarian: string;
+            }>
+          | undefined;
+        medications?:
+          | Array<{
+              id: string;
+              name: string;
+              dosage: string;
+              frequency: string;
+              startDate: string;
+              endDate?: string | undefined;
+            }>
+          | undefined;
+        allergies?:
+          | Array<{
+              id: string;
+              allergen: string;
+              severity: string;
+              reaction: string;
+              notes?: string | undefined;
+            }>
+          | undefined;
+      }
+    | undefined;
 }
 
 // Phase 2.1: Simplified DogStore interface for UI state management only
@@ -61,15 +73,15 @@ export interface DogInput {
 interface DogStore {
   // UI State (persisted)
   selectedDogId: string;
-  
+
   // Migration flags
   _migratedToReactQuery: boolean;
   _useReactQuery: boolean;
-  
+
   // UI State Management
   selectDog: (id: string) => void;
   resetStore: () => void;
-  
+
   // Backward compatibility: Data operations
   // Note: These are deprecated - components should use useDogStoreCompat hook instead
   dogs: Dog[];
@@ -81,7 +93,7 @@ interface DogStore {
   getDogById: (id: string) => Dog | null;
   getDogsByOwner: (ownerId: string) => Dog[];
   getSyncStatus: (id: string) => 'synced' | 'pending' | 'error' | 'conflict';
-  
+
   // Legacy methods (deprecated)
   addDogLegacy: (dog: Dog) => void;
   updateDogLegacy: (dog: Dog) => void;
@@ -92,54 +104,70 @@ interface DogStore {
 
 export const useDogStore = create<DogStore>()(
   persist(
-    (set) => ({
+    set => ({
       // UI State (persisted)
       selectedDogId: '',
-      
+
       // Migration flags
       _migratedToReactQuery: true,
       _useReactQuery: true,
-      
+
       // UI State Management
       selectDog: (id: string) => set({ selectedDogId: id }),
-      
-      resetStore: () => set({
-        selectedDogId: '',
-      }),
-      
+
+      resetStore: () =>
+        set({
+          selectedDogId: '',
+        }),
+
       // Backward compatibility: Data operations (deprecated)
       // These methods now throw errors to encourage migration to useDogStoreCompat
       dogs: [],
       isLoading: false,
       error: null,
-      
+
       addDog: async (): Promise<Dog> => {
         logger.warn('dogStore.addDog is deprecated. Use useDogStoreCompat hook instead', 'dogs');
-        throw new Error('dogStore data operations are deprecated. Use useDogStoreCompat hook for data operations.');
+        throw new Error(
+          'dogStore data operations are deprecated. Use useDogStoreCompat hook for data operations.'
+        );
       },
 
       updateDog: async (): Promise<Dog | null> => {
         logger.warn('dogStore.updateDog is deprecated. Use useDogStoreCompat hook instead', 'dogs');
-        throw new Error('dogStore data operations are deprecated. Use useDogStoreCompat hook for data operations.');
+        throw new Error(
+          'dogStore data operations are deprecated. Use useDogStoreCompat hook for data operations.'
+        );
       },
 
       deleteDog: async (): Promise<void> => {
         logger.warn('dogStore.deleteDog is deprecated. Use useDogStoreCompat hook instead', 'dogs');
-        throw new Error('dogStore data operations are deprecated. Use useDogStoreCompat hook for data operations.');
+        throw new Error(
+          'dogStore data operations are deprecated. Use useDogStoreCompat hook for data operations.'
+        );
       },
 
       getDogById: (): Dog | null => {
-        logger.warn('dogStore.getDogById is deprecated. Use useDogStoreCompat hook instead', 'dogs');
+        logger.warn(
+          'dogStore.getDogById is deprecated. Use useDogStoreCompat hook instead',
+          'dogs'
+        );
         return null;
       },
 
       getDogsByOwner: (): Dog[] => {
-        logger.warn('dogStore.getDogsByOwner is deprecated. Use useDogStoreCompat hook instead', 'dogs');
+        logger.warn(
+          'dogStore.getDogsByOwner is deprecated. Use useDogStoreCompat hook instead',
+          'dogs'
+        );
         return [];
       },
 
       getSyncStatus: (): 'synced' | 'pending' | 'error' | 'conflict' => {
-        logger.warn('dogStore.getSyncStatus is deprecated. Use useDogStoreCompat hook instead', 'dogs');
+        logger.warn(
+          'dogStore.getSyncStatus is deprecated. Use useDogStoreCompat hook instead',
+          'dogs'
+        );
         return 'synced';
       },
 
@@ -163,7 +191,7 @@ export const useDogStore = create<DogStore>()(
     {
       name: 'myk9show-dogs-ui-storage',
       storage: createJSONStorage(() => getOptimalStorage('dogs')),
-      partialize: (state) => ({
+      partialize: state => ({
         selectedDogId: state.selectedDogId,
         _migratedToReactQuery: state._migratedToReactQuery,
         _useReactQuery: state._useReactQuery,

@@ -24,7 +24,7 @@ type ShowRow = Database['public']['Tables']['shows']['Row'];
 export interface ReplicatedShow {
   id: string;
   name: string;
-  type: string;
+  organization: string;
   startDate: string;
   endDate: string;
   location?: string | undefined;
@@ -55,7 +55,7 @@ function rowToShow(row: ShowRow): ReplicatedShow {
   return {
     id: String(row.id),
     name: row.name,
-    type: row.type,
+    organization: row.organization,
     startDate: row.start_date,
     endDate: row.end_date,
     location: row.location ?? undefined,
@@ -120,13 +120,13 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     return {
       id: show.id,
       name: show.name,
-      type: show.type,
+      organization: show.organization,
       start_date: show.startDate,
       end_date: show.endDate,
       location: show.location ?? null,
       status: this.mapShowStatusToDb(show.status),
-      entry_open_date: show.entryOpenDate ?? null,
-      entry_close_date: show.entryCloseDate ?? null,
+      entry_open_date: show.entryOpenDate || null,
+      entry_close_date: show.entryCloseDate || null,
       pre_entry_fee: show.preEntryFee ?? null,
       day_of_show_fee: show.dayOfShowFee ?? null,
       club_id: show.clubId ?? null,

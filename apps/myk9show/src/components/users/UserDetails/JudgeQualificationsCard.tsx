@@ -17,7 +17,7 @@ const JudgeQualificationsCard: React.FC<JudgeQualificationsCardProps> = ({
   onManageQualifications,
 }) => {
   return (
-    <Card className="group bg-gradient-to-br from-card/95 to-card/80 apple-subtle-card-border
+    <Card className="group bg-gradient-to-br from-card/95 to-card/80 myk9-subtle-card-border
                      rounded-2xl p-6 shadow-md backdrop-blur-xl transition-all duration-500
                      hover:shadow-xl hover:-translate-y-1 hover:border-primary/20">
       <div className="absolute inset-0 bg-gradient-to-br from-amber-500/[0.02] to-transparent

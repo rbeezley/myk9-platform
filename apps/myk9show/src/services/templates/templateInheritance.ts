@@ -2,14 +2,11 @@
 // Phase 4.1: Template System Integration
 
 import { logger } from '@/services/LoggingService';
+import type { ClassTemplate, ClassTemplateField } from '@/types/class-template-types';
 import type {
-  ClassTemplate, 
-  ClassTemplateField
-} from '@/types/class-template-types';
-import type { 
-  ShowTemplateDefinition, 
+  ShowTemplateDefinition,
   ShowFieldDefinition,
-  Organization 
+  Organization,
 } from '@/types/show-template-types';
 import { validateTemplateStructure } from '@/services/mappers/templateMappers';
 
@@ -129,7 +126,7 @@ export const createTemplateVariant = (
     fieldModifications?: Record<string, Partial<ClassTemplateField>>;
     additionalFields?: ClassTemplateField[];
     patternOverride?: string;
-    defaultOverrides?: Partial<Pick<ClassTemplate, 'entryFeeDefault' | 'maxEntriesDefault'>>;
+    defaultOverrides?: Partial<Pick<ClassTemplate, 'maxEntriesDefault'>>;
   }
 ): ClassTemplate => {
   const variant: ClassTemplate = {
@@ -231,30 +228,27 @@ export const createInheritedShowTemplate = (
 /**
  * Resolve template dependencies and inheritance chain
  */
-export const resolveTemplateDependencies = (
-  template: ClassTemplate
-): ClassTemplate[] => {
+export const resolveTemplateDependencies = (template: ClassTemplate): ClassTemplate[] => {
   const dependencyChain: ClassTemplate[] = [template];
   // Note: visitedIds would be used for tracking circular dependencies when inheritance is implemented
   // const visitedIds = new Set([template.id]);
 
   // For now, we don't have explicit parent-child relationships in the schema
   // This could be extended when we add inheritance metadata to the database
-  
+
   return dependencyChain;
 };
 
 /**
  * Check if a template can be safely modified without breaking dependents
  */
-export const canSafelyModifyTemplate = (
-): { canModify: boolean; blockers: string[] } => {
+export const canSafelyModifyTemplate = (): { canModify: boolean; blockers: string[] } => {
   // Check for dependent templates (if we had explicit inheritance relationships)
   const blockers: string[] = [];
-  
+
   // For now, all templates can be modified since we don't track dependencies
   // This would be enhanced when we add inheritance tracking
-  
+
   return {
     canModify: true,
     blockers,
@@ -335,10 +329,10 @@ export const compareTemplates = (
   const keys = new Set([...Object.keys(template1), ...Object.keys(template2)]);
   keys.forEach(key => {
     if (key === 'fields' || key === 'id' || key === 'createdAt' || key === 'updatedAt') return;
-    
+
     const val1 = (template1 as unknown as Record<string, unknown>)[key];
     const val2 = (template2 as unknown as Record<string, unknown>)[key];
-    
+
     if (val1 !== val2) {
       result.propertyDifferences[key] = { old: val1, new: val2 };
     }
@@ -367,19 +361,19 @@ export const compareTemplates = (
     const field2 = fields2Map.get(field1.name);
     if (field2) {
       const changes: Record<string, { old: unknown; new: unknown }> = {};
-      
+
       if (field1.type !== field2.type) {
         changes.type = { old: field1.type, new: field2.type };
       }
-      
+
       if (JSON.stringify(field1.values) !== JSON.stringify(field2.values)) {
         changes.values = { old: field1.values, new: field2.values };
       }
-      
+
       if (field1.optional !== field2.optional) {
         changes.optional = { old: field1.optional, new: field2.optional };
       }
-      
+
       if (Object.keys(changes).length > 0) {
         result.fieldDifferences.modified.push({
           field: field1.name,
@@ -417,7 +411,9 @@ export const validateInheritance = (
   parentTemplate.fields.forEach(parentField => {
     const childField = childTemplate.fields.find(f => f.name === parentField.name);
     if (childField && parentField.type !== childField.type) {
-      errors.push(`Field '${parentField.name}' type changed from '${parentField.type}' to '${childField.type}' - this may break compatibility`);
+      errors.push(
+        `Field '${parentField.name}' type changed from '${parentField.type}' to '${childField.type}' - this may break compatibility`
+      );
     }
   });
 

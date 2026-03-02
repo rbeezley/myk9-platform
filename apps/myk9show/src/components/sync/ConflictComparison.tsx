@@ -38,32 +38,30 @@ interface FieldComparison {
   isDifferent: boolean;
 }
 
-export const ConflictComparison: React.FC<ConflictComparisonProps> = ({
-  conflict,
-  onResolve,
-}) => {
+export const ConflictComparison: React.FC<ConflictComparisonProps> = ({ conflict, onResolve }) => {
   const [fieldComparisons, setFieldComparisons] = useState<FieldComparison[]>([]);
   const [expandedFields, setExpandedFields] = useState<Set<string>>(new Set());
   const [viewMode, setViewMode] = useState<'side-by-side' | 'unified'>('side-by-side');
   const [autoMergeAttempted, setAutoMergeAttempted] = useState(false);
 
   // Normalize conflict data
-  const localData = React.useMemo(() => 
-    conflict.localData || conflict.local || {}, 
+  const localData = React.useMemo(
+    () => conflict.localData || conflict.local || {},
     [conflict.localData, conflict.local]
   );
-  const remoteData = React.useMemo(() => 
-    conflict.remoteData || conflict.remote || {}, 
+  const remoteData = React.useMemo(
+    () => conflict.remoteData || conflict.remote || {},
     [conflict.remoteData, conflict.remote]
   );
-  const conflictFields: string[] = conflict.conflictFields || Object.keys({ ...localData, ...remoteData });
+  const conflictFields: string[] =
+    conflict.conflictFields || Object.keys({ ...localData, ...remoteData });
 
   React.useEffect(() => {
     const comparisons = conflictFields.map((field: string): FieldComparison => {
       const localValue = localData[field];
       const remoteValue = remoteData[field];
       const isDifferent = JSON.stringify(localValue) !== JSON.stringify(remoteValue);
-      
+
       return {
         field,
         localValue,
@@ -99,25 +97,23 @@ export const ConflictComparison: React.FC<ConflictComparisonProps> = ({
   };
 
   const selectFieldValue = (field: string, source: 'local' | 'remote') => {
-    setFieldComparisons(prev => 
-      prev.map(comparison => 
-        comparison.field === field 
-          ? { ...comparison, selected: source }
-          : comparison
+    setFieldComparisons(prev =>
+      prev.map(comparison =>
+        comparison.field === field ? { ...comparison, selected: source } : comparison
       )
     );
   };
 
   const attemptAutoMerge = () => {
     setAutoMergeAttempted(true);
-    
+
     // Simple auto-merge strategy: prefer newer timestamps, non-empty values
-    setFieldComparisons(prev => 
+    setFieldComparisons(prev =>
       prev.map(comparison => {
         if (!comparison.isDifferent) return comparison;
 
         let selectedSource: 'local' | 'remote' = 'local';
-        
+
         // Prefer non-empty values
         if (!comparison.localValue && comparison.remoteValue) {
           selectedSource = 'remote';
@@ -125,8 +121,10 @@ export const ConflictComparison: React.FC<ConflictComparisonProps> = ({
           selectedSource = 'local';
         }
         // For timestamps, prefer newer
-        else if (comparison.field.toLowerCase().includes('time') || 
-                 comparison.field.toLowerCase().includes('date')) {
+        else if (
+          comparison.field.toLowerCase().includes('time') ||
+          comparison.field.toLowerCase().includes('date')
+        ) {
           const localTime = new Date(comparison.localValue as string).getTime();
           const remoteTime = new Date(comparison.remoteValue as string).getTime();
           selectedSource = localTime > remoteTime ? 'local' : 'remote';
@@ -138,15 +136,13 @@ export const ConflictComparison: React.FC<ConflictComparisonProps> = ({
   };
 
   const resetSelections = () => {
-    setFieldComparisons(prev => 
-      prev.map(comparison => ({ ...comparison, selected: 'local' }))
-    );
+    setFieldComparisons(prev => prev.map(comparison => ({ ...comparison, selected: 'local' })));
     setAutoMergeAttempted(false);
   };
 
   const handleResolve = () => {
     const resolvedData = { ...localData };
-    
+
     fieldComparisons.forEach(comparison => {
       if (comparison.selected === 'remote') {
         resolvedData[comparison.field] = comparison.remoteValue;
@@ -164,7 +160,7 @@ export const ConflictComparison: React.FC<ConflictComparisonProps> = ({
     const different = fieldComparisons.filter(c => c.isDifferent).length;
     const localSelected = fieldComparisons.filter(c => c.selected === 'local').length;
     const remoteSelected = fieldComparisons.filter(c => c.selected === 'remote').length;
-    
+
     return { total, different, localSelected, remoteSelected };
   };
 
@@ -177,8 +173,8 @@ export const ConflictComparison: React.FC<ConflictComparisonProps> = ({
         <Alert>
           <Info className="h-4 w-4" />
           <AlertDescription>
-            Review each conflicting field and choose which version to keep. 
-            Different values are highlighted for easy comparison.
+            Review each conflicting field and choose which version to keep. Different values are
+            highlighted for easy comparison.
           </AlertDescription>
         </Alert>
 
@@ -200,9 +196,9 @@ export const ConflictComparison: React.FC<ConflictComparisonProps> = ({
                 Unified
               </Button>
             </div>
-            
+
             <Separator orientation="vertical" className="h-6" />
-            
+
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -213,11 +209,7 @@ export const ConflictComparison: React.FC<ConflictComparisonProps> = ({
                 <Merge className="h-4 w-4 mr-2" />
                 Auto Merge
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={resetSelections}
-              >
+              <Button variant="outline" size="sm" onClick={resetSelections}>
                 <RotateCcw className="h-4 w-4 mr-2" />
                 Reset
               </Button>
@@ -226,7 +218,9 @@ export const ConflictComparison: React.FC<ConflictComparisonProps> = ({
 
           {/* Stats */}
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
-            <span>{stats.different} of {stats.total} fields conflict</span>
+            <span>
+              {stats.different} of {stats.total} fields conflict
+            </span>
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="text-primary">
                 Local: {stats.localSelected}
@@ -249,12 +243,12 @@ export const ConflictComparison: React.FC<ConflictComparisonProps> = ({
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
               className={cn(
-                "border rounded-lg overflow-hidden",
-                comparison.isDifferent && "border-warning/50 bg-warning/5",
-                !comparison.isDifferent && "border-border/50"
+                'border rounded-lg overflow-hidden',
+                comparison.isDifferent && 'border-warning/50 bg-warning/5',
+                !comparison.isDifferent && 'border-border/50'
               )}
             >
-              <div 
+              <div
                 className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/20"
                 onClick={() => toggleFieldExpansion(comparison.field)}
               >
@@ -276,13 +270,13 @@ export const ConflictComparison: React.FC<ConflictComparisonProps> = ({
                     </Badge>
                   )}
                 </div>
-                
+
                 {comparison.isDifferent && (
                   <div className="flex items-center gap-2">
                     <Button
                       variant={comparison.selected === 'local' ? 'default' : 'outline'}
                       size="sm"
-                      onClick={(e) => {
+                      onClick={e => {
                         e.stopPropagation();
                         selectFieldValue(comparison.field, 'local');
                       }}
@@ -294,7 +288,7 @@ export const ConflictComparison: React.FC<ConflictComparisonProps> = ({
                     <Button
                       variant={comparison.selected === 'remote' ? 'default' : 'outline'}
                       size="sm"
-                      onClick={(e) => {
+                      onClick={e => {
                         e.stopPropagation();
                         selectFieldValue(comparison.field, 'remote');
                       }}
@@ -339,7 +333,9 @@ export const ConflictComparison: React.FC<ConflictComparisonProps> = ({
                         </div>
                         <div className="bg-background/50 border rounded-md p-3 text-sm font-mono max-h-32 overflow-auto">
                           <pre className="whitespace-pre-wrap">
-                            {formatValue(comparison.localValue) || <span className="text-muted-foreground italic">Empty</span>}
+                            {formatValue(comparison.localValue) || (
+                              <span className="text-muted-foreground italic">Empty</span>
+                            )}
                           </pre>
                         </div>
                       </div>
@@ -367,7 +363,9 @@ export const ConflictComparison: React.FC<ConflictComparisonProps> = ({
                         </div>
                         <div className="bg-background/50 border rounded-md p-3 text-sm font-mono max-h-32 overflow-auto">
                           <pre className="whitespace-pre-wrap">
-                            {formatValue(comparison.remoteValue) || <span className="text-muted-foreground italic">Empty</span>}
+                            {formatValue(comparison.remoteValue) || (
+                              <span className="text-muted-foreground italic">Empty</span>
+                            )}
                           </pre>
                         </div>
                       </div>
@@ -382,11 +380,13 @@ export const ConflictComparison: React.FC<ConflictComparisonProps> = ({
                         </div>
                         <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3 text-sm font-mono">
                           <pre className="whitespace-pre-wrap">
-                            {formatValue(comparison.localValue) || <span className="text-muted-foreground italic">Empty</span>}
+                            {formatValue(comparison.localValue) || (
+                              <span className="text-muted-foreground italic">Empty</span>
+                            )}
                           </pre>
                         </div>
                       </div>
-                      
+
                       <div className="space-y-2">
                         <div className="flex items-center gap-2 text-sm">
                           <div className="w-2 h-2 bg-success rounded-full"></div>
@@ -394,7 +394,9 @@ export const ConflictComparison: React.FC<ConflictComparisonProps> = ({
                         </div>
                         <div className="bg-success/10 border border-success/20 rounded-md p-3 text-sm font-mono">
                           <pre className="whitespace-pre-wrap">
-                            {formatValue(comparison.remoteValue) || <span className="text-muted-foreground italic">Empty</span>}
+                            {formatValue(comparison.remoteValue) || (
+                              <span className="text-muted-foreground italic">Empty</span>
+                            )}
                           </pre>
                         </div>
                       </div>
@@ -412,10 +414,7 @@ export const ConflictComparison: React.FC<ConflictComparisonProps> = ({
         <div className="text-sm text-muted-foreground">
           Review your selections above, then apply the merge to resolve the conflict.
         </div>
-        <Button
-          onClick={handleResolve}
-          className="bg-gradient-to-r from-primary to-secondary"
-        >
+        <Button onClick={handleResolve}>
           <Merge className="h-4 w-4 mr-2" />
           Apply Merge Resolution
         </Button>

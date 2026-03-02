@@ -122,7 +122,7 @@ const JudgeCheckInDashboard: React.FC = () => {
                 { label: `Ring ${selectedRing}`, href: '', isCurrentPage: true }
               ]}
               showHomeIcon={true}
-              className="apple-breadcrumb"
+              className="myk9-breadcrumb"
             />
 
             {/* Back Button */}
@@ -158,7 +158,7 @@ const JudgeCheckInDashboard: React.FC = () => {
                 { label: 'Multi-Ring View', href: '', isCurrentPage: true }
               ]}
               showHomeIcon={true}
-              className="apple-breadcrumb"
+              className="myk9-breadcrumb"
             />
 
             {/* Back Button */}
@@ -189,7 +189,7 @@ const JudgeCheckInDashboard: React.FC = () => {
           <Breadcrumb 
             items={breadcrumbItems} 
             showHomeIcon={true}
-            className="apple-breadcrumb"
+            className="myk9-breadcrumb"
           />
 
           {/* Header */}

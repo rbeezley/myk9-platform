@@ -7,7 +7,6 @@ import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { useTemplateStore } from '@/store/templateStore';
 import { useShowStore } from '@/store/showStore';
 import TrialDetailsMain from '@/components/trials/TrialDetailsMain';
-import { TrialSidebar } from '@/components/trials/TrialSidebar';
 import AddClassesToTrialDialog from '@/components/trials/AddClassesToTrialDialog';
 import { TrialEditPanel } from '@/components/panels/edit/TrialEditPanel';
 import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
@@ -29,14 +28,20 @@ import { TrialStatisticsData } from '@/components/trials/TrialDetail/TrialStatis
 const TrialDetailsPage: React.FC = () => {
   const { trialId, showId } = useParams<{ trialId: string; showId?: string }>();
   const navigate = useNavigate();
-  const { trials, selectedTrialId, selectTrial, updateTrial, deleteTrial: deleteTrialAsync } = useTrialStore();
+  const {
+    trials,
+    selectedTrialId,
+    selectTrial,
+    updateTrial,
+    deleteTrial: deleteTrialAsync,
+  } = useTrialStore();
   const { user } = useAuthContext();
   const { templates } = useTemplateStore();
   const { shows } = useShowStore();
 
   // Templates will be automatically initialized by the store on app start
   // No need to initialize here to avoid duplicates
-  
+
   // Panel state
   const [editTrialPanelOpen, setEditTrialPanelOpen] = useState(false);
   const [deleteTrialDialogOpen, setDeleteTrialDialogOpen] = useState(false);
@@ -45,12 +50,15 @@ const TrialDetailsPage: React.FC = () => {
   const [selectedClassForEdit, setSelectedClassForEdit] = useState<TrialClass | null>(null);
   const [deleteClassDialogOpen, setDeleteClassDialogOpen] = useState(false);
   const [selectedClassForDelete, setSelectedClassForDelete] = useState<TrialClass | null>(null);
-  
-  // State for sidebar and selection
-  const [searchTerm, setSearchTerm] = useState("");
 
   // Get classes store
-  const { addClass, classes, entries: allEntries, updateClass, deleteClass } = useClassStoreCompat();
+  const {
+    addClass,
+    classes,
+    entries: allEntries,
+    updateClass,
+    deleteClass,
+  } = useClassStoreCompat();
 
   // Set selected trial based on URL parameter
   useEffect(() => {
@@ -61,41 +69,36 @@ const TrialDetailsPage: React.FC = () => {
       selectTrial(trialId);
     }
   }, [trialId, selectTrial]);
-  
-  // Separate effect for initial data loading - only when no trialId in URL
-  useEffect(() => {
-    if (!trialId && trials.length > 0 && !selectedTrialId) {
-      const firstTrial = trials[0];
-      // Use the appropriate URL pattern based on whether we have a showId
-      const url = showId ? `/shows/${showId}/trials/${firstTrial.id}` : `/trials/${firstTrial.id}`;
-      navigate(url, { replace: true });
-    }
-  }, [trials, navigate, selectedTrialId, trialId, showId]);
 
   // Get current trial with proper type
-  const currentTrial = trials.find(trial => trial.id === selectedTrialId) as (Trial & { classes?: TrialClass[] }) | undefined;
-  
+  const currentTrial = trials.find(trial => trial.id === selectedTrialId) as
+    | (Trial & { classes?: TrialClass[] })
+    | undefined;
+
   // Debug logging
   useEffect(() => {
     logger.debug('TrialDetailsPage - state update', 'trials', {
       trialIdFromUrl: trialId,
       selectedTrialId,
       currentTrialId: currentTrial?.id,
-      availableTrials: trials.map(t => ({ id: t.id, type: t.type }))
+      availableTrials: trials.map(t => ({ id: t.id, type: t.type })),
     });
   }, [trialId, selectedTrialId, currentTrial, trials]);
-  
-  // Get the parent show's type
+
+  // Get the parent show's organization
   const parentShow = currentTrial ? shows.find(show => show.id === currentTrial.showId) : undefined;
-  const showType = parentShow?.type;
-  
+  const showOrganization = parentShow?.organization;
+
   // Filter trials to only show trials from the same show
-  const showTrials = currentTrial ? trials.filter(trial => trial.showId === currentTrial.showId) : [];
+  const showTrials = currentTrial
+    ? trials.filter(trial => trial.showId === currentTrial.showId)
+    : [];
 
   // Calculate navigation indices for prev/next trial
   const currentTrialIndex = showTrials.findIndex(t => t.id === selectedTrialId);
   const prevTrialId = currentTrialIndex > 0 ? showTrials[currentTrialIndex - 1]?.id : null;
-  const nextTrialId = currentTrialIndex < showTrials.length - 1 ? showTrials[currentTrialIndex + 1]?.id : null;
+  const nextTrialId =
+    currentTrialIndex < showTrials.length - 1 ? showTrials[currentTrialIndex + 1]?.id : null;
 
   // Navigation handlers
   const handlePrevTrial = () => {
@@ -111,13 +114,13 @@ const TrialDetailsPage: React.FC = () => {
       navigate(url);
     }
   };
-  
+
   // Debug logging for show type inheritance
   if (currentTrial) {
     logger.debug('TrialDetailsPage - show type inheritance', 'trials', {
       currentTrialId: currentTrial.id,
       parentShowId: parentShow?.id,
-      showType
+      showOrganization,
     });
   }
 
@@ -130,15 +133,19 @@ const TrialDetailsPage: React.FC = () => {
 
     const convertedClasses = trialClasses.map(classData => {
       const classEntryCount = allEntries.filter(e => e.classId === classData.id).length;
-      const startTime = classData.startTime
-        || (classData.trialDate ? `${classData.trialDate}T09:00:00` : new Date().toISOString());
+      const startTime =
+        classData.startTime ||
+        (classData.trialDate ? `${classData.trialDate}T09:00:00` : new Date().toISOString());
 
       return {
         id: classData.id,
         element: classData.element || 'Unknown',
         level: classData.level || 'Unknown',
         section: classData.section || 'A',
-        status: classData.status === 'Scheduled' ? 'Upcoming' : classData.status as 'Upcoming' | 'In Progress' | 'Completed' | 'Cancelled',
+        status:
+          classData.status === 'Scheduled'
+            ? 'Upcoming'
+            : (classData.status as 'Upcoming' | 'In Progress' | 'Completed' | 'Cancelled'),
         judgeId: classData.judge || 'TBD',
         judgeName: classData.judge || 'TBD',
         startTime,
@@ -149,10 +156,9 @@ const TrialDetailsPage: React.FC = () => {
     // Return a new object with classes merged in, without mutating the original
     return {
       ...currentTrial,
-      classes: convertedClasses.length > 0 ? convertedClasses : (currentTrial.classes || [])
+      classes: convertedClasses.length > 0 ? convertedClasses : currentTrial.classes || [],
     };
   }, [currentTrial, classes, allEntries]);
-
 
   // Generate statistics for the trial
   const trialStatistics: TrialStatisticsData = useMemo(() => {
@@ -161,15 +167,20 @@ const TrialDetailsPage: React.FC = () => {
         judges: { total: 0, active: 0, onBreak: 0, percentChange: 0 },
         classes: { total: 0, upcoming: 0, completed: 0, percentChange: 0 },
         entries: { total: 0, upcoming: 0, completed: 0, percentChange: 0 },
-        qualifiedRate: { percent: 0, qualified: 0, total: 0, percentChange: 0 }
+        qualifiedRate: { percent: 0, qualified: 0, total: 0, percentChange: 0 },
       };
     }
 
     const totalClasses = trialWithClasses.classes.length;
-    const completedClasses = trialWithClasses.classes.filter((c: TrialClass) => c.status === 'Completed').length;
+    const completedClasses = trialWithClasses.classes.filter(
+      (c: TrialClass) => c.status === 'Completed'
+    ).length;
     const upcomingClasses = totalClasses - completedClasses;
 
-    const totalEntries = trialWithClasses.classes.reduce((sum: number, c: TrialClass) => sum + (c.entries || 0), 0);
+    const totalEntries = trialWithClasses.classes.reduce(
+      (sum: number, c: TrialClass) => sum + (c.entries || 0),
+      0
+    );
     const completedEntries = trialWithClasses.classes
       .filter((c: TrialClass) => c.status === 'Completed')
       .reduce((sum: number, c: TrialClass) => sum + (c.entries || 0), 0);
@@ -182,63 +193,66 @@ const TrialDetailsPage: React.FC = () => {
         .filter((id: string) => id && id !== 'TBD')
     );
     const totalJudges = uniqueJudges.size;
-    const activeJudges = trialWithClasses.status === 'In Progress'
-      ? trialWithClasses.classes
-          .filter((c: TrialClass) => c.status === 'In Progress')
-          .reduce((judges: Set<string>, c: TrialClass) => {
-            if (c.judgeId && c.judgeId !== 'TBD') judges.add(c.judgeId);
-            return judges;
-          }, new Set<string>()).size
-      : 0;
+    const activeJudges =
+      trialWithClasses.status === 'In Progress'
+        ? trialWithClasses.classes
+            .filter((c: TrialClass) => c.status === 'In Progress')
+            .reduce((judges: Set<string>, c: TrialClass) => {
+              if (c.judgeId && c.judgeId !== 'TBD') judges.add(c.judgeId);
+              return judges;
+            }, new Set<string>()).size
+        : 0;
 
     // Count qualified entries from actual competition results
     const trialEntries = allEntries.filter(e =>
       trialWithClasses.classes.some((c: TrialClass) => c.id === e.classId)
     );
     const qualifiedEntries = trialEntries.filter(e => e.status === 'Qualified').length;
-    const scoredEntries = trialEntries.filter(e => e.status === 'Qualified' || e.status === 'Not Qualified').length;
+    const scoredEntries = trialEntries.filter(
+      e => e.status === 'Qualified' || e.status === 'Not Qualified'
+    ).length;
 
     return {
       judges: {
         total: totalJudges,
         active: activeJudges,
         onBreak: 0,
-        percentChange: totalJudges > 0 ? Math.round((activeJudges / totalJudges) * 100) : 0
+        percentChange: totalJudges > 0 ? Math.round((activeJudges / totalJudges) * 100) : 0,
       },
       classes: {
         total: totalClasses,
         upcoming: upcomingClasses,
         completed: completedClasses,
-        percentChange: totalClasses > 0 ? Math.round((completedClasses / totalClasses) * 100) : 0
+        percentChange: totalClasses > 0 ? Math.round((completedClasses / totalClasses) * 100) : 0,
       },
       entries: {
         total: totalEntries,
         upcoming: upcomingEntries,
         completed: completedEntries,
-        percentChange: totalEntries > 0 ? Math.round((completedEntries / totalEntries) * 100) : 0
+        percentChange: totalEntries > 0 ? Math.round((completedEntries / totalEntries) * 100) : 0,
       },
       qualifiedRate: {
         percent: scoredEntries > 0 ? Math.round((qualifiedEntries / scoredEntries) * 100) : 0,
         qualified: qualifiedEntries,
         total: scoredEntries,
-        percentChange: scoredEntries > 0 ? Math.round((qualifiedEntries / scoredEntries) * 100) : 0
-      }
+        percentChange: scoredEntries > 0 ? Math.round((qualifiedEntries / scoredEntries) * 100) : 0,
+      },
     };
   }, [trialWithClasses, allEntries]);
 
   // Handle case where trial doesn't exist - moved after hooks
   if (trialId && !currentTrial && trials.length > 0) {
     return (
-      <div className="apple-show-page flex items-center justify-center min-h-screen">
+      <div className="myk9-show-page flex items-center justify-center min-h-screen">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-foreground mb-4">Trial Not Found</h1>
           <p className="text-muted-foreground mb-4">The trial you're looking for doesn't exist.</p>
-          <button 
+          <button
             onClick={() => {
               const url = showId ? `/shows/${showId}` : '/trials';
               navigate(url);
             }}
-            className="apple-action-button apple-action-button-primary"
+            className="myk9-action-button myk9-action-button-primary"
           >
             {showId ? 'Back to Show' : 'Back to Trials'}
           </button>
@@ -251,7 +265,6 @@ const TrialDetailsPage: React.FC = () => {
   const handleEditTrial = () => {
     setEditTrialPanelOpen(true);
   };
-
 
   // Handler for deleting a trial
   const handleDeleteTrial = () => {
@@ -281,22 +294,26 @@ const TrialDetailsPage: React.FC = () => {
     setDeleteTrialDialogOpen(false);
   };
 
-
   const handleAddClassesFromTemplate = () => {
     setAddClassesFromTemplateDialogOpen(true);
   };
 
-  const handleSaveClassesFromTemplate = (selectedClasses: ClassDefinition[], template: ClassTemplate, judgeAssignments: Array<{classId: string; judgeId: string; judgeName: string}> = []) => {
+  const handleSaveClassesFromTemplate = (
+    selectedClasses: ClassDefinition[],
+    template: ClassTemplate,
+    judgeAssignments: Array<{ classId: string; judgeId: string; judgeName: string }> = []
+  ) => {
     if (!currentTrial) return;
 
     const existingClasses = currentTrial.classes || [];
-    
+
     // Check for duplicates and filter out classes that already exist
     const isClassDuplicate = (classDef: ClassDefinition) => {
-      return existingClasses.some(existingClass => 
-        existingClass.element === classDef.element &&
-        existingClass.level === (classDef.level || '') &&
-        existingClass.section === (classDef.section || '')
+      return existingClasses.some(
+        existingClass =>
+          existingClass.element === classDef.element &&
+          existingClass.level === (classDef.level || '') &&
+          existingClass.section === (classDef.section || '')
       );
     };
 
@@ -311,13 +328,15 @@ const TrialDetailsPage: React.FC = () => {
     const newTrialClasses: TrialClass[] = newClasses.map((classDef, index) => {
       // Calculate start time for each class (assuming 15-minute intervals starting at 9:00 AM)
       const baseTime = new Date(`${currentTrial.trialDate}T09:00:00`);
-      const classStartTime = new Date(baseTime.getTime() + (existingClasses.length + index) * 15 * 60 * 1000);
-      
+      const classStartTime = new Date(
+        baseTime.getTime() + (existingClasses.length + index) * 15 * 60 * 1000
+      );
+
       // Find judge assignment for this class
       const judgeAssignment = judgeAssignments.find(ja => ja.classId === classDef.className);
       const judgeId = judgeAssignment?.judgeId || 'TBD';
       const judgeName = judgeAssignment?.judgeName || 'TBD';
-      
+
       return {
         id: classIds[index],
         element: classDef.element,
@@ -327,7 +346,7 @@ const TrialDetailsPage: React.FC = () => {
         judgeName: judgeName,
         startTime: classStartTime.toISOString(),
         status: 'Upcoming' as const,
-        entries: 0
+        entries: 0,
       };
     });
 
@@ -336,7 +355,7 @@ const TrialDetailsPage: React.FC = () => {
       // Find judge assignment for this class
       const judgeAssignment = judgeAssignments.find(ja => ja.classId === classDef.className);
       const judgeName = judgeAssignment?.judgeName || 'TBD';
-      
+
       return {
         id: classIds[index],
         trialId: currentTrial.id,
@@ -360,7 +379,7 @@ const TrialDetailsPage: React.FC = () => {
         photoUrl: '',
         entryFee: 30,
         maxEntries: 40,
-        requiresJumpHeight: false
+        requiresJumpHeight: false,
       };
     });
 
@@ -372,7 +391,7 @@ const TrialDetailsPage: React.FC = () => {
     // Add only new classes to current trial
     const updatedTrial = {
       ...currentTrial,
-      classes: [...existingClasses, ...newTrialClasses]
+      classes: [...existingClasses, ...newTrialClasses],
     };
 
     updateTrial(updatedTrial.id, updatedTrial as Partial<TrialInput>, user?.id || 'unknown');
@@ -381,12 +400,15 @@ const TrialDetailsPage: React.FC = () => {
     if (duplicateClasses.length > 0) {
       logger.debug('Skipped duplicate classes', 'trials', {
         count: duplicateClasses.length,
-        classes: duplicateClasses.map(cls => `${cls.element} ${cls.level} ${cls.section}`)
+        classes: duplicateClasses.map(cls => `${cls.element} ${cls.level} ${cls.section}`),
       });
     }
 
     if (newClasses.length > 0) {
-      logger.info('Added classes from template', 'trials', { count: newClasses.length, templateName: template.templateName });
+      logger.info('Added classes from template', 'trials', {
+        count: newClasses.length,
+        templateName: template.templateName,
+      });
     } else {
       logger.debug('No new classes added - all selected classes already exist', 'trials');
     }
@@ -398,7 +420,6 @@ const TrialDetailsPage: React.FC = () => {
     setEditClassPanelOpen(true);
   };
 
-
   const handleDeleteClass = (classItem: TrialClass) => {
     setSelectedClassForDelete(classItem);
     setDeleteClassDialogOpen(true);
@@ -406,16 +427,18 @@ const TrialDetailsPage: React.FC = () => {
 
   const handleConfirmDeleteClass = () => {
     if (selectedClassForDelete && currentTrial) {
-      logger.debug('Delete class', 'trials', { classId: selectedClassForDelete.id, element: selectedClassForDelete.element });
-      
+      logger.debug('Delete class', 'trials', {
+        classId: selectedClassForDelete.id,
+        element: selectedClassForDelete.element,
+      });
+
       // Remove the class from the trial's classes array
-      const updatedClasses = currentTrial.classes?.filter(cls => 
-        cls.id !== selectedClassForDelete.id
-      ) || [];
+      const updatedClasses =
+        currentTrial.classes?.filter(cls => cls.id !== selectedClassForDelete.id) || [];
 
       const updatedTrial = {
         ...currentTrial,
-        classes: updatedClasses
+        classes: updatedClasses,
       };
 
       updateTrial(updatedTrial.id, updatedTrial as Partial<TrialInput>, user?.id || 'unknown');
@@ -427,50 +450,42 @@ const TrialDetailsPage: React.FC = () => {
     setSelectedClassForDelete(null);
   };
 
-
   // Layout assembly only
   return (
-    <div className="flex min-h-screen bg-background">
-      <TrialSidebar
-        trials={showTrials}
-        selectedId={selectedTrialId}
-        onSelect={(id) => {
-          const url = showId ? `/shows/${showId}/trials/${id}` : `/trials/${id}`;
-          navigate(url);
-        }}
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-      />
-      
-      <main className="flex-1 overflow-auto">
-        {currentTrial ? (
-          <TrialDetailsMain
-            trial={currentTrial}
-            statistics={trialStatistics}
-            parentShow={parentShow ? { id: parentShow.id, name: parentShow.name, type: parentShow.type } : undefined}
-            onEdit={handleEditTrial}
-            onDelete={handleDeleteTrial}
-            onAddClassesFromTemplate={handleAddClassesFromTemplate}
-            onEditClass={handleEditClass}
-            onDeleteClass={handleDeleteClass}
-            onPrevTrial={handlePrevTrial}
-            onNextTrial={handleNextTrial}
-            prevTrialId={prevTrialId}
-            nextTrialId={nextTrialId}
-            currentTrialIndex={currentTrialIndex}
-            totalTrials={showTrials.length}
-          />
-        ) : (
-          <div className="apple-show-container flex items-center justify-center min-h-[60vh]">
-            <div className="text-center">
-              <p className="text-muted-foreground text-lg mb-2">No trial selected</p>
-              <p className="text-muted-foreground text-sm">
-                Select a trial from the sidebar to view details
-              </p>
-            </div>
+    <div className="min-h-screen bg-background">
+      {trialWithClasses ? (
+        <TrialDetailsMain
+          trial={trialWithClasses}
+          statistics={trialStatistics}
+          parentShow={
+            parentShow
+              ? {
+                  id: parentShow.id,
+                  name: parentShow.name,
+                  organization: parentShow.organization,
+                }
+              : undefined
+          }
+          onEdit={handleEditTrial}
+          onDelete={handleDeleteTrial}
+          onAddClassesFromTemplate={handleAddClassesFromTemplate}
+          onEditClass={handleEditClass}
+          onDeleteClass={handleDeleteClass}
+          onPrevTrial={handlePrevTrial}
+          onNextTrial={handleNextTrial}
+          prevTrialId={prevTrialId}
+          nextTrialId={nextTrialId}
+          currentTrialIndex={currentTrialIndex}
+          totalTrials={showTrials.length}
+        />
+      ) : (
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground text-lg">Loading trial...</p>
           </div>
-        )}
-      </main>
+        </div>
+      )}
 
       {/* Dialogs */}
 
@@ -480,26 +495,30 @@ const TrialDetailsPage: React.FC = () => {
         onSave={handleSaveClassesFromTemplate}
         availableTemplates={templates}
         trialName={currentTrial?.type || currentTrial?.trialNumber || 'Trial'}
-        trialShowType={showType}
-        existingClasses={currentTrial?.classes || []}
+        trialOrganization={showOrganization}
+        existingClasses={trialWithClasses?.classes || []}
         showId={currentTrial?.showId}
       />
-      
+
       <TrialEditPanel
         open={editTrialPanelOpen}
         onClose={() => setEditTrialPanelOpen(false)}
         trialId={currentTrial?.id || ''}
         trialName={currentTrial?.type || currentTrial?.trialNumber || ''}
         initialTrialData={currentTrial || {}}
-        onSave={async (trialData) => {
+        onSave={async trialData => {
           if (currentTrial?.id) {
             const updatedTrial = { ...currentTrial, ...trialData };
-            updateTrial(currentTrial.id, updatedTrial as Partial<TrialInput>, user?.id || 'unknown');
+            updateTrial(
+              currentTrial.id,
+              updatedTrial as Partial<TrialInput>,
+              user?.id || 'unknown'
+            );
             setEditTrialPanelOpen(false);
           }
         }}
       />
-      
+
       <StandardDialog
         open={deleteTrialDialogOpen}
         onClose={() => setDeleteTrialDialogOpen(false)}
@@ -510,12 +529,15 @@ const TrialDetailsPage: React.FC = () => {
         cancelLabel="Cancel"
         saveButtonProps={{
           variant: 'destructive',
-          className: 'apple-action-button apple-action-button-danger'
+          className: 'myk9-action-button myk9-action-button-danger',
         }}
         hideSave={false}
       >
         <div className="py-2 text-foreground">
-          <p>Are you sure you want to delete <b>{currentTrial?.type || currentTrial?.trialNumber}</b>?</p>
+          <p>
+            Are you sure you want to delete <b>{currentTrial?.type || currentTrial?.trialNumber}</b>
+            ?
+          </p>
           <p className="mt-2 text-destructive">This action cannot be undone.</p>
         </div>
       </StandardDialog>
@@ -527,7 +549,7 @@ const TrialDetailsPage: React.FC = () => {
         className={selectedClassForEdit?.element || ''}
         initialClassData={selectedClassForEdit || {}}
         mode="simple"
-        onSave={async (classData) => {
+        onSave={async classData => {
           if (selectedClassForEdit?.id && classData.id) {
             const updatedClass = { ...selectedClassForEdit, ...classData };
             updateClass(selectedClassForEdit.id, updatedClass);
@@ -545,12 +567,11 @@ const TrialDetailsPage: React.FC = () => {
               Are you sure you want to delete this class?
               {selectedClassForDelete && (
                 <span className="block mt-2 font-medium text-foreground">
-                  {selectedClassForDelete.element} {selectedClassForDelete.level} {selectedClassForDelete.section}
+                  {selectedClassForDelete.element} {selectedClassForDelete.level}{' '}
+                  {selectedClassForDelete.section}
                 </span>
               )}
-              <span className="block mt-2 text-destructive">
-                This action cannot be undone.
-              </span>
+              <span className="block mt-2 text-destructive">This action cannot be undone.</span>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

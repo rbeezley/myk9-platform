@@ -8,10 +8,10 @@
 
 /* Import custom styles */
 @import './styles/calendar.css';
-@import './styles/apple-template-management.css';
-@import './styles/apple-dog-details.css';
-@import './styles/apple-user-details.css';
-@import './styles/apple-table.css';
+@import './styles/myk9-template-management.css';
+@import './styles/myk9-dog-details.css';
+@import './styles/myk9-user-details.css';
+@import './styles/myk9-table.css';
 @import './styles/theme-preferences.css';
 
 @tailwind base;
@@ -66,7 +66,8 @@
 
   /* Floating animation for easter egg elements */
   @keyframes float {
-    0%, 100% {
+    0%,
+    100% {
       transform: translateY(0px) rotate(0deg);
     }
     33% {
@@ -83,7 +84,8 @@
 
   /* Wiggle animation for playful elements */
   @keyframes wiggle {
-    0%, 100% {
+    0%,
+    100% {
       transform: rotate(0deg);
     }
     25% {
@@ -100,36 +102,61 @@
 
   /* Playful dog-themed animations */
   @keyframes wag {
-    0%, 100% { transform: rotate(0deg); }
-    25% { transform: rotate(-3deg); }
-    75% { transform: rotate(3deg); }
+    0%,
+    100% {
+      transform: rotate(0deg);
+    }
+    25% {
+      transform: rotate(-3deg);
+    }
+    75% {
+      transform: rotate(3deg);
+    }
   }
 
   @keyframes happy-bounce {
-    0%, 100% { transform: translateY(0) scale(1); }
-    50% { transform: translateY(-8px) scale(1.05); }
+    0%,
+    100% {
+      transform: translateY(0) scale(1);
+    }
+    50% {
+      transform: translateY(-8px) scale(1.05);
+    }
   }
 
   @keyframes celebration-sparkle {
-    0%, 100% { 
+    0%,
+    100% {
       transform: rotate(0deg) scale(1);
       opacity: 0.7;
     }
-    50% { 
+    50% {
       transform: rotate(180deg) scale(1.2);
       opacity: 1;
     }
   }
 
   @keyframes heartbeat {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.1); }
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.1);
+    }
   }
 
   @keyframes tail-wag {
-    0%, 100% { transform: translateX(0) rotate(0deg); }
-    25% { transform: translateX(-2px) rotate(-5deg); }
-    75% { transform: translateX(2px) rotate(5deg); }
+    0%,
+    100% {
+      transform: translateX(0) rotate(0deg);
+    }
+    25% {
+      transform: translateX(-2px) rotate(-5deg);
+    }
+    75% {
+      transform: translateX(2px) rotate(5deg);
+    }
   }
 
   .animate-wag {
@@ -178,20 +205,19 @@
     opacity: 0.6;
   }
 
-  
   .hide-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-  
-  /* Apple-inspired semantic colors */
+
+  /* myK9 semantic colors */
   :root {
     --success-green: 52 199 89;
     --warning-orange: 255 149 0;
     --error-red: 255 59 48;
   }
-  
-  /* Apple color utilities */
+
+  /* Color utilities */
   .bg-success-green\/10 {
     background-color: rgba(52, 199, 89, 0.1);
   }
@@ -201,7 +227,7 @@
   .border-success-green\/20 {
     border-color: rgba(52, 199, 89, 0.2);
   }
-  
+
   .bg-warning-orange\/10 {
     background-color: rgba(255, 149, 0, 0.1);
   }
@@ -211,7 +237,7 @@
   .border-warning-orange\/20 {
     border-color: rgba(255, 149, 0, 0.2);
   }
-  
+
   .bg-error-red\/10 {
     background-color: rgba(255, 59, 48, 0.1);
   }
@@ -302,7 +328,7 @@
   }
 
   /* Hide native dropdown arrows on hidden select elements */
-  select[aria-hidden="true"] {
+  select[aria-hidden='true'] {
     -webkit-appearance: none !important;
     -moz-appearance: none !important;
     appearance: none !important;
@@ -311,12 +337,11 @@
     position: absolute !important;
     pointer-events: none !important;
   }
-  
-  select[aria-hidden="true"]::-ms-expand {
+
+  select[aria-hidden='true']::-ms-expand {
     display: none !important;
   }
 }
-
 
 html {
   scroll-behavior: smooth;
@@ -334,34 +359,43 @@ html {
   }
 }
 
-
 body {
-  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
+  font-family:
+    'Montserrat',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif,
+    'Apple Color Emoji',
+    'Segoe UI Emoji',
+    'Segoe UI Symbol';
 }
 
-input, textarea, select {
-  border-color: hsl(var(--border)) !important;
+input,
+textarea,
+select {
+  border-color: var(--border) !important;
 }
 
 .border-input {
-  border-color: hsl(var(--border)) !important;
+  border-color: var(--border) !important;
 }
-
-
-
 
 @layer base {
   :root {
     color-scheme: light dark;
     /* Warm backgrounds matching myK9Q */
-    --background: #F8F7F4;  /* Warm off-white */
+    --background: #f8f7f4; /* Warm off-white */
     --foreground: #0a0a0a;
-    --background-alt: #F8F7F4;
-    --card: #FEFDFB;        /* Subtle cream tint */
+    --background-alt: #f8f7f4;
+    --card: #fefdfb; /* Subtle cream tint */
     --card-foreground: #0a0a0a;
-    --sidebar: #F8F7F4;     /* Match background for seamless look */
+    --sidebar: #f8f7f4; /* Match background for seamless look */
     --sidebar-foreground: #0a0a0a;
-    --card-secondary: #F8F7F4;
+    --card-secondary: #f8f7f4;
     --card-secondary-foreground: #0a0a0a;
     /* Gray neutrals matching myK9Q */
     --muted: #f6f6f6;
@@ -369,9 +403,9 @@ input, textarea, select {
     /* Default primary - teal (overridden by accent color classes) */
     --primary: #14b8a6;
     --primary-foreground: #ffffff;
-    --secondary: #F8F7F4;
+    --secondary: #f8f7f4;
     --secondary-foreground: #0f172a;
-    --accent: #f0fdfa;      /* Teal-tinted accent */
+    --accent: #f0fdfa; /* Teal-tinted accent */
     --accent-foreground: #0f766e;
     --destructive: #ef4444;
     --destructive-foreground: #ffffff;
@@ -392,12 +426,12 @@ input, textarea, select {
   .dark {
     color-scheme: dark;
     /* Warm dark backgrounds matching myK9Q */
-    --background: #1a1a1e;  /* Warmer charcoal */
+    --background: #1a1a1e; /* Warmer charcoal */
     --foreground: #ffffff;
     --background-alt: #26292e;
-    --card: #26292e;        /* Elevated card background */
+    --card: #26292e; /* Elevated card background */
     --card-foreground: #ffffff;
-    --sidebar: #1a1a1e;     /* Match background for seamless look */
+    --sidebar: #1a1a1e; /* Match background for seamless look */
     --sidebar-foreground: #ffffff;
     --card-secondary: #2a2d33;
     --card-secondary-foreground: #ffffff;
@@ -408,7 +442,7 @@ input, textarea, select {
     --primary-foreground: #ffffff;
     --secondary: #2a2a2a;
     --secondary-foreground: #ffffff;
-    --accent: #134e4a;      /* Dark teal accent */
+    --accent: #134e4a; /* Dark teal accent */
     --accent-foreground: #5eead4;
     --destructive: #dc2626;
     --destructive-foreground: #ffffff;
@@ -425,12 +459,12 @@ input, textarea, select {
   }
 
   * {
-    border-color: hsl(var(--border));
+    border-color: var(--border);
   }
 
   body {
-    background-color: hsl(var(--background));
-    color: hsl(var(--foreground));
+    background-color: var(--background);
+    color: var(--foreground);
   }
 }
 
@@ -448,6 +482,8 @@ input, textarea, select {
   --primary: #14b8a6;
   --primary-hover: #0d9488;
   --primary-foreground: #ffffff;
+  --accent: #f0fdfa;
+  --accent-foreground: #0f766e;
   --accent-glow: rgba(20, 184, 166, 0.3);
   --ring: #5eead4;
   --accent-50: #f0fdfa;
@@ -466,6 +502,8 @@ input, textarea, select {
   --primary: #14b8a6;
   --primary-hover: #0d9488;
   --primary-foreground: #ffffff;
+  --accent: #134e4a;
+  --accent-foreground: #5eead4;
   --accent-glow: rgba(20, 184, 166, 0.4);
   --ring: #14b8a6;
 }
@@ -475,6 +513,8 @@ input, textarea, select {
   --primary: #3b82f6;
   --primary-hover: #2563eb;
   --primary-foreground: #ffffff;
+  --accent: #eff6ff;
+  --accent-foreground: #1d4ed8;
   --accent-glow: rgba(59, 130, 246, 0.3);
   --ring: #93c5fd;
   --accent-50: #eff6ff;
@@ -491,6 +531,8 @@ input, textarea, select {
   --primary: #3b82f6;
   --primary-hover: #2563eb;
   --primary-foreground: #ffffff;
+  --accent: #1e3a5f;
+  --accent-foreground: #93c5fd;
   --accent-glow: rgba(59, 130, 246, 0.4);
   --ring: #3b82f6;
 }
@@ -500,6 +542,8 @@ input, textarea, select {
   --primary: #f97316;
   --primary-hover: #ea580c;
   --primary-foreground: #ffffff;
+  --accent: #fff7ed;
+  --accent-foreground: #c2410c;
   --accent-glow: rgba(249, 115, 22, 0.3);
   --ring: #fdba74;
   --accent-50: #fff7ed;
@@ -516,6 +560,8 @@ input, textarea, select {
   --primary: #f97316;
   --primary-hover: #ea580c;
   --primary-foreground: #ffffff;
+  --accent: #431407;
+  --accent-foreground: #fdba74;
   --accent-glow: rgba(249, 115, 22, 0.4);
   --ring: #f97316;
 }
@@ -525,6 +571,8 @@ input, textarea, select {
   --primary: #8b5cf6;
   --primary-hover: #7c3aed;
   --primary-foreground: #ffffff;
+  --accent: #faf5ff;
+  --accent-foreground: #6d28d9;
   --accent-glow: rgba(139, 92, 246, 0.3);
   --ring: #c4b5fd;
   --accent-50: #faf5ff;
@@ -541,7 +589,8 @@ input, textarea, select {
   --primary: #8b5cf6;
   --primary-hover: #7c3aed;
   --primary-foreground: #ffffff;
+  --accent: #2e1065;
+  --accent-foreground: #c4b5fd;
   --accent-glow: rgba(139, 92, 246, 0.4);
   --ring: #8b5cf6;
 }
-

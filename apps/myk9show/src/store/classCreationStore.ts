@@ -369,7 +369,7 @@ export const useClassCreationStore = create<ClassCreationStore>()(
         
         // Identity
         organization: selectedTemplate.organization,
-        showType: selectedTemplate.showType,
+        trialType: selectedTemplate.trialType,
         element: classDef.element,
         level: classDef.level,
         section: classDef.section,

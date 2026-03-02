@@ -3,7 +3,7 @@
  * 
  * Judge-specific sync monitoring and controls for scoring sessions.
  * Provides detailed sync status, data integrity checks, and manual
- * sync controls with Apple-inspired design for professional use.
+ * sync controls with Premium design for professional use.
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';

@@ -11,7 +11,9 @@ import type { ComponentType } from 'react';
 // Note: These are import functions, not the components themselves
 
 // Type for import functions - uses unknown props for generic component handling
-type ImportFunction = () => Promise<{ default: ComponentType<Record<string, unknown>> } | ComponentType<Record<string, unknown>>>;
+type ImportFunction = () => Promise<
+  { default: ComponentType<Record<string, unknown>> } | ComponentType<Record<string, unknown>>
+>;
 
 // Admin route components
 export const adminRouteComponents: Record<string, ImportFunction> = {
@@ -19,7 +21,8 @@ export const adminRouteComponents: Record<string, ImportFunction> = {
   '/admin/templates': () => import('@/pages/admin/TemplateManagementPage'),
   '/admin/templates/new': () => import('@/pages/admin/TemplateEditorPage'),
   '/admin/templates/:templateId/edit': () => import('@/pages/admin/TemplateEditorPage'),
-  '/admin/templates/:templateId/test': () => import('@/pages/admin/TemplateTestingPage').then(m => ({ default: m.TemplateTestingPage })),
+  '/admin/templates/:templateId/test': () =>
+    import('@/pages/admin/TemplateTestingPage').then(m => ({ default: m.TemplateTestingPage })),
   '/admin/sync': () => import('@/pages/sync/SyncMonitoringPage'),
   // Permission management
   '/admin/permissions': () => import('@/pages/admin/permissions/PermissionManagementPage'),
@@ -29,34 +32,45 @@ export const adminRouteComponents: Record<string, ImportFunction> = {
   '/admin/permissions/roles/:roleId/clone': () => import('@/pages/admin/permissions/CloneRolePage'),
   '/admin/permissions/users': () => import('@/pages/admin/permissions/UserRoleManagementPage'),
   '/admin/permissions/audit': () => import('@/pages/admin/permissions/PermissionAuditPage'),
-  
+
   // Performance and monitoring
-  '/admin/performance': () => import('@/components/admin/PerformanceDashboard').then(m => ({ default: m.PerformanceDashboard })),
-  '/admin/data-lifecycle': () => import('@/components/admin/DataLifecycleManagement').then(m => ({ default: m.DataLifecycleManagement })),
-  '/admin/performance-mode': () => import('@/components/admin/PerformanceModeToggle').then(m => ({ default: m.PerformanceModeToggle })),
-  '/admin/load-testing': () => import('@/components/admin/LoadTestDashboard').then(m => ({ default: m.LoadTestDashboard })),
+  '/admin/performance': () =>
+    import('@/components/admin/PerformanceDashboard').then(m => ({
+      default: m.PerformanceDashboard,
+    })),
+  '/admin/data-lifecycle': () =>
+    import('@/components/admin/DataLifecycleManagement').then(m => ({
+      default: m.DataLifecycleManagement,
+    })),
+  '/admin/performance-mode': () =>
+    import('@/components/admin/PerformanceModeToggle').then(m => ({
+      default: m.PerformanceModeToggle,
+    })),
+  '/admin/load-testing': () =>
+    import('@/components/admin/LoadTestDashboard').then(m => ({ default: m.LoadTestDashboard })),
   '/admin/alerts': () => import('@/pages/AlertsPage'),
   '/admin/analytics': () => import('@/pages/AnalyticsPage'),
-  
+
   // Testing routes
   '/admin/permission-test': () => import('@/pages/admin/PermissionTestPage'),
-  '/admin/rbac-test': () => import('@/pages/admin/RBACTestPage').then(m => ({ default: m.RBACTestPage })),
+  '/admin/rbac-test': () =>
+    import('@/pages/admin/RBACTestPage').then(m => ({ default: m.RBACTestPage })),
 } as const;
 
 // Public/exhibitor route components
 export const publicRouteComponents: Record<string, ImportFunction> = {
   // Show management
-  '/shows': () => import('@/pages/ShowDetailsPage'),
+  '/shows': () => import('@/pages/BrowseShowsPage'),
   '/shows/:id': () => import('@/pages/ShowDetailsPage'),
   '/shows/:showId/trials/:trialId': () => import('@/pages/TrialDetailsPage'),
   '/trials/:trialId': () => import('@/pages/TrialDetailsPage'),
   '/shows/:showId/trials/:trialId/classes/:classId': () => import('@/pages/ClassDetailsPage'),
-  '/shows/:showId/trials/:trialId/classes/:classId/results': () => import('@/pages/ClassDetailsPage'),
+  '/shows/:showId/trials/:trialId/classes/:classId/results': () =>
+    import('@/pages/ClassDetailsPage'),
   '/classes/:classId': () => import('@/pages/ClassDetailsPage'),
-  
-  // Browsing and entries
+
+  // Backwards-compat redirects (handled in publicRoutes, kept for preloading)
   '/browse-shows': () => import('@/pages/BrowseShowsPage'),
-  '/shows/browse': () => import('@/pages/BrowseShowsPage'),
   '/my-entries': () => import('@/pages/MyEntriesPage'),
 
   // Exhibitor dashboard
@@ -66,25 +80,26 @@ export const publicRouteComponents: Record<string, ImportFunction> = {
   '/exhibitor/entries/history': () => import('@/pages/MyEntriesPage'),
   '/exhibitor/results': () => import('@/pages/BrowseShowsPage'),
   '/exhibitor/favorites': () => import('@/pages/BrowseShowsPage'),
-  '/exhibitor/health-records': () => import('@/pages/DogDetailsPage'),
-  '/exhibitor/training': () => import('@/pages/DogDetailsPage'),
+  '/exhibitor/health-records': () => import('@/pages/BrowseDogsPage'),
+  '/exhibitor/training': () => import('@/pages/BrowseDogsPage'),
   '/exhibitor/forms': () => import('@/pages/ExhibitorDashboard'),
   '/exhibitor/standards': () => import('@/pages/ExhibitorDashboard'),
   '/exhibitor/help': () => import('@/pages/ExhibitorDashboard'),
   '/exhibitor/check-in/:entryId': () => import('@/components/exhibitor/ClassCheckIn'),
-  
+
   // Users and dogs management
-  '/users': () => import('@/pages/UserDetailsPage'),
-  '/users/:id': () => import('@/pages/UserDetailsPage'),
-  '/dogs': () => import('@/pages/DogDetailsPage'),
-  '/dogs/:id': () => import('@/pages/DogDetailsPage'),
-  '/clubs': () => import('@/pages/ClubsPage'),
-  '/clubs/:id': () => import('@/pages/ClubsPage'),
-  
+  '/users': () => import('@/pages/BrowsePeoplePage'),
+  '/users/:id': () => import('@/pages/PersonDetailPage'),
+  '/dogs': () => import('@/pages/BrowseDogsPage'),
+  '/dogs/:id': () => import('@/pages/DogDetailPage'),
+  '/clubs': () => import('@/pages/BrowseClubsPage'),
+  '/clubs/:id': () => import('@/pages/ClubDetailPage'),
+
   // Feature pages
   '/calendar': () => import('@/pages/CalendarPage'),
   '/subscription': () => import('@/pages/SubscriptionPage'),
   '/registration': () => import('@/pages/CalendarPage'),
+  '/shows/:showId/register': () => import('@/pages/RegistrationWizardPage'),
 
   // Cart and checkout
   '/cart': () => import('@/pages/CartPage'),
@@ -92,19 +107,22 @@ export const publicRouteComponents: Record<string, ImportFunction> = {
   '/checkout/cancel': () => import('@/pages/CheckoutCancelPage'),
 
   // Test routes
-  '/class-templates': () => import('@/components/classes/ClassTemplateTestPage').then(m => ({ default: m.ClassTemplateTestPage })),
+  '/class-templates': () =>
+    import('@/components/classes/ClassTemplateTestPage').then(m => ({
+      default: m.ClassTemplateTestPage,
+    })),
 } as const;
 
 // Secretary route components (these would be defined in secretaryRoutes.tsx)
 export const secretaryRouteComponents: Record<string, ImportFunction> = {
   // Placeholder for secretary routes - would be populated by actual secretary routes
   '/secretary/dashboard': () => import('@/pages/SecretaryDashboard'),
-  '/secretary/shows': () => import('@/pages/ShowDetailsPage'),
+  '/shows': () => import('@/pages/BrowseShowsPage'),
   '/secretary/classes': () => import('@/pages/secretary/ShowCreationWizardPage'),
   // Add more secretary routes as they're defined
 } as const;
 
-// Judge route components (these would be defined in judgeRoutes.tsx)  
+// Judge route components (these would be defined in judgeRoutes.tsx)
 export const judgeRouteComponents: Record<string, ImportFunction> = {
   // Placeholder for judge routes - would be populated by actual judge routes
   '/judge/dashboard': () => import('@/pages/JudgeDashboard'),
@@ -122,36 +140,13 @@ export const fullRouteRegistry: Record<string, ImportFunction> = {
 
 // Route categories for prioritized preloading
 export const routeCategories = {
-  critical: [
-    '/admin/dashboard',
-    '/admin/permissions',
-    '/exhibitor/dashboard',
-    '/browse-shows',
-  ],
-  
-  high: [
-    '/admin/templates',
-    '/admin/sync',
-    '/shows',
-    '/users',
-    '/dogs',
-    '/calendar',
-  ],
-  
-  medium: [
-    '/admin/performance',
-    '/admin/analytics',
-    '/admin/alerts',
-    '/clubs',
-    '/subscription',
-  ],
-  
-  low: [
-    '/admin/permission-test',
-    '/admin/rbac-test',
-    '/admin/load-testing',
-    '/class-templates',
-  ],
+  critical: ['/admin/dashboard', '/admin/permissions', '/exhibitor/dashboard', '/shows'],
+
+  high: ['/admin/templates', '/admin/sync', '/shows', '/users', '/dogs', '/calendar'],
+
+  medium: ['/admin/performance', '/admin/analytics', '/admin/alerts', '/clubs', '/subscription'],
+
+  low: ['/admin/permission-test', '/admin/rbac-test', '/admin/load-testing', '/class-templates'],
 };
 
 // Common navigation patterns for intelligent preloading
@@ -160,15 +155,15 @@ export const navigationPatterns = {
   adminDashboard: ['/admin/templates', '/admin/permissions', '/admin/performance'],
   templateManagement: ['/admin/templates/new', '/admin/dashboard'],
   permissionManagement: ['/admin/permissions/roles', '/admin/permissions/users'],
-  
-  // Exhibitor workflow patterns  
-  exhibitorDashboard: ['/browse-shows', '/exhibitor/entries', '/dogs'],
+
+  // Exhibitor workflow patterns
+  exhibitorDashboard: ['/shows', '/exhibitor/entries', '/dogs'],
   browseShows: ['/shows/:id', '/exhibitor/dashboard', '/calendar'],
-  showDetails: ['/shows/:showId/trials/:trialId', '/browse-shows'],
-  
+  showDetails: ['/shows/:showId/trials/:trialId', '/shows'],
+
   // Secretary workflow patterns
-  secretaryDashboard: ['/secretary/shows', '/secretary/classes'],
-  
+  secretaryDashboard: ['/shows', '/secretary/classes'],
+
   // Judge workflow patterns
   judgeDashboard: ['/judge/assignments'],
 };
@@ -179,36 +174,36 @@ export function getRouteImportFunction(path: string): ImportFunction | null {
   if (fullRouteRegistry[path]) {
     return fullRouteRegistry[path];
   }
-  
+
   // Then try pattern matching for parameterized routes
   for (const [routePattern, importFn] of Object.entries(fullRouteRegistry)) {
     if (routePattern.includes(':')) {
-      const regex = new RegExp(
-        '^' + routePattern.replace(/:[^/]+/g, '[^/]+') + '$'
-      );
+      const regex = new RegExp('^' + routePattern.replace(/:[^/]+/g, '[^/]+') + '$');
       if (regex.test(path)) {
         return importFn;
       }
     }
   }
-  
+
   return null;
 }
 
 // Utility function to get route priority
 export function getRoutePriority(path: string): 'critical' | 'high' | 'medium' | 'low' {
   for (const [priority, routes] of Object.entries(routeCategories)) {
-    if (routes.some(route => {
-      if (route.includes(':')) {
-        const regex = new RegExp('^' + route.replace(/:[^/]+/g, '[^/]+') + '$');
-        return regex.test(path);
-      }
-      return route === path;
-    })) {
+    if (
+      routes.some(route => {
+        if (route.includes(':')) {
+          const regex = new RegExp('^' + route.replace(/:[^/]+/g, '[^/]+') + '$');
+          return regex.test(path);
+        }
+        return route === path;
+      })
+    ) {
       return priority as 'critical' | 'high' | 'medium' | 'low';
     }
   }
-  
+
   return 'low';
 }
 
@@ -233,6 +228,6 @@ if (process.env.NODE_ENV === 'development') {
     navigationPatterns,
     getRouteImportFunction,
     getRoutePriority,
-    totalRoutes: Object.keys(fullRouteRegistry).length
+    totalRoutes: Object.keys(fullRouteRegistry).length,
   };
 }

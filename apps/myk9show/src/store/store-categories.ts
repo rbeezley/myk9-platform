@@ -10,48 +10,45 @@ export const STORE_CATEGORIES = {
 
   // Tier 2: Important stores - Load on first access
   IMPORTANT: [
-    'navigationStore',    // Navigation breadcrumbs (loads when needed)
-    'showStore',          // For upcoming shows display
-    'userStore',          // Core user/people management
-    'dogStore',           // Core dog management
-    'clubStore',          // Core club management
+    'navigationStore', // Navigation breadcrumbs (loads when needed)
+    'showStore', // For upcoming shows display
+    'userStore', // Core user/people management
+    'dogStore', // Core dog management
+    'clubStore', // Core club management
     'searchHistoryStore', // Search history tracking
-    'syncStore',          // Sync status management
-    'entryStore',         // Entry management
+    'syncStore', // Sync status management
+    'entryStore', // Entry management
     'registrationsStore', // Registration management
   ],
 
   // Tier 3: Feature-specific stores - Load when feature is accessed
   FEATURE_SPECIFIC: [
-    'templateStore',        // Template management
-    'classTemplateStore',   // Class template specific
-    'showTemplateStore',    // Show template specific
-    'classCreationStore',   // Class creation workflow
-    'wizardStore',          // Wizard states
-    'classStore',           // Class management
-    'trialStore',           // Trial management
-    'competitionStore',     // Competition management
-    'achievementsStore',    // Achievement tracking
-    'armbandStore',         // Armband management
-    'draftStore',           // Draft management
-    'offlineScoringStore',  // Offline scoring
-    'pastResultsStore',     // Past results
+    'templateStore', // Template management
+    'classTemplateStore', // Class template specific
+    'showTemplateStore', // Show template specific
+    'classCreationStore', // Class creation workflow
+    'wizardStore', // Wizard states
+    'classStore', // Class management
+    'trialStore', // Trial management
+    'competitionStore', // Competition management
+    'achievementsStore', // Achievement tracking
+    'armbandStore', // Armband management
+    'draftStore', // Draft management
+    'offlineScoringStore', // Offline scoring
+    'pastResultsStore', // Past results
     'searchAnalyticsStore', // Search analytics
     'showRegistrationStore', // Show registration
   ],
 
   // Tier 4: UI-specific stores - Load when UI component is used
-  UI_SPECIFIC: [
-    'dogSidebarStore',      // Dog sidebar state
-    'userSidebarStore',   // Users sidebar state
-  ],
+  UI_SPECIFIC: [] as string[],
 } as const;
 
-export type StoreName = 
-  | typeof STORE_CATEGORIES.CRITICAL[number]
-  | typeof STORE_CATEGORIES.IMPORTANT[number]
-  | typeof STORE_CATEGORIES.FEATURE_SPECIFIC[number]
-  | typeof STORE_CATEGORIES.UI_SPECIFIC[number];
+export type StoreName =
+  | (typeof STORE_CATEGORIES.CRITICAL)[number]
+  | (typeof STORE_CATEGORIES.IMPORTANT)[number]
+  | (typeof STORE_CATEGORIES.FEATURE_SPECIFIC)[number]
+  | (typeof STORE_CATEGORIES.UI_SPECIFIC)[number];
 
 export type StoreCategory = keyof typeof STORE_CATEGORIES;
 

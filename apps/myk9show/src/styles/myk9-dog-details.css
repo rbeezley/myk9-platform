@@ -1,0 +1,877 @@
+/* myK9 Dog Details Styles */
+
+/* Typography - San Francisco inspired */
+.myk9-dog-page {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif;
+  letter-spacing: -0.01em;
+  background: var(--background);
+  min-height: 100vh;
+}
+
+/* Page Layout with 8px grid system */
+.myk9-dog-container {
+  @apply px-6;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding-top: 80px; /* Account for fixed header */
+  padding-bottom: 80px;
+}
+
+/* Dog Information Card */
+.myk9-dog-info-card {
+  background: var(--card);
+  border: 0.5px solid var(--border);
+  border-radius: 20px;
+  padding: 32px;
+  margin-bottom: 32px;
+  backdrop-filter: blur(20px);
+  position: relative;
+  overflow: hidden;
+}
+
+.myk9-dog-info-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  padding: 0.5px;
+  background: linear-gradient(135deg, transparent, rgba(0, 122, 255, 0.1), transparent);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  opacity: 0.3;
+}
+
+.myk9-dog-info-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0;
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  z-index: 10;
+}
+
+.myk9-dog-info-layout {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  padding-top: 8px;
+}
+
+.myk9-dog-photo-container {
+  flex-shrink: 0;
+  position: relative;
+}
+
+.myk9-dog-photo {
+  width: 120px;
+  height: 120px;
+  border-radius: 20px;
+  object-fit: cover;
+  border: 2px solid var(--border);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.myk9-dog-photo:hover {
+  transform: scale(1.02);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  border-color: rgba(0, 122, 255, 0.3);
+}
+
+.myk9-dog-photo-fallback {
+  width: 120px;
+  height: 120px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 48px;
+  font-weight: 700;
+  border: 2px solid var(--border);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.myk9-dog-photo-fallback:hover {
+  transform: scale(1.02);
+  box-shadow: 0 8px 25px rgba(0, 122, 255, 0.3);
+}
+
+.myk9-dog-info-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.myk9-dog-name {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--foreground);
+  margin-bottom: 8px;
+}
+
+.myk9-dog-breed {
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  margin-bottom: 16px;
+}
+
+.myk9-dog-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.myk9-dog-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 50px;
+  font-size: 12px;
+  font-weight: 590;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  background: rgba(0, 122, 255, 0.1);
+  color: #007AFF;
+  border: 1px solid rgba(0, 122, 255, 0.2);
+}
+
+.myk9-dog-info-grid {
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4;
+}
+
+.myk9-dog-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.myk9-dog-info-label {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted-foreground);
+  opacity: 0.7;
+  margin-bottom: 2px;
+}
+
+.myk9-dog-info-value {
+  font-size: 17px;
+  font-weight: 590;
+  color: var(--foreground);
+  line-height: 1.3;
+}
+
+/* Statistics Cards */
+.myk9-dog-stats-section {
+  margin-bottom: 32px;
+}
+
+.myk9-dog-stats-grid {
+  @apply grid grid-cols-1 md:grid-cols-3 gap-6;
+}
+
+.myk9-dog-stat-card {
+  @apply relative overflow-hidden;
+  background: var(--card);
+  border: 0.5px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  backdrop-filter: blur(20px);
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.myk9-dog-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+  border-color: rgba(0, 122, 255, 0.2);
+}
+
+.myk9-dog-stat-layout {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.myk9-dog-stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: white;
+  background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
+  flex-shrink: 0;
+}
+
+.myk9-dog-stat-icon.registrations {
+  background: linear-gradient(135deg, #007AFF 0%, #00C7BE 100%);
+}
+
+.myk9-dog-stat-icon.competitions {
+  background: linear-gradient(135deg, #FF9500 0%, #FF6B00 100%);
+}
+
+.myk9-dog-stat-icon.health {
+  background: linear-gradient(135deg, #34C759 0%, #30D158 100%);
+}
+
+.myk9-dog-stat-content {
+  text-align: left;
+  flex: 1;
+}
+
+.myk9-dog-stat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.myk9-dog-stat-title {
+  font-size: 13px;
+  font-weight: 590;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--muted-foreground);
+}
+
+.myk9-dog-stat-trend {
+  font-size: 13px;
+  font-weight: 590;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: rgba(52, 199, 89, 0.1);
+  color: #34C759;
+}
+
+.myk9-dog-stat-number {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.0;
+  color: var(--foreground);
+  margin-bottom: 12px;
+}
+
+.myk9-dog-stat-details {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--muted-foreground);
+  margin-bottom: 12px;
+}
+
+.myk9-dog-stat-progress {
+  width: 100%;
+  height: 4px;
+  background: var(--muted);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.myk9-dog-stat-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #007AFF 0%, #5856D6 100%);
+  border-radius: 2px;
+  transition: width 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.myk9-dog-stat-progress-bar.registrations {
+  background: linear-gradient(90deg, #007AFF 0%, #00C7BE 100%);
+}
+
+.myk9-dog-stat-progress-bar.competitions {
+  background: linear-gradient(90deg, #FF9500 0%, #FF6B00 100%);
+}
+
+.myk9-dog-stat-progress-bar.health {
+  background: linear-gradient(90deg, #34C759 0%, #30D158 100%);
+}
+
+/* Tabs Section */
+.myk9-dog-tabs-section {
+  background: var(--card);
+  border: 0.5px solid var(--border);
+  border-radius: 20px;
+  padding: 32px;
+  backdrop-filter: blur(20px);
+}
+
+/* Base UI Tabs styling is handled via Tailwind aria-selected: variants in the component */
+
+.myk9-dog-tabs-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.myk9-dog-tabs-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.myk9-dog-tabs-title {
+  font-size: 22px;
+  font-weight: 650;
+  color: var(--foreground);
+}
+
+/* myK9 Tabs */
+.myk9-dog-tabs {
+  display: flex !important;
+  gap: 0 !important;
+  border-bottom: 0.5px solid var(--border) !important;
+  margin-bottom: 24px !important;
+  background: transparent !important;
+  height: auto !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+/* Override ShadCN TabsList defaults */
+.myk9-dog-tabs[data-orientation="horizontal"] {
+  background: transparent !important;
+  border: none !important;
+}
+
+.myk9-dog-tabs > * {
+  background: transparent !important;
+  border: none !important;
+}
+
+.myk9-dog-tab {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 12px 20px !important;
+  margin-bottom: -1px !important;
+  border: none !important;
+  border-bottom: 2px solid transparent !important;
+  font-size: 15px !important;
+  font-weight: 590 !important;
+  color: var(--muted-foreground) !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  transition: all 0.2s ease !important;
+  cursor: pointer !important;
+  box-shadow: none !important;
+}
+
+.myk9-dog-tab:hover:not([data-state="active"]) {
+  color: var(--foreground) !important;
+  background: transparent !important;
+  border: none !important;
+}
+
+/* myK9 active state: Target ALL possible active states */
+.myk9-dog-tabs .myk9-dog-tab[data-state="active"],
+.myk9-dog-tab[data-state="active"],
+.myk9-dog-tabs .myk9-dog-tab[aria-selected="true"],
+.myk9-dog-tab[aria-selected="true"],
+.myk9-dog-tabs .myk9-dog-tab.active,
+.myk9-dog-tab.active {
+  color: #007AFF !important;
+  border: none !important;
+  border-bottom: 2px solid #007AFF !important;
+  background: transparent !important;
+  font-weight: 590 !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Inactive state: Target ALL non-active states */
+.myk9-dog-tabs .myk9-dog-tab[data-state="inactive"],
+.myk9-dog-tab[data-state="inactive"],
+.myk9-dog-tabs .myk9-dog-tab[aria-selected="false"],
+.myk9-dog-tab[aria-selected="false"],
+.myk9-dog-tabs .myk9-dog-tab:not([data-state="active"]):not([aria-selected="true"]):not(.active),
+.myk9-dog-tab:not([data-state="active"]):not([aria-selected="true"]):not(.active) {
+  color: var(--muted-foreground) !important;
+  border: none !important;
+  border-bottom: 2px solid transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Override any ShadCN default styling */
+.myk9-dog-tabs button,
+.myk9-dog-tabs [role="tab"] {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.myk9-dog-tabs button[data-state="active"],
+.myk9-dog-tabs [role="tab"][data-state="active"] {
+  border: none !important;
+  border-bottom: 2px solid #007AFF !important;
+  background: transparent !important;
+}
+
+.myk9-dog-tab.premium {
+  opacity: 0.6;
+}
+
+/* Nuclear option: Override ALL possible ShadCN tab styling */
+[data-orientation="horizontal"] .myk9-dog-tab,
+[data-radix-tabs-trigger] .myk9-dog-tab,
+.myk9-dog-tabs [data-radix-tabs-trigger],
+.myk9-dog-tabs button[role="tab"] {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+
+[data-orientation="horizontal"] .myk9-dog-tab[data-state="active"],
+[data-orientation="horizontal"] .myk9-dog-tab[aria-selected="true"],
+[data-radix-tabs-trigger] .myk9-dog-tab[data-state="active"],
+[data-radix-tabs-trigger] .myk9-dog-tab[aria-selected="true"],
+.myk9-dog-tabs [data-radix-tabs-trigger][data-state="active"],
+.myk9-dog-tabs [data-radix-tabs-trigger][aria-selected="true"],
+.myk9-dog-tabs button[role="tab"][data-state="active"],
+.myk9-dog-tabs button[role="tab"][aria-selected="true"] {
+  border: none !important;
+  border-bottom: 2px solid #007AFF !important;
+  background: transparent !important;
+  color: #007AFF !important;
+}
+
+.myk9-dog-tab-content {
+  min-height: 400px;
+  padding: 0;
+}
+
+/* myK9 Sub-tabs (iOS Segmented Control style) */
+.myk9-sub-tabs {
+  display: inline-flex !important;
+  background: rgba(120, 119, 198, 0.08) !important;
+  border-radius: 12px !important;
+  padding: 4px !important;
+  gap: 0 !important;
+  height: auto !important;
+  border: none !important;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04) !important;
+  margin-bottom: 24px !important;
+  margin-top: 8px !important;
+}
+
+.myk9-sub-tab {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 8px !important;
+  padding: 8px 16px !important;
+  font-size: 14px !important;
+  font-weight: 590 !important;
+  color: var(--muted-foreground) !important;
+  transition: all 0.2s ease !important;
+  cursor: pointer !important;
+  box-shadow: none !important;
+  outline: none !important;
+  white-space: nowrap !important;
+}
+
+.myk9-sub-tab:hover:not([data-state="active"]):not([aria-selected="true"]) {
+  color: var(--foreground) !important;
+  background: rgba(120, 119, 198, 0.12) !important;
+}
+
+/* Active sub-tab state - iOS pill style */
+.myk9-sub-tabs .myk9-sub-tab[data-state="active"],
+.myk9-sub-tab[data-state="active"],
+.myk9-sub-tabs .myk9-sub-tab[aria-selected="true"],
+.myk9-sub-tab[aria-selected="true"] {
+  background: white !important;
+  color: var(--foreground) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+  border: none !important;
+  font-weight: 650 !important;
+  transform: translateY(-0.5px) !important;
+}
+
+/* Dark mode adjustments for sub-tabs */
+.dark .myk9-sub-tabs {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.dark .myk9-sub-tabs .myk9-sub-tab[data-state="active"],
+.dark .myk9-sub-tab[data-state="active"],
+.dark .myk9-sub-tabs .myk9-sub-tab[aria-selected="true"],
+.dark .myk9-sub-tab[aria-selected="true"] {
+  background: rgba(255, 255, 255, 0.15) !important;
+  color: var(--foreground) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), 0 1px 3px rgba(0, 0, 0, 0.12) !important;
+  transform: translateY(-0.5px) !important;
+}
+
+.dark .myk9-sub-tab:hover:not([data-state="active"]):not([aria-selected="true"]) {
+  background: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* myK9 Section Cards */
+.myk9-section-card {
+  background: var(--card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 16px !important;
+  padding: 24px !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+  transition: all 0.2s ease !important;
+  margin-bottom: 24px !important;
+}
+
+.myk9-section-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+  border-color: var(--border) !important;
+}
+
+.myk9-section-header {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  margin-bottom: 24px !important;
+}
+
+.myk9-section-title {
+  font-size: 18px !important;
+  font-weight: 650 !important;
+  color: var(--foreground) !important;
+  letter-spacing: -0.01em !important;
+}
+
+.myk9-add-button {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 8px 16px !important;
+  background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%) !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 8px !important;
+  font-size: 14px !important;
+  font-weight: 590 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+.myk9-add-button:hover {
+  transform: translateY(-1px) scale(1.02) !important;
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3) !important;
+}
+
+/* myK9 Record Cards */
+.myk9-record-card {
+  background: var(--background) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 12px !important;
+  padding: 16px !important;
+  margin-bottom: 12px !important;
+  transition: all 0.2s ease !important;
+}
+
+.myk9-record-card:hover {
+  background: var(--muted) !important;
+  border-color: rgba(0, 122, 255, 0.2) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+}
+
+.myk9-record-header {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: flex-start !important;
+  margin-bottom: 8px !important;
+}
+
+.myk9-record-title {
+  font-size: 15px !important;
+  font-weight: 590 !important;
+  color: var(--foreground) !important;
+  margin-bottom: 4px !important;
+}
+
+.myk9-record-meta {
+  font-size: 13px !important;
+  color: var(--muted-foreground) !important;
+  line-height: 1.3 !important;
+}
+
+.myk9-record-content {
+  margin-top: 8px !important;
+}
+
+.myk9-record-description {
+  font-size: 14px !important;
+  color: var(--foreground) !important;
+  line-height: 1.4 !important;
+}
+
+/* Section content spacing */
+.myk9-section-content {
+  margin-top: 16px !important;
+}
+
+/* Tab content improvements */
+.myk9-dog-tab-content .myk9-section-card {
+  margin-bottom: 0 !important;
+}
+
+/* Premium Feature Styling */
+.myk9-premium-gate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 32px;
+  text-align: center;
+  background: var(--muted);
+  border-radius: 16px;
+  border: 1px dashed var(--border);
+}
+
+.myk9-premium-icon {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 24px;
+}
+
+.myk9-premium-title {
+  font-size: 19px;
+  font-weight: 650;
+  margin-bottom: 8px;
+  color: var(--foreground);
+}
+
+.myk9-premium-description {
+  font-size: 15px;
+  color: var(--muted-foreground);
+  line-height: 1.4;
+  margin-bottom: 20px;
+}
+
+.myk9-premium-button {
+  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 24px;
+  font-size: 15px;
+  font-weight: 590;
+  transition: all 0.2s ease;
+}
+
+.myk9-premium-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 165, 0, 0.3);
+}
+
+/* Sidebar Styling */
+.myk9-dog-sidebar {
+  background: var(--card);
+  border-right: 0.5px solid var(--border);
+  backdrop-filter: blur(40px);
+}
+
+.myk9-dog-sidebar-container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border-right: 0.5px solid var(--border);
+  backdrop-filter: blur(40px);
+}
+
+.myk9-dog-sidebar-header {
+  padding: 20px 16px 12px 16px;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.myk9-dog-sidebar-title {
+  font-size: 22px;
+  font-weight: 650;
+  color: var(--foreground);
+}
+
+.myk9-dog-sidebar-search {
+  padding: 12px 16px;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.myk9-dog-sidebar-search-input {
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.myk9-dog-sidebar-search-input:focus {
+  outline: none;
+  border-color: #007AFF;
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+}
+
+.myk9-dog-sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.myk9-dog-sidebar-item {
+  padding: 12px 16px;
+  margin: 2px 8px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.myk9-dog-sidebar-item:hover {
+  background: var(--muted);
+  transform: translateX(2px);
+}
+
+.myk9-dog-sidebar-item.selected {
+  background: rgba(0, 122, 255, 0.1);
+  border-color: rgba(0, 122, 255, 0.3);
+  color: #007AFF;
+}
+
+.myk9-dog-sidebar-name {
+  font-size: 15px;
+  font-weight: 590;
+  margin-bottom: 2px;
+  line-height: 1.2;
+}
+
+.myk9-dog-sidebar-breed {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  line-height: 1.2;
+}
+
+/* Action Menu */
+.myk9-dog-dropdown-trigger {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  color: var(--muted-foreground);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  position: relative;
+  z-index: 20;
+}
+
+.myk9-dog-dropdown-trigger:hover {
+  background: var(--muted);
+  color: var(--foreground);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.dark .myk9-dog-dropdown-trigger {
+  background: rgba(30, 30, 30, 0.9);
+}
+
+.dark .myk9-dog-dropdown-trigger:hover {
+  background: rgba(60, 60, 60, 1);
+}
+
+/* Dark mode adjustments */
+.dark .myk9-dog-stat-card,
+.dark .myk9-dog-info-card,
+.dark .myk9-dog-tabs-section {
+  backdrop-filter: blur(40px);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .myk9-dog-container {
+    @apply px-4 py-6;
+  }
+  
+  .myk9-dog-name {
+    font-size: 24px;
+  }
+  
+  .myk9-dog-breed {
+    font-size: 15px;
+  }
+  
+  .myk9-dog-stats-grid {
+    @apply grid-cols-1 gap-4;
+  }
+  
+  .myk9-dog-info-layout {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .myk9-dog-info-grid {
+    @apply grid-cols-1 gap-3;
+  }
+  
+  .myk9-dog-stat-card:hover {
+    transform: none;
+  }
+}
+
+/* Smooth animations */
+.myk9-dog-page {
+  scroll-behavior: smooth;
+}
+
+/* Focus styles for accessibility */
+.myk9-dog-tab:focus,
+.myk9-premium-button:focus,
+.myk9-dog-dropdown-trigger:focus {
+  outline: 2px solid #007AFF;
+  outline-offset: 2px;
+}
+/* Owner link styling */
+.myk9-dog-owner-link {
+  color: #007AFF !important;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  position: relative;
+}
+
+.myk9-dog-owner-link:hover {
+  color: #0056CC !important;
+  text-decoration: underline;
+}
+
+.myk9-dog-owner-link:active {
+  color: #004494 !important;
+}

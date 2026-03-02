@@ -4,24 +4,24 @@ import { Input } from '../../ui/input';
 import { Button } from '../../ui/button';
 import { Badge } from '../../ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select';
-import { 
-  Search, 
-  Filter, 
-  X, 
-  Dog, 
-  Users, 
+import {
+  Search,
+  Filter,
+  X,
+  Dog,
+  Users,
   Loader2,
   AlertCircle,
   CheckCircle,
   Grid3X3,
   List,
-  ArrowUp
+  ArrowUp,
 } from 'lucide-react';
 import { LazyDogCard } from '../../dogs/LazyDogCard';
 import { useInfiniteScroll } from '../../../hooks/useInfiniteScroll';
 import { InfiniteScrollTrigger } from '../../common/InfiniteScrollTrigger';
 import { useDebounce } from '@myk9/scoring-ui';
-import { useDogStore } from '../../../store/dogStore';
+import { useDogStoreCompat } from '../../../hooks/useDogStoreCompat';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../../lib/utils';
 
@@ -47,7 +47,7 @@ export function InfiniteDogSelectionStep({
   selectedDogs,
   onSelectionChange,
   maxSelections = 50,
-  allowBulkOperations = false
+  allowBulkOperations = false,
 }: InfiniteDogSelectionStepProps) {
   const [filters, setFilters] = useState<DogFilters>({});
   const [showFilters, setShowFilters] = useState(false);
@@ -55,19 +55,20 @@ export function InfiniteDogSelectionStep({
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [showBackToTop, setShowBackToTop] = useState(false);
 
-  const { dogs: allDogs } = useDogStore();
+  const { dogs: allDogs } = useDogStoreCompat();
   const debouncedSearchQuery = useDebounce(filters.searchQuery || '', 300);
 
   // Create filtered dataset for pagination
   const filteredDogs = useMemo(() => {
-    let result = allDogs;
+    let result = allDogs.filter(dog => !dog.status || dog.status === 'active');
 
     if (debouncedSearchQuery) {
       const query = debouncedSearchQuery.toLowerCase();
-      result = result.filter(dog =>
-        dog.callName?.toLowerCase().includes(query) ||
-        dog.name.toLowerCase().includes(query) ||
-        dog.registrations?.[0]?.breed?.toLowerCase().includes(query)
+      result = result.filter(
+        dog =>
+          dog.callName?.toLowerCase().includes(query) ||
+          dog.name.toLowerCase().includes(query) ||
+          dog.registrations?.[0]?.breed?.toLowerCase().includes(query)
       );
     }
 
@@ -84,10 +85,14 @@ export function InfiniteDogSelectionStep({
       result = result.filter(dog => {
         const age = today.getFullYear() - new Date(dog.dateOfBirth || '1990-01-01').getFullYear();
         switch (filters.ageGroup) {
-          case 'puppy': return age < 2;
-          case 'adult': return age >= 2 && age < 8;
-          case 'senior': return age >= 8;
-          default: return true;
+          case 'puppy':
+            return age < 2;
+          case 'adult':
+            return age >= 2 && age < 8;
+          case 'senior':
+            return age >= 8;
+          default:
+            return true;
         }
       });
     }
@@ -96,25 +101,28 @@ export function InfiniteDogSelectionStep({
   }, [allDogs, debouncedSearchQuery, filters]);
 
   // Infinite scroll load function
-  const loadDogPage = useCallback(async (page: number, pageSize: number) => {
-    // Simulate API delay for demonstration
-    await new Promise(resolve => setTimeout(resolve, 300));
+  const loadDogPage = useCallback(
+    async (page: number, pageSize: number) => {
+      // Simulate API delay for demonstration
+      await new Promise(resolve => setTimeout(resolve, 300));
 
-    const startIndex = (page - 1) * pageSize;
-    const endIndex = Math.min(startIndex + pageSize, filteredDogs.length);
-    const items = filteredDogs.slice(startIndex, endIndex);
+      const startIndex = (page - 1) * pageSize;
+      const endIndex = Math.min(startIndex + pageSize, filteredDogs.length);
+      const items = filteredDogs.slice(startIndex, endIndex);
 
-    const totalPages = Math.ceil(filteredDogs.length / pageSize);
+      const totalPages = Math.ceil(filteredDogs.length / pageSize);
 
-    return {
-      items,
-      page,
-      totalPages,
-      totalCount: filteredDogs.length,
-      hasNextPage: page < totalPages,
-      hasPreviousPage: page > 1
-    };
-  }, [filteredDogs]);
+      return {
+        items,
+        page,
+        totalPages,
+        totalCount: filteredDogs.length,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      };
+    },
+    [filteredDogs]
+  );
 
   // Use infinite scroll hook
   const {
@@ -132,40 +140,57 @@ export function InfiniteDogSelectionStep({
     totalPages,
     totalCount,
     loadedPages,
-    getCacheStats
+    getCacheStats,
   } = useInfiniteScroll(loadDogPage, {
     pageSize: 100,
     prefetch: true,
     enableCache: true,
     maxCachedPages: 5,
-    debug: process.env.NODE_ENV === 'development'
+    debug: process.env.NODE_ENV === 'development',
   });
 
   // Get unique filter options
   const filterOptions = useMemo(() => {
-    const breeds = [...new Set(allDogs.map(dog => dog.registrations?.[0]?.breed).filter((breed): breed is string => Boolean(breed)))].sort();
-    const genders = [...new Set(allDogs.map(dog => dog.gender).filter((gender): gender is 'Male' | 'Female' => Boolean(gender) && gender !== ''))].sort();
-    
+    const breeds = [
+      ...new Set(
+        allDogs
+          .map(dog => dog.registrations?.[0]?.breed)
+          .filter((breed): breed is string => Boolean(breed))
+      ),
+    ].sort();
+    const genders = [
+      ...new Set(
+        allDogs
+          .map(dog => dog.gender)
+          .filter((gender): gender is 'Male' | 'Female' => Boolean(gender) && gender !== '')
+      ),
+    ].sort();
+
     return { breeds, genders };
   }, [allDogs]);
 
   // Handle dog selection
-  const handleDogSelect = useCallback((dogId: string) => {
-    if (selectedDogs.length >= maxSelections) {
-      return;
-    }
-    onSelectionChange([...selectedDogs, dogId]);
-  }, [selectedDogs, maxSelections, onSelectionChange]);
+  const handleDogSelect = useCallback(
+    (dogId: string) => {
+      if (selectedDogs.length >= maxSelections) {
+        return;
+      }
+      onSelectionChange([...selectedDogs, dogId]);
+    },
+    [selectedDogs, maxSelections, onSelectionChange]
+  );
 
-  const handleDogDeselect = useCallback((dogId: string) => {
-    onSelectionChange(selectedDogs.filter(id => id !== dogId));
-  }, [selectedDogs, onSelectionChange]);
+  const handleDogDeselect = useCallback(
+    (dogId: string) => {
+      onSelectionChange(selectedDogs.filter(id => id !== dogId));
+    },
+    [selectedDogs, onSelectionChange]
+  );
 
   // Bulk operations
   const handleSelectAllVisible = () => {
     const visibleDogIds = paginatedDogs.map(dog => dog.id);
-    const newSelections = [...new Set([...selectedDogs, ...visibleDogIds])]
-      .slice(0, maxSelections);
+    const newSelections = [...new Set([...selectedDogs, ...visibleDogIds])].slice(0, maxSelections);
     onSelectionChange(newSelections);
   };
 
@@ -217,7 +242,7 @@ export function InfiniteDogSelectionStep({
             Choose dogs to register for this show ({selectedCount}/{maxSelections} selected)
           </p>
         </div>
-        
+
         <div className="flex items-center gap-2">
           {/* Performance stats */}
           {process.env.NODE_ENV === 'development' && (
@@ -225,7 +250,7 @@ export function InfiniteDogSelectionStep({
               Pages: {loadedPages} | Cache: {cacheStats.cachedPages}
             </Badge>
           )}
-          
+
           {/* View mode toggle */}
           <div className="flex items-center border rounded-md">
             <Button
@@ -252,13 +277,9 @@ export function InfiniteDogSelectionStep({
               {paginatedDogs.length} of {totalCount} loaded
             </Badge>
           )}
-          
+
           {allowBulkOperations && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setBulkSelectMode(!bulkSelectMode)}
-            >
+            <Button variant="outline" size="sm" onClick={() => setBulkSelectMode(!bulkSelectMode)}>
               {bulkSelectMode ? 'Exit Bulk Mode' : 'Bulk Select'}
             </Button>
           )}
@@ -270,17 +291,13 @@ export function InfiniteDogSelectionStep({
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg">Search & Filter</CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowFilters(!showFilters)}
-            >
+            <Button variant="ghost" size="sm" onClick={() => setShowFilters(!showFilters)}>
               <Filter className="h-4 w-4 mr-2" />
               Filters {hasFilters && `(${Object.values(filters).filter(Boolean).length})`}
             </Button>
           </div>
         </CardHeader>
-        
+
         <CardContent className="space-y-4">
           {/* Search */}
           <div className="relative">
@@ -288,7 +305,7 @@ export function InfiniteDogSelectionStep({
             <Input
               placeholder="Search by name, breed, or registration..."
               value={filters.searchQuery || ''}
-              onChange={(e) => handleFilterChange('searchQuery', e.target.value)}
+              onChange={e => handleFilterChange('searchQuery', e.target.value)}
               className="pl-10"
             />
           </div>
@@ -308,7 +325,7 @@ export function InfiniteDogSelectionStep({
                     <label className="text-sm font-medium mb-1 block">Breed</label>
                     <Select
                       value={filters.breed || ''}
-                      onValueChange={(value) => handleFilterChange('breed', value || undefined)}
+                      onValueChange={value => handleFilterChange('breed', value || undefined)}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Any breed" />
@@ -316,7 +333,9 @@ export function InfiniteDogSelectionStep({
                       <SelectContent>
                         <SelectItem value="">Any breed</SelectItem>
                         {filterOptions.breeds.map(breed => (
-                          <SelectItem key={breed} value={breed}>{breed}</SelectItem>
+                          <SelectItem key={breed} value={breed}>
+                            {breed}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -326,7 +345,7 @@ export function InfiniteDogSelectionStep({
                     <label className="text-sm font-medium mb-1 block">Gender</label>
                     <Select
                       value={filters.gender || ''}
-                      onValueChange={(value) => handleFilterChange('gender', value || undefined)}
+                      onValueChange={value => handleFilterChange('gender', value || undefined)}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Any gender" />
@@ -334,7 +353,9 @@ export function InfiniteDogSelectionStep({
                       <SelectContent>
                         <SelectItem value="">Any gender</SelectItem>
                         {filterOptions.genders.map(gender => (
-                          <SelectItem key={gender} value={gender || 'Unknown'}>{gender}</SelectItem>
+                          <SelectItem key={gender} value={gender || 'Unknown'}>
+                            {gender}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -344,7 +365,7 @@ export function InfiniteDogSelectionStep({
                     <label className="text-sm font-medium mb-1 block">Age Group</label>
                     <Select
                       value={filters.ageGroup || ''}
-                      onValueChange={(value) => handleFilterChange('ageGroup', value || undefined)}
+                      onValueChange={value => handleFilterChange('ageGroup', value || undefined)}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Any age" />
@@ -398,11 +419,7 @@ export function InfiniteDogSelectionStep({
                   <CheckCircle className="h-4 w-4 mr-2" />
                   Select Visible ({paginatedDogs.length})
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleDeselectAllVisible}
-                >
+                <Button variant="outline" size="sm" onClick={handleDeselectAllVisible}>
                   <X className="h-4 w-4 mr-2" />
                   Deselect Visible
                 </Button>
@@ -422,27 +439,18 @@ export function InfiniteDogSelectionStep({
                   Showing {paginatedDogs.length} of {totalCount} dogs
                 </span>
                 {currentPage > 1 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => goToPage(1)}
-                  >
+                  <Button variant="outline" size="sm" onClick={() => goToPage(1)}>
                     Go to First Page
                   </Button>
                 )}
               </div>
-              
+
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground">
                   Page {currentPage} of {totalPages}
                 </span>
                 {hasMore && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={loadMore}
-                    disabled={loading}
-                  >
+                  <Button variant="outline" size="sm" onClick={loadMore} disabled={loading}>
                     Load Next Page
                   </Button>
                 )}
@@ -473,12 +481,7 @@ export function InfiniteDogSelectionStep({
                 <span className="font-medium">Failed to load dogs</span>
               </div>
               <p className="text-sm text-muted-foreground mt-1">{error}</p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={retry}
-                className="mt-3"
-              >
+              <Button variant="outline" size="sm" onClick={retry} className="mt-3">
                 Try Again
               </Button>
             </CardContent>
@@ -493,10 +496,9 @@ export function InfiniteDogSelectionStep({
                 <Dog className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
                 <h3 className="font-medium mb-2">No dogs found</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  {hasFilters 
-                    ? 'Try adjusting your search filters' 
-                    : 'No dogs are available for registration'
-                  }
+                  {hasFilters
+                    ? 'Try adjusting your search filters'
+                    : 'No dogs are available for registration'}
                 </p>
                 {hasFilters && (
                   <Button variant="outline" onClick={clearFilters}>
@@ -511,13 +513,15 @@ export function InfiniteDogSelectionStep({
 
         {/* Dog Grid/List */}
         {paginatedDogs.length > 0 && (
-          <div className={cn(
-            viewMode === 'grid' 
-              ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'
-              : 'space-y-3'
-          )}>
+          <div
+            className={cn(
+              viewMode === 'grid'
+                ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'
+                : 'space-y-3'
+            )}
+          >
             <AnimatePresence>
-              {paginatedDogs.map((dog) => (
+              {paginatedDogs.map(dog => (
                 <LazyDogCard
                   key={dog.id}
                   dogId={dog.id}
@@ -556,19 +560,13 @@ export function InfiniteDogSelectionStep({
                   {selectedCount} dog{selectedCount !== 1 ? 's' : ''} selected
                 </span>
               </div>
-              
+
               <div className="flex items-center gap-2">
                 {selectedCount >= maxSelections && (
-                  <Badge variant="secondary">
-                    Maximum reached
-                  </Badge>
+                  <Badge variant="secondary">Maximum reached</Badge>
                 )}
-                
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onSelectionChange([])}
-                >
+
+                <Button variant="outline" size="sm" onClick={() => onSelectionChange([])}>
                   Clear All
                 </Button>
               </div>
@@ -586,11 +584,7 @@ export function InfiniteDogSelectionStep({
             exit={{ opacity: 0, scale: 0.8 }}
             className="fixed bottom-6 right-6 z-50"
           >
-            <Button
-              onClick={scrollToTop}
-              className="rounded-full p-3 shadow-lg"
-              size="sm"
-            >
+            <Button onClick={scrollToTop} className="rounded-full p-3 shadow-lg" size="sm">
               <ArrowUp className="h-4 w-4" />
             </Button>
           </motion.div>

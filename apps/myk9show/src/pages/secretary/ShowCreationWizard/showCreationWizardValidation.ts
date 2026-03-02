@@ -4,7 +4,7 @@
 
 interface ShowData {
   name: string;
-  type: string;
+  organization: string;
   startDate: string;
   endDate: string;
   location: string;
@@ -34,7 +34,7 @@ export function getShowDetailsValidationMessages(show: ShowData): string[] {
   const messages: string[] = [];
 
   if (!show.name?.trim()) messages.push('Show name is required');
-  if (!show.type) messages.push('Show type is required');
+  if (!show.organization) messages.push('Organization is required');
   if (!show.startDate) messages.push('Start date is required');
   if (!show.endDate) messages.push('End date is required');
   if (!show.location?.trim()) messages.push('Location is required');
@@ -77,7 +77,7 @@ export function getClassValidationMessages(trials: Trial[]): string[] {
     messages.push('At least one class must be added to the trials');
   } else {
     // Ensure every trial has at least one class
-    trials.forEach((trial) => {
+    trials.forEach(trial => {
       if (trial.classes.length === 0) {
         messages.push(`${trial.name || 'A trial'} needs at least one class`);
       }

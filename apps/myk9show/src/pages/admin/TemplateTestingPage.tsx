@@ -100,7 +100,7 @@ export const TemplateTestingPage: React.FC = () => {
         id: template.id,
         name: template.templateName,
         organization: template.organization,
-        showType: template.showType,
+        trialType: template.trialType,
         version: template.version,
       },
       testResults: {
@@ -203,7 +203,7 @@ export const TemplateTestingPage: React.FC = () => {
                   <strong>Organization:</strong> {template.organization}
                 </div>
                 <div>
-                  <strong>Show Type:</strong> {template.showType}
+                  <strong>Show Type:</strong> {template.trialType}
                 </div>
                 <div>
                   <strong>Version:</strong> {template.version}

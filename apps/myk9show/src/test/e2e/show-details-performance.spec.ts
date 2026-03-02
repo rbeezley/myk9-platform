@@ -34,8 +34,8 @@ test.describe('Show Details Page Performance Analysis', () => {
     await page.goto(TARGET_URL, { waitUntil: 'networkidle' });
     
     // Wait for key components to be visible
-    await expect(page.locator('.apple-show-container')).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('.apple-show-header')).toBeVisible();
+    await expect(page.locator('.myk9-show-container')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('.myk9-show-header')).toBeVisible();
     
     const loadTime = performance.now() - startTime;
     
@@ -86,7 +86,7 @@ test.describe('Show Details Page Performance Analysis', () => {
     
     await page.goto(TARGET_URL);
     
-    // Wait for Apple design system styles to be applied
+    // Wait for design system system styles to be applied
     await page.waitForLoadState('networkidle');
     
     const cssMetrics = await page.evaluate(() => {
@@ -102,9 +102,9 @@ test.describe('Show Details Page Performance Analysis', () => {
           if (sheet.cssRules) {
             appliedStyles.totalRules += sheet.cssRules.length;
             
-            // Count Apple-specific styles
+            // Count custom design styles
             Array.from(sheet.cssRules).forEach(rule => {
-              if (rule.cssText && rule.cssText.includes('apple-')) {
+              if (rule.cssText && rule.cssText.includes('myk9-')) {
                 appliedStyles.appleStyles++;
               }
             });
@@ -114,9 +114,9 @@ test.describe('Show Details Page Performance Analysis', () => {
         // Some stylesheets may not be accessible due to CORS
       }
       
-      // Check if key Apple classes are rendered correctly
-      const appleContainer = document.querySelector('.apple-show-container');
-      const appleHeader = document.querySelector('.apple-show-header');
+      // Check if key design classes are rendered correctly
+      const appleContainer = document.querySelector('.myk9-show-container');
+      const appleHeader = document.querySelector('.myk9-show-header');
       const appleTabs = document.querySelector('[role="tablist"]');
       
       return {
@@ -165,7 +165,7 @@ test.describe('Show Details Page Performance Analysis', () => {
         trialNumber: `${i + 1}`
       }));
       
-      // Calculate statistics (similar to what ShowDetailsEnhancedApple does)
+      // Calculate statistics (similar to what ShowDetailsEnhanced does)
       const totalTrials = mockTrials.length;
       // const upcomingTrials = mockTrials.filter(t => t.status === 'Upcoming').length;
       const completedTrials = mockTrials.filter(t => t.status === 'Completed').length;
@@ -223,7 +223,7 @@ test.describe('Show Details Page Performance Analysis', () => {
     const roleMetrics = await page.evaluate(() => {
       const startTime = performance.now();
       
-      // Simulate role priority calculation (from ShowDetailsEnhancedApple)
+      // Simulate role priority calculation (from ShowDetailsEnhanced)
       const mockUserWithRoles = {
         roles: ['EXHIBITOR', 'SECRETARY', 'CLUB_ADMIN']
       };
@@ -282,8 +282,8 @@ test.describe('Show Details Page Performance Analysis', () => {
     expect(roleMetrics.totalTabs).toBeGreaterThan(1);
   });
 
-  test('Show Details Page - AppleTabs Component Performance', async ({ page }) => {
-    console.log('📑 Testing AppleTabs Component Performance...');
+  test('Show Details Page - Tabs Component Performance', async ({ page }) => {
+    console.log('📑 Testing Tabs Component Performance...');
     
     await page.goto(TARGET_URL);
     await page.waitForLoadState('networkidle');
@@ -321,7 +321,7 @@ test.describe('Show Details Page Performance Analysis', () => {
       };
     });
     
-    console.log('📑 AppleTabs Performance Metrics:', {
+    console.log('📑 Tabs Performance Metrics:', {
       renderTime: `${tabMetrics.renderTime.toFixed(2)}ms`,
       interactionTime: `${tabMetrics.interactionTime.toFixed(2)}ms`,
       tabCount: tabMetrics.tabCount,
@@ -429,8 +429,8 @@ test.describe('Show Details Page Performance Analysis', () => {
     await page.goto(TARGET_URL, { waitUntil: 'networkidle' });
     
     // Wait for all key components
-    await expect(page.locator('.apple-show-container')).toBeVisible();
-    await expect(page.locator('.apple-show-header')).toBeVisible();
+    await expect(page.locator('.myk9-show-container')).toBeVisible();
+    await expect(page.locator('.myk9-show-header')).toBeVisible();
     await expect(page.locator('[role="tablist"]')).toBeVisible();
     
     const overallLoadTime = performance.now() - overallStart;
@@ -458,7 +458,7 @@ test.describe('Show Details Page Performance Analysis', () => {
         } : null,
         elements: {
           totalElements: document.querySelectorAll('*').length,
-          appleElements: document.querySelectorAll('[class*="apple-"]').length,
+          designElements: document.querySelectorAll('[class*="myk9-"]').length,
           tabElements: document.querySelectorAll('[role="tab"]').length
         }
       };
@@ -470,7 +470,7 @@ test.describe('Show Details Page Performance Analysis', () => {
     console.log(`🏗️  DOM Content Loaded: ${finalMetrics.navigation.domContentLoaded.toFixed(2)}ms`);
     console.log(`🎨 First Contentful Paint: ${finalMetrics.paint.firstContentfulPaint.toFixed(2)}ms`);
     console.log(`📊 DOM Elements: ${finalMetrics.elements.totalElements}`);
-    console.log(`🍎 Apple Elements: ${finalMetrics.elements.appleElements}`);
+    console.log(`🍎 Design Elements: ${finalMetrics.elements.designElements}`);
     console.log(`📑 Tab Elements: ${finalMetrics.elements.tabElements}`);
     if (finalMetrics.memory) {
       console.log(`🧠 Memory Usage: ${finalMetrics.memory.usedMB}MB`);
@@ -481,7 +481,7 @@ test.describe('Show Details Page Performance Analysis', () => {
     expect(overallLoadTime).toBeLessThan(5000); // Overall load under 5s
     expect(finalMetrics.navigation.domContentLoaded).toBeLessThan(3000); // DOM ready under 3s
     expect(finalMetrics.paint.firstContentfulPaint).toBeLessThan(2000); // FCP under 2s
-    expect(finalMetrics.elements.appleElements).toBeGreaterThan(0); // Apple components loaded
+    expect(finalMetrics.elements.designElements).toBeGreaterThan(0); // design components loaded
     expect(finalMetrics.elements.tabElements).toBeGreaterThan(0); // Tabs loaded
   });
 });

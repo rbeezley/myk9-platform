@@ -28,7 +28,7 @@ test('Debug show add button visibility', async ({ page }) => {
   
   // Navigate directly to browse shows (public access)
   console.log('Navigating directly to browse shows...');
-  await page.goto('http://127.0.0.1:5176/browse-shows');
+  await page.goto('http://127.0.0.1:5176/shows');
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(3000);
   

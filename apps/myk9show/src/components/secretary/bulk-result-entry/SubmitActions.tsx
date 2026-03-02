@@ -15,7 +15,7 @@ export function SubmitActions({
   onSubmit
 }: SubmitActionsProps) {
   return (
-    <div className="apple-show-info-card">
+    <div className="myk9-show-info-card">
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">
           Press Enter or Tab to move between fields quickly
@@ -24,7 +24,7 @@ export function SubmitActions({
         <Button
           onClick={onSubmit}
           disabled={!canSubmit || isSubmitting}
-          className="apple-action-button apple-action-button-primary"
+          className="myk9-action-button myk9-action-button-primary"
         >
           <Save className="h-4 w-4" />
           <span>{isSubmitting ? 'Submitting...' : `Submit ${entriesWithData} Results`}</span>

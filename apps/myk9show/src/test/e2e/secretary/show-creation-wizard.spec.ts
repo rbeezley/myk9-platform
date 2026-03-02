@@ -5,7 +5,7 @@ import {
   SecretaryDashboardPage,
   ShowCreationWizardPage,
   generateTestShowData,
-  generateTestTrialData
+  generateTestTrialData,
 } from '../page-objects';
 
 /**
@@ -214,8 +214,11 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
       await wizardPage.expectToBeOnStep(3);
 
       // Should show template selection or class list
-      const hasTemplateSelect = await page.locator('text=Select a template').isVisible().catch(() => false);
-      const hasClassList = await page.locator('input[type="checkbox"]').count() > 0;
+      const hasTemplateSelect = await page
+        .locator('text=Select a template')
+        .isVisible()
+        .catch(() => false);
+      const hasClassList = (await page.locator('input[type="checkbox"]').count()) > 0;
 
       expect(hasTemplateSelect || hasClassList).toBe(true);
     });
@@ -304,8 +307,8 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
       // 3. Step 1: Fill show details
       const showData = generateTestShowData({
         name: `Comprehensive E2E Test Show ${Date.now()}`,
-        type: 'AKC',
-        location: 'E2E Test Venue\n123 Test Street\nTest City, TS 12345'
+        organization: 'AKC',
+        location: 'E2E Test Venue\n123 Test Street\nTest City, TS 12345',
       });
       await wizardPage.fillShowDetails(showData);
       await page.screenshot({ path: 'test-results/screenshots/workflow-step1.png' });
@@ -315,7 +318,7 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
       await wizardPage.addTrial({
         name: 'Saturday AM Trial',
         dateTime: showData.startDate,
-        eventNumber: '1'
+        eventNumber: '1',
       });
 
       // Add second trial for Saturday PM
@@ -324,7 +327,7 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
       await wizardPage.addTrial({
         name: 'Saturday PM Trial',
         dateTime: saturdayPM,
-        eventNumber: '2'
+        eventNumber: '2',
       });
 
       await page.screenshot({ path: 'test-results/screenshots/workflow-step2.png' });
@@ -360,7 +363,7 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
     // Only run visual regression on chromium project to avoid managing multiple baselines
     // Note: browserName check doesn't work for device emulation (mobile-chrome uses chromium)
     // eslint-disable-next-line no-empty-pattern
-    test.beforeEach(async ({ }, testInfo) => {
+    test.beforeEach(async ({}, testInfo) => {
       if (testInfo.project.name !== 'chromium') {
         testInfo.skip(true, 'Visual regression only runs on chromium project');
       }
@@ -373,7 +376,7 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
 
       await expect(page).toHaveScreenshot('wizard-step1-empty.png', {
         fullPage: true,
-        animations: 'disabled'
+        animations: 'disabled',
       });
     });
 
@@ -388,7 +391,7 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
 
       await expect(page).toHaveScreenshot('wizard-step2-empty.png', {
         fullPage: true,
-        animations: 'disabled'
+        animations: 'disabled',
       });
     });
   });

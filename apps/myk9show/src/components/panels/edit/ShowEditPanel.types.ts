@@ -20,7 +20,7 @@ export interface ShowEditPanelProps {
 export interface ShowEditFormData extends Record<string, unknown> {
   name: string;
   status: string;
-  type: string;
+  organization: string;
   clubId: string;
   startDate: string;
   endDate: string;

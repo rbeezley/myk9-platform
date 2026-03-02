@@ -29,7 +29,7 @@ const INITIAL_FLOW_STATE: FlowState = {
   step: 'exhibitor',
   exhibitor: null,
   dogs: [],
-  isComplete: false
+  isComplete: false,
 };
 
 export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
@@ -37,7 +37,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
   onOpenChange,
   onFlowCompleted,
   searchQuery = '',
-  mode = 'single'
+  mode = 'single',
 }) => {
   const [flowState, setFlowState] = useState<FlowState>(INITIAL_FLOW_STATE);
   const [showExhibitorDialog, setShowExhibitorDialog] = useState(false);
@@ -57,7 +57,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
     setFlowState(prev => ({
       ...prev,
       exhibitor,
-      step: 'dogs'
+      step: 'dogs',
     }));
     setShowExhibitorDialog(false);
   };
@@ -68,14 +68,14 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
       // Editing existing dog
       setFlowState(prev => ({
         ...prev,
-        dogs: prev.dogs.map((d, index) => index === editingDogIndex ? dog : d)
+        dogs: prev.dogs.map((d, index) => (index === editingDogIndex ? dog : d)),
       }));
       setEditingDogIndex(null);
     } else {
       // Adding new dog
       setFlowState(prev => ({
         ...prev,
-        dogs: [...prev.dogs, dog]
+        dogs: [...prev.dogs, dog],
       }));
     }
     setShowDogDialog(false);
@@ -96,7 +96,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
   const handleRemoveDog = (index: number) => {
     setFlowState(prev => ({
       ...prev,
-      dogs: prev.dogs.filter((_, i) => i !== index)
+      dogs: prev.dogs.filter((_, i) => i !== index),
     }));
   };
 
@@ -106,7 +106,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
       // Update exhibitor with dog IDs
       const updatedExhibitor: User = {
         ...flowState.exhibitor,
-        dogs: flowState.dogs.map(dog => dog.id)
+        dogs: flowState.dogs.map(dog => dog.id),
       };
 
       onFlowCompleted(updatedExhibitor, flowState.dogs);
@@ -155,9 +155,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
               <span className={flowState.step === 'exhibitor' ? 'font-semibold' : ''}>
                 Create Exhibitor
               </span>
-              <span className={flowState.step === 'dogs' ? 'font-semibold' : ''}>
-                Add Dog(s)
-              </span>
+              <span className={flowState.step === 'dogs' ? 'font-semibold' : ''}>Add Dog(s)</span>
               <span className={flowState.step === 'review' ? 'font-semibold' : ''}>
                 Review & Complete
               </span>
@@ -172,7 +170,8 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
                 <div className="space-y-2">
                   <h3 className="text-lg font-semibold">Create New Exhibitor</h3>
                   <p className="text-gray-600">
-                    First, let's create the exhibitor profile. This person will own the dog(s) being registered.
+                    First, let's create the exhibitor profile. This person will own the dog(s) being
+                    registered.
                   </p>
                 </div>
 
@@ -215,7 +214,8 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
                 <div className="text-center space-y-2">
                   <h3 className="text-lg font-semibold">Add Dog(s)</h3>
                   <p className="text-gray-600">
-                    Now let's add the dog(s) for {flowState.exhibitor?.firstName} {flowState.exhibitor?.lastName}.
+                    Now let's add the dog(s) for {flowState.exhibitor?.firstName}{' '}
+                    {flowState.exhibitor?.lastName}.
                     {mode === 'batch' ? ' You can add multiple dogs.' : ' Add one dog to continue.'}
                   </p>
                 </div>
@@ -225,21 +225,22 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
                   <div className="space-y-3">
                     <h4 className="font-medium">Dogs Added ({flowState.dogs.length}):</h4>
                     {flowState.dogs.map((dog, index) => (
-                      <div key={dog.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div
+                        key={dog.id}
+                        className="flex items-center justify-between p-3 border rounded-lg"
+                      >
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
                             <span className="font-medium">{dog.callName}</span>
-                            <Badge variant="outline">{dog.registrations?.[0]?.breed || 'No breed'}</Badge>
+                            <Badge variant="outline">
+                              {dog.registrations?.[0]?.breed || 'No breed'}
+                            </Badge>
                             <Badge variant="secondary">{dog.gender}</Badge>
                           </div>
                           <p className="text-sm text-gray-600">{dog.name}</p>
                         </div>
                         <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEditDog(index)}
-                          >
+                          <Button variant="outline" size="sm" onClick={() => handleEditDog(index)}>
                             Edit
                           </Button>
                           <Button
@@ -261,7 +262,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
                   <Button
                     onClick={() => setShowDogDialog(true)}
                     className="flex items-center gap-2"
-                    variant={flowState.dogs.length === 0 ? "default" : "outline"}
+                    variant={flowState.dogs.length === 0 ? 'default' : 'outline'}
                   >
                     <Plus className="h-4 w-4" />
                     {flowState.dogs.length === 0 ? 'Add First Dog' : 'Add Another Dog'}
@@ -272,7 +273,8 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
                   <Alert>
                     <Info className="h-4 w-4" />
                     <AlertDescription>
-                      You can add more dogs or proceed to review. All dogs will be registered for the same exhibitor.
+                      You can add more dogs or proceed to review. All dogs will be registered for
+                      the same exhibitor.
                     </AlertDescription>
                   </Alert>
                 )}
@@ -310,7 +312,8 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
                             <div className="text-sm text-gray-600">
                               <p>{flowState.exhibitor.streetAddress}</p>
                               <p>
-                                {flowState.exhibitor.city}, {flowState.exhibitor.state} {flowState.exhibitor.zipCode}
+                                {flowState.exhibitor.city}, {flowState.exhibitor.state}{' '}
+                                {flowState.exhibitor.zipCode}
                               </p>
                             </div>
                           )}
@@ -326,13 +329,15 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
                 <div className="space-y-3">
                   <h4 className="font-medium">Dog Information ({flowState.dogs.length})</h4>
                   <div className="space-y-3">
-                    {flowState.dogs.map((dog) => (
+                    {flowState.dogs.map(dog => (
                       <div key={dog.id} className="p-4 border rounded-lg">
                         <div className="flex justify-between items-start">
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
                               <span className="font-medium">{dog.callName}</span>
-                              <Badge variant="outline">{dog.registrations?.[0]?.breed || 'No breed'}</Badge>
+                              <Badge variant="outline">
+                                {dog.registrations?.[0]?.breed || 'No breed'}
+                              </Badge>
                               <Badge variant="secondary">{dog.gender}</Badge>
                             </div>
                             <p className="text-sm text-gray-600">Registered Name: {dog.name}</p>
@@ -341,7 +346,8 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
                             </p>
                             {dog.registrations && dog.registrations.length > 0 && (
                               <p className="text-sm text-gray-600">
-                                Registration: {dog.registrations[0].organization} - {dog.registrations[0].registrationNumber}
+                                Registration: {dog.registrations[0].organization} -{' '}
+                                {dog.registrations[0].registrationNumber}
                               </p>
                             )}
                           </div>
@@ -354,8 +360,9 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
                 <Alert>
                   <CheckCircle className="h-4 w-4" />
                   <AlertDescription>
-                    Once you complete this setup, the exhibitor and {flowState.dogs.length === 1 ? 'dog' : 'dogs'} will be 
-                    added to the system and available for registration.
+                    Once you complete this setup, the exhibitor and{' '}
+                    {flowState.dogs.length === 1 ? 'dog' : 'dogs'} will be added to the system and
+                    available for registration.
                   </AlertDescription>
                 </Alert>
               </div>
@@ -385,23 +392,21 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
               <Button variant="outline" onClick={handleClose}>
                 Cancel
               </Button>
-              
+
               {flowState.step === 'exhibitor' && flowState.exhibitor && (
                 <Button onClick={() => setFlowState(prev => ({ ...prev, step: 'dogs' }))}>
                   Next: Add Dogs
                 </Button>
               )}
-              
+
               {flowState.step === 'dogs' && flowState.dogs.length > 0 && (
                 <Button onClick={() => setFlowState(prev => ({ ...prev, step: 'review' }))}>
                   Review
                 </Button>
               )}
-              
+
               {flowState.step === 'review' && (
-                <Button onClick={handleCompleteFlow} className="bg-green-600 hover:bg-green-700">
-                  Complete Setup
-                </Button>
+                <Button onClick={handleCompleteFlow}>Complete Setup</Button>
               )}
             </div>
           </div>
@@ -422,7 +427,13 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
         onDogCreated={handleDogCreated}
         ownerId={flowState.exhibitor?.id}
         ownerInfo={flowState.exhibitor || undefined}
-        prefilledData={editingDogIndex !== null ? flowState.dogs[editingDogIndex] as unknown as Parameters<typeof CreateDogDialog>[0]['prefilledData'] : undefined}
+        prefilledData={
+          editingDogIndex !== null
+            ? (flowState.dogs[editingDogIndex] as unknown as Parameters<
+                typeof CreateDogDialog
+              >[0]['prefilledData'])
+            : undefined
+        }
       />
     </>
   );

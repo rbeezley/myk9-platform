@@ -31,8 +31,8 @@ import type {
   QualificationStatus
 } from '@/types/scent-work-types';
 
-// Apple-inspired styling
-import '@/styles/apple-show-details.css';
+// Premium styling
+import '@/styles/myk9-show-details.css';
 
 // Extracted modules
 import type { BulkEntryData, BulkResultEntryProps, LocalCompetitionData } from './bulk-result-entry/types';
@@ -454,7 +454,7 @@ export function BulkResultEntry({
       )}
 
       {/* Data Entry Table */}
-      <div className="apple-show-info-card">
+      <div className="myk9-show-info-card">
         <Table>
           <TableHeader>
             <TableRow>

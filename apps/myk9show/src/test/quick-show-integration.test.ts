@@ -120,7 +120,7 @@ describe('Show Integration - Type Mapping Validation', () => {
 
     const testInput: ShowInput = {
       name: 'Test Show',
-      type: 'Agility Trial',
+      organization: 'Agility Trial',
       startDate: '2025-03-15',
       endDate: '2025-03-15',
       location: 'Test Venue',
@@ -143,7 +143,7 @@ describe('Show Integration - Type Mapping Validation', () => {
     const result = mapShowInputToInsert(testInput);
 
     expect(result.name).toBe('Test Show');
-    expect(result.type).toBe('Agility Trial');
+    expect(result.organization).toBe('Agility Trial');
     expect(result.start_date).toBe('2025-03-15');
     expect(result.end_date).toBe('2025-03-15');
     expect(result.location).toBe('Test Venue');
@@ -166,7 +166,7 @@ describe('Show Integration - Type Mapping Validation', () => {
     const dbShow = {
       id: 'test-show-id',
       name: 'Test Show',
-      type: 'Agility Trial',
+      organization: 'Agility Trial',
       start_date: '2025-03-15',
       end_date: '2025-03-15',
       location: 'Test Venue',
@@ -200,12 +200,12 @@ describe('Show Integration - Type Mapping Validation', () => {
 
     expect(result.id).toBe('test-show-id');
     expect(result.name).toBe('Test Show');
-    expect(result.type).toBe('Agility Trial');
+    expect(result.organization).toBe('Agility Trial');
     expect(result.startDate).toBe('2025-03-15');
     expect(result.endDate).toBe('2025-03-15');
     expect(result.location).toBe('Test Venue');
     expect(result.status).toBe('upcoming');
-    expect(result.events).toEqual(['Agility Trial']); // mapDatabaseToShow uses [dbShow.type], not dbShow.events
+    expect(result.events).toEqual(['Agility Trial']); // mapDatabaseToShow uses [dbShow.organization], not dbShow.events
     expect(result.source).toBe('myK9Show');
     expect(result.entryOpenDate).toBe('2025-02-15');
     expect(result.entryCloseDate).toBe('2025-03-10');

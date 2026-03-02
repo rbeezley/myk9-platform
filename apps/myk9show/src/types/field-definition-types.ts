@@ -9,7 +9,7 @@ export enum FieldCategory {
   COMPETITION = 'competition',
   PERSONNEL = 'personnel',
   FINANCIAL = 'financial',
-  ADMINISTRATIVE = 'administrative'
+  ADMINISTRATIVE = 'administrative',
 }
 
 export enum FieldDataType {
@@ -24,17 +24,17 @@ export enum FieldDataType {
   TEXT = 'text',
   CURRENCY = 'currency',
   DURATION = 'duration', // For time durations in MM:SS format
-  DURATION_ARRAY = 'duration-array' // For multiple time durations (per search area)
+  DURATION_ARRAY = 'duration-array', // For multiple time durations (per search area)
 }
 
-export enum ShowTypeField {
+export enum TrialTypeField {
   // Common fields across all show types
   ELEMENT = 'element',
   LEVEL = 'level',
   SECTION = 'section',
   CLASS_NAME = 'className',
   DIVISION = 'division',
-  
+
   // Scheduling fields
   SCHEDULED_DATE = 'scheduledDate',
   START_TIME = 'startTime',
@@ -44,7 +44,7 @@ export enum ShowTypeField {
   ESTIMATED_DURATION = 'estimatedDuration',
   ESTIMATED_JUDGING_TIME = 'estimatedJudgingTime',
   CLASS_SETUP_TIME = 'classSetupTime',
-  
+
   // Personnel fields
   JUDGE_NAME = 'judgeName',
   JUDGE_ID = 'judgeId',
@@ -52,11 +52,11 @@ export enum ShowTypeField {
   STEWARD_ID = 'stewardId',
   TIMER_NAME = 'timerName',
   TIMER_ID = 'timerId',
-  
+
   // Financial fields
   PRE_ENTRY_FEE = 'preEntryFee',
   DAY_OF_SHOW_FEE = 'dayOfShowFee',
-  
+
   // Scent Work specific
   SEARCH_AREAS = 'searchAreas',
   HIDE_COUNT = 'hideCount',
@@ -64,14 +64,14 @@ export enum ShowTypeField {
   SEARCH_TIME_LIMIT = 'searchTimeLimit',
   SEARCH_TIME_LIMITS = 'searchTimeLimits', // Array of time limits per search area
   SEARCH_ENVIRONMENT = 'searchEnvironment',
-  
+
   // Agility specific
   JUMP_HEIGHT = 'jumpHeight',
   COURSE_YARDS = 'courseYards',
   OBSTACLES = 'obstacles',
   STANDARD_COURSE_TIME = 'standardCourseTime',
   COURSE_TYPE = 'courseType',
-  
+
   // Conformation specific
   CLASS_TYPE = 'classType',
   SEX = 'sex',
@@ -79,25 +79,25 @@ export enum ShowTypeField {
   VARIETY = 'variety',
   BREED = 'breed',
   MINIMUM_AGE = 'minimumAge',
-  
+
   // Obedience specific
   EXERCISE_LIST = 'exerciseList',
   MAX_POINTS = 'maxPoints',
-  
+
   // Rally specific
   COURSE_DESIGN = 'courseDesign',
   SIGN_COUNT = 'signCount',
-  
+
   // Administrative
   ENTRY_LIMIT = 'entryLimit',
   CURRENT_ENTRIES = 'currentEntries',
   NOTES = 'notes',
-  STATUS = 'status'
+  STATUS = 'status',
 }
 
 export interface FieldDefinition {
   id: string;
-  fieldName: ShowTypeField;
+  fieldName: TrialTypeField;
   displayName: string;
   description?: string;
   category: FieldCategory;
@@ -139,7 +139,7 @@ export interface ValueConstraint {
 }
 
 export interface TemplateFieldConfiguration {
-  fieldName: ShowTypeField;
+  fieldName: TrialTypeField;
   required: boolean;
   visible: boolean;
   editable: boolean;
@@ -154,7 +154,7 @@ export interface TemplateFieldConfiguration {
 export interface ConditionalRule {
   type: 'show' | 'hide' | 'require';
   when: {
-    field: ShowTypeField;
+    field: TrialTypeField;
     operator: 'equals' | 'notEquals' | 'contains' | 'in';
     value: string | number | boolean | string[];
   };
@@ -162,7 +162,7 @@ export interface ConditionalRule {
 
 // Helper type for field values in a class
 export type ClassFieldValues = {
-  [key in ShowTypeField]?: string | number | boolean | Date | string[] | number[]; // Added number[] for duration arrays
+  [key in TrialTypeField]?: string | number | boolean | Date | string[] | number[]; // Added number[] for duration arrays
 };
 
 // Type for the actual class data with all fields
@@ -173,7 +173,7 @@ export interface StructuredClassData {
   section?: string;
   className: string;
   division?: string;
-  
+
   // Scheduling fields
   scheduledDate?: Date;
   startTime?: string;
@@ -182,7 +182,7 @@ export interface StructuredClassData {
   runOrder?: number;
   estimatedDuration?: number;
   estimatedJudgingTime?: string; // In MM:SS format
-  
+
   // Personnel fields
   judgeName?: string;
   judgeId?: string;
@@ -190,11 +190,11 @@ export interface StructuredClassData {
   stewardId?: string;
   timerName?: string;
   timerId?: string;
-  
+
   // Financial fields
   preEntryFee?: number;
   dayOfShowFee?: number;
-  
+
   // Scent Work fields
   searchAreas?: string[];
   hideCount?: number;
@@ -202,14 +202,14 @@ export interface StructuredClassData {
   searchTimeLimit?: number; // Single time limit (legacy)
   searchTimeLimits?: number[]; // Array of time limits per search area (milliseconds)
   searchEnvironment?: string;
-  
+
   // Agility fields
   jumpHeight?: string;
   courseYards?: number;
   obstacles?: number;
   standardCourseTime?: number;
   courseType?: string;
-  
+
   // Conformation fields
   classType?: string;
   sex?: string;
@@ -217,21 +217,21 @@ export interface StructuredClassData {
   variety?: string;
   breed?: string;
   minimumAge?: number; // In months
-  
+
   // Obedience fields
   exerciseList?: string[];
   maxPoints?: number;
-  
+
   // Rally fields
   courseDesign?: string;
   signCount?: number;
-  
+
   // Administrative fields
   entryLimit?: number;
   currentEntries?: number;
   notes?: string | undefined;
   status?: string;
-  
+
   // For any truly custom fields that don't fit the schema
   customFields?: Record<string, string | number | boolean | Date | string[] | number[]>;
 }

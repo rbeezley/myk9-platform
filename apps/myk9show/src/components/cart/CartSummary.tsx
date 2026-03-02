@@ -45,7 +45,7 @@ export function CartSummary({
   } = useCartExpirationTimer({
     onExpired: () => {
       // Redirect to browse shows when cart expires
-      navigate('/browse-shows');
+      navigate('/shows');
     },
   });
 
@@ -71,7 +71,7 @@ export function CartSummary({
     if (onContinueShopping) {
       onContinueShopping();
     } else {
-      navigate('/browse-shows');
+      navigate('/shows');
     }
   };
 

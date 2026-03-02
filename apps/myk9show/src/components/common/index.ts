@@ -1,7 +1,7 @@
 /**
  * Design System Component Library
  * 
- * Centralized exports for all Apple-inspired design system components.
+ * Centralized exports for all Premium design system components.
  * Import from here to ensure consistent usage across the application.
  */
 

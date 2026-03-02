@@ -5,7 +5,7 @@ import {
   createMockTemplates,
   createAKCScentWorkTemplate,
 } from '@/test/utils/mockData';
-import { Organization, ShowType } from '@/types/template.types';
+import { Organization, TrialType } from '@/types/template.types';
 
 const TEST_USER = 'test-user';
 
@@ -29,7 +29,7 @@ describe('Template Store', () => {
       activeTemplate: null,
       searchQuery: '',
       filterOrganization: null,
-      filterShowType: null,
+      filterTrialType: null,
     });
 
     // Clear localStorage mocks
@@ -145,19 +145,19 @@ describe('Template Store', () => {
         createMockTemplate({
           id: 'akc-1',
           organization: Organization.AKC,
-          showType: ShowType.SCENT_WORK,
+          trialType: TrialType.SCENT_WORK,
           templateName: 'AKC Scent Work',
         }),
         createMockTemplate({
           id: 'akc-2',
           organization: Organization.AKC,
-          showType: ShowType.AGILITY,
+          trialType: TrialType.AGILITY,
           templateName: 'AKC Agility',
         }),
         createMockTemplate({
           id: 'ukc-1',
           organization: Organization.UKC,
-          showType: ShowType.SCENT_WORK,
+          trialType: TrialType.SCENT_WORK,
           templateName: 'UKC Scent Work',
         }),
       ];
@@ -175,19 +175,19 @@ describe('Template Store', () => {
 
     test('gets templates by show type', () => {
       const store = useTemplateStore.getState();
-      const scentWorkTemplates = store.getTemplatesByShowType(ShowType.SCENT_WORK);
+      const scentWorkTemplates = store.getTemplatesByTrialType(TrialType.SCENT_WORK);
 
       expect(scentWorkTemplates).toHaveLength(2);
-      expect(scentWorkTemplates.every(t => t.showType === ShowType.SCENT_WORK)).toBe(true);
+      expect(scentWorkTemplates.every(t => t.trialType === TrialType.SCENT_WORK)).toBe(true);
     });
 
     test('gets templates by organization and show type', () => {
       const store = useTemplateStore.getState();
-      const filtered = store.getTemplatesByOrgAndType(Organization.AKC, ShowType.SCENT_WORK);
+      const filtered = store.getTemplatesByOrgAndType(Organization.AKC, TrialType.SCENT_WORK);
 
       expect(filtered).toHaveLength(1);
       expect(filtered[0].organization).toBe(Organization.AKC);
-      expect(filtered[0].showType).toBe(ShowType.SCENT_WORK);
+      expect(filtered[0].trialType).toBe(TrialType.SCENT_WORK);
     });
 
     test('searches templates by name', () => {
@@ -229,7 +229,7 @@ describe('Template Store', () => {
       const state = useTemplateStore.getState();
       expect(state.searchQuery).toBe('');
       expect(state.filterOrganization).toBeNull();
-      expect(state.filterShowType).toBeNull();
+      expect(state.filterTrialType).toBeNull();
     });
   });
 
@@ -296,7 +296,7 @@ describe('Template Store', () => {
 
       if (importedTemplate) {
         expect(importedTemplate.organization).toBe(Organization.AKC);
-        expect(importedTemplate.showType).toBe(ShowType.SCENT_WORK);
+        expect(importedTemplate.trialType).toBe(TrialType.SCENT_WORK);
         expect(importedTemplate.classDefinitions.length).toBeGreaterThan(0);
       }
     });
@@ -308,12 +308,12 @@ describe('Template Store', () => {
       const template1 = createMockTemplate({
         templateName: 'Same Name',
         organization: Organization.AKC,
-        showType: ShowType.SCENT_WORK,
+        trialType: TrialType.SCENT_WORK,
       });
       const template2 = createMockTemplate({
         templateName: 'Same Name',
         organization: Organization.UKC,
-        showType: ShowType.SCENT_WORK,
+        trialType: TrialType.SCENT_WORK,
       });
 
       store.createTemplate(template1, TEST_USER);

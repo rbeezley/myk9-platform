@@ -15,17 +15,17 @@ export function convertToCSV<T extends Record<string, unknown>>(
   if (data.length === 0) return '';
 
   const { includeHeaders = true } = options;
-  
+
   // Get headers from first object
   const headers = Object.keys(data[0]);
-  
+
   // Convert objects to CSV rows
   const csvRows: string[] = [];
-  
+
   if (includeHeaders) {
     csvRows.push(headers.map(header => `"${header}"`).join(','));
   }
-  
+
   data.forEach(row => {
     const values = headers.map(header => {
       const value = row[header];
@@ -37,7 +37,7 @@ export function convertToCSV<T extends Record<string, unknown>>(
     });
     csvRows.push(values.join(','));
   });
-  
+
   return csvRows.join('\n');
 }
 
@@ -51,7 +51,7 @@ function formatDate(date: Date, format: ExportOptions['dateFormat'] = 'YYYY-MM-D
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
-  
+
   switch (format) {
     case 'MM/DD/YYYY':
       return `${month}/${day}/${year}`;
@@ -66,13 +66,13 @@ function formatDate(date: Date, format: ExportOptions['dateFormat'] = 'YYYY-MM-D
 export function downloadFile(content: string, filename: string, contentType = 'text/plain'): void {
   const blob = new Blob([content], { type: contentType });
   const url = window.URL.createObjectURL(blob);
-  
+
   const link = document.createElement('a');
   link.href = url;
   link.download = filename;
   document.body.appendChild(link);
   link.click();
-  
+
   // Cleanup
   document.body.removeChild(link);
   window.URL.revokeObjectURL(url);
@@ -90,11 +90,7 @@ export function exportToCSV<T extends Record<string, unknown>>(
 }
 
 // Export to JSON and download
-export function exportToJSON<T>(
-  data: T[],
-  filename: string,
-  formatted = true
-): void {
+export function exportToJSON<T>(data: T[], filename: string, formatted = true): void {
   const json = convertToJSON(data, formatted);
   const fullFilename = filename.endsWith('.json') ? filename : `${filename}.json`;
   downloadFile(json, fullFilename, 'application/json');
@@ -114,12 +110,14 @@ export const entityExports = {
       Height: dog.height || '',
       Microchip: dog.microchip || '',
       Description: dog.description || '',
-      'Owner Name': dog.owner ? `${(dog.owner as Record<string, unknown>).firstName || ''} ${(dog.owner as Record<string, unknown>).lastName || ''}` : '',
+      'Owner Name': dog.owner
+        ? `${(dog.owner as Record<string, unknown>).firstName || ''} ${(dog.owner as Record<string, unknown>).lastName || ''}`
+        : '',
       'Owner Email': (dog.owner as Record<string, unknown>)?.email || '',
     }));
-    
+
     exportToCSV(
-      exportData, 
+      exportData,
       options?.filename || `dogs-export-${new Date().toISOString().split('T')[0]}`,
       options
     );
@@ -136,7 +134,7 @@ export const entityExports = {
       State: person.state || '',
       'ZIP Code': person.zipCode || '',
     }));
-    
+
     exportToCSV(
       exportData,
       options?.filename || `people-export-${new Date().toISOString().split('T')[0]}`,
@@ -147,7 +145,7 @@ export const entityExports = {
   shows: (shows: Array<Record<string, unknown>>, options?: ExportOptions) => {
     const exportData = shows.map(show => ({
       Name: show.name,
-      Type: show.type,
+      Organization: show.organization,
       'Start Date': show.startDate,
       'End Date': show.endDate,
       Location: show.location,
@@ -159,7 +157,7 @@ export const entityExports = {
       Secretary: resolvePersonNameFromStore(show.secretary as string),
       'Chief Steward': resolvePersonNameFromStore(show.chiefSteward as string),
     }));
-    
+
     exportToCSV(
       exportData,
       options?.filename || `shows-export-${new Date().toISOString().split('T')[0]}`,
@@ -179,7 +177,7 @@ export const entityExports = {
       'Submission Date': reg.submissionDate || '',
       'Registration Date': reg.registrationDate || '',
     }));
-    
+
     exportToCSV(
       exportData,
       options?.filename || `registrations-export-${new Date().toISOString().split('T')[0]}`,
@@ -197,7 +195,7 @@ export const entityExports = {
       'Next Due': record.expiration || '',
       'Dog Name': record.dogName || '',
     }));
-    
+
     exportToCSV(
       exportData,
       options?.filename || `health-records-export-${new Date().toISOString().split('T')[0]}`,

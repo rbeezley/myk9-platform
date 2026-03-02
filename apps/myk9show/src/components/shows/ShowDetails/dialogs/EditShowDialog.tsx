@@ -120,16 +120,16 @@ const EditShowDialog: React.FC<EditShowDialogProps> = ({
       .filter(template => template.isActive)
       .forEach(template => {
         // Handle enum values properly - could be string or enum object
-        let showType: string;
-        if (typeof template.showType === 'object') {
+        let trialType: string;
+        if (typeof template.trialType === 'object') {
           // If it's an enum object, get the string value
-          showType = String(Object.values(template.showType)[0] || '');
+          trialType = String(Object.values(template.trialType)[0] || '');
         } else {
-          showType = String(template.showType || '');
+          trialType = String(template.trialType || '');
         }
 
-        if (showType && showType.trim() !== '') {
-          showTypesSet.add(showType);
+        if (trialType && trialType.trim() !== '') {
+          showTypesSet.add(trialType);
         }
       });
 

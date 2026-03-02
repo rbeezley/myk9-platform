@@ -30,7 +30,7 @@ export const getClassesWithCapacity = async (showId: string) => {
       throw createDatabaseError(trialsError, 'trials', 'get_trials_for_capacity');
     }
 
-    const trialIds = trials?.map((t) => t.id) || [];
+    const trialIds = trials?.map(t => t.id) || [];
 
     if (trialIds.length === 0) {
       return { data: [], error: null };
@@ -40,13 +40,15 @@ export const getClassesWithCapacity = async (showId: string) => {
     // Note: class_number column exists but Supabase types need regeneration
     const { data: classes, error: classError } = await supabase
       .from('classes')
-      .select(`
+      .select(
+        `
         id,
         name,
         class_number,
         max_entries,
         trial_id
-      `)
+      `
+      )
       .in('trial_id', trialIds)
       .is('deleted_at', null)
       .order('name', { ascending: true });
@@ -57,7 +59,7 @@ export const getClassesWithCapacity = async (showId: string) => {
 
     // Get counts for each class
     const classesWithCapacity = await Promise.all(
-      (classes || []).map(async (cls) => {
+      (classes || []).map(async cls => {
         const { count: acceptedCount } = await supabase
           .from('entries')
           .select('id', { count: 'exact', head: true })
@@ -122,7 +124,7 @@ export const createDayOfEntry = async (entryData: DayOfEntry, userId: string) =>
       .in('id', entryData.classIds);
 
     const classInfoMap = new Map(
-      classData?.map((c) => [c.id, { trial_id: c.trial_id, entry_fee: c.entry_fee }]) || []
+      classData?.map(c => [c.id, { trial_id: c.trial_id, entry_fee: c.entry_fee }]) || []
     );
 
     // Calculate total fees
@@ -144,10 +146,10 @@ export const createDayOfEntry = async (entryData: DayOfEntry, userId: string) =>
         handler_id: userId, // Track who created the day-of entry
         payment_status: entryData.paymentMethod === 'waived' ? 'waived' : 'paid',
         entry_status: 'accepted',
-        entry_fee: entryData.paymentMethod === 'waived' ? 0 : (classInfo?.entry_fee || defaultFee),
+        entry_fee: entryData.paymentMethod === 'waived' ? 0 : classInfo?.entry_fee || defaultFee,
         armband: String(nextArmband), // Same armband for all classes (same dog/handler)
         jump_height: entryData.jumpHeight || null,
-        special_requests: index === 0 ? (entryData.notes || null) : null, // Only on first entry
+        special_requests: index === 0 ? entryData.notes || null : null, // Only on first entry
         submitted_at: new Date().toISOString(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -193,7 +195,8 @@ export const getShowDogs = async (showId: string) => {
     // Get dogs that already have entries in this show
     const { data: existingEntries, error: entriesError } = await supabase
       .from('entries')
-      .select(`
+      .select(
+        `
         dog_id,
         dog:dog_id (
           id,
@@ -201,7 +204,8 @@ export const getShowDogs = async (showId: string) => {
           call_name,
           breed
         )
-      `)
+      `
+      )
       .eq('show_id', showId)
       .is('deleted_at', null);
 
@@ -211,7 +215,7 @@ export const getShowDogs = async (showId: string) => {
 
     // Get unique dogs
     const dogMap = new Map();
-    existingEntries?.forEach((entry) => {
+    existingEntries?.forEach(entry => {
       if (entry.dog && !dogMap.has(entry.dog_id)) {
         dogMap.set(entry.dog_id, entry.dog);
       }
@@ -238,7 +242,8 @@ export const searchDogs = async (searchTerm: string) => {
   try {
     const { data, error } = await supabase
       .from('dogs')
-      .select(`
+      .select(
+        `
         id,
         name,
         call_name,
@@ -248,9 +253,11 @@ export const searchDogs = async (searchTerm: string) => {
           first_name,
           last_name
         )
-      `)
+      `
+      )
       .or(`name.ilike.%${searchTerm}%,call_name.ilike.%${searchTerm}%`)
       .is('deleted_at', null)
+      .eq('status', 'active')
       .limit(20);
 
     const duration = Date.now() - startTime;

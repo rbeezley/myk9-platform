@@ -85,7 +85,7 @@ test.describe('UserEditPanel Tests', () => {
           console.log('❌ Tabs container not found');
         }
         
-        // Check for Apple-styled design elements
+        // Check for Premiumd design elements
         const gradientTabs = page.locator('[class*="gradient"], [style*="gradient"]');
         if (await gradientTabs.count() > 0) {
           console.log('✅ Gradient styling found');

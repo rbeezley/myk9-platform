@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { logger } from '@/services/LoggingService';
 import { useTemplateStore } from '@/store/templateStore';
 import { useTemplates } from '@/hooks/useTemplates';
-import { Organization, ShowType, TemplateFilter } from '@/types/template.types';
+import { Organization, TrialType, TemplateFilter } from '@/types/template.types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,7 +41,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import '@/styles/apple-template-management.css';
+import '@/styles/myk9-template-management.css';
 import { cleanupDuplicateTemplates } from '@/utils/cleanup-duplicate-templates';
 import {
   AlertDialog,
@@ -124,7 +124,7 @@ const TemplateManagementPage: React.FC = () => {
 
   const handleFilterChange = (
     key: keyof TemplateFilter,
-    value: string | boolean | Organization | ShowType | undefined
+    value: string | boolean | Organization | TrialType | undefined
   ) => {
     setFilter(prev => ({
       ...prev,
@@ -187,7 +187,7 @@ const TemplateManagementPage: React.FC = () => {
   };
 
   const organizations: Organization[] = Object.values(Organization);
-  const showTypes: ShowType[] = Object.values(ShowType);
+  const trialTypes: TrialType[] = Object.values(TrialType);
 
   const officialCount = templates.filter(t => t.isOfficial && t.isActive).length;
   const customCount = templates.filter(t => t.isCustom && t.isActive).length;
@@ -199,9 +199,9 @@ const TemplateManagementPage: React.FC = () => {
       count: templates.length,
     });
     logger.debug('Templates by show type', 'templates', {
-      byShowType: templates.reduce(
+      byTrialType: templates.reduce(
         (acc, t) => {
-          const type = String(t.showType);
+          const type = String(t.trialType);
           acc[type] = (acc[type] || 0) + 1;
           return acc;
         },
@@ -211,14 +211,14 @@ const TemplateManagementPage: React.FC = () => {
   }, [templates]);
 
   return (
-    <div className="apple-template-page">
-      <div className="apple-template-container">
+    <div className="myk9-template-page">
+      <div className="myk9-template-container">
         {/* Header */}
-        <div className="apple-template-header">
+        <div className="myk9-template-header">
           <div className="flex justify-between items-start">
             <div>
-              <h1 className="apple-template-title">Template Management</h1>
-              <p className="apple-template-subtitle">
+              <h1 className="myk9-template-title">Template Management</h1>
+              <p className="myk9-template-subtitle">
                 Create and manage class templates for different organizations and show types
               </p>
             </div>
@@ -251,7 +251,7 @@ const TemplateManagementPage: React.FC = () => {
               >
                 Clean Duplicates
               </Button>
-              <Button onClick={handleCreateNew} className="apple-button-primary">
+              <Button onClick={handleCreateNew} className="myk9-button-primary">
                 <Plus className="h-4 w-4" />
                 Create Template
               </Button>
@@ -273,47 +273,47 @@ const TemplateManagementPage: React.FC = () => {
         )}
 
         {/* Stats Section */}
-        <div className="apple-stats-section">
-          <div className="apple-stats-grid">
-            <div className="apple-stat-card">
-              <div className="apple-stat-title">Total Templates</div>
-              <div className="apple-stat-number">{totalCount}</div>
-              <div className="apple-stat-description">Active templates</div>
+        <div className="myk9-stats-section">
+          <div className="myk9-stats-grid">
+            <div className="myk9-stat-card">
+              <div className="myk9-stat-title">Total Templates</div>
+              <div className="myk9-stat-number">{totalCount}</div>
+              <div className="myk9-stat-description">Active templates</div>
             </div>
 
-            <div className="apple-stat-card">
-              <div className="apple-stat-title">Official</div>
-              <div className="apple-stat-number">{officialCount}</div>
-              <div className="apple-stat-description">Official templates</div>
+            <div className="myk9-stat-card">
+              <div className="myk9-stat-title">Official</div>
+              <div className="myk9-stat-number">{officialCount}</div>
+              <div className="myk9-stat-description">Official templates</div>
             </div>
 
-            <div className="apple-stat-card">
-              <div className="apple-stat-title">Custom</div>
-              <div className="apple-stat-number">{customCount}</div>
-              <div className="apple-stat-description">Custom templates</div>
+            <div className="myk9-stat-card">
+              <div className="myk9-stat-title">Custom</div>
+              <div className="myk9-stat-number">{customCount}</div>
+              <div className="myk9-stat-description">Custom templates</div>
             </div>
 
-            <div className="apple-stat-card">
-              <div className="apple-stat-title">Inactive</div>
-              <div className="apple-stat-number">{templates.length - totalCount}</div>
-              <div className="apple-stat-description">Inactive templates</div>
+            <div className="myk9-stat-card">
+              <div className="myk9-stat-title">Inactive</div>
+              <div className="myk9-stat-number">{templates.length - totalCount}</div>
+              <div className="myk9-stat-description">Inactive templates</div>
             </div>
           </div>
         </div>
 
         {/* Filters Section */}
-        <div className="apple-filter-section">
-          <h2 className="apple-filter-title">
+        <div className="myk9-filter-section">
+          <h2 className="myk9-filter-title">
             <Filter className="h-5 w-5" />
             Filter Templates
           </h2>
-          <div className="apple-filter-grid">
+          <div className="myk9-filter-grid">
             {/* Search */}
             <Input
               placeholder="Search templates..."
               value={filter.searchTerm}
               onChange={e => handleFilterChange('searchTerm', e.target.value)}
-              className="apple-filter-input"
+              className="myk9-filter-input"
             />
 
             {/* Organization */}
@@ -321,7 +321,7 @@ const TemplateManagementPage: React.FC = () => {
               value={filter.organization}
               onValueChange={value => handleFilterChange('organization', value as Organization)}
             >
-              <SelectTrigger className="apple-filter-input">
+              <SelectTrigger className="myk9-filter-input">
                 <SelectValue placeholder="Organization" />
               </SelectTrigger>
               <SelectContent>
@@ -336,15 +336,15 @@ const TemplateManagementPage: React.FC = () => {
 
             {/* Show Type */}
             <Select
-              value={filter.showType}
-              onValueChange={value => handleFilterChange('showType', value as ShowType)}
+              value={filter.trialType}
+              onValueChange={value => handleFilterChange('trialType', value as TrialType)}
             >
-              <SelectTrigger className="apple-filter-input">
+              <SelectTrigger className="myk9-filter-input">
                 <SelectValue placeholder="Show Type" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Show Types</SelectItem>
-                {showTypes.map(type => (
+                {trialTypes.map(type => (
                   <SelectItem key={type} value={type}>
                     {type}
                   </SelectItem>
@@ -359,7 +359,7 @@ const TemplateManagementPage: React.FC = () => {
                 handleFilterChange('isOfficial', value === 'all' ? undefined : value === 'true')
               }
             >
-              <SelectTrigger className="apple-filter-input">
+              <SelectTrigger className="myk9-filter-input">
                 <SelectValue placeholder="Template Type" />
               </SelectTrigger>
               <SelectContent>
@@ -376,7 +376,7 @@ const TemplateManagementPage: React.FC = () => {
                 handleFilterChange('isActive', value === 'all' ? undefined : value === 'true')
               }
             >
-              <SelectTrigger className="apple-filter-input">
+              <SelectTrigger className="myk9-filter-input">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -390,7 +390,7 @@ const TemplateManagementPage: React.FC = () => {
           {/* Active Filters */}
           {(filter.searchTerm ||
             filter.organization ||
-            filter.showType ||
+            filter.trialType ||
             filter.isActive !== undefined ||
             filter.isOfficial !== undefined) && (
             <div className="flex gap-2 mt-4 flex-wrap">
@@ -417,11 +417,11 @@ const TemplateManagementPage: React.FC = () => {
                   </button>
                 </Badge>
               )}
-              {filter.showType && (
+              {filter.trialType && (
                 <Badge variant="secondary" className="flex items-center gap-1">
-                  Type: {filter.showType}
+                  Type: {filter.trialType}
                   <button
-                    onClick={() => handleFilterChange('showType', undefined)}
+                    onClick={() => handleFilterChange('trialType', undefined)}
                     className="ml-1 hover:bg-red-100 rounded-full"
                   >
                     ×
@@ -463,18 +463,18 @@ const TemplateManagementPage: React.FC = () => {
         </div>
 
         {/* Template List */}
-        <div className="apple-templates-section">
+        <div className="myk9-templates-section">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
               <p className="mt-4 text-muted-foreground">Loading templates...</p>
             </div>
           ) : (
-            <div className="apple-templates-grid">
+            <div className="myk9-templates-grid">
               {filteredTemplates.map(template => (
-                <div key={template.id} className="apple-template-card">
-                  <div className="apple-template-card-header">
-                    <div className="apple-template-card-icon">
+                <div key={template.id} className="myk9-template-card">
+                  <div className="myk9-template-card-header">
+                    <div className="myk9-template-card-icon">
                       <FileText className="h-6 w-6" />
                     </div>
                     <DropdownMenu>
@@ -525,30 +525,30 @@ const TemplateManagementPage: React.FC = () => {
                     </DropdownMenu>
                   </div>
 
-                  <div className="apple-template-card-content">
-                    <h3 className="apple-template-card-title">{template.templateName}</h3>
-                    <p className="apple-template-card-organization">{template.organization}</p>
-                    <p className="apple-template-card-showtype">
-                      {template.showType.replace('_', ' ')}
+                  <div className="myk9-template-card-content">
+                    <h3 className="myk9-template-card-title">{template.templateName}</h3>
+                    <p className="myk9-template-card-organization">{template.organization}</p>
+                    <p className="myk9-template-card-showtype">
+                      {template.trialType.replace('_', ' ')}
                     </p>
 
-                    <div className="apple-template-card-meta">
-                      <span className="apple-template-card-version">v{template.version}</span>
-                      <span className="apple-template-card-date">
+                    <div className="myk9-template-card-meta">
+                      <span className="myk9-template-card-version">v{template.version}</span>
+                      <span className="myk9-template-card-date">
                         {template.updatedAt
                           ? new Date(template.updatedAt).toLocaleDateString()
                           : 'No date'}
                       </span>
                     </div>
 
-                    <div className="apple-template-card-badges">
+                    <div className="myk9-template-card-badges">
                       <span
-                        className={`apple-template-badge ${template.isActive ? 'active' : 'inactive'}`}
+                        className={`myk9-template-badge ${template.isActive ? 'active' : 'inactive'}`}
                       >
                         {template.isActive ? 'Active' : 'Inactive'}
                       </span>
                       <span
-                        className={`apple-template-badge ${template.isOfficial ? 'official' : 'custom'}`}
+                        className={`myk9-template-badge ${template.isOfficial ? 'official' : 'custom'}`}
                       >
                         {template.isOfficial ? 'Official' : 'Custom'}
                       </span>
@@ -558,10 +558,10 @@ const TemplateManagementPage: React.FC = () => {
               ))}
 
               {filteredTemplates.length === 0 && (
-                <div className="apple-template-empty">
-                  <div className="apple-template-empty-icon">📋</div>
-                  <h3 className="apple-template-empty-title">No templates found</h3>
-                  <p className="apple-template-empty-description">
+                <div className="myk9-template-empty">
+                  <div className="myk9-template-empty-icon">📋</div>
+                  <h3 className="myk9-template-empty-title">No templates found</h3>
+                  <p className="myk9-template-empty-description">
                     Create your first template or adjust your filters to see existing templates.
                   </p>
                 </div>

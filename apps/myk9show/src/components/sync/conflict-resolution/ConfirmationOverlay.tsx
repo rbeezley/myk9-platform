@@ -10,7 +10,11 @@ interface ConfirmationOverlayProps {
   onConfirm: () => void;
 }
 
-export function ConfirmationOverlay({ isResolving, onCancel, onConfirm }: ConfirmationOverlayProps) {
+export function ConfirmationOverlay({
+  isResolving,
+  onCancel,
+  onConfirm,
+}: ConfirmationOverlayProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -25,18 +29,10 @@ export function ConfirmationOverlay({ isResolving, onCancel, onConfirm }: Confir
         </AlertDescription>
       </Alert>
       <DialogFooter className="mt-4">
-        <Button
-          variant="outline"
-          onClick={onCancel}
-          disabled={isResolving}
-        >
+        <Button variant="outline" onClick={onCancel} disabled={isResolving}>
           Cancel
         </Button>
-        <Button
-          onClick={onConfirm}
-          disabled={isResolving}
-          className="bg-gradient-to-r from-primary to-secondary"
-        >
+        <Button onClick={onConfirm} disabled={isResolving}>
           {isResolving ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

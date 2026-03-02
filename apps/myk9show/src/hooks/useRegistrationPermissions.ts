@@ -1,13 +1,12 @@
 // import { useMemo } from 'react'; // Currently unused
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { 
-  Permission, 
-  PERMISSIONS, 
-  UserRole, 
-  // UserWithRoles, // Currently unused
+import {
+  Permission,
+  PERMISSIONS,
+  UserRole,
+  USER_ROLE_HIERARCHY,
   Scope,
   ScopeType,
-  // DEFAULT_ROLE_PERMISSIONS // Currently unused
 } from '../types/auth-types';
 
 /**
@@ -37,24 +36,22 @@ export function useRegistrationPermissions() {
    */
   const can = (permission: Permission, scope?: Scope): boolean => {
     if (!userWithRoles) return false;
-    
+
     // Check if user has the permission
     if (!userWithRoles.permissions.includes(permission)) {
       return false;
     }
-    
+
     // For scoped permissions, check if user has access to the scope
     if (scope && userWithRoles.scopes.length > 0) {
       const scopedRoles = [UserRole.SECRETARY, UserRole.CLUB_ADMIN];
       const hasScope = userWithRoles.roles.some(role => scopedRoles.includes(role));
-      
+
       if (hasScope) {
-        return userWithRoles.scopes.some(s => 
-          s.scopeType === scope.type && s.scopeId === scope.id
-        );
+        return userWithRoles.scopes.some(s => s.scopeType === scope.type && s.scopeId === scope.id);
       }
     }
-    
+
     return true;
   };
 
@@ -70,10 +67,8 @@ export function useRegistrationPermissions() {
    */
   const hasScope = (scopeType: ScopeType, scopeId: string): boolean => {
     if (!userWithRoles) return false;
-    
-    return userWithRoles.scopes.some(s => 
-      s.scopeType === scopeType && s.scopeId === scopeId
-    );
+
+    return userWithRoles.scopes.some(s => s.scopeType === scopeType && s.scopeId === scopeId);
   };
 
   /**
@@ -81,10 +76,8 @@ export function useRegistrationPermissions() {
    */
   const getScopedClubs = (): string[] => {
     if (!userWithRoles) return [];
-    
-    return userWithRoles.scopes
-      .filter(s => s.scopeType === ScopeType.CLUB)
-      .map(s => s.scopeId);
+
+    return userWithRoles.scopes.filter(s => s.scopeType === ScopeType.CLUB).map(s => s.scopeId);
   };
 
   /**
@@ -137,18 +130,18 @@ export function useRegistrationPermissions() {
    */
   const canRegisterForShow = (_showId: string, clubId?: string): boolean => {
     if (!userWithRoles) return false;
-    
+
     // Site admins can register for any show
     if (hasRole(UserRole.SITE_ADMIN)) return true;
-    
+
     // If no club specified, check general registration permission
     if (!clubId) return canRegisterAnyDog;
-    
+
     // Check scoped access for club-specific shows
     if (hasRole(UserRole.CLUB_ADMIN) || hasRole(UserRole.SECRETARY)) {
       return hasScope(ScopeType.CLUB, clubId);
     }
-    
+
     // Exhibitors can register for any public show
     return hasRole(UserRole.EXHIBITOR);
   };
@@ -167,7 +160,12 @@ export function useRegistrationPermissions() {
    * Check if user can access advanced search features
    */
   const canUseAdvancedSearch = (): boolean => {
-    return canViewAllDogs || hasRole(UserRole.SECRETARY) || hasRole(UserRole.CLUB_ADMIN) || hasRole(UserRole.SITE_ADMIN);
+    return (
+      canViewAllDogs ||
+      hasRole(UserRole.SECRETARY) ||
+      hasRole(UserRole.CLUB_ADMIN) ||
+      hasRole(UserRole.SITE_ADMIN)
+    );
   };
 
   /**
@@ -175,15 +173,15 @@ export function useRegistrationPermissions() {
    */
   const getRegistrationMode = (): 'exhibitor' | 'secretary_existing' | 'secretary_new' => {
     if (!userWithRoles) return 'exhibitor';
-    
+
     if (hasRole(UserRole.SITE_ADMIN) || hasRole(UserRole.CLUB_ADMIN)) {
       return 'secretary_new'; // Full capabilities
     }
-    
+
     if (hasRole(UserRole.SECRETARY)) {
       return canCreateExhibitor ? 'secretary_new' : 'secretary_existing';
     }
-    
+
     return 'exhibitor';
   };
 
@@ -192,35 +190,33 @@ export function useRegistrationPermissions() {
    */
   const getHighestRole = (): UserRole => {
     if (!userWithRoles) return UserRole.EXHIBITOR;
-    
-    const roleHierarchy = [
-      UserRole.SITE_ADMIN,
-      UserRole.CLUB_ADMIN, 
-      UserRole.SECRETARY,
-      UserRole.EXHIBITOR
-    ];
-    
-    return roleHierarchy.find(role => userWithRoles.roles.includes(role)) || UserRole.EXHIBITOR;
+
+    return (
+      USER_ROLE_HIERARCHY.find(role => userWithRoles.roles.includes(role)) || UserRole.EXHIBITOR
+    );
   };
 
   /**
    * Filter dogs based on user permissions
    */
-  const filterAccessibleDogs = <T extends { id: string; ownerId?: string; clubId?: string }>(dogs: T[]): T[] => {
+  const filterAccessibleDogs = <T extends { id: string; ownerId?: string; clubId?: string }>(
+    dogs: T[]
+  ): T[] => {
     if (!userWithRoles) return [];
-    
+
     // Site admins can see all dogs
     if (hasRole(UserRole.SITE_ADMIN)) return dogs;
-    
+
     // Club admins and secretaries can see dogs within their scoped clubs
     if (hasRole(UserRole.CLUB_ADMIN) || hasRole(UserRole.SECRETARY)) {
       const scopedClubs = getScopedClubs();
-      return dogs.filter(dog => 
-        dog.ownerId === userWithRoles.id || // Own dogs
-        (dog.clubId && scopedClubs.includes(dog.clubId)) // Club-scoped dogs
+      return dogs.filter(
+        dog =>
+          dog.ownerId === userWithRoles.id || // Own dogs
+          (dog.clubId && scopedClubs.includes(dog.clubId)) // Club-scoped dogs
       );
     }
-    
+
     // Exhibitors can only see their own dogs
     return dogs.filter(dog => dog.ownerId === userWithRoles.id);
   };
@@ -231,13 +227,13 @@ export function useRegistrationPermissions() {
     roles: userWithRoles?.roles || [],
     permissions: userWithRoles?.permissions || [],
     scopes: userWithRoles?.scopes || [],
-    
+
     // Permission checkers
     can,
     hasRole,
     hasScope,
     getScopedClubs,
-    
+
     // Registration-specific permissions
     canViewAllDogs,
     canRegisterAnyDog,
@@ -248,7 +244,7 @@ export function useRegistrationPermissions() {
     canBulkOperations,
     canManagePayments,
     canAssignHandlers,
-    
+
     // Workflow helpers
     canRegisterForShow,
     getMaxDogsPerRegistration,
@@ -256,11 +252,11 @@ export function useRegistrationPermissions() {
     getRegistrationMode,
     getHighestRole,
     filterAccessibleDogs,
-    
+
     // Context info
     isExhibitor: hasRole(UserRole.EXHIBITOR),
     isSecretary: hasRole(UserRole.SECRETARY),
     isClubAdmin: hasRole(UserRole.CLUB_ADMIN),
-    isSiteAdmin: hasRole(UserRole.SITE_ADMIN)
+    isSiteAdmin: hasRole(UserRole.SITE_ADMIN),
   };
 }

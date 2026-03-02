@@ -12,7 +12,9 @@ import {
   PaymentStatus,
   EntryStatus,
 } from '@/types/show-registration-types';
-import { toast } from 'sonner';
+import type { PaymentMethod } from '@/types/show-registration-types';
+import { getErrorMessage } from '@myk9/core';
+import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
 import type { WorkflowConfig } from './RegistrationWorkflow.types';
 
@@ -36,7 +38,7 @@ interface WorkflowStepContentProps {
   onDogSelectionChange: (dogs: string[]) => Promise<void>;
   onClassSelectionChange: (selections: ClassSelectionData[]) => Promise<void>;
   onHandlerAssignmentChange: (assignments: Record<string, HandlerInfo>) => Promise<void>;
-  onPaymentMethodChange: (method: string) => void;
+  onPaymentMethodChange: (method: PaymentMethod) => void;
   onPaymentStatusChange: (registrationId: string, status: PaymentStatus) => Promise<unknown>;
   onEntryStatusChange: (
     registrationId: string,
@@ -98,7 +100,6 @@ export function WorkflowStepContent({
           classSelections={optimisticState.classSelections}
           handlerAssignments={optimisticState.handlerAssignments}
           onHandlerAssignmentChange={onHandlerAssignmentChange}
-          showId={showId}
         />
       )}
 
@@ -117,9 +118,7 @@ export function WorkflowStepContent({
                 try {
                   await onPaymentStatusChange(registrationId, status);
                 } catch (error: unknown) {
-                  const errorMessage =
-                    error instanceof Error ? error.message : 'Failed to update payment status';
-                  toast.error(errorMessage);
+                  notifications.error(getErrorMessage(error));
                 }
               }
             }}
@@ -129,9 +128,7 @@ export function WorkflowStepContent({
                 try {
                   await onEntryStatusChange(registrationId, status, reason);
                 } catch (error: unknown) {
-                  const errorMessage =
-                    error instanceof Error ? error.message : 'Failed to update entry status';
-                  toast.error(errorMessage);
+                  notifications.error(getErrorMessage(error));
                 }
               }
             }}
@@ -160,9 +157,7 @@ export function WorkflowStepContent({
               try {
                 await onEntryStatusChange(registrationId, status);
               } catch (error: unknown) {
-                const errorMessage =
-                  error instanceof Error ? error.message : 'Failed to update entry status';
-                toast.error(errorMessage);
+                notifications.error(getErrorMessage(error));
               }
             }
           }}

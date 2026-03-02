@@ -31,8 +31,28 @@ export function DogCard({ dog, onEdit, onDelete }: DogCardProps) {
         <div>
           <p className="font-semibold">{dog.call_name || dog.name}</p>
           <p className="text-sm text-muted-foreground">
-            {dog.breed}{' '}
-            {dog.sex && `• ${dog.sex.charAt(0).toUpperCase() + dog.sex.slice(1)}`}
+            {dog.breed} {dog.sex && `• ${dog.sex.charAt(0).toUpperCase() + dog.sex.slice(1)}`}
+            {/* status column added via migration 039 — not yet in generated Supabase types */}
+            {(() => {
+              const status = (dog as Record<string, unknown>).status;
+              if (status === 'retired')
+                return (
+                  <span className="ml-2 text-amber-600 dark:text-amber-400 font-medium">
+                    • Retired
+                  </span>
+                );
+              if (status === 'deceased')
+                return (
+                  <span className="ml-2 text-gray-500 dark:text-gray-400 font-medium">
+                    • Deceased
+                  </span>
+                );
+              return (
+                <span className="ml-2 text-emerald-600 dark:text-emerald-400 font-medium">
+                  • Active
+                </span>
+              );
+            })()}
           </p>
           {dog.akc_number && (
             <p className="text-xs text-muted-foreground font-mono">AKC: {dog.akc_number}</p>

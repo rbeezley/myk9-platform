@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useRef } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -35,6 +35,14 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
   });
 
   const state = useClubDetailsState(selectedClub);
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const handleStatCardClick = useCallback(
+    (tab: ClubTab) => {
+      state.setActiveTab(tab);
+      tabsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    },
+    [state]
+  );
 
   if (!selectedClub) {
     return <div className="flex items-center justify-center text-gray-500">No club selected.</div>;
@@ -46,16 +54,7 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
     return <div className="flex items-center justify-center text-gray-500">Invalid club data.</div>;
   }
 
-  // Debug: Log club shows data
-  logger.debug('ClubDetails debug', 'clubs', {
-    clubId: selectedClub.id,
-    clubName: selectedClub.name,
-    upcomingShowsCount: selectedClub.upcomingShows?.length || 0,
-    pastShowsCount: selectedClub.pastShows?.length || 0,
-  });
-
-  const upcomingShows = selectedClub.upcomingShows || [];
-  const pastShows = selectedClub.pastShows || [];
+  const { upcomingShows, pastShows } = state;
 
   return (
     <div className="max-w-[1440px] mx-auto px-6 py-20">
@@ -71,37 +70,46 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
       />
 
       {/* Statistics Cards */}
-      <ClubStatistics stats={state.stats} onTabChange={state.setActiveTab} />
+      <ClubStatistics stats={state.stats} onTabChange={handleStatCardClick} />
 
       {/* Tabs Section */}
-      <div className="mb-6">
+      <div ref={tabsRef} className="mb-6">
         <Tabs
           value={state.activeTab}
-          onValueChange={(value) => state.setActiveTab(value as ClubTab)}
+          onValueChange={value => state.setActiveTab(value as ClubTab)}
           className="w-full"
         >
           <div className="flex items-center justify-between border-b border-border">
             <TabsList className="bg-transparent border-0 rounded-none p-0 h-auto gap-6 justify-start">
-              <TabsTrigger value="upcoming" className="bg-transparent border-b-2 border-transparent rounded-none pb-3 px-0 font-medium text-muted-foreground data-[state=active]:text-primary data-[state=active]:border-primary data-[state=active]:bg-transparent hover:text-foreground transition-colors">
+              <TabsTrigger
+                value="upcoming"
+                className="bg-transparent border-b-2 border-transparent rounded-none pb-3 px-0 font-medium text-muted-foreground data-[state=active]:text-primary data-[state=active]:border-primary data-[state=active]:bg-transparent hover:text-foreground transition-colors"
+              >
                 Upcoming Shows ({upcomingShows.length})
               </TabsTrigger>
-              <TabsTrigger value="past" className="bg-transparent border-b-2 border-transparent rounded-none pb-3 px-0 font-medium text-muted-foreground data-[state=active]:text-primary data-[state=active]:border-primary data-[state=active]:bg-transparent hover:text-foreground transition-colors">
+              <TabsTrigger
+                value="past"
+                className="bg-transparent border-b-2 border-transparent rounded-none pb-3 px-0 font-medium text-muted-foreground data-[state=active]:text-primary data-[state=active]:border-primary data-[state=active]:bg-transparent hover:text-foreground transition-colors"
+              >
                 Past Shows ({pastShows.length})
               </TabsTrigger>
-              <TabsTrigger value="about" className="bg-transparent border-b-2 border-transparent rounded-none pb-3 px-0 font-medium text-muted-foreground data-[state=active]:text-primary data-[state=active]:border-primary data-[state=active]:bg-transparent hover:text-foreground transition-colors">
+              <TabsTrigger
+                value="about"
+                className="bg-transparent border-b-2 border-transparent rounded-none pb-3 px-0 font-medium text-muted-foreground data-[state=active]:text-primary data-[state=active]:border-primary data-[state=active]:bg-transparent hover:text-foreground transition-colors"
+              >
                 About
               </TabsTrigger>
-              <TabsTrigger value="members" className="bg-transparent border-b-2 border-transparent rounded-none pb-3 px-0 font-medium text-muted-foreground data-[state=active]:text-primary data-[state=active]:border-primary data-[state=active]:bg-transparent hover:text-foreground transition-colors">
+              <TabsTrigger
+                value="members"
+                className="bg-transparent border-b-2 border-transparent rounded-none pb-3 px-0 font-medium text-muted-foreground data-[state=active]:text-primary data-[state=active]:border-primary data-[state=active]:bg-transparent hover:text-foreground transition-colors"
+              >
                 Members ({selectedClub.memberIds?.length || 0})
               </TabsTrigger>
             </TabsList>
 
             {/* Add Show Button - only shown on upcoming shows tab when shows exist */}
             {state.activeTab === 'upcoming' && upcomingShows.length > 0 && (
-              <Button
-                onClick={state.handleAddShow}
-                className="mb-3 min-h-[44px]"
-              >
+              <Button onClick={state.handleAddShow} className="mb-3 min-h-[44px]">
                 <Plus className="w-5 h-5 mr-2" />
                 Add Show
               </Button>
@@ -121,10 +129,7 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
 
           <TabsContent value="past" className="pt-6">
             <div>
-              <PastShowsTab
-                shows={pastShows}
-                onViewShowDetails={state.handleViewShowDetails}
-              />
+              <PastShowsTab shows={pastShows} onViewShowDetails={state.handleViewShowDetails} />
             </div>
           </TabsContent>
 
@@ -158,11 +163,6 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub, breadcrumbItems
         onPhotoFileInput={state.handlePhotoFileInput}
         onPhotoCancel={state.handlePhotoCancel}
         onPhotoSave={state.handlePhotoSave}
-        showRegistrationDialog={state.showRegistrationDialog}
-        onRegistrationDialogChange={state.setShowRegistrationDialog}
-        selectedShowForRegistration={state.selectedShowForRegistration}
-        onRegistrationComplete={state.handleRegistrationComplete}
-        onRegistrationCancel={state.handleRegistrationCancel}
         showDeleteDialog={state.showDeleteDialog}
         onDeleteDialogChange={state.setShowDeleteDialog}
         onConfirmDelete={state.handleConfirmDelete}

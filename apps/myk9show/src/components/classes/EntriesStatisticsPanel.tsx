@@ -1,5 +1,5 @@
 /**
- * Apple-styled statistics panel for class entries
+ * Premiumd statistics panel for class entries
  * Provides visual progress tracking and entry statistics
  */
 
@@ -8,8 +8,8 @@ import { Users, CheckCircle, Clock, AlertCircle, Edit3, Trophy } from 'lucide-re
 import { cn } from '@/lib/utils';
 import { EntryData } from './types/classTypes';
 
-// Import Apple styles
-import '@/styles/apple-show-details.css';
+// Import styles
+import '@/styles/myk9-show-details.css';
 
 interface EditDataItem {
   hasChanges: boolean;
@@ -150,26 +150,26 @@ export const EntriesStatisticsPanel: React.FC<EntriesStatisticsPanelProps> = ({
   }
 
   return (
-    <div className={cn('apple-show-stats-section', className)}>
-      <div className="apple-show-stats-grid">
+    <div className={cn('myk9-show-stats-section', className)}>
+      <div className="myk9-show-stats-grid">
         {statisticCards.map((card) => (
-          <div key={card.id} className="apple-show-stat-card">
-            <div className="apple-show-stat-layout">
-              <div className={cn('apple-show-stat-icon', card.color)}>
+          <div key={card.id} className="myk9-show-stat-card">
+            <div className="myk9-show-stat-layout">
+              <div className={cn('myk9-show-stat-icon', card.color)}>
                 <card.icon className="w-5 h-5" />
               </div>
-              <div className="apple-show-stat-content">
-                <div className="apple-show-stat-header">
-                  <div className="apple-show-stat-title">{card.title}</div>
+              <div className="myk9-show-stat-content">
+                <div className="myk9-show-stat-header">
+                  <div className="myk9-show-stat-title">{card.title}</div>
                   {card.total && (
-                    <div className="apple-show-stat-subtitle">
+                    <div className="myk9-show-stat-subtitle">
                       {card.value} of {card.total}
                     </div>
                   )}
                 </div>
-                <div className="apple-show-stat-number">{card.value}</div>
+                <div className="myk9-show-stat-number">{card.value}</div>
                 {card.percentage !== undefined && (
-                  <div className="apple-show-stat-percentage">
+                  <div className="myk9-show-stat-percentage">
                     {card.percentage}%
                   </div>
                 )}
@@ -177,15 +177,15 @@ export const EntriesStatisticsPanel: React.FC<EntriesStatisticsPanelProps> = ({
             </div>
             
             {/* Progress bar */}
-            <div className="apple-show-stat-progress">
+            <div className="myk9-show-stat-progress">
               <div 
-                className={cn('apple-show-stat-progress-bar', card.color)} 
+                className={cn('myk9-show-stat-progress-bar', card.color)} 
                 style={{ width: `${card.percentage || 0}%` }}
               />
             </div>
             
             {/* Description tooltip */}
-            <div className="apple-show-stat-description">
+            <div className="myk9-show-stat-description">
               {card.description}
             </div>
           </div>

@@ -2,7 +2,7 @@ import { faker } from '@faker-js/faker';
 
 export interface ShowTestData {
   name: string;
-  type: 'AKC' | 'UKC' | 'Other';
+  organization: 'AKC' | 'UKC' | 'Other';
   startDate: string;
   endDate: string;
   location: string;
@@ -48,7 +48,6 @@ export interface JudgeTestData {
 }
 
 export class ShowTestDataFactory {
-  
   /**
    * Generate test show data
    */
@@ -56,16 +55,16 @@ export class ShowTestDataFactory {
     const startDate = faker.date.future();
     const endDate = new Date(startDate);
     endDate.setDate(endDate.getDate() + faker.number.int({ min: 1, max: 3 }));
-    
+
     const entryCloseDate = new Date(startDate);
     entryCloseDate.setDate(entryCloseDate.getDate() - faker.number.int({ min: 7, max: 21 }));
-    
+
     const entryOpenDate = new Date(entryCloseDate);
     entryOpenDate.setDate(entryOpenDate.getDate() - faker.number.int({ min: 30, max: 90 }));
-    
+
     return {
       name: faker.company.name() + ' Dog Show',
-      type: faker.helpers.arrayElement(['AKC', 'UKC', 'Other'] as const),
+      organization: faker.helpers.arrayElement(['AKC', 'UKC', 'Other'] as const),
       startDate: startDate.toISOString().split('T')[0],
       endDate: endDate.toISOString().split('T')[0],
       location: `${faker.location.city()} Convention Center`,
@@ -87,7 +86,7 @@ export class ShowTestDataFactory {
   static createAllBreedShow(): ShowTestData {
     return this.createShowData({
       name: 'Annual All-Breed Championship',
-      type: 'AKC',
+      organization: 'AKC',
       preEntryFee: 35,
       dayOfShowFee: 45,
     });
@@ -95,13 +94,17 @@ export class ShowTestDataFactory {
 
   static createSpecialtyShow(): ShowTestData {
     const breed = faker.helpers.arrayElement([
-      'Golden Retriever', 'Labrador Retriever', 'German Shepherd', 
-      'Border Collie', 'Poodle', 'French Bulldog'
+      'Golden Retriever',
+      'Labrador Retriever',
+      'German Shepherd',
+      'Border Collie',
+      'Poodle',
+      'French Bulldog',
     ]);
-    
+
     return this.createShowData({
       name: `${breed} Specialty Show`,
-      type: 'AKC',
+      organization: 'AKC',
       preEntryFee: 30,
       dayOfShowFee: 40,
     });
@@ -110,7 +113,7 @@ export class ShowTestDataFactory {
   static createMatchShow(): ShowTestData {
     return this.createShowData({
       name: 'Fun Match Show',
-      type: 'Other',
+      organization: 'Other',
       preEntryFee: 15,
       dayOfShowFee: 20,
     });
@@ -122,13 +125,19 @@ export class ShowTestDataFactory {
   static createTrialData(overrides: Partial<TrialTestData> = {}): TrialTestData {
     const trialDate = faker.date.future();
     const trialTime = faker.helpers.arrayElement(['08:00', '09:00', '10:00', '13:00', '14:00']);
-    
+
     return {
       id: `trial-${faker.string.uuid()}`,
       name: faker.helpers.arrayElement(['Morning Trial', 'Afternoon Trial', 'Championship Trial']),
       dateTime: `${trialDate.toISOString().split('T')[0]}T${trialTime}:00.000Z`,
       eventNumber: faker.string.numeric(6),
-      type: faker.helpers.arrayElement(['Conformation', 'Obedience', 'Agility', 'Scent Work', 'Rally'] as const),
+      type: faker.helpers.arrayElement([
+        'Conformation',
+        'Obedience',
+        'Agility',
+        'Scent Work',
+        'Rally',
+      ] as const),
       classes: [],
       ...overrides,
     };
@@ -210,7 +219,11 @@ export class ShowTestDataFactory {
   /**
    * Helper methods for creating specific class types
    */
-  private static createConformationClass(className: string, level: string, section: string): ClassTestData {
+  private static createConformationClass(
+    className: string,
+    level: string,
+    section: string
+  ): ClassTestData {
     return {
       templateId: `akc-conformation-${level.toLowerCase()}`,
       customizations: {
@@ -263,7 +276,11 @@ export class ShowTestDataFactory {
     };
   }
 
-  private static createScentWorkClass(element: string, level: string, section: string): ClassTestData {
+  private static createScentWorkClass(
+    element: string,
+    level: string,
+    section: string
+  ): ClassTestData {
     return {
       templateId: `akc-scent-work-${element.toLowerCase()}-${level.toLowerCase()}`,
       customizations: {
@@ -275,7 +292,8 @@ export class ShowTestDataFactory {
           maxEntries: faker.number.int({ min: 20, max: 35 }),
           preEntryFee: faker.number.int({ min: 25, max: 32 }),
           timeLimit1: faker.helpers.arrayElement(['2:00', '3:00', '4:00']),
-          timeLimit2: level === 'Advanced' ? faker.helpers.arrayElement(['1:30', '2:00']) : undefined,
+          timeLimit2:
+            level === 'Advanced' ? faker.helpers.arrayElement(['1:30', '2:00']) : undefined,
           searchAreas: level === 'Advanced' ? 2 : 1,
         },
       },
@@ -306,18 +324,30 @@ export class ShowTestDataFactory {
   static createJudgeData(overrides: Partial<JudgeTestData> = {}): JudgeTestData {
     const firstName = faker.person.firstName();
     const lastName = faker.person.lastName();
-    
+
     return {
       id: faker.string.uuid(),
       name: `${firstName} ${lastName}`,
       email: faker.internet.email({ firstName, lastName }),
       phone: faker.phone.number(),
       certifications: faker.helpers.arrayElements(['AKC', 'UKC', 'CKC'], { min: 1, max: 3 }),
-      specialties: faker.helpers.arrayElements([
-        'All Breeds', 'Sporting Group', 'Working Group', 'Terrier Group',
-        'Toy Group', 'Non-Sporting Group', 'Herding Group', 'Hound Group',
-        'Obedience', 'Rally', 'Agility', 'Scent Work'
-      ], { min: 1, max: 4 }),
+      specialties: faker.helpers.arrayElements(
+        [
+          'All Breeds',
+          'Sporting Group',
+          'Working Group',
+          'Terrier Group',
+          'Toy Group',
+          'Non-Sporting Group',
+          'Herding Group',
+          'Hound Group',
+          'Obedience',
+          'Rally',
+          'Agility',
+          'Scent Work',
+        ],
+        { min: 1, max: 4 }
+      ),
       notes: faker.lorem.sentences(2),
       ...overrides,
     };
@@ -354,30 +384,32 @@ export class ShowTestDataFactory {
       this.createJudgeData({ specialties: ['Obedience', 'Rally'] }),
       this.createJudgeData({ specialties: ['Agility', 'Scent Work'] }),
     ];
-    
+
     const trials = [
       this.createConformationTrial(),
       this.createObedienceTrial(),
       this.createAgilityTrial(),
       this.createScentWorkTrial(),
     ];
-    
+
     // Assign judges to classes
     trials.forEach(trial => {
-      const relevantJudge = judges.find(judge => 
-        judge.specialties.some(specialty => 
-          trial.type === 'Conformation' && specialty.includes('Breed') ||
-          trial.type === 'Obedience' && specialty.includes('Obedience') ||
-          trial.type === 'Agility' && specialty.includes('Agility') ||
-          trial.type === 'Scent Work' && specialty.includes('Scent Work')
-        )
-      ) || judges[0];
-      
+      const relevantJudge =
+        judges.find(judge =>
+          judge.specialties.some(
+            specialty =>
+              (trial.type === 'Conformation' && specialty.includes('Breed')) ||
+              (trial.type === 'Obedience' && specialty.includes('Obedience')) ||
+              (trial.type === 'Agility' && specialty.includes('Agility')) ||
+              (trial.type === 'Scent Work' && specialty.includes('Scent Work'))
+          )
+        ) || judges[0];
+
       trial.classes.forEach(cls => {
         cls.judgeId = relevantJudge.id;
       });
     });
-    
+
     return {
       show: showData,
       trials,

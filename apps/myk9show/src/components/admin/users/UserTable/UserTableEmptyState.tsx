@@ -1,5 +1,5 @@
 /**
- * UserTableEmptyState - Apple-inspired empty state display
+ * UserTableEmptyState - Premium empty state display
  */
 
 import React from 'react';

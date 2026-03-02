@@ -13,7 +13,7 @@ import { cn } from '../../lib/utils';
 
 interface ButtonProps extends Omit<UIButtonProps, 'variant' | 'size'> {
   children: React.ReactNode;
-  variant?: 'primary' | 'secondary' | 'outline' | 'gradient' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
   size?: 'sm' | 'md' | 'lg' | 'icon';
   fullWidth?: boolean;
 }
@@ -23,7 +23,6 @@ const variantMap: Record<string, UIButtonProps['variant']> = {
   primary: 'default',
   secondary: 'outline',
   outline: 'outline',
-  gradient: 'gradient',
   ghost: 'ghost',
 };
 

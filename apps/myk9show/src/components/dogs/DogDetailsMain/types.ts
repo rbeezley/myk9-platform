@@ -25,6 +25,7 @@ export interface HeroProfileCardProps {
   onEditPanelOpen: () => void;
   onPhotoDialogOpen: () => void;
   onDeleteDialogOpen: () => void;
+  onStatusDialogOpen?: () => void;
 }
 
 export interface DogInfoCardsProps {

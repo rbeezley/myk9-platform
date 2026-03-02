@@ -63,7 +63,7 @@ export const ClassTemplateTestPage: React.FC = () => {
                 <p className="text-sm text-gray-600">{preset.template.description}</p>
                 <div className="flex items-center gap-2">
                   <Badge variant="secondary" className="text-xs">
-                    {preset.template.showType}
+                    {preset.template.trialType}
                   </Badge>
                   <Badge variant="outline" className="text-xs">
                     {preset.generateClasses().length} classes

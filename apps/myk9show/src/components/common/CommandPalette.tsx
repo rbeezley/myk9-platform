@@ -1,20 +1,13 @@
 import React, { useState, useMemo, startTransition } from 'react';
 import { Command } from 'cmdk';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { 
-  Search, 
-  Dog, 
-  Users, 
-  Calendar, 
-  Building, 
-  Plus,
-  Clock
-} from 'lucide-react';
+import { Search, Dog, Users, Calendar, Building, Plus, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDogStore } from '@/store/dogStore';
 import { useUserStore } from '@/store/userStore';
 import { useShowStore } from '@/store/showStore';
 import { useRecentSearches } from '@/hooks/useRecentSearches';
+import { getDogDisplayName } from '@/types/dog-types';
 
 interface CommandPaletteProps {
   open: boolean;
@@ -60,7 +53,12 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
       title: 'Dogs',
       subtitle: 'View all dogs',
       icon: <Dog className="h-4 w-4" />,
-      action: () => { startTransition(() => { navigate('/dogs'); onOpenChange(false); }); },
+      action: () => {
+        startTransition(() => {
+          navigate('/dogs');
+          onOpenChange(false);
+        });
+      },
       keywords: ['dogs', 'pets', 'animals'],
       category: 'navigation',
     },
@@ -69,7 +67,12 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
       title: 'Users',
       subtitle: 'View all people',
       icon: <Users className="h-4 w-4" />,
-      action: () => { startTransition(() => { navigate('/people'); onOpenChange(false); }); },
+      action: () => {
+        startTransition(() => {
+          navigate('/people');
+          onOpenChange(false);
+        });
+      },
       keywords: ['people', 'contacts', 'owners'],
       category: 'navigation',
     },
@@ -78,7 +81,12 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
       title: 'Shows',
       subtitle: 'View all shows',
       icon: <Calendar className="h-4 w-4" />,
-      action: () => { startTransition(() => { navigate('/shows'); onOpenChange(false); }); },
+      action: () => {
+        startTransition(() => {
+          navigate('/shows');
+          onOpenChange(false);
+        });
+      },
       keywords: ['shows', 'events', 'competitions'],
       category: 'navigation',
     },
@@ -87,7 +95,12 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
       title: 'Clubs',
       subtitle: 'View all clubs',
       icon: <Building className="h-4 w-4" />,
-      action: () => { startTransition(() => { navigate('/clubs'); onOpenChange(false); }); },
+      action: () => {
+        startTransition(() => {
+          navigate('/clubs');
+          onOpenChange(false);
+        });
+      },
       keywords: ['clubs', 'organizations'],
       category: 'navigation',
     },
@@ -101,11 +114,18 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
     dogs.slice(0, 5).forEach(dog => {
       commands.push({
         id: `dog-${dog.id}`,
-        title: dog.callName || dog.name,
+        title: getDogDisplayName(dog),
         subtitle: `${dog.registrations?.[0]?.breed || 'No breed specified'} • Go to dog profile`,
         icon: <Dog className="h-4 w-4" />,
-        action: () => { startTransition(() => { navigate(`/dogs/${dog.id}`); onOpenChange(false); }); },
-        keywords: [dog.name, dog.callName, dog.registrations?.[0]?.breed || ''].filter(Boolean) as string[],
+        action: () => {
+          startTransition(() => {
+            navigate(`/dogs/${dog.id}`);
+            onOpenChange(false);
+          });
+        },
+        keywords: [dog.name, dog.callName, dog.registrations?.[0]?.breed || ''].filter(
+          Boolean
+        ) as string[],
         category: 'data',
       });
     });
@@ -118,7 +138,12 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
         title: name,
         subtitle: 'Go to person profile',
         icon: <Users className="h-4 w-4" />,
-        action: () => { startTransition(() => { navigate(`/people/${person.id}`); onOpenChange(false); }); },
+        action: () => {
+          startTransition(() => {
+            navigate(`/people/${person.id}`);
+            onOpenChange(false);
+          });
+        },
         keywords: [person.firstName, person.lastName, name],
         category: 'data',
       });
@@ -131,8 +156,13 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
         title: show.name,
         subtitle: `${show.location} • Go to show`,
         icon: <Calendar className="h-4 w-4" />,
-        action: () => { startTransition(() => { navigate(`/shows/${show.id}`); onOpenChange(false); }); },
-        keywords: [show.name, show.location, show.type],
+        action: () => {
+          startTransition(() => {
+            navigate(`/shows/${show.id}`);
+            onOpenChange(false);
+          });
+        },
+        keywords: [show.name, show.location, show.organization],
         category: 'data',
       });
     });
@@ -146,7 +176,12 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
       id: 'add-dog',
       title: 'Add New Dog',
       icon: <Plus className="h-4 w-4" />,
-      action: () => { startTransition(() => { navigate('/dogs?add=true'); onOpenChange(false); }); },
+      action: () => {
+        startTransition(() => {
+          navigate('/dogs?add=true');
+          onOpenChange(false);
+        });
+      },
       keywords: ['add', 'new', 'create', 'dog'],
       category: 'actions',
     },
@@ -154,7 +189,12 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
       id: 'add-person',
       title: 'Add New User',
       icon: <Plus className="h-4 w-4" />,
-      action: () => { startTransition(() => { navigate('/people?add=true'); onOpenChange(false); }); },
+      action: () => {
+        startTransition(() => {
+          navigate('/people?add=true');
+          onOpenChange(false);
+        });
+      },
       keywords: ['add', 'new', 'create', 'person', 'contact'],
       category: 'actions',
     },
@@ -162,7 +202,12 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
       id: 'add-show',
       title: 'Add New Show',
       icon: <Plus className="h-4 w-4" />,
-      action: () => { startTransition(() => { navigate('/?wizard=true'); onOpenChange(false); }); },
+      action: () => {
+        startTransition(() => {
+          navigate('/?wizard=true');
+          onOpenChange(false);
+        });
+      },
       keywords: ['add', 'new', 'create', 'show', 'event'],
       category: 'actions',
     },
@@ -177,7 +222,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
       if (search.trim()) {
         addSearch(search.trim(), {
           resultCount: 1,
-          filters: { selectedCommand: command.title }
+          filters: { selectedCommand: command.title },
         });
       }
       command.action();
@@ -191,7 +236,10 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl p-0 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
         <Command className="rounded-lg border-none shadow-none bg-white dark:bg-gray-900">
-          <div className="flex items-center border-b border-gray-200 dark:border-gray-700 px-3" cmdk-input-wrapper="">
+          <div
+            className="flex items-center border-b border-gray-200 dark:border-gray-700 px-3"
+            cmdk-input-wrapper=""
+          >
             <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
             <Command.Input
               placeholder="Search dogs, people, shows, or type a command..."
@@ -207,8 +255,11 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
 
             {/* Recent Searches Group (shown when no search query) */}
             {!search.trim() && recentSuggestions.length > 0 && (
-              <Command.Group heading="Recent Searches" className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-gray-500 dark:[&_[cmdk-group-heading]]:text-gray-400">
-                {recentSuggestions.map((recent) => (
+              <Command.Group
+                heading="Recent Searches"
+                className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-gray-500 dark:[&_[cmdk-group-heading]]:text-gray-400"
+              >
+                {recentSuggestions.map(recent => (
                   <Command.Item
                     key={recent.id}
                     value={recent.query}
@@ -232,8 +283,11 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
             )}
 
             {/* Navigation Group */}
-            <Command.Group heading="Navigation" className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-gray-500 dark:[&_[cmdk-group-heading]]:text-gray-400">
-              {navigationCommands.map((command) => (
+            <Command.Group
+              heading="Navigation"
+              className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-gray-500 dark:[&_[cmdk-group-heading]]:text-gray-400"
+            >
+              {navigationCommands.map(command => (
                 <Command.Item
                   key={command.id}
                   value={`${command.title} ${command.subtitle} ${command.keywords?.join(' ')}`}
@@ -244,7 +298,9 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                     {command.icon}
                   </div>
                   <div className="flex-1">
-                    <div className="font-medium text-gray-900 dark:text-gray-100">{command.title}</div>
+                    <div className="font-medium text-gray-900 dark:text-gray-100">
+                      {command.title}
+                    </div>
                     {command.subtitle && (
                       <div className="text-xs text-gray-500 dark:text-gray-400">
                         {command.subtitle}
@@ -257,8 +313,11 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
 
             {/* Recent Data Group */}
             {dataCommands.length > 0 && (
-              <Command.Group heading="Go to" className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-gray-500 dark:[&_[cmdk-group-heading]]:text-gray-400">
-                {dataCommands.map((command) => (
+              <Command.Group
+                heading="Go to"
+                className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-gray-500 dark:[&_[cmdk-group-heading]]:text-gray-400"
+              >
+                {dataCommands.map(command => (
                   <Command.Item
                     key={command.id}
                     value={`${command.title} ${command.subtitle} ${command.keywords?.join(' ')}`}
@@ -269,7 +328,9 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                       {command.icon}
                     </div>
                     <div className="flex-1">
-                      <div className="font-medium text-gray-900 dark:text-gray-100">{command.title}</div>
+                      <div className="font-medium text-gray-900 dark:text-gray-100">
+                        {command.title}
+                      </div>
                       {command.subtitle && (
                         <div className="text-xs text-gray-500 dark:text-gray-400">
                           {command.subtitle}
@@ -282,8 +343,11 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
             )}
 
             {/* Actions Group */}
-            <Command.Group heading="Actions" className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-gray-500 dark:[&_[cmdk-group-heading]]:text-gray-400">
-              {actionCommands.map((command) => (
+            <Command.Group
+              heading="Actions"
+              className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-gray-500 dark:[&_[cmdk-group-heading]]:text-gray-400"
+            >
+              {actionCommands.map(command => (
                 <Command.Item
                   key={command.id}
                   value={`${command.title} ${command.keywords?.join(' ')}`}
@@ -294,7 +358,9 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                     {command.icon}
                   </div>
                   <div className="flex-1">
-                    <div className="font-medium text-gray-900 dark:text-gray-100">{command.title}</div>
+                    <div className="font-medium text-gray-900 dark:text-gray-100">
+                      {command.title}
+                    </div>
                   </div>
                 </Command.Item>
               ))}

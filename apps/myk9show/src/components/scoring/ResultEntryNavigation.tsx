@@ -9,7 +9,7 @@
 import { useMemo, useState, useCallback } from 'react';
 import { Clock, AlertCircle, User, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import '@/styles/apple-show-details.css';
+import '@/styles/myk9-show-details.css';
 
 // UI Components
 import { Button } from '@/components/ui/button';
@@ -131,11 +131,11 @@ export function ResultEntryNavigation({
   return (
     <div className={cn('space-y-8', className)}>
       {/* Class Header */}
-      <div className="apple-judge-progress-section">
+      <div className="myk9-judge-progress-section">
         <div className="mb-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="apple-judge-progress-title">
+              <h2 className="myk9-judge-progress-title">
                 {classInfo.element} {classInfo.level}
               </h2>
               <div className="flex items-center space-x-4 mt-2 text-sm text-muted-foreground">
@@ -162,32 +162,32 @@ export function ResultEntryNavigation({
         {/* Progress Section */}
         {showProgress && (
           <div>
-            <div className="apple-judge-progress-header">
+            <div className="myk9-judge-progress-header">
               <span className="text-sm font-medium text-muted-foreground">Progress</span>
-              <span className="apple-judge-progress-stats">
+              <span className="myk9-judge-progress-stats">
                 {progressStats.completed} of {progressStats.total} completed
               </span>
             </div>
             
-            <div className="apple-judge-progress-bar">
+            <div className="myk9-judge-progress-bar">
               <div 
-                className="apple-judge-progress-fill" 
+                className="myk9-judge-progress-fill" 
                 style={{ width: `${progressStats.completionPercentage}%` }}
               />
             </div>
             
-            <div className="apple-judge-progress-indicators">
+            <div className="myk9-judge-progress-indicators">
               <div className="flex items-center space-x-4">
-                <div className="apple-judge-progress-indicator">
-                  <div className="apple-judge-progress-dot completed"></div>
+                <div className="myk9-judge-progress-indicator">
+                  <div className="myk9-judge-progress-dot completed"></div>
                   <span>{progressStats.completed} Completed</span>
                 </div>
-                <div className="apple-judge-progress-indicator">
-                  <div className="apple-judge-progress-dot in-progress"></div>
+                <div className="myk9-judge-progress-indicator">
+                  <div className="myk9-judge-progress-dot in-progress"></div>
                   <span>{progressStats.inProgress} In Progress</span>
                 </div>
-                <div className="apple-judge-progress-indicator">
-                  <div className="apple-judge-progress-dot pending"></div>
+                <div className="myk9-judge-progress-indicator">
+                  <div className="myk9-judge-progress-dot pending"></div>
                   <span>{progressStats.pending} Pending</span>
                 </div>
               </div>
@@ -227,7 +227,7 @@ export function ResultEntryNavigation({
             return (
               <div
                 key={entry.id}
-                className={cn('apple-entry-card', getStatusClass())}
+                className={cn('myk9-entry-card', getStatusClass())}
                 onPointerDown={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -247,18 +247,18 @@ export function ResultEntryNavigation({
                 }}
               >
                 {/* Armband and Status */}
-                <div className="apple-entry-header">
+                <div className="myk9-entry-header">
                   <div className="flex items-center gap-2">
-                    <div className="apple-entry-armband">
+                    <div className="myk9-entry-armband">
                       #{entry.displayInfo.armband}
                     </div>
                   </div>
-                  <div className="apple-entry-status-indicator">
+                  <div className="myk9-entry-status-indicator">
                     {/* For completed entries, show placement badge or nothing */}
                     {entry.navigationStatus === 'completed' ? (
                       entry.placement ? (
                         <div className={cn(
-                          'apple-entry-placement-badge',
+                          'myk9-entry-placement-badge',
                           entry.placement === 1 ? 'first-place' :
                           entry.placement === 2 ? 'second-place' :
                           entry.placement === 3 ? 'third-place' :
@@ -278,27 +278,27 @@ export function ResultEntryNavigation({
                         ) : (
                           <User className="h-4 w-4 text-muted-foreground" />
                         )}
-                        <div className={cn('apple-entry-status-dot', getStatusClass())}></div>
+                        <div className={cn('myk9-entry-status-dot', getStatusClass())}></div>
                       </>
                     )}
                   </div>
                 </div>
 
                 {/* Dog Information */}
-                <div className="apple-entry-dog-info">
-                  <div className="apple-entry-dog-name">
+                <div className="myk9-entry-dog-info">
+                  <div className="myk9-entry-dog-name">
                     {entry.displayInfo.dogName}
                   </div>
-                  <div className="apple-entry-handler-name">
+                  <div className="myk9-entry-handler-name">
                     {entry.displayInfo.handlerName}
                   </div>
                 </div>
 
                 {/* Result/Time Information */}
-                <div className="apple-entry-footer">
+                <div className="myk9-entry-footer">
                   {entry.result ? (
                     <>
-                      <div className="apple-entry-time">
+                      <div className="myk9-entry-time">
                         {msToDisplay(entry.result.searchTime, 'hundredths')}
                       </div>
                       {(() => {
@@ -307,37 +307,37 @@ export function ResultEntryNavigation({
                         switch (qualification) {
                           case 'Qualified':
                             return (
-                              <div className="apple-entry-result-badge apple-entry-result-qualified">
+                              <div className="myk9-entry-result-badge myk9-entry-result-qualified">
                                 Q{faults > 0 ? ` (${faults}f)` : ''}
                               </div>
                             );
                           case 'Not Qualified':
                             return (
-                              <div className="apple-entry-result-badge apple-entry-result-nq">
+                              <div className="myk9-entry-result-badge myk9-entry-result-nq">
                                 NQ
                               </div>
                             );
                           case 'Absent':
                             return (
-                              <div className="apple-entry-result-badge apple-entry-result-absent">
+                              <div className="myk9-entry-result-badge myk9-entry-result-absent">
                                 ABS
                               </div>
                             );
                           case 'Excused':
                             return (
-                              <div className="apple-entry-result-badge apple-entry-result-excused">
+                              <div className="myk9-entry-result-badge myk9-entry-result-excused">
                                 EXC
                               </div>
                             );
                           case 'Withdrawn':
                             return (
-                              <div className="apple-entry-result-badge apple-entry-result-withdrawn">
+                              <div className="myk9-entry-result-badge myk9-entry-result-withdrawn">
                                 WD
                               </div>
                             );
                           default:
                             return (
-                              <div className="apple-entry-result-badge apple-entry-result-nq">
+                              <div className="myk9-entry-result-badge myk9-entry-result-nq">
                                 {qualification}
                               </div>
                             );
@@ -345,13 +345,13 @@ export function ResultEntryNavigation({
                       })()}
                     </>
                   ) : entry.navigationStatus === 'in-progress' ? (
-                    <div className="apple-entry-status-text in-progress">
+                    <div className="myk9-entry-status-text in-progress">
                       In Progress
                     </div>
                   ) : (
                     // For pending entries, show check-in status badge in bottom-right corner
                     <div className="flex items-center justify-between w-full">
-                      <div className="apple-entry-status-text pending">
+                      <div className="myk9-entry-status-text pending">
                         Not Started
                       </div>
                       {(() => {

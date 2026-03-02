@@ -5,7 +5,14 @@
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { UnifiedEntryData } from '@/types/unified-entry-types';
 import { useTableConfiguration } from '@/hooks/useTableConfiguration';
@@ -35,12 +42,12 @@ import { EntryActionsMenu } from './components/EntryActionsMenu';
 // Statistics panel
 import { EntriesStatisticsPanel } from '../EntriesStatisticsPanel';
 
-// Apple styles
-import '@/styles/apple-show-details.css';
+// styles
+import '@/styles/myk9-show-details.css';
 
 const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
   entries,
-  showType,
+  trialType,
   template,
   onViewEntry,
   onEditEntry,
@@ -51,7 +58,7 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
   onResultUpdate,
   onToggleInlineEditing,
   userPermissions,
-  className
+  className,
 }) => {
   // Delete dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -73,17 +80,17 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
     getEditData,
     handleSubmitChanges,
     setAutoSaveEnabled,
-    clearEditData
+    clearEditData,
   } = useInlineEditing({
     entries,
     onResultUpdate,
-    canSubmitResults: permissions.canSubmitResults
+    canSubmitResults: permissions.canSubmitResults,
   });
 
   // Get table configuration based on show type and template
   const { columns, transformEntry } = useTableConfiguration({
-    showType,
-    template
+    trialType,
+    template,
   });
 
   // Transform entries to unified format for consistent display
@@ -99,11 +106,11 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
         time: entry.time,
         score: entry.score,
         placement: entry.placement,
-        showType
+        trialType,
       };
       return unified;
     });
-  }, [entries, showType]);
+  }, [entries, trialType]);
 
   // Delete handlers
   const handleDeleteClick = useCallback((entry: EntryData) => {
@@ -120,73 +127,71 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
   }, [entryToDelete, onDeleteEntry]);
 
   // Keyboard navigation handler
-  const handleKeyDown = useCallback((
-    event: React.KeyboardEvent,
-    _entryId: string,
-    field: string,
-    rowIndex: number
-  ) => {
-    const { key, shiftKey, ctrlKey, metaKey } = event;
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent, _entryId: string, field: string, rowIndex: number) => {
+      const { key, shiftKey, ctrlKey, metaKey } = event;
 
-    // Handle Ctrl/Cmd + S to save
-    if ((ctrlKey || metaKey) && key === 's') {
-      event.preventDefault();
-      handleSubmitChanges();
-      return;
-    }
-
-    // Handle Escape to cancel editing
-    if (key === 'Escape') {
-      event.preventDefault();
-      clearEditData();
-      return;
-    }
-
-    // Handle Tab and Enter navigation
-    if (key === 'Enter' || key === 'Tab') {
-      event.preventDefault();
-
-      const fieldOrder = ['time', 'status', 'score', 'placement'];
-      const currentFieldIndex = fieldOrder.indexOf(field);
-
-      let nextField: string;
-      let nextRowIndex = rowIndex;
-
-      if (shiftKey) {
-        // Navigate backwards
-        if (currentFieldIndex > 0) {
-          nextField = fieldOrder[currentFieldIndex - 1];
-        } else if (rowIndex > 0) {
-          nextRowIndex = rowIndex - 1;
-          nextField = fieldOrder[fieldOrder.length - 1];
-        } else {
-          return;
-        }
-      } else {
-        // Navigate forwards
-        if (currentFieldIndex < fieldOrder.length - 1) {
-          nextField = fieldOrder[currentFieldIndex + 1];
-        } else if (rowIndex < entries.length - 1) {
-          nextRowIndex = rowIndex + 1;
-          nextField = fieldOrder[0];
-        } else {
-          return;
-        }
+      // Handle Ctrl/Cmd + S to save
+      if ((ctrlKey || metaKey) && key === 's') {
+        event.preventDefault();
+        handleSubmitChanges();
+        return;
       }
 
-      // Find and focus next input
-      const nextEntryId = entries[nextRowIndex]?.id;
-      if (nextEntryId) {
-        const nextInput = document.querySelector(
-          `input[data-entry-id="${nextEntryId}"][data-field="${nextField}"], select[data-entry-id="${nextEntryId}"][data-field="${nextField}"]`
-        ) as HTMLElement;
+      // Handle Escape to cancel editing
+      if (key === 'Escape') {
+        event.preventDefault();
+        clearEditData();
+        return;
+      }
 
-        if (nextInput) {
-          nextInput.focus();
+      // Handle Tab and Enter navigation
+      if (key === 'Enter' || key === 'Tab') {
+        event.preventDefault();
+
+        const fieldOrder = ['time', 'status', 'score', 'placement'];
+        const currentFieldIndex = fieldOrder.indexOf(field);
+
+        let nextField: string;
+        let nextRowIndex = rowIndex;
+
+        if (shiftKey) {
+          // Navigate backwards
+          if (currentFieldIndex > 0) {
+            nextField = fieldOrder[currentFieldIndex - 1];
+          } else if (rowIndex > 0) {
+            nextRowIndex = rowIndex - 1;
+            nextField = fieldOrder[fieldOrder.length - 1];
+          } else {
+            return;
+          }
+        } else {
+          // Navigate forwards
+          if (currentFieldIndex < fieldOrder.length - 1) {
+            nextField = fieldOrder[currentFieldIndex + 1];
+          } else if (rowIndex < entries.length - 1) {
+            nextRowIndex = rowIndex + 1;
+            nextField = fieldOrder[0];
+          } else {
+            return;
+          }
+        }
+
+        // Find and focus next input
+        const nextEntryId = entries[nextRowIndex]?.id;
+        if (nextEntryId) {
+          const nextInput = document.querySelector(
+            `input[data-entry-id="${nextEntryId}"][data-field="${nextField}"], select[data-entry-id="${nextEntryId}"][data-field="${nextField}"]`
+          ) as HTMLElement;
+
+          if (nextInput) {
+            nextInput.focus();
+          }
         }
       }
-    }
-  }, [entries, handleSubmitChanges, clearEditData]);
+    },
+    [entries, handleSubmitChanges, clearEditData]
+  );
 
   // CSV export handler
   const handleExportCSV = useCallback(() => {
@@ -200,15 +205,9 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
     return (
       <div className={cn('space-y-6', className)}>
         {permissions.canViewStatistics && (
-          <EntriesStatisticsPanel
-            entries={entries}
-            editData={inlineEditData}
-          />
+          <EntriesStatisticsPanel entries={entries} editData={inlineEditData} />
         )}
-        <EmptyState
-          onAddEntry={onAddEntry}
-          canAddEntries={permissions.canAddEntries}
-        />
+        <EmptyState onAddEntry={onAddEntry} canAddEntries={permissions.canAddEntries} />
       </div>
     );
   }
@@ -217,10 +216,7 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
     <div className={cn('space-y-6', className)}>
       {/* Statistics Panel */}
       {permissions.canViewStatistics && (
-        <EntriesStatisticsPanel
-          entries={entries}
-          editData={inlineEditData}
-        />
+        <EntriesStatisticsPanel entries={entries} editData={inlineEditData} />
       )}
 
       {/* Error Display */}
@@ -254,7 +250,7 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/30">
-              {columns.map((column) => (
+              {columns.map(column => (
                 <TableHead
                   key={column.id}
                   className={`font-semibold ${column.align === 'center' ? 'text-center' : column.align === 'right' ? 'text-right' : ''}`}
@@ -268,7 +264,9 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
                       <span className="w-4 text-center">.</span>
                       <span className="w-12 text-center">1/100</span>
                     </div>
-                  ) : column.label}
+                  ) : (
+                    column.label
+                  )}
                 </TableHead>
               ))}
               <TableHead className="font-semibold text-center">Actions</TableHead>
@@ -290,16 +288,21 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
                   key={entry.id}
                   className={cn(
                     'hover:bg-muted/50 transition-colors border-b border-border/50',
-                    enableInlineEditing && editData.hasChanges && !editData.isValid && 'bg-red-50 dark:bg-red-950/20'
+                    enableInlineEditing &&
+                      editData.hasChanges &&
+                      !editData.isValid &&
+                      'bg-red-50 dark:bg-red-950/20'
                   )}
                 >
-                  {columns.map((column) => {
+                  {columns.map(column => {
                     const cellData = transformedEntry[column.id] as Record<string, unknown>;
                     const rawValue = cellData?.raw;
                     const formattedValue = cellData?.formatted || '--';
                     const cellClassName = cellData?.className || '';
 
-                    const isEditableColumn = enableInlineEditing && ['time', 'status', 'score', 'placement'].includes(column.id);
+                    const isEditableColumn =
+                      enableInlineEditing &&
+                      ['time', 'status', 'score', 'placement'].includes(column.id);
 
                     return (
                       <TableCell
@@ -313,51 +316,59 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
                               entryId={originalEntry.id}
                               value={editData.status}
                               errors={editData.errors}
-                              onUpdate={(value) => updateInlineEditData(originalEntry.id, 'status', value)}
+                              onUpdate={value =>
+                                updateInlineEditData(originalEntry.id, 'status', value)
+                              }
                             />
                           ) : column.id === 'time' ? (
                             <TimeCell
                               entryId={originalEntry.id}
                               value={editData.time}
                               errors={editData.errors}
-                              onUpdate={(value) => updateInlineEditData(originalEntry.id, 'time', value)}
-                              onKeyDown={(e) => handleKeyDown(e, originalEntry.id, 'time', index)}
+                              onUpdate={value =>
+                                updateInlineEditData(originalEntry.id, 'time', value)
+                              }
+                              onKeyDown={e => handleKeyDown(e, originalEntry.id, 'time', index)}
                             />
                           ) : column.id === 'score' ? (
                             <ScoreCell
                               entryId={originalEntry.id}
                               value={editData.score}
                               errors={editData.errors}
-                              onUpdate={(value) => updateInlineEditData(originalEntry.id, 'score', value)}
-                              onKeyDown={(e) => handleKeyDown(e, originalEntry.id, 'score', index)}
+                              onUpdate={value =>
+                                updateInlineEditData(originalEntry.id, 'score', value)
+                              }
+                              onKeyDown={e => handleKeyDown(e, originalEntry.id, 'score', index)}
                             />
                           ) : column.id === 'placement' ? (
                             <PlacementCell
                               entryId={originalEntry.id}
                               value={editData.placement}
                               errors={editData.errors}
-                              onUpdate={(value) => updateInlineEditData(originalEntry.id, 'placement', value)}
-                              onKeyDown={(e) => handleKeyDown(e, originalEntry.id, 'placement', index)}
+                              onUpdate={value =>
+                                updateInlineEditData(originalEntry.id, 'placement', value)
+                              }
+                              onKeyDown={e =>
+                                handleKeyDown(e, originalEntry.id, 'placement', index)
+                              }
                             />
                           ) : (
                             String(formattedValue || '')
                           )
+                        ) : // Render readonly field
+                        column.dataType === 'status' ? (
+                          <Badge
+                            variant="secondary"
+                            className={`${getStatusColor(String(formattedValue || ''))} border-0`}
+                          >
+                            {String(formattedValue || '')}
+                          </Badge>
+                        ) : column.dataType === 'placement' ? (
+                          <span className={getPlacementStyle(String(rawValue || ''))}>
+                            {String(formattedValue || '')}
+                          </span>
                         ) : (
-                          // Render readonly field
-                          column.dataType === 'status' ? (
-                            <Badge
-                              variant="secondary"
-                              className={`${getStatusColor(String(formattedValue || ''))} border-0`}
-                            >
-                              {String(formattedValue || '')}
-                            </Badge>
-                          ) : column.dataType === 'placement' ? (
-                            <span className={getPlacementStyle(String(rawValue || ''))}>
-                              {String(formattedValue || '')}
-                            </span>
-                          ) : (
-                            String(formattedValue || '')
-                          )
+                          String(formattedValue || '')
                         )}
                       </TableCell>
                     );
@@ -367,9 +378,15 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
                       entry={originalEntry}
                       enableInlineEditing={enableInlineEditing}
                       editData={editData}
-                      onView={() => onViewEntry ? onViewEntry(originalEntry.id) : onEditEntry(originalEntry.id)}
+                      onView={() =>
+                        onViewEntry ? onViewEntry(originalEntry.id) : onEditEntry(originalEntry.id)
+                      }
                       onEdit={() => onEditEntry(originalEntry.id)}
-                      onEnterResults={() => onEnterResults ? onEnterResults(originalEntry.id) : onEditEntry(originalEntry.id)}
+                      onEnterResults={() =>
+                        onEnterResults
+                          ? onEnterResults(originalEntry.id)
+                          : onEditEntry(originalEntry.id)
+                      }
                       onDelete={() => handleDeleteClick(originalEntry)}
                     />
                   </TableCell>
@@ -407,7 +424,7 @@ const ClassEntriesTable: React.FC<ClassEntriesTableProps> = ({
 // React.memo optimization with custom comparison for performance
 export default React.memo(ClassEntriesTable, (prevProps, nextProps) => {
   if (prevProps.entries.length !== nextProps.entries.length) return false;
-  if (prevProps.showType !== nextProps.showType) return false;
+  if (prevProps.trialType !== nextProps.trialType) return false;
   if (prevProps.enableInlineEditing !== nextProps.enableInlineEditing) return false;
   if (prevProps.template?.id !== nextProps.template?.id) return false;
 
@@ -415,14 +432,16 @@ export default React.memo(ClassEntriesTable, (prevProps, nextProps) => {
     const prevEntry = prevProps.entries[i];
     const nextEntry = nextProps.entries[i];
 
-    if (prevEntry.id !== nextEntry.id ||
-        prevEntry.armband !== nextEntry.armband ||
-        prevEntry.handler !== nextEntry.handler ||
-        prevEntry.dog !== nextEntry.dog ||
-        prevEntry.status !== nextEntry.status ||
-        prevEntry.score !== nextEntry.score ||
-        prevEntry.time !== nextEntry.time ||
-        prevEntry.placement !== nextEntry.placement) {
+    if (
+      prevEntry.id !== nextEntry.id ||
+      prevEntry.armband !== nextEntry.armband ||
+      prevEntry.handler !== nextEntry.handler ||
+      prevEntry.dog !== nextEntry.dog ||
+      prevEntry.status !== nextEntry.status ||
+      prevEntry.score !== nextEntry.score ||
+      prevEntry.time !== nextEntry.time ||
+      prevEntry.placement !== nextEntry.placement
+    ) {
       return false;
     }
   }

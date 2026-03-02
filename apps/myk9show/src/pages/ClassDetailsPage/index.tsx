@@ -4,13 +4,12 @@
  * Displays class information, entries, and results
  */
 
-import { useEffect, startTransition } from 'react';
+import { startTransition } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { logger } from '@/services/LoggingService';
 import { useEntryStore } from '@/store/entryStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { ClassGroupedSidebar } from '@/components/classes/ClassGroupedSidebar';
 import ClassDetailsMain from '@/components/classes/ClassDetailsMain';
 import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
 import type { ClassData, CompetitionResult } from '@/components/classes/types/classTypes';
@@ -21,7 +20,6 @@ import { useClassDetailsDialogs } from './useClassDetailsDialogs';
 import { ClassNotFoundState, EmptyClassState, LoadingClassState } from './ClassStates';
 import { DeleteClassDialog } from './DeleteClassDialog';
 import { EditEntryDialog } from './EditEntryDialog';
-import { AddEntryDialog } from './AddEntryDialog';
 import { DeleteEntryDialog } from './DeleteEntryDialog';
 
 const ClassDetailsPage: React.FC = () => {
@@ -49,27 +47,7 @@ const ClassDetailsPage: React.FC = () => {
   // Dialog state
   const dialogs = useClassDetailsDialogs();
 
-  // Handle case where no classId in URL but we have classes
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (!classId && trialClasses.length > 0 && classes.length > 0) {
-      const frameId = requestAnimationFrame(() => {
-        startTransition(() => {
-          navigate(`/classes/${trialClasses[0].id}`, { replace: true });
-        });
-      });
-      return () => cancelAnimationFrame(frameId);
-    }
-    return;
-  }, [classId, trialClasses, navigate, classes.length]);
-
   // Handlers
-  const handleSelectClass = (id: string) => {
-    startTransition(() => {
-      navigate(`/classes/${id}`);
-    });
-  };
-
   const handleConfirmDeleteClass = async () => {
     if (classId) {
       try {
@@ -111,7 +89,12 @@ const ClassDetailsPage: React.FC = () => {
         await deleteEntry(dialogs.entryToDelete);
         toast.success('Entry deleted successfully');
       } catch (error) {
-        logger.error('Failed to delete entry', 'classes', { entryId: dialogs.entryToDelete }, error as Error);
+        logger.error(
+          'Failed to delete entry',
+          'classes',
+          { entryId: dialogs.entryToDelete },
+          error as Error
+        );
         toast.error('Failed to delete entry');
       }
       dialogs.closeDeleteEntryDialog();
@@ -138,7 +121,12 @@ const ClassDetailsPage: React.FC = () => {
         await updateEntry(dialogs.editEntryId, data, user?.id || 'unknown');
         toast.success('Entry updated successfully');
       } catch (error) {
-        logger.error('Failed to update entry', 'classes', { editEntryId: dialogs.editEntryId }, error as Error);
+        logger.error(
+          'Failed to update entry',
+          'classes',
+          { editEntryId: dialogs.editEntryId },
+          error as Error
+        );
         toast.error('Failed to update entry');
       }
     }
@@ -151,7 +139,12 @@ const ClassDetailsPage: React.FC = () => {
         await updateClass(classId, { status: newStatus as ClassStatusValue });
         toast.success(`Class status updated to ${newStatus}`);
       } catch (error) {
-        logger.error('Failed to update class status', 'classes', { classId, newStatus }, error as Error);
+        logger.error(
+          'Failed to update class status',
+          'classes',
+          { classId, newStatus },
+          error as Error
+        );
         toast.error('Failed to update class status');
       }
     }
@@ -162,7 +155,11 @@ const ClassDetailsPage: React.FC = () => {
       logger.debug('handleResultUpdate called', 'classes', { entryId, result });
 
       const qualified =
-        result.status === 'Qualified' ? true : result.status === 'Not Qualified' ? false : undefined;
+        result.status === 'Qualified'
+          ? true
+          : result.status === 'Not Qualified'
+            ? false
+            : undefined;
 
       const storeUpdate = {
         time: result.time,
@@ -195,32 +192,26 @@ const ClassDetailsPage: React.FC = () => {
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <ClassGroupedSidebar
-        classes={trialClasses}
-        selectedId={classId || null}
-        onSelect={handleSelectClass}
-        searchTerm={dialogs.searchTerm}
-        onSearchChange={dialogs.setSearchTerm}
+    <div className="min-h-screen bg-background">
+      <ClassDetailsMain
+        classData={currentClass}
+        classEntries={classEntries}
+        {...(parentShow !== undefined && { parentShow })}
+        {...(parentTrial !== undefined && { parentTrial })}
+        isResultsView={isResultsView}
+        onEditClass={dialogs.openEditClassPanel}
+        onDeleteClass={dialogs.openDeleteDialog}
+        onEditPhoto={() => logger.debug('Edit photo not implemented', 'classes')}
+        onViewTrial={handleViewTrial}
+        onAddEntry={() => {
+          if (parentShow?.id) {
+            navigate(`/shows/${parentShow.id}/register`);
+          }
+        }}
+        onDeleteEntry={handleDeleteEntry}
+        onStatusChange={handleStatusChange}
+        onResultUpdate={handleResultUpdate}
       />
-
-      <main className="flex-1 overflow-auto">
-        <ClassDetailsMain
-          classData={currentClass}
-          classEntries={classEntries}
-          {...(parentShow !== undefined && { parentShow })}
-          {...(parentTrial !== undefined && { parentTrial })}
-          isResultsView={isResultsView}
-          onEditClass={dialogs.openEditClassPanel}
-          onDeleteClass={dialogs.openDeleteDialog}
-          onEditPhoto={() => logger.debug('Edit photo not implemented', 'classes')}
-          onViewTrial={handleViewTrial}
-          onAddEntry={dialogs.openAddEntryDialog}
-          onDeleteEntry={handleDeleteEntry}
-          onStatusChange={handleStatusChange}
-          onResultUpdate={handleResultUpdate}
-        />
-      </main>
 
       {/* Dialogs */}
       <ClassEditPanel
@@ -230,7 +221,7 @@ const ClassDetailsPage: React.FC = () => {
         className={currentClass?.element || ''}
         initialClassData={currentClass || {}}
         mode="full"
-        onSave={async (classData) => {
+        onSave={async classData => {
           if (currentClass?.id && classData.id) {
             const updatedClass = { ...currentClass, ...classData };
             handleSaveClassEdit(updatedClass);
@@ -252,13 +243,6 @@ const ClassDetailsPage: React.FC = () => {
         rawEntries={rawEntries}
         dogs={dogs}
         onSave={handleSaveEntryEdit}
-      />
-
-      <AddEntryDialog
-        open={dialogs.addEntryDialogOpen}
-        onOpenChange={dialogs.setAddEntryDialogOpen}
-        parentShow={parentShow}
-        currentClass={currentClass}
       />
 
       <DeleteEntryDialog

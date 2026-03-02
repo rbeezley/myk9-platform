@@ -2,11 +2,20 @@ import React, { useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { DateTimePicker } from '@/components/ui/date-time-picker';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Plus, Trash2, GripVertical, CalendarPlus, HelpCircle } from 'lucide-react';
 import { addDays, format, isWithinInterval, parseISO } from 'date-fns';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useWizardStore } from '@/store/wizardStore';
+import { useTemplates } from '@/hooks/useTemplates';
+import { TrialType, getTrialTypesForOrganization } from '@/types/template.types';
 
 interface TrialConfigurationStepProps {
   className?: string;
@@ -14,6 +23,25 @@ interface TrialConfigurationStepProps {
 
 export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({ className }) => {
   const { show, trials, addTrial, updateTrial, removeTrial } = useWizardStore();
+  const { templates } = useTemplates();
+
+  // Derive trial types from active templates for this org.
+  // Falls back to the static mapping if no templates exist yet.
+  const trialTypeOptions = useMemo(() => {
+    const fromTemplates = Array.from(
+      new Set(
+        templates
+          .filter(t => t.isActive && t.organization === show.organization)
+          .map(t => t.trialType as TrialType)
+      )
+    );
+    if (fromTemplates.length > 0) {
+      return fromTemplates.includes(TrialType.OTHER)
+        ? fromTemplates
+        : [...fromTemplates, TrialType.OTHER];
+    }
+    return getTrialTypesForOrganization(show.organization);
+  }, [show.organization, templates]);
 
   // Derive errors using useMemo instead of useState + effect
   const errors = useMemo(() => {
@@ -160,7 +188,7 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({ 
                     </Button>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label>
                         Trial Name <span className="text-destructive">*</span>
@@ -174,6 +202,25 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({ 
                       {errors[`trial-${index}-name`] && (
                         <p className="text-sm text-destructive">{errors[`trial-${index}-name`]}</p>
                       )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Trial Type</Label>
+                      <Select
+                        value={trial.trialType ?? ''}
+                        onValueChange={value => updateTrial(trial.id, { trialType: value })}
+                      >
+                        <SelectTrigger className="h-10">
+                          <SelectValue placeholder="Select discipline" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {trialTypeOptions.map(type => (
+                            <SelectItem key={type} value={type}>
+                              {type}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     <div className="space-y-2">

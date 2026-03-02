@@ -25,7 +25,8 @@ export function extractPersonName(person: UserType): {
   const personRecord = person as unknown as Record<string, unknown>;
   const firstName = person.firstName || (personRecord.first_name as string) || '';
   const lastName = person.lastName || (personRecord.last_name as string) || '';
-  const fullName = firstName && lastName ? `${firstName} ${lastName}` : person.email || 'Unknown User';
+  const fullName =
+    firstName && lastName ? `${firstName} ${lastName}` : person.email || 'Unknown User';
   return { firstName, lastName, fullName };
 }
 
@@ -37,11 +38,15 @@ export function buildFormData(person: UserType): UserFormData {
     name: fullName,
     email: person.email || '',
     phone: person.phone || '',
-    address: person.streetAddress || (personRec.street_address as string) || '',
+    address: person.address || person.streetAddress || (personRec.street_address as string) || '',
     city: person.city || '',
     state: person.state || '',
     zipCode: person.zipCode || (personRec.zip_code as string) || '',
-    photo: person.profileImage || (personRec.profile_image_url as string) || (personRec.profile_image as string) || '',
+    photo:
+      person.profileImage ||
+      (personRec.profile_image_url as string) ||
+      (personRec.profile_image as string) ||
+      '',
     bio: '',
     deletedAt: null,
     deletedBy: null,

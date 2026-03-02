@@ -12,15 +12,26 @@ export enum UserRole {
   GATE_STEWARD = 'gate_steward',
   CLUB_ADMIN = 'club_admin',
   SITE_ADMIN = 'site_admin',
-  ADMIN = 'admin'
+  ADMIN = 'admin',
 }
+
+/**
+ * Role hierarchy ordered by privilege (highest first).
+ * Used for deriving effective role from a user's role set.
+ */
+export const USER_ROLE_HIERARCHY: readonly UserRole[] = [
+  UserRole.SITE_ADMIN,
+  UserRole.CLUB_ADMIN,
+  UserRole.SECRETARY,
+  UserRole.EXHIBITOR,
+];
 
 /**
  * Scope types for role-based access control
  */
 export enum ScopeType {
   CLUB = 'club',
-  SHOW = 'show'
+  SHOW = 'show',
 }
 
 /**
@@ -33,7 +44,7 @@ export const PERMISSIONS = {
   DOG_UPDATE: 'dog:update',
   DOG_DELETE: 'dog:delete',
   DOG_READ_ALL: 'dog:read_all',
-  
+
   // Registration management
   REGISTRATION_VIEW_ALL_DOGS: 'registration:view_all_dogs',
   REGISTRATION_REGISTER_ANY: 'registration:register_any',
@@ -42,7 +53,7 @@ export const PERMISSIONS = {
   REGISTRATION_ASSIGN_ARMBANDS: 'registration:assign_armbands',
   REGISTRATION_MANAGE_STATUS: 'registration:manage_status',
   REGISTRATION_BULK_OPERATIONS: 'registration:bulk_operations',
-  
+
   // Show management
   SHOW_CREATE: 'show:create',
   SHOW_READ: 'show:read',
@@ -50,29 +61,29 @@ export const PERMISSIONS = {
   SHOW_DELETE: 'show:delete',
   SHOW_MANAGE: 'show:manage',
   SHOW_MANAGE_ENTRIES: 'show:manage_entries',
-  
+
   // Judge permissions
   JUDGE_VIEW_ASSIGNMENTS: 'judge:view_assignments',
   JUDGE_ENTER_RESULTS: 'judge:enter_results',
   JUDGE_SIGN_RESULTS: 'judge:sign_results',
   JUDGE_VIEW_SCORESHEETS: 'judge:view_scoresheets',
   JUDGE_MANAGE_CHECK_IN: 'judge:manage_check_in',
-  
+
   // Check-in management
   CHECK_IN_MANAGE_OWN: 'check_in:manage_own',
   CHECK_IN_MANAGE_ALL: 'check_in:manage_all',
   CHECK_IN_VIEW_ALL: 'check_in:view_all',
-  
+
   // Admin permissions for impersonation and monitoring
   ADMIN_IMPERSONATE_USER: 'admin:impersonate_user',
   ADMIN_VIEW_AUDIT: 'admin:view_audit',
   ADMIN_MANAGE_USERS: 'admin:manage_users',
   ADMIN_VIEW_SYSTEM_HEALTH: 'admin:view_system_health',
-  
+
   // Secretary permissions for coordination
   SECRETARY_ASSIGN_JUDGES: 'secretary:assign_judges',
   SECRETARY_BROADCAST_STATUS: 'secretary:broadcast_status',
-  
+
   // Club management
   CLUB_CREATE: 'club:create',
   CLUB_READ: 'club:read',
@@ -80,20 +91,20 @@ export const PERMISSIONS = {
   CLUB_DELETE: 'club:delete',
   CLUB_EDIT_DETAILS: 'club:edit_details',
   CLUB_MANAGE_MEMBERS: 'club:manage_members',
-  
+
   // User management
   USER_CREATE: 'user:create',
   USER_READ: 'user:read',
   USER_UPDATE: 'user:update',
   USER_DELETE: 'user:delete',
   USER_MANAGE_ROLES: 'user:manage_roles',
-  
+
   // System administration
   SYSTEM_ADMIN: 'system:admin',
-  SYSTEM_MANAGE_RBAC: 'system:manage_rbac'
+  SYSTEM_MANAGE_RBAC: 'system:manage_rbac',
 } as const;
 
-export type Permission = typeof PERMISSIONS[keyof typeof PERMISSIONS];
+export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
 /**
  * Scope definition for scoped permissions
@@ -158,13 +169,13 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     PERMISSIONS.DOG_UPDATE,
     PERMISSIONS.DOG_DELETE,
     PERMISSIONS.SHOW_READ,
-    PERMISSIONS.CLUB_READ
+    PERMISSIONS.CLUB_READ,
   ],
   [UserRole.HANDLER]: [
     PERMISSIONS.DOG_READ,
     PERMISSIONS.SHOW_READ,
     PERMISSIONS.CLUB_READ,
-    PERMISSIONS.CHECK_IN_MANAGE_OWN
+    PERMISSIONS.CHECK_IN_MANAGE_OWN,
   ],
   [UserRole.SECRETARY]: [
     PERMISSIONS.DOG_READ,
@@ -184,7 +195,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     PERMISSIONS.SHOW_DELETE,
     PERMISSIONS.SHOW_MANAGE,
     PERMISSIONS.SHOW_MANAGE_ENTRIES,
-    PERMISSIONS.CLUB_READ
+    PERMISSIONS.CLUB_READ,
   ],
   [UserRole.JUDGE]: [
     PERMISSIONS.JUDGE_VIEW_ASSIGNMENTS,
@@ -195,19 +206,19 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     PERMISSIONS.CHECK_IN_MANAGE_ALL,
     PERMISSIONS.CHECK_IN_VIEW_ALL,
     PERMISSIONS.SHOW_READ,
-    PERMISSIONS.CLUB_READ
+    PERMISSIONS.CLUB_READ,
   ],
   [UserRole.STEWARD]: [
     PERMISSIONS.CHECK_IN_MANAGE_ALL,
     PERMISSIONS.CHECK_IN_VIEW_ALL,
     PERMISSIONS.SHOW_READ,
-    PERMISSIONS.CLUB_READ
+    PERMISSIONS.CLUB_READ,
   ],
   [UserRole.GATE_STEWARD]: [
     PERMISSIONS.CHECK_IN_MANAGE_ALL,
     PERMISSIONS.CHECK_IN_VIEW_ALL,
     PERMISSIONS.SHOW_READ,
-    PERMISSIONS.CLUB_READ
+    PERMISSIONS.CLUB_READ,
   ],
   [UserRole.CLUB_ADMIN]: [
     PERMISSIONS.DOG_READ,
@@ -231,14 +242,10 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     PERMISSIONS.CLUB_UPDATE,
     PERMISSIONS.CLUB_EDIT_DETAILS,
     PERMISSIONS.CLUB_MANAGE_MEMBERS,
-    PERMISSIONS.USER_READ
+    PERMISSIONS.USER_READ,
   ],
-  [UserRole.ADMIN]: [
-    ...Object.values(PERMISSIONS)
-  ],
-  [UserRole.SITE_ADMIN]: [
-    ...Object.values(PERMISSIONS)
-  ]
+  [UserRole.ADMIN]: [...Object.values(PERMISSIONS)],
+  [UserRole.SITE_ADMIN]: [...Object.values(PERMISSIONS)],
 };
 
 /**
@@ -262,9 +269,9 @@ export const MOCK_USERS: Record<string, UserWithRoles> = {
     // RBAC properties
     roles: [UserRole.EXHIBITOR],
     permissions: DEFAULT_ROLE_PERMISSIONS[UserRole.EXHIBITOR],
-    scopes: []
+    scopes: [],
   },
-  
+
   'secretary-user': {
     // Required User properties
     id: 'secretary-user',
@@ -282,15 +289,17 @@ export const MOCK_USERS: Record<string, UserWithRoles> = {
     // RBAC properties
     roles: [UserRole.SECRETARY],
     permissions: DEFAULT_ROLE_PERMISSIONS[UserRole.SECRETARY],
-    scopes: [{
-      userId: 'secretary-user',
-      roleId: 'secretary',
-      scopeType: ScopeType.CLUB,
-      scopeId: 'club-1',
-      createdAt: new Date()
-    }]
+    scopes: [
+      {
+        userId: 'secretary-user',
+        roleId: 'secretary',
+        scopeType: ScopeType.CLUB,
+        scopeId: 'club-1',
+        createdAt: new Date(),
+      },
+    ],
   },
-  
+
   'club-admin-user': {
     // Required User properties
     id: 'club-admin-user',
@@ -308,15 +317,17 @@ export const MOCK_USERS: Record<string, UserWithRoles> = {
     // RBAC properties
     roles: [UserRole.CLUB_ADMIN],
     permissions: DEFAULT_ROLE_PERMISSIONS[UserRole.CLUB_ADMIN],
-    scopes: [{
-      userId: 'club-admin-user',
-      roleId: 'club_admin',
-      scopeType: ScopeType.CLUB,
-      scopeId: 'club-1',
-      createdAt: new Date()
-    }]
+    scopes: [
+      {
+        userId: 'club-admin-user',
+        roleId: 'club_admin',
+        scopeType: ScopeType.CLUB,
+        scopeId: 'club-1',
+        createdAt: new Date(),
+      },
+    ],
   },
-  
+
   'judge-user': {
     // Required User properties
     id: 'judge-user',
@@ -334,7 +345,7 @@ export const MOCK_USERS: Record<string, UserWithRoles> = {
     // RBAC properties
     roles: [UserRole.JUDGE],
     permissions: DEFAULT_ROLE_PERMISSIONS[UserRole.JUDGE],
-    scopes: []
+    scopes: [],
   },
 
   'site-admin-user': {
@@ -352,9 +363,9 @@ export const MOCK_USERS: Record<string, UserWithRoles> = {
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     // RBAC properties
-    roles: [UserRole.SITE_ADMIN], 
+    roles: [UserRole.SITE_ADMIN],
     permissions: DEFAULT_ROLE_PERMISSIONS[UserRole.SITE_ADMIN],
-    scopes: []
+    scopes: [],
   },
 
   'test-admin-user': {
@@ -372,9 +383,9 @@ export const MOCK_USERS: Record<string, UserWithRoles> = {
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     // RBAC properties
-    roles: [UserRole.SITE_ADMIN], 
+    roles: [UserRole.SITE_ADMIN],
     permissions: DEFAULT_ROLE_PERMISSIONS[UserRole.SITE_ADMIN],
-    scopes: []
+    scopes: [],
   },
 
   'dev-user': {
@@ -394,13 +405,15 @@ export const MOCK_USERS: Record<string, UserWithRoles> = {
     // RBAC properties
     roles: [UserRole.SECRETARY, UserRole.SITE_ADMIN],
     permissions: DEFAULT_ROLE_PERMISSIONS[UserRole.SITE_ADMIN],
-    scopes: [{
-      userId: 'dev-user',
-      roleId: 'secretary',
-      scopeType: ScopeType.CLUB,
-      scopeId: 'club-1',
-      createdAt: new Date()
-    }]
+    scopes: [
+      {
+        userId: 'dev-user',
+        roleId: 'secretary',
+        scopeType: ScopeType.CLUB,
+        scopeId: 'club-1',
+        createdAt: new Date(),
+      },
+    ],
   },
 
   'test-secretary-user': {
@@ -420,12 +433,14 @@ export const MOCK_USERS: Record<string, UserWithRoles> = {
     // RBAC properties
     roles: [UserRole.SECRETARY],
     permissions: DEFAULT_ROLE_PERMISSIONS[UserRole.SECRETARY],
-    scopes: [{
-      userId: 'test-secretary-user',
-      roleId: 'secretary',
-      scopeType: ScopeType.CLUB,
-      scopeId: 'club-1',
-      createdAt: new Date()
-    }]
-  }
+    scopes: [
+      {
+        userId: 'test-secretary-user',
+        roleId: 'secretary',
+        scopeType: ScopeType.CLUB,
+        scopeId: 'club-1',
+        createdAt: new Date(),
+      },
+    ],
+  },
 };

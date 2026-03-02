@@ -5,14 +5,13 @@
  * Button to navigate to the preferences page
  */
 
-
 import { Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface PreferencesButtonProps {
-  variant?: 'default' | 'outline' | 'ghost' | 'secondary' | 'destructive' | 'link' | 'premium';
+  variant?: 'default' | 'outline' | 'ghost' | 'secondary' | 'destructive' | 'link';
   size?: 'default' | 'sm' | 'lg' | 'icon';
   showLabel?: boolean;
   className?: string;
@@ -22,7 +21,7 @@ export function PreferencesButton({
   variant = 'ghost',
   size = 'icon',
   showLabel = false,
-  className
+  className,
 }: PreferencesButtonProps) {
   const navigate = useNavigate();
 
@@ -51,9 +50,7 @@ export function PreferencesButton({
   return (
     <TooltipProvider>
       <Tooltip>
-        <TooltipTrigger asChild>
-          {button}
-        </TooltipTrigger>
+        <TooltipTrigger asChild>{button}</TooltipTrigger>
         <TooltipContent>
           <p>Open Preferences</p>
         </TooltipContent>

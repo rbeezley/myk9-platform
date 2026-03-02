@@ -69,7 +69,7 @@ export const showToFormData = (show: Partial<Show>): ShowEditFormData => {
   return {
     name: show.name || '',
     status: show.status || 'draft',
-    type: show.type || '',
+    organization: show.organization || '',
     clubId: show.clubId || '',
     startDate: show.startDate || '',
     endDate: show.endDate || '',
@@ -91,23 +91,27 @@ export const showToFormData = (show: Partial<Show>): ShowEditFormData => {
 };
 
 // Convert form data back to Show
+// Empty strings are omitted so the store skips them — prevents sending ''
+// to Postgres DATE/numeric columns which would fail the entire mutation.
 export const formDataToShow = (formData: ShowEditFormData): Partial<Show> => ({
   name: formData.name,
   status: formData.status,
-  type: formData.type,
+  organization: formData.organization,
   clubId: formData.clubId,
   startDate: formData.startDate,
   endDate: formData.endDate,
-  location: formData.location,
-  chairman: formData.chairman,
-  secretary: formData.secretary,
-  chiefSteward: formData.chiefSteward,
-  entryOpenDate: formData.entryOpenDate,
-  entryCloseDate: formData.entryCloseDate,
-  preEntryFee: formData.preEntryFee,
-  dayOfShowFee: formData.dayOfShowFee,
   assignedJudges: formData.assignedJudges,
   maxEntriesPerDog: formData.maxEntriesPerDog,
   maxTotalEntries: formData.maxTotalEntries,
   allowNonOwnerHandlers: formData.allowNonOwnerHandlers,
+  // Conditionally include optional string fields only when non-empty
+  // (exactOptionalPropertyTypes forbids assigning undefined to string properties)
+  ...(formData.location && { location: formData.location }),
+  ...(formData.chairman && { chairman: formData.chairman }),
+  ...(formData.secretary && { secretary: formData.secretary }),
+  ...(formData.chiefSteward && { chiefSteward: formData.chiefSteward }),
+  ...(formData.entryOpenDate && { entryOpenDate: formData.entryOpenDate }),
+  ...(formData.entryCloseDate && { entryCloseDate: formData.entryCloseDate }),
+  ...(formData.preEntryFee && { preEntryFee: formData.preEntryFee }),
+  ...(formData.dayOfShowFee && { dayOfShowFee: formData.dayOfShowFee }),
 });

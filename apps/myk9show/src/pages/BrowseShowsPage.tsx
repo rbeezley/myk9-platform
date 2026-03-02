@@ -83,8 +83,6 @@ const BrowseShowsPage: React.FC = () => {
     user,
     isLoading,
     hasError,
-    showsError,
-    entriesError,
     shows,
     entries,
     tabConfig,
@@ -190,9 +188,7 @@ const BrowseShowsPage: React.FC = () => {
 
   // Generate breadcrumb items
   const breadcrumbItems = useMemo(() => {
-    const items = [
-      { label: 'Shows', href: '/shows', onClick: () => handleTabChange('all') },
-    ];
+    const items = [{ label: 'Shows', href: '/shows', onClick: () => handleTabChange('all') }];
 
     if (selectedTab !== 'all') {
       const currentTab = tabConfig.tabs.find(tab => tab.id === selectedTab);
@@ -301,9 +297,7 @@ const BrowseShowsPage: React.FC = () => {
         </div>
         <h3 className="text-lg font-semibold mb-2 text-error-red">Error Loading Shows</h3>
         <p className="text-muted-foreground max-w-sm mx-auto mb-6">
-          {showsError?.message ||
-            entriesError ||
-            'There was a problem loading the shows data. Please try again.'}
+          There was a problem loading the shows data. Please try again.
         </p>
         <Button onClick={handleRetry} variant="outline">
           <Download className="h-4 w-4 mr-2" />
@@ -672,7 +666,7 @@ const BrowseShowsPage: React.FC = () => {
                             {tab.label}
                             <Badge
                               variant={selectedTab === tab.id ? 'default' : 'secondary'}
-                              className="text-xs px-1.5 py-0.5 min-w-[20px] justify-center"
+                              className="text-sm px-1.5 py-0.5 min-w-[20px] justify-center"
                             >
                               {count}
                             </Badge>

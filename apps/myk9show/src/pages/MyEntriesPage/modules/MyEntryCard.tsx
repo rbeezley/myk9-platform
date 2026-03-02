@@ -13,7 +13,12 @@ import { EntryStatusStepper } from '@/components/entries/EntryStatusStepper';
 import { Calendar, MapPin, DollarSign, Eye, Edit, Download } from 'lucide-react';
 import { formatDistanceToNow, format, isToday, isTomorrow, differenceInDays } from 'date-fns';
 import type { MyEntry, EntryClass } from './my-entries-types';
-import { getEntryStatusBadge, getPaymentStatusBadge, getStatusIcon, getContextualStatusMessage } from './myEntriesUtils';
+import {
+  getEntryStatusBadge,
+  getPaymentStatusBadge,
+  getStatusIcon,
+  getContextualStatusMessage,
+} from './myEntriesUtils';
 
 interface MyEntryCardProps {
   entry: MyEntry;
@@ -98,7 +103,7 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
       <div className="myk9-entries-classes-section">
         <h5 className="myk9-entries-classes-title">Classes Entered:</h5>
         <div className="myk9-entries-classes-grid">
-          {entry.classes.map((cls) => (
+          {entry.classes.map(cls => (
             <div key={cls.id} className="myk9-entries-class-item">
               <div className="flex items-center gap-2 flex-1">
                 <span className="myk9-entries-class-name">
@@ -109,7 +114,7 @@ export const MyEntryCard: React.FC<MyEntryCardProps> = ({
                 {/* Check-in Status Controls */}
                 <button
                   onClick={() => onCheckInClick(entry, cls)}
-                  className="hover:scale-105 transition-transform"
+                  className="hover:scale-105 active:scale-95 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded transition-transform"
                 >
                   <CheckInStatusIndicator
                     status={cls.checkInStatus || 'none'}

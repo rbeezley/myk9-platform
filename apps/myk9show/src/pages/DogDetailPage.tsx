@@ -34,7 +34,7 @@ const DogDetailPage: React.FC = () => {
   useEffect(() => {
     if (!isLoading && dogs.length > 0 && id) {
       if (!canAccessDog || !dogs.find(d => d.id === id)) {
-        navigate('/dogs', { replace: true });
+        navigate('/dogs', { replace: true, state: { accessDenied: true } });
       }
     }
   }, [isLoading, dogs, id, canAccessDog, navigate]);
@@ -47,8 +47,22 @@ const DogDetailPage: React.FC = () => {
 
   if (isLoading || (dogs.length === 0 && !dog)) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-pulse text-muted-foreground">Loading dog...</div>
+      <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+        <div className="h-8 w-48 bg-muted/50 rounded-lg animate-pulse" />
+        <div className="flex gap-6">
+          <div className="h-48 w-48 bg-muted/50 rounded-xl animate-pulse shrink-0" />
+          <div className="flex-1 space-y-4">
+            <div className="h-6 w-64 bg-muted/50 rounded animate-pulse" />
+            <div className="h-4 w-40 bg-muted/50 rounded animate-pulse" />
+            <div className="h-4 w-56 bg-muted/50 rounded animate-pulse" />
+            <div className="h-4 w-32 bg-muted/50 rounded animate-pulse" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="h-24 bg-muted/50 rounded-lg animate-pulse" />
+          ))}
+        </div>
       </div>
     );
   }

@@ -11,7 +11,7 @@ import { useShowsQuery, useUpdateShowMutation } from '@/hooks/queries/useShowsDa
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useNavigationPerformance } from '@/hooks/useNavigationPerformance';
 import type { Show } from '@/types/show-types';
-import { buildClasses } from '@/utils/designTokens';
+import { Button } from '@/components/ui/button';
 
 const ShowDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -135,11 +135,15 @@ const ShowDetailsPage: React.FC = () => {
   const renderContent = () => {
     if (fastLoading || trialsLoading) {
       return (
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <h1 className="text-xl font-medium text-foreground">Loading show data...</h1>
+        <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+          <div className="h-8 w-48 bg-muted/50 rounded-lg animate-pulse" />
+          <div className="h-48 bg-muted/50 rounded-xl animate-pulse" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-32 bg-muted/50 rounded-lg animate-pulse" />
+            ))}
           </div>
+          <div className="h-64 bg-muted/50 rounded-lg animate-pulse" />
         </div>
       );
     }
@@ -150,12 +154,7 @@ const ShowDetailsPage: React.FC = () => {
           <div className="text-center">
             <h1 className="text-2xl font-bold text-foreground mb-4">Show Not Found</h1>
             <p className="text-muted-foreground mb-4">The show you're looking for doesn't exist.</p>
-            <button
-              onClick={() => startTransition(() => navigate('/shows'))}
-              className={`${buildClasses.button.primary} px-4 py-2 rounded-lg transition-colors`}
-            >
-              Back to Shows
-            </button>
+            <Button onClick={() => startTransition(() => navigate('/shows'))}>Back to Shows</Button>
           </div>
         </div>
       );
@@ -193,12 +192,9 @@ const ShowDetailsPage: React.FC = () => {
               Get started by creating your first show to manage competitions and events.
             </p>
             <div className="flex gap-3 justify-center">
-              <button
-                onClick={() => navigate('/secretary/create-show/wizard')}
-                className={`${buildClasses.button.primary} px-4 py-2 rounded-lg transition-colors`}
-              >
+              <Button onClick={() => navigate('/secretary/create-show/wizard')}>
                 Create Your First Show
-              </button>
+              </Button>
             </div>
           </div>
         </div>

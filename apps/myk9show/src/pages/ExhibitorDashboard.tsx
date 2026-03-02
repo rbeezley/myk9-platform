@@ -57,7 +57,11 @@ const ExhibitorDashboard: React.FC = () => {
 
   // Real data from React Query hooks
   const { user } = useAuthContext();
-  const { data: rawEntries = [], isLoading: entriesLoading, error: entriesError } = useEntriesQuery();
+  const {
+    data: rawEntries = [],
+    isLoading: entriesLoading,
+    error: entriesError,
+  } = useEntriesQuery();
   const { data: stats } = useEntryStatisticsQuery();
   const { data: dogs = [] } = useDogsQuery();
 
@@ -69,13 +73,13 @@ const ExhibitorDashboard: React.FC = () => {
       rawEntries.map((entry: Record<string, unknown>) => ({
         id: (entry.id as string) || '',
         showId: (entry.show_id as string) || '',
-        showName: (entry.show as Record<string, unknown>)?.name as string || 'Unknown Show',
+        showName: ((entry.show as Record<string, unknown>)?.name as string) || 'Unknown Show',
         dogId: (entry.dog_id as string) || '',
         dogName:
           ((entry.dog as Record<string, unknown>)?.call_name as string) ||
           ((entry.dog as Record<string, unknown>)?.name as string) ||
           'Unknown Dog',
-        className: (entry.class as Record<string, unknown>)?.name as string || 'Unknown Class',
+        className: ((entry.class as Record<string, unknown>)?.name as string) || 'Unknown Class',
         entryFee:
           ((entry.class as Record<string, unknown>)?.entry_fee as number) ??
           (entry.entry_fee as number) ??
@@ -93,8 +97,11 @@ const ExhibitorDashboard: React.FC = () => {
   // Calculate statistics from real data
   const statistics = useMemo(() => {
     const activeEntries = entries.filter(e => e.status === 'confirmed').length;
-    const pendingEntries = entries.filter(e => e.status === 'pending' || e.status === 'draft').length;
-    const totalFees = stats?.totalRevenue ?? entries.reduce((sum, entry) => sum + entry.entryFee, 0);
+    const pendingEntries = entries.filter(
+      e => e.status === 'pending' || e.status === 'draft'
+    ).length;
+    const totalFees =
+      stats?.totalRevenue ?? entries.reduce((sum, entry) => sum + entry.entryFee, 0);
     const upcomingShows = entries.filter(e => e.showDate && e.showDate > new Date()).length;
 
     return {
@@ -162,7 +169,9 @@ const ExhibitorDashboard: React.FC = () => {
         <div className="flex items-center justify-center min-h-[60vh]">
           <Card>
             <CardContent className="pt-6 text-center">
-              <p className="text-muted-foreground">Unable to load entries. Please try again later.</p>
+              <p className="text-muted-foreground">
+                Unable to load entries. Please try again later.
+              </p>
               <Button onClick={() => window.location.reload()} variant="outline" className="mt-4">
                 Retry
               </Button>
@@ -195,13 +204,14 @@ const ExhibitorDashboard: React.FC = () => {
                   Exhibitor Dashboard
                 </h1>
                 <p className="text-muted-foreground text-lg font-medium">
-                  Welcome back, {displayName} • {statistics.totalDogs} dog{statistics.totalDogs !== 1 ? 's' : ''} registered
+                  Welcome back, {displayName} • {statistics.totalDogs} dog
+                  {statistics.totalDogs !== 1 ? 's' : ''} registered
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2 text-sm">
               <div className="flex items-center gap-1 px-2 py-1 bg-success-green/10 text-success-green rounded-full">
-                <Activity className="h-3 w-3" />
+                <Activity className="h-4 w-4" />
                 <span className="font-medium">Active</span>
               </div>
               {entries.length > 0 && (
@@ -211,15 +221,15 @@ const ExhibitorDashboard: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            <Button onClick={() => navigate('/shows')}>
+              <Calendar className="h-4 w-4 mr-2" />
+              Enter a Show
+            </Button>
             <Button
-              onClick={() => navigate('/shows')}
+              onClick={() => navigate('/dogs')}
               variant="outline"
               className="border-primary/20 text-primary hover:bg-primary/5 hover:border-primary/40 hover:-translate-y-0.5 transition-all duration-300 shadow-sm"
             >
-              <Search className="h-4 w-4 mr-2" />
-              Browse Shows
-            </Button>
-            <Button onClick={() => navigate('/dogs')}>
               <Heart className="h-4 w-4 mr-2" />
               Manage Dogs
             </Button>
@@ -228,7 +238,7 @@ const ExhibitorDashboard: React.FC = () => {
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:-translate-y-2">
+          <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:-translate-y-2 active:scale-[0.98]">
             <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             <CardHeader className="pb-4 relative">
               <CardTitle className="text-sm font-semibold flex items-center justify-between text-muted-foreground">
@@ -258,7 +268,7 @@ const ExhibitorDashboard: React.FC = () => {
             </CardContent>
           </Card>
 
-          <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:-translate-y-2">
+          <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:-translate-y-2 active:scale-[0.98]">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             <CardHeader className="pb-4 relative">
               <CardTitle className="text-sm font-semibold flex items-center justify-between text-muted-foreground">
@@ -287,7 +297,7 @@ const ExhibitorDashboard: React.FC = () => {
             </CardContent>
           </Card>
 
-          <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:-translate-y-2">
+          <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:-translate-y-2 active:scale-[0.98]">
             <div className="absolute inset-0 bg-gradient-to-br from-success-green/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             <CardHeader className="pb-4 relative">
               <CardTitle className="text-sm font-semibold flex items-center justify-between text-muted-foreground">
@@ -304,14 +314,12 @@ const ExhibitorDashboard: React.FC = () => {
                 {statistics.totalDogs}
               </div>
               <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground font-medium">
-                  Registered dogs
-                </p>
+                <p className="text-sm text-muted-foreground font-medium">Registered dogs</p>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:-translate-y-2">
+          <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:-translate-y-2 active:scale-[0.98]">
             <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             <CardHeader className="pb-4 relative">
               <CardTitle className="text-sm font-semibold flex items-center justify-between text-muted-foreground">
@@ -363,7 +371,7 @@ const ExhibitorDashboard: React.FC = () => {
                 {upcomingEntries.map(entry => (
                   <div
                     key={entry.id}
-                    className="group relative overflow-hidden p-6 border border-border rounded-2xl bg-gradient-to-r from-card to-card/80 hover:from-card/95 hover:to-card/90 transition-all duration-500 hover:shadow-xl hover:-translate-y-1"
+                    className="group relative overflow-hidden p-6 border border-border rounded-2xl bg-gradient-to-r from-card to-card/80 hover:from-card/95 hover:to-card/90 transition-all duration-500 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]"
                   >
                     <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
@@ -379,15 +387,17 @@ const ExhibitorDashboard: React.FC = () => {
                             </h3>
                             <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
                               <div className="flex items-center gap-1">
-                                <MapPin className="h-3 w-3" />
+                                <MapPin className="h-4 w-4" />
                                 <span>{entry.location}</span>
                               </div>
                               <div className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                <span>{entry.showDate ? format(entry.showDate, 'MMM d, yyyy') : 'TBD'}</span>
+                                <Calendar className="h-4 w-4" />
+                                <span>
+                                  {entry.showDate ? format(entry.showDate, 'MMM d, yyyy') : 'TBD'}
+                                </span>
                               </div>
                               <div className="flex items-center gap-1">
-                                <DollarSign className="h-3 w-3" />
+                                <DollarSign className="h-4 w-4" />
                                 <span>${entry.entryFee}</span>
                               </div>
                             </div>
@@ -460,7 +470,7 @@ const ExhibitorDashboard: React.FC = () => {
                 {recentEntries.map(entry => (
                   <div
                     key={entry.id}
-                    className="group relative overflow-hidden p-6 border border-border rounded-2xl bg-gradient-to-r from-card to-card/80 hover:from-card/95 hover:to-card/90 transition-all duration-500 hover:shadow-xl hover:-translate-y-1"
+                    className="group relative overflow-hidden p-6 border border-border rounded-2xl bg-gradient-to-r from-card to-card/80 hover:from-card/95 hover:to-card/90 transition-all duration-500 hover:shadow-xl hover:-translate-y-1 active:scale-[0.99]"
                   >
                     <div className="absolute inset-0 bg-gradient-to-r from-success-green/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
@@ -478,7 +488,9 @@ const ExhibitorDashboard: React.FC = () => {
                               {entry.dogName} • {entry.className}
                             </span>
                             <span>•</span>
-                            <span>{entry.showDate ? format(entry.showDate, 'MMM d, yyyy') : 'TBD'}</span>
+                            <span>
+                              {entry.showDate ? format(entry.showDate, 'MMM d, yyyy') : 'TBD'}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -515,7 +527,7 @@ const ExhibitorDashboard: React.FC = () => {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:-translate-y-2">
+          <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:-translate-y-2 active:scale-[0.98]">
             <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             <CardHeader className="pb-6 relative">
               <CardTitle className="text-xl font-bold flex items-center gap-4">
@@ -541,17 +553,14 @@ const ExhibitorDashboard: React.FC = () => {
                   </Badge>
                 </div>
               </div>
-              <Button
-                onClick={() => navigate('/shows')}
-                className="w-full mt-6 font-semibold py-3"
-              >
+              <Button onClick={() => navigate('/shows')} className="w-full mt-6 font-semibold py-3">
                 <Search className="h-4 w-4 mr-2" />
                 Browse Shows
               </Button>
             </CardContent>
           </Card>
 
-          <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:-translate-y-2">
+          <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:-translate-y-2 active:scale-[0.98]">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             <CardHeader className="pb-6 relative">
               <CardTitle className="text-xl font-bold flex items-center gap-4">
@@ -584,7 +593,7 @@ const ExhibitorDashboard: React.FC = () => {
             </CardContent>
           </Card>
 
-          <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:-translate-y-2">
+          <Card className="group relative overflow-hidden bg-gradient-to-br from-card to-card/80 border border-border rounded-2xl shadow-sm backdrop-blur-xl transition-all duration-500 hover:shadow-xl hover:-translate-y-2 active:scale-[0.98]">
             <div className="absolute inset-0 bg-gradient-to-br from-warning-orange/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             <CardHeader className="pb-6 relative">
               <CardTitle className="text-xl font-bold flex items-center gap-4">

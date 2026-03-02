@@ -540,11 +540,17 @@ function RegistrationWizardContent() {
 // Wrap with RegistrationProvider for RBAC context
 export default function RegistrationWizardPage() {
   const { showId } = useParams<{ showId: string }>();
+  const navigate = useNavigate();
 
   if (!showId) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">No show selected.</p>
+        <div className="text-center space-y-4">
+          <p className="text-muted-foreground">No show selected.</p>
+          <Button variant="outline" onClick={() => navigate('/shows')}>
+            Browse Shows
+          </Button>
+        </div>
       </div>
     );
   }

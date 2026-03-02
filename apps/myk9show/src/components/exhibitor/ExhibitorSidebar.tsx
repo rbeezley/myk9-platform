@@ -1,6 +1,6 @@
 /**
  * Exhibitor Sidebar Navigation Component
- * 
+ *
  * Provides organized navigation for exhibitor dashboard pages
  * Features grouped navigation with Premium design
  * Based on the Admin sidebar pattern
@@ -8,16 +8,7 @@
 
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import {
-  LayoutDashboard,
-  FileText,
-  History,
-  Search,
-  Calendar,
-  Heart,
-  X,
-  User
-} from 'lucide-react';
+import { LayoutDashboard, FileText, History, Search, Calendar, Heart, X, User } from 'lucide-react';
 import { Button } from '../ui/button';
 import { cn } from '@/lib/utils';
 
@@ -47,15 +38,15 @@ const navigationGroups: NavGroup[] = [
         title: 'Dashboard',
         href: '/exhibitor/dashboard',
         icon: LayoutDashboard,
-        description: 'Overview and quick actions'
+        description: 'Overview and quick actions',
       },
       {
         title: 'My Account',
         href: '/exhibitor/account',
         icon: User,
-        description: 'Profile and preferences'
-      }
-    ]
+        description: 'Profile and preferences',
+      },
+    ],
   },
   {
     title: 'My Entries',
@@ -64,15 +55,15 @@ const navigationGroups: NavGroup[] = [
         title: 'Current Entries',
         href: '/exhibitor/entries',
         icon: FileText,
-        description: 'Active show entries'
+        description: 'Active show entries',
       },
       {
         title: 'Entry History',
         href: '/exhibitor/entries/history',
         icon: History,
-        description: 'Past entries and records'
+        description: 'Past entries and records',
       },
-    ]
+    ],
   },
   {
     title: 'Show Discovery',
@@ -81,15 +72,15 @@ const navigationGroups: NavGroup[] = [
         title: 'Browse Shows',
         href: '/shows',
         icon: Search,
-        description: 'Find and explore shows'
+        description: 'Find and explore shows',
       },
       {
         title: 'Event Calendar',
         href: '/calendar',
         icon: Calendar,
-        description: 'Show calendar and schedules'
+        description: 'Show calendar and schedules',
       },
-    ]
+    ],
   },
   {
     title: 'My Dogs',
@@ -98,9 +89,9 @@ const navigationGroups: NavGroup[] = [
         title: 'Dog Profiles',
         href: '/dogs',
         icon: Heart,
-        description: 'Manage your dogs'
+        description: 'Manage your dogs',
       },
-    ]
+    ],
   },
 ];
 
@@ -112,25 +103,26 @@ export const ExhibitorSidebar: React.FC<ExhibitorSidebarProps> = ({ onCloseMobil
     if (location.pathname === href) {
       return true;
     }
-    
+
     // Special handling for routes with sub-routes
     // Don't mark parent routes as active if a more specific child route exists
     const allHrefs = navigationGroups.flatMap(group => group.items.map(item => item.href));
-    const hasMoreSpecificRoute = allHrefs.some(otherHref => 
-      otherHref !== href && 
-      otherHref.startsWith(href + '/') && 
-      location.pathname.startsWith(otherHref)
+    const hasMoreSpecificRoute = allHrefs.some(
+      otherHref =>
+        otherHref !== href &&
+        otherHref.startsWith(href + '/') &&
+        location.pathname.startsWith(otherHref)
     );
-    
+
     if (hasMoreSpecificRoute) {
       return false;
     }
-    
+
     // For other routes, use startsWith logic (but avoid false positives)
     if (href === '/exhibitor/dashboard') {
       return location.pathname === href;
     }
-    
+
     return location.pathname.startsWith(href + '/') || location.pathname === href;
   };
 
@@ -148,15 +140,10 @@ export const ExhibitorSidebar: React.FC<ExhibitorSidebarProps> = ({ onCloseMobil
             </h2>
           </div>
         </div>
-        
+
         {/* Mobile close button */}
         {onCloseMobile && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onCloseMobile}
-            className="md:hidden"
-          >
+          <Button variant="ghost" size="sm" onClick={onCloseMobile} className="md:hidden">
             <X className="h-4 w-4" />
           </Button>
         )}
@@ -171,7 +158,7 @@ export const ExhibitorSidebar: React.FC<ExhibitorSidebarProps> = ({ onCloseMobil
                 {group.title}
               </h3>
               <div className="space-y-1">
-                {group.items.map((item) => {
+                {group.items.map(item => {
                   const isActive = isActivePath(item.href);
                   return (
                     <Link
@@ -179,25 +166,28 @@ export const ExhibitorSidebar: React.FC<ExhibitorSidebarProps> = ({ onCloseMobil
                       to={item.href}
                       onClick={onCloseMobile}
                       className={cn(
-                        "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200",
+                        'group flex items-center gap-3 rounded-lg px-3 py-2.5 min-h-[44px] text-sm transition-all duration-200',
                         isActive
-                          ? "bg-gradient-to-r from-primary/10 to-primary/5 text-primary shadow-sm border-l-2 border-primary"
-                          : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                          ? 'bg-gradient-to-r from-primary/10 to-primary/5 text-primary shadow-sm border-l-2 border-primary'
+                          : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
                       )}
                     >
                       <item.icon
                         className={cn(
-                          "h-4 w-4 transition-colors",
-                          isActive 
-                            ? "text-primary" 
-                            : "text-muted-foreground group-hover:text-foreground"
+                          'h-4 w-4 transition-colors',
+                          isActive
+                            ? 'text-primary'
+                            : 'text-muted-foreground group-hover:text-foreground'
                         )}
                       />
                       <div className="flex-1 min-w-0">
-                        <div className={cn(
-                          "font-medium transition-colors",
-                          isActive ? "text-primary" : ""
-                        )} style={{ fontWeight: isActive ? 500 : 400 }}>
+                        <div
+                          className={cn(
+                            'font-medium transition-colors',
+                            isActive ? 'text-primary' : ''
+                          )}
+                          style={{ fontWeight: isActive ? 500 : 400 }}
+                        >
                           {item.title}
                         </div>
                         {item.description && (
@@ -229,9 +219,7 @@ export const ExhibitorSidebar: React.FC<ExhibitorSidebarProps> = ({ onCloseMobil
               Exhibitor Access
             </span>
           </div>
-          <p className="text-sm text-muted-foreground">
-            Show entry and dog management privileges
-          </p>
+          <p className="text-sm text-muted-foreground">Show entry and dog management privileges</p>
         </div>
       </div>
     </div>

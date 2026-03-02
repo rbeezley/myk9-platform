@@ -29,12 +29,12 @@ import { createEntryCheckoutSession } from '@/lib/stripe';
 export default function CartPage() {
   const navigate = useNavigate();
   const { user } = useAuthContext();
-  const cart = useCartStore((state) => state.cart);
+  const cart = useCartStore(state => state.cart);
   const items = useCartItems();
-  const error = useCartStore((state) => state.error);
-  const removeItem = useCartStore((state) => state.removeItem);
-  const clearCart = useCartStore((state) => state.clearCart);
-  const setError = useCartStore((state) => state.setError);
+  const error = useCartStore(state => state.error);
+  const removeItem = useCartStore(state => state.removeItem);
+  const clearCart = useCartStore(state => state.clearCart);
+  const setError = useCartStore(state => state.setError);
 
   const [removingItemId, setRemovingItemId] = useState<string | null>(null);
   const [showClearDialog, setShowClearDialog] = useState(false);
@@ -82,8 +82,7 @@ export default function CartPage() {
       await createEntryCheckoutSession(cart.id);
       // If we get here, the redirect didn't happen (shouldn't normally occur)
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to start checkout';
-      setError(message);
+      setError('Something went wrong starting checkout. Please try again.');
       setIsCheckingOut(false);
     }
   };
@@ -124,12 +123,7 @@ export default function CartPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="default"
-              onClick={() => navigate(-1)}
-              className="gap-1"
-            >
+            <Button variant="ghost" size="default" onClick={() => navigate(-1)} className="gap-1">
               <ArrowLeft className="h-4 w-4" />
               Back
             </Button>
@@ -141,10 +135,7 @@ export default function CartPage() {
               {cart.show && (
                 <p className="text-sm text-muted-foreground mt-1">
                   Entering:{' '}
-                  <Link
-                    to={`/shows/${cart.show.id}`}
-                    className="text-primary hover:underline"
-                  >
+                  <Link to={`/shows/${cart.show.id}`} className="text-primary hover:underline">
                     {cart.show.name}
                   </Link>
                 </p>
@@ -183,7 +174,7 @@ export default function CartPage() {
               </h2>
             </div>
 
-            {items.map((item) => (
+            {items.map(item => (
               <CartItemCard
                 key={item.id}
                 item={item}
@@ -212,8 +203,8 @@ export default function CartPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Clear cart?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will remove all {items.length} {items.length === 1 ? 'entry' : 'entries'} from your cart.
-              This action cannot be undone.
+              This will remove all {items.length} {items.length === 1 ? 'entry' : 'entries'} from
+              your cart. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

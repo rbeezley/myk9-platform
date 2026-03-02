@@ -298,7 +298,7 @@ const EditEntryDialog: React.FC<EditEntryDialogProps> = ({ dialog, onClose, onUp
 
 interface ReceiptEntryDialogProps {
   dialog: ReceiptDialogState;
-  user: { email?: string } | null;
+  user: { email?: string; user_metadata?: Record<string, string> } | null;
   onClose: () => void;
 }
 
@@ -311,7 +311,7 @@ const ReceiptEntryDialog: React.FC<ReceiptEntryDialogProps> = ({ dialog, user, o
     entry.paymentStatus === PaymentStatus.PAID_BY_CHECK ||
     entry.paymentStatus === PaymentStatus.PAID_BY_CASH;
 
-  const exhibitorName = user?.email?.split('@')[0];
+  const exhibitorName = user?.user_metadata?.full_name || user?.email?.split('@')[0];
   const exhibitorEmail = user?.email;
 
   // Map classes to match EntryReceipt's expected type

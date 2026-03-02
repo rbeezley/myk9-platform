@@ -6,6 +6,10 @@ Project guidance for Claude Code when working with the myK9 Platform monorepo.
 
 This is a TypeScript monorepo. Always use TypeScript (not JavaScript). When fixing types, verify property names match the actual schema/interface definitions — do not guess.
 
+## Intent & Emotional Design
+
+**Before making UX-facing changes, read [`docs/INTENT.md`](docs/INTENT.md).** It defines the emotional intent behind each role's experience. Every optimization, refactoring, or "improvement" to user-facing code should preserve the target feeling for that role. If code has an `// INTENT:` comment, do not remove or change the described behavior without explicit approval.
+
 ## Development Principles
 
 1. **Best practices by default** — Follow established patterns, conventions, and standards
@@ -15,6 +19,7 @@ This is a TypeScript monorepo. Always use TypeScript (not JavaScript). When fixi
 5. **Follow DRY principles** — Don't Repeat Yourself. Create reusable components if possible
 6. **Follow SLC** — Simple, Lovable, Complete. Avoid feature bloat (Simple). Prioritize UX polish, error states, and "delight" (Lovable). Deliver end-to-end functionality with zero placeholders or TODOs (Complete)
 7. **Keep files under 500 lines** — Extract types, helpers, and constants into sibling modules
+8. **Protect intent** — When code looks "wrong" but has an `// INTENT:` comment, it's deliberate. When making UX changes, check if they preserve the role's target feeling (see `docs/INTENT.md`)
 
 ## Commands
 

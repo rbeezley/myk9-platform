@@ -139,11 +139,49 @@ Before shipping any feature, ask:
 
 ---
 
+## 5. Protecting Intent From Erosion
+
+Every optimization — even a reasonable one — can sand off the emotional layer if the builder doesn't know *why* something was done that way. This is "intent erosion": the software gets functionally better but emotionally flatter, one perfectly reasonable change at a time.
+
+### The `// INTENT:` Comment Convention
+
+When code encodes a deliberate UX or brand decision that might look wrong, unnecessary, or ripe for "improvement," mark it:
+
+```typescript
+// INTENT: Judges redirect to /exhibitor/dashboard (not /judge/dashboard)
+// because the judge dashboard isn't ready for production yet.
+// When it is, update this AND the judge onboarding flow.
+navigate('/exhibitor/dashboard', { replace: true });
+
+// INTENT: The southern-style greeting in the support agent is intentional
+// brand voice, not informal tone. Do not "professionalize" it.
+const greeting = "Hey there! How can I help y'all today?";
+
+// INTENT: This 200ms delay before showing the score confirmation is
+// deliberate. It prevents judges from accidentally double-tapping
+// through scores. Do not remove as a "performance optimization."
+await delay(200);
+```
+
+Use `// INTENT:` when:
+- A design choice looks like a bug or oversight but isn't
+- Removing or "fixing" something would break the emotional experience
+- A trade-off was made deliberately (slower but calmer, less efficient but simpler)
+- The *why* behind a decision matters more than the *what*
+
+### Put Intent in the Builder's Path
+
+This document is referenced in `CLAUDE.md` so that AI tools building on this codebase encounter it before making UX-facing changes. When onboarding new developers, point them here before they start changing things.
+
+---
+
 ## How to Use This Document
 
 - **New features:** Check against the role intent map and design guardrails before building.
 - **Existing features:** When touching a screen for other reasons, check alignment and improve incrementally.
 - **Design disagreements:** Use the role's intent word and the litmus test as tiebreakers.
 - **Code reviews:** Flag anything that violates the guardrails.
+- **Before refactoring UX code:** Read the relevant role section. Ask whether the change preserves the target feeling.
+- **When something looks "wrong":** Check for `// INTENT:` comments before "fixing" it.
 
 This is a living document. Update it as we learn more about our users.

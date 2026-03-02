@@ -31,11 +31,9 @@ export const STORE_CATEGORIES = {
     'classStore', // Class management
     'trialStore', // Trial management
     'competitionStore', // Competition management
-    'achievementsStore', // Achievement tracking
     'armbandStore', // Armband management
     'draftStore', // Draft management
     'offlineScoringStore', // Offline scoring
-    'pastResultsStore', // Past results
     'searchAnalyticsStore', // Search analytics
     'showRegistrationStore', // Show registration
   ],

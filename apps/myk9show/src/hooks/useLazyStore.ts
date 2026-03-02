@@ -32,7 +32,7 @@ export function useLazyStore(storeName: StoreName) {
     isLoading,
     error: getStoreError(storeName),
     // Derived from actual state - true if loading has started or completed
-    hasAttemptedLoad: isLoaded || isLoading
+    hasAttemptedLoad: isLoaded || isLoading,
   };
 }
 
@@ -63,7 +63,7 @@ export function useLazyStores(storeNames: StoreName[]) {
     allLoaded,
     anyLoading,
     // Derived from actual state - true if loading has started or completed
-    hasAttemptedLoad: allLoaded || anyLoading
+    hasAttemptedLoad: allLoaded || anyLoading,
   };
 }
 
@@ -74,31 +74,31 @@ export function useLazyStores(storeNames: StoreName[]) {
 export function usePageStores(pageName: string) {
   const storeGroups: Record<string, StoreName[]> = {
     // Homepage - minimal stores needed
-    'home': ['showStore'],
-    
+    home: ['showStore'],
+
     // Users pages
-    'people': ['userStore', 'searchHistoryStore'],
+    people: ['userStore', 'searchHistoryStore'],
     'people-details': ['userStore', 'dogStore'],
-    
-    // Dog pages  
-    'dogs': ['dogStore', 'userStore'],
-    'dog-details': ['dogStore', 'userStore', 'competitionStore', 'achievementsStore'],
-    
+
+    // Dog pages
+    dogs: ['dogStore', 'userStore'],
+    'dog-details': ['dogStore', 'userStore', 'competitionStore'],
+
     // Show pages
-    'shows': ['showStore', 'clubStore'],
+    shows: ['showStore', 'clubStore'],
     'show-details': ['showStore', 'clubStore', 'entryStore', 'classStore'],
     'show-create': ['showStore', 'wizardStore', 'templateStore'],
-    
+
     // Admin pages
     'admin-templates': ['templateStore', 'classTemplateStore', 'showTemplateStore'],
     'admin-dashboard': ['showStore', 'entryStore', 'userStore', 'dogStore'],
-    
+
     // Secretary pages
-    'secretary': ['showStore', 'entryStore', 'registrationsStore', 'armbandStore'],
+    secretary: ['showStore', 'entryStore', 'registrationsStore', 'armbandStore'],
     'class-creation': ['classCreationStore', 'templateStore', 'showStore'],
-    
+
     // Judge pages
-    'judge': ['showStore', 'classStore', 'entryStore', 'offlineScoringStore'],
+    judge: ['showStore', 'classStore', 'entryStore', 'offlineScoringStore'],
   };
 
   const requiredStores = storeGroups[pageName] || [];
@@ -108,7 +108,7 @@ export function usePageStores(pageName: string) {
     requiredStores,
     allLoaded,
     anyLoading,
-    isPageReady: allLoaded
+    isPageReady: allLoaded,
   };
 }
 

@@ -63,11 +63,9 @@ const STORE_IMPORTS: Record<StoreName, () => Promise<Record<string, unknown>>> =
   classStore: () => import('@/store/classStore'),
   trialStore: () => import('@/store/trialStore'),
   competitionStore: () => import('@/store/competitionStore'),
-  achievementsStore: () => import('@/store/achievementsStore'),
   armbandStore: () => import('@/store/armbandStore'),
   draftStore: () => import('@/store/draftStore'),
   offlineScoringStore: () => import('@/store/offlineScoringStore'),
-  pastResultsStore: () => import('@/store/pastResultsStore'),
   searchAnalyticsStore: () => import('@/store/searchAnalyticsStore'),
   showRegistrationStore: () => import('@/store/showRegistrationStore'),
 };

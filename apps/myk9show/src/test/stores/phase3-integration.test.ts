@@ -4,16 +4,12 @@ import 'fake-indexeddb/auto';
 // Store imports
 import { useRegistrationsStore } from '@/store/registrationsStore';
 import { useCompetitionStore } from '@/store/competitionStore';
-import { useAchievementsStore } from '@/store/achievementsStore';
-import { usePastResultsStore } from '@/store/pastResultsStore';
 import { useShowRegistrationStore } from '@/store/showRegistrationStore';
 import { useArmbandStore } from '@/store/armbandStore';
 
 // Type imports
 import type { Registration } from '@/types/dog-types';
 import type { Competition } from '@/types/competition-types';
-import type { Achievement } from '@/types/achievement-types';
-import type { PastResult } from '@/types/results-types';
 // Unused type imports removed for lint compliance
 
 describe('Phase 3 Integration Tests - Registration & Competition Stores', () => {
@@ -97,64 +93,6 @@ describe('Phase 3 Integration Tests - Registration & Competition Stores', () => 
         .getState()
         .competitions.find(c => c.id === 'comp-test-1');
       expect(addedCompetition).toEqual(testCompetition);
-    });
-  });
-
-  describe('AchievementsStore Integration', () => {
-    it('should persist achievements to IndexedDB', async () => {
-      const store = useAchievementsStore.getState();
-      const initialCount = store.achievements.length;
-
-      const testAchievement: Achievement = {
-        id: 'ach-test-1',
-        dogId: 'dog-test-1',
-        title: 'Best in Show',
-        date: new Date(),
-        event: 'Test Show',
-        category: 'conformation',
-        level: 'major',
-        points: 10,
-      };
-
-      store.addAchievement(testAchievement);
-
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      expect(useAchievementsStore.getState().achievements).toHaveLength(initialCount + 1);
-      const addedAchievement = useAchievementsStore
-        .getState()
-        .achievements.find(a => a.id === 'ach-test-1');
-      expect(addedAchievement).toEqual(testAchievement);
-    });
-  });
-
-  describe('PastResultsStore Integration', () => {
-    it('should persist past results to IndexedDB', async () => {
-      const store = usePastResultsStore.getState();
-      const initialCount = store.results.length;
-
-      const testResult: PastResult = {
-        id: 'result-test-1',
-        dogId: 'dog-test-1',
-        showId: 'show-test-1',
-        eventName: 'Test Show',
-        date: new Date(),
-        placement: 1,
-        totalEntries: 10,
-        className: 'Open Dog',
-        judgeName: 'Test Judge',
-        points: 5,
-      };
-
-      store.addResult(testResult);
-
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      expect(usePastResultsStore.getState().results).toHaveLength(initialCount + 1);
-      const addedResult = usePastResultsStore
-        .getState()
-        .results.find(r => r.id === 'result-test-1');
-      expect(addedResult).toEqual(testResult);
     });
   });
 
@@ -312,8 +250,6 @@ describe('Phase 3 Integration Tests - Registration & Competition Stores', () => 
       const stores = [
         useRegistrationsStore,
         useCompetitionStore,
-        useAchievementsStore,
-        usePastResultsStore,
         useShowRegistrationStore,
         useArmbandStore,
       ];

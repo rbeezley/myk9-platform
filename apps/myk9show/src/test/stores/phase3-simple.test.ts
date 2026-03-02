@@ -4,16 +4,12 @@ import 'fake-indexeddb/auto';
 // Store imports
 import { useRegistrationsStore } from '@/store/registrationsStore';
 import { useCompetitionStore } from '@/store/competitionStore';
-import { useAchievementsStore } from '@/store/achievementsStore';
-import { usePastResultsStore } from '@/store/pastResultsStore';
 import { useShowRegistrationStore } from '@/store/showRegistrationStore';
 import { useArmbandStore } from '@/store/armbandStore';
 
 // Type imports
 import type { Registration } from '@/types/dog-types';
 import type { Competition } from '@/types/competition-types';
-import type { Achievement } from '@/types/achievement-types';
-import type { PastResult } from '@/types/results-types';
 
 describe('Phase 3 Store Configuration Tests', () => {
   beforeEach(() => {
@@ -38,24 +34,6 @@ describe('Phase 3 Store Configuration Tests', () => {
       expect(typeof store.editCompetition).toBe('function');
       expect(typeof store.deleteCompetition).toBe('function');
       expect(Array.isArray(store.competitions)).toBe(true);
-    });
-
-    it('should have properly configured achievements store', () => {
-      const store = useAchievementsStore.getState();
-
-      expect(typeof store.addAchievement).toBe('function');
-      expect(typeof store.editAchievement).toBe('function');
-      expect(typeof store.deleteAchievement).toBe('function');
-      expect(Array.isArray(store.achievements)).toBe(true);
-    });
-
-    it('should have properly configured past results store', () => {
-      const store = usePastResultsStore.getState();
-
-      expect(typeof store.addResult).toBe('function');
-      expect(typeof store.editResult).toBe('function');
-      expect(typeof store.deleteResult).toBe('function');
-      expect(Array.isArray(store.results)).toBe(true);
     });
 
     it('should have properly configured show registration store', () => {
@@ -129,42 +107,6 @@ describe('Phase 3 Store Configuration Tests', () => {
       expect(found).toEqual(testCompetition);
     });
 
-    it('should handle achievement operations', () => {
-      const testAchievement: Achievement = {
-        id: 'test-ach-1',
-        dogId: 'test-dog-1',
-        title: 'Best in Show',
-        date: new Date(),
-        event: 'Test Show',
-        category: 'conformation',
-        level: 'major',
-        points: 10,
-      };
-
-      useAchievementsStore.getState().addAchievement(testAchievement);
-      const found = useAchievementsStore.getState().achievements.find(a => a.id === 'test-ach-1');
-      expect(found).toEqual(testAchievement);
-    });
-
-    it('should handle past result operations', () => {
-      const testResult: PastResult = {
-        id: 'test-result-1',
-        dogId: 'test-dog-1',
-        showId: 'test-show-1',
-        eventName: 'Test Show',
-        date: new Date(),
-        placement: 1,
-        totalEntries: 10,
-        className: 'Open Dog',
-        judgeName: 'Test Judge',
-        points: 5,
-      };
-
-      usePastResultsStore.getState().addResult(testResult);
-      const found = usePastResultsStore.getState().results.find(r => r.id === 'test-result-1');
-      expect(found).toEqual(testResult);
-    });
-
     it('should handle show registration operations', () => {
       const store = useShowRegistrationStore.getState();
 
@@ -204,8 +146,6 @@ describe('Phase 3 Store Configuration Tests', () => {
       const stores = [
         { name: 'registrations', store: useRegistrationsStore },
         { name: 'competition', store: useCompetitionStore },
-        { name: 'achievements', store: useAchievementsStore },
-        { name: 'pastResults', store: usePastResultsStore },
         { name: 'showRegistration', store: useShowRegistrationStore },
         { name: 'armband', store: useArmbandStore },
       ];

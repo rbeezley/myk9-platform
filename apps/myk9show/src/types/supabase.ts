@@ -1415,6 +1415,90 @@ export type Database = {
           },
         ]
       }
+      manual_results: {
+        Row: {
+          created_at: string
+          dog_id: string
+          element: string
+          id: string
+          judge: string | null
+          level: string
+          location: string | null
+          notes: string | null
+          organization: string
+          owner_id: string
+          placement: number | null
+          points_earned: number | null
+          result_status: string
+          search_time_seconds: number | null
+          section: string | null
+          show_name: string
+          source: string
+          sport_template_id: string | null
+          trial_date: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          dog_id: string
+          element: string
+          id?: string
+          judge?: string | null
+          level: string
+          location?: string | null
+          notes?: string | null
+          organization: string
+          owner_id: string
+          placement?: number | null
+          points_earned?: number | null
+          result_status?: string
+          search_time_seconds?: number | null
+          section?: string | null
+          show_name: string
+          source?: string
+          sport_template_id?: string | null
+          trial_date: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          dog_id?: string
+          element?: string
+          id?: string
+          judge?: string | null
+          level?: string
+          location?: string | null
+          notes?: string | null
+          organization?: string
+          owner_id?: string
+          placement?: number | null
+          points_earned?: number | null
+          result_status?: string
+          search_time_seconds?: number | null
+          section?: string | null
+          show_name?: string
+          source?: string
+          sport_template_id?: string | null
+          trial_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manual_results_dog_id_fkey"
+            columns: ["dog_id"]
+            isOneToOne: false
+            referencedRelation: "dogs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manual_results_sport_template_id_fkey"
+            columns: ["sport_template_id"]
+            isOneToOne: false
+            referencedRelation: "sport_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       medications: {
         Row: {
           created_at: string | null

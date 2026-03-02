@@ -7,6 +7,7 @@ import {
   fetchSportTemplateWithRules,
   fetchClassRulesForTemplate,
   fetchTitlesForTemplate,
+  fetchAllSportTitles,
 } from '@/services/sportTemplateService';
 import { mapSportTemplateToClassTemplate } from '@/types/sport-template-types';
 import type { ClassTemplate } from '@/types/template.types';
@@ -39,7 +40,7 @@ export function useAllSportTemplatesAsClassTemplates() {
     queryKey: [...queryKeys.sportTemplates, 'as-class-templates'],
     queryFn: async () => {
       const rows = await fetchAllSportTemplatesWithRules();
-      return rows.map((row) => mapSportTemplateToClassTemplate(row, row.sport_class_rules));
+      return rows.map(row => mapSportTemplateToClassTemplate(row, row.sport_class_rules));
     },
     ...cacheStrategies.static,
   });
@@ -61,6 +62,15 @@ export function useSportTitlesQuery(templateId: string, enabled = true) {
     queryKey: queryKeys.sportTemplateTitles(templateId),
     queryFn: () => fetchTitlesForTemplate(templateId),
     enabled: !!templateId && enabled,
+    ...cacheStrategies.static,
+  });
+}
+
+/** All sport title definitions across all templates (static cache). */
+export function useAllSportTitlesQuery() {
+  return useQuery({
+    queryKey: [...queryKeys.sportTemplates, 'all-titles'],
+    queryFn: fetchAllSportTitles,
     ...cacheStrategies.static,
   });
 }

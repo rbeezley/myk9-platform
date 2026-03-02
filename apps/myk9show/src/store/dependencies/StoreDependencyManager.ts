@@ -162,24 +162,10 @@ export class StoreDependencyManager {
       canLazyLoad: true,
     });
 
-    this.addDependency('pastResultsStore', {
-      requiredStores: ['competitionStore'],
-      optionalStores: [],
-      loadPriority: 3,
-      canLazyLoad: true,
-    });
-
     // Utility stores
     this.addDependency('armbandStore', {
       requiredStores: ['entryStore', 'classStore'],
       optionalStores: [],
-      loadPriority: 3,
-      canLazyLoad: true,
-    });
-
-    this.addDependency('achievementsStore', {
-      requiredStores: ['dogStore'],
-      optionalStores: ['competitionStore'],
       loadPriority: 3,
       canLazyLoad: true,
     });

@@ -188,26 +188,10 @@ export class OptimizedDependencyManager {
       parallelGroup: 'competition-secondary',
     });
 
-    this.addDependency('pastResultsStore', {
-      requiredStores: ['competitionStore'],
-      optionalStores: [],
-      loadPriority: 11,
-      canLazyLoad: true,
-      parallelGroup: 'competition-secondary',
-    });
-
     // Utility stores - can load in parallel
     this.addDependency('armbandStore', {
       requiredStores: ['entryStore', 'classStore'],
       optionalStores: [],
-      loadPriority: 12,
-      canLazyLoad: true,
-      parallelGroup: 'utility',
-    });
-
-    this.addDependency('achievementsStore', {
-      requiredStores: ['dogStore'],
-      optionalStores: ['competitionStore'],
       loadPriority: 12,
       canLazyLoad: true,
       parallelGroup: 'utility',

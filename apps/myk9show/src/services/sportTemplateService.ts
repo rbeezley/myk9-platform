@@ -20,7 +20,9 @@ export async function fetchAllSportTemplates(): Promise<SportTemplateRow[]> {
   return data as SportTemplateRow[];
 }
 
-export async function fetchSportTemplateByCode(sportCode: string): Promise<SportTemplateRow | null> {
+export async function fetchSportTemplateByCode(
+  sportCode: string
+): Promise<SportTemplateRow | null> {
   const { data, error } = await supabase
     .from('sport_templates')
     .select('*')
@@ -54,6 +56,12 @@ export async function fetchTitlesForTemplate(templateId: string): Promise<SportT
     .select('*')
     .eq('sport_template_id', templateId)
     .order('sort_order');
+  if (error) throw error;
+  return data as SportTitleRow[];
+}
+
+export async function fetchAllSportTitles(): Promise<SportTitleRow[]> {
+  const { data, error } = await supabase.from('sport_titles').select('*').order('sort_order');
   if (error) throw error;
   return data as SportTitleRow[];
 }

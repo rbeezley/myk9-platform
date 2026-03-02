@@ -140,6 +140,11 @@ export type DbExhibitorProfile = Tables['exhibitor_profiles']['Row'];
 export type DbExhibitorProfileInsert = Tables['exhibitor_profiles']['Insert'];
 export type DbExhibitorProfileUpdate = Tables['exhibitor_profiles']['Update'];
 
+// Manual results types
+export type DbManualResult = Tables['manual_results']['Row'];
+export type DbManualResultInsert = Tables['manual_results']['Insert'];
+export type DbManualResultUpdate = Tables['manual_results']['Update'];
+
 // Type guards for safer type checking
 export const isDogRecord = (record: unknown): record is DbDog => {
   return (
@@ -253,6 +258,9 @@ export const TABLE_NAMES = {
   // Training
   TRAINING_JOURNAL_ENTRIES: 'training_journal_entries',
   TRAINING_MILESTONES: 'training_milestones',
+
+  // Manual results
+  MANUAL_RESULTS: 'manual_results',
 } as const;
 
 // Type for table names

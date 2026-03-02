@@ -134,7 +134,7 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
           <TabsContent value="competitions" className="pt-6">
             {isPremium ? (
               <Suspense fallback={<TabContentSkeleton />}>
-                <CompetitionsTabs />
+                <CompetitionsTabs dogId={dog.id} />
               </Suspense>
             ) : (
               <PremiumGate
@@ -148,7 +148,7 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
           <TabsContent value="title-progress" className="pt-6">
             {isPremium ? (
               <Suspense fallback={<TabContentSkeleton />}>
-                <TitleProgressSection initialTitleProgressList={[]} />
+                <TitleProgressSection dogId={dog.id} />
               </Suspense>
             ) : (
               <PremiumGate

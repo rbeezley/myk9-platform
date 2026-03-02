@@ -99,7 +99,7 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
 
   useDraftPersistence(showId, userId, currentStepId, {
     autoSaveInterval: 30000, // 30 seconds
-    debug: process.env.NODE_ENV === 'development',
+    debug: import.meta.env.DEV,
   });
 
   // Optimistic updates
@@ -192,7 +192,7 @@ export function RegistrationWorkflow({ showId, onComplete, onCancel }: Registrat
   // Auto-assign dog owners as handlers for each entry (dog+class) when selections change.
   // Uses render-time sync pattern: compare a derived key to detect changes.
   const classSelectionsKey = classSelections
-    .flatMap(s => s.selectedClasses.map(c => `${s.dogId}|${c.classId}`))
+    .flatMap(s => s.selectedClasses.map(c => makeHandlerKey(s.dogId, c.classId)))
     .sort()
     .join(',');
   const [prevClassSelectionsKey, setPrevClassSelectionsKey] = useState(classSelectionsKey);

@@ -8,8 +8,9 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { getErrorMessage } from '@myk9/core';
+import { notifications } from '@/lib/notifications';
 import { useShowRegistrationStore } from '@/store/showRegistrationStore';
 import {
   ClassSelectionData,
@@ -42,7 +43,9 @@ import {
 } from '@/components/shows/RegistrationWorkflow/RegistrationWorkflow.constants';
 
 function RegistrationWizardContent() {
-  const { showId } = useParams<{ showId: string }>();
+  const { showId: showIdParam } = useParams<{ showId: string }>();
+  // showId is guaranteed by the outer RegistrationWizardPage guard
+  const showId = showIdParam!;
   const navigate = useNavigate();
 
   // Auth and permissions
@@ -54,7 +57,7 @@ function RegistrationWizardContent() {
   // Data stores
   const { dogs } = useDogStoreCompat();
   const { shows = [] } = useShowStore();
-  const currentShow = shows.find(s => s.id === showId);
+  const currentShow = useMemo(() => shows.find(s => s.id === showId), [shows, showId]);
 
   // Determine workflow mode
   const currentWorkflowMode: WorkflowMode = useMemo(() => {
@@ -109,7 +112,7 @@ function RegistrationWizardContent() {
 
   useDraftPersistence(showId || '', userId, currentStepId, {
     autoSaveInterval: 30000,
-    debug: process.env.NODE_ENV === 'development',
+    debug: import.meta.env.DEV,
   });
 
   // Optimistic updates
@@ -154,12 +157,14 @@ function RegistrationWizardContent() {
     }
   };
 
-  const getCompletedSteps = () => {
+  const completedSteps = useMemo(() => {
     return steps
-      .map((step, index) => ({ step, index }))
-      .filter(({ index }) => isStepCompleted(index))
-      .map(({ index }) => index);
-  };
+      .map((_step, index) => index)
+      .filter(index => {
+        const stepId = currentWorkflowConfig.steps[index];
+        return stepId ? stepCompletionState[stepId] || false : false;
+      });
+  }, [steps, currentWorkflowConfig.steps, stepCompletionState]);
 
   // Sync draft data
   useEffect(() => {
@@ -190,10 +195,14 @@ function RegistrationWizardContent() {
   ]);
 
   // Auto-assign handlers for each entry (dog+class) when class selections change
-  const classSelectionsKey = classSelections
-    .flatMap(s => s.selectedClasses.map(c => `${s.dogId}|${c.classId}`))
-    .sort()
-    .join(',');
+  const classSelectionsKey = useMemo(
+    () =>
+      classSelections
+        .flatMap(s => s.selectedClasses.map(c => makeHandlerKey(s.dogId, c.classId)))
+        .sort()
+        .join(','),
+    [classSelections]
+  );
   const [prevClassSelectionsKey, setPrevClassSelectionsKey] = useState(classSelectionsKey);
   if (
     classSelectionsKey !== prevClassSelectionsKey &&
@@ -270,7 +279,7 @@ function RegistrationWizardContent() {
     if (!isLastStep) {
       setCurrentStep(prev => prev + 1);
     } else {
-      toast.success('Registration completed successfully');
+      notifications.success('Registration completed successfully');
       navigate(`/shows/${showId}`);
     }
   };
@@ -297,9 +306,7 @@ function RegistrationWizardContent() {
     try {
       await updateDogSelection(selectedDogs);
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Failed to update dog selection';
-      toast.error(errorMessage);
+      notifications.error(getErrorMessage(error));
     }
   };
 
@@ -309,9 +316,7 @@ function RegistrationWizardContent() {
     try {
       await updateClassSelections(selections);
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Failed to update class selections';
-      toast.error(errorMessage);
+      notifications.error(getErrorMessage(error));
     }
   };
 
@@ -321,9 +326,7 @@ function RegistrationWizardContent() {
     try {
       await updateHandlerAssignments(assignments);
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Failed to update handler assignments';
-      toast.error(errorMessage);
+      notifications.error(getErrorMessage(error));
     }
   };
 
@@ -366,16 +369,8 @@ function RegistrationWizardContent() {
       stepCompletionState: draft.data._workflowState?.stepCompletionState || {},
     });
 
-    toast.success('Draft loaded successfully');
+    notifications.success('Draft loaded successfully');
   };
-
-  if (!showId) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">No show selected.</p>
-      </div>
-    );
-  }
 
   return (
     <RegistrationErrorBoundary>
@@ -423,12 +418,9 @@ function RegistrationWizardContent() {
                     <VerticalProgressIndicator
                       steps={steps}
                       currentStep={currentStep}
-                      completedSteps={getCompletedSteps()}
+                      completedSteps={completedSteps}
                       onStepClick={(step: number) => {
-                        if (
-                          isStepCompleted(step) ||
-                          step <= Math.max(-1, ...getCompletedSteps()) + 1
-                        ) {
+                        if (isStepCompleted(step) || step <= Math.max(-1, ...completedSteps) + 1) {
                           setCurrentStep(step);
                         }
                       }}
@@ -457,7 +449,7 @@ function RegistrationWizardContent() {
                       userId={userId}
                       currentStep={currentStepId}
                       onDraftLoaded={handleDraftLoaded}
-                      onDraftSaved={() => toast.success('Draft saved')}
+                      onDraftSaved={() => notifications.success('Draft saved')}
                     />
                   </div>
 

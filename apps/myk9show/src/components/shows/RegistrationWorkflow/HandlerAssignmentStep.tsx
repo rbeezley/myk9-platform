@@ -6,7 +6,12 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
-import { ClassSelectionData, HandlerInfo, makeHandlerKey } from '@/types/show-registration-types';
+import {
+  ClassSelectionData,
+  HandlerInfo,
+  makeHandlerKey,
+  parseHandlerKey,
+} from '@/types/show-registration-types';
 import { getDogDisplayName } from '@/types/dog-types';
 import { HandlerSelectionDialog } from './HandlerSelectionDialog';
 
@@ -28,6 +33,9 @@ export const HandlerAssignmentStep: React.FC<HandlerAssignmentStepProps> = ({
   // editingKey: handler key (dogId|classId) for single entry, or "all|dogId" for set-all
   const [editingKey, setEditingKey] = useState<string | null>(null);
 
+  // Pre-build lookup maps for O(1) access
+  const classMap = useMemo(() => new Map(classes.map(c => [c.id, c])), [classes]);
+
   // Build grouped data: entries grouped by dog
   const dogGroups = useMemo(() => {
     return selectedDogs
@@ -38,7 +46,7 @@ export const HandlerAssignmentStep: React.FC<HandlerAssignmentStepProps> = ({
         const dogClassSelections = classSelections.filter(s => s.dogId === dogId);
         const entries = dogClassSelections.flatMap(s =>
           s.selectedClasses.map(cls => {
-            const classData = classes.find(c => c.id === cls.classId);
+            const classData = classMap.get(cls.classId);
             const key = makeHandlerKey(dogId, cls.classId);
             const handler = handlerAssignments[key];
             return {
@@ -54,7 +62,7 @@ export const HandlerAssignmentStep: React.FC<HandlerAssignmentStepProps> = ({
         return { dog, entries };
       })
       .filter((g): g is NonNullable<typeof g> => g !== null && g.entries.length > 0);
-  }, [selectedDogs, dogs, classSelections, classes, handlerAssignments]);
+  }, [selectedDogs, dogs, classSelections, classMap, handlerAssignments]);
 
   // Check if all entries are assigned
   const totalEntries = dogGroups.reduce((sum, g) => sum + g.entries.length, 0);
@@ -100,9 +108,7 @@ export const HandlerAssignmentStep: React.FC<HandlerAssignmentStepProps> = ({
   const editingDogId = useMemo(() => {
     if (!editingKey) return null;
     if (editingKey.startsWith('all|')) return editingKey.slice(4);
-    // Parse the handler key to get dogId
-    const pipeIndex = editingKey.indexOf('|');
-    return pipeIndex >= 0 ? editingKey.slice(0, pipeIndex) : null;
+    return parseHandlerKey(editingKey).dogId;
   }, [editingKey]);
 
   if (isLoading) {
